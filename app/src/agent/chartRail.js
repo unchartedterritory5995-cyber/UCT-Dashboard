@@ -772,6 +772,95 @@ export function removalTargets(w, host, { selected = null, subject = null, picke
   for (const r of excluded) ids.delete(r)
   return { ids, ambiguous, excluded, all, pronoun, anchors: relation?.anchors || new Set() }
 }
+// ⛔ RELATION-WORD REMOVALS (D31 P2 shadow report, 2026-11-17 — production applied the ANCHOR / a pick): "the other one", "the
+// others", "the other two", "the rest", "both of them", "both charts", "the chart after / before X" in a destroying request. The
+// rails had no reading for them: "the others" passed as a set removal (SET_REMOVAL) and the plan's own pick — the clicked chart
+// included — was applied. FAIL-CLOSED: such a request applies only when its target resolves to exactly what the words fit, and never
+// to the anchor; anything else is asked (no anchor / several fits / a count that does not fit) or refused (the anchor, a chart outside).
+//   complement   the board minus the ANCHOR: the charts the words keep / exclude, else the click → the conversation chart → the
+//                previous chart. Singular needs one object left; "the other N" needs N. ("keep QQQ and close the rest": as before.)
+//   every other  ambiguous (all the others vs alternating — AUDIT 11-17): always asked.
+//   both         "both of them / those / these": the click + the conversation chart when two objects, else a two-object board;
+//                "both charts": a two-object board. Else asked — "both" never picks two of three.
+//   order        "the chart after / before <the SYM chart | this one | it>": the reading-order neighbour of the anchor; none → asked.
+// A link group is one object. A thing noun in the words, or a previous THING, makes a generic "one / others" no chart: asked.
+const REL_COMPLEMENT = /\b(?:(?:the|that)\s+other\s+(?:(two|three|four|five|[2-9])\s+)?(ones|charts|panels|graphs|one|chart|panel|graph)\b|(?:the|that)\s+other\s+(two|three|four|five|[2-9])\b|(?:all\s+(?:of\s+)?)?the\s+(others|rest|remaining\s+(?:ones|charts))\b|all\s+the\s+other\s+(?:ones|charts|panels)\b)/i
+const REL_EVERY_OTHER = /\bevery\s+other\s+(?:one|chart|panel|graph)s?\b/i
+const REL_BOTH_PRON = /\bboth\s+(?:of\s+)?(?:them|those|these)\b/i
+const REL_BOTH_CHARTS = /\bboth\s+(?:(?:the|my|your|these|those)\s+)?(?:charts|ones|panels|graphs)\b/i
+const REL_ORDER = /\b(?:the|that)\s+(?:chart|one|panel|graph)\s+(?:(?:right|just|immediately|directly)\s+)?(after|before|following|preceding)\s+((?:the|my)\s+[^,.;:!?—–]{1,30}?\b(?:chart|one|panel|graph)\b|(?:this|that)(?:\s+(?:chart|one|panel|graph))?\b|it\b|\$?[A-Za-z]{1,5}\b)/i
+const REL_N = { two: 2, three: 3, four: 4, five: 5 }
+const OK = Object.freeze({ ok: true })
+/** → a refusal / ask sentence, OK (the relation resolves to exactly this plan), or null (no relation word read). */
+function relationWordRefusal(w, host, removed, { all, excluded, selected, subject, previous, picked }) {
+  const s = String(w || '')
+  if (picked && removed.every(e => picked.has(`chart:${e.ref}`))) return null       // (the member picked one of our own choices)
+  const key = (c) => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`)
+  const objs = (refs) => new Set(all.filter(c => refs.includes(c.ref)).map(key)).size
+  const expand = (refs) => all.filter(c => refs.some(r => { const x = all.find(y => y.ref === r); return x && key(x) === key(c) })).map(c => c.ref)
+  const prevChart = typeOfId(previous) === 'chart' ? String(previous).slice('chart:'.length) : null
+  const pointer = () => { const r = [selected, subject, prevChart].find(x => x != null && all.some(c => c.ref === x)); return r != null ? expand([r]) : [] }
+  const name = (c) => (c?.symbol ? `the ${up(c.symbol)} chart` : c?.position ? `the ${c.position.replace('-', ' ')} chart` : 'that chart')
+  const plan = removed.map(e => e.ref)
+  const ask = (phrase, fits = null) => `Which chart should I close? I can’t tell which chart “${phrase}” means${fits && fits.length ? ` — it could be ${listOf(fits.map(r => name(all.find(c => c.ref === r))))}` : ''}, so nothing was changed. Name the chart to close by its ticker or its place.`
+  const anchorRefusal = (r, phrase) => `I didn’t change anything: ${name(all.find(c => c.ref === r))} is the chart “${phrase}” is counted from, not the one to close. Name the chart to close by its ticker or its place.`
+  const outside = (r, phrase) => `I didn’t change anything: “${phrase}” doesn’t include ${name(all.find(c => c.ref === r))}, which this would have closed. Name the chart to close by its ticker or its place.`
+  const check = (target, anchor, phrase) => {
+    const a = plan.find(r => anchor.includes(r))
+    if (a != null) return anchorRefusal(a, phrase)
+    const o = plan.find(r => !target.includes(r))
+    // (the target the words fit, exactly: CONFIRMED — the later class-noun checks would only re-ask what is already resolved)
+    return o != null ? outside(o, phrase) : OK
+  }
+  const syms = new Set(all.map(c => String(c.symbol || '').toLowerCase()).filter(Boolean))
+  const thingAbout = (m) => !/\b(?:charts?|panels?|graphs?)\b/i.test(m[0]) && ((typeOfId(previous) && typeOfId(previous) !== 'chart')
+    || pronounAntecedent(`${s.slice(0, m.index)} ${s.slice(m.index + m[0].length)}`, (x) => syms.has(x))?.type === 'thing')
+  const ev = REL_EVERY_OTHER.exec(s)
+  if (ev) return ask(ev[0].trim())
+  const c = REL_COMPLEMENT.exec(s)
+  const rest = c && /^(?:others|rest|remaining)/i.test(c[4] || '')
+  if (c && !(rest && excluded.size)) {
+    const phrase = c[0].trim()
+    if (thingAbout(c)) return ask(phrase)
+    const anchor = excluded.size ? expand([...excluded]) : pointer()
+    const pool = all.map(x => x.ref).filter(r => !anchor.includes(r))
+    const plural = rest || /s$/i.test(c[2] || '') || !!c[3] || /^all/i.test(phrase)
+    const n = REL_N[String(c[1] || c[3] || '').toLowerCase()] || Number(c[1] || c[3]) || (plural ? null : 1)
+    if (!anchor.length || !pool.length || (n != null && objs(pool) !== n)) {
+      const bad = plan.find(r => anchor.includes(r))
+      return bad != null && !excluded.size ? anchorRefusal(bad, phrase) : ask(phrase, pool.length && pool.length < all.length ? pool : null)
+    }
+    return check(pool, excluded.size ? [] : anchor, phrase)
+  }
+  const b = REL_BOTH_PRON.exec(s) || REL_BOTH_CHARTS.exec(s)
+  if (b) {
+    const phrase = b[0].trim()
+    if (REL_BOTH_PRON.test(s) && thingAbout(b)) return ask(phrase)      // ("both of them" about a THING: asked, never skipped)
+    const sel = selected != null && all.some(x => x.ref === selected) ? expand([selected]) : []
+    const sub = [subject, prevChart].find(x => x != null && all.some(y => y.ref === x))
+    const set = REL_BOTH_PRON.test(s) ? [...new Set([...sel, ...(sub != null ? expand([sub]) : [])])] : []
+    const target = set.length && objs(set) === 2 ? set : objs(all.map(x => x.ref)) === 2 ? all.map(x => x.ref) : null
+    if (!target) return ask(phrase)
+    return check(target, [], phrase)
+  }
+  const o = REL_ORDER.exec(s)
+  if (o) {
+    const phrase = o[0].trim()
+    if (thingAbout(o)) return ask(phrase)                               // ("the one after it" about a THING: asked, never skipped)
+    // ("the chart before that" — a bare pronoun anchor after a THING target / beside a thing noun points at the thing: asked)
+    if (/^(?:(?:this|that)(?:\s+one)?|it)$/i.test(o[2].trim()) && ((typeOfId(previous) && typeOfId(previous) !== 'chart') || pronounAntecedent(`${s.slice(0, o.index)} ${s.slice(o.index + o[0].length)}`, (x) => syms.has(x))?.type === 'thing')) return ask(phrase)
+    let anchor = []
+    if (/^(?:this|that|it)\b/i.test(o[2])) anchor = pointer()
+    else { const hit = all.filter(x => symbolSaid(o[2], x.symbol) || named(o[2], { ref: x.ref, symbol: up(x.symbol), position: x.position || null }, host)).map(x => x.ref); if (hit.length && objs(hit) === 1) anchor = expand(hit) }
+    if (!anchor.length) return ask(phrase)
+    const order = [...all].sort((p, q) => ((p.cell?.y ?? 0) - (q.cell?.y ?? 0)) || ((p.cell?.x ?? 0) - (q.cell?.x ?? 0))).map(x => x.ref)
+    const idx = anchor.map(r => order.indexOf(r))
+    const t = order[/^(?:after|following)$/i.test(o[1]) ? Math.max(...idx) + 1 : Math.min(...idx) - 1]
+    if (t == null) { const bad = plan.find(r => anchor.includes(r)); return bad != null ? anchorRefusal(bad, phrase) : ask(phrase) }
+    return check(expand([t]), anchor, phrase)
+  }
+  return null
+}
 function removalTargetRefusal(w, host, removed, { selected, subject, picked, known, previous, previousLabel }) {
   if (requestedPanels(w) != null || gridStated(w, known)) return null
   const { ids, ambiguous, excluded, all, pronoun, anchors } = removalTargets(w, host, { selected, subject, picked, previous, previousLabel })
@@ -783,6 +872,10 @@ function removalTargetRefusal(w, host, removed, { selected, subject, picked, kno
     const eg = removed.map(e => all.find(c => c.ref === e.ref)).find(c => c?.symbol) || all.find(c => c.symbol)
     return `I didn’t close a chart: you asked to remove ${listOf([...new Set(objs.map(o => `“${o.np}”`))])}, which is not a chart, so nothing was changed. To close a chart, name it — for example “close ${eg?.symbol ? `the ${up(eg.symbol)} chart` : 'the left chart'}”.`
   }
+  // ⛔ (3b) RELATION WORDS (complement · every other · both · order): fail-closed, never the anchor
+  const relWord = relationWordRefusal(w, host, removed, { all, excluded, selected, subject, previous, picked })
+  if (relWord === OK && !removed.some(e => excluded.has(e.ref))) return null
+  if (relWord && relWord !== OK) return relWord
   // ⛔ (3) RELATION: the anchor is never the target
   const anchored = removed.filter(e => anchors.has(e.ref))
   if (anchored.length) {
