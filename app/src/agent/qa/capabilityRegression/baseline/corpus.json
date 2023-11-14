@@ -14603,6 +14603,105 @@
         "when is the next FOMC meeting",
         "show me the fed dot plot"
       ]
+    },
+    {
+      "id": "recentlyDeleted.restore",
+      "source": "Charts family (2026-11-19): Recently deleted — bring back a deleted watchlist, saved layout or saved screen through the artifact-versions routes the Recently deleted panel uses",
+      "capabilities": [
+        "recentlyDeleted.restore"
+      ],
+      "board": "ONE",
+      "seed": {
+        "deletedScreens": [
+          {
+            "id": 9,
+            "name": "Old Breakouts",
+            "head": 2
+          }
+        ]
+      },
+      "needs": [
+        "recentlyDeleted.restore"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "recentlyDeleted.restore",
+            "target": "$recentlyDeleted",
+            "args": {
+              "item": "9",
+              "kind": "screen"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "screens": {
+          "exclude": [
+            "Old Breakouts"
+          ]
+        }
+      },
+      "phrasings": [
+        "bring back my Old Breakouts screen",
+        "undelete the Old Breakouts screen",
+        "restore my deleted Old Breakouts screen",
+        "recover the Old Breakouts screen I deleted"
+      ],
+      "approve": true,
+      "afterApprove": {
+        "screens": {
+          "include": [
+            "Old Breakouts",
+            "Momentum Screen"
+          ]
+        }
+      }
+    },
+    {
+      "id": "recentlyDeleted.list",
+      "source": "Charts family (2026-11-19): Recently deleted — bring back a deleted watchlist, saved layout or saved screen through the artifact-versions routes the Recently deleted panel uses",
+      "capabilities": [
+        "recentlyDeleted.list"
+      ],
+      "board": "ONE",
+      "seed": {
+        "deletedScreens": [
+          {
+            "id": 9,
+            "name": "Old Breakouts",
+            "head": 2
+          }
+        ]
+      },
+      "needs": [
+        "recentlyDeleted.list"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "recentlyDeleted.list",
+            "target": "$recentlyDeleted",
+            "args": {
+              "kind": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^GET /api/artifact-versions/screen/deleted"
+        ],
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "what have I deleted",
+        "show my recently deleted screens",
+        "what is in recently deleted",
+        "show my deleted layouts"
+      ]
     }
   ],
   "refusals": [

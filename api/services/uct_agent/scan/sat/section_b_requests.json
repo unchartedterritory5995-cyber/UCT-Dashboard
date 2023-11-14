@@ -1359,6 +1359,7 @@
         "history",
         "arrange",
         "widgets",
+        "recentlyDeleted",
         "layouts",
         "customIndicator",
         "indicators",
@@ -2117,6 +2118,7 @@
         "history",
         "arrange",
         "widgets",
+        "recentlyDeleted",
         "layouts",
         "customIndicator",
         "indicators",
@@ -4624,6 +4626,7 @@
         "history",
         "arrange",
         "widgets",
+        "recentlyDeleted",
         "layouts",
         "customIndicator",
         "indicators",
@@ -5254,6 +5257,7 @@
         "history",
         "arrange",
         "widgets",
+        "recentlyDeleted",
         "layouts",
         "customIndicator",
         "indicators",
@@ -6711,6 +6715,7 @@
         "history",
         "arrange",
         "widgets",
+        "recentlyDeleted",
         "layouts",
         "customIndicator",
         "indicators",
@@ -8395,6 +8400,7 @@
         "history",
         "arrange",
         "widgets",
+        "recentlyDeleted",
         "layouts",
         "customIndicator",
         "indicators",
@@ -9129,6 +9135,7 @@
         "history",
         "arrange",
         "widgets",
+        "recentlyDeleted",
         "layouts",
         "customIndicator",
         "indicators",
@@ -9786,6 +9793,7 @@
         "history",
         "arrange",
         "widgets",
+        "recentlyDeleted",
         "layouts",
         "customIndicator",
         "indicators",
@@ -10697,6 +10705,7 @@
         "history",
         "arrange",
         "widgets",
+        "recentlyDeleted",
         "layouts",
         "customIndicator",
         "indicators",
@@ -11257,7 +11266,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -11637,7 +11646,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -12015,7 +12024,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -12399,7 +12408,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -12776,7 +12785,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -13154,7 +13163,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -13532,7 +13541,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -14177,7 +14186,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -14556,7 +14565,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -14933,7 +14942,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -15571,7 +15580,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -15949,7 +15958,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -16594,7 +16603,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -17233,7 +17242,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -17872,7 +17881,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -18250,7 +18259,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -18895,7 +18904,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -19273,7 +19282,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -19657,7 +19666,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -20041,7 +20050,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -20425,7 +20434,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -20803,7 +20812,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -21181,7 +21190,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -21558,7 +21567,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -21936,7 +21945,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -22574,7 +22583,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -23214,7 +23223,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -23853,7 +23862,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -24492,7 +24501,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -24869,7 +24878,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",

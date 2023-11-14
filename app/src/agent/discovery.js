@@ -74,6 +74,15 @@ export const TOPICS = [
     planned: null,
   },
   {
+    // Charts family (2026-11-19): Recently deleted (the Layout library's / Screens menu's / My Lists' "Bring back")
+    id: 'recentlyDeleted', title: 'Bringing back something I deleted',
+    words: [/\b(recently deleted|undelet\w*)\b/, /\b(bring back|restore|recover)\b.*\b(deleted|removed)\b/, /\bdeleted (watch ?lists?|lists|layouts?|screens?)\b/],
+    caps: ['recentlyDeleted.list', 'recentlyDeleted.restore'], productHas: true,
+    canDo: 'show what is in your Recently deleted (watchlists, saved layouts and saved screens you deleted) and bring one back as it was when it was deleted — shown first, it comes back private, nothing existing is replaced (no Undo: to remove it again, delete it as usual and it goes back to Recently deleted)',
+    known: () => ['bringing back an earlier version of a deleted item (its Earlier versions list)'],
+    planned: null,
+  },
+  {
     id: 'layouts', title: 'Saved layouts',
     words: [/\blayouts?\b/, /\bworkspaces?\b/],
     caps: ['layout.current', 'layout.list', 'layout.open', 'layout.saveAs', 'layout.saveCurrent', 'layout.rename', 'layout.create', 'layout.delete', 'layout.duplicate', 'layout.pinToBar', 'layout.unpinFromBar', 'layout.moveOnBar'], productHas: true,
