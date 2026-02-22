@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from api.routers import snapshot, movers, engine_data, earnings, news, screener
+from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders
 
 app = FastAPI(title="UCT Dashboard")
 
@@ -17,6 +17,8 @@ app.include_router(engine_data.router)
 app.include_router(earnings.router)
 app.include_router(news.router)
 app.include_router(screener.router)
+app.include_router(trades.router)
+app.include_router(traders.router)
 
 # Serve React build — must come AFTER all /api routes
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
