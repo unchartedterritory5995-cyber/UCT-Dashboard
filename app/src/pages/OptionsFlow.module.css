@@ -1,0 +1,5 @@
+.page { padding: 20px 24px; }
+.heading { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 20px; }
+.placeholder { padding: 60px 0; text-align: center; }
+.title { font-family: 'Cinzel', serif; font-size: 18px; font-weight: 700; color: var(--text-muted); letter-spacing: 3px; margin-bottom: 12px; }
+.text { font-size: 13px; color: var(--text-muted); max-width: 400px; margin: 0 auto; line-height: 1.6; }
