@@ -1,0 +1,11 @@
+.env
+.worktrees/
+__pycache__/
+*.pyc
+node_modules/
+app/dist/
+app/node_modules/
+*.egg-info/
+.pytest_cache/
+data/
+*.json.bak
