@@ -1,0 +1,113 @@
+.page {
+  padding: 20px 24px;
+  max-width: 980px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.heading {
+  font-family: 'Cinzel', serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ut-gold);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.loading {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 8px 0;
+}
+.rundownContent {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+}
+.breadthGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+.subheading {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  margin-top: 4px;
+}
+.earningsSection {
+  margin-bottom: 16px;
+}
+.earningsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.earningsTable th {
+  text-align: left;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.earningsTable td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+}
+.sym {
+  color: var(--ut-cream);
+  font-weight: 600;
+}
+.noData {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.leadershipGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.leaderCard {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.leaderSym {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ut-cream);
+}
+.leaderThesis {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
