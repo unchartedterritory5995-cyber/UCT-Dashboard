@@ -1,0 +1,65 @@
+.quickTickers {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.qBtn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.qBtn:hover {
+  color: var(--text-bright);
+  border-color: var(--border-accent);
+}
+.qBtnActive {
+  color: var(--ut-green-bright);
+  border-color: var(--ut-green-bright);
+}
+.chartWrap {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  min-height: 120px;
+}
+.chart {
+  width: 100%;
+  display: block;
+  border-radius: 8px;
+}
+.form {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.input {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--text-bright);
+  outline: none;
+}
+.input:focus {
+  border-color: var(--ut-green-bright);
+}
+.go {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 4px 12px;
+  background: var(--ut-green-dim);
+  border: 1px solid var(--ut-green-bright);
+  color: var(--ut-green-bright);
+  border-radius: 6px;
+  cursor: pointer;
+}
