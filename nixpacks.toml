@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["python312", "nodejs_20", "nodePackages.npm"]
+
+[phases.build]
+cmds = [
+  "pip install -r requirements.txt",
+  "cd app && npm install && npm run build"
+]
+
+[start]
+cmd = "uvicorn api.main:app --host 0.0.0.0 --port $PORT"
