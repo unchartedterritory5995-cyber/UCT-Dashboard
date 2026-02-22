@@ -52,6 +52,19 @@
   color: var(--ut-green-bright) !important;
   background: var(--ut-green-dim);
 }
+.mainItems {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+}
+.bottomItems {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
 .icon {
   font-size: 16px;
   flex-shrink: 0;

@@ -5,6 +5,7 @@ import styles from './NavBar.module.css'
 const NAV_ITEMS = [
   { to: '/dashboard',    label: 'Dashboard',    icon: '⊞' },
   { to: '/morning-wire', label: 'Morning Wire',  icon: '📰' },
+  { to: '/uct-20',       label: 'UCT 20',        icon: '⭐' },
   { to: '/traders',      label: 'Traders',       icon: '👥' },
   { to: '/screener',     label: 'Screener',      icon: '⚡' },
   { to: '/options-flow', label: 'Options Flow',  icon: '📊' },
@@ -12,24 +13,52 @@ const NAV_ITEMS = [
   { to: '/model-book',   label: 'Model Book',    icon: '📖' },
 ]
 
+const WEBSITE_URL = 'https://unchartedterritory.com'
+
 export default function NavBar() {
   return (
     <nav data-testid="nav-sidebar" className={styles.nav}>
       <div className={styles.brand}>UCT</div>
-      {NAV_ITEMS.map(item => (
+      <div className={styles.mainItems}>
+        {NAV_ITEMS.map(item => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) =>
+              [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
+            }
+            title={item.label}
+            aria-label={item.label}
+          >
+            <span className={styles.icon} aria-hidden="true">{item.icon}</span>
+            <span className={styles.label}>{item.label}</span>
+          </NavLink>
+        ))}
+      </div>
+      <div className={styles.bottomItems}>
         <NavLink
-          key={item.to}
-          to={item.to}
+          to="/settings"
           className={({ isActive }) =>
             [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
           }
-          title={item.label}
-          aria-label={item.label}
+          title="Settings"
+          aria-label="Settings"
         >
-          <span className={styles.icon} aria-hidden="true">{item.icon}</span>
-          <span className={styles.label}>{item.label}</span>
+          <span className={styles.icon} aria-hidden="true">⚙️</span>
+          <span className={styles.label}>Settings</span>
         </NavLink>
-      ))}
+        <a
+          href={WEBSITE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.item}
+          title="UCT Website"
+          aria-label="UCT Website"
+        >
+          <span className={styles.icon} aria-hidden="true">🌐</span>
+          <span className={styles.label}>Website</span>
+        </a>
+      </div>
     </nav>
   )
 }

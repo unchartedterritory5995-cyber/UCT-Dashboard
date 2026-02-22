@@ -8,6 +8,7 @@ import Screener from './pages/Screener'
 import OptionsFlow from './pages/OptionsFlow'
 import PostMarket from './pages/PostMarket'
 import ModelBook from './pages/ModelBook'
+import Settings from './pages/Settings'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/options-flow" element={<OptionsFlow />} />
           <Route path="/post-market" element={<PostMarket />} />
           <Route path="/model-book" element={<ModelBook />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>
