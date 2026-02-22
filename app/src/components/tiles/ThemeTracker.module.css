@@ -1,0 +1,75 @@
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.tab {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab:hover { color: var(--text-bright); border-color: var(--border-accent); }
+.tabActive { color: var(--ut-green-bright) !important; border-color: var(--ut-green-bright) !important; }
+.cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.col {}
+.colHd {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+.row:last-child { border-bottom: none; }
+.name {
+  font-family: 'Instrument Sans', sans-serif;
+  color: var(--text-bright);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.barWrap {
+  width: 60px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.bar { height: 100%; border-radius: 2px; transition: width 0.3s; }
+.barGain { background: var(--gain); }
+.barLoss { background: var(--loss); }
+.pct {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 52px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
+.loading { color: var(--text-muted); font-size: 12px; }
