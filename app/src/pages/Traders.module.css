@@ -1,0 +1,7 @@
+.page { padding: 20px 24px; }
+.heading { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 20px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.tickers { display: flex; flex-wrap: wrap; gap: 8px; }
+.ticker { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--ut-cream); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; text-decoration: none; transition: border-color 0.15s, color 0.15s; }
+.ticker:hover { color: var(--ut-green-bright); border-color: var(--ut-green); }
+.loading { color: var(--text-muted); font-size: 13px; padding: 20px 0; }
