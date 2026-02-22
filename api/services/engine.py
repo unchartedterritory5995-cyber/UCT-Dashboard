@@ -1,9 +1,17 @@
 """
 api/services/engine.py
 
-Reads data for the engine endpoints. Primary source is morning_wire_state.json
-(written by the 7:35 AM morning-wire run). Falls back to live engine calls
-when state keys are absent.
+Reads data for the engine endpoints. Primary source is data/wire_data.json
+(written at the end of each morning_wire_engine.py run). Falls back to
+morning_wire_state.json keys and finally live engine calls when the JSON
+file is absent or stale.
+
+wire_data.json schema (written by morning_wire_engine.run()):
+  date          — ISO date string, e.g. "2026-02-22"
+  rundown_html  — full assembled rundown HTML string
+  leadership    — list of dicts (sym, thesis, score, …)
+  themes        — dict keyed by ETF ticker (name, 1W, 1M, 3M, holdings, …)
+  earnings      — {"bmo": [...], "amc": [...]} — raw EW/Finnhub entries
 
 Key findings from inspecting morning_wire_engine.py:
   fetch_breadth()        → returns dict with keys: pct_above_50, pct_above_200,
@@ -31,6 +39,7 @@ if MORNING_WIRE_PATH not in sys.path:
     sys.path.insert(0, MORNING_WIRE_PATH)
 
 STATE_FILE = os.path.join(MORNING_WIRE_PATH, "morning_wire_state.json")
+WIRE_DATA_FILE = os.path.join(MORNING_WIRE_PATH, "data", "wire_data.json")
 
 from api.services.cache import cache
 
@@ -41,6 +50,22 @@ def _load_state() -> dict:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
+
+
+def _load_wire_data() -> dict | None:
+    """Load the pre-computed wire_data.json from the engine's last run."""
+    cached = cache.get("wire_data")
+    if cached:
+        return cached
+    if os.path.exists(WIRE_DATA_FILE):
+        try:
+            with open(WIRE_DATA_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+            cache.set("wire_data", data, ttl=3600)
+            return data
+        except (json.JSONDecodeError, OSError):
+            return None
+    return None
 
 
 # ─── Breadth ──────────────────────────────────────────────────────────────────
@@ -100,6 +125,15 @@ def _normalize_breadth(raw: dict, state: dict) -> dict:
 # ─── Themes ───────────────────────────────────────────────────────────────────
 
 def get_themes() -> dict:
+    wire = _load_wire_data()
+    if wire and wire.get("themes"):
+        cached = cache.get("themes")
+        if cached:
+            return cached
+        data = _normalize_themes(wire["themes"])
+        cache.set("themes", data, ttl=3600)
+        return data
+
     cached = cache.get("themes")
     if cached:
         return cached
@@ -162,6 +196,15 @@ def _normalize_themes(raw) -> dict:
 # ─── Leadership ───────────────────────────────────────────────────────────────
 
 def get_leadership() -> list:
+    wire = _load_wire_data()
+    if wire and wire.get("leadership"):
+        cached = cache.get("leadership")
+        if cached:
+            return cached
+        data = wire["leadership"] if isinstance(wire["leadership"], list) else []
+        cache.set("leadership", data, ttl=3600)
+        return data
+
     cached = cache.get("leadership")
     if cached:
         return cached
@@ -181,6 +224,15 @@ def get_leadership() -> list:
 # ─── Rundown ──────────────────────────────────────────────────────────────────
 
 def get_rundown() -> dict:
+    wire = _load_wire_data()
+    if wire and wire.get("rundown_html"):
+        cached = cache.get("rundown")
+        if cached:
+            return cached
+        data = {"html": wire["rundown_html"], "date": wire.get("date", "")}
+        cache.set("rundown", data, ttl=3600)
+        return data
+
     cached = cache.get("rundown")
     if cached:
         return cached
@@ -197,6 +249,22 @@ def get_rundown() -> dict:
 # ─── Earnings ─────────────────────────────────────────────────────────────────
 
 def get_earnings() -> dict:
+    wire = _load_wire_data()
+    if wire and wire.get("earnings"):
+        cached = cache.get("earnings")
+        if cached:
+            return cached
+        raw_earnings = wire["earnings"]
+        # wire_data earnings are raw EW entries with "symbol" key; normalise them
+        bmo_raw = raw_earnings.get("bmo", []) if isinstance(raw_earnings, dict) else []
+        amc_raw = raw_earnings.get("amc", []) if isinstance(raw_earnings, dict) else []
+        data = _normalize_earnings(
+            [dict(e, hour="bmo") for e in bmo_raw] +
+            [dict(e, hour="amc") for e in amc_raw]
+        )
+        cache.set("earnings", data, ttl=1800)
+        return data
+
     cached = cache.get("earnings")
     if cached:
         return cached
