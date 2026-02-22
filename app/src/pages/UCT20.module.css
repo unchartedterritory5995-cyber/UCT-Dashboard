@@ -1,0 +1,16 @@
+.page { padding: 20px 24px; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.heading { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; }
+.refreshBtn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 1px; background: var(--bg-elevated); color: var(--ut-green-bright); border: 1px solid var(--ut-green); border-radius: 6px; padding: 6px 14px; cursor: pointer; transition: background 0.15s; }
+.refreshBtn:hover { background: var(--ut-green-dim); }
+.loading { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+.list { display: flex; flex-direction: column; gap: 10px; }
+.card { display: flex; align-items: flex-start; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.card:last-child { border-bottom: none; }
+.rank { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text-muted); min-width: 28px; padding-top: 2px; }
+.body { flex: 1; min-width: 0; }
+.top { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+.sym { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 800; color: var(--ut-cream); }
+.cap { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 1px; color: var(--text-muted); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; text-transform: uppercase; }
+.score { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--ut-green-bright); margin-left: auto; }
+.thesis { font-family: 'Instrument Sans', sans-serif; font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0; }
