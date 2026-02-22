@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from api.routers import snapshot
+from api.routers import snapshot, movers
 
 app = FastAPI(title="UCT Dashboard")
 
@@ -12,6 +12,7 @@ def health():
     return {"status": "ok"}
 
 app.include_router(snapshot.router)
+app.include_router(movers.router)
 
 # Serve React build — must come AFTER all /api routes
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
