@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Cinzel:wght@700;800;900&family=Bebas+Neue&display=swap');
+
+:root {
+  --ut-green: #2d8c4e;
+  --ut-green-bright: #3cb868;
+  --ut-green-dim: #2d8c4e18;
+  --ut-green-glow: #2d8c4e40;
+  --ut-red: #c0392b;
+  --ut-red-bright: #e74c3c;
+  --ut-red-dim: #c0392b18;
+  --ut-gold: #c9a84c;
+  --ut-gold-dim: #c9a84c15;
+  --ut-gold-glow: #c9a84c35;
+  --ut-cream: #d4c9a8;
+  --bg: #0e0f0d;
+  --bg-surface: #1a1c17;
+  --bg-elevated: #22251e;
+  --bg-hover: #2a2d24;
+  --border: #2e3127;
+  --border-accent: #3a3d32;
+  --text: #a8a290;
+  --text-muted: #706b5e;
+  --text-bright: #e0dac8;
+  --text-heading: #f0ead8;
+  --gain: #3cb868;
+  --gain-bg: #3cb86815;
+  --gain-border: #3cb86835;
+  --loss: #e74c3c;
+  --loss-bg: #e74c3c15;
+  --loss-border: #e74c3c35;
+  --warn: #c9a84c;
+  --warn-bg: #c9a84c15;
+  --warn-border: #c9a84c35;
+  --info: #6ba3be;
+  --info-bg: #6ba3be12;
+  --info-border: #6ba3be30;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Instrument Sans', -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
