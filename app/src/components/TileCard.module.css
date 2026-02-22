@@ -1,0 +1,48 @@
+.tile {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+.tile::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  width: 2px;
+  background: linear-gradient(180deg, var(--ut-green), var(--ut-gold), var(--ut-green));
+  opacity: 0.3;
+  border-radius: 2px;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 10px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.title {
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+}
+.badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  font-weight: 600;
+  padding: 2px 8px;
+  letter-spacing: 1px;
+  border-radius: 8px;
+  background: var(--gain-bg);
+  color: var(--gain);
+  border: 1px solid var(--gain-border);
+  text-transform: uppercase;
+}
+.body {
+  padding: 14px 14px 14px 18px;
+}
