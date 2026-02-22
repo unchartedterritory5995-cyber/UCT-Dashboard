@@ -23,7 +23,8 @@
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
-.col {}
+.col { display: flex; flex-direction: column; min-height: 0; }
+.scroll { overflow-y: auto; max-height: 320px; }
 .colHd {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 8px;

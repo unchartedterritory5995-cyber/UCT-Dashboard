@@ -49,16 +49,20 @@ export default function ThemeTracker({ data: propData }) {
       ) : (
         <div className={styles.cols}>
           <div className={styles.col}>
-            <div className={styles.colHd} style={{ color: 'var(--gain)' }}>▲ LEADERS</div>
-            {(data.leaders ?? []).map(item => (
-              <ThemeRow key={item.name} {...item} positive />
-            ))}
+            <div className={styles.colHd} style={{ color: 'var(--gain)' }}>▲ LEADERS ({(data.leaders ?? []).length})</div>
+            <div className={styles.scroll}>
+              {(data.leaders ?? []).map(item => (
+                <ThemeRow key={item.ticker} {...item} positive />
+              ))}
+            </div>
           </div>
           <div className={styles.col}>
-            <div className={styles.colHd} style={{ color: 'var(--loss)' }}>▼ LAGGARDS</div>
-            {(data.laggards ?? []).map(item => (
-              <ThemeRow key={item.name} {...item} positive={false} />
-            ))}
+            <div className={styles.colHd} style={{ color: 'var(--loss)' }}>▼ LAGGARDS ({(data.laggards ?? []).length})</div>
+            <div className={styles.scroll}>
+              {(data.laggards ?? []).map(item => (
+                <ThemeRow key={item.ticker} {...item} positive={false} />
+              ))}
+            </div>
           </div>
         </div>
       )}

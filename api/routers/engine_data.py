@@ -14,9 +14,9 @@ def breadth():
 
 
 @router.get("/api/themes")
-def themes():
+def themes(period: str = Query("1W")):
     try:
-        return get_themes()
+        return get_themes(period)
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 

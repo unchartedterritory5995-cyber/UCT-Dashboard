@@ -124,53 +124,52 @@ def _normalize_breadth(raw: dict, state: dict) -> dict:
 
 # ─── Themes ───────────────────────────────────────────────────────────────────
 
-def get_themes() -> dict:
+def get_themes(period: str = "1W") -> dict:
     wire = _load_wire_data()
+    cache_key = f"themes_{period}"
     if wire and wire.get("themes"):
-        cached = cache.get("themes")
+        cached = cache.get(cache_key)
         if cached:
             return cached
-        data = _normalize_themes(wire["themes"])
-        cache.set("themes", data, ttl=3600)
+        data = _normalize_themes(wire["themes"], period)
+        cache.set(cache_key, data, ttl=3600)
         return data
 
-    cached = cache.get("themes")
+    cached = cache.get(cache_key)
     if cached:
         return cached
 
     state = _load_state()
-    themes = state.get("themes_data")
-    if not themes:
+    raw = state.get("themes_data")
+    if not raw:
         try:
             import morning_wire_engine as eng
             raw = eng.fetch_theme_tracker()
-            themes = _normalize_themes(raw)
         except Exception as e:
-            themes = {"leaders": [], "laggards": [], "period": "1W", "error": str(e)}
-    else:
-        # Already normalised by engine if stored in our format; pass through
-        if "leaders" not in themes:
-            themes = _normalize_themes(themes)
+            result = {"leaders": [], "laggards": [], "period": period, "error": str(e)}
+            cache.set(cache_key, result, ttl=3600)
+            return result
 
-    cache.set("themes", themes, ttl=3600)
-    return themes
+    result = _normalize_themes(raw, period)
+    cache.set(cache_key, result, ttl=3600)
+    return result
 
 
-def _normalize_themes(raw) -> dict:
+def _normalize_themes(raw, period: str = "1W") -> dict:
     """
     fetch_theme_tracker() returns a dict keyed by ETF ticker.
     Each value has: name, ticker, 1W, 1M, 3M, holdings, etf_name.
 
-    We sort by 1W performance and split into top 8 leaders / bottom 8 laggards.
+    Returns ALL themes sorted by selected period — leaders (positive) and laggards (negative).
     """
     if not isinstance(raw, dict) or not raw:
-        return {"leaders": [], "laggards": [], "period": "1W"}
+        return {"leaders": [], "laggards": [], "period": period}
 
     items = []
     for ticker, data in raw.items():
         if not isinstance(data, dict):
             continue
-        pct_val = data.get("1W", 0) or 0
+        pct_val = data.get(period, 0) or 0
         pct_str = f"{pct_val:+.2f}%" if isinstance(pct_val, (int, float)) else str(pct_val)
         bar = min(100, max(0, abs(pct_val) * 8)) if isinstance(pct_val, (int, float)) else 50
         items.append({
@@ -186,10 +185,13 @@ def _normalize_themes(raw) -> dict:
     def clean(item):
         return {"name": item["name"], "ticker": item["ticker"], "pct": item["pct"], "bar": item["bar"]}
 
+    leaders  = [clean(i) for i in items if i["pct_val"] >= 0]
+    laggards = [clean(i) for i in reversed(items) if i["pct_val"] < 0]
+
     return {
-        "leaders": [clean(i) for i in items[:8]],
-        "laggards": [clean(i) for i in items[-8:][::-1]],
-        "period": "1W",
+        "leaders": leaders,
+        "laggards": laggards,
+        "period": period,
     }
 
 
