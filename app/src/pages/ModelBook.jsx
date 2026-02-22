@@ -14,22 +14,25 @@ export default function ModelBook() {
   async function handleSubmit(e) {
     e.preventDefault()
     setAdding(true)
-    await fetch('/api/trades', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sym: form.sym,
-        entry: parseFloat(form.entry),
-        stop: parseFloat(form.stop),
-        target: parseFloat(form.target),
-        size_pct: parseFloat(form.size_pct),
-        notes: form.notes
+    try {
+      await fetch('/api/trades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sym: form.sym,
+          entry: parseFloat(form.entry),
+          stop: parseFloat(form.stop),
+          target: parseFloat(form.target),
+          size_pct: parseFloat(form.size_pct),
+          notes: form.notes
+        })
       })
-    })
-    setForm({ sym: '', entry: '', stop: '', target: '', size_pct: '', notes: '' })
-    setAdding(false)
-    setShowForm(false)
-    mutate()
+      setForm({ sym: '', entry: '', stop: '', target: '', size_pct: '', notes: '' })
+      setShowForm(false)
+      mutate()
+    } finally {
+      setAdding(false)
+    }
   }
 
   return (

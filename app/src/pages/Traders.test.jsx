@@ -23,8 +23,9 @@ test('renders trader cards', () => {
   expect(screen.getByText('Bracco')).toBeInTheDocument()
 })
 
-test('renders ticker links', () => {
+test('renders ticker links with finviz href', () => {
   render(<Traders />)
-  expect(screen.getByText('NVDA')).toBeInTheDocument()
-  expect(screen.getByText('TSLA')).toBeInTheDocument()
+  const nvdaLink = screen.getByRole('link', { name: 'NVDA' })
+  expect(nvdaLink).toBeInTheDocument()
+  expect(nvdaLink).toHaveAttribute('href', expect.stringContaining('finviz.com'))
 })

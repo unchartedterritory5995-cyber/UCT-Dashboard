@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from typing import Optional
 from api.services.engine import get_breadth, get_themes, get_leadership, get_rundown
 
 router = APIRouter()
@@ -29,8 +30,10 @@ def leadership():
 
 
 @router.get("/api/rundown")
-def rundown():
+def rundown(type: Optional[str] = Query(None)):
     try:
+        if type == "post_market":
+            return {"html": "", "date": ""}  # post-market not yet implemented
         return get_rundown()
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))

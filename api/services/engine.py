@@ -294,10 +294,11 @@ def get_screener() -> list:
     if leadership:
         result = [
             {
-                "sym": item.get("sym", item.get("symbol", item.get("ticker", ""))),
+                "ticker": item.get("ticker", item.get("sym", item.get("symbol", ""))),
                 "rs_score": item.get("score", item.get("rs_score", 0)),
                 "vol_ratio": item.get("vol_ratio", 1.0),
-                "mom": item.get("mom", 0.0),
+                "momentum": item.get("momentum", item.get("mom", 0.0)),
+                "cap_tier": item.get("cap_tier", "—"),
                 "thesis": item.get("thesis", ""),
             }
             for item in leadership

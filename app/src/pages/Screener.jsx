@@ -35,7 +35,7 @@ export default function Screener() {
                 <tr>
                   {['ticker','rs_score','vol_ratio','momentum','cap_tier'].map(col => (
                     <th key={col} onClick={() => toggleSort(col)} className={styles.th}>
-                      {col.replace('_', ' ').toUpperCase()}
+                      {col.replaceAll('_', ' ').toUpperCase()}
                       {sortKey === col ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
                     </th>
                   ))}
