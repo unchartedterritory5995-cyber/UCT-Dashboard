@@ -1,0 +1,59 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.tableLabel {
+  font-family: 'Cinzel', serif;
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.tableWrap {
+  margin-bottom: 12px;
+}
+.sym {
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--ut-cream);
+  font-weight: 600;
+}
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+}
+.table th {
+  text-align: left;
+  padding: 4px 6px;
+  font-size: 8px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.pill {
+  display: inline-block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.pillBeat {
+  color: var(--gain);
+  background: var(--gain-bg);
+  border: 1px solid var(--gain-border);
+}
+.pillMiss {
+  color: var(--loss);
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+}
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
+.loading { color: var(--text-muted); font-size: 12px; }
