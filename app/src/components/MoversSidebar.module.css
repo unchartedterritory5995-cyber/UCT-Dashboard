@@ -1,0 +1,59 @@
+.sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
+  padding: 14px 12px;
+  overflow-y: auto;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+.title {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.section {
+  margin-bottom: 16px;
+}
+.sectionLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.row:last-child { border-bottom: none; }
+.sym {
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--ut-cream);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.pct {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 11px;
+}
+.green { color: var(--gain); }
+.red { color: var(--loss); }
+.loading {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 8px 0;
+}

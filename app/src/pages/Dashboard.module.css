@@ -1,0 +1,14 @@
+.page {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+.content {
+  flex: 1;
+  min-width: 0;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
