@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { to: '/model-book',   label: 'Model Book',    icon: '📖' },
 ]
 
-const WEBSITE_URL = 'https://unchartedterritory.com'
+const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
 export default function NavBar() {
   return (
