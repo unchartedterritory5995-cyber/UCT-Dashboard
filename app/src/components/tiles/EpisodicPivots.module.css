@@ -1,0 +1,43 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card:hover {
+  border-color: var(--ut-green-bright);
+}
+.sym {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ut-cream);
+  margin-bottom: 3px;
+}
+.price {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-heading);
+}
+.chg {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+}
+.score {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--ut-gold);
+  margin-top: 2px;
+}
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
+.loading { color: var(--text-muted); font-size: 12px; }
