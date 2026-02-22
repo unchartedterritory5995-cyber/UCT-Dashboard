@@ -5,10 +5,10 @@ import styles from './MorningWire.module.css'
 const fetcher = url => fetch(url).then(r => r.json())
 
 export default function MorningWire() {
-  const { data: rundown } = useSWR('/api/rundown', fetcher)
-  const { data: breadth } = useSWR('/api/breadth', fetcher)
-  const { data: earnings } = useSWR('/api/earnings', fetcher)
-  const { data: leadership } = useSWR('/api/leadership', fetcher)
+  const { data: rundown } = useSWR('/api/rundown', fetcher, { refreshInterval: 300000 })
+  const { data: breadth } = useSWR('/api/breadth', fetcher, { refreshInterval: 300000 })
+  const { data: earnings } = useSWR('/api/earnings', fetcher, { refreshInterval: 300000 })
+  const { data: leadership } = useSWR('/api/leadership', fetcher, { refreshInterval: 300000 })
 
   return (
     <div className={styles.page}>
@@ -76,7 +76,7 @@ export default function MorningWire() {
           ? (
             <div className={styles.leadershipGrid}>
               {leadership.map((item, i) => (
-                <div key={i} className={styles.leaderCard}>
+                <div key={item.sym || item.ticker || item.symbol || i} className={styles.leaderCard}>
                   <span className={styles.leaderSym}>{item.sym || item.ticker || item.symbol}</span>
                   {item.thesis && <p className={styles.leaderThesis}>{item.thesis}</p>}
                 </div>
@@ -109,11 +109,11 @@ function EarningsTable({ rows }) {
       </thead>
       <tbody>
         {rows.map((row, i) => (
-          <tr key={i}>
+          <tr key={row.sym || row.ticker || i}>
             <td className={styles.sym}>{row.sym || row.ticker}</td>
             <td>{row.eps_est ?? '—'}</td>
             <td>{row.eps_act ?? '—'}</td>
-            <td style={{color: (row.surprise_pct || 0) > 0 ? 'var(--gain)' : 'var(--loss)'}}>
+            <td style={{color: (row.surprise_pct ?? 0) > 0 ? 'var(--gain)' : 'var(--loss)'}}>
               {row.surprise_pct != null ? `${row.surprise_pct > 0 ? '+' : ''}${row.surprise_pct}%` : '—'}
             </td>
           </tr>
