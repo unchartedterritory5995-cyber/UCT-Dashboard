@@ -117,6 +117,42 @@ def _fmt_chg(pct: float) -> tuple[str, str]:
     return f"{sign}{pct:.2f}%", ("pos" if pct >= 0 else "neg")
 
 
+# ── Liquidity filter thresholds ───────────────────────────────────────────────
+_PRICE_MIN    = 2.0          # price must be strictly above $2
+_PM_VOL_MIN   = 50_000       # min shares in current session (pre-market at open)
+_AVG_DVOL_MIN = 10_000_000   # min 5-day avg dollar volume ($10M)
+
+
+def _get_avg_dollar_vol(tickers: list) -> dict[str, float]:
+    """Return 5-day average dollar volume for each ticker via yfinance.
+
+    Fetches all tickers in parallel (ThreadPoolExecutor).
+    Returns float("inf") for any ticker where history cannot be fetched —
+    meaning it will NOT be filtered out if yfinance is unavailable.
+    """
+    if not tickers:
+        return {}
+    try:
+        import yfinance as yf
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        def _fetch_one(ticker: str) -> tuple[str, float]:
+            try:
+                hist = yf.Ticker(ticker).history(period="10d")
+                if hist.empty:
+                    return ticker, 0.0
+                dvol = (hist["Close"] * hist["Volume"]).tail(5)
+                return ticker, float(dvol.mean()) if not dvol.empty else 0.0
+            except Exception:
+                return ticker, float("inf")  # can't fetch → don't filter out
+
+        with ThreadPoolExecutor(max_workers=min(len(tickers), 8)) as ex:
+            result = dict(f.result() for f in as_completed(ex.submit(_fetch_one, t) for t in tickers))
+        return result
+    except Exception:
+        return {t: float("inf") for t in tickers}
+
+
 def _yfinance_snapshot(ticker: str) -> dict:
     """Fetch latest price via yfinance (used for futures/crypto not in Massive equities)."""
     try:
@@ -180,10 +216,16 @@ def get_snapshot() -> dict:
 
 
 def get_movers() -> dict:
-    """Return top gainers and losers gapping >=3% for the current session.
+    """Return top gainers and losers passing all liquidity filters.
 
-    Primary source: Massive REST API live feed (refreshes every 30s).
-    Fallback: movers from the last engine wire_data push (daily at 7:35 AM ET).
+    Filters (applied in order):
+      1. Gap ≥ 3%          — abs(change_pct) >= 3.0
+      2. Price > $2        — close > 2.0
+      3. PM volume ≥ 50K   — session shares traded >= 50,000
+      4. Avg 5d dvol ≥ $10M — 5-day avg (close × volume) >= $10M (via yfinance)
+
+    Primary source: Massive REST API (live, 30s TTL).
+    Fallback: movers from last engine wire_data push (daily at 7:35 AM ET).
 
     Returns:
         {
@@ -198,19 +240,37 @@ def get_movers() -> dict:
     try:
         client = _get_client()
 
-        gainers_raw = client.get_top_movers(direction="gainers", limit=10)
-        losers_raw  = client.get_top_movers(direction="losers",  limit=10)
+        gainers_raw = client.get_top_movers(direction="gainers", limit=20)
+        losers_raw  = client.get_top_movers(direction="losers",  limit=20)
+
+        def _quick_pass(row: dict) -> bool:
+            """Stage 1–3: filters that use data already in the row."""
+            if abs(float(row.get("change_pct", 0.0))) < 3.0:
+                return False
+            if float(row.get("close", 0.0)) <= _PRICE_MIN:
+                return False
+            if int(row.get("volume", 0)) < _PM_VOL_MIN:
+                return False
+            return True
+
+        gainers_pass = [r for r in gainers_raw if _quick_pass(r)]
+        losers_pass  = [r for r in losers_raw  if _quick_pass(r)]
+
+        # Stage 4: 5-day avg dollar volume (parallel yfinance fetch)
+        candidates = list({r["ticker"] for r in gainers_pass + losers_pass})
+        avg_dvol = _get_avg_dollar_vol(candidates)
 
         def _fmt_mover(row: dict) -> dict[str, str] | None:
-            pct = float(row.get("change_pct", 0.0))
-            if abs(pct) < 3.0:
+            ticker = row.get("ticker", "")
+            if avg_dvol.get(ticker, float("inf")) < _AVG_DVOL_MIN:
                 return None
+            pct  = float(row.get("change_pct", 0.0))
             sign = "+" if pct >= 0 else ""
-            return {"sym": row.get("ticker", ""), "pct": f"{sign}{pct:.2f}%"}
+            return {"sym": ticker, "pct": f"{sign}{pct:.2f}%"}
 
         data = {
-            "ripping":  [m for r in gainers_raw if (m := _fmt_mover(r)) is not None],
-            "drilling": [m for r in losers_raw  if (m := _fmt_mover(r)) is not None],
+            "ripping":  [m for r in gainers_pass if (m := _fmt_mover(r)) is not None],
+            "drilling": [m for r in losers_pass  if (m := _fmt_mover(r)) is not None],
         }
         cache.set("movers", data, ttl=30)
         return data
