@@ -8,7 +8,7 @@ router = APIRouter()
 
 INVALIDATE_KEYS = [
     "wire_data", "breadth", "themes_1W", "themes_1M", "themes_3M",
-    "leadership", "rundown", "earnings", "screener",
+    "leadership", "rundown", "earnings", "screener", "movers",
 ]
 
 

@@ -111,28 +111,39 @@ def get_movers() -> dict:
           "drilling": [{"sym": "TICK", "pct": "-50.55%"}, ...],
         }
 
-    Raises RuntimeError / any exception on data fetch failure (caller handles
-    with 503).
+    Primary source: MassiveClient live feed (unavailable on Railway).
+    Fallback: movers from the last engine wire_data push (daily at 7:35 AM ET).
     """
     cached = cache.get("movers")
     if cached is not None:
         return cached
 
-    client = _get_client()
+    try:
+        client = _get_client()
 
-    gainers_raw = client.get_top_movers(direction="gainers", limit=10)
-    losers_raw  = client.get_top_movers(direction="losers",  limit=10)
+        gainers_raw = client.get_top_movers(direction="gainers", limit=10)
+        losers_raw  = client.get_top_movers(direction="losers",  limit=10)
 
-    def _fmt_mover(row: dict) -> dict[str, str] | None:
-        pct = float(row.get("change_pct", 0.0))
-        if abs(pct) < 3.0:
-            return None
-        sign = "+" if pct >= 0 else ""
-        return {"sym": row.get("ticker", ""), "pct": f"{sign}{pct:.2f}%"}
+        def _fmt_mover(row: dict) -> dict[str, str] | None:
+            pct = float(row.get("change_pct", 0.0))
+            if abs(pct) < 3.0:
+                return None
+            sign = "+" if pct >= 0 else ""
+            return {"sym": row.get("ticker", ""), "pct": f"{sign}{pct:.2f}%"}
 
-    data = {
-        "ripping":  [m for r in gainers_raw if (m := _fmt_mover(r)) is not None],
-        "drilling": [m for r in losers_raw  if (m := _fmt_mover(r)) is not None],
-    }
-    cache.set("movers", data, ttl=30)
-    return data
+        data = {
+            "ripping":  [m for r in gainers_raw if (m := _fmt_mover(r)) is not None],
+            "drilling": [m for r in losers_raw  if (m := _fmt_mover(r)) is not None],
+        }
+        cache.set("movers", data, ttl=30)
+        return data
+
+    except Exception:
+        # MassiveClient unavailable (Railway can't reach uct-intelligence).
+        # Fall back to movers from the last engine wire_data push.
+        wire = cache.get("wire_data")
+        if wire and wire.get("movers"):
+            data = wire["movers"]
+            cache.set("movers", data, ttl=30)
+            return data
+        return {"ripping": [], "drilling": []}
