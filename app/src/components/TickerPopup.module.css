@@ -43,6 +43,7 @@
   border: 1px solid var(--border-accent);
   border-radius: 12px;
   padding: 16px;
+  width: min(800px, 90vw);
   max-width: 90vw;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
 }

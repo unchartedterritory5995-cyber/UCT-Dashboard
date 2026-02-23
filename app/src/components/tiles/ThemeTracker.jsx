@@ -35,8 +35,8 @@ function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, posi
             <span className={styles.etfName}>{etf_name}</span>
           </div>
           <div className={styles.chips}>
-            {holdings.map(sym => (
-              <TickerPopup key={sym} sym={sym}>
+            {(holdings ?? []).map(sym => (
+              <TickerPopup key={`${ticker}-${sym}`} sym={sym}>
                 <span className={styles.chip}>{sym}</span>
               </TickerPopup>
             ))}
