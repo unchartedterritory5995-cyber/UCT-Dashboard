@@ -1,72 +1,90 @@
 .gaugeWrap {
   display: flex;
   justify-content: center;
+  margin-bottom: 8px;
+}
+.gaugeSvg { width: 160px; height: 90px; }
+
+.phaseRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
   margin-bottom: 12px;
 }
-.gaugeSvg { width: 140px; height: 85px; }
-.distRow {
+.phaseDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gain);
+  flex-shrink: 0;
+}
+.phaseLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.maSection { margin-bottom: 12px; }
+
+.maRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
-.label {
+.maLabel {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-muted);
   letter-spacing: 0.5px;
 }
-.distVal {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 16px;
-  font-weight: 700;
-}
-.adRow {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-.adItem { flex: 1; }
-.adLabel {
-  display: block;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 8px;
-  color: var(--text-muted);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-bottom: 2px;
-}
-.advancing {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--gain);
-}
-.declining {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--loss);
-}
-.maRow {
-  display: flex;
-  gap: 12px;
-}
-.maItem { flex: 1; }
-.maLabel {
-  display: block;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 8px;
-  color: var(--text-muted);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-bottom: 2px;
-}
 .maVal {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
 }
+
+.barTrack {
+  width: 100%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.barFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+  opacity: 0.85;
+}
+
+.statRow {
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.statItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.statLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.statVal {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .loading { color: var(--text-muted); font-size: 12px; }

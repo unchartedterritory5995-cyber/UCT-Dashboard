@@ -82,28 +82,31 @@ def get_breadth() -> dict:
 
     state = _load_state()
 
-    # State file stores breadth under "breadth_data" if the engine wrote it.
-    # If not present, attempt a live fetch then fall back to zeros.
+    # Priority 1: state file breadth_data (local dev)
     breadth = state.get("breadth_data")
-    if not breadth:
-        try:
-            import morning_wire_engine as eng
-            raw = eng.fetch_breadth()
-            breadth = _normalize_breadth(raw, state)
-        except Exception as e:
-            breadth = {
-                "pct_above_50ma": 0,
-                "pct_above_200ma": 0,
-                "advancing": 0,
-                "declining": 0,
-                "breadth_score": 50.0,
-                "distribution_days": state.get("distribution_days_qqq", 0),
-                "market_phase": state.get("market_phase", "Unknown"),
-                "error": str(e),
-            }
-    else:
-        # If it was cached in state, normalise field names just in case
+    if breadth:
         breadth = _normalize_breadth(breadth, state)
+    else:
+        # Priority 2: wire_data pushed from engine (persisted in Railway volume)
+        wire = _load_wire_data()
+        if wire and wire.get("breadth"):
+            breadth = _normalize_breadth(wire["breadth"], state)
+        else:
+            # Priority 3: live fetch (local dev only — Finviz token not on Railway)
+            try:
+                import morning_wire_engine as eng
+                raw = eng.fetch_breadth()
+                breadth = _normalize_breadth(raw, state)
+            except Exception as e:
+                breadth = {
+                    "pct_above_50ma": None,
+                    "pct_above_200ma": None,
+                    "advancing": None,
+                    "declining": None,
+                    "breadth_score": None,
+                    "distribution_days": state.get("distribution_days_qqq", 0),
+                    "market_phase": state.get("market_phase", ""),
+                }
 
     cache.set("breadth", breadth, ttl=3600)
     return breadth
