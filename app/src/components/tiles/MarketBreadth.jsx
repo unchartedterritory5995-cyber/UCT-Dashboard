@@ -114,14 +114,16 @@ export default function MarketBreadth({ data: propData }) {
     return <TileCard title="Market Breadth"><p className={styles.loading}>Loading…</p></TileCard>
   }
 
-  const score    = data.breadth_score ?? null
-  const p5       = data.pct_above_5ma   ?? null
-  const p50      = data.pct_above_50ma  ?? null
-  const p200     = data.pct_above_200ma ?? null
-  const distDays = data.distribution_days ?? 0
-  const phase    = data.market_phase ?? ''
+  const score     = data.breadth_score ?? null
+  const p5        = data.pct_above_5ma   ?? null
+  const p50       = data.pct_above_50ma  ?? null
+  const p200      = data.pct_above_200ma ?? null
+  const distDays  = data.distribution_days ?? 0
+  const phase     = data.market_phase ?? ''
   const advancing = data.advancing ?? null
   const declining = data.declining ?? null
+  const newHighs  = data.new_highs ?? null
+  const newLows   = data.new_lows  ?? null
 
   const distColor = distDays >= 5 ? 'var(--loss)' : distDays >= 3 ? 'var(--warn)' : 'var(--gain)'
   const gaugeVal  = (p50 != null && p200 != null) ? (p50 + p200) / 2 : score
@@ -162,19 +164,27 @@ export default function MarketBreadth({ data: propData }) {
         <ProgressBar value={p200} color="var(--info)" />
       </div>
 
-      {/* Distribution days + A/D */}
+      {/* Dist Days · A/D · NH/NL */}
       <div className={styles.statRow}>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Dist. Days</span>
           <span className={styles.statVal} style={{ color: distColor }}>{distDays}</span>
         </div>
         <div className={styles.statItem}>
-          <span className={styles.statLabel}>Advancing</span>
+          <span className={styles.statLabel}>Adv</span>
           <span className={styles.statVal} style={{ color: 'var(--gain)' }}>{fmtNum(advancing)}</span>
         </div>
         <div className={styles.statItem}>
-          <span className={styles.statLabel}>Declining</span>
+          <span className={styles.statLabel}>Dec</span>
           <span className={styles.statVal} style={{ color: 'var(--loss)' }}>{fmtNum(declining)}</span>
+        </div>
+        <div className={styles.statItem}>
+          <span className={styles.statLabel}>NH</span>
+          <span className={styles.statVal} style={{ color: 'var(--gain)' }}>{fmtNum(newHighs)}</span>
+        </div>
+        <div className={styles.statItem}>
+          <span className={styles.statLabel}>NL</span>
+          <span className={styles.statVal} style={{ color: 'var(--loss)' }}>{fmtNum(newLows)}</span>
         </div>
       </div>
     </TileCard>
