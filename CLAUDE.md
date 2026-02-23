@@ -150,11 +150,20 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 - Each ticker wrapped in `TickerPopup` — hover = Finviz preview, click = 5-tab chart modal
 - Data shape: `{ ripping: [{sym, pct}], drilling: [{sym, pct}] }`
 
-### Gap Filter (`api/services/massive.py` → `get_movers()`)
+### Gap Filter + Massive REST (`api/services/massive.py` → `get_movers()`)
+- Calls Massive REST API directly (`https://api.massive.com`) — no local uct-intelligence dependency
 - `_fmt_mover()` returns `None` for stocks below 3% threshold
-- Walrus operator filters None values: `[m for r in raw if (m := _fmt_mover(r)) is not None]`
-- Massive API handles liquidity filtering upstream — no additional volume/float filter needed
-- Cache TTL: 30s
+- Fallback: serves movers from wire_data cache when Massive API unavailable
+- Futures (NQ, ES, RTY, BTC): yfinance fallback (not in equities API)
+- Cache TTL: 30s movers / 15s snapshot
+
+### Massive.com API (`api/services/massive.py`)
+- **NOT** a local package import — calls `https://api.massive.com` (Polygon.io-compatible) directly
+- Uses `MASSIVE_API_KEY` env var (set in Railway + local `.env`)
+- Endpoints used:
+  - `/v2/snapshot/locale/us/markets/stocks/gainers|losers` — top movers
+  - `/v2/snapshot/locale/us/markets/stocks/tickers/{ticker}` — single ticker snapshot
+- `_MassiveRestClient` is the internal wrapper (replaces old uct_intelligence import)
 
 ## Known Issues / Gotchas
 
@@ -162,3 +171,4 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 - **Claude timeout** — thesis generation can timeout on first engine run; second run succeeds.
 - **`config` vs `CONFIG`** — morning_wire_engine.py push code uses `CONFIG` (uppercase). Bug was fixed 2026-02-22.
 - **Railway env vars are case-sensitive** — `PUSH_SECRET` must be all-caps (not `Push_Secret`).
+- **Movers wire_data fallback** — if Massive API fails at open, movers fall back to engine push (engine captures pre-market Finviz movers at 7:35 AM ET).
