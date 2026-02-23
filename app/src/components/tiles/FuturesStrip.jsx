@@ -8,9 +8,10 @@ const fetcher = url => fetch(url).then(r => r.json())
 // Display order: 2 rows of 3
 const ORDER = ['QQQ', 'SPY', 'IWM', 'DIA', 'BTC', 'VIX']
 
-// TradingView symbol overrides (no Finviz for these)
-const TV_SYMS = { BTC: 'BTCUSD', VIX: 'TVC:VIX' }
-const TV_ONLY = new Set(['BTC', 'VIX'])
+// TradingView symbol overrides
+const TV_SYMS = { BTC: 'BTCUSD', VIX: 'CBOE:VIX' }
+// BTC has no Finviz equity chart — TradingView only
+const TV_ONLY = new Set(['BTC'])
 
 function Cell({ sym, price, chg, css }) {
   const tintClass = css === 'pos' ? styles.cellPos : css === 'neg' ? styles.cellNeg : ''
