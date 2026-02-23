@@ -32,6 +32,7 @@ function EarningsTable({ rows, label }) {
             <th>EPS Est</th>
             <th>EPS Act</th>
             <th>EPS Surp</th>
+            <th>Rev Est</th>
             <th>Rev Act</th>
             <th>Rev Surp</th>
           </tr>
@@ -46,6 +47,7 @@ function EarningsTable({ rows, label }) {
               <td className={`${styles.mono} ${row.surprise_pct?.startsWith('+') ? styles.pos : styles.neg}`}>
                 {row.surprise_pct ?? '—'}
               </td>
+              <td className={styles.mono}>{fmtRev(row.rev_estimate)}</td>
               <td className={styles.mono}>{fmtRev(row.rev_actual)}</td>
               <td className={`${styles.mono} ${row.rev_surprise_pct?.startsWith('+') ? styles.pos : styles.neg}`}>
                 {row.rev_surprise_pct ?? '—'}

@@ -337,6 +337,7 @@ def _normalize_earnings(raw) -> dict:
             "reported_eps":     eps_actual,
             "eps_estimate":     eps_estimate,
             "surprise_pct":     _fmt_surprise(eps_actual, eps_estimate),
+            "rev_estimate":     rev_estimate,
             "rev_actual":       rev_actual,
             "rev_surprise_pct": _fmt_surprise(rev_actual, rev_estimate),
         }
