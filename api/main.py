@@ -1,11 +1,36 @@
 import os
+import json
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts
 
-app = FastAPI(title="UCT Dashboard")
+PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"
+
+
+def _seed_cache_from_volume():
+    """On startup, load persisted wire_data from Railway volume into cache."""
+    if not os.path.exists(PERSISTENT_WIRE_DATA_FILE):
+        return
+    try:
+        with open(PERSISTENT_WIRE_DATA_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        from api.services.cache import cache
+        cache.set("wire_data", data, ttl=82800)
+        print(f"[startup] Loaded wire_data from volume (date={data.get('date', '?')})")
+    except Exception as e:
+        print(f"[startup] Could not load wire_data from volume: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _seed_cache_from_volume()
+    yield
+
+
+app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 
 @app.get("/api/health")
 def health():

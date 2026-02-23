@@ -40,6 +40,7 @@ if MORNING_WIRE_PATH not in sys.path:
 
 STATE_FILE = os.path.join(MORNING_WIRE_PATH, "morning_wire_state.json")
 WIRE_DATA_FILE = os.path.join(MORNING_WIRE_PATH, "data", "wire_data.json")
+PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"  # Railway volume mount
 
 from api.services.cache import cache
 
@@ -53,18 +54,22 @@ def _load_state() -> dict:
 
 
 def _load_wire_data() -> dict | None:
-    """Load the pre-computed wire_data.json from the engine's last run."""
+    """Load the pre-computed wire_data.json from the engine's last run.
+
+    Priority: in-memory cache → Railway volume (/data/) → local dev path.
+    """
     cached = cache.get("wire_data")
     if cached:
         return cached
-    if os.path.exists(WIRE_DATA_FILE):
-        try:
-            with open(WIRE_DATA_FILE, encoding="utf-8") as f:
-                data = json.load(f)
-            cache.set("wire_data", data, ttl=3600)
-            return data
-        except (json.JSONDecodeError, OSError):
-            return None
+    for path in [PERSISTENT_WIRE_DATA_FILE, WIRE_DATA_FILE]:
+        if os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                cache.set("wire_data", data, ttl=82800)
+                return data
+            except (json.JSONDecodeError, OSError):
+                continue
     return None
 
 
