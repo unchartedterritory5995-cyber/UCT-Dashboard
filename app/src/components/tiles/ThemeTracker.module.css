@@ -74,3 +74,64 @@
 .pos { color: var(--gain); }
 .neg { color: var(--loss); }
 .loading { color: var(--text-muted); font-size: 12px; }
+
+/* Expandable row */
+.themeBlock { border-bottom: 1px solid var(--border); }
+.themeBlock:last-child { border-bottom: none; }
+.row { border-bottom: none; }
+.rowClickable { cursor: pointer; user-select: none; }
+.rowClickable:hover .name { color: var(--ut-green-bright); }
+.caret { font-size: 10px; color: var(--text-muted); flex-shrink: 0; padding-left: 4px; }
+
+/* Expanded holdings */
+.expanded { padding: 6px 0 10px; }
+.etfLabel {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.etfTicker {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ut-green-bright);
+}
+.etfName {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Stock chips */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.chip {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 7px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-bright);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+  display: inline-block;
+}
+.chip:hover { border-color: var(--ut-green-bright); color: var(--ut-green-bright); }
+
+/* International badge */
+.intlBadge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 7px;
+  align-self: center;
+}
