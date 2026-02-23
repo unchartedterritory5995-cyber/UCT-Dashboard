@@ -120,13 +120,14 @@ def _normalize_breadth(raw: dict, state: dict) -> dict:
     if not isinstance(raw, dict):
         raw = {}
     return {
-        "pct_above_50ma": raw.get("pct_above_50ma", raw.get("pct_above_50", 0) or 0),
-        "pct_above_200ma": raw.get("pct_above_200ma", raw.get("pct_above_200", 0) or 0),
-        "advancing": raw.get("advancing", 0),
-        "declining": raw.get("declining", 0),
+        "pct_above_5ma":  raw.get("pct_above_5ma",  raw.get("pct_above_5"))  or None,
+        "pct_above_50ma": raw.get("pct_above_50ma", raw.get("pct_above_50")) or None,
+        "pct_above_200ma": raw.get("pct_above_200ma", raw.get("pct_above_200")) or None,
+        "advancing": raw.get("advancing") or None,
+        "declining": raw.get("declining") or None,
         "breadth_score": raw.get("breadth_score", 50.0),
         "distribution_days": state.get("distribution_days_qqq", 0),
-        "market_phase": state.get("market_phase", "Unknown"),
+        "market_phase": state.get("market_phase", ""),
     }
 
 

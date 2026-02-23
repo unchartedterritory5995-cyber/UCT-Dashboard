@@ -115,6 +115,7 @@ export default function MarketBreadth({ data: propData }) {
   }
 
   const score    = data.breadth_score ?? null
+  const p5       = data.pct_above_5ma   ?? null
   const p50      = data.pct_above_50ma  ?? null
   const p200     = data.pct_above_200ma ?? null
   const distDays = data.distribution_days ?? 0
@@ -140,9 +141,15 @@ export default function MarketBreadth({ data: propData }) {
         </div>
       )}
 
-      {/* 50MA + 200MA progress bars */}
+      {/* 5MA + 50MA + 200MA progress bars */}
       <div className={styles.maSection}>
         <div className={styles.maRow}>
+          <span className={styles.maLabel}>% Above 5MA</span>
+          <span className={styles.maVal} style={{ color: 'var(--warn)' }}>{fmtPct(p5)}</span>
+        </div>
+        <ProgressBar value={p5} color="var(--warn)" />
+
+        <div className={styles.maRow} style={{ marginTop: 8 }}>
           <span className={styles.maLabel}>% Above 50MA</span>
           <span className={styles.maVal} style={{ color: 'var(--gain)' }}>{fmtPct(p50)}</span>
         </div>
