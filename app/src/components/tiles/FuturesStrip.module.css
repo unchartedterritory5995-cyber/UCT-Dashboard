@@ -3,33 +3,11 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
-.rowLabel {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-bottom: -4px;
-}
-.rowDivider {
-  height: 1px;
-  background: var(--border);
-  margin: 2px 0;
-}
-.futuresRow {
+.grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-}
-.etfRow {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
 }
 .cellInner {
   background: var(--bg-elevated);
@@ -44,8 +22,6 @@
 [data-testid^="ticker-"]:hover .cellInner { border-color: var(--ut-green-bright); }
 .cellPos { background: var(--gain-bg); border-color: var(--gain-border) !important; }
 .cellNeg { background: var(--loss-bg); border-color: var(--loss-border) !important; }
-.large { padding: 14px 12px; }
-.small { padding: 8px 10px; }
 .sym {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
@@ -54,7 +30,6 @@
   letter-spacing: 1px;
   margin-bottom: 4px;
 }
-.large .sym { font-size: 12px; }
 .price {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 14px;
@@ -62,7 +37,6 @@
   color: var(--text-heading);
   margin-bottom: 2px;
 }
-.large .price { font-size: 18px; }
 .chg {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;

@@ -8,10 +8,7 @@ vi.mock('swr', () => ({
 
 const mockData = {
   futures: {
-    NQ:  { price: '25,039.75', chg: '+0.54%', css: 'pos' },
-    ES:  { price: '6,909.50',  chg: '+0.22%', css: 'pos' },
-    RTY: { price: '2,663.00',  chg: '+0.10%', css: 'pos' },
-    BTC: { price: '67,105',    chg: '+1.20%', css: 'pos' },
+    BTC: { price: '67,105', chg: '+1.20%', css: 'pos' },
   },
   etfs: {
     QQQ: { price: '495.79', chg: '+0.50%', css: 'pos' },
@@ -22,25 +19,21 @@ const mockData = {
   }
 }
 
-test('renders all futures symbols', () => {
-  render(<FuturesStrip data={mockData} />)
-  expect(screen.getByText('NQ')).toBeInTheDocument()
-  expect(screen.getByText('ES')).toBeInTheDocument()
-  expect(screen.getByText('RTY')).toBeInTheDocument()
-  expect(screen.getByText('BTC')).toBeInTheDocument()
-})
-
-test('renders all ETF symbols', () => {
+test('renders all 6 symbols', () => {
   render(<FuturesStrip data={mockData} />)
   expect(screen.getByText('QQQ')).toBeInTheDocument()
   expect(screen.getByText('SPY')).toBeInTheDocument()
+  expect(screen.getByText('IWM')).toBeInTheDocument()
+  expect(screen.getByText('DIA')).toBeInTheDocument()
+  expect(screen.getByText('BTC')).toBeInTheDocument()
   expect(screen.getByText('VIX')).toBeInTheDocument()
 })
 
 test('renders prices', () => {
   render(<FuturesStrip data={mockData} />)
-  expect(screen.getByText('25,039.75')).toBeInTheDocument()
-  expect(screen.getByText('+0.54%')).toBeInTheDocument()
+  expect(screen.getByText('495.79')).toBeInTheDocument()
+  expect(screen.getByText('+0.50%')).toBeInTheDocument()
+  expect(screen.getByText('67,105')).toBeInTheDocument()
 })
 
 test('renders loading when no data', () => {
@@ -48,8 +41,14 @@ test('renders loading when no data', () => {
   expect(screen.getByText(/loading/i)).toBeInTheDocument()
 })
 
-test('clicking NQ cell opens chart modal', () => {
+test('clicking QQQ cell opens chart modal', () => {
   render(<FuturesStrip data={mockData} />)
-  fireEvent.click(screen.getByTestId('ticker-NQ'))
+  fireEvent.click(screen.getByTestId('ticker-QQQ'))
+  expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
+})
+
+test('clicking BTC cell opens chart modal', () => {
+  render(<FuturesStrip data={mockData} />)
+  fireEvent.click(screen.getByTestId('ticker-BTC'))
   expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
 })
