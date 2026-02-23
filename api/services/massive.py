@@ -167,6 +167,14 @@ def _yfinance_snapshot(ticker: str) -> dict:
         return {}
 
 
+def get_ticker_snapshot(ticker: str) -> dict:
+    """Return change_pct for a single equity ticker (for earnings gap display)."""
+    try:
+        return _get_client().get_single_ticker_snapshot(ticker)
+    except Exception:
+        return {}
+
+
 def get_snapshot() -> dict:
     """Return formatted market snapshot for the FuturesStrip tile (QQQ/SPY/IWM/DIA/BTC/VIX).
 
