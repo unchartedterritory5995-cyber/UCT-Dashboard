@@ -7,6 +7,20 @@
   flex-direction: column;
   gap: 10px;
 }
+.rowLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: -4px;
+}
+.rowDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 0;
+}
 .futuresRow {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -16,19 +30,20 @@
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
 }
-.cell {
+.cellInner {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 12px;
   text-align: center;
-  cursor: pointer;
   transition: border-color 0.15s;
 }
-.cell:hover { border-color: var(--ut-green-bright); }
+/* TickerPopup trigger (as="div") gets the cursor */
+[data-testid^="ticker-"] { cursor: pointer; }
+[data-testid^="ticker-"]:hover .cellInner { border-color: var(--ut-green-bright); }
+.cellPos { background: var(--gain-bg); border-color: var(--gain-border) !important; }
+.cellNeg { background: var(--loss-bg); border-color: var(--loss-border) !important; }
 .large { padding: 14px 12px; }
 .small { padding: 8px 10px; }
 .sym {
@@ -50,8 +65,8 @@
 .large .price { font-size: 18px; }
 .chg {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
 }
 .pos { color: var(--gain); }
 .neg { color: var(--loss); }

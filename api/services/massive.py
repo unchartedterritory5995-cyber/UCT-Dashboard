@@ -157,11 +157,10 @@ def _yfinance_snapshot(ticker: str) -> dict:
     """Fetch latest price via yfinance (used for futures/crypto not in Massive equities)."""
     try:
         import yfinance as yf
-        hist = yf.Ticker(ticker).history(period="2d")
-        if hist.empty:
-            return {}
-        close = float(hist["Close"].iloc[-1])
-        prev  = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else close
+        t = yf.Ticker(ticker)
+        fi = t.fast_info
+        close = float(fi.last_price)
+        prev  = float(fi.previous_close)
         chg_pct = (close - prev) / prev * 100 if prev else 0.0
         return {"close": close, "vwap": close, "change_pct": round(chg_pct, 4)}
     except Exception:

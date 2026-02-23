@@ -1,5 +1,10 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { vi } from 'vitest'
 import FuturesStrip from './FuturesStrip'
+
+vi.mock('swr', () => ({
+  default: () => ({ data: undefined, error: undefined }),
+}))
 
 const mockData = {
   futures: {
@@ -41,4 +46,10 @@ test('renders prices', () => {
 test('renders loading when no data', () => {
   render(<FuturesStrip data={null} />)
   expect(screen.getByText(/loading/i)).toBeInTheDocument()
+})
+
+test('clicking NQ cell opens chart modal', () => {
+  render(<FuturesStrip data={mockData} />)
+  fireEvent.click(screen.getByTestId('ticker-NQ'))
+  expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
 })

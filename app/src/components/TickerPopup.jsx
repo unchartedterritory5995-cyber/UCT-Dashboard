@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react'
 import styles from './TickerPopup.module.css'
 
 const TABS = ['5min', '30min', '1hr', 'Daily', 'Weekly']
-const TV_INTERVALS = { '5min': '5', '30min': '30', '1hr': '60' }
-const FV_PERIODS   = { 'Daily': 'd', 'Weekly': 'w' }
+const TV_ALL_INTERVALS = { '5min': '5', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W' }
+const FV_PERIODS       = { 'Daily': 'd', 'Weekly': 'w' }
 
 const finvizChart = (sym, period) =>
   `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}&s=l`
@@ -12,7 +12,7 @@ const finvizChart = (sym, period) =>
 const tvUrl = (sym, interval) =>
   `https://www.tradingview.com/widgetembed/?symbol=${sym}&interval=${interval}&theme=dark&style=1&locale=en&hide_top_toolbar=0&hideideas=1`
 
-export default function TickerPopup({ sym, children }) {
+export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', children }) {
   const [hovered, setHovered] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [tab, setTab] = useState('Daily')
@@ -26,9 +26,9 @@ export default function TickerPopup({ sym, children }) {
 
   return (
     <>
-      <span
+      <Tag
         className={styles.trigger}
-        onMouseEnter={() => setHovered(true)}
+        onMouseEnter={() => showFinviz && setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => { setModalOpen(true); setTab('Daily') }}
         role="button"
@@ -36,7 +36,7 @@ export default function TickerPopup({ sym, children }) {
         data-testid={`ticker-${sym}`}
       >
         {children ?? sym}
-        {hovered && (
+        {showFinviz && hovered && (
           <div className={styles.popup}>
             <img
               src={finvizChart(sym, 'd')}
@@ -45,7 +45,7 @@ export default function TickerPopup({ sym, children }) {
             />
           </div>
         )}
-      </span>
+      </Tag>
 
       {modalOpen && (
         <div
@@ -84,7 +84,7 @@ export default function TickerPopup({ sym, children }) {
             </div>
 
             <div className={styles.chartArea}>
-              {FV_PERIODS[tab] ? (
+              {showFinviz && FV_PERIODS[tab] ? (
                 <img
                   src={finvizChart(sym, FV_PERIODS[tab])}
                   alt={`${sym} ${tab} chart`}
@@ -92,7 +92,7 @@ export default function TickerPopup({ sym, children }) {
                 />
               ) : (
                 <iframe
-                  src={tvUrl(sym, TV_INTERVALS[tab])}
+                  src={tvUrl(tvSym ?? sym, TV_ALL_INTERVALS[tab])}
                   title={`${sym} ${tab}`}
                   className={styles.tvFrame}
                 />
@@ -100,16 +100,18 @@ export default function TickerPopup({ sym, children }) {
             </div>
 
             <div className={styles.modalFooter}>
+              {showFinviz && (
+                <a
+                  href={`https://finviz.com/quote.ashx?t=${sym}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.footerLink}
+                >
+                  Open in FinViz →
+                </a>
+              )}
               <a
-                href={`https://finviz.com/quote.ashx?t=${sym}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.footerLink}
-              >
-                Open in FinViz →
-              </a>
-              <a
-                href={`https://www.tradingview.com/chart/?symbol=${sym}`}
+                href={`https://www.tradingview.com/chart/?symbol=${tvSym ?? sym}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.footerLink}
