@@ -28,7 +28,6 @@ def _make_style():
     mc = mpf.make_marketcolors(
         up='#3cb868', down='#e74c3c',
         edge='inherit', wick='inherit',
-        volume={'up': '#3cb86840', 'down': '#e74c3c40'},
     )
     return mpf.make_mpf_style(
         base_mpf_style='nightclouds',
@@ -77,7 +76,7 @@ def chart_image(ticker: str, tf: str = Query(default='D')):
             style=_STYLE,
             figsize=(9, 4),
             savefig=dict(fname=buf, dpi=110, bbox_inches='tight'),
-            volume=True,
+            volume=False,
         )
         buf.seek(0)
         return StreamingResponse(
