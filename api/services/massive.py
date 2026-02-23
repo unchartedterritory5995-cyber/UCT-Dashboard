@@ -188,8 +188,12 @@ def get_snapshot() -> dict:
 
     client = _get_client()
 
-    etf_tickers = ["QQQ", "SPY", "IWM", "DIA", "VIX"]
+    # QQQ/SPY/IWM/DIA → Massive equities API (real-time)
+    etf_tickers = ["QQQ", "SPY", "IWM", "DIA"]
+    # Futures + VIX → yfinance (futures/indices not in Massive equities API)
     futures_map = {"NQ": "NQ=F", "ES": "ES=F", "RTY": "RTY=F", "BTC": "BTC-USD"}
+    # VIX → yfinance (index, not a stock) but goes in the etfs dict for the frontend
+    vix_yf_ticker = "^VIX"
 
     def _make_entry(snap: dict) -> dict[str, Any]:
         price   = snap.get("close") or snap.get("vwap") or 0.0
@@ -204,6 +208,10 @@ def get_snapshot() -> dict:
             etfs[ticker] = _make_entry(snap) if snap else {"price": "—", "chg": "—", "css": ""}
         except Exception:
             etfs[ticker] = {"price": "—", "chg": "—", "css": ""}
+
+    # VIX via yfinance — placed in etfs dict (frontend reads data.etfs.VIX)
+    vix_snap = _yfinance_snapshot(vix_yf_ticker)
+    etfs["VIX"] = _make_entry(vix_snap) if vix_snap else {"price": "—", "chg": "—", "css": ""}
 
     futures = {}
     for label, yf_ticker in futures_map.items():
