@@ -125,6 +125,38 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 | Breadth | wire_data push from engine | Daily (7:35 AM ET) |
 | Earnings | wire_data push from engine | Daily (7:35 AM ET) |
 
+## Key Components Built (2026-02-23 — session 2)
+
+### MarketBreadth (`app/src/components/tiles/MarketBreadth.jsx`)
+- Premium SVG gauge (R=72, gradient + glow), phase label with dot, 3 MA progress bars
+- **% Above 5MA** (amber) — computed from yfinance S&P 500 bulk download
+- **% Above 50MA** (green) + **% Above 200MA** (blue) — Finviz Elite screener
+- Stat row: Dist. Days · Adv · Dec · **NH** · **NL**
+- NH and NL are clickable buttons (dotted underline) → opens `NHNLModal`
+
+### NHNLModal (`app/src/components/tiles/NHNLModal.jsx`)
+- Opens on click of NH or NL count in MarketBreadth tile
+- Shows full list of S&P 500 stocks at 52W highs or lows as TickerPopup chips
+- Escape key closes; backdrop click closes
+- Data: `new_highs_list` / `new_lows_list` arrays from `/api/breadth`
+
+### LeadershipTile (`app/src/components/tiles/LeadershipTile.jsx`)
+- Replaced EpisodicPivots on Dashboard
+- Fetches `/api/leadership`, scrollable compact list: rank · TickerPopup · cap badge · RS score · thesis
+
+### EarningsModal (`app/src/components/tiles/EarningsModal.jsx`)
+- Opens on ticker click in CatalystFlow tile
+- Shows: sym header, BMO/AMC badge, METRIC/EXPECTED/REPORTED/SURPRISE table
+- Live gap % fetched from `/api/snapshot/{sym}` on open
+- View Chart via TickerPopup + FinViz button; Escape closes
+
+### API: Breadth (`api/services/engine.py` → `_normalize_breadth()`)
+- Fields: `pct_above_5ma`, `pct_above_50ma`, `pct_above_200ma`, `advancing`, `declining`, `new_highs`, `new_lows`, `new_highs_list`, `new_lows_list`, `breadth_score`, `distribution_days`, `market_phase`
+
+### FuturesStrip sparklines (`app/src/components/tiles/FuturesStrip.jsx`)
+- Each index tile has a background sparkline SVG: linearGradient stroke, feGaussianBlur glow, fog fill polygon, last-point circle marker
+- Static SPARK point arrays per symbol (pos/neg/neu variants)
+
 ## Key Components Built (2026-02-23)
 
 ### CatalystFlow (`app/src/components/tiles/CatalystFlow.jsx`)
