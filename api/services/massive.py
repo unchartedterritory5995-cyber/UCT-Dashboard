@@ -168,15 +168,16 @@ def _yfinance_snapshot(ticker: str) -> dict:
 
 
 def get_snapshot() -> dict:
-    """Return formatted market snapshot with futures and ETF prices.
+    """Return formatted market snapshot for the FuturesStrip tile (QQQ/SPY/IWM/DIA/BTC/VIX).
 
-    ETFs (QQQ, SPY, IWM, DIA, VIX): Massive REST API snapshot.
-    Futures (NQ, ES, RTY, BTC): yfinance fallback (futures not in equities API).
+    ETFs (QQQ, SPY, IWM, DIA): Massive REST API snapshot.
+    BTC: yfinance (BTC-USD) — crypto not in Massive equities API.
+    VIX: yfinance (^VIX) — index not in Massive equities API.
 
     Returns:
         {
-          "futures": {"NQ": {"price": "...", "chg": "...", "css": "pos|neg"}, ...},
-          "etfs":    {"QQQ": {"price": "...", "chg": "...", "css": "pos|neg"}, ...},
+          "futures": {"BTC": {"price": "...", "chg": "...", "css": "pos|neg"}},
+          "etfs":    {"QQQ": ..., "SPY": ..., "IWM": ..., "DIA": ..., "VIX": ...},
         }
 
     Raises RuntimeError on Massive client failure (caller handles with 503).
@@ -189,8 +190,8 @@ def get_snapshot() -> dict:
 
     # QQQ/SPY/IWM/DIA → Massive equities API (real-time)
     etf_tickers = ["QQQ", "SPY", "IWM", "DIA"]
-    # Futures + VIX → yfinance (futures/indices not in Massive equities API)
-    futures_map = {"NQ": "NQ=F", "ES": "ES=F", "RTY": "RTY=F", "BTC": "BTC-USD"}
+    # BTC → yfinance (crypto not in Massive equities API)
+    futures_map = {"BTC": "BTC-USD"}
     # VIX → yfinance (index, not a stock) but goes in the etfs dict for the frontend
     vix_yf_ticker = "^VIX"
 
