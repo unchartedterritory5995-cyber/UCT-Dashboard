@@ -18,6 +18,10 @@ class TTLCache:
     def set(self, key: str, value: Any, ttl: float) -> None:
         self._store[key] = (value, time.time() + ttl)
 
+    def invalidate(self, key: str) -> None:
+        """Remove a key from the cache immediately."""
+        self._store.pop(key, None)
+
 
 # Singleton used across all services
 cache = TTLCache()
