@@ -1,38 +1,102 @@
-"""Service layer wrapping MassiveClient from uct-intelligence.
+"""Service layer calling Massive.com REST API directly.
 
 Provides get_snapshot() and get_movers() with TTL caching.
-MassiveClient is imported via sys.path manipulation since it lives in a
-sibling project (uct-intelligence).
+Calls https://api.massive.com using MASSIVE_API_KEY env var.
+
+No dependency on the local uct-intelligence package — works on Railway.
 """
-import sys
+import json
 import os
+import urllib.request
 from typing import Any
 
-# Import MassiveClient from the uct-intelligence project
-_UCI_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "uct-intelligence")
-)
-if _UCI_PATH not in sys.path:
-    sys.path.insert(0, _UCI_PATH)
-
 from api.services.cache import cache
+
+_REST_BASE = "https://api.massive.com"
 
 _client = None
 
 
-def _get_client():
-    """Return a shared MassiveClient instance, initializing on first call.
+class _MassiveRestClient:
+    """Lightweight REST client wrapping the Massive.com API directly.
 
-    Raises RuntimeError with a clear message if the client cannot be created
-    (e.g. missing API keys or boto3).
+    Polygon.io-compatible API at api.massive.com.
+    Uses MASSIVE_API_KEY from environment variables.
     """
+
+    def __init__(self):
+        self._api_key = os.environ.get("MASSIVE_API_KEY", "")
+        if not self._api_key:
+            raise RuntimeError("MASSIVE_API_KEY not set in environment")
+
+    def _get(self, url: str, timeout: int = 15) -> dict:
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    def get_top_movers(self, direction: str = "gainers", limit: int = 20) -> list:
+        """Return top gaining or losing stocks for the current session.
+
+        Returns list of dicts: ticker, change_pct, change, close, volume
+        """
+        if direction not in ("gainers", "losers"):
+            raise ValueError("direction must be 'gainers' or 'losers'")
+        url = (
+            f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/{direction}"
+            f"?apiKey={self._api_key}"
+        )
+        data = self._get(url)
+        result = []
+        for t in data.get("tickers", [])[:limit]:
+            day = t.get("day", {})
+            result.append({
+                "ticker":     t.get("ticker", ""),
+                "change_pct": round(float(t.get("todaysChangePerc", 0.0)), 2),
+                "change":     round(float(t.get("todaysChange", 0.0)), 4),
+                "close":      day.get("c", 0.0),
+                "volume":     int(float(day.get("v", 0) or 0)),
+            })
+        return result
+
+    def get_single_ticker_snapshot(self, ticker: str) -> dict:
+        """Return real-time snapshot for a single US equity ticker.
+
+        Returns dict with: close, vwap, change_pct, change
+        Returns empty dict if not found or on error.
+        """
+        url = (
+            f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
+            f"/{ticker.upper()}?apiKey={self._api_key}"
+        )
+        try:
+            data = self._get(url)
+        except Exception:
+            return {}
+
+        if data.get("status") not in ("OK", "DELAYED"):
+            return {}
+
+        t = data.get("ticker", {})
+        if not t:
+            return {}
+
+        day  = t.get("day", {})
+        return {
+            "close":      day.get("c", 0.0),
+            "vwap":       day.get("vw", 0.0),
+            "change_pct": round(float(t.get("todaysChangePerc", 0.0)), 4),
+            "change":     round(float(t.get("todaysChange", 0.0)), 4),
+        }
+
+
+def _get_client() -> _MassiveRestClient:
+    """Return a shared _MassiveRestClient instance, initializing on first call."""
     global _client
     if _client is None:
         try:
-            from uct_intelligence.massive_data import MassiveClient
-            _client = MassiveClient()
+            _client = _MassiveRestClient()
         except Exception as e:
-            raise RuntimeError(f"Failed to initialize MassiveClient: {e}")
+            raise RuntimeError(f"Failed to initialize Massive client: {e}")
     return _client
 
 
@@ -53,8 +117,26 @@ def _fmt_chg(pct: float) -> tuple[str, str]:
     return f"{sign}{pct:.2f}%", ("pos" if pct >= 0 else "neg")
 
 
+def _yfinance_snapshot(ticker: str) -> dict:
+    """Fetch latest price via yfinance (used for futures/crypto not in Massive equities)."""
+    try:
+        import yfinance as yf
+        hist = yf.Ticker(ticker).history(period="2d")
+        if hist.empty:
+            return {}
+        close = float(hist["Close"].iloc[-1])
+        prev  = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else close
+        chg_pct = (close - prev) / prev * 100 if prev else 0.0
+        return {"close": close, "vwap": close, "change_pct": round(chg_pct, 4)}
+    except Exception:
+        return {}
+
+
 def get_snapshot() -> dict:
     """Return formatted market snapshot with futures and ETF prices.
+
+    ETFs (QQQ, SPY, IWM, DIA, VIX): Massive REST API snapshot.
+    Futures (NQ, ES, RTY, BTC): yfinance fallback (futures not in equities API).
 
     Returns:
         {
@@ -62,8 +144,7 @@ def get_snapshot() -> dict:
           "etfs":    {"QQQ": {"price": "...", "chg": "...", "css": "pos|neg"}, ...},
         }
 
-    Raises RuntimeError / any exception on data fetch failure (caller handles
-    with 503).
+    Raises RuntimeError on Massive client failure (caller handles with 503).
     """
     cached = cache.get("snapshot")
     if cached is not None:
@@ -71,48 +152,44 @@ def get_snapshot() -> dict:
 
     client = _get_client()
 
-    # Tickers we want in each bucket.
-    # Futures are tracked via their ETF/index proxies in the Massive REST API.
-    futures_tickers = ["NQ=F", "ES=F", "RTY=F", "BTC-USD"]
-    futures_labels  = ["NQ",   "ES",   "RTY",   "BTC"]
-    etf_tickers     = ["QQQ", "SPY", "IWM", "DIA", "VIX"]
+    etf_tickers = ["QQQ", "SPY", "IWM", "DIA", "VIX"]
+    futures_map = {"NQ": "NQ=F", "ES": "ES=F", "RTY": "RTY=F", "BTC": "BTC-USD"}
 
-    all_tickers = futures_tickers + etf_tickers
-
-    # Fetch all via bulk snapshot call (one call, then split)
-    prices = client.get_latest_prices(all_tickers)
-
-    def _make_entry(ticker: str, label: str = None) -> dict[str, Any]:
-        snap = client.get_single_ticker_snapshot(ticker)
-        price = snap.get("close") or snap.get("vwap") or 0.0
+    def _make_entry(snap: dict) -> dict[str, Any]:
+        price   = snap.get("close") or snap.get("vwap") or 0.0
         chg_pct = snap.get("change_pct") or 0.0
         chg_str, css = _fmt_chg(float(chg_pct))
         return {"price": _fmt_price(price), "chg": chg_str, "css": css}
 
-    futures = {}
-    for ticker, label in zip(futures_tickers, futures_labels):
-        futures[label] = _make_entry(ticker)
-
     etfs = {}
     for ticker in etf_tickers:
-        etfs[ticker] = _make_entry(ticker)
+        try:
+            snap = client.get_single_ticker_snapshot(ticker)
+            etfs[ticker] = _make_entry(snap) if snap else {"price": "—", "chg": "—", "css": ""}
+        except Exception:
+            etfs[ticker] = {"price": "—", "chg": "—", "css": ""}
+
+    futures = {}
+    for label, yf_ticker in futures_map.items():
+        snap = _yfinance_snapshot(yf_ticker)
+        futures[label] = _make_entry(snap) if snap else {"price": "—", "chg": "—", "css": ""}
 
     data = {"futures": futures, "etfs": etfs}
-    cache.set("snapshot", data, ttl=10)
+    cache.set("snapshot", data, ttl=15)
     return data
 
 
 def get_movers() -> dict:
-    """Return top gainers and losers for the current session.
+    """Return top gainers and losers gapping >=3% for the current session.
+
+    Primary source: Massive REST API live feed (refreshes every 30s).
+    Fallback: movers from the last engine wire_data push (daily at 7:35 AM ET).
 
     Returns:
         {
-          "ripping": [{"sym": "TICK", "pct": "+34.40%"}, ...],
+          "ripping":  [{"sym": "TICK", "pct": "+34.40%"}, ...],
           "drilling": [{"sym": "TICK", "pct": "-50.55%"}, ...],
         }
-
-    Primary source: MassiveClient live feed (unavailable on Railway).
-    Fallback: movers from the last engine wire_data push (daily at 7:35 AM ET).
     """
     cached = cache.get("movers")
     if cached is not None:
@@ -139,7 +216,6 @@ def get_movers() -> dict:
         return data
 
     except Exception:
-        # MassiveClient unavailable (Railway can't reach uct-intelligence).
         # Fall back to movers from the last engine wire_data push.
         wire = cache.get("wire_data")
         if wire and wire.get("movers"):
