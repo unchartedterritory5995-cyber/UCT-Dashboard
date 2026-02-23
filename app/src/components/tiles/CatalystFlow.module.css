@@ -1,7 +1,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 10px;
 }
 .tableLabel {
   font-family: 'Cinzel', serif;
@@ -21,17 +21,18 @@
 }
 .mono {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
+  font-size: 10px;
+  white-space: nowrap;
 }
 .table th {
   text-align: left;
-  padding: 4px 6px;
+  padding: 4px 4px;
   font-size: 8px;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
 }
 .table td {
-  padding: 5px 6px;
+  padding: 4px 4px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
 }

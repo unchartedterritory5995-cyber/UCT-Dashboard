@@ -5,6 +5,11 @@ import styles from './CatalystFlow.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
+function fmtRev(m) {
+  if (m == null) return '—'
+  return m >= 1000 ? `$${(m / 1000).toFixed(1)}B` : `$${Math.round(m)}M`
+}
+
 function VerdictPill({ verdict }) {
   const isBeat = verdict?.toLowerCase() === 'beat'
   return (
@@ -24,8 +29,11 @@ function EarningsTable({ rows, label }) {
           <tr>
             <th>Ticker</th>
             <th>Verdict</th>
+            <th>EPS Est</th>
             <th>EPS Act</th>
-            <th>Surprise</th>
+            <th>EPS Surp</th>
+            <th>Rev Act</th>
+            <th>Rev Surp</th>
           </tr>
         </thead>
         <tbody>
@@ -33,9 +41,14 @@ function EarningsTable({ rows, label }) {
             <tr key={row.sym}>
               <td className={styles.sym}>{row.sym}</td>
               <td><VerdictPill verdict={row.verdict} /></td>
+              <td className={styles.mono}>{row.eps_estimate ?? '—'}</td>
               <td className={styles.mono}>{row.reported_eps ?? '—'}</td>
               <td className={`${styles.mono} ${row.surprise_pct?.startsWith('+') ? styles.pos : styles.neg}`}>
                 {row.surprise_pct ?? '—'}
+              </td>
+              <td className={styles.mono}>{fmtRev(row.rev_actual)}</td>
+              <td className={`${styles.mono} ${row.rev_surprise_pct?.startsWith('+') ? styles.pos : styles.neg}`}>
+                {row.rev_surprise_pct ?? '—'}
               </td>
             </tr>
           ))}
@@ -54,7 +67,7 @@ export default function CatalystFlow({ data: propData }) {
   return (
     <TileCard title="Catalyst Flow · Earnings">
       <EarningsTable rows={data.bmo} label="▲ Before Market Open" />
-      <EarningsTable rows={data.amc} label="▼ After Market Close" />
+      <EarningsTable rows={data.amc} label="▼ After Close · Yesterday" />
       {!data.bmo?.length && !data.amc?.length && (
         <p className={styles.loading}>No earnings today</p>
       )}

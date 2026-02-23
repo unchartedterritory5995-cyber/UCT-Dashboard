@@ -307,6 +307,13 @@ def get_earnings() -> dict:
     return data
 
 
+def _fmt_surprise(actual, estimate):
+    if actual is None or estimate is None or estimate == 0:
+        return None
+    pct = (actual - estimate) / abs(estimate) * 100
+    return f"{'+' if pct >= 0 else ''}{pct:.1f}%"
+
+
 def _normalize_earnings(raw) -> dict:
     """
     fetch_earnings_whispers() returns a flat list with "hour": "bmo" | "amc".
@@ -316,16 +323,21 @@ def _normalize_earnings(raw) -> dict:
     for item in (raw or []):
         if not isinstance(item, dict):
             continue
+        eps_actual   = item.get("eps_actual")
+        eps_estimate = item.get("eps_estimate")
+        rev_actual   = item.get("rev_actual")
+        rev_estimate = item.get("rev_estimate")
         entry = {
-            "sym": item.get("symbol", item.get("sym", "")),
-            "eps_actual": item.get("eps_actual"),
-            "eps_estimate": item.get("eps_estimate"),
-            "rev_actual": item.get("rev_actual"),
-            "rev_estimate": item.get("rev_estimate"),
+            "sym":              item.get("symbol", item.get("sym", "")),
+            "reported_eps":     eps_actual,
+            "eps_estimate":     eps_estimate,
+            "surprise_pct":     _fmt_surprise(eps_actual, eps_estimate),
+            "rev_actual":       rev_actual,
+            "rev_surprise_pct": _fmt_surprise(rev_actual, rev_estimate),
         }
         # Derive a simple verdict
-        if item.get("eps_actual") is not None and item.get("eps_estimate") is not None:
-            entry["verdict"] = "Beat" if item["eps_actual"] >= item["eps_estimate"] else "Miss"
+        if eps_actual is not None and eps_estimate is not None:
+            entry["verdict"] = "Beat" if eps_actual >= eps_estimate else "Miss"
         else:
             entry["verdict"] = "Pending"
 
