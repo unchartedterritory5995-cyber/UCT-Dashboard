@@ -1,11 +1,21 @@
+// app/src/components/TickerPopup.jsx
 import { useState } from 'react'
 import styles from './TickerPopup.module.css'
 
-const FINVIZ_CHART = sym => `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=d&s=l`
+const TABS = ['5min', '30min', '1hr', 'Daily', 'Weekly']
+const TV_INTERVALS = { '5min': '5', '30min': '30', '1hr': '60' }
+const FV_PERIODS   = { 'Daily': 'd', 'Weekly': 'w' }
+
+const finvizChart = (sym, period) =>
+  `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}&s=l`
+
+const tvUrl = (sym, interval) =>
+  `https://www.tradingview.com/widgetembed/?symbol=${sym}&interval=${interval}&theme=dark&style=1&locale=en&hide_top_toolbar=0&hideideas=1`
 
 export default function TickerPopup({ sym, children }) {
   const [hovered, setHovered] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const [tab, setTab] = useState('Daily')
 
   return (
     <>
@@ -13,7 +23,7 @@ export default function TickerPopup({ sym, children }) {
         className={styles.trigger}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        onClick={() => setModalOpen(true)}
+        onClick={() => { setModalOpen(true); setTab('Daily') }}
         role="button"
         aria-label={`View chart for ${sym}`}
         data-testid={`ticker-${sym}`}
@@ -22,8 +32,8 @@ export default function TickerPopup({ sym, children }) {
         {hovered && (
           <div className={styles.popup}>
             <img
-              src={FINVIZ_CHART(sym)}
-              alt={`${sym} chart`}
+              src={finvizChart(sym, 'd')}
+              alt={`${sym} preview`}
               className={styles.popupChart}
             />
           </div>
@@ -47,22 +57,59 @@ export default function TickerPopup({ sym, children }) {
                 onClick={() => setModalOpen(false)}
                 aria-label="Close chart"
               >
-                ×
+                × close
               </button>
             </div>
-            <img
-              src={FINVIZ_CHART(sym)}
-              alt={`${sym} full chart`}
-              className={styles.modalChart}
-            />
-            <a
-              href={`https://finviz.com/quote.ashx?t=${sym}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.finvizLink}
-            >
-              View on Finviz ↗
-            </a>
+
+            <div className={styles.modalTabs}>
+              {TABS.map(t => (
+                <button
+                  key={t}
+                  className={`${styles.modalTab} ${tab === t ? styles.modalTabActive : ''}`}
+                  onClick={() => setTab(t)}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.chartArea}>
+              {FV_PERIODS[tab] ? (
+                <img
+                  src={finvizChart(sym, FV_PERIODS[tab])}
+                  alt={`${sym} ${tab} chart`}
+                  className={styles.modalChart}
+                />
+              ) : (
+                <iframe
+                  src={tvUrl(sym, TV_INTERVALS[tab])}
+                  title={`${sym} ${tab}`}
+                  className={styles.tvFrame}
+                  frameBorder="0"
+                  allowtransparency="true"
+                  scrolling="no"
+                />
+              )}
+            </div>
+
+            <div className={styles.modalFooter}>
+              <a
+                href={`https://finviz.com/quote.ashx?t=${sym}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.footerLink}
+              >
+                Open in FinViz →
+              </a>
+              <a
+                href={`https://www.tradingview.com/chart/?symbol=${sym}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.footerLink}
+              >
+                Open in TradingView →
+              </a>
+            </div>
           </div>
         </div>
       )}

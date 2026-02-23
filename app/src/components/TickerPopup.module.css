@@ -92,3 +92,63 @@
 .finvizLink:hover {
   text-decoration: underline;
 }
+
+/* Chart modal tabs */
+.modalTabs {
+  display: flex;
+  gap: 6px;
+  padding: 12px 16px 0;
+}
+.modalTab {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.modalTab:hover { color: var(--text-bright); border-color: var(--border-accent); }
+.modalTabActive { color: var(--ut-green-bright) !important; border-color: var(--ut-green-bright) !important; }
+
+/* Chart area */
+.chartArea {
+  padding: 12px 16px;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modalChart {
+  width: 100%;
+  max-width: 760px;
+  border-radius: 4px;
+  display: block;
+}
+.tvFrame {
+  width: 100%;
+  height: 400px;
+  border: none;
+  border-radius: 4px;
+}
+
+/* Footer links */
+.modalFooter {
+  display: flex;
+  gap: 24px;
+  padding: 8px 16px 14px;
+  justify-content: center;
+  border-top: 1px solid var(--border);
+}
+.footerLink {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.footerLink:hover { color: var(--ut-green-bright); }
