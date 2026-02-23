@@ -26,10 +26,23 @@ const SPARK = {
 }
 const SYM_IDX = { QQQ: 0, SPY: 1, IWM: 2, DIA: 0, BTC: 1, VIX: 2 }
 
+// Colors per direction — hardcoded for reliable SVG attribute support
+const SPARK_COLOR = {
+  pos: { dim: 'rgba(0,210,85,0.06)',  bright: 'rgba(0,210,85,0.28)',  fill: 'rgba(0,210,85,1)',  glow: 'rgba(0,210,85,0.22)'  },
+  neg: { dim: 'rgba(230,60,60,0.06)', bright: 'rgba(230,60,60,0.28)', fill: 'rgba(230,60,60,1)', glow: 'rgba(230,60,60,0.22)' },
+  neu: { dim: 'rgba(160,160,160,0.05)', bright: 'rgba(160,160,160,0.22)', fill: 'rgba(160,160,160,1)', glow: 'rgba(160,160,160,0.16)' },
+}
+
 function Sparkline({ sym, css }) {
   const bucket = css === 'pos' ? SPARK.pos : css === 'neg' ? SPARK.neg : SPARK.neu
-  const pts = bucket[(SYM_IDX[sym] ?? 0) % bucket.length]
-  const color = css === 'pos' ? 'var(--gain)' : css === 'neg' ? 'var(--loss)' : 'var(--text-muted)'
+  const pts    = bucket[(SYM_IDX[sym] ?? 0) % bucket.length]
+  const c      = SPARK_COLOR[css] ?? SPARK_COLOR.neu
+  const id     = `sp-${sym}`
+
+  // Last datapoint for the marker circle
+  const lastPair = pts.trim().split(' ').pop().split(',')
+  const [lx, ly] = [parseFloat(lastPair[0]), parseFloat(lastPair[1])]
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -38,14 +51,54 @@ function Sparkline({ sym, css }) {
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0 }}
       aria-hidden="true"
     >
+      <defs>
+        {/* Horizontal stroke gradient: dim left → bright right */}
+        <linearGradient id={`${id}-sg`} x1="0" y1="0" x2="100" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={c.dim}    />
+          <stop offset="100%" stopColor={c.bright}  />
+        </linearGradient>
+        {/* Vertical fog fill: color top → transparent bottom */}
+        <linearGradient id={`${id}-fg`} x1="0" y1="0" x2="0" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={c.fill} stopOpacity="0.13" />
+          <stop offset="100%" stopColor={c.fill} stopOpacity="0"    />
+        </linearGradient>
+        {/* Glow blur filter — contained within SVG bounds */}
+        <filter id={`${id}-glow`} x="-5%" y="-60%" width="110%" height="220%">
+          <feGaussianBlur stdDeviation="1.8" />
+        </filter>
+      </defs>
+
+      {/* Fog fill under the line */}
       <polygon
         points={`${pts} 100,40 0,40`}
-        style={{ fill: color, fillOpacity: 0.1, stroke: 'none' }}
+        fill={`url(#${id}-fg)`}
+        stroke="none"
       />
+
+      {/* Glow: blurred duplicate line */}
       <polyline
         points={pts}
-        style={{ fill: 'none', stroke: color, strokeOpacity: 0.2, strokeWidth: 1.5, strokeLinejoin: 'round', strokeLinecap: 'round' }}
+        fill="none"
+        stroke={c.glow}
+        strokeWidth="3.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        filter={`url(#${id}-glow)`}
+        opacity="0.55"
       />
+
+      {/* Main gradient stroke */}
+      <polyline
+        points={pts}
+        fill="none"
+        stroke={`url(#${id}-sg)`}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+
+      {/* Last-point marker */}
+      <circle cx={lx} cy={ly} r="1.8" fill={c.bright} opacity="0.55" />
     </svg>
   )
 }
