@@ -12,7 +12,7 @@ const finvizChart = (sym, period) =>
 const tvUrl = (sym, interval) =>
   `https://www.tradingview.com/widgetembed/?symbol=${sym}&interval=${interval}&theme=dark&style=1&locale=en&hide_top_toolbar=0&hideideas=1`
 
-export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', customChartFn, children }) {
+export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', customChartFn, className, children }) {
   const [hovered, setHovered] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [tab, setTab] = useState('Daily')
@@ -27,7 +27,7 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
   return (
     <>
       <Tag
-        className={styles.trigger}
+        className={`${styles.trigger}${className ? ` ${className}` : ''}`}
         onMouseEnter={() => showFinviz && setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => { setModalOpen(true); setTab('Daily') }}

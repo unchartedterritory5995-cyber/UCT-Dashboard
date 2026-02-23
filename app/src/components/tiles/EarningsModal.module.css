@@ -1,7 +1,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.88);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9,7 +9,7 @@
 }
 
 .modal {
-  background: var(--card-bg);
+  background: #111612;
   border: 1px solid var(--border);
   border-radius: 10px;
   width: 420px;
@@ -17,6 +17,8 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  position: relative;
+  z-index: 1001;
 }
 
 .header {

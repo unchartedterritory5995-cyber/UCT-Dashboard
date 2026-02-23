@@ -1,5 +1,6 @@
 // app/src/components/tiles/EarningsModal.jsx
 import { useEffect, useState } from 'react'
+import TickerPopup from '../TickerPopup'
 import styles from './EarningsModal.module.css'
 
 function fmtEps(v) {
@@ -94,14 +95,9 @@ export default function EarningsModal({ row, label, onClose }) {
         )}
 
         <div className={styles.actions}>
-          <a
-            href={`https://finviz.com/chart.ashx?t=${row.sym}&ty=c&ta=1&p=d&s=l`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.btnChart}
-          >
+          <TickerPopup sym={row.sym} showFinviz={true} as="button" className={styles.btnChart}>
             ▶ View Chart
-          </a>
+          </TickerPopup>
           <a
             href={`https://finviz.com/quote.ashx?t=${row.sym}`}
             target="_blank"
