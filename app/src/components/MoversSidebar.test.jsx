@@ -27,3 +27,15 @@ test('renders loading state when no data', () => {
   render(<MoversSidebar data={null} />)
   expect(screen.getByText(/loading/i)).toBeInTheDocument()
 })
+
+test('each ticker sym is wrapped in a TickerPopup trigger', () => {
+  const mockData = {
+    ripping:  [{ sym: 'NVDA', pct: '+5.20%' }, { sym: 'TSLA', pct: '+3.10%' }],
+    drilling: [{ sym: 'META', pct: '-4.10%' }],
+  }
+  render(<MoversSidebar data={mockData} />)
+  // TickerPopup renders data-testid="ticker-{sym}" on each trigger span
+  expect(screen.getByTestId('ticker-NVDA')).toBeInTheDocument()
+  expect(screen.getByTestId('ticker-TSLA')).toBeInTheDocument()
+  expect(screen.getByTestId('ticker-META')).toBeInTheDocument()
+})

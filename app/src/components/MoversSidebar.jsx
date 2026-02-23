@@ -1,5 +1,6 @@
 // app/src/components/MoversSidebar.jsx
 import useSWR from 'swr'
+import TickerPopup from './TickerPopup'
 import styles from './MoversSidebar.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -12,7 +13,9 @@ function MoverSection({ label, items, positive }) {
       </div>
       {items.map(item => (
         <div key={item.sym} className={styles.row}>
-          <span className={styles.sym}>{item.sym}</span>
+          <TickerPopup sym={item.sym}>
+            <span className={styles.sym}>{item.sym}</span>
+          </TickerPopup>
           <span className={`${styles.pct} ${positive ? styles.green : styles.red}`}>
             {item.pct}
           </span>
