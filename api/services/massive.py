@@ -224,16 +224,16 @@ def get_snapshot() -> dict:
 
 
 def get_movers() -> dict:
-    """Return top gainers and losers passing all liquidity filters.
+    """Return morning gappers for the Movers at the Open sidebar.
 
-    Filters (applied in order):
-      1. Gap ≥ 3%          — abs(change_pct) >= 3.0
-      2. Price > $2        — close > 2.0
-      3. PM volume ≥ 50K   — session shares traded >= 50,000
-      4. Avg 5d dvol ≥ $10M — 5-day avg (close × volume) >= $10M (via yfinance)
-
-    Primary source: Massive REST API (live, 30s TTL).
-    Fallback: movers from last engine wire_data push (daily at 7:35 AM ET).
+    Priority:
+      1. wire_data movers — captured at 7:35 AM ET by the engine from Finviz.
+         These are the actual pre-market gappers. Already filtered for quality
+         (price > $10, avg vol > 300K, mktcap > $300M, dollar vol >= $5M, gap >= 3%).
+         Served all day so traders can track the stocks that gapped at open.
+      2. Massive REST API gainers/losers — fallback when wire_data is unavailable
+         (e.g. before the engine has run). Applies liquidity filters:
+         gap >= 3%, price > $2, session vol >= 50K, avg 5d dollar vol >= $10M.
 
     Returns:
         {
@@ -245,6 +245,15 @@ def get_movers() -> dict:
     if cached is not None:
         return cached
 
+    # Stage 1: wire_data movers (pre-market gappers from 7:35 AM Finviz engine run)
+    wire = cache.get("wire_data")
+    if wire and wire.get("movers"):
+        data = wire["movers"]
+        if data.get("ripping") or data.get("drilling"):
+            cache.set("movers", data, ttl=300)  # 5 min — changes only on engine push
+            return data
+
+    # Stage 2: Massive live feed (fallback when wire_data is absent/empty)
     try:
         client = _get_client()
 
@@ -252,7 +261,6 @@ def get_movers() -> dict:
         losers_raw  = client.get_top_movers(direction="losers",  limit=20)
 
         def _quick_pass(row: dict) -> bool:
-            """Stage 1–3: filters that use data already in the row."""
             if abs(float(row.get("change_pct", 0.0))) < 3.0:
                 return False
             if float(row.get("close", 0.0)) <= _PRICE_MIN:
@@ -264,7 +272,6 @@ def get_movers() -> dict:
         gainers_pass = [r for r in gainers_raw if _quick_pass(r)]
         losers_pass  = [r for r in losers_raw  if _quick_pass(r)]
 
-        # Stage 4: 5-day avg dollar volume (parallel yfinance fetch)
         candidates = list({r["ticker"] for r in gainers_pass + losers_pass})
         avg_dvol = _get_avg_dollar_vol(candidates)
 
@@ -284,10 +291,4 @@ def get_movers() -> dict:
         return data
 
     except Exception:
-        # Fall back to movers from the last engine wire_data push.
-        wire = cache.get("wire_data")
-        if wire and wire.get("movers"):
-            data = wire["movers"]
-            cache.set("movers", data, ttl=30)
-            return data
         return {"ripping": [], "drilling": []}
