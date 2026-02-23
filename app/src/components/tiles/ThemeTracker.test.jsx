@@ -68,5 +68,6 @@ test('no intl badge when intl_count is 0', async () => {
   const user = userEvent.setup()
   render(<ThemeTracker data={mockData} />)
   await user.click(screen.getByText('Bitcoin Miners'))
+  expect(screen.getByText('MARA')).toBeInTheDocument()  // confirms expansion
   expect(screen.queryByText(/intl/)).not.toBeInTheDocument()
 })

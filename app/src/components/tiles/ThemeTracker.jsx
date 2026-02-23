@@ -25,7 +25,7 @@ function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, posi
           />
         </div>
         <span className={`${styles.pct} ${positive ? styles.pos : styles.neg}`}>{pct}</span>
-        <span className={styles.caret}>{expanded ? '▾' : '•'}</span>
+        <span className={styles.caret}>{expanded ? '▾' : '▸'}</span>
       </div>
 
       {expanded && (
@@ -41,7 +41,7 @@ function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, posi
               </TickerPopup>
             ))}
             {intl_count > 0 && (
-              <span className={styles.intlBadge}>🌐 +{intl_count} intl</span>
+              <span className={styles.intlBadge}>+{intl_count} intl</span>
             )}
           </div>
         </div>

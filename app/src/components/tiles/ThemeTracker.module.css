@@ -38,7 +38,6 @@
   align-items: center;
   gap: 6px;
   padding: 4px 0;
-  border-bottom: 1px solid var(--border);
   font-size: 11px;
 }
 .row:last-child { border-bottom: none; }
@@ -78,7 +77,6 @@
 /* Expandable row */
 .themeBlock { border-bottom: 1px solid var(--border); }
 .themeBlock:last-child { border-bottom: none; }
-.row { border-bottom: none; }
 .rowClickable { cursor: pointer; user-select: none; }
 .rowClickable:hover .name { color: var(--ut-green-bright); }
 .caret { font-size: 10px; color: var(--text-muted); flex-shrink: 0; padding-left: 4px; }
@@ -121,7 +119,6 @@
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
   white-space: nowrap;
-  display: inline-block;
 }
 .chip:hover { border-color: var(--ut-green-bright); color: var(--ut-green-bright); }
 
