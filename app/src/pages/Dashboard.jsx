@@ -2,7 +2,7 @@ import FuturesStrip from '../components/tiles/FuturesStrip'
 import MarketBreadth from '../components/tiles/MarketBreadth'
 import ThemeTracker from '../components/tiles/ThemeTracker'
 import CatalystFlow from '../components/tiles/CatalystFlow'
-import EpisodicPivots from '../components/tiles/EpisodicPivots'
+import LeadershipTile from '../components/tiles/LeadershipTile'
 import KeyLevels from '../components/tiles/KeyLevels'
 import NewsFeed from '../components/tiles/NewsFeed'
 import MoversSidebar from '../components/MoversSidebar'
@@ -27,10 +27,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Row 3: Catalyst Flow + Episodic Pivots + Key Levels + News */}
+        {/* Row 3: Catalyst Flow + UCT 20 + Key Levels + News */}
         <div className={styles.row3}>
           <CatalystFlow />
-          <EpisodicPivots />
+          <LeadershipTile />
           <KeyLevels />
           <NewsFeed />
         </div>
