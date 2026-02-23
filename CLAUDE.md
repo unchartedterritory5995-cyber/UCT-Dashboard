@@ -59,6 +59,8 @@ uct-dashboard/
 │   └── services/
 │       ├── engine.py           # _normalize_themes(), get_themes(), get_leadership(), etc.
 │       └── cache.py            # TTLCache (in-memory, resets on Railway redeploy)
+├── data/                       # Railway volume mount point (/data) — persists across redeploys
+│   └── wire_data.json          # Written by /api/push; loaded on startup to seed cache
 ├── tests/                      # pytest tests for backend
 │   ├── test_themes_holdings.py # 5 tests for holdings/etf_name/intl_count in themes
 │   └── ...
@@ -97,12 +99,18 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 **Engine run:** `cd C:\Users\Patrick\morning-wire && python morning_wire_engine.py`
 - Takes ~3 min. Pushes to Railway automatically on completion.
 - Windows Task Scheduler: runs daily at 7:35 AM ET (Mon–Fri), task name "UCT Morning Wire"
-- **After any Railway redeploy (code push), the in-memory cache resets — run engine to repopulate.**
+- **After any Railway redeploy, the in-memory cache resets but is seeded from `/data/wire_data.json` (Railway volume) on startup — no manual repopulation needed after the first engine run.**
 
 **POST /api/push** (`api/routers/push.py`):
 - Secured with `Authorization: Bearer <PUSH_SECRET>` header
 - Stores wire_data in TTLCache (23hr TTL)
 - Invalidates all derived cache keys on push
+- Writes payload to `/data/wire_data.json` (Railway volume) for redeploy persistence
+
+**Startup cache seeding** (`api/main.py` lifespan):
+- On boot, loads `/data/wire_data.json` from Railway volume into cache (23hr TTL)
+- Logs: `[startup] Loaded wire_data from volume (date=YYYY-MM-DD)`
+- No-ops silently if volume not mounted (local dev)
 
 ## Data Sources
 
@@ -116,6 +124,21 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 | Morning Rundown | wire_data + Claude AI + UCT KB | Daily (7:35 AM ET) |
 | Breadth | wire_data push from engine | Daily (7:35 AM ET) |
 | Earnings | wire_data push from engine | Daily (7:35 AM ET) |
+
+## Key Components Built (2026-02-23)
+
+### CatalystFlow (`app/src/components/tiles/CatalystFlow.jsx`)
+- 7 columns: Ticker · Verdict (BEAT/MISS pill) · EPS Est · EPS Act · EPS Surp · Rev Act · Rev Surp
+- `fmtRev()` formats revenue in millions/billions: `$121M`, `$1.2B`
+- Surprise % colored green (pos) / red (neg)
+- BMO label: "▲ Before Market Open" — today's reporters
+- AMC label: "▼ After Close · Yesterday" — yesterday's AMC reporters (already in wire_data)
+- Data shape: `{ bmo: [{sym, reported_eps, eps_estimate, surprise_pct, rev_actual, rev_surprise_pct, verdict}], amc: [...] }`
+
+### API: `_normalize_earnings()` + `_fmt_surprise()` (`api/services/engine.py`)
+- `_fmt_surprise(actual, estimate)` → `"+2.7%"` / `"-5.3%"` / `None`
+- Output fields: `sym`, `reported_eps`, `eps_estimate`, `surprise_pct`, `rev_actual`, `rev_surprise_pct`, `verdict`
+- Max 8 entries per bucket (bmo/amc)
 
 ## Key Components Built (2026-02-22)
 
@@ -167,7 +190,7 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 
 ## Known Issues / Gotchas
 
-- **Cache resets on redeploy** — in-memory TTLCache. After any `git push`, run engine to repopulate.
+- **Cache resets on redeploy** — FIXED (2026-02-23). Railway volume at `/data` persists wire_data.json. Startup event seeds cache automatically. First boot after volume creation still requires one engine run.
 - **Claude timeout** — thesis generation can timeout on first engine run; second run succeeds.
 - **`config` vs `CONFIG`** — morning_wire_engine.py push code uses `CONFIG` (uppercase). Bug was fixed 2026-02-22.
 - **Railway env vars are case-sensitive** — `PUSH_SECRET` must be all-caps (not `Push_Secret`).
