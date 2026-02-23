@@ -158,9 +158,9 @@ def get_themes(period: str = "1W") -> dict:
 def _normalize_themes(raw, period: str = "1W") -> dict:
     """
     fetch_theme_tracker() returns a dict keyed by ETF ticker.
-    Each value has: name, ticker, 1W, 1M, 3M, holdings, etf_name.
+    Each value has: name, ticker, etf_name, 1W, 1M, 3M, holdings, intl_holdings.
 
-    Returns ALL themes sorted by selected period — leaders (positive) and laggards (negative).
+    Returns ALL themes sorted by selected period with holdings included.
     """
     if not isinstance(raw, dict) or not raw:
         return {"leaders": [], "laggards": [], "period": period}
@@ -172,27 +172,44 @@ def _normalize_themes(raw, period: str = "1W") -> dict:
         pct_val = data.get(period, 0) or 0
         pct_str = f"{pct_val:+.2f}%" if isinstance(pct_val, (int, float)) else str(pct_val)
         bar = min(100, max(0, abs(pct_val) * 8)) if isinstance(pct_val, (int, float)) else 50
+
+        raw_holdings = data.get("holdings", [])
+        holdings = [
+            h["sym"] for h in raw_holdings
+            if isinstance(h, dict) and h.get("sym")
+        ]
+
+        raw_intl = data.get("intl_holdings", [])
+        intl_count = len(raw_intl) if isinstance(raw_intl, list) else 0
+
         items.append({
             "name": data.get("name", ticker),
             "ticker": ticker,
+            "etf_name": data.get("etf_name", ""),
             "pct": pct_str,
             "pct_val": pct_val,
             "bar": round(bar),
+            "holdings": holdings,
+            "intl_count": intl_count,
         })
 
     items.sort(key=lambda x: x["pct_val"], reverse=True)
 
     def clean(item):
-        return {"name": item["name"], "ticker": item["ticker"], "pct": item["pct"], "bar": item["bar"]}
+        return {
+            "name": item["name"],
+            "ticker": item["ticker"],
+            "etf_name": item["etf_name"],
+            "pct": item["pct"],
+            "bar": item["bar"],
+            "holdings": item["holdings"],
+            "intl_count": item["intl_count"],
+        }
 
     leaders  = [clean(i) for i in items if i["pct_val"] >= 0]
     laggards = [clean(i) for i in reversed(items) if i["pct_val"] < 0]
 
-    return {
-        "leaders": leaders,
-        "laggards": laggards,
-        "period": period,
-    }
+    return {"leaders": leaders, "laggards": laggards, "period": period}
 
 
 # ─── Leadership ───────────────────────────────────────────────────────────────
