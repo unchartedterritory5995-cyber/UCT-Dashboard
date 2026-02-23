@@ -16,6 +16,12 @@
   padding: 10px 12px;
   text-align: center;
   transition: border-color 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.cellContent {
+  position: relative;
+  z-index: 1;
 }
 /* TickerPopup trigger (as="div") gets the cursor */
 [data-testid^="ticker-"] { cursor: pointer; }
