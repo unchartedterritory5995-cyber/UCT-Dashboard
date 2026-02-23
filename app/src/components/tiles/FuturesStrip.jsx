@@ -10,8 +10,8 @@ const ORDER = ['QQQ', 'SPY', 'IWM', 'DIA', 'BTC', 'VIX']
 
 // TradingView symbol overrides
 const TV_SYMS = { BTC: 'BTCUSD', VIX: 'CBOE:VIX' }
-// BTC has no Finviz equity chart — TradingView only
-const TV_ONLY = new Set(['BTC'])
+// Neither BTC nor VIX have Finviz equity charts — TradingView only
+const TV_ONLY = new Set(['BTC', 'VIX'])
 
 function Cell({ sym, price, chg, css }) {
   const tintClass = css === 'pos' ? styles.cellPos : css === 'neg' ? styles.cellNeg : ''
