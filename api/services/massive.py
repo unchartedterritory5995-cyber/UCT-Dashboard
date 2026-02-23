@@ -123,14 +123,16 @@ def get_movers() -> dict:
     gainers_raw = client.get_top_movers(direction="gainers", limit=10)
     losers_raw  = client.get_top_movers(direction="losers",  limit=10)
 
-    def _fmt_mover(row: dict) -> dict[str, str]:
+    def _fmt_mover(row: dict) -> dict[str, str] | None:
         pct = float(row.get("change_pct", 0.0))
+        if abs(pct) < 3.0:
+            return None
         sign = "+" if pct >= 0 else ""
         return {"sym": row.get("ticker", ""), "pct": f"{sign}{pct:.2f}%"}
 
     data = {
-        "ripping":  [_fmt_mover(r) for r in gainers_raw],
-        "drilling": [_fmt_mover(r) for r in losers_raw],
+        "ripping":  [m for r in gainers_raw if (m := _fmt_mover(r)) is not None],
+        "drilling": [m for r in losers_raw  if (m := _fmt_mover(r)) is not None],
     }
     cache.set("movers", data, ttl=30)
     return data
