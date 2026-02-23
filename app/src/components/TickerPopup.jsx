@@ -1,5 +1,5 @@
 // app/src/components/TickerPopup.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import styles from './TickerPopup.module.css'
 
 const TABS = ['5min', '30min', '1hr', 'Daily', 'Weekly']
@@ -16,6 +16,13 @@ export default function TickerPopup({ sym, children }) {
   const [hovered, setHovered] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [tab, setTab] = useState('Daily')
+
+  useEffect(() => {
+    if (!modalOpen) return
+    const handleKey = (e) => { if (e.key === 'Escape') setModalOpen(false) }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [modalOpen])
 
   return (
     <>
@@ -44,12 +51,15 @@ export default function TickerPopup({ sym, children }) {
         <div
           className={styles.overlay}
           onClick={() => setModalOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${sym} chart`}
           data-testid="chart-modal"
         >
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+          <div
+            className={styles.modal}
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${sym} chart`}
+          >
             <div className={styles.modalHeader}>
               <span className={styles.modalSym}>{sym}</span>
               <button
@@ -85,9 +95,6 @@ export default function TickerPopup({ sym, children }) {
                   src={tvUrl(sym, TV_INTERVALS[tab])}
                   title={`${sym} ${tab}`}
                   className={styles.tvFrame}
-                  frameBorder="0"
-                  allowtransparency="true"
-                  scrolling="no"
                 />
               )}
             </div>

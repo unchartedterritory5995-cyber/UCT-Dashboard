@@ -72,27 +72,6 @@
 .closeBtn:hover {
   color: var(--text-bright);
 }
-.modalChart {
-  display: block;
-  width: 600px;
-  max-width: 80vw;
-  height: auto;
-  border-radius: 6px;
-}
-.finvizLink {
-  display: block;
-  margin-top: 10px;
-  font-size: 11px;
-  font-family: 'IBM Plex Mono', monospace;
-  color: var(--ut-green-bright);
-  text-decoration: none;
-  text-align: right;
-  letter-spacing: 0.5px;
-}
-.finvizLink:hover {
-  text-decoration: underline;
-}
-
 /* Chart modal tabs */
 .modalTabs {
   display: flex;
