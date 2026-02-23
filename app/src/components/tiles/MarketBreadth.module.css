@@ -86,5 +86,23 @@
   font-size: 14px;
   font-weight: 700;
 }
+.statBtn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-style: dotted;
+}
+.statBtn:disabled {
+  cursor: default;
+  text-decoration: none;
+  opacity: 0.5;
+}
 
 .loading { color: var(--text-muted); font-size: 12px; }

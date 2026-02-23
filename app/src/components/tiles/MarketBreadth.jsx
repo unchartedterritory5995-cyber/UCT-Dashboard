@@ -1,6 +1,8 @@
 // app/src/components/tiles/MarketBreadth.jsx
+import { useState } from 'react'
 import useSWR from 'swr'
 import TileCard from '../TileCard'
+import NHNLModal from './NHNLModal'
 import styles from './MarketBreadth.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -109,6 +111,7 @@ function ProgressBar({ value, color }) {
 export default function MarketBreadth({ data: propData }) {
   const { data: fetched } = useSWR(propData !== undefined ? null : '/api/breadth', fetcher)
   const data = propData !== undefined ? propData : fetched
+  const [nhnlModal, setNhnlModal] = useState(null) // 'highs' | 'lows' | null
 
   if (!data) {
     return <TileCard title="Market Breadth"><p className={styles.loading}>Loading…</p></TileCard>
@@ -122,8 +125,10 @@ export default function MarketBreadth({ data: propData }) {
   const phase     = data.market_phase ?? ''
   const advancing = data.advancing ?? null
   const declining = data.declining ?? null
-  const newHighs  = data.new_highs ?? null
-  const newLows   = data.new_lows  ?? null
+  const newHighs     = data.new_highs      ?? null
+  const newLows      = data.new_lows       ?? null
+  const newHighsList = data.new_highs_list ?? []
+  const newLowsList  = data.new_lows_list  ?? []
 
   const distColor = distDays >= 5 ? 'var(--loss)' : distDays >= 3 ? 'var(--warn)' : 'var(--gain)'
   const gaugeVal  = (p50 != null && p200 != null) ? (p50 + p200) / 2 : score
@@ -132,6 +137,7 @@ export default function MarketBreadth({ data: propData }) {
   const fmtNum = v => v == null ? '—' : v.toLocaleString()
 
   return (
+  <>
     <TileCard title="Market Breadth">
       <Gauge value={gaugeVal} />
 
@@ -180,13 +186,28 @@ export default function MarketBreadth({ data: propData }) {
         </div>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>NH</span>
-          <span className={styles.statVal} style={{ color: 'var(--gain)' }}>{fmtNum(newHighs)}</span>
+          <button className={styles.statBtn} style={{ color: 'var(--gain)' }}
+            onClick={() => setNhnlModal('highs')} disabled={!newHighsList.length}>
+            {fmtNum(newHighs)}
+          </button>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>NL</span>
-          <span className={styles.statVal} style={{ color: 'var(--loss)' }}>{fmtNum(newLows)}</span>
+          <button className={styles.statBtn} style={{ color: 'var(--loss)' }}
+            onClick={() => setNhnlModal('lows')} disabled={!newLowsList.length}>
+            {fmtNum(newLows)}
+          </button>
         </div>
       </div>
     </TileCard>
+
+    {nhnlModal && (
+      <NHNLModal
+        type={nhnlModal}
+        tickers={nhnlModal === 'highs' ? newHighsList : newLowsList}
+        onClose={() => setNhnlModal(null)}
+      />
+    )}
+  </>
   )
 }

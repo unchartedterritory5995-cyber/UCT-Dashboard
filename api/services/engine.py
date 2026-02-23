@@ -127,6 +127,8 @@ def _normalize_breadth(raw: dict, state: dict) -> dict:
         "declining":       raw.get("declining") or None,
         "new_highs":       raw.get("new_highs") or None,
         "new_lows":        raw.get("new_lows")  or None,
+        "new_highs_list":  raw.get("new_highs_list", []),
+        "new_lows_list":   raw.get("new_lows_list",  []),
         "breadth_score":   raw.get("breadth_score", 50.0),
         "distribution_days": state.get("distribution_days_qqq", 0),
         "market_phase":    state.get("market_phase", ""),
