@@ -12,7 +12,7 @@ const finvizChart = (sym, period) =>
 const tvUrl = (sym, interval) =>
   `https://www.tradingview.com/widgetembed/?symbol=${sym}&interval=${interval}&theme=dark&style=1&locale=en&hide_top_toolbar=0&hideideas=1`
 
-export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', children }) {
+export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', customChartFn, children }) {
   const [hovered, setHovered] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [tab, setTab] = useState('Daily')
@@ -84,7 +84,13 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
             </div>
 
             <div className={styles.chartArea}>
-              {showFinviz && FV_PERIODS[tab] ? (
+              {customChartFn ? (
+                <img
+                  src={customChartFn(tab)}
+                  alt={`${sym} ${tab} chart`}
+                  className={styles.modalChart}
+                />
+              ) : showFinviz && FV_PERIODS[tab] ? (
                 <img
                   src={finvizChart(sym, FV_PERIODS[tab])}
                   alt={`${sym} ${tab} chart`}

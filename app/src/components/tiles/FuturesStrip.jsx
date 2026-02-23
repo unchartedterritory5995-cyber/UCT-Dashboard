@@ -9,17 +9,24 @@ const fetcher = url => fetch(url).then(r => r.json())
 const ORDER = ['QQQ', 'SPY', 'IWM', 'DIA', 'BTC', 'VIX']
 
 // TradingView symbol overrides
-const TV_SYMS = { BTC: 'BTCUSD', VIX: 'CBOE:VIX' }
-// Neither BTC nor VIX have Finviz equity charts — TradingView only
+const TV_SYMS = { BTC: 'BTCUSD' }
+// Symbols with no Finviz equity chart — TradingView only
 const TV_ONLY = new Set(['BTC', 'VIX'])
+// Symbols that use our /api/chart endpoint instead of Finviz or TradingView
+const CUSTOM_CHART = new Set(['VIX'])
+const TAB_TO_TF = { '5min': '5', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W' }
 
 function Cell({ sym, price, chg, css }) {
   const tintClass = css === 'pos' ? styles.cellPos : css === 'neg' ? styles.cellNeg : ''
+  const customChartFn = CUSTOM_CHART.has(sym)
+    ? (tab) => `/api/chart/${sym}?tf=${TAB_TO_TF[tab]}`
+    : undefined
   return (
     <TickerPopup
       sym={sym}
       tvSym={TV_SYMS[sym]}
       showFinviz={!TV_ONLY.has(sym)}
+      customChartFn={customChartFn}
       as="div"
     >
       <div className={`${styles.cellInner} ${tintClass}`}>
