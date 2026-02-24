@@ -93,6 +93,7 @@ def get_breadth() -> dict:
         if wire and wire.get("breadth"):
             breadth = _normalize_breadth(wire["breadth"], state)
             breadth["exposure"] = _normalize_exposure(wire.get("exposure") or {})
+            breadth["ma_data"]  = wire.get("ma_data") or {}
         else:
             # Priority 3: live fetch (local dev only — Finviz token not on Railway)
             try:

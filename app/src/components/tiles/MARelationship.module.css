@@ -1,0 +1,73 @@
+.wrap {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tickerCol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 38px;
+  gap: 1px;
+}
+
+.ticker {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.5px;
+}
+
+.price {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  color: var(--text-muted);
+}
+
+.chips {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.chip {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 3px 2px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.02);
+}
+
+.chipLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 7px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+.chipArrow {
+  font-size: 8px;
+  line-height: 1;
+}
+
+.chipPct {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1;
+}

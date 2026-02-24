@@ -3,6 +3,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import TileCard from '../TileCard'
 import NHNLModal from './NHNLModal'
+import MARelationship from './MARelationship'
 import styles from './MarketBreadth.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -149,6 +150,9 @@ export default function MarketBreadth({ data: propData }) {
   const newHighsList = data.new_highs_list ?? []
   const newLowsList  = data.new_lows_list  ?? []
 
+  // MA relationship data
+  const maData = data.ma_data ?? null
+
   // Exposure rating
   const expScore  = data.exposure?.score       ?? null
   const expDelta  = data.exposure?.score_delta ?? null
@@ -234,6 +238,8 @@ export default function MarketBreadth({ data: propData }) {
           </button>
         </div>
       </div>
+
+      <MARelationship maData={maData} />
     </TileCard>
 
     {nhnlModal && (
