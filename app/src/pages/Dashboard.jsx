@@ -18,14 +18,9 @@ export default function Dashboard() {
           <FuturesStrip />
         </div>
 
-        {/* Row 2: UCT Exposure Rating + Coming Soon + Theme Tracker */}
+        {/* Row 2: Movers at the Open + UCT Exposure Rating + Theme Tracker */}
         <div className={styles.row2}>
-          <TileCard title="Coming Soon">
-            <div className={styles.comingSoon}>
-              <span className={styles.comingSoonIcon}>🔧</span>
-              <span className={styles.comingSoonLabel}>Coming Soon</span>
-            </div>
-          </TileCard>
+          <MoversSidebar />
           <MarketBreadth />
           <ThemeTracker />
         </div>
@@ -37,9 +32,14 @@ export default function Dashboard() {
           <KeyLevels />
         </div>
 
-        {/* Row 4: Movers at the Open */}
+        {/* Row 4: Coming Soon */}
         <div className={styles.row4}>
-          <MoversSidebar />
+          <TileCard title="Coming Soon">
+            <div className={styles.comingSoon}>
+              <span className={styles.comingSoonIcon}>🔧</span>
+              <span className={styles.comingSoonLabel}>Coming Soon</span>
+            </div>
+          </TileCard>
         </div>
 
         {/* Row 5: News */}
