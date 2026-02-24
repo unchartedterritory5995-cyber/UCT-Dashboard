@@ -122,7 +122,8 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 | Theme Tracker | wire_data push from engine | Daily (7:35 AM ET) |
 | Leadership 20 | wire_data + Claude AI + UCT KB | Daily (7:35 AM ET) |
 | Morning Rundown | wire_data + Claude AI + UCT KB | Daily (7:35 AM ET) |
-| Breadth | wire_data push from engine | Daily (7:35 AM ET) |
+| UCT Exposure Rating (Breadth) | wire_data push from engine | Daily (7:35 AM ET) |
+| MA Relationship Panel | Massive API live prices (SPY/QQQ) + engine push (MA %s) | 15s / Daily |
 | Earnings | wire_data push from engine | Daily (7:35 AM ET) |
 
 ## Key Components Built (2026-02-23 — session 2)
@@ -219,6 +220,8 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
   - `/v2/snapshot/locale/us/markets/stocks/gainers|losers` — top movers
   - `/v2/snapshot/locale/us/markets/stocks/tickers/{ticker}` — single ticker snapshot
 - `_MassiveRestClient` is the internal wrapper (replaces old uct_intelligence import)
+- **ETFs (SPY, QQQ, IWM, DIA) are supported** — treated as equities, no special handling needed
+- `MARelationship` panel (`app/src/components/tiles/MARelationship.jsx`) fetches `/api/snapshot` every 15s for live SPY/QQQ prices; MA % distances (9EMA/20EMA/50SMA/200SMA) come from daily engine push
 
 ## Known Issues / Gotchas
 

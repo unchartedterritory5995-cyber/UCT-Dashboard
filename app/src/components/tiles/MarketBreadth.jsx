@@ -168,7 +168,7 @@ export default function MarketBreadth({ data: propData }) {
 
   return (
   <>
-    <TileCard title="Market Breadth">
+    <TileCard title="UCT Exposure Rating">
       <Gauge
         value={expScore != null ? Math.min(expScore, 100) : null}
         label="UCT EXPOSURE RATING"

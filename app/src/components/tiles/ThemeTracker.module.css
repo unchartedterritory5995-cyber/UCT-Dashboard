@@ -45,6 +45,7 @@
   font-family: 'Instrument Sans', sans-serif;
   color: var(--text-bright);
   flex: 1;
+  max-width: 110px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

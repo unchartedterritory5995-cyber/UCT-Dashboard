@@ -1,6 +1,9 @@
 // app/src/components/tiles/MARelationship.jsx
 // SPY + QQQ price relationship to 9EMA, 20EMA, 50SMA, 200SMA
+import useSWR from 'swr'
 import styles from './MARelationship.module.css'
+
+const fetcher = url => fetch(url).then(r => r.json())
 
 const MAS = [
   { key: 'ema9_pct',   label: '9E' },
@@ -24,9 +27,11 @@ function MAChip({ label, pct }) {
   )
 }
 
-function TickerRow({ ticker, data }) {
+function TickerRow({ ticker, data, livePrice }) {
   if (!data) return null
-  const price = data.price != null ? `$${data.price.toFixed(2)}` : '—'
+  const price = livePrice
+    ? `$${livePrice}`
+    : data.price != null ? `$${data.price.toFixed(2)}` : '—'
 
   return (
     <div className={styles.row}>
@@ -46,10 +51,12 @@ function TickerRow({ ticker, data }) {
 export default function MARelationship({ maData }) {
   if (!maData || (!maData.spy && !maData.qqq)) return null
 
+  const { data: snapData } = useSWR('/api/snapshot', fetcher, { refreshInterval: 15000 })
+
   return (
     <div className={styles.wrap}>
-      <TickerRow ticker="SPY" data={maData.spy} />
-      <TickerRow ticker="QQQ" data={maData.qqq} />
+      <TickerRow ticker="SPY" data={maData.spy} livePrice={snapData?.etfs?.SPY?.price} />
+      <TickerRow ticker="QQQ" data={maData.qqq} livePrice={snapData?.etfs?.QQQ?.price} />
     </div>
   )
 }

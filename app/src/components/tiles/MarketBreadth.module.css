@@ -20,7 +20,7 @@
 }
 .phaseLabel {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -37,13 +37,13 @@
 }
 .maLabel {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-muted);
   letter-spacing: 0.5px;
 }
 .maVal {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -75,7 +75,7 @@
 }
 .statLabel {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 8px;
+  font-size: 9px;
   color: var(--text-muted);
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -108,7 +108,7 @@
 
 .scoreNote {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-muted);
   margin: 2px 0 8px;
   line-height: 1.4;
@@ -117,7 +117,7 @@
 
 .gateNote {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--loss);
   margin: -4px 0 8px;
   text-align: center;
