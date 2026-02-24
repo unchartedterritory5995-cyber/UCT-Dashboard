@@ -13,7 +13,7 @@ function MAChip({ label, pct }) {
   const above  = pct != null && pct >= 0
   const color  = pct == null ? 'var(--text-muted)' : above ? 'var(--gain)' : 'var(--loss)'
   const arrow  = pct == null ? '' : above ? '▲' : '▼'
-  const fmtPct = pct == null ? '—' : `${above ? '+' : ''}${pct.toFixed(1)}%`
+  const fmtPct = pct == null ? '—' : `${above ? '+' : ''}${pct.toFixed(2)}%`
 
   return (
     <div className={styles.chip} style={{ borderColor: color }}>
