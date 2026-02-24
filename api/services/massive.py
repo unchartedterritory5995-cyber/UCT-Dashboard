@@ -117,6 +117,26 @@ def _fmt_chg(pct: float) -> tuple[str, str]:
     return f"{sign}{pct:.2f}%", ("pos" if pct >= 0 else "neg")
 
 
+def _is_leveraged_etf(ticker: str) -> bool:
+    """Return True if ticker is a leveraged/inverse ETF. Cached 24h via existing cache."""
+    cache_key = f"is_lev_{ticker}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    try:
+        import yfinance as yf
+        info = yf.Ticker(ticker).info
+        name = (info.get("longName", "") + " " + info.get("shortName", "")).lower()
+        keywords = ["2x", "3x", "-2x", "-3x", "ultra", "leveraged", "inverse",
+                    "bull 2", "bear 2", "bull 3", "bear 3", "direxion daily",
+                    "proshares ultra"]
+        result = any(kw in name for kw in keywords)
+    except Exception:
+        result = False
+    cache.set(cache_key, result, ttl=86400)  # 24 hours
+    return result
+
+
 # ── Liquidity filter thresholds ───────────────────────────────────────────────
 _PRICE_MIN    = 2.0          # price must be strictly above $2
 _PM_VOL_MIN   = 50_000       # min shares in current session (pre-market at open)
@@ -258,8 +278,12 @@ def get_movers() -> dict:
     if wire and wire.get("movers"):
         data = wire["movers"]
         if data.get("ripping") or data.get("drilling"):
-            cache.set("movers", data, ttl=300)  # 5 min — changes only on engine push
-            return data
+            movers = {
+                "ripping":  [m for m in data.get("ripping",  []) if not _is_leveraged_etf(m["sym"])],
+                "drilling": [m for m in data.get("drilling", []) if not _is_leveraged_etf(m["sym"])],
+            }
+            cache.set("movers", movers, ttl=300)  # 5 min — changes only on engine push
+            return movers
 
     # Stage 2: Massive live feed (fallback when wire_data is absent/empty)
     try:
@@ -286,6 +310,8 @@ def get_movers() -> dict:
         def _fmt_mover(row: dict) -> dict[str, str] | None:
             ticker = row.get("ticker", "")
             if avg_dvol.get(ticker, float("inf")) < _AVG_DVOL_MIN:
+                return None
+            if _is_leveraged_etf(ticker):
                 return None
             pct  = float(row.get("change_pct", 0.0))
             sign = "+" if pct >= 0 else ""

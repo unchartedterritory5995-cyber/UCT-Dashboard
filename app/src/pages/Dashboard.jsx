@@ -30,15 +30,23 @@ export default function Dashboard() {
           <ThemeTracker />
         </div>
 
-        {/* Row 3: Catalyst Flow + UCT 20 + Key Levels + News */}
+        {/* Row 3: Catalyst Flow + UCT 20 + Key Levels */}
         <div className={styles.row3}>
           <CatalystFlow />
           <LeadershipTile />
           <KeyLevels />
+        </div>
+
+        {/* Row 4: Movers at the Open */}
+        <div className={styles.row4}>
+          <MoversSidebar />
+        </div>
+
+        {/* Row 5: News */}
+        <div className={styles.row5}>
           <NewsFeed />
         </div>
       </div>
-      <MoversSidebar />
     </div>
   )
 }

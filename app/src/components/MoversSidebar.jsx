@@ -1,4 +1,5 @@
 // app/src/components/MoversSidebar.jsx
+import { useState } from 'react'
 import useSWR from 'swr'
 import TickerPopup from './TickerPopup'
 import styles from './MoversSidebar.module.css'
@@ -26,6 +27,8 @@ function MoverSection({ label, items, positive }) {
 }
 
 export default function MoversSidebar({ data: propData }) {
+  const [open, setOpen] = useState(true)
+
   const { data: fetched } = useSWR(
     propData !== undefined ? null : '/api/movers',
     fetcher,
@@ -34,16 +37,25 @@ export default function MoversSidebar({ data: propData }) {
   const data = propData !== undefined ? propData : fetched
 
   return (
-    <aside className={styles.sidebar}>
-      <div className={styles.title}>MOVERS AT THE OPEN</div>
-      {!data ? (
-        <p className={styles.loading}>Loading…</p>
-      ) : (
-        <>
-          <MoverSection label="RIPPING" items={data.ripping ?? []} positive />
-          <MoverSection label="DRILLING" items={data.drilling ?? []} positive={false} />
-        </>
+    <div className={styles.tile}>
+      <button className={styles.header} onClick={() => setOpen(o => !o)}>
+        <span className={styles.title}>Movers at the Open</span>
+        <span className={styles.chevron}>{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div className={styles.body}>
+          {!data ? (
+            <p className={styles.loading}>Loading…</p>
+          ) : (
+            <div className={styles.scroll}>
+              <div className={styles.moversGrid}>
+                <MoverSection label="RIPPING" items={data.ripping ?? []} positive />
+                <MoverSection label="DRILLING" items={data.drilling ?? []} positive={false} />
+              </div>
+            </div>
+          )}
+        </div>
       )}
-    </aside>
+    </div>
   )
 }

@@ -43,13 +43,15 @@
 }
 .row3 {
   display: grid;
-  grid-template-columns: 28fr 22fr 27fr 23fr;
+  grid-template-columns: 30fr 24fr 46fr;
   gap: 12px;
   align-items: start;
 }
+.row4 { width: 100%; }
+.row5 { width: 100%; }
 
 @media (max-width: 1400px) {
-  .row3 { grid-template-columns: 1fr 1fr; }
+  .row3 { grid-template-columns: 1fr 1fr 1fr; }
 }
 @media (max-width: 1100px) {
   .row2 { grid-template-columns: 1fr; }
