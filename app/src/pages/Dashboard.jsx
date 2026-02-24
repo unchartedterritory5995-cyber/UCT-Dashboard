@@ -6,6 +6,7 @@ import LeadershipTile from '../components/tiles/LeadershipTile'
 import KeyLevels from '../components/tiles/KeyLevels'
 import NewsFeed from '../components/tiles/NewsFeed'
 import MoversSidebar from '../components/MoversSidebar'
+import TileCard from '../components/TileCard'
 import styles from './Dashboard.module.css'
 
 export default function Dashboard() {
@@ -17,14 +18,16 @@ export default function Dashboard() {
           <FuturesStrip />
         </div>
 
-        {/* Row 2: Market Breadth + Theme Tracker */}
+        {/* Row 2: UCT Exposure Rating + Coming Soon + Theme Tracker */}
         <div className={styles.row2}>
-          <div className={styles.breadthCol}>
-            <MarketBreadth />
-          </div>
-          <div className={styles.themeCol}>
-            <ThemeTracker />
-          </div>
+          <MarketBreadth />
+          <TileCard title="Coming Soon">
+            <div className={styles.comingSoon}>
+              <span className={styles.comingSoonIcon}>🔧</span>
+              <span className={styles.comingSoonLabel}>Coming Soon</span>
+            </div>
+          </TileCard>
+          <ThemeTracker />
         </div>
 
         {/* Row 3: Catalyst Flow + UCT 20 + Key Levels + News */}

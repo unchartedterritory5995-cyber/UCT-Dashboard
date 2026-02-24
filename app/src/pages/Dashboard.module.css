@@ -15,9 +15,31 @@
 .row1 { width: 100%; }
 .row2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
   align-items: start;
+}
+
+.comingSoon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 180px;
+  color: var(--text-muted);
+}
+.comingSoonIcon {
+  font-size: 28px;
+  opacity: 0.3;
+}
+.comingSoonLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  opacity: 0.4;
 }
 .row3 {
   display: grid;
