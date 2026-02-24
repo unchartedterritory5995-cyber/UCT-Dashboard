@@ -86,11 +86,13 @@ def get_breadth() -> dict:
     breadth = state.get("breadth_data")
     if breadth:
         breadth = _normalize_breadth(breadth, state)
+        breadth["exposure"] = _normalize_exposure(state.get("exposure") or {})
     else:
         # Priority 2: wire_data pushed from engine (persisted in Railway volume)
         wire = _load_wire_data()
         if wire and wire.get("breadth"):
             breadth = _normalize_breadth(wire["breadth"], state)
+            breadth["exposure"] = _normalize_exposure(wire.get("exposure") or {})
         else:
             # Priority 3: live fetch (local dev only — Finviz token not on Railway)
             try:
@@ -132,6 +134,21 @@ def _normalize_breadth(raw: dict, state: dict) -> dict:
         "breadth_score":   raw.get("breadth_score", 50.0),
         "distribution_days": state.get("distribution_days_qqq", 0),
         "market_phase":    state.get("market_phase", ""),
+    }
+
+
+def _normalize_exposure(raw: dict) -> dict:
+    """Pass through UCT Intelligence Exposure Rating from wire_data."""
+    if not raw:
+        return {}
+    return {
+        "score":       raw.get("score"),
+        "score_delta": raw.get("score_delta"),
+        "breakdown":   raw.get("breakdown", {}),
+        "note":        raw.get("note", ""),
+        "gate_active": raw.get("gate_active", False),
+        "gate_reason": raw.get("gate_reason"),
+        "bonus":       raw.get("bonus", 0),
     }
 
 

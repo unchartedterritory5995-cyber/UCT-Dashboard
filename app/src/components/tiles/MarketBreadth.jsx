@@ -7,12 +7,21 @@ import styles from './MarketBreadth.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
-// ─── Gauge ─────────────────────────────────────────────────────────────────
+// ─── Score color ────────────────────────────────────────────────────────────
+function scoreColor(s) {
+  if (s == null) return 'var(--text-muted)'
+  if (s >= 81)  return 'var(--gain)'
+  if (s >= 66)  return '#7dcea0'
+  if (s >= 50)  return 'var(--warn)'
+  if (s >= 31)  return '#e67e22'
+  return 'var(--loss)'
+}
+
+// ─── Gauge ──────────────────────────────────────────────────────────────────
 const R = 72, CX = 100, CY = 90
 const ARC_LEN = Math.PI * R  // half-circle arc length
 
 function describeArc(pct) {
-  // Arc from left (180°) to right (0°) — sweeps clockwise
   const angle = Math.PI * (1 - pct / 100)
   const x = CX + R * Math.cos(angle)
   const y = CY - R * Math.sin(angle)
@@ -22,16 +31,13 @@ function describeArc(pct) {
 
 const TICKS = [0, 25, 50, 75, 100]
 
-function Gauge({ value }) {
-  const pct  = value == null ? null : Math.min(100, Math.max(0, value))
-  const color = pct == null ? 'var(--text-muted)'
-              : pct > 65    ? 'var(--gain)'
-              : pct > 40    ? 'var(--warn)'
-              :                'var(--loss)'
+function Gauge({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus = false }) {
+  const pct   = value == null ? null : Math.min(100, Math.max(0, value))
+  const color = scoreColor(value)
 
   return (
     <div className={styles.gaugeWrap}>
-      <svg viewBox="0 0 200 105" className={styles.gaugeSvg} aria-hidden="true">
+      <svg viewBox="0 0 200 115" className={styles.gaugeSvg} aria-hidden="true">
         <defs>
           <linearGradient id="gauge-grad" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%"   stopColor="var(--loss)" stopOpacity="0.9" />
@@ -52,7 +58,7 @@ function Gauge({ value }) {
           fill="none" stroke="var(--border)" strokeWidth="10" strokeLinecap="round"
         />
 
-        {/* Gradient fill — clipped to filled arc */}
+        {/* Gradient fill */}
         {pct != null && pct > 0 && (
           <>
             {/* Glow layer */}
@@ -82,22 +88,36 @@ function Gauge({ value }) {
                        stroke="var(--border)" strokeWidth="1.5" />
         })}
 
-        {/* Score */}
+        {/* Score number */}
         <text x={CX} y={CY - 8} textAnchor="middle" fontSize="26" fontWeight="800"
               fill={pct == null ? 'var(--text-muted)' : color}
               fontFamily="'IBM Plex Mono', monospace">
           {pct == null ? '—' : Math.round(pct)}
+          {bonus && pct != null && (
+            <tspan fontSize="12" dy="-8" fill="gold">★</tspan>
+          )}
         </text>
+
+        {/* Label */}
         <text x={CX} y={CY + 8} textAnchor="middle" fontSize="7"
               fill="var(--text-muted)" letterSpacing="2" fontFamily="'IBM Plex Mono', monospace">
-          BREADTH SCORE
+          {label}
         </text>
+
+        {/* Delta */}
+        {delta != null && (
+          <text x={CX} y={CY + 22} textAnchor="middle" fontSize="8" fontWeight="700"
+                fill={delta >= 0 ? 'var(--gain)' : 'var(--loss)'}
+                fontFamily="'IBM Plex Mono', monospace">
+            {delta >= 0 ? `↑${delta}` : `↓${Math.abs(delta)}`}
+          </text>
+        )}
       </svg>
     </div>
   )
 }
 
-// ─── Progress bar ──────────────────────────────────────────────────────────
+// ─── Progress bar ────────────────────────────────────────────────────────────
 function ProgressBar({ value, color }) {
   const pct = value == null ? 0 : Math.min(100, Math.max(0, value))
   return (
@@ -107,7 +127,7 @@ function ProgressBar({ value, color }) {
   )
 }
 
-// ─── Main component ────────────────────────────────────────────────────────
+// ─── Main component ──────────────────────────────────────────────────────────
 export default function MarketBreadth({ data: propData }) {
   const { data: fetched } = useSWR(propData !== undefined ? null : '/api/breadth', fetcher)
   const data = propData !== undefined ? propData : fetched
@@ -117,7 +137,6 @@ export default function MarketBreadth({ data: propData }) {
     return <TileCard title="Market Breadth"><p className={styles.loading}>Loading…</p></TileCard>
   }
 
-  const score     = data.breadth_score ?? null
   const p5        = data.pct_above_5ma   ?? null
   const p50       = data.pct_above_50ma  ?? null
   const p200      = data.pct_above_200ma ?? null
@@ -130,8 +149,15 @@ export default function MarketBreadth({ data: propData }) {
   const newHighsList = data.new_highs_list ?? []
   const newLowsList  = data.new_lows_list  ?? []
 
+  // Exposure rating
+  const expScore  = data.exposure?.score       ?? null
+  const expDelta  = data.exposure?.score_delta ?? null
+  const expNote   = data.exposure?.note        ?? ''
+  const expGate   = data.exposure?.gate_active ?? false
+  const expReason = data.exposure?.gate_reason ?? null
+  const expBonus  = data.exposure?.bonus       ?? 0
+
   const distColor = distDays >= 5 ? 'var(--loss)' : distDays >= 3 ? 'var(--warn)' : 'var(--gain)'
-  const gaugeVal  = (p50 != null && p200 != null) ? (p50 + p200) / 2 : score
 
   const fmtPct = v => v == null ? '—' : `${v.toFixed(1)}%`
   const fmtNum = v => v == null ? '—' : v.toLocaleString()
@@ -139,7 +165,12 @@ export default function MarketBreadth({ data: propData }) {
   return (
   <>
     <TileCard title="Market Breadth">
-      <Gauge value={gaugeVal} />
+      <Gauge
+        value={expScore != null ? Math.min(expScore, 100) : null}
+        label="UCT EXPOSURE RATING"
+        delta={expDelta}
+        bonus={expBonus > 0}
+      />
 
       {/* Market phase */}
       {phase && (
@@ -148,6 +179,10 @@ export default function MarketBreadth({ data: propData }) {
           <span className={styles.phaseLabel}>{phase}</span>
         </div>
       )}
+
+      {/* Exposure note + gate warning */}
+      {expNote && <p className={styles.scoreNote}>{expNote}</p>}
+      {expGate && expReason && <p className={styles.gateNote}>⚠ {expReason}</p>}
 
       {/* 5MA + 50MA + 200MA progress bars */}
       <div className={styles.maSection}>

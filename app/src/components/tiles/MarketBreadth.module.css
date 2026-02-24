@@ -3,7 +3,6 @@
   justify-content: center;
   margin-bottom: 8px;
 }
-.gaugeSvg { width: 160px; height: 90px; }
 
 .phaseRow {
   display: flex;
@@ -106,3 +105,22 @@
 }
 
 .loading { color: var(--text-muted); font-size: 12px; }
+
+.scoreNote {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--text-muted);
+  margin: 2px 0 8px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.gateNote {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--loss);
+  margin: -4px 0 8px;
+  text-align: center;
+}
+
+.gaugeSvg { width: 160px; height: 100px; }
