@@ -48,7 +48,7 @@ function Sparkline({ sym, css }) {
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 100 40"
       preserveAspectRatio="none"
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0 }}
+      style={{ position: 'absolute', right: 0, top: 0, width: '60%', height: '100%', zIndex: 0 }}
       aria-hidden="true"
     >
       <defs>

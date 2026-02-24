@@ -14,7 +14,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 12px;
-  text-align: center;
+  text-align: left;
   transition: border-color 0.15s;
   position: relative;
   overflow: hidden;
@@ -22,6 +22,7 @@
 .cellContent {
   position: relative;
   z-index: 1;
+  width: 55%;
 }
 /* TickerPopup trigger (as="div") gets the cursor */
 [data-testid^="ticker-"] { cursor: pointer; }
@@ -30,22 +31,23 @@
 .cellNeg { background: var(--loss-bg); border-color: var(--loss-border) !important; }
 .sym {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  color: var(--ut-cream);
-  letter-spacing: 1px;
-  margin-bottom: 4px;
+  color: var(--text-muted);
+  letter-spacing: 1.5px;
+  margin-bottom: 3px;
 }
 .price {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--text-heading);
   margin-bottom: 2px;
+  white-space: nowrap;
 }
 .chg {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 .pos { color: var(--gain); }
