@@ -18,102 +18,33 @@ function scoreColor(s) {
   return 'var(--loss)'
 }
 
-// ─── Gauge ──────────────────────────────────────────────────────────────────
-const R = 72, CX = 100, CY = 90
-const ARC_LEN = Math.PI * R  // half-circle arc length
-
-function describeArc(pct) {
-  const angle = Math.PI * (1 - pct / 100)
-  const x = CX + R * Math.cos(angle)
-  const y = CY - R * Math.sin(angle)
-  const large = pct > 50 ? 1 : 0
-  return `M ${CX - R},${CY} A ${R},${R} 0 ${large},1 ${x.toFixed(2)},${y.toFixed(2)}`
-}
-
-const TICKS = [0, 25, 50, 75, 100]
-
-function Gauge({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus = false }) {
+// ─── Horizontal Exposure Bar ─────────────────────────────────────────────────
+function ExposureBar({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus = false }) {
   const pct   = value == null ? null : Math.min(100, Math.max(0, value))
   const color = scoreColor(value)
 
   return (
-    <div className={styles.gaugeWrap}>
-      <svg viewBox="0 0 200 115" className={styles.gaugeSvg} aria-hidden="true">
-        <defs>
-          <linearGradient id="gauge-grad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%"   stopColor="var(--loss)" stopOpacity="0.9" />
-            <stop offset="50%"  stopColor="var(--warn)" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="var(--gain)" stopOpacity="0.9" />
-          </linearGradient>
-          <clipPath id="gauge-clip">
-            {pct != null && pct > 0 && (
-              <path d={describeArc(pct)} strokeWidth="14" stroke="white" fill="none"
-                strokeLinecap="round" />
-            )}
-          </clipPath>
-        </defs>
-
-        {/* Track */}
-        <path
-          d={`M ${CX - R},${CY} A ${R},${R} 0 0,1 ${CX + R},${CY}`}
-          fill="none" stroke="var(--border)" strokeWidth="10" strokeLinecap="round"
-        />
-
-        {/* Gradient fill */}
+    <div className={styles.expWrap}>
+      <div className={styles.expScoreRow}>
+        <span className={styles.expScore} style={{ color: pct == null ? 'var(--text-muted)' : color }}>
+          {pct == null ? '—' : Math.round(pct)}
+          {bonus && pct != null && <span className={styles.expBonus}>★</span>}
+        </span>
+        {delta != null && (
+          <span className={styles.expDelta} style={{ color: delta >= 0 ? 'var(--gain)' : 'var(--loss)' }}>
+            {delta >= 0 ? `↑${delta}` : `↓${Math.abs(delta)}`}
+          </span>
+        )}
+      </div>
+      <div className={styles.expLabel}>{label}</div>
+      <div className={styles.expTrack}>
         {pct != null && pct > 0 && (
           <>
-            {/* Glow layer */}
-            <path
-              d={describeArc(pct)}
-              fill="none" stroke={color} strokeWidth="14"
-              strokeLinecap="round" opacity="0.15"
-              style={{ filter: 'blur(4px)' }}
-            />
-            {/* Solid fill */}
-            <path
-              d={describeArc(pct)}
-              fill="none" stroke={color} strokeWidth="10"
-              strokeLinecap="round" opacity="0.9"
-            />
+            <div className={styles.expGlow} style={{ width: `${pct}%`, background: color }} />
+            <div className={styles.expFill} style={{ width: `${pct}%`, background: color }} />
           </>
         )}
-
-        {/* Tick marks */}
-        {TICKS.map(t => {
-          const a = Math.PI * (1 - t / 100)
-          const inner = R - 7, outer = R + 2
-          const x1 = CX + inner * Math.cos(a), y1 = CY - inner * Math.sin(a)
-          const x2 = CX + outer * Math.cos(a), y2 = CY - outer * Math.sin(a)
-          return <line key={t} x1={x1.toFixed(1)} y1={y1.toFixed(1)}
-                       x2={x2.toFixed(1)} y2={y2.toFixed(1)}
-                       stroke="var(--border)" strokeWidth="1.5" />
-        })}
-
-        {/* Score number */}
-        <text x={CX} y={CY - 8} textAnchor="middle" fontSize="26" fontWeight="800"
-              fill={pct == null ? 'var(--text-muted)' : color}
-              fontFamily="'IBM Plex Mono', monospace">
-          {pct == null ? '—' : Math.round(pct)}
-          {bonus && pct != null && (
-            <tspan fontSize="12" dy="-8" fill="gold">★</tspan>
-          )}
-        </text>
-
-        {/* Label */}
-        <text x={CX} y={CY + 8} textAnchor="middle" fontSize="7"
-              fill="var(--text-muted)" letterSpacing="2" fontFamily="'IBM Plex Mono', monospace">
-          {label}
-        </text>
-
-        {/* Delta */}
-        {delta != null && (
-          <text x={CX} y={CY + 22} textAnchor="middle" fontSize="8" fontWeight="700"
-                fill={delta >= 0 ? 'var(--gain)' : 'var(--loss)'}
-                fontFamily="'IBM Plex Mono', monospace">
-            {delta >= 0 ? `↑${delta}` : `↓${Math.abs(delta)}`}
-          </text>
-        )}
-      </svg>
+      </div>
     </div>
   )
 }
@@ -135,7 +66,7 @@ export default function MarketBreadth({ data: propData }) {
   const [nhnlModal, setNhnlModal] = useState(null) // 'highs' | 'lows' | null
 
   if (!data) {
-    return <TileCard title="Market Breadth"><p className={styles.loading}>Loading…</p></TileCard>
+    return <TileCard title="UCT Exposure Rating"><p className={styles.loading}>Loading…</p></TileCard>
   }
 
   const p5        = data.pct_above_5ma   ?? null
@@ -169,7 +100,7 @@ export default function MarketBreadth({ data: propData }) {
   return (
   <>
     <TileCard title="UCT Exposure Rating">
-      <Gauge
+      <ExposureBar
         value={expScore != null ? Math.min(expScore, 100) : null}
         label="UCT EXPOSURE RATING"
         delta={expDelta}
