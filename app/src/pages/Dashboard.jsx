@@ -34,7 +34,7 @@ export default function Dashboard() {
 
         {/* Row 4: Coming Soon */}
         <div className={styles.row4}>
-          <TileCard title="Coming Soon">
+          <TileCard title="Options Flow">
             <div className={styles.comingSoon}>
               <span className={styles.comingSoonIcon}>🔧</span>
               <span className={styles.comingSoonLabel}>Coming Soon</span>
