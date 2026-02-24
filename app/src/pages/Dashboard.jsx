@@ -20,13 +20,13 @@ export default function Dashboard() {
 
         {/* Row 2: UCT Exposure Rating + Coming Soon + Theme Tracker */}
         <div className={styles.row2}>
-          <MarketBreadth />
           <TileCard title="Coming Soon">
             <div className={styles.comingSoon}>
               <span className={styles.comingSoonIcon}>🔧</span>
               <span className={styles.comingSoonLabel}>Coming Soon</span>
             </div>
           </TileCard>
+          <MarketBreadth />
           <ThemeTracker />
         </div>
 
