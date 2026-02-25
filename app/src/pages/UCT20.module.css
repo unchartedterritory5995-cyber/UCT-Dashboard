@@ -4,13 +4,96 @@
 .refreshBtn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 1px; background: var(--bg-elevated); color: var(--ut-green-bright); border: 1px solid var(--ut-green); border-radius: 6px; padding: 6px 14px; cursor: pointer; transition: background 0.15s; }
 .refreshBtn:hover { background: var(--ut-green-dim); }
 .loading { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
-.list { display: flex; flex-direction: column; gap: 10px; }
-.card { display: flex; align-items: flex-start; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.list { display: flex; flex-direction: column; }
+
+/* ── Card ── */
+.card { border-bottom: 1px solid var(--border); }
 .card:last-child { border-bottom: none; }
-.rank { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text-muted); min-width: 28px; padding-top: 2px; }
-.body { flex: 1; min-width: 0; }
-.top { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
-.sym { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 800; color: var(--ut-cream); }
-.cap { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 1px; color: var(--text-muted); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; text-transform: uppercase; }
+
+/* ── Collapsed row ── */
+.cardRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.cardRow:hover { background: rgba(255,255,255,0.02); }
+
+.rank { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text-muted); min-width: 26px; }
+
+.setupBadge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--ut-gold);
+  border: 1px solid var(--ut-gold);
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.sym { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 800; color: var(--ut-cream); cursor: pointer; }
+.sym:hover { color: var(--ut-green-bright); }
+
+.companyName { font-family: 'Instrument Sans', sans-serif; font-size: 11px; color: var(--text-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cardRowRight { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
 .score { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--ut-green-bright); }
-.thesis { font-family: 'Instrument Sans', sans-serif; font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0; }
+.caret { font-size: 11px; color: var(--text-muted); }
+
+/* ── Expanded section ── */
+.expanded {
+  padding: 0 4px 14px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.companyDesc {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.section { display: flex; flex-direction: column; gap: 4px; }
+
+.sectionLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+}
+
+.sectionText {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Trade bar ── */
+.tradeBar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+
+.tradeItem { display: flex; flex-direction: column; gap: 2px; }
+.tradeLabel { font-family: 'IBM Plex Mono', monospace; font-size: 8px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); }
+.tradeVal { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text); }
+.tradeStop { color: var(--loss); }
+.tradeTarget { color: var(--ut-green-bright); }
+
+/* ── Legacy fallback ── */
+.legacyThesis { font-family: 'Instrument Sans', sans-serif; font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0; }
