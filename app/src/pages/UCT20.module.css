@@ -12,5 +12,5 @@
 .top { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
 .sym { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 800; color: var(--ut-cream); }
 .cap { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 1px; color: var(--text-muted); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; text-transform: uppercase; }
-.score { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--ut-green-bright); margin-left: auto; }
+.score { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--ut-green-bright); }
 .thesis { font-family: 'Instrument Sans', sans-serif; font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0; }

@@ -36,7 +36,7 @@ export default function UCT20() {
                       <span className={styles.sym}>{sym}</span>
                       {cap && <span className={styles.cap}>{cap}</span>}
                       {score != null && (
-                        <span className={styles.score}>RS {score.toFixed ? score.toFixed(1) : score}</span>
+                        <span className={styles.score}>UCT {score.toFixed ? score.toFixed(1) : score}</span>
                       )}
                     </div>
                     {thesis && <p className={styles.thesis}>{thesis}</p>}
