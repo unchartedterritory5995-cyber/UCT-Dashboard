@@ -29,17 +29,24 @@ function MAChip({ label, pct }) {
   )
 }
 
-function TickerCol({ ticker, data, livePrice }) {
+function TickerCol({ ticker, data, livePrice, chg, chgCss }) {
   if (!data) return null
   const price = livePrice
     ? `$${livePrice}`
     : data.price != null ? `$${data.price.toFixed(2)}` : '—'
+  const chgColor = chgCss === 'pos' ? 'var(--gain)' : chgCss === 'neg' ? 'var(--loss)' : 'var(--text-muted)'
+  const chgArrow = chgCss === 'pos' ? '▲' : chgCss === 'neg' ? '▼' : ''
 
   return (
     <div className={styles.col}>
       <div className={styles.colHeader}>
         <span className={styles.ticker}>{ticker}</span>
         <span className={styles.price}>{price}</span>
+        {chg && (
+          <span className={styles.dayChg} style={{ color: chgColor }}>
+            {chgArrow} {chg}
+          </span>
+        )}
       </div>
       <div className={styles.maGrid}>
         {ROW1.map(m => <MAChip key={m.key} label={m.label} pct={data[m.key] ?? null} />)}
@@ -57,8 +64,10 @@ export default function MARelationship({ maData }) {
   return (
     <div className={styles.wrap}>
       <div className={styles.cols}>
-        <TickerCol ticker="SPY" data={maData.spy} livePrice={snapData?.etfs?.SPY?.price} />
-        <TickerCol ticker="QQQ" data={maData.qqq} livePrice={snapData?.etfs?.QQQ?.price} />
+        <TickerCol ticker="SPY" data={maData.spy} livePrice={snapData?.etfs?.SPY?.price}
+          chg={snapData?.etfs?.SPY?.chg} chgCss={snapData?.etfs?.SPY?.css} />
+        <TickerCol ticker="QQQ" data={maData.qqq} livePrice={snapData?.etfs?.QQQ?.price}
+          chg={snapData?.etfs?.QQQ?.chg} chgCss={snapData?.etfs?.QQQ?.css} />
       </div>
     </div>
   )
