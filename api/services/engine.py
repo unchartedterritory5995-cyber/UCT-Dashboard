@@ -156,6 +156,31 @@ def _normalize_exposure(raw: dict) -> dict:
 # ─── Themes ───────────────────────────────────────────────────────────────────
 
 def get_themes(period: str = "1W") -> dict:
+    # ── Today: live intraday via Massive batch snapshot ───────────────────────
+    if period == "Today":
+        cache_key = "themes_Today"
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+
+        wire = _load_wire_data()
+        wire_themes = wire.get("themes", {}) if wire else {}
+        tickers = list(wire_themes.keys()) if wire_themes else []
+
+        from api.services.massive import get_etf_snapshots
+        snap = get_etf_snapshots(tickers) if tickers else {}
+
+        synthetic = {}
+        for ticker, data in wire_themes.items():
+            if not isinstance(data, dict):
+                continue
+            synthetic[ticker] = {**data, "Today": snap.get(ticker, 0.0)}
+
+        result = _normalize_themes(synthetic, "Today")
+        cache.set(cache_key, result, ttl=30)
+        return result
+
+    # ── Historical periods (1W / 1M / 3M): unchanged ─────────────────────────
     wire = _load_wire_data()
     cache_key = f"themes_{period}"
     if wire and wire.get("themes"):

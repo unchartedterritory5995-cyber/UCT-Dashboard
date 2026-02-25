@@ -6,7 +6,7 @@ import TickerPopup from '../TickerPopup'
 import styles from './ThemeTracker.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
-const PERIODS = ['1W', '1M', '3M']
+const PERIODS = ['Today', '1W', '1M', '3M']
 
 function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, positive }) {
   const [expanded, setExpanded] = useState(false)
@@ -54,7 +54,8 @@ export default function ThemeTracker({ data: propData }) {
   const [period, setPeriod] = useState('1W')
   const { data: fetched } = useSWR(
     propData !== undefined ? null : `/api/themes?period=${period}`,
-    fetcher
+    fetcher,
+    { refreshInterval: period === 'Today' ? 30000 : 0 }
   )
   const data = propData !== undefined ? propData : fetched
 

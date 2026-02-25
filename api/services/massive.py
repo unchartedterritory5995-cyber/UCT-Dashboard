@@ -89,6 +89,27 @@ class _MassiveRestClient:
         }
 
 
+    def get_batch_snapshots(self, tickers: list[str]) -> dict[str, float]:
+        """Return todaysChangePerc for a batch of tickers in one API call."""
+        if not tickers:
+            return {}
+        tickers_param = ",".join(t.upper() for t in tickers)
+        url = (
+            f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
+            f"?tickers={tickers_param}&apiKey={self._api_key}"
+        )
+        try:
+            data = self._get(url)
+        except Exception:
+            return {}
+        result = {}
+        for t in data.get("tickers", []):
+            ticker = t.get("ticker", "")
+            if ticker:
+                result[ticker] = round(float(t.get("todaysChangePerc", 0.0)), 4)
+        return result
+
+
 def _get_client() -> _MassiveRestClient:
     """Return a shared _MassiveRestClient instance, initializing on first call."""
     global _client
@@ -191,6 +212,18 @@ def get_ticker_snapshot(ticker: str) -> dict:
     """Return change_pct for a single equity ticker (for earnings gap display)."""
     try:
         return _get_client().get_single_ticker_snapshot(ticker)
+    except Exception:
+        return {}
+
+
+def get_etf_snapshots(tickers: list[str]) -> dict[str, float]:
+    """Return intraday % change for a list of ETF tickers via batch snapshot.
+
+    Returns dict mapping ticker -> change_pct float.
+    Returns empty dict on Massive client failure.
+    """
+    try:
+        return _get_client().get_batch_snapshots(tickers)
     except Exception:
         return {}
 

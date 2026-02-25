@@ -8,7 +8,7 @@ from api.services.cache import cache
 router = APIRouter()
 
 INVALIDATE_KEYS = [
-    "wire_data", "breadth", "themes_1W", "themes_1M", "themes_3M",
+    "wire_data", "breadth", "themes_1W", "themes_1M", "themes_3M", "themes_Today",
     "leadership", "rundown", "earnings", "screener", "movers",
 ]
 
