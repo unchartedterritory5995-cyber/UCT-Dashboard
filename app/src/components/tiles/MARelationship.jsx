@@ -5,11 +5,13 @@ import styles from './MARelationship.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
-const MAS = [
-  { key: 'ema9_pct',   label: '9E' },
-  { key: 'ema20_pct',  label: '20E' },
-  { key: 'sma50_pct',  label: '50S' },
-  { key: 'sma200_pct', label: '200S' },
+const ROW1 = [
+  { key: 'ema9_pct',  label: '9EMA' },
+  { key: 'ema20_pct', label: '20EMA' },
+]
+const ROW2 = [
+  { key: 'sma50_pct',  label: '50SMA' },
+  { key: 'sma200_pct', label: '200SMA' },
 ]
 
 function MAChip({ label, pct }) {
@@ -27,22 +29,21 @@ function MAChip({ label, pct }) {
   )
 }
 
-function TickerRow({ ticker, data, livePrice }) {
+function TickerCol({ ticker, data, livePrice }) {
   if (!data) return null
   const price = livePrice
     ? `$${livePrice}`
     : data.price != null ? `$${data.price.toFixed(2)}` : '—'
 
   return (
-    <div className={styles.row}>
-      <div className={styles.tickerCol}>
+    <div className={styles.col}>
+      <div className={styles.colHeader}>
         <span className={styles.ticker}>{ticker}</span>
         <span className={styles.price}>{price}</span>
       </div>
-      <div className={styles.chips}>
-        {MAS.map(m => (
-          <MAChip key={m.key} label={m.label} pct={data[m.key] ?? null} />
-        ))}
+      <div className={styles.maGrid}>
+        {ROW1.map(m => <MAChip key={m.key} label={m.label} pct={data[m.key] ?? null} />)}
+        {ROW2.map(m => <MAChip key={m.key} label={m.label} pct={data[m.key] ?? null} />)}
       </div>
     </div>
   )
@@ -55,8 +56,10 @@ export default function MARelationship({ maData }) {
 
   return (
     <div className={styles.wrap}>
-      <TickerRow ticker="SPY" data={maData.spy} livePrice={snapData?.etfs?.SPY?.price} />
-      <TickerRow ticker="QQQ" data={maData.qqq} livePrice={snapData?.etfs?.QQQ?.price} />
+      <div className={styles.cols}>
+        <TickerCol ticker="SPY" data={maData.spy} livePrice={snapData?.etfs?.SPY?.price} />
+        <TickerCol ticker="QQQ" data={maData.qqq} livePrice={snapData?.etfs?.QQQ?.price} />
+      </div>
     </div>
   )
 }
