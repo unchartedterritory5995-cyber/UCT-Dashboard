@@ -7,24 +7,25 @@
 .cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 
 .col {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .colHeader {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 6px;
 }
 
 .ticker {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: 0.5px;
@@ -32,22 +33,22 @@
 
 .price {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
 .maGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 5px;
+  gap: 6px;
 }
 
 .chip {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 6px 4px;
+  gap: 3px;
+  padding: 10px 6px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: rgba(255,255,255,0.02);
@@ -55,19 +56,19 @@
 
 .chipLabel {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-muted);
   letter-spacing: 0.3px;
 }
 
 .chipArrow {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1;
 }
 
 .chipPct {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1;
 }
