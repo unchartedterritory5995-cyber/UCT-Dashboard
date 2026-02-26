@@ -108,7 +108,7 @@ export default function UCT20() {
         <h1 className={styles.heading}>UCT 20</h1>
         <button className={styles.refreshBtn} onClick={() => mutate()}>Refresh</button>
       </div>
-      <TileCard title="Leadership 20 — Current Top Setups">
+      <TileCard title="Leadership 20 — Current Top Leaders">
         {!rows ? (
           <p className={styles.loading}>Loading…</p>
         ) : stocks.length === 0 ? (
