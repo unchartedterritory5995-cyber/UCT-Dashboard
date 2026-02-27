@@ -80,9 +80,15 @@ class _MassiveRestClient:
         if not t:
             return {}
 
-        day  = t.get("day", {})
+        day        = t.get("day", {})
+        last_trade = t.get("lastTrade", {})
+        prev_day   = t.get("prevDay", {})
+
+        # Pre-market: day.c == 0 (no regular-session trades yet).
+        # Fall back to lastTrade.p (last extended-hours print) then prevDay.c.
+        close = day.get("c") or last_trade.get("p") or prev_day.get("c") or 0.0
         return {
-            "close":      day.get("c", 0.0),
+            "close":      close,
             "vwap":       day.get("vw", 0.0),
             "change_pct": round(float(t.get("todaysChangePerc", 0.0)), 4),
             "change":     round(float(t.get("todaysChange", 0.0)), 4),
