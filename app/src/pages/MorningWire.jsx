@@ -1,124 +1,190 @@
 import useSWR from 'swr'
 import TileCard from '../components/TileCard'
+import TickerPopup from '../components/TickerPopup'
 import styles from './MorningWire.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
-export default function MorningWire() {
-  const { data: rundown } = useSWR('/api/rundown', fetcher, { refreshInterval: 300000 })
-  const { data: breadth } = useSWR('/api/breadth', fetcher, { refreshInterval: 300000 })
-  const { data: earnings } = useSWR('/api/earnings', fetcher, { refreshInterval: 300000 })
-  const { data: leadership } = useSWR('/api/leadership', fetcher, { refreshInterval: 300000 })
-
+// Small stat pill used in the page header strip
+function StatPill({ label, value, color }) {
   return (
-    <div className={styles.page}>
-      <h1 className={styles.heading}>The Morning Wire</h1>
-
-      {/* The Rundown — AI narrative */}
-      <TileCard title="The Rundown">
-        {rundown?.html
-          ? <div className={styles.rundownContent} dangerouslySetInnerHTML={{ __html: rundown.html }} />
-          : <p className={styles.loading}>Loading rundown…</p>
-        }
-      </TileCard>
-
-      {/* Market Breadth & Regime */}
-      <TileCard title="Market Breadth & Regime">
-        {breadth
-          ? (
-            <div className={styles.breadthGrid}>
-              <div className={styles.stat}>
-                <span className={styles.label}>Market Phase</span>
-                <span className={styles.value}>{breadth.market_phase || 'N/A'}</span>
-              </div>
-              <div className={styles.stat}>
-                <span className={styles.label}>Distribution Days</span>
-                <span className={styles.value} style={{color: (breadth.distribution_days || 0) >= 5 ? 'var(--loss)' : 'var(--warn)'}}>
-                  {breadth.distribution_days ?? 0}
-                </span>
-              </div>
-              <div className={styles.stat}>
-                <span className={styles.label}>% Above 50MA</span>
-                <span className={styles.value} style={{color:'var(--gain)'}}>{breadth.pct_above_50ma?.toFixed(1)}%</span>
-              </div>
-              <div className={styles.stat}>
-                <span className={styles.label}>% Above 200MA</span>
-                <span className={styles.value} style={{color:'var(--info)'}}>{breadth.pct_above_200ma?.toFixed(1)}%</span>
-              </div>
-            </div>
-          )
-          : <p className={styles.loading}>Loading breadth…</p>
-        }
-      </TileCard>
-
-      {/* The Wire — Earnings */}
-      <TileCard title="The Wire · Earnings">
-        {earnings
-          ? (
-            <div>
-              <div className={styles.earningsSection}>
-                <h3 className={styles.subheading}>Before Market Open</h3>
-                <EarningsTable rows={earnings.bmo || []} />
-              </div>
-              <div className={styles.earningsSection}>
-                <h3 className={styles.subheading}>After Market Close</h3>
-                <EarningsTable rows={earnings.amc || []} />
-              </div>
-            </div>
-          )
-          : <p className={styles.loading}>Loading earnings…</p>
-        }
-      </TileCard>
-
-      {/* Leadership 20 */}
-      <TileCard title="UCT Leadership 20">
-        {leadership && leadership.length > 0
-          ? (
-            <div className={styles.leadershipGrid}>
-              {leadership.map((item, i) => (
-                <div key={item.sym || item.ticker || item.symbol || i} className={styles.leaderCard}>
-                  <span className={styles.leaderSym}>{item.sym || item.ticker || item.symbol}</span>
-                  {item.thesis && <p className={styles.leaderThesis}>{item.thesis}</p>}
-                </div>
-              ))}
-            </div>
-          )
-          : <p className={styles.loading}>Loading leadership…</p>
-        }
-      </TileCard>
-
-      {/* Options Flow — placeholder */}
-      <TileCard title="Options Flow">
-        <p className={styles.loading}>Options flow data coming soon</p>
-      </TileCard>
+    <div className={`${styles.statPill} ${styles[`pill_${color}`]}`}>
+      <span className={styles.pillLabel}>{label}</span>
+      <span className={styles.pillValue}>{value}</span>
     </div>
   )
 }
 
-function EarningsTable({ rows }) {
-  if (!rows.length) return <p className={styles.noData}>No earnings</p>
+// Verdict badge for earnings rows
+function VerdictBadge({ verdict }) {
+  if (!verdict) return null
+  const isbeat = verdict.toUpperCase() === 'BEAT'
   return (
-    <table className={styles.earningsTable}>
-      <thead>
-        <tr>
-          <th>Ticker</th>
-          <th>EPS Est</th>
-          <th>EPS Act</th>
-          <th>Surprise</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, i) => (
-          <tr key={row.sym || row.ticker || i}>
-            <td className={styles.sym}>{row.sym || row.ticker}</td>
-            <td>{row.eps_est ?? '—'}</td>
-            <td>{row.eps_act ?? '—'}</td>
-            <td style={{color: (row.surprise_pct ?? 0) > 0 ? 'var(--gain)' : 'var(--loss)'}}>
-              {row.surprise_pct != null ? `${row.surprise_pct > 0 ? '+' : ''}${row.surprise_pct}%` : '—'}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <span className={isbeat ? styles.beat : styles.miss}>
+      {verdict.toUpperCase()}
+    </span>
+  )
+}
+
+// One earnings row inside "By the Numbers"
+function EarningsRow({ row }) {
+  const sym = row.sym || row.ticker || row.symbol
+  const surprise = row.surprise_pct
+  const isPos = typeof surprise === 'number' ? surprise > 0
+    : typeof surprise === 'string' ? surprise.startsWith('+') : false
+
+  return (
+    <div className={styles.earningsRow}>
+      <TickerPopup sym={sym} className={styles.earningsTicker} />
+      <VerdictBadge verdict={row.verdict} />
+      <span className={`${styles.surprise} ${isPos ? styles.gainText : styles.lossText}`}>
+        {surprise != null
+          ? (typeof surprise === 'number'
+              ? `${surprise > 0 ? '+' : ''}${surprise.toFixed(1)}%`
+              : surprise)
+          : '—'}
+      </span>
+    </div>
+  )
+}
+
+export default function MorningWire() {
+  const { data: rundown } = useSWR('/api/rundown', fetcher, { refreshInterval: 300000 })
+  const { data: breadth }  = useSWR('/api/breadth',  fetcher, { refreshInterval: 300000 })
+  const { data: earnings } = useSWR('/api/earnings', fetcher, { refreshInterval: 300000 })
+  const { data: movers }   = useSWR('/api/movers',   fetcher, { refreshInterval: 30000  })
+
+  const exposure = rundown?.exposure
+  const distDays = breadth?.distribution_days ?? null
+  const distColor = distDays == null ? 'info'
+    : distDays >= 5 ? 'loss'
+    : distDays >= 3 ? 'warn'
+    : 'gain'
+
+  const bmo = earnings?.bmo || []
+  const amc = earnings?.amc || []
+  const ripping  = movers?.ripping  || []
+  const drilling = movers?.drilling || []
+  const hasMovers = ripping.length > 0 || drilling.length > 0
+
+  return (
+    <div className={styles.page}>
+
+      {/* ── Page header ─────────────────────────────────────────── */}
+      <div className={styles.pageHeader}>
+        <div className={styles.titleRow}>
+          <span className={styles.wireName}>The Morning Wire</span>
+          {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
+        </div>
+        <div className={styles.statsStrip}>
+          <StatPill
+            label="Exposure"
+            value={exposure?.exposure || '—'}
+            color="warn"
+          />
+          <StatPill
+            label="Phase"
+            value={breadth?.market_phase || '—'}
+            color="info"
+          />
+          <StatPill
+            label="Dist"
+            value={distDays ?? '—'}
+            color={distColor}
+          />
+          {exposure?.note && (
+            <span className={styles.exposureNote}>{exposure.note}</span>
+          )}
+        </div>
+      </div>
+
+      {/* ── The Rundown ──────────────────────────────────────────── */}
+      <TileCard title="The Rundown">
+        {rundown?.html
+          ? (
+            <div
+              className={styles.rundownWrap}
+              dangerouslySetInnerHTML={{ __html: rundown.html }}
+            />
+          )
+          : <p className={styles.loading}>Loading rundown…</p>
+        }
+      </TileCard>
+
+      {/* ── By the Numbers ───────────────────────────────────────── */}
+      <TileCard title="By the Numbers">
+        <div className={styles.numbers}>
+
+          {/* Earnings */}
+          <div className={styles.numbersSection}>
+            <span className={styles.sectionLabel}>Earnings</span>
+            <div className={styles.earningsBuckets}>
+              {bmo.length > 0 && (
+                <div className={styles.bucket}>
+                  <span className={styles.bucketLabel}>▲ BMO</span>
+                  {bmo.map((row, i) => (
+                    <EarningsRow key={row.sym || row.ticker || i} row={row} />
+                  ))}
+                </div>
+              )}
+              {amc.length > 0 && (
+                <div className={styles.bucket}>
+                  <span className={styles.bucketLabel}>▼ AMC</span>
+                  {amc.map((row, i) => (
+                    <EarningsRow key={row.sym || row.ticker || i} row={row} />
+                  ))}
+                </div>
+              )}
+              {bmo.length === 0 && amc.length === 0 && (
+                <span className={styles.noData}>No earnings today</span>
+              )}
+            </div>
+          </div>
+
+          {/* Movers */}
+          {hasMovers && (
+            <div className={styles.numbersSection}>
+              <span className={styles.sectionLabel}>Movers</span>
+              <div className={styles.moversRows}>
+                {ripping.length > 0 && (
+                  <div className={styles.moverRow}>
+                    <span className={styles.moverDir}>↑</span>
+                    <div className={styles.chips}>
+                      {ripping.map((m, i) => (
+                        <TickerPopup
+                          key={m.sym || i}
+                          sym={m.sym}
+                          className={styles.chipGain}
+                        >
+                          {m.sym} <span className={styles.chipPct}>{m.pct}</span>
+                        </TickerPopup>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {drilling.length > 0 && (
+                  <div className={styles.moverRow}>
+                    <span className={styles.moverDir}>↓</span>
+                    <div className={styles.chips}>
+                      {drilling.map((m, i) => (
+                        <TickerPopup
+                          key={m.sym || i}
+                          sym={m.sym}
+                          className={styles.chipLoss}
+                        >
+                          {m.sym} <span className={styles.chipPct}>{m.pct}</span>
+                        </TickerPopup>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+        </div>
+      </TileCard>
+
+    </div>
   )
 }

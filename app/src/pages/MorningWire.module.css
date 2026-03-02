@@ -1,113 +1,321 @@
+/* ── Page layout ─────────────────────────────────────────────── */
 .page {
-  padding: 20px 24px;
-  max-width: 980px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 20px 24px 40px;
+  max-width: 900px;
 }
-.heading {
-  font-family: 'Cinzel', serif;
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--ut-gold);
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-.loading {
-  color: var(--text-muted);
-  font-size: 13px;
-  padding: 8px 0;
-}
-.rundownContent {
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--text);
-}
-.breadthGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-.stat {
+
+/* ── Page header ─────────────────────────────────────────────── */
+.pageHeader {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
-.label {
-  font-size: 10px;
+
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.wireName {
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-heading);
+}
+
+.wireDate {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* ── Stats strip ─────────────────────────────────────────────── */
+.statsStrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.statPill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+
+.pillLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.pillValue {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pill_gain { background: var(--gain-bg); border-color: var(--gain-border); color: var(--gain); }
+.pill_loss { background: var(--loss-bg); border-color: var(--loss-border); color: var(--loss); }
+.pill_warn { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn); }
+.pill_info { background: var(--info-bg); border-color: var(--info-border); color: var(--info); }
+
+.exposureNote {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: 4px;
+}
+
+/* ── Rundown prose ───────────────────────────────────────────── */
+
+/* Strip all backgrounds — engine HTML was designed for a white page */
+.rundownWrap,
+.rundownWrap * {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Base reading column */
+.rundownWrap {
+  max-width: 78ch;
+  line-height: 1.75;
+  font-size: 15px;
+  font-family: 'Instrument Sans', -apple-system, sans-serif;
+  color: var(--text-bright);
+}
+
+/* Force block-level text light (overrides dark inline colors from engine) */
+.rundownWrap p,
+.rundownWrap li,
+.rundownWrap td,
+.rundownWrap th {
+  color: var(--text) !important;
+  line-height: 1.75 !important;
+}
+
+.rundownWrap p  { margin-bottom: 0.9em; }
+.rundownWrap ul,
+.rundownWrap ol { padding-left: 1.4em; margin-bottom: 0.9em; }
+.rundownWrap li { margin-bottom: 0.3em; }
+
+/* Headings — bright and distinct */
+.rundownWrap h1,
+.rundownWrap h2,
+.rundownWrap h3,
+.rundownWrap h4,
+.rundownWrap h5 {
+  color: var(--text-heading) !important;
+  font-family: 'Instrument Sans', -apple-system, sans-serif !important;
+  font-weight: 600 !important;
+  margin: 1.4em 0 0.5em !important;
+}
+
+.rundownWrap h2 {
+  font-size: 13px !important;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+.rundownWrap h3 { font-size: 14px !important; }
+
+/* Dividers */
+.rundownWrap hr {
+  border: none !important;
+  border-top: 1px solid var(--border) !important;
+  margin: 1.25em 0 !important;
+}
+
+/* Links */
+.rundownWrap a { color: var(--info) !important; text-decoration: none; }
+.rundownWrap a:hover { text-decoration: underline; }
+
+/* Tables */
+.rundownWrap table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
+.rundownWrap td,
+.rundownWrap th  { padding: 5px 10px !important; border: 1px solid var(--border) !important; font-size: 13px; }
+.rundownWrap th  { color: var(--text-bright) !important; font-weight: 600 !important; }
+
+/* Spans intentionally NOT overridden — engine semantic green/red/amber colors survive */
+
+/* ── By the Numbers ──────────────────────────────────────────── */
+.numbers {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.numbersSection {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.sectionLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-top: 2px;
+  min-width: 68px;
+  flex-shrink: 0;
+}
+
+/* ── Earnings ────────────────────────────────────────────────── */
+.earningsBuckets {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.bucket {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 180px;
+}
+
+.bucketLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--text-muted);
+  margin-bottom: 2px;
 }
-.value {
+
+.earningsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.earningsTicker {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-heading);
-}
-.subheading {
-  font-family: 'Cinzel', serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-  margin-top: 4px;
-}
-.earningsSection {
-  margin-bottom: 16px;
-}
-.earningsTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-.earningsTable th {
-  text-align: left;
-  padding: 6px 8px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
+  color: var(--text-bright);
+  cursor: pointer;
+  min-width: 48px;
+}
+
+.beat {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
   letter-spacing: 1px;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--gain-bg);
+  color: var(--gain);
+  border: 1px solid var(--gain-border);
 }
-.earningsTable td {
-  padding: 7px 8px;
-  border-bottom: 1px solid var(--border);
+
+.miss {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--loss-bg);
+  color: var(--loss);
+  border: 1px solid var(--loss-border);
 }
-.sym {
-  color: var(--ut-cream);
-  font-weight: 600;
+
+.surprise {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
 }
+
+.gainText { color: var(--gain); }
+.lossText { color: var(--loss); }
+
 .noData {
-  color: var(--text-muted);
   font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
 }
-.leadershipGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+
+/* ── Movers ──────────────────────────────────────────────────── */
+.moversRows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.moverRow {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
-.leaderCard {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-.leaderSym {
+
+.moverDir {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ut-cream);
-}
-.leaderThesis {
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 600;
+  width: 14px;
+  flex-shrink: 0;
   color: var(--text-muted);
-  margin-top: 4px;
-  line-height: 1.4;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Applied via TickerPopup className prop */
+.chipGain,
+.chipLoss {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  position: relative;
+}
+.chipGain:hover, .chipLoss:hover { opacity: 0.8; }
+
+.chipGain { background: var(--gain-bg); border-color: var(--gain-border); color: var(--gain); }
+.chipLoss { background: var(--loss-bg); border-color: var(--loss-border); color: var(--loss); }
+
+.chipPct {
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+/* ── Loading ─────────────────────────────────────────────────── */
+.loading {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 0;
 }
