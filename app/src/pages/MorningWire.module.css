@@ -153,6 +153,14 @@
 
 /* Spans intentionally NOT overridden — engine semantic green/red/amber colors survive */
 
+/* Hide data metric blocks — show only the written narrative sections */
+.rundownWrap :global(.rd-regime-banner),
+.rundownWrap :global(.rd-col),
+.rundownWrap :global(.rd-stockbee),
+.rundownWrap :global(.rd-exposure) {
+  display: none !important;
+}
+
 /* ── By the Numbers ──────────────────────────────────────────── */
 .numbers {
   display: flex;
