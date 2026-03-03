@@ -3,7 +3,6 @@ import MarketBreadth from '../components/tiles/MarketBreadth'
 import ThemeTracker from '../components/tiles/ThemeTracker'
 import CatalystFlow from '../components/tiles/CatalystFlow'
 import LeadershipTile from '../components/tiles/LeadershipTile'
-import KeyLevels from '../components/tiles/KeyLevels'
 import NewsFeed from '../components/tiles/NewsFeed'
 import MoversSidebar from '../components/MoversSidebar'
 import TileCard from '../components/TileCard'
@@ -25,11 +24,11 @@ export default function Dashboard() {
           <ThemeTracker />
         </div>
 
-        {/* Row 3: Catalyst Flow + UCT 20 + Key Levels */}
+        {/* Row 3: Catalyst Flow + UCT 20 + News */}
         <div className={styles.row3}>
           <CatalystFlow />
           <LeadershipTile />
-          <KeyLevels />
+          <NewsFeed />
         </div>
 
         {/* Row 4: Coming Soon */}
@@ -42,10 +41,6 @@ export default function Dashboard() {
           </TileCard>
         </div>
 
-        {/* Row 5: News */}
-        <div className={styles.row5}>
-          <NewsFeed />
-        </div>
       </div>
     </div>
   )

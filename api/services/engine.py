@@ -415,19 +415,35 @@ def get_news() -> list:
 
     try:
         import morning_wire_engine as eng
-        raw = eng.fetch_finviz_news(count=20)
-        # fetch_finviz_news returns: headline, source, url, datetime, category, summary
-        # Rename "datetime" → "time" for consistency with our API
-        news = []
-        for item in raw:
-            news.append({
-                "headline": item.get("headline", ""),
-                "source": item.get("source", ""),
-                "url": item.get("url", ""),
-                "time": item.get("datetime", ""),
+        import news_aggregator as na
+        from datetime import date
+
+        date_str = date.today().isoformat()
+
+        # Fetch from all available sources
+        fv_news  = na.fetch_finviz_news(eng.FINVIZ_TOKEN) or []
+        rss_news = na.fetch_rss_news(date_str) or []
+
+        # Aggregate + deduplicate (priority: Finviz > RSS)
+        combined = na.aggregate_news(
+            perplexity_news=[],
+            rss_news=rss_news,
+            yahoo_news=[],
+            finviz_news=fv_news,
+            limit=30,
+        )
+
+        # Normalize field names for the frontend
+        # news_aggregator uses "title" and "time_published" (ISO string)
+        result = []
+        for item in combined:
+            result.append({
+                "headline": item.get("title") or item.get("headline", ""),
+                "source":   item.get("source", ""),
+                "url":      item.get("url", ""),
+                "time":     item.get("time_published", ""),
                 "category": item.get("category", ""),
             })
-        result = news
     except Exception as e:
         result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "error": str(e)}]
 

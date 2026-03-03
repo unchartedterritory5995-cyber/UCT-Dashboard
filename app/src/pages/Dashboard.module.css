@@ -48,7 +48,6 @@
   align-items: start;
 }
 .row4 { width: 100%; }
-.row5 { width: 100%; }
 
 @media (max-width: 1400px) {
   .row3 { grid-template-columns: 1fr 1fr 1fr; }
