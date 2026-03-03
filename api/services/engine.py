@@ -415,28 +415,12 @@ def get_news() -> list:
 
     try:
         from api.services import news_aggregator as na
-        from datetime import date
 
-        date_str = date.today().isoformat()
         finviz_token = os.environ.get("FINVIZ_API_KEY", "b408c28f-578f-4e73-b9c2-96ffa4bef962")
+        raw = na.fetch_finviz_news(finviz_token, limit=30) or []
 
-        # Fetch from all available sources
-        fv_news  = na.fetch_finviz_news(finviz_token) or []
-        rss_news = na.fetch_rss_news(date_str) or []
-
-        # Aggregate + deduplicate (priority: Finviz > RSS)
-        combined = na.aggregate_news(
-            perplexity_news=[],
-            rss_news=rss_news,
-            yahoo_news=[],
-            finviz_news=fv_news,
-            limit=30,
-        )
-
-        # Normalize field names for the frontend
-        # news_aggregator uses "title" and "time_published" (ISO string)
         result = []
-        for item in combined:
+        for item in raw:
             result.append({
                 "headline": item.get("title") or item.get("headline", ""),
                 "source":   item.get("source", ""),
