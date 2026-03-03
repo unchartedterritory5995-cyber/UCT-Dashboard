@@ -414,14 +414,14 @@ def get_news() -> list:
         return cached
 
     try:
-        import morning_wire_engine as eng
-        import news_aggregator as na
+        from api.services import news_aggregator as na
         from datetime import date
 
         date_str = date.today().isoformat()
+        finviz_token = os.environ.get("FINVIZ_API_KEY", "b408c28f-578f-4e73-b9c2-96ffa4bef962")
 
         # Fetch from all available sources
-        fv_news  = na.fetch_finviz_news(eng.FINVIZ_TOKEN) or []
+        fv_news  = na.fetch_finviz_news(finviz_token) or []
         rss_news = na.fetch_rss_news(date_str) or []
 
         # Aggregate + deduplicate (priority: Finviz > RSS)
