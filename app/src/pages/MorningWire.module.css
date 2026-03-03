@@ -161,6 +161,38 @@
   display: none !important;
 }
 
+/* ── Rundown subsection headers ──────────────────────────────── */
+.rundownWrap :global(.rd-subsection-header) {
+  margin: 28px 0 18px;
+  text-align: center;
+}
+
+/* Override the generic hr rule — subsection hrs use gold, not border */
+.rundownWrap :global(.rd-subsection-header) :global(hr) {
+  border: none !important;
+  border-top: 1px solid #c9a84c !important;
+  opacity: 0.55 !important;
+  margin: 0 0 10px !important;
+}
+.rundownWrap :global(.rd-subsection-header) :global(hr.bot) {
+  margin: 10px 0 0 !important;
+}
+
+.rundownWrap :global(.rd-subsection-label) {
+  font-family: 'Cinzel', serif !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: 4px !important;
+  text-transform: uppercase !important;
+  color: #c9a84c !important;
+  padding: 0 4px;
+}
+
+/* Hide the duplicate MARKET TONE label inside the AI narrative */
+.rundownWrap :global(.rd-section.rd-tone .rd-section-header) {
+  display: none !important;
+}
+
 /* ── By the Numbers ──────────────────────────────────────────── */
 .numbers {
   display: flex;
