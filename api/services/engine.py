@@ -414,24 +414,34 @@ def get_news() -> list:
         return cached
 
     try:
-        from api.services import news_aggregator as na
-
-        finviz_token = os.environ.get("FINVIZ_API_KEY", "b408c28f-578f-4e73-b9c2-96ffa4bef962")
-        raw = na.fetch_finviz_news(finviz_token, limit=30) or []
-
+        import requests as _requests
+        token = os.environ.get("FINVIZ_API_KEY", "b408c28f-578f-4e73-b9c2-96ffa4bef962")
+        r = _requests.get(
+            f"https://elite.finviz.com/news_export.ashx?auth={token}",
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=15,
+            allow_redirects=True,
+        )
+        r.raise_for_status()
+        lines = [ln.replace('"', '') for ln in r.text.strip().splitlines() if ln.strip()]
+        headers = [h.strip() for h in lines[0].split(",")]
         result = []
-        for item in raw:
-            result.append({
-                "headline": item.get("title") or item.get("headline", ""),
-                "source":   item.get("source", ""),
-                "url":      item.get("url", ""),
-                "time":     item.get("time_published", ""),
-                "category": item.get("category", ""),
-            })
+        for line in lines[1:31]:  # up to 30 items
+            vals = [v.strip() for v in line.split(",", len(headers) - 1)]
+            row = dict(zip(headers, vals))
+            headline = row.get("Title", "")
+            if headline:
+                result.append({
+                    "headline": headline,
+                    "source":   row.get("Source", ""),
+                    "url":      row.get("Url", ""),
+                    "time":     row.get("Date", ""),
+                    "category": row.get("Category", ""),
+                })
     except Exception as e:
         result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "error": str(e)}]
 
-    cache.set("news", result, ttl=300)
+    cache.set("news", result, ttl=120)
     return result
 
 

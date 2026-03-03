@@ -9,7 +9,7 @@ export default function NewsFeed({ data: propData }) {
   const { data: fetched } = useSWR(
     propData !== undefined ? null : '/api/news',
     fetcher,
-    { refreshInterval: 300000 }
+    { refreshInterval: 120000 }
   )
   const data = propData !== undefined ? propData : fetched
 
