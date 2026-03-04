@@ -323,6 +323,21 @@ def get_rundown() -> dict:
 
 # ─── Earnings ─────────────────────────────────────────────────────────────────
 
+def _enrich_earnings_with_gap(data: dict) -> None:
+    """Batch-fetch live change_pct from Massive and add it to each earnings entry."""
+    all_entries = data.get("bmo", []) + data.get("amc", [])
+    syms = [e["sym"] for e in all_entries if e.get("sym")]
+    if not syms:
+        return
+    try:
+        from api.services.massive import _get_client
+        price_map = _get_client().get_batch_snapshots(syms)
+        for entry in all_entries:
+            entry["change_pct"] = price_map.get(entry["sym"])
+    except Exception:
+        pass
+
+
 def get_earnings() -> dict:
     wire = _load_wire_data()
     if wire and wire.get("earnings"):
@@ -337,6 +352,7 @@ def get_earnings() -> dict:
             [dict(e, hour="bmo") for e in bmo_raw] +
             [dict(e, hour="amc") for e in amc_raw]
         )
+        _enrich_earnings_with_gap(data)
         cache.set("earnings", data, ttl=1800)
         return data
 
@@ -359,6 +375,7 @@ def get_earnings() -> dict:
         if "bmo" not in data:
             data = _normalize_earnings(data if isinstance(data, list) else [])
 
+    _enrich_earnings_with_gap(data)
     cache.set("earnings", data, ttl=1800)
     return data
 
