@@ -543,7 +543,12 @@ def get_news() -> list:
         from datetime import datetime, timezone, timedelta
         from concurrent.futures import ThreadPoolExecutor, as_completed as _ac
 
-        now_et = datetime.now(timezone(timedelta(hours=-5)))
+        try:
+            from zoneinfo import ZoneInfo
+            _et_tz = ZoneInfo("America/New_York")
+        except ImportError:
+            _et_tz = timezone(timedelta(hours=-5))
+        now_et = datetime.now(_et_tz)
         is_premarket = 4 <= now_et.hour < 9 or (now_et.hour == 9 and now_et.minute < 30)
         time_from = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y%m%dT%H%M")
 
@@ -643,10 +648,13 @@ def get_news() -> list:
             except Exception:
                 return sym, True
 
-        with ThreadPoolExecutor(max_workers=min(len(unique_syms), 12)) as ex:
-            allowed = {s for s, ok in (f.result() for f in _ac(
-                ex.submit(_check_sym, s) for s in unique_syms
-            )) if ok}
+        if unique_syms:
+            with ThreadPoolExecutor(max_workers=min(len(unique_syms), 12)) as ex:
+                allowed = {s for s, ok in (f.result() for f in _ac(
+                    ex.submit(_check_sym, s) for s in unique_syms
+                )) if ok}
+        else:
+            allowed = set()
 
         av_filtered = [
             it for it in av_candidates
