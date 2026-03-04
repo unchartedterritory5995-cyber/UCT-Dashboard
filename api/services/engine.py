@@ -476,7 +476,7 @@ def get_news() -> list:
     except Exception as e:
         result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "category": "", "ticker": "", "error": str(e)}]
 
-    cache.set("news", result, ttl=120)
+    cache.set("news", result, ttl=600)
     return result
 
 
