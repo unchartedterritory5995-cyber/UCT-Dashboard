@@ -7,12 +7,18 @@ from unittest.mock import patch, MagicMock
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _make_csv(*rows):
-    """Build a minimal Finviz-style CSV string with Ticker and Change columns."""
+    """Build a minimal Finviz-style CSV string with Ticker, Company, and Change columns."""
     buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=["Ticker", "Change", "Price", "Volume"])
+    writer = csv.DictWriter(buf, fieldnames=["Ticker", "Company", "Change", "Price", "Volume"])
     writer.writeheader()
-    for sym, chg in rows:
-        writer.writerow({"Ticker": sym, "Change": f"{chg:.2f}%", "Price": "50.00", "Volume": "500000"})
+    for item in rows:
+        if len(item) == 3:
+            sym, chg, company = item
+        else:
+            sym, chg = item
+            company = sym  # default company = ticker (no leveraged ETF keywords)
+        writer.writerow({"Ticker": sym, "Company": company, "Change": f"{chg:.2f}%",
+                         "Price": "50.00", "Volume": "500000"})
     return buf.getvalue()
 
 
@@ -60,17 +66,15 @@ def test_finviz_movers_parses_gainers_and_losers():
 
 
 def test_finviz_movers_excludes_leveraged_etfs():
-    """Leveraged ETFs are filtered out even when they pass the % threshold."""
+    """Leveraged ETFs are filtered by company name keyword check."""
     from api.services.massive import _fetch_finviz_movers_live
 
-    gainers = _make_csv(("SOXL", 18.0), ("NVDA", 5.0))
+    # Company name contains "3x leveraged" — should be excluded
+    gainers = _make_csv(("SOXL", 18.0, "Direxion Daily Semiconductors 3x Leveraged ETF"),
+                        ("NVDA", 5.0,  "NVIDIA Corp"))
     losers  = _make_csv()
 
-    def _mock_lev(sym):
-        return sym == "SOXL"
-
     with patch("api.services.massive.os.environ.get", return_value="fake_token"), \
-         patch("api.services.massive._is_leveraged_etf", side_effect=_mock_lev), \
          patch("api.services.massive.urllib.request.urlopen", side_effect=_mock_urlopen_factory(gainers, losers)):
         ripping, drilling = _fetch_finviz_movers_live()
 

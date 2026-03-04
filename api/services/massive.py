@@ -325,6 +325,17 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
         except Exception:
             return []
 
+    # Keyword check on Company name — instant, no yfinance calls needed.
+    # Finviz CSV already includes the full company name in each row.
+    _lev_kw = ("2x", "3x", "-2x", "-3x", "ultra pro", "ultrashort", "ultralong",
+                "leveraged", "inverse", "daily bear", "daily bull",
+                "direxion daily", "proshares ultra", "proshares short",
+                "short bitcoin", "short ether", "2× long", "2× short")
+
+    def _is_lev_by_name(row: dict) -> bool:
+        name = (row.get("Company", "") + " " + row.get("Ticker", "")).lower()
+        return any(kw in name for kw in _lev_kw)
+
     def _parse_pct(s: str) -> float:
         try:
             return float(s.replace("%", "").replace("+", "").strip())
@@ -339,7 +350,7 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
         pct = _parse_pct(row.get("Change", "0"))
         if not sym or pct < 3.0:
             break  # sorted descending; once below 3% all remaining are too
-        if _is_leveraged_etf(sym):
+        if _is_lev_by_name(row):
             continue
         ripping.append({"sym": sym, "pct": f"+{pct:.2f}%"})
         if len(ripping) >= 12:
@@ -350,7 +361,7 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
         pct = _parse_pct(row.get("Change", "0"))
         if not sym or pct > -3.0:
             break  # sorted ascending; once above -3% all remaining are too
-        if _is_leveraged_etf(sym):
+        if _is_lev_by_name(row):
             continue
         drilling.append({"sym": sym, "pct": f"{pct:.2f}%"})
         if len(drilling) >= 12:
