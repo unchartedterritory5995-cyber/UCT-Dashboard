@@ -353,6 +353,7 @@ def get_earnings() -> dict:
             [dict(e, hour="amc") for e in amc_raw]
         )
         _enrich_earnings_with_gap(data)
+        _prewarm_earnings_analysis(data)
         cache.set("earnings", data, ttl=1800)
         return data
 
@@ -376,6 +377,7 @@ def get_earnings() -> dict:
             data = _normalize_earnings(data if isinstance(data, list) else [])
 
     _enrich_earnings_with_gap(data)
+    _prewarm_earnings_analysis(data)
     cache.set("earnings", data, ttl=1800)
     return data
 
@@ -409,18 +411,126 @@ def _normalize_earnings(raw) -> dict:
             "rev_actual":       rev_actual,
             "rev_surprise_pct": _fmt_surprise(rev_actual, rev_estimate),
         }
-        # Derive a simple verdict
-        if eps_actual is not None and eps_estimate is not None:
-            entry["verdict"] = "Beat" if eps_actual >= eps_estimate else "Miss"
-        else:
+        # Verdict: Beat / Miss / Mixed / Pending
+        if eps_actual is None or eps_estimate is None:
             entry["verdict"] = "Pending"
+        else:
+            eps_beat = eps_actual >= eps_estimate
+            if rev_actual is not None and rev_estimate is not None:
+                rev_beat = rev_actual >= rev_estimate
+                if eps_beat and rev_beat:
+                    entry["verdict"] = "Beat"
+                elif not eps_beat and not rev_beat:
+                    entry["verdict"] = "Miss"
+                else:
+                    entry["verdict"] = "Mixed"
+            else:
+                # No revenue data — fall back to EPS only
+                entry["verdict"] = "Beat" if eps_beat else "Miss"
 
         if item.get("hour") == "bmo":
             bmo.append(entry)
         else:
             amc.append(entry)
 
-    return {"bmo": bmo[:8], "amc": amc[:8]}
+    # Sort: biggest absolute EPS surprise first, Pending last
+    def _sort_key(e):
+        if e.get("verdict") == "Pending":
+            return (1, 0.0)
+        surp = e.get("surprise_pct") or "0"
+        try:
+            return (0, -abs(float(surp.replace("%", "").replace("+", ""))))
+        except (ValueError, AttributeError):
+            return (0, 0.0)
+
+    bmo.sort(key=_sort_key)
+    amc.sort(key=_sort_key)
+    return {"bmo": bmo[:15], "amc": amc[:15]}
+
+
+def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
+    """Generate Claude Haiku earnings analysis + pull related news. Cached 12h."""
+    cache_key = f"earnings_analysis_{sym}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    # Related news from existing news cache (zero extra API calls)
+    news_items = cache.get("news") or []
+    related_raw = next(
+        (n for n in news_items if sym in (n.get("tickers") or [])), None
+    )
+    related_news = {
+        "headline": related_raw["headline"],
+        "url":      related_raw["url"],
+        "source":   related_raw.get("source", ""),
+    } if related_raw else None
+
+    analysis = None
+    if row and row.get("verdict", "").lower() not in ("pending", ""):
+        try:
+            import anthropic
+
+            def _fmt_eps(v):
+                if v is None: return "N/A"
+                return f"{'-' if v < 0 else ''}${abs(v):.2f}"
+
+            def _fmt_rev(m):
+                if m is None: return "N/A"
+                return f"${m / 1000:.2f}B" if m >= 1000 else f"${round(m)}M"
+
+            change_pct = row.get("change_pct")
+            gap_str = (
+                f"{'+' if change_pct >= 0 else ''}{change_pct:.2f}%"
+                if change_pct is not None else "N/A"
+            )
+            prompt = (
+                f"Analyze this earnings report for {sym} in 3 concise sentences. "
+                f"Be direct, specific, and professional — no filler.\n\n"
+                f"Verdict: {row.get('verdict')}\n"
+                f"EPS: Expected {_fmt_eps(row.get('eps_estimate'))} → "
+                f"Reported {_fmt_eps(row.get('reported_eps'))} "
+                f"({row.get('surprise_pct', 'N/A')} surprise)\n"
+                f"Revenue: Expected {_fmt_rev(row.get('rev_estimate'))} → "
+                f"Reported {_fmt_rev(row.get('rev_actual'))} "
+                f"({row.get('rev_surprise_pct', 'N/A')} surprise)\n"
+                f"Stock reaction: {gap_str}\n\n"
+                f"Cover: magnitude of beat/miss, what it signals about the business, "
+                f"and what the market reaction implies about expectations."
+            )
+            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=180,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            analysis = msg.content[0].text.strip()
+        except Exception:
+            analysis = None
+
+    result = {"sym": sym, "analysis": analysis, "news": related_news}
+    cache.set(cache_key, result, ttl=43200)  # 12 h
+    return result
+
+
+def _prewarm_earnings_analysis(data: dict) -> None:
+    """Fire daemon threads to pre-cache AI analysis for all non-Pending tickers."""
+    import threading
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return
+    for bucket in ("bmo", "amc"):
+        for entry in data.get(bucket, []):
+            sym = entry.get("sym", "")
+            if not sym or entry.get("verdict", "").lower() in ("pending", ""):
+                continue
+            if cache.get(f"earnings_analysis_{sym}"):
+                continue  # already warmed
+            t = threading.Thread(
+                target=_generate_earnings_analysis,
+                args=(sym, dict(entry)),
+                daemon=True,
+            )
+            t.start()
 
 
 # ─── News ─────────────────────────────────────────────────────────────────────

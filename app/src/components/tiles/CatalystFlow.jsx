@@ -12,6 +12,7 @@ function VerdictPill({ verdict }) {
   if (v === 'pending') return <span className={`${styles.pill} ${styles.pillPending}`}>PENDING</span>
   if (v === 'beat')    return <span className={`${styles.pill} ${styles.pillBeat}`}>BEAT</span>
   if (v === 'miss')    return <span className={`${styles.pill} ${styles.pillMiss}`}>MISS</span>
+  if (v === 'mixed')   return <span className={`${styles.pill} ${styles.pillMixed}`}>MIXED</span>
   return <span className={styles.pillPending}>{verdict ?? '—'}</span>
 }
 
@@ -29,7 +30,7 @@ function GapCell({ value }) {
   return <span className={n >= 0 ? styles.pos : styles.neg}>{fmt}</span>
 }
 
-function EarningsTable({ rows, label, onSelect }) {
+function EarningsTable({ rows, label, onSelect, liveGaps }) {
   if (!rows?.length) return null
   return (
     <div className={styles.tableWrap}>
@@ -49,7 +50,7 @@ function EarningsTable({ rows, label, onSelect }) {
             <tr key={row.sym} className={styles.clickRow} onClick={() => onSelect(row, label)}>
               <td><span className={styles.sym}>{row.sym}</span></td>
               <td><VerdictPill verdict={row.verdict} /></td>
-              <td><GapCell value={row.change_pct} /></td>
+              <td><GapCell value={liveGaps?.[row.sym] ?? row.change_pct} /></td>
               <td><SurpriseCell value={row.surprise_pct} /></td>
               <td><SurpriseCell value={row.rev_surprise_pct} /></td>
             </tr>
@@ -61,7 +62,17 @@ function EarningsTable({ rows, label, onSelect }) {
 }
 
 export default function CatalystFlow({ data: propData }) {
-  const { data: fetched } = useSWR(propData !== undefined ? null : '/api/earnings', fetcher)
+  const { data: fetched } = useSWR(
+    propData !== undefined ? null : '/api/earnings',
+    fetcher,
+    { refreshInterval: 300000 }   // refresh every 5 min — picks up BMO reports as they drop
+  )
+  const { data: liveGaps } = useSWR(
+    '/api/earnings-gaps',
+    fetcher,
+    { refreshInterval: 30000 }    // live gap % refreshed every 30 s
+  )
+
   const data = propData !== undefined ? propData : fetched
   const [selected, setSelected] = useState(null)
 
@@ -70,8 +81,18 @@ export default function CatalystFlow({ data: propData }) {
   return (
     <>
       <TileCard title="Catalyst Flow · Earnings">
-        <EarningsTable rows={data.bmo} label="BEFORE MARKET OPEN" onSelect={(row, label) => setSelected({ row, label })} />
-        <EarningsTable rows={data.amc} label="AFTER CLOSE · YESTERDAY" onSelect={(row, label) => setSelected({ row, label })} />
+        <EarningsTable
+          rows={data.bmo}
+          label="BEFORE MARKET OPEN"
+          onSelect={(row, label) => setSelected({ row, label })}
+          liveGaps={liveGaps}
+        />
+        <EarningsTable
+          rows={data.amc}
+          label="AFTER CLOSE · YESTERDAY"
+          onSelect={(row, label) => setSelected({ row, label })}
+          liveGaps={liveGaps}
+        />
         {!data.bmo?.length && !data.amc?.length && (
           <p className={styles.loading}>No earnings today</p>
         )}

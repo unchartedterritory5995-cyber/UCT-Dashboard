@@ -55,6 +55,11 @@
   background: var(--loss-bg);
   border: 1px solid var(--loss-border);
 }
+.pillMixed {
+  color: var(--warn, #f5a623);
+  background: var(--warn-bg, rgba(245, 166, 35, 0.08));
+  border: 1px solid var(--warn-border, rgba(245, 166, 35, 0.3));
+}
 .pillPending {
   color: var(--text-muted);
   background: transparent;
