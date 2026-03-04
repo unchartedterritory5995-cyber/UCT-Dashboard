@@ -443,6 +443,43 @@ def get_earnings() -> dict:
                     entry["rev_actual"]   = wa.get("rev_actual")
                     entry["rev_estimate"] = entry.get("rev_estimate") or wa.get("rev_estimate")
 
+        # ── Finnhub patch: fill remaining Pending from live Finnhub calendar ──
+        fh_key = os.environ.get("FINNHUB_API_KEY")
+        if fh_key:
+            pending_syms = {
+                e["symbol"] for e in (bmo_raw + amc_raw)
+                if e.get("eps_actual") is None
+            }
+            if pending_syms:
+                try:
+                    import requests as _req2
+                    fh_r = _req2.get(
+                        "https://finnhub.io/api/v1/calendar/earnings",
+                        params={"from": yesterday, "to": today, "token": fh_key},
+                        timeout=15,
+                    )
+                    fh_map = {
+                        e["symbol"]: e
+                        for e in fh_r.json().get("earningsCalendar", [])
+                        if e.get("symbol") in pending_syms
+                        and e.get("epsActual") is not None
+                    }
+                    for entry in (bmo_raw + amc_raw):
+                        if entry.get("eps_actual") is not None:
+                            continue
+                        fh = fh_map.get(entry["symbol"])
+                        if fh:
+                            rev_a = fh.get("revenueActual")
+                            rev_e = fh.get("revenueEstimate")
+                            entry["eps_actual"]   = fh["epsActual"]
+                            entry["eps_estimate"] = entry.get("eps_estimate") or fh.get("epsEstimate")
+                            entry["rev_actual"]   = (rev_a / 1_000_000) if rev_a else None
+                            entry["rev_estimate"] = entry.get("rev_estimate") or (
+                                (rev_e / 1_000_000) if rev_e else None
+                            )
+                except Exception:
+                    pass
+
     data = _normalize_earnings(bmo_raw + amc_raw)
     _enrich_earnings_with_gap(data)
     _prewarm_earnings_analysis(data)
