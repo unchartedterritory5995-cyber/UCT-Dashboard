@@ -447,23 +447,15 @@ def get_news() -> list:
         _BAD_HEADLINE = ("sec filings", "10-k", "10-q", "8-k", "stock news today",
                          "stock price and chart", "latest stock news", "annual report")
 
-        result = []
+        # ── Pass 1: extract all candidate (item, ticker) pairs ────────────────
+        candidates = []  # list of (item_dict, ticker_str)
         for item in feed:
-            if len(result) >= 20:
-                break
-
-            # Drop aggregator noise sources
             src = item.get("source", "").lower()
             if src in _BAD_SOURCES:
                 continue
-
-            # Drop page-listing headlines
             headline = item.get("title", "")
             if any(p in headline.lower() for p in _BAD_HEADLINE):
                 continue
-
-            # Keep tickers: relevance >= 0.5, standard 1–4 char alpha symbols only
-            tickers = []
             for t in item.get("ticker_sentiment", []):
                 try:
                     rel = float(t.get("relevance_score", 0))
@@ -471,11 +463,41 @@ def get_news() -> list:
                     rel = 0
                 sym = (t.get("ticker") or "").strip().upper()
                 if rel >= 0.5 and sym and 1 <= len(sym) <= 4 and sym.isalpha():
-                    tickers.append(sym)
-            if not tickers:
-                continue  # skip non-stock-specific items
+                    candidates.append((item, sym))
+                    break  # one ticker per article
 
-            # Convert AV UTC timestamp to ET string for frontend fmtTime()
+        # ── Pass 2: filter ETFs + low-volume tickers via yfinance fast_info ──
+        unique_syms = list({sym for _, sym in candidates})
+
+        def _check_sym(sym: str) -> tuple[str, bool]:
+            """Return (sym, keep) — keep=True if equity with avg dvol >= $5M."""
+            try:
+                import yfinance as yf
+                fi = yf.Ticker(sym).fast_info
+                qt = getattr(fi, "quote_type", "EQUITY") or "EQUITY"
+                if qt.upper() not in ("EQUITY", ""):
+                    return sym, False  # ETF / mutual fund / index
+                price   = getattr(fi, "last_price", 0) or 0
+                avg_vol = getattr(fi, "three_month_average_volume", 0) or 0
+                return sym, (price * avg_vol) >= 5_000_000
+            except Exception:
+                return sym, True  # can't check → keep
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed as _as_completed
+        with ThreadPoolExecutor(max_workers=min(len(unique_syms), 12)) as ex:
+            allowed = {sym for sym, ok in (f.result() for f in _as_completed(
+                ex.submit(_check_sym, s) for s in unique_syms
+            )) if ok}
+
+        # ── Pass 3: build result from candidates that passed the filter ───────
+        result = []
+        seen_tickers = set()
+        for item, sym in candidates:
+            if len(result) >= 20:
+                break
+            if sym not in allowed or sym in seen_tickers:
+                continue
+            seen_tickers.add(sym)
             ts = item.get("time_published", "")
             try:
                 dt_utc = datetime.strptime(ts[:15], "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
@@ -483,14 +505,13 @@ def get_news() -> list:
                 time_str = dt_et.strftime("%Y-%m-%d %H:%M:%S")
             except Exception:
                 time_str = ""
-
             result.append({
                 "headline": item.get("title", ""),
                 "source":   item.get("source", ""),
                 "url":      item.get("url", ""),
                 "time":     time_str,
                 "category": "",
-                "ticker":   tickers[0],
+                "ticker":   sym,
             })
 
     except Exception as e:
