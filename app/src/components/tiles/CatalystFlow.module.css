@@ -60,6 +60,11 @@
   background: transparent;
   border: 1px solid var(--border);
 }
+.clickRow {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.clickRow:hover td { background: var(--bg-hover, rgba(255,255,255,0.04)); }
 .pos    { color: var(--gain); }
 .neg    { color: var(--loss); }
 .muted  { color: var(--text-muted); }
