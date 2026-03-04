@@ -408,6 +408,59 @@ def _normalize_earnings(raw) -> dict:
 
 # ─── News ─────────────────────────────────────────────────────────────────────
 
+# ─── News helpers ─────────────────────────────────────────────────────────────
+
+_AV_TOPIC_MAP = {
+    "Earnings":                "EARN",
+    "Mergers & Acquisitions":  "M&A",
+    "IPO":                     "IPO",
+    "Life Sciences":           "BIO",
+    "Economy - Monetary":      "MACRO",
+}
+
+_UPGRADE_PATTERNS = (
+    "upgrades to", "raises to", "initiates", "outperform",
+    "overweight", "price target raised", "raises price target",
+    "pt raised", "price target increase",
+)
+_DOWNGRADE_PATTERNS = (
+    "downgrades to", "cuts to", "underperform", "underweight",
+    "price target cut", "price target lowered", "pt cut", "pt lowered",
+    "price target decrease",
+)
+
+
+def _classify_category(item: dict, headline: str) -> str:
+    """Classify an AV article dict into a category badge string."""
+    hl = headline.lower()
+    if any(p in hl for p in _UPGRADE_PATTERNS):
+        return "UPGRADE"
+    if any(p in hl for p in _DOWNGRADE_PATTERNS):
+        return "DOWNGRADE"
+    topics = sorted(
+        item.get("topics", []),
+        key=lambda t: float(t.get("relevance_score", 0) or 0),
+        reverse=True,
+    )
+    for t in topics:
+        badge = _AV_TOPIC_MAP.get(t.get("topic", ""))
+        if badge:
+            return badge
+    return "GENERAL"
+
+
+def _map_sentiment(label: str | None) -> str:
+    """Map AV overall_sentiment_label to 'bullish' | 'bearish' | 'neutral'."""
+    if not label:
+        return "neutral"
+    l = label.lower()
+    if "bullish" in l:
+        return "bullish"
+    if "bearish" in l:
+        return "bearish"
+    return "neutral"
+
+
 def get_news() -> list:
     cached = cache.get("news")
     if cached:
