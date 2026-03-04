@@ -15,8 +15,10 @@ function fmtRev(m) {
 }
 
 export default function EarningsModal({ row, label, onClose }) {
-  const [gap, setGap] = useState(null)
+  const [gap, setGap]           = useState(null)
+  const [aiState, setAiState]   = useState({ loading: true, data: null })
 
+  // Live gap %
   useEffect(() => {
     if (!row) return
     setGap(null)
@@ -26,6 +28,17 @@ export default function EarningsModal({ row, label, onClose }) {
       .catch(() => {})
   }, [row?.sym])
 
+  // AI analysis + related news
+  useEffect(() => {
+    if (!row) return
+    setAiState({ loading: true, data: null })
+    fetch(`/api/earnings-analysis/${row.sym}`)
+      .then(r => r.json())
+      .then(d => setAiState({ loading: false, data: d }))
+      .catch(() => setAiState({ loading: false, data: null }))
+  }, [row?.sym])
+
+  // Escape key
   useEffect(() => {
     const handleKey = e => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handleKey)
@@ -35,9 +48,12 @@ export default function EarningsModal({ row, label, onClose }) {
   if (!row) return null
 
   const isBeat = row.verdict?.toLowerCase() === 'beat'
+  const isPending = row.verdict?.toLowerCase() === 'pending'
   const summaryText = row.reported_eps != null && row.eps_estimate != null
     ? `${isBeat ? '✓ Beat' : '✗ Miss'} — EPS ${fmtEps(row.reported_eps)} vs ${fmtEps(row.eps_estimate)} est (${row.surprise_pct} surprise)`
-    : row.verdict === 'Pending' ? 'Pending — not yet reported' : null
+    : isPending ? 'Pending — not yet reported' : null
+
+  const hasAiContent = aiState.data?.analysis || aiState.data?.news
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
@@ -92,6 +108,33 @@ export default function EarningsModal({ row, label, onClose }) {
           <div className={`${styles.gap} ${gap >= 0 ? styles.pos : styles.neg}`}>
             {gap >= 0 ? '↑' : '↓'} Gap {gap >= 0 ? '+' : ''}{gap.toFixed(2)}%
           </div>
+        )}
+
+        {/* AI Analysis + Related News */}
+        {!isPending && (
+          aiState.loading ? (
+            <div className={styles.aiLoading}>
+              <span className={styles.aiSpinner} />
+              Analyzing earnings…
+            </div>
+          ) : hasAiContent ? (
+            <div className={styles.aiSection}>
+              {aiState.data.analysis && (
+                <p className={styles.aiText}>{aiState.data.analysis}</p>
+              )}
+              {aiState.data.news && (
+                <a
+                  href={aiState.data.news.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.newsLink}
+                >
+                  <span className={styles.newsSource}>{aiState.data.news.source}</span>
+                  {aiState.data.news.headline} ↗
+                </a>
+              )}
+            </div>
+          ) : null
         )}
 
         <div className={styles.actions}>

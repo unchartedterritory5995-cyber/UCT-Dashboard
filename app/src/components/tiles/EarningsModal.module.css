@@ -135,6 +135,74 @@
 .pos { color: var(--gain); }
 .neg { color: var(--loss); }
 
+/* ── AI Analysis ─────────────────────────────────────────────── */
+.aiLoading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.02);
+}
+
+.aiSpinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--border);
+  border-top-color: var(--text-muted);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.aiSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.aiText {
+  font-family: 'Instrument Sans', -apple-system, sans-serif;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text);
+  margin: 0;
+}
+
+.newsLink {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--info, #5ba3f5);
+  text-decoration: none;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  line-height: 1.45;
+}
+.newsLink:hover { text-decoration: underline; }
+
+.newsSource {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
 .actions {
   display: flex;
   gap: 10px;
