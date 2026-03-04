@@ -476,6 +476,18 @@ _PREMARKET_PINNED = {"EARN", "M&A", "BIO"}
 def _deduplicate_news(items: list[dict]) -> list[dict]:
     """Collapse same-event articles (same ticker + category within 2h) into one item."""
     from datetime import datetime
+    # Pre-pass: drop exact URL duplicates (AV sometimes returns the same article twice)
+    seen_urls: set[str] = set()
+    deduped: list[dict] = []
+    for item in items:
+        u = item.get("url", "")
+        if u and u in seen_urls:
+            continue
+        if u:
+            seen_urls.add(u)
+        deduped.append(item)
+    items = deduped
+
     buckets: dict[tuple, list[dict]] = {}
     for item in items:
         ticker = (item.get("tickers") or [""])[0]

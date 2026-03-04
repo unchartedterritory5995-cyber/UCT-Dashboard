@@ -4,7 +4,8 @@ import pytest
 
 def _make_item(ticker, category, time_str, source="Benzinga", headline="Test"):
     return {
-        "headline": headline, "source": source, "url": f"http://x.com/{ticker}",
+        "headline": headline, "source": source,
+        "url": f"http://x.com/{ticker}/{category}/{time_str.replace(' ', '_')}",
         "time": time_str, "category": category, "sentiment": "neutral",
         "tickers": [ticker],
     }
