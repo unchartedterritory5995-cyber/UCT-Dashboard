@@ -461,6 +461,68 @@ def _map_sentiment(label: str | None) -> str:
     return "neutral"
 
 
+_SOURCE_TIER = {
+    "reuters": 1, "associated press": 1, "ap": 1, "dow jones": 1, "bloomberg": 1,
+    "benzinga": 2, "business wire": 2, "pr newswire": 2, "globenewswire": 2, "sec edgar": 2,
+}
+
+_CATEGORY_PRIORITY = {
+    "EARN": 0, "M&A": 1, "UPGRADE": 2, "DOWNGRADE": 2,
+    "BIO": 3, "IPO": 4, "MACRO": 5, "GENERAL": 6,
+}
+_PREMARKET_PINNED = {"EARN", "M&A", "BIO"}
+
+
+def _deduplicate_news(items: list[dict]) -> list[dict]:
+    """Collapse same-event articles (same ticker + category within 2h) into one item."""
+    from datetime import datetime
+    buckets: dict[tuple, list[dict]] = {}
+    for item in items:
+        ticker = (item.get("tickers") or [""])[0]
+        category = item.get("category", "GENERAL")
+        try:
+            ts = datetime.strptime(item["time"], "%Y-%m-%d %H:%M:%S").timestamp()
+            bucket = int(ts) // 7200
+        except Exception:
+            bucket = 0
+        key = (ticker, category, bucket)
+        buckets.setdefault(key, []).append(item)
+
+    result = []
+    for group in buckets.values():
+        def _tier(it):
+            return _SOURCE_TIER.get(it.get("source", "").lower(), 3)
+        best = min(group, key=lambda it: (_tier(it), it.get("time", "")))
+        if len(group) > 1:
+            other_sources = [g["source"] for g in group if g is not best]
+            unique_others = list(dict.fromkeys(other_sources))
+            if unique_others:
+                extra = f" +{len(unique_others) - 1}" if len(unique_others) > 1 else ""
+                best = dict(best)
+                best["source"] = f"{best['source']} · {unique_others[0]}{extra}"
+        result.append(best)
+    return result
+
+
+def _sort_news(items: list[dict], is_premarket: bool) -> list[dict]:
+    """Sort by category priority (premarket-aware) then recency."""
+    import datetime as _dt
+
+    def _key(item):
+        cat = item.get("category", "GENERAL")
+        pri = _CATEGORY_PRIORITY.get(cat, 6)
+        if is_premarket and cat in _PREMARKET_PINNED:
+            pri = -1
+        try:
+            ts = _dt.datetime.strptime(item["time"], "%Y-%m-%d %H:%M:%S").timestamp()
+            recency = -int(ts)
+        except Exception:
+            recency = 0
+        return (pri, recency)
+
+    return sorted(items, key=_key)
+
+
 def get_news() -> list:
     cached = cache.get("news")
     if cached:
