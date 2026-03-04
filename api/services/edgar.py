@@ -81,7 +81,12 @@ def fetch_edgar_news(hours: int = 24) -> list[dict]:
             dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
             if dt < cutoff:
                 continue
-            time_str = dt.astimezone(timezone(timedelta(hours=-5))).strftime("%Y-%m-%d %H:%M:%S")
+            try:
+                from zoneinfo import ZoneInfo
+                _et = ZoneInfo("America/New_York")
+            except ImportError:
+                _et = timezone(timedelta(hours=-5))
+            time_str = dt.astimezone(_et).strftime("%Y-%m-%d %H:%M:%S")
         except Exception:
             continue
 
@@ -113,7 +118,6 @@ def fetch_edgar_news(hours: int = 24) -> list[dict]:
             "time":      time_str,
             "category":  category,
             "sentiment": "neutral",
-            "ticker":    ticker,
             "tickers":   [ticker],
         })
 

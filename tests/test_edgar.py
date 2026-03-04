@@ -45,7 +45,6 @@ def test_fetch_edgar_news_returns_list(monkeypatch):
 
     results = edgar.fetch_edgar_news()
     assert len(results) == 1
-    assert results[0]["ticker"] == "AAPL"
     assert results[0]["category"] == "EARN"
     assert results[0]["source"] == "SEC EDGAR"
     assert results[0]["tickers"] == ["AAPL"]
