@@ -417,12 +417,33 @@ def get_movers() -> dict:
     supplement_drl = [m for m in fv_drilling if m["sym"] not in engine_syms_drl]
 
     _TARGET = 12
-    ripping  = engine_ripping  + supplement_rip[:max(0, _TARGET - len(engine_ripping ))]
-    drilling = engine_drilling + supplement_drl[:max(0, _TARGET - len(engine_drilling))]
 
-    data = {"ripping": ripping[:_TARGET], "drilling": drilling[:_TARGET]}
+    def _abs_pct(m: dict) -> float:
+        try:
+            return abs(float(m["pct"].replace("%", "").replace("+", "")))
+        except (KeyError, ValueError):
+            return 0.0
 
-    # Use longer TTL when engine movers present (stable), shorter when live-only
-    ttl = 300 if (engine_ripping or engine_drilling) else 30
+    combined_rip = engine_ripping + supplement_rip[:max(0, _TARGET - len(engine_ripping))]
+    combined_drl = engine_drilling + supplement_drl[:max(0, _TARGET - len(engine_drilling))]
+
+    # Sort by magnitude descending so biggest movers always appear first
+    ripping  = sorted(combined_rip[:_TARGET], key=_abs_pct, reverse=True)
+    drilling = sorted(combined_drl[:_TARGET], key=_abs_pct, reverse=True)
+
+    data = {"ripping": ripping, "drilling": drilling}
+
+    # Pre-market (4–9:30 AM ET): 2-min TTL so fresh gaps show up quickly.
+    # Regular hours / engine present: 5-min TTL (Finviz updates ~every 2 min anyway).
+    try:
+        from zoneinfo import ZoneInfo
+        _et = ZoneInfo("America/New_York")
+    except ImportError:
+        from datetime import timezone, timedelta
+        _et = timezone(timedelta(hours=-5))
+    from datetime import datetime as _dt
+    _now = _dt.now(_et)
+    _is_premarket = 4 <= _now.hour < 9 or (_now.hour == 9 and _now.minute < 30)
+    ttl = 120 if _is_premarket else 300
     cache.set("movers", data, ttl=ttl)
     return data
