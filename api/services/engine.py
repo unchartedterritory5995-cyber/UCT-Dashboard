@@ -438,11 +438,28 @@ def get_news() -> list:
         r.raise_for_status()
         feed = r.json().get("feed", [])
 
+        # Noise sources — aggregator pages, not real news
+        _BAD_SOURCES = {"stock titan", "intellectia ai"}
+        # Headline patterns that indicate a page listing, not an article
+        _BAD_HEADLINE = ("sec filings", "10-k", "10-q", "8-k", "stock news today",
+                         "stock price and chart", "latest stock news", "annual report")
+
         result = []
         for item in feed:
             if len(result) >= 20:
                 break
-            # Keep tickers with relevance >= 0.3, alpha-only symbols up to 6 chars
+
+            # Drop aggregator noise sources
+            src = item.get("source", "").lower()
+            if src in _BAD_SOURCES:
+                continue
+
+            # Drop page-listing headlines
+            headline = item.get("title", "")
+            if any(p in headline.lower() for p in _BAD_HEADLINE):
+                continue
+
+            # Keep tickers: relevance >= 0.5, standard 1–4 char alpha symbols only
             tickers = []
             for t in item.get("ticker_sentiment", []):
                 try:
@@ -450,7 +467,7 @@ def get_news() -> list:
                 except (TypeError, ValueError):
                     rel = 0
                 sym = (t.get("ticker") or "").strip().upper()
-                if rel >= 0.3 and sym and len(sym) <= 6 and sym.isalpha():
+                if rel >= 0.5 and sym and 1 <= len(sym) <= 4 and sym.isalpha():
                     tickers.append(sym)
             if not tickers:
                 continue  # skip non-stock-specific items
