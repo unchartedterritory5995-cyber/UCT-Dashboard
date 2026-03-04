@@ -167,7 +167,7 @@ def _is_leveraged_etf(ticker: str) -> bool:
 # ── Liquidity filter thresholds ───────────────────────────────────────────────
 _PRICE_MIN    = 2.0          # price must be strictly above $2
 _PM_VOL_MIN   = 50_000       # min shares in current session (pre-market at open)
-_AVG_DVOL_MIN = 10_000_000   # min 5-day avg dollar volume ($10M)
+_AVG_DVOL_MIN = 5_000_000    # min 5-day avg dollar volume ($5M)
 
 
 def _get_avg_dollar_vol(tickers: list) -> dict[str, float]:
@@ -293,14 +293,13 @@ def get_snapshot() -> dict:
 def get_movers() -> dict:
     """Return morning gappers for the Movers at the Open sidebar.
 
-    Priority:
+    Sources merged to reach ~12 movers per side:
       1. wire_data movers — captured at 7:35 AM ET by the engine from Finviz.
-         These are the actual pre-market gappers. Already filtered for quality
-         (price > $10, avg vol > 300K, mktcap > $300M, dollar vol >= $5M, gap >= 3%).
-         Served all day so traders can track the stocks that gapped at open.
-      2. Massive REST API gainers/losers — fallback when wire_data is unavailable
-         (e.g. before the engine has run). Applies liquidity filters:
-         gap >= 3%, price > $2, session vol >= 50K, avg 5d dollar vol >= $10M.
+         High-quality pre-market gappers (price > $10, avg vol > 300K, mktcap > $300M,
+         session dollar vol >= $5M, gap >= 3%). Listed first.
+      2. Massive REST API top-40 gainers/losers — fills remaining slots.
+         Liquidity filters: gap >= 3%, price > $2, session vol >= 50K,
+         avg 5d dollar vol >= $5M. No leveraged ETFs.
 
     Returns:
         {
@@ -313,23 +312,24 @@ def get_movers() -> dict:
         return cached
 
     # Stage 1: wire_data movers (pre-market gappers from 7:35 AM Finviz engine run)
+    # Engine outputs "rippers"/"drillers"; normalize to "ripping"/"drilling".
     wire = cache.get("wire_data")
+    engine_ripping:  list = []
+    engine_drilling: list = []
     if wire and wire.get("movers"):
         data = wire["movers"]
-        if data.get("ripping") or data.get("drilling"):
-            movers = {
-                "ripping":  [m for m in data.get("ripping",  []) if not _is_leveraged_etf(m["sym"])],
-                "drilling": [m for m in data.get("drilling", []) if not _is_leveraged_etf(m["sym"])],
-            }
-            cache.set("movers", movers, ttl=300)  # 5 min — changes only on engine push
-            return movers
+        # Support both key conventions: rippers/drillers (engine) and ripping/drilling (legacy)
+        engine_ripping  = data.get("rippers",  data.get("ripping",  []))
+        engine_drilling = data.get("drillers", data.get("drilling", []))
+        engine_ripping  = [m for m in engine_ripping  if not _is_leveraged_etf(m["sym"])]
+        engine_drilling = [m for m in engine_drilling if not _is_leveraged_etf(m["sym"])]
 
-    # Stage 2: Massive live feed (fallback when wire_data is absent/empty)
+    # Stage 2: Massive live feed — supplements or replaces engine movers when list is thin
     try:
         client = _get_client()
 
-        gainers_raw = client.get_top_movers(direction="gainers", limit=20)
-        losers_raw  = client.get_top_movers(direction="losers",  limit=20)
+        gainers_raw = client.get_top_movers(direction="gainers", limit=40)
+        losers_raw  = client.get_top_movers(direction="losers",  limit=40)
 
         def _quick_pass(row: dict) -> bool:
             if abs(float(row.get("change_pct", 0.0))) < 3.0:
@@ -356,12 +356,27 @@ def get_movers() -> dict:
             sign = "+" if pct >= 0 else ""
             return {"sym": ticker, "pct": f"{sign}{pct:.2f}%"}
 
-        data = {
-            "ripping":  [m for r in gainers_pass if (m := _fmt_mover(r)) is not None],
-            "drilling": [m for r in losers_pass  if (m := _fmt_mover(r)) is not None],
-        }
+        engine_syms_rip = {m["sym"] for m in engine_ripping}
+        engine_syms_drl = {m["sym"] for m in engine_drilling}
+
+        massive_ripping  = [m for r in gainers_pass if (m := _fmt_mover(r)) is not None
+                            and m["sym"] not in engine_syms_rip]
+        massive_drilling = [m for r in losers_pass  if (m := _fmt_mover(r)) is not None
+                            and m["sym"] not in engine_syms_drl]
+
+        # Merge: engine movers first (higher quality), fill to 12 from Massive
+        _TARGET = 12
+        ripping  = engine_ripping  + massive_ripping [:max(0, _TARGET - len(engine_ripping ))]
+        drilling = engine_drilling + massive_drilling[:max(0, _TARGET - len(engine_drilling))]
+
+        data = {"ripping": ripping[:_TARGET], "drilling": drilling[:_TARGET]}
         cache.set("movers", data, ttl=30)
         return data
 
     except Exception:
+        # Massive unavailable — return engine movers if present, else empty
+        if engine_ripping or engine_drilling:
+            movers = {"ripping": engine_ripping[:12], "drilling": engine_drilling[:12]}
+            cache.set("movers", movers, ttl=300)
+            return movers
         return {"ripping": [], "drilling": []}

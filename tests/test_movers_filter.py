@@ -8,12 +8,12 @@ def _make_mover(ticker, change_pct, close=50.0, volume=500_000):
 
 
 def _dvol_pass(tickers):
-    """Mock _get_avg_dollar_vol: every ticker passes the $10M floor."""
+    """Mock _get_avg_dollar_vol: every ticker passes the $5M floor."""
     return {t: 50_000_000 for t in tickers}
 
 
 def _dvol_fail(tickers):
-    """Mock _get_avg_dollar_vol: every ticker fails the $10M floor."""
+    """Mock _get_avg_dollar_vol: every ticker fails the $5M floor."""
     return {t: 1_000_000 for t in tickers}
 
 
@@ -152,7 +152,7 @@ def test_volume_filter_excludes_below_50k():
 # ── Avg dollar volume filter ───────────────────────────────────────────────────
 
 def test_avg_dvol_filter_excludes_illiquid():
-    """Stocks with avg 5-day dollar volume below $10M are excluded."""
+    """Stocks with avg 5-day dollar volume below $5M are excluded."""
     from api.services.massive import get_movers
     from api.services.cache import cache
     cache.invalidate("movers")
@@ -166,7 +166,7 @@ def test_avg_dvol_filter_excludes_illiquid():
     )
 
     def mock_dvol(tickers):
-        return {"BIGLIQ": 50_000_000, "THINLIQ": 5_000_000}  # THINLIQ < $10M
+        return {"BIGLIQ": 50_000_000, "THINLIQ": 2_000_000}  # THINLIQ < $5M
 
     with patch("api.services.massive._get_client", return_value=mock_client), \
          patch("api.services.massive._get_avg_dollar_vol", mock_dvol):
