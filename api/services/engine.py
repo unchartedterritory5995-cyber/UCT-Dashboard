@@ -426,17 +426,21 @@ def get_news() -> list:
         lines = [ln.replace('"', '') for ln in r.text.strip().splitlines() if ln.strip()]
         headers = [h.strip() for h in lines[0].split(",")]
         result = []
-        for line in lines[1:31]:  # up to 30 items
+        for line in lines[1:]:  # scan all rows to fill 20 ticker-specific items
+            if len(result) >= 20:
+                break
             vals = [v.strip() for v in line.split(",", len(headers) - 1)]
             row = dict(zip(headers, vals))
             headline = row.get("Title", "")
-            if headline:
+            ticker   = row.get("Ticker", "").upper().strip()
+            if headline and ticker:
                 result.append({
                     "headline": headline,
                     "source":   row.get("Source", ""),
                     "url":      row.get("Url", ""),
                     "time":     row.get("Date", ""),
                     "category": row.get("Category", ""),
+                    "ticker":   ticker,
                 })
     except Exception as e:
         result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "error": str(e)}]
