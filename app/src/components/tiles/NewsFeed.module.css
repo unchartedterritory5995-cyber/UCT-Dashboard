@@ -8,19 +8,22 @@
 .item {
   display: block;
   text-decoration: none;
-  padding: 8px 0;
+  padding: 8px 0 8px 10px;
   border-bottom: 1px solid var(--border);
-  transition: background 0.1s;
+  border-left: 2px solid transparent;
+  transition: background 0.1s, border-left-color 0.1s;
 }
-.item:last-child {
-  border-bottom: none;
-}
+.item:last-child { border-bottom: none; }
 .item:hover {
   background: var(--bg-hover);
   margin: 0 -14px;
-  padding-left: 14px;
+  padding-left: 12px;
   padding-right: 14px;
 }
+/* Sentiment borders */
+.sentimentBullish { border-left-color: #27ae60; }
+.sentimentBearish  { border-left-color: #e74c3c; }
+
 .headline {
   font-size: 12px;
   color: var(--text-bright);
@@ -30,23 +33,50 @@
 .meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
+
+/* Category badge */
+.badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.badgeEARN     { color: #d4af37; background: rgba(212,175,55,0.12);  border: 1px solid rgba(212,175,55,0.3); }
+.badgeMA       { color: #9b59b6; background: rgba(155,89,182,0.12);  border: 1px solid rgba(155,89,182,0.3); }
+.badgeUPGRADE  { color: #27ae60; background: rgba(39,174,96,0.12);   border: 1px solid rgba(39,174,96,0.3);  }
+.badgeDOWNGRADE{ color: #e74c3c; background: rgba(231,76,60,0.12);   border: 1px solid rgba(231,76,60,0.3);  }
+.badgeBIO      { color: #1abc9c; background: rgba(26,188,156,0.12);  border: 1px solid rgba(26,188,156,0.3); }
+.badgeIPO      { color: #3498db; background: rgba(52,152,219,0.12);  border: 1px solid rgba(52,152,219,0.3); }
+.badgeMACRO    { color: #7f8c8d; background: rgba(127,140,141,0.10); border: 1px solid rgba(127,140,141,0.25);}
+.badgeGENERAL  { color: #555e6b; background: rgba(85,94,107,0.10);   border: 1px solid rgba(85,94,107,0.2);  }
+
+/* Ticker chip */
 .ticker {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 700;
   color: var(--ut-gold);
-  background: rgba(212, 175, 55, 0.12);
-  border: 1px solid rgba(212, 175, 55, 0.25);
+  background: rgba(212,175,55,0.12);
+  border: 1px solid rgba(212,175,55,0.25);
   border-radius: 3px;
   padding: 1px 4px;
   letter-spacing: 0.5px;
   cursor: pointer;
 }
-.ticker:hover {
-  background: rgba(212, 175, 55, 0.22);
-}
+.ticker:hover { background: rgba(212,175,55,0.22); }
+
+/* Inline price change */
+.chgPos { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #27ae60; }
+.chgNeg { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #e74c3c; }
+.chgFlat{ font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--text-muted); }
+
 .source {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
@@ -59,5 +89,20 @@
   color: var(--text-muted);
   margin-left: auto;
 }
+
+/* NEW pulse dot */
+.newDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #27ae60;
+  flex-shrink: 0;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
 .loading { color: var(--text-muted); font-size: 12px; }
-.empty { color: var(--text-muted); font-size: 12px; }
+.empty   { color: var(--text-muted); font-size: 12px; }
