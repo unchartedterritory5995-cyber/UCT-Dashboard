@@ -429,7 +429,7 @@ def get_news() -> list:
                 "function": "NEWS_SENTIMENT",
                 "topics":   "earnings,finance,ipo,mergers_and_acquisitions",
                 "sort":     "LATEST",
-                "limit":    "50",
+                "limit":    "200",
                 "apikey":   av_key,
             },
             headers={"User-Agent": "Mozilla/5.0"},
