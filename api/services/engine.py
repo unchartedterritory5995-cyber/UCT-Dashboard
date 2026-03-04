@@ -531,107 +531,167 @@ def get_news() -> list:
 
     av_key = os.environ.get("ALPHAVANTAGE_API_KEY")
     if not av_key:
-        result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "category": "", "ticker": "", "error": "ALPHAVANTAGE_API_KEY not set"}]
+        result = [{"headline": "News unavailable", "source": "", "url": "",
+                   "time": "", "category": "GENERAL", "sentiment": "neutral",
+                   "tickers": [], "change_pct": None,
+                   "error": "ALPHAVANTAGE_API_KEY not set"}]
         cache.set("news", result, ttl=120)
         return result
 
     try:
         import requests as _requests
         from datetime import datetime, timezone, timedelta
+        from concurrent.futures import ThreadPoolExecutor, as_completed as _ac
 
-        # Only fetch articles from last 48h to ensure freshness
-        time_from = (datetime.now(timezone.utc) - timedelta(hours=48)).strftime("%Y%m%dT%H%M")
+        now_et = datetime.now(timezone(timedelta(hours=-5)))
+        is_premarket = 4 <= now_et.hour < 9 or (now_et.hour == 9 and now_et.minute < 30)
+        time_from = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y%m%dT%H%M")
 
-        r = _requests.get(
-            "https://www.alphavantage.co/query",
-            params={
-                "function":  "NEWS_SENTIMENT",
-                "sort":      "LATEST",
-                "limit":     "200",
-                "time_from": time_from,
-                "apikey":    av_key,
-            },
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=15,
-        )
-        r.raise_for_status()
-        feed = r.json().get("feed", [])
+        # ── Fetch AV + EDGAR in parallel ──────────────────────────────────────
+        def _fetch_av():
+            r = _requests.get(
+                "https://www.alphavantage.co/query",
+                params={"function": "NEWS_SENTIMENT", "sort": "LATEST",
+                        "limit": "200", "time_from": time_from, "apikey": av_key},
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=15,
+            )
+            r.raise_for_status()
+            return r.json().get("feed", [])
 
-        # Noise sources — aggregator pages, not real news
+        def _fetch_edgar():
+            try:
+                from api.services.edgar import fetch_edgar_news
+                return fetch_edgar_news(hours=24)
+            except Exception:
+                return []
+
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            av_future = ex.submit(_fetch_av)
+            edgar_future = ex.submit(_fetch_edgar)
+            try:
+                av_feed = av_future.result(timeout=20)
+            except Exception:
+                av_feed = []
+            try:
+                edgar_items = edgar_future.result(timeout=15)
+            except Exception:
+                edgar_items = []
+
+        # ── Noise filters ──────────────────────────────────────────────────────
         _BAD_SOURCES = {"stock titan", "intellectia ai"}
-        # Headline patterns that indicate a page listing, not an article
-        _BAD_HEADLINE = ("sec filings", "10-k", "10-q", "8-k", "stock news today",
-                         "stock price and chart", "latest stock news", "annual report")
+        _BAD_HEADLINE = ("sec filings", "stock news today", "stock price and chart",
+                         "latest stock news", "annual report")
 
-        # ── Pass 1: extract all candidate (item, ticker) pairs ────────────────
-        candidates = []  # list of (item_dict, ticker_str)
-        for item in feed:
-            src = item.get("source", "").lower()
-            if src in _BAD_SOURCES:
+        # ── Process AV feed → candidate items ─────────────────────────────────
+        av_candidates = []
+        for item in av_feed:
+            if item.get("source", "").lower() in _BAD_SOURCES:
                 continue
             headline = item.get("title", "")
             if any(p in headline.lower() for p in _BAD_HEADLINE):
                 continue
-            for t in item.get("ticker_sentiment", []):
+            ticker_sentiment = sorted(
+                item.get("ticker_sentiment", []),
+                key=lambda t: float(t.get("relevance_score", 0) or 0),
+                reverse=True,
+            )
+            tickers = []
+            for t in ticker_sentiment:
                 try:
                     rel = float(t.get("relevance_score", 0))
                 except (TypeError, ValueError):
                     rel = 0
                 sym = (t.get("ticker") or "").strip().upper()
                 if rel >= 0.5 and sym and 1 <= len(sym) <= 4 and sym.isalpha():
-                    candidates.append((item, sym))
-                    break  # one ticker per article
+                    tickers.append(sym)
+                if len(tickers) == 3:
+                    break
+            if not tickers:
+                continue
 
-        # ── Pass 2: filter ETFs + low-volume tickers via yfinance fast_info ──
-        unique_syms = list({sym for _, sym in candidates})
+            ts = item.get("time_published", "")
+            try:
+                dt_utc = datetime.strptime(ts[:15], "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
+                time_str = dt_utc.astimezone(timezone(timedelta(hours=-5))).strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                time_str = ""
+
+            av_candidates.append({
+                "headline":  headline,
+                "source":    item.get("source", ""),
+                "url":       item.get("url", ""),
+                "time":      time_str,
+                "category":  _classify_category(item, headline),
+                "sentiment": _map_sentiment(item.get("overall_sentiment_label")),
+                "tickers":   tickers,
+            })
+
+        # ── ETF + volume filter on AV candidates ──────────────────────────────
+        unique_syms = list({sym for it in av_candidates for sym in it["tickers"]})
 
         def _check_sym(sym: str) -> tuple[str, bool]:
-            """Return (sym, keep) — keep=True if equity with avg dvol >= $5M."""
             try:
                 import yfinance as yf
                 fi = yf.Ticker(sym).fast_info
                 qt = getattr(fi, "quote_type", "EQUITY") or "EQUITY"
                 if qt.upper() not in ("EQUITY", ""):
-                    return sym, False  # ETF / mutual fund / index
+                    return sym, False
                 price   = getattr(fi, "last_price", 0) or 0
                 avg_vol = getattr(fi, "three_month_average_volume", 0) or 0
                 return sym, (price * avg_vol) >= 5_000_000
             except Exception:
-                return sym, True  # can't check → keep
+                return sym, True
 
-        from concurrent.futures import ThreadPoolExecutor, as_completed as _as_completed
         with ThreadPoolExecutor(max_workers=min(len(unique_syms), 12)) as ex:
-            allowed = {sym for sym, ok in (f.result() for f in _as_completed(
+            allowed = {s for s, ok in (f.result() for f in _ac(
                 ex.submit(_check_sym, s) for s in unique_syms
             )) if ok}
 
-        # ── Pass 3: build result from candidates that passed the filter ───────
+        av_filtered = [
+            it for it in av_candidates
+            if any(t in allowed for t in it["tickers"])
+        ]
+        for it in av_filtered:
+            it["tickers"] = [t for t in it["tickers"] if t in allowed]
+
+        # ── Merge AV + EDGAR, dedup, sort, take top 40 ────────────────────────
+        merged = av_filtered + edgar_items
+        deduped = _deduplicate_news(merged)
+        sorted_items = _sort_news(deduped, is_premarket=is_premarket)
+        top40 = sorted_items[:40]
+
+        # ── Batch Massive price fetch ──────────────────────────────────────────
+        primary_tickers = [(it.get("tickers") or [""])[0] for it in top40 if it.get("tickers")]
+        price_map: dict[str, float] = {}
+        try:
+            from api.services.massive import _get_client
+            client = _get_client()
+            price_map = client.get_batch_snapshots(list(set(primary_tickers)))
+        except Exception:
+            pass
+
+        # ── Build final 20-item list ───────────────────────────────────────────
         result = []
-        seen_tickers = set()
-        for item, sym in candidates:
+        for it in top40:
             if len(result) >= 20:
                 break
-            if sym not in allowed or sym in seen_tickers:
-                continue
-            seen_tickers.add(sym)
-            ts = item.get("time_published", "")
-            try:
-                dt_utc = datetime.strptime(ts[:15], "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
-                dt_et  = dt_utc.astimezone(timezone(timedelta(hours=-5)))
-                time_str = dt_et.strftime("%Y-%m-%d %H:%M:%S")
-            except Exception:
-                time_str = ""
+            primary = (it.get("tickers") or [""])[0]
             result.append({
-                "headline": item.get("title", ""),
-                "source":   item.get("source", ""),
-                "url":      item.get("url", ""),
-                "time":     time_str,
-                "category": "",
-                "ticker":   sym,
+                "headline":   it["headline"],
+                "source":     it.get("source", ""),
+                "url":        it.get("url", ""),
+                "time":       it.get("time", ""),
+                "category":   it.get("category", "GENERAL"),
+                "sentiment":  it.get("sentiment", "neutral"),
+                "tickers":    it.get("tickers", []),
+                "change_pct": price_map.get(primary),
             })
 
     except Exception as e:
-        result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "category": "", "ticker": "", "error": str(e)}]
+        result = [{"headline": "News unavailable", "source": "", "url": "",
+                   "time": "", "category": "GENERAL", "sentiment": "neutral",
+                   "tickers": [], "change_pct": None, "error": str(e)}]
 
     cache.set("news", result, ttl=300)
     return result
