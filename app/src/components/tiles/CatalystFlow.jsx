@@ -16,10 +16,15 @@ function VerdictPill({ verdict }) {
   return <span className={styles.pillPending}>{verdict ?? '—'}</span>
 }
 
-function SurpriseCell({ value }) {
-  if (value == null) return <span className={styles.muted}>—</span>
-  const isPos = typeof value === 'string' ? value.startsWith('+') : value > 0
-  return <span className={isPos ? styles.pos : styles.neg}>{value}</span>
+function fmtEps(v) {
+  if (v == null) return '—'
+  const sign = v < 0 ? '-' : ''
+  return `${sign}$${Math.abs(v).toFixed(2)}`
+}
+
+function fmtRev(m) {
+  if (m == null) return '—'
+  return m >= 1000 ? `$${(m / 1000).toFixed(1)}B` : `$${Math.round(m)}M`
 }
 
 function GapCell({ value }) {
@@ -41,8 +46,8 @@ function EarningsTable({ rows, label, onSelect, liveGaps }) {
             <th>Ticker</th>
             <th>Verdict</th>
             <th>Gap</th>
-            <th>EPS</th>
-            <th>Rev</th>
+            <th>EPS Act</th>
+            <th>Rev Act</th>
           </tr>
         </thead>
         <tbody>
@@ -51,8 +56,8 @@ function EarningsTable({ rows, label, onSelect, liveGaps }) {
               <td><span className={styles.sym}>{row.sym}</span></td>
               <td><VerdictPill verdict={row.verdict} /></td>
               <td><GapCell value={liveGaps?.[row.sym] ?? row.change_pct} /></td>
-              <td><SurpriseCell value={row.surprise_pct} /></td>
-              <td><SurpriseCell value={row.rev_surprise_pct} /></td>
+              <td>{fmtEps(row.reported_eps)}</td>
+              <td>{fmtRev(row.rev_actual)}</td>
             </tr>
           ))}
         </tbody>
