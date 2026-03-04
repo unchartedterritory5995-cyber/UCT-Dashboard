@@ -88,7 +88,7 @@ export default function NewsFeed({ data: propData }) {
                 <div className={styles.headline}>{item.headline}</div>
                 <div className={styles.meta}>
                   <span className={`${styles.badge} ${badgeClass}`}>{category}</span>
-                  {tickers.map(sym => (
+                  {tickers.slice(0, 3).map(sym => (
                     <span key={sym} onClick={e => e.stopPropagation()}>
                       <TickerPopup sym={sym}>
                         <span className={styles.ticker}>${sym}</span>
