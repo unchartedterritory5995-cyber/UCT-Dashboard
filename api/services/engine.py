@@ -413,39 +413,66 @@ def get_news() -> list:
     if cached:
         return cached
 
-    token = os.environ.get("FINVIZ_API_KEY")
-    if not token:
-        result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "category": "", "ticker": "", "error": "FINVIZ_API_KEY not set"}]
+    av_key = os.environ.get("ALPHAVANTAGE_API_KEY")
+    if not av_key:
+        result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "category": "", "ticker": "", "error": "ALPHAVANTAGE_API_KEY not set"}]
         cache.set("news", result, ttl=120)
         return result
 
     try:
-        import csv as _csv
-        import io as _io
         import requests as _requests
+        from datetime import datetime, timezone, timedelta
+
         r = _requests.get(
-            f"https://elite.finviz.com/news_export.ashx?auth={token}",
+            "https://www.alphavantage.co/query",
+            params={
+                "function": "NEWS_SENTIMENT",
+                "topics":   "earnings,finance,ipo,mergers_and_acquisitions",
+                "sort":     "LATEST",
+                "limit":    "50",
+                "apikey":   av_key,
+            },
             headers={"User-Agent": "Mozilla/5.0"},
             timeout=15,
-            allow_redirects=True,
         )
         r.raise_for_status()
-        reader = _csv.DictReader(_io.StringIO(r.text))
+        feed = r.json().get("feed", [])
+
         result = []
-        for row in reader:
+        for item in feed:
             if len(result) >= 20:
                 break
-            headline = (row.get("Title") or "").strip()
-            ticker   = (row.get("Ticker") or "").upper().strip()
-            if headline and ticker:
-                result.append({
-                    "headline": headline,
-                    "source":   (row.get("Source") or "").strip(),
-                    "url":      (row.get("Url") or "").strip(),
-                    "time":     (row.get("Date") or "").strip(),
-                    "category": (row.get("Category") or "").strip(),
-                    "ticker":   ticker,
-                })
+            # Keep tickers with relevance >= 0.3, alpha-only symbols up to 6 chars
+            tickers = []
+            for t in item.get("ticker_sentiment", []):
+                try:
+                    rel = float(t.get("relevance_score", 0))
+                except (TypeError, ValueError):
+                    rel = 0
+                sym = (t.get("ticker") or "").strip().upper()
+                if rel >= 0.3 and sym and len(sym) <= 6 and sym.isalpha():
+                    tickers.append(sym)
+            if not tickers:
+                continue  # skip non-stock-specific items
+
+            # Convert AV UTC timestamp to ET string for frontend fmtTime()
+            ts = item.get("time_published", "")
+            try:
+                dt_utc = datetime.strptime(ts[:15], "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
+                dt_et  = dt_utc.astimezone(timezone(timedelta(hours=-5)))
+                time_str = dt_et.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                time_str = ""
+
+            result.append({
+                "headline": item.get("title", ""),
+                "source":   item.get("source", ""),
+                "url":      item.get("url", ""),
+                "time":     time_str,
+                "category": "",
+                "ticker":   tickers[0],
+            })
+
     except Exception as e:
         result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "category": "", "ticker": "", "error": str(e)}]
 
