@@ -423,14 +423,17 @@ def get_news() -> list:
         import requests as _requests
         from datetime import datetime, timezone, timedelta
 
+        # Only fetch articles from last 48h to ensure freshness
+        time_from = (datetime.now(timezone.utc) - timedelta(hours=48)).strftime("%Y%m%dT%H%M")
+
         r = _requests.get(
             "https://www.alphavantage.co/query",
             params={
-                "function": "NEWS_SENTIMENT",
-                "topics":   "earnings,finance,ipo,mergers_and_acquisitions",
-                "sort":     "LATEST",
-                "limit":    "200",
-                "apikey":   av_key,
+                "function":  "NEWS_SENTIMENT",
+                "sort":      "LATEST",
+                "limit":     "200",
+                "time_from": time_from,
+                "apikey":    av_key,
             },
             headers={"User-Agent": "Mozilla/5.0"},
             timeout=15,
