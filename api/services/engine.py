@@ -413,9 +413,16 @@ def get_news() -> list:
     if cached:
         return cached
 
+    token = os.environ.get("FINVIZ_API_KEY")
+    if not token:
+        result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "category": "", "ticker": "", "error": "FINVIZ_API_KEY not set"}]
+        cache.set("news", result, ttl=120)
+        return result
+
     try:
+        import csv as _csv
+        import io as _io
         import requests as _requests
-        token = os.environ.get("FINVIZ_API_KEY", "b408c28f-578f-4e73-b9c2-96ffa4bef962")
         r = _requests.get(
             f"https://elite.finviz.com/news_export.ashx?auth={token}",
             headers={"User-Agent": "Mozilla/5.0"},
@@ -423,27 +430,24 @@ def get_news() -> list:
             allow_redirects=True,
         )
         r.raise_for_status()
-        lines = [ln.replace('"', '') for ln in r.text.strip().splitlines() if ln.strip()]
-        headers = [h.strip() for h in lines[0].split(",")]
+        reader = _csv.DictReader(_io.StringIO(r.text))
         result = []
-        for line in lines[1:]:  # scan all rows to fill 20 ticker-specific items
+        for row in reader:
             if len(result) >= 20:
                 break
-            vals = [v.strip() for v in line.split(",", len(headers) - 1)]
-            row = dict(zip(headers, vals))
-            headline = row.get("Title", "")
-            ticker   = row.get("Ticker", "").upper().strip()
+            headline = (row.get("Title") or "").strip()
+            ticker   = (row.get("Ticker") or "").upper().strip()
             if headline and ticker:
                 result.append({
                     "headline": headline,
-                    "source":   row.get("Source", ""),
-                    "url":      row.get("Url", ""),
-                    "time":     row.get("Date", ""),
-                    "category": row.get("Category", ""),
+                    "source":   (row.get("Source") or "").strip(),
+                    "url":      (row.get("Url") or "").strip(),
+                    "time":     (row.get("Date") or "").strip(),
+                    "category": (row.get("Category") or "").strip(),
                     "ticker":   ticker,
                 })
     except Exception as e:
-        result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "error": str(e)}]
+        result = [{"headline": "News unavailable", "source": "", "url": "", "time": "", "category": "", "ticker": "", "error": str(e)}]
 
     cache.set("news", result, ttl=120)
     return result
