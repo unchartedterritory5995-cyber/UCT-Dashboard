@@ -338,44 +338,112 @@ def _enrich_earnings_with_gap(data: dict) -> None:
         pass
 
 
-def get_earnings() -> dict:
-    wire = _load_wire_data()
-    if wire and wire.get("earnings"):
-        cached = cache.get("earnings")
-        if cached:
-            return cached
-        raw_earnings = wire["earnings"]
-        # wire_data earnings are raw EW entries with "symbol" key; normalise them
-        bmo_raw = raw_earnings.get("bmo", []) if isinstance(raw_earnings, dict) else []
-        amc_raw = raw_earnings.get("amc", []) if isinstance(raw_earnings, dict) else []
-        data = _normalize_earnings(
-            [dict(e, hour="bmo") for e in bmo_raw] +
-            [dict(e, hour="amc") for e in amc_raw]
-        )
-        _enrich_earnings_with_gap(data)
-        _prewarm_earnings_analysis(data)
-        cache.set("earnings", data, ttl=1800)
-        return data
+def _fetch_ew_live(date_str: str) -> list:
+    """Live EarningsWhispers fetch for a single date. Returns flat list of dicts."""
+    import requests as _req
+    yyyymmdd = date_str.replace("-", "")
+    r = _req.get(
+        f"https://www.earningswhispers.com/api/caldata/{yyyymmdd}",
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:115.0) Gecko/20100101 Firefox/115.0",
+            "Referer": f"https://www.earningswhispers.com/calendar/{yyyymmdd}/1",
+        },
+        timeout=15,
+    )
+    r.raise_for_status()
+    items = r.json()
+    if not isinstance(items, list):
+        return []
+    result = []
+    for item in items:
+        sym = (item.get("ticker") or "").strip().upper()
+        if not sym:
+            continue
+        eps_actual  = item.get("eps")           # None until reported
+        eps_est     = item.get("q1EstEPS")
+        rev_actual  = item.get("revenue")       # already in millions
+        rev_est_raw = item.get("q1RevEst")      # raw dollars → convert
+        rev_est     = (rev_est_raw / 1_000_000) if rev_est_raw else None
+        release_time = item.get("releaseTime", 0)
+        hour = "bmo" if release_time == 1 else "amc"
+        result.append({
+            "symbol":       sym,
+            "hour":         hour,
+            "eps_actual":   eps_actual,
+            "eps_estimate": eps_est,
+            "rev_actual":   rev_actual,
+            "rev_estimate": rev_est,
+            "ew_total":     item.get("total", 0),
+        })
+    return result
 
+
+def get_earnings() -> dict:
     cached = cache.get("earnings")
     if cached:
         return cached
 
-    state = _load_state()
-    data = state.get("earnings_data")
-    if not data:
-        try:
-            import morning_wire_engine as eng
-            import datetime
-            today = datetime.date.today().strftime("%Y-%m-%d")
-            raw = eng.fetch_earnings_whispers(today)
-            data = _normalize_earnings(raw)
-        except Exception as e:
-            data = {"bmo": [], "amc": [], "error": str(e)}
-    else:
-        if "bmo" not in data:
-            data = _normalize_earnings(data if isinstance(data, list) else [])
+    import datetime
+    today     = datetime.date.today().isoformat()
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
 
+    # ── Primary: live EarningsWhispers fetch (today BMO + yesterday AMC) ──────
+    bmo_raw: list = []
+    amc_raw: list = []
+    ew_ok = False
+    try:
+        today_ew = _fetch_ew_live(today)
+        yest_ew  = _fetch_ew_live(yesterday)
+        bmo_raw  = sorted(
+            [e for e in today_ew if e["hour"] == "bmo"],
+            key=lambda x: x.get("ew_total", 0), reverse=True,
+        )
+        amc_raw  = sorted(
+            [e for e in yest_ew if e["hour"] == "amc"],
+            key=lambda x: x.get("ew_total", 0), reverse=True,
+        )
+        ew_ok = True
+    except Exception:
+        pass
+
+    # ── Fallback: wire_data if EW unreachable ─────────────────────────────────
+    wire = _load_wire_data()
+    wire_bmo: dict = {}
+    wire_amc: dict = {}
+    if wire and wire.get("earnings"):
+        raw = wire["earnings"]
+        for e in raw.get("bmo", []):
+            sym = e.get("symbol", e.get("sym", ""))
+            if sym:
+                wire_bmo[sym] = e
+        for e in raw.get("amc", []):
+            sym = e.get("symbol", e.get("sym", ""))
+            if sym:
+                wire_amc[sym] = e
+
+    if not ew_ok:
+        bmo_raw = [dict(e, hour="bmo") for e in wire_bmo.values()]
+        amc_raw = [dict(e, hour="amc") for e in wire_amc.values()]
+    else:
+        # ── Patch missing actuals from wire_data (EW sometimes lags AMC results) ─
+        for entry in bmo_raw:
+            if entry.get("eps_actual") is None:
+                wb = wire_bmo.get(entry["symbol"])
+                if wb and wb.get("eps_actual") is not None:
+                    entry["eps_actual"]   = wb["eps_actual"]
+                    entry["eps_estimate"] = entry.get("eps_estimate") or wb.get("eps_estimate")
+                    entry["rev_actual"]   = wb.get("rev_actual")
+                    entry["rev_estimate"] = entry.get("rev_estimate") or wb.get("rev_estimate")
+        for entry in amc_raw:
+            if entry.get("eps_actual") is None:
+                wa = wire_amc.get(entry["symbol"])
+                if wa and wa.get("eps_actual") is not None:
+                    entry["eps_actual"]   = wa["eps_actual"]
+                    entry["eps_estimate"] = entry.get("eps_estimate") or wa.get("eps_estimate")
+                    entry["rev_actual"]   = wa.get("rev_actual")
+                    entry["rev_estimate"] = entry.get("rev_estimate") or wa.get("rev_estimate")
+
+    data = _normalize_earnings(bmo_raw + amc_raw)
     _enrich_earnings_with_gap(data)
     _prewarm_earnings_analysis(data)
     cache.set("earnings", data, ttl=1800)
