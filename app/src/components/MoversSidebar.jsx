@@ -12,16 +12,18 @@ function MoverSection({ label, items, positive }) {
       <div className={`${styles.sectionLabel} ${positive ? styles.green : styles.red}`}>
         {positive ? '▲' : '▼'} {label}
       </div>
-      {items.map(item => (
-        <div key={item.sym} className={styles.row}>
-          <TickerPopup sym={item.sym}>
-            <span className={styles.sym}>{item.sym}</span>
-          </TickerPopup>
-          <span className={`${styles.pct} ${positive ? styles.green : styles.red}`}>
-            {item.pct}
-          </span>
-        </div>
-      ))}
+      <div className={styles.rows}>
+        {items.map(item => (
+          <div key={item.sym} className={styles.row}>
+            <TickerPopup sym={item.sym}>
+              <span className={styles.sym}>{item.sym}</span>
+            </TickerPopup>
+            <span className={`${styles.pct} ${positive ? styles.green : styles.red}`}>
+              {item.pct}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

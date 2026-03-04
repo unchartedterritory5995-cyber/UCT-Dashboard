@@ -4,6 +4,9 @@
   border-radius: 12px;
   overflow: hidden;
   position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 .tile::before {
   content: '';
@@ -48,21 +51,34 @@
 
 .body {
   padding: 14px 14px 14px 18px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .scroll {
+  flex: 1;
   overflow-y: auto;
-  max-height: 280px;
 }
 
 .moversGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
+  height: 100%;
 }
 
 .section {
-  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.rows {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 .sectionLabel {
   font-family: 'IBM Plex Mono', monospace;
