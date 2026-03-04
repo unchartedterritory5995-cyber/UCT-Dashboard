@@ -453,10 +453,10 @@ def _map_sentiment(label: str | None) -> str:
     """Map AV overall_sentiment_label to 'bullish' | 'bearish' | 'neutral'."""
     if not label:
         return "neutral"
-    l = label.lower()
-    if "bullish" in l:
+    lc = label.lower()
+    if "bullish" in lc:
         return "bullish"
-    if "bearish" in l:
+    if "bearish" in lc:
         return "bearish"
     return "neutral"
 
