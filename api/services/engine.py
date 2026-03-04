@@ -488,10 +488,11 @@ def _deduplicate_news(items: list[dict]) -> list[dict]:
         key = (ticker, category, bucket)
         buckets.setdefault(key, []).append(item)
 
+    def _tier(it):
+        return _SOURCE_TIER.get(it.get("source", "").lower(), 3)
+
     result = []
     for group in buckets.values():
-        def _tier(it):
-            return _SOURCE_TIER.get(it.get("source", "").lower(), 3)
         best = min(group, key=lambda it: (_tier(it), it.get("time", "")))
         if len(group) > 1:
             other_sources = [g["source"] for g in group if g is not best]
@@ -517,7 +518,7 @@ def _sort_news(items: list[dict], is_premarket: bool) -> list[dict]:
             ts = _dt.datetime.strptime(item["time"], "%Y-%m-%d %H:%M:%S").timestamp()
             recency = -int(ts)
         except Exception:
-            recency = 0
+            recency = 1  # sort to bottom — positive beats all negative recency values
         return (pri, recency)
 
     return sorted(items, key=_key)
