@@ -325,7 +325,7 @@ def get_rundown() -> dict:
 
 def _enrich_earnings_with_gap(data: dict) -> None:
     """Batch-fetch live change_pct from Massive and add it to each earnings entry."""
-    all_entries = data.get("bmo", []) + data.get("amc", [])
+    all_entries = data.get("bmo", []) + data.get("amc", []) + data.get("amc_tonight", [])
     syms = [e["sym"] for e in all_entries if e.get("sym")]
     if not syms:
         return
@@ -390,6 +390,7 @@ def get_earnings() -> dict:
     # ── Primary: live EarningsWhispers fetch (today BMO + yesterday AMC) ──────
     bmo_raw: list = []
     amc_raw: list = []
+    today_ew: list = []
     ew_ok = False
     try:
         today_ew = _fetch_ew_live(today)
@@ -480,7 +481,48 @@ def get_earnings() -> dict:
                 except Exception:
                     pass
 
-    data = _normalize_earnings(bmo_raw + amc_raw)
+    # ── Tonight's AMC: today's reporters sorted by EW interest ──────────────
+    amc_tonight_raw: list = []
+    if ew_ok:
+        amc_tonight_raw = sorted(
+            [e for e in today_ew if e["hour"] == "amc"],
+            key=lambda x: x.get("ew_total", 0), reverse=True,
+        )
+        # Patch any already-reported results from EW itself (some report early)
+        # Finnhub patch for tonight entries that have already reported
+        if fh_key:
+            tonight_pending = {e["symbol"] for e in amc_tonight_raw if e.get("eps_actual") is None}
+            if tonight_pending:
+                try:
+                    import requests as _req3
+                    fh_r2 = _req3.get(
+                        "https://finnhub.io/api/v1/calendar/earnings",
+                        params={"from": today, "to": today, "token": fh_key},
+                        timeout=15,
+                    )
+                    fh_tonight = {
+                        e["symbol"]: e
+                        for e in fh_r2.json().get("earningsCalendar", [])
+                        if e.get("symbol") in tonight_pending
+                        and e.get("epsActual") is not None
+                    }
+                    for entry in amc_tonight_raw:
+                        if entry.get("eps_actual") is not None:
+                            continue
+                        fh = fh_tonight.get(entry["symbol"])
+                        if fh:
+                            rev_a = fh.get("revenueActual")
+                            rev_e = fh.get("revenueEstimate")
+                            entry["eps_actual"]   = fh["epsActual"]
+                            entry["eps_estimate"] = entry.get("eps_estimate") or fh.get("epsEstimate")
+                            entry["rev_actual"]   = (rev_a / 1_000_000) if rev_a else None
+                            entry["rev_estimate"] = entry.get("rev_estimate") or (
+                                (rev_e / 1_000_000) if rev_e else None
+                            )
+                except Exception:
+                    pass
+
+    data = _normalize_earnings(bmo_raw + amc_raw, amc_tonight_raw)
     _enrich_earnings_with_gap(data)
     _prewarm_earnings_analysis(data)
     cache.set("earnings", data, ttl=1800)
@@ -494,63 +536,80 @@ def _fmt_surprise(actual, estimate):
     return f"{'+' if pct >= 0 else ''}{pct:.1f}%"
 
 
-def _normalize_earnings(raw) -> dict:
+def _build_earnings_entry(item: dict) -> dict:
+    """Convert a raw EW/Finnhub item into a normalised earnings entry dict."""
+    eps_actual   = item.get("eps_actual")
+    eps_estimate = item.get("eps_estimate")
+    rev_actual   = item.get("rev_actual")
+    rev_estimate = item.get("rev_estimate")
+    entry = {
+        "sym":              item.get("symbol", item.get("sym", "")),
+        "reported_eps":     eps_actual,
+        "eps_estimate":     eps_estimate,
+        "surprise_pct":     _fmt_surprise(eps_actual, eps_estimate),
+        "rev_estimate":     rev_estimate,
+        "rev_actual":       rev_actual,
+        "rev_surprise_pct": _fmt_surprise(rev_actual, rev_estimate),
+        "ew_total":         item.get("ew_total", 0),
+    }
+    if eps_actual is None or eps_estimate is None:
+        entry["verdict"] = "Pending"
+    else:
+        eps_beat = eps_actual >= eps_estimate
+        if rev_actual is not None and rev_estimate is not None:
+            rev_beat = rev_actual >= rev_estimate
+            if eps_beat and rev_beat:
+                entry["verdict"] = "Beat"
+            elif not eps_beat and not rev_beat:
+                entry["verdict"] = "Miss"
+            else:
+                entry["verdict"] = "Mixed"
+        else:
+            entry["verdict"] = "Beat" if eps_beat else "Miss"
+    return entry
+
+
+def _earnings_sort_key(e):
+    """Sort: largest absolute EPS surprise first; Pending entries last."""
+    if e.get("verdict") == "Pending":
+        return (1, 0.0)
+    surp = e.get("surprise_pct") or "0"
+    try:
+        return (0, -abs(float(surp.replace("%", "").replace("+", ""))))
+    except (ValueError, AttributeError):
+        return (0, 0.0)
+
+
+def _normalize_earnings(raw, amc_tonight_raw=None) -> dict:
     """
-    fetch_earnings_whispers() returns a flat list with "hour": "bmo" | "amc".
-    Split into bmo / amc buckets and expose clean fields.
+    Normalise flat earnings list into bmo / amc / amc_tonight buckets.
+    raw            — mixed bmo+amc_yesterday entries (hour=="bmo"|"amc")
+    amc_tonight_raw — today's AMC list (separate, already filtered)
     """
     bmo, amc = [], []
     for item in (raw or []):
         if not isinstance(item, dict):
             continue
-        eps_actual   = item.get("eps_actual")
-        eps_estimate = item.get("eps_estimate")
-        rev_actual   = item.get("rev_actual")
-        rev_estimate = item.get("rev_estimate")
-        entry = {
-            "sym":              item.get("symbol", item.get("sym", "")),
-            "reported_eps":     eps_actual,
-            "eps_estimate":     eps_estimate,
-            "surprise_pct":     _fmt_surprise(eps_actual, eps_estimate),
-            "rev_estimate":     rev_estimate,
-            "rev_actual":       rev_actual,
-            "rev_surprise_pct": _fmt_surprise(rev_actual, rev_estimate),
-        }
-        # Verdict: Beat / Miss / Mixed / Pending
-        if eps_actual is None or eps_estimate is None:
-            entry["verdict"] = "Pending"
-        else:
-            eps_beat = eps_actual >= eps_estimate
-            if rev_actual is not None and rev_estimate is not None:
-                rev_beat = rev_actual >= rev_estimate
-                if eps_beat and rev_beat:
-                    entry["verdict"] = "Beat"
-                elif not eps_beat and not rev_beat:
-                    entry["verdict"] = "Miss"
-                else:
-                    entry["verdict"] = "Mixed"
-            else:
-                # No revenue data — fall back to EPS only
-                entry["verdict"] = "Beat" if eps_beat else "Miss"
-
+        entry = _build_earnings_entry(item)
         if item.get("hour") == "bmo":
             bmo.append(entry)
         else:
             amc.append(entry)
 
-    # Sort: biggest absolute EPS surprise first, Pending last
-    def _sort_key(e):
-        if e.get("verdict") == "Pending":
-            return (1, 0.0)
-        surp = e.get("surprise_pct") or "0"
-        try:
-            return (0, -abs(float(surp.replace("%", "").replace("+", ""))))
-        except (ValueError, AttributeError):
-            return (0, 0.0)
+    bmo.sort(key=_earnings_sort_key)
+    amc.sort(key=_earnings_sort_key)
 
-    bmo.sort(key=_sort_key)
-    amc.sort(key=_sort_key)
-    return {"bmo": bmo[:15], "amc": amc[:15]}
+    # Tonight's AMC: sort by EW analyst interest (most-followed first).
+    # Surprise magnitude is irrelevant here — traders need to know what matters,
+    # not how dramatic a result was. AVGO (ew=195) must always lead.
+    amc_tonight = []
+    for item in (amc_tonight_raw or []):
+        if not isinstance(item, dict):
+            continue
+        amc_tonight.append(_build_earnings_entry(item))
+    amc_tonight.sort(key=lambda e: -e.get("ew_total", 0))
+
+    return {"bmo": bmo[:15], "amc": amc[:15], "amc_tonight": amc_tonight[:15]}
 
 
 def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
@@ -623,7 +682,7 @@ def _prewarm_earnings_analysis(data: dict) -> None:
     import threading
     if not os.environ.get("ANTHROPIC_API_KEY"):
         return
-    for bucket in ("bmo", "amc"):
+    for bucket in ("bmo", "amc", "amc_tonight"):
         for entry in data.get(bucket, []):
             sym = entry.get("sym", "")
             if not sym or entry.get("verdict", "").lower() in ("pending", ""):
