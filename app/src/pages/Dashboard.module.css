@@ -43,8 +43,7 @@
 }
 .row3 {
   display: grid;
-  grid-template-columns: 30fr 24fr 46fr;
-  grid-template-rows: 260px;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
   align-items: stretch;
 }
