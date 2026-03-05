@@ -596,8 +596,11 @@ def _normalize_earnings(raw, amc_tonight_raw=None) -> dict:
         else:
             amc.append(entry)
 
-    bmo.sort(key=_earnings_sort_key)
-    amc.sort(key=_earnings_sort_key)
+    # Sort by EW analyst interest — ensures high-profile names are never dropped
+    # by a small surprise %. A 3% beat from ANF (ew=22) matters more than a
+    # 900% "beat" from EYE (ew=2) where the estimate was near-zero.
+    bmo.sort(key=lambda e: -e.get("ew_total", 0))
+    amc.sort(key=lambda e: -e.get("ew_total", 0))
 
     # Tonight's AMC: sort by EW analyst interest (most-followed first).
     # Surprise magnitude is irrelevant here — traders need to know what matters,
