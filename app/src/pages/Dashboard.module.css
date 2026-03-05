@@ -45,7 +45,7 @@
   display: grid;
   grid-template-columns: 30fr 24fr 46fr;
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
 }
 .row4 { width: 100%; }
 

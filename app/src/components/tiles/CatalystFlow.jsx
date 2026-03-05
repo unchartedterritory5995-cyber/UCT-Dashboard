@@ -87,27 +87,29 @@ export default function CatalystFlow({ data: propData }) {
   return (
     <>
       <TileCard title="Earnings">
-        <EarningsTable
-          rows={data.bmo}
-          label="BEFORE MARKET OPEN"
-          onSelect={(row, label) => setSelected({ row, label })}
-          liveGaps={liveGaps}
-        />
-        <EarningsTable
-          rows={data.amc_tonight}
-          label="AFTER CLOSE · TONIGHT"
-          onSelect={(row, label) => setSelected({ row, label })}
-          liveGaps={liveGaps}
-        />
-        <EarningsTable
-          rows={data.amc}
-          label="AFTER CLOSE · YESTERDAY"
-          onSelect={(row, label) => setSelected({ row, label })}
-          liveGaps={liveGaps}
-        />
-        {!data.bmo?.length && !data.amc_tonight?.length && !data.amc?.length && (
-          <p className={styles.loading}>No earnings today</p>
-        )}
+        <div className={styles.scrollBody}>
+          <EarningsTable
+            rows={data.bmo}
+            label="BEFORE MARKET OPEN"
+            onSelect={(row, label) => setSelected({ row, label })}
+            liveGaps={liveGaps}
+          />
+          <EarningsTable
+            rows={data.amc_tonight}
+            label="AFTER CLOSE · TONIGHT"
+            onSelect={(row, label) => setSelected({ row, label })}
+            liveGaps={liveGaps}
+          />
+          <EarningsTable
+            rows={data.amc}
+            label="AFTER CLOSE · YESTERDAY"
+            onSelect={(row, label) => setSelected({ row, label })}
+            liveGaps={liveGaps}
+          />
+          {!data.bmo?.length && !data.amc_tonight?.length && !data.amc?.length && (
+            <p className={styles.loading}>No earnings today</p>
+          )}
+        </div>
       </TileCard>
 
       {selected && (

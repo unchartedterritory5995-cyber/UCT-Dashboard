@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  max-height: 320px;
+  height: 100%;
 }
 
 .row {
