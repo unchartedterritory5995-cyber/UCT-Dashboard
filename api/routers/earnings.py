@@ -1,7 +1,8 @@
 import os
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from api.services.engine import get_earnings, _generate_earnings_analysis
 from api.services.cache import cache
+from api.limiter import limiter
 
 router = APIRouter()
 
@@ -38,7 +39,8 @@ def earnings_gaps():
 
 
 @router.get("/api/earnings-analysis/{sym}")
-def earnings_analysis(sym: str):
+@limiter.limit("10/minute")
+def earnings_analysis(request: Request, sym: str):
     sym = sym.upper()
 
     # Find the earnings row for this sym (provides context to the analysis)
@@ -48,7 +50,7 @@ def earnings_analysis(sym: str):
         data = {}
 
     row = None
-    for bucket in ("bmo", "amc"):
+    for bucket in ("bmo", "amc", "amc_tonight"):
         for entry in data.get(bucket, []):
             if entry.get("sym") == sym:
                 row = entry

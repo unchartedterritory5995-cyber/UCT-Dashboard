@@ -32,10 +32,18 @@ export default function EarningsModal({ row, label, onClose }) {
   useEffect(() => {
     if (!row) return
     setAiState({ loading: true, data: null })
-    fetch(`/api/earnings-analysis/${row.sym}`)
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 20_000)
+    fetch(`/api/earnings-analysis/${row.sym}`, { signal: controller.signal })
       .then(r => r.json())
       .then(d => setAiState({ loading: false, data: d }))
-      .catch(() => setAiState({ loading: false, data: null }))
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          setAiState({ loading: false, data: null })
+        }
+      })
+      .finally(() => clearTimeout(timer))
+    return () => { controller.abort(); clearTimeout(timer) }
   }, [row?.sym])
 
   // Escape key
@@ -47,20 +55,23 @@ export default function EarningsModal({ row, label, onClose }) {
 
   if (!row) return null
 
-  const isBeat = row.verdict?.toLowerCase() === 'beat'
-  const isPending = row.verdict?.toLowerCase() === 'pending'
+  const verdict = row.verdict?.toLowerCase()
+  const isBeat = verdict === 'beat'
+  const isMixed = verdict === 'mixed'
+  const isPending = verdict === 'pending'
+  const verdictLabel = isBeat ? '✓ Beat' : isMixed ? '~ Mixed' : '✗ Miss'
   const summaryText = row.reported_eps != null && row.eps_estimate != null
-    ? `${isBeat ? '✓ Beat' : '✗ Miss'} — EPS ${fmtEps(row.reported_eps)} vs ${fmtEps(row.eps_estimate)} est (${row.surprise_pct} surprise)`
+    ? `${verdictLabel} — EPS ${fmtEps(row.reported_eps)} vs ${fmtEps(row.eps_estimate)} est (${row.surprise_pct} surprise)`
     : isPending ? 'Pending — not yet reported' : null
 
-  const hasAiContent = aiState.data?.analysis || aiState.data?.news
+  const hasAiContent = aiState.data?.analysis || aiState.data?.news?.length
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className={styles.modal} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="earnings-modal-title">
 
         <div className={styles.header}>
-          <span className={styles.sym}>{row.sym}</span>
+          <span className={styles.sym} id="earnings-modal-title">{row.sym}</span>
           <button className={styles.close} onClick={onClose} aria-label="Close">×</button>
         </div>
 
@@ -99,8 +110,28 @@ export default function EarningsModal({ row, label, onClose }) {
         </table>
 
         {summaryText && (
-          <div className={`${styles.summary} ${isBeat ? styles.summaryBeat : styles.summaryMiss}`}>
+          <div className={`${styles.summary} ${isBeat ? styles.summaryBeat : isMixed ? styles.summaryMixed : styles.summaryMiss}`}>
             {summaryText}
+          </div>
+        )}
+
+        {(aiState.data?.yoy_eps_growth || aiState.data?.beat_streak) && (
+          <div className={styles.trend}>
+            {aiState.data.yoy_eps_growth && (
+              <span className={aiState.data.yoy_eps_growth.startsWith('+') ? styles.pos : styles.neg}>
+                YoY EPS {aiState.data.yoy_eps_growth}
+              </span>
+            )}
+            {aiState.data.beat_history?.length > 0 && (
+              <span className={styles.beatHistory}>
+                {aiState.data.beat_history.map((s, i) => (
+                  <span key={i} className={s === '✓' ? styles.pos : s === '✗' ? styles.neg : styles.muted}>
+                    {s}
+                  </span>
+                ))}
+                <span className={styles.muted}>{aiState.data.beat_streak}</span>
+              </span>
+            )}
           </div>
         )}
 
@@ -122,16 +153,22 @@ export default function EarningsModal({ row, label, onClose }) {
               {aiState.data.analysis && (
                 <p className={styles.aiText}>{aiState.data.analysis}</p>
               )}
-              {aiState.data.news && (
-                <a
-                  href={aiState.data.news.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.newsLink}
-                >
-                  <span className={styles.newsSource}>{aiState.data.news.source}</span>
-                  {aiState.data.news.headline} ↗
-                </a>
+              {aiState.data.news?.length > 0 && (
+                <div className={styles.newsList}>
+                  {aiState.data.news.map((item, i) => (
+                    <a
+                      key={i}
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.newsItem}
+                      aria-label={`${item.source}: ${item.headline}`}
+                    >
+                      <span className={styles.newsItemSource}>{item.source}{item.time ? ` · ${item.time}` : ''}</span>
+                      <span className={styles.newsItemHeadline}>{item.headline} ↗</span>
+                    </a>
+                  ))}
+                </div>
               )}
             </div>
           ) : null

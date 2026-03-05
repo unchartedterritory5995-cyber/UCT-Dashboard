@@ -3,6 +3,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import TileCard from '../TileCard'
 import EarningsModal from './EarningsModal'
+import ErrorBoundary from '../ErrorBoundary'
 import styles from './CatalystFlow.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -85,7 +86,7 @@ export default function CatalystFlow({ data: propData }) {
 
   return (
     <>
-      <TileCard title="Catalyst Flow · Earnings">
+      <TileCard title="Earnings">
         <EarningsTable
           rows={data.bmo}
           label="BEFORE MARKET OPEN"
@@ -110,11 +111,13 @@ export default function CatalystFlow({ data: propData }) {
       </TileCard>
 
       {selected && (
-        <EarningsModal
-          row={selected.row}
-          label={selected.label}
-          onClose={() => setSelected(null)}
-        />
+        <ErrorBoundary fallback={<div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'monospace', padding: '12px' }}>Unable to load — click a ticker to retry.</div>} key={selected.row.sym}>
+          <EarningsModal
+            row={selected.row}
+            label={selected.label}
+            onClose={() => setSelected(null)}
+          />
+        </ErrorBoundary>
       )}
     </>
   )

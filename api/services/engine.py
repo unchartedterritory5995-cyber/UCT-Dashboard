@@ -31,6 +31,8 @@ State file keys (morning_wire_state.json):
 import sys
 import os
 import json
+import threading as _threading
+import time as _time
 
 MORNING_WIRE_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "morning-wire")
@@ -43,6 +45,77 @@ WIRE_DATA_FILE = os.path.join(MORNING_WIRE_PATH, "data", "wire_data.json")
 PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"  # Railway volume mount
 
 from api.services.cache import cache
+import logging as _logging
+_logger = _logging.getLogger(__name__)
+
+_anthropic_client = None  # anthropic.Anthropic | None (lazy-init)
+
+def _get_anthropic_client():
+    """Return the module-level Anthropic client, initializing it once (thread-safe)."""
+    global _anthropic_client
+    if _anthropic_client is None:
+        with _anthropic_lock:
+            if _anthropic_client is None:
+                import anthropic
+                api_key = os.environ.get("ANTHROPIC_API_KEY")
+                if not api_key:
+                    raise RuntimeError("ANTHROPIC_API_KEY is not set")
+                _anthropic_client = anthropic.Anthropic(api_key=api_key)
+    return _anthropic_client
+
+# ── Earnings analysis configuration ───────────────────────────────────────────
+_EARNINGS_NEWS_MAX_ITEMS    = 4        # max Finnhub headlines per ticker
+_EARNINGS_AI_MAX_TOKENS     = 400      # Haiku response token limit
+_EARNINGS_CACHE_TTL_HIT     = 43_200   # 12 h — full result cached after success
+_EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
+_AV_TIMEOUT_SECS            = 8        # Alpha Vantage request timeout
+_FH_TIMEOUT_SECS            = 6        # Finnhub request timeout
+_AV_RATE_INTERVAL_SECS      = 13.0     # ≥13s between AV calls → ≤4.6/min (free tier: 5/min)
+_EARNINGS_AI_MODEL          = "claude-haiku-4-5-20251001"
+
+# Alpha Vantage free tier: 5 calls/min. Serialize all AV calls with ≥13s spacing.
+_av_lock = _threading.Lock()
+_av_last_call: list[float] = [0.0]  # mutable so inner scope can write
+_anthropic_lock = _threading.Lock()
+
+from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
+
+# Bounded pool for pre-warm work. Max 4 workers: respects AV rate limiter
+# (4 concurrent threads → at most 4 AV calls queued, serialized by _av_lock).
+_prewarm_executor = _ThreadPoolExecutor(max_workers=4, thread_name_prefix="prewarm")
+
+
+def _av_get(req_module, url: str, timeout: int = _AV_TIMEOUT_SECS) -> dict:
+    """Rate-limited Alpha Vantage GET. Enforces ≥13s between calls (≤4.6/min)."""
+    with _av_lock:
+        wait = _AV_RATE_INTERVAL_SECS - (_time.monotonic() - _av_last_call[0])
+        if wait > 0:
+            _time.sleep(wait)
+        _av_last_call[0] = _time.monotonic()
+    data = req_module.get(url, timeout=timeout).json()
+    if "Note" in data or "Information" in data:
+        # AV returned a rate-limit or info message instead of actual data
+        raise RuntimeError(f"AV rate limit hit for {url!r}: {data.get('Note') or data.get('Information')}")
+    return data
+
+
+def _with_retry(fn, retries: int = 1, delay: float = 2.0):
+    """Call fn(); on requests.Timeout or ConnectionError, retry up to `retries` times.
+
+    Note: AV calls go through _av_get() which has its own rate-limit serialization
+    via _av_lock. Adding _with_retry there would conflict with the lock's timing
+    guarantees, so only Finnhub calls are wrapped here.
+    """
+    import requests as _r
+    for attempt in range(retries + 1):
+        try:
+            return fn()
+        except (_r.Timeout, _r.ConnectionError) as e:
+            if attempt < retries:
+                _logger.warning("Transient error (attempt %d/%d): %s", attempt + 1, retries + 1, e)
+                _time.sleep(delay)
+            else:
+                raise
 
 
 def _load_state() -> dict:
@@ -616,28 +689,94 @@ def _normalize_earnings(raw, amc_tonight_raw=None) -> dict:
 
 
 def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
-    """Generate Claude Haiku earnings analysis + pull related news. Cached 12h."""
+    """Generate Claude Haiku earnings analysis + fetch AV history + Finnhub news. Cached 12h."""
     cache_key = f"earnings_analysis_{sym}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
-    # Related news from existing news cache (zero extra API calls)
-    news_items = cache.get("news") or []
-    related_raw = next(
-        (n for n in news_items if sym in (n.get("tickers") or [])), None
-    )
-    related_news = {
-        "headline": related_raw["headline"],
-        "url":      related_raw["url"],
-        "source":   related_raw.get("source", ""),
-    } if related_raw else None
+    import datetime as _dt
+    import requests as _req
 
+    av_key  = os.environ.get("ALPHAVANTAGE_API_KEY", "")
+    fh_key  = os.environ.get("FINNHUB_API_KEY", "")
+
+    # ── Step 1: Alpha Vantage quarterly history ───────────────────────────────
+    yoy_eps_growth = None
+    beat_streak    = None
+    beat_history   = []       # visual pattern e.g. ["✗","✓","✓","✓"] oldest→newest
+    try:
+        av_url = (
+            f"https://www.alphavantage.co/query"
+            f"?function=EARNINGS&symbol={sym}&apikey={av_key}"
+        )
+        av_resp = _av_get(_req, av_url, timeout=_AV_TIMEOUT_SECS)
+        quarters = av_resp.get("quarterlyEarnings", [])
+
+        def _to_f(v):
+            try: return float(v)
+            except (TypeError, ValueError): return None
+
+        if len(quarters) >= 5:
+            q0 = _to_f(quarters[0].get("reportedEPS"))
+            q4 = _to_f(quarters[4].get("reportedEPS"))
+            if q0 is not None and q4 is not None and q4 != 0:
+                pct = (q0 - q4) / abs(q4) * 100
+                sign = "+" if pct >= 0 else ""
+                yoy_eps_growth = f"{sign}{pct:.1f}%"
+        if len(quarters) >= 4:
+            beats = sum(
+                1 for q in quarters[:4]
+                if _to_f(q.get("reportedEPS")) is not None
+                and _to_f(q.get("estimatedEPS")) is not None
+                and _to_f(q.get("reportedEPS")) >= _to_f(q.get("estimatedEPS"))
+            )
+            beat_streak = f"Beat {beats} of last 4"
+            # Visual beat history: oldest→newest, e.g. ["✗", "✓", "✓", "✓"]
+            beat_history = []
+            for _q in reversed(quarters[:4]):
+                _r = _to_f(_q.get("reportedEPS"))
+                _e = _to_f(_q.get("estimatedEPS"))
+                if _r is not None and _e is not None:
+                    beat_history.append("✓" if _r >= _e else "✗")
+                else:
+                    beat_history.append("—")
+    except Exception as _e:
+        _logger.warning("AV history fetch failed for %s: %s", sym, _e)
+
+    # ── Step 2: Finnhub company news (last 3 days, up to 4 items) ────────────
+    news_items = []
+    try:
+        today_str = _dt.date.today().isoformat()
+        from_str  = (_dt.date.today() - _dt.timedelta(days=3)).isoformat()
+        fh_url = (
+            f"https://finnhub.io/api/v1/company-news"
+            f"?symbol={sym}&from={from_str}&to={today_str}&token={fh_key}"
+        )
+        fh_resp = _with_retry(lambda: _req.get(fh_url, timeout=_FH_TIMEOUT_SECS).json())
+        if not isinstance(fh_resp, list):
+            raise ValueError(f"Finnhub returned unexpected shape: {type(fh_resp)}")
+        for item in fh_resp[:_EARNINGS_NEWS_MAX_ITEMS]:
+            ts = item.get("datetime", 0)
+            try:
+                _d = _dt.datetime.fromtimestamp(ts)
+                dt_str = _d.strftime("%I:%M %p").lstrip("0") if ts else ""
+            except Exception:
+                dt_str = ""
+            news_items.append({
+                "headline": item.get("headline", ""),
+                "source":   item.get("source", ""),
+                "url":      item.get("url", ""),
+                "time":     dt_str,
+            })
+    except Exception as _e:
+        _logger.warning("Finnhub news fetch failed for %s: %s", sym, _e)
+
+    # ── Step 3: AI analysis (non-Pending only) ────────────────────────────────
     analysis = None
-    if row and row.get("verdict", "").lower() not in ("pending", ""):
+    is_pending = not row or row.get("verdict", "").lower() in ("pending", "")
+    if not is_pending:
         try:
-            import anthropic
-
             def _fmt_eps(v):
                 if v is None: return "N/A"
                 return f"{'-' if v < 0 else ''}${abs(v):.2f}"
@@ -651,9 +790,22 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
                 f"{'+' if change_pct >= 0 else ''}{change_pct:.2f}%"
                 if change_pct is not None else "N/A"
             )
+
+            context_parts = []
+            if yoy_eps_growth:
+                context_parts.append(f"YoY EPS growth: {yoy_eps_growth}")
+            if beat_streak:
+                context_parts.append(f"Beat history: {beat_streak}")
+            if news_items:
+                context_parts.append(
+                    "Recent headlines: "
+                    + " / ".join(n["headline"] for n in news_items[:2] if n["headline"])
+                )
+            context_block = "\n".join(context_parts)
+
             prompt = (
-                f"Analyze this earnings report for {sym} in 3 concise sentences. "
-                f"Be direct, specific, and professional — no filler.\n\n"
+                f"Analyze this earnings report for {sym} in 4-5 concise sentences.\n"
+                f"Be specific about the business — no filler, no trade advice.\n\n"
                 f"Verdict: {row.get('verdict')}\n"
                 f"EPS: Expected {_fmt_eps(row.get('eps_estimate'))} → "
                 f"Reported {_fmt_eps(row.get('reported_eps'))} "
@@ -661,43 +813,70 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
                 f"Revenue: Expected {_fmt_rev(row.get('rev_estimate'))} → "
                 f"Reported {_fmt_rev(row.get('rev_actual'))} "
                 f"({row.get('rev_surprise_pct', 'N/A')} surprise)\n"
-                f"Stock reaction: {gap_str}\n\n"
-                f"Cover: magnitude of beat/miss, what it signals about the business, "
-                f"and what the market reaction implies about expectations."
+                f"Stock reaction: {gap_str}\n"
             )
-            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+            if context_block:
+                prompt += f"{context_block}\n"
+            prompt += (
+                "\nCover: what the numbers say about the business, whether this is "
+                "consistent with trend, and what the market reaction implies about expectations."
+            )
+
+            client = _get_anthropic_client()
             msg = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=180,
+                model=_EARNINGS_AI_MODEL,
+                max_tokens=_EARNINGS_AI_MAX_TOKENS,
                 messages=[{"role": "user", "content": prompt}],
             )
             analysis = msg.content[0].text.strip()
-        except Exception:
+        except Exception as _e:
+            _logger.warning("AI analysis failed for %s: %s", sym, _e, exc_info=True)
             analysis = None
 
-    result = {"sym": sym, "analysis": analysis, "news": related_news}
-    cache.set(cache_key, result, ttl=43200)  # 12 h
+    result = {
+        "sym":            sym,
+        "analysis":       analysis,
+        "yoy_eps_growth": yoy_eps_growth,
+        "beat_streak":    beat_streak,
+        "beat_history":   beat_history,   # ["✗","✓","✓","✓"] oldest→newest
+        "news":           news_items,  # list of {headline, source, url, time}
+    }
+    # Only cache for full 12h if analysis succeeded; short TTL lets it retry on failure
+    ttl = _EARNINGS_CACHE_TTL_HIT if analysis is not None else _EARNINGS_CACHE_TTL_MISS
+    cache.set(cache_key, result, ttl=ttl)
     return result
 
 
 def _prewarm_earnings_analysis(data: dict) -> None:
-    """Fire daemon threads to pre-cache AI analysis for all non-Pending tickers."""
-    import threading
+    """Pre-cache AI analysis for reported tickers; pre-fetch context for Pending AMC tonight."""
     if not os.environ.get("ANTHROPIC_API_KEY"):
         return
+    _logger.info("prewarm: starting for buckets bmo/amc/amc_tonight")
+
+    def _partial_prewarm(sym: str) -> None:
+        """For Pending entries: cache news + AV history without AI call."""
+        cache_key = f"earnings_analysis_{sym}"
+        if cache.get(cache_key):
+            return
+        # Calling with row=None causes _generate_earnings_analysis to skip AI
+        # but still fetches AV history and Finnhub news, then caches the partial result.
+        _generate_earnings_analysis(sym, None)
+
     for bucket in ("bmo", "amc", "amc_tonight"):
         for entry in data.get(bucket, []):
             sym = entry.get("sym", "")
-            if not sym or entry.get("verdict", "").lower() in ("pending", ""):
+            if not sym:
                 continue
+            is_pending = entry.get("verdict", "").lower() in ("pending", "")
             if cache.get(f"earnings_analysis_{sym}"):
                 continue  # already warmed
-            t = threading.Thread(
-                target=_generate_earnings_analysis,
-                args=(sym, dict(entry)),
-                daemon=True,
-            )
-            t.start()
+
+            if is_pending and bucket == "amc_tonight":
+                # Partial pre-warm: AV history + news, no AI
+                _prewarm_executor.submit(_partial_prewarm, sym)
+            elif not is_pending:
+                # Full pre-warm: AV history + news + AI analysis
+                _prewarm_executor.submit(_generate_earnings_analysis, sym, dict(entry))
 
 
 # ─── News ─────────────────────────────────────────────────────────────────────

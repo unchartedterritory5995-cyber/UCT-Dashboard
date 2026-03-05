@@ -14,3 +14,5 @@ python-multipart==0.0.22
 
 matplotlib>=3.9.0
 mplfinance>=0.12.10b0
+slowapi==0.1.9
+sentry-sdk[fastapi]==2.23.1

@@ -5,7 +5,21 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
+import sentry_sdk
+
+from api.limiter import limiter
 from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts
+
+_SENTRY_DSN = os.environ.get("SENTRY_DSN")
+if _SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        traces_sample_rate=0.1,
+        environment=os.environ.get("RAILWAY_ENVIRONMENT", "development"),
+    )
 
 PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"
 
@@ -31,6 +45,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.get("/api/health")
 def health():
