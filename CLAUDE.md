@@ -118,13 +118,61 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 |------|--------|---------|
 | Market Snapshot | Massive API (Railway fetches live) | 15s |
 | Top Movers | Massive API (Railway fetches live) | 30s |
-| News | Finnhub/Finviz (Railway fetches live) | 5 min |
+| News | AlphaVantage (primary) + RSS fallback (live) | 30 min (AV) / 10 min (RSS) |
 | Theme Tracker | wire_data push from engine | Daily (7:35 AM ET) |
 | Leadership 20 | wire_data + Claude AI + UCT KB | Daily (7:35 AM ET) |
 | Morning Rundown | wire_data + Claude AI + UCT KB | Daily (7:35 AM ET) |
 | UCT Exposure Rating (Breadth) | wire_data push from engine | Daily (7:35 AM ET) |
 | MA Relationship Panel | Massive API live prices (SPY/QQQ) + engine push (MA %s) | 15s / Daily |
 | Earnings | wire_data push from engine | Daily (7:35 AM ET) |
+| Scanner Candidates | scanner_candidates.py → wire_data push | Daily (7:00 AM CT scanner + 7:35 AM ET engine push) |
+
+## Key Components Built (2026-03-05)
+
+### Scanner Hub (`app/src/pages/Screener.jsx` + `Screener.module.css`)
+- Replaced old Leadership-20 table on `/screener` route — no route change
+- Three tabs: **Pullback MA** | **Remount** | **Gappers** (Pullback MA default)
+- Header: `generated_at` timestamp + leading sector pills + total count
+- Candidate rows: SetupBadge (colored pill) · TickerPopup · company · sector · RSI / SMA% / gap% / change%
+- `also_qualified_as` chips when a ticker qualified for multiple setups
+- Empty state: "No candidates — scanner runs at 7:00 AM CT"
+- 30-min polling via useSWR
+
+### API: `get_candidates()` (`api/services/engine.py`)
+- Priority: cache → `wire_data["candidates"]` → local file (`uct-intelligence/data/candidates.json`) → empty structure
+- Cache TTL: 1800s (30 min)
+- `_EMPTY_CANDIDATES` sentinel returned via `copy.deepcopy()` as last fallback
+- Endpoint: `GET /api/candidates` in `api/routers/screener.py`
+- Tests: `tests/test_candidates.py` (4 tests)
+
+### UCT Scanner (`C:\Users\Patrick\uct-intelligence\scripts\scanner_candidates.py`)
+- Three Finviz scans: PULLBACK_MA (15 max) · REMOUNT (10 max) · GAPPER_NEWS (10 max)
+- Dedup priority: PULLBACK_MA > REMOUNT > GAPPER_NEWS
+- Leading sectors from `leading_sectors.json` (operator updates daily, ~30 seconds)
+- Output: `data/candidates.json` — atomic write (tmp → rename)
+- Inter-scan sleep: 3s to avoid Finviz rate limiting
+- Market hours guard: warns outside 5:00–9:45 AM CT, never exits
+- `run_scanner()` returns full dict — use return value, not file re-read
+- Correct filter format: `"Over $5"` not `"5to500"`, `"+Mid (over $2bln)"` not `"Mid and Large"`, etc.
+- `sma20_dist_pct` / `sma50_dist_pct` = % distance above MA (from Finviz Technical view)
+- `rel_volume` = None (not available in any Finviz screener view)
+- Finviz `Technical` view merged with `Overview` view on Ticker to get RSI + SMA% + company info
+- FINVIZ_API_KEY is NOT used — finvizfinance scrapes without auth
+- Docs: `SCANNER_README.md` at uct-intelligence root
+
+### Morning Wire Integration (`C:\Users\Patrick\morning-wire\morning_wire_engine.py`)
+- Scanner block added before `analyst.generate_rundown()` (~line 3759)
+- `scanner_candidates.run_scanner()` runs and return value stored as `_uct_candidates`
+- `"candidates": _uct_candidates` added to `_wire_data` dict that gets pushed to Railway
+- Fully wrapped in try/except — never crashes the pipeline
+
+### News Feed — RSS Fallback (`api/services/engine.py` → `get_news()`)
+- Primary: AlphaVantage NEWS_SENTIMENT API (25 req/day free tier)
+- Fallback: RSS feeds (CNBC, MarketWatch, Yahoo Finance, Benzinga, SeekingAlpha, PRNewswire, MotleyFool)
+- AV rate-limit detection: checks for `"Information"` / `"Note"` keys in AV response
+- Cache TTL: 1800s when AV works, 600s on RSS fallback (was 300s — was burning quota)
+- RSS items mapped to standard news format (title→headline, time_published→time, category mapping)
+- **NEVER do a partial `/api/push`** — always push full wire_data or the cache gets clobbered
 
 ## Key Components Built (2026-02-23 — session 2)
 
