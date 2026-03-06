@@ -31,6 +31,8 @@ State file keys (morning_wire_state.json):
 import sys
 import os
 import json
+import copy
+import pathlib
 import threading as _threading
 import time as _time
 
@@ -1219,3 +1221,44 @@ def get_screener() -> list:
 
     cache.set("screener", result, ttl=900)
     return result
+
+
+# ─── Candidates ───────────────────────────────────────────────────────────────
+
+_EMPTY_CANDIDATES = {
+    "generated_at": None,
+    "market_date": None,
+    "is_premarket_window": False,
+    "leading_sectors_used": [],
+    "leading_sectors_source": "none",
+    "note": "",
+    "candidates": {"pullback_ma": [], "gapper_news": [], "remount": []},
+    "counts": {"pullback_ma": 0, "gapper_news": 0, "remount": 0, "total": 0},
+    "scan_meta": {"skipped_rows": 0, "deduplicated_tickers": [], "runtime_seconds": 0, "errors": []},
+}
+
+
+def get_candidates() -> dict:
+    """Return scanner candidates. Priority: cache → wire_data["candidates"] → local file → empty structure."""
+    cached = cache.get("candidates")
+    if cached is not None:
+        return cached
+
+    # Try wire_data (populated by /api/push from morning wire engine)
+    wire = cache.get("wire_data")
+    if wire and "candidates" in wire:
+        result = wire["candidates"]
+        cache.set("candidates", result, ttl=1800)
+        return result
+
+    # Try local file (dev fallback)
+    local_path = pathlib.Path(r"C:\Users\Patrick\uct-intelligence\data\candidates.json")
+    if local_path.exists():
+        try:
+            result = json.loads(local_path.read_text(encoding="utf-8"))
+            cache.set("candidates", result, ttl=1800)
+            return result
+        except Exception:
+            pass
+
+    return copy.deepcopy(_EMPTY_CANDIDATES)

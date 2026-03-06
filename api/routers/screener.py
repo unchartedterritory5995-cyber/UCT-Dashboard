@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from api.services.engine import get_screener
+from api.services.engine import get_screener, get_candidates
 
 router = APIRouter()
 
@@ -8,5 +8,13 @@ router = APIRouter()
 def screener():
     try:
         return get_screener()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get("/api/candidates")
+def candidates():
+    try:
+        return get_candidates()
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
