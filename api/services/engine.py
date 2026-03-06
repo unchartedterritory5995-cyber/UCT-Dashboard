@@ -1040,7 +1040,10 @@ def get_news() -> list:
         time_from = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y%m%dT%H%M")
 
         # ── Fetch AV + EDGAR in parallel ──────────────────────────────────────
+        _av_rate_limited = False
+
         def _fetch_av():
+            nonlocal _av_rate_limited
             r = _requests.get(
                 "https://www.alphavantage.co/query",
                 params={"function": "NEWS_SENTIMENT", "sort": "LATEST",
@@ -1049,7 +1052,11 @@ def get_news() -> list:
                 timeout=15,
             )
             r.raise_for_status()
-            return r.json().get("feed", [])
+            data = r.json()
+            if "Information" in data or "Note" in data:
+                _av_rate_limited = True
+                return []
+            return data.get("feed", [])
 
         def _fetch_edgar():
             try:
@@ -1150,8 +1157,37 @@ def get_news() -> list:
         for it in av_filtered:
             it["tickers"] = [t for t in it["tickers"] if t in allowed]
 
-        # ── Merge AV + EDGAR, dedup, sort, take top 40 ────────────────────────
-        merged = av_filtered + edgar_items
+        # ── RSS fallback when AV is rate-limited or returns nothing ──────────
+        rss_items = []
+        if _av_rate_limited or not av_filtered:
+            try:
+                from api.services.news_aggregator import fetch_rss_news
+                from datetime import date as _date
+                _rss_raw = fetch_rss_news(str(_date.today()), limit=40)
+                _cat_map = {"earnings": "EARN", "analyst": "UPGRADE",
+                            "m_and_a": "M&A", "economic": "MACRO", "general": "GENERAL"}
+                for rss in _rss_raw:
+                    tp = rss.get("time_published", "")
+                    try:
+                        from datetime import datetime as _dtt, timezone as _tz, timedelta as _td
+                        dt_utc = _dtt.fromisoformat(tp.replace("Z", "+00:00")) if tp else None
+                        time_str = dt_utc.astimezone(_tz((_td(hours=-5)))).strftime("%Y-%m-%d %H:%M:%S") if dt_utc else ""
+                    except Exception:
+                        time_str = ""
+                    rss_items.append({
+                        "headline":  rss.get("title", ""),
+                        "source":    rss.get("source", ""),
+                        "url":       rss.get("url", ""),
+                        "time":      time_str,
+                        "category":  _cat_map.get(rss.get("category", "general"), "GENERAL"),
+                        "sentiment": rss.get("sentiment_label", "Neutral").lower(),
+                        "tickers":   rss.get("tickers", []),
+                    })
+            except Exception:
+                pass
+
+        # ── Merge AV + EDGAR + RSS, dedup, sort, take top 40 ─────────────────
+        merged = av_filtered + edgar_items + rss_items
         deduped = _deduplicate_news(merged)
         sorted_items = _sort_news(deduped, is_premarket=is_premarket)
         top40 = sorted_items[:40]
@@ -1188,7 +1224,9 @@ def get_news() -> list:
                    "time": "", "category": "GENERAL", "sentiment": "neutral",
                    "tickers": [], "change_pct": None, "error": str(e)}]
 
-    cache.set("news", result, ttl=300)
+    # Use longer TTL when AV worked (preserve quota); shorter when RSS fallback used
+    _ttl = 1800 if (result and not result[0].get("error")) else 600
+    cache.set("news", result, ttl=_ttl)
     return result
 
 
