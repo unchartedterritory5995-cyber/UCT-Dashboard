@@ -6,6 +6,7 @@ import UCT20 from './pages/UCT20'
 import Traders from './pages/Traders'
 import Screener from './pages/Screener'
 import OptionsFlow from './pages/OptionsFlow'
+import DarkPool from './pages/DarkPool'
 import PostMarket from './pages/PostMarket'
 import ModelBook from './pages/ModelBook'
 import Settings from './pages/Settings'
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/traders" element={<Traders />} />
           <Route path="/screener" element={<Screener />} />
           <Route path="/options-flow" element={<OptionsFlow />} />
+          <Route path="/dark-pool" element={<DarkPool />} />
           <Route path="/post-market" element={<PostMarket />} />
           <Route path="/model-book" element={<ModelBook />} />
           <Route path="/settings" element={<Settings />} />
