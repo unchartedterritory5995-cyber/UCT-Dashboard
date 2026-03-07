@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
-// --- Configuration ---
-// Bypasses the Python backend and fetches the CSV directly from your GitHub repo.
-// Make sure your file on GitHub is named exactly 'flow-data.csv' in your public folder.
-const REMOTE_CSV_URL = "https://raw.githubusercontent.com/unchartedterritory5995-cyber/UCT-Dashboard/main/app/public/flow-data.csv";
-
 // --- Theme Palette ---
 const P = {bg:"#06090f",cd:"#0d1321",al:"#111a2e",bd:"#1a2540",bl:"#243352",bu:"#00e676",be:"#ff1744",ac:"#ffab00",tx:"#c8d6e5",dm:"#7b8fa3",mt:"#4a5c73",wh:"#f0f4f8",ye:"#ffd600",ma:"#e040fb",sw:"#00b0ff",bk:"#b388ff",uc:"#78909c"};
 
@@ -241,48 +236,31 @@ function OptionsFlowDashboardUI() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    // Local static paths are checked first.
-    // If the file is in 'app/public' and Vite builds it, it usually ends up mapped to '/flow-data.csv' or '/public/flow-data.csv'
-    const fetchPaths = [
-      '/flow-data.csv',
-      '/public/flow-data.csv',
-      '/options-flow/flow-data.csv',
-      REMOTE_CSV_URL
-    ].filter(Boolean);
-
-    const tryFetchData = async () => {
-      let lastError = "";
-      for (const path of fetchPaths) {
+    fetch('/flow-data.csv')
+      .then(res => {
+        if (!res.ok) throw new Error("Auto-fetch failed. File not found.");
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+           throw new Error("Server returned HTML instead of a CSV.");
+        }
+        return res.text();
+      })
+      .then(text => {
         try {
-          const res = await fetch(path);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          
-          const contentType = res.headers.get("content-type");
-          if (contentType && contentType.includes("text/html")) {
-            throw new Error(`FastAPI intercepted '${path}'. To fix this, add a direct route in your Python backend to serve the 'app/public' file correctly:\n\nfrom fastapi.responses import FileResponse\n@app.get("/flow-data.csv")\ndef serve_csv():\n    return FileResponse("app/dist/flow-data.csv")`);
-          }
-          
-          const text = await res.text();
           const rows = parseCSV(text);
-          if (rows.length < 2) throw new Error(`Path ${path} was found, but it had no valid CSV data inside.`);
-          
+          if (rows.length === 0) throw new Error("CSV was loaded but appears to be empty.");
           const data = analyzeFlow(rows);
           setFlowData(data);
           setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
-          return; // Success! Exit the loop.
         } catch (err) {
-          lastError = err.message;
-          // If it's the specific HTML catch-all error, log it but keep trying the next path
-          // (because the REMOTE_CSV_URL bypass might be next in the list and succeed)
-          console.log(`Failed fetching ${path}:`, err.message);
+          console.error("Error parsing flow data:", err);
+          setErrorMsg("Data Parsing Error: " + err.message);
         }
-      }
-      throw new Error(lastError || "Could not automatically find 'flow-data.csv'. Ensure the file exists on GitHub or configure your FastAPI to serve static files correctly.");
-    };
-
-    tryFetchData().catch(err => {
-      setErrorMsg(err.message);
-    });
+      })
+      .catch(err => {
+        console.log("Auto-fetch failed, falling back to manual upload:", err);
+        setErrorMsg(err.message);
+      });
   }, []);
 
   const handleFileUpload = (e) => {
@@ -321,31 +299,21 @@ function OptionsFlowDashboardUI() {
   if (!flowData) {
     return (
       <div style={{display:'flex', minHeight:'100vh', width:'100%', background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", alignItems:'center', justifyContent:'center', padding: 20, boxSizing: 'border-box'}}>
-        <div style={{background:P.cd, border:`1px solid ${P.bd}`, padding:"40px 30px", borderRadius:12, textAlign:'center', width: '100%', maxWidth: 550}}>
-          <div style={{width:12,height:12,borderRadius:"50%",background:errorMsg ? P.be : P.ac,boxShadow:`0 0 15px ${errorMsg ? P.be : P.ac}`, margin: "0 auto 20px auto"}}/>
-          <h2 style={{color:P.wh, margin:"0 0 10px 0", fontSize: 24}}>
-            {errorMsg ? "Data Unavailable" : "Loading Options Flow..."}
-          </h2>
-          <p style={{color:P.dm, fontSize:12, marginBottom:20}}>
-            {errorMsg ? "The options flow data could not be loaded from the server." : "Fetching and analyzing the latest market data..."}
-          </p>
+        <div style={{background:P.cd, border:`1px solid ${P.bd}`, padding:"40px 30px", borderRadius:12, textAlign:'center', width: '100%', maxWidth: 450}}>
+          <div style={{width:12,height:12,borderRadius:"50%",background:P.ac,boxShadow:`0 0 15px ${P.ac}`, margin: "0 auto 20px auto"}}/>
+          <h2 style={{color:P.wh, margin:"0 0 10px 0", fontSize: 24}}>Load Flow Engine</h2>
+          <p style={{color:P.dm, fontSize:12, marginBottom:20}}>Upload your Options Flow CSV to generate the live dashboard.</p>
           
           {errorMsg && (
-            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 14, borderRadius: 6, fontSize: 11, fontWeight: 600, textAlign: 'left', lineHeight: 1.5, whiteSpace: 'pre-wrap'}}>
-              <strong>Diagnostic Info:</strong><br/>{errorMsg}
+            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 10, borderRadius: 6, marginBottom: 20, fontSize: 11, fontWeight: 600, textAlign: 'left'}}>
+              <strong>Auto-Fetch Status:</strong><br/>{errorMsg}
             </div>
           )}
 
-          {/* Dev/Canvas Fallback Upload */}
-          {errorMsg && (
-            <div style={{marginTop: 20}}>
-              <p style={{color:P.dm, fontSize: 11, marginBottom: 10}}>Canvas/Dev Mode: Upload CSV to preview</p>
-              <label style={{display: 'inline-block', background:P.mt, color:P.bg, padding:'8px 16px', borderRadius:6, cursor:'pointer', fontWeight:800, textTransform: "uppercase", letterSpacing: 1, fontSize: 11}}>
-                Test with Local File
-                <input type="file" accept=".csv" onChange={handleFileUpload} style={{display:'none'}} />
-              </label>
-            </div>
-          )}
+          <label style={{display: 'inline-block', background:P.ac, color:P.bg, padding:'12px 24px', borderRadius:6, cursor:'pointer', fontWeight:800, textTransform: "uppercase", letterSpacing: 1}}>
+            Select CSV File
+            <input type="file" accept=".csv" onChange={handleFileUpload} style={{display:'none'}} />
+          </label>
         </div>
       </div>
     );
