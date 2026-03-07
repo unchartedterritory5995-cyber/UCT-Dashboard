@@ -203,6 +203,12 @@
   color: var(--text-muted);
 }
 
+.numAmber {
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--ut-gold);
+  font-weight: 600;
+}
+
 /* ── SetupBadge ── */
 .badge {
   font-family: 'IBM Plex Mono', monospace;
@@ -231,6 +237,169 @@
   color: var(--ut-gold);
   background: rgba(212, 170, 80, 0.12);
   border: 1px solid rgba(212, 170, 80, 0.3);
+}
+
+/* ── Premarket bar ── */
+.premarketBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(212, 170, 80, 0.06);
+  border: 1px solid rgba(212, 170, 80, 0.18);
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.premarketLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+  opacity: 0.7;
+}
+
+.premarketDivider {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+.premarketItem {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.premarketSummary {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+/* ── Alert state badges ── */
+.alertBadge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.alertBreaking {
+  color: var(--ut-gold);
+  background: rgba(212, 170, 80, 0.2);
+  border: 1px solid rgba(212, 170, 80, 0.5);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.alertReady {
+  color: var(--ut-green-bright);
+  background: rgba(0, 200, 120, 0.15);
+  border: 1px solid rgba(0, 200, 120, 0.4);
+}
+
+.alertWatch {
+  color: #f0c040;
+  background: rgba(240, 192, 64, 0.1);
+  border: 1px solid rgba(240, 192, 64, 0.3);
+}
+
+.alertPattern {
+  color: #4a9eff;
+  background: rgba(74, 158, 255, 0.1);
+  border: 1px solid rgba(74, 158, 255, 0.25);
+}
+
+.alertNone {
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  opacity: 0.5;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+/* ── Row highlight states ── */
+.rowBreaking td {
+  background: rgba(212, 170, 80, 0.05);
+}
+
+.rowReady td {
+  background: rgba(0, 200, 120, 0.04);
+}
+
+/* ── Pullback-specific columns ── */
+.tickerCell {
+  vertical-align: top !important;
+}
+
+.tickerLine {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.candleNotes {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.65;
+  margin-top: 3px;
+  white-space: normal;
+  max-width: 200px;
+}
+
+.patternCell {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+
+.patternLabel {
+  color: var(--text-muted);
+}
+
+.apexTag {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--ut-gold);
+  background: rgba(212, 170, 80, 0.1);
+  border: 1px solid rgba(212, 170, 80, 0.25);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.scoreCell {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.pmNote {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--text-muted);
+  opacity: 0.6;
 }
 
 /* ── Also chips ── */

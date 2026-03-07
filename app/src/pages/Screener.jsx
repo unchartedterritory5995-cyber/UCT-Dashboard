@@ -17,21 +17,36 @@ const SETUP_META = {
   GAPPER_NEWS:  { label: 'GAPPER',      cls: styles.badgeGapper },
 }
 
+const ALERT_META = {
+  BREAKING:   { label: 'BREAKING',  cls: styles.alertBreaking },
+  READY:      { label: 'READY',     cls: styles.alertReady },
+  WATCH:      { label: 'WATCH',     cls: styles.alertWatch },
+  PATTERN:    { label: 'PATTERN',   cls: styles.alertPattern },
+  NO_PATTERN: { label: '—',         cls: styles.alertNone },
+  NO_DATA:    { label: 'NO DATA',   cls: styles.alertNone },
+}
+
 function SetupBadge({ type }) {
   const meta = SETUP_META[type] ?? { label: type, cls: '' }
   return <span className={`${styles.badge} ${meta.cls}`}>{meta.label}</span>
 }
 
-function fmtPct(val, forcePos = false) {
+function AlertBadge({ state }) {
+  const meta = ALERT_META[state] ?? { label: state || '—', cls: styles.alertNone }
+  return <span className={`${styles.alertBadge} ${meta.cls}`}>{meta.label}</span>
+}
+
+function fmtPct(val) {
   if (val == null) return <span className={styles.numNeutral}>—</span>
   const sign = val >= 0 ? '+' : ''
   const cls = val > 0 ? styles.numPos : val < 0 ? styles.numNeg : styles.numNeutral
   return <span className={cls}>{sign}{val.toFixed(1)}%</span>
 }
 
-function fmtRsi(val) {
+function fmtScore(val) {
   if (val == null) return <span className={styles.numNeutral}>—</span>
-  return <span className={styles.numNeutral}>{Math.round(val)}</span>
+  const cls = val >= 80 ? styles.numPos : val >= 60 ? styles.numAmber : styles.numNeutral
+  return <span className={cls}>{val}</span>
 }
 
 function AlsoChips({ list }) {
@@ -45,7 +60,72 @@ function AlsoChips({ list }) {
   )
 }
 
+function PremarketBar({ ctx }) {
+  if (!ctx) return null
+  const { spy_change_pct, qqq_change_pct, summary, time_ct } = ctx
+  return (
+    <div className={styles.premarketBar}>
+      <span className={styles.premarketLabel}>PREMARKET{time_ct ? ` · ${time_ct} CT` : ''}</span>
+      <span className={styles.premarketItem}>SPY {fmtPct(spy_change_pct)}</span>
+      <span className={styles.premarketDivider}>·</span>
+      <span className={styles.premarketItem}>QQQ {fmtPct(qqq_change_pct)}</span>
+      {summary && <span className={styles.premarketSummary}>{summary}</span>}
+    </div>
+  )
+}
+
 function PullbackRow({ row }) {
+  const hasPattern = row.pattern_detected
+  const patternLabel = hasPattern
+    ? [
+        row.pattern_type ?? 'pattern',
+        row.consolidation_days != null ? `${row.consolidation_days}d` : null,
+        row.depth_pct != null ? `${row.depth_pct.toFixed(1)}%` : null,
+      ].filter(Boolean).join(' · ')
+    : null
+
+  const rowCls = [
+    styles.row,
+    row.alert_state === 'BREAKING' ? styles.rowBreaking : '',
+    row.alert_state === 'READY'    ? styles.rowReady    : '',
+  ].filter(Boolean).join(' ')
+
+  return (
+    <tr className={rowCls}>
+      <td><AlertBadge state={row.alert_state} /></td>
+      <td className={styles.tickerCell}>
+        <div className={styles.tickerLine}>
+          <TickerPopup sym={row.ticker} />
+          <AlsoChips list={row.also_qualified_as} />
+        </div>
+        {row.candle_notes && (
+          <div className={styles.candleNotes}>{row.candle_notes}</div>
+        )}
+      </td>
+      <td className={styles.company}>{row.company || '—'}</td>
+      <td className={styles.patternCell}>
+        {patternLabel
+          ? <>
+              <span className={styles.patternLabel}>{patternLabel}</span>
+              {row.apex_days_remaining != null && (
+                <span className={styles.apexTag}>apex {row.apex_days_remaining}d</span>
+              )}
+            </>
+          : <span className={styles.numNeutral}>—</span>
+        }
+      </td>
+      <td className={styles.scoreCell}>{fmtScore(row.candle_score)}</td>
+      <td>
+        {row.pm_change_pct != null
+          ? <>{fmtPct(row.pm_change_pct)}{row.pm_note ? <span className={styles.pmNote}> {row.pm_note}</span> : null}</>
+          : <span className={styles.numNeutral}>—</span>
+        }
+      </td>
+    </tr>
+  )
+}
+
+function RemountRow({ row }) {
   return (
     <tr className={styles.row}>
       <td><SetupBadge type={row.setup_type} /></td>
@@ -55,9 +135,8 @@ function PullbackRow({ row }) {
       </td>
       <td className={styles.company}>{row.company || '—'}</td>
       <td className={styles.sector}>{row.sector || '—'}</td>
-      <td>{fmtRsi(row.rsi)}</td>
-      <td>{fmtPct(row.sma20_dist_pct, true)}</td>
-      <td>{fmtPct(row.sma50_dist_pct, true)}</td>
+      <td>{fmtPct(row.sma20_dist_pct)}</td>
+      <td>{fmtPct(row.sma50_dist_pct)}</td>
       <td>{fmtPct(row.change_pct)}</td>
     </tr>
   )
@@ -73,7 +152,7 @@ function GapperRow({ row }) {
       </td>
       <td className={styles.company}>{row.company || '—'}</td>
       <td className={styles.sector}>{row.sector || '—'}</td>
-      <td>{fmtPct(row.gap_pct, true)}</td>
+      <td>{fmtPct(row.gap_pct)}</td>
       <td>{fmtPct(row.change_pct)}</td>
     </tr>
   )
@@ -88,8 +167,47 @@ function CandidateTable({ rows, tabKey }) {
     )
   }
 
-  const isGapper = tabKey === 'gapper_news'
+  if (tabKey === 'pullback_ma') {
+    return (
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Alert</th>
+            <th>Ticker</th>
+            <th>Company</th>
+            <th>Pattern</th>
+            <th>Score</th>
+            <th>PM</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => <PullbackRow key={row.ticker || i} row={row} />)}
+        </tbody>
+      </table>
+    )
+  }
 
+  if (tabKey === 'gapper_news') {
+    return (
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Setup</th>
+            <th>Ticker</th>
+            <th>Company</th>
+            <th>Sector</th>
+            <th>Gap%</th>
+            <th>Chg%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => <GapperRow key={row.ticker || i} row={row} />)}
+        </tbody>
+      </table>
+    )
+  }
+
+  // remount
   return (
     <table className={styles.table}>
       <thead>
@@ -98,27 +216,13 @@ function CandidateTable({ rows, tabKey }) {
           <th>Ticker</th>
           <th>Company</th>
           <th>Sector</th>
-          {isGapper ? (
-            <>
-              <th>Gap%</th>
-              <th>Chg%</th>
-            </>
-          ) : (
-            <>
-              <th>RSI</th>
-              <th>SMA20%</th>
-              <th>SMA50%</th>
-              <th>Chg%</th>
-            </>
-          )}
+          <th>SMA20%</th>
+          <th>SMA50%</th>
+          <th>Chg%</th>
         </tr>
       </thead>
       <tbody>
-        {rows.map((row, i) => (
-          isGapper
-            ? <GapperRow key={row.ticker || i} row={row} />
-            : <PullbackRow key={row.ticker || i} row={row} />
-        ))}
+        {rows.map((row, i) => <RemountRow key={row.ticker || i} row={row} />)}
       </tbody>
     </table>
   )
@@ -131,7 +235,7 @@ export default function Screener() {
     refreshInterval: 30 * 60 * 1000,
   })
 
-  const candidates = data?.candidates ?? {}
+  const candidates    = data?.candidates ?? {}
   const pullbackRows  = candidates.pullback_ma  ?? []
   const remountRows   = candidates.remount      ?? []
   const gapperRows    = candidates.gapper_news  ?? []
@@ -150,8 +254,9 @@ export default function Screener() {
       ? remountRows
       : gapperRows
 
-  const leadingSectors = data?.leading_sectors_used ?? []
-  const generatedAt    = data?.generated_at ?? null
+  const leadingSectors = data?.leading_sectors_used  ?? []
+  const generatedAt    = data?.generated_at           ?? null
+  const premarketCtx   = data?.premarket_context      ?? null
 
   return (
     <div className={styles.container}>
@@ -172,6 +277,8 @@ export default function Screener() {
           )}
         </div>
       </div>
+
+      {data && <PremarketBar ctx={premarketCtx} />}
 
       {error ? (
         <div className={styles.emptyState}>Scanner data unavailable</div>
