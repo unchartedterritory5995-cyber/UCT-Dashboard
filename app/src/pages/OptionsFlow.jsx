@@ -1,6 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { Search, X } from "lucide-react";
+
+// Inline SVG components to replace lucide-react dependencies
+const SearchIcon = ({ size = 14, style }) => (
+  <svg 
+    width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+    strokeLinecap="round" strokeLinejoin="round" style={style}
+  >
+    <circle cx="11" cy="11" r="8"></circle>
+    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+  </svg>
+);
+
+const CloseIcon = ({ size = 14, style, onClick }) => (
+  <svg 
+    width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+    strokeLinecap="round" strokeLinejoin="round" style={style} onClick={onClick}
+  >
+    <line x1="18" y1="6" x2="6" y2="18"></line>
+    <line x1="6" y1="6" x2="18" y2="18"></line>
+  </svg>
+);
 
 const P = {
   bg: "#06090f",
@@ -225,7 +245,7 @@ export default function Dashboard() {
         
         {/* Search Bar */}
         <div style={{ marginLeft: "auto", position: "relative", width: "240px" }}>
-          <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: P.mt }} />
+          <SearchIcon style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: P.mt }} />
           <input 
             type="text" 
             placeholder="Search Ticker (e.g. TSLA)..."
@@ -245,8 +265,7 @@ export default function Dashboard() {
             }}
           />
           {searchQuery && (
-            <X 
-              size={14} 
+            <CloseIcon 
               onClick={() => setSearchQuery("")} 
               style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: P.mt, cursor: "pointer" }} 
             />
