@@ -236,13 +236,15 @@ function OptionsFlowDashboardUI() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    // Only check the primary paths to avoid confusing error messages
+    // Only check the primary paths
     const fetchPaths = [
       '/flow-data.csv',
-      '/options-flow/flow-data.csv'
+      '/options-flow/flow-data.csv',
+      'flow-data.csv'
     ];
 
     const tryFetchData = async () => {
+      let lastError = "";
       for (const path of fetchPaths) {
         try {
           const res = await fetch(path);
@@ -250,7 +252,7 @@ function OptionsFlowDashboardUI() {
           
           const contentType = res.headers.get("content-type");
           if (contentType && contentType.includes("text/html")) {
-            throw new Error(`Your server intercepted the request for ${path} and returned the website's HTML instead of the CSV file. Please make sure your Python backend is configured to serve static files from the public folder.`);
+            throw new Error(`Your backend router intercepted the request for '${path}' and returned HTML instead of a CSV file. You must configure FastAPI to serve 'flow-data.csv' as a static asset.`);
           }
           
           const text = await res.text();
@@ -262,15 +264,15 @@ function OptionsFlowDashboardUI() {
           setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
           return; // Success! Exit the loop.
         } catch (err) {
-          // If this path failed, log it and try the next one.
-          // If it's the specific HTML catch-all error, bubble it up.
-          if (err.message.includes('returned the website')) {
+          lastError = err.message;
+          // If it's the specific HTML catch-all error, bubble it up immediately to the user
+          if (err.message.includes('returned HTML')) {
             throw err; 
           }
           console.log(`Failed fetching ${path}:`, err.message);
         }
       }
-      throw new Error("Could not find flow-data.csv on your server. Please make sure the file is uploaded to the public directory.");
+      throw new Error("Could not automatically find 'flow-data.csv' on your server. Make sure it is uploaded in the correct public directory. Last error: " + lastError);
     };
 
     tryFetchData().catch(err => {
@@ -315,20 +317,30 @@ function OptionsFlowDashboardUI() {
     return (
       <div style={{display:'flex', minHeight:'100vh', width:'100%', background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", alignItems:'center', justifyContent:'center', padding: 20, boxSizing: 'border-box'}}>
         <div style={{background:P.cd, border:`1px solid ${P.bd}`, padding:"40px 30px", borderRadius:12, textAlign:'center', width: '100%', maxWidth: 550}}>
-          <div style={{width:12,height:12,borderRadius:"50%",background:P.ac,boxShadow:`0 0 15px ${P.ac}`, margin: "0 auto 20px auto"}}/>
-          <h2 style={{color:P.wh, margin:"0 0 10px 0", fontSize: 24}}>Load Flow Engine</h2>
-          <p style={{color:P.dm, fontSize:12, marginBottom:20}}>Upload your Options Flow CSV to generate the live dashboard.</p>
+          <div style={{width:12,height:12,borderRadius:"50%",background:errorMsg ? P.be : P.ac,boxShadow:`0 0 15px ${errorMsg ? P.be : P.ac}`, margin: "0 auto 20px auto"}}/>
+          <h2 style={{color:P.wh, margin:"0 0 10px 0", fontSize: 24}}>
+            {errorMsg ? "Data Unavailable" : "Loading Options Flow..."}
+          </h2>
+          <p style={{color:P.dm, fontSize:12, marginBottom:20}}>
+            {errorMsg ? "The options flow data could not be loaded from the server." : "Fetching and analyzing the latest market data..."}
+          </p>
           
           {errorMsg && (
-            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 14, borderRadius: 6, marginBottom: 20, fontSize: 12, fontWeight: 600, textAlign: 'left', lineHeight: 1.5}}>
-              <strong>Auto-Fetch Failed:</strong><br/>{errorMsg}
+            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 14, borderRadius: 6, fontSize: 11, fontWeight: 600, textAlign: 'left', lineHeight: 1.5}}>
+              <strong>Diagnostic Info:</strong><br/>{errorMsg}
             </div>
           )}
 
-          <label style={{display: 'inline-block', background:P.ac, color:P.bg, padding:'12px 24px', borderRadius:6, cursor:'pointer', fontWeight:800, textTransform: "uppercase", letterSpacing: 1}}>
-            Select CSV File
-            <input type="file" accept=".csv" onChange={handleFileUpload} style={{display:'none'}} />
-          </label>
+          {/* Dev/Canvas Fallback Upload */}
+          {errorMsg && (
+            <div style={{marginTop: 20}}>
+              <p style={{color:P.dm, fontSize: 11, marginBottom: 10}}>Canvas/Dev Mode: Upload CSV to preview</p>
+              <label style={{display: 'inline-block', background:P.mt, color:P.bg, padding:'8px 16px', borderRadius:6, cursor:'pointer', fontWeight:800, textTransform: "uppercase", letterSpacing: 1, fontSize: 11}}>
+                Test with Local File
+                <input type="file" accept=".csv" onChange={handleFileUpload} style={{display:'none'}} />
+              </label>
+            </div>
+          )}
         </div>
       </div>
     );
