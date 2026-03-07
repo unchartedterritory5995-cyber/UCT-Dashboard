@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
+// --- Configuration ---
+// Make sure your file on GitHub is named exactly 'flow-data.csv' in your public folder.
+const REMOTE_CSV_URL = "https://raw.githubusercontent.com/unchartedterritory5995-cyber/UCT-Dashboard/main/app/public/flow-data.csv";
+
 // --- Theme Palette ---
 const P = {bg:"#06090f",cd:"#0d1321",al:"#111a2e",bd:"#1a2540",bl:"#243352",bu:"#00e676",be:"#ff1744",ac:"#ffab00",tx:"#c8d6e5",dm:"#7b8fa3",mt:"#4a5c73",wh:"#f0f4f8",ye:"#ffd600",ma:"#e040fb",sw:"#00b0ff",bk:"#b388ff",uc:"#78909c"};
 
@@ -43,6 +47,7 @@ const TABS=["Market Read","Search","Performance","Short Term","Long Term","LEAPS
 
 // --- Data Parsing Engine ---
 const parseCSV = (csvText) => {
+  if (!csvText) return [];
   const lines = csvText.trim().replace(/\r/g, '').split('\n');
   if (lines.length < 2) return [];
   const headers = lines[0].split(',').map(h => h.trim());
@@ -235,34 +240,6 @@ function OptionsFlowDashboardUI() {
   const [status, setStatus] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    fetch('/flow-data.csv')
-      .then(res => {
-        if (!res.ok) throw new Error("Auto-fetch failed. File not found.");
-        const contentType = res.headers.get("content-type");
-        if (contentType && contentType.includes("text/html")) {
-           throw new Error("Server returned HTML instead of a CSV.");
-        }
-        return res.text();
-      })
-      .then(text => {
-        try {
-          const rows = parseCSV(text);
-          if (rows.length === 0) throw new Error("CSV was loaded but appears to be empty.");
-          const data = analyzeFlow(rows);
-          setFlowData(data);
-          setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
-        } catch (err) {
-          console.error("Error parsing flow data:", err);
-          setErrorMsg("Data Parsing Error: " + err.message);
-        }
-      })
-      .catch(err => {
-        console.log("Auto-fetch failed, falling back to manual upload:", err);
-        setErrorMsg(err.message);
-      });
-  }, []);
-
   const handleFileUpload = (e) => {
     setErrorMsg("");
     const file = e.target.files[0];
@@ -277,11 +254,59 @@ function OptionsFlowDashboardUI() {
         setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
       } catch (err) {
         console.error("Error processing uploaded file:", err);
-        setErrorMsg("Failed to process file. Is it a valid CSV? Error: " + err.message);
+        setErrorMsg("Failed to process file. Error: " + err.message);
       }
     };
     reader.readAsText(file);
   };
+
+  useEffect(() => {
+    const tryFetchData = async () => {
+      let lastError = "";
+      
+      // Constructing absolute URLs safely
+      const baseUrl = window.location.origin && window.location.origin !== 'null' 
+        ? window.location.origin 
+        : window.location.href.split('/').slice(0, 3).join('/');
+
+      const pathsToTry = [
+        new URL('/flow-data.csv', baseUrl).href,
+        REMOTE_CSV_URL
+      ];
+
+      for (const rawUrl of pathsToTry) {
+        try {
+          const urlObj = new URL(rawUrl);
+          urlObj.searchParams.set('t', new Date().getTime()); // Professional Cache Buster
+          
+          const res = await fetch(urlObj.href);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("text/html")) {
+             throw new Error("Server returned HTML instead of a CSV.");
+          }
+          
+          const text = await res.text();
+          const rows = parseCSV(text);
+          if (rows.length < 2) throw new Error("CSV appears empty.");
+          
+          const data = analyzeFlow(rows);
+          setFlowData(data);
+          setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
+          return; // Success
+        } catch (err) {
+          lastError = err.message;
+          console.warn(`Fetch attempt to ${rawUrl} failed:`, err.message);
+        }
+      }
+      throw new Error(lastError || "Could not find market data.");
+    };
+
+    tryFetchData().catch(err => {
+      setErrorMsg(err.message);
+    });
+  }, []);
 
   async function fetchPrices(){
     setLoading(true);
@@ -299,21 +324,32 @@ function OptionsFlowDashboardUI() {
   if (!flowData) {
     return (
       <div style={{display:'flex', minHeight:'100vh', width:'100%', background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", alignItems:'center', justifyContent:'center', padding: 20, boxSizing: 'border-box'}}>
-        <div style={{background:P.cd, border:`1px solid ${P.bd}`, padding:"40px 30px", borderRadius:12, textAlign:'center', width: '100%', maxWidth: 450}}>
-          <div style={{width:12,height:12,borderRadius:"50%",background:P.ac,boxShadow:`0 0 15px ${P.ac}`, margin: "0 auto 20px auto"}}/>
-          <h2 style={{color:P.wh, margin:"0 0 10px 0", fontSize: 24}}>Load Flow Engine</h2>
-          <p style={{color:P.dm, fontSize:12, marginBottom:20}}>Upload your Options Flow CSV to generate the live dashboard.</p>
+        <div style={{background:P.cd, border:`1px solid ${P.bd}`, padding:"40px 30px", borderRadius:12, textAlign:'center', width: '100%', maxWidth: 550}}>
+          <div style={{width:12,height:12,borderRadius:"50%",background:errorMsg ? P.be : P.ac,boxShadow:`0 0 15px ${errorMsg ? P.be : P.ac}`, margin: "0 auto 20px auto"}}/>
+          <h2 style={{color:P.wh, margin:"0 0 10px 0", fontSize: 24}}>
+            {errorMsg ? "Data Unavailable" : "Loading Options Flow..."}
+          </h2>
+          <p style={{color:P.dm, fontSize:12, marginBottom:errorMsg ? 20 : 0, lineHeight: 1.6}}>
+            {errorMsg 
+              ? "The automated data feed is currently offline." 
+              : "Fetching and analyzing the latest market data..."}
+          </p>
           
           {errorMsg && (
-            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 10, borderRadius: 6, marginBottom: 20, fontSize: 11, fontWeight: 600, textAlign: 'left'}}>
-              <strong>Auto-Fetch Status:</strong><br/>{errorMsg}
+            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 14, borderRadius: 6, fontSize: 11, fontWeight: 600, textAlign: 'left', lineHeight: 1.5, marginBottom: 20}}>
+              <strong>Diagnostic Info:</strong><br/>{errorMsg}
             </div>
           )}
 
-          <label style={{display: 'inline-block', background:P.ac, color:P.bg, padding:'12px 24px', borderRadius:6, cursor:'pointer', fontWeight:800, textTransform: "uppercase", letterSpacing: 1}}>
-            Select CSV File
-            <input type="file" accept=".csv" onChange={handleFileUpload} style={{display:'none'}} />
-          </label>
+          {errorMsg && (
+            <div style={{marginTop: 20}}>
+              <p style={{color:P.dm, fontSize: 11, marginBottom: 10}}>Canvas/Dev Mode: Upload CSV to preview UI</p>
+              <label style={{display: 'inline-block', background:P.mt, color:P.bg, padding:'8px 16px', borderRadius:6, cursor:'pointer', fontWeight:800, textTransform: "uppercase", letterSpacing: 1, fontSize: 11}}>
+                Test with Local File
+                <input type="file" accept=".csv" onChange={handleFileUpload} style={{display:'none'}} />
+              </label>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -379,8 +415,8 @@ function OptionsFlowDashboardUI() {
             </Card>
             
             {searchQuery && (() => {
-              const stLive = flowData.liveTrades.filter(r => r.sym === searchQuery);
-              const stWhite = flowData.whiteTrades.filter(r => r.S === searchQuery);
+              const stLive = (flowData.liveTrades || []).filter(r => r.sym === searchQuery);
+              const stWhite = (flowData.whiteTrades || []).filter(r => r.S === searchQuery);
               
               if (stLive.length === 0 && stWhite.length === 0) {
                 return <Card><div style={{color:P.dm,fontSize:12}}>No flow found for {searchQuery} matching criteria (No ML/, No deep ITM blocks).</div></Card>;
