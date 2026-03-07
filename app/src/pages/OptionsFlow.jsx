@@ -4,17 +4,42 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 // --- Theme Palette ---
 const P = {bg:"#06090f",cd:"#0d1321",al:"#111a2e",bd:"#1a2540",bl:"#243352",bu:"#00e676",be:"#ff1744",ac:"#ffab00",tx:"#c8d6e5",dm:"#7b8fa3",mt:"#4a5c73",wh:"#f0f4f8",ye:"#ffd600",ma:"#e040fb",sw:"#00b0ff",bk:"#b388ff",uc:"#78909c"};
 
+// --- Error Boundary to Prevent Blank Screens ---
+class DashboardErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 40, background: '#06090f', color: '#ff1744', minHeight: '100vh', fontFamily: 'monospace' }}>
+          <h2>🚨 Dashboard Rendering Crash Intercepted</h2>
+          <p>Instead of a blank screen, here is the exact error causing the issue:</p>
+          <pre style={{ background: '#1a2540', padding: 20, borderRadius: 8, whiteSpace: 'pre-wrap' }}>
+            {this.state.error?.toString()}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // --- Helper Functions ---
-function fmt(n){const a=Math.abs(n);if(a>=1e9)return"$"+(n/1e9).toFixed(2)+"B";if(a>=1e6)return"$"+(n/1e6).toFixed(1)+"M";if(a>=1e3)return"$"+(n/1e3).toFixed(0)+"K";return"$"+n}
-function fK(n){return n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?(n/1e3).toFixed(1)+"K":String(n)}
+function fmt(n){const a=Math.abs(n||0);if(a>=1e9)return"$"+(n/1e9).toFixed(2)+"B";if(a>=1e6)return"$"+(n/1e6).toFixed(1)+"M";if(a>=1e3)return"$"+(n/1e3).toFixed(0)+"K";return"$"+(n||0)}
+function fK(n){const val=n||0;return val>=1e6?(val/1e6).toFixed(1)+"M":val>=1e3?(val/1e3).toFixed(1)+"K":String(val)}
 function tc(t){return t==="SWP"?P.sw:P.bk}
 function Tag({c,children}){return <span style={{display:"inline-block",padding:"2px 7px",borderRadius:3,fontSize:9,fontWeight:700,letterSpacing:0.4,whiteSpace:"nowrap",color:c,backgroundColor:`${c}15`,border:`1px solid ${c}30`}}>{children}</span>}
 function Card({children,title,sub,col}){return <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:"14px 16px",display:"flex",flexDirection:"column",gap:8,minWidth:0, borderLeft: col ? `4px solid ${col}` : undefined}}>{title&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}><span style={{fontSize:11,fontWeight:700,color:col||P.dm,textTransform:"uppercase",letterSpacing:1.5}}>{title}</span>{sub&&<span style={{fontSize:10,color:P.mt}}>{sub}</span>}</div>}{children}</div>}
-function TT({rows}){return <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}><thead><tr style={{borderBottom:`1px solid ${P.bd}`}}>{["Ticker","Day","Side","Signal","Type","C/P","Strike","Exp","Vol","Premium","DTE"].map(h=><th key={h} style={{padding:"5px 4px",textAlign:"left",color:P.mt,fontSize:9,fontWeight:600}}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i} style={{borderBottom:`1px solid ${P.bd}10`,background:(r.Si==="AA"||r.Si==="BB")?`${P.ac}08`:"transparent"}}><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.S}</td><td style={{padding:"5px 4px",color:P.dm,fontSize:9}}>{r.Dt}</td><td style={{padding:"5px 4px"}}>{r.Si==="BB"?<Tag c={P.be}>BB</Tag>:r.Si==="AA"?<Tag c={P.ac}>AA</Tag>:r.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>{r.Si||"A"}</Tag>}</td><td style={{padding:"5px 4px"}}><Tag c={r.Co==="YELLOW"?P.ye:P.ma}>{r.Co}</Tag></td><td style={{padding:"5px 4px"}}><Tag c={tc(r.Ty)}>{r.Ty}</Tag></td><td style={{padding:"5px 4px"}}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>${r.K}</td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.E}</td><td style={{padding:"5px 4px",color:P.dm}}>{fK(r.V)}</td><td style={{padding:"5px 4px",fontWeight:700,color:P.wh}}>{fmt(r.P)}</td><td style={{padding:"5px 4px",color:P.dm}}>{r.DTE}d</td></tr>)}</tbody></table>}
+function TT({rows}){return <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}><thead><tr style={{borderBottom:`1px solid ${P.bd}`}}>{["Ticker","Day","Side","Signal","Type","C/P","Strike","Exp","Vol","Premium","DTE"].map(h=><th key={h} style={{padding:"5px 4px",textAlign:"left",color:P.mt,fontSize:9,fontWeight:600}}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i} style={{borderBottom:`1px solid ${P.bd}10`,background:(r.Si==="AA"||r.Si==="BB")?`${P.ac}08`:"transparent"}}><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.S}</td><td style={{padding:"5px 4px",color:P.dm,fontSize:9}}>{r.Dt}</td><td style={{padding:"5px 4px"}}>{r.Si==="BB"?<Tag c={P.be}>BB</Tag>:r.Si==="AA"?<Tag c={P.ac}>AA</Tag>:r.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>{r.Si||"A"}</Tag>}</td><td style={{padding:"5px 4px"}}><Tag c={r.Co==="YELLOW"?P.ye:r.Co==="WHITE"?P.wh:P.ma}>{r.Co}</Tag></td><td style={{padding:"5px 4px"}}><Tag c={tc(r.Ty)}>{r.Ty}</Tag></td><td style={{padding:"5px 4px"}}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>${r.K}</td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.E}</td><td style={{padding:"5px 4px",color:P.dm}}>{fK(r.V)}</td><td style={{padding:"5px 4px",fontWeight:700,color:P.wh}}>{fmt(r.P)}</td><td style={{padding:"5px 4px",color:P.dm}}>{r.DTE}d</td></tr>)}</tbody></table>}
 function CT({rows}){return <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}><thead><tr style={{borderBottom:`1px solid ${P.bd}`}}>{["Ticker","C/P","Strike","Exp","Hits","Vol","Premium"].map(h=><th key={h} style={{padding:"5px 4px",textAlign:"left",color:P.mt,fontSize:9,fontWeight:600}}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i} style={{borderBottom:`1px solid ${P.bd}10`,background:r.H>=5?`${P.ac}08`:"transparent"}}><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.S}</td><td style={{padding:"5px 4px"}}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>${r.K}</td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.E}</td><td style={{padding:"5px 4px"}}><span style={{fontWeight:800,fontSize:13,color:r.H>=10?P.ac:r.H>=5?P.ye:P.dm}}>{r.H}x</span></td><td style={{padding:"5px 4px",color:P.dm}}>{fK(r.V)}</td><td style={{padding:"5px 4px",fontWeight:700,color:P.wh}}>{fmt(r.P)}</td></tr>)}</tbody></table>}
-function NC({data,fill,dir}){const neg=dir==="bear";const cd=data.map(d=>({...d,v:neg?-Math.abs(d.n):d.n}));return <div style={{height:220}}><ResponsiveContainer><BarChart data={cd} layout="vertical" margin={{top:0,right:8,left:5,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke={P.bd} horizontal={false}/><XAxis type="number" tick={{fill:P.mt,fontSize:8}} tickFormatter={v=>fmt(Math.abs(v))}/><YAxis dataKey="s" type="category" tick={{fill:P.tx,fontSize:11,fontWeight:700}} width={60} interval={0} tickLine={false} axisLine={false}/><Tooltip content={({active,payload})=>{if(!active||!payload||!payload.length)return null;const d=payload[0].payload;return <div style={{background:"#152038",border:`1px solid ${P.bl}`,borderRadius:6,padding:"8px 12px",fontSize:11}}><div style={{fontWeight:700,marginBottom:3}}>{d.s}</div>{d.l&&<div style={{color:P.ac,fontSize:10,marginBottom:3}}>{d.l.split(" \u00b7 ")[1]}</div>}<div style={{color:P.bu}}>Bull: {fmt(d.b)}</div><div style={{color:P.be}}>Bear: {fmt(d.r)}</div><div style={{color:d.n>0?P.bu:P.be,fontWeight:700}}>Net: {fmt(d.n)}</div></div>}}/><Bar dataKey="v" fill={fill} radius={neg?[4,0,0,4]:[0,4,4,0]} barSize={14}/></BarChart></ResponsiveContainer></div>}
+function NC({data,fill,dir}){const neg=dir==="bear";const cd=(data||[]).map(d=>({...d,v:neg?-Math.abs(d.n):d.n}));return <div style={{height:220}}><ResponsiveContainer><BarChart data={cd} layout="vertical" margin={{top:0,right:8,left:5,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke={P.bd} horizontal={false}/><XAxis type="number" tick={{fill:P.mt,fontSize:8}} tickFormatter={v=>fmt(Math.abs(v))}/><YAxis dataKey="s" type="category" tick={{fill:P.tx,fontSize:11,fontWeight:700}} width={60} interval={0} tickLine={false} axisLine={false}/><Tooltip content={({active,payload})=>{if(!active||!payload||!payload.length)return null;const d=payload[0].payload;return <div style={{background:"#152038",border:`1px solid ${P.bl}`,borderRadius:6,padding:"8px 12px",fontSize:11}}><div style={{fontWeight:700,marginBottom:3}}>{d.s}</div>{d.l&&<div style={{color:P.ac,fontSize:10,marginBottom:3}}>{d.l.split(" \u00b7 ")[1]}</div>}<div style={{color:P.bu}}>Bull: {fmt(d.b)}</div><div style={{color:P.be}}>Bear: {fmt(d.r)}</div><div style={{color:d.n>0?P.bu:P.be,fontWeight:700}}>Net: {fmt(d.n)}</div></div>}}/><Bar dataKey="v" fill={fill} radius={neg?[4,0,0,4]:[0,4,4,0]} barSize={14}/></BarChart></ResponsiveContainer></div>}
 
-const TABS=["Market Read","Performance","Short Term","Long Term","LEAPS","OI Watchlist"];
+const TABS=["Market Read","Search","Performance","Short Term","Long Term","LEAPS","OI Watchlist"];
 
 // --- Data Parsing Engine ---
 const parseCSV = (csvText) => {
@@ -31,7 +56,6 @@ const parseCSV = (csvText) => {
 };
 
 const analyzeFlow = (rows) => {
-  // Pre-scan for Arbitrage Blocks (multiple blocks, same ticker, same second)
   const blockTimes = {};
   rows.forEach(r => {
     if (r.Type === 'BLOCK') {
@@ -43,12 +67,11 @@ const analyzeFlow = (rows) => {
   const live = [];
   const white = [];
   const daysMap = {};
-  
   let totBull = 0, totBear = 0;
 
   rows.forEach(r => {
     const type = r.Type;
-    if (type === 'ML/') return; // Ignore Arbitrage
+    if (type === 'ML/') return; 
     
     const cp = r.CallPut;
     const side = r.Side;
@@ -61,16 +84,14 @@ const analyzeFlow = (rows) => {
     const color = r.Color;
     const sym = r.Symbol;
     const exp = r.ExpirationDate;
-    const date = r.CreatedDate;
+    const dateStr = String(r.CreatedDate || '');
     const time = r.CreatedTime;
 
-    // Ignore Arbitrage / Multi-leg Blocks (2+ blocks exact same second)
     if (type === 'BLOCK') {
-      const key = `${sym}|${date}|${time}`;
+      const key = `${sym}|${dateStr}|${time}`;
       if (blockTimes[key] > 1) return;
     }
     
-    // Ignore Deep ITM Structural Put Blocks (<5% extrinsic premium)
     if (cp === 'PUT' && type === 'BLOCK' && (side === 'A' || side === 'AA' || side === 'ASK')) {
       const intrinsic = Math.max(0, strike - spot);
       const extrinsic = price - intrinsic;
@@ -78,11 +99,10 @@ const analyzeFlow = (rows) => {
     }
 
     if (color === 'WHITE') {
-      white.push({ S: sym, CP: cp ? cp[0] : '', K: strike, E: exp, Ty: type, Si: side, V: vol, OI: parseInt(r.OI)||0, P: prem });
+      white.push({ S: sym, CP: cp ? cp[0] : '', K: strike, E: exp, Ty: type, Si: side, V: vol, OI: parseInt(r.OI)||0, P: prem, Dt: dateStr ? dateStr.split('/').slice(0,2).join('/') : '', DTE: dte, Co: color });
       return; 
     }
 
-    // Directional Logic
     let dir = 'MIXED';
     if (cp === 'CALL') dir = 'BULL'; 
     if (cp === 'PUT') {
@@ -91,13 +111,13 @@ const analyzeFlow = (rows) => {
     }
 
     if (dir !== 'MIXED') {
-      live.push({ sym, cp, strike, exp, price, prem, vol, dte, side, type, color, spot, dir, date });
+      live.push({ sym, cp, strike, exp, price, prem, vol, dte, side, type, color, spot, dir, date: dateStr });
       
       if (dir === 'BULL') totBull += prem;
       else totBear += prem;
       
-      const dParts = date ? date.split('/') : [];
-      const dLabel = dParts.length >= 2 ? `${dParts[0]}/${dParts[1]}` : date; 
+      const dParts = dateStr ? dateStr.split('/') : [];
+      const dLabel = dParts.length >= 2 ? `${dParts[0]}/${dParts[1]}` : dateStr; 
       if (dLabel && !daysMap[dLabel]) daysMap[dLabel] = { d: dLabel, b: 0, r: 0 };
       if (dLabel) {
         if (dir === 'BULL') daysMap[dLabel].b += prem;
@@ -191,7 +211,6 @@ const analyzeFlow = (rows) => {
   }
 
   const DAYS = Object.values(daysMap);
-
   const PERF_INIT = [];
   const addPerf = (arrData, cat) => arrData.forEach((g,i) => {
     PERF_INIT.push({ id: cat+i, cat, sym: g.sym, cp: g.cp ? g.cp[0] : '', strike: g.strike, exp: g.exp, entry: g.entry, lo: g.lo, hi: g.hi, spot: g.spot, hits: g.hits, dir: g.dir });
@@ -204,37 +223,46 @@ const analyzeFlow = (rows) => {
   addPerf(leaps.filter(g=>g.dir==='BULL').sort((a,b)=>b.prem-a.prem).slice(0,4), "LEAPS Bull");
   addPerf(leaps.filter(g=>g.dir==='BEAR').sort((a,b)=>b.prem-a.prem).slice(0,4), "LEAPS Bear");
 
-  return { totBull, totBear, liveCount: live.length, whiteCount: white.length, DAYS, CONV, WATCH: white.sort((a,b)=>b.P-a.P).slice(0,10), PERF_INIT, sTerm, lTerm, lpTerm };
+  return { totBull, totBear, liveCount: live.length, whiteCount: white.length, DAYS, CONV, WATCH: white.sort((a,b)=>b.P-a.P).slice(0,10), PERF_INIT, sTerm, lTerm, lpTerm, liveTrades: live, whiteTrades: white };
 };
 
-export default function OptionsFlowDashboard() {
+function OptionsFlowDashboardUI() {
   const [flowData, setFlowData] = useState(null);
   const [tab, setTab] = useState("Market Read");
+  const [searchQuery, setSearchQuery] = useState("");
   const [perf, setPerf] = useState([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    // 1. Fetch Options Flow
     fetch('/flow-data.csv')
       .then(res => {
-        if (!res.ok) throw new Error("Auto-fetch failed. File not found.");
+        if (!res.ok) throw new Error(`HTTP Error ${res.status}: Could not find flow-data.csv on your server.`);
+        
+        // Prevent Router Fallbacks (if server returns index.html instead of a CSV)
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+           throw new Error("Server returned HTML instead of a CSV. Make sure you placed flow-data.csv in the public folder.");
+        }
         return res.text();
       })
       .then(text => {
         try {
           const rows = parseCSV(text);
-          if (rows.length === 0) return;
+          if (rows.length === 0) throw new Error("CSV was loaded but appears to be empty.");
           const data = analyzeFlow(rows);
           setFlowData(data);
           setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
         } catch (err) {
           console.error("Error parsing flow data:", err);
-          setErrorMsg("Error parsing the server's flow-data.csv file.");
+          setErrorMsg("Data Parsing Error: " + err.message);
         }
       })
-      .catch(err => console.log("Waiting for manual CSV upload...", err));
+      .catch(err => {
+        console.log("Auto-fetch failed, falling back to manual upload:", err);
+        setErrorMsg(err.message);
+      });
   }, []);
 
   const handleFileUpload = (e) => {
@@ -251,7 +279,7 @@ export default function OptionsFlowDashboard() {
         setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
       } catch (err) {
         console.error("Error processing uploaded file:", err);
-        setErrorMsg("Failed to process file. Make sure it is a valid Options Flow CSV.");
+        setErrorMsg("Failed to process file. Is it a valid CSV? Error: " + err.message);
       }
     };
     reader.readAsText(file);
@@ -279,8 +307,8 @@ export default function OptionsFlowDashboard() {
           <p style={{color:P.dm, fontSize:12, marginBottom:20}}>Upload your Options Flow CSV to generate the live dashboard.</p>
           
           {errorMsg && (
-            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 10, borderRadius: 6, marginBottom: 20, fontSize: 11, fontWeight: 600}}>
-              {errorMsg}
+            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 10, borderRadius: 6, marginBottom: 20, fontSize: 11, fontWeight: 600, textAlign: 'left'}}>
+              <strong>Auto-Fetch Status:</strong><br/>{errorMsg}
             </div>
           )}
 
@@ -329,6 +357,77 @@ export default function OptionsFlowDashboard() {
           {TABS.map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:"6px 16px",borderRadius:5,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",background:tab===t?P.cd:"transparent",color:tab===t?P.wh:P.mt}}>{t}</button>)}
         </div>
 
+        {/* ═══ SEARCH TICKER ═══ */}
+        {tab==="Search" && (
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <Card>
+              <div style={{display: "flex", gap: 14, alignItems: "center"}}>
+                <div style={{width:3,background:P.ac,borderRadius:2,alignSelf:"stretch",flexShrink:0}}/>
+                <div style={{display: "flex", gap: 10, alignItems: "center"}}>
+                  <span style={{fontSize: 14, fontWeight: 800, color: P.wh}}>SEARCH TICKER:</span>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
+                    placeholder="e.g. NVDA"
+                    style={{
+                      background: P.al, border: `1px solid ${P.bl}`, color: P.wh,
+                      padding: "8px 12px", borderRadius: 6, outline: "none", fontSize: 14, fontWeight: 700,
+                      textTransform: "uppercase", width: 200
+                    }}
+                  />
+                </div>
+              </div>
+            </Card>
+            
+            {searchQuery && (() => {
+              const stLive = flowData.liveTrades.filter(r => r.sym === searchQuery);
+              const stWhite = flowData.whiteTrades.filter(r => r.S === searchQuery);
+              
+              if (stLive.length === 0 && stWhite.length === 0) {
+                return <Card><div style={{color:P.dm,fontSize:12}}>No flow found for {searchQuery} matching criteria (No ML/, No deep ITM blocks).</div></Card>;
+              }
+
+              let tBull = 0, tBear = 0;
+              stLive.forEach(r => r.dir === 'BULL' ? tBull += r.prem : tBear += r.prem);
+              
+              const mappedLive = stLive.sort((a,b) => b.prem - a.prem).map(g => ({
+                S: g.sym, Dt: g.date ? g.date.split('/').slice(0,2).join('/') : '', Si: g.side, Co: g.color, Ty: g.type, 
+                CP: g.cp ? g.cp[0] : '', K: g.strike, E: g.exp, V: g.vol, P: g.prem, DTE: g.dte, dir: g.dir
+              }));
+              
+              const mappedWhite = stWhite.sort((a,b) => b.P - a.P);
+
+              return (
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                    <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${tBull > tBear ? P.bu : tBear > tBull ? P.be : P.dm}`}}>
+                      <div style={{fontSize:11,color:tBull > tBear ? P.bu : tBear > tBull ? P.be : P.dm,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>{searchQuery} Confirmed Outlook</div>
+                      <div style={{fontSize:36,fontWeight:900,color:tBull > tBear ? P.bu : tBear > tBull ? P.be : P.wh,marginBottom:8}}>
+                         {tBull > tBear ? "BULLISH" : tBull < tBear ? "BEARISH" : "NEUTRAL"}
+                      </div>
+                      <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>Bull {fmt(tBull)} vs Bear {fmt(tBear)}.</div>
+                    </div>
+                    <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${P.uc}`}}>
+                       <div style={{fontSize:11,color:P.uc,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>Unconfirmed Flow</div>
+                       <div style={{fontSize:36,fontWeight:900,color:P.uc,marginBottom:8}}>
+                         {fmt(stWhite.reduce((s, r) => s + r.P, 0))}
+                       </div>
+                       <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>{stWhite.length} unconfirmed (WHITE) trades. Requires OI check.</div>
+                    </div>
+                  </div>
+                  <Card title={`Confirmed Trades: ${searchQuery}`}>
+                     {mappedLive.length > 0 ? <TT rows={mappedLive} /> : <div style={{fontSize:11,color:P.dm}}>No confirmed trades.</div>}
+                  </Card>
+                  <Card title={`Unconfirmed Trades (Watchlist): ${searchQuery}`}>
+                     {mappedWhite.length > 0 ? <TT rows={mappedWhite} /> : <div style={{fontSize:11,color:P.dm}}>No unconfirmed trades.</div>}
+                  </Card>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
         {tab==="Market Read"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
           <Card title="Confirmed Daily Flow" sub="Bull vs Bear (live exps only)">
             <div style={{height:200}}><ResponsiveContainer><BarChart data={flowData.DAYS} margin={{top:5,right:8,left:0,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke={P.bd}/><XAxis dataKey="d" tick={{fill:P.tx,fontSize:10,fontWeight:600}} tickLine={false}/><YAxis tick={{fill:P.mt,fontSize:9}} tickLine={false} axisLine={false} tickFormatter={fmt} width={52}/><Tooltip content={({active,payload,label})=>{if(!active||!payload||!payload.length)return null;return <div style={{background:"#152038",border:`1px solid ${P.bl}`,borderRadius:6,padding:"8px 12px",fontSize:11}}><div style={{color:P.dm,fontWeight:600,marginBottom:4}}>{label}</div>{payload.map((p,i)=><div key={i} style={{color:p.color,display:"flex",gap:8,justifyContent:"space-between"}}><span>{p.name}</span><span style={{fontWeight:700,fontFamily:"monospace"}}>{fmt(Math.abs(p.value))}</span></div>)}</div>}}/><Bar dataKey="b" name="Bullish" fill={P.bu} radius={[3,3,0,0]} barSize={20}/><Bar dataKey="r" name="Bearish" fill={P.be} radius={[3,3,0,0]} barSize={20}/></BarChart></ResponsiveContainer></div>
@@ -341,7 +440,6 @@ export default function OptionsFlowDashboard() {
           </div>
         </div>}
 
-        {/* ═══ PERFORMANCE ═══ */}
         {tab==="Performance"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
           <Card>
             <div style={{display:"flex",gap:14,alignItems:"center"}}>
@@ -489,5 +587,13 @@ export default function OptionsFlowDashboard() {
         <div style={{marginTop:16,padding:"10px 0",borderTop:`1px solid ${P.bd}`,display:"flex",justifyContent:"space-between"}}><span style={{fontSize:9,color:P.mt}}>Flow Data Uploaded Automatically</span><span style={{fontSize:9,color:P.mt}}>YELLOW/MAG = confirmed · WHITE = check OI</span></div>
       </div>
     </div>
+  );
+}
+
+export default function OptionsFlow() {
+  return (
+    <DashboardErrorBoundary>
+      <OptionsFlowDashboardUI />
+    </DashboardErrorBoundary>
   );
 }
