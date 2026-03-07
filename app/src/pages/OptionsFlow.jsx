@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
+// --- Configuration ---
+// Bypasses the Python backend and fetches the CSV directly from your GitHub repo.
+// Make sure your file on GitHub is named exactly 'flow-data.csv' in your public folder.
+const REMOTE_CSV_URL = "https://raw.githubusercontent.com/unchartedterritory5995-cyber/UCT-Dashboard/main/app/public/flow-data.csv";
+
 // --- Theme Palette ---
 const P = {bg:"#06090f",cd:"#0d1321",al:"#111a2e",bd:"#1a2540",bl:"#243352",bu:"#00e676",be:"#ff1744",ac:"#ffab00",tx:"#c8d6e5",dm:"#7b8fa3",mt:"#4a5c73",wh:"#f0f4f8",ye:"#ffd600",ma:"#e040fb",sw:"#00b0ff",bk:"#b388ff",uc:"#78909c"};
 
@@ -236,12 +241,13 @@ function OptionsFlowDashboardUI() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    // Only check the primary paths
+    // The engine will check the remote GitHub URL first to bypass the Python router block
     const fetchPaths = [
+      REMOTE_CSV_URL,
       '/flow-data.csv',
       '/options-flow/flow-data.csv',
       'flow-data.csv'
-    ];
+    ].filter(Boolean);
 
     const tryFetchData = async () => {
       let lastError = "";
@@ -252,7 +258,7 @@ function OptionsFlowDashboardUI() {
           
           const contentType = res.headers.get("content-type");
           if (contentType && contentType.includes("text/html")) {
-            throw new Error(`Your backend router intercepted the request for '${path}' and returned HTML instead of a CSV file. You must configure FastAPI to serve 'flow-data.csv' as a static asset.`);
+            throw new Error(`Your backend router intercepted the request for '${path}' and returned HTML instead of a CSV file. FastAPI must be configured to serve 'flow-data.csv' as a static asset.`);
           }
           
           const text = await res.text();
@@ -265,14 +271,12 @@ function OptionsFlowDashboardUI() {
           return; // Success! Exit the loop.
         } catch (err) {
           lastError = err.message;
-          // If it's the specific HTML catch-all error, bubble it up immediately to the user
-          if (err.message.includes('returned HTML')) {
-            throw err; 
-          }
+          // If it's the specific HTML catch-all error, log it but keep trying the next path
+          // (because the REMOTE_CSV_URL bypass might be next in the list and succeed)
           console.log(`Failed fetching ${path}:`, err.message);
         }
       }
-      throw new Error("Could not automatically find 'flow-data.csv' on your server. Make sure it is uploaded in the correct public directory. Last error: " + lastError);
+      throw new Error("Could not automatically find 'flow-data.csv'. Ensure the file exists on GitHub or configure your FastAPI to serve static files correctly. Last error: " + lastError);
     };
 
     tryFetchData().catch(err => {
