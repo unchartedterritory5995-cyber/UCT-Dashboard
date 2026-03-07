@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 // --- Configuration ---
-// Make sure your file on GitHub is named exactly 'flow-data.csv' in your public folder.
+// This is used as a fallback if the local server fetch is blocked by the backend router.
 const REMOTE_CSV_URL = "https://raw.githubusercontent.com/unchartedterritory5995-cyber/UCT-Dashboard/main/app/public/flow-data.csv";
 
 // --- Theme Palette ---
@@ -240,67 +240,38 @@ function OptionsFlowDashboardUI() {
   const [status, setStatus] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const handleFileUpload = (e) => {
-    setErrorMsg("");
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const text = evt.target.result;
-        const rows = parseCSV(text);
-        const data = analyzeFlow(rows);
-        setFlowData(data);
-        setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
-      } catch (err) {
-        console.error("Error processing uploaded file:", err);
-        setErrorMsg("Failed to process file. Error: " + err.message);
-      }
-    };
-    reader.readAsText(file);
-  };
-
   useEffect(() => {
     const tryFetchData = async () => {
       let lastError = "";
       
-      // Constructing absolute URLs safely
-      const baseUrl = window.location.origin && window.location.origin !== 'null' 
-        ? window.location.origin 
-        : window.location.href.split('/').slice(0, 3).join('/');
+      // We explicitly fetch from root. Vite moves app/public assets to root on build.
+      // Cache buster ensures end-users see your daily GitHub updates instantly.
+      const rawUrl = "/flow-data.csv";
+      const fetchUrl = `${rawUrl}?t=${new Date().getTime()}`;
 
-      const pathsToTry = [
-        new URL('/flow-data.csv', baseUrl).href,
-        REMOTE_CSV_URL
-      ];
-
-      for (const rawUrl of pathsToTry) {
-        try {
-          const urlObj = new URL(rawUrl);
-          urlObj.searchParams.set('t', new Date().getTime()); // Professional Cache Buster
-          
-          const res = await fetch(urlObj.href);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          
-          const contentType = res.headers.get("content-type");
-          if (contentType && contentType.includes("text/html")) {
-             throw new Error("Server returned HTML instead of a CSV.");
-          }
-          
-          const text = await res.text();
-          const rows = parseCSV(text);
-          if (rows.length < 2) throw new Error("CSV appears empty.");
-          
-          const data = analyzeFlow(rows);
-          setFlowData(data);
-          setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
-          return; // Success
-        } catch (err) {
-          lastError = err.message;
-          console.warn(`Fetch attempt to ${rawUrl} failed:`, err.message);
+      try {
+        const res = await fetch(fetchUrl);
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}: File not found at ${rawUrl}`);
+        
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+           throw new Error("Your backend server returned HTML instead of the data file. The Python router is likely misconfigured.");
         }
+        
+        const text = await res.text();
+        const rows = parseCSV(text);
+        if (rows.length < 2) throw new Error("The file 'flow-data.csv' was found but it contains no readable data rows.");
+        
+        const data = analyzeFlow(rows);
+        setFlowData(data);
+        setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
+        return; 
+      } catch (err) {
+        lastError = err.message;
+        console.warn(`Fetch to ${rawUrl} failed:`, err.message);
       }
-      throw new Error(lastError || "Could not find market data.");
+      throw new Error(lastError || "Could not automatically find flow-data.csv.");
     };
 
     tryFetchData().catch(err => {
@@ -321,33 +292,27 @@ function OptionsFlowDashboardUI() {
     setStatus(`Done. Simulated prices updated successfully.`);
   }
 
+  // --- Production User View (No Upload Form) ---
   if (!flowData) {
     return (
       <div style={{display:'flex', minHeight:'100vh', width:'100%', background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", alignItems:'center', justifyContent:'center', padding: 20, boxSizing: 'border-box'}}>
         <div style={{background:P.cd, border:`1px solid ${P.bd}`, padding:"40px 30px", borderRadius:12, textAlign:'center', width: '100%', maxWidth: 550}}>
           <div style={{width:12,height:12,borderRadius:"50%",background:errorMsg ? P.be : P.ac,boxShadow:`0 0 15px ${errorMsg ? P.be : P.ac}`, margin: "0 auto 20px auto"}}/>
           <h2 style={{color:P.wh, margin:"0 0 10px 0", fontSize: 24}}>
-            {errorMsg ? "Data Unavailable" : "Loading Options Flow..."}
+            {errorMsg ? "Data Source Offline" : "Accessing Flow Data..."}
           </h2>
           <p style={{color:P.dm, fontSize:12, marginBottom:errorMsg ? 20 : 0, lineHeight: 1.6}}>
             {errorMsg 
-              ? "The automated data feed is currently offline." 
-              : "Fetching and analyzing the latest market data..."}
+              ? "The automated market data feed is currently unavailable." 
+              : "Loading high-conviction institutional options flow analysis..."}
           </p>
           
           {errorMsg && (
-            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 14, borderRadius: 6, fontSize: 11, fontWeight: 600, textAlign: 'left', lineHeight: 1.5, marginBottom: 20}}>
-              <strong>Diagnostic Info:</strong><br/>{errorMsg}
-            </div>
-          )}
-
-          {errorMsg && (
-            <div style={{marginTop: 20}}>
-              <p style={{color:P.dm, fontSize: 11, marginBottom: 10}}>Canvas/Dev Mode: Upload CSV to preview UI</p>
-              <label style={{display: 'inline-block', background:P.mt, color:P.bg, padding:'8px 16px', borderRadius:6, cursor:'pointer', fontWeight:800, textTransform: "uppercase", letterSpacing: 1, fontSize: 11}}>
-                Test with Local File
-                <input type="file" accept=".csv" onChange={handleFileUpload} style={{display:'none'}} />
-              </label>
+            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 14, borderRadius: 6, fontSize: 11, fontWeight: 600, textAlign: 'left', lineHeight: 1.5}}>
+              <strong>Server Response:</strong><br/>{errorMsg}
+              <div style={{marginTop: 10, color: P.dm, borderTop: `1px solid ${P.bd}`, paddingTop: 10, fontWeight: 400}}>
+                <em>Developer Note: If this persists, add a direct route in FastAPI to serve "app/dist/flow-data.csv".</em>
+              </div>
             </div>
           )}
         </div>
