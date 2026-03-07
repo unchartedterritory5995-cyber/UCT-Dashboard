@@ -1,3 +1,14 @@
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import Dashboard from './Dashboard.jsx'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <Dashboard />
+  </React.StrictMode>
+)
+
+
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
