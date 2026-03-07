@@ -377,3 +377,4 @@ ${contractList}`
     <div style={{marginTop:16,padding:"10px 0",borderTop:`1px solid ${P.bd}`,display:"flex",justifyContent:"space-between"}}><span style={{fontSize:9,color:P.mt}}>Weekly Options Flow · Mar 2–6 2026 · Expired removed</span><span style={{fontSize:9,color:P.mt}}>YELLOW/MAG = confirmed · WHITE = check OI</span></div>
   </div>;
 }
+
