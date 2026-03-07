@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 // --- Theme Palette ---
 const P = {bg:"#06090f",cd:"#0d1321",al:"#111a2e",bd:"#1a2540",bl:"#243352",bu:"#00e676",be:"#ff1744",ac:"#ffab00",tx:"#c8d6e5",dm:"#7b8fa3",mt:"#4a5c73",wh:"#f0f4f8",ye:"#ffd600",ma:"#e040fb",sw:"#00b0ff",bk:"#b388ff",uc:"#78909c"};
@@ -78,7 +78,7 @@ const analyzeFlow = (rows) => {
     }
 
     if (color === 'WHITE') {
-      white.push({ S: sym, CP: cp?.[0]||'', K: strike, E: exp, Ty: type, Si: side, V: vol, OI: parseInt(r.OI)||0, P: prem });
+      white.push({ S: sym, CP: cp ? cp[0] : '', K: strike, E: exp, Ty: type, Si: side, V: vol, OI: parseInt(r.OI)||0, P: prem });
       return; 
     }
 
@@ -96,11 +96,13 @@ const analyzeFlow = (rows) => {
       if (dir === 'BULL') totBull += prem;
       else totBear += prem;
       
-      const dParts = date?.split('/') || [];
+      const dParts = date ? date.split('/') : [];
       const dLabel = dParts.length >= 2 ? `${dParts[0]}/${dParts[1]}` : date; 
-      if (!daysMap[dLabel]) daysMap[dLabel] = { d: dLabel, b: 0, r: 0 };
-      if (dir === 'BULL') daysMap[dLabel].b += prem;
-      else daysMap[dLabel].r += prem;
+      if (dLabel && !daysMap[dLabel]) daysMap[dLabel] = { d: dLabel, b: 0, r: 0 };
+      if (dLabel) {
+        if (dir === 'BULL') daysMap[dLabel].b += prem;
+        else daysMap[dLabel].r += prem;
+      }
     }
   });
 
@@ -157,7 +159,7 @@ const analyzeFlow = (rows) => {
     Object.values(syms).forEach(s => {
       s.n = s.b - s.r;
       const tt = s.topTrade;
-      s.l = `${s.s} \u00b7 ${tt.exp} $${tt.strike}${tt.cp[0]}`;
+      s.l = `${s.s} \u00b7 ${tt.exp} $${tt.strike}${tt.cp ? tt.cp[0] : ''}`;
     });
 
     const arr = Object.values(syms);
@@ -165,12 +167,12 @@ const analyzeFlow = (rows) => {
     const symR = arr.filter(s => s.n < 0).sort((a,b) => Math.abs(b.n) - Math.abs(a.n)).slice(0, 8);
 
     const mapTrades = (arrData) => arrData.sort((a,b) => b.prem - a.prem).slice(0, 8).map(g => ({
-      S: g.sym, Dt: g.date?.split('/').slice(0,2).join('/')||'', Si: g.side, Co: g.color, Ty: g.type, 
-      CP: g.cp[0], K: g.strike, E: g.exp, V: g.vol, P: g.prem, DTE: g.dte, dir: g.dir
+      S: g.sym, Dt: g.date ? g.date.split('/').slice(0,2).join('/') : '', Si: g.side, Co: g.color, Ty: g.type, 
+      CP: g.cp ? g.cp[0] : '', K: g.strike, E: g.exp, V: g.vol, P: g.prem, DTE: g.dte, dir: g.dir
     }));
     
     const mapConsist = (arrData) => arrData.filter(g => g.hits >= 2).sort((a,b) => b.hits - a.hits).slice(0, 6).map(g => ({
-      S: g.sym, CP: g.cp[0], K: g.strike, E: g.exp, H: g.hits, V: g.vol, P: g.prem, dir: g.dir
+      S: g.sym, CP: g.cp ? g.cp[0] : '', K: g.strike, E: g.exp, H: g.hits, V: g.vol, P: g.prem, dir: g.dir
     }));
 
     return { bullPrem: bPrem, bearPrem: rPrem, symB, symR, tradesB: mapTrades(b), tradesR: mapTrades(r), consistB: mapConsist(b), consistR: mapConsist(r) };
@@ -184,15 +186,15 @@ const analyzeFlow = (rows) => {
   const bears = allGroups.filter(g => g.dir === 'BEAR').sort((a,b) => b.score - a.score);
   const CONV = [];
   for(let i=0; i<3; i++) {
-    if(bulls[i]) CONV.push({ sym: bulls[i].sym, strike: `$${bulls[i].strike}${bulls[i].cp[0]}`, exp: bulls[i].exp, hits: bulls[i].hits, prem: bulls[i].prem, side: bulls[i].side, dir: bulls[i].dir });
-    if(bears[i]) CONV.push({ sym: bears[i].sym, strike: `$${bears[i].strike}${bears[i].cp[0]}`, exp: bears[i].exp, hits: bears[i].hits, prem: bears[i].prem, side: bears[i].side, dir: bears[i].dir });
+    if(bulls[i]) CONV.push({ sym: bulls[i].sym, strike: `$${bulls[i].strike}${bulls[i].cp ? bulls[i].cp[0] : ''}`, exp: bulls[i].exp, hits: bulls[i].hits, prem: bulls[i].prem, side: bulls[i].side, dir: bulls[i].dir });
+    if(bears[i]) CONV.push({ sym: bears[i].sym, strike: `$${bears[i].strike}${bears[i].cp ? bears[i].cp[0] : ''}`, exp: bears[i].exp, hits: bears[i].hits, prem: bears[i].prem, side: bears[i].side, dir: bears[i].dir });
   }
 
   const DAYS = Object.values(daysMap);
 
   const PERF_INIT = [];
   const addPerf = (arrData, cat) => arrData.forEach((g,i) => {
-    PERF_INIT.push({ id: cat+i, cat, sym: g.sym, cp: g.cp[0], strike: g.strike, exp: g.exp, entry: g.entry, lo: g.lo, hi: g.hi, spot: g.spot, hits: g.hits, dir: g.dir });
+    PERF_INIT.push({ id: cat+i, cat, sym: g.sym, cp: g.cp ? g.cp[0] : '', strike: g.strike, exp: g.exp, entry: g.entry, lo: g.lo, hi: g.hi, spot: g.spot, hits: g.hits, dir: g.dir });
   });
   addPerf(allGroups.sort((a,b)=>b.score - a.score).slice(0,6), "Conviction");
   addPerf(short.filter(g=>g.dir==='BULL').sort((a,b)=>b.prem-a.prem).slice(0,4), "Short Bull");
@@ -205,12 +207,13 @@ const analyzeFlow = (rows) => {
   return { totBull, totBear, liveCount: live.length, whiteCount: white.length, DAYS, CONV, WATCH: white.sort((a,b)=>b.P-a.P).slice(0,10), PERF_INIT, sTerm, lTerm, lpTerm };
 };
 
-export default function App() {
+export default function OptionsFlowDashboard() {
   const [flowData, setFlowData] = useState(null);
   const [tab, setTab] = useState("Market Read");
   const [perf, setPerf] = useState([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     // 1. Fetch Options Flow
@@ -220,24 +223,36 @@ export default function App() {
         return res.text();
       })
       .then(text => {
-        const rows = parseCSV(text);
-        const data = analyzeFlow(rows);
-        setFlowData(data);
-        setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
+        try {
+          const rows = parseCSV(text);
+          if (rows.length === 0) return;
+          const data = analyzeFlow(rows);
+          setFlowData(data);
+          setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
+        } catch (err) {
+          console.error("Error parsing flow data:", err);
+          setErrorMsg("Error parsing the server's flow-data.csv file.");
+        }
       })
       .catch(err => console.log("Waiting for manual CSV upload...", err));
   }, []);
 
   const handleFileUpload = (e) => {
+    setErrorMsg("");
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const text = evt.target.result;
-      const rows = parseCSV(text);
-      const data = analyzeFlow(rows);
-      setFlowData(data);
-      setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
+      try {
+        const text = evt.target.result;
+        const rows = parseCSV(text);
+        const data = analyzeFlow(rows);
+        setFlowData(data);
+        setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
+      } catch (err) {
+        console.error("Error processing uploaded file:", err);
+        setErrorMsg("Failed to process file. Make sure it is a valid Options Flow CSV.");
+      }
     };
     reader.readAsText(file);
   };
@@ -257,12 +272,19 @@ export default function App() {
 
   if (!flowData) {
     return (
-      <div style={{display:'flex', height:'100vh', background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", alignItems:'center', justifyContent:'center'}}>
-        <div style={{background:P.cd, border:`1px solid ${P.bd}`, padding:40, borderRadius:12, textAlign:'center'}}>
+      <div style={{display:'flex', minHeight:'100vh', width:'100%', background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", alignItems:'center', justifyContent:'center', padding: 20, boxSizing: 'border-box'}}>
+        <div style={{background:P.cd, border:`1px solid ${P.bd}`, padding:"40px 30px", borderRadius:12, textAlign:'center', width: '100%', maxWidth: 450}}>
           <div style={{width:12,height:12,borderRadius:"50%",background:P.ac,boxShadow:`0 0 15px ${P.ac}`, margin: "0 auto 20px auto"}}/>
           <h2 style={{color:P.wh, margin:"0 0 10px 0", fontSize: 24}}>Load Flow Engine</h2>
-          <p style={{color:P.dm, fontSize:12, marginBottom:30}}>Upload your Options Flow CSV to generate the live dashboard</p>
-          <label style={{background:P.ac, color:P.bg, padding:'12px 24px', borderRadius:6, cursor:'pointer', fontWeight:800, textTransform: "uppercase", letterSpacing: 1}}>
+          <p style={{color:P.dm, fontSize:12, marginBottom:20}}>Upload your Options Flow CSV to generate the live dashboard.</p>
+          
+          {errorMsg && (
+            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 10, borderRadius: 6, marginBottom: 20, fontSize: 11, fontWeight: 600}}>
+              {errorMsg}
+            </div>
+          )}
+
+          <label style={{display: 'inline-block', background:P.ac, color:P.bg, padding:'12px 24px', borderRadius:6, cursor:'pointer', fontWeight:800, textTransform: "uppercase", letterSpacing: 1}}>
             Select CSV File
             <input type="file" accept=".csv" onChange={handleFileUpload} style={{display:'none'}} />
           </label>
@@ -272,8 +294,8 @@ export default function App() {
   }
 
   return (
-    <div style={{background:P.bg,color:P.tx,fontFamily:"'SF Mono','Fira Code',monospace",minHeight:"100vh", boxSizing: "border-box"}}>
-      <div style={{maxWidth: 1400, margin: "0 auto", padding: "16px 20px"}}>
+    <div style={{background:P.bg,color:P.tx,fontFamily:"'SF Mono','Fira Code',monospace",minHeight:"100vh", width:"100%", boxSizing: "border-box"}}>
+      <div style={{maxWidth: 1400, margin: "0 auto", padding: "16px 20px", width: "100%"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
           <div style={{width:6,height:6,borderRadius:"50%",background:P.ac,boxShadow:`0 0 10px ${P.ac}`}}/>
           <h1 style={{fontSize:18,fontWeight:800,margin:0,color:P.wh}}>OPTIONS FLOW — DYNAMIC READ</h1>
