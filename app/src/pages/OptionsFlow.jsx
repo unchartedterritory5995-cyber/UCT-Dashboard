@@ -241,12 +241,13 @@ function OptionsFlowDashboardUI() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    // The engine will check the remote GitHub URL first to bypass the Python router block
+    // Local static paths are checked first.
+    // If the file is in 'app/public' and Vite builds it, it usually ends up mapped to '/flow-data.csv' or '/public/flow-data.csv'
     const fetchPaths = [
-      REMOTE_CSV_URL,
       '/flow-data.csv',
+      '/public/flow-data.csv',
       '/options-flow/flow-data.csv',
-      'flow-data.csv'
+      REMOTE_CSV_URL
     ].filter(Boolean);
 
     const tryFetchData = async () => {
@@ -258,7 +259,7 @@ function OptionsFlowDashboardUI() {
           
           const contentType = res.headers.get("content-type");
           if (contentType && contentType.includes("text/html")) {
-            throw new Error(`Your backend router intercepted the request for '${path}' and returned HTML instead of a CSV file. FastAPI must be configured to serve 'flow-data.csv' as a static asset.`);
+            throw new Error(`FastAPI intercepted '${path}'. To fix this, add a direct route in your Python backend to serve the 'app/public' file correctly:\n\nfrom fastapi.responses import FileResponse\n@app.get("/flow-data.csv")\ndef serve_csv():\n    return FileResponse("app/dist/flow-data.csv")`);
           }
           
           const text = await res.text();
@@ -276,7 +277,7 @@ function OptionsFlowDashboardUI() {
           console.log(`Failed fetching ${path}:`, err.message);
         }
       }
-      throw new Error("Could not automatically find 'flow-data.csv'. Ensure the file exists on GitHub or configure your FastAPI to serve static files correctly. Last error: " + lastError);
+      throw new Error(lastError || "Could not automatically find 'flow-data.csv'. Ensure the file exists on GitHub or configure your FastAPI to serve static files correctly.");
     };
 
     tryFetchData().catch(err => {
@@ -330,7 +331,7 @@ function OptionsFlowDashboardUI() {
           </p>
           
           {errorMsg && (
-            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 14, borderRadius: 6, fontSize: 11, fontWeight: 600, textAlign: 'left', lineHeight: 1.5}}>
+            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 14, borderRadius: 6, fontSize: 11, fontWeight: 600, textAlign: 'left', lineHeight: 1.5, whiteSpace: 'pre-wrap'}}>
               <strong>Diagnostic Info:</strong><br/>{errorMsg}
             </div>
           )}
