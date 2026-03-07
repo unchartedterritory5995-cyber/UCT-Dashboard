@@ -272,198 +272,200 @@ export default function App() {
   }
 
   return (
-    <div style={{background:P.bg,color:P.tx,fontFamily:"'SF Mono','Fira Code',monospace",minHeight:"100vh",padding:"16px 20px", boxSizing: "border-box"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-        <div style={{width:6,height:6,borderRadius:"50%",background:P.ac,boxShadow:`0 0 10px ${P.ac}`}}/>
-        <h1 style={{fontSize:18,fontWeight:800,margin:0,color:P.wh}}>OPTIONS FLOW — DYNAMIC READ</h1>
-        <span style={{marginLeft:"auto",fontSize:10,color:P.mt,background:P.al,padding:"3px 10px",borderRadius:4}}>AUTO-ANALYZED FLOW DATA</span>
-      </div>
-      <p style={{fontSize:10,color:P.mt,margin:"0 0 12px 16px"}}>{flowData.liveCount} confirmed live trades · {fmt(flowData.totBull + flowData.totBear)} confirmed premium · No ML/ or Arb Blocks · No deep ITM structures</p>
+    <div style={{background:P.bg,color:P.tx,fontFamily:"'SF Mono','Fira Code',monospace",minHeight:"100vh", boxSizing: "border-box"}}>
+      <div style={{maxWidth: 1400, margin: "0 auto", padding: "16px 20px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+          <div style={{width:6,height:6,borderRadius:"50%",background:P.ac,boxShadow:`0 0 10px ${P.ac}`}}/>
+          <h1 style={{fontSize:18,fontWeight:800,margin:0,color:P.wh}}>OPTIONS FLOW — DYNAMIC READ</h1>
+          <span style={{marginLeft:"auto",fontSize:10,color:P.mt,background:P.al,padding:"3px 10px",borderRadius:4}}>AUTO-ANALYZED FLOW DATA</span>
+        </div>
+        <p style={{fontSize:10,color:P.mt,margin:"0 0 12px 16px"}}>{flowData.liveCount} confirmed live trades · {fmt(flowData.totBull + flowData.totBear)} confirmed premium · No ML/ or Arb Blocks · No deep ITM structures</p>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-        <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? P.bu : P.be}`}}>
-          <div style={{fontSize:11,color:flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? P.bu : P.be,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>Short-Term Outlook (0-14 DTE)</div>
-          <div style={{fontSize:36,fontWeight:900,color:flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? P.bu : P.be,marginBottom:8}}>
-             {flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? "BULLISH" : "BEARISH"}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? P.bu : P.be}`}}>
+            <div style={{fontSize:11,color:flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? P.bu : P.be,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>Short-Term Outlook (0-14 DTE)</div>
+            <div style={{fontSize:36,fontWeight:900,color:flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? P.bu : P.be,marginBottom:8}}>
+               {flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? "BULLISH" : "BEARISH"}
+            </div>
+            <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>Bull {fmt(flowData.sTerm.bullPrem)} vs Bear {fmt(flowData.sTerm.bearPrem)}. {flowData.sTerm.consistB.length>0 ? `Bulls led by ${flowData.sTerm.consistB[0].S} $${flowData.sTerm.consistB[0].K}${flowData.sTerm.consistB[0].CP} hitting ${flowData.sTerm.consistB[0].H}x. ` : ""}{flowData.sTerm.consistR.length>0 ? `Bears led by ${flowData.sTerm.consistR[0].S} $${flowData.sTerm.consistR[0].K}${flowData.sTerm.consistR[0].CP} hitting ${flowData.sTerm.consistR[0].H}x.` : ""}</div>
           </div>
-          <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>Bull {fmt(flowData.sTerm.bullPrem)} vs Bear {fmt(flowData.sTerm.bearPrem)}. {flowData.sTerm.consistB.length>0 ? `Bulls led by ${flowData.sTerm.consistB[0].S} $${flowData.sTerm.consistB[0].K}${flowData.sTerm.consistB[0].CP} hitting ${flowData.sTerm.consistB[0].H}x. ` : ""}{flowData.sTerm.consistR.length>0 ? `Bears led by ${flowData.sTerm.consistR[0].S} $${flowData.sTerm.consistR[0].K}${flowData.sTerm.consistR[0].CP} hitting ${flowData.sTerm.consistR[0].H}x.` : ""}</div>
-        </div>
-        <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? P.bu : P.be}`}}>
-          <div style={{fontSize:11,color:flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? P.bu : P.be,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>Long-Term Outlook (15+ DTE)</div>
-          <div style={{fontSize:36,fontWeight:900,color:flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? P.bu : P.be,marginBottom:8}}>
-             {flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? "BULLISH" : "BEARISH"}
+          <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? P.bu : P.be}`}}>
+            <div style={{fontSize:11,color:flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? P.bu : P.be,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>Long-Term Outlook (15+ DTE)</div>
+            <div style={{fontSize:36,fontWeight:900,color:flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? P.bu : P.be,marginBottom:8}}>
+               {flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? "BULLISH" : "BEARISH"}
+            </div>
+            <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>Bull {fmt(flowData.lTerm.bullPrem)} vs Bear {fmt(flowData.lTerm.bearPrem)}. {flowData.lTerm.consistB.length>0 ? `Bulls led by ${flowData.lTerm.consistB[0].S} hitting ${flowData.lTerm.consistB[0].H}x. ` : ""}{flowData.lTerm.consistR.length>0 ? `Bears led by ${flowData.lTerm.consistR[0].S} hitting ${flowData.lTerm.consistR[0].H}x.` : ""}</div>
           </div>
-          <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>Bull {fmt(flowData.lTerm.bullPrem)} vs Bear {fmt(flowData.lTerm.bearPrem)}. {flowData.lTerm.consistB.length>0 ? `Bulls led by ${flowData.lTerm.consistB[0].S} hitting ${flowData.lTerm.consistB[0].H}x. ` : ""}{flowData.lTerm.consistR.length>0 ? `Bears led by ${flowData.lTerm.consistR[0].S} hitting ${flowData.lTerm.consistR[0].H}x.` : ""}</div>
         </div>
-      </div>
 
-      <div style={{fontSize:10,fontWeight:700,color:P.dm,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>Top Conviction Strikes</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8,marginBottom:12}}>
-        {flowData.CONV.map((t,i)=>{const c=t.dir==="BULL"?P.bu:P.be;return <div key={i} style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:8,padding:"10px 12px",borderTop:`2px solid ${c}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><span style={{fontSize:14,fontWeight:900,color:P.wh}}>{t.sym}</span>{t.side==="AA"?<Tag c={P.ac}>AA</Tag>:t.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>{t.side||"A"}</Tag>}</div><div style={{fontSize:13,fontWeight:800,color:c}}>{t.strike} <span style={{fontSize:11,fontWeight:700,color:P.wh}}>{t.exp}</span></div><div style={{fontSize:10,color:P.dm,marginTop:4}}><span style={{color:P.ac,fontWeight:700}}>{t.hits}x</span> · {fmt(t.prem)}</div><div style={{marginTop:4}}><Tag c={c}>{t.dir}</Tag></div></div>})}
-      </div>
-
-      <div style={{display:"flex",gap:1,marginBottom:14,background:P.al,borderRadius:6,padding:2,width:"fit-content"}}>
-        {TABS.map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:"6px 16px",borderRadius:5,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",background:tab===t?P.cd:"transparent",color:tab===t?P.wh:P.mt}}>{t}</button>)}
-      </div>
-
-      {tab==="Market Read"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-        <Card title="Confirmed Daily Flow" sub="Bull vs Bear (live exps only)">
-          <div style={{height:200}}><ResponsiveContainer><BarChart data={flowData.DAYS} margin={{top:5,right:8,left:0,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke={P.bd}/><XAxis dataKey="d" tick={{fill:P.tx,fontSize:10,fontWeight:600}} tickLine={false}/><YAxis tick={{fill:P.mt,fontSize:9}} tickLine={false} axisLine={false} tickFormatter={fmt} width={52}/><Tooltip content={({active,payload,label})=>{if(!active||!payload||!payload.length)return null;return <div style={{background:"#152038",border:`1px solid ${P.bl}`,borderRadius:6,padding:"8px 12px",fontSize:11}}><div style={{color:P.dm,fontWeight:600,marginBottom:4}}>{label}</div>{payload.map((p,i)=><div key={i} style={{color:p.color,display:"flex",gap:8,justifyContent:"space-between"}}><span>{p.name}</span><span style={{fontWeight:700,fontFamily:"monospace"}}>{fmt(Math.abs(p.value))}</span></div>)}</div>}}/><Bar dataKey="b" name="Bullish" fill={P.bu} radius={[3,3,0,0]} barSize={20}/><Bar dataKey="r" name="Bearish" fill={P.be} radius={[3,3,0,0]} barSize={20}/></BarChart></ResponsiveContainer></div>
-        </Card>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Card title="Short-Term Bullish" sub="0-14 DTE"><NC data={flowData.sTerm.symB} fill={P.bu} dir="bull"/></Card>
-          <Card title="Short-Term Bearish" sub="0-14 DTE"><NC data={flowData.sTerm.symR} fill={P.be} dir="bear"/></Card>
-          <Card title="Long-Term Bullish" sub="15+ DTE"><NC data={flowData.lTerm.symB} fill={P.bu} dir="bull"/></Card>
-          <Card title="Long-Term Bearish" sub="15+ DTE"><NC data={flowData.lTerm.symR} fill={P.be} dir="bear"/></Card>
+        <div style={{fontSize:10,fontWeight:700,color:P.dm,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>Top Conviction Strikes</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8,marginBottom:12}}>
+          {flowData.CONV.map((t,i)=>{const c=t.dir==="BULL"?P.bu:P.be;return <div key={i} style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:8,padding:"10px 12px",borderTop:`2px solid ${c}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><span style={{fontSize:14,fontWeight:900,color:P.wh}}>{t.sym}</span>{t.side==="AA"?<Tag c={P.ac}>AA</Tag>:t.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>{t.side||"A"}</Tag>}</div><div style={{fontSize:13,fontWeight:800,color:c}}>{t.strike} <span style={{fontSize:11,fontWeight:700,color:P.wh}}>{t.exp}</span></div><div style={{fontSize:10,color:P.dm,marginTop:4}}><span style={{color:P.ac,fontWeight:700}}>{t.hits}x</span> · {fmt(t.prem)}</div><div style={{marginTop:4}}><Tag c={c}>{t.dir}</Tag></div></div>})}
         </div>
-      </div>}
 
-      {/* ═══ PERFORMANCE ═══ */}
-      {tab==="Performance"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-        <Card>
-          <div style={{display:"flex",gap:14,alignItems:"center"}}>
-            <div style={{width:3,background:P.ac,borderRadius:2,alignSelf:"stretch",flexShrink:0}}/>
-            <div style={{flex:1}}>
-              <div style={{fontSize:13,fontWeight:700,color:P.ac,marginBottom:5}}>Contract Performance Tracker</div>
-              <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>
-                Entry is the contract price from the largest trade on each strike. Range shows the low-high across all hits.
+        <div style={{display:"flex",gap:1,marginBottom:14,background:P.al,borderRadius:6,padding:2,width:"fit-content"}}>
+          {TABS.map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:"6px 16px",borderRadius:5,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",background:tab===t?P.cd:"transparent",color:tab===t?P.wh:P.mt}}>{t}</button>)}
+        </div>
+
+        {tab==="Market Read"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <Card title="Confirmed Daily Flow" sub="Bull vs Bear (live exps only)">
+            <div style={{height:200}}><ResponsiveContainer><BarChart data={flowData.DAYS} margin={{top:5,right:8,left:0,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke={P.bd}/><XAxis dataKey="d" tick={{fill:P.tx,fontSize:10,fontWeight:600}} tickLine={false}/><YAxis tick={{fill:P.mt,fontSize:9}} tickLine={false} axisLine={false} tickFormatter={fmt} width={52}/><Tooltip content={({active,payload,label})=>{if(!active||!payload||!payload.length)return null;return <div style={{background:"#152038",border:`1px solid ${P.bl}`,borderRadius:6,padding:"8px 12px",fontSize:11}}><div style={{color:P.dm,fontWeight:600,marginBottom:4}}>{label}</div>{payload.map((p,i)=><div key={i} style={{color:p.color,display:"flex",gap:8,justifyContent:"space-between"}}><span>{p.name}</span><span style={{fontWeight:700,fontFamily:"monospace"}}>{fmt(Math.abs(p.value))}</span></div>)}</div>}}/><Bar dataKey="b" name="Bullish" fill={P.bu} radius={[3,3,0,0]} barSize={20}/><Bar dataKey="r" name="Bearish" fill={P.be} radius={[3,3,0,0]} barSize={20}/></BarChart></ResponsiveContainer></div>
+          </Card>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <Card title="Short-Term Bullish" sub="0-14 DTE"><NC data={flowData.sTerm.symB} fill={P.bu} dir="bull"/></Card>
+            <Card title="Short-Term Bearish" sub="0-14 DTE"><NC data={flowData.sTerm.symR} fill={P.be} dir="bear"/></Card>
+            <Card title="Long-Term Bullish" sub="15+ DTE"><NC data={flowData.lTerm.symB} fill={P.bu} dir="bull"/></Card>
+            <Card title="Long-Term Bearish" sub="15+ DTE"><NC data={flowData.lTerm.symR} fill={P.be} dir="bear"/></Card>
+          </div>
+        </div>}
+
+        {/* ═══ PERFORMANCE ═══ */}
+        {tab==="Performance"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <Card>
+            <div style={{display:"flex",gap:14,alignItems:"center"}}>
+              <div style={{width:3,background:P.ac,borderRadius:2,alignSelf:"stretch",flexShrink:0}}/>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:700,color:P.ac,marginBottom:5}}>Contract Performance Tracker</div>
+                <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>
+                  Entry is the contract price from the largest trade on each strike. Range shows the low-high across all hits.
+                </div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                <button
+                  onClick={fetchPrices}
+                  disabled={loading}
+                  style={{
+                    padding:"8px 20px",borderRadius:6,border:"none",cursor:loading?"not-allowed":"pointer",
+                    fontSize:11,fontWeight:700,fontFamily:"inherit",letterSpacing:0.5,
+                    background:loading?P.bd:P.ac,color:loading?P.dm:P.bg,
+                    opacity:loading?0.6:1,
+                  }}
+                >{loading ? "Fetching..." : "Simulate Refresh Prices"}</button>
+                {status && <span style={{fontSize:9,color:loading?P.ac:P.dm}}>{status}</span>}
               </div>
             </div>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
-              <button
-                onClick={fetchPrices}
-                disabled={loading}
-                style={{
-                  padding:"8px 20px",borderRadius:6,border:"none",cursor:loading?"not-allowed":"pointer",
-                  fontSize:11,fontWeight:700,fontFamily:"inherit",letterSpacing:0.5,
-                  background:loading?P.bd:P.ac,color:loading?P.dm:P.bg,
-                  opacity:loading?0.6:1,
-                }}
-              >{loading ? "Fetching..." : "Simulate Refresh Prices"}</button>
-              {status && <span style={{fontSize:9,color:loading?P.ac:P.dm}}>{status}</span>}
+          </Card>
+          {["Conviction","Short Bull","Short Bear","Long Bull","Long Bear","LEAPS Bull","LEAPS Bear"].map(cat => {
+            const items = perf.filter(p => p.cat === cat);
+            if (items.length === 0) return null;
+            const catColor = cat.includes("Bull") ? P.bu : cat.includes("Bear") ? P.be : P.ac;
+            return (
+              <Card key={cat} title={cat} sub={`${items.length} contracts`} col={catColor}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}>
+                  <thead>
+                    <tr style={{borderBottom:`1px solid ${P.bd}`}}>
+                      {["Ticker","C/P","Strike","Exp","Hits","Entry","Range","Now","P&L","P&L %","Dir"].map(h =>
+                        <th key={h} style={{padding:"5px 5px",textAlign:"left",color:P.mt,fontSize:9,fontWeight:600}}>{h}</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((r,i) => {
+                      const curr = r.now || 0;
+                      const pnl = curr > 0 ? curr - r.entry : 0;
+                      const pnlPct = curr > 0 && r.entry > 0 ? ((curr - r.entry) / r.entry * 100) : 0;
+                      const pnlColor = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
+                      return (
+                        <tr key={r.id} style={{borderBottom:`1px solid ${P.bd}10`}}>
+                          <td style={{padding:"5px 5px",fontWeight:800,color:P.wh}}>{r.sym}</td>
+                          <td style={{padding:"5px 5px"}}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
+                          <td style={{padding:"5px 5px",fontWeight:800,color:P.wh}}>${r.strike}</td>
+                          <td style={{padding:"5px 5px",fontWeight:800,color:P.wh}}>{r.exp}</td>
+                          <td style={{padding:"5px 5px"}}><span style={{fontWeight:800,color:r.hits>=10?P.ac:r.hits>=5?P.ye:P.dm}}>{r.hits}x</span></td>
+                          <td style={{padding:"5px 5px",fontWeight:700,color:P.wh}}>${r.entry.toFixed(2)}</td>
+                          <td style={{padding:"5px 5px",fontSize:9,color:P.mt}}>${r.lo && r.lo !== r.hi ? `${r.lo.toFixed(2)}-${r.hi.toFixed(2)}` : "—"}</td>
+                          <td style={{padding:"5px 5px"}}>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={curr || ""}
+                              placeholder="—"
+                              onChange={e => {
+                                const v = parseFloat(e.target.value) || 0;
+                                setPerf(prev => prev.map(p => p.id === r.id ? {...p, now: v} : p));
+                              }}
+                              style={{
+                                width:70,padding:"3px 6px",borderRadius:4,fontSize:10,fontWeight:700,
+                                background:P.al,border:`1px solid ${P.bl}`,color:P.wh,fontFamily:"inherit",
+                                outline:"none",
+                              }}
+                            />
+                          </td>
+                          <td style={{padding:"5px 5px",fontWeight:700,color:pnlColor}}>
+                            {curr > 0 ? `${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}` : "—"}
+                          </td>
+                          <td style={{padding:"5px 5px",fontWeight:700,color:pnlColor}}>
+                            {curr > 0 ? `${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%` : "—"}
+                          </td>
+                          <td style={{padding:"5px 5px"}}><Tag c={r.dir==="BULL"?P.bu:P.be}>{r.dir}</Tag></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </Card>
+            );
+          })}
+        </div>}
+
+        {tab==="Short Term"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <Card title="Bullish Bets" sub="0-14 DTE"><NC data={flowData.sTerm.symB} fill={P.bu} dir="bull"/></Card>
+            <Card title="Bearish Bets" sub="0-14 DTE"><NC data={flowData.sTerm.symR} fill={P.be} dir="bear"/></Card>
+          </div>
+          <Card title="Short-Term Bullish Trades"><TT rows={flowData.sTerm.tradesB}/></Card>
+          <Card title="Short-Term Bearish Trades"><TT rows={flowData.sTerm.tradesR}/></Card>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <Card title="Bullish Consistency" sub="2+ hits"><CT rows={flowData.sTerm.consistB}/></Card>
+            <Card title="Bearish Consistency" sub="2+ hits"><CT rows={flowData.sTerm.consistR}/></Card>
+          </div>
+        </div>}
+
+        {tab==="Long Term"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <Card title="Bullish Bets" sub="15+ DTE"><NC data={flowData.lTerm.symB} fill={P.bu} dir="bull"/></Card>
+            <Card title="Bearish Bets" sub="15+ DTE"><NC data={flowData.lTerm.symR} fill={P.be} dir="bear"/></Card>
+          </div>
+          <Card title="Long-Term Bullish Trades"><TT rows={flowData.lTerm.tradesB}/></Card>
+          <Card title="Long-Term Bearish Trades"><TT rows={flowData.lTerm.tradesR}/></Card>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <Card title="Bullish Consistency" sub="2+ hits"><CT rows={flowData.lTerm.consistB}/></Card>
+            <Card title="Bearish Consistency" sub="2+ hits"><CT rows={flowData.lTerm.consistR}/></Card>
+          </div>
+        </div>}
+
+        {tab==="LEAPS"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.bu : P.be}`}}>
+              <div style={{fontSize:11,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.bu : P.be,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>LEAPS Bull Side</div>
+              <div style={{fontSize:24,fontWeight:900,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.bu : P.be,marginBottom:4}}>{fmt(flowData.lpTerm.bullPrem)}</div>
+            </div>
+            <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.be : P.bu}`}}>
+              <div style={{fontSize:11,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.be : P.bu,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>LEAPS Bear Side</div>
+              <div style={{fontSize:24,fontWeight:900,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.be : P.bu,marginBottom:4}}>{fmt(flowData.lpTerm.bearPrem)}</div>
             </div>
           </div>
-        </Card>
-        {["Conviction","Short Bull","Short Bear","Long Bull","Long Bear","LEAPS Bull","LEAPS Bear"].map(cat => {
-          const items = perf.filter(p => p.cat === cat);
-          if (items.length === 0) return null;
-          const catColor = cat.includes("Bull") ? P.bu : cat.includes("Bear") ? P.be : P.ac;
-          return (
-            <Card key={cat} title={cat} sub={`${items.length} contracts`} col={catColor}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}>
-                <thead>
-                  <tr style={{borderBottom:`1px solid ${P.bd}`}}>
-                    {["Ticker","C/P","Strike","Exp","Hits","Entry","Range","Now","P&L","P&L %","Dir"].map(h =>
-                      <th key={h} style={{padding:"5px 5px",textAlign:"left",color:P.mt,fontSize:9,fontWeight:600}}>{h}</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((r,i) => {
-                    const curr = r.now || 0;
-                    const pnl = curr > 0 ? curr - r.entry : 0;
-                    const pnlPct = curr > 0 && r.entry > 0 ? ((curr - r.entry) / r.entry * 100) : 0;
-                    const pnlColor = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
-                    return (
-                      <tr key={r.id} style={{borderBottom:`1px solid ${P.bd}10`}}>
-                        <td style={{padding:"5px 5px",fontWeight:800,color:P.wh}}>{r.sym}</td>
-                        <td style={{padding:"5px 5px"}}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
-                        <td style={{padding:"5px 5px",fontWeight:800,color:P.wh}}>${r.strike}</td>
-                        <td style={{padding:"5px 5px",fontWeight:800,color:P.wh}}>{r.exp}</td>
-                        <td style={{padding:"5px 5px"}}><span style={{fontWeight:800,color:r.hits>=10?P.ac:r.hits>=5?P.ye:P.dm}}>{r.hits}x</span></td>
-                        <td style={{padding:"5px 5px",fontWeight:700,color:P.wh}}>${r.entry.toFixed(2)}</td>
-                        <td style={{padding:"5px 5px",fontSize:9,color:P.mt}}>${r.lo && r.lo !== r.hi ? `${r.lo.toFixed(2)}-${r.hi.toFixed(2)}` : "—"}</td>
-                        <td style={{padding:"5px 5px"}}>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={curr || ""}
-                            placeholder="—"
-                            onChange={e => {
-                              const v = parseFloat(e.target.value) || 0;
-                              setPerf(prev => prev.map(p => p.id === r.id ? {...p, now: v} : p));
-                            }}
-                            style={{
-                              width:70,padding:"3px 6px",borderRadius:4,fontSize:10,fontWeight:700,
-                              background:P.al,border:`1px solid ${P.bl}`,color:P.wh,fontFamily:"inherit",
-                              outline:"none",
-                            }}
-                          />
-                        </td>
-                        <td style={{padding:"5px 5px",fontWeight:700,color:pnlColor}}>
-                          {curr > 0 ? `${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}` : "—"}
-                        </td>
-                        <td style={{padding:"5px 5px",fontWeight:700,color:pnlColor}}>
-                          {curr > 0 ? `${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%` : "—"}
-                        </td>
-                        <td style={{padding:"5px 5px"}}><Tag c={r.dir==="BULL"?P.bu:P.be}>{r.dir}</Tag></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </Card>
-          );
-        })}
-      </div>}
-
-      {tab==="Short Term"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Card title="Bullish Bets" sub="0-14 DTE"><NC data={flowData.sTerm.symB} fill={P.bu} dir="bull"/></Card>
-          <Card title="Bearish Bets" sub="0-14 DTE"><NC data={flowData.sTerm.symR} fill={P.be} dir="bear"/></Card>
-        </div>
-        <Card title="Short-Term Bullish Trades"><TT rows={flowData.sTerm.tradesB}/></Card>
-        <Card title="Short-Term Bearish Trades"><TT rows={flowData.sTerm.tradesR}/></Card>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Card title="Bullish Consistency" sub="2+ hits"><CT rows={flowData.sTerm.consistB}/></Card>
-          <Card title="Bearish Consistency" sub="2+ hits"><CT rows={flowData.sTerm.consistR}/></Card>
-        </div>
-      </div>}
-
-      {tab==="Long Term"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Card title="Bullish Bets" sub="15+ DTE"><NC data={flowData.lTerm.symB} fill={P.bu} dir="bull"/></Card>
-          <Card title="Bearish Bets" sub="15+ DTE"><NC data={flowData.lTerm.symR} fill={P.be} dir="bear"/></Card>
-        </div>
-        <Card title="Long-Term Bullish Trades"><TT rows={flowData.lTerm.tradesB}/></Card>
-        <Card title="Long-Term Bearish Trades"><TT rows={flowData.lTerm.tradesR}/></Card>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Card title="Bullish Consistency" sub="2+ hits"><CT rows={flowData.lTerm.consistB}/></Card>
-          <Card title="Bearish Consistency" sub="2+ hits"><CT rows={flowData.lTerm.consistR}/></Card>
-        </div>
-      </div>}
-
-      {tab==="LEAPS"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.bu : P.be}`}}>
-            <div style={{fontSize:11,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.bu : P.be,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>LEAPS Bull Side</div>
-            <div style={{fontSize:24,fontWeight:900,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.bu : P.be,marginBottom:4}}>{fmt(flowData.lpTerm.bullPrem)}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <Card title="Bullish Bets" sub="180+ DTE"><NC data={flowData.lpTerm.symB} fill={P.bu} dir="bull"/></Card>
+            <Card title="Bearish Bets" sub="180+ DTE"><NC data={flowData.lpTerm.symR} fill={P.be} dir="bear"/></Card>
           </div>
-          <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.be : P.bu}`}}>
-            <div style={{fontSize:11,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.be : P.bu,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>LEAPS Bear Side</div>
-            <div style={{fontSize:24,fontWeight:900,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.be : P.bu,marginBottom:4}}>{fmt(flowData.lpTerm.bearPrem)}</div>
+          <Card title="LEAPS Bullish Trades"><TT rows={flowData.lpTerm.tradesB}/></Card>
+          <Card title="LEAPS Bearish Trades"><TT rows={flowData.lpTerm.tradesR}/></Card>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <Card title="Bull Consistency" sub="2+ hits"><CT rows={flowData.lpTerm.consistB}/></Card>
+            <Card title="Bear Consistency" sub="2+ hits"><CT rows={flowData.lpTerm.consistR}/></Card>
           </div>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Card title="Bullish Bets" sub="180+ DTE"><NC data={flowData.lpTerm.symB} fill={P.bu} dir="bull"/></Card>
-          <Card title="Bearish Bets" sub="180+ DTE"><NC data={flowData.lpTerm.symR} fill={P.be} dir="bear"/></Card>
-        </div>
-        <Card title="LEAPS Bullish Trades"><TT rows={flowData.lpTerm.tradesB}/></Card>
-        <Card title="LEAPS Bearish Trades"><TT rows={flowData.lpTerm.tradesR}/></Card>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Card title="Bull Consistency" sub="2+ hits"><CT rows={flowData.lpTerm.consistB}/></Card>
-          <Card title="Bear Consistency" sub="2+ hits"><CT rows={flowData.lpTerm.consistR}/></Card>
-        </div>
-      </div>}
+        </div>}
 
-      {tab==="OI Watchlist"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-        <Card><div style={{display:"flex",gap:14}}><div style={{width:3,background:P.uc,borderRadius:2,alignSelf:"stretch",flexShrink:0}}/><div><div style={{fontSize:13,fontWeight:700,color:P.uc,marginBottom:5}}>OI Check Needed</div><div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>{flowData.whiteCount} unconfirmed trades this week. Check OI changes to confirm direction.</div></div></div></Card>
-        <Card title="OI Watchlist" sub="Top unconfirmed by premium">
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}><thead><tr style={{borderBottom:`1px solid ${P.bd}`}}>{["Ticker","C/P","Strike","Exp","Type","Side","Vol","OI","Premium","Vol/OI"].map(h=><th key={h} style={{padding:"5px 4px",textAlign:"left",color:P.mt,fontSize:9,fontWeight:600}}>{h}</th>)}</tr></thead><tbody>{flowData.WATCH.map((r,i)=>{const pct=r.OI>0?Math.round(r.V/r.OI*100):999;return <tr key={i} style={{borderBottom:`1px solid ${P.bd}10`}}><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.S}</td><td style={{padding:"5px 4px"}}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>${r.K}</td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.E}</td><td style={{padding:"5px 4px"}}><Tag c={tc(r.Ty)}>{r.Ty}</Tag></td><td style={{padding:"5px 4px"}}>{r.Si==="BB"?<Tag c={P.be}>BB</Tag>:r.Si==="AA"?<Tag c={P.ac}>AA</Tag>:r.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>{r.Si||"A"}</Tag>}</td><td style={{padding:"5px 4px",color:P.dm}}>{fK(r.V)}</td><td style={{padding:"5px 4px",color:P.dm}}>{fK(r.OI)}</td><td style={{padding:"5px 4px",fontWeight:700,color:P.wh}}>{fmt(r.P)}</td><td style={{padding:"5px 4px",fontWeight:600,color:pct>=80?P.ac:pct>=50?P.ye:P.dm}}>{pct}%</td></tr>})}</tbody></table>
-        </Card>
-      </div>}
+        {tab==="OI Watchlist"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <Card><div style={{display:"flex",gap:14}}><div style={{width:3,background:P.uc,borderRadius:2,alignSelf:"stretch",flexShrink:0}}/><div><div style={{fontSize:13,fontWeight:700,color:P.uc,marginBottom:5}}>OI Check Needed</div><div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>{flowData.whiteCount} unconfirmed trades this week. Check OI changes to confirm direction.</div></div></div></Card>
+          <Card title="OI Watchlist" sub="Top unconfirmed by premium">
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}><thead><tr style={{borderBottom:`1px solid ${P.bd}`}}>{["Ticker","C/P","Strike","Exp","Type","Side","Vol","OI","Premium","Vol/OI"].map(h=><th key={h} style={{padding:"5px 4px",textAlign:"left",color:P.mt,fontSize:9,fontWeight:600}}>{h}</th>)}</tr></thead><tbody>{flowData.WATCH.map((r,i)=>{const pct=r.OI>0?Math.round(r.V/r.OI*100):999;return <tr key={i} style={{borderBottom:`1px solid ${P.bd}10`}}><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.S}</td><td style={{padding:"5px 4px"}}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>${r.K}</td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.E}</td><td style={{padding:"5px 4px"}}><Tag c={tc(r.Ty)}>{r.Ty}</Tag></td><td style={{padding:"5px 4px"}}>{r.Si==="BB"?<Tag c={P.be}>BB</Tag>:r.Si==="AA"?<Tag c={P.ac}>AA</Tag>:r.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>{r.Si||"A"}</Tag>}</td><td style={{padding:"5px 4px",color:P.dm}}>{fK(r.V)}</td><td style={{padding:"5px 4px",color:P.dm}}>{fK(r.OI)}</td><td style={{padding:"5px 4px",fontWeight:700,color:P.wh}}>{fmt(r.P)}</td><td style={{padding:"5px 4px",fontWeight:600,color:pct>=80?P.ac:pct>=50?P.ye:P.dm}}>{pct}%</td></tr>})}</tbody></table>
+          </Card>
+        </div>}
 
-      <div style={{marginTop:16,padding:"10px 0",borderTop:`1px solid ${P.bd}`,display:"flex",justifyContent:"space-between"}}><span style={{fontSize:9,color:P.mt}}>Flow Data Uploaded Automatically</span><span style={{fontSize:9,color:P.mt}}>YELLOW/MAG = confirmed · WHITE = check OI</span></div>
+        <div style={{marginTop:16,padding:"10px 0",borderTop:`1px solid ${P.bd}`,display:"flex",justifyContent:"space-between"}}><span style={{fontSize:9,color:P.mt}}>Flow Data Uploaded Automatically</span><span style={{fontSize:9,color:P.mt}}>YELLOW/MAG = confirmed · WHITE = check OI</span></div>
+      </div>
     </div>
   );
 }
