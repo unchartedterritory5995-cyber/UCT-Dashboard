@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { Search, X } from "lucide-react";
 
 const P = {
   bg: "#06090f",
@@ -117,8 +118,16 @@ export default function Dashboard() {
   const [perf, setPerf] = useState(PERF_INIT.map(p => ({ ...p, now: 0 })));
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const apiKey = "";
+
+  // Helper for case-insensitive filtering across different data structures
+  const filterByTicker = (data, keyName = 'S') => {
+    if (!searchQuery) return data;
+    const q = searchQuery.toUpperCase();
+    return data.filter(item => (item[keyName] || '').toUpperCase().includes(q));
+  };
 
   async function fetchWithRetry(url, options, maxRetries = 5) {
     for (let i = 0; i < maxRetries; i++) {
@@ -142,7 +151,6 @@ export default function Dashboard() {
     const updated = [...perf];
     const contractsToFetch = perf.filter(p => p.now === 0 || !p.now);
     
-    // Batching to prevent huge payloads
     const batchSize = 5;
     const batches = [];
     for (let i = 0; i < contractsToFetch.length; i += batchSize) {
@@ -196,7 +204,6 @@ export default function Dashboard() {
         console.error("Gemini API Error:", e);
       }
       
-      // Delay to avoid rate limits
       if (i < batches.length - 1) await new Promise(r => setTimeout(r, 2000));
     }
 
@@ -205,164 +212,236 @@ export default function Dashboard() {
     setStatus("Pricing update complete.");
   }
 
-  return <div style={{ background: P.bg, color: P.tx, fontFamily: "'SF Mono','Fira Code',monospace", minHeight: "100vh", padding: "16px 20px" }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-      <div style={{ width: 6, height: 6, borderRadius: "50%", background: P.ac, boxShadow: `0 0 10px ${P.ac}` }} />
-      <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: P.wh }}>OPTIONS FLOW — MARKET READ</h1>
-      <span style={{ marginLeft: "auto", fontSize: 10, color: P.mt, background: P.al, padding: "3px 10px", borderRadius: 4 }}>WEEK OF MAR 2–6 2026</span>
-    </div>
-    <p style={{ fontSize: 10, color: P.mt, margin: "0 0 12px 16px" }}>8,783 live trades · 797 symbols · $5.4B · Confirmed (YELLOW/MAG) · No deep ITM</p>
-
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-      <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.bu}` }}>
-        <div style={{ fontSize: 11, color: P.bu, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>Short-Term Outlook</div>
-        <div style={{ fontSize: 36, fontWeight: 900, color: P.bu, marginBottom: 8 }}>BULLISH</div>
-        <div style={{ fontSize: 11, color: P.dm, lineHeight: 1.7 }}>0-14 DTE: Bull $237M vs Bear $210M. TSLA $410C 3/13 hit <strong style={{ color: P.ac }}>10x</strong>. MU $430C 3/20 hit <strong style={{ color: P.ac }}>20x</strong>.</div>
+  return <div style={{ background: P.bg, color: P.tx, fontFamily: "'SF Mono','Fira Code',monospace", minHeight: "100vh", padding: "16px 5%" }}>
+    <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+        <div style={{ width: 6, height: 6, borderRadius: "50%", background: P.ac, boxShadow: `0 0 10px ${P.ac}` }} />
+        <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: P.wh }}>OPTIONS FLOW — MARKET READ</h1>
+        <span style={{ marginLeft: "auto", fontSize: 10, color: P.mt, background: P.al, padding: "3px 10px", borderRadius: 4 }}>WEEK OF MAR 2–6 2026</span>
       </div>
-      <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.bu}` }}>
-        <div style={{ fontSize: 11, color: P.bu, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>Long-Term Outlook</div>
-        <div style={{ fontSize: 36, fontWeight: 900, color: P.bu, marginBottom: 8 }}>BULLISH</div>
-        <div style={{ fontSize: 11, color: P.dm, lineHeight: 1.7 }}>15+ DTE: Bull $772M vs Bear $582M. MSFT $575-$675C Jan 2027 ($122M). TSLA $410C 3/20 hit <strong style={{ color: P.ac }}>15x</strong>.</div>
+      
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+        <p style={{ fontSize: 10, color: P.mt, margin: 0 }}>8,783 live trades · 797 symbols · $5.4B · Confirmed (YELLOW/MAG) · No deep ITM</p>
+        
+        {/* Search Bar */}
+        <div style={{ marginLeft: "auto", position: "relative", width: "240px" }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: P.mt }} />
+          <input 
+            type="text" 
+            placeholder="Search Ticker (e.g. TSLA)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: "100%",
+              background: P.cd,
+              border: `1px solid ${P.bd}`,
+              borderRadius: 6,
+              padding: "8px 10px 8px 30px",
+              fontSize: 11,
+              fontWeight: 600,
+              color: P.wh,
+              fontFamily: "inherit",
+              outline: "none"
+            }}
+          />
+          {searchQuery && (
+            <X 
+              size={14} 
+              onClick={() => setSearchQuery("")} 
+              style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: P.mt, cursor: "pointer" }} 
+            />
+          )}
+        </div>
       </div>
-    </div>
 
-    <div style={{ display: "flex", gap: 1, marginBottom: 14, background: P.al, borderRadius: 6, padding: 2, width: "fit-content" }}>
-      {TABS.map(t => <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit", background: tab === t ? P.cd : "transparent", color: tab === t ? P.wh : P.mt }}>{t}</button>)}
-    </div>
-
-    {tab === "Market Read" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <Card title="Confirmed Daily Flow" sub="Bull vs Bear (live exps only)">
-        <div style={{ height: 200 }}><ResponsiveContainer><BarChart data={DAYS} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke={P.bd} /><XAxis dataKey="d" tick={{ fill: P.tx, fontSize: 10, fontWeight: 600 }} tickLine={false} /><YAxis tick={{ fill: P.mt, fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={fmt} width={52} /><Tooltip content={({ active, payload, label }) => { if (!active || !payload || !payload.length) return null; return <div style={{ background: "#152038", border: `1px solid ${P.bl}`, borderRadius: 6, padding: "8px 12px", fontSize: 11 }}><div style={{ color: P.dm, fontWeight: 600, marginBottom: 4 }}>{label}</div>{payload.map((p, i) => <div key={i} style={{ color: p.color, display: "flex", gap: 8, justifyContent: "space-between" }}><span>{p.name}</span><span style={{ fontWeight: 700, fontFamily: "monospace" }}>{fmt(Math.abs(p.value))}</span></div>)}</div> }} /><Bar dataKey="b" name="Bullish" fill={P.bu} radius={[3, 3, 0, 0]} barSize={20} /><Bar dataKey="r" name="Bearish" fill={P.be} radius={[3, 3, 0, 0]} barSize={20} /></BarChart></ResponsiveContainer></div>
-      </Card>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <Card title="Short-Term Bullish" sub="0-14 DTE"><NC data={SB_SYM} fill={P.bu} dir="bull" /></Card>
-        <Card title="Short-Term Bearish" sub="0-14 DTE"><NC data={SR_SYM} fill={P.be} dir="bear" /></Card>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+        <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.bu}` }}>
+          <div style={{ fontSize: 11, color: P.bu, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>Short-Term Outlook</div>
+          <div style={{ fontSize: 36, fontWeight: 900, color: P.bu, marginBottom: 8 }}>BULLISH</div>
+          <div style={{ fontSize: 11, color: P.dm, lineHeight: 1.7 }}>0-14 DTE: Bull $237M vs Bear $210M. TSLA $410C 3/13 hit <strong style={{ color: P.ac }}>10x</strong>. MU $430C 3/20 hit <strong style={{ color: P.ac }}>20x</strong>.</div>
+        </div>
+        <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.bu}` }}>
+          <div style={{ fontSize: 11, color: P.bu, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>Long-Term Outlook</div>
+          <div style={{ fontSize: 36, fontWeight: 900, color: P.bu, marginBottom: 8 }}>BULLISH</div>
+          <div style={{ fontSize: 11, color: P.dm, lineHeight: 1.7 }}>15+ DTE: Bull $772M vs Bear $582M. MSFT $575-$675C Jan 2027 ($122M). TSLA $410C 3/20 hit <strong style={{ color: P.ac }}>15x</strong>.</div>
+        </div>
       </div>
-    </div>}
 
-    {tab === "Performance" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <Card>
-        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-          <div style={{ width: 3, background: P.ac, borderRadius: 2, alignSelf: "stretch", flexShrink: 0 }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: P.ac, marginBottom: 5 }}>Contract Performance Tracker</div>
-            <div style={{ fontSize: 11, color: P.dm, lineHeight: 1.7 }}>
-              Real-time contract pricing via Google Search grounding. Entry represents premium at flow signal.
+      <div style={{ display: "flex", gap: 1, marginBottom: 14, background: P.al, borderRadius: 6, padding: 2, width: "fit-content" }}>
+        {TABS.map(t => <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit", background: tab === t ? P.cd : "transparent", color: tab === t ? P.wh : P.mt }}>{t}</button>)}
+      </div>
+
+      {tab === "Market Read" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {!searchQuery && (
+          <Card title="Confirmed Daily Flow" sub="Bull vs Bear (live exps only)">
+            <div style={{ height: 200 }}><ResponsiveContainer><BarChart data={DAYS} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke={P.bd} /><XAxis dataKey="d" tick={{ fill: P.tx, fontSize: 10, fontWeight: 600 }} tickLine={false} /><YAxis tick={{ fill: P.mt, fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={fmt} width={52} /><Tooltip content={({ active, payload, label }) => { if (!active || !payload || !payload.length) return null; return <div style={{ background: "#152038", border: `1px solid ${P.bl}`, borderRadius: 6, padding: "8px 12px", fontSize: 11 }}><div style={{ color: P.dm, fontWeight: 600, marginBottom: 4 }}>{label}</div>{payload.map((p, i) => <div key={i} style={{ color: p.color, display: "flex", gap: 8, justifyContent: "space-between" }}><span>{p.name}</span><span style={{ fontWeight: 700, fontFamily: "monospace" }}>{fmt(Math.abs(p.value))}</span></div>)}</div> }} /><Bar dataKey="b" name="Bullish" fill={P.bu} radius={[3, 3, 0, 0]} barSize={20} /><Bar dataKey="r" name="Bearish" fill={P.be} radius={[3, 3, 0, 0]} barSize={20} /></BarChart></ResponsiveContainer></div>
+          </Card>
+        )}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Card title="Short-Term Bullish" sub="0-14 DTE"><NC data={filterByTicker(SB_SYM, 's')} fill={P.bu} dir="bull" /></Card>
+          <Card title="Short-Term Bearish" sub="0-14 DTE"><NC data={filterByTicker(SR_SYM, 's')} fill={P.be} dir="bear" /></Card>
+        </div>
+        
+        <div style={{ fontSize: 10, fontWeight: 700, color: P.dm, letterSpacing: 1.5, textTransform: "uppercase", marginTop: 8 }}>Top Conviction Strikes</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8 }}>
+          {filterByTicker(CONV, 'sym').map((t, i) => {
+            const c = t.dir === "BULL" ? P.bu : P.be;
+            return <div key={i} style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 8, padding: "10px 12px", borderTop: `2px solid ${c}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontSize: 14, fontWeight: 900, color: P.wh }}>{t.sym}</span>
+                {t.side === "AA" ? <Tag c={P.ac}>AA</Tag> : <Tag c={P.mt}>ASK</Tag>}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: c }}>{t.strike} <span style={{ fontSize: 11, fontWeight: 700, color: P.wh }}>{t.exp}</span></div>
+              <div style={{ fontSize: 10, color: P.dm, marginTop: 4 }}><span style={{ color: P.ac, fontWeight: 700 }}>{t.hits}x</span> · {fmt(t.prem)}</div>
+            </div>
+          })}
+        </div>
+      </div>}
+
+      {tab === "Performance" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <Card>
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            <div style={{ width: 3, background: P.ac, borderRadius: 2, alignSelf: "stretch", flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: P.ac, marginBottom: 5 }}>Contract Performance Tracker</div>
+              <div style={{ fontSize: 11, color: P.dm, lineHeight: 1.7 }}>
+                Real-time contract pricing via Google Search grounding. Entry represents premium at flow signal.
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+              <button
+                onClick={fetchPrices}
+                disabled={loading}
+                style={{
+                  padding: "8px 20px", borderRadius: 6, border: "none", cursor: loading ? "not-allowed" : "pointer",
+                  fontSize: 11, fontWeight: 700, fontFamily: "inherit", letterSpacing: 0.5,
+                  background: loading ? P.bd : P.ac, color: loading ? P.dm : P.bg,
+                  opacity: loading ? 0.6 : 1, transition: "all 0.2s"
+                }}
+              >{loading ? "Fetching Prices..." : "Update Live Prices"}</button>
+              {status && <span style={{ fontSize: 9, color: loading ? P.ac : P.dm }}>{status}</span>}
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-            <button
-              onClick={fetchPrices}
-              disabled={loading}
-              style={{
-                padding: "8px 20px", borderRadius: 6, border: "none", cursor: loading ? "not-allowed" : "pointer",
-                fontSize: 11, fontWeight: 700, fontFamily: "inherit", letterSpacing: 0.5,
-                background: loading ? P.bd : P.ac, color: loading ? P.dm : P.bg,
-                opacity: loading ? 0.6 : 1, transition: "all 0.2s"
-              }}
-            >{loading ? "Fetching Prices..." : "Update Live Prices"}</button>
-            {status && <span style={{ fontSize: 9, color: loading ? P.ac : P.dm }}>{status}</span>}
+        </Card>
+
+        {["Conviction", "Short Bull", "Short Bear", "Long Bull", "Long Bear", "LEAPS Bull", "LEAPS Bear"].map(cat => {
+          const items = filterByTicker(perf.filter(p => p.cat === cat), 'sym');
+          if (items.length === 0) return null;
+          return (
+            <Card key={cat} title={cat} sub={`${items.length} positions`}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${P.bd}` }}>
+                    {["Ticker", "C/P", "Strike", "Exp", "Hits", "Entry", "Current", "P&L", "%", "Action"].map(h =>
+                      <th key={h} style={{ padding: "5px 5px", textAlign: "left", color: P.mt, fontSize: 9, fontWeight: 600 }}>{h}</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((r) => {
+                    const curr = r.now || 0;
+                    const pnl = curr > 0 ? curr - r.entry : 0;
+                    const pnlPct = curr > 0 && r.entry > 0 ? ((curr - r.entry) / r.entry * 100) : 0;
+                    const pnlColor = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
+                    return (
+                      <tr key={r.id} style={{ borderBottom: `1px solid ${P.bd}10` }}>
+                        <td style={{ padding: "5px 5px", fontWeight: 800, color: P.wh }}>{r.sym}</td>
+                        <td style={{ padding: "5px 5px" }}><Tag c={r.cp === "C" ? P.bu : P.be}>{r.cp}</Tag></td>
+                        <td style={{ padding: "5px 5px", fontWeight: 800, color: P.wh }}>${r.strike}</td>
+                        <td style={{ padding: "5px 5px", fontWeight: 800, color: P.wh }}>{r.exp}</td>
+                        <td style={{ padding: "5px 5px" }}><span style={{ fontWeight: 800, color: r.hits >= 10 ? P.ac : r.hits >= 5 ? P.ye : P.dm }}>{r.hits}x</span></td>
+                        <td style={{ padding: "5px 5px", fontWeight: 700, color: P.wh }}>${r.entry.toFixed(2)}</td>
+                        <td style={{ padding: "5px 5px" }}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={curr || ""}
+                            placeholder="—"
+                            onChange={e => {
+                              const v = parseFloat(e.target.value) || 0;
+                              setPerf(prev => prev.map(p => p.id === r.id ? { ...p, now: v } : p));
+                            }}
+                            style={{
+                              width: 60, padding: "3px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700,
+                              background: P.al, border: `1px solid ${P.bl}`, color: P.wh, fontFamily: "inherit",
+                              outline: "none",
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding: "5px 5px", fontWeight: 700, color: pnlColor }}>
+                          {curr > 0 ? `${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}` : "—"}
+                        </td>
+                        <td style={{ padding: "5px 5px", fontWeight: 700, color: pnlColor }}>
+                          {curr > 0 ? `${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%` : "—"}
+                        </td>
+                        <td style={{ padding: "5px 5px" }}><Tag c={r.dir === "BULL" ? P.bu : P.be}>{r.dir}</Tag></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Card>
+          );
+        })}
+      </div>}
+
+      {tab === "Short Term" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Card title="Bullish Bets" sub="0-14 DTE"><NC data={filterByTicker(SB_SYM, 's')} fill={P.bu} dir="bull" /></Card>
+          <Card title="Bearish Bets" sub="0-14 DTE"><NC data={filterByTicker(SR_SYM, 's')} fill={P.be} dir="bear" /></Card>
+        </div>
+        <Card title="Short-Term Bullish Trades" sub="$237M confirmed"><TT rows={filterByTicker(SBL)} /></Card>
+        <Card title="Short-Term Bearish Trades" sub="$210M confirmed"><TT rows={filterByTicker(SBR)} /></Card>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Card title="Bullish Consistency" sub="2+ hits"><CT rows={filterByTicker(SBLC)} /></Card>
+          <Card title="Bearish Consistency" sub="2+ hits"><CT rows={filterByTicker(SBRC)} /></Card>
+        </div>
+      </div>}
+
+      {tab === "Long Term" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Card title="Bullish Bets" sub="15+ DTE"><NC data={filterByTicker(LB_SYM, 's')} fill={P.bu} dir="bull" /></Card>
+          <Card title="Bearish Bets" sub="15+ DTE"><NC data={filterByTicker(LR_SYM, 's')} fill={P.be} dir="bear" /></Card>
+        </div>
+        <Card title="Long-Term Bullish Trades" sub="$772M confirmed"><TT rows={filterByTicker(LBL)} /></Card>
+        <Card title="Long-Term Bearish Trades" sub="$582M confirmed"><TT rows={filterByTicker(LBR_T)} /></Card>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Card title="Bullish Consistency" sub="2+ hits"><CT rows={filterByTicker(LBLC)} /></Card>
+          <Card title="Bearish Consistency" sub="2+ hits"><CT rows={filterByTicker(LBRC)} /></Card>
+        </div>
+      </div>}
+
+      {tab === "LEAPS" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.bu}` }}>
+            <div style={{ fontSize: 11, color: P.bu, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>LEAPS Bull Side</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: P.bu, marginBottom: 4 }}>$344M</div>
+            <div style={{ fontSize: 11, color: P.dm }}>MSFT $120M in Jan 2027.</div>
+          </div>
+          <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.be}` }}>
+            <div style={{ fontSize: 11, color: P.be, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>LEAPS Bear Side</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: P.be, marginBottom: 4 }}>$249M</div>
+            <div style={{ fontSize: 11, color: P.dm }}>NVDA -$30M hedge.</div>
           </div>
         </div>
-      </Card>
-
-      {["Conviction", "Short Bull", "Short Bear", "Long Bull", "Long Bear", "LEAPS Bull", "LEAPS Bear"].map(cat => {
-        const items = perf.filter(p => p.cat === cat);
-        if (items.length === 0) return null;
-        return (
-          <Card key={cat} title={cat} sub={`${items.length} positions`}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${P.bd}` }}>
-                  {["Ticker", "C/P", "Strike", "Exp", "Hits", "Entry", "Current", "P&L", "%", "Action"].map(h =>
-                    <th key={h} style={{ padding: "5px 5px", textAlign: "left", color: P.mt, fontSize: 9, fontWeight: 600 }}>{h}</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((r) => {
-                  const curr = r.now || 0;
-                  const pnl = curr > 0 ? curr - r.entry : 0;
-                  const pnlPct = curr > 0 && r.entry > 0 ? ((curr - r.entry) / r.entry * 100) : 0;
-                  const pnlColor = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
-                  return (
-                    <tr key={r.id} style={{ borderBottom: `1px solid ${P.bd}10` }}>
-                      <td style={{ padding: "5px 5px", fontWeight: 800, color: P.wh }}>{r.sym}</td>
-                      <td style={{ padding: "5px 5px" }}><Tag c={r.cp === "C" ? P.bu : P.be}>{r.cp}</Tag></td>
-                      <td style={{ padding: "5px 5px", fontWeight: 800, color: P.wh }}>${r.strike}</td>
-                      <td style={{ padding: "5px 5px", fontWeight: 800, color: P.wh }}>{r.exp}</td>
-                      <td style={{ padding: "5px 5px" }}><span style={{ fontWeight: 800, color: r.hits >= 10 ? P.ac : r.hits >= 5 ? P.ye : P.dm }}>{r.hits}x</span></td>
-                      <td style={{ padding: "5px 5px", fontWeight: 700, color: P.wh }}>${r.entry.toFixed(2)}</td>
-                      <td style={{ padding: "5px 5px" }}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={curr || ""}
-                          placeholder="—"
-                          onChange={e => {
-                            const v = parseFloat(e.target.value) || 0;
-                            setPerf(prev => prev.map(p => p.id === r.id ? { ...p, now: v } : p));
-                          }}
-                          style={{
-                            width: 60, padding: "3px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700,
-                            background: P.al, border: `1px solid ${P.bl}`, color: P.wh, fontFamily: "inherit",
-                            outline: "none",
-                          }}
-                        />
-                      </td>
-                      <td style={{ padding: "5px 5px", fontWeight: 700, color: pnlColor }}>
-                        {curr > 0 ? `${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}` : "—"}
-                      </td>
-                      <td style={{ padding: "5px 5px", fontWeight: 700, color: pnlColor }}>
-                        {curr > 0 ? `${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%` : "—"}
-                      </td>
-                      <td style={{ padding: "5px 5px" }}><Tag c={r.dir === "BULL" ? P.bu : P.be}>{r.dir}</Tag></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </Card>
-        );
-      })}
-    </div>}
-
-    {tab === "Short Term" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <Card title="Short-Term Bullish Trades" sub="$237M confirmed"><TT rows={SBL} /></Card>
-      <Card title="Short-Term Bearish Trades" sub="$210M confirmed"><TT rows={SBR} /></Card>
-    </div>}
-
-    {tab === "Long Term" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <Card title="Long-Term Bullish Trades" sub="$772M confirmed"><TT rows={LBL} /></Card>
-      <Card title="Long-Term Bearish Trades" sub="$582M confirmed"><TT rows={LBR_T} /></Card>
-    </div>}
-
-    {tab === "LEAPS" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.bu}` }}>
-          <div style={{ fontSize: 11, color: P.bu, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>LEAPS Bull Side</div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: P.bu, marginBottom: 4 }}>$344M</div>
-          <div style={{ fontSize: 11, color: P.dm }}>MSFT $120M in Jan 2027.</div>
+        <Card title="LEAPS Bullish Trades"><TT rows={filterByTicker(LEAPS_BL_T)} /></Card>
+        <Card title="LEAPS Bearish Trades"><TT rows={filterByTicker(LEAPS_BR_T)} /></Card>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Card title="Bull Consistency" sub="2+ hits"><CT rows={filterByTicker(LEAPS_BLC)} /></Card>
+          <Card title="Bear Consistency" sub="2+ hits"><CT rows={filterByTicker(LEAPS_BRC)} /></Card>
         </div>
-        <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.be}` }}>
-          <div style={{ fontSize: 11, color: P.be, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>LEAPS Bear Side</div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: P.be, marginBottom: 4 }}>$249M</div>
-          <div style={{ fontSize: 11, color: P.dm }}>NVDA -$30M hedge.</div>
-        </div>
+      </div>}
+
+      {tab === "OI Watchlist" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <Card title="OI Watchlist" sub="Top unconfirmed by premium">
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}><thead><tr style={{ borderBottom: `1px solid ${P.bd}` }}>{["Ticker", "C/P", "Strike", "Exp", "Side", "Vol", "OI", "Premium"].map(h => <th key={h} style={{ padding: "5px 4px", textAlign: "left", color: P.mt, fontSize: 9, fontWeight: 600 }}>{h}</th>)}</tr></thead><tbody>{filterByTicker(WATCH).map((r, i) => <tr key={i} style={{ borderBottom: `1px solid ${P.bd}10` }}><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>{r.S}</td><td style={{ padding: "5px 4px" }}><Tag c={r.CP === "C" ? P.bu : P.be}>{r.CP}</Tag></td><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>${r.K}</td><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>{r.E}</td><td style={{ padding: "5px 4px" }}>{r.Si}</td><td style={{ padding: "5px 4px", color: P.dm }}>{fK(r.V)}</td><td style={{ padding: "5px 4px", color: P.dm }}>{fK(r.OI)}</td><td style={{ padding: "5px 4px", fontWeight: 700, color: P.wh }}>{fmt(r.P)}</td></tr>)}</tbody></table>
+        </Card>
+      </div>}
+
+      <div style={{ marginTop: 16, padding: "10px 0", borderTop: `1px solid ${P.bd}`, display: "flex", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 9, color: P.mt }}>Weekly Options Flow · Gemini AI Integrated</span>
+        <span style={{ fontSize: 9, color: P.mt }}>YELLOW/MAG = confirmed flow</span>
       </div>
-      <Card title="LEAPS Bullish Trades"><TT rows={LEAPS_BL_T} /></Card>
-      <Card title="LEAPS Bearish Trades"><TT rows={LEAPS_BR_T} /></Card>
-    </div>}
-
-    {tab === "OI Watchlist" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <Card title="OI Watchlist" sub="Top unconfirmed by premium">
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}><thead><tr style={{ borderBottom: `1px solid ${P.bd}` }}>{["Ticker", "C/P", "Strike", "Exp", "Side", "Vol", "OI", "Premium"].map(h => <th key={h} style={{ padding: "5px 4px", textAlign: "left", color: P.mt, fontSize: 9, fontWeight: 600 }}>{h}</th>)}</tr></thead><tbody>{WATCH.map((r, i) => <tr key={i} style={{ borderBottom: `1px solid ${P.bd}10` }}><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>{r.S}</td><td style={{ padding: "5px 4px" }}><Tag c={r.CP === "C" ? P.bu : P.be}>{r.CP}</Tag></td><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>${r.K}</td><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>{r.E}</td><td style={{ padding: "5px 4px" }}>{r.Si}</td><td style={{ padding: "5px 4px", color: P.dm }}>{fK(r.V)}</td><td style={{ padding: "5px 4px", color: P.dm }}>{fK(r.OI)}</td><td style={{ padding: "5px 4px", fontWeight: 700, color: P.wh }}>{fmt(r.P)}</td></tr>)}</tbody></table>
-      </Card>
-    </div>}
-
-    <div style={{ marginTop: 16, padding: "10px 0", borderTop: `1px solid ${P.bd}`, display: "flex", justifyContent: "space-between" }}>
-      <span style={{ fontSize: 9, color: P.mt }}>Weekly Options Flow · Gemini AI Integrated</span>
-      <span style={{ fontSize: 9, color: P.mt }}>YELLOW/MAG = confirmed flow</span>
     </div>
   </div>;
 }
