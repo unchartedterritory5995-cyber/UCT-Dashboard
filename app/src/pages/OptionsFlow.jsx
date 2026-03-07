@@ -1,599 +1,368 @@
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
-// --- Configuration ---
-// This is used as a fallback if the local server fetch is blocked by the backend router.
-const REMOTE_CSV_URL = "https://raw.githubusercontent.com/unchartedterritory5995-cyber/UCT-Dashboard/main/app/public/flow-data.csv";
-
-// --- Theme Palette ---
-const P = {bg:"#06090f",cd:"#0d1321",al:"#111a2e",bd:"#1a2540",bl:"#243352",bu:"#00e676",be:"#ff1744",ac:"#ffab00",tx:"#c8d6e5",dm:"#7b8fa3",mt:"#4a5c73",wh:"#f0f4f8",ye:"#ffd600",ma:"#e040fb",sw:"#00b0ff",bk:"#b388ff",uc:"#78909c"};
-
-// --- Error Boundary to Prevent Blank Screens ---
-class DashboardErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ padding: 40, background: '#06090f', color: '#ff1744', minHeight: '100vh', fontFamily: 'monospace' }}>
-          <h2>🚨 Dashboard Rendering Crash Intercepted</h2>
-          <p>Instead of a blank screen, here is the exact error causing the issue:</p>
-          <pre style={{ background: '#1a2540', padding: 20, borderRadius: 8, whiteSpace: 'pre-wrap' }}>
-            {this.state.error?.toString()}
-          </pre>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// --- Helper Functions ---
-function fmt(n){const a=Math.abs(n||0);if(a>=1e9)return"$"+(n/1e9).toFixed(2)+"B";if(a>=1e6)return"$"+(n/1e6).toFixed(1)+"M";if(a>=1e3)return"$"+(n/1e3).toFixed(0)+"K";return"$"+(n||0)}
-function fK(n){const val=n||0;return val>=1e6?(val/1e6).toFixed(1)+"M":val>=1e3?(val/1e3).toFixed(1)+"K":String(val)}
-function tc(t){return t==="SWP"?P.sw:P.bk}
-function Tag({c,children}){return <span style={{display:"inline-block",padding:"2px 7px",borderRadius:3,fontSize:9,fontWeight:700,letterSpacing:0.4,whiteSpace:"nowrap",color:c,backgroundColor:`${c}15`,border:`1px solid ${c}30`}}>{children}</span>}
-function Card({children,title,sub,col}){return <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:"14px 16px",display:"flex",flexDirection:"column",gap:8,minWidth:0, borderLeft: col ? `4px solid ${col}` : undefined}}>{title&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}><span style={{fontSize:11,fontWeight:700,color:col||P.dm,textTransform:"uppercase",letterSpacing:1.5}}>{title}</span>{sub&&<span style={{fontSize:10,color:P.mt}}>{sub}</span>}</div>}{children}</div>}
-function TT({rows}){return <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}><thead><tr style={{borderBottom:`1px solid ${P.bd}`}}>{["Ticker","Day","Side","Signal","Type","C/P","Strike","Exp","Vol","Premium","DTE"].map(h=><th key={h} style={{padding:"5px 4px",textAlign:"left",color:P.mt,fontSize:9,fontWeight:600}}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i} style={{borderBottom:`1px solid ${P.bd}10`,background:(r.Si==="AA"||r.Si==="BB")?`${P.ac}08`:"transparent"}}><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.S}</td><td style={{padding:"5px 4px",color:P.dm,fontSize:9}}>{r.Dt}</td><td style={{padding:"5px 4px"}}>{r.Si==="BB"?<Tag c={P.be}>BB</Tag>:r.Si==="AA"?<Tag c={P.ac}>AA</Tag>:r.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>{r.Si||"A"}</Tag>}</td><td style={{padding:"5px 4px"}}><Tag c={r.Co==="YELLOW"?P.ye:r.Co==="WHITE"?P.wh:P.ma}>{r.Co}</Tag></td><td style={{padding:"5px 4px"}}><Tag c={tc(r.Ty)}>{r.Ty}</Tag></td><td style={{padding:"5px 4px"}}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>${r.K}</td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.E}</td><td style={{padding:"5px 4px",color:P.dm}}>{fK(r.V)}</td><td style={{padding:"5px 4px",fontWeight:700,color:P.wh}}>{fmt(r.P)}</td><td style={{padding:"5px 4px",color:P.dm}}>{r.DTE}d</td></tr>)}</tbody></table>}
-function CT({rows}){return <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}><thead><tr style={{borderBottom:`1px solid ${P.bd}`}}>{["Ticker","C/P","Strike","Exp","Hits","Vol","Premium"].map(h=><th key={h} style={{padding:"5px 4px",textAlign:"left",color:P.mt,fontSize:9,fontWeight:600}}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i} style={{borderBottom:`1px solid ${P.bd}10`,background:r.H>=5?`${P.ac}08`:"transparent"}}><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.S}</td><td style={{padding:"5px 4px"}}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>${r.K}</td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.E}</td><td style={{padding:"5px 4px"}}><span style={{fontWeight:800,fontSize:13,color:r.H>=10?P.ac:r.H>=5?P.ye:P.dm}}>{r.H}x</span></td><td style={{padding:"5px 4px",color:P.dm}}>{fK(r.V)}</td><td style={{padding:"5px 4px",fontWeight:700,color:P.wh}}>{fmt(r.P)}</td></tr>)}</tbody></table>}
-function NC({data,fill,dir}){const neg=dir==="bear";const cd=(data||[]).map(d=>({...d,v:neg?-Math.abs(d.n):d.n}));return <div style={{height:220}}><ResponsiveContainer><BarChart data={cd} layout="vertical" margin={{top:0,right:8,left:5,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke={P.bd} horizontal={false}/><XAxis type="number" tick={{fill:P.mt,fontSize:8}} tickFormatter={v=>fmt(Math.abs(v))}/><YAxis dataKey="s" type="category" tick={{fill:P.tx,fontSize:11,fontWeight:700}} width={60} interval={0} tickLine={false} axisLine={false}/><Tooltip content={({active,payload})=>{if(!active||!payload||!payload.length)return null;const d=payload[0].payload;return <div style={{background:"#152038",border:`1px solid ${P.bl}`,borderRadius:6,padding:"8px 12px",fontSize:11}}><div style={{fontWeight:700,marginBottom:3}}>{d.s}</div>{d.l&&<div style={{color:P.ac,fontSize:10,marginBottom:3}}>{d.l.split(" \u00b7 ")[1]}</div>}<div style={{color:P.bu}}>Bull: {fmt(d.b)}</div><div style={{color:P.be}}>Bear: {fmt(d.r)}</div><div style={{color:d.n>0?P.bu:P.be,fontWeight:700}}>Net: {fmt(d.n)}</div></div>}}/><Bar dataKey="v" fill={fill} radius={neg?[4,0,0,4]:[0,4,4,0]} barSize={14}/></BarChart></ResponsiveContainer></div>}
-
-const TABS=["Market Read","Search","Performance","Short Term","Long Term","LEAPS","OI Watchlist"];
-
-// --- Data Parsing Engine ---
-const parseCSV = (csvText) => {
-  if (!csvText) return [];
-  const lines = csvText.trim().replace(/\r/g, '').split('\n');
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim());
-  return lines.slice(1).map(line => {
-    const values = line.split(',');
-    return headers.reduce((obj, header, i) => {
-      obj[header] = values[i] ? values[i].trim() : '';
-      return obj;
-    }, {});
-  });
+const P = {
+  bg: "#06090f",
+  cd: "#0d1321",
+  al: "#111a2e",
+  bd: "#1a2540",
+  bl: "#243352",
+  bu: "#00e676",
+  be: "#ff1744",
+  ac: "#ffab00",
+  tx: "#c8d6e5",
+  dm: "#7b8fa3",
+  mt: "#4a5c73",
+  wh: "#f0f4f8",
+  ye: "#ffd600",
+  ma: "#e040fb",
+  sw: "#00b0ff",
+  bk: "#b388ff",
+  uc: "#78909c"
 };
 
-const analyzeFlow = (rows) => {
-  const blockTimes = {};
-  rows.forEach(r => {
-    if (r.Type === 'BLOCK') {
-      const key = `${r.Symbol}|${r.CreatedDate}|${r.CreatedTime}`;
-      blockTimes[key] = (blockTimes[key] || 0) + 1;
-    }
-  });
+const DAYS = [
+  { d: "Mon 3/2", b: 231839022, r: 134537060 },
+  { d: "Tue 3/3", b: 280454328, r: 160605221 },
+  { d: "Wed 3/4", b: 121386908, r: 116786674 },
+  { d: "Thu 3/5", b: 152069699, r: 180192520 },
+  { d: "Fri 3/6", b: 222990845, r: 200247805 }
+];
 
-  const live = [];
-  const white = [];
-  const daysMap = {};
-  let totBull = 0, totBear = 0;
+const CONV = [
+  { sym: "TSLA", strike: "$410C", exp: "3/20", hits: 15, prem: 30873528, side: "AA", dir: "BULL" },
+  { sym: "AMZN", strike: "$200P", exp: "3/13", hits: 15, prem: 10357214, side: "AA", dir: "BEAR" },
+  { sym: "TSLA", strike: "$400C", exp: "3/13", hits: 24, prem: 8874356, side: "ASK", dir: "BULL" },
+  { sym: "AMZN", strike: "$210P", exp: "3/13", hits: 13, prem: 5585076, side: "AA", dir: "BEAR" },
+  { sym: "MU", strike: "$430C", exp: "3/20", hits: 20, prem: 20846235, side: "ASK", dir: "BULL" },
+  { sym: "AMZN", strike: "$205P", exp: "3/13", hits: 10, prem: 7506806, side: "AA", dir: "BEAR" },
+];
 
-  rows.forEach(r => {
-    const type = r.Type;
-    if (type === 'ML/') return; 
-    
-    const cp = r.CallPut;
-    const side = r.Side;
-    const strike = parseFloat(r.Strike) || 0;
-    const spot = parseFloat(r.Spot) || 0;
-    const price = parseFloat(r.Price) || 0;
-    const prem = parseFloat(r.Premium) || 0;
-    const vol = parseInt(r.Volume) || 0;
-    const dte = parseInt(r.Dte) || 0;
-    const color = r.Color;
-    const sym = r.Symbol;
-    const exp = r.ExpirationDate;
-    const dateStr = String(r.CreatedDate || '');
-    const time = r.CreatedTime;
+const SB_SYM = [{ s: "TSLA", l: "TSLA \u00b7 3/13 $410C", b: 52325569, r: 18055398, n: 34270171 }, { s: "MU", l: "MU \u00b7 3/20 $430C", b: 43629998, r: 23110104, n: 20519894 }, { s: "UAL", l: "UAL \u00b7 3/13 $111C", b: 5021464, r: 241875, n: 4779589 }, { s: "META", l: "META \u00b7 3/13 $650C", b: 6283080, r: 2120266, n: 4162814 }, { s: "BE", l: "BE \u00b7 3/13 $148C", b: 4945720, r: 795393, n: 4150327 }, { s: "ORCL", l: "ORCL \u00b7 3/13 $150C", b: 4790318, r: 2067426, n: 2722892 }, { s: "NVDA", l: "NVDA \u00b7 3/13 $182.5C", b: 26618289, r: 24100054, n: 2518235 }, { s: "AAPL", l: "AAPL \u00b7 3/13 $255C", b: 4644652, r: 2288867, n: 2355785 }];
+const SR_SYM = [{ s: "AMZN", l: "AMZN \u00b7 3/13 $200P", b: 2330334, r: 26591008, n: -24260674 }, { s: "AVGO", l: "AVGO \u00b7 3/13 $297.5P", b: 10171081, r: 19395497, n: -9224416 }, { s: "TSM", l: "TSM \u00b7 3/13 $327.5P", b: 1310094, r: 8599245, n: -7289151 }, { s: "NOW", l: "NOW \u00b7 3/20 $152P", b: 0, r: 3635000, n: -3635000 }, { s: "PLTR", l: "PLTR \u00b7 3/13 $155P", b: 1899572, r: 5167703, n: -3268131 }, { s: "INTU", l: "INTU \u00b7 3/20 $470P", b: 0, r: 3091100, n: -3091100 }, { s: "AMD", l: "AMD \u00b7 3/13 $187.5P", b: 1488254, r: 3685188, n: -2196934 }, { s: "PANW", l: "PANW \u00b7 3/13 $162.5P", b: 0, r: 1721535, n: -1721535 }];
 
-    if (type === 'BLOCK') {
-      const key = `${sym}|${dateStr}|${time}`;
-      if (blockTimes[key] > 1) return;
-    }
-    
-    if (cp === 'PUT' && type === 'BLOCK' && (side === 'A' || side === 'AA' || side === 'ASK')) {
-      const intrinsic = Math.max(0, strike - spot);
-      const extrinsic = price - intrinsic;
-      if (price > 0 && (extrinsic / price) < 0.05) return;
-    }
+const LB_SYM = [{ s: "MSFT", l: "MSFT \u00b7 1/15/27 $625C", b: 129403204, r: 11584123, n: 117819081 }, { s: "TSLA", l: "TSLA \u00b7 3/20 $410C", b: 74549330, r: 11507393, n: 63041937 }, { s: "GOOG", l: "GOOG \u00b7 1/21/28 $350C", b: 28636201, r: 9866950, n: 18769251 }, { s: "CRCL", l: "CRCL \u00b7 1/15/27 $110C", b: 20685387, r: 5201850, n: 15483537 }, { s: "AAOI", l: "AAOI \u00b7 6/18 $100C", b: 14176154, r: 365154, n: 13811000 }, { s: "POWL", l: "POWL \u00b7 12/18 $520C", b: 10306695, r: 0, n: 10306695 }, { s: "CRM", l: "CRM \u00b7 1/15/27 $260C", b: 9762250, r: 0, n: 9762250 }, { s: "NVDA", l: "NVDA \u00b7 4/2 $200C", b: 51895604, r: 43715535, n: 8180069 }];
+const LR_SYM = [{ s: "LITE", l: "LITE \u00b7 6/18 $800P", b: 1520914, r: 18465978, n: -16945064 }, { s: "COHR", l: "COHR \u00b7 6/18 $300P", b: 1364154, r: 13588443, n: -12224289 }, { s: "VRT", l: "VRT \u00b7 5/15 $270P", b: 307200, r: 10585957, n: -10278757 }, { s: "GEV", l: "GEV \u00b7 6/18 $810P", b: 1902907, r: 11971800, n: -10068893 }, { s: "GOOGL", l: "GOOGL \u00b7 4/2 $265P", b: 636750, r: 9618836, n: -8982086 }, { s: "TSM", l: "TSM \u00b7 5/15 $350P", b: 14355537, r: 22445827, n: -8090290 }, { s: "CRWV", l: "CRWV \u00b7 12/18 $70P", b: 10462356, r: 17981298, n: -7518942 }, { s: "MET", l: "MET \u00b7 1/15/27 $77.5P", b: 0, r: 7516000, n: -7516000 }];
 
-    if (color === 'WHITE') {
-      white.push({ S: sym, CP: cp ? cp[0] : '', K: strike, E: exp, Ty: type, Si: side, V: vol, OI: parseInt(r.OI)||0, P: prem, Dt: dateStr ? dateStr.split('/').slice(0,2).join('/') : '', DTE: dte, Co: color });
-      return; 
-    }
+const LEAPS_B = [{ s: "MSFT", l: "MSFT \u00b7 1/15/27 $625C", b: 122481359, r: 2613034, n: 119868325 }, { s: "TSLA", l: "TSLA \u00b7 12/15/28 $600C", b: 25028625, r: 2652570, n: 22376055 }, { s: "CRCL", l: "CRCL \u00b7 1/15/27 $100C", b: 13007598, r: 238929, n: 12768669 }, { s: "POWL", l: "POWL \u00b7 12/18 $520C", b: 10306695, r: 0, n: 10306695 }, { s: "CRM", l: "CRM \u00b7 1/15/27 $260C", b: 9762250, r: 0, n: 9762250 }, { s: "CF", l: "CF \u00b7 1/15/27 $130C", b: 7193932, r: 0, n: 7193932 }, { s: "CAPR", l: "CAPR \u00b7 1/21/28 $7C", b: 6150000, r: 0, n: 6150000 }, { s: "PFE", l: "PFE \u00b7 9/18 $28C", b: 6037850, r: 0, n: 6037850 }];
+const LEAPS_R = [{ s: "NVDA", l: "NVDA \u00b7 12/15/28 $175P", b: 3355220, r: 33323872, n: -29968652 }, { s: "LITE", l: "LITE \u00b7 1/15/27 $700P", b: 0, r: 8567828, n: -8567828 }, { s: "CRWV", l: "CRWV \u00b7 12/18 $70P", b: 5013885, r: 12702750, n: -7688865 }, { s: "MET", l: "MET \u00b7 1/15/27 $77.5P", b: 0, r: 7140000, n: -7140000 }, { s: "WYNN", l: "WYNN \u00b7 1/15/27 $100P", b: 0, r: 6396000, n: -6396000 }, { s: "IREN", l: "IREN \u00b7 12/18 $35P", b: 0, r: 6000000, n: -6000000 }, { s: "GGAL", l: "GGAL \u00b7 10/16 $65P", b: 0, r: 5574125, n: -5574125 }, { s: "NFLX", l: "NFLX \u00b7 1/15/27 $98P", b: 5732450, r: 11104000, n: -5371550 }];
 
-    let dir = 'MIXED';
-    if (cp === 'CALL') dir = 'BULL'; 
-    if (cp === 'PUT') {
-      if (side === 'A' || side === 'AA' || side === 'ASK') dir = 'BEAR'; 
-      if (side === 'B' || side === 'BB' || side === 'BID') dir = 'BULL'; 
-    }
+const SBL = [{ S: "MU", Ty: "SWP", CP: "P", K: 415, V: 5000, P: 10523610, E: "3/13", Si: "BB", Co: "YELLOW", DTE: 10, Dt: "3/2" }, { S: "TSLA", Ty: "SWP", CP: "C", K: 410, V: 21331, P: 10452190, E: "3/13", Si: "A", Co: "YELLOW", DTE: 6, Dt: "3/6" }, { S: "TSLA", Ty: "SWP", CP: "C", K: 410, V: 13520, P: 7098007, E: "3/13", Si: "B", Co: "YELLOW", DTE: 6, Dt: "3/6" }, { S: "MU", Ty: "SWP", CP: "C", K: 430, V: 4175, P: 4696875, E: "3/20", Si: "B", Co: "MAGENTA", DTE: 13, Dt: "3/6" }, { S: "TSLA", Ty: "SWP", CP: "C", K: 410, V: 8400, P: 3948040, E: "3/13", Si: "B", Co: "YELLOW", DTE: 6, Dt: "3/6" }, { S: "AVGO", Ty: "SWP", CP: "C", K: 340, V: 3588, P: 2870400, E: "3/13", Si: "A", Co: "YELLOW", DTE: 6, Dt: "3/6" }, { S: "MU", Ty: "SWP", CP: "C", K: 430, V: 2269, P: 2552630, E: "3/20", Si: "B", Co: "MAGENTA", DTE: 13, Dt: "3/6" }, { S: "MU", Ty: "SWP", CP: "C", K: 430, V: 2162, P: 2486300, E: "3/20", Si: "A", Co: "MAGENTA", DTE: 13, Dt: "3/6" }];
+const SBR = [{ S: "MU", Ty: "BLK", CP: "P", K: 385, V: 3616, P: 10124800, E: "3/20", Si: "B", Co: "YELLOW", DTE: 14, Dt: "3/5" }, { S: "AVGO", Ty: "BLK", CP: "P", K: 297.5, V: 15136, P: 4389440, E: "3/13", Si: "B", Co: "YELLOW", DTE: 7, Dt: "3/5" }, { S: "TSLA", Ty: "SWP", CP: "P", K: 400, V: 2750, P: 2956164, E: "3/13", Si: "A", Co: "YELLOW", DTE: 10, Dt: "3/2" }, { S: "AMZN", Ty: "SWP", CP: "P", K: 205, V: 9091, P: 2722724, E: "3/13", Si: "AA", Co: "YELLOW", DTE: 6, Dt: "3/6" }, { S: "NVDA", Ty: "SWP", CP: "P", K: 177.5, V: 7720, P: 2701977, E: "3/13", Si: "A", Co: "YELLOW", DTE: 6, Dt: "3/6" }, { S: "AMZN", Ty: "SWP", CP: "P", K: 200, V: 12010, P: 2390182, E: "3/13", Si: "AA", Co: "YELLOW", DTE: 6, Dt: "3/6" }, { S: "AMZN", Ty: "SWP", CP: "P", K: 200, V: 9935, P: 1979972, E: "3/13", Si: "AA", Co: "MAGENTA", DTE: 6, Dt: "3/6" }, { S: "NVDA", Ty: "SWP", CP: "P", K: 175, V: 4771, P: 1884554, E: "3/13", Si: "A", Co: "MAGENTA", DTE: 6, Dt: "3/6" }];
 
-    if (dir !== 'MIXED') {
-      live.push({ sym, cp, strike, exp, price, prem, vol, dte, side, type, color, spot, dir, date: dateStr });
-      
-      if (dir === 'BULL') totBull += prem;
-      else totBear += prem;
-      
-      const dParts = dateStr ? dateStr.split('/') : [];
-      const dLabel = dParts.length >= 2 ? `${dParts[0]}/${dParts[1]}` : dateStr; 
-      if (dLabel && !daysMap[dLabel]) daysMap[dLabel] = { d: dLabel, b: 0, r: 0 };
-      if (dLabel) {
-        if (dir === 'BULL') daysMap[dLabel].b += prem;
-        else daysMap[dLabel].r += prem;
-      }
-    }
-  });
+const LBL = [{ S: "MSFT", Ty: "BLK", CP: "C", K: 625, V: 100000, P: 50500000, E: "1/15/27", Si: "A", Co: "YELLOW", DTE: 318, Dt: "3/3" }, { S: "MSFT", Ty: "BLK", CP: "C", K: 575, V: 50000, P: 44000000, E: "1/15/27", Si: "A", Co: "YELLOW", DTE: 318, Dt: "3/3" }, { S: "MSFT", Ty: "BLK", CP: "C", K: 675, V: 50000, P: 15000000, E: "1/15/27", Si: "B", Co: "YELLOW", DTE: 318, Dt: "3/3" }, { S: "MSFT", Ty: "BLK", CP: "C", K: 675, V: 50000, P: 12250000, E: "12/18", Si: "B", Co: "YELLOW", DTE: 290, Dt: "3/3" }, { S: "NVDA", Ty: "BLK", CP: "C", K: 150, V: 3000, P: 12000000, E: "6/18", Si: "A", Co: "MAGENTA", DTE: 107, Dt: "3/2" }, { S: "GOOG", Ty: "BLK", CP: "C", K: 350, V: 2050, P: 10803356, E: "1/21/28", Si: "A", Co: "YELLOW", DTE: 690, Dt: "3/2" }, { S: "NVDA", Ty: "SWP", CP: "C", K: 200, V: 30545, P: 9163679, E: "4/2", Si: "AA", Co: "YELLOW", DTE: 30, Dt: "3/2" }, { S: "AMD", Ty: "BLK", CP: "C", K: 240, V: 3500, P: 7647500, E: "11/20", Si: "B", Co: "YELLOW", DTE: 262, Dt: "3/3" }];
+const LBR_T = [{ S: "TSM", Ty: "BLK", CP: "P", K: 350, V: 4000, P: 11080000, E: "5/15", Si: "B", Co: "YELLOW", DTE: 72, Dt: "3/3" }, { S: "VRT", Ty: "BLK", CP: "P", K: 270, V: 2045, P: 9075856, E: "5/15", Si: "B", Co: "YELLOW", DTE: 72, Dt: "3/3" }, { S: "MET", Ty: "BLK", CP: "P", K: 77.5, V: 6000, P: 7140000, E: "1/15/27", Si: "B", Co: "YELLOW", DTE: 318, Dt: "3/3" }, { S: "NVDA", Ty: "BLK", CP: "P", K: 200, V: 2950, P: 6434030, E: "4/10", Si: "B", Co: "YELLOW", DTE: 35, Dt: "3/5" }, { S: "WYNN", Ty: "BLK", CP: "P", K: 100, V: 5200, P: 6396000, E: "1/15/27", Si: "B", Co: "YELLOW", DTE: 315, Dt: "3/6" }, { S: "NFLX", Ty: "BLK", CP: "P", K: 98, V: 5000, P: 6150000, E: "1/15/27", Si: "B", Co: "YELLOW", DTE: 316, Dt: "3/5" }, { S: "IREN", Ty: "BLK", CP: "P", K: 35, V: 6000, P: 6000000, E: "12/18", Si: "B", Co: "YELLOW", DTE: 291, Dt: "3/2" }, { S: "GGAL", Ty: "BLK", CP: "P", K: 65, V: 2375, P: 5574125, E: "10/16", Si: "B", Co: "YELLOW", DTE: 225, Dt: "3/4" }];
 
-  const groups = {};
-  live.forEach(r => {
-    const key = `${r.sym}|${r.cp}|${r.strike}|${r.exp}`;
-    if (!groups[key]) {
-      groups[key] = {
-        key, sym: r.sym, cp: r.cp, strike: r.strike, exp: r.exp, hits: 0, prem: 0, vol: 0,
-        dir: r.dir, dte: r.dte, lo: r.price, hi: r.price, entry: r.price, maxPrem: 0, spot: r.spot,
-        hasAAorBB: false, side: r.side, type: r.type, color: r.color, date: r.date
-      };
-    }
-    const g = groups[key];
-    g.hits++;
-    g.prem += r.prem;
-    g.vol += r.vol;
-    if (r.price < g.lo) g.lo = r.price;
-    if (r.price > g.hi) g.hi = r.price;
-    if (r.prem > g.maxPrem) {
-      g.maxPrem = r.prem;
-      g.entry = r.price;
-      g.spot = r.spot;
-      g.side = r.side;
-      g.type = r.type;
-    }
-    if (r.side === 'AA' || r.side === 'BB') g.hasAAorBB = true;
-  });
+const LEAPS_BL_T = [{ S: "MSFT", Ty: "BLK", CP: "C", K: 625, V: 100000, P: 50500000, E: "1/15/27", Si: "A", Co: "YELLOW", DTE: 318, Dt: "3/3" }, { S: "MSFT", Ty: "BLK", CP: "C", K: 575, V: 50000, P: 44000000, E: "1/15/27", Si: "A", Co: "YELLOW", DTE: 318, Dt: "3/3" }, { S: "MSFT", Ty: "BLK", CP: "C", K: 675, V: 50000, P: 15000000, E: "1/15/27", Si: "B", Co: "YELLOW", DTE: 318, Dt: "3/3" }, { S: "MSFT", Ty: "BLK", CP: "C", K: 675, V: 50000, P: 12250000, E: "12/18", Si: "B", Co: "YELLOW", DTE: 290, Dt: "3/3" }, { S: "GOOG", Ty: "BLK", CP: "C", K: 350, V: 2050, P: 10803356, E: "1/21/28", Si: "A", Co: "YELLOW", DTE: 690, Dt: "3/2" }, { S: "AMD", Ty: "BLK", CP: "C", K: 240, V: 3500, P: 7647500, E: "11/20", Si: "B", Co: "YELLOW", DTE: 262, Dt: "3/3" }, { S: "CAPR", Ty: "BLK", CP: "C", K: 7, V: 3000, P: 6150000, E: "1/21/28", Si: "B", Co: "YELLOW", DTE: 686, Dt: "3/6" }, { S: "CRM", Ty: "BLK", CP: "C", K: 260, V: 4500, P: 5652000, E: "1/15/27", Si: "B", Co: "YELLOW", DTE: 317, Dt: "3/4" }];
+const LEAPS_BR_T = [{ S: "MET", Ty: "BLK", CP: "P", K: 77.5, V: 6000, P: 7140000, E: "1/15/27", Si: "B", Co: "YELLOW", DTE: 318, Dt: "3/3" }, { S: "WYNN", Ty: "BLK", CP: "P", K: 100, V: 5200, P: 6396000, E: "1/15/27", Si: "B", Co: "YELLOW", DTE: 315, Dt: "3/6" }, { S: "NFLX", Ty: "BLK", CP: "P", K: 98, V: 5000, P: 6150000, E: "1/15/27", Si: "B", Co: "YELLOW", DTE: 316, Dt: "3/5" }, { S: "IREN", Ty: "BLK", CP: "P", K: 35, V: 6000, P: 6000000, E: "12/18", Si: "B", Co: "YELLOW", DTE: 291, Dt: "3/2" }, { S: "GGAL", Ty: "BLK", CP: "P", K: 65, V: 2375, P: 5574125, E: "10/16", Si: "B", Co: "YELLOW", DTE: 225, Dt: "3/4" }, { S: "ORCL", Ty: "BLK", CP: "P", K: 165, V: 1200, P: 4596000, E: "3/19/27", Si: "B", Co: "YELLOW", DTE: 377, Dt: "3/6" }, { S: "NFLX", Ty: "BLK", CP: "P", K: 100, V: 3000, P: 4470000, E: "3/19/27", Si: "A", Co: "YELLOW", DTE: 381, Dt: "3/2" }, { S: "GOOG", Ty: "BLK", CP: "P", K: 300, V: 1500, P: 4314000, E: "9/18", Si: "B", Co: "YELLOW", DTE: 196, Dt: "3/5" }];
 
-  const allGroups = Object.values(groups);
-  allGroups.forEach(g => {
-    g.score = (g.prem / 1000000) * 10 + (g.hits * 200) + (g.hasAAorBB ? 1000 : 0);
-  });
+const SBLC = [{ S: "TSLA", CP: "C", K: 410, E: "3/13", H: 10, P: 25512060, V: 51178 }, { S: "MU", CP: "C", K: 430, E: "3/20", H: 20, P: 20846235, V: 18342 }, { S: "TSLA", CP: "C", K: 400, E: "3/13", H: 24, P: 8874356, V: 9128 }, { S: "UAL", CP: "C", K: 111, E: "3/13", H: 5, P: 4498214, V: 40066 }, { S: "NVDA", CP: "C", K: 180, E: "3/13", H: 8, P: 4292618, V: 8830 }, { S: "AVGO", CP: "C", K: 340, E: "3/13", H: 4, P: 4087749, V: 5060 }];
+const SBRC = [{ S: "MU", CP: "P", K: 385, E: "3/20", H: 2, P: 10512510, V: 3753 }, { S: "AMZN", CP: "P", K: 200, E: "3/13", H: 15, P: 10357214, V: 56597 }, { S: "AVGO", CP: "P", K: 297.5, E: "3/13", H: 8, P: 8493002, V: 29368 }, { S: "AMZN", CP: "P", K: 205, E: "3/13", H: 10, P: 7506806, V: 30390 }, { S: "NVDA", CP: "P", K: 175, E: "3/13", H: 8, P: 6486279, V: 19288 }, { S: "AMZN", CP: "P", K: 210, E: "3/13", H: 13, P: 5585076, V: 18273 }];
 
-  const short = allGroups.filter(g => g.dte <= 14);
-  const long = allGroups.filter(g => g.dte > 14 && g.dte <= 179);
-  const leaps = allGroups.filter(g => g.dte >= 180);
+const LBLC = [{ S: "TSLA", CP: "C", K: 410, E: "3/20", H: 15, P: 30873528, V: 27137 }, { S: "NVDA", CP: "C", K: 200, E: "4/2", H: 12, P: 19716109, V: 65492 }, { S: "TSLA", CP: "C", K: 600, E: "12/15/28", H: 7, P: 16718499, V: 1804 }, { S: "MU", CP: "C", K: 250, E: "10/16", H: 2, P: 9888520, V: 600 }, { S: "MU", CP: "C", K: 380, E: "3/27", H: 10, P: 8256976, V: 2138 }, { S: "GOOG", CP: "C", K: 305, E: "4/10", H: 9, P: 7968730, V: 5592 }];
+const LBRC = [{ S: "NVDA", CP: "P", K: 175, E: "12/15/28", H: 8, P: 9794451, V: 2193 }, { S: "GOOG", CP: "P", K: 300, E: "9/18", H: 2, P: 8619000, V: 3000 }, { S: "COHR", CP: "P", K: 300, E: "6/18", H: 4, P: 6692261, V: 1181 }, { S: "LITE", CP: "P", K: 800, E: "6/18", H: 2, P: 6236610, V: 339 }, { S: "NVDA", CP: "P", K: 220, E: "12/15/28", H: 4, P: 5389355, V: 771 }, { S: "SHOP", CP: "P", K: 85, E: "6/17/27", H: 2, P: 5032000, V: 4000 }];
 
-  const processTerm = (bucket) => {
-    const b = bucket.filter(g => g.dir === 'BULL');
-    const r = bucket.filter(g => g.dir === 'BEAR');
-    
-    const bPrem = b.reduce((s,g) => s + g.prem, 0);
-    const rPrem = r.reduce((s,g) => s + g.prem, 0);
+const LEAPS_BLC = [{ S: "TSLA", CP: "C", K: 600, E: "12/15/28", H: 7, P: 16718499, V: 1804 }, { S: "MU", CP: "C", K: 250, E: "10/16", H: 2, P: 9888520, V: 600 }, { S: "PFE", CP: "C", K: 28, E: "9/18", H: 4, P: 6037850, V: 43381 }, { S: "CRCL", CP: "C", K: 100, E: "1/15/27", H: 2, P: 6032050, V: 1946 }, { S: "CRCL", CP: "C", K: 110, E: "6/17/27", H: 5, P: 5955245, V: 1728 }, { S: "POWL", CP: "C", K: 520, E: "12/18", H: 2, P: 5527100, V: 420 }];
+const LEAPS_BRC = [{ S: "NVDA", CP: "P", K: 175, E: "12/15/28", H: 8, P: 9794451, V: 2193 }, { S: "GOOG", CP: "P", K: 300, E: "9/18", H: 2, P: 8619000, V: 3000 }, { S: "NVDA", CP: "P", K: 220, E: "12/15/28", H: 4, P: 5389355, V: 771 }, { S: "SHOP", CP: "P", K: 85, E: "6/17/27", H: 2, P: 5032000, V: 4000 }, { S: "NVDA", CP: "P", K: 170, E: "12/15/28", H: 4, P: 4242690, V: 1003 }, { S: "TSM", CP: "P", K: 500, E: "12/18", H: 2, P: 2967000, V: 200 }];
 
-    const syms = {};
-    bucket.forEach(g => {
-      if (!syms[g.sym]) syms[g.sym] = { s: g.sym, b: 0, r: 0, n: 0, topTrade: null };
-      if (g.dir === 'BULL') syms[g.sym].b += g.prem;
-      else syms[g.sym].r += g.prem;
-      if (!syms[g.sym].topTrade || g.prem > syms[g.sym].topTrade.prem) syms[g.sym].topTrade = g;
-    });
-    
-    Object.values(syms).forEach(s => {
-      s.n = s.b - s.r;
-      const tt = s.topTrade;
-      s.l = `${s.s} \u00b7 ${tt.exp} $${tt.strike}${tt.cp ? tt.cp[0] : ''}`;
-    });
+const PERF_INIT = [
+  { id: "c1", cat: "Conviction", sym: "TSLA", cp: "C", strike: 410, exp: "3/20", entry: 11.00, lo: 10.50, hi: 12.40, spot: 400.37, hits: 15, dir: "BULL" },
+  { id: "c2", cat: "Conviction", sym: "AMZN", cp: "P", strike: 200, exp: "3/13", entry: 1.99, lo: 0.94, hi: 2.01, spot: 213.50, hits: 15, dir: "BEAR" },
+  { id: "c3", cat: "Conviction", sym: "TSLA", cp: "C", strike: 400, exp: "3/13", entry: 9.20, lo: 8.31, hi: 15.40, spot: 398.37, hits: 24, dir: "BULL" },
+  { id: "c4", cat: "Conviction", sym: "AMZN", cp: "P", strike: 210, exp: "3/13", entry: 5.50, lo: 2.53, hi: 5.50, spot: 208.78, hits: 13, dir: "BEAR" },
+  { id: "c5", cat: "Conviction", sym: "MU", cp: "C", strike: 430, exp: "3/20", entry: 11.25, lo: 8.70, hi: 12.30, spot: 382.42, hits: 20, dir: "BULL" },
+  { id: "c6", cat: "Conviction", sym: "AMZN", cp: "P", strike: 205, exp: "3/13", entry: 3.00, lo: 1.54, hi: 3.00, spot: 213.29, hits: 10, dir: "BEAR" },
+  { id: "sb1", cat: "Short Bull", sym: "TSLA", cp: "C", strike: 410, exp: "3/13", entry: 4.90, lo: 4.70, hi: 8.00, spot: 398.60, hits: 10, dir: "BULL" },
+  { id: "sb2", cat: "Short Bull", sym: "UAL", cp: "C", strike: 111, exp: "3/13", entry: 1.80, lo: 0.75, hi: 1.80, spot: 104.34, hits: 5, dir: "BULL" },
+  { id: "sb3", cat: "Short Bull", sym: "AVGO", cp: "C", strike: 340, exp: "3/13", entry: 8.00, lo: 8.00, hi: 8.40, spot: 336.76, hits: 4, dir: "BULL" },
+  { id: "sr1", cat: "Short Bear", sym: "MU", cp: "P", strike: 385, exp: "3/20", entry: 28.00, lo: 28.00, hi: 28.65, spot: 384.40, hits: 5, dir: "BEAR" },
+  { id: "sr2", cat: "Short Bear", sym: "AVGO", cp: "P", strike: 297.5, exp: "3/13", entry: 2.90, lo: 2.76, hi: 3.20, spot: 327.40, hits: 8, dir: "BEAR" },
+  { id: "sr3", cat: "Short Bear", sym: "NVDA", cp: "P", strike: 175, exp: "3/13", entry: 3.95, lo: 3.00, hi: 4.15, spot: 177.96, hits: 8, dir: "BEAR" },
+  { id: "lb1", cat: "Long Bull", sym: "MSFT", cp: "C", strike: 625, exp: "1/15/27", entry: 5.05, lo: 5.05, hi: 5.05, spot: 405.88, hits: 1, dir: "BULL" },
+  { id: "lb2", cat: "Long Bull", sym: "MSFT", cp: "C", strike: 575, exp: "1/15/27", entry: 8.80, lo: 8.80, hi: 8.80, spot: 405.66, hits: 1, dir: "BULL" },
+  { id: "lb3", cat: "Long Bull", sym: "NVDA", cp: "C", strike: 200, exp: "4/2", entry: 3.00, lo: 3.00, hi: 3.24, spot: 181.61, hits: 12, dir: "BULL" },
+  { id: "lb4", cat: "Long Bull", sym: "GOOG", cp: "C", strike: 350, exp: "1/21/28", entry: 52.70, lo: 52.70, hi: 52.70, spot: 304.76, hits: 1, dir: "BULL" },
+  { id: "lb5", cat: "Long Bull", sym: "CRCL", cp: "C", strike: 110, exp: "6/17/27", entry: 34.50, lo: 34.10, hi: 34.50, spot: 102.29, hits: 5, dir: "BULL" },
+  { id: "lr1", cat: "Long Bear", sym: "LITE", cp: "P", strike: 800, exp: "6/18", entry: 184.00, lo: 183.90, hi: 184.00, spot: 768.66, hits: 2, dir: "BEAR" },
+  { id: "lr2", cat: "Long Bear", sym: "COHR", cp: "P", strike: 300, exp: "6/18", entry: 56.66, lo: 56.50, hi: 57.10, spot: 295.67, hits: 4, dir: "BEAR" },
+  { id: "lr3", cat: "Long Bear", sym: "VRT", cp: "P", strike: 270, exp: "5/15", entry: 44.38, lo: 44.38, hi: 44.38, spot: 241.21, hits: 1, dir: "BEAR" },
+  { id: "lr4", cat: "Long Bear", sym: "GEV", cp: "P", strike: 810, exp: "6/18", entry: 71.80, lo: 71.80, hi: 71.80, spot: 843.88, hits: 1, dir: "BEAR" },
+  { id: "lp1", cat: "LEAPS Bull", sym: "TSLA", cp: "C", strike: 600, exp: "12/15/28", entry: 92.64, lo: 92.60, hi: 92.72, spot: 398.94, hits: 7, dir: "BULL" },
+  { id: "lp2", cat: "LEAPS Bull", sym: "CRM", cp: "C", strike: 260, exp: "1/15/27", entry: 12.56, lo: 12.56, hi: 12.56, spot: 195.95, hits: 1, dir: "BULL" },
+  { id: "lp3", cat: "LEAPS Bull", sym: "PFE", cp: "C", strike: 28, exp: "9/18", entry: 1.40, lo: 1.30, hi: 1.40, spot: 26.48, hits: 4, dir: "BULL" },
+  { id: "lp4", cat: "LEAPS Bull", sym: "POWL", cp: "C", strike: 520, exp: "12/18", entry: 132.00, lo: 131.00, hi: 132.00, spot: 504.85, hits: 2, dir: "BULL" },
+  { id: "lbr1", cat: "LEAPS Bear", sym: "NVDA", cp: "P", strike: 175, exp: "12/15/28", entry: 44.65, lo: 44.60, hi: 44.75, spot: 178.75, hits: 8, dir: "BEAR" },
+  { id: "lbr2", cat: "LEAPS Bear", sym: "NVDA", cp: "P", strike: 220, exp: "12/15/28", entry: 69.82, lo: 69.82, hi: 69.95, spot: 181.32, hits: 4, dir: "BEAR" },
+  { id: "lbr3", cat: "LEAPS Bear", sym: "WYNN", cp: "P", strike: 100, exp: "1/15/27", entry: 12.30, lo: 12.30, hi: 12.30, spot: 102.15, hits: 1, dir: "BEAR" },
+  { id: "lbr4", cat: "LEAPS Bear", sym: "NFLX", cp: "P", strike: 98, exp: "1/15/27", entry: 12.30, lo: 12.30, hi: 12.30, spot: 98.67, hits: 1, dir: "BEAR" },
+];
 
-    const arr = Object.values(syms);
-    const symB = arr.filter(s => s.n > 0).sort((a,b) => b.n - a.n).slice(0, 8);
-    const symR = arr.filter(s => s.n < 0).sort((a,b) => Math.abs(b.n) - Math.abs(a.n)).slice(0, 8);
+const WATCH = [{ S: "NVDA", CP: "C", K: 150, E: "6/18", V: 5000, OI: 111227, P: 21050000, Si: "A", Ty: "BLK" }, { S: "LITE", CP: "P", K: 800, E: "1/15/27", V: 600, OI: 2502, P: 18000000, Si: "A", Ty: "BLK" }, { S: "AMZN", CP: "C", K: 190, E: "5/15", V: 4500, OI: 18334, P: 15840000, Si: "A", Ty: "BLK" }, { S: "AMZN", CP: "C", K: 190, E: "5/15", V: 5000, OI: 23138, P: 13500000, Si: "B", Ty: "BLK" }, { S: "IBM", CP: "P", K: 265, E: "3/20", V: 5000, OI: 6360, P: 12675000, Si: "A", Ty: "BLK" }, { S: "AMD", CP: "P", K: 190, E: "6/18", V: 6000, OI: 14859, P: 12336000, Si: "B", Ty: "BLK" }];
 
-    const mapTrades = (arrData) => arrData.sort((a,b) => b.prem - a.prem).slice(0, 8).map(g => ({
-      S: g.sym, Dt: g.date ? g.date.split('/').slice(0,2).join('/') : '', Si: g.side, Co: g.color, Ty: g.type, 
-      CP: g.cp ? g.cp[0] : '', K: g.strike, E: g.exp, V: g.vol, P: g.prem, DTE: g.dte, dir: g.dir
-    }));
-    
-    const mapConsist = (arrData) => arrData.filter(g => g.hits >= 2).sort((a,b) => b.hits - a.hits).slice(0, 6).map(g => ({
-      S: g.sym, CP: g.cp ? g.cp[0] : '', K: g.strike, E: g.exp, H: g.hits, V: g.vol, P: g.prem, dir: g.dir
-    }));
+function fmt(n) { const a = Math.abs(n); if (a >= 1e9) return "$" + (n / 1e9).toFixed(2) + "B"; if (a >= 1e6) return "$" + (n / 1e6).toFixed(1) + "M"; if (a >= 1e3) return "$" + (n / 1e3).toFixed(0) + "K"; return "$" + n }
+function fK(n) { return n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : String(n) }
+function tc(t) { return t === "SWP" ? P.sw : P.bk }
 
-    return { bullPrem: bPrem, bearPrem: rPrem, symB, symR, tradesB: mapTrades(b), tradesR: mapTrades(r), consistB: mapConsist(b), consistR: mapConsist(r) };
-  };
+function Tag({ c, children }) { return <span style={{ display: "inline-block", padding: "2px 7px", borderRadius: 3, fontSize: 9, fontWeight: 700, letterSpacing: 0.4, whiteSpace: "nowrap", color: c, backgroundColor: `${c}15`, border: `1px solid ${c}30` }}>{children}</span> }
+function Card({ children, title, sub }) { return <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>{title && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}><span style={{ fontSize: 11, fontWeight: 700, color: P.dm, textTransform: "uppercase", letterSpacing: 1.5 }}>{title}</span>{sub && <span style={{ fontSize: 10, color: P.mt }}>{sub}</span>}</div>}{children}</div> }
 
-  const sTerm = processTerm(short);
-  const lTerm = processTerm(long);
-  const lpTerm = processTerm(leaps);
+function TT({ rows }) { return <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}><thead><tr style={{ borderBottom: `1px solid ${P.bd}` }}>{["Ticker", "Day", "Side", "Signal", "Type", "C/P", "Strike", "Exp", "Vol", "Premium", "DTE"].map(h => <th key={h} style={{ padding: "5px 4px", textAlign: "left", color: P.mt, fontSize: 9, fontWeight: 600 }}>{h}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i} style={{ borderBottom: `1px solid ${P.bd}10`, background: (r.Si === "AA" || r.Si === "BB") ? `${P.ac}08` : "transparent" }}><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>{r.S}</td><td style={{ padding: "5px 4px", color: P.dm, fontSize: 9 }}>{r.Dt}</td><td style={{ padding: "5px 4px" }}>{r.Si === "BB" ? <Tag c={P.be}>BB</Tag> : r.Si === "AA" ? <Tag c={P.ac}>AA</Tag> : r.Si === "B" ? <Tag c={P.sw}>BID</Tag> : <Tag c={P.mt}>A</Tag>}</td><td style={{ padding: "5px 4px" }}><Tag c={r.Co === "YELLOW" ? P.ye : P.ma}>{r.Co}</Tag></td><td style={{ padding: "5px 4px" }}><Tag c={tc(r.Ty)}>{r.Ty}</Tag></td><td style={{ padding: "5px 4px" }}><Tag c={r.CP === "C" ? P.bu : P.be}>{r.CP}</Tag></td><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>${r.K}</td><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>{r.E}</td><td style={{ padding: "5px 4px", color: P.dm }}>{fK(r.V)}</td><td style={{ padding: "5px 4px", fontWeight: 700, color: P.wh }}>{fmt(r.P)}</td><td style={{ padding: "5px 4px", color: P.dm }}>{r.DTE}d</td></tr>)}</tbody></table> }
+function CT({ rows }) { return <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}><thead><tr style={{ borderBottom: `1px solid ${P.bd}` }}>{["Ticker", "C/P", "Strike", "Exp", "Hits", "Vol", "Premium"].map(h => <th key={h} style={{ padding: "5px 4px", textAlign: "left", color: P.mt, fontSize: 9, fontWeight: 600 }}>{h}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i} style={{ borderBottom: `1px solid ${P.bd}10`, background: r.H >= 5 ? `${P.ac}08` : "transparent" }}><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>{r.S}</td><td style={{ padding: "5px 4px" }}><Tag c={r.CP === "C" ? P.bu : P.be}>{r.CP}</Tag></td><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>${r.K}</td><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>{r.E}</td><td style={{ padding: "5px 4px" }}><span style={{ fontWeight: 800, fontSize: 13, color: r.H >= 10 ? P.ac : r.H >= 5 ? P.ye : P.dm }}>{r.H}x</span></td><td style={{ padding: "5px 4px", color: P.dm }}>{fK(r.V)}</td><td style={{ padding: "5px 4px", fontWeight: 700, color: P.wh }}>{fmt(r.P)}</td></tr>)}</tbody></table> }
+function NC({ data, fill, dir }) { const neg = dir === "bear"; const cd = data.map(d => ({ ...d, v: neg ? -Math.abs(d.n) : d.n })); return <div style={{ height: 220 }}><ResponsiveContainer><BarChart data={cd} layout="vertical" margin={{ top: 0, right: 8, left: 5, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke={P.bd} horizontal={false} /><XAxis type="number" tick={{ fill: P.mt, fontSize: 8 }} tickFormatter={v => fmt(Math.abs(v))} /><YAxis dataKey="s" type="category" tick={{ fill: P.tx, fontSize: 11, fontWeight: 700 }} width={60} interval={0} tickLine={false} axisLine={false} /><Tooltip content={({ active, payload }) => { if (!active || !payload || !payload.length) return null; const d = payload[0].payload; return <div style={{ background: "#152038", border: `1px solid ${P.bl}`, borderRadius: 6, padding: "8px 12px", fontSize: 11 }}><div style={{ fontWeight: 700, marginBottom: 3 }}>{d.s}</div>{d.l && <div style={{ color: P.ac, fontSize: 10, marginBottom: 3 }}>{d.l.split(" \u00b7 ")[1]}</div>}<div style={{ color: P.bu }}>Bull: {fmt(d.b)}</div><div style={{ color: P.be }}>Bear: {fmt(d.r)}</div><div style={{ color: d.n > 0 ? P.bu : P.be, fontWeight: 700 }}>Net: {fmt(d.n)}</div></div> }} /><Bar dataKey="v" fill={fill} radius={neg ? [4, 0, 0, 4] : [0, 4, 4, 0]} barSize={14} /></BarChart></ResponsiveContainer></div> }
 
-  const bulls = allGroups.filter(g => g.dir === 'BULL').sort((a,b) => b.score - a.score);
-  const bears = allGroups.filter(g => g.dir === 'BEAR').sort((a,b) => b.score - a.score);
-  const CONV = [];
-  for(let i=0; i<3; i++) {
-    if(bulls[i]) CONV.push({ sym: bulls[i].sym, strike: `$${bulls[i].strike}${bulls[i].cp ? bulls[i].cp[0] : ''}`, exp: bulls[i].exp, hits: bulls[i].hits, prem: bulls[i].prem, side: bulls[i].side, dir: bulls[i].dir });
-    if(bears[i]) CONV.push({ sym: bears[i].sym, strike: `$${bears[i].strike}${bears[i].cp ? bears[i].cp[0] : ''}`, exp: bears[i].exp, hits: bears[i].hits, prem: bears[i].prem, side: bears[i].side, dir: bears[i].dir });
-  }
+const TABS = ["Market Read", "Performance", "Short Term", "Long Term", "LEAPS", "OI Watchlist"];
 
-  const DAYS = Object.values(daysMap);
-  const PERF_INIT = [];
-  const addPerf = (arrData, cat) => arrData.forEach((g,i) => {
-    PERF_INIT.push({ id: cat+i, cat, sym: g.sym, cp: g.cp ? g.cp[0] : '', strike: g.strike, exp: g.exp, entry: g.entry, lo: g.lo, hi: g.hi, spot: g.spot, hits: g.hits, dir: g.dir });
-  });
-  addPerf(allGroups.sort((a,b)=>b.score - a.score).slice(0,6), "Conviction");
-  addPerf(short.filter(g=>g.dir==='BULL').sort((a,b)=>b.prem-a.prem).slice(0,4), "Short Bull");
-  addPerf(short.filter(g=>g.dir==='BEAR').sort((a,b)=>b.prem-a.prem).slice(0,4), "Short Bear");
-  addPerf(long.filter(g=>g.dir==='BULL').sort((a,b)=>b.prem-a.prem).slice(0,4), "Long Bull");
-  addPerf(long.filter(g=>g.dir==='BEAR').sort((a,b)=>b.prem-a.prem).slice(0,4), "Long Bear");
-  addPerf(leaps.filter(g=>g.dir==='BULL').sort((a,b)=>b.prem-a.prem).slice(0,4), "LEAPS Bull");
-  addPerf(leaps.filter(g=>g.dir==='BEAR').sort((a,b)=>b.prem-a.prem).slice(0,4), "LEAPS Bear");
-
-  return { totBull, totBear, liveCount: live.length, whiteCount: white.length, DAYS, CONV, WATCH: white.sort((a,b)=>b.P-a.P).slice(0,10), PERF_INIT, sTerm, lTerm, lpTerm, liveTrades: live, whiteTrades: white };
-};
-
-function OptionsFlowDashboardUI() {
-  const [flowData, setFlowData] = useState(null);
+export default function Dashboard() {
   const [tab, setTab] = useState("Market Read");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [perf, setPerf] = useState([]);
+  const [perf, setPerf] = useState(PERF_INIT.map(p => ({ ...p, now: 0 })));
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    const tryFetchData = async () => {
-      let lastError = "";
-      
-      // We explicitly fetch from root. Vite moves app/public assets to root on build.
-      // Cache buster ensures end-users see your daily GitHub updates instantly.
-      const rawUrl = "/flow-data.csv";
-      const fetchUrl = `${rawUrl}?t=${new Date().getTime()}`;
+  const apiKey = "";
+
+  async function fetchWithRetry(url, options, maxRetries = 5) {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const response = await fetch(url, options);
+        if (response.ok) return await response.json();
+        if (response.status !== 429 && response.status < 500) break;
+      } catch (e) {
+        if (i === maxRetries - 1) throw e;
+      }
+      await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+    }
+    throw new Error("API request failed after retries");
+  }
+
+  async function fetchPrices() {
+    if (loading) return;
+    setLoading(true);
+    setStatus("Authenticating and searching...");
+
+    const updated = [...perf];
+    const contractsToFetch = perf.filter(p => p.now === 0 || !p.now);
+    
+    // Batching to prevent huge payloads
+    const batchSize = 5;
+    const batches = [];
+    for (let i = 0; i < contractsToFetch.length; i += batchSize) {
+      batches.push(contractsToFetch.slice(i, i + batchSize));
+    }
+
+    for (let i = 0; i < batches.length; i++) {
+      const currentBatch = batches[i];
+      setStatus(`Processing batch ${i + 1}/${batches.length}...`);
+
+      const query = currentBatch.map(c => 
+        `${c.sym} ${c.cp === "C" ? "Call" : "Put"} $${c.strike} Exp ${c.exp}`
+      ).join(", ");
+
+      const systemPrompt = "You are a financial data assistant. Given a list of options contracts, use Google Search to find their current market price (last trade). Return ONLY a JSON array of objects with the following schema: { \"sym\": string, \"cp\": \"C\"|\"P\", \"strike\": number, \"price\": number }. Do not include any explanation or other text.";
 
       try {
-        const res = await fetch(fetchUrl);
-        
-        if (!res.ok) throw new Error(`HTTP ${res.status}: File not found at ${rawUrl}`);
-        
-        const contentType = res.headers.get("content-type");
-        if (contentType && contentType.includes("text/html")) {
-           throw new Error("Your backend server returned HTML instead of the data file. The Python router is likely misconfigured.");
+        const result = await fetchWithRetry(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: `Get prices for: ${query}` }] }],
+              systemInstruction: { parts: [{ text: systemPrompt }] },
+              tools: [{ "google_search": {} }],
+              generationConfig: { responseMimeType: "application/json" }
+            })
+          }
+        );
+
+        const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (responseText) {
+          try {
+            const parsedPrices = JSON.parse(responseText);
+            if (Array.isArray(parsedPrices)) {
+              parsedPrices.forEach(p => {
+                const idx = updated.findIndex(u => 
+                  u.sym === p.sym && 
+                  u.cp === p.cp && 
+                  u.strike === p.strike
+                );
+                if (idx !== -1) updated[idx].now = p.price;
+              });
+            }
+          } catch (e) {
+            console.error("Failed to parse Gemini JSON:", e);
+          }
         }
-        
-        const text = await res.text();
-        const rows = parseCSV(text);
-        if (rows.length < 2) throw new Error("The file 'flow-data.csv' was found but it contains no readable data rows.");
-        
-        const data = analyzeFlow(rows);
-        setFlowData(data);
-        setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
-        return; 
-      } catch (err) {
-        lastError = err.message;
-        console.warn(`Fetch to ${rawUrl} failed:`, err.message);
+      } catch (e) {
+        console.error("Gemini API Error:", e);
       }
-      throw new Error(lastError || "Could not automatically find flow-data.csv.");
-    };
+      
+      // Delay to avoid rate limits
+      if (i < batches.length - 1) await new Promise(r => setTimeout(r, 2000));
+    }
 
-    tryFetchData().catch(err => {
-      setErrorMsg(err.message);
-    });
-  }, []);
-
-  async function fetchPrices(){
-    setLoading(true);
-    setStatus("Fetching simulated prices (Mocked API)...");
-    await new Promise(r => setTimeout(r, 1500));
-    setPerf(prev => prev.map(p => {
-      const varianceFactor = (Math.random() * 0.5) - 0.2; 
-      const simulatedNow = Math.max(0.01, p.entry * (1 + varianceFactor));
-      return { ...p, now: Number(simulatedNow.toFixed(2)) };
-    }));
+    setPerf([...updated]);
     setLoading(false);
-    setStatus(`Done. Simulated prices updated successfully.`);
+    setStatus("Pricing update complete.");
   }
 
-  // --- Production User View (No Upload Form) ---
-  if (!flowData) {
-    return (
-      <div style={{display:'flex', minHeight:'100vh', width:'100%', background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", alignItems:'center', justifyContent:'center', padding: 20, boxSizing: 'border-box'}}>
-        <div style={{background:P.cd, border:`1px solid ${P.bd}`, padding:"40px 30px", borderRadius:12, textAlign:'center', width: '100%', maxWidth: 550}}>
-          <div style={{width:12,height:12,borderRadius:"50%",background:errorMsg ? P.be : P.ac,boxShadow:`0 0 15px ${errorMsg ? P.be : P.ac}`, margin: "0 auto 20px auto"}}/>
-          <h2 style={{color:P.wh, margin:"0 0 10px 0", fontSize: 24}}>
-            {errorMsg ? "Data Source Offline" : "Accessing Flow Data..."}
-          </h2>
-          <p style={{color:P.dm, fontSize:12, marginBottom:errorMsg ? 20 : 0, lineHeight: 1.6}}>
-            {errorMsg 
-              ? "The automated market data feed is currently unavailable." 
-              : "Loading high-conviction institutional options flow analysis..."}
-          </p>
-          
-          {errorMsg && (
-            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 14, borderRadius: 6, fontSize: 11, fontWeight: 600, textAlign: 'left', lineHeight: 1.5}}>
-              <strong>Server Response:</strong><br/>{errorMsg}
-              <div style={{marginTop: 10, color: P.dm, borderTop: `1px solid ${P.bd}`, paddingTop: 10, fontWeight: 400}}>
-                <em>Developer Note: If this persists, add a direct route in FastAPI to serve "app/dist/flow-data.csv".</em>
-              </div>
-            </div>
-          )}
-        </div>
+  return <div style={{ background: P.bg, color: P.tx, fontFamily: "'SF Mono','Fira Code',monospace", minHeight: "100vh", padding: "16px 20px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+      <div style={{ width: 6, height: 6, borderRadius: "50%", background: P.ac, boxShadow: `0 0 10px ${P.ac}` }} />
+      <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: P.wh }}>OPTIONS FLOW — MARKET READ</h1>
+      <span style={{ marginLeft: "auto", fontSize: 10, color: P.mt, background: P.al, padding: "3px 10px", borderRadius: 4 }}>WEEK OF MAR 2–6 2026</span>
+    </div>
+    <p style={{ fontSize: 10, color: P.mt, margin: "0 0 12px 16px" }}>8,783 live trades · 797 symbols · $5.4B · Confirmed (YELLOW/MAG) · No deep ITM</p>
+
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+      <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.bu}` }}>
+        <div style={{ fontSize: 11, color: P.bu, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>Short-Term Outlook</div>
+        <div style={{ fontSize: 36, fontWeight: 900, color: P.bu, marginBottom: 8 }}>BULLISH</div>
+        <div style={{ fontSize: 11, color: P.dm, lineHeight: 1.7 }}>0-14 DTE: Bull $237M vs Bear $210M. TSLA $410C 3/13 hit <strong style={{ color: P.ac }}>10x</strong>. MU $430C 3/20 hit <strong style={{ color: P.ac }}>20x</strong>.</div>
       </div>
-    );
-  }
-
-  return (
-    <div style={{background:P.bg,color:P.tx,fontFamily:"'SF Mono','Fira Code',monospace",minHeight:"100vh", width:"100%", boxSizing: "border-box"}}>
-      <div style={{maxWidth: 1400, margin: "0 auto", padding: "16px 20px", width: "100%"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-          <div style={{width:6,height:6,borderRadius:"50%",background:P.ac,boxShadow:`0 0 10px ${P.ac}`}}/>
-          <h1 style={{fontSize:18,fontWeight:800,margin:0,color:P.wh}}>OPTIONS FLOW — DYNAMIC READ</h1>
-          <span style={{marginLeft:"auto",fontSize:10,color:P.mt,background:P.al,padding:"3px 10px",borderRadius:4}}>AUTO-ANALYZED FLOW DATA</span>
-        </div>
-        <p style={{fontSize:10,color:P.mt,margin:"0 0 12px 16px"}}>{flowData.liveCount} confirmed live trades · {fmt(flowData.totBull + flowData.totBear)} confirmed premium · No ML/ or Arb Blocks · No deep ITM structures</p>
-
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? P.bu : P.be}`}}>
-            <div style={{fontSize:11,color:flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? P.bu : P.be,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>Short-Term Outlook (0-14 DTE)</div>
-            <div style={{fontSize:36,fontWeight:900,color:flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? P.bu : P.be,marginBottom:8}}>
-               {flowData.sTerm.bullPrem > flowData.sTerm.bearPrem ? "BULLISH" : "BEARISH"}
-            </div>
-            <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>Bull {fmt(flowData.sTerm.bullPrem)} vs Bear {fmt(flowData.sTerm.bearPrem)}. {flowData.sTerm.consistB.length>0 ? `Bulls led by ${flowData.sTerm.consistB[0].S} $${flowData.sTerm.consistB[0].K}${flowData.sTerm.consistB[0].CP} hitting ${flowData.sTerm.consistB[0].H}x. ` : ""}{flowData.sTerm.consistR.length>0 ? `Bears led by ${flowData.sTerm.consistR[0].S} $${flowData.sTerm.consistR[0].K}${flowData.sTerm.consistR[0].CP} hitting ${flowData.sTerm.consistR[0].H}x.` : ""}</div>
-          </div>
-          <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? P.bu : P.be}`}}>
-            <div style={{fontSize:11,color:flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? P.bu : P.be,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>Long-Term Outlook (15+ DTE)</div>
-            <div style={{fontSize:36,fontWeight:900,color:flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? P.bu : P.be,marginBottom:8}}>
-               {flowData.lTerm.bullPrem > flowData.lTerm.bearPrem ? "BULLISH" : "BEARISH"}
-            </div>
-            <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>Bull {fmt(flowData.lTerm.bullPrem)} vs Bear {fmt(flowData.lTerm.bearPrem)}. {flowData.lTerm.consistB.length>0 ? `Bulls led by ${flowData.lTerm.consistB[0].S} hitting ${flowData.lTerm.consistB[0].H}x. ` : ""}{flowData.lTerm.consistR.length>0 ? `Bears led by ${flowData.lTerm.consistR[0].S} hitting ${flowData.lTerm.consistR[0].H}x.` : ""}</div>
-          </div>
-        </div>
-
-        <div style={{fontSize:10,fontWeight:700,color:P.dm,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>Top Conviction Strikes</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8,marginBottom:12}}>
-          {flowData.CONV.map((t,i)=>{const c=t.dir==="BULL"?P.bu:P.be;return <div key={i} style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:8,padding:"10px 12px",borderTop:`2px solid ${c}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><span style={{fontSize:14,fontWeight:900,color:P.wh}}>{t.sym}</span>{t.side==="AA"?<Tag c={P.ac}>AA</Tag>:t.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>{t.side||"A"}</Tag>}</div><div style={{fontSize:13,fontWeight:800,color:c}}>{t.strike} <span style={{fontSize:11,fontWeight:700,color:P.wh}}>{t.exp}</span></div><div style={{fontSize:10,color:P.dm,marginTop:4}}><span style={{color:P.ac,fontWeight:700}}>{t.hits}x</span> · {fmt(t.prem)}</div><div style={{marginTop:4}}><Tag c={c}>{t.dir}</Tag></div></div>})}
-        </div>
-
-        <div style={{display:"flex",gap:1,marginBottom:14,background:P.al,borderRadius:6,padding:2,width:"fit-content"}}>
-          {TABS.map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:"6px 16px",borderRadius:5,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",background:tab===t?P.cd:"transparent",color:tab===t?P.wh:P.mt}}>{t}</button>)}
-        </div>
-
-        {/* ═══ SEARCH TICKER ═══ */}
-        {tab==="Search" && (
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <Card>
-              <div style={{display: "flex", gap: 14, alignItems: "center"}}>
-                <div style={{width:3,background:P.ac,borderRadius:2,alignSelf:"stretch",flexShrink:0}}/>
-                <div style={{display: "flex", gap: 10, alignItems: "center"}}>
-                  <span style={{fontSize: 14, fontWeight: 800, color: P.wh}}>SEARCH TICKER:</span>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
-                    placeholder="e.g. NVDA"
-                    style={{
-                      background: P.al, border: `1px solid ${P.bl}`, color: P.wh,
-                      padding: "8px 12px", borderRadius: 6, outline: "none", fontSize: 14, fontWeight: 700,
-                      textTransform: "uppercase", width: 200
-                    }}
-                  />
-                </div>
-              </div>
-            </Card>
-            
-            {searchQuery && (() => {
-              const stLive = (flowData.liveTrades || []).filter(r => r.sym === searchQuery);
-              const stWhite = (flowData.whiteTrades || []).filter(r => r.S === searchQuery);
-              
-              if (stLive.length === 0 && stWhite.length === 0) {
-                return <Card><div style={{color:P.dm,fontSize:12}}>No flow found for {searchQuery} matching criteria (No ML/, No deep ITM blocks).</div></Card>;
-              }
-
-              let tBull = 0, tBear = 0;
-              stLive.forEach(r => r.dir === 'BULL' ? tBull += r.prem : tBear += r.prem);
-              
-              const mappedLive = stLive.sort((a,b) => b.prem - a.prem).map(g => ({
-                S: g.sym, Dt: g.date ? g.date.split('/').slice(0,2).join('/') : '', Si: g.side, Co: g.color, Ty: g.type, 
-                CP: g.cp ? g.cp[0] : '', K: g.strike, E: g.exp, V: g.vol, P: g.prem, DTE: g.dte, dir: g.dir
-              }));
-              
-              const mappedWhite = stWhite.sort((a,b) => b.P - a.P);
-
-              return (
-                <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                    <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${tBull > tBear ? P.bu : tBear > tBull ? P.be : P.dm}`}}>
-                      <div style={{fontSize:11,color:tBull > tBear ? P.bu : tBear > tBull ? P.be : P.dm,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>{searchQuery} Confirmed Outlook</div>
-                      <div style={{fontSize:36,fontWeight:900,color:tBull > tBear ? P.bu : tBear > tBull ? P.be : P.wh,marginBottom:8}}>
-                         {tBull > tBear ? "BULLISH" : tBull < tBear ? "BEARISH" : "NEUTRAL"}
-                      </div>
-                      <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>Bull {fmt(tBull)} vs Bear {fmt(tBear)}.</div>
-                    </div>
-                    <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${P.uc}`}}>
-                       <div style={{fontSize:11,color:P.uc,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>Unconfirmed Flow</div>
-                       <div style={{fontSize:36,fontWeight:900,color:P.uc,marginBottom:8}}>
-                         {fmt(stWhite.reduce((s, r) => s + r.P, 0))}
-                       </div>
-                       <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>{stWhite.length} unconfirmed (WHITE) trades. Requires OI check.</div>
-                    </div>
-                  </div>
-                  <Card title={`Confirmed Trades: ${searchQuery}`}>
-                     {mappedLive.length > 0 ? <TT rows={mappedLive} /> : <div style={{fontSize:11,color:P.dm}}>No confirmed trades.</div>}
-                  </Card>
-                  <Card title={`Unconfirmed Trades (Watchlist): ${searchQuery}`}>
-                     {mappedWhite.length > 0 ? <TT rows={mappedWhite} /> : <div style={{fontSize:11,color:P.dm}}>No unconfirmed trades.</div>}
-                  </Card>
-                </div>
-              );
-            })()}
-          </div>
-        )}
-
-        {tab==="Market Read"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <Card title="Confirmed Daily Flow" sub="Bull vs Bear (live exps only)">
-            <div style={{height:200}}><ResponsiveContainer><BarChart data={flowData.DAYS} margin={{top:5,right:8,left:0,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke={P.bd}/><XAxis dataKey="d" tick={{fill:P.tx,fontSize:10,fontWeight:600}} tickLine={false}/><YAxis tick={{fill:P.mt,fontSize:9}} tickLine={false} axisLine={false} tickFormatter={fmt} width={52}/><Tooltip content={({active,payload,label})=>{if(!active||!payload||!payload.length)return null;return <div style={{background:"#152038",border:`1px solid ${P.bl}`,borderRadius:6,padding:"8px 12px",fontSize:11}}><div style={{color:P.dm,fontWeight:600,marginBottom:4}}>{label}</div>{payload.map((p,i)=><div key={i} style={{color:p.color,display:"flex",gap:8,justifyContent:"space-between"}}><span>{p.name}</span><span style={{fontWeight:700,fontFamily:"monospace"}}>{fmt(Math.abs(p.value))}</span></div>)}</div>}}/><Bar dataKey="b" name="Bullish" fill={P.bu} radius={[3,3,0,0]} barSize={20}/><Bar dataKey="r" name="Bearish" fill={P.be} radius={[3,3,0,0]} barSize={20}/></BarChart></ResponsiveContainer></div>
-          </Card>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <Card title="Short-Term Bullish" sub="0-14 DTE"><NC data={flowData.sTerm.symB} fill={P.bu} dir="bull"/></Card>
-            <Card title="Short-Term Bearish" sub="0-14 DTE"><NC data={flowData.sTerm.symR} fill={P.be} dir="bear"/></Card>
-            <Card title="Long-Term Bullish" sub="15+ DTE"><NC data={flowData.lTerm.symB} fill={P.bu} dir="bull"/></Card>
-            <Card title="Long-Term Bearish" sub="15+ DTE"><NC data={flowData.lTerm.symR} fill={P.be} dir="bear"/></Card>
-          </div>
-        </div>}
-
-        {/* ═══ PERFORMANCE ═══ */}
-        {tab==="Performance"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <Card>
-            <div style={{display:"flex",gap:14,alignItems:"center"}}>
-              <div style={{width:3,background:P.ac,borderRadius:2,alignSelf:"stretch",flexShrink:0}}/>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:700,color:P.ac,marginBottom:5}}>Contract Performance Tracker</div>
-                <div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>
-                  Entry is the contract price from the largest trade on each strike. Range shows the low-high across all hits.
-                </div>
-              </div>
-              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
-                <button
-                  onClick={fetchPrices}
-                  disabled={loading}
-                  style={{
-                    padding:"8px 20px",borderRadius:6,border:"none",cursor:loading?"not-allowed":"pointer",
-                    fontSize:11,fontWeight:700,fontFamily:"inherit",letterSpacing:0.5,
-                    background:loading?P.bd:P.ac,color:loading?P.dm:P.bg,
-                    opacity:loading?0.6:1,
-                  }}
-                >{loading ? "Fetching..." : "Simulate Refresh Prices"}</button>
-                {status && <span style={{fontSize:9,color:loading?P.ac:P.dm}}>{status}</span>}
-              </div>
-            </div>
-          </Card>
-          {["Conviction","Short Bull","Short Bear","Long Bull","Long Bear","LEAPS Bull","LEAPS Bear"].map(cat => {
-            const items = perf.filter(p => p.cat === cat);
-            if (items.length === 0) return null;
-            const catColor = cat.includes("Bull") ? P.bu : cat.includes("Bear") ? P.be : P.ac;
-            return (
-              <Card key={cat} title={cat} sub={`${items.length} contracts`} col={catColor}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}>
-                  <thead>
-                    <tr style={{borderBottom:`1px solid ${P.bd}`}}>
-                      {["Ticker","C/P","Strike","Exp","Hits","Entry","Range","Now","P&L","P&L %","Dir"].map(h =>
-                        <th key={h} style={{padding:"5px 5px",textAlign:"left",color:P.mt,fontSize:9,fontWeight:600}}>{h}</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((r,i) => {
-                      const curr = r.now || 0;
-                      const pnl = curr > 0 ? curr - r.entry : 0;
-                      const pnlPct = curr > 0 && r.entry > 0 ? ((curr - r.entry) / r.entry * 100) : 0;
-                      const pnlColor = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
-                      return (
-                        <tr key={r.id} style={{borderBottom:`1px solid ${P.bd}10`}}>
-                          <td style={{padding:"5px 5px",fontWeight:800,color:P.wh}}>{r.sym}</td>
-                          <td style={{padding:"5px 5px"}}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
-                          <td style={{padding:"5px 5px",fontWeight:800,color:P.wh}}>${r.strike}</td>
-                          <td style={{padding:"5px 5px",fontWeight:800,color:P.wh}}>{r.exp}</td>
-                          <td style={{padding:"5px 5px"}}><span style={{fontWeight:800,color:r.hits>=10?P.ac:r.hits>=5?P.ye:P.dm}}>{r.hits}x</span></td>
-                          <td style={{padding:"5px 5px",fontWeight:700,color:P.wh}}>${r.entry.toFixed(2)}</td>
-                          <td style={{padding:"5px 5px",fontSize:9,color:P.mt}}>${r.lo && r.lo !== r.hi ? `${r.lo.toFixed(2)}-${r.hi.toFixed(2)}` : "—"}</td>
-                          <td style={{padding:"5px 5px"}}>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={curr || ""}
-                              placeholder="—"
-                              onChange={e => {
-                                const v = parseFloat(e.target.value) || 0;
-                                setPerf(prev => prev.map(p => p.id === r.id ? {...p, now: v} : p));
-                              }}
-                              style={{
-                                width:70,padding:"3px 6px",borderRadius:4,fontSize:10,fontWeight:700,
-                                background:P.al,border:`1px solid ${P.bl}`,color:P.wh,fontFamily:"inherit",
-                                outline:"none",
-                              }}
-                            />
-                          </td>
-                          <td style={{padding:"5px 5px",fontWeight:700,color:pnlColor}}>
-                            {curr > 0 ? `${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}` : "—"}
-                          </td>
-                          <td style={{padding:"5px 5px",fontWeight:700,color:pnlColor}}>
-                            {curr > 0 ? `${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%` : "—"}
-                          </td>
-                          <td style={{padding:"5px 5px"}}><Tag c={r.dir==="BULL"?P.bu:P.be}>{r.dir}</Tag></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </Card>
-            );
-          })}
-        </div>}
-
-        {tab==="Short Term"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <Card title="Bullish Bets" sub="0-14 DTE"><NC data={flowData.sTerm.symB} fill={P.bu} dir="bull"/></Card>
-            <Card title="Bearish Bets" sub="0-14 DTE"><NC data={flowData.sTerm.symR} fill={P.be} dir="bear"/></Card>
-          </div>
-          <Card title="Short-Term Bullish Trades"><TT rows={flowData.sTerm.tradesB}/></Card>
-          <Card title="Short-Term Bearish Trades"><TT rows={flowData.sTerm.tradesR}/></Card>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <Card title="Bullish Consistency" sub="2+ hits"><CT rows={flowData.sTerm.consistB}/></Card>
-            <Card title="Bearish Consistency" sub="2+ hits"><CT rows={flowData.sTerm.consistR}/></Card>
-          </div>
-        </div>}
-
-        {tab==="Long Term"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <Card title="Bullish Bets" sub="15+ DTE"><NC data={flowData.lTerm.symB} fill={P.bu} dir="bull"/></Card>
-            <Card title="Bearish Bets" sub="15+ DTE"><NC data={flowData.lTerm.symR} fill={P.be} dir="bear"/></Card>
-          </div>
-          <Card title="Long-Term Bullish Trades"><TT rows={flowData.lTerm.tradesB}/></Card>
-          <Card title="Long-Term Bearish Trades"><TT rows={flowData.lTerm.tradesR}/></Card>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <Card title="Bullish Consistency" sub="2+ hits"><CT rows={flowData.lTerm.consistB}/></Card>
-            <Card title="Bearish Consistency" sub="2+ hits"><CT rows={flowData.lTerm.consistR}/></Card>
-          </div>
-        </div>}
-
-        {tab==="LEAPS"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.bu : P.be}`}}>
-              <div style={{fontSize:11,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.bu : P.be,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>LEAPS Bull Side</div>
-              <div style={{fontSize:24,fontWeight:900,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.bu : P.be,marginBottom:4}}>{fmt(flowData.lpTerm.bullPrem)}</div>
-            </div>
-            <div style={{background:P.cd,border:`1px solid ${P.bd}`,borderRadius:10,padding:20,borderLeft:`4px solid ${flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.be : P.bu}`}}>
-              <div style={{fontSize:11,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.be : P.bu,fontWeight:700,letterSpacing:2,marginBottom:6,textTransform:"uppercase"}}>LEAPS Bear Side</div>
-              <div style={{fontSize:24,fontWeight:900,color:flowData.lpTerm.bullPrem > flowData.lpTerm.bearPrem ? P.be : P.bu,marginBottom:4}}>{fmt(flowData.lpTerm.bearPrem)}</div>
-            </div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <Card title="Bullish Bets" sub="180+ DTE"><NC data={flowData.lpTerm.symB} fill={P.bu} dir="bull"/></Card>
-            <Card title="Bearish Bets" sub="180+ DTE"><NC data={flowData.lpTerm.symR} fill={P.be} dir="bear"/></Card>
-          </div>
-          <Card title="LEAPS Bullish Trades"><TT rows={flowData.lpTerm.tradesB}/></Card>
-          <Card title="LEAPS Bearish Trades"><TT rows={flowData.lpTerm.tradesR}/></Card>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <Card title="Bull Consistency" sub="2+ hits"><CT rows={flowData.lpTerm.consistB}/></Card>
-            <Card title="Bear Consistency" sub="2+ hits"><CT rows={flowData.lpTerm.consistR}/></Card>
-          </div>
-        </div>}
-
-        {tab==="OI Watchlist"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <Card><div style={{display:"flex",gap:14}}><div style={{width:3,background:P.uc,borderRadius:2,alignSelf:"stretch",flexShrink:0}}/><div><div style={{fontSize:13,fontWeight:700,color:P.uc,marginBottom:5}}>OI Check Needed</div><div style={{fontSize:11,color:P.dm,lineHeight:1.7}}>{flowData.whiteCount} unconfirmed trades this week. Check OI changes to confirm direction.</div></div></div></Card>
-          <Card title="OI Watchlist" sub="Top unconfirmed by premium">
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}><thead><tr style={{borderBottom:`1px solid ${P.bd}`}}>{["Ticker","C/P","Strike","Exp","Type","Side","Vol","OI","Premium","Vol/OI"].map(h=><th key={h} style={{padding:"5px 4px",textAlign:"left",color:P.mt,fontSize:9,fontWeight:600}}>{h}</th>)}</tr></thead><tbody>{flowData.WATCH.map((r,i)=>{const pct=r.OI>0?Math.round(r.V/r.OI*100):999;return <tr key={i} style={{borderBottom:`1px solid ${P.bd}10`}}><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.S}</td><td style={{padding:"5px 4px"}}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>${r.K}</td><td style={{padding:"5px 4px",fontWeight:800,color:P.wh}}>{r.E}</td><td style={{padding:"5px 4px"}}><Tag c={tc(r.Ty)}>{r.Ty}</Tag></td><td style={{padding:"5px 4px"}}>{r.Si==="BB"?<Tag c={P.be}>BB</Tag>:r.Si==="AA"?<Tag c={P.ac}>AA</Tag>:r.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>{r.Si||"A"}</Tag>}</td><td style={{padding:"5px 4px",color:P.dm}}>{fK(r.V)}</td><td style={{padding:"5px 4px",color:P.dm}}>{fK(r.OI)}</td><td style={{padding:"5px 4px",fontWeight:700,color:P.wh}}>{fmt(r.P)}</td><td style={{padding:"5px 4px",fontWeight:600,color:pct>=80?P.ac:pct>=50?P.ye:P.dm}}>{pct}%</td></tr>})}</tbody></table>
-          </Card>
-        </div>}
-
-        <div style={{marginTop:16,padding:"10px 0",borderTop:`1px solid ${P.bd}`,display:"flex",justifyContent:"space-between"}}><span style={{fontSize:9,color:P.mt}}>Flow Data Uploaded Automatically</span><span style={{fontSize:9,color:P.mt}}>YELLOW/MAG = confirmed · WHITE = check OI</span></div>
+      <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.bu}` }}>
+        <div style={{ fontSize: 11, color: P.bu, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>Long-Term Outlook</div>
+        <div style={{ fontSize: 36, fontWeight: 900, color: P.bu, marginBottom: 8 }}>BULLISH</div>
+        <div style={{ fontSize: 11, color: P.dm, lineHeight: 1.7 }}>15+ DTE: Bull $772M vs Bear $582M. MSFT $575-$675C Jan 2027 ($122M). TSLA $410C 3/20 hit <strong style={{ color: P.ac }}>15x</strong>.</div>
       </div>
     </div>
-  );
-}
 
-export default function App() {
-  return (
-    <DashboardErrorBoundary>
-      <OptionsFlowDashboardUI />
-    </DashboardErrorBoundary>
-  );
+    <div style={{ display: "flex", gap: 1, marginBottom: 14, background: P.al, borderRadius: 6, padding: 2, width: "fit-content" }}>
+      {TABS.map(t => <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit", background: tab === t ? P.cd : "transparent", color: tab === t ? P.wh : P.mt }}>{t}</button>)}
+    </div>
+
+    {tab === "Market Read" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <Card title="Confirmed Daily Flow" sub="Bull vs Bear (live exps only)">
+        <div style={{ height: 200 }}><ResponsiveContainer><BarChart data={DAYS} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke={P.bd} /><XAxis dataKey="d" tick={{ fill: P.tx, fontSize: 10, fontWeight: 600 }} tickLine={false} /><YAxis tick={{ fill: P.mt, fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={fmt} width={52} /><Tooltip content={({ active, payload, label }) => { if (!active || !payload || !payload.length) return null; return <div style={{ background: "#152038", border: `1px solid ${P.bl}`, borderRadius: 6, padding: "8px 12px", fontSize: 11 }}><div style={{ color: P.dm, fontWeight: 600, marginBottom: 4 }}>{label}</div>{payload.map((p, i) => <div key={i} style={{ color: p.color, display: "flex", gap: 8, justifyContent: "space-between" }}><span>{p.name}</span><span style={{ fontWeight: 700, fontFamily: "monospace" }}>{fmt(Math.abs(p.value))}</span></div>)}</div> }} /><Bar dataKey="b" name="Bullish" fill={P.bu} radius={[3, 3, 0, 0]} barSize={20} /><Bar dataKey="r" name="Bearish" fill={P.be} radius={[3, 3, 0, 0]} barSize={20} /></BarChart></ResponsiveContainer></div>
+      </Card>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Card title="Short-Term Bullish" sub="0-14 DTE"><NC data={SB_SYM} fill={P.bu} dir="bull" /></Card>
+        <Card title="Short-Term Bearish" sub="0-14 DTE"><NC data={SR_SYM} fill={P.be} dir="bear" /></Card>
+      </div>
+    </div>}
+
+    {tab === "Performance" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <Card>
+        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          <div style={{ width: 3, background: P.ac, borderRadius: 2, alignSelf: "stretch", flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: P.ac, marginBottom: 5 }}>Contract Performance Tracker</div>
+            <div style={{ fontSize: 11, color: P.dm, lineHeight: 1.7 }}>
+              Real-time contract pricing via Google Search grounding. Entry represents premium at flow signal.
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <button
+              onClick={fetchPrices}
+              disabled={loading}
+              style={{
+                padding: "8px 20px", borderRadius: 6, border: "none", cursor: loading ? "not-allowed" : "pointer",
+                fontSize: 11, fontWeight: 700, fontFamily: "inherit", letterSpacing: 0.5,
+                background: loading ? P.bd : P.ac, color: loading ? P.dm : P.bg,
+                opacity: loading ? 0.6 : 1, transition: "all 0.2s"
+              }}
+            >{loading ? "Fetching Prices..." : "Update Live Prices"}</button>
+            {status && <span style={{ fontSize: 9, color: loading ? P.ac : P.dm }}>{status}</span>}
+          </div>
+        </div>
+      </Card>
+
+      {["Conviction", "Short Bull", "Short Bear", "Long Bull", "Long Bear", "LEAPS Bull", "LEAPS Bear"].map(cat => {
+        const items = perf.filter(p => p.cat === cat);
+        if (items.length === 0) return null;
+        return (
+          <Card key={cat} title={cat} sub={`${items.length} positions`}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${P.bd}` }}>
+                  {["Ticker", "C/P", "Strike", "Exp", "Hits", "Entry", "Current", "P&L", "%", "Action"].map(h =>
+                    <th key={h} style={{ padding: "5px 5px", textAlign: "left", color: P.mt, fontSize: 9, fontWeight: 600 }}>{h}</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((r) => {
+                  const curr = r.now || 0;
+                  const pnl = curr > 0 ? curr - r.entry : 0;
+                  const pnlPct = curr > 0 && r.entry > 0 ? ((curr - r.entry) / r.entry * 100) : 0;
+                  const pnlColor = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
+                  return (
+                    <tr key={r.id} style={{ borderBottom: `1px solid ${P.bd}10` }}>
+                      <td style={{ padding: "5px 5px", fontWeight: 800, color: P.wh }}>{r.sym}</td>
+                      <td style={{ padding: "5px 5px" }}><Tag c={r.cp === "C" ? P.bu : P.be}>{r.cp}</Tag></td>
+                      <td style={{ padding: "5px 5px", fontWeight: 800, color: P.wh }}>${r.strike}</td>
+                      <td style={{ padding: "5px 5px", fontWeight: 800, color: P.wh }}>{r.exp}</td>
+                      <td style={{ padding: "5px 5px" }}><span style={{ fontWeight: 800, color: r.hits >= 10 ? P.ac : r.hits >= 5 ? P.ye : P.dm }}>{r.hits}x</span></td>
+                      <td style={{ padding: "5px 5px", fontWeight: 700, color: P.wh }}>${r.entry.toFixed(2)}</td>
+                      <td style={{ padding: "5px 5px" }}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={curr || ""}
+                          placeholder="—"
+                          onChange={e => {
+                            const v = parseFloat(e.target.value) || 0;
+                            setPerf(prev => prev.map(p => p.id === r.id ? { ...p, now: v } : p));
+                          }}
+                          style={{
+                            width: 60, padding: "3px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700,
+                            background: P.al, border: `1px solid ${P.bl}`, color: P.wh, fontFamily: "inherit",
+                            outline: "none",
+                          }}
+                        />
+                      </td>
+                      <td style={{ padding: "5px 5px", fontWeight: 700, color: pnlColor }}>
+                        {curr > 0 ? `${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}` : "—"}
+                      </td>
+                      <td style={{ padding: "5px 5px", fontWeight: 700, color: pnlColor }}>
+                        {curr > 0 ? `${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%` : "—"}
+                      </td>
+                      <td style={{ padding: "5px 5px" }}><Tag c={r.dir === "BULL" ? P.bu : P.be}>{r.dir}</Tag></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        );
+      })}
+    </div>}
+
+    {tab === "Short Term" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <Card title="Short-Term Bullish Trades" sub="$237M confirmed"><TT rows={SBL} /></Card>
+      <Card title="Short-Term Bearish Trades" sub="$210M confirmed"><TT rows={SBR} /></Card>
+    </div>}
+
+    {tab === "Long Term" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <Card title="Long-Term Bullish Trades" sub="$772M confirmed"><TT rows={LBL} /></Card>
+      <Card title="Long-Term Bearish Trades" sub="$582M confirmed"><TT rows={LBR_T} /></Card>
+    </div>}
+
+    {tab === "LEAPS" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.bu}` }}>
+          <div style={{ fontSize: 11, color: P.bu, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>LEAPS Bull Side</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: P.bu, marginBottom: 4 }}>$344M</div>
+          <div style={{ fontSize: 11, color: P.dm }}>MSFT $120M in Jan 2027.</div>
+        </div>
+        <div style={{ background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 10, padding: 20, borderLeft: `4px solid ${P.be}` }}>
+          <div style={{ fontSize: 11, color: P.be, fontWeight: 700, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>LEAPS Bear Side</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: P.be, marginBottom: 4 }}>$249M</div>
+          <div style={{ fontSize: 11, color: P.dm }}>NVDA -$30M hedge.</div>
+        </div>
+      </div>
+      <Card title="LEAPS Bullish Trades"><TT rows={LEAPS_BL_T} /></Card>
+      <Card title="LEAPS Bearish Trades"><TT rows={LEAPS_BR_T} /></Card>
+    </div>}
+
+    {tab === "OI Watchlist" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <Card title="OI Watchlist" sub="Top unconfirmed by premium">
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}><thead><tr style={{ borderBottom: `1px solid ${P.bd}` }}>{["Ticker", "C/P", "Strike", "Exp", "Side", "Vol", "OI", "Premium"].map(h => <th key={h} style={{ padding: "5px 4px", textAlign: "left", color: P.mt, fontSize: 9, fontWeight: 600 }}>{h}</th>)}</tr></thead><tbody>{WATCH.map((r, i) => <tr key={i} style={{ borderBottom: `1px solid ${P.bd}10` }}><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>{r.S}</td><td style={{ padding: "5px 4px" }}><Tag c={r.CP === "C" ? P.bu : P.be}>{r.CP}</Tag></td><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>${r.K}</td><td style={{ padding: "5px 4px", fontWeight: 800, color: P.wh }}>{r.E}</td><td style={{ padding: "5px 4px" }}>{r.Si}</td><td style={{ padding: "5px 4px", color: P.dm }}>{fK(r.V)}</td><td style={{ padding: "5px 4px", color: P.dm }}>{fK(r.OI)}</td><td style={{ padding: "5px 4px", fontWeight: 700, color: P.wh }}>{fmt(r.P)}</td></tr>)}</tbody></table>
+      </Card>
+    </div>}
+
+    <div style={{ marginTop: 16, padding: "10px 0", borderTop: `1px solid ${P.bd}`, display: "flex", justifyContent: "space-between" }}>
+      <span style={{ fontSize: 9, color: P.mt }}>Weekly Options Flow · Gemini AI Integrated</span>
+      <span style={{ fontSize: 9, color: P.mt }}>YELLOW/MAG = confirmed flow</span>
+    </div>
+  </div>;
 }
