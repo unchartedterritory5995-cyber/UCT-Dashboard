@@ -236,15 +236,13 @@ function OptionsFlowDashboardUI() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
+    // Only check the primary paths to avoid confusing error messages
     const fetchPaths = [
       '/flow-data.csv',
-      'flow-data.csv',
-      '/options-flow/flow-data.csv',
-      '/Options%20Flow%20Week.csv'
+      '/options-flow/flow-data.csv'
     ];
 
     const tryFetchData = async () => {
-      let lastError = "";
       for (const path of fetchPaths) {
         try {
           const res = await fetch(path);
@@ -252,23 +250,27 @@ function OptionsFlowDashboardUI() {
           
           const contentType = res.headers.get("content-type");
           if (contentType && contentType.includes("text/html")) {
-            throw new Error(`Path ${path} returned HTML (likely caught by your backend router).`);
+            throw new Error(`Your server intercepted the request for ${path} and returned the website's HTML instead of the CSV file. Please make sure your Python backend is configured to serve static files from the public folder.`);
           }
           
           const text = await res.text();
           const rows = parseCSV(text);
-          if (rows.length < 2) throw new Error(`Path ${path} had no valid CSV data.`);
+          if (rows.length < 2) throw new Error(`Path ${path} was found, but it had no valid CSV data inside.`);
           
           const data = analyzeFlow(rows);
           setFlowData(data);
           setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
           return; // Success! Exit the loop.
         } catch (err) {
-          lastError = err.message;
+          // If this path failed, log it and try the next one.
+          // If it's the specific HTML catch-all error, bubble it up.
+          if (err.message.includes('returned the website')) {
+            throw err; 
+          }
           console.log(`Failed fetching ${path}:`, err.message);
         }
       }
-      throw new Error("Could not auto-fetch CSV. Make sure your Python backend is configured to serve static files from the public directory. Last error: " + lastError);
+      throw new Error("Could not find flow-data.csv on your server. Please make sure the file is uploaded to the public directory.");
     };
 
     tryFetchData().catch(err => {
@@ -312,14 +314,14 @@ function OptionsFlowDashboardUI() {
   if (!flowData) {
     return (
       <div style={{display:'flex', minHeight:'100vh', width:'100%', background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", alignItems:'center', justifyContent:'center', padding: 20, boxSizing: 'border-box'}}>
-        <div style={{background:P.cd, border:`1px solid ${P.bd}`, padding:"40px 30px", borderRadius:12, textAlign:'center', width: '100%', maxWidth: 450}}>
+        <div style={{background:P.cd, border:`1px solid ${P.bd}`, padding:"40px 30px", borderRadius:12, textAlign:'center', width: '100%', maxWidth: 550}}>
           <div style={{width:12,height:12,borderRadius:"50%",background:P.ac,boxShadow:`0 0 15px ${P.ac}`, margin: "0 auto 20px auto"}}/>
           <h2 style={{color:P.wh, margin:"0 0 10px 0", fontSize: 24}}>Load Flow Engine</h2>
           <p style={{color:P.dm, fontSize:12, marginBottom:20}}>Upload your Options Flow CSV to generate the live dashboard.</p>
           
           {errorMsg && (
-            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 10, borderRadius: 6, marginBottom: 20, fontSize: 11, fontWeight: 600, textAlign: 'left'}}>
-              <strong>Auto-Fetch Status:</strong><br/>{errorMsg}
+            <div style={{background: `${P.be}15`, border: `1px solid ${P.be}40`, color: P.be, padding: 14, borderRadius: 6, marginBottom: 20, fontSize: 12, fontWeight: 600, textAlign: 'left', lineHeight: 1.5}}>
+              <strong>Auto-Fetch Failed:</strong><br/>{errorMsg}
             </div>
           )}
 
@@ -451,6 +453,7 @@ function OptionsFlowDashboardUI() {
           </div>
         </div>}
 
+        {/* ═══ PERFORMANCE ═══ */}
         {tab==="Performance"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
           <Card>
             <div style={{display:"flex",gap:14,alignItems:"center"}}>
