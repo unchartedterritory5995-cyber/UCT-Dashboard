@@ -236,33 +236,44 @@ function OptionsFlowDashboardUI() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    fetch('/flow-data.csv')
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP Error ${res.status}: Could not find flow-data.csv on your server.`);
-        
-        // Prevent Router Fallbacks (if server returns index.html instead of a CSV)
-        const contentType = res.headers.get("content-type");
-        if (contentType && contentType.includes("text/html")) {
-           throw new Error("Server returned HTML instead of a CSV. Make sure you placed flow-data.csv in the public folder.");
-        }
-        return res.text();
-      })
-      .then(text => {
+    const fetchPaths = [
+      '/flow-data.csv',
+      'flow-data.csv',
+      '/options-flow/flow-data.csv',
+      '/Options%20Flow%20Week.csv'
+    ];
+
+    const tryFetchData = async () => {
+      let lastError = "";
+      for (const path of fetchPaths) {
         try {
+          const res = await fetch(path);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("text/html")) {
+            throw new Error(`Path ${path} returned HTML (likely caught by your backend router).`);
+          }
+          
+          const text = await res.text();
           const rows = parseCSV(text);
-          if (rows.length === 0) throw new Error("CSV was loaded but appears to be empty.");
+          if (rows.length < 2) throw new Error(`Path ${path} had no valid CSV data.`);
+          
           const data = analyzeFlow(rows);
           setFlowData(data);
           setPerf(data.PERF_INIT.map(p => ({...p, now: 0})));
+          return; // Success! Exit the loop.
         } catch (err) {
-          console.error("Error parsing flow data:", err);
-          setErrorMsg("Data Parsing Error: " + err.message);
+          lastError = err.message;
+          console.log(`Failed fetching ${path}:`, err.message);
         }
-      })
-      .catch(err => {
-        console.log("Auto-fetch failed, falling back to manual upload:", err);
-        setErrorMsg(err.message);
-      });
+      }
+      throw new Error("Could not auto-fetch CSV. Make sure your Python backend is configured to serve static files from the public directory. Last error: " + lastError);
+    };
+
+    tryFetchData().catch(err => {
+      setErrorMsg(err.message);
+    });
   }, []);
 
   const handleFileUpload = (e) => {
@@ -590,7 +601,7 @@ function OptionsFlowDashboardUI() {
   );
 }
 
-export default function OptionsFlow() {
+export default function App() {
   return (
     <DashboardErrorBoundary>
       <OptionsFlowDashboardUI />
