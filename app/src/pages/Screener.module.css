@@ -402,6 +402,56 @@
   opacity: 0.6;
 }
 
+/* ── Signal indicator chips ── */
+.signalChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.indicatorChip {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.indicatorGreen {
+  color: var(--ut-green-bright);
+  background: rgba(0, 200, 120, 0.1);
+  border-color: rgba(0, 200, 120, 0.25);
+}
+
+.indicatorAmber {
+  color: var(--ut-gold);
+  background: rgba(212, 170, 80, 0.1);
+  border-color: rgba(212, 170, 80, 0.25);
+}
+
+.indicatorRed {
+  color: var(--loss);
+  background: rgba(255, 80, 80, 0.08);
+  border-color: rgba(255, 80, 80, 0.2);
+}
+
+.indicatorMuted {
+  color: var(--text-muted);
+  background: transparent;
+  border-color: var(--border);
+  opacity: 0.6;
+}
+
+/* ── Extended row ── */
+.rowExtended td {
+  opacity: 0.5;
+}
+
 /* ── Also chips ── */
 .alsoChip {
   font-family: 'IBM Plex Mono', monospace;

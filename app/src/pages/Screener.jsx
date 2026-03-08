@@ -74,20 +74,54 @@ function PremarketBar({ ctx }) {
   )
 }
 
+function SignalChips({ row }) {
+  const chips = []
+  if (row.adr_pct != null) {
+    const cls = row.adr_pct >= 5 ? styles.indicatorGreen : row.adr_pct >= 4 ? styles.indicatorAmber : styles.indicatorMuted
+    chips.push(<span key="adr" className={`${styles.indicatorChip} ${cls}`}>{row.adr_pct.toFixed(1)}% ADR</span>)
+  }
+  if (row.pole_pct != null && row.pole_pct >= 10) {
+    const cls = row.pole_pct >= 40 ? styles.indicatorGreen : styles.indicatorAmber
+    chips.push(<span key="pole" className={`${styles.indicatorChip} ${cls}`}>+{row.pole_pct.toFixed(0)}% run</span>)
+  }
+  if (row.ma_stack_intact) {
+    chips.push(<span key="ma" className={`${styles.indicatorChip} ${styles.indicatorGreen}`}>MA↑↑</span>)
+  }
+  if (row.ema_rising) {
+    chips.push(<span key="ema" className={`${styles.indicatorChip} ${styles.indicatorGreen}`}>EMA↑</span>)
+  }
+  if (row.rs_trend === 'up') {
+    chips.push(<span key="rs" className={`${styles.indicatorChip} ${styles.indicatorGreen}`}>RS↑</span>)
+  } else if (row.rs_trend === 'down') {
+    chips.push(<span key="rs" className={`${styles.indicatorChip} ${styles.indicatorMuted}`}>RS↓</span>)
+  }
+  if (row.vol_acc_ratio != null) {
+    if (row.vol_acc_ratio > 1.1) {
+      chips.push(<span key="acc" className={`${styles.indicatorChip} ${styles.indicatorGreen}`}>ACC</span>)
+    } else if (row.vol_acc_ratio < 0.85) {
+      chips.push(<span key="acc" className={`${styles.indicatorChip} ${styles.indicatorRed}`}>DIST</span>)
+    }
+  }
+  if (chips.length === 0) return null
+  return <div className={styles.signalChips}>{chips}</div>
+}
+
 function PullbackRow({ row }) {
   const hasPattern = row.pattern_detected
   const patternLabel = hasPattern
     ? [
         row.pattern_type ?? 'pattern',
-        row.consolidation_days != null ? `${row.consolidation_days}d` : null,
-        row.depth_pct != null ? `${row.depth_pct.toFixed(1)}%` : null,
+        row.days_in_pattern != null ? `${row.days_in_pattern}d` : null,
+        row.pattern_depth_pct != null ? `${row.pattern_depth_pct.toFixed(1)}%` : null,
       ].filter(Boolean).join(' · ')
     : null
 
+  const isExtended = row.alert_state === 'EXTENDED'
   const rowCls = [
     styles.row,
     row.alert_state === 'BREAKING' ? styles.rowBreaking : '',
     row.alert_state === 'READY'    ? styles.rowReady    : '',
+    isExtended                     ? styles.rowExtended : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -98,9 +132,13 @@ function PullbackRow({ row }) {
           <TickerPopup sym={row.ticker} />
           <AlsoChips list={row.also_qualified_as} />
         </div>
-        {row.candle_notes && (
+        {row.candle_notes && !isExtended && (
           <div className={styles.candleNotes}>{row.candle_notes}</div>
         )}
+        {isExtended && (
+          <div className={styles.candleNotes}>extended {row.ema_distance_pct != null ? `+${row.ema_distance_pct.toFixed(1)}% above EMA` : ''} — watch for pullback</div>
+        )}
+        <SignalChips row={row} />
       </td>
       <td className={styles.company}>{row.company || '—'}</td>
       <td className={styles.patternCell}>
@@ -128,15 +166,17 @@ function PullbackRow({ row }) {
 function RemountRow({ row }) {
   return (
     <tr className={styles.row}>
-      <td><SetupBadge type={row.setup_type} /></td>
-      <td className={styles.ticker}>
-        <TickerPopup sym={row.ticker} />
-        <AlsoChips list={row.also_qualified_as} />
+      <td><AlertBadge state={row.alert_state} /></td>
+      <td className={styles.tickerCell}>
+        <div className={styles.tickerLine}>
+          <TickerPopup sym={row.ticker} />
+          <AlsoChips list={row.also_qualified_as} />
+        </div>
+        <SignalChips row={row} />
       </td>
       <td className={styles.company}>{row.company || '—'}</td>
-      <td className={styles.sector}>{row.sector || '—'}</td>
+      <td className={styles.scoreCell}>{fmtScore(row.candle_score)}</td>
       <td>{fmtPct(row.sma20_dist_pct)}</td>
-      <td>{fmtPct(row.sma50_dist_pct)}</td>
       <td>{fmtPct(row.change_pct)}</td>
     </tr>
   )
@@ -212,12 +252,11 @@ function CandidateTable({ rows, tabKey }) {
     <table className={styles.table}>
       <thead>
         <tr>
-          <th>Setup</th>
+          <th>Alert</th>
           <th>Ticker</th>
           <th>Company</th>
-          <th>Sector</th>
+          <th>Score</th>
           <th>SMA20%</th>
-          <th>SMA50%</th>
           <th>Chg%</th>
         </tr>
       </thead>
