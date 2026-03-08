@@ -530,6 +530,29 @@
   letter-spacing: 0.5px;
 }
 
+/* ── Ticker list ── */
+.tickerList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tickerItem {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.tickerItem:last-child {
+  border-bottom: none;
+}
+
+.tickerItem:hover {
+  background: var(--bg-hover);
+}
+
 /* ── Meta footer ── */
 .meta {
   font-family: 'IBM Plex Mono', monospace;
