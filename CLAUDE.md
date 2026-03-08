@@ -127,15 +127,18 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 | Earnings | wire_data push from engine | Daily (7:35 AM ET) |
 | Scanner Candidates | scanner_candidates.py → wire_data push | Daily (7:00 AM CT scanner + 7:35 AM ET engine push) |
 
-## Key Components Built (2026-03-05)
+## Key Components Built (2026-03-07 — Scanner v2 "World-Class")
 
 ### Scanner Hub (`app/src/pages/Screener.jsx` + `Screener.module.css`)
-- Replaced old Leadership-20 table on `/screener` route — no route change
-- Three tabs: **Pullback MA** | **Remount** | **Gappers** (Pullback MA default)
-- Header: `generated_at` timestamp + leading sector pills + total count
-- Candidate rows: SetupBadge (colored pill) · TickerPopup · company · sector · RSI / SMA% / gap% / change%
-- `also_qualified_as` chips when a ticker qualified for multiple setups
-- Empty state: "No candidates — scanner runs at 7:00 AM CT"
+- Three tabs: **Pullback MA** (30 max) | **Remount** (10 max) | **Gappers** (10 max)
+- **Alert states** (priority order): BREAKING → READY → WATCH → PATTERN → NO_PATTERN → EXTENDED → NO_DATA
+- **WATCH** = two paths: (a) pattern + score≥55 + EMA rising + ema_dist≤5.5% + tight bars, or (b) no pattern but score≥65 + EMA touch + ema_dist≤4% + pole≥15% + tight bars
+- **EXTENDED** = ema_dist > 8% — shown muted at bottom, not actionable yet
+- **LOW_ADR** (adr<4%) and **BUYOUT_PROXY** filtered entirely from display
+- **Signal chips** on each row: ADR%, prior run%, MA↑↑, EMA↑, RS↑/RS↓, ACC/DIST, EARNS date
+- **Regime bar**: shows UCT Intelligence regime phase · dist days · VIX · exposure% — color-coded (red=hostile, amber=neutral, green=healthy)
+- **PremarketBar**: SPY/QQQ pre-market change
+- **RemountRow**: AlertBadge + candle score + signal chips (upgraded from static SetupBadge)
 - 30-min polling via useSWR
 
 ### API: `get_candidates()` (`api/services/engine.py`)
@@ -144,27 +147,56 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 - `_EMPTY_CANDIDATES` sentinel returned via `copy.deepcopy()` as last fallback
 - Endpoint: `GET /api/candidates` in `api/routers/screener.py`
 - Tests: `tests/test_candidates.py` (4 tests)
+- Output dict also contains: `regime_context`, `premarket_context`, `leading_sectors_used`, `generated_at`
 
 ### UCT Scanner (`C:\Users\Patrick\uct-intelligence\scripts\scanner_candidates.py`)
-- Three Finviz scans: PULLBACK_MA (15 max) · REMOUNT (10 max) · GAPPER_NEWS (10 max)
+- Three Finviz scans: PULLBACK_MA (30 max) · REMOUNT (10 max) · GAPPER_NEWS (10 max)
 - Dedup priority: PULLBACK_MA > REMOUNT > GAPPER_NEWS
-- Leading sectors from `leading_sectors.json` (operator updates daily, ~30 seconds)
+- Leading sectors from `leading_sectors.json` (operator updates daily, ~30 seconds). Add 6-8 sectors to get 25-30 pullback candidates.
 - Output: `data/candidates.json` — atomic write (tmp → rename)
-- Inter-scan sleep: 3s to avoid Finviz rate limiting
-- Market hours guard: warns outside 5:00–9:45 AM CT, never exits
-- `run_scanner()` returns full dict — use return value, not file re-read
-- Correct filter format: `"Over $5"` not `"5to500"`, `"+Mid (over $2bln)"` not `"Mid and Large"`, etc.
-- `sma20_dist_pct` / `sma50_dist_pct` = % distance above MA (from Finviz Technical view)
-- `rel_volume` = None (not available in any Finviz screener view)
-- Finviz `Technical` view merged with `Overview` view on Ticker to get RSI + SMA% + company info
-- FINVIZ_API_KEY is NOT used — finvizfinance scrapes without auth
-- Docs: `SCANNER_README.md` at uct-intelligence root
+
+**Signal intelligence computed per candidate:**
+- `adr_pct` — Average Daily Range % (21 bars). Hard gate: <4% → LOW_ADR, filtered.
+- `pole_pct` — prior momentum: max/min in last 22 bars (% gain from trough to peak)
+- `rs_trend` — RS line vs SPY over 20 bars: "up"/"flat"/"down"
+- `ema_distance_pct` — % above EMA20. >8% → EXTENDED.
+- `ema_touch_count` — # bars in last 15 where low ≤ EMA20 × 1.005
+- `vol_acc_ratio` — avg vol on up days / avg vol on down days (last 10 bars). >1.1 = ACC, <0.85 = DIST
+- `avg_body_pct` — avg body% over last 5 bars. >0.45 blocks WATCH promotion ("no wide swings" — UCT KB rule)
+- `close_cv_pct` — coefficient of variation of last 10 closes. <2.5% = tight band (+10 pts), <4% = +5 pts
+- `volume_n_week_low` — 20/15/10 bar volume low (4/3/2 week)
+- `ma_stack_intact` — close > EMA10 > EMA20, both slopes positive
+- `earnings_date` / `earnings_tod` — from UCT Intelligence `earnings_analytics` DB (next 10 days)
+
+**7-criteria candle scoring (0–110):**
+| Criterion | Points |
+|-----------|--------|
+| EMA proximity: kiss≤0.5% / ≤2% / ≤4% / ≤6% | +25/18/10/5 |
+| Volume N-week low: 4wk/3wk/2wk | +20/13/8 |
+| Multi-bar body tightness (5-bar avg): <0.30/<0.40 | +15/8 |
+| Close quality (last bar): >60%/>50% | +15/8 |
+| Close clustering (CV of 10 closes): <2.5%/<4% | +10/5 |
+| Prior momentum (pole_pct): ≥40%/≥20%/≥10% | +15/10/5 |
+| Volume accumulation ratio: >1.1/>0.9 | +10/5 |
+
+**Pattern detection (`_detect_wedge_flag`):**
+- Window: last 30 bars (6 weeks), catches GFS-type long consolidations
+- Requires: declining upper trendline, lows not falling faster than highs, depth 2.5-20%
+- Orderliness gate: rejects patterns with any bar >2.5× avg range (no spike/panic bars)
+- Returns: `pattern_type` (wedge/flag/pennant), `days_in_pattern`, `pattern_depth_pct`, `apex_days_remaining`, `orderly_pullback`
+
+**OHLCV fetch:** 60 calendar days (~42 trading days) via Massive REST API
+
+**UCT Intelligence integration:**
+- `_fetch_earnings_risk()` — queries `earnings_analytics` DB for earnings within 10 days
+- `_fetch_regime_context()` — pulls latest `market_regimes` row for dashboard regime bar
 
 ### Morning Wire Integration (`C:\Users\Patrick\morning-wire\morning_wire_engine.py`)
-- Scanner block added before `analyst.generate_rundown()` (~line 3759)
-- `scanner_candidates.run_scanner()` runs and return value stored as `_uct_candidates`
-- `"candidates": _uct_candidates` added to `_wire_data` dict that gets pushed to Railway
+- Scanner block runs before `analyst.generate_rundown()` (~line 3759)
+- `scanner_candidates.run_scanner()` return value stored as `_uct_candidates`
+- `"candidates": _uct_candidates` added to `_wire_data` dict pushed to Railway
 - Fully wrapped in try/except — never crashes the pipeline
+- Engine takes ~10-11 min total (scanner adds ~5-6 min to prior ~5 min runtime)
 
 ### News Feed — RSS Fallback (`api/services/engine.py` → `get_news()`)
 - Primary: AlphaVantage NEWS_SENTIMENT API (25 req/day free tier)
