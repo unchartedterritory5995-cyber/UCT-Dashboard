@@ -74,6 +74,24 @@ function PremarketBar({ ctx }) {
   )
 }
 
+function RegimeBar({ ctx }) {
+  if (!ctx || !ctx.phase) return null
+  const { phase, distribution_days, vix, exposure_pct } = ctx
+  const isHostile = distribution_days >= 6 || (vix != null && vix > 25)
+  const isNeutral = distribution_days >= 3 || (vix != null && vix > 20)
+  const cls = isHostile ? styles.regimeHostile : isNeutral ? styles.regimeNeutral : styles.regimeHealthy
+  return (
+    <div className={`${styles.regimeBar} ${cls}`}>
+      <span className={styles.regimeLabel}>REGIME</span>
+      <span className={styles.regimePhase}>{phase}</span>
+      <span className={styles.premarketDivider}>·</span>
+      {distribution_days != null && <span className={styles.regimeStat}>{distribution_days} dist days</span>}
+      {vix != null && <><span className={styles.premarketDivider}>·</span><span className={styles.regimeStat}>VIX {vix.toFixed(1)}</span></>}
+      {exposure_pct != null && <><span className={styles.premarketDivider}>·</span><span className={styles.regimeStat}>{exposure_pct}% exposure</span></>}
+    </div>
+  )
+}
+
 function SignalChips({ row }) {
   const chips = []
   if (row.adr_pct != null) {
@@ -101,6 +119,11 @@ function SignalChips({ row }) {
     } else if (row.vol_acc_ratio < 0.85) {
       chips.push(<span key="acc" className={`${styles.indicatorChip} ${styles.indicatorRed}`}>DIST</span>)
     }
+  }
+  if (row.earnings_date) {
+    const dt = row.earnings_date.slice(5)  // MM-DD
+    const tod = row.earnings_tod ? (row.earnings_tod === 'BMO' ? ' BMO' : row.earnings_tod === 'AMC' ? ' AMC' : '') : ''
+    chips.push(<span key="earns" className={`${styles.indicatorChip} ${styles.indicatorAmber}`}>EARNS {dt}{tod}</span>)
   }
   if (chips.length === 0) return null
   return <div className={styles.signalChips}>{chips}</div>
@@ -296,6 +319,7 @@ export default function Screener() {
   const leadingSectors = data?.leading_sectors_used  ?? []
   const generatedAt    = data?.generated_at           ?? null
   const premarketCtx   = data?.premarket_context      ?? null
+  const regimeCtx      = data?.regime_context         ?? null
 
   return (
     <div className={styles.container}>
@@ -318,6 +342,7 @@ export default function Screener() {
       </div>
 
       {data && <PremarketBar ctx={premarketCtx} />}
+      {data && <RegimeBar ctx={regimeCtx} />}
 
       {error ? (
         <div className={styles.emptyState}>Scanner data unavailable</div>

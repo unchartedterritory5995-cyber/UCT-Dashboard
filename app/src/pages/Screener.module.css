@@ -402,6 +402,58 @@
   opacity: 0.6;
 }
 
+/* ── Regime bar ── */
+.regimeBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 6px;
+  padding: 5px 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  border: 1px solid transparent;
+}
+
+.regimeHealthy {
+  background: rgba(0, 200, 120, 0.05);
+  border-color: rgba(0, 200, 120, 0.2);
+}
+
+.regimeNeutral {
+  background: rgba(212, 170, 80, 0.05);
+  border-color: rgba(212, 170, 80, 0.2);
+}
+
+.regimeHostile {
+  background: rgba(255, 80, 80, 0.05);
+  border-color: rgba(255, 80, 80, 0.2);
+}
+
+.regimeLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.regimePhase {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: 0.5px;
+}
+
+.regimeStat {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
 /* ── Signal indicator chips ── */
 .signalChips {
   display: flex;
