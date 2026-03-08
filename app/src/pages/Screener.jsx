@@ -305,19 +305,6 @@ export default function Screener() {
 
       <div className={styles.header}>
         <h1 className={styles.heading}>Scanner Hub</h1>
-        <div className={styles.headerRight}>
-          {leadingSectors.length > 0 && (
-            <div className={styles.sectorPills}>
-              <span className={styles.sectorLabel}>Leading sectors:</span>
-              {leadingSectors.map(s => (
-                <span key={s} className={styles.sectorPill}>{s}</span>
-              ))}
-            </div>
-          )}
-          {totalCount > 0 && (
-            <span className={styles.totalCount}>{totalCount} candidates</span>
-          )}
-        </div>
       </div>
 
 
