@@ -76,26 +76,6 @@ export default function MorningWire() {
           <span className={styles.wireName}>The Morning Wire</span>
           {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
         </div>
-        <div className={styles.statsStrip}>
-          <StatPill
-            label="Exposure"
-            value={exposure?.exposure || '—'}
-            color="warn"
-          />
-          <StatPill
-            label="Phase"
-            value={breadth?.market_phase || '—'}
-            color="info"
-          />
-          <StatPill
-            label="Dist"
-            value={distDays ?? '—'}
-            color={distColor}
-          />
-          {exposure?.note && (
-            <span className={styles.exposureNote}>{exposure.note}</span>
-          )}
-        </div>
       </div>
 
       {/* ── The Rundown ──────────────────────────────────────────── */}
