@@ -68,60 +68,63 @@
   letter-spacing: 0.5px;
 }
 
-/* ── Tabs ── */
-.tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0;
+/* ── 3-Column layout ── */
+.columnsGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 14px;
+  align-items: start;
 }
 
-.tab {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: 8px 14px 10px;
-  cursor: pointer;
+.column {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.columnHeader {
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: color 0.15s, border-color 0.15s;
-  margin-bottom: -1px;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
 }
 
-.tab:hover {
-  color: var(--text-bright);
-}
-
-.tabActive {
-  color: var(--ut-gold);
-  border-bottom-color: var(--ut-gold);
-}
-
-.count {
+.columnTitle {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+}
+
+.columnCount {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 1px 6px;
-  color: var(--text-muted);
-  min-width: 18px;
-  text-align: center;
+  padding: 1px 7px;
 }
 
-.tabActive .count {
-  background: rgba(212, 170, 80, 0.15);
-  border-color: rgba(212, 170, 80, 0.4);
-  color: var(--ut-gold);
+.columnBody {
+  max-height: 720px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+@media (max-width: 1100px) {
+  .columnsGrid {
+    grid-template-columns: 1fr;
+  }
+  .columnBody {
+    max-height: none;
+  }
 }
 
 /* ── Table ── */

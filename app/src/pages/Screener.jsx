@@ -1,15 +1,8 @@
-import { useState } from 'react'
 import useSWR from 'swr'
 import TickerPopup from '../components/TickerPopup'
 import styles from './Screener.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
-
-const TABS = [
-  { key: 'pullback_ma', label: 'Pullback MA' },
-  { key: 'remount',     label: 'Remount' },
-  { key: 'gapper_news', label: 'Gappers' },
-]
 
 const SETUP_META = {
   PULLBACK_MA:  { label: 'PULLBACK MA', cls: styles.badgePullback },
@@ -291,8 +284,6 @@ function CandidateTable({ rows, tabKey }) {
 }
 
 export default function Screener() {
-  const [activeTab, setActiveTab] = useState('pullback_ma')
-
   const { data, error } = useSWR('/api/candidates', fetcher, {
     refreshInterval: 30 * 60 * 1000,
   })
@@ -303,18 +294,6 @@ export default function Screener() {
   const gapperRows    = candidates.gapper_news  ?? []
 
   const totalCount = pullbackRows.length + remountRows.length + gapperRows.length
-
-  const countFor = {
-    pullback_ma: pullbackRows.length,
-    remount:     remountRows.length,
-    gapper_news: gapperRows.length,
-  }
-
-  const activeRows = activeTab === 'pullback_ma'
-    ? pullbackRows
-    : activeTab === 'remount'
-      ? remountRows
-      : gapperRows
 
   const leadingSectors = data?.leading_sectors_used  ?? []
   const generatedAt    = data?.generated_at           ?? null
@@ -350,22 +329,45 @@ export default function Screener() {
         <div className={styles.emptyState}>Loading scanner data...</div>
       ) : (
         <>
-          <div className={styles.tabs}>
-            {TABS.map(t => (
-              <button
-                key={t.key}
-                className={`${styles.tab} ${activeTab === t.key ? styles.tabActive : ''}`}
-                onClick={() => setActiveTab(t.key)}
-              >
-                {t.label}
-                {countFor[t.key] > 0 && (
-                  <span className={styles.count}>{countFor[t.key]}</span>
-                )}
-              </button>
-            ))}
-          </div>
+          <div className={styles.columnsGrid}>
 
-          <CandidateTable rows={activeRows} tabKey={activeTab} />
+            <div className={styles.column}>
+              <div className={styles.columnHeader}>
+                <span className={styles.columnTitle}>Pullback MA</span>
+                {pullbackRows.length > 0 && (
+                  <span className={styles.columnCount}>{pullbackRows.length}</span>
+                )}
+              </div>
+              <div className={styles.columnBody}>
+                <CandidateTable rows={pullbackRows} tabKey="pullback_ma" />
+              </div>
+            </div>
+
+            <div className={styles.column}>
+              <div className={styles.columnHeader}>
+                <span className={styles.columnTitle}>Remount</span>
+                {remountRows.length > 0 && (
+                  <span className={styles.columnCount}>{remountRows.length}</span>
+                )}
+              </div>
+              <div className={styles.columnBody}>
+                <CandidateTable rows={remountRows} tabKey="remount" />
+              </div>
+            </div>
+
+            <div className={styles.column}>
+              <div className={styles.columnHeader}>
+                <span className={styles.columnTitle}>Gappers</span>
+                {gapperRows.length > 0 && (
+                  <span className={styles.columnCount}>{gapperRows.length}</span>
+                )}
+              </div>
+              <div className={styles.columnBody}>
+                <CandidateTable rows={gapperRows} tabKey="gapper_news" />
+              </div>
+            </div>
+
+          </div>
 
           {generatedAt && (
             <div className={styles.meta}>
