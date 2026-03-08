@@ -79,7 +79,7 @@ export default function MorningWire() {
       </div>
 
       {/* ── The Rundown ──────────────────────────────────────────── */}
-      <TileCard title="The Rundown">
+      <TileCard>
         {rundown?.html
           ? (
             <div
