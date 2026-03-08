@@ -320,8 +320,6 @@ export default function Screener() {
         </div>
       </div>
 
-      {data && <PremarketBar ctx={premarketCtx} />}
-      {data && <RegimeBar ctx={regimeCtx} />}
 
       {error ? (
         <div className={styles.emptyState}>Scanner data unavailable</div>
