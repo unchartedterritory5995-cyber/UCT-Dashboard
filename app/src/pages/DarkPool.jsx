@@ -1,5 +1,60 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 
+// --- FALLBACK SAMPLE DATA ---
+// The app will use this if it cannot find the data.json file on your server.
+const fallbackData = {
+  D: {
+    dates: ["2026-01-21","2026-01-22","2026-01-23"],
+    dateLabels: ["01/21","01/22","01/23"],
+    categories: [
+      {
+        name: "Indexes", desc: "Broad market barometers. Zone = notional-weighted 25th-75th pctl of actual DP print prices.", totalNotional: 364365889823, count: 2,
+        items: [
+          { t: "SPY", cat: "Indexes", n: 170501225805, lo: 685.49, hi: 692.08, last: 683.21, vwap: 688.04, c: 1251, pos: "below", pct: -0.33, u: true, prices: [null,688.33,689.16], w: [null,0.488,0.296], top5: ["01/22 @ $688.97  $1.04B","03/04 @ $685.49  $1.04B"] },
+          { t: "QQQ", cat: "Indexes", n: 87787502905, lo: 605.96, hi: 621.03, last: 609.63, vwap: 613.34, c: 904, pos: "in", pct: 0, u: true, prices: [null,619.56,622.42], w: [null,0.261,0.243], top5: ["01/29 @ $625.91  $1.25B"] }
+        ]
+      },
+      {
+        name: "Large Cap", desc: "Mega and large cap equities. Zone from actual print price distribution weighted by $.", totalNotional: 349744478827, count: 2,
+        items: [
+          { t: "NVDA", cat: "Large Cap", n: 47946055104, lo: 180.9, hi: 189.82, last: 182.26, vwap: 185.16, c: 605, pos: "in", pct: 0, u: true, prices: [183.32,184.83,187.74], w: [0.01,0.59,0.31], top5: ["02/05 @ $176.01  $1.50B"] },
+          { t: "MSFT", cat: "Large Cap", n: 46394958193, lo: 398.18, hi: 414.19, last: 409.28, vwap: 411.12, c: 330, pos: "in", pct: 0, u: false, prices: [null,451.45,467.83], w: [null,0.2,0.27], top5: ["02/10 @ $413.27  $850.1M"] }
+        ]
+      }
+    ],
+    above: [
+      { t: "PBF", cat: "Large Cap", n: 101923122, lo: 33.21, hi: 35.59, last: 45.66, vwap: 35.64, c: 9, pos: "above", pct: 28.29, u: false, prices: [null,null,null], w: [null,null,null], top5: ["02/11 @ $35.59  $19.9M"] },
+      { t: "DK", cat: "Large Cap", n: 132884671, lo: 34.5, hi: 35.01, last: 44.79, vwap: 35.25, c: 13, pos: "above", pct: 27.93, u: false, prices: [null,28.0,28.0], w: [null,0.152,null], top5: ["02/17 @ $35.01  $24.5M"] }
+    ],
+    below: [
+      { t: "SF", cat: "Mid Cap", n: 80180245, lo: 118.11, hi: 123.54, last: 75.57, vwap: 115.01, c: 5, pos: "below", pct: -36.02, u: true, prices: [null,null,null], w: [null,null,null], top5: ["02/03 @ $124.28  $26.5M"] }
+    ],
+    phantom: [
+      { ticker: "DIA", date: "01/23", dpPrice: 482.24, spotPrice: 491.15, volume: "2" },
+      { ticker: "SPY", date: "01/23", dpPrice: 692.1, spotPrice: 689.85, volume: "74k" }
+    ],
+    options: [
+      { ticker: "AMD", price: 255.38, message: "Repeater Bullish Flow CALL@$4.049 Strike 255.0 Exp Jan 23, 2026", date: "01/22" },
+      { ticker: "LLY", price: 1082.0, message: "Roulette Bearish Flow PUT@$7.2 Strike 1080.0 Exp Jan 23, 2026", date: "01/22" }
+    ],
+    alpha: [
+      { ticker: "HYMC", price: 53.56, date: "01/27" },
+      { ticker: "CORZ", price: 18.82, date: "01/23" }
+    ],
+    cancelled: [
+      { ticker: "SMH", price: 408.54, notional: 1675014000.0, message: "Cancelled DARK BLOCK  $1.6B 54.22% AvgVol", date: "02/12" }
+    ]
+  },
+  SD: {
+    f: [
+      { t: "SPY", cat: "Indexes", n: 170501225805, lo: 685.49, hi: 692.08, last: 683.21, vwap: 688.04, c: 1251, pos: "below", pct: -0.33, u: true, prices: [null,688.33,689.16], w: [null,0.49,0.3], top5: ["01/22 @ $688.97  $1.04B"] }
+    ],
+    c: [
+      { t: "IBB", cat: "Sector ETFs", n: 446573292, lo: 174.48, hi: 175.53, last: 168.83, c: 6, pos: "below", pct: -3.24, u: true, top5: ["02/03 @ $176.20  $167.4M"] }
+    ]
+  }
+};
+
 const CA = {
   "Indexes": "#4e9fff",
   "Large Cap": "#a78bfa",
@@ -235,7 +290,7 @@ const TickerTable = ({ items, type = "standard", dateLabels }) => {
 const App = () => {
   const [appData, setAppData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [usingFallback, setUsingFallback] = useState(false);
   
   const [activeTab, setActiveTab] = useState("overview");
   const [activeCategory, setActiveCategory] = useState(null);
@@ -261,8 +316,12 @@ const App = () => {
         setLoading(false);
       })
       .catch(err => {
-        console.error(err);
-        setError("Missing Data File. Please ensure data.json is placed in the public/ folder.");
+        console.warn("Using sample fallback data because data.json was not found.");
+        setAppData(fallbackData);
+        if (fallbackData.D && fallbackData.D.categories && fallbackData.D.categories.length > 0) {
+          setActiveCategory(fallbackData.D.categories[0].name);
+        }
+        setUsingFallback(true);
         setLoading(false);
       });
   }, []);
@@ -292,21 +351,6 @@ const App = () => {
     );
   }
 
-  // Render error state
-  if (error || !appData) {
-    return (
-      <div className="loading-container" style={{ textAlign: 'center' }}>
-        <style dangerouslySetInnerHTML={{ __html: styles }} />
-        <div style={{ color: 'var(--red)', fontSize: '24px', marginBottom: '10px' }}>⚠️ Error Loading Data</div>
-        <div style={{ color: 'var(--tx2)' }}>{error}</div>
-        <div style={{ marginTop: '20px', fontSize: '12px', color: 'var(--tx3)' }}>
-          Please make sure you have generated the complete `data.json` file <br />
-          and placed it in the `public` directory of your project.
-        </div>
-      </div>
-    );
-  }
-
   const { D } = appData;
 
   const tabDefs = [
@@ -324,6 +368,13 @@ const App = () => {
   return (
     <div className="app-wrapper">
       <style dangerouslySetInnerHTML={{ __html: styles }} />
+      
+      {usingFallback && (
+        <div style={{ background: 'var(--amber)', color: '#000', padding: '8px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>
+          Preview Mode: Using sample data. Deploy and upload `data.json` to the public/ folder to load the full market data.
+        </div>
+      )}
+
       <div className="hdr">
         <div className="hdr-in">
           <div>
