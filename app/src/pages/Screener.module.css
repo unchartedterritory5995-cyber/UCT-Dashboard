@@ -71,8 +71,8 @@
 /* ── 3-Column layout ── */
 .columnsGrid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
-  gap: 14px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
   align-items: start;
 }
 
@@ -118,7 +118,21 @@
   overflow-x: hidden;
 }
 
-@media (max-width: 1100px) {
+.columnDim {
+  opacity: 0.4;
+}
+
+.columnBodyEmpty {
+  min-height: 60px;
+}
+
+@media (max-width: 1200px) {
+  .columnsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
   .columnsGrid {
     grid-template-columns: 1fr;
   }

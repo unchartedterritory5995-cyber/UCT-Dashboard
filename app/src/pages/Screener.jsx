@@ -85,6 +85,27 @@ export default function Screener() {
               </div>
             </div>
 
+            <div className={`${styles.column} ${styles.columnDim}`}>
+              <div className={styles.columnHeader}>
+                <span className={styles.columnTitle}>Coming Soon</span>
+              </div>
+              <div className={styles.columnBodyEmpty} />
+            </div>
+
+            <div className={`${styles.column} ${styles.columnDim}`}>
+              <div className={styles.columnHeader}>
+                <span className={styles.columnTitle}>Coming Soon</span>
+              </div>
+              <div className={styles.columnBodyEmpty} />
+            </div>
+
+            <div className={`${styles.column} ${styles.columnDim}`}>
+              <div className={styles.columnHeader}>
+                <span className={styles.columnTitle}>Coming Soon</span>
+              </div>
+              <div className={styles.columnBodyEmpty} />
+            </div>
+
           </div>
 
           {generatedAt && (
