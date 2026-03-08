@@ -1,58 +1,32 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 
 // --- FALLBACK SAMPLE DATA ---
-// The app will use this if it cannot find the data.json file on your server.
+// Used only if data.csv cannot be found on the server.
 const fallbackData = {
   D: {
     dates: ["2026-01-21","2026-01-22","2026-01-23"],
     dateLabels: ["01/21","01/22","01/23"],
     categories: [
       {
-        name: "Indexes", desc: "Broad market barometers. Zone = notional-weighted 25th-75th pctl of actual DP print prices.", totalNotional: 364365889823, count: 2,
+        name: "Indexes", desc: "Broad market barometers.", totalNotional: 364365889823, count: 2,
         items: [
           { t: "SPY", cat: "Indexes", n: 170501225805, lo: 685.49, hi: 692.08, last: 683.21, vwap: 688.04, c: 1251, pos: "below", pct: -0.33, u: true, prices: [null,688.33,689.16], w: [null,0.488,0.296], top5: ["01/22 @ $688.97  $1.04B","03/04 @ $685.49  $1.04B"] },
           { t: "QQQ", cat: "Indexes", n: 87787502905, lo: 605.96, hi: 621.03, last: 609.63, vwap: 613.34, c: 904, pos: "in", pct: 0, u: true, prices: [null,619.56,622.42], w: [null,0.261,0.243], top5: ["01/29 @ $625.91  $1.25B"] }
         ]
-      },
-      {
-        name: "Large Cap", desc: "Mega and large cap equities. Zone from actual print price distribution weighted by $.", totalNotional: 349744478827, count: 2,
-        items: [
-          { t: "NVDA", cat: "Large Cap", n: 47946055104, lo: 180.9, hi: 189.82, last: 182.26, vwap: 185.16, c: 605, pos: "in", pct: 0, u: true, prices: [183.32,184.83,187.74], w: [0.01,0.59,0.31], top5: ["02/05 @ $176.01  $1.50B"] },
-          { t: "MSFT", cat: "Large Cap", n: 46394958193, lo: 398.18, hi: 414.19, last: 409.28, vwap: 411.12, c: 330, pos: "in", pct: 0, u: false, prices: [null,451.45,467.83], w: [null,0.2,0.27], top5: ["02/10 @ $413.27  $850.1M"] }
-        ]
       }
     ],
     above: [
-      { t: "PBF", cat: "Large Cap", n: 101923122, lo: 33.21, hi: 35.59, last: 45.66, vwap: 35.64, c: 9, pos: "above", pct: 28.29, u: false, prices: [null,null,null], w: [null,null,null], top5: ["02/11 @ $35.59  $19.9M"] },
-      { t: "DK", cat: "Large Cap", n: 132884671, lo: 34.5, hi: 35.01, last: 44.79, vwap: 35.25, c: 13, pos: "above", pct: 27.93, u: false, prices: [null,28.0,28.0], w: [null,0.152,null], top5: ["02/17 @ $35.01  $24.5M"] }
+      { t: "PBF", cat: "Large Cap", n: 101923122, lo: 33.21, hi: 35.59, last: 45.66, vwap: 35.64, c: 9, pos: "above", pct: 28.29, u: false, prices: [null,null,null], w: [null,null,null], top5: ["02/11 @ $35.59  $19.9M"] }
     ],
     below: [
       { t: "SF", cat: "Mid Cap", n: 80180245, lo: 118.11, hi: 123.54, last: 75.57, vwap: 115.01, c: 5, pos: "below", pct: -36.02, u: true, prices: [null,null,null], w: [null,null,null], top5: ["02/03 @ $124.28  $26.5M"] }
     ],
-    phantom: [
-      { ticker: "DIA", date: "01/23", dpPrice: 482.24, spotPrice: 491.15, volume: "2" },
-      { ticker: "SPY", date: "01/23", dpPrice: 692.1, spotPrice: 689.85, volume: "74k" }
-    ],
-    options: [
-      { ticker: "AMD", price: 255.38, message: "Repeater Bullish Flow CALL@$4.049 Strike 255.0 Exp Jan 23, 2026", date: "01/22" },
-      { ticker: "LLY", price: 1082.0, message: "Roulette Bearish Flow PUT@$7.2 Strike 1080.0 Exp Jan 23, 2026", date: "01/22" }
-    ],
-    alpha: [
-      { ticker: "HYMC", price: 53.56, date: "01/27" },
-      { ticker: "CORZ", price: 18.82, date: "01/23" }
-    ],
-    cancelled: [
-      { ticker: "SMH", price: 408.54, notional: 1675014000.0, message: "Cancelled DARK BLOCK  $1.6B 54.22% AvgVol", date: "02/12" }
-    ]
+    phantom: [],
+    options: [],
+    alpha: [],
+    cancelled: []
   },
-  SD: {
-    f: [
-      { t: "SPY", cat: "Indexes", n: 170501225805, lo: 685.49, hi: 692.08, last: 683.21, vwap: 688.04, c: 1251, pos: "below", pct: -0.33, u: true, prices: [null,688.33,689.16], w: [null,0.49,0.3], top5: ["01/22 @ $688.97  $1.04B"] }
-    ],
-    c: [
-      { t: "IBB", cat: "Sector ETFs", n: 446573292, lo: 174.48, hi: 175.53, last: 168.83, c: 6, pos: "below", pct: -3.24, u: true, top5: ["02/03 @ $176.20  $167.4M"] }
-    ]
-  }
+  SD: { f: [], c: [] }
 };
 
 const CA = {
@@ -85,7 +59,173 @@ function fmt(n) {
 }
 
 function fP(p) {
-  return p != null ? "$" + p.toFixed(2) : "—";
+  return p != null && !isNaN(p) ? "$" + p.toFixed(2) : "—";
+}
+
+// --- LIVE CSV TO JSON AGGREGATOR ---
+// This function parses your raw CSV and mathematically converts it into 
+// the structured dashboard format (calculating 25th-75th percentile zones, VWAP, sparkline data, etc).
+function buildDashboardDataFromCSV(csvText) {
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length < 2) return fallbackData;
+
+  const headers = lines[0].split(',').map(h => h.trim());
+  
+  const D = {
+    dates: [], dateLabels: [], categories: [], above: [], below: [],
+    phantom: [], options: [], alpha: [], cancelled: []
+  };
+
+  const dateSet = new Set();
+  const tickerMap = {};
+
+  for (let i = 1; i < lines.length; i++) {
+    // Basic CSV row split handling quotes
+    const row = [];
+    let inQuote = false;
+    let current = '';
+    for (let char of lines[i]) {
+        if (char === '"') inQuote = !inQuote;
+        else if (char === ',' && !inQuote) { row.push(current); current = ''; }
+        else current += char;
+    }
+    row.push(current);
+
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h] = row[idx] ? row[idx].trim() : null; });
+    
+    const tkr = obj.Ticker;
+    if (!tkr) continue;
+    
+    const date = obj.Date ? obj.Date.split(' ')[0] : null;
+    if (date) dateSet.add(date);
+    
+    if (!tickerMap[tkr]) tickerMap[tkr] = { t: tkr, prints: [], u: false, n: 0, c: 0 };
+    
+    const price = parseFloat(obj.Price);
+    const notional = parseFloat(obj.Notional);
+    const msg = obj.Message || "";
+    
+    if (msg.toLowerCase().includes("cancel")) {
+        D.cancelled.push({ ticker: tkr, date, price, notional, message: msg });
+        continue;
+    }
+    if (msg.includes("CALL") || msg.includes("PUT")) {
+        D.options.push({ ticker: tkr, date, price, message: msg });
+    }
+    if (msg.toLowerCase().includes("unusual")) {
+        tickerMap[tkr].u = true;
+    }
+    if (msg.toLowerCase().includes("alpha")) {
+        D.alpha.push({ ticker: tkr, date, price });
+    }
+    
+    // Only aggregate valid block prints
+    if (!isNaN(price) && !isNaN(notional) && notional > 0) {
+        tickerMap[tkr].prints.push({ date, price, notional, msg });
+        tickerMap[tkr].n += notional;
+        tickerMap[tkr].c += 1;
+    }
+  }
+
+  D.dates = Array.from(dateSet).sort((a,b) => new Date(a) - new Date(b));
+  D.dateLabels = D.dates.map(d => {
+     const parts = d.split('/');
+     if (parts.length >= 2) return `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}`;
+     return d;
+  });
+
+  const processedTickers = [];
+  const indexETFs = ['SPY', 'QQQ', 'IWM', 'DIA', 'MDY', 'RSP', 'VTI', 'VOO', 'IVV', 'TQQQ', 'SQQQ', 'IJR', 'VXUS', 'VUG'];
+
+  Object.values(tickerMap).forEach(tkr => {
+      if (tkr.prints.length === 0) return;
+      
+      // Calculate Top 5 prints
+      const sortedPrints = [...tkr.prints].sort((a,b) => b.notional - a.notional);
+      tkr.top5 = sortedPrints.slice(0,5).map(p => `${p.date} @ $${p.price.toFixed(2)}  ${fmt(p.notional)}`);
+      
+      // Calculate 25th - 75th Percentile Zone
+      const prices = tkr.prints.map(p => p.price).sort((a,b) => a - b);
+      tkr.lo = prices[Math.floor(prices.length * 0.25)] || prices[0];
+      tkr.hi = prices[Math.floor(prices.length * 0.75)] || prices[prices.length-1];
+      
+      let totalVal = 0;
+      let lastDate = "01/01/1900";
+      let lastPrice = prices[0];
+      
+      const dailyNotional = {};
+      const dailyVwap = {};
+      
+      tkr.prints.forEach(p => {
+         totalVal += (p.price * p.notional);
+         if (new Date(p.date) >= new Date(lastDate)) {
+             lastDate = p.date;
+             lastPrice = p.price;
+         }
+         if (!dailyNotional[p.date]) { dailyNotional[p.date] = 0; dailyVwap[p.date] = 0; }
+         dailyNotional[p.date] += p.notional;
+         dailyVwap[p.date] += (p.price * p.notional);
+      });
+      
+      tkr.vwap = totalVal / tkr.n;
+      tkr.last = lastPrice;
+      
+      // Determine Position Status vs Zone
+      if (tkr.last > tkr.hi) {
+          tkr.pos = "above";
+          tkr.pct = parseFloat((((tkr.last - tkr.hi) / tkr.hi) * 100).toFixed(2));
+      } else if (tkr.last < tkr.lo) {
+          tkr.pos = "below";
+          tkr.pct = parseFloat((((tkr.last - tkr.lo) / tkr.lo) * 100).toFixed(2));
+      } else {
+          tkr.pos = "in";
+          tkr.pct = 0;
+      }
+
+      // Generate Sparkline Array Data
+      tkr.prices = [];
+      tkr.w = [];
+      const maxN = Math.max(...Object.values(dailyNotional), 1);
+      
+      D.dates.forEach(d => {
+          if (dailyNotional[d]) {
+              tkr.prices.push(dailyVwap[d] / dailyNotional[d]);
+              tkr.w.push(parseFloat((dailyNotional[d] / maxN).toFixed(3)));
+          } else {
+              tkr.prices.push(null);
+              tkr.w.push(null);
+          }
+      });
+
+      // Auto Categorize
+      if (indexETFs.includes(tkr.t)) tkr.cat = "Indexes";
+      else if (tkr.n > 1000000000) tkr.cat = "Large Cap";
+      else if (tkr.n > 100000000) tkr.cat = "Mid Cap";
+      else tkr.cat = "Small Cap";
+
+      delete tkr.prints; // Remove raw prints to save memory
+      processedTickers.push(tkr);
+  });
+
+  const catMap = {};
+  processedTickers.forEach(t => {
+      if (!catMap[t.cat]) catMap[t.cat] = { name: t.cat, desc: "Auto-categorized from CSV", totalNotional: 0, count: 0, items: [] };
+      catMap[t.cat].totalNotional += t.n;
+      catMap[t.cat].count += 1;
+      catMap[t.cat].items.push(t);
+  });
+
+  D.categories = Object.values(catMap).sort((a,b) => b.totalNotional - a.totalNotional);
+  D.categories.forEach(c => c.items.sort((a,b) => b.n - a.n));
+
+  D.above = processedTickers.filter(t => t.pos === 'above').sort((a,b) => b.pct - a.pct);
+  D.below = processedTickers.filter(t => t.pos === 'below').sort((a,b) => a.pct - b.pct);
+
+  D.options.sort((a,b) => new Date(b.date) - new Date(a.date));
+  D.cancelled.sort((a,b) => b.notional - a.notional);
+
+  return { D, SD: { f: processedTickers, c: processedTickers } };
 }
 
 const styles = `
@@ -291,39 +431,66 @@ const App = () => {
   const [appData, setAppData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [error, setError] = useState(null);
   
   const [activeTab, setActiveTab] = useState("overview");
   const [activeCategory, setActiveCategory] = useState(null);
   const searchInputRef = useRef(null);
 
-  // 1. Fetch data.json from the public directory
+  // 1. Fetch CSV or JSON from the public directory
   useEffect(() => {
     // Safely check for process.env
     const isProcessDefined = typeof process !== 'undefined' && process.env;
     const publicUrl = isProcessDefined ? process.env.PUBLIC_URL : '';
-    const dataUrl = publicUrl ? `${publicUrl}/data.json` : '/data.json';
     
-    fetch(dataUrl)
-      .then(res => {
-        if (!res.ok) throw new Error("Could not find data.json");
-        return res.json();
-      })
-      .then(data => {
-        setAppData(data);
-        if (data.D && data.D.categories && data.D.categories.length > 0) {
-          setActiveCategory(data.D.categories[0].name);
+    const loadData = async () => {
+      try {
+        // We will try fetching the CSV first, since that is what you uploaded.
+        // If it fails, we fall back to data.json
+        let res = await fetch(`${publicUrl}/data.csv`);
+        
+        if (!res.ok) {
+           res = await fetch(`${publicUrl}/data.json`);
+        }
+        
+        if (!res.ok) {
+           throw new Error("Could not find data.csv or data.json in the public folder.");
+        }
+
+        const text = await res.text();
+        
+        let parsedData;
+        if (text.trim().startsWith('{')) {
+            // It's a JSON file
+            parsedData = JSON.parse(text);
+        } else if (text.includes('Ticker') && text.includes('Price')) {
+            // It's a CSV file! Let's aggregate it live.
+            parsedData = buildDashboardDataFromCSV(text);
+        } else {
+            throw new Error("File format not recognized (Not valid JSON or CSV).");
+        }
+
+        setAppData(parsedData);
+        if (parsedData.D && parsedData.D.categories && parsedData.D.categories.length > 0) {
+            setActiveCategory(parsedData.D.categories[0].name);
         }
         setLoading(false);
-      })
-      .catch(err => {
-        console.warn("Using sample fallback data because data.json was not found.");
+        setError(null);
+        setUsingFallback(false);
+
+      } catch (err) {
+        console.error(err);
         setAppData(fallbackData);
         if (fallbackData.D && fallbackData.D.categories && fallbackData.D.categories.length > 0) {
-          setActiveCategory(fallbackData.D.categories[0].name);
+            setActiveCategory(fallbackData.D.categories[0].name);
         }
         setUsingFallback(true);
+        setError(err.message);
         setLoading(false);
-      });
+      }
+    };
+
+    loadData();
   }, []);
 
   // 2. Compute search index
@@ -370,8 +537,14 @@ const App = () => {
       <style dangerouslySetInnerHTML={{ __html: styles }} />
       
       {usingFallback && (
-        <div style={{ background: 'var(--amber)', color: '#000', padding: '8px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>
-          Preview Mode: Using sample data. Deploy and upload `data.json` to the public/ folder to load the full market data.
+        <div style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--bdr)', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ color: 'var(--amber)', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
+            ⚠️ Using Fallback Sample Data
+          </div>
+          <div style={{ color: 'var(--tx2)', fontSize: '13px', textAlign: 'center', maxWidth: '800px' }}>
+            {error} <br/> 
+            To view live data, place your CSV export file in your <code>public/</code> folder and name it exactly <code>data.csv</code>.
+          </div>
         </div>
       )}
 
@@ -380,14 +553,17 @@ const App = () => {
           <div>
             <div className="brand"><div className="brand-dot"></div><h1>DARK POOL SCANNER</h1></div>
             <div className="brand-sub">
-              {D.dateLabels?.[0]} – {D.dateLabels?.[D.dateLabels.length - 1]} &middot; 30 trading days &middot; 47,555 block trades &middot; 3,574 tickers &middot; $1.71T total flow
+              {D.dateLabels?.[0] ? `${D.dateLabels[0]} – ${D.dateLabels[D.dateLabels.length - 1]}` : 'Waiting for data'} &middot; 
+              {D.categories?.reduce((a,c) => a + c.items.reduce((b, i)=> b+i.c, 0), 0) || 0} block trades &middot; 
+              {D.categories?.reduce((a,c) => a + c.count, 0) || 0} tickers &middot; 
+              {fmt(D.categories?.reduce((a,c) => a + c.totalNotional, 0) || 0)} total flow
             </div>
           </div>
           <div className="hstats">
             <div className="hs"><div className="hs-l">SPY 30-Day Zone</div><div className="hs-v" style={{ color: 'var(--red)' }}>$683.21</div><div className="hs-s">Zone $685.49 – $692.08</div></div>
             <div className="hs"><div className="hs-l">QQQ 30-Day Zone</div><div className="hs-v" style={{ color: 'var(--tx)' }}>$609.63</div><div className="hs-s">Zone $605.96 – $621.03</div></div>
             <div className="hs"><div className="hs-l">IWM 30-Day Zone</div><div className="hs-v" style={{ color: 'var(--red)' }}>$258.96</div><div className="hs-s">Zone $260.48 – $264.71</div></div>
-            <div className="hs"><div className="hs-l">Period</div><div className="hs-v" style={{ color: 'var(--amber)' }}>30 days</div><div className="hs-s">$1.71T flow</div></div>
+            <div className="hs"><div className="hs-l">Period</div><div className="hs-v" style={{ color: 'var(--amber)' }}>30 days</div><div className="hs-s">{fmt(D.categories?.reduce((a,c) => a + c.totalNotional, 0) || 0)} flow</div></div>
           </div>
         </div>
       </div>
@@ -463,10 +639,10 @@ const OverviewPane = ({ setTab, setCategory, D }) => {
       </div>
 
       <div className="ib">
-        <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--tx)', marginBottom: '10px' }}>30-Day Flow Summary (Jan 22 – Mar 5)</div>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--tx)', marginBottom: '10px' }}>30-Day Flow Summary</div>
         <div className="ig">
           <div className="ig-c"><div className="ig-t" style={{ color: 'var(--blue)' }}>Index Trend</div>SPY now <b style={{ color: 'var(--red)' }}>below</b> its core DP zone ($685–$692), trading at $683. QQQ $610 — inside zone ($606–$620). IWM $259 — <b style={{ color: 'var(--red)' }}>below</b> zone ($262–$264). Two of three indexes below institutional execution range.</div>
-          <div className="ig-c"><div className="ig-t" style={{ color: 'var(--amber)' }}>Mega-Cap Flow ($1.7T)</div>MSFT ~$52B across 30 days. NVDA ~$40B. AAPL ~$30B. The top 5 mega-caps account for ~$200B+ in dark pool execution. Look for big dots to see where heaviest days clustered.</div>
+          <div className="ig-c"><div className="ig-t" style={{ color: 'var(--amber)' }}>Mega-Cap Flow</div>MSFT ~$52B across 30 days. NVDA ~$40B. AAPL ~$30B. The top 5 mega-caps account for ~$200B+ in dark pool execution. Look for big dots to see where heaviest days clustered.</div>
           <div className="ig-c"><div className="ig-t" style={{ color: 'var(--red)' }}>Energy / Geopolitical Shift</div>Energy flow surged in the final week: XLE, FENY, LNG, commodity ETFs spiking. Iran/Strait of Hormuz tensions driving heavy commodity positioning. 30-day sparklines show the pivot clearly.</div>
           <div className="ig-c"><div className="ig-t" style={{ color: 'var(--green)' }}>Bond / Fixed Income</div>HYG $30B+, LQD $24B+ over 30 days. Sustained institutional fixed income positioning suggesting flight-to-quality as equity DP zones trend lower.</div>
         </div>
@@ -505,7 +681,7 @@ const CategoryPane = ({ activeCategory, setCategory, D }) => {
         })}
       </div>
       <div style={{ marginBottom: '8px', fontSize: '12px', color: 'var(--tx2)' }}>
-        {cat.count} tickers &middot; {fmt(cat.totalNotional)} total &middot; 30 trading days
+        {cat.count} tickers &middot; {fmt(cat.totalNotional)} total
       </div>
       <TickerTable items={cat.items} type="standard" dateLabels={D.dateLabels} />
     </div>
@@ -556,6 +732,7 @@ const PhantomPane = ({ D }) => {
         Recent phantom prints — DP reference prices significantly different from spot.
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {items.length === 0 && <div style={{color: 'var(--tx3)'}}>No phantom prints logged.</div>}
         {items.map((p, i) => {
           if (!p.spotPrice) return null;
           const diff = ((p.spotPrice - p.dpPrice) / p.dpPrice * 100).toFixed(2);
@@ -581,9 +758,6 @@ const PhantomPane = ({ D }) => {
           );
         })}
       </div>
-      <div className="ib ib-r" style={{ marginTop: '16px' }}>
-        <span style={{ color: 'var(--red)', fontWeight: 700 }}>Key Insight:</span> SPY phantom prints consistently reference levels 5–6% below spot, suggesting institutional DP pricing sees lower support targets.
-      </div>
     </div>
   );
 };
@@ -593,12 +767,13 @@ const OptionsPane = ({ D }) => {
   return (
     <div className="pane on">
       <div style={{ marginBottom: '12px', fontSize: '12px', color: 'var(--tx3)' }}>
-        Recent options flow alongside dark pool activity (latest 25 signals).
+        Recent options flow alongside dark pool activity.
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+        {items.length === 0 && <div style={{color: 'var(--tx3)'}}>No options flow logged in CSV.</div>}
         {items.map((o, i) => {
-          const bull = o.message.indexOf("Bullish") >= 0;
-          const bear = o.message.indexOf("Bearish") >= 0;
+          const bull = o.message.indexOf("CALL") >= 0 || o.message.indexOf("Bullish") >= 0;
+          const bear = o.message.indexOf("PUT") >= 0 || o.message.indexOf("Bearish") >= 0;
           return (
             <div key={i} className="op-row">
               <span style={{ fontSize: '10px', color: 'var(--tx3)', minWidth: '36px' }}>{o.date || ""}</span>
@@ -621,6 +796,7 @@ const SignalsPane = ({ D }) => {
     <div className="pane on">
       <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--amber)', marginBottom: '10px' }}>⚡ Alpha Gold Alerts</div>
       <div className="ag">
+        {(D.alpha || []).length === 0 && <div style={{color: 'var(--tx3)', fontSize: '12px'}}>No alpha alerts found.</div>}
         {(D.alpha || []).map((a, i) => (
           <div key={i} className="ag-c">
             <div className="mono" style={{ fontSize: '20px', fontWeight: 800, color: 'var(--amber)' }}>{a.ticker}</div>
@@ -629,7 +805,7 @@ const SignalsPane = ({ D }) => {
           </div>
         ))}
       </div>
-      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--red)', marginBottom: '10px', marginTop: '20px' }}>✕ Cancelled Blocks (Top 15)</div>
+      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--red)', marginBottom: '10px', marginTop: '20px' }}>✕ Cancelled Blocks</div>
       <div className="tw">
         <table>
           <thead>
@@ -642,6 +818,7 @@ const SignalsPane = ({ D }) => {
             </tr>
           </thead>
           <tbody>
+            {(D.cancelled || []).length === 0 && <tr><td colSpan="5" style={{color: 'var(--tx3)', textAlign:'center'}}>No cancelled blocks logged.</td></tr>}
             {(D.cancelled || []).map((c, i) => (
               <tr key={i}>
                 <td style={{ color: 'var(--tx3)', fontSize: '11px' }}>{c.date || ""}</td>
@@ -653,9 +830,6 @@ const SignalsPane = ({ D }) => {
             ))}
           </tbody>
         </table>
-      </div>
-      <div className="ib" style={{ marginTop: '12px' }}>
-        <span style={{ color: 'var(--red)', fontWeight: 700 }}>Notable:</span> Recurring cancelled blocks on the same ticker indicate contested price discovery.
       </div>
     </div>
   );
@@ -701,7 +875,7 @@ const SearchPane = ({ searchInputRef, allSearch, D }) => {
       {results === null ? (
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--tx3)' }}>
           <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔍</div>
-          <div style={{ fontSize: '14px' }}>Type a ticker symbol to search across all 2,560 dark pool tickers</div>
+          <div style={{ fontSize: '14px' }}>Type a ticker symbol to search</div>
         </div>
       ) : results.length === 0 ? (
         <div className="sr-empty">No tickers found matching "{query}"</div>
