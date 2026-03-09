@@ -236,10 +236,6 @@ export default function UCT20Performance() {
               <span className={styles.statVal}>{data.win_rate ?? '—'}%</span>
             </div>
             <div className={styles.stat}>
-              <span className={styles.statLabel}>TOTAL TRADES</span>
-              <span className={styles.statVal}>{data.total_trades ?? 0}</span>
-            </div>
-            <div className={styles.stat}>
               <span className={styles.statLabel}>OPEN POSITIONS</span>
               <span className={styles.statVal}>{data.open_count ?? 0} / 20</span>
             </div>
@@ -247,22 +243,6 @@ export default function UCT20Performance() {
               <span className={styles.statLabel}>AVG HOLD</span>
               <span className={styles.statVal}>{data.avg_hold_days ?? '—'}d</span>
             </div>
-            {data.best_trade && (
-              <div className={styles.stat}>
-                <span className={styles.statLabel}>BEST TRADE</span>
-                <span className={`${styles.statVal} ${styles.gain}`}>
-                  {data.best_trade.symbol} {fmtPct(data.best_trade.pct_return)}
-                </span>
-              </div>
-            )}
-            {data.worst_trade && (
-              <div className={styles.stat}>
-                <span className={styles.statLabel}>WORST TRADE</span>
-                <span className={`${styles.statVal} ${styles.loss}`}>
-                  {data.worst_trade.symbol} {fmtPct(data.worst_trade.pct_return)}
-                </span>
-              </div>
-            )}
           </div>
 
           {/* ── Open positions ── */}
