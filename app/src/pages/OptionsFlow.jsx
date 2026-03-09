@@ -507,29 +507,71 @@ function processFlowData(rows) {
 }
 
 // ─── Loading / Error Screens ───────────────────────────────────────────────────
-function LoadingScreen() {
+function UploadScreen({ onFile, onRetry, error }) {
+  const [dragging, setDragging] = useState(false);
+
+  function handleFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => onFile(e.target.result, file.name);
+    reader.readAsText(file);
+  }
+
   return (
-    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
-      <div style={{ width:8, height:8, borderRadius:"50%", background:P.ac, boxShadow:`0 0 20px ${P.ac}` }} />
-      <div style={{ fontSize:13, color:P.dm }}>Loading flow-data.csv…</div>
+    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:40 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+        <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:`0 0 10px ${P.ac}` }} />
+        <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>OPTIONS FLOW DASHBOARD</h1>
+      </div>
+
+      {error && (
+        <div style={{ background:`${P.be}15`, border:`1px solid ${P.be}40`, borderRadius:8, padding:"10px 18px", maxWidth:420, fontSize:11, color:P.be, textAlign:"center", lineHeight:1.7 }}>
+          <strong>Auto-load failed:</strong> {error}<br/>
+          <span style={{ color:P.dm }}>Upload your CSV manually below, or retry.</span>
+        </div>
+      )}
+
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); }}
+        style={{
+          width:420, padding:"40px 32px",
+          border:`2px dashed ${dragging ? P.ac : P.bd}`,
+          borderRadius:12, textAlign:"center",
+          background: dragging ? `${P.ac}08` : P.cd,
+          transition:"all 0.15s", cursor:"pointer",
+        }}
+        onClick={() => document.getElementById("csv-upload").click()}
+      >
+        <div style={{ fontSize:32, marginBottom:12 }}>📂</div>
+        <div style={{ fontSize:14, fontWeight:700, color:P.wh, marginBottom:8 }}>Drop your flow-data.csv here</div>
+        <div style={{ fontSize:11, color:P.dm }}>or click to browse</div>
+        <input id="csv-upload" type="file" accept=".csv" style={{ display:"none" }}
+          onChange={e => handleFile(e.target.files[0])} />
+      </div>
+
+      <div style={{ display:"flex", gap:10 }}>
+        {onRetry && (
+          <button onClick={onRetry} style={{ padding:"8px 20px", borderRadius:6, border:`1px solid ${P.bd}`, background:P.al, color:P.dm, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            ↻ Retry GitHub
+          </button>
+        )}
+      </div>
+
+      <div style={{ fontSize:10, color:P.mt, background:P.al, padding:"12px 20px", borderRadius:6, maxWidth:420, lineHeight:1.9 }}>
+        <strong style={{ color:P.wh }}>Normal flow:</strong> push <code style={{color:P.ac}}>flow-data.csv</code> to GitHub → dashboard auto-updates for all users.<br/>
+        <strong style={{ color:P.wh }}>Manual fallback:</strong> drop any CSV above to load it directly.
+      </div>
     </div>
   );
 }
 
-function ErrorScreen({ error, onRetry }) {
+function LoadingScreen() {
   return (
-    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12, padding:40 }}>
-      <div style={{ fontSize:28, color:P.be }}>⚠</div>
-      <div style={{ fontSize:14, fontWeight:700, color:P.wh }}>Could not load flow data</div>
-      <div style={{ fontSize:11, color:P.dm, maxWidth:480, textAlign:"center", lineHeight:1.7 }}>{error}</div>
-      <div style={{ fontSize:10, color:P.mt, background:P.al, padding:"12px 18px", borderRadius:6, marginTop:8, lineHeight:2 }}>
-        Place your CSV at <strong style={{color:P.ac}}>app/public/flow-data.csv</strong><br/>
-        Required columns: <strong style={{color:P.wh}}>Date, Ticker, Expiry, Strike, Type, C/P, Spot, Side, Volume, OI, Premium, Price, IV, Color</strong><br/>
-        Column names are flexible — most BlackBox / broker export formats work automatically.
-      </div>
-      <button onClick={onRetry} style={{ marginTop:8, padding:"8px 24px", borderRadius:6, border:`1px solid ${P.ac}`, background:"transparent", color:P.ac, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-        ↻ Retry
-      </button>
+    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
+      <div style={{ width:8, height:8, borderRadius:"50%", background:P.ac, boxShadow:`0 0 20px ${P.ac}` }} />
+      <div style={{ fontSize:13, color:P.dm }}>Parsing flow data…</div>
     </div>
   );
 }
@@ -537,41 +579,62 @@ function ErrorScreen({ error, onRetry }) {
 // ─── Main Component ────────────────────────────────────────────────────────────
 const TABS = ["Market Read","Performance","Search","Short Term","Long Term","LEAPS","OI Watchlist"];
 
+// ── GitHub raw URL — update this if your repo changes ──────────────────────────
+const GITHUB_CSV_URL =
+  "https://raw.githubusercontent.com/unchartedterritory5995-cyber/UCT-Dashboard/master/app/public/flow-data.csv";
+
 export default function OptionsFlow() {
   const [flowData, setFlowData]       = useState(null);
   const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState(null);
+  const [loadError, setLoadError]     = useState(null);
   const [tab, setTab]                 = useState("Market Read");
   const [perf, setPerf]               = useState([]);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [status, setStatus]           = useState("");
   const [search, setSearch]           = useState("");
   const [selectedTicker, setSelectedTicker] = useState(null);
+  const [fileName, setFileName]       = useState("flow-data.csv");
 
-  function loadData() {
-    setLoading(true);
-    setError(null);
-    // Cache-bust with timestamp so a new file is always fetched
-    fetch("/flow-data.csv?" + Date.now())
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status} — make sure flow-data.csv is in app/public/`);
-        return r.text();
-      })
-      .then(text => {
-        const rows = parseCSV(text);
-        if (rows.length === 0) throw new Error("CSV loaded but no data rows found. Check that column headers match expected format.");
-        const data = processFlowData(rows);
-        setFlowData(data);
-        setPerf(data.PERF_INIT.map(p => ({ ...p, now:0 })));
-        setLoading(false);
-      })
-      .catch(err => {
-        setError(err.message);
-        setLoading(false);
-      });
+  // Parse CSV text and update state
+  function loadCSVText(text, name) {
+    setFileName(name || "flow-data.csv");
+    try {
+      const rows = parseCSV(text);
+      if (rows.length === 0) throw new Error("No data rows found — check column headers.");
+      const data = processFlowData(rows);
+      setFlowData(data);
+      setPerf(data.PERF_INIT.map(p => ({ ...p, now:0 })));
+      setLoadError(null);
+    } catch(err) {
+      setLoadError(err.message);
+    }
+    setLoading(false);
   }
 
-  useEffect(() => { loadData(); }, []);
+  // Auto-fetch from GitHub on mount — cache-busted so users always get the latest file
+  useEffect(() => {
+    setLoading(true);
+    fetch(GITHUB_CSV_URL + "?t=" + Date.now())
+      .then(r => {
+        if (!r.ok) throw new Error(`Could not fetch CSV (HTTP ${r.status})`);
+        return r.text();
+      })
+      .then(text => loadCSVText(text, "flow-data.csv"))
+      .catch(err => {
+        setLoadError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  // Manual reload from GitHub
+  function reloadFromGitHub() {
+    setLoading(true);
+    setLoadError(null);
+    fetch(GITHUB_CSV_URL + "?t=" + Date.now())
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+      .then(text => loadCSVText(text, "flow-data.csv"))
+      .catch(err => { setLoadError(err.message); setLoading(false); });
+  }
 
   async function fetchPrices() {
     setFetchLoading(true);
@@ -623,7 +686,13 @@ export default function OptionsFlow() {
   }
 
   if (loading) return <LoadingScreen />;
-  if (error)   return <ErrorScreen error={error} onRetry={loadData} />;
+  if (loadError && !flowData) return (
+    <UploadScreen
+      error={loadError}
+      onFile={(text, name) => loadCSVText(text, name)}
+      onRetry={reloadFromGitHub}
+    />
+  );
 
   const D = flowData;
   const shortDir = D.shortBullTotal >= D.shortBearTotal ? "BULL" : "BEAR";
@@ -640,15 +709,21 @@ export default function OptionsFlow() {
           <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:`0 0 10px ${P.ac}` }} />
           <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>OPTIONS FLOW — MARKET READ</h1>
           <span style={{ marginLeft:"auto", fontSize:10, color:P.mt, background:P.al, padding:"3px 10px", borderRadius:4 }}>
-            {D.dateRange} · Expired removed
+            {D.dateRange} · {fileName}
           </span>
-          <button onClick={loadData} title="Reload CSV from server"
+          <button onClick={reloadFromGitHub} title="Re-fetch latest CSV from GitHub"
             style={{ padding:"4px 12px", borderRadius:4, border:`1px solid ${P.bd}`, background:P.al, color:P.dm, fontSize:10, cursor:"pointer", fontFamily:"inherit" }}>
-            ↻ Reload
+            ↻ Refresh
           </button>
+          <label title="Load a local CSV file" style={{ padding:"4px 12px", borderRadius:4, border:`1px solid ${P.ac}`, background:"transparent", color:P.ac, fontSize:10, cursor:"pointer", fontFamily:"inherit", fontWeight:700 }}>
+            ↑ Upload CSV
+            <input type="file" accept=".csv" style={{ display:"none" }}
+              onChange={e => { if(e.target.files[0]) { const f=e.target.files[0]; const r=new FileReader(); r.onload=ev=>loadCSVText(ev.target.result,f.name); r.readAsText(f); } }}
+            />
+          </label>
         </div>
         <p style={{ fontSize:10, color:P.mt, margin:"0 0 12px 16px" }}>
-          {fK(D.totalTrades)} live trades · {fmt(D.totalPremium)} · Confirmed (YELLOW/MAG) · No ML/ · Expired removed · Reads from /flow-data.csv
+          {fK(D.totalTrades)} live trades · {fmt(D.totalPremium)} confirmed · YELLOW/MAG only · ML/ excluded
         </p>
 
         {/* ── Short/Long Banners ── */}
@@ -997,7 +1072,7 @@ export default function OptionsFlow() {
         )}
 
         <div style={{ marginTop:16, padding:"10px 0", borderTop:`1px solid ${P.bd}`, display:"flex", justifyContent:"space-between" }}>
-          <span style={{ fontSize:9, color:P.mt }}>Options Flow Dashboard · {D.dateRange} · Data from /flow-data.csv</span>
+          <span style={{ fontSize:9, color:P.mt }}>Options Flow Dashboard · {D.dateRange} · {fileName}</span>
           <span style={{ fontSize:9, color:P.mt }}>YELLOW/MAG = confirmed · WHITE = check OI · No ML/</span>
         </div>
       </div>
