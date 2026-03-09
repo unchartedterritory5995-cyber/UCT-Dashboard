@@ -208,10 +208,6 @@ export default function UCT20Performance() {
               value={fmtPct(data.alpha_vs_qqq)}
               className={data.alpha_vs_qqq != null && data.alpha_vs_qqq >= 0 ? styles.gain : styles.loss} />
             <StatBox label="WIN RATE"       value={`${data.win_rate ?? '—'}%`} />
-            <StatBox label="PROFIT FACTOR"  value={data.profit_factor ?? '—'} />
-            <StatBox label="MAX DRAWDOWN"
-              value={fmtPct(data.max_drawdown, false)}
-              className={styles.loss} />
             <StatBox label="AVG WIN"
               value={fmtPct(data.avg_win_pct)}
               className={styles.gain} />
@@ -220,10 +216,6 @@ export default function UCT20Performance() {
               className={styles.loss} />
             <StatBox label="OPEN POSITIONS" value={`${data.open_count ?? 0} / 20`} />
             <StatBox label="AVG HOLD"       value={`${data.avg_hold_days ?? '—'}d`} />
-            <StatBox label="STOP-OUT RATE"  value={`${data.stop_out_rate ?? '—'}%`} />
-            <StatBox label="CUR DRAWDOWN"
-              value={fmtPct(data.current_drawdown, false)}
-              className={(data.current_drawdown ?? 0) < -1 ? styles.loss : styles.muted} />
           </div>
 
           {/* ── Open positions ── */}
