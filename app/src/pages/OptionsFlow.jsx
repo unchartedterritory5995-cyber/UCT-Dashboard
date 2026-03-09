@@ -167,23 +167,24 @@ function parseCSV(text) {
   const rawHeaders = parseCSVLine(lines[0]);
   const headers = rawHeaders.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
 
-  // Flexible column mapping — handles various BlackBox / broker export formats
+  // Flexible column mapping — handles UCT BlackBox export + common variants
   const ALIASES = {
-    ticker:  ["ticker","symbol","sym","stock","underlying","name"],
-    date:    ["date","tradedate","day"],
-    time:    ["time","tradetime"],
-    expiry:  ["expiry","expiration","exp","expdate","expirationdate","expdate"],
-    strike:  ["strike","strikeprice","k","strikePrice"],
+    ticker:  ["symbol","ticker","sym","stock","underlying","name"],
+    date:    ["createddate","date","tradedate","day"],
+    time:    ["createdtime","time","tradetime"],
+    expiry:  ["expirationdate","expiry","expiration","exp","expdate"],
+    strike:  ["strike","strikeprice","k"],
     type:    ["type","details","tradetype","tradedetails","description","ordertype"],
-    cp:      ["cp","callput","optiontype","callorput","putorcall","putorc"],
-    spot:    ["spot","stockprice","underprice","underlying","underlyingprice","last","underlast","stocklast","sprice"],
+    cp:      ["callput","cp","optiontype","callorput","putorcall"],
+    spot:    ["spot","stockprice","underprice","underlyingprice","last","underlast","stocklast"],
     side:    ["side","aggressorside","aggressor","orderside"],
-    volume:  ["volume","vol","qty","contracts","size","quantity","contractsvol"],
-    oi:      ["oi","openinterest","openint","opint","openinterestoi"],
-    iv:      ["iv","impliedvol","implvol","impliedvolatility","ivol","implvol"],
-    premium: ["premium","prem","totalpremium","value","totalvalue","notional","totpremium"],
-    price:   ["price","contractprice","optionprice","askprice","lastprice","midprice","mid","optprice"],
-    color:   ["color","signal","oicolor","oiSignal","flag","oisignal"],
+    volume:  ["volume","vol","qty","contracts","size","quantity"],
+    oi:      ["oi","openinterest","openint","opint"],
+    iv:      ["impliedvolatility","iv","impliedvol","implvol","ivol"],
+    premium: ["premium","prem","totalpremium","value","totalvalue","notional"],
+    price:   ["price","contractprice","optionprice","lastprice","midprice","mid"],
+    color:   ["color","signal","oicolor","oisignal","flag"],
+    dte:     ["dte","daystoexpiry","daystoexp","dtex"],
   };
 
   const colIdx = {};
@@ -245,13 +246,16 @@ function formatExp(expiry) {
 function processFlowData(rows) {
   // 1. Parse raw rows into trade objects
   const rawTrades = rows.map(r => {
-    const typeRaw = (r.type || "").toUpperCase();
-    const isML = typeRaw.includes("ML/") || typeRaw.startsWith("ML ");
-    const typeClean = typeRaw.replace(/ML\//g,"").replace(/ML /g,"").trim();
-    const isSWP = typeClean.includes("SWP") || typeClean.includes("SWEEP");
-    const isBLK = typeClean.includes("BLK") || typeClean.includes("BLOCK");
+    // Type: "SWEEP"→SWP, "BLOCK"→BLK, "ML/"→skip
+    const typeRaw = (r.type || "").toUpperCase().trim();
+    const isML = typeRaw === "ML/" || typeRaw.startsWith("ML/");
+    const isSWP = typeRaw === "SWEEP" || typeRaw.includes("SWP");
+    const isBLK = typeRaw === "BLOCK" || typeRaw.includes("BLK");
 
-    const cp = (r.cp || "").toUpperCase().replace(/[^CP]/g,"").slice(0,1);
+    // CallPut: "CALL"→C, "PUT"→P
+    const cpRaw = (r.cp || "").toUpperCase().trim();
+    const cp = cpRaw === "CALL" ? "C" : cpRaw === "PUT" ? "P" : cpRaw.replace(/[^CP]/g,"").slice(0,1);
+
     const strike  = parseFloat(r.strike) || 0;
     const spot    = parseFloat(r.spot) || 0;
     const volume  = parseInt(r.volume) || 0;
@@ -260,7 +264,7 @@ function processFlowData(rows) {
     const price   = parseFloat((r.price||"").replace(/[$,]/g,"")) || 0;
     const iv      = parseFloat(r.iv) || 0;
 
-    // Normalize side
+    // Side: already AA/BB/A/B in this CSV
     const sr = (r.side||"").toUpperCase().trim();
     let side = sr;
     if (sr.includes("ABOVE") || sr==="AA") side = "AA";
@@ -268,14 +272,16 @@ function processFlowData(rows) {
     else if (sr==="A" || sr.includes("ASK")) side = "A";
     else if (sr==="B" || sr.includes("BID")) side = "B";
 
-    // Normalize color
+    // Color: WHITE/YELLOW/MAGENTA/ORANGE/#FF0000
     const cr = (r.color||"").toUpperCase().trim();
     let color = "WHITE";
-    if (cr.includes("YELLOW") || cr==="Y") color = "YELLOW";
-    else if (cr.includes("MAGENTA")||cr.includes("PURPLE")||cr.includes("PINK")||cr==="M") color = "MAGENTA";
+    if (cr === "YELLOW" || cr === "Y") color = "YELLOW";
+    else if (cr === "MAGENTA" || cr === "ORANGE" || cr === "#FF0000" || cr === "M") color = "MAGENTA";
 
+    // Use pre-computed DTE from CSV if available
     const expiry = parseExpiry(r.expiry);
-    const dte    = expiry ? computeDTE(expiry) : -1;
+    const dteParsed = parseInt(r.dte);
+    const dte = !isNaN(dteParsed) && dteParsed >= 0 ? dteParsed : (expiry ? computeDTE(expiry) : -1);
     const expStr = expiry ? formatExp(expiry) : (r.expiry||"");
 
     let dt = "";
