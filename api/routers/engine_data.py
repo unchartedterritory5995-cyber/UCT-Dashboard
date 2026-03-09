@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
-from api.services.engine import get_breadth, get_themes, get_leadership, get_rundown
+from api.services.engine import get_breadth, get_themes, get_leadership, get_rundown, get_uct20_portfolio_data
 
 router = APIRouter()
 
@@ -35,5 +35,13 @@ def rundown(type: Optional[str] = Query(None)):
         if type == "post_market":
             return {"html": "", "date": ""}  # post-market not yet implemented
         return get_rundown()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get("/api/uct20/portfolio")
+def uct20_portfolio():
+    try:
+        return get_uct20_portfolio_data()
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))

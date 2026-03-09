@@ -3,6 +3,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
+import UCT20Performance from '../components/tiles/UCT20Performance'
 import styles from './UCT20.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -126,6 +127,7 @@ export default function UCT20() {
             ))}
           </div>
         )}
+        <UCT20Performance />
       </TileCard>
     </div>
   )

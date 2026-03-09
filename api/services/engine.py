@@ -1300,3 +1300,37 @@ def get_candidates() -> dict:
             pass
 
     return copy.deepcopy(_EMPTY_CANDIDATES)
+
+
+# ─── UCT 20 Portfolio ──────────────────────────────────────────────────────────
+
+def get_uct20_portfolio_data() -> dict:
+    """Return UCT 20 portfolio performance data.
+
+    Priority: cache → wire_data["uct20_portfolio"] → direct engine call (local dev).
+    """
+    cached = cache.get("uct20_portfolio")
+    if cached is not None:
+        return cached
+
+    # Try wire_data (populated by /api/push from morning wire engine)
+    wire = _load_wire_data()
+    if wire and wire.get("uct20_portfolio"):
+        result = wire["uct20_portfolio"]
+        cache.set("uct20_portfolio", result, ttl=3600)
+        return result
+
+    # Local dev fallback: call engine directly
+    try:
+        _UCT_INTEL_PATH = r"C:\Users\Patrick\uct-intelligence"
+        if _UCT_INTEL_PATH not in sys.path:
+            sys.path.insert(0, _UCT_INTEL_PATH)
+        import uct_intelligence.api as _uct_api
+        result = _uct_api.get_uct20_portfolio(account_size=50000)
+        if result:
+            cache.set("uct20_portfolio", result, ttl=3600)
+            return result
+    except Exception as e:
+        _logger.warning("get_uct20_portfolio_data local fallback failed: %s", e)
+
+    return {}
