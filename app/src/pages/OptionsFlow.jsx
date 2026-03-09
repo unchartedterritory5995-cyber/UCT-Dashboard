@@ -507,62 +507,22 @@ function processFlowData(rows) {
 }
 
 // ─── Loading / Error Screens ───────────────────────────────────────────────────
-function UploadScreen({ onFile, onRetry, error }) {
-  const [dragging, setDragging] = useState(false);
-
-  function handleFile(file) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => onFile(e.target.result, file.name);
-    reader.readAsText(file);
-  }
-
+function ErrorScreen({ onRetry, error }) {
   return (
-    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:20, padding:40 }}>
+    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16, padding:40 }}>
       <div style={{ display:"flex", alignItems:"center", gap:10 }}>
         <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:`0 0 10px ${P.ac}` }} />
         <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>OPTIONS FLOW DASHBOARD</h1>
       </div>
-
-      {error && (
-        <div style={{ background:`${P.be}15`, border:`1px solid ${P.be}40`, borderRadius:8, padding:"10px 18px", maxWidth:420, fontSize:11, color:P.be, textAlign:"center", lineHeight:1.7 }}>
-          <strong>Auto-load failed:</strong> {error}<br/>
-          <span style={{ color:P.dm }}>Upload your CSV manually below, or retry.</span>
-        </div>
-      )}
-
-      <div
-        onDragOver={e => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); }}
-        style={{
-          width:420, padding:"40px 32px",
-          border:`2px dashed ${dragging ? P.ac : P.bd}`,
-          borderRadius:12, textAlign:"center",
-          background: dragging ? `${P.ac}08` : P.cd,
-          transition:"all 0.15s", cursor:"pointer",
-        }}
-        onClick={() => document.getElementById("csv-upload").click()}
-      >
-        <div style={{ fontSize:32, marginBottom:12 }}>📂</div>
-        <div style={{ fontSize:14, fontWeight:700, color:P.wh, marginBottom:8 }}>Drop your flow-data.csv here</div>
-        <div style={{ fontSize:11, color:P.dm }}>or click to browse</div>
-        <input id="csv-upload" type="file" accept=".csv" style={{ display:"none" }}
-          onChange={e => handleFile(e.target.files[0])} />
+      <div style={{ fontSize:28, color:P.be, marginTop:8 }}>⚠</div>
+      <div style={{ fontSize:14, fontWeight:700, color:P.wh }}>Could not load flow data</div>
+      <div style={{ background:`${P.be}15`, border:`1px solid ${P.be}30`, borderRadius:8, padding:"10px 20px", maxWidth:420, fontSize:11, color:P.dm, textAlign:"center", lineHeight:1.8 }}>
+        {error}
       </div>
-
-      <div style={{ display:"flex", gap:10 }}>
-        {onRetry && (
-          <button onClick={onRetry} style={{ padding:"8px 20px", borderRadius:6, border:`1px solid ${P.bd}`, background:P.al, color:P.dm, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-            ↻ Retry GitHub
-          </button>
-        )}
-      </div>
-
-      <div style={{ fontSize:10, color:P.mt, background:P.al, padding:"12px 20px", borderRadius:6, maxWidth:420, lineHeight:1.9 }}>
-        <strong style={{ color:P.wh }}>Normal flow:</strong> push <code style={{color:P.ac}}>flow-data.csv</code> to GitHub → dashboard auto-updates for all users.<br/>
-        <strong style={{ color:P.wh }}>Manual fallback:</strong> drop any CSV above to load it directly.
-      </div>
+      <button onClick={onRetry} style={{ marginTop:4, padding:"8px 24px", borderRadius:6, border:`1px solid ${P.ac}`, background:"transparent", color:P.ac, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+        ↻ Retry
+      </button>
+      <div style={{ fontSize:10, color:P.mt, marginTop:4 }}>Flow data updates automatically when the source is refreshed.</div>
     </div>
   );
 }
@@ -687,11 +647,7 @@ export default function OptionsFlow() {
 
   if (loading) return <LoadingScreen />;
   if (loadError && !flowData) return (
-    <UploadScreen
-      error={loadError}
-      onFile={(text, name) => loadCSVText(text, name)}
-      onRetry={reloadFromGitHub}
-    />
+    <ErrorScreen error={loadError} onRetry={reloadFromGitHub} />
   );
 
   const D = flowData;
@@ -715,12 +671,7 @@ export default function OptionsFlow() {
             style={{ padding:"4px 12px", borderRadius:4, border:`1px solid ${P.bd}`, background:P.al, color:P.dm, fontSize:10, cursor:"pointer", fontFamily:"inherit" }}>
             ↻ Refresh
           </button>
-          <label title="Load a local CSV file" style={{ padding:"4px 12px", borderRadius:4, border:`1px solid ${P.ac}`, background:"transparent", color:P.ac, fontSize:10, cursor:"pointer", fontFamily:"inherit", fontWeight:700 }}>
-            ↑ Upload CSV
-            <input type="file" accept=".csv" style={{ display:"none" }}
-              onChange={e => { if(e.target.files[0]) { const f=e.target.files[0]; const r=new FileReader(); r.onload=ev=>loadCSVText(ev.target.result,f.name); r.readAsText(f); } }}
-            />
-          </label>
+
         </div>
         <p style={{ fontSize:10, color:P.mt, margin:"0 0 12px 16px" }}>
           {fK(D.totalTrades)} live trades · {fmt(D.totalPremium)} confirmed · YELLOW/MAG only · ML/ excluded
