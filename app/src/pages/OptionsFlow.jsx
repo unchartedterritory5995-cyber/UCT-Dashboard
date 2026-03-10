@@ -624,8 +624,9 @@ function processFlowData(rows) {
     if (!sectorMap[sec]) sectorMap[sec] = { name:sec, bull:0, bear:0, count:0, tickers:{} };
     sectorMap[sec].count++;
     t.D === "BULL" ? (sectorMap[sec].bull += t.P) : (sectorMap[sec].bear += t.P);
-    if (!sectorMap[sec].tickers[t.S]) sectorMap[sec].tickers[t.S] = { s:t.S, p:0 };
+    if (!sectorMap[sec].tickers[t.S]) sectorMap[sec].tickers[t.S] = { s:t.S, p:0, bull:0, bear:0 };
     sectorMap[sec].tickers[t.S].p += t.P;
+    t.D === "BULL" ? (sectorMap[sec].tickers[t.S].bull += t.P) : (sectorMap[sec].tickers[t.S].bear += t.P);
   });
   const SECTORS = Object.values(sectorMap).sort((a,b)=>(b.bull+b.bear)-(a.bull+a.bear)).slice(0,8)
     .map(s => ({ ...s, topTickers: Object.values(s.tickers).sort((a,b)=>b.p-a.p).slice(0,5) }));
@@ -950,12 +951,19 @@ export default function OptionsFlowDashboard() {
                             background:"#152038", border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
                             boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
                             <div style={{ fontWeight:700, color:P.ac, marginBottom:6 }}>{s.name} — Top Flow</div>
-                            {s.topTickers.map((tk,j) => (
-                              <div key={j} style={{ display:"flex", justifyContent:"space-between", padding:"3px 0", borderBottom:j<s.topTickers.length-1?("1px solid "+P.bd+"20"):"none" }}>
+                            {s.topTickers.map((tk,j) => {
+                              const isBull = tk.bull >= tk.bear;
+                              const sqColor = isBull ? P.bu : P.be;
+                              return (
+                              <div key={j} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"3px 0", borderBottom:j<s.topTickers.length-1?("1px solid "+P.bd+"20"):"none" }}>
                                 <span style={{ fontWeight:800, color:P.wh }}>{tk.s}</span>
-                                <span style={{ fontWeight:700, color:P.ac }}>{fmt(tk.p)}</span>
+                                <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                                  <span style={{ fontWeight:700, color:P.ac }}>{fmt(tk.p)}</span>
+                                  <span style={{ width:9, height:9, borderRadius:2, background:sqColor, display:"inline-block", flexShrink:0 }} title={isBull?"Bullish":"Bearish"} />
+                                </div>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
