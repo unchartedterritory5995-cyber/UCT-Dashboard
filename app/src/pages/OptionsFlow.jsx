@@ -479,6 +479,9 @@ function processFlowData(rows) {
   // Daily flow (clean confirmed only)
   const dayMap = {};
   clean_confirmed.forEach(t => {
+    if (!t.Dt) return;
+    if (!dayMap[t.Dt]) dayMap[t.Dt] = { d:t.Dt, b:0, r:0 };
+    t.D === "BULL" ? (dayMap[t.Dt].b += t.P) : (dayMap[t.Dt].r += t.P);
   });
   const DAYS = Object.values(dayMap).sort((a,b) => {
     const [am,ad] = a.d.split("/").map(Number);
