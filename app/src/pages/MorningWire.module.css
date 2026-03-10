@@ -193,6 +193,91 @@
   display: none !important;
 }
 
+/* ── Top 5 Picks ─────────────────────────────────────────────── */
+.rundownWrap :global(.rd-top-picks-grid) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 16px;
+}
+
+.rundownWrap :global(.rd-pick) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 4px 0;
+}
+
+.rundownWrap :global(.rd-pick-header) {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0 10px;
+}
+
+.rundownWrap :global(.rd-pick-hr) {
+  flex: 1;
+  border: none !important;
+  border-top: 1px solid #c9a84c !important;
+  opacity: 0.4 !important;
+  margin: 0 !important;
+}
+
+.rundownWrap :global(.rd-pick-sym) {
+  font-family: 'IBM Plex Mono', monospace !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #c9a84c !important;
+  letter-spacing: 2px !important;
+  white-space: nowrap;
+}
+
+.rundownWrap :global(.rd-pick-body) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rundownWrap :global(.rd-pick-narrative) {
+  font-size: 12px !important;
+  line-height: 1.65 !important;
+  color: var(--text) !important;
+  margin: 0;
+}
+
+.rundownWrap :global(.rd-pick-fields) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  margin-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.rundownWrap :global(.rd-pick-field) {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.rundownWrap :global(.rd-pick-flabel) {
+  font-family: 'IBM Plex Mono', monospace !important;
+  font-size: 8px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+  color: #c9a84c !important;
+  text-transform: uppercase !important;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.rundownWrap :global(.rd-pick-fval) {
+  font-family: 'IBM Plex Mono', monospace !important;
+  font-size: 10.5px !important;
+  color: var(--text-bright, #f0f0f0) !important;
+  line-height: 1.4;
+}
+
 /* ── By the Numbers ──────────────────────────────────────────── */
 .numbers {
   display: flex;
