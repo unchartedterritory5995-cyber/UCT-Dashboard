@@ -17,6 +17,10 @@
     "swr": "^2.4.0"
   },
   "devDependencies": {
+  ...
+  "serve": "^14.2.0"
+}
+  "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
