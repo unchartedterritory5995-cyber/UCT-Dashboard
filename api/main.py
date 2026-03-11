@@ -4,12 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-
 import sentry_sdk
-
 from api.limiter import limiter
 from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts
 
@@ -22,7 +19,6 @@ if _SENTRY_DSN:
     )
 
 PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"
-
 
 def _seed_cache_from_volume():
     """On startup, load persisted wire_data from Railway volume into cache."""
@@ -37,12 +33,10 @@ def _seed_cache_from_volume():
     except Exception as e:
         print(f"[startup] Could not load wire_data from volume: {e}")
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _seed_cache_from_volume()
     yield
-
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.state.limiter = limiter
@@ -67,6 +61,11 @@ app.include_router(charts.router)
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 if os.path.exists(DIST):
     app.mount("/assets", StaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
+
+    @app.get("/flow-data.csv")
+    def serve_csv():
+        csv_path = os.path.join(DIST, "flow-data.csv")
+        return FileResponse(csv_path, media_type="text/csv")
 
     @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
