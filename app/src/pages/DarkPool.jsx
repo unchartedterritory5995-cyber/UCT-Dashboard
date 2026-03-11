@@ -127,6 +127,9 @@ const TD = ({children,style={}}) => (
   </td>
 );
 
+// ── Module-level data ref (set when CSV loads) ─────────────────────────────
+let D = null;
+
 function FlowTable({items, showCat=true}){
   return (
     <div style={{overflowX:"auto"}}>
@@ -860,6 +863,17 @@ export default function App(){
     return () => { try{ document.head.removeChild(script); }catch(e){} };
   },[]);
 
+
+
+
+  const [tab,setTab]=useState("overview");
+  const [catJump,setCatJump]=useState(null);
+
+  function handleJumpTo(name){
+    setCatJump(name);
+    setTab("category");
+  }
+
   if(loadErr) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",
       minHeight:"100vh",background:"#0b1120",color:"#ff5c72",fontFamily:"Outfit,sans-serif",
@@ -882,14 +896,7 @@ export default function App(){
     </div>
   );
 
-  const D = dpData;
-  const [tab,setTab]=useState("overview");
-  const [catJump,setCatJump]=useState(null);
-
-  function handleJumpTo(name){
-    setCatJump(name);
-    setTab("category");
-  }
+  D = dpData;
 
   return (
     <div style={{background:C.bg,minHeight:"100vh",color:C.tx,
