@@ -288,6 +288,14 @@ function OverviewPane(){
 
   function MiniRow({item, dir}){
     const color = dir==="above" ? C.green : C.red;
+    const [bpHover,setBpHover]=useState(false);
+    const bpPct = item.bigPrint>0 ? ((item.last-item.bigPrint)/item.bigPrint*100) : null;
+    const bpMoveColor = bpPct==null ? C.tx3 : bpPct>0 ? C.green : bpPct<0 ? C.red : C.tx3;
+    const tip = item.bigPrintN ? [
+      item.bigPrintDate,
+      fmt(item.bigPrintN),
+      item.bigPrintPctAvgVol>0 ? item.bigPrintPctAvgVol.toFixed(1)+"% of avg vol" : null
+    ].filter(Boolean).join(" · ") : null;
     return (
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
         padding:"6px 0",borderBottom:`1px solid ${C.bdr}`}}>
@@ -302,9 +310,27 @@ function OverviewPane(){
           <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.tx2}}>
             {fP(item.last)}
           </span>
+          {/* Big Print level */}
+          <div style={{position:"relative",display:"inline-block"}}
+            onMouseEnter={()=>setBpHover(true)} onMouseLeave={()=>setBpHover(false)}>
+            <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.amber,
+              fontWeight:700,minWidth:68,display:"inline-block",textAlign:"right",cursor:"default"}}>
+              {fP(item.bigPrint)}
+            </span>
+            {bpHover && tip && (
+              <div style={{position:"absolute",right:0,top:"100%",zIndex:50,
+                background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
+                padding:"7px 11px",whiteSpace:"nowrap",boxShadow:"0 4px 20px #00000066",
+                marginTop:4,color:C.tx,fontSize:13,fontFamily:"JetBrains Mono, monospace",
+                fontWeight:500,letterSpacing:"0.01em"}}>
+                {tip}
+              </div>
+            )}
+          </div>
+          {/* % move since big print */}
           <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:12,
-            fontWeight:700,color,minWidth:60,textAlign:"right"}}>
-            {dir==="above"?"+":""}{item.pct.toFixed(2)}%
+            fontWeight:700,color:bpMoveColor,minWidth:60,textAlign:"right"}}>
+            {bpPct==null ? "—" : (bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
           </span>
           <span style={{fontSize:10,color:C.tx3,minWidth:36,textAlign:"right"}}>
             {fmt(item.n)}
@@ -320,6 +346,16 @@ function OverviewPane(){
       {/* Above zone */}
       <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
         {sectionLabel(`▲ Above Zone — Top ${Math.min(8,D.above.length)}`)}
+        <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 6px 0",
+          borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+          <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:52}}>Ticker</span>
+          <div style={{display:"flex",gap:12,alignItems:"center"}}>
+            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Last</span>
+            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:68,textAlign:"right"}}>Big Print</span>
+            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>% Move</span>
+            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:36,textAlign:"right"}}>Flow</span>
+          </div>
+        </div>
         {D.above.slice(0,8).map(item=>(
           <MiniRow key={item.t} item={item} dir="above"/>
         ))}
@@ -329,6 +365,16 @@ function OverviewPane(){
       {/* Below zone */}
       <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
         {sectionLabel(`▼ Below Zone — Top ${Math.min(8,D.below.length)}`)}
+        <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 6px 0",
+          borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+          <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:52}}>Ticker</span>
+          <div style={{display:"flex",gap:12,alignItems:"center"}}>
+            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Last</span>
+            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:68,textAlign:"right"}}>Big Print</span>
+            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>% Move</span>
+            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:36,textAlign:"right"}}>Flow</span>
+          </div>
+        </div>
         {D.below.slice(0,8).map(item=>(
           <MiniRow key={item.t} item={item} dir="below"/>
         ))}
