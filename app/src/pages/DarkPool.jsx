@@ -1,5 +1,29 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import Papa from "papaparse";
+
+// ── Built-in CSV parser (no external dependencies) ───────────────────────────
+function parseCSVLine(line) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQuotes = !inQuotes; }
+    else if (line[i] === "," && !inQuotes) { result.push(current.trim().replace(/^"|"$/g, "")); current = ""; }
+    else { current += line[i]; }
+  }
+  result.push(current.trim().replace(/^"|"$/g, ""));
+  return result;
+}
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const headers = parseCSVLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const cols = parseCSVLine(line);
+    const row = {};
+    headers.forEach((h, i) => { row[h] = (cols[i] || "").trim(); });
+    return row;
+  }).filter(r => Object.values(r).some(v => v));
+}
 
 // ── colours ─────────────────────────────────────────────────────────────────
 const C = {
@@ -803,14 +827,22 @@ export default function DarkPool(){
   useEffect(()=>{
     setLoadStatus("Fetching Darkpool-data.csv…");
     fetch("/Darkpool-data.csv")
-      .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status+" — check that Darkpool-data.csv is in app/public"); return r.text(); })
+      .then(r=>{
+        if(!r.ok) throw new Error("HTTP "+r.status+" — check Darkpool-data.csv is in app/public");
+        const ct = r.headers.get("content-type") || "";
+        if(ct.includes("text/html")) throw new Error("Got HTML instead of CSV — file not found on server");
+        return r.text();
+      })
       .then(text=>{
+        const trimmed = text.trim();
+        if(trimmed.startsWith("<!") || trimmed.startsWith("<html")) throw new Error("Got HTML instead of CSV — Darkpool-data.csv not found");
         setLoadStatus("Parsing CSV…");
-        const result = Papa.parse(text, {header:true, skipEmptyLines:true});
-        setLoadStatus("Processing "+result.data.length.toLocaleString()+" rows…");
+        const rows = parseCSV(text);
+        if(!rows || rows.length===0) throw new Error("CSV parsed but contained 0 valid rows");
+        setLoadStatus("Processing "+rows.length.toLocaleString()+" rows…");
         setTimeout(()=>{
           try{
-            const d = parseCSVtoD(result.data);
+            const d = parseCSVtoD(rows);
             setDpData(d);
           }catch(e){
             setLoadErr("Processing error: "+e.message);
