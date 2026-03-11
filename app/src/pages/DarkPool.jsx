@@ -806,7 +806,7 @@ export default function App(){
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js";
     script.onload = () => {
       setLoadStatus("Fetching Darkpool-data.csv…");
-      fetch("/Darkpool-data.csv")
+      fetch("./Darkpool-data.csv")
         .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.text(); })
         .then(text=>{
           setLoadStatus("Parsing CSV…");
