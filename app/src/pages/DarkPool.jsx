@@ -62,15 +62,40 @@ function Sparkline({it, w=140, h=36}){
   const lo=it.lo, hi=it.hi;
   const zoneY1=y(hi), zoneY2=y(lo);
   const polyline = pts.map((pt,i)=>x(i)+","+y(pt.p)).join(" ");
-  // color last point
   const lastP=pts[pts.length-1].p;
   const lineColor=lastP>hi?C.green:lastP<lo?C.red:"#8899aa";
+
+  // Big print level — clamp to visible range
+  const bp = it.bigPrint;
+  const bpInRange = bp!=null && bp>=mn && bp<=mx;
+  const bpY = bp!=null ? Math.max(P, Math.min(h-P, y(bp))) : null;
+  // Zone thickness scales with notional weight (bigger print = thicker zone)
+  const bpThick = it.bigPrintN && it.n ? Math.max(2, Math.min(6, (it.bigPrintN/it.n)*20)) : 3;
+
   return (
     <svg width={w} height={h} style={{display:"block"}}>
+      {/* DP zone band */}
       <rect x={P} y={zoneY1} width={w-P*2} height={Math.max(0,zoneY2-zoneY1)}
         fill="#22d3ee11" stroke="none"/>
       <line x1={P} y1={y(lo)} x2={w-P} y2={y(lo)} stroke="#22d3ee33" strokeWidth={0.5}/>
       <line x1={P} y1={y(hi)} x2={w-P} y2={y(hi)} stroke="#22d3ee33" strokeWidth={0.5}/>
+
+      {/* Largest print level — amber zone */}
+      {bpY!=null && (
+        <>
+          {/* Thick zone band */}
+          <rect x={P} y={bpY - bpThick/2} width={w-P*2} height={bpThick}
+            fill="#ffb34733" stroke="none" rx={1}/>
+          {/* Center line */}
+          <line x1={P} y1={bpY} x2={w-P} y2={bpY}
+            stroke="#ffb347" strokeWidth={1.5} strokeDasharray="3,2" opacity={0.9}/>
+          {/* Left anchor tick */}
+          <line x1={P} y1={bpY-4} x2={P} y2={bpY+4}
+            stroke="#ffb347" strokeWidth={2} opacity={0.9}/>
+        </>
+      )}
+
+      {/* Price line */}
       <polyline points={polyline} fill="none" stroke={lineColor} strokeWidth={1.2}/>
       {pts.map((pt,i)=>{
         const wt=pt.w||0;
@@ -166,6 +191,7 @@ function FlowTable({items, showCat=true}){
             <TH>Zone</TH>
             <TH>Last</TH>
             <TH>DP Zone</TH>
+            <TH>Big Print</TH>
             <TH>Notional</TH>
             <TH>Trades</TH>
             <TH>Days</TH>
@@ -175,6 +201,9 @@ function FlowTable({items, showCat=true}){
         <tbody>
           {items.map(it=>{
             const cc=CAT_COLORS[it.cat]||C.tx;
+            const bpAbove = it.bigPrint!=null && it.last > it.bigPrint;
+            const bpBelow = it.bigPrint!=null && it.last < it.bigPrint;
+            const bpPct   = it.bigPrint>0 ? ((it.last-it.bigPrint)/it.bigPrint*100) : null;
             return (
               <tr key={it.t+it.cat} style={{background:"transparent"}}
                 onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
@@ -187,6 +216,18 @@ function FlowTable({items, showCat=true}){
                 </TD>
                 <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2,fontSize:11}}>
                   {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
+                </TD>
+                <TD style={{fontFamily:"JetBrains Mono, monospace",fontSize:11}}>
+                  <div
+                    title={it.bigPrintN ? `${it.bigPrintDate ? it.bigPrintDate+" · " : ""}${fmt(it.bigPrintN)}${it.bigPrintPctAvgVol>0 ? " · "+it.bigPrintPctAvgVol.toFixed(1)+"% of avg vol" : it.avg30>0 ? " · "+((it.bigPrintN/it.avg30)*100).toFixed(1)+"% of avg vol" : ""}` : ""}
+                    style={{display:"flex",flexDirection:"column",gap:1,cursor:"default"}}>
+                    <span style={{color:C.amber,fontWeight:700}}>{fP(it.bigPrint)}</span>
+                    {bpPct!=null && (
+                      <span style={{fontSize:10,color:bpAbove?C.green:bpBelow?C.red:C.tx3,fontWeight:600}}>
+                        {bpAbove?"+":""}{bpPct.toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
                 </TD>
                 <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.cyan,fontWeight:600}}>
                   {fmt(it.n)}
@@ -685,18 +726,23 @@ function parseCSVtoD(rows){
       const notional=parseFloat(r.Notional);
       if(!price||!notional||price<=0||notional<=0) continue;
       const d=parseDate(r.Date);
-      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg});
+      const avg30=parseFloat(r.Avg30Day)||0;
+      const avgVolM = msg.match(/([0-9.]+)%\s*AvgVol/);
+      const pctAvgVol = avgVolM ? parseFloat(avgVolM[1]) : 0;
+      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg, avg30, pctAvgVol});
     }catch(e){}
   }
 
   // Aggregate per ticker
   const tickerTrades={};  // tk → [{price,notional,dateKey}]
   const tickerDaily={};   // tk → {dateKey → {notional,volNotional,count}}
+  const tickerAvg30={};  // tk → avg 30-day volume (last seen value)
 
   for(const tr of tradeRows){
-    const {ticker:tk,dateKey:dk,price:p,notional:n}=tr;
+    const {ticker:tk,dateKey:dk,price:p,notional:n,avg30,pctAvgVol}=tr;
     if(!tickerTrades[tk]) tickerTrades[tk]=[];
-    tickerTrades[tk].push({p,n,dk});
+    tickerTrades[tk].push({p,n,dk,pctAvgVol});
+    if(avg30>0) tickerAvg30[tk]=avg30;
     if(!tickerDaily[tk]) tickerDaily[tk]={};
     if(!tickerDaily[tk][dk]) tickerDaily[tk][dk]={notional:0,volNotional:0,count:0};
     tickerDaily[tk][dk].notional+=n;
@@ -742,8 +788,17 @@ function parseCSVtoD(rows){
       try{ const d=new Date(dk+"T00:00:00"); return fmtShort(d)+" @ $"+p.toFixed(2)+"  "+fmtN(n); }catch(e){ return ""; }
     });
 
+    // Largest single print by notional — the level to watch
+    const sortedByN=[...trades].sort((a,b)=>b.n-a.n);
+    const bigPrint = sortedByN[0] ? sortedByN[0].p : null;
+    const bigPrintN = sortedByN[0] ? sortedByN[0].n : 0;
+    const bigPrintDk = sortedByN[0] ? sortedByN[0].dk : null;
+    const bigPrintDate = bigPrintDk ? (()=>{ try{ return fmtShort(new Date(bigPrintDk+"T00:00:00")); }catch(e){ return bigPrintDk; } })() : null;
+    const bigPrintPctAvgVol = sortedByN[0] ? sortedByN[0].pctAvgVol : 0;
+
     const cat=classifyTicker(tk,totalN,numDates);
-    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5});
+    const avg30=tickerAvg30[tk]||0;
+    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDate,bigPrintPctAvgVol,avg30});
   }
 
   // Categories
