@@ -281,6 +281,159 @@ function premiumFilter(premium, mktcap) {
   return premium >= 100000; // $100K+ for mega caps
 }
 
+// ─── Cap Band Helpers ──────────────────────────────────────────────────────────
+function capBand(mktcap) {
+  if (!mktcap || mktcap <= 0) return "Unknown";
+  if (mktcap >= 500e9) return "Mega";
+  if (mktcap >= 10e9)  return "Large";
+  if (mktcap >= 2e9)   return "Mid";
+  return "Small";
+}
+function filterByCap(trades, cap) {
+  if (!cap || cap === "All") return trades;
+  return trades.filter(t => capBand(t.mktcap) === cap);
+}
+function sum(arr) { return arr.reduce((a,t)=>a+t.P,0); }
+function netByTicker(trades, n=8) {
+  const m = {};
+  trades.forEach(t => {
+    if (!m[t.S]) m[t.S] = { s:t.S, b:0, r:0, trades:[] };
+    t.D==="BULL" ? (m[t.S].b+=t.P) : (m[t.S].r+=t.P);
+    m[t.S].trades.push(t);
+  });
+  return Object.values(m).map(d => ({
+    ...d, n:d.b-d.r,
+    topTrades: d.trades.sort((a,b)=>b.P-a.P).slice(0,4).map(t=>({
+      Ty:t.Ty, Si:t.Si, Co:t.Co, CP:t.CP, K:t.K, E:t.E, V:t.V, P:t.P
+    }))
+  })).sort((a,b) => Math.abs(b.n)-Math.abs(a.n)).slice(0,n);
+}
+function topTradesFn(trades, n=10) {
+  return [...trades]
+    .sort((a,b) => ((b.Si==="AA"||b.Si==="BB"?1000:0)+(b.Ty==="SWP"?100:0)+b.P/1e6) -
+                   ((a.Si==="AA"||a.Si==="BB"?1000:0)+(a.Ty==="SWP"?100:0)+a.P/1e6))
+    .slice(0,n);
+}
+function consistencyTable(trades, n=8) {
+  const m = {};
+  trades.forEach(t => {
+    const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+    if (!m[k]) m[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
+      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true };
+    m[k].H++; m[k].P+=t.P; m[k].V+=t.V;
+    if (t.Ty==="SWP") m[k].hasSweep = true;
+    if (t.Ty==="BLK") m[k].hasBlock = true;
+    if (t.Co==="YELLOW"||t.Co==="MAGENTA") m[k].oiExceeded = true;
+    if (t.D) m[k].dirs.add(t.D);
+  });
+  return Object.values(m).filter(c=>c.H>=2).map(c => {
+    c.clean = c.dirs.size <= 1;
+    c.grade = gradeCluster(c);
+    return c;
+  }).sort((a,b) => {
+    const go = {"A+":6,"A":5,"B+":4,"B":3,"C":2,"D":1};
+    return (go[b.grade]||0)-(go[a.grade]||0) || b.H-a.H || b.P-a.P;
+  }).slice(0,n);
+}
+
+// Recomputes all chart data from a clean_confirmed slice (used by cap filter)
+function buildCharts(cc) {
+  const dayMap = {};
+  cc.forEach(t => {
+    if (!t.Dt) return;
+    if (!dayMap[t.Dt]) dayMap[t.Dt] = { d:t.Dt, b:0, r:0 };
+    t.D === "BULL" ? (dayMap[t.Dt].b += t.P) : (dayMap[t.Dt].r += t.P);
+  });
+  const DAYS = Object.values(dayMap).sort((a,b) => {
+    const [am,ad] = a.d.split("/").map(Number);
+    const [bm,bd] = b.d.split("/").map(Number);
+    return am!==bm ? am-bm : ad-bd;
+  });
+  const shortTerm = cc.filter(t => t.DTE >= 0 && t.DTE < 15);
+  const longTerm  = cc.filter(t => t.DTE >= 15 && t.DTE < 180);
+  const leaps     = cc.filter(t => t.DTE >= 180);
+  const SB_SYM = netByTicker(shortTerm.filter(t=>t.D==="BULL"));
+  const SR_SYM = netByTicker(shortTerm.filter(t=>t.D==="BEAR"));
+  const LB_SYM = netByTicker(longTerm.filter(t=>t.D==="BULL"));
+  const LR_SYM = netByTicker(longTerm.filter(t=>t.D==="BEAR"));
+  const LEAPS_B = netByTicker(leaps.filter(t=>t.D==="BULL"));
+  const LEAPS_R = netByTicker(leaps.filter(t=>t.D==="BEAR"));
+  const SBL = topTradesFn(shortTerm.filter(t=>t.D==="BULL"));
+  const SBR = topTradesFn(shortTerm.filter(t=>t.D==="BEAR"));
+  const LBL = topTradesFn(longTerm.filter(t=>t.D==="BULL"));
+  const LBR_T = topTradesFn(longTerm.filter(t=>t.D==="BEAR"));
+  const LEAPS_BL_T = topTradesFn(leaps.filter(t=>t.D==="BULL"));
+  const LEAPS_BR_T = topTradesFn(leaps.filter(t=>t.D==="BEAR"));
+  const SBLC = consistencyTable(shortTerm.filter(t=>t.D==="BULL"));
+  const SBRC = consistencyTable(shortTerm.filter(t=>t.D==="BEAR"));
+  const LBLC = consistencyTable(longTerm.filter(t=>t.D==="BULL"));
+  const LBRC = consistencyTable(longTerm.filter(t=>t.D==="BEAR"));
+  const LEAPS_BLC = consistencyTable(leaps.filter(t=>t.D==="BULL"));
+  const LEAPS_BRC = consistencyTable(leaps.filter(t=>t.D==="BEAR"));
+  const leapsExpMap = {};
+  leaps.forEach(t => {
+    if (!leapsExpMap[t.E]) leapsExpMap[t.E] = { exp:t.E, p:0, n:0, dte:t.DTE, syms:{} };
+    leapsExpMap[t.E].p += t.P; leapsExpMap[t.E].n++;
+    leapsExpMap[t.E].syms[t.S] = (leapsExpMap[t.E].syms[t.S]||0) + t.P;
+  });
+  const LEAPS_EXPS = Object.values(leapsExpMap).sort((a,b)=>b.p-a.p).slice(0,6)
+    .map(e => ({ exp:e.exp, p:e.p, n:e.n, dte:e.dte+"d",
+      names: Object.entries(e.syms).sort((a,b)=>b[1]-a[1]).slice(0,3)
+        .map(([s,p])=>s+" $"+(p/1e6).toFixed(1)+"M").join(", ") }));
+  const allCons = {}; const consTrades = {};
+  cc.forEach(t => {
+    const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+    if (!allCons[k]) allCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, dir:t.D,
+      hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true };
+    if (!consTrades[k]) consTrades[k] = [];
+    consTrades[k].push(t);
+    allCons[k].hits++; allCons[k].prem += t.P;
+    if (t.Si==="AA") allCons[k].hasAA = true;
+    if (t.Si==="BB") allCons[k].hasBB = true;
+    if (t.Ty==="SWP") allCons[k].hasSweep = true;
+    if (t.Ty==="BLK") allCons[k].hasBlock = true;
+    if (t.Co==="YELLOW"||t.Co==="MAGENTA") allCons[k].oiExceeded = true;
+    if (t.D) allCons[k].dirs.add(t.D);
+  });
+  const CONV = Object.values(allCons).filter(c=>c.dir).map(c => {
+    c.clean = c.dirs.size <= 1;
+    const grade = gradeCluster(c);
+    const scoreMap = {"A+":600,"A":500,"B+":400,"B":300,"C":200,"D":100};
+    const k = c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
+    const trades = (consTrades[k]||[]).sort((a,b)=>b.P-a.P).slice(0,5);
+    return { ...c, grade, score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e5,
+      side:c.hasAA?"AA":c.hasBB?"BB":"ASK", strike:"$"+c.K+c.cp, trades };
+  }).filter(c => c.clean && c.DTE > 7)
+  .sort((a,b)=>b.score-a.score).slice(0,6)
+  .map(c => ({ sym:c.sym, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade,
+    trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE })) }));
+  const sectorMap = {};
+  cc.forEach(t => {
+    const sec = t.sector || "Unknown";
+    if (!sectorMap[sec]) sectorMap[sec] = { name:sec, bull:0, bear:0, count:0, tickers:{} };
+    sectorMap[sec].count++;
+    t.D === "BULL" ? (sectorMap[sec].bull += t.P) : (sectorMap[sec].bear += t.P);
+    if (!sectorMap[sec].tickers[t.S]) sectorMap[sec].tickers[t.S] = { s:t.S, p:0, bull:0, bear:0 };
+    sectorMap[sec].tickers[t.S].p += t.P;
+    t.D === "BULL" ? (sectorMap[sec].tickers[t.S].bull += t.P) : (sectorMap[sec].tickers[t.S].bear += t.P);
+  });
+  const SECTORS = Object.values(sectorMap).sort((a,b)=>(b.bull+b.bear)-(a.bull+a.bear)).slice(0,8)
+    .map(s => ({ ...s, topTickers: Object.values(s.tickers).sort((a,b)=>b.p-a.p).slice(0,5) }));
+  return {
+    DAYS, CONV, SB_SYM, SR_SYM, LB_SYM, LR_SYM, LEAPS_B, LEAPS_R,
+    SBL, SBR, LBL, LBR_T, LEAPS_BL_T, LEAPS_BR_T,
+    SBLC, SBRC, LBLC, LBRC, LEAPS_BLC, LEAPS_BRC, LEAPS_EXPS, SECTORS,
+    shortBullTotal:sum(shortTerm.filter(t=>t.D==="BULL")),
+    shortBearTotal:sum(shortTerm.filter(t=>t.D==="BEAR")),
+    longBullTotal:sum(longTerm.filter(t=>t.D==="BULL")),
+    longBearTotal:sum(longTerm.filter(t=>t.D==="BEAR")),
+    leapsBullTotal:sum(leaps.filter(t=>t.D==="BULL")),
+    leapsBearTotal:sum(leaps.filter(t=>t.D==="BEAR")),
+  };
+}
+
+
+
 // ─── Data Processing ───────────────────────────────────────────────────────────
 function processFlowData(rows) {
   const rawTrades = rows.map(r => {
@@ -476,139 +629,15 @@ function processFlowData(rows) {
     return !dirtyClusterKeys.has(k);
   });
 
-  // Daily flow (clean confirmed only)
-  const dayMap = {};
-  clean_confirmed.forEach(t => {
-    if (!t.Dt) return;
-    if (!dayMap[t.Dt]) dayMap[t.Dt] = { d:t.Dt, b:0, r:0 };
-    t.D === "BULL" ? (dayMap[t.Dt].b += t.P) : (dayMap[t.Dt].r += t.P);
-  });
-  const DAYS = Object.values(dayMap).sort((a,b) => {
-    const [am,ad] = a.d.split("/").map(Number);
-    const [bm,bd] = b.d.split("/").map(Number);
-    return am!==bm ? am-bm : ad-bd;
-  });
+  const charts = buildCharts(clean_confirmed);
+  const { DAYS, CONV, SB_SYM, SR_SYM, LB_SYM, LR_SYM, LEAPS_B, LEAPS_R,
+    SBL, SBR, LBL, LBR_T, LEAPS_BL_T, LEAPS_BR_T,
+    SBLC, SBRC, LBLC, LBRC, LEAPS_BLC, LEAPS_BRC, LEAPS_EXPS, SECTORS,
+    shortBullTotal, shortBearTotal, longBullTotal, longBearTotal,
+    leapsBullTotal, leapsBearTotal } = charts;
 
-  // Segment by DTE (clean flow only — dirty/mixed clusters excluded)
-  const shortTerm = clean_confirmed.filter(t => t.DTE >= 0 && t.DTE < 15);
-  const longTerm = clean_confirmed.filter(t => t.DTE >= 15 && t.DTE < 180);
-  const leaps = clean_confirmed.filter(t => t.DTE >= 180);
 
-  // Helpers
-  function netByTicker(trades, n=8) {
-    const m = {};
-    trades.forEach(t => {
-      if (!m[t.S]) m[t.S] = { s:t.S, b:0, r:0, trades:[] };
-      t.D==="BULL" ? (m[t.S].b+=t.P) : (m[t.S].r+=t.P);
-      m[t.S].trades.push(t);
-    });
-    return Object.values(m).map(d => ({
-      ...d, n:d.b-d.r,
-      topTrades: d.trades.sort((a,b)=>b.P-a.P).slice(0,4).map(t=>({
-        Ty:t.Ty, Si:t.Si, Co:t.Co, CP:t.CP, K:t.K, E:t.E, V:t.V, P:t.P
-      }))
-    })).sort((a,b) => Math.abs(b.n)-Math.abs(a.n)).slice(0,n);
-  }
 
-  function topTrades(trades, n=10) {
-    return [...trades]
-      .sort((a,b) => ((b.Si==="AA"||b.Si==="BB"?1000:0)+(b.Ty==="SWP"?100:0)+b.P/1e6) -
-                     ((a.Si==="AA"||a.Si==="BB"?1000:0)+(a.Ty==="SWP"?100:0)+a.P/1e6))
-      .slice(0,n);
-  }
-
-  // Enhanced consistency table with grading
-  function consistencyTable(trades, n=8) {
-    const m = {};
-    trades.forEach(t => {
-      const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
-      if (!m[k]) m[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
-        hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true };
-      m[k].H++; m[k].P+=t.P; m[k].V+=t.V;
-      if (t.Ty==="SWP") m[k].hasSweep = true;
-      if (t.Ty==="BLK") m[k].hasBlock = true;
-      if (t.Co==="YELLOW"||t.Co==="MAGENTA") m[k].oiExceeded = true;
-      if (t.D) m[k].dirs.add(t.D);
-    });
-    return Object.values(m).filter(c=>c.H>=2).map(c => {
-      // Clean flow = all trades point same direction (all BULL or all BEAR)
-      // Mixed directions (e.g. B Put=BEAR then BB Put=BULL then A Put=BEAR) = dirty
-      c.clean = c.dirs.size <= 1;
-      c.grade = gradeCluster(c);
-      return c;
-    }).sort((a,b) => {
-      const go = {"A+":6,"A":5,"B+":4,"B":3,"C":2,"D":1};
-      return (go[b.grade]||0)-(go[a.grade]||0) || b.H-a.H || b.P-a.P;
-    }).slice(0,n);
-  }
-
-  const SB_SYM = netByTicker(shortTerm.filter(t=>t.D==="BULL"));
-  const SR_SYM = netByTicker(shortTerm.filter(t=>t.D==="BEAR"));
-  const LB_SYM = netByTicker(longTerm.filter(t=>t.D==="BULL"));
-  const LR_SYM = netByTicker(longTerm.filter(t=>t.D==="BEAR"));
-  const LEAPS_B = netByTicker(leaps.filter(t=>t.D==="BULL"));
-  const LEAPS_R = netByTicker(leaps.filter(t=>t.D==="BEAR"));
-
-  const SBL = topTrades(shortTerm.filter(t=>t.D==="BULL"));
-  const SBR = topTrades(shortTerm.filter(t=>t.D==="BEAR"));
-  const LBL = topTrades(longTerm.filter(t=>t.D==="BULL"));
-  const LBR_T = topTrades(longTerm.filter(t=>t.D==="BEAR"));
-  const LEAPS_BL_T = topTrades(leaps.filter(t=>t.D==="BULL"));
-  const LEAPS_BR_T = topTrades(leaps.filter(t=>t.D==="BEAR"));
-
-  const SBLC = consistencyTable(shortTerm.filter(t=>t.D==="BULL"));
-  const SBRC = consistencyTable(shortTerm.filter(t=>t.D==="BEAR"));
-  const LBLC = consistencyTable(longTerm.filter(t=>t.D==="BULL"));
-  const LBRC = consistencyTable(longTerm.filter(t=>t.D==="BEAR"));
-  const LEAPS_BLC = consistencyTable(leaps.filter(t=>t.D==="BULL"));
-  const LEAPS_BRC = consistencyTable(leaps.filter(t=>t.D==="BEAR"));
-
-  // LEAPS by expiration
-  const leapsExpMap = {};
-  leaps.forEach(t => {
-    if (!leapsExpMap[t.E]) leapsExpMap[t.E] = { exp:t.E, p:0, n:0, dte:t.DTE, syms:{} };
-    leapsExpMap[t.E].p += t.P;
-    leapsExpMap[t.E].n++;
-    leapsExpMap[t.E].syms[t.S] = (leapsExpMap[t.E].syms[t.S]||0) + t.P;
-  });
-  const LEAPS_EXPS = Object.values(leapsExpMap)
-    .sort((a,b)=>b.p-a.p).slice(0,6)
-    .map(e => ({
-      exp:e.exp, p:e.p, n:e.n, dte:e.dte+"d",
-      names: Object.entries(e.syms).sort((a,b)=>b[1]-a[1]).slice(0,3)
-        .map(([s,p])=>s+" $"+(p/1e6).toFixed(1)+"M").join(", ")
-    }));
-
-  // Conviction strikes with grading (clean flow only)
-  const allCons = {};
-  const consTrades = {};
-  clean_confirmed.forEach(t => {
-    const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
-    if (!allCons[k]) allCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, dir:t.D,
-      hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true };
-    if (!consTrades[k]) consTrades[k] = [];
-    consTrades[k].push(t);
-    allCons[k].hits++;
-    allCons[k].prem += t.P;
-    if (t.Si==="AA") allCons[k].hasAA = true;
-    if (t.Si==="BB") allCons[k].hasBB = true;
-    if (t.Ty==="SWP") allCons[k].hasSweep = true;
-    if (t.Ty==="BLK") allCons[k].hasBlock = true;
-    if (t.Co==="YELLOW"||t.Co==="MAGENTA") allCons[k].oiExceeded = true;
-    if (t.D) allCons[k].dirs.add(t.D);
-  });
-  const CONV = Object.values(allCons).filter(c => c.dir).map(c => {
-    c.clean = c.dirs.size <= 1;
-    const grade = gradeCluster(c);
-    const scoreMap = {"A+":600,"A":500,"B+":400,"B":300,"C":200,"D":100};
-    const k = c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
-    const trades = (consTrades[k]||[]).sort((a,b)=>b.P-a.P).slice(0,5);
-    return { ...c, grade, score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e5,
-      side:c.hasAA?"AA":c.hasBB?"BB":"ASK", strike:"$"+c.K+c.cp, trades };
-  }).filter(c => c.clean && c.DTE > 7)
-  .sort((a,b)=>b.score-a.score).slice(0,6)
-  .map(c => ({ sym:c.sym, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade,
-    trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE })) }));
 
   // UOA (unusual options activity)
   const UOA_TRADES = filtered.filter(t => t.uoa).sort((a,b)=>b.P-a.P).slice(0,10);
@@ -617,21 +646,15 @@ function processFlowData(rows) {
   const WATCH = [...unconfirmed].sort((a,b)=>b.P-a.P).slice(0,12)
     .map(t => ({ S:t.S, CP:t.CP, K:t.K, E:t.E, V:t.V, OI:t.OI, P:t.P, Si:t.Si, Ty:t.Ty }));
 
-  // Sector breakdown
-  const sectorMap = {};
-  clean_confirmed.forEach(t => {
-    const sec = t.sector || "Unknown";
-    if (!sectorMap[sec]) sectorMap[sec] = { name:sec, bull:0, bear:0, count:0, tickers:{} };
-    sectorMap[sec].count++;
-    t.D === "BULL" ? (sectorMap[sec].bull += t.P) : (sectorMap[sec].bear += t.P);
-    if (!sectorMap[sec].tickers[t.S]) sectorMap[sec].tickers[t.S] = { s:t.S, p:0, bull:0, bear:0 };
-    sectorMap[sec].tickers[t.S].p += t.P;
-    t.D === "BULL" ? (sectorMap[sec].tickers[t.S].bull += t.P) : (sectorMap[sec].tickers[t.S].bear += t.P);
-  });
-  const SECTORS = Object.values(sectorMap).sort((a,b)=>(b.bull+b.bear)-(a.bull+a.bear)).slice(0,8)
-    .map(s => ({ ...s, topTickers: Object.values(s.tickers).sort((a,b)=>b.p-a.p).slice(0,5) }));
-
-  // Performance tracker
+  // Performance tracker (needs DTE segments from charts)
+  const { shortTerm:_st, longTerm:_lt, leaps:_lp } = (() => {
+    const cc = clean_confirmed;
+    return {
+      shortTerm: cc.filter(t => t.DTE >= 0 && t.DTE < 15),
+      longTerm:  cc.filter(t => t.DTE >= 15 && t.DTE < 180),
+      leaps:     cc.filter(t => t.DTE >= 180),
+    };
+  })();
   function buildPerfItems(cat, trades, maxItems=4) {
     const groups = {};
     trades.forEach(t => {
@@ -656,12 +679,12 @@ function processFlowData(rows) {
   const convSyms = new Set(CONV.map(c=>c.sym));
   const PERF_INIT = [
     ...buildPerfItems("Conviction", clean_confirmed.filter(t=>convSyms.has(t.S)), 6),
-    ...buildPerfItems("Short Bull", shortTerm.filter(t=>t.D==="BULL"), 3),
-    ...buildPerfItems("Short Bear", shortTerm.filter(t=>t.D==="BEAR"), 3),
-    ...buildPerfItems("Long Bull", longTerm.filter(t=>t.D==="BULL"), 3),
-    ...buildPerfItems("Long Bear", longTerm.filter(t=>t.D==="BEAR"), 3),
-    ...buildPerfItems("LEAPS Bull", leaps.filter(t=>t.D==="BULL"), 4),
-    ...buildPerfItems("LEAPS Bear", leaps.filter(t=>t.D==="BEAR"), 4),
+    ...buildPerfItems("Short Bull", _st.filter(t=>t.D==="BULL"), 3),
+    ...buildPerfItems("Short Bear", _st.filter(t=>t.D==="BEAR"), 3),
+    ...buildPerfItems("Long Bull", _lt.filter(t=>t.D==="BULL"), 3),
+    ...buildPerfItems("Long Bear", _lt.filter(t=>t.D==="BEAR"), 3),
+    ...buildPerfItems("LEAPS Bull", _lp.filter(t=>t.D==="BULL"), 4),
+    ...buildPerfItems("LEAPS Bear", _lp.filter(t=>t.D==="BEAR"), 4),
   ];
 
   // Ticker DB for Search
@@ -698,23 +721,14 @@ function processFlowData(rows) {
     return am!==bm?am-bm:ad-bd;
   });
   const dateRange = dates.length>1 ? dates[0]+" – "+dates[dates.length-1] : (dates[0]||"Current");
-  const sum = (arr, key="P") => arr.reduce((s,t)=>s+t[key],0);
-
   return {
-    DAYS, CONV, SB_SYM, SR_SYM, LB_SYM, LR_SYM, LEAPS_B, LEAPS_R,
-    SBL, SBR, LBL, LBR_T, LEAPS_BL_T, LEAPS_BR_T,
-    SBLC, SBRC, LBLC, LBRC, LEAPS_BLC, LEAPS_BRC,
-    LEAPS_EXPS, TICKER_DB, ALL_SYMS, WATCH, PERF_INIT,
-    UOA_TRADES, SECTORS, darkPool,
+    ...charts,
+    clean_confirmed,
+    TICKER_DB, ALL_SYMS, WATCH, PERF_INIT,
+    UOA_TRADES, darkPool,
     dateRange, totalTrades:filtered.length,
     totalPremium:sum(filtered),
     confirmedCount:confirmed_trades.length,
-    shortBullTotal:sum(shortTerm.filter(t=>t.D==="BULL")),
-    shortBearTotal:sum(shortTerm.filter(t=>t.D==="BEAR")),
-    longBullTotal:sum(longTerm.filter(t=>t.D==="BULL")),
-    longBearTotal:sum(longTerm.filter(t=>t.D==="BEAR")),
-    leapsBullTotal:sum(leaps.filter(t=>t.D==="BULL")),
-    leapsBearTotal:sum(leaps.filter(t=>t.D==="BEAR")),
   };
 }
 
@@ -723,6 +737,7 @@ const TABS = ["Market Read","Performance","Search","Short Term","Long Term","LEA
 
 export default function OptionsFlowDashboard() {
   const [tab, setTab] = useState("Market Read");
+  const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
   const [perf, setPerf] = useState([]);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [status, setStatus] = useState("");
@@ -736,14 +751,23 @@ export default function OptionsFlowDashboard() {
     return data;
   }, []);
 
+  // Cap-filtered view: recompute charts using only the selected cap band's clean_confirmed
+  const FD = useMemo(() => {
+    if (!D) return null;
+    if (capFilter === "All") return D;
+    const cc = filterByCap(D.clean_confirmed, capFilter);
+    const charts = buildCharts(cc);
+    return { ...D, ...charts };
+  }, [D, capFilter]);
+
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
   }, [D]);
 
-  if (!D) return null;
+  if (!D || !FD) return null;
 
-  const shortDir = D.shortBullTotal >= D.shortBearTotal ? "BULL" : "BEAR";
-  const longDir = D.longBullTotal >= D.longBearTotal ? "BULL" : "BEAR";
+  const shortDir = FD.shortBullTotal >= FD.shortBearTotal ? "BULL" : "BEAR";
+  const longDir = FD.longBullTotal >= FD.longBearTotal ? "BULL" : "BEAR";
   const shortC = shortDir==="BULL" ? P.bu : P.be;
   const longC = longDir==="BULL" ? P.bu : P.be;
 
@@ -809,16 +833,16 @@ export default function OptionsFlowDashboard() {
             <div style={{ fontSize:11, color:shortC, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Short-Term Outlook</div>
             <div style={{ fontSize:36, fontWeight:900, color:shortC, marginBottom:8 }}>{shortDir}</div>
             <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>
-              0–14 DTE: Bull {fmt(D.shortBullTotal)} vs Bear {fmt(D.shortBearTotal)}.{" "}
-              {D.CONV.filter(c=>c.dir==="BULL").slice(0,1).map(c=>c.sym+" "+c.strike+" hit "+c.hits+"x ("+c.grade+").")}
+              0–14 DTE: Bull {fmt(FD.shortBullTotal)} vs Bear {fmt(FD.shortBearTotal)}.{" "}
+              {FD.CONV.filter(c=>c.dir==="BULL").slice(0,1).map(c=>c.sym+" "+c.strike+" hit "+c.hits+"x ("+c.grade+").")}
             </div>
           </div>
           <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:20, borderLeft:"4px solid "+longC }}>
             <div style={{ fontSize:11, color:longC, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Long-Term Outlook</div>
             <div style={{ fontSize:36, fontWeight:900, color:longC, marginBottom:8 }}>{longDir}</div>
             <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>
-              15+ DTE: Bull {fmt(D.longBullTotal)} vs Bear {fmt(D.longBearTotal)}.{" "}
-              {D.CONV.filter(c=>c.dir==="BEAR").slice(0,1).map(c=>c.sym+" "+c.strike+" hit "+c.hits+"x ("+c.grade+").")}
+              15+ DTE: Bull {fmt(FD.longBullTotal)} vs Bear {fmt(FD.longBearTotal)}.{" "}
+              {FD.CONV.filter(c=>c.dir==="BEAR").slice(0,1).map(c=>c.sym+" "+c.strike+" hit "+c.hits+"x ("+c.grade+").")}
             </div>
           </div>
         </div>
@@ -826,7 +850,7 @@ export default function OptionsFlowDashboard() {
         {/* Conviction Strikes */}
         <div style={{ fontSize:10, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase", marginBottom:6 }}>Top Flow</div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:8, marginBottom:12 }}>
-          {D.CONV.map((t, i) => {
+          {FD.CONV.map((t, i) => {
             const c = t.dir==="BULL" ? P.bu : P.be;
             const hk = "conv_"+i;
             const isHov = hover === hk;
@@ -866,6 +890,60 @@ export default function OptionsFlowDashboard() {
           })}
         </div>
 
+        {/* Cap Band Filter */}
+        {(() => {
+          const caps = ["All","Mega","Large","Mid","Small"];
+          const capColors = { Mega:"#7c3aed", Large:"#0ea5e9", Mid:"#10b981", Small:"#f59e0b" };
+          const capThresh = {
+            Mega: t => t.mktcap >= 500e9,
+            Large: t => t.mktcap >= 10e9 && t.mktcap < 500e9,
+            Mid:   t => t.mktcap >= 2e9  && t.mktcap < 10e9,
+            Small: t => t.mktcap > 0     && t.mktcap < 2e9,
+          };
+          const capDescriptions = {
+            Mega:  "$500B+ · heaviest flow but noisy — mostly hedges & index arb",
+            Large: "$10B–$500B · institutional conviction plays",
+            Mid:   "$2B–$10B · directional bets, less noise",
+            Small: "Under $2B · high-risk, high-conviction small name flow",
+          };
+          return (
+            <div style={{ marginBottom:10 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                <span style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:"0.08em", textTransform:"uppercase" }}>Cap Filter</span>
+                {caps.map(c => {
+                  const active = capFilter === c;
+                  const clr = capColors[c] || P.cd;
+                  const count = c === "All"
+                    ? D.clean_confirmed.length
+                    : D.clean_confirmed.filter(capThresh[c]).length;
+                  const prem = c === "All"
+                    ? D.clean_confirmed.reduce((a,t)=>a+t.P,0)
+                    : D.clean_confirmed.filter(capThresh[c]).reduce((a,t)=>a+t.P,0);
+                  return (
+                    <button key={c} onClick={()=>setCapFilter(c)} title={capDescriptions[c]||"All cap sizes"} style={{
+                      padding:"5px 12px", borderRadius:20, border:`1.5px solid ${active?clr:P.bd}`,
+                      cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
+                      background:active?clr+"22":"transparent",
+                      color:active?clr:P.mt, transition:"all 0.15s",
+                      display:"flex", alignItems:"center", gap:6
+                    }}>
+                      <span>{c}</span>
+                      <span style={{ fontSize:9, fontWeight:600, opacity:0.75 }}>
+                        {count} · ${(prem/1e6).toFixed(0)}M
+                      </span>
+                    </button>
+                  );
+                })}
+                {capFilter !== "All" && (
+                  <span style={{ fontSize:10, color:P.mt, fontStyle:"italic" }}>
+                    {capDescriptions[capFilter]}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Tabs */}
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
@@ -883,7 +961,7 @@ export default function OptionsFlowDashboard() {
             <Card title="Daily Flow" sub="Bull vs Bear · confirmed flow">
               <div style={{ height:220 }}>
                 <ResponsiveContainer>
-                  <AreaChart data={D.DAYS} margin={{ top:5, right:8, left:0, bottom:0 }}>
+                  <AreaChart data={FD.DAYS} margin={{ top:5, right:8, left:0, bottom:0 }}>
                     <defs>
                       <linearGradient id="bullGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={P.bu} stopOpacity={0.4}/>
@@ -927,10 +1005,10 @@ export default function OptionsFlowDashboard() {
               </div>
             </Card>
             {/* Sector Breakdown */}
-            {D.SECTORS.length > 0 && (
+            {FD.SECTORS.length > 0 && (
               <Card title="Sector Flow" sub="Confirmed premium by sector">
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:6 }}>
-                  {D.SECTORS.map((s,i) => {
+                  {FD.SECTORS.map((s,i) => {
                     const total = s.bull + s.bear;
                     const bullPct = total > 0 ? s.bull / total * 100 : 50;
                     const hk = "sec_"+i;
@@ -973,10 +1051,10 @@ export default function OptionsFlowDashboard() {
               </Card>
             )}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Short-Term Bullish" sub="0–14 DTE"><NC data={D.SB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Short-Term Bearish" sub="0–14 DTE"><NC data={D.SR_SYM} fill={P.be} dir="bear"/></Card>
-              <Card title="Long-Term Bullish" sub="15+ DTE"><NC data={D.LB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Long-Term Bearish" sub="15+ DTE"><NC data={D.LR_SYM} fill={P.be} dir="bear"/></Card>
+              <Card title="Short-Term Bullish" sub="0–14 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull"/></Card>
+              <Card title="Short-Term Bearish" sub="0–14 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear"/></Card>
+              <Card title="Long-Term Bullish" sub="15+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull"/></Card>
+              <Card title="Long-Term Bearish" sub="15+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear"/></Card>
             </div>
             {/* UOA Section */}
             {D.UOA_TRADES.length > 0 && (
@@ -1120,14 +1198,14 @@ export default function OptionsFlowDashboard() {
         {tab==="Short Term" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Bets" sub="0–14 DTE"><NC data={D.SB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Bearish Bets" sub="0–14 DTE"><NC data={D.SR_SYM} fill={P.be} dir="bear"/></Card>
+              <Card title="Bullish Bets" sub="0–14 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull"/></Card>
+              <Card title="Bearish Bets" sub="0–14 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear"/></Card>
             </div>
-            <Card title="Short-Term Bullish Trades" sub={fmt(D.shortBullTotal)}><TT rows={D.SBL}/></Card>
-            <Card title="Short-Term Bearish Trades" sub={fmt(D.shortBearTotal)}><TT rows={D.SBR}/></Card>
+            <Card title="Short-Term Bullish Trades" sub={fmt(FD.shortBullTotal)}><TT rows={FD.SBL}/></Card>
+            <Card title="Short-Term Bearish Trades" sub={fmt(FD.shortBearTotal)}><TT rows={FD.SBR}/></Card>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Consistency" sub="2+ hits"><CT rows={D.SBLC}/></Card>
-              <Card title="Bearish Consistency" sub="2+ hits"><CT rows={D.SBRC}/></Card>
+              <Card title="Bullish Consistency" sub="2+ hits"><CT rows={FD.SBLC}/></Card>
+              <Card title="Bearish Consistency" sub="2+ hits"><CT rows={FD.SBRC}/></Card>
             </div>
           </div>
         )}
@@ -1136,14 +1214,14 @@ export default function OptionsFlowDashboard() {
         {tab==="Long Term" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Bets" sub="15+ DTE"><NC data={D.LB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Bearish Bets" sub="15+ DTE"><NC data={D.LR_SYM} fill={P.be} dir="bear"/></Card>
+              <Card title="Bullish Bets" sub="15+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull"/></Card>
+              <Card title="Bearish Bets" sub="15+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear"/></Card>
             </div>
-            <Card title="Long-Term Bullish Trades" sub={fmt(D.longBullTotal)}><TT rows={D.LBL}/></Card>
-            <Card title="Long-Term Bearish Trades" sub={fmt(D.longBearTotal)}><TT rows={D.LBR_T}/></Card>
+            <Card title="Long-Term Bullish Trades" sub={fmt(FD.longBullTotal)}><TT rows={FD.LBL}/></Card>
+            <Card title="Long-Term Bearish Trades" sub={fmt(FD.longBearTotal)}><TT rows={FD.LBR_T}/></Card>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Consistency" sub="2+ hits"><CT rows={D.LBLC}/></Card>
-              <Card title="Bearish Consistency" sub="2+ hits"><CT rows={D.LBRC}/></Card>
+              <Card title="Bullish Consistency" sub="2+ hits"><CT rows={FD.LBLC}/></Card>
+              <Card title="Bearish Consistency" sub="2+ hits"><CT rows={FD.LBRC}/></Card>
             </div>
           </div>
         )}
@@ -1154,19 +1232,19 @@ export default function OptionsFlowDashboard() {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
               <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:20, borderLeft:"4px solid "+P.bu }}>
                 <div style={{ fontSize:11, color:P.bu, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>LEAPS Bull Side</div>
-                <div style={{ fontSize:24, fontWeight:900, color:P.bu, marginBottom:4 }}>{fmt(D.leapsBullTotal)}</div>
-                <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>{D.LEAPS_BLC.slice(0,2).map(c=>c.S+" $"+c.K+c.CP+" "+c.E+" hit "+c.H+"x").join(". ")}</div>
+                <div style={{ fontSize:24, fontWeight:900, color:P.bu, marginBottom:4 }}>{fmt(FD.leapsBullTotal)}</div>
+                <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>{FD.LEAPS_BLC.slice(0,2).map(c=>c.S+" $"+c.K+c.CP+" "+c.E+" hit "+c.H+"x").join(". ")}</div>
               </div>
               <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:20, borderLeft:"4px solid "+P.be }}>
                 <div style={{ fontSize:11, color:P.be, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>LEAPS Bear Side</div>
-                <div style={{ fontSize:24, fontWeight:900, color:P.be, marginBottom:4 }}>{fmt(D.leapsBearTotal)}</div>
-                <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>{D.LEAPS_BRC.slice(0,2).map(c=>c.S+" $"+c.K+c.CP+" "+c.E+" hit "+c.H+"x").join(". ")}</div>
+                <div style={{ fontSize:24, fontWeight:900, color:P.be, marginBottom:4 }}>{fmt(FD.leapsBearTotal)}</div>
+                <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>{FD.LEAPS_BRC.slice(0,2).map(c=>c.S+" $"+c.K+c.CP+" "+c.E+" hit "+c.H+"x").join(". ")}</div>
               </div>
             </div>
-            {D.LEAPS_EXPS.length>0 && (
+            {FD.LEAPS_EXPS.length>0 && (
               <Card title="LEAPS by Expiration" sub="180+ DTE">
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 }}>
-                  {D.LEAPS_EXPS.map((e,i)=>(
+                  {FD.LEAPS_EXPS.map((e,i)=>(
                     <div key={i} style={{ background:P.al, borderRadius:8, padding:"10px 12px", border:"1px solid "+P.bd }}>
                       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:4 }}>
                         <span style={{ fontSize:13, fontWeight:800, color:P.wh }}>{e.exp}</span>
@@ -1180,14 +1258,14 @@ export default function OptionsFlowDashboard() {
               </Card>
             )}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Bets" sub="180+ DTE"><NC data={D.LEAPS_B} fill={P.bu} dir="bull"/></Card>
-              <Card title="Bearish Bets" sub="180+ DTE"><NC data={D.LEAPS_R} fill={P.be} dir="bear"/></Card>
+              <Card title="Bullish Bets" sub="180+ DTE"><NC data={FD.LEAPS_B} fill={P.bu} dir="bull"/></Card>
+              <Card title="Bearish Bets" sub="180+ DTE"><NC data={FD.LEAPS_R} fill={P.be} dir="bear"/></Card>
             </div>
-            <Card title="LEAPS Bullish Trades"><TT rows={D.LEAPS_BL_T}/></Card>
-            <Card title="LEAPS Bearish Trades"><TT rows={D.LEAPS_BR_T}/></Card>
+            <Card title="LEAPS Bullish Trades"><TT rows={FD.LEAPS_BL_T}/></Card>
+            <Card title="LEAPS Bearish Trades"><TT rows={FD.LEAPS_BR_T}/></Card>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bull Consistency" sub="2+ hits"><CT rows={D.LEAPS_BLC}/></Card>
-              <Card title="Bear Consistency" sub="2+ hits"><CT rows={D.LEAPS_BRC}/></Card>
+              <Card title="Bull Consistency" sub="2+ hits"><CT rows={FD.LEAPS_BLC}/></Card>
+              <Card title="Bear Consistency" sub="2+ hits"><CT rows={FD.LEAPS_BRC}/></Card>
             </div>
           </div>
         )}
