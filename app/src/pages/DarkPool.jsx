@@ -218,16 +218,36 @@ function FlowTable({items, showCat=true}){
                   {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
                 </TD>
                 <TD style={{fontFamily:"JetBrains Mono, monospace",fontSize:11}}>
-                  <div
-                    title={it.bigPrintN ? `${it.bigPrintDate ? it.bigPrintDate+" · " : ""}${fmt(it.bigPrintN)}${it.bigPrintPctAvgVol>0 ? " · "+it.bigPrintPctAvgVol.toFixed(1)+"% of avg vol" : it.avg30>0 ? " · "+((it.bigPrintN/it.avg30)*100).toFixed(1)+"% of avg vol" : ""}` : ""}
-                    style={{display:"flex",flexDirection:"column",gap:1,cursor:"default"}}>
-                    <span style={{color:C.amber,fontWeight:700}}>{fP(it.bigPrint)}</span>
-                    {bpPct!=null && (
-                      <span style={{fontSize:10,color:bpAbove?C.green:bpBelow?C.red:C.tx3,fontWeight:600}}>
-                        {bpAbove?"+":""}{bpPct.toFixed(2)}%
-                      </span>
-                    )}
-                  </div>
+                  {(()=>{
+                    const [bpHover,setBpHover]=useState(false);
+                    const tip = it.bigPrintN ? [
+                      it.bigPrintDate,
+                      fmt(it.bigPrintN),
+                      it.bigPrintPctAvgVol>0 ? it.bigPrintPctAvgVol.toFixed(1)+"% of avg vol" : it.avg30>0 ? ((it.bigPrintN/it.avg30)*100).toFixed(1)+"% of avg vol" : null
+                    ].filter(Boolean).join(" · ") : null;
+                    return (
+                      <div style={{position:"relative",display:"inline-block"}}
+                        onMouseEnter={()=>setBpHover(true)} onMouseLeave={()=>setBpHover(false)}>
+                        <div style={{display:"flex",flexDirection:"column",gap:1,cursor:"default"}}>
+                          <span style={{color:C.amber,fontWeight:700}}>{fP(it.bigPrint)}</span>
+                          {bpPct!=null && (
+                            <span style={{fontSize:10,color:bpAbove?C.green:bpBelow?C.red:C.tx3,fontWeight:600}}>
+                              {bpAbove?"+":""}{bpPct.toFixed(2)}%
+                            </span>
+                          )}
+                        </div>
+                        {bpHover && tip && (
+                          <div style={{position:"absolute",left:0,top:"100%",zIndex:50,
+                            background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
+                            padding:"7px 11px",whiteSpace:"nowrap",boxShadow:"0 4px 20px #00000066",
+                            marginTop:4,color:C.tx,fontSize:13,fontFamily:"JetBrains Mono, monospace",
+                            fontWeight:500,letterSpacing:"0.01em"}}>
+                            {tip}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </TD>
                 <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.cyan,fontWeight:600}}>
                   {fmt(it.n)}
