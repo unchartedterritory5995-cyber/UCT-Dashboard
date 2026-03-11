@@ -795,7 +795,7 @@ function parseCSVtoD(rows){
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
-export default function App(){
+export default function DarkPool(){
   const [dpData,setDpData]=useState(null);
   const [loadErr,setLoadErr]=useState(null);
   const [loadStatus,setLoadStatus]=useState("Loading CSV…");
@@ -833,11 +833,15 @@ export default function App(){
 
   if(loadErr) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:"100vh",background:"#0b1120",color:"#ff5c72",fontFamily:"Outfit,sans-serif",
-      flexDirection:"column",gap:12}}>
+      minHeight:"60vh",background:"#0b1120",color:"#ff5c72",fontFamily:"Outfit,sans-serif",
+      flexDirection:"column",gap:12,padding:20}}>
       <div style={{fontSize:20,fontWeight:700}}>⚠ Failed to load data</div>
-      <div style={{fontSize:13,color:"#7a8ba8"}}>Place Darkpool-data.csv in app/public and reload.</div>
-      <div style={{fontSize:11,color:"#4a5d7a"}}>Error: {loadErr}</div>
+      <div style={{fontSize:13,color:"#7a8ba8"}}>Attempted: <code style={{color:"#4e9fff"}}>/Darkpool-data.csv</code></div>
+      <div style={{fontSize:12,color:"#ff5c72",background:"#1a0f14",border:"1px solid #ff5c7244",
+        borderRadius:8,padding:"8px 16px",maxWidth:480,textAlign:"center"}}>
+        {loadErr}
+      </div>
+      <div style={{fontSize:11,color:"#4a5d7a"}}>Make sure Darkpool-data.csv is in app/public/ and redeployed.</div>
     </div>
   );
 
