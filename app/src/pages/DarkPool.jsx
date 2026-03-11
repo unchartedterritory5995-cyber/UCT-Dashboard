@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import Papa from "papaparse";
 
 // ── colours ─────────────────────────────────────────────────────────────────
 const C = {
@@ -800,32 +801,23 @@ export default function App(){
   const [loadStatus,setLoadStatus]=useState("Loading CSV…");
 
   useEffect(()=>{
-    setLoadStatus("Loading parser…");
-    // Dynamically load PapaParse from CDN
-    const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js";
-    script.onload = () => {
-      setLoadStatus("Fetching Darkpool-data.csv…");
-      fetch("./Darkpool-data.csv")
-        .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.text(); })
-        .then(text=>{
-          setLoadStatus("Parsing CSV…");
-          const result = window.Papa.parse(text, {header:true, skipEmptyLines:true});
-          setLoadStatus("Processing "+result.data.length.toLocaleString()+" rows…");
-          setTimeout(()=>{
-            try{
-              const d = parseCSVtoD(result.data);
-              setDpData(d);
-            }catch(e){
-              setLoadErr("Processing error: "+e.message);
-            }
-          }, 50);
-        })
-        .catch(e=>setLoadErr(e.message));
-    };
-    script.onerror = () => setLoadErr("Failed to load CSV parser");
-    document.head.appendChild(script);
-    return () => { try{ document.head.removeChild(script); }catch(e){} };
+    setLoadStatus("Fetching Darkpool-data.csv…");
+    fetch("/Darkpool-data.csv")
+      .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status+" — check that Darkpool-data.csv is in app/public"); return r.text(); })
+      .then(text=>{
+        setLoadStatus("Parsing CSV…");
+        const result = Papa.parse(text, {header:true, skipEmptyLines:true});
+        setLoadStatus("Processing "+result.data.length.toLocaleString()+" rows…");
+        setTimeout(()=>{
+          try{
+            const d = parseCSVtoD(result.data);
+            setDpData(d);
+          }catch(e){
+            setLoadErr("Processing error: "+e.message);
+          }
+        }, 50);
+      })
+      .catch(e=>setLoadErr(e.message));
   },[]);
 
 
