@@ -194,96 +194,61 @@ function StatCard({label, value, sub, color}){
 }
 
 // ── Overview tab ─────────────────────────────────────────────────────────────
-function OverviewPane({onJumpTo}){
-  const totalN = D.categories.reduce((s,c)=>s+c.totalNotional,0);
-  const totalCount = D.categories.reduce((s,c)=>s+c.count,0);
-  const aboveCt = D.above.length;
-  const belowCt = D.below.length;
+function OverviewPane(){
+  const sectionLabel = txt => (
+    <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+      textTransform:"uppercase",marginBottom:10}}>{txt}</div>
+  );
 
-  // index summary
-  const idxCat = D.categories.find(c=>c.name==="Indexes");
-  const spy = idxCat?.items.find(x=>x.t==="SPY");
-  const qqq = idxCat?.items.find(x=>x.t==="QQQ");
-  const iwm = idxCat?.items.find(x=>x.t==="IWM");
-
-  return (
-    <div>
-      {/* Header stats */}
-      <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:20}}>
-        <StatCard label="Total DP Flow" value={fmt(totalN)} sub="30-day period" color={C.cyan}/>
-        <StatCard label="Tickers Tracked" value={totalCount} color={C.blue}/>
-        <StatCard label="Trading Days" value={D.dates.length} sub="Jan 21 – Mar 5" color={C.purple}/>
-        <StatCard label="Above Zone" value={aboveCt} sub="bullish momentum" color={C.green}/>
-        <StatCard label="Below Zone" value={belowCt} sub="bearish pressure" color={C.red}/>
-        <StatCard label="Unusual Activity" value={D.unusual.length} color={C.amber}/>
-      </div>
-
-      {/* Index status */}
-      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,
-        padding:"14px 18px",marginBottom:16}}>
-        <div style={{fontSize:12,color:C.tx3,fontWeight:700,textTransform:"uppercase",
-          letterSpacing:"0.06em",marginBottom:12}}>Market Index Status</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:12}}>
-          {[spy,qqq,iwm].filter(Boolean).map(idx=>{
-            const color=zC(idx.last,idx.lo,idx.hi);
-            return (
-              <div key={idx.t} style={{background:C.bg3,borderRadius:6,padding:"10px 16px",
-                border:`1px solid ${color}33`,minWidth:160}}>
-                <div style={{fontSize:14,fontWeight:700,color,fontFamily:"JetBrains Mono, monospace",
-                  marginBottom:4}}>${idx.t}</div>
-                <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  <Sparkline it={idx} w={100} h={28}/>
-                  <div>
-                    <div style={{fontFamily:"JetBrains Mono, monospace",color,fontSize:13,fontWeight:600}}>
-                      {fP(idx.last)}
-                    </div>
-                    <div style={{fontSize:10,color:C.tx3}}>
-                      Zone: {fP(idx.lo)}–{fP(idx.hi)}
-                    </div>
-                    <div style={{fontSize:11,color,fontWeight:600}}>
-                      {pctFmt(idx.pct)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+  function MiniRow({item, dir}){
+    const color = dir==="above" ? C.green : C.red;
+    return (
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+        padding:"6px 0",borderBottom:`1px solid ${C.bdr}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontFamily:"JetBrains Mono, monospace",fontWeight:700,
+            fontSize:12,color:C.tx,minWidth:52}}>{item.t}</span>
+          <span style={{fontSize:10,color:C.tx3}}>
+            Zone {fP(item.lo)}–{fP(item.hi)}
+          </span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.tx2}}>
+            {fP(item.last)}
+          </span>
+          <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:12,
+            fontWeight:700,color,minWidth:60,textAlign:"right"}}>
+            {dir==="above"?"+":""}{item.pct.toFixed(2)}%
+          </span>
+          <span style={{fontSize:10,color:C.tx3,minWidth:36,textAlign:"right"}}>
+            {fmt(item.n)}
+          </span>
         </div>
       </div>
+    );
+  }
 
-      {/* Category cards */}
-      <div style={{fontSize:12,color:C.tx3,fontWeight:700,textTransform:"uppercase",
-        letterSpacing:"0.06em",marginBottom:12}}>Flow by Category</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>
-        {D.categories.map(cat=>{
-          const color=CAT_COLORS[cat.name]||C.tx;
-          const above=cat.items.filter(x=>x.pos==="above").length;
-          const below=cat.items.filter(x=>x.pos==="below").length;
-          const inside=cat.items.filter(x=>x.pos==="in").length;
-          return (
-            <div key={cat.name}
-              onClick={()=>onJumpTo(cat.name)}
-              style={{background:C.bg2,border:`1px solid ${color}33`,borderRadius:8,
-                padding:"14px 16px",cursor:"pointer",transition:"all 0.15s"}}
-              onMouseEnter={e=>{e.currentTarget.style.background=C.bgH;e.currentTarget.style.borderColor=color+"66";}}
-              onMouseLeave={e=>{e.currentTarget.style.background=C.bg2;e.currentTarget.style.borderColor=color+"33";}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
-                <div style={{fontWeight:700,color,fontSize:13}}>{cat.name}</div>
-                <div style={{fontFamily:"JetBrains Mono, monospace",color:C.cyan,fontSize:13,fontWeight:600}}>
-                  {fmt(cat.totalNotional)}
-                </div>
-              </div>
-              <div style={{fontSize:11,color:C.tx3,marginBottom:8}}>{cat.desc}</div>
-              <div style={{display:"flex",gap:12,fontSize:11}}>
-                <span><span style={{color:C.green,fontWeight:700}}>{above}</span> above</span>
-                <span><span style={{color:"#8899aa",fontWeight:700}}>{inside}</span> in zone</span>
-                <span><span style={{color:C.red,fontWeight:700}}>{below}</span> below</span>
-                <span style={{color:C.tx3}}>{cat.count} total</span>
-              </div>
-            </div>
-          );
-        })}
+  return (
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+
+      {/* Above zone */}
+      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+        {sectionLabel(`▲ Above Zone — Top ${Math.min(8,D.above.length)}`)}
+        {D.above.slice(0,8).map(item=>(
+          <MiniRow key={item.t} item={item} dir="above"/>
+        ))}
+        {D.above.length===0 && <div style={{fontSize:12,color:C.tx3}}>None</div>}
       </div>
+
+      {/* Below zone */}
+      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+        {sectionLabel(`▼ Below Zone — Top ${Math.min(8,D.below.length)}`)}
+        {D.below.slice(0,8).map(item=>(
+          <MiniRow key={item.t} item={item} dir="below"/>
+        ))}
+        {D.below.length===0 && <div style={{fontSize:12,color:C.tx3}}>None</div>}
+      </div>
+
     </div>
   );
 }
@@ -979,7 +944,7 @@ export default function App(){
 
       {/* Content */}
       <div style={{padding:"18px 20px",maxWidth:1400,margin:"0 auto"}}>
-        {tab==="overview" && <OverviewPane onJumpTo={handleJumpTo}/>}
+        {tab==="overview" && <OverviewPane/>}
         {tab==="category" && <CategoryPaneWrapper jump={catJump} onJumpDone={()=>setCatJump(null)}/>}
         {tab==="above"    && <AbovePane/>}
         {tab==="below"    && <BelowPane/>}
