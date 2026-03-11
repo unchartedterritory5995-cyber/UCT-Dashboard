@@ -1,422 +1,171 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from "react";
 
-// --- FALLBACK SAMPLE DATA ---
-// Used only if data.csv cannot be found on the server.
-const fallbackData = {
-  D: {
-    dates: ["2026-01-21","2026-01-22","2026-01-23"],
-    dateLabels: ["01/21","01/22","01/23"],
-    categories: [
-      {
-        name: "Indexes", desc: "Broad market barometers.", totalNotional: 364365889823, count: 2,
-        items: [
-          { t: "SPY", cat: "Indexes", n: 170501225805, lo: 685.49, hi: 692.08, last: 683.21, vwap: 688.04, c: 1251, pos: "below", pct: -0.33, u: true, prices: [null,688.33,689.16], w: [null,0.488,0.296], top5: ["01/22 @ $688.97  $1.04B","03/04 @ $685.49  $1.04B"] },
-          { t: "QQQ", cat: "Indexes", n: 87787502905, lo: 605.96, hi: 621.03, last: 609.63, vwap: 613.34, c: 904, pos: "in", pct: 0, u: true, prices: [null,619.56,622.42], w: [null,0.261,0.243], top5: ["01/29 @ $625.91  $1.25B"] }
-        ]
-      }
-    ],
-    above: [
-      { t: "PBF", cat: "Large Cap", n: 101923122, lo: 33.21, hi: 35.59, last: 45.66, vwap: 35.64, c: 9, pos: "above", pct: 28.29, u: false, prices: [null,null,null], w: [null,null,null], top5: ["02/11 @ $35.59  $19.9M"] }
-    ],
-    below: [
-      { t: "SF", cat: "Mid Cap", n: 80180245, lo: 118.11, hi: 123.54, last: 75.57, vwap: 115.01, c: 5, pos: "below", pct: -36.02, u: true, prices: [null,null,null], w: [null,null,null], top5: ["02/03 @ $124.28  $26.5M"] }
-    ],
-    phantom: [],
-    options: [],
-    alpha: [],
-    cancelled: []
-  },
-  SD: { f: [], c: [] }
+// ── colours ─────────────────────────────────────────────────────────────────
+const C = {
+  bg:"#0b1120", bg2:"#111a2e", bg3:"#0f1729", bg4:"#111d33", bgH:"#162240",
+  bdr:"#1b2a45", bdr2:"#243352",
+  tx:"#e8ecf4", tx2:"#7a8ba8", tx3:"#4a5d7a",
+  blue:"#4e9fff", green:"#2dd4a0", red:"#ff5c72", amber:"#ffb347",
+  cyan:"#22d3ee", purple:"#a78bfa", pink:"#f472b6", orange:"#fb923c",
+};
+const CAT_COLORS = {
+  "Indexes":"#4e9fff","Large Cap":"#a78bfa","Mid Cap":"#ffb347","Small Cap":"#ff5c72",
+  "Sector ETFs":"#2dd4a0","Bond ETFs":"#22d3ee","Intl/EM ETFs":"#f472b6","Commodity ETFs":"#fb923c"
 };
 
-const CA = {
-  "Indexes": "#4e9fff",
-  "Large Cap": "#a78bfa",
-  "Mid Cap": "#ffb347",
-  "Small Cap": "#ff5c72",
-  "Sector ETFs": "#2dd4a0",
-  "Bond ETFs": "#22d3ee",
-  "Intl/EM ETFs": "#f472b6",
-  "Commodity ETFs": "#fb923c"
-};
-
-const CI = {
-  "Indexes": "📊",
-  "Large Cap": "🏢",
-  "Mid Cap": "🔸",
-  "Small Cap": "💎",
-  "Sector ETFs": "🏭",
-  "Bond ETFs": "📉",
-  "Intl/EM ETFs": "🌍",
-  "Commodity ETFs": "⛏️"
-};
-
-function fmt(n) {
-  if (n >= 1e9) return "$" + (n / 1e9).toFixed(2) + "B";
-  if (n >= 1e6) return "$" + (n / 1e6).toFixed(1) + "M";
-  if (n >= 1e3) return "$" + (n / 1e3).toFixed(0) + "K";
-  return "$" + n;
+// ── helpers ──────────────────────────────────────────────────────────────────
+function fmt(n){
+  if(n>=1e9) return "$"+(n/1e9).toFixed(2)+"B";
+  if(n>=1e6) return "$"+(n/1e6).toFixed(1)+"M";
+  if(n>=1e3) return "$"+(n/1e3).toFixed(0)+"K";
+  return "$"+n;
 }
+function fP(p){ return p!=null?"$"+p.toFixed(2):"—"; }
+function zC(p,lo,hi){ return p>hi?C.green:p<lo?C.red:"#c8d4e4"; }
+function pctFmt(p){ return p===0?"IN":(p>0?"+":"")+p.toFixed(2)+"%"; }
 
-function fP(p) {
-  return p != null && !isNaN(p) ? "$" + p.toFixed(2) : "—";
-}
-
-// --- LIVE CSV TO JSON AGGREGATOR ---
-// This function parses your raw CSV and mathematically converts it into 
-// the structured dashboard format (calculating 25th-75th percentile zones, VWAP, sparkline data, etc).
-function buildDashboardDataFromCSV(csvText) {
-  const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
-  if (lines.length < 2) return fallbackData;
-
-  const headers = lines[0].split(',').map(h => h.trim());
-  
-  const D = {
-    dates: [], dateLabels: [], categories: [], above: [], below: [],
-    phantom: [], options: [], alpha: [], cancelled: []
-  };
-
-  const dateSet = new Set();
-  const tickerMap = {};
-
-  for (let i = 1; i < lines.length; i++) {
-    // Basic CSV row split handling quotes
-    const row = [];
-    let inQuote = false;
-    let current = '';
-    for (let char of lines[i]) {
-        if (char === '"') inQuote = !inQuote;
-        else if (char === ',' && !inQuote) { row.push(current); current = ''; }
-        else current += char;
-    }
-    row.push(current);
-
-    const obj = {};
-    headers.forEach((h, idx) => { obj[h] = row[idx] ? row[idx].trim() : null; });
-    
-    const tkr = obj.Ticker;
-    if (!tkr) continue;
-    
-    const date = obj.Date ? obj.Date.split(' ')[0] : null;
-    if (date) dateSet.add(date);
-    
-    if (!tickerMap[tkr]) tickerMap[tkr] = { t: tkr, prints: [], u: false, n: 0, c: 0 };
-    
-    const price = parseFloat(obj.Price);
-    const notional = parseFloat(obj.Notional);
-    const msg = obj.Message || "";
-    
-    if (msg.toLowerCase().includes("cancel")) {
-        D.cancelled.push({ ticker: tkr, date, price, notional, message: msg });
-        continue;
-    }
-    if (msg.includes("CALL") || msg.includes("PUT")) {
-        D.options.push({ ticker: tkr, date, price, message: msg });
-    }
-    if (msg.toLowerCase().includes("unusual")) {
-        tickerMap[tkr].u = true;
-    }
-    if (msg.toLowerCase().includes("alpha")) {
-        D.alpha.push({ ticker: tkr, date, price });
-    }
-    
-    // Only aggregate valid block prints
-    if (!isNaN(price) && !isNaN(notional) && notional > 0) {
-        tickerMap[tkr].prints.push({ date, price, notional, msg });
-        tickerMap[tkr].n += notional;
-        tickerMap[tkr].c += 1;
-    }
-  }
-
-  D.dates = Array.from(dateSet).sort((a,b) => new Date(a) - new Date(b));
-  D.dateLabels = D.dates.map(d => {
-     const parts = d.split('/');
-     if (parts.length >= 2) return `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}`;
-     return d;
-  });
-
-  const processedTickers = [];
-  const indexETFs = ['SPY', 'QQQ', 'IWM', 'DIA', 'MDY', 'RSP', 'VTI', 'VOO', 'IVV', 'TQQQ', 'SQQQ', 'IJR', 'VXUS', 'VUG'];
-
-  Object.values(tickerMap).forEach(tkr => {
-      if (tkr.prints.length === 0) return;
-      
-      // Calculate Top 5 prints
-      const sortedPrints = [...tkr.prints].sort((a,b) => b.notional - a.notional);
-      tkr.top5 = sortedPrints.slice(0,5).map(p => `${p.date} @ $${p.price.toFixed(2)}  ${fmt(p.notional)}`);
-      
-      // Calculate 25th - 75th Percentile Zone
-      const prices = tkr.prints.map(p => p.price).sort((a,b) => a - b);
-      tkr.lo = prices[Math.floor(prices.length * 0.25)] || prices[0];
-      tkr.hi = prices[Math.floor(prices.length * 0.75)] || prices[prices.length-1];
-      
-      let totalVal = 0;
-      let lastDate = "01/01/1900";
-      let lastPrice = prices[0];
-      
-      const dailyNotional = {};
-      const dailyVwap = {};
-      
-      tkr.prints.forEach(p => {
-         totalVal += (p.price * p.notional);
-         if (new Date(p.date) >= new Date(lastDate)) {
-             lastDate = p.date;
-             lastPrice = p.price;
-         }
-         if (!dailyNotional[p.date]) { dailyNotional[p.date] = 0; dailyVwap[p.date] = 0; }
-         dailyNotional[p.date] += p.notional;
-         dailyVwap[p.date] += (p.price * p.notional);
-      });
-      
-      tkr.vwap = totalVal / tkr.n;
-      tkr.last = lastPrice;
-      
-      // Determine Position Status vs Zone
-      if (tkr.last > tkr.hi) {
-          tkr.pos = "above";
-          tkr.pct = parseFloat((((tkr.last - tkr.hi) / tkr.hi) * 100).toFixed(2));
-      } else if (tkr.last < tkr.lo) {
-          tkr.pos = "below";
-          tkr.pct = parseFloat((((tkr.last - tkr.lo) / tkr.lo) * 100).toFixed(2));
-      } else {
-          tkr.pos = "in";
-          tkr.pct = 0;
-      }
-
-      // Generate Sparkline Array Data
-      tkr.prices = [];
-      tkr.w = [];
-      const maxN = Math.max(...Object.values(dailyNotional), 1);
-      
-      D.dates.forEach(d => {
-          if (dailyNotional[d]) {
-              tkr.prices.push(dailyVwap[d] / dailyNotional[d]);
-              tkr.w.push(parseFloat((dailyNotional[d] / maxN).toFixed(3)));
-          } else {
-              tkr.prices.push(null);
-              tkr.w.push(null);
-          }
-      });
-
-      // Auto Categorize
-      if (indexETFs.includes(tkr.t)) tkr.cat = "Indexes";
-      else if (tkr.n > 1000000000) tkr.cat = "Large Cap";
-      else if (tkr.n > 100000000) tkr.cat = "Mid Cap";
-      else tkr.cat = "Small Cap";
-
-      delete tkr.prints; // Remove raw prints to save memory
-      processedTickers.push(tkr);
-  });
-
-  const catMap = {};
-  processedTickers.forEach(t => {
-      if (!catMap[t.cat]) catMap[t.cat] = { name: t.cat, desc: "Auto-categorized from CSV", totalNotional: 0, count: 0, items: [] };
-      catMap[t.cat].totalNotional += t.n;
-      catMap[t.cat].count += 1;
-      catMap[t.cat].items.push(t);
-  });
-
-  D.categories = Object.values(catMap).sort((a,b) => b.totalNotional - a.totalNotional);
-  D.categories.forEach(c => c.items.sort((a,b) => b.n - a.n));
-
-  D.above = processedTickers.filter(t => t.pos === 'above').sort((a,b) => b.pct - a.pct);
-  D.below = processedTickers.filter(t => t.pos === 'below').sort((a,b) => a.pct - b.pct);
-
-  D.options.sort((a,b) => new Date(b.date) - new Date(a.date));
-  D.cancelled.sort((a,b) => b.notional - a.notional);
-
-  return { D, SD: { f: processedTickers, c: processedTickers } };
-}
-
-const styles = `
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
-:root{--bg:#000000;--bg2:#111111;--bg3:#1a1a1a;--bg4:#0a0a0a;--bgH:#222222;--bdr:#333333;--bdr2:#444444;--tx:#ffffff;--tx2:#cccccc;--tx3:#888888;--blue:#3b82f6;--green:#00e676;--red:#ff1744;--amber:#ffb300;--cyan:#00e5ff;--purple:#d500f9;--pink:#f50057;--orange:#ff9100;--zF:rgba(59,130,246,.12);--zS:rgba(59,130,246,.3)}
-*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);color:var(--tx);font-family:'Outfit',sans-serif;min-height:100vh}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}.mono{font-family:'JetBrains Mono',monospace}
-.app-wrapper{background:var(--bg);color:var(--tx);min-height:100vh;font-family:'Outfit',sans-serif;overflow-x:hidden}
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}.fade{animation:fadeUp .35s ease-out both}
-.hdr{padding:20px 28px 16px;background:linear-gradient(180deg,#111111,#000000);border-bottom:1px solid var(--bdr)}.hdr-in{max-width:1520px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:14px}.brand{display:flex;align-items:center;gap:10px}.brand-dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 2s infinite}.brand h1{font-size:22px;font-weight:800;letter-spacing:-.03em;color:#fff}.brand-sub{font-size:11px;color:var(--tx3);font-family:'JetBrains Mono',monospace;margin-top:2px}.hstats{display:flex;gap:10px;flex-wrap:wrap}.hs{background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:8px 14px;min-width:132px;transition:border-color .2s}.hs:hover{border-color:var(--blue)}.hs-l{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;font-weight:700}.hs-v{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:1px}.hs-s{font-size:10px;color:var(--tx2);margin-top:1px}
-.tabs{border-bottom:1px solid var(--bdr);display:flex;overflow-x:auto;max-width:1520px;margin:0 auto;padding:0 28px}.tab{padding:12px 18px;font-size:12px;font-weight:600;color:var(--tx3);background:0;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:all .2s;font-family:'Outfit',sans-serif}.tab:hover{color:var(--tx2)}.tab.on{color:#fff;border-bottom-color:var(--blue)}
-.wrap{max-width:1520px;margin:0 auto;padding:20px 28px 60px}.pane{display:none}.pane.on{display:block}
-.stabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px}.stab{padding:7px 15px;font-size:12px;font-weight:600;border-radius:8px;border:1px solid var(--bdr);background:0;color:var(--tx3);cursor:pointer;white-space:nowrap;transition:all .2s;font-family:'Outfit',sans-serif}.stab.on{color:var(--tx);border-color:var(--blue);background:var(--zF)}
-.legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 14px;font-size:11px;color:var(--tx2);background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;margin-bottom:16px}.legend .sw{display:inline-block;vertical-align:middle;margin-right:4px}
-.tw{background:var(--bg2);border:1px solid var(--bdr);border-radius:12px;overflow:hidden}table{width:100%;border-collapse:collapse}th{padding:10px 14px;font-size:10px;color:var(--tx3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;text-align:left;border-bottom:1px solid var(--bdr);background:var(--bg2);position:sticky;top:0;z-index:2}td{padding:9px 14px;border-bottom:1px solid var(--bdr);vertical-align:middle}tbody tr{transition:background .15s}tbody tr:nth-child(even){background:var(--bg4)}tbody tr:hover{background:var(--bgH)}
-.tkw{position:relative;display:inline-block}.tkn{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;cursor:default;display:inline-flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px dashed var(--zS)}.tkn .du{width:6px;height:6px;border-radius:50%;background:var(--red);box-shadow:0 0 5px var(--red);flex-shrink:0}.tt{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:100;background:var(--bg3);border:1px solid var(--bdr2);border-radius:10px;padding:10px 12px;min-width:270px;box-shadow:0 10px 36px rgba(0,0,0,.5)}.tkw:hover .tt{display:block}.tt-h{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;font-family:'JetBrains Mono',monospace;border-bottom:1px solid var(--bdr);padding-bottom:5px}.tt-r{display:flex;justify-content:space-between;padding:3px 0;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--tx2)}.tt-r:not(:last-child){border-bottom:1px solid var(--bdr)}
-.notional{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:var(--cyan)}.zone{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx2)}.zsep{color:var(--tx3);margin:0 3px}.cp{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px}.cp-a{color:var(--green)}.cp-i{color:var(--tx)}.cp-b{color:var(--red)}.spw{width:240px;height:54px}.spw svg{width:100%;height:100%}
-.ph-card{background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:16px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;transition:border-color .2s}.ph-card:hover{border-color:var(--bdr2)}.ph-diff{padding:4px 12px;border-radius:8px;font-size:14px;font-weight:700;font-family:'JetBrains Mono',monospace}
-.op-row{background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;transition:border-color .2s}.op-row:hover{border-color:var(--bdr2)}.badge{font-size:10px;padding:3px 10px;border-radius:10px;font-weight:700}.b-bull{background:rgba(0,230,118,.1);color:var(--green)}.b-bear{background:rgba(255,23,68,.1);color:var(--red)}.b-alert{background:rgba(255,179,0,.1);color:var(--amber)}
-.ag{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}.ag-c{background:linear-gradient(135deg,rgba(255,179,0,.08),rgba(255,179,0,.02));border:1px solid rgba(255,179,0,.2);border-radius:10px;padding:16px;text-align:center;transition:transform .2s}.ag-c:hover{transform:scale(1.03)}
-.ib{background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:14px;font-size:12px;color:var(--tx2);line-height:1.7}.ib-r{border-color:rgba(255,23,68,.2)}.ig{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}.ig-c{padding:12px;background:var(--bg3);border-radius:8px}.ig-t{font-weight:700;margin-bottom:4px;font-size:13px}
-@media(max-width:900px){.hdr{padding:14px}.wrap{padding:14px}th,td{padding:7px 8px}.spw{width:160px;height:44px}}
-@media print{body{background:#fff;color:#1e293b}.tw,.hs,.ph-card,.op-row,.ib{background:#f8fafc;border-color:#e2e8f0}.tt{display:none!important}}
-.search-bar{position:relative;max-width:340px}
-.search-input{width:100%;padding:9px 14px 9px 36px;font-size:13px;font-family:'Outfit',sans-serif;background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;color:var(--tx);outline:none;transition:border-color .2s}
-.search-input:focus{border-color:var(--blue)}
-.search-input::placeholder{color:var(--tx3)}
-.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:14px;pointer-events:none}
-.sr-count{font-size:12px;color:var(--tx3);margin-bottom:10px}
-.sr-empty{font-size:13px;color:var(--tx3);padding:20px;text-align:center}
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  background: var(--bg);
-  color: var(--tx);
-  font-family: 'JetBrains Mono', monospace;
-}
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--bdr2);
-  border-top-color: var(--blue);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-`;
-
-// --- COMPONENTS ---
-
-const Tooltip = ({ it }) => {
-  if (!it.top5 || !it.top5.length) return null;
+// ── Sparkline ────────────────────────────────────────────────────────────────
+function Sparkline({it, w=140, h=36}){
+  const P=4;
+  const pts = it.prices.map((p,i)=>({p,w:it.w[i]})).filter(x=>x.p!=null);
+  if(pts.length<2) return <span style={{color:C.tx3,fontSize:10}}>–</span>;
+  const allP = pts.map(x=>x.p);
+  const mn=Math.min(...allP), mx=Math.max(...allP);
+  const rng=mx-mn||1;
+  const y=p=>h-P-2-((p-mn)/rng)*(h-P*2-4);
+  const x=i=>(P+(i/(pts.length-1||1))*(w-P*2));
+  const lo=it.lo, hi=it.hi;
+  const zoneY1=y(hi), zoneY2=y(lo);
+  const polyline = pts.map((pt,i)=>x(i)+","+y(pt.p)).join(" ");
+  // color last point
+  const lastP=pts[pts.length-1].p;
+  const lineColor=lastP>hi?C.green:lastP<lo?C.red:"#8899aa";
   return (
-    <div className="tt">
-      <div className="tt-h">${it.t} Largest Blocks ({it.c} total)</div>
-      {it.top5.map((t, i) => (
-        <div key={i} className="tt-r">{t}</div>
-      ))}
+    <svg width={w} height={h} style={{display:"block"}}>
+      <rect x={P} y={zoneY1} width={w-P*2} height={Math.max(0,zoneY2-zoneY1)}
+        fill="#22d3ee11" stroke="none"/>
+      <line x1={P} y1={y(lo)} x2={w-P} y2={y(lo)} stroke="#22d3ee33" strokeWidth={0.5}/>
+      <line x1={P} y1={y(hi)} x2={w-P} y2={y(hi)} stroke="#22d3ee33" strokeWidth={0.5}/>
+      <polyline points={polyline} fill="none" stroke={lineColor} strokeWidth={1.2}/>
+      {pts.map((pt,i)=>{
+        const wt=pt.w||0;
+        const r=Math.max(1.2, wt*3.5);
+        const clr=zC(pt.p,lo,hi);
+        const a=(0.15+wt*0.65).toFixed(2);
+        const fill=lastP>hi?`rgba(45,212,160,${a})`:lastP<lo?`rgba(255,92,114,${a})`:`rgba(200,212,228,${a})`;
+        return <circle key={i} cx={x(i)} cy={y(pt.p)} r={r} fill={fill}/>;
+      })}
+    </svg>
+  );
+}
+
+// ── Tooltip wrapper ───────────────────────────────────────────────────────────
+function TickerCell({it, catColor}){
+  const [show,setShow]=useState(false);
+  return (
+    <div style={{position:"relative",display:"inline-block"}}
+      onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}>
+      <span style={{color:catColor||C.tx,fontWeight:700,fontFamily:"JetBrains Mono, monospace",
+        fontSize:13,cursor:"default"}}>
+        ${it.t}
+      </span>
+      {it.u && <span style={{marginLeft:4,fontSize:9,color:C.amber,background:C.amber+"18",
+        padding:"1px 4px",borderRadius:4,fontWeight:700}}>UOA</span>}
+      {show && it.top5 && (
+        <div style={{position:"absolute",left:0,top:"100%",zIndex:50,
+          background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
+          padding:"8px 10px",minWidth:220,boxShadow:"0 4px 20px #00000066",marginTop:2}}>
+          <div style={{color:C.tx2,fontSize:10,fontWeight:700,marginBottom:6,
+            borderBottom:`1px solid ${C.bdr}`,paddingBottom:4}}>
+            ${it.t} Top Blocks ({it.c} total)
+          </div>
+          {it.top5.map((r,i)=>(
+            <div key={i} style={{color:C.tx,fontSize:11,fontFamily:"JetBrains Mono, monospace",
+              padding:"2px 0"}}>{r}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
-};
+}
 
-const Sparkline = ({ it, dateLabels }) => {
-  if (!it || !it.prices || !it.prices.length) return <div className="spw"></div>;
-  const W = 240, H = 54, P = 6, ww = it.w || [];
-  const pts = [];
-  for (let i = 0; i < it.prices.length; i++) {
-    if (it.prices[i] != null) pts.push({ i, p: it.prices[i], w: ww[i] != null ? ww[i] : 0 });
-  }
-  if (!pts.length) return <div className="spw"></div>;
-
-  const lo = it.lo, hi = it.hi, allP = pts.map(p => p.p);
-  let mn = Math.min(lo, ...allP) - (hi - lo) * 0.12;
-  let mx = Math.max(hi, ...allP) + (hi - lo) * 0.12;
-  if (mn >= mx) { mn = lo - 1; mx = hi + 1; }
-  const rng = mx - mn || 1, ts = it.prices.length;
-
-  const y = (p) => H - P - 2 - ((p - mn) / rng) * (H - P * 2 - 4);
-  const x = (i) => P + (i / (ts - 1 || 1)) * (W - P * 2);
-
-  const zt = y(hi), zb = y(lo), zh = Math.max(zb - zt, 1), vy = y(it.vwap);
-
+// ── Zone display ──────────────────────────────────────────────────────────────
+function ZoneCell({it}){
+  const pos=it.pos;
+  const color=pos==="above"?C.green:pos==="below"?C.red:"#8899aa";
+  const pct=pos==="in"?"IN ZONE":(pos==="above"?"+":"")+it.pct.toFixed(2)+"%";
   return (
-    <div className="spw">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
-        <rect x={P} y={zt.toFixed(1)} width={W - P * 2} height={zh.toFixed(1)} rx="2" fill="var(--zF)" stroke="var(--zS)" strokeWidth=".5" />
-        <line x1={P} y1={vy.toFixed(1)} x2={W - P} y2={vy.toFixed(1)} stroke="var(--zS)" strokeWidth="1" strokeDasharray="3,3" />
-        {pts.length === 1 && (
-          <circle cx={x(pts[0].i).toFixed(1)} cy={y(pts[0].p).toFixed(1)} r={(3 + pts[0].w * 4).toFixed(1)} fill="#ffffff" opacity="0.85" />
-        )}
-        {pts.length > 1 && pts.slice(0, -1).map((pt, j) => {
-          const avg = (pt.p + pts[j + 1].p) / 2;
-          const col = avg > hi ? "var(--green)" : avg < lo ? "var(--red)" : "var(--tx2)";
-          const sw = 1.5 + (pt.w + pts[j + 1].w) / 2 * 1.5;
-          return (
-            <line key={`l-${j}`} x1={x(pt.i).toFixed(1)} y1={y(pt.p).toFixed(1)} x2={x(pts[j + 1].i).toFixed(1)} y2={y(pts[j + 1].p).toFixed(1)} stroke={col} strokeWidth={sw.toFixed(1)} strokeLinecap="round" />
-          );
-        })}
-        {pts.length > 1 && pts.map((pt, j) => {
-          const isLast = j === pts.length - 1;
-          const r = 2 + pt.w * 4 + (isLast ? 1 : 0);
-          const gr = r + 3 + pt.w * 3;
-          return (
-            <g key={`c-${j}`}>
-              {pt.w > 0.4 && <circle cx={x(pt.i).toFixed(1)} cy={y(pt.p).toFixed(1)} r={gr.toFixed(1)} fill={`rgba(255,255,255,${(0.1 + pt.w * 0.2).toFixed(2)})`} />}
-              {isLast && <circle cx={x(pt.i).toFixed(1)} cy={y(pt.p).toFixed(1)} r={(r + 2).toFixed(1)} fill="none" stroke="#ffffff" strokeWidth="1.5" opacity="0.5" />}
-              <circle cx={x(pt.i).toFixed(1)} cy={y(pt.p).toFixed(1)} r={r.toFixed(1)} fill="#ffffff" stroke={isLast ? "var(--bg)" : undefined} strokeWidth={isLast ? "1.5" : undefined} opacity={isLast ? undefined : "0.85"} />
-            </g>
-          );
-        })}
-        {dateLabels && dateLabels.length >= 2 && (
-          <>
-            <text x={P} y={H} fontSize="8" fill="var(--tx3)" fontFamily="JetBrains Mono,monospace">{dateLabels[0]}</text>
-            <text x={W - P} y={H} fontSize="8" fill="var(--tx3)" fontFamily="JetBrains Mono,monospace" textAnchor="end">{dateLabels[dateLabels.length - 1]}</text>
-          </>
-        )}
-      </svg>
-    </div>
+    <span style={{color,fontWeight:700,fontFamily:"JetBrains Mono, monospace",fontSize:13}}>
+      {pct}
+    </span>
   );
-};
+}
 
-const TickerTable = ({ items, type = "standard", dateLabels }) => {
+// ── Category pill ─────────────────────────────────────────────────────────────
+function CatPill({cat}){
+  const color=CAT_COLORS[cat]||C.tx2;
   return (
-    <div className="tw">
-      <table>
+    <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,
+      background:color+"18",color,fontWeight:600}}>
+      {cat}
+    </span>
+  );
+}
+
+// ── Flow table ────────────────────────────────────────────────────────────────
+const TH = ({children,style={}}) => (
+  <th style={{padding:"8px 10px",textAlign:"left",fontSize:11,
+    color:"#4a5d7a",fontWeight:600,borderBottom:"1px solid #1b2a45",
+    position:"sticky",top:0,background:"#0f1729",whiteSpace:"nowrap",...style}}>
+    {children}
+  </th>
+);
+const TD = ({children,style={}}) => (
+  <td style={{padding:"7px 10px",borderBottom:"1px solid #1b2a4533",
+    verticalAlign:"middle",...style}}>
+    {children}
+  </td>
+);
+
+function FlowTable({items, showCat=true}){
+  return (
+    <div style={{overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
         <thead>
           <tr>
-            <th style={type === 'standard' ? { width: '110px' } : undefined}>Ticker</th>
-            <th style={type === 'standard' ? { width: '110px' } : undefined}>Category</th>
-            
-            {type === 'search' && <th>Position</th>}
-            {type === 'search' && <th>Prints</th>}
-            
-            {(type === 'above' || type === 'below') && <th>{type === 'above' ? '% Above' : '% Below'}</th>}
-
-            {type !== 'search' && <th>Total Notional</th>}
-            {type !== 'search' && <th style={type === 'standard' ? { width: '170px' } : undefined}>Dark Pool Zone</th>}
-            
-            <th style={type === 'standard' ? { width: '100px' } : undefined}>Close</th>
-            <th>{type === 'search' ? 'Price Action' : '30-Day Price Action'}</th>
+            <TH>Ticker</TH>
+            {showCat && <TH>Category</TH>}
+            <TH>Zone</TH>
+            <TH>Last</TH>
+            <TH>DP Zone</TH>
+            <TH>Notional</TH>
+            <TH>Trades</TH>
+            <TH>Days</TH>
+            <TH>30-Day</TH>
           </tr>
         </thead>
         <tbody>
-          {items.map((it, idx) => {
-            const ac = CA[it.cat] || "#4e9fff";
-            const pc = it.pos === "above" ? "cp-a" : it.pos === "below" ? "cp-b" : "cp-i";
+          {items.map(it=>{
+            const cc=CAT_COLORS[it.cat]||C.tx;
             return (
-              <tr key={`${it.t}-${idx}`}>
-                <td>
-                  <div className="tkw">
-                    <span className="tkn" style={{ color: ac }}>
-                      ${it.t}{it.u && <span className="du"></span>}
-                    </span>
-                    <Tooltip it={it} />
-                  </div>
-                </td>
-                <td>
-                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: `${ac}15`, color: ac, fontWeight: 600 }}>{it.cat}</span>
-                </td>
-
-                {type === 'search' && (
-                  <td>
-                    {it.pos === 'above' ? <span style={{ color: 'var(--green)', fontWeight: 700 }}>+{it.pct}% ▲</span> :
-                     it.pos === 'below' ? <span style={{ color: 'var(--red)', fontWeight: 700 }}>{it.pct}% ▼</span> :
-                     <span style={{ color: 'var(--tx2)' }}>In Zone</span>}
-                  </td>
-                )}
-                {type === 'search' && <td className="mono" style={{ color: 'var(--tx2)' }}>{it.c}</td>}
-
-                {(type === 'above' || type === 'below') && (
-                  <td>
-                    <span className="mono" style={{ color: type === 'above' ? 'var(--green)' : 'var(--red)', fontWeight: 700, fontSize: '13px' }}>
-                      {type === 'above' ? `+${it.pct}%` : `${it.pct}%`}
-                    </span>
-                  </td>
-                )}
-
-                {type !== 'search' && <td><span className="notional">{fmt(it.n)}</span></td>}
-                {type !== 'search' && <td className="zone">${it.lo.toFixed(2)}<span className="zsep">—</span>${it.hi.toFixed(2)}</td>}
-
-                <td><span className={`cp ${pc}`}>${it.last.toFixed(2)}</span></td>
-                
-                <td>
-                  {it.prices ? <Sparkline it={it} dateLabels={dateLabels} /> : <span style={{ fontSize: '10px', color: 'var(--tx3)' }}>—</span>}
-                </td>
+              <tr key={it.t+it.cat} style={{background:"transparent"}}
+                onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <TD><TickerCell it={it} catColor={cc}/></TD>
+                {showCat && <TD><CatPill cat={it.cat}/></TD>}
+                <TD><ZoneCell it={it}/></TD>
+                <TD style={{fontFamily:"JetBrains Mono, monospace",color:zC(it.last,it.lo,it.hi)}}>
+                  {fP(it.last)}
+                </TD>
+                <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2,fontSize:11}}>
+                  {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
+                </TD>
+                <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.cyan,fontWeight:600}}>
+                  {fmt(it.n)}
+                </TD>
+                <TD style={{color:C.tx2,fontFamily:"JetBrains Mono, monospace"}}>{it.c}</TD>
+                <TD style={{color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>{it.days}</TD>
+                <TD><Sparkline it={it}/></TD>
               </tr>
             );
           })}
@@ -424,471 +173,850 @@ const TickerTable = ({ items, type = "standard", dateLabels }) => {
       </table>
     </div>
   );
-};
+}
 
-
-const App = () => {
-  const [appData, setAppData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [usingFallback, setUsingFallback] = useState(false);
-  const [error, setError] = useState(null);
-  
-  const [activeTab, setActiveTab] = useState("overview");
-  const [activeCategory, setActiveCategory] = useState(null);
-  const searchInputRef = useRef(null);
-
-  // 1. Fetch CSV or JSON from the public directory
-  useEffect(() => {
-    // Safely check for process.env
-    const isProcessDefined = typeof process !== 'undefined' && process.env;
-    const publicUrl = isProcessDefined ? process.env.PUBLIC_URL : '';
-    
-    const loadData = async () => {
-      try {
-        // We will try fetching the CSV first, since that is what you uploaded.
-        // If it fails, we fall back to data.json
-        let res = await fetch(`${publicUrl}/data.csv`);
-        
-        if (!res.ok) {
-           res = await fetch(`${publicUrl}/data.json`);
-        }
-        
-        if (!res.ok) {
-           throw new Error("Could not find data.csv or data.json in the public folder.");
-        }
-
-        const text = await res.text();
-        
-        let parsedData;
-        if (text.trim().startsWith('{')) {
-            // It's a JSON file
-            parsedData = JSON.parse(text);
-        } else if (text.includes('Ticker') && text.includes('Price')) {
-            // It's a CSV file! Let's aggregate it live.
-            parsedData = buildDashboardDataFromCSV(text);
-        } else {
-            throw new Error("File format not recognized (Not valid JSON or CSV).");
-        }
-
-        setAppData(parsedData);
-        if (parsedData.D && parsedData.D.categories && parsedData.D.categories.length > 0) {
-            setActiveCategory(parsedData.D.categories[0].name);
-        }
-        setLoading(false);
-        setError(null);
-        setUsingFallback(false);
-
-      } catch (err) {
-        console.error(err);
-        setAppData(fallbackData);
-        if (fallbackData.D && fallbackData.D.categories && fallbackData.D.categories.length > 0) {
-            setActiveCategory(fallbackData.D.categories[0].name);
-        }
-        setUsingFallback(true);
-        setError(err.message);
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // 2. Compute search index
-  const allSearch = useMemo(() => {
-    if (!appData || !appData.SD) return [];
-    const { SD } = appData;
-    return [...(SD.f || []), ...(SD.c || []).map(c => ({ ...c, prices: null, w: null }))];
-  }, [appData]);
-
-  // 3. Handle search focus
-  useEffect(() => {
-    if (activeTab === 'search' && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [activeTab]);
-
-  // Render loading state
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <style dangerouslySetInnerHTML={{ __html: styles }} />
-        <div className="loading-spinner"></div>
-        <div>Loading Dark Pool Data...</div>
-      </div>
-    );
-  }
-
-  const { D } = appData;
-
-  const tabDefs = [
-    { id: "overview", label: "Overview" },
-    { id: "category", label: "By Category" },
-    { id: "search", label: "🔍 Search" },
-    { id: "above", label: "▲ Above Zone" },
-    { id: "below", label: "▼ Below Zone" },
-    { id: "unusual", label: "Unusual Flow" },
-    { id: "phantom", label: "Phantom Prints" },
-    { id: "options", label: "Options Flow" },
-    { id: "signals", label: "Signals" }
-  ];
-
+// ── Overview stat card ────────────────────────────────────────────────────────
+function StatCard({label, value, sub, color}){
   return (
-    <div className="app-wrapper">
-      <style dangerouslySetInnerHTML={{ __html: styles }} />
-      
-      {usingFallback && (
-        <div style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--bdr)', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ color: 'var(--amber)', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
-            ⚠️ Using Fallback Sample Data
-          </div>
-          <div style={{ color: 'var(--tx2)', fontSize: '13px', textAlign: 'center', maxWidth: '800px' }}>
-            {error} <br/> 
-            To view live data, place your CSV export file in your <code>public/</code> folder and name it exactly <code>data.csv</code>.
-          </div>
-        </div>
-      )}
-
-      <div className="hdr">
-        <div className="hdr-in">
-          <div>
-            <div className="brand"><div className="brand-dot"></div><h1>DARK POOL SCANNER</h1></div>
-            <div className="brand-sub">
-              {D.dateLabels?.[0] ? `${D.dateLabels[0]} – ${D.dateLabels[D.dateLabels.length - 1]}` : 'Waiting for data'} &middot; 
-              {D.categories?.reduce((a,c) => a + c.items.reduce((b, i)=> b+i.c, 0), 0) || 0} block trades &middot; 
-              {D.categories?.reduce((a,c) => a + c.count, 0) || 0} tickers &middot; 
-              {fmt(D.categories?.reduce((a,c) => a + c.totalNotional, 0) || 0)} total flow
-            </div>
-          </div>
-          <div className="hstats">
-            <div className="hs"><div className="hs-l">SPY 30-Day Zone</div><div className="hs-v" style={{ color: 'var(--red)' }}>$683.21</div><div className="hs-s">Zone $685.49 – $692.08</div></div>
-            <div className="hs"><div className="hs-l">QQQ 30-Day Zone</div><div className="hs-v" style={{ color: 'var(--tx)' }}>$609.63</div><div className="hs-s">Zone $605.96 – $621.03</div></div>
-            <div className="hs"><div className="hs-l">IWM 30-Day Zone</div><div className="hs-v" style={{ color: 'var(--red)' }}>$258.96</div><div className="hs-s">Zone $260.48 – $264.71</div></div>
-            <div className="hs"><div className="hs-l">Period</div><div className="hs-v" style={{ color: 'var(--amber)' }}>30 days</div><div className="hs-s">{fmt(D.categories?.reduce((a,c) => a + c.totalNotional, 0) || 0)} flow</div></div>
-          </div>
-        </div>
+    <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,
+      padding:"14px 18px",minWidth:140}}>
+      <div style={{fontSize:11,color:C.tx3,marginBottom:4,textTransform:"uppercase",
+        letterSpacing:"0.06em"}}>{label}</div>
+      <div style={{fontSize:20,fontWeight:700,color:color||C.tx,fontFamily:"JetBrains Mono, monospace"}}>
+        {value}
       </div>
-      
-      <div className="tabs">
-        {tabDefs.map(t => (
-          <button 
-            key={t.id} 
-            className={`tab ${t.id === activeTab ? "on" : ""}`} 
-            onClick={() => setActiveTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="wrap">
-        {activeTab === 'overview' && <OverviewPane setTab={setActiveTab} setCategory={setActiveCategory} D={D} />}
-        {activeTab === 'category' && <CategoryPane activeCategory={activeCategory} setCategory={setActiveCategory} D={D} />}
-        {activeTab === 'above' && <AboveBelowPane type="above" D={D} />}
-        {activeTab === 'below' && <AboveBelowPane type="below" D={D} />}
-        {activeTab === 'search' && <SearchPane searchInputRef={searchInputRef} allSearch={allSearch} D={D} />}
-        {activeTab === 'unusual' && <UnusualPane allSearch={allSearch} D={D} />}
-        {activeTab === 'phantom' && <PhantomPane D={D} />}
-        {activeTab === 'options' && <OptionsPane D={D} />}
-        {activeTab === 'signals' && <SignalsPane D={D} />}
-      </div>
+      {sub && <div style={{fontSize:11,color:C.tx2,marginTop:3}}>{sub}</div>}
     </div>
   );
-};
+}
 
-// -- PANE COMPONENTS --
+// ── Overview tab ─────────────────────────────────────────────────────────────
+function OverviewPane({onJumpTo}){
+  const totalN = D.categories.reduce((s,c)=>s+c.totalNotional,0);
+  const totalCount = D.categories.reduce((s,c)=>s+c.count,0);
+  const aboveCt = D.above.length;
+  const belowCt = D.below.length;
 
-const OverviewPane = ({ setTab, setCategory, D }) => {
-  const total = D.categories?.reduce((acc, c) => acc + c.totalNotional, 0) || 1;
-  
+  // index summary
+  const idxCat = D.categories.find(c=>c.name==="Indexes");
+  const spy = idxCat?.items.find(x=>x.t==="SPY");
+  const qqq = idxCat?.items.find(x=>x.t==="QQQ");
+  const iwm = idxCat?.items.find(x=>x.t==="IWM");
+
   return (
-    <div className="pane on">
-      <div className="legend">
-        <b style={{ color: 'var(--tx)' }}>30-Day Chart:</b>
-        <span>Zone = where 50% of DP notional executed (25th–75th pctl by $)</span>
-        <span style={{ color: 'var(--green)' }}>● Above</span>
-        <span style={{ color: 'var(--tx)' }}>● In Zone</span>
-        <span style={{ color: 'var(--red)' }}>● Below</span>
-        <span>Dot size = notional weight</span>
-        <span>Hover ticker → top 5 prints</span>
+    <div>
+      {/* Header stats */}
+      <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:20}}>
+        <StatCard label="Total DP Flow" value={fmt(totalN)} sub="30-day period" color={C.cyan}/>
+        <StatCard label="Tickers Tracked" value={totalCount} color={C.blue}/>
+        <StatCard label="Trading Days" value={D.dates.length} sub="Jan 21 – Mar 5" color={C.purple}/>
+        <StatCard label="Above Zone" value={aboveCt} sub="bullish momentum" color={C.green}/>
+        <StatCard label="Below Zone" value={belowCt} sub="bearish pressure" color={C.red}/>
+        <StatCard label="Unusual Activity" value={D.unusual.length} color={C.amber}/>
       </div>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-        {(D.categories || []).map((c, i) => {
-          const ac = CA[c.name] || "#4e9fff";
-          const pct = ((c.totalNotional / total) * 100).toFixed(1);
-          const uC = c.items?.filter(it => it.u).length || 0;
-          
-          return (
-            <div key={c.name} className="fade" style={{ animationDelay: `${i * 0.06}s`, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: '10px', padding: '16px', position: 'relative', overflow: 'hidden', cursor: 'pointer' }} onClick={() => { setTab('category'); setCategory(c.name); }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: ac }}></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700 }}>{CI[c.name] || ""} {c.name}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--tx3)', marginTop: '2px' }}>{c.count} tickers</div>
+
+      {/* Index status */}
+      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,
+        padding:"14px 18px",marginBottom:16}}>
+        <div style={{fontSize:12,color:C.tx3,fontWeight:700,textTransform:"uppercase",
+          letterSpacing:"0.06em",marginBottom:12}}>Market Index Status</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:12}}>
+          {[spy,qqq,iwm].filter(Boolean).map(idx=>{
+            const color=zC(idx.last,idx.lo,idx.hi);
+            return (
+              <div key={idx.t} style={{background:C.bg3,borderRadius:6,padding:"10px 16px",
+                border:`1px solid ${color}33`,minWidth:160}}>
+                <div style={{fontSize:14,fontWeight:700,color,fontFamily:"JetBrains Mono, monospace",
+                  marginBottom:4}}>${idx.t}</div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <Sparkline it={idx} w={100} h={28}/>
+                  <div>
+                    <div style={{fontFamily:"JetBrains Mono, monospace",color,fontSize:13,fontWeight:600}}>
+                      {fP(idx.last)}
+                    </div>
+                    <div style={{fontSize:10,color:C.tx3}}>
+                      Zone: {fP(idx.lo)}–{fP(idx.hi)}
+                    </div>
+                    <div style={{fontSize:11,color,fontWeight:600}}>
+                      {pctFmt(idx.pct)}
+                    </div>
+                  </div>
                 </div>
-                {uC > 0 && <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(255,23,68,.1)', color: 'var(--red)', fontWeight: 600 }}>{uC} unusual</span>}
               </div>
-              <div className="mono" style={{ fontSize: '20px', fontWeight: 800, color: ac }}>{fmt(c.totalNotional)}</div>
-              <div style={{ marginTop: '8px', height: '4px', background: 'var(--bdr2)', borderRadius: '2px' }}>
-                <div style={{ height: '100%', width: `${pct}%`, background: ac, borderRadius: '2px' }}></div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Category cards */}
+      <div style={{fontSize:12,color:C.tx3,fontWeight:700,textTransform:"uppercase",
+        letterSpacing:"0.06em",marginBottom:12}}>Flow by Category</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>
+        {D.categories.map(cat=>{
+          const color=CAT_COLORS[cat.name]||C.tx;
+          const above=cat.items.filter(x=>x.pos==="above").length;
+          const below=cat.items.filter(x=>x.pos==="below").length;
+          const inside=cat.items.filter(x=>x.pos==="in").length;
+          return (
+            <div key={cat.name}
+              onClick={()=>onJumpTo(cat.name)}
+              style={{background:C.bg2,border:`1px solid ${color}33`,borderRadius:8,
+                padding:"14px 16px",cursor:"pointer",transition:"all 0.15s"}}
+              onMouseEnter={e=>{e.currentTarget.style.background=C.bgH;e.currentTarget.style.borderColor=color+"66";}}
+              onMouseLeave={e=>{e.currentTarget.style.background=C.bg2;e.currentTarget.style.borderColor=color+"33";}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                <div style={{fontWeight:700,color,fontSize:13}}>{cat.name}</div>
+                <div style={{fontFamily:"JetBrains Mono, monospace",color:C.cyan,fontSize:13,fontWeight:600}}>
+                  {fmt(cat.totalNotional)}
+                </div>
               </div>
-              <div style={{ fontSize: '10px', color: 'var(--tx3)', marginTop: '4px' }}>{pct}% of total flow</div>
+              <div style={{fontSize:11,color:C.tx3,marginBottom:8}}>{cat.desc}</div>
+              <div style={{display:"flex",gap:12,fontSize:11}}>
+                <span><span style={{color:C.green,fontWeight:700}}>{above}</span> above</span>
+                <span><span style={{color:"#8899aa",fontWeight:700}}>{inside}</span> in zone</span>
+                <span><span style={{color:C.red,fontWeight:700}}>{below}</span> below</span>
+                <span style={{color:C.tx3}}>{cat.count} total</span>
+              </div>
             </div>
           );
         })}
       </div>
-
-      <div className="ib">
-        <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--tx)', marginBottom: '10px' }}>30-Day Flow Summary</div>
-        <div className="ig">
-          <div className="ig-c"><div className="ig-t" style={{ color: 'var(--blue)' }}>Index Trend</div>SPY now <b style={{ color: 'var(--red)' }}>below</b> its core DP zone ($685–$692), trading at $683. QQQ $610 — inside zone ($606–$620). IWM $259 — <b style={{ color: 'var(--red)' }}>below</b> zone ($262–$264). Two of three indexes below institutional execution range.</div>
-          <div className="ig-c"><div className="ig-t" style={{ color: 'var(--amber)' }}>Mega-Cap Flow</div>MSFT ~$52B across 30 days. NVDA ~$40B. AAPL ~$30B. The top 5 mega-caps account for ~$200B+ in dark pool execution. Look for big dots to see where heaviest days clustered.</div>
-          <div className="ig-c"><div className="ig-t" style={{ color: 'var(--red)' }}>Energy / Geopolitical Shift</div>Energy flow surged in the final week: XLE, FENY, LNG, commodity ETFs spiking. Iran/Strait of Hormuz tensions driving heavy commodity positioning. 30-day sparklines show the pivot clearly.</div>
-          <div className="ig-c"><div className="ig-t" style={{ color: 'var(--green)' }}>Bond / Fixed Income</div>HYG $30B+, LQD $24B+ over 30 days. Sustained institutional fixed income positioning suggesting flight-to-quality as equity DP zones trend lower.</div>
-        </div>
-      </div>
     </div>
   );
-};
+}
 
-const CategoryPane = ({ activeCategory, setCategory, D }) => {
-  const cat = D.categories?.find(c => c.name === activeCategory) || D.categories?.[0] || { items: [], count: 0, totalNotional: 0 };
+// ── Category tab ─────────────────────────────────────────────────────────────
+function CategoryPane(){
+  const [active,setActive]=useState(D.categories[0].name);
+  const cat=D.categories.find(c=>c.name===active)||D.categories[0];
+  const color=CAT_COLORS[active]||C.tx;
   return (
-    <div className="pane on">
-      <div className="legend">
-        <b style={{ color: 'var(--tx)' }}>30-Day Chart:</b>
-        <span>Zone=IQR</span>
-        <span style={{ color: 'var(--green)' }}>● Above</span>
-        <span style={{ color: 'var(--tx)' }}>● In</span>
-        <span style={{ color: 'var(--red)' }}>● Below</span>
-        <span>Dot=notional wt</span>
-        <span>Hover → top 5</span>
-      </div>
-      <div className="stabs">
-        {(D.categories || []).map(c => {
-          const ac = CA[c.name] || "#4e9fff";
-          const on = c.name === activeCategory;
+    <div>
+      {/* Sub-tabs */}
+      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
+        {D.categories.map(c=>{
+          const cc=CAT_COLORS[c.name]||C.tx;
+          const isOn=c.name===active;
           return (
-            <button 
-              key={c.name} 
-              className={`stab ${on ? 'on' : ''}`} 
-              style={on ? { borderColor: ac, background: `${ac}12` } : {}} 
-              onClick={() => setCategory(c.name)}
-            >
-              {CI[c.name] || ""} {c.name}
+            <button key={c.name} onClick={()=>setActive(c.name)}
+              style={{padding:"5px 14px",borderRadius:20,border:`1px solid ${cc}${isOn?"":"33"}`,
+                background:isOn?cc+"22":"transparent",color:isOn?cc:C.tx2,
+                fontWeight:isOn?700:400,fontSize:12,cursor:"pointer",transition:"all 0.15s"}}>
+              {c.name}
             </button>
           );
         })}
       </div>
-      <div style={{ marginBottom: '8px', fontSize: '12px', color: 'var(--tx2)' }}>
-        {cat.count} tickers &middot; {fmt(cat.totalNotional)} total
-      </div>
-      <TickerTable items={cat.items} type="standard" dateLabels={D.dateLabels} />
-    </div>
-  );
-};
-
-const AboveBelowPane = ({ type, D }) => {
-  const isAbove = type === 'above';
-  const items = isAbove ? (D.above || []) : (D.below || []);
-
-  return (
-    <div className="pane on">
-      <div style={{ marginBottom: '14px' }}>
-        <div style={{ fontSize: '15px', fontWeight: 700, color: isAbove ? 'var(--green)' : 'var(--red)', marginBottom: '6px' }}>
-          {isAbove ? '▲ Trading Above Dark Pool Zone' : '▼ Trading Below Dark Pool Zone'}
-          <span className="mono" style={{ fontSize: '13px', fontWeight: 400, color: 'var(--tx2)' }}> ({items.length} tickers)</span>
-        </div>
-        <div style={{ fontSize: '12px', color: 'var(--tx3)', lineHeight: 1.5 }}>
-          Closed <b style={{ color: isAbove ? 'var(--green)' : 'var(--red)' }}>{isAbove ? 'above' : 'below'}</b> the 25th–75th percentile institutional execution range. 
-          Sorted by % distance {isAbove ? 'above' : 'below'} zone. {isAbove ? 'Bullish momentum signal.' : 'Watch for support or further breakdown.'}
+      {/* Category info */}
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:14,fontWeight:700,color,marginBottom:4}}>{cat.name}</div>
+        <div style={{fontSize:12,color:C.tx2}}>{cat.desc}</div>
+        <div style={{fontSize:12,color:C.tx3,marginTop:2}}>
+          Total: <span style={{color:C.cyan,fontWeight:700}}>{fmt(cat.totalNotional)}</span>
+          {" · "}{cat.count} tickers
         </div>
       </div>
-      <TickerTable items={items} type={type} dateLabels={D.dateLabels} />
+      <FlowTable items={cat.items} showCat={false}/>
     </div>
   );
-};
+}
 
-const UnusualPane = ({ allSearch, D }) => {
-  const unusualItems = useMemo(() => {
-    return allSearch.filter(it => it.u).sort((a, b) => b.n - a.n).slice(0, 40);
-  }, [allSearch]);
-
+// ── Above / Below tabs ───────────────────────────────────────────────────────
+function AbovePane(){
   return (
-    <div className="pane on">
-      <div style={{ marginBottom: '12px', fontSize: '12px', color: 'var(--tx3)' }}>
-        Tickers flagged as “Unusual Dark Pool Activity” over 30 days — sorted by total notional.
+    <div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.green,marginBottom:4}}>
+          ▲ Trading Above Dark Pool Zone <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.above.length} tickers)</span>
+        </div>
+        <div style={{fontSize:12,color:C.tx3,lineHeight:1.5}}>
+          Closed <b style={{color:C.green}}>above</b> the 25th–75th percentile institutional execution range.
+          Sorted by % distance above zone. Bullish momentum signal.
+        </div>
       </div>
-      <TickerTable items={unusualItems} type="standard" dateLabels={D.dateLabels} />
+      <FlowTable items={[...D.above].sort((a,b)=>b.pct-a.pct)}/>
     </div>
   );
-};
+}
 
-const PhantomPane = ({ D }) => {
-  const items = D.phantom || [];
+function BelowPane(){
   return (
-    <div className="pane on">
-      <div style={{ marginBottom: '12px', fontSize: '12px', color: 'var(--tx3)' }}>
-        Recent phantom prints — DP reference prices significantly different from spot.
+    <div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.red,marginBottom:4}}>
+          ▼ Trading Below Dark Pool Zone <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.below.length} tickers)</span>
+        </div>
+        <div style={{fontSize:12,color:C.tx3,lineHeight:1.5}}>
+          Closed <b style={{color:C.red}}>below</b> the institutional execution range.
+          Sorted by % distance below zone. Bearish pressure signal.
+        </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {items.length === 0 && <div style={{color: 'var(--tx3)'}}>No phantom prints logged.</div>}
-        {items.map((p, i) => {
-          if (!p.spotPrice) return null;
-          const diff = ((p.spotPrice - p.dpPrice) / p.dpPrice * 100).toFixed(2);
-          const up = p.spotPrice > p.dpPrice;
-          return (
-            <div key={i} className="ph-card">
-              <div style={{ fontSize: '10px', color: 'var(--tx3)', minWidth: '40px' }}>{p.date || ""}</div>
-              <div style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'JetBrains Mono,monospace', minWidth: '56px' }}>{p.ticker}</div>
-              <div>
-                <div style={{ fontSize: '9px', color: 'var(--tx3)', textTransform: 'uppercase', fontWeight: 700 }}>DP Price</div>
-                <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'JetBrains Mono,monospace', color: 'var(--blue)' }}>{fP(p.dpPrice)}</div>
-              </div>
-              <div style={{ fontSize: '20px', color: 'var(--tx3)' }}>→</div>
-              <div>
-                <div style={{ fontSize: '9px', color: 'var(--tx3)', textTransform: 'uppercase', fontWeight: 700 }}>Spot</div>
-                <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'JetBrains Mono,monospace' }}>{fP(p.spotPrice)}</div>
-              </div>
-              <div className="ph-diff" style={{ background: up ? 'rgba(0,230,118,.1)' : 'rgba(255,23,68,.1)', color: up ? 'var(--green)' : 'var(--red)' }}>
-                {up ? '+' : ''}{diff}%
-              </div>
-              <div style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--tx3)' }}>Vol: {p.volume || "—"}</div>
-            </div>
-          );
-        })}
-      </div>
+      <FlowTable items={[...D.below].sort((a,b)=>a.pct-b.pct)}/>
     </div>
   );
-};
+}
 
-const OptionsPane = ({ D }) => {
-  const items = D.options || [];
+// ── Unusual Flow tab ─────────────────────────────────────────────────────────
+function UnusualPane(){
   return (
-    <div className="pane on">
-      <div style={{ marginBottom: '12px', fontSize: '12px', color: 'var(--tx3)' }}>
-        Recent options flow alongside dark pool activity.
+    <div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.amber,marginBottom:4}}>
+          Unusual Flow Activity <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.unusual.length} tickers)</span>
+        </div>
+        <div style={{fontSize:12,color:C.tx3}}>
+          Tickers with UOA flag — unusual options/dark pool activity relative to historical norms.
+        </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-        {items.length === 0 && <div style={{color: 'var(--tx3)'}}>No options flow logged in CSV.</div>}
-        {items.map((o, i) => {
-          const bull = o.message.indexOf("CALL") >= 0 || o.message.indexOf("Bullish") >= 0;
-          const bear = o.message.indexOf("PUT") >= 0 || o.message.indexOf("Bearish") >= 0;
-          return (
-            <div key={i} className="op-row">
-              <span style={{ fontSize: '10px', color: 'var(--tx3)', minWidth: '36px' }}>{o.date || ""}</span>
-              <span className="mono" style={{ fontSize: '14px', fontWeight: 800, minWidth: '52px' }}>{o.ticker}</span>
-              <span className="mono" style={{ fontSize: '12px', color: 'var(--tx2)' }}>{fP(o.price)}</span>
-              <span className={`badge ${bull ? 'b-bull' : bear ? 'b-bear' : 'b-alert'}`}>
-                {bull ? 'BULLISH' : bear ? 'BEARISH' : 'ALERT'}
-              </span>
-              <span style={{ fontSize: '11px', color: 'var(--tx3)', flex: 1 }}>{o.message}</span>
-            </div>
-          );
-        })}
-      </div>
+      <FlowTable items={D.unusual}/>
     </div>
   );
-};
+}
 
-const SignalsPane = ({ D }) => {
+// ── Phantom Prints tab ───────────────────────────────────────────────────────
+function PhantomPane(){
   return (
-    <div className="pane on">
-      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--amber)', marginBottom: '10px' }}>⚡ Alpha Gold Alerts</div>
-      <div className="ag">
-        {(D.alpha || []).length === 0 && <div style={{color: 'var(--tx3)', fontSize: '12px'}}>No alpha alerts found.</div>}
-        {(D.alpha || []).map((a, i) => (
-          <div key={i} className="ag-c">
-            <div className="mono" style={{ fontSize: '20px', fontWeight: 800, color: 'var(--amber)' }}>{a.ticker}</div>
-            <div className="mono" style={{ fontSize: '14px', color: 'var(--tx)', marginTop: '3px' }}>{fP(a.price)}</div>
-            <div style={{ fontSize: '10px', color: 'var(--tx3)', marginTop: '2px' }}>{a.date || ""}</div>
-          </div>
-        ))}
+    <div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.purple,marginBottom:4}}>
+          Phantom Prints <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.phantom.length} entries)</span>
+        </div>
+        <div style={{fontSize:12,color:C.tx3}}>
+          Dark pool prints where the execution price deviated significantly from the concurrent spot price.
+          May indicate delayed reporting or unusual block structures.
+        </div>
       </div>
-      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--red)', marginBottom: '10px', marginTop: '20px' }}>✕ Cancelled Blocks</div>
-      <div className="tw">
-        <table>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Ticker</th>
-              <th>Price</th>
-              <th>Notional</th>
-              <th>Details</th>
+              <TH>Ticker</TH>
+              <TH>Date</TH>
+              <TH>DP Price</TH>
+              <TH>Spot Price</TH>
+              <TH>Deviation</TH>
+              <TH>Volume</TH>
             </tr>
           </thead>
           <tbody>
-            {(D.cancelled || []).length === 0 && <tr><td colSpan="5" style={{color: 'var(--tx3)', textAlign:'center'}}>No cancelled blocks logged.</td></tr>}
-            {(D.cancelled || []).map((c, i) => (
-              <tr key={i}>
-                <td style={{ color: 'var(--tx3)', fontSize: '11px' }}>{c.date || ""}</td>
-                <td className="mono" style={{ fontWeight: 700 }}>{c.ticker}</td>
-                <td className="mono" style={{ color: 'var(--tx2)' }}>{fP(c.price)}</td>
-                <td style={{ color: 'var(--red)', fontWeight: 600, fontFamily: 'JetBrains Mono,monospace' }}>{fmt(c.notional)}</td>
-                <td style={{ color: 'var(--tx3)', fontSize: '11px' }}>{c.message}</td>
-              </tr>
-            ))}
+            {D.phantom.map((p,i)=>{
+              const dev=((p.dpPrice-p.spotPrice)/p.spotPrice*100);
+              const devColor=dev>0?C.green:C.red;
+              return (
+                <tr key={i} style={{background:"transparent"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <TD><span style={{color:C.blue,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
+                    ${p.ticker}</span></TD>
+                  <TD style={{color:C.tx2,fontFamily:"JetBrains Mono, monospace"}}>{p.date}</TD>
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx}}>
+                    {fP(p.dpPrice)}</TD>
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2}}>
+                    {fP(p.spotPrice)}</TD>
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:devColor,fontWeight:700}}>
+                    {dev>0?"+":""}{dev.toFixed(2)}%</TD>
+                  <TD style={{color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>
+                    {p.volume||"—"}</TD>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
     </div>
   );
-};
+}
 
-const SearchPane = ({ searchInputRef, allSearch, D }) => {
-  const [query, setQuery] = useState("");
-  
-  const results = useMemo(() => {
-    const q = query.trim().toUpperCase();
-    if (!q) return null;
-    
-    const exact = [];
-    const prefix = [];
-    const includes = [];
-    
-    allSearch.forEach(it => {
-      if (it.t === q) exact.push(it);
-      else if (it.t.startsWith(q)) prefix.push(it);
-      else if (it.t.includes(q)) includes.push(it);
-    });
-    
-    return [...exact, ...prefix, ...includes].slice(0, 30);
-  }, [query, allSearch]);
-
+// ── Options Flow tab ─────────────────────────────────────────────────────────
+function OptionsPane(){
   return (
-    <div className="pane on">
-      <div style={{ marginBottom: '16px' }}>
-        <div className="search-bar">
-          <span className="search-icon">🔍</span>
-          <input 
-            type="text" 
-            className="search-input" 
-            ref={searchInputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search ticker (e.g. AAPL, SPY, XLE...)" 
-            autoComplete="off" 
-          />
+    <div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.pink,marginBottom:4}}>
+          Options Flow <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.options.length} alerts)</span>
+        </div>
+        <div style={{fontSize:12,color:C.tx3}}>
+          Notable options activity flagged alongside dark pool data. Repeater, Roulette, Large, and Steady flow types.
         </div>
       </div>
-      
-      {results === null ? (
-        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--tx3)' }}>
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔍</div>
-          <div style={{ fontSize: '14px' }}>Type a ticker symbol to search</div>
-        </div>
-      ) : results.length === 0 ? (
-        <div className="sr-empty">No tickers found matching "{query}"</div>
-      ) : (
-        <div>
-          <div className="sr-count">
-            {results.length}{results.length >= 30 ? '+' : ''} results for "{query}"
-          </div>
-          <TickerTable items={results} type="search" dateLabels={D.dateLabels} />
-        </div>
-      )}
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead>
+            <tr>
+              <TH>Date</TH>
+              <TH>Ticker</TH>
+              <TH>Price</TH>
+              <TH>Alert</TH>
+              <TH>Direction</TH>
+            </tr>
+          </thead>
+          <tbody>
+            {D.options.map((o,i)=>{
+              const isBull=o.message.includes("Bullish");
+              const isBear=o.message.includes("Bearish");
+              const dirColor=isBull?C.green:isBear?C.red:C.tx2;
+              const dir=isBull?"BULL":isBear?"BEAR":"NEUTRAL";
+              return (
+                <tr key={i} style={{background:"transparent"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <TD style={{color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>{o.date}</TD>
+                  <TD><span style={{color:C.pink,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
+                    ${o.ticker}</span></TD>
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2}}>{fP(o.price)}</TD>
+                  <TD style={{color:C.tx,fontSize:11,maxWidth:380}}>{o.message}</TD>
+                  <TD><span style={{color:dirColor,fontWeight:700,fontSize:11,
+                    background:dirColor+"18",padding:"2px 8px",borderRadius:10}}>{dir}</span></TD>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
+}
+
+// ── Signals + Search tab ─────────────────────────────────────────────────────
+function SignalsPane(){
+  const [query,setQuery]=useState("");
+  const allItems = useMemo(()=>{
+    const map={};
+    for(const cat of D.categories) for(const it of cat.items) map[it.t]=it;
+    for(const it of D.above) map[it.t]=it;
+    for(const it of D.below) map[it.t]=it;
+    for(const it of D.unusual) map[it.t]=it;
+    return Object.values(map);
+  },[]);
+  const results = useMemo(()=>{
+    if(!query||query.length<1) return [];
+    const q=query.toUpperCase().replace(/\$|\s/g,"");
+    return allItems.filter(it=>it.t.includes(q)).slice(0,30);
+  },[query,allItems]);
+
+  return (
+    <div>
+      {/* Alpha signals */}
+      <div style={{marginBottom:20}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.cyan,marginBottom:10}}>
+          Alpha Signals <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.alpha.length})</span>
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:16}}>
+          {D.alpha.map((a,i)=>(
+            <div key={i} style={{background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
+              padding:"8px 12px",display:"flex",gap:10,alignItems:"center"}}>
+              <span style={{color:C.cyan,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
+                ${a.ticker}</span>
+              <span style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2,fontSize:11}}>
+                {fP(a.price)}</span>
+              <span style={{color:C.tx3,fontSize:11}}>{a.date}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Cancelled */}
+        <div style={{fontSize:14,fontWeight:700,color:C.red,marginBottom:8}}>
+          Cancelled Blocks <span style={{fontSize:12,fontWeight:400,color:C.tx2}}>({D.cancelled.length})</span>
+        </div>
+        <div style={{overflowX:"auto",marginBottom:20}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr>
+                <TH>Date</TH><TH>Ticker</TH><TH>Price</TH><TH>Notional</TH><TH>Note</TH>
+              </tr>
+            </thead>
+            <tbody>
+              {D.cancelled.map((c,i)=>(
+                <tr key={i} style={{background:"transparent"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <TD style={{color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>{c.date}</TD>
+                  <TD><span style={{color:C.red,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
+                    ${c.ticker}</span></TD>
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2}}>{fP(c.price)}</TD>
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.amber,fontWeight:600}}>
+                    {fmt(c.notional)}</TD>
+                  <TD style={{color:C.tx2,fontSize:11}}>{c.message}</TD>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div>
+        <div style={{fontSize:15,fontWeight:700,color:C.tx,marginBottom:10}}>🔍 Ticker Search</div>
+        <input
+          value={query}
+          onChange={e=>setQuery(e.target.value)}
+          placeholder="Search any ticker (e.g. NVDA, SPY...)"
+          style={{width:"100%",maxWidth:360,padding:"8px 14px",borderRadius:6,
+            border:`1px solid ${C.bdr2}`,background:C.bg2,color:C.tx,fontSize:13,
+            fontFamily:"JetBrains Mono, monospace",outline:"none",boxSizing:"border-box"}}
+        />
+        {query.length>0 && (
+          <div style={{marginTop:12,color:C.tx3,fontSize:11,marginBottom:8}}>
+            {results.length} result{results.length!==1?"s":""} for "{query.toUpperCase()}"
+          </div>
+        )}
+        {results.length>0 && <FlowTable items={results}/>}
+        {query.length>0 && results.length===0 && (
+          <div style={{color:C.tx3,fontSize:13,marginTop:12}}>No tickers found.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Tab config ────────────────────────────────────────────────────────────────
+const TABS=[
+  {id:"overview",label:"Overview"},
+  {id:"category",label:"By Category"},
+  {id:"above",label:"▲ Above Zone"},
+  {id:"below",label:"▼ Below Zone"},
+  {id:"unusual",label:"Unusual Flow"},
+  {id:"phantom",label:"Phantom Prints"},
+  {id:"options",label:"Options Flow"},
+  {id:"signals",label:"Signals 🔍"},
+];
+
+// ── CSV Processing Engine ─────────────────────────────────────────────────────
+
+const INDEXES = new Set(["SPY","QQQ","IWM","DIA","MDY","RSP","OEF","ONEQ","TQQQ","SQQQ","SPXU","SPXS","UPRO","SH","PSQ","QID","UVXY","VXX","VIXY","SVXY","SOXS","SOXL","TNA","TZA","UDOW","SDOW","SPXL","ERX","ERY"]);
+
+const SECTOR_ETFS = new Set(["XLF","XLE","XLK","XLV","XLI","XLY","XLP","XLU","XLB","XLRE","XLC","GDX","GDXJ","KRE","KBE","XOP","OIH","XBI","IBB","ARKG","ARKK","ARKW","ARKQ","ARKF","ARKVV","SMH","SOXX","HACK","CIBR","FINX","CLOU","BOTZ","ROBO","WCLD","BUG","SKYY","AIQ","KBWB","KIE","IAI","IYF","PNQI","FDN","IPAY","EMQQ","KOMP","LOUP","DTEC","JETS","AIRR","MOO","SOIL","CROP","WEED","MSOS","POTX","MJ","BITO","BLOK","BITQ","IBIT","FBTC","GBTC","HODL","BTCO","EZBC","BTCW","DEFI","XME","PICK","SLX","REMX","LIT","BATT","DRIV","IDRV","KARS","VNQ","SCHH","ICF","REM","MORT","HOMZ","XHB","ITB","PKB","REZ","PHO","CGW","FIW","FWAT","RXL","BBH","PJP","XPH","SBIO","LABD","LABU","TAN","FAN","ICLN","QCLN","ACES","PBD","SMOG","IAT","KBWR","DPST","FAS","FAZ","SKF","UYG","CURE","RXD","MTUM","VLUE","QUAL","USMV","SIZE","IWF","IWD","IWB","IWR","IWS","VTV","VUG","VO","VB","VBR","VBK","MGC","MGK","MGV","ESGU","ESGD","ESGE","DSI","SDGA"]);
+
+const BOND_ETFS = new Set(["TLT","IEF","SHY","IEI","SHV","GOVT","TBT","TMF","TBF","TTT","UBT","PST","AGG","BND","SCHZ","IUSB","SPAB","BOND","LQD","VCIT","IGIB","SPSB","VCSH","IGSB","FLOT","SJNK","BSCN","BSCO","HYG","JNK","FALN","PHB","HYLB","USHY","SHYG","HYEM","BSJN","BSJO","BSJP","EMB","VWOB","PCY","LEMB","ELD","EBND","MUB","TFI","CMF","ITM","PZA","VTEB","MUNI","SUB","HYD","SHYD","TIP","SCHP","STIP","VTIP","RINF","WIP","BWX","BNDX","IGOV","ISHG","PICB","BIL","GBIL","SGOV","CLTL","VGSH","SCHO","FTSM","LQDH","HYGH","IGBH","TOTB","BNDW","PFFD","FPE","IPFF","PFF","PRFD","MINT","NEAR","ICSH","GSY","JPST","PULS","FLRN"]);
+
+const INTL_EM_ETFS = new Set(["EEM","EFA","VEA","VWO","IEMG","ACWI","ACWX","VXUS","VT","FXI","ASHR","MCHI","KWEB","CQQQ","CHIQ","HAO","GXC","KURE","PGJ","EWJ","DBJP","HEWJ","DXJ","EWZ","EWW","EWC","EWY","EWG","EWH","EWT","EWS","EWU","EWA","EWI","EWP","EWQ","EWD","EWN","EWK","EWL","EWO","EIS","INDA","INDY","PIN","EPI","SMIN","VGK","IEV","FEZ","HEDJ","EZU","EURL","RSX","ERUS","RUSL","RUSS","ENZL","EWM","ECH","EPHE","EIDO","TUR","EPOL","ARGT","EZA","AFK","FM","GAF","EMXC","XSOE","DFAE","DFEM","AVEM","GEM","GMF","SPEM","HEFA","DBEF","DEEF","HEEM"]);
+
+const COMMODITY_ETFS = new Set(["GLD","IAU","GLDM","BAR","SGOL","PHYS","AAAU","BGLD","SLV","SIVR","PSLV","DSLV","USLV","USO","UCO","SCO","DBO","OIL","OILU","OILD","UNG","BOIL","KOLD","GAZ","FCG","PDBC","DJP","USCI","COMB","COM","GSG","DBC","RJI","MLPA","DBA","WEAT","CORN","SOYB","CANE","NIB","JO","BAL","COW","TAGS","CPER","COPX","CULL","PALL","PPLT","GLTR","WOOD","NLR","URA","URNM","HURA","LNG","MLPX","AMLP","AMJ","AMJB","ENFR","TPVG","MLPQ"]);
+
+const LARGE_CAP_KNOWN = new Set(["AAPL","MSFT","NVDA","AMZN","GOOGL","GOOG","META","TSLA","AVGO","LLY","UNH","JPM","V","XOM","MA","PG","COST","HD","JNJ","MRK","CVX","ABBV","PEP","KO","BAC","WFC","NFLX","ORCL","CRM","AMD","INTC","MU","QCOM","NOW","ADBE","ACN","TXN","IBM","GS","MS","BLK","AMGN","GILD","REGN","VRTX","TMO","DHR","ABT","MDT","SYK","BMY","PFE","CI","ISRG","ELV","CVS","UNP","HON","RTX","LMT","NOC","BA","CAT","DE","GE","ETN","EMR","WM","RSG","ADP","PAYX","T","VZ","CMCSA","DIS","SBUX","MCD","BKNG","MAR","HLT","NKE","TGT","WMT","PYPL","UBER","ABNB","PLTR","DDOG","NET","CRWD","ZS","PANW","FTNT","SNOW","TEAM","WDAY","VEEV","TWLO","MDB","OKTA","DOCU","ZM","COIN","MSTR","HOOD","SOFI","NU","AFRM","SQ","SHOP","SPOT","PINS","SNAP","ROKU","TTD","RBLX","LYFT","DASH","RIVN","LCID","F","GM","STLA","NIO","LI","XPEV","ENPH","PLUG","NEE","FSLR","OXY","MPC","VLO","PSX","HES","DVN","COP","MRO","SLB","HAL","BKR","FCX","NEM","GOLD","WPM","UPS","FDX","DAL","UAL","AAL","LUV","CCL","NCLH","RCL","BX","KKR","APO","ARES","CME","ICE","CBOE","SPGI","MCO","USB","PNC","TFC","COF","DFS","SYF","AXP","SCHW","ALB","MP","TMUS","AMT","CCI","PSA","IRM","PLD","O","SPG","AWK","NEE","PCG","BRK.B","BRK.A","MKL","CAVA","CMG","TSCO","CHWY"]);
+
+const CAT_ORDER = ["Indexes","Large Cap","Mid Cap","Small Cap","Sector ETFs","Bond ETFs","Intl/EM ETFs","Commodity ETFs"];
+const CAT_DESC = {
+  "Indexes":        "Major U.S. broad-market index ETFs and leveraged derivatives",
+  "Large Cap":      "S&P 500 and mega-cap individual equities",
+  "Mid Cap":        "S&P 400 mid-cap and Russell 1000 individual equities",
+  "Small Cap":      "Russell 2000 and smaller individual equities",
+  "Sector ETFs":    "Sector, thematic, and factor-based domestic ETFs",
+  "Bond ETFs":      "Fixed income ETFs across duration and credit spectrum",
+  "Intl/EM ETFs":   "International developed and emerging market ETFs",
+  "Commodity ETFs": "Commodity ETFs including gold, oil, and natural resources",
 };
 
-export default App;
+function classifyTicker(tk, totalNotional, numDates){
+  const t = tk.toUpperCase();
+  if(INDEXES.has(t)) return "Indexes";
+  if(SECTOR_ETFS.has(t)) return "Sector ETFs";
+  if(BOND_ETFS.has(t)) return "Bond ETFs";
+  if(INTL_EM_ETFS.has(t)) return "Intl/EM ETFs";
+  if(COMMODITY_ETFS.has(t)) return "Commodity ETFs";
+  const avgDaily = totalNotional / Math.max(numDates, 1);
+  if(LARGE_CAP_KNOWN.has(t) || avgDaily >= 50_000_000) return "Large Cap";
+  if(avgDaily >= 5_000_000) return "Mid Cap";
+  return "Small Cap";
+}
+
+function weightedPercentile(prices, weights, pct){
+  if(!prices.length) return null;
+  const combined = prices.map((p,i)=>({p, w:weights[i]})).sort((a,b)=>a.p-b.p);
+  const totalW = combined.reduce((s,x)=>s+x.w, 0);
+  const target = (pct/100)*totalW;
+  let cumsum = 0;
+  for(const {p,w} of combined){
+    cumsum += w;
+    if(cumsum >= target) return Math.round(p*100)/100;
+  }
+  return Math.round(combined[combined.length-1].p*100)/100;
+}
+
+function fmtDateKey(d){ return d.toISOString().slice(0,10); }
+function fmtLabel(d){ return d.toLocaleDateString("en-US",{month:"short",day:"numeric"}); }
+function fmtShort(d){ return (d.getMonth()+1).toString().padStart(2,"0")+"/"+(d.getDate()).toString().padStart(2,"0"); }
+function fmtN(n){ return n>=1e9?"$"+(n/1e9).toFixed(1)+"B":n>=1e6?"$"+(n/1e6).toFixed(0)+"M":"$"+(n/1e3).toFixed(0)+"K"; }
+
+function parseCSVtoD(rows){
+  // Parse & sort by date/time
+  const parseDate = s => { const [m,d,y]=s.split("/"); return new Date(+y,+m-1,+d); };
+
+  // Collect unique trading dates
+  const seenDates = new Set();
+  const allDatesMap = {};
+  for(const r of rows){
+    if(!r.Date) continue;
+    try{ const d=parseDate(r.Date); const k=fmtDateKey(d); if(!seenDates.has(k)){seenDates.add(k);allDatesMap[k]=d;} }catch(e){}
+  }
+  const allDates = Object.keys(allDatesMap).sort().map(k=>allDatesMap[k]);
+  const numDates = allDates.length;
+  const dateIndex = {};
+  allDates.forEach((d,i)=>{ dateIndex[fmtDateKey(d)]=i; });
+
+  // Categorise rows
+  const tradeRows=[], phantomRows=[], cancelledRows=[], optionsList=[], alphaList=[];
+  const uoaTickers = new Set();
+
+  for(const r of rows){
+    const type = (r.Type||"").trim();
+    const msg  = (r.Message||"").trim();
+    const tk   = (r.Ticker||"").trim();
+    if(!tk) continue;
+
+    if(type==="AlphaGold"){
+      try{ alphaList.push({ticker:tk, price:parseFloat(r.Price)||0, date:fmtShort(parseDate(r.Date))}); }catch(e){}
+      continue;
+    }
+    if(type==="Options"){
+      try{ optionsList.push({ticker:tk, price:parseFloat(r.Price)||0, message:msg, date:fmtShort(parseDate(r.Date))}); }catch(e){}
+      continue;
+    }
+    if(type==="DarkPool"){ uoaTickers.add(tk); continue; }
+    if(type!=="Block") continue;
+
+    if(msg.startsWith("Cancelled")){
+      try{ cancelledRows.push({ticker:tk, price:parseFloat(r.Price)||0, notional:parseFloat(r.Notional)||0, message:msg, date:fmtShort(parseDate(r.Date))}); }catch(e){}
+      continue;
+    }
+    if(msg.startsWith("Phantom Print")){
+      const spotM=msg.match(/Spot:\s*\$([0-9.]+)/);
+      const volM=msg.match(/Volume:\s*(\d+)/);
+      try{ phantomRows.push({ticker:tk, date:fmtShort(parseDate(r.Date)), dpPrice:parseFloat(r.Price)||0, spotPrice:spotM?parseFloat(spotM[1]):0, volume:volM?volM[1]:"0"}); }catch(e){}
+      continue;
+    }
+
+    // Regular block trade
+    try{
+      const price=parseFloat(r.Price);
+      const notional=parseFloat(r.Notional);
+      if(!price||!notional||price<=0||notional<=0) continue;
+      const d=parseDate(r.Date);
+      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg});
+    }catch(e){}
+  }
+
+  // Aggregate per ticker
+  const tickerTrades={};  // tk → [{price,notional,dateKey}]
+  const tickerDaily={};   // tk → {dateKey → {notional,volNotional,count}}
+
+  for(const tr of tradeRows){
+    const {ticker:tk,dateKey:dk,price:p,notional:n}=tr;
+    if(!tickerTrades[tk]) tickerTrades[tk]=[];
+    tickerTrades[tk].push({p,n,dk});
+    if(!tickerDaily[tk]) tickerDaily[tk]={};
+    if(!tickerDaily[tk][dk]) tickerDaily[tk][dk]={notional:0,volNotional:0,count:0};
+    tickerDaily[tk][dk].notional+=n;
+    tickerDaily[tk][dk].volNotional+=p*n;
+    tickerDaily[tk][dk].count+=1;
+  }
+
+  // Build items
+  const itemsAll=[];
+  for(const [tk,trades] of Object.entries(tickerTrades)){
+    const allPrices=trades.map(t=>t.p);
+    const allWeights=trades.map(t=>t.n);
+    const totalN=allWeights.reduce((s,w)=>s+w,0);
+    const vwap=Math.round((allPrices.reduce((s,p,i)=>s+p*allWeights[i],0)/totalN)*100)/100;
+
+    let lo=weightedPercentile(allPrices,allWeights,25);
+    let hi=weightedPercentile(allPrices,allWeights,75);
+    if(lo===hi){ lo=Math.round(lo*0.995*100)/100; hi=Math.round(hi*1.005*100)/100; }
+
+    const activeDays=tickerDaily[tk];
+    const days=Object.keys(activeDays).length;
+    const lastDayKey=Object.keys(activeDays).sort().at(-1);
+    const ld=activeDays[lastDayKey];
+    const last=ld.notional>0?Math.round(ld.volNotional/ld.notional*100)/100:vwap;
+
+    let pos,pct;
+    if(last>hi){ pos="above"; pct=Math.round((last-hi)/hi*100*100)/100; }
+    else if(last<lo){ pos="below"; pct=Math.round((last-lo)/lo*100*100)/100; }
+    else{ pos="inside"; const mid=(lo+hi)/2; pct=Math.round((last-mid)/mid*100*100)/100; }
+
+    const maxDailyN=Math.max(...Object.values(activeDays).map(v=>v.notional),1);
+    const pricesArr=[],wArr=[];
+    for(const d of allDates){
+      const dk=fmtDateKey(d);
+      if(activeDays[dk]){
+        const dd=activeDays[dk];
+        pricesArr.push(Math.round(dd.volNotional/dd.notional*100)/100);
+        wArr.push(Math.round(dd.notional/maxDailyN*1000)/1000);
+      } else { pricesArr.push(null); wArr.push(null); }
+    }
+
+    const top5=[...trades].sort((a,b)=>b.n-a.n).slice(0,5).map(({p,n,dk})=>{
+      try{ const d=new Date(dk+"T00:00:00"); return fmtShort(d)+" @ $"+p.toFixed(2)+"  "+fmtN(n); }catch(e){ return ""; }
+    });
+
+    const cat=classifyTicker(tk,totalN,numDates);
+    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5});
+  }
+
+  // Categories
+  const catMap={};
+  for(const item of itemsAll){
+    if(!catMap[item.cat]) catMap[item.cat]=[];
+    catMap[item.cat].push(item);
+  }
+  const categories=CAT_ORDER.map(cat=>{
+    const items=(catMap[cat]||[]).sort((a,b)=>b.n-a.n);
+    return {name:cat,desc:CAT_DESC[cat],totalNotional:items.reduce((s,i)=>s+i.n,0),count:items.length,items};
+  });
+
+  // Above/Below/Unusual
+  const above=itemsAll.filter(i=>i.pos==="above").sort((a,b)=>b.pct-a.pct).slice(0,40);
+  const below=itemsAll.filter(i=>i.pos==="below").sort((a,b)=>a.pct-b.pct).slice(0,40);
+  const unusual=itemsAll.filter(i=>i.u).sort((a,b)=>b.n-a.n).slice(0,30);
+
+  // Phantom dedup
+  const seenPh=new Set();
+  const phantomDeduped=[];
+  for(const ph of phantomRows){
+    const key=ph.ticker+"|"+ph.date+"|"+ph.dpPrice;
+    if(!seenPh.has(key)){ seenPh.add(key); phantomDeduped.push(ph); }
+  }
+  phantomDeduped.sort((a,b)=>Math.abs(b.spotPrice-b.dpPrice)/Math.max(b.dpPrice,0.01)-Math.abs(a.spotPrice-a.dpPrice)/Math.max(a.dpPrice,0.01));
+  const phantom=phantomDeduped.slice(0,15);
+
+  // Options dedup (most recent first)
+  const seenOpts=new Set();
+  const optsDeduped=[];
+  for(const o of [...optionsList].reverse()){
+    const key=o.ticker+"|"+o.message;
+    if(!seenOpts.has(key)){ seenOpts.add(key); optsDeduped.push(o); }
+  }
+  const options=optsDeduped.slice(0,25);
+
+  // Alpha dedup
+  const seenAlpha=new Set();
+  const alphaDeduped=[];
+  for(const a of [...alphaList].reverse()){
+    if(!seenAlpha.has(a.ticker)){ seenAlpha.add(a.ticker); alphaDeduped.push(a); }
+  }
+  const alpha=alphaDeduped.slice(0,10);
+
+  // Cancelled dedup
+  const cancelledSorted=[...cancelledRows].sort((a,b)=>b.notional-a.notional);
+  const seenCan=new Set();
+  const cancelledDeduped=[];
+  for(const c of cancelledSorted){
+    const key=c.ticker+"|"+c.date+"|"+c.notional;
+    if(!seenCan.has(key)){ seenCan.add(key); cancelledDeduped.push(c); }
+  }
+  const cancelled=cancelledDeduped.slice(0,15);
+
+  // Meta
+  const totalNotional=tradeRows.reduce((s,r)=>s+r.notional,0);
+  const dateRange=allDates.length>=2?fmtLabel(allDates[0])+" – "+fmtLabel(allDates.at(-1))+", "+allDates.at(-1).getFullYear():"";
+
+  return {
+    dates:allDates.map(fmtDateKey),
+    dateLabels:allDates.map(fmtLabel),
+    meta:{
+      generatedAt:new Date().toLocaleString(),
+      dateRange,
+      tradingDays:numDates,
+      totalTrades:tradeRows.length,
+      totalTickers:Object.keys(tickerTrades).length,
+      totalNotional:Math.round(totalNotional),
+    },
+    categories, above, below, unusual, phantom, options, alpha, cancelled,
+  };
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+export default function App(){
+  const [dpData,setDpData]=useState(null);
+  const [loadErr,setLoadErr]=useState(null);
+  const [loadStatus,setLoadStatus]=useState("Loading CSV…");
+
+  useEffect(()=>{
+    setLoadStatus("Loading parser…");
+    // Dynamically load PapaParse from CDN
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js";
+    script.onload = () => {
+      setLoadStatus("Fetching Darkpool-data.csv…");
+      fetch("/Darkpool-data.csv")
+        .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.text(); })
+        .then(text=>{
+          setLoadStatus("Parsing CSV…");
+          const result = window.Papa.parse(text, {header:true, skipEmptyLines:true});
+          setLoadStatus("Processing "+result.data.length.toLocaleString()+" rows…");
+          setTimeout(()=>{
+            try{
+              const d = parseCSVtoD(result.data);
+              setDpData(d);
+            }catch(e){
+              setLoadErr("Processing error: "+e.message);
+            }
+          }, 50);
+        })
+        .catch(e=>setLoadErr(e.message));
+    };
+    script.onerror = () => setLoadErr("Failed to load CSV parser");
+    document.head.appendChild(script);
+    return () => { try{ document.head.removeChild(script); }catch(e){} };
+  },[]);
+
+  if(loadErr) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",
+      minHeight:"100vh",background:"#0b1120",color:"#ff5c72",fontFamily:"Outfit,sans-serif",
+      flexDirection:"column",gap:12}}>
+      <div style={{fontSize:20,fontWeight:700}}>⚠ Failed to load data</div>
+      <div style={{fontSize:13,color:"#7a8ba8"}}>Place Darkpool-data.csv in app/public and reload.</div>
+      <div style={{fontSize:11,color:"#4a5d7a"}}>Error: {loadErr}</div>
+    </div>
+  );
+
+  if(!dpData) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",
+      minHeight:"100vh",background:"#0b1120",color:"#4e9fff",fontFamily:"Outfit,sans-serif",
+      flexDirection:"column",gap:16}}>
+      <div style={{width:40,height:40,border:"3px solid #1b2a45",
+        borderTop:"3px solid #4e9fff",borderRadius:"50%",
+        animation:"spin 0.8s linear infinite"}}/>
+      <div style={{fontSize:14,color:"#7a8ba8"}}>{loadStatus}</div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  const D = dpData;
+  const [tab,setTab]=useState("overview");
+  const [catJump,setCatJump]=useState(null);
+
+  function handleJumpTo(name){
+    setCatJump(name);
+    setTab("category");
+  }
+
+  return (
+    <div style={{background:C.bg,minHeight:"100vh",color:C.tx,
+      fontFamily:"Outfit, system-ui, sans-serif",fontSize:13}}>
+      {/* Global font import */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700&display=swap');
+        ::-webkit-scrollbar{width:6px;height:6px}
+        ::-webkit-scrollbar-track{background:#0b1120}
+        ::-webkit-scrollbar-thumb{background:#243352;border-radius:3px}
+        input:focus{border-color:#4e9fff !important}
+      `}</style>
+
+      {/* Header */}
+      <div style={{background:C.bg2,borderBottom:`1px solid ${C.bdr}`,padding:"14px 20px"}}>
+        {/* Title row */}
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+          <span style={{width:10,height:10,borderRadius:"50%",background:C.green,
+            boxShadow:`0 0 6px ${C.green}`,display:"inline-block",flexShrink:0}}/>
+          <span style={{fontSize:22,fontWeight:800,color:C.tx,letterSpacing:"0.02em",
+            fontFamily:"Outfit, system-ui, sans-serif"}}>DARK POOL SCANNER</span>
+        </div>
+        {/* Subtitle */}
+        <div style={{fontSize:12,color:C.tx3,marginBottom:14,paddingLeft:18}}>
+          {D.meta?.dateRange??""} · {D.meta?.tradingDays??""} trading days · {(D.meta?.totalTrades??0).toLocaleString()} block trades · {(D.meta?.totalTickers??0).toLocaleString()} tickers ·{" "}
+          <span style={{color:C.cyan}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} total flow</span>
+        </div>
+        {/* Zone cards */}
+        <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+          {[
+            {label:`SPY ${D.meta?.tradingDays??30}-DAY ZONE`,item:D.categories[0]?.items[0]},
+            {label:`QQQ ${D.meta?.tradingDays??30}-DAY ZONE`,item:D.categories[0]?.items[1]},
+            {label:`IWM ${D.meta?.tradingDays??30}-DAY ZONE`,item:D.categories[0]?.items[4]},
+          ].filter(x=>x.item).map(({label,item})=>{
+            const c=zC(item.last,item.lo,item.hi);
+            return (
+              <div key={label} style={{background:C.bg4,border:`1px solid ${C.bdr}`,
+                borderRadius:8,padding:"10px 16px",minWidth:160}}>
+                <div style={{fontSize:10,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
+                  textTransform:"uppercase",marginBottom:4}}>{label}</div>
+                <div style={{fontSize:24,fontWeight:800,color:c,
+                  fontFamily:"JetBrains Mono, monospace",lineHeight:1}}>{fP(item.last)}</div>
+                <div style={{fontSize:11,color:C.tx3,marginTop:4,
+                  fontFamily:"JetBrains Mono, monospace"}}>
+                  Zone {fP(item.lo)} – {fP(item.hi)}
+                </div>
+              </div>
+            );
+          })}
+          {/* Period card */}
+          <div style={{background:C.bg4,border:`1px solid ${C.bdr}`,borderRadius:8,
+            padding:"10px 16px",minWidth:140}}>
+            <div style={{fontSize:10,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
+              textTransform:"uppercase",marginBottom:4}}>PERIOD</div>
+            <div style={{fontSize:24,fontWeight:800,color:C.amber,
+              fontFamily:"JetBrains Mono, monospace",lineHeight:1}}>{D.meta?.tradingDays??""} <span style={{fontSize:14}}>days</span></div>
+            <div style={{fontSize:11,color:C.tx3,marginTop:4,
+              fontFamily:"JetBrains Mono, monospace"}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div style={{background:C.bg3,borderBottom:`1px solid ${C.bdr}`,
+        padding:"0 20px",display:"flex",overflowX:"auto",gap:2}}>
+        {TABS.map(t=>{
+          const on=t.id===tab;
+          return (
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              style={{padding:"10px 14px",background:"transparent",border:"none",
+                borderBottom:on?`2px solid ${C.blue}`:"2px solid transparent",
+                color:on?C.blue:C.tx2,fontWeight:on?700:400,fontSize:12,
+                cursor:"pointer",whiteSpace:"nowrap",transition:"color 0.15s",
+                fontFamily:"Outfit, system-ui, sans-serif"}}>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Content */}
+      <div style={{padding:"18px 20px",maxWidth:1400,margin:"0 auto"}}>
+        {tab==="overview" && <OverviewPane onJumpTo={handleJumpTo}/>}
+        {tab==="category" && <CategoryPaneWrapper jump={catJump} onJumpDone={()=>setCatJump(null)}/>}
+        {tab==="above"    && <AbovePane/>}
+        {tab==="below"    && <BelowPane/>}
+        {tab==="unusual"  && <UnusualPane/>}
+        {tab==="phantom"  && <PhantomPane/>}
+        {tab==="options"  && <OptionsPane/>}
+        {tab==="signals"  && <SignalsPane/>}
+      </div>
+    </div>
+  );
+}
+
+// Wrapper to handle jump-to-category
+function CategoryPaneWrapper({jump,onJumpDone}){
+  const [active,setActive]=useState(jump||D.categories[0].name);
+  // If a new jump arrives, switch to it
+  useMemo(()=>{ if(jump){ setActive(jump); onJumpDone(); } },[jump]);
+  const cat=D.categories.find(c=>c.name===active)||D.categories[0];
+  const color=CAT_COLORS[active]||C.tx;
+  return (
+    <div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
+        {D.categories.map(c=>{
+          const cc=CAT_COLORS[c.name]||C.tx;
+          const isOn=c.name===active;
+          return (
+            <button key={c.name} onClick={()=>setActive(c.name)}
+              style={{padding:"5px 14px",borderRadius:20,border:`1px solid ${cc}${isOn?"":"33"}`,
+                background:isOn?cc+"22":"transparent",color:isOn?cc:C.tx2,
+                fontWeight:isOn?700:400,fontSize:12,cursor:"pointer",transition:"all 0.15s"}}>
+              {c.name}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:14,fontWeight:700,color,marginBottom:4}}>{cat.name}</div>
+        <div style={{fontSize:12,color:C.tx2}}>{cat.desc}</div>
+        <div style={{fontSize:12,color:C.tx3,marginTop:2}}>
+          Total: <span style={{color:C.cyan,fontWeight:700}}>{fmt(cat.totalNotional)}</span>
+          {" · "}{cat.count} tickers
+        </div>
+      </div>
+      <FlowTable items={cat.items} showCat={false}/>
+    </div>
+  );
+}
