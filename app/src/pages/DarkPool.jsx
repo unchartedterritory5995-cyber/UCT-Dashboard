@@ -188,10 +188,9 @@ function FlowTable({items, showCat=true}){
           <tr>
             <TH>Ticker</TH>
             {showCat && <TH>Category</TH>}
-            <TH>Zone</TH>
             <TH>Last</TH>
-            <TH>DP Zone</TH>
             <TH>Big Print</TH>
+            <TH>% Move</TH>
             <TH>Notional</TH>
             <TH>Trades</TH>
             <TH>Days</TH>
@@ -201,21 +200,16 @@ function FlowTable({items, showCat=true}){
         <tbody>
           {items.map(it=>{
             const cc=CAT_COLORS[it.cat]||C.tx;
-            const bpAbove = it.bigPrint!=null && it.last > it.bigPrint;
-            const bpBelow = it.bigPrint!=null && it.last < it.bigPrint;
-            const bpPct   = it.bigPrint>0 ? ((it.last-it.bigPrint)/it.bigPrint*100) : null;
+            const bpPct = it.bigPrint>0 ? ((it.last-it.bigPrint)/it.bigPrint*100) : null;
+            const bpMoveColor = bpPct==null ? C.tx3 : bpPct>0 ? C.green : bpPct<0 ? C.red : C.tx3;
             return (
               <tr key={it.t+it.cat} style={{background:"transparent"}}
                 onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
                 onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                 <TD><TickerCell it={it} catColor={cc}/></TD>
                 {showCat && <TD><CatPill cat={it.cat}/></TD>}
-                <TD><ZoneCell it={it}/></TD>
                 <TD style={{fontFamily:"JetBrains Mono, monospace",color:zC(it.last,it.lo,it.hi)}}>
                   {fP(it.last)}
-                </TD>
-                <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2,fontSize:11}}>
-                  {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
                 </TD>
                 <TD style={{fontFamily:"JetBrains Mono, monospace",fontSize:11}}>
                   {(()=>{
@@ -228,14 +222,9 @@ function FlowTable({items, showCat=true}){
                     return (
                       <div style={{position:"relative",display:"inline-block"}}
                         onMouseEnter={()=>setBpHover(true)} onMouseLeave={()=>setBpHover(false)}>
-                        <div style={{display:"flex",flexDirection:"column",gap:1,cursor:"default"}}>
-                          <span style={{color:C.amber,fontWeight:700}}>{fP(it.bigPrint)}</span>
-                          {bpPct!=null && (
-                            <span style={{fontSize:10,color:bpAbove?C.green:bpBelow?C.red:C.tx3,fontWeight:600}}>
-                              {bpAbove?"+":""}{bpPct.toFixed(2)}%
-                            </span>
-                          )}
-                        </div>
+                        <span style={{color:C.amber,fontWeight:700,cursor:"default"}}>
+                          {fP(it.bigPrint)}
+                        </span>
                         {bpHover && tip && (
                           <div style={{position:"absolute",left:0,top:"100%",zIndex:50,
                             background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
@@ -248,6 +237,10 @@ function FlowTable({items, showCat=true}){
                       </div>
                     );
                   })()}
+                </TD>
+                <TD style={{fontFamily:"JetBrains Mono, monospace",fontWeight:700,
+                  color:bpMoveColor}}>
+                  {bpPct==null ? "—" : (bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
                 </TD>
                 <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.cyan,fontWeight:600}}>
                   {fmt(it.n)}
