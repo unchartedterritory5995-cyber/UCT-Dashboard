@@ -749,6 +749,7 @@ export default function OptionsFlowDashboard() {
   const [csvText, setCsvText] = useState(null);
   const [csvLoading, setCsvLoading] = useState(true);
   const [csvError, setCsvError] = useState(null);
+  const [D, setD] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -763,7 +764,6 @@ export default function OptionsFlowDashboard() {
       })
       .then(text => {
         if (cancelled) return;
-        // Validate it's actually CSV, not HTML
         const trimmed = text.trim();
         if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
           throw new Error("Got HTML instead of CSV — flow-data.csv not found on server.");
@@ -771,28 +771,31 @@ export default function OptionsFlowDashboard() {
         if (!trimmed.includes(",") || trimmed.length < 100) {
           throw new Error("File appears empty or invalid (no CSV data found).");
         }
-        setCsvText(text);
-        setCsvLoading(false);
+        // Parse and process
+        const rows = parseCSV(text);
+        if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
+        const data = processFlowData(rows);
+        if (!cancelled) { setD(data); setCsvLoading(false); }
       })
       .catch(err => { if (!cancelled) { setCsvError(err.message); setCsvLoading(false); } });
     return () => { cancelled = true; };
   }, []);
 
-  const D = useMemo(() => {
-    if (!csvText) return null;
-    try {
-      const rows = parseCSV(csvText);
-      if (!rows || rows.length === 0) { setCsvError("CSV parsed but contained 0 valid rows. Check file format."); return null; }
-      const data = processFlowData(rows);
-      return data;
-    } catch (e) {
-      setCsvError("Error processing flow data: " + e.message);
-      return null;
-    }
-  }, [csvText]);
 
+  // Cap-filtered view: recompute charts using only the selected cap band's clean_confirmed
+  const FD = useMemo(() => {
+    if (!D) return null;
+    if (capFilter === "All") return D;
+    const cc = filterByCap(D.clean_confirmed, capFilter);
+    const charts = buildCharts(cc);
+    return { ...D, ...charts };
+  }, [D, capFilter]);
 
-  // ─── Loading / Error States ────────────────────────────────────────────
+  useEffect(() => {
+    if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
+  }, [D]);
+
+  // ─── Loading / Error / Empty States (AFTER all hooks) ──────────────────
   if (csvLoading) return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
@@ -813,20 +816,6 @@ export default function OptionsFlowDashboard() {
       </div>
     </div>
   );
-
-  // Cap-filtered view: recompute charts using only the selected cap band's clean_confirmed
-  const FD = useMemo(() => {
-    if (!D) return null;
-    if (capFilter === "All") return D;
-    const cc = filterByCap(D.clean_confirmed, capFilter);
-    const charts = buildCharts(cc);
-    return { ...D, ...charts };
-  }, [D, capFilter]);
-
-  useEffect(() => {
-    if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
-  }, [D]);
-
   if (!D || !FD) return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
