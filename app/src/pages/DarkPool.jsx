@@ -176,6 +176,8 @@ function BigPrintCell({it}){
       onMouseEnter={handleEnter} onMouseLeave={()=>setHover(false)}>
       <span style={{color:C.amber,fontWeight:700,cursor:"default"}}>
         {fP(it.bigPrint)}
+        {tip && <span style={{fontSize:9,color:C.amber,opacity:0.5,marginLeft:3,
+          verticalAlign:"middle",fontWeight:400}}>ⓘ</span>}
       </span>
       {hover && tip && (
         <div style={{position:"fixed",top:pos.top,left:pos.left,zIndex:9999,
@@ -326,6 +328,8 @@ function OverviewPane(){
             <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.amber,
               fontWeight:700,minWidth:68,display:"inline-block",textAlign:"right",cursor:"default"}}>
               {fP(item.bigPrint)}
+              {tip && <span style={{fontSize:9,color:C.amber,opacity:0.5,marginLeft:3,
+                verticalAlign:"middle",fontWeight:400}}>ⓘ</span>}
             </span>
             {bpHover && tip && (
               <div style={{position:"absolute",right:0,top:"100%",zIndex:50,
