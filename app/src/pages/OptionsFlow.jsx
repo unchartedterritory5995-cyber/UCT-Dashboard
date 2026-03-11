@@ -42,12 +42,25 @@ function gradeCluster(c) {
 const GRADE_COLORS = { "A+":"#ffd600", "A":"#ffab00", "B+":"#00e676", "B":"#00b0ff", "C":"#78909c", "D":"#4a5c73" };
 
 // ─── UI Components ─────────────────────────────────────────────────────────────
+const TIPS = {
+  "AA": "Above Ask — Bought aggressively above the ask price. Maximum urgency.",
+  "BB": "Below Bid — Sold below the bid. If Sweep: urgent directional. If Block: repositioning/institutional.",
+  "A": "At Ask — Bought at the asking price. Directional but not desperate.",
+  "BID": "At Bid — Sold at the bid. Could be closing or hedging, ambiguous.",
+  "SWP": "Sweep — Order split across multiple exchanges for fast fill. Shows urgency.",
+  "BLK": "Block — Single large fill at one exchange. Needs Sweep confirmation to be strong.",
+  "YELLOW": "OI Exceeded — Volume exceeded open interest in a single trade. Notable activity.",
+  "MAGENTA": "OI Exceeded (Multiple) — Volume exceeded OI across multiple trades. Strongest signal.",
+  "WHITE": "Standard — Volume did not exceed open interest. Check next-day OI to confirm.",
+};
 function Tag({ c, children }) {
+  const tip = TIPS[children] || null;
   return (
-    <span style={{
+    <span title={tip} style={{
       display:"inline-block", padding:"2px 7px", borderRadius:3,
       fontSize:9, fontWeight:700, letterSpacing:0.4, whiteSpace:"nowrap",
-      color:c, backgroundColor:c+"15", border:"1px solid "+c+"30"
+      color:c, backgroundColor:c+"15", border:"1px solid "+c+"30",
+      cursor: tip ? "help" : "default"
     }}>{children}</span>
   );
 }
@@ -883,28 +896,53 @@ export default function OptionsFlowDashboard() {
             {D.dateRange} · {D.confirmedCount} confirmed of {D.totalTrades} trades
           </span>
         </div>
-        <p style={{ fontSize:10, color:P.mt, margin:"0 0 12px 16px" }}>
-          {fmt(D.totalPremium)} total premium · YELLOW/MAG = confirmed OI · ML/ excluded · Arb filtered · Mega $100K+
-        </p>
 
         {/* Short/Long Banners */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
-          <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:20, borderLeft:"4px solid "+shortC }}>
-            <div style={{ fontSize:11, color:shortC, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Short-Term Outlook</div>
-            <div style={{ fontSize:36, fontWeight:900, color:shortC, marginBottom:8 }}>{shortDir}</div>
-            <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>
-              0–14 DTE: Bull {fmt(FD.shortBullTotal)} vs Bear {fmt(FD.shortBearTotal)}.{" "}
-              {FD.CONV.filter(c=>c.dir==="BULL").slice(0,1).map(c=>c.sym+" "+c.strike+" hit "+c.hits+"x ("+c.grade+").")}
-            </div>
-          </div>
-          <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:20, borderLeft:"4px solid "+longC }}>
-            <div style={{ fontSize:11, color:longC, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Long-Term Outlook</div>
-            <div style={{ fontSize:36, fontWeight:900, color:longC, marginBottom:8 }}>{longDir}</div>
-            <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>
-              15+ DTE: Bull {fmt(FD.longBullTotal)} vs Bear {fmt(FD.longBearTotal)}.{" "}
-              {FD.CONV.filter(c=>c.dir==="BEAR").slice(0,1).map(c=>c.sym+" "+c.strike+" hit "+c.hits+"x ("+c.grade+").")}
-            </div>
-          </div>
+          {(() => {
+            const shortTop3 = (shortDir==="BULL" ? FD.SBLC : FD.SBRC).slice(0,3);
+            return (
+              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:20, borderLeft:"4px solid "+shortC, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontSize:11, color:shortC, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Short-Term Outlook</div>
+                  <div style={{ fontSize:36, fontWeight:900, color:shortC, marginBottom:4 }}>{shortDir}</div>
+                  <div style={{ fontSize:11, color:P.dm }}>0–14 DTE: Bull {fmt(FD.shortBullTotal)} vs Bear {fmt(FD.shortBearTotal)}</div>
+                </div>
+                {shortTop3.length > 0 && (
+                  <div style={{ textAlign:"right", minWidth:120 }}>
+                    {shortTop3.map((c,i) => (
+                      <div key={i} style={{ fontSize:11, color:i===0?P.wh:P.dm, fontWeight:i===0?700:400, lineHeight:1.8 }}>
+                        <span style={{ color:shortC, fontWeight:700 }}>{c.S}</span>{" "}
+                        <span style={{ color:P.dm }}>${c.K}{c.CP} {c.E}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          {(() => {
+            const longTop3 = (longDir==="BULL" ? FD.LBLC : FD.LBRC).slice(0,3);
+            return (
+              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:20, borderLeft:"4px solid "+longC, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontSize:11, color:longC, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Long-Term Outlook</div>
+                  <div style={{ fontSize:36, fontWeight:900, color:longC, marginBottom:4 }}>{longDir}</div>
+                  <div style={{ fontSize:11, color:P.dm }}>15+ DTE: Bull {fmt(FD.longBullTotal)} vs Bear {fmt(FD.longBearTotal)}</div>
+                </div>
+                {longTop3.length > 0 && (
+                  <div style={{ textAlign:"right", minWidth:120 }}>
+                    {longTop3.map((c,i) => (
+                      <div key={i} style={{ fontSize:11, color:i===0?P.wh:P.dm, fontWeight:i===0?700:400, lineHeight:1.8 }}>
+                        <span style={{ color:longC, fontWeight:700 }}>{c.S}</span>{" "}
+                        <span style={{ color:P.dm }}>${c.K}{c.CP} {c.E}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Conviction Strikes */}
