@@ -151,6 +151,34 @@ function ZoneCell({it}){
   );
 }
 
+
+// ── Big Print cell (proper component to avoid hook-in-IIFE error) ─────────────
+function BigPrintCell({it}){
+  const [hover,setHover]=useState(false);
+  const tip = it.bigPrintN ? [
+    it.bigPrintDate,
+    fmt(it.bigPrintN),
+    it.bigPrintPctAvgVol>0 ? it.bigPrintPctAvgVol.toFixed(1)+"% of avg vol" : it.avg30>0 ? ((it.bigPrintN/it.avg30)*100).toFixed(1)+"% of avg vol" : null
+  ].filter(Boolean).join(" · ") : null;
+  return (
+    <div style={{position:"relative",display:"inline-block"}}
+      onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}>
+      <span style={{color:C.amber,fontWeight:700,cursor:"default"}}>
+        {fP(it.bigPrint)}
+      </span>
+      {hover && tip && (
+        <div style={{position:"absolute",left:0,top:"100%",zIndex:50,
+          background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
+          padding:"7px 11px",whiteSpace:"nowrap",boxShadow:"0 4px 20px #00000066",
+          marginTop:4,color:C.tx,fontSize:13,fontFamily:"JetBrains Mono, monospace",
+          fontWeight:500,letterSpacing:"0.01em"}}>
+          {tip}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Category pill ─────────────────────────────────────────────────────────────
 function CatPill({cat}){
   const color=CAT_COLORS[cat]||C.tx2;
@@ -161,6 +189,8 @@ function CatPill({cat}){
     </span>
   );
 }
+
+// ── Big Print cell (proper component so hooks are legal) ─────────────────────
 
 // ── Flow table ────────────────────────────────────────────────────────────────
 const TH = ({children,style={}}) => (
@@ -212,31 +242,7 @@ function FlowTable({items, showCat=true}){
                   {fP(it.last)}
                 </TD>
                 <TD style={{fontFamily:"JetBrains Mono, monospace",fontSize:11}}>
-                  {(()=>{
-                    const [bpHover,setBpHover]=useState(false);
-                    const tip = it.bigPrintN ? [
-                      it.bigPrintDate,
-                      fmt(it.bigPrintN),
-                      it.bigPrintPctAvgVol>0 ? it.bigPrintPctAvgVol.toFixed(1)+"% of avg vol" : it.avg30>0 ? ((it.bigPrintN/it.avg30)*100).toFixed(1)+"% of avg vol" : null
-                    ].filter(Boolean).join(" · ") : null;
-                    return (
-                      <div style={{position:"relative",display:"inline-block"}}
-                        onMouseEnter={()=>setBpHover(true)} onMouseLeave={()=>setBpHover(false)}>
-                        <span style={{color:C.amber,fontWeight:700,cursor:"default"}}>
-                          {fP(it.bigPrint)}
-                        </span>
-                        {bpHover && tip && (
-                          <div style={{position:"absolute",left:0,top:"100%",zIndex:50,
-                            background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
-                            padding:"7px 11px",whiteSpace:"nowrap",boxShadow:"0 4px 20px #00000066",
-                            marginTop:4,color:C.tx,fontSize:13,fontFamily:"JetBrains Mono, monospace",
-                            fontWeight:500,letterSpacing:"0.01em"}}>
-                            {tip}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
+                  <BigPrintCell it={it}/>
                 </TD>
                 <TD style={{fontFamily:"JetBrains Mono, monospace",fontWeight:700,
                   color:bpMoveColor}}>
@@ -571,7 +577,8 @@ function OptionsPane(){
 }
 
 // ── Signals + Search tab ─────────────────────────────────────────────────────
-function SignalsPane(){
+// ── Search Modal ──────────────────────────────────────────────────────────────
+function SearchModal({onClose}){
   const [query,setQuery]=useState("");
   const allItems = useMemo(()=>{
     const map={};
@@ -587,75 +594,53 @@ function SignalsPane(){
     return allItems.filter(it=>it.t.includes(q)).slice(0,30);
   },[query,allItems]);
 
+  // Close on Escape
+  useEffect(()=>{
+    const handler=e=>{ if(e.key==="Escape") onClose(); };
+    window.addEventListener("keydown",handler);
+    return ()=>window.removeEventListener("keydown",handler);
+  },[onClose]);
+
   return (
-    <div>
-      {/* Alpha signals */}
-      <div style={{marginBottom:20}}>
-        <div style={{fontSize:15,fontWeight:700,color:C.cyan,marginBottom:10}}>
-          Alpha Signals <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.alpha.length})</span>
+    <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"flex-start",
+      justifyContent:"center",paddingTop:80}}
+      onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+      {/* Backdrop */}
+      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)"}}/>
+      {/* Modal */}
+      <div style={{position:"relative",width:"90%",maxWidth:900,background:C.bg2,
+        border:`1px solid ${C.bdr2}`,borderRadius:10,boxShadow:"0 8px 40px #000000aa",
+        padding:"24px 28px",maxHeight:"80vh",overflowY:"auto"}}>
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+          <span style={{fontSize:16,fontWeight:700,color:C.tx}}>Ticker Search</span>
+          <button onClick={onClose} style={{background:"none",border:"none",color:C.tx2,
+            fontSize:20,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>&times;</button>
         </div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:16}}>
-          {D.alpha.map((a,i)=>(
-            <div key={i} style={{background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
-              padding:"8px 12px",display:"flex",gap:10,alignItems:"center"}}>
-              <span style={{color:C.cyan,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
-                ${a.ticker}</span>
-              <span style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2,fontSize:11}}>
-                {fP(a.price)}</span>
-              <span style={{color:C.tx3,fontSize:11}}>{a.date}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Cancelled */}
-        <div style={{fontSize:14,fontWeight:700,color:C.red,marginBottom:8}}>
-          Cancelled Blocks <span style={{fontSize:12,fontWeight:400,color:C.tx2}}>({D.cancelled.length})</span>
-        </div>
-        <div style={{overflowX:"auto",marginBottom:20}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-            <thead>
-              <tr>
-                <TH>Date</TH><TH>Ticker</TH><TH>Price</TH><TH>Notional</TH><TH>Note</TH>
-              </tr>
-            </thead>
-            <tbody>
-              {D.cancelled.map((c,i)=>(
-                <tr key={i} style={{background:"transparent"}}
-                  onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <TD style={{color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>{c.date}</TD>
-                  <TD><span style={{color:C.red,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
-                    ${c.ticker}</span></TD>
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2}}>{fP(c.price)}</TD>
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.amber,fontWeight:600}}>
-                    {fmt(c.notional)}</TD>
-                  <TD style={{color:C.tx2,fontSize:11}}>{c.message}</TD>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div>
-        <div style={{fontSize:15,fontWeight:700,color:C.tx,marginBottom:10}}>🔍 Ticker Search</div>
+        {/* Input */}
         <input
+          autoFocus
           value={query}
           onChange={e=>setQuery(e.target.value)}
           placeholder="Search any ticker (e.g. NVDA, SPY...)"
-          style={{width:"100%",maxWidth:360,padding:"8px 14px",borderRadius:6,
-            border:`1px solid ${C.bdr2}`,background:C.bg2,color:C.tx,fontSize:13,
-            fontFamily:"JetBrains Mono, monospace",outline:"none",boxSizing:"border-box"}}
+          style={{width:"100%",padding:"10px 16px",borderRadius:6,
+            border:`1px solid ${C.bdr2}`,background:C.bg3,color:C.tx,fontSize:14,
+            fontFamily:"JetBrains Mono, monospace",outline:"none",
+            boxSizing:"border-box",marginBottom:16}}
         />
         {query.length>0 && (
-          <div style={{marginTop:12,color:C.tx3,fontSize:11,marginBottom:8}}>
+          <div style={{color:C.tx3,fontSize:11,marginBottom:10}}>
             {results.length} result{results.length!==1?"s":""} for "{query.toUpperCase()}"
           </div>
         )}
         {results.length>0 && <FlowTable items={results}/>}
         {query.length>0 && results.length===0 && (
-          <div style={{color:C.tx3,fontSize:13,marginTop:12}}>No tickers found.</div>
+          <div style={{color:C.tx3,fontSize:13}}>No tickers found.</div>
+        )}
+        {query.length===0 && (
+          <div style={{color:C.tx3,fontSize:12,textAlign:"center",padding:"20px 0"}}>
+            Start typing to search all tickers in today's data.
+          </div>
         )}
       </div>
     </div>
@@ -671,7 +656,6 @@ const TABS=[
   {id:"unusual",label:"Unusual Flow"},
   {id:"phantom",label:"Phantom Prints"},
   {id:"options",label:"Options Flow"},
-  {id:"signals",label:"Signals 🔍"},
 ];
 
 // ── CSV Processing Engine ─────────────────────────────────────────────────────
@@ -971,6 +955,7 @@ export default function DarkPool(){
 
   const [tab,setTab]=useState("overview");
   const [catJump,setCatJump]=useState(null);
+  const [showSearch,setShowSearch]=useState(false);
 
   function handleJumpTo(name){
     setCatJump(name);
@@ -1068,7 +1053,7 @@ export default function DarkPool(){
 
       {/* Tab bar */}
       <div style={{background:C.bg3,borderBottom:`1px solid ${C.bdr}`,
-        padding:"0 20px",display:"flex",overflowX:"auto",gap:2}}>
+        padding:"0 20px",display:"flex",overflowX:"auto",gap:2,alignItems:"center"}}>
         {TABS.map(t=>{
           const on=t.id===tab;
           return (
@@ -1082,6 +1067,15 @@ export default function DarkPool(){
             </button>
           );
         })}
+        {/* Search button */}
+        <button onClick={()=>setShowSearch(true)}
+          style={{marginLeft:"auto",padding:"6px 14px",background:C.blue+"22",
+            border:`1px solid ${C.blue}55`,borderRadius:6,color:C.blue,
+            fontWeight:600,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",
+            fontFamily:"Outfit, system-ui, sans-serif",transition:"all 0.15s",
+            flexShrink:0}}>
+          🔍 Search
+        </button>
       </div>
 
       {/* Content */}
@@ -1093,8 +1087,9 @@ export default function DarkPool(){
         {tab==="unusual"  && <UnusualPane/>}
         {tab==="phantom"  && <PhantomPane/>}
         {tab==="options"  && <OptionsPane/>}
-        {tab==="signals"  && <SignalsPane/>}
       </div>
+
+      {showSearch && <SearchModal onClose={()=>setShowSearch(false)}/>}
     </div>
   );
 }
