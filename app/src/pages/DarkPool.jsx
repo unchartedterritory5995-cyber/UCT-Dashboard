@@ -155,23 +155,34 @@ function ZoneCell({it}){
 // ── Big Print cell (proper component to avoid hook-in-IIFE error) ─────────────
 function BigPrintCell({it}){
   const [hover,setHover]=useState(false);
+  const [pos,setPos]=useState({top:0,left:0});
+  const ref=useRef(null);
   const tip = it.bigPrintN ? [
     it.bigPrintDate,
     fmt(it.bigPrintN),
     it.bigPrintPctAvgVol>0 ? it.bigPrintPctAvgVol.toFixed(1)+"% of avg vol" : it.avg30>0 ? ((it.bigPrintN/it.avg30)*100).toFixed(1)+"% of avg vol" : null
   ].filter(Boolean).join(" · ") : null;
+  const handleEnter=()=>{
+    if(ref.current){
+      const r=ref.current.getBoundingClientRect();
+      // Flip left if near right edge
+      const left = r.right+220>window.innerWidth ? r.right-220 : r.left;
+      setPos({top:r.bottom+6, left:Math.max(8,left)});
+    }
+    setHover(true);
+  };
   return (
-    <div style={{position:"relative",display:"inline-block"}}
-      onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}>
+    <div ref={ref} style={{position:"relative",display:"inline-block"}}
+      onMouseEnter={handleEnter} onMouseLeave={()=>setHover(false)}>
       <span style={{color:C.amber,fontWeight:700,cursor:"default"}}>
         {fP(it.bigPrint)}
       </span>
       {hover && tip && (
-        <div style={{position:"absolute",left:0,top:"100%",zIndex:50,
+        <div style={{position:"fixed",top:pos.top,left:pos.left,zIndex:9999,
           background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
           padding:"7px 11px",whiteSpace:"nowrap",boxShadow:"0 4px 20px #00000066",
-          marginTop:4,color:C.tx,fontSize:13,fontFamily:"JetBrains Mono, monospace",
-          fontWeight:500,letterSpacing:"0.01em"}}>
+          color:C.tx,fontSize:13,fontFamily:"JetBrains Mono, monospace",
+          fontWeight:500,letterSpacing:"0.01em",pointerEvents:"none"}}>
           {tip}
         </div>
       )}
