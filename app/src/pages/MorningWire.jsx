@@ -93,76 +93,7 @@ export default function MorningWire() {
 
       {/* ── By the Numbers ───────────────────────────────────────── */}
       <TileCard title="By the Numbers">
-        <div className={styles.numbers}>
-
-          {/* Earnings */}
-          <div className={styles.numbersSection}>
-            <span className={styles.sectionLabel}>Earnings</span>
-            <div className={styles.earningsBuckets}>
-              {bmo.length > 0 && (
-                <div className={styles.bucket}>
-                  <span className={styles.bucketLabel}>▲ BMO</span>
-                  {bmo.map((row, i) => (
-                    <EarningsRow key={row.sym || row.ticker || i} row={row} />
-                  ))}
-                </div>
-              )}
-              {amc.length > 0 && (
-                <div className={styles.bucket}>
-                  <span className={styles.bucketLabel}>▼ AMC</span>
-                  {amc.map((row, i) => (
-                    <EarningsRow key={row.sym || row.ticker || i} row={row} />
-                  ))}
-                </div>
-              )}
-              {bmo.length === 0 && amc.length === 0 && (
-                <span className={styles.noData}>No earnings today</span>
-              )}
-            </div>
-          </div>
-
-          {/* Movers */}
-          {hasMovers && (
-            <div className={styles.numbersSection}>
-              <span className={styles.sectionLabel}>Movers</span>
-              <div className={styles.moversRows}>
-                {ripping.length > 0 && (
-                  <div className={styles.moverRow}>
-                    <span className={styles.moverDir}>↑</span>
-                    <div className={styles.chips}>
-                      {ripping.map((m, i) => (
-                        <TickerPopup
-                          key={m.sym || i}
-                          sym={m.sym}
-                          className={styles.chipGain}
-                        >
-                          {m.sym} <span className={styles.chipPct}>{m.pct}</span>
-                        </TickerPopup>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {drilling.length > 0 && (
-                  <div className={styles.moverRow}>
-                    <span className={styles.moverDir}>↓</span>
-                    <div className={styles.chips}>
-                      {drilling.map((m, i) => (
-                        <TickerPopup
-                          key={m.sym || i}
-                          sym={m.sym}
-                          className={styles.chipLoss}
-                        >
-                          {m.sym} <span className={styles.chipPct}>{m.pct}</span>
-                        </TickerPopup>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-        </div>
+        <span className={styles.noData}>Coming soon</span>
       </TileCard>
 
     </div>
