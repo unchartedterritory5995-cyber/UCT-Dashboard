@@ -36,7 +36,24 @@ def _seed_cache_from_volume():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _seed_cache_from_volume()
+    # Schwab: refresh access token immediately on startup, then auto-refresh every 25 min
+    from api.schwab_service import start_auto_refresh, stop_auto_refresh, refresh_access_token, is_authenticated, load_tokens
+    tokens = load_tokens()
+    if tokens and "refresh_token" in tokens:
+        print("[startup] Found Schwab refresh token on disk, refreshing access token...")
+        try:
+            result = await refresh_access_token()
+            if result:
+                print("[startup] Schwab access token refreshed — API ready for all users.")
+            else:
+                print("[startup] Schwab token refresh FAILED — re-auth needed at /api/schwab/login")
+        except Exception as e:
+            print(f"[startup] Schwab token refresh error: {e}")
+    else:
+        print("[startup] No Schwab tokens found. Admin must visit /api/schwab/login once to connect.")
+    start_auto_refresh()
     yield
+    stop_auto_refresh()
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.state.limiter = limiter
