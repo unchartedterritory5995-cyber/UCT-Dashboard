@@ -700,12 +700,12 @@ function processFlowData(rows) {
     ...buildPerfItems("LEAPS Bear", _lp.filter(t=>t.D==="BEAR"), 4),
   ];
 
-  // Ticker DB for Search
+  // Ticker DB for Search (all filtered trades, confirmed + unconfirmed)
   const tickerMap = {};
-  clean_confirmed.forEach(t => {
+  filtered.forEach(t => {
     if (!tickerMap[t.S]) tickerMap[t.S] = { s:t.S, b:0, r:0, n:0, trades:[], consMap:{} };
     const tk = tickerMap[t.S];
-    tk.n++; t.D==="BULL" ? (tk.b+=t.P) : (tk.r+=t.P);
+    tk.n++; if (t.D==="BULL") tk.b+=t.P; else if (t.D==="BEAR") tk.r+=t.P;
     tk.trades.push(t);
     const ck = t.CP+"|"+t.K+"|"+t.E;
     if (!tk.consMap[ck]) tk.consMap[ck] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
@@ -717,15 +717,15 @@ function processFlowData(rows) {
     if (t.D) tk.consMap[ck].dirs.add(t.D);
   });
   const TICKER_DB = Object.values(tickerMap)
-    .sort((a,b)=>(b.b+b.r)-(a.b+a.r)).slice(0,60)
+    .sort((a,b)=>(b.b+b.r)-(a.b+a.r))
     .map(tk => ({
       s:tk.s, b:tk.b, r:tk.r, n:tk.n,
-      t:tk.trades.sort((a,b)=>b.P-a.P).slice(0,8),
+      t:tk.trades.sort((a,b)=>b.P-a.P).slice(0,12),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
         c.clean = c.dirs.size <= 1;
         c.grade = gradeCluster(c);
         return c;
-      }).sort((a,b)=>b.H-a.H||b.P-a.P).slice(0,6),
+      }).sort((a,b)=>b.H-a.H||b.P-a.P).slice(0,8),
     }));
 
   const ALL_SYMS = [...new Set(filtered.map(t=>t.S))].sort();
@@ -1259,32 +1259,33 @@ export default function OptionsFlowDashboard() {
             {selectedTicker && (() => {
               const tk = selectedTicker;
               const net = tk.b - tk.r;
-              const dir = net>0?"BULL":"BEAR";
-              const dirC = dir==="BULL"?P.bu:P.be;
+              const total = tk.b + tk.r;
+              const dir = total===0?"NEUTRAL":net>0?"BULL":"BEAR";
+              const dirC = dir==="BULL"?P.bu:dir==="BEAR"?P.be:P.dm;
               return (
                 <>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16, borderTop:"3px solid "+dirC }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Net Direction</div>
                       <div style={{ fontSize:28, fontWeight:900, color:dirC }}>{dir}</div>
-                      <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{tk.n} confirmed trades</div>
+                      <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{tk.n} trades</div>
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bullish Flow</div>
                       <div style={{ fontSize:22, fontWeight:800, color:P.bu }}>{fmt(tk.b)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
-                        <div style={{ width:(tk.b/(tk.b+tk.r)*100)+"%", height:"100%", background:P.bu, borderRadius:2 }} />
+                        <div style={{ width:(total>0?(tk.b/total*100):0)+"%", height:"100%", background:P.bu, borderRadius:2 }} />
                       </div>
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bearish Flow</div>
                       <div style={{ fontSize:22, fontWeight:800, color:P.be }}>{fmt(tk.r)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
-                        <div style={{ width:(tk.r/(tk.b+tk.r)*100)+"%", height:"100%", background:P.be, borderRadius:2 }} />
+                        <div style={{ width:(total>0?(tk.r/total*100):0)+"%", height:"100%", background:P.be, borderRadius:2 }} />
                       </div>
                     </div>
                   </div>
-                  <Card title={tk.s+" — Top Confirmed Trades"} sub={tk.n+" total"}><TT rows={tk.t} /></Card>
+                  <Card title={tk.s+" — Top Trades"} sub={tk.n+" total"}><TT rows={tk.t} /></Card>
                   {tk.c.length>0 && <Card title={tk.s+" — Consistency (2+ hits)"}><CT rows={tk.c} /></Card>}
                 </>
               );
