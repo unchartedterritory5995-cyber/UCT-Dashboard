@@ -7,6 +7,7 @@ import os
 import json
 import time
 import base64
+import asyncio
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -27,7 +28,15 @@ TOKEN_URL = "https://api.schwabapi.com/v1/oauth/token"
 CHAINS_URL = "https://api.schwabapi.com/marketdata/v1/chains"
 QUOTES_URL = "https://api.schwabapi.com/marketdata/v1/quotes"
 
-TOKEN_FILE = Path(os.getenv("SCHWAB_TOKEN_PATH", "/tmp/schwab_token.json"))
+# Persist to Railway volume (/data/) so tokens survive deploys
+# Falls back to /tmp/ if volume not mounted
+_DATA_DIR = Path("/data")
+if _DATA_DIR.exists() and _DATA_DIR.is_dir():
+    TOKEN_FILE = _DATA_DIR / "schwab_token.json"
+else:
+    TOKEN_FILE = Path(os.getenv("SCHWAB_TOKEN_PATH", "/tmp/schwab_token.json"))
+
+_refresh_task = None
 
 
 # ─── Token Management ────────────────────────────────────────────────────────────
@@ -38,10 +47,11 @@ def _get_basic_auth():
 
 
 def save_tokens(tokens: dict):
-    """Persist tokens to disk (or env var for Railway)."""
+    """Persist tokens to disk (Railway volume or /tmp fallback)."""
     tokens["saved_at"] = time.time()
+    TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
     TOKEN_FILE.write_text(json.dumps(tokens, indent=2))
-    logger.info("Tokens saved to %s", TOKEN_FILE)
+    print(f"[schwab] Tokens saved to {TOKEN_FILE}")
 
 
 def load_tokens() -> dict | None:
@@ -271,3 +281,39 @@ def is_authenticated() -> bool:
     """Check if we have tokens saved."""
     tokens = load_tokens()
     return tokens is not None and "access_token" in tokens
+
+
+# ─── Background Auto-Refresh ────────────────────────────────────────────────────
+async def _auto_refresh_loop():
+    """Refresh access token every 25 minutes so it never expires.
+    Schwab access tokens last 30 min; refresh tokens last 7 days.
+    As long as the app is running, users never need to re-authenticate.
+    """
+    while True:
+        await asyncio.sleep(25 * 60)  # 25 minutes
+        tokens = load_tokens()
+        if tokens and "refresh_token" in tokens:
+            logger.info("[schwab] Auto-refreshing access token...")
+            result = await refresh_access_token()
+            if result:
+                logger.info("[schwab] Token auto-refreshed successfully.")
+            else:
+                logger.warning("[schwab] Token auto-refresh FAILED. Users may need to re-auth.")
+        else:
+            logger.info("[schwab] No refresh token found, skipping auto-refresh.")
+
+
+def start_auto_refresh():
+    """Start the background token refresh task. Call once at app startup."""
+    global _refresh_task
+    if _refresh_task is None or _refresh_task.done():
+        _refresh_task = asyncio.create_task(_auto_refresh_loop())
+        logger.info("[schwab] Auto-refresh task started. Token file: %s", TOKEN_FILE)
+
+
+def stop_auto_refresh():
+    """Stop the background refresh task."""
+    global _refresh_task
+    if _refresh_task and not _refresh_task.done():
+        _refresh_task.cancel()
+        logger.info("[schwab] Auto-refresh task stopped.")
