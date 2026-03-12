@@ -431,6 +431,15 @@ def get_movers() -> dict:
     ripping  = sorted(combined_rip[:_TARGET], key=_abs_pct, reverse=True)
     drilling = sorted(combined_drl[:_TARGET], key=_abs_pct, reverse=True)
 
+    # Apply cap_universe filter from engine push — removes ETFs and stocks that
+    # only crossed $300M intraday due to a gap move but are normally sub-$300M.
+    # cap_universe is built from the Finviz equity screener (cap_smallover), so
+    # ETFs like USO/BNO/SVIX are excluded by construction.
+    cap_uni = set(wire.get("cap_universe", []) if wire else [])
+    if cap_uni:
+        ripping  = [m for m in ripping  if m["sym"] in cap_uni]
+        drilling = [m for m in drilling if m["sym"] in cap_uni]
+
     data = {"ripping": ripping, "drilling": drilling}
 
     # Pre-market (4–9:30 AM ET): 2-min TTL so fresh gaps show up quickly.
