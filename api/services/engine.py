@@ -1011,6 +1011,26 @@ def _sort_news(items: list[dict], is_premarket: bool) -> list[dict]:
     return sorted(items, key=_key)
 
 
+def _check_sym_cap(sym: str) -> tuple[str, bool]:
+    """Return (sym, allowed) applying $5M dollar-volume AND $300M market-cap gates.
+
+    Fails open on yfinance errors so transient network issues don't silently
+    drop all news. ETFs and non-equity instruments are always blocked.
+    """
+    try:
+        import yfinance as yf
+        fi = yf.Ticker(sym).fast_info
+        qt = getattr(fi, "quote_type", "EQUITY") or "EQUITY"
+        if qt.upper() not in ("EQUITY", ""):
+            return sym, False
+        price      = getattr(fi, "last_price", 0) or 0
+        avg_vol    = getattr(fi, "three_month_average_volume", 0) or 0
+        market_cap = getattr(fi, "market_cap", 0) or 0
+        return sym, (price * avg_vol) >= 5_000_000 and market_cap >= 300_000_000
+    except Exception:
+        return sym, True
+
+
 def get_news() -> list:
     cached = cache.get("news")
     if cached:
@@ -1130,17 +1150,7 @@ def get_news() -> list:
         unique_syms = list({sym for it in av_candidates for sym in it["tickers"]})
 
         def _check_sym(sym: str) -> tuple[str, bool]:
-            try:
-                import yfinance as yf
-                fi = yf.Ticker(sym).fast_info
-                qt = getattr(fi, "quote_type", "EQUITY") or "EQUITY"
-                if qt.upper() not in ("EQUITY", ""):
-                    return sym, False
-                price   = getattr(fi, "last_price", 0) or 0
-                avg_vol = getattr(fi, "three_month_average_volume", 0) or 0
-                return sym, (price * avg_vol) >= 5_000_000
-            except Exception:
-                return sym, True
+            return _check_sym_cap(sym)
 
         if unique_syms:
             with ThreadPoolExecutor(max_workers=min(len(unique_syms), 12)) as ex:
@@ -1166,7 +1176,26 @@ def get_news() -> list:
                 _rss_raw = fetch_rss_news(str(_date.today()), limit=40)
                 _cat_map = {"earnings": "EARN", "analyst": "UPGRADE",
                             "m_and_a": "M&A", "economic": "MACRO", "general": "GENERAL"}
+
+                # Cap-check any RSS tickers not already validated by the AV loop
+                _rss_new_syms = list({
+                    t for rss in _rss_raw
+                    for t in (rss.get("tickers") or [])
+                    if t not in allowed
+                })
+                if _rss_new_syms:
+                    with ThreadPoolExecutor(max_workers=min(len(_rss_new_syms), 8)) as ex:
+                        _rss_allowed = {s for s, ok in (f.result() for f in _ac(
+                            ex.submit(_check_sym_cap, s) for s in _rss_new_syms
+                        )) if ok}
+                    allowed = allowed | _rss_allowed
+
                 for rss in _rss_raw:
+                    rss_tickers = [t for t in (rss.get("tickers") or []) if t in allowed]
+                    # Drop ticker-specific items whose ticker didn't pass cap check;
+                    # items with no tickers at all are general headlines and always kept.
+                    if (rss.get("tickers") or []) and not rss_tickers:
+                        continue
                     tp = rss.get("time_published", "")
                     try:
                         from datetime import datetime as _dtt, timezone as _tz, timedelta as _td
@@ -1181,7 +1210,7 @@ def get_news() -> list:
                         "time":      time_str,
                         "category":  _cat_map.get(rss.get("category", "general"), "GENERAL"),
                         "sentiment": rss.get("sentiment_label", "Neutral").lower(),
-                        "tickers":   rss.get("tickers", []),
+                        "tickers":   rss_tickers,
                     })
             except Exception:
                 pass
