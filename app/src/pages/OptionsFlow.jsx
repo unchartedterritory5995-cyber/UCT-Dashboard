@@ -87,7 +87,7 @@ function TT({ rows, priceFn }) {
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
-          {["Ticker","Day","Side","Signal","Type","C/P","Strike","Exp","Vol","Entry",priceFn?"Now":null,priceFn?"P&L":null,"DTE"].filter(Boolean).map(h => (
+          {["Ticker","Day","Side","Signal","Type","C/P","Strike","Exp","Vol","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"DTE"].filter(Boolean).map(h => (
             <th key={h} style={{ padding:"5px 4px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
           ))}
         </tr>
@@ -95,7 +95,7 @@ function TT({ rows, priceFn }) {
       <tbody>
         {rows.map((r, i) => {
           const px = priceFn ? priceFn(r.S, r.CP, r.K, r.E) : null;
-          const entry = r.price || r.P/Math.max(r.V,1)/100;
+          const entry = r.price || (r.V > 0 ? r.P / r.V / 100 : 0);
           const now = px ? px.mark : 0;
           const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
           const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
@@ -112,7 +112,8 @@ function TT({ rows, priceFn }) {
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.V)}</td>
-              <td style={{ padding:"5px 4px", fontWeight:700, color:P.wh }}>{fmt(r.P)}</td>
+              <td style={{ padding:"5px 4px", color:P.dm }}>{fmt(r.P)}</td>
+              <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
               <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
@@ -129,7 +130,7 @@ function CT({ rows, priceFn }) {
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
-          {["Ticker","C/P","Strike","Exp","Hits","Grade","Premium",priceFn?"Now":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).map(h => (
+          {["Ticker","C/P","Strike","Exp","Hits","Grade","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).map(h => (
             <th key={h} style={{ padding:"5px 4px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
           ))}
         </tr>
@@ -137,6 +138,10 @@ function CT({ rows, priceFn }) {
       <tbody>
         {rows.map((r, i) => {
           const px = priceFn ? priceFn(r.S, r.CP, r.K, r.E) : null;
+          const entry = r.entry || (r.V > 0 ? r.P / r.V / 100 : 0);
+          const now = px ? px.mark : 0;
+          const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
+          const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
           return (
             <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:r.H>=5?(P.ac+"08"):"transparent" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
@@ -148,7 +153,9 @@ function CT({ rows, priceFn }) {
               </td>
               <td style={{ padding:"5px 4px" }}><Tag c={GRADE_COLORS[r.grade]||P.mt}>{r.grade||"—"}</Tag></td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.wh }}>{fmt(r.P)}</td>
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:px&&px.mark>0?P.wh:P.mt }}>{px&&px.mark>0?"$"+px.mark.toFixed(2):"—"}</td>}
+              <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:P.dm }}>{px&&px.delta?px.delta.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:px&&px.theta<0?P.be:P.dm }}>{px&&px.theta?px.theta.toFixed(2):"—"}</td>}
             </tr>
@@ -364,8 +371,9 @@ function consistencyTable(trades, n=8) {
   trades.forEach(t => {
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!m[k]) m[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
-      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true };
+      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, prices:[] };
     m[k].H++; m[k].P+=t.P; m[k].V+=t.V;
+    if (t.price > 0) m[k].prices.push(t.price);
     if (t.Ty==="SWP") m[k].hasSweep = true;
     if (t.Ty==="BLK") m[k].hasBlock = true;
     if (t.Co==="YELLOW"||t.Co==="MAGENTA") m[k].oiExceeded = true;
@@ -374,6 +382,9 @@ function consistencyTable(trades, n=8) {
   return Object.values(m).filter(c=>c.H>=2).map(c => {
     c.clean = c.dirs.size <= 1;
     c.grade = gradeCluster(c);
+    // Median entry price from individual trades
+    const sp = [...c.prices].sort((a,b)=>a-b);
+    c.entry = sp.length>0 ? sp[Math.floor(sp.length/2)] : (c.V>0 ? c.P/c.V/100 : 0);
     return c;
   }).sort((a,b) => {
     const go = {"A+":6,"A":5,"B+":4,"B":3,"C":2,"D":1};
@@ -895,49 +906,50 @@ export default function OptionsFlowDashboard() {
   const longC = longDir==="BULL" ? P.bu : P.be;
 
   async function fetchPrices(contracts) {
-    // contracts: array of { sym, cp, strike, exp } — or defaults to perf items
     const items = contracts || perf;
-    if (!items || items.length === 0) return;
+    if (!items || items.length === 0) { setStatus("No contracts to fetch."); return; }
     setFetchLoading(true);
     setStatus("Fetching live prices from Schwab…");
     const newCache = { ...priceCache };
     const updated = contracts ? null : [...perf];
-    // Deduplicate by sym+cp+strike+exp
+    // Deduplicate
     const seen = new Set();
     const unique = [];
     items.forEach(c => {
-      const key = (c.sym||c.S)+"|"+(c.cp||c.CP)+"|"+(c.strike||c.K)+"|"+(c.exp||c.E);
+      const key = (c.sym||c.S)+"|"+(c.cp||c.CP)+"|"+parseFloat(c.strike||c.K)+"|"+(c.exp||c.E);
       if (!seen.has(key)) { seen.add(key); unique.push(c); }
     });
-    // Batch in groups of 8 (Schwab rate limit ~120/min)
+    let successes = 0;
+    let failures = 0;
     const batches = [];
     for (let i = 0; i < unique.length; i += 8) batches.push(unique.slice(i, i + 8));
     for (let i = 0; i < batches.length; i++) {
-      setStatus(`Fetching batch ${i+1}/${batches.length}… (${unique.length} contracts)`);
+      setStatus(`Fetching batch ${i+1}/${batches.length}… (${successes} priced, ${failures} failed)`);
       const promises = batches[i].map(async c => {
         const sym = c.sym || c.S;
         const cp = c.cp || c.CP;
-        const strike = c.strike || c.K;
+        const strike = parseFloat(c.strike || c.K);
         const exp = c.exp || c.E;
         const isoDate = expToISO(exp);
-        if (!isoDate || !sym) return;
+        if (!isoDate || !sym) { failures++; return; }
         try {
-          const resp = await fetch(`/api/schwab/options-quote?symbol=${sym}&strike=${strike}&expDate=${isoDate}&cp=${cp}`);
-          if (!resp.ok) return;
+          const url = `/api/schwab/options-quote?symbol=${encodeURIComponent(sym)}&strike=${strike}&expDate=${isoDate}&cp=${cp}`;
+          const resp = await fetch(url);
+          if (!resp.ok) { console.warn("Schwab HTTP error:", resp.status, sym, strike, cp, exp); failures++; return; }
           const data = await resp.json();
-          if (data.error) return;
+          if (data.error) { console.warn("Schwab API error:", data.error, sym, strike, cp, exp); failures++; return; }
           const key = sym+"|"+cp+"|"+strike+"|"+exp;
           newCache[key] = {
             mark: data.mark || 0, bid: data.bid || 0, ask: data.ask || 0, last: data.last || 0,
             delta: data.delta || 0, theta: data.theta || 0, iv: data.iv || 0,
             oi: data.openInterest || 0, vol: data.volume || 0, spot: data.underlyingPrice || 0,
           };
-          // Also update perf items if running from Performance tab
           if (updated) {
-            const match = updated.find(u => u.sym===sym && u.cp===cp && u.strike===strike && u.exp===exp);
+            const match = updated.find(u => u.sym===sym && u.cp===cp && parseFloat(u.strike)===strike && u.exp===exp);
             if (match) match.now = data.mark || data.last || 0;
           }
-        } catch(e) {}
+          successes++;
+        } catch(e) { console.warn("Schwab fetch error:", sym, strike, cp, e); failures++; }
       });
       await Promise.all(promises);
       if (i < batches.length - 1) await new Promise(r => setTimeout(r, 600));
@@ -945,10 +957,8 @@ export default function OptionsFlowDashboard() {
     setPriceCache(newCache);
     if (updated) setPerf(updated);
     setFetchLoading(false);
-    const priced = Object.keys(newCache).length;
-    setStatus(`Done. ${priced} contracts priced.`);
+    setStatus(`Done. ${successes} priced, ${failures} failed of ${unique.length} contracts.`);
   }
-  // Collect all unique contracts from a tab's trade tables for batch fetching
   function collectContracts(...tradeLists) {
     const all = [];
     tradeLists.forEach(list => {
@@ -960,7 +970,8 @@ export default function OptionsFlowDashboard() {
     return all;
   }
   function getPrice(sym, cp, strike, exp) {
-    return priceCache[sym+"|"+cp+"|"+strike+"|"+exp] || null;
+    const k = sym+"|"+cp+"|"+parseFloat(strike)+"|"+exp;
+    return priceCache[k] || null;
   }
 
   return (
@@ -1381,7 +1392,7 @@ export default function OptionsFlowDashboard() {
                   fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                 {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
               </button>
-              {status && fetchLoading && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
+              {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Card title="Bullish Bets" sub="0–14 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull"/></Card>
@@ -1405,7 +1416,7 @@ export default function OptionsFlowDashboard() {
                   fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                 {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
               </button>
-              {status && fetchLoading && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
+              {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Card title="Bullish Bets" sub="15+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull"/></Card>
@@ -1429,7 +1440,7 @@ export default function OptionsFlowDashboard() {
                   fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                 {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
               </button>
-              {status && fetchLoading && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
+              {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
               <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:20, borderLeft:"4px solid "+P.bu }}>
