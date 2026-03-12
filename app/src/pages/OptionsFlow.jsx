@@ -1386,17 +1386,17 @@ export default function OptionsFlowDashboard() {
         {/* Short Term */}
         {tab==="Short Term" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            <div style={{ display:"flex", justifyContent:"flex-end" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <Card title="Bullish Bets" sub="0–14 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull"/></Card>
+              <Card title="Bearish Bets" sub="0–14 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear"/></Card>
+            </div>
+            <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
               <button onClick={()=>fetchPrices(collectContracts(FD.SBL,FD.SBR,FD.SBLC,FD.SBRC))} disabled={fetchLoading}
                 style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                   fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                 {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
               </button>
               {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Bets" sub="0–14 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Bearish Bets" sub="0–14 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear"/></Card>
             </div>
             <Card title="Short-Term Bullish Trades" sub={fmt(FD.shortBullTotal)}><TT rows={FD.SBL} priceFn={getPrice}/></Card>
             <Card title="Short-Term Bearish Trades" sub={fmt(FD.shortBearTotal)}><TT rows={FD.SBR} priceFn={getPrice}/></Card>
@@ -1410,17 +1410,17 @@ export default function OptionsFlowDashboard() {
         {/* Long Term */}
         {tab==="Long Term" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            <div style={{ display:"flex", justifyContent:"flex-end" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <Card title="Bullish Bets" sub="15+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull"/></Card>
+              <Card title="Bearish Bets" sub="15+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear"/></Card>
+            </div>
+            <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
               <button onClick={()=>fetchPrices(collectContracts(FD.LBL,FD.LBR_T,FD.LBLC,FD.LBRC))} disabled={fetchLoading}
                 style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                   fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                 {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
               </button>
               {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Bets" sub="15+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Bearish Bets" sub="15+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear"/></Card>
             </div>
             <Card title="Long-Term Bullish Trades" sub={fmt(FD.longBullTotal)}><TT rows={FD.LBL} priceFn={getPrice}/></Card>
             <Card title="Long-Term Bearish Trades" sub={fmt(FD.longBearTotal)}><TT rows={FD.LBR_T} priceFn={getPrice}/></Card>
@@ -1434,14 +1434,6 @@ export default function OptionsFlowDashboard() {
         {/* LEAPS */}
         {tab==="LEAPS" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            <div style={{ display:"flex", justifyContent:"flex-end" }}>
-              <button onClick={()=>fetchPrices(collectContracts(FD.LEAPS_BL_T,FD.LEAPS_BR_T,FD.LEAPS_BLC,FD.LEAPS_BRC))} disabled={fetchLoading}
-                style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
-                  fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
-                {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
-              </button>
-              {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
-            </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
               <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:20, borderLeft:"4px solid "+P.bu }}>
                 <div style={{ fontSize:11, color:P.bu, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>LEAPS Bull Side</div>
@@ -1473,6 +1465,14 @@ export default function OptionsFlowDashboard() {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Card title="Bullish Bets" sub="180+ DTE"><NC data={FD.LEAPS_B} fill={P.bu} dir="bull"/></Card>
               <Card title="Bearish Bets" sub="180+ DTE"><NC data={FD.LEAPS_R} fill={P.be} dir="bear"/></Card>
+            </div>
+            <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
+              <button onClick={()=>fetchPrices(collectContracts(FD.LEAPS_BL_T,FD.LEAPS_BR_T,FD.LEAPS_BLC,FD.LEAPS_BRC))} disabled={fetchLoading}
+                style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
+              </button>
+              {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
             </div>
             <Card title="LEAPS Bullish Trades"><TT rows={FD.LEAPS_BL_T} priceFn={getPrice}/></Card>
             <Card title="LEAPS Bearish Trades"><TT rows={FD.LEAPS_BR_T} priceFn={getPrice}/></Card>
