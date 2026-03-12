@@ -653,7 +653,24 @@ function processFlowData(rows) {
 
 
   // UOA (unusual options activity)
-  const UOA_TRADES = filtered.filter(t => t.uoa).sort((a,b)=>b.P-a.P).slice(0,10);
+  // Only include UOA trades where the cluster has confirmed OI activity (yellow/magenta)
+  // All-white clusters = volume never exceeded OI = not confirmed, exclude from UOA
+  // White blocks on Bid/BB = always exclude (ambiguous regardless)
+  const uoaClusterOI = {}; // track if any yellow/magenta exists per cluster
+  filtered.forEach(t => {
+    const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+    if (!uoaClusterOI[k]) uoaClusterOI[k] = false;
+    if (t.Co === "YELLOW" || t.Co === "MAGENTA") uoaClusterOI[k] = true;
+  });
+  const UOA_TRADES = filtered.filter(t => {
+    if (!t.uoa) return false;
+    // White blocks on bid side = always ambiguous, exclude
+    if (t.Co === "WHITE" && t.Ty === "BLK" && (t.Si === "B" || t.Si === "BB")) return false;
+    // All-white cluster (no yellow/magenta anywhere at this strike) = not confirmed, exclude
+    const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+    if (!uoaClusterOI[k]) return false;
+    return true;
+  }).sort((a,b)=>b.P-a.P).slice(0,10);
 
   // OI Watchlist
   const WATCH = [...unconfirmed].sort((a,b)=>b.P-a.P).slice(0,12)
