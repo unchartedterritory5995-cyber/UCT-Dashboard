@@ -597,6 +597,16 @@ def get_earnings() -> dict:
                 except Exception:
                     pass
 
+    # ── Apply $300M cap filter from engine push ───────────────────────────────
+    # wire_data["cap_universe"] is a sorted list of $300M+ tickers written by
+    # morning_wire_engine.py each run. Filters the live EW fetch which returns
+    # everything EarningsWhispers tracks regardless of market cap.
+    cap_uni = set(wire.get("cap_universe", []) if wire else [])
+    if cap_uni:
+        bmo_raw        = [e for e in bmo_raw        if e.get("symbol", "") in cap_uni]
+        amc_raw        = [e for e in amc_raw        if e.get("symbol", "") in cap_uni]
+        amc_tonight_raw= [e for e in amc_tonight_raw if e.get("symbol", "") in cap_uni]
+
     data = _normalize_earnings(bmo_raw + amc_raw, amc_tonight_raw)
     _enrich_earnings_with_gap(data)
     _prewarm_earnings_analysis(data)
