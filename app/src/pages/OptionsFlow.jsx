@@ -25,6 +25,13 @@ function fK(n) {
   return n >= 1e6 ? (n/1e6).toFixed(1)+"M" : n >= 1e3 ? (n/1e3).toFixed(1)+"K" : String(n);
 }
 function tc(t) { return t === "SWP" ? P.sw : P.bk; }
+function premC(n) {
+  if (n >= 5e6) return "#00e676";   // $5M+ = bright green
+  if (n >= 1e6) return "#66ff99";   // $1M+ = green
+  if (n >= 500e3) return "#ffab00"; // $500K+ = gold
+  if (n >= 100e3) return "#f0f4f8"; // $100K+ = white
+  return "#4a5c73";                 // under $100K = dim
+}
 
 // ─── Grade System ──────────────────────────────────────────────────────────────
 function gradeCluster(c) {
@@ -87,8 +94,8 @@ function TT({ rows, priceFn }) {
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
-          {["Ticker","Day","Side","Signal","Type","C/P","Strike","Exp","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).map(h => (
-            <th key={h} style={{ padding:"5px 4px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+          {["Ticker","Day","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow","Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).map(h => (
+            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -107,18 +114,20 @@ function TT({ rows, priceFn }) {
             <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
               <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.Dt}</td>
-              <td style={{ padding:"5px 4px" }}>
-                {r.Si==="BB"?<Tag c={P.be}>BB</Tag>:r.Si==="AA"?<Tag c={P.ac}>AA</Tag>:r.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>A</Tag>}
-              </td>
-              <td style={{ padding:"5px 4px" }}><Tag c={r.Co==="YELLOW"?P.ye:r.Co==="MAGENTA"?P.ma:P.uc}>{r.Co}</Tag></td>
-              <td style={{ padding:"5px 4px" }}><Tag c={tc(r.Ty)}>{r.Ty}</Tag></td>
-              <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
+              <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
-              <td style={{ padding:"5px 4px", color:P.dm }}>{fmt(r.P)}</td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
+              <td style={{ padding:"5px 4px", fontWeight:700, color:premC(r.P) }}>{fmt(r.P)}</td>
+              <td style={{ padding:"5px 4px" }}>
+                <span style={{ display:"flex", gap:2, flexWrap:"wrap", justifyContent:"center" }}>
+                  <Tag c={tc(r.Ty)}>{r.Ty}</Tag>
+                  {r.Si==="BB"?<Tag c={P.be}>BB</Tag>:r.Si==="AA"?<Tag c={P.ac}>AA</Tag>:r.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>A</Tag>}
+                  <Tag c={r.Co==="YELLOW"?P.ye:r.Co==="MAGENTA"?P.ma:P.uc}>{r.Co}</Tag>
+                </span>
+              </td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.V)}</td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
@@ -136,8 +145,8 @@ function CT({ rows, priceFn }) {
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
-          {["Ticker","C/P","Strike","Exp","Hits","Grade","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).map(h => (
-            <th key={h} style={{ padding:"5px 4px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+          {["Ticker","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade","OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).map(h => (
+            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -155,17 +164,17 @@ function CT({ rows, priceFn }) {
           return (
             <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:r.H>=5?(P.ac+"08"):"transparent" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
-              <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
+              <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
+              <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
+              <td style={{ padding:"5px 4px", fontWeight:700, color:premC(r.P) }}>{fmt(r.P)}</td>
               <td style={{ padding:"5px 4px" }}>
                 <span style={{ fontWeight:800, fontSize:13, color:r.H>=10?P.ac:r.H>=5?P.ye:P.dm }}>{r.H}x</span>
               </td>
               <td style={{ padding:"5px 4px" }}><Tag c={GRADE_COLORS[r.grade]||P.mt}>{r.grade||"—"}</Tag></td>
-              <td style={{ padding:"5px 4px", fontWeight:700, color:P.wh }}>{fmt(r.P)}</td>
-              <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
               <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:P.dm }}>{px&&px.delta?px.delta.toFixed(2):"—"}</td>}
@@ -680,13 +689,12 @@ function processFlowData(rows) {
     // Build cluster metadata from ALL filtered trades (need bid-side presence for DTE≤3 rule)
     filtered.forEach(t => {
       const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
-      if (!clusterDirs[k]) clusterDirs[k] = { dirs: new Set(), askTimes:[], bbSweepTimes:[], hasBidSide:false, hasAskSide:false, hasSweep:false, dte:t.DTE };
-      if (t.Si === "B" || t.Si === "BB") clusterDirs[k].hasBidSide = true;
-      if (t.Si === "A" || t.Si === "AA") clusterDirs[k].hasAskSide = true;
+      if (!clusterDirs[k]) clusterDirs[k] = { dirs: new Set(), askTimes:[], askIVs:[], bidTimes:[], bidIVs:[], bbSweepTimes:[], hasBidSide:false, hasAskSide:false, hasSweep:false, dte:t.DTE };
+      if (t.Si === "B" || t.Si === "BB") { clusterDirs[k].hasBidSide = true; clusterDirs[k].bidTimes.push(t._idx); if (t.IV > 0) clusterDirs[k].bidIVs.push(t.IV); }
+      if (t.Si === "A" || t.Si === "AA") { clusterDirs[k].hasAskSide = true; clusterDirs[k].askTimes.push(t._idx); if (t.IV > 0) clusterDirs[k].askIVs.push(t.IV); }
       if (t.Ty === "SWP") clusterDirs[k].hasSweep = true;
       if (!t.D) return; // stop here for non-directional trades
       clusterDirs[k].dirs.add(t.D);
-      if (t.Si === "A" || t.Si === "AA") clusterDirs[k].askTimes.push(t._idx);
       if (t.Si === "BB" && t.Ty === "SWP") clusterDirs[k].bbSweepTimes.push(t._idx);
     });
 
@@ -697,20 +705,30 @@ function processFlowData(rows) {
         return;
       }
       // Block-only clusters (no sweep at this strike) = not directional
-      // Blocks alone need sweep confirmation to be a real signal
       if (!c.hasSweep) {
         dirtyClusterKeys.add(k);
         return;
       }
-      // Mixed sides: trades on BOTH bid-side (B/BB) AND ask-side (A/AA) = conflicting intent
-      // Even if B trades have no computed direction, bid+ask on same strike = not clean
+      // Mixed sides: trades on BOTH bid-side (B/BB) AND ask-side (A/AA)
       if (c.hasBidSide && c.hasAskSide) {
-        // Profit-taking exception: short DTE, asks came first then BB sweeps
+        // Exception 1: Profit-taking — ask first → BB sweep later on short DTE
         const isShortDTE = c.dte >= 0 && c.dte <= 14;
         if (isShortDTE && c.askTimes.length > 0 && c.bbSweepTimes.length > 0) {
           const minAsk = Math.min(...c.askTimes);
           const maxBBSweep = Math.max(...c.bbSweepTimes);
           if (minAsk > maxBBSweep) return; // profit-taking, not dirty
+        }
+        // Exception 2: Escalation — bid first → ask later with rising IV
+        // (newest-first CSV: higher _idx = earlier in time)
+        // The ask trade is the real signal, bid was closing/hedging
+        if (c.bidTimes.length > 0 && c.askTimes.length > 0) {
+          const earliestBid = Math.max(...c.bidTimes); // highest idx = earliest in time
+          const latestAsk = Math.min(...c.askTimes);    // lowest idx = most recent
+          if (earliestBid > latestAsk) { // bid came before ask
+            const bidIV = c.bidIVs.length > 0 ? Math.max(...c.bidIVs) : 0;
+            const askIV = c.askIVs.length > 0 ? Math.max(...c.askIVs) : 0;
+            if (askIV > 0 && askIV >= bidIV) return; // IV rising = escalation, not dirty
+          }
         }
         dirtyClusterKeys.add(k);
         return;
@@ -1352,7 +1370,7 @@ export default function OptionsFlowDashboard() {
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                     <thead>
                       <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                        {["Ticker","C/P","Strike","Exp","Hits","Entry","Range","Now","P&L %","OI","ΔOI","Dir"].map(h=>(
+                        {["Ticker","Strike","C/P","Exp","Entry","Range","Now","P&L","Hits","Dir","OI","ΔOI"].map(h=>(
                           <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                         ))}
                       </tr>
@@ -1363,23 +1381,21 @@ export default function OptionsFlowDashboard() {
                         const curr = px ? (px.mark || px.last || 0) : r.now || 0;
                         const pnlPct = curr>0&&r.entry>0 ? (curr-r.entry)/r.entry*100 : 0;
                         const pnlColor = pnlPct>0?P.bu:pnlPct<0?P.be:P.dm;
-                        const csvOI = r.spot > 0 ? 0 : 0; // perf items don't carry OI, use cache
                         const curOI = px ? px.oi : 0;
-                        const dOI = curOI > 0 ? curOI : 0;
                         return (
                           <tr key={r.id} style={{ borderBottom:"1px solid "+P.bd+"10" }}>
                             <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}</td>
-                            <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
                             <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.strike}</td>
+                            <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
                             <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.exp}</td>
-                            <td style={{ padding:"5px 5px" }}><span style={{ fontWeight:800, color:r.hits>=10?P.ac:r.hits>=5?P.ye:P.dm }}>{r.hits}x</span></td>
                             <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{r.entry>0?"$"+r.entry.toFixed(2):"—"}</td>
                             <td style={{ padding:"5px 5px", fontSize:9, color:P.mt }}>{r.lo&&r.lo!==r.hi?"$"+r.lo.toFixed(2)+"–$"+r.hi.toFixed(2):"—"}</td>
                             <td style={{ padding:"5px 5px", fontWeight:700, color:curr>0?P.wh:P.mt }}>{curr>0?"$"+curr.toFixed(2):"—"}</td>
                             <td style={{ padding:"5px 5px", fontWeight:700, color:pnlColor }}>{curr>0?(pnlPct>=0?"+":"")+pnlPct.toFixed(1)+"%":"—"}</td>
+                            <td style={{ padding:"5px 5px" }}><span style={{ fontWeight:800, color:r.hits>=10?P.ac:r.hits>=5?P.ye:P.dm }}>{r.hits}x</span></td>
+                            <td style={{ padding:"5px 5px" }}><Tag c={r.dir==="BULL"?P.bu:P.be}>{r.dir}</Tag></td>
                             <td style={{ padding:"5px 5px", color:curOI>0?P.dm:P.mt }}>{curOI>0?curOI.toLocaleString():"—"}</td>
                             <td style={{ padding:"5px 5px", color:P.dm }}>{"—"}</td>
-                            <td style={{ padding:"5px 5px" }}><Tag c={r.dir==="BULL"?P.bu:P.be}>{r.dir}</Tag></td>
                           </tr>
                         );
                       })}
@@ -1591,8 +1607,8 @@ export default function OptionsFlowDashboard() {
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","C/P","Strike","Exp","Type","Hits","Premium","Entry","Vol","OI","ΔOI","Vol/OI","DTE"].map(h=>(
-                      <th key={h} style={{ padding:"5px 4px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                    {["Ticker","Strike","C/P","Exp","Entry","Premium","Flow","Vol","OI","ΔOI","Vol/OI","DTE"].map(h=>(
+                      <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1606,15 +1622,17 @@ export default function OptionsFlowDashboard() {
                     return (
                       <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:pct>=1?(P.ac+"08"):pct>=0.5?(P.ye+"08"):"transparent" }}>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
-                        <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
+                        <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
-                        <td style={{ padding:"5px 4px" }}>
-                          {r.hasSweep&&r.hasBlock?<Tag c={P.ac}>S+B</Tag>:r.hasSweep?<Tag c={P.sw}>SWP</Tag>:<Tag c={P.bk}>BLK</Tag>}
-                        </td>
-                        <td style={{ padding:"5px 4px", fontWeight:700, color:r.trades>=3?P.ac:r.trades>=2?P.ye:P.dm }}>{r.trades}x</td>
-                        <td style={{ padding:"5px 4px", fontWeight:700, color:P.wh }}>{fmt(r.P)}</td>
                         <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{r.price>0?"$"+r.price.toFixed(2):"—"}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:700, color:premC(r.P) }}>{fmt(r.P)}</td>
+                        <td style={{ padding:"5px 4px" }}>
+                          <span style={{ display:"flex", gap:2, alignItems:"center", justifyContent:"center" }}>
+                            {r.hasSweep&&r.hasBlock?<Tag c={P.ac}>S+B</Tag>:r.hasSweep?<Tag c={P.sw}>SWP</Tag>:<Tag c={P.bk}>BLK</Tag>}
+                            <span style={{ fontWeight:700, fontSize:9, color:r.trades>=3?P.ac:r.trades>=2?P.ye:P.dm }}>{r.trades}x</span>
+                          </span>
+                        </td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.V.toLocaleString()}</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.OI.toLocaleString()}</td>
                         <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>
