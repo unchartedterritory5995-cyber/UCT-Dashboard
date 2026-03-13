@@ -680,9 +680,10 @@ function processFlowData(rows) {
     // Build cluster metadata from ALL filtered trades (need bid-side presence for DTE≤3 rule)
     filtered.forEach(t => {
       const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
-      if (!clusterDirs[k]) clusterDirs[k] = { dirs: new Set(), askTimes:[], bbSweepTimes:[], hasBidSide:false, hasAskSide:false, dte:t.DTE };
+      if (!clusterDirs[k]) clusterDirs[k] = { dirs: new Set(), askTimes:[], bbSweepTimes:[], hasBidSide:false, hasAskSide:false, hasSweep:false, dte:t.DTE };
       if (t.Si === "B" || t.Si === "BB") clusterDirs[k].hasBidSide = true;
       if (t.Si === "A" || t.Si === "AA") clusterDirs[k].hasAskSide = true;
+      if (t.Ty === "SWP") clusterDirs[k].hasSweep = true;
       if (!t.D) return; // stop here for non-directional trades
       clusterDirs[k].dirs.add(t.D);
       if (t.Si === "A" || t.Si === "AA") clusterDirs[k].askTimes.push(t._idx);
@@ -692,6 +693,12 @@ function processFlowData(rows) {
     Object.entries(clusterDirs).forEach(([k, c]) => {
       // DTE ≤ 3: dying weeklies with any bid-side = day trading/scalping noise
       if (c.dte >= 0 && c.dte <= 3 && c.hasBidSide) {
+        dirtyClusterKeys.add(k);
+        return;
+      }
+      // Block-only clusters (no sweep at this strike) = not directional
+      // Blocks alone need sweep confirmation to be a real signal
+      if (!c.hasSweep) {
         dirtyClusterKeys.add(k);
         return;
       }
