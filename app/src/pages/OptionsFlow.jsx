@@ -95,7 +95,7 @@ function TT({ rows, priceFn }) {
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
           {["Ticker","Day","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow","Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).map(h => (
-            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -146,7 +146,7 @@ function CT({ rows, priceFn }) {
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
           {["Ticker","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade","OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).map(h => (
-            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -1371,7 +1371,7 @@ export default function OptionsFlowDashboard() {
                     <thead>
                       <tr style={{ borderBottom:"1px solid "+P.bd }}>
                         {["Ticker","Strike","C/P","Exp","Entry","Range","Now","P&L","Hits","Dir","OI","ΔOI"].map(h=>(
-                          <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                          <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1608,7 +1608,7 @@ export default function OptionsFlowDashboard() {
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
                     {["Ticker","Strike","C/P","Exp","Entry","Premium","Flow","Vol","OI","ΔOI","Vol/OI","DTE"].map(h=>(
-                      <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                      <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
                     ))}
                   </tr>
                 </thead>
