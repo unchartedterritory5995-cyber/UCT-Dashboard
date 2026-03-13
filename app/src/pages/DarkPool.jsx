@@ -223,7 +223,7 @@ const TD = ({children,style={}}) => (
 // ── Module-level data ref (set when CSV loads) ─────────────────────────────
 let D = null;
 
-function FlowTable({items, showCat=true}){
+function FlowTable({items, showCat=true, showZone=false}){
   return (
     <div style={{overflowX:"auto"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
@@ -232,6 +232,7 @@ function FlowTable({items, showCat=true}){
             <TH>Ticker</TH>
             {showCat && <TH>Category</TH>}
             <TH>Last</TH>
+            {showZone && <TH>DP Zone</TH>}
             <TH>Big Print</TH>
             <TH>% Move</TH>
             <TH>Notional</TH>
@@ -254,6 +255,11 @@ function FlowTable({items, showCat=true}){
                 <TD style={{fontFamily:"JetBrains Mono, monospace",color:zC(it.last,it.lo,it.hi)}}>
                   {fP(it.last)}
                 </TD>
+                {showZone && (
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2,fontSize:11}}>
+                    {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
+                  </TD>
+                )}
                 <TD style={{fontFamily:"JetBrains Mono, monospace",fontSize:11}}>
                   <BigPrintCell it={it}/>
                 </TD>
@@ -593,6 +599,76 @@ function OptionsPane(){
 
 // ── Signals + Search tab ─────────────────────────────────────────────────────
 // ── Search Modal ──────────────────────────────────────────────────────────────
+// ── Search Results Table — shows ticker row + top 5 prints expanded ───────────
+function SearchResultsTable({items}){
+  if(!items||items.length===0) return null;
+  return (
+    <div style={{overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <thead>
+          <tr>
+            <TH>Ticker</TH>
+            <TH>Category</TH>
+            <TH>Last</TH>
+            <TH>DP Zone</TH>
+            <TH>Big Print</TH>
+            <TH>% Move</TH>
+            <TH>Notional</TH>
+            <TH>Trades</TH>
+            <TH>Days</TH>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(it=>{
+            const cc=CAT_COLORS[it.cat]||C.tx;
+            const bpPct = it.bigPrint>0 ? ((it.last-it.bigPrint)/it.bigPrint*100) : null;
+            const bpMoveColor = bpPct==null ? C.tx3 : bpPct>0 ? C.green : bpPct<0 ? C.red : C.tx3;
+            return (
+              <>
+                {/* Main ticker row */}
+                <tr key={it.t} style={{background:C.bgH}}>
+                  <TD><TickerCell it={it} catColor={cc}/></TD>
+                  <TD><CatPill cat={it.cat}/></TD>
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:zC(it.last,it.lo,it.hi)}}>
+                    {fP(it.last)}
+                  </TD>
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2,fontSize:11}}>
+                    {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
+                  </TD>
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",fontSize:11}}>
+                    <BigPrintCell it={it}/>
+                  </TD>
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",fontWeight:700,color:bpMoveColor}}>
+                    {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
+                  </TD>
+                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.cyan,fontWeight:600}}>
+                    {fmt(it.n)}
+                  </TD>
+                  <TD style={{color:C.tx2,fontFamily:"JetBrains Mono, monospace"}}>{it.c}</TD>
+                  <TD style={{color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>{it.days}</TD>
+                </tr>
+                {/* Top 5 individual prints */}
+                {it.top5&&it.top5.map((row,i)=>(
+                  <tr key={it.t+"-print-"+i} style={{background:"transparent"}}>
+                    <TD style={{paddingLeft:24,color:C.tx3,fontSize:10,fontFamily:"JetBrains Mono, monospace"}}>
+                      #{i+1}
+                    </TD>
+                    <TD colSpan={8} style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,
+                      color:i===0?C.amber:C.tx2,padding:"4px 8px",
+                      borderBottom:i===it.top5.length-1?`1px solid ${C.bdr2}`:"none"}}>
+                      {row}
+                    </TD>
+                  </tr>
+                ))}
+              </>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function SearchModal({onClose}){
   const [query,setQuery]=useState("");
   const allItems = useMemo(()=>{
@@ -603,10 +679,11 @@ function SearchModal({onClose}){
     for(const it of D.unusual) map[it.t]=it;
     return Object.values(map);
   },[]);
+  const top5 = useMemo(()=>allItems.slice().sort((a,b)=>b.n-a.n).slice(0,20),[allItems]);
   const results = useMemo(()=>{
     if(!query||query.length<1) return [];
     const q=query.toUpperCase().replace(/\$|\s/g,"");
-    return allItems.filter(it=>it.t.includes(q)).slice(0,30);
+    return allItems.filter(it=>it.t.includes(q)).slice(0,10);
   },[query,allItems]);
 
   // Close on Escape
@@ -648,13 +725,15 @@ function SearchModal({onClose}){
             {results.length} result{results.length!==1?"s":""} for "{query.toUpperCase()}"
           </div>
         )}
-        {results.length>0 && <FlowTable items={results}/>}
+        {results.length>0 && <SearchResultsTable items={results}/>}
         {query.length>0 && results.length===0 && (
           <div style={{color:C.tx3,fontSize:13}}>No tickers found.</div>
         )}
         {query.length===0 && (
-          <div style={{color:C.tx3,fontSize:12,textAlign:"center",padding:"20px 0"}}>
-            Start typing to search all tickers in today's data.
+          <div>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",color:C.tx3,
+              textTransform:"uppercase",marginBottom:10}}>Top 20 by Notional</div>
+            <FlowTable items={top5} showZone={true}/>
           </div>
         )}
       </div>
