@@ -1432,7 +1432,7 @@ export default function OptionsFlowDashboard() {
               <Card title="Bearish Bets" sub="0–14 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear"/></Card>
             </div>
             <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
-              <button onClick={()=>fetchPrices(collectContracts(FD.SBL,FD.SBR,FD.SBLC,FD.SBRC))} disabled={fetchLoading}
+              <button onClick={()=>fetchPrices(collectContracts(FD.SBL,FD.SBR))} disabled={fetchLoading}
                 style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                   fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                 {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
@@ -1456,7 +1456,7 @@ export default function OptionsFlowDashboard() {
               <Card title="Bearish Bets" sub="15+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear"/></Card>
             </div>
             <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
-              <button onClick={()=>fetchPrices(collectContracts(FD.LBL,FD.LBR_T,FD.LBLC,FD.LBRC))} disabled={fetchLoading}
+              <button onClick={()=>fetchPrices(collectContracts(FD.LBL,FD.LBR_T))} disabled={fetchLoading}
                 style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                   fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                 {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
@@ -1508,7 +1508,7 @@ export default function OptionsFlowDashboard() {
               <Card title="Bearish Bets" sub="180+ DTE"><NC data={FD.LEAPS_R} fill={P.be} dir="bear"/></Card>
             </div>
             <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
-              <button onClick={()=>fetchPrices(collectContracts(FD.LEAPS_BL_T,FD.LEAPS_BR_T,FD.LEAPS_BLC,FD.LEAPS_BRC))} disabled={fetchLoading}
+              <button onClick={()=>fetchPrices(collectContracts(FD.LEAPS_BL_T,FD.LEAPS_BR_T))} disabled={fetchLoading}
                 style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                   fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                 {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
