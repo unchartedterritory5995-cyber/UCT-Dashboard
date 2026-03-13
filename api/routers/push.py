@@ -9,7 +9,7 @@ router = APIRouter()
 
 INVALIDATE_KEYS = [
     "wire_data", "breadth", "themes_1W", "themes_1M", "themes_3M", "themes_Today",
-    "leadership", "rundown", "earnings", "screener", "movers", "uct20_portfolio",
+    "leadership", "rundown", "earnings", "screener", "movers", "uct20_portfolio", "analyst_actions",
 ]
 
 PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"

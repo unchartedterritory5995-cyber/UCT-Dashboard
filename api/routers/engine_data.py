@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
-from api.services.engine import get_breadth, get_themes, get_leadership, get_rundown, get_uct20_portfolio_data
+from api.services.engine import get_breadth, get_themes, get_leadership, get_rundown, get_uct20_portfolio_data, get_analyst_actions
 
 router = APIRouter()
 
@@ -43,5 +43,13 @@ def rundown(type: Optional[str] = Query(None)):
 def uct20_portfolio():
     try:
         return get_uct20_portfolio_data()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get("/api/analyst-actions")
+def analyst_actions():
+    try:
+        return get_analyst_actions()
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))

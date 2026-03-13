@@ -1373,3 +1373,27 @@ def get_uct20_portfolio_data() -> dict:
         _logger.warning("get_uct20_portfolio_data local fallback failed: %s", e)
 
     return {}
+
+
+def get_analyst_actions() -> dict:
+    """Return analyst upgrades and downgrades from wire_data.
+
+    Returns { upgrades: [...], downgrades: [...] }
+    Each item: { ticker, action, firm, from_rating, to_rating, price_target }
+    """
+    cached = cache.get("analyst_actions")
+    if cached is not None:
+        return cached
+
+    wire = _load_wire_data()
+    actions = wire.get("analyst_actions", []) if wire else []
+
+    UPGRADE_ACTIONS  = {"upgrade", "upgraded", "initiates", "initiated"}
+    DOWNGRADE_ACTIONS = {"downgrade", "downgraded"}
+
+    upgrades   = [a for a in actions if a.get("action", "").lower() in UPGRADE_ACTIONS][:15]
+    downgrades = [a for a in actions if a.get("action", "").lower() in DOWNGRADE_ACTIONS][:15]
+
+    result = {"upgrades": upgrades, "downgrades": downgrades}
+    cache.set("analyst_actions", result, ttl=3600)
+    return result

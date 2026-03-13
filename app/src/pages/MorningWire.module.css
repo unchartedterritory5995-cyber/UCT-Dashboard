@@ -451,3 +451,46 @@
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
+
+/* ── Analyst Action Rows ─────────────────────────────────────── */
+.actionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-left: 3px solid transparent;
+  padding-left: 8px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.actionRow:last-child { border-bottom: none; }
+.actionUp   { border-left-color: var(--gain); }
+.actionDown { border-left-color: var(--loss); }
+
+.actionTicker {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 52px;
+}
+
+.actionBadge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.badgeUp   { background: var(--gain-bg);  color: var(--gain); border: 1px solid var(--gain-border); }
+.badgeDown { background: var(--loss-bg);  color: var(--loss); border: 1px solid var(--loss-border); }
+
+.actionRating { display: flex; align-items: center; gap: 3px; font-size: 10px; }
+.ratingFrom   { color: var(--text-muted); }
+.ratingArrow  { color: var(--text-muted); }
+.ratingTo     { color: var(--text-primary); font-weight: 600; }
+
+.actionPt   { color: #c9a84c; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; }
+.actionFirm { color: var(--text-muted); font-size: 11px; margin-left: auto; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }

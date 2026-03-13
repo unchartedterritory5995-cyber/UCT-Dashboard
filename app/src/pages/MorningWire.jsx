@@ -48,24 +48,39 @@ function EarningsRow({ row }) {
   )
 }
 
+function ActionRow({ item, type }) {
+  const { ticker, action, firm, from_rating, to_rating, price_target } = item
+  const pt = price_target ? price_target.replace(/^\$/, '') : null
+  const hasRatingChange = from_rating && to_rating && from_rating !== to_rating
+
+  return (
+    <div className={`${styles.actionRow} ${type === 'upgrade' ? styles.actionUp : styles.actionDown}`}>
+      <TickerPopup sym={ticker} className={styles.actionTicker} />
+      <span className={`${styles.actionBadge} ${type === 'upgrade' ? styles.badgeUp : styles.badgeDown}`}>
+        {action}
+      </span>
+      {hasRatingChange && (
+        <span className={styles.actionRating}>
+          <span className={styles.ratingFrom}>{from_rating}</span>
+          <span className={styles.ratingArrow}>→</span>
+          <span className={styles.ratingTo}>{to_rating}</span>
+        </span>
+      )}
+      {!hasRatingChange && to_rating && (
+        <span className={styles.ratingTo}>{to_rating}</span>
+      )}
+      {pt && <span className={styles.actionPt}>${pt}</span>}
+      {firm && <span className={styles.actionFirm}>{firm}</span>}
+    </div>
+  )
+}
+
 export default function MorningWire() {
-  const { data: rundown } = useSWR('/api/rundown', fetcher, { refreshInterval: 300000 })
-  const { data: breadth }  = useSWR('/api/breadth',  fetcher, { refreshInterval: 300000 })
-  const { data: earnings } = useSWR('/api/earnings', fetcher, { refreshInterval: 300000 })
-  const { data: movers }   = useSWR('/api/movers',   fetcher, { refreshInterval: 30000  })
+  const { data: rundown }  = useSWR('/api/rundown',         fetcher, { refreshInterval: 300000 })
+  const { data: analysts } = useSWR('/api/analyst-actions', fetcher, { refreshInterval: 300000 })
 
-  const exposure = rundown?.exposure
-  const distDays = breadth?.distribution_days ?? null
-  const distColor = distDays == null ? 'info'
-    : distDays >= 5 ? 'loss'
-    : distDays >= 3 ? 'warn'
-    : 'gain'
-
-  const bmo = earnings?.bmo || []
-  const amc = earnings?.amc || []
-  const ripping  = movers?.ripping  || []
-  const drilling = movers?.drilling || []
-  const hasMovers = ripping.length > 0 || drilling.length > 0
+  const upgrades  = analysts?.upgrades  || []
+  const downgrades = analysts?.downgrades || []
 
   return (
     <div className={styles.page}>
@@ -94,10 +109,16 @@ export default function MorningWire() {
       {/* ── Analyst Activity ─────────────────────────────────────── */}
       <div className={styles.analystRow}>
         <TileCard title="Analyst Upgrades">
-          <span className={styles.noData}>Coming soon</span>
+          {upgrades.length > 0
+            ? upgrades.map((a, i) => <ActionRow key={i} item={a} type="upgrade" />)
+            : <span className={styles.noData}>{analysts ? 'No upgrades today' : 'Loading…'}</span>
+          }
         </TileCard>
         <TileCard title="Analyst Downgrades">
-          <span className={styles.noData}>Coming soon</span>
+          {downgrades.length > 0
+            ? downgrades.map((a, i) => <ActionRow key={i} item={a} type="downgrade" />)
+            : <span className={styles.noData}>{analysts ? 'No downgrades today' : 'Loading…'}</span>
+          }
         </TileCard>
       </div>
 
