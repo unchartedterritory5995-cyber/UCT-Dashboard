@@ -1539,7 +1539,10 @@ export default function OptionsFlowDashboard() {
                 style={{ width:180, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
               />
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <button onClick={()=>fetchPrices(D.WATCH.filter(w=>!oiSearch||w.S.includes(oiSearch)).map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})))} disabled={fetchLoading}
+                <button onClick={()=>{
+                  const visible = oiSearch ? D.WATCH.filter(w=>w.S.includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,10) : D.WATCH.slice(0,20);
+                  fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
+                }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                     fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                   {fetchLoading?"Fetching…":"⚡ Fetch Live OI"}
