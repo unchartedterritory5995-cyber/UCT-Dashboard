@@ -945,48 +945,44 @@ export default function OptionsFlowDashboard() {
     const seen = new Set();
     const unique = [];
     items.forEach(c => {
-      const key = (c.sym||c.S)+"|"+(c.cp||c.CP)+"|"+parseFloat(c.strike||c.K)+"|"+(c.exp||c.E);
-      if (!seen.has(key)) { seen.add(key); unique.push(c); }
+      const sym = c.sym||c.S, cp = c.cp||c.CP, strike = parseFloat(c.strike||c.K), exp = c.exp||c.E;
+      const key = sym+"|"+cp+"|"+strike+"|"+exp;
+      if (sym && exp && !seen.has(key)) { seen.add(key); unique.push({ symbol:sym, cp, strike, expDate:expToISO(exp), _exp:exp }); }
     });
-    let successes = 0;
-    let failures = 0;
-    const batches = [];
-    for (let i = 0; i < unique.length; i += 8) batches.push(unique.slice(i, i + 8));
-    for (let i = 0; i < batches.length; i++) {
-      setStatus(`Fetching batch ${i+1}/${batches.length}… (${successes} priced, ${failures} failed)`);
-      const promises = batches[i].map(async c => {
-        const sym = c.sym || c.S;
-        const cp = c.cp || c.CP;
-        const strike = parseFloat(c.strike || c.K);
-        const exp = c.exp || c.E;
-        const isoDate = expToISO(exp);
-        if (!isoDate || !sym) { failures++; return; }
-        try {
-          const url = `/api/schwab/options-quote?symbol=${encodeURIComponent(sym)}&strike=${strike}&expDate=${isoDate}&cp=${cp}`;
-          const resp = await fetch(url);
-          if (!resp.ok) { console.warn("Schwab HTTP error:", resp.status, sym, strike, cp, exp); failures++; return; }
-          const data = await resp.json();
-          if (data.error) { console.warn("Schwab API error:", data.error, sym, strike, cp, exp); failures++; return; }
-          const key = sym+"|"+cp+"|"+strike+"|"+exp;
-          newCache[key] = {
-            mark: data.mark || 0, bid: data.bid || 0, ask: data.ask || 0, last: data.last || 0,
-            delta: data.delta || 0, theta: data.theta || 0, iv: data.iv || 0,
-            oi: data.openInterest || 0, vol: data.volume || 0, spot: data.underlyingPrice || 0,
-          };
-          if (updated) {
-            const match = updated.find(u => u.sym===sym && u.cp===cp && parseFloat(u.strike)===strike && u.exp===exp);
-            if (match) match.now = data.mark || data.last || 0;
-          }
-          successes++;
-        } catch(e) { console.warn("Schwab fetch error:", sym, strike, cp, e); failures++; }
+    setStatus(`Fetching ${unique.length} contracts across ${new Set(unique.map(c=>c.symbol)).size} tickers…`);
+    try {
+      const resp = await fetch("/api/schwab/options-quotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(unique.map(c => ({ symbol:c.symbol, strike:c.strike, expDate:c.expDate, cp:c.cp }))),
       });
-      await Promise.all(promises);
-      if (i < batches.length - 1) await new Promise(r => setTimeout(r, 600));
+      if (!resp.ok) { setStatus("Schwab API error: " + resp.status); setFetchLoading(false); return; }
+      const data = await resp.json();
+      const quotes = data.quotes || [];
+      let successes = 0, failures = 0;
+      quotes.forEach((q, i) => {
+        const orig = unique[i];
+        if (!orig) return;
+        if (q.error) { failures++; return; }
+        const key = orig.symbol+"|"+orig.cp+"|"+orig.strike+"|"+orig._exp;
+        newCache[key] = {
+          mark: q.mark||0, bid: q.bid||0, ask: q.ask||0, last: q.last||0,
+          delta: q.delta||0, theta: q.theta||0, iv: q.iv||0,
+          oi: q.openInterest||0, vol: q.volume||0, spot: q.underlyingPrice||0,
+        };
+        if (updated) {
+          const match = updated.find(u => u.sym===orig.symbol && u.cp===orig.cp && parseFloat(u.strike)===orig.strike && u.exp===orig._exp);
+          if (match) match.now = q.mark || q.last || 0;
+        }
+        successes++;
+      });
+      setPriceCache(newCache);
+      if (updated) setPerf(updated);
+      setStatus(`Done. ${successes} priced, ${failures} failed of ${unique.length} contracts.`);
+    } catch(e) {
+      setStatus("Fetch error: " + e.message);
     }
-    setPriceCache(newCache);
-    if (updated) setPerf(updated);
     setFetchLoading(false);
-    setStatus(`Done. ${successes} priced, ${failures} failed of ${unique.length} contracts.`);
   }
   function collectContracts(...tradeLists) {
     const all = [];
