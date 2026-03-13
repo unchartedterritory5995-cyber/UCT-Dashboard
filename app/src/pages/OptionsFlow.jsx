@@ -87,7 +87,7 @@ function TT({ rows, priceFn }) {
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
-          {["Ticker","Day","Side","Signal","Type","C/P","Strike","Exp","Vol","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"DTE"].filter(Boolean).map(h => (
+          {["Ticker","Day","Side","Signal","Type","C/P","Strike","Exp","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).map(h => (
             <th key={h} style={{ padding:"5px 4px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
           ))}
         </tr>
@@ -99,6 +99,10 @@ function TT({ rows, priceFn }) {
           const now = px ? px.mark : 0;
           const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
           const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
+          const csvOI = r.OI || 0;
+          const curOI = px ? px.oi : 0;
+          const dOI = curOI > 0 && csvOI > 0 ? curOI - csvOI : 0;
+          const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
           return (
             <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
@@ -111,11 +115,13 @@ function TT({ rows, priceFn }) {
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
-              <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.V)}</td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{fmt(r.P)}</td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
+              <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.V)}</td>
+              <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
               <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
             </tr>
           );
@@ -130,7 +136,7 @@ function CT({ rows, priceFn }) {
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
-          {["Ticker","C/P","Strike","Exp","Hits","Grade","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).map(h => (
+          {["Ticker","C/P","Strike","Exp","Hits","Grade","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).map(h => (
             <th key={h} style={{ padding:"5px 4px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
           ))}
         </tr>
@@ -142,6 +148,10 @@ function CT({ rows, priceFn }) {
           const now = px ? px.mark : 0;
           const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
           const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
+          const csvOI = r.maxOI || 0;
+          const curOI = px ? px.oi : 0;
+          const dOI = curOI > 0 && csvOI > 0 ? curOI - csvOI : 0;
+          const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
           return (
             <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:r.H>=5?(P.ac+"08"):"transparent" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
@@ -156,6 +166,8 @@ function CT({ rows, priceFn }) {
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
+              <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:P.dm }}>{px&&px.delta?px.delta.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:px&&px.theta<0?P.be:P.dm }}>{px&&px.theta?px.theta.toFixed(2):"—"}</td>}
             </tr>
@@ -371,9 +383,10 @@ function consistencyTable(trades, n=8) {
   trades.forEach(t => {
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!m[k]) m[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
-      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, prices:[] };
+      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, prices:[], maxOI:0 };
     m[k].H++; m[k].P+=t.P; m[k].V+=t.V;
     if (t.price > 0) m[k].prices.push(t.price);
+    if (t.OI > m[k].maxOI) m[k].maxOI = t.OI;
     if (t.Ty==="SWP") m[k].hasSweep = true;
     if (t.Ty==="BLK") m[k].hasBlock = true;
     if (t.Co==="YELLOW"||t.Co==="MAGENTA") m[k].oiExceeded = true;
@@ -715,9 +728,24 @@ function processFlowData(rows) {
     return true;
   }).sort((a,b)=>b.P-a.P).slice(0,10);
 
-  // OI Watchlist
-  const WATCH = [...unconfirmed].sort((a,b)=>b.P-a.P).slice(0,12)
-    .map(t => ({ S:t.S, CP:t.CP, K:t.K, E:t.E, V:t.V, OI:t.OI, P:t.P, Si:t.Si, Ty:t.Ty }));
+  // OI Watchlist — cluster ALL trades by strike, rank by Vol/OI ratio
+  const watchMap = {};
+  filtered.forEach(t => {
+    if (!t.OI || t.OI <= 0) return; // skip if no OI data
+    const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+    if (!watchMap[k]) watchMap[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, V:0, OI:t.OI, P:0, Si:t.Si, Ty:t.Ty, trades:0,
+      hasSweep:false, hasBlock:false, price:0, DTE:t.DTE };
+    watchMap[k].V += t.V;
+    watchMap[k].P += t.P;
+    watchMap[k].trades++;
+    if (t.price > 0 && watchMap[k].price === 0) watchMap[k].price = t.price;
+    if (t.OI > watchMap[k].OI) watchMap[k].OI = t.OI;
+    if (t.Ty === "SWP") watchMap[k].hasSweep = true;
+    if (t.Ty === "BLK") watchMap[k].hasBlock = true;
+  });
+  const WATCH = Object.values(watchMap)
+    .map(w => ({ ...w, volOI: w.OI > 0 ? w.V / w.OI : 0 }))
+    .sort((a,b) => b.volOI - a.volOI);
 
   // Performance tracker (needs DTE segments from charts)
   const { shortTerm:_st, longTerm:_lt, leaps:_lp } = (() => {
@@ -780,7 +808,7 @@ function processFlowData(rows) {
     .sort((a,b)=>(b.b+b.r)-(a.b+a.r))
     .map(tk => ({
       s:tk.s, b:tk.b, r:tk.r, n:tk.n,
-      t:tk.trades.sort((a,b)=>b.P-a.P).slice(0,12),
+      t:tk.trades.sort((a,b)=>b.P-a.P).slice(0,10),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
         c.clean = c.dirs.size <= 1;
         c.grade = gradeCluster(c);
@@ -806,7 +834,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Performance","Search","Short Term","Long Term","LEAPS","OI Watchlist"];
+const TABS = ["Market Read","Performance","Search","Short Term","Long Term","LEAPS","OI Check"];
 
 export default function OptionsFlowDashboard() {
   const [tab, setTab] = useState("Market Read");
@@ -815,6 +843,7 @@ export default function OptionsFlowDashboard() {
   const [fetchLoading, setFetchLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
+  const [oiSearch, setOiSearch] = useState("");
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [hover, setHover] = useState(null);
   const [priceCache, setPriceCache] = useState({}); // key: "SYM|CP|STRIKE|EXP" -> { mark, bid, ask, last, delta, theta, iv }
@@ -1274,24 +1303,39 @@ export default function OptionsFlowDashboard() {
             {["Conviction","Short Bull","Short Bear","Long Bull","Long Bear","LEAPS Bull","LEAPS Bear"].map(cat => {
               const items = perf.filter(p=>p.cat===cat);
               if (items.length===0) return null;
-              const filled = items.filter(r=>r.now>0);
-              const avgPnl = filled.length>0 ? filled.reduce((s,r)=>s+((r.now-r.entry)/r.entry*100),0)/filled.length : 0;
-              const winners = filled.filter(r=>r.now>r.entry).length;
+              const filled = items.filter(r => {
+                const px = getPrice(r.sym, r.cp, r.strike, r.exp);
+                return (px && px.mark > 0) || r.now > 0;
+              });
+              const avgPnl = filled.length>0 ? filled.reduce((s,r) => {
+                const px = getPrice(r.sym, r.cp, r.strike, r.exp);
+                const curr = px ? (px.mark || px.last || 0) : r.now || 0;
+                return s + (curr > 0 && r.entry > 0 ? (curr-r.entry)/r.entry*100 : 0);
+              },0)/filled.length : 0;
+              const winners = filled.filter(r => {
+                const px = getPrice(r.sym, r.cp, r.strike, r.exp);
+                const curr = px ? (px.mark || px.last || 0) : r.now || 0;
+                return curr > r.entry;
+              }).length;
               return (
                 <Card key={cat} title={cat} sub={items.length+" contracts"}>
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                     <thead>
                       <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                        {["Ticker","C/P","Strike","Exp","Hits","Entry","Range","Now","P&L %","Dir"].map(h=>(
+                        {["Ticker","C/P","Strike","Exp","Hits","Entry","Range","Now","P&L %","OI","ΔOI","Dir"].map(h=>(
                           <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {items.map(r => {
-                        const curr = r.now||0;
+                        const px = getPrice(r.sym, r.cp, r.strike, r.exp);
+                        const curr = px ? (px.mark || px.last || 0) : r.now || 0;
                         const pnlPct = curr>0&&r.entry>0 ? (curr-r.entry)/r.entry*100 : 0;
                         const pnlColor = pnlPct>0?P.bu:pnlPct<0?P.be:P.dm;
+                        const csvOI = r.spot > 0 ? 0 : 0; // perf items don't carry OI, use cache
+                        const curOI = px ? px.oi : 0;
+                        const dOI = curOI > 0 ? curOI : 0;
                         return (
                           <tr key={r.id} style={{ borderBottom:"1px solid "+P.bd+"10" }}>
                             <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}</td>
@@ -1299,15 +1343,12 @@ export default function OptionsFlowDashboard() {
                             <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.strike}</td>
                             <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.exp}</td>
                             <td style={{ padding:"5px 5px" }}><span style={{ fontWeight:800, color:r.hits>=10?P.ac:r.hits>=5?P.ye:P.dm }}>{r.hits}x</span></td>
-                            <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.entry>0?"$"+r.entry.toFixed(2):"—"}</td>
+                            <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{r.entry>0?"$"+r.entry.toFixed(2):"—"}</td>
                             <td style={{ padding:"5px 5px", fontSize:9, color:P.mt }}>{r.lo&&r.lo!==r.hi?"$"+r.lo.toFixed(2)+"–$"+r.hi.toFixed(2):"—"}</td>
-                            <td style={{ padding:"5px 5px" }}>
-                              <input type="number" step="0.01" value={curr||""} placeholder="—"
-                                onChange={e=>{ const v=parseFloat(e.target.value)||0; setPerf(prev=>prev.map(p=>p.id===r.id?{...p,now:v}:p)); }}
-                                style={{ width:70, padding:"3px 6px", borderRadius:4, fontSize:10, fontWeight:700, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none" }}
-                              />
-                            </td>
+                            <td style={{ padding:"5px 5px", fontWeight:700, color:curr>0?P.wh:P.mt }}>{curr>0?"$"+curr.toFixed(2):"—"}</td>
                             <td style={{ padding:"5px 5px", fontWeight:700, color:pnlColor }}>{curr>0?(pnlPct>=0?"+":"")+pnlPct.toFixed(1)+"%":"—"}</td>
+                            <td style={{ padding:"5px 5px", color:curOI>0?P.dm:P.mt }}>{curOI>0?curOI.toLocaleString():"—"}</td>
+                            <td style={{ padding:"5px 5px", color:P.dm }}>{"—"}</td>
                             <td style={{ padding:"5px 5px" }}><Tag c={r.dir==="BULL"?P.bu:P.be}>{r.dir}</Tag></td>
                           </tr>
                         );
@@ -1375,8 +1416,8 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                   </div>
-                  <Card title={tk.s+" — Top Trades"} sub={tk.n+" total"}><TT rows={tk.t} /></Card>
-                  {tk.c.length>0 && <Card title={tk.s+" — Consistency (2+ hits)"}><CT rows={tk.c} /></Card>}
+                  <Card title={tk.s+" — Top 10 Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} /></Card>
+                  {tk.c.length>0 && <Card title={tk.s+" — Top Consistency (2+ hits)"}><CT rows={tk.c.slice(0,5)} /></Card>}
                 </>
               );
             })()}
@@ -1483,50 +1524,77 @@ export default function OptionsFlowDashboard() {
           </div>
         )}
 
-        {/* OI Watchlist */}
-        {tab==="OI Watchlist" && (
+                {/* OI Check */}
+        {tab==="OI Check" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
               <div style={{ display:"flex", gap:14 }}>
                 <div style={{ width:3, background:P.uc, borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                 <div>
-                  <div style={{ fontSize:13, fontWeight:700, color:P.uc, marginBottom:5 }}>OI Check Needed</div>
-                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>WHITE trades — volume didn’t exceed OI. Could be opening or closing. Verify next-day OI: OI up = new position, OI down = closed.</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:P.uc, marginBottom:5 }}>OI Check — Ranked by Vol/OI</div>
+                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>All trades ranked by volume relative to open interest. Higher Vol/OI = more unusual. Fetch prices to compare next-day OI: ΔOI up = new positions, ΔOI down = exits.</div>
                 </div>
               </div>
             </Card>
-            <Card title="OI Watchlist" sub="Top unconfirmed by premium">
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
+              <input type="text" value={oiSearch}
+                onChange={e=>setOiSearch(e.target.value.toUpperCase())}
+                placeholder="Search ticker…"
+                style={{ width:180, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
+              />
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <button onClick={()=>fetchPrices(D.WATCH.filter(w=>!oiSearch||w.S.includes(oiSearch)).map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})))} disabled={fetchLoading}
+                  style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                    fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                  {fetchLoading?"Fetching…":"⚡ Fetch Live OI"}
+                </button>
+                {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
+              </div>
+            </div>
+            {(() => {
+              const watchFiltered = oiSearch ? D.WATCH.filter(w=>w.S.includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,10) : D.WATCH.slice(0,20);
+              return (
+            <Card title="OI Check" sub={watchFiltered.length+" contracts · sorted by Vol/OI"}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","C/P","Strike","Exp","Type","Side","Vol","OI","Premium","Vol/OI"].map(h=>(
+                    {["Ticker","C/P","Strike","Exp","Type","Hits","Premium","Entry","Vol","OI","ΔOI","Vol/OI","DTE"].map(h=>(
                       <th key={h} style={{ padding:"5px 4px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {D.WATCH.map((r,i)=>{
-                    const pct = r.OI>0?Math.round(r.V/r.OI*100):999;
+                  {watchFiltered.map((r,i)=>{
+                    const pct = r.volOI;
+                    const px = getPrice(r.S, r.CP, r.K, r.E);
+                    const curOI = px ? px.oi : 0;
+                    const dOI = curOI > 0 && r.OI > 0 ? curOI - r.OI : 0;
+                    const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
                     return (
-                      <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10" }}>
+                      <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:pct>=1?(P.ac+"08"):pct>=0.5?(P.ye+"08"):"transparent" }}>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
                         <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
-                        <td style={{ padding:"5px 4px" }}><Tag c={tc(r.Ty)}>{r.Ty}</Tag></td>
                         <td style={{ padding:"5px 4px" }}>
-                          {r.Si==="BB"?<Tag c={P.be}>BB</Tag>:r.Si==="AA"?<Tag c={P.ac}>AA</Tag>:r.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>A</Tag>}
+                          {r.hasSweep&&r.hasBlock?<Tag c={P.ac}>S+B</Tag>:r.hasSweep?<Tag c={P.sw}>SWP</Tag>:<Tag c={P.bk}>BLK</Tag>}
                         </td>
-                        <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.V)}</td>
-                        <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.OI)}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:700, color:r.trades>=3?P.ac:r.trades>=2?P.ye:P.dm }}>{r.trades}x</td>
                         <td style={{ padding:"5px 4px", fontWeight:700, color:P.wh }}>{fmt(r.P)}</td>
-                        <td style={{ padding:"5px 4px", fontWeight:600, color:pct>=80?P.ac:pct>=50?P.ye:P.dm }}>{pct}%</td>
+                        <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{r.price>0?"$"+r.price.toFixed(2):"—"}</td>
+                        <td style={{ padding:"5px 4px", color:P.dm }}>{r.V.toLocaleString()}</td>
+                        <td style={{ padding:"5px 4px", color:P.dm }}>{r.OI.toLocaleString()}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:800, color:pct>=1?P.ac:pct>=0.5?P.ye:pct>=0.25?P.wh:P.dm }}>{(pct*100).toFixed(0)}%</td>
+                        <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </Card>
+              );
+            })()}
           </div>
         )}
 
