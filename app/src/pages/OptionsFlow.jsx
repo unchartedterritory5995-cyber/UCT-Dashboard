@@ -418,8 +418,8 @@ function buildCharts(cc) {
     const [bm,bd] = b.d.split("/").map(Number);
     return am!==bm ? am-bm : ad-bd;
   });
-  const shortTerm = cc.filter(t => t.DTE >= 0 && t.DTE < 15);
-  const longTerm  = cc.filter(t => t.DTE >= 15 && t.DTE < 180);
+  const shortTerm = cc.filter(t => t.DTE >= 0 && t.DTE < 60);
+  const longTerm  = cc.filter(t => t.DTE >= 60 && t.DTE < 180);
   const leaps     = cc.filter(t => t.DTE >= 180);
   const SB_SYM = netByTicker(shortTerm.filter(t=>t.D==="BULL"));
   const SR_SYM = netByTicker(shortTerm.filter(t=>t.D==="BEAR"));
@@ -579,9 +579,24 @@ function processFlowData(rows) {
     };
   });
 
-  // Filter: remove ML/, RED/canceled, invalid
+  // ML/ Volume Matching: when an ML/ trade has the same volume as a BLOCK/SWEEP
+  // at the same ticker+strike+exp, it means the original position was closed/rolled
+  // as part of a multi-leg. Remove the matching original trade too.
+  const mlMatched = new Set();
+  {
+    const mlTrades = rawTrades.filter(t => t.isML && t.S && t.V > 0);
+    const nonML = rawTrades.filter(t => !t.isML && t.Ty && t.S && t.V > 0);
+    mlTrades.forEach(ml => {
+      const match = nonML.find(t =>
+        t.S === ml.S && t.K === ml.K && t.E === ml.E && t.CP === ml.CP && t.V === ml.V && !mlMatched.has(t)
+      );
+      if (match) mlMatched.add(match);
+    });
+  }
+
+  // Filter: remove ML/, RED/canceled, invalid, and ML/-matched trades
   let filtered = rawTrades.filter(t =>
-    !t.isML && t.S && t.Ty && t.CP && t.DTE >= 0 && t.V > 0 && t.P > 0 && t.Co !== "RED"
+    !t.isML && t.S && t.Ty && t.CP && t.DTE >= 0 && t.V > 0 && t.P > 0 && t.Co !== "RED" && !mlMatched.has(t)
   );
 
   // ── Same-timestamp multi-strike spread filter ────────────────────────────────
@@ -665,8 +680,9 @@ function processFlowData(rows) {
     // Build cluster metadata from ALL filtered trades (need bid-side presence for DTE≤3 rule)
     filtered.forEach(t => {
       const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
-      if (!clusterDirs[k]) clusterDirs[k] = { dirs: new Set(), askTimes:[], bbSweepTimes:[], hasBidSide:false, dte:t.DTE };
+      if (!clusterDirs[k]) clusterDirs[k] = { dirs: new Set(), askTimes:[], bbSweepTimes:[], hasBidSide:false, hasAskSide:false, dte:t.DTE };
       if (t.Si === "B" || t.Si === "BB") clusterDirs[k].hasBidSide = true;
+      if (t.Si === "A" || t.Si === "AA") clusterDirs[k].hasAskSide = true;
       if (!t.D) return; // stop here for non-directional trades
       clusterDirs[k].dirs.add(t.D);
       if (t.Si === "A" || t.Si === "AA") clusterDirs[k].askTimes.push(t._idx);
@@ -675,14 +691,25 @@ function processFlowData(rows) {
 
     Object.entries(clusterDirs).forEach(([k, c]) => {
       // DTE ≤ 3: dying weeklies with any bid-side = day trading/scalping noise
-      // IV decay + mixed buy/sell on expiring strikes is not conviction flow
       if (c.dte >= 0 && c.dte <= 3 && c.hasBidSide) {
+        dirtyClusterKeys.add(k);
+        return;
+      }
+      // Mixed sides: trades on BOTH bid-side (B/BB) AND ask-side (A/AA) = conflicting intent
+      // Even if B trades have no computed direction, bid+ask on same strike = not clean
+      if (c.hasBidSide && c.hasAskSide) {
+        // Profit-taking exception: short DTE, asks came first then BB sweeps
+        const isShortDTE = c.dte >= 0 && c.dte <= 14;
+        if (isShortDTE && c.askTimes.length > 0 && c.bbSweepTimes.length > 0) {
+          const minAsk = Math.min(...c.askTimes);
+          const maxBBSweep = Math.max(...c.bbSweepTimes);
+          if (minAsk > maxBBSweep) return; // profit-taking, not dirty
+        }
         dirtyClusterKeys.add(k);
         return;
       }
       if (c.dirs.size <= 1) return; // all same direction = clean
       // Mixed directions: check profit-taking exception
-      // Short DTE, A/AA came before BB sweep = profit taking (asks earlier = higher idx in newest-first)
       const isShortDTE = c.dte >= 0 && c.dte <= 14;
       if (isShortDTE && c.askTimes.length > 0 && c.bbSweepTimes.length > 0) {
         const minAsk = Math.min(...c.askTimes);
@@ -751,8 +778,8 @@ function processFlowData(rows) {
   const { shortTerm:_st, longTerm:_lt, leaps:_lp } = (() => {
     const cc = clean_confirmed;
     return {
-      shortTerm: cc.filter(t => t.DTE >= 0 && t.DTE < 15),
-      longTerm:  cc.filter(t => t.DTE >= 15 && t.DTE < 180),
+      shortTerm: cc.filter(t => t.DTE >= 0 && t.DTE < 60),
+      longTerm:  cc.filter(t => t.DTE >= 60 && t.DTE < 180),
       leaps:     cc.filter(t => t.DTE >= 180),
     };
   })();
@@ -1021,7 +1048,7 @@ export default function OptionsFlowDashboard() {
                 <div>
                   <div style={{ fontSize:11, color:shortC, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Short-Term Outlook</div>
                   <div style={{ fontSize:36, fontWeight:900, color:shortC, marginBottom:4 }}>{shortDir}</div>
-                  <div style={{ fontSize:11, color:P.dm }}>0–14 DTE: Bull {fmt(FD.shortBullTotal)} vs Bear {fmt(FD.shortBearTotal)}</div>
+                  <div style={{ fontSize:11, color:P.dm }}>0–59 DTE: Bull {fmt(FD.shortBullTotal)} vs Bear {fmt(FD.shortBearTotal)}</div>
                 </div>
                 {shortTop3.length > 0 && (
                   <div style={{ textAlign:"right", minWidth:120 }}>
@@ -1043,7 +1070,7 @@ export default function OptionsFlowDashboard() {
                 <div>
                   <div style={{ fontSize:11, color:longC, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Long-Term Outlook</div>
                   <div style={{ fontSize:36, fontWeight:900, color:longC, marginBottom:4 }}>{longDir}</div>
-                  <div style={{ fontSize:11, color:P.dm }}>15+ DTE: Bull {fmt(FD.longBullTotal)} vs Bear {fmt(FD.longBearTotal)}</div>
+                  <div style={{ fontSize:11, color:P.dm }}>60+ DTE: Bull {fmt(FD.longBullTotal)} vs Bear {fmt(FD.longBearTotal)}</div>
                 </div>
                 {longTop3.length > 0 && (
                   <div style={{ textAlign:"right", minWidth:120 }}>
@@ -1264,10 +1291,10 @@ export default function OptionsFlowDashboard() {
               </Card>
             )}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Short-Term Bullish" sub="0–14 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Short-Term Bearish" sub="0–14 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear"/></Card>
-              <Card title="Long-Term Bullish" sub="15+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Long-Term Bearish" sub="15+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear"/></Card>
+              <Card title="Short-Term Bullish" sub="0–59 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull"/></Card>
+              <Card title="Short-Term Bearish" sub="0–59 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear"/></Card>
+              <Card title="Long-Term Bullish" sub="60+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull"/></Card>
+              <Card title="Long-Term Bearish" sub="60+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear"/></Card>
             </div>
             {/* UOA Section */}
             {D.UOA_TRADES.length > 0 && (
@@ -1424,8 +1451,8 @@ export default function OptionsFlowDashboard() {
         {tab==="Short Term" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Bets" sub="0–14 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Bearish Bets" sub="0–14 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear"/></Card>
+              <Card title="Bullish Bets" sub="0–59 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull"/></Card>
+              <Card title="Bearish Bets" sub="0–59 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear"/></Card>
             </div>
             <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
               <button onClick={()=>fetchPrices(collectContracts(FD.SBL,FD.SBR))} disabled={fetchLoading}
@@ -1448,8 +1475,8 @@ export default function OptionsFlowDashboard() {
         {tab==="Long Term" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Bets" sub="15+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Bearish Bets" sub="15+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear"/></Card>
+              <Card title="Bullish Bets" sub="60+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull"/></Card>
+              <Card title="Bearish Bets" sub="60+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear"/></Card>
             </div>
             <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
               <button onClick={()=>fetchPrices(collectContracts(FD.LBL,FD.LBR_T))} disabled={fetchLoading}
