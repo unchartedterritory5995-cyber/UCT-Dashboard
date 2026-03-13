@@ -255,25 +255,140 @@ async def get_option_quote(symbol: str, strike: float, exp_date: str, cp: str) -
 
 async def get_batch_option_quotes(contracts: list[dict]) -> list[dict]:
     """
-    Fetch prices for multiple contracts.
-    Each contract: { "symbol": "AAPL", "strike": 250, "expDate": "2026-03-20", "cp": "C" }
+    FAST batch: groups contracts by symbol, fetches ONE chain per symbol,
+    extracts all matching contracts from the response.
+    20 contracts across 5 tickers = 5 API calls instead of 20.
     """
+    token = await get_valid_token()
+    if not token:
+        return [{"error": "Not authenticated"}] * len(contracts)
+
+    from datetime import datetime as dt, timedelta
+    from collections import defaultdict
+
+    # Group contracts by symbol
+    by_symbol = defaultdict(list)
+    for c in contracts:
+        by_symbol[c["symbol"].upper()].append(c)
+
+    # Fetch one chain per symbol
+    results_map = {}  # key: "SYM|CP|STRIKE|EXPDATE" -> quote data
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        for symbol, sym_contracts in by_symbol.items():
+            # Find date range across all contracts for this symbol
+            all_dates = []
+            for c in sym_contracts:
+                try:
+                    d = dt.strptime(c["expDate"], "%Y-%m-%d")
+                    all_dates.append(d)
+                except Exception:
+                    pass
+            if not all_dates:
+                continue
+            from_date = (min(all_dates) - timedelta(days=5)).strftime("%Y-%m-%d")
+            to_date = (max(all_dates) + timedelta(days=5)).strftime("%Y-%m-%d")
+
+            # Determine if we need calls, puts, or both
+            cps = set(c["cp"].upper() for c in sym_contracts)
+            contract_type = "ALL" if len(cps) > 1 else ("CALL" if "C" in cps else "PUT")
+
+            try:
+                resp = await client.get(
+                    CHAINS_URL,
+                    headers={"Authorization": f"Bearer {token}"},
+                    params={
+                        "symbol": symbol,
+                        "contractType": contract_type,
+                        "fromDate": from_date,
+                        "toDate": to_date,
+                        "includeUnderlyingQuote": "true",
+                    },
+                )
+                if resp.status_code == 401:
+                    new_tokens = await refresh_access_token()
+                    if new_tokens:
+                        token = new_tokens["access_token"]
+                        resp = await client.get(
+                            CHAINS_URL,
+                            headers={"Authorization": f"Bearer {token}"},
+                            params={
+                                "symbol": symbol,
+                                "contractType": contract_type,
+                                "fromDate": from_date,
+                                "toDate": to_date,
+                                "includeUnderlyingQuote": "true",
+                            },
+                        )
+                if resp.status_code != 200:
+                    logger.warning("Chain fetch failed for %s: %s", symbol, resp.status_code)
+                    continue
+
+                data = resp.json()
+                underlying = data.get("underlyingPrice", 0)
+
+                # Parse all contracts from the chain into a flat lookup
+                for chain_key in ["callExpDateMap", "putExpDateMap"]:
+                    cp_letter = "C" if "call" in chain_key else "P"
+                    exp_map = data.get(chain_key, {})
+                    for exp_key, strikes in exp_map.items():
+                        exp_date_str = exp_key.split(":")[0] if ":" in exp_key else exp_key
+                        for strike_key, contract_list in strikes.items():
+                            if contract_list and len(contract_list) > 0:
+                                c = contract_list[0]
+                                strike_val = float(strike_key)
+                                k = f"{symbol}|{cp_letter}|{strike_val}|{exp_date_str}"
+                                results_map[k] = {
+                                    "symbol": symbol,
+                                    "strike": strike_val,
+                                    "expDate": exp_date_str,
+                                    "cp": cp_letter,
+                                    "bid": c.get("bid", 0),
+                                    "ask": c.get("ask", 0),
+                                    "last": c.get("last", 0),
+                                    "mark": c.get("mark", 0),
+                                    "volume": c.get("totalVolume", 0),
+                                    "openInterest": c.get("openInterest", 0),
+                                    "iv": c.get("volatility", 0),
+                                    "delta": c.get("delta", 0),
+                                    "gamma": c.get("gamma", 0),
+                                    "theta": c.get("theta", 0),
+                                    "underlyingPrice": underlying,
+                                }
+            except Exception as e:
+                logger.warning("Chain fetch error for %s: %s", symbol, e)
+
+    # Match requested contracts to chain data (fuzzy date match ±5 days)
     results = []
-    for contract in contracts:
+    for c in contracts:
+        sym = c["symbol"].upper()
+        cp = c["cp"].upper()
+        strike = float(c["strike"])
         try:
-            result = await get_option_quote(
-                contract["symbol"],
-                float(contract["strike"]),
-                contract["expDate"],
-                contract["cp"],
-            )
-            results.append(result or {"error": "No result"})
-        except Exception as e:
-            results.append({
-                "symbol": contract.get("symbol"),
-                "strike": contract.get("strike"),
-                "error": str(e),
-            })
+            target = dt.strptime(c["expDate"], "%Y-%m-%d")
+        except Exception:
+            results.append({"symbol": sym, "strike": strike, "error": "Bad date"})
+            continue
+
+        # Find best match within ±5 days
+        best = None
+        best_dist = 999
+        for key, val in results_map.items():
+            parts = key.split("|")
+            if parts[0] == sym and parts[1] == cp and float(parts[2]) == strike:
+                try:
+                    exp_dt = dt.strptime(parts[3], "%Y-%m-%d")
+                    dist = abs((exp_dt - target).days)
+                    if dist < best_dist:
+                        best_dist = dist
+                        best = val
+                except Exception:
+                    pass
+        if best and best_dist <= 5:
+            results.append(best)
+        else:
+            results.append({"symbol": sym, "strike": strike, "cp": cp, "error": f"No match near {c['expDate']}"})
+
     return results
 
 
