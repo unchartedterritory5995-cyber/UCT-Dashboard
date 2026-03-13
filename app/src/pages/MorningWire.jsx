@@ -91,10 +91,15 @@ export default function MorningWire() {
         }
       </TileCard>
 
-      {/* ── By the Numbers ───────────────────────────────────────── */}
-      <TileCard title="By the Numbers">
-        <span className={styles.noData}>Coming soon</span>
-      </TileCard>
+      {/* ── Analyst Activity ─────────────────────────────────────── */}
+      <div className={styles.analystRow}>
+        <TileCard title="Analyst Upgrades">
+          <span className={styles.noData}>Coming soon</span>
+        </TileCard>
+        <TileCard title="Analyst Downgrades">
+          <span className={styles.noData}>Coming soon</span>
+        </TileCard>
+      </div>
 
     </div>
   )
