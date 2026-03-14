@@ -953,6 +953,9 @@ export default function OptionsFlowDashboard() {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
   }, [D]);
 
+  // Auto-load market data on mount
+  useEffect(() => { fetchMarketData(); }, []);
+
   // ─── Loading / Error / Empty States (AFTER all hooks) ──────────────────
   if (csvLoading) return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
@@ -1076,6 +1079,7 @@ export default function OptionsFlowDashboard() {
     setNarrativeLoading(false);
   }
 
+
   return (
     <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", padding:"16px 20px" }}>
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
@@ -1095,10 +1099,10 @@ export default function OptionsFlowDashboard() {
             {/* Index Cards */}
             <div style={{ display:"flex", gap:8, marginBottom:8, alignItems:"center" }}>
               {marketIndices ? marketIndices.map((idx,i) => (
-                <div key={i} style={{ flex:1, background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+(idx.symbol==="VIX"?(idx.pct>0?P.be:P.bu):(idx.pct>=0?P.bu:P.be)) }}>
+                <div key={i} style={{ flex:1, background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+(idx.name.includes("VIX")?(idx.pct>0?P.be:P.bu):(idx.pct>=0?P.bu:P.be)) }}>
                   <div style={{ fontSize:9, color:P.dm, fontWeight:600, marginBottom:3 }}>{idx.name}</div>
                   <div style={{ fontSize:15, fontWeight:900, color:P.wh }}>{idx.price>0?idx.price.toLocaleString(undefined,{minimumFractionDigits:2}):"—"}</div>
-                  <div style={{ fontSize:11, fontWeight:700, color:idx.symbol==="VIX"?(idx.pct>0?P.be:P.bu):(idx.pct>=0?P.bu:P.be) }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:idx.name.includes("VIX")?(idx.pct>0?P.be:P.bu):(idx.pct>=0?P.bu:P.be) }}>
                     {idx.change>0?"+":""}{idx.change} ({idx.pct>0?"+":""}{idx.pct}%)
                   </div>
                 </div>
