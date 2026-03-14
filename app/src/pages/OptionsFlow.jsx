@@ -1093,34 +1093,55 @@ export default function OptionsFlowDashboard() {
           </span>
         </div>
 
-        {/* ── Market Pulse (indices + narrative) ─────────────────────────── */}
+        {/* ── Market Pulse ─────────────────────────────────────────────── */}
         {tab==="Market Read" && (
-          <div style={{ marginBottom:12 }}>
-            {/* Index Cards */}
-            <div style={{ display:"flex", gap:8, marginBottom:8, alignItems:"center" }}>
-              {marketIndices ? marketIndices.map((idx,i) => (
-                <div key={i} style={{ flex:1, background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+(idx.name.includes("VIX")?(idx.pct>0?P.be:P.bu):(idx.pct>=0?P.bu:P.be)) }}>
-                  <div style={{ fontSize:9, color:P.dm, fontWeight:600, marginBottom:3 }}>{idx.name}</div>
-                  <div style={{ fontSize:15, fontWeight:900, color:P.wh }}>{idx.price>0?idx.price.toLocaleString(undefined,{minimumFractionDigits:2}):"—"}</div>
-                  <div style={{ fontSize:11, fontWeight:700, color:idx.name.includes("VIX")?(idx.pct>0?P.be:P.bu):(idx.pct>=0?P.bu:P.be) }}>
-                    {idx.change>0?"+":""}{idx.change} ({idx.pct>0?"+":""}{idx.pct}%)
-                  </div>
-                </div>
-              )) : (
-                <button onClick={fetchMarketData} style={{ padding:"8px 20px", borderRadius:6, border:"1px solid "+P.bl, background:P.al, color:P.dm, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                  📊 Load Market Data
-                </button>
-              )}
+          <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:"16px 20px", marginBottom:12 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:P.uc, letterSpacing:1.5, textTransform:"uppercase" }}>Market Pulse</div>
               {marketIndices && (
-                <button onClick={fetchMarketData} title="Refresh" style={{ padding:"8px 10px", borderRadius:6, border:"1px solid "+P.bl, background:P.al, color:P.dm, fontSize:10, cursor:"pointer", fontFamily:"inherit" }}>↻</button>
+                <button onClick={fetchMarketData} title="Refresh" style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:9, cursor:"pointer", fontFamily:"inherit" }}>↻ Refresh</button>
+              )}
+            </div>
+            {/* Index Cards */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:8, marginBottom:marketNarrative||narrativeLoading?12:0 }}>
+              {marketIndices ? marketIndices.map((idx,i) => {
+                const isVix = idx.name.includes("VIX");
+                const up = isVix ? idx.pct < 0 : idx.pct >= 0;
+                const c = up ? P.bu : P.be;
+                return (
+                  <div key={i} style={{ background:P.al, borderRadius:6, padding:"10px 12px", borderLeft:"3px solid "+c }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                      <span style={{ fontSize:9, color:P.dm, fontWeight:600 }}>{idx.name}</span>
+                      <span style={{ fontSize:9, fontWeight:700, color:c, background:c+"15", padding:"1px 5px", borderRadius:3 }}>
+                        {idx.pct>0?"+":""}{idx.pct}%
+                      </span>
+                    </div>
+                    <div style={{ fontSize:16, fontWeight:900, color:P.wh, lineHeight:1 }}>{idx.price>0?idx.price.toLocaleString(undefined,{minimumFractionDigits:2}):"—"}</div>
+                    <div style={{ fontSize:10, fontWeight:600, color:c, marginTop:3 }}>
+                      {idx.change>0?"+":""}{idx.change}
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"12px 0" }}>
+                  <div style={{ fontSize:10, color:P.dm, marginBottom:6 }}>Market data loads automatically</div>
+                  <button onClick={fetchMarketData} style={{ padding:"6px 16px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:P.ac, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                    Load Now
+                  </button>
+                </div>
               )}
             </div>
             {/* AI Narrative */}
-            {narrativeLoading && <div style={{ fontSize:10, color:P.dm, marginBottom:8 }}>Generating market summary…</div>}
-            {marketNarrative && (
-              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"10px 14px", marginBottom:8 }}>
-                <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>TODAY'S MARKET</div>
-                <div style={{ fontSize:11, color:P.dm, lineHeight:1.8 }}>{marketNarrative}</div>
+            {narrativeLoading && (
+              <div style={{ fontSize:10, color:P.dm, padding:"8px 0 0" }}>
+                <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:P.ac, marginRight:6, animation:"pulse 1.5s infinite" }}/>
+                Generating market summary…
+                <style>{"@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}"}</style>
+              </div>
+            )}
+            {marketNarrative && !narrativeLoading && (
+              <div style={{ borderTop:"1px solid "+P.bd, paddingTop:10 }}>
+                <div style={{ fontSize:11, color:P.tx, lineHeight:1.8 }}>{marketNarrative}</div>
               </div>
             )}
           </div>
