@@ -70,12 +70,16 @@ function fmtDate(iso) {
   return `${parseInt(m)}/${parseInt(d)}/${y}`
 }
 
-// Round up to the nearest "nice" number (e.g. 302,371 → 350,000)
+// Round up/down to 2-significant-digit precision (e.g. 201,000 → 210,000; 317,489 → 320,000)
 function roundUpNice(val) {
   if (val <= 0) return 0
   const mag = Math.pow(10, Math.floor(Math.log10(val)) - 1)
-  const inc = mag * 5
-  return Math.ceil(val / inc) * inc
+  return Math.ceil(val / mag) * mag
+}
+function roundDownNice(val) {
+  if (val <= 0) return 0
+  const mag = Math.pow(10, Math.floor(Math.log10(val)) - 1)
+  return Math.floor(val / mag) * mag
 }
 
 function fmtNum(v) {
@@ -163,9 +167,12 @@ export default function CotData() {
       ))
     : 250000
 
-  // Right-axis cap — rounded up to a clean number
+  // Right-axis bounds — tight to actual OI data range
   const maxOI = data && data.length > 0
     ? roundUpNice(Math.max(...data.map(d => d.open_interest)))
+    : undefined
+  const minOI = data && data.length > 0
+    ? roundDownNice(Math.min(...data.map(d => d.open_interest)))
     : undefined
 
   const chartData = data && data.length > 0 ? {
@@ -287,7 +294,8 @@ export default function CotData() {
         },
       },
       y2: {
-        position: 'right',
+        position:     'right',
+        ...(minOI != null ? { min: minOI } : {}),
         ...(maxOI != null ? { max: maxOI } : {}),
         grid:     { display: false },
         border:   { color: '#333' },
