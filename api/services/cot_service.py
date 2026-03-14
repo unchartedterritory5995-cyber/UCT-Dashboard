@@ -19,7 +19,7 @@ import os
 import zipfile
 import logging
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TextIO
 
 import requests
@@ -310,7 +310,7 @@ def _upsert_records(records: list[dict]) -> int:
 def _log_unmapped(names: set[str]) -> None:
     if not names:
         return
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     with _get_conn() as conn:
         conn.executemany(
             "INSERT OR IGNORE INTO cot_symbols_unmapped (market_name, first_seen) VALUES (?, ?)",
@@ -322,7 +322,7 @@ def _log_refresh(n: int, status: str = "ok") -> None:
     with _get_conn() as conn:
         conn.execute(
             "INSERT INTO cot_refresh_log (run_at, records_inserted, status) VALUES (?, ?, ?)",
-            (datetime.utcnow().isoformat(), n, status),
+            (datetime.now(timezone.utc).isoformat(), n, status),
         )
 
 
@@ -415,7 +415,7 @@ def get_status() -> dict:
         count = conn.execute("SELECT COUNT(*) FROM cot_records").fetchone()[0]
 
     # Next Friday at 3:45 PM ET (UTC-4 in summer, UTC-5 in winter — approximate)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     days_until_fri = (4 - now.weekday()) % 7
     if days_until_fri == 0 and now.hour >= 20:   # past 3:45 PM ET (≈20:45 UTC)
         days_until_fri = 7
