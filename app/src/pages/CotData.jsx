@@ -20,7 +20,7 @@ ChartJS.register(
 const SYMBOL_NAMES = {
   ES: 'S&P 500 E-Mini',      NQ: 'Nasdaq-100 E-Mini',   YM: 'DJIA E-Mini',
   QR: 'Russell 2000 Mini',   EW: 'S&P MidCap 400',      VI: 'VIX',
-  ET: 'S&P 500 Micro',       NM: 'Nasdaq-100 Micro',    NK: 'Nikkei 225',
+  ET: 'S&P 500 Micro E-Mini', NM: 'Nasdaq-100 Micro',    NK: 'Nikkei 225',
   GC: 'Gold',                SI: 'Silver',               HG: 'Copper',
   PL: 'Platinum',            PA: 'Palladium',            AL: 'Aluminum',
   CL: 'Crude Oil (WTI)',     HO: 'Heating Oil',          RB: 'RBOB Gasoline',
