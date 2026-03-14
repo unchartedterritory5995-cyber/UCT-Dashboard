@@ -1364,11 +1364,12 @@ export default function OptionsFlowDashboard() {
                             }
                           }
                         }
-                        // Include tracker-only days that predate the flow range
-                        const trackerOnlyDays = Object.keys(trackerByDay)
-                          .filter(d => !allDays.includes(d))
-                          .sort(_mdSort);
-                        const days = [...trackerOnlyDays, ...(allDays.length > 0 ? allDays : flowDays)];
+                        // Merge all day sources and sort numerically — ensures correct order
+                        const allKnownDays = new Set([
+                          ...(allDays.length > 0 ? allDays : flowDays),
+                          ...Object.keys(trackerByDay),
+                        ]);
+                        const days = [...allKnownDays].sort(_mdSort);
 
                         // Build chart data — Polygon fills vol+price, tracker fills OI
                         const chartData = [];
