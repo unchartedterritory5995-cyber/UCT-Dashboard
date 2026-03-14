@@ -1328,7 +1328,7 @@ export default function OptionsFlowDashboard() {
                         const curPrice = px ? (px.mark || px.last || 0) : 0;
                         const byDay = {};
                         t.trades.forEach(tr => {
-                          const day = tr.Dt || "—";
+                          const day = tr.Dt ? tr.Dt+"/2026" : "—";
                           if (!byDay[day]) byDay[day] = { trades:[], vol:0, maxOI:0, prem:0, prices:[] };
                           byDay[day].trades.push(tr);
                           byDay[day].vol += tr.V;
@@ -1337,7 +1337,9 @@ export default function OptionsFlowDashboard() {
                           const ep = tr.V > 0 ? tr.P / tr.V / 100 : 0;
                           if (ep > 0) byDay[day].prices.push(ep);
                         });
-                        const _mdSort = (a,b) => { const [am,ad]=a.split('/').map(Number),[bm,bd]=b.split('/').map(Number); return am!==bm?am-bm:ad-bd; };
+                        // Year-aware sort: handles "M/D" and "M/D/YYYY" — uses current year as fallback
+                        const _toDate = s => { const p=s.split('/').map(Number); const y=p.length>=3?p[2]:2026; return new Date(y,p[0]-1,p[1]); };
+                        const _mdSort = (a,b) => _toDate(a)-_toDate(b);
                         const flowDays = Object.keys(byDay).sort(_mdSort);
 
                         // ── Merge Polygon/tracker history ──────────────────────────
@@ -1345,9 +1347,10 @@ export default function OptionsFlowDashboard() {
                         const trackerHistory = contractHistory[histKey] || [];
                         const trackerByDay = {};
                         trackerHistory.forEach(h => {
+                          // Keep full "M/D/YYYY" key so year-aware sort works correctly
                           const parts = h.date.split("/");
-                          const shortDate = parts.length >= 2 ? parts[0]+"/"+parts[1] : h.date;
-                          trackerByDay[shortDate] = h;
+                          const key = parts.length >= 3 ? h.date : parts.length >= 2 ? h.date+"/2026" : h.date;
+                          trackerByDay[key] = h;
                         });
 
                         // Build FULL range from first flow day to TODAY
@@ -1359,7 +1362,7 @@ export default function OptionsFlowDashboard() {
                           if (first) {
                             const d = new Date(first);
                             while (d <= today) {
-                              if (d.getDay()!==0 && d.getDay()!==6) allDays.push((d.getMonth()+1)+"/"+d.getDate());
+                              if (d.getDay()!==0 && d.getDay()!==6) allDays.push((d.getMonth()+1)+"/"+d.getDate()+"/"+(d.getFullYear()));
                               d.setDate(d.getDate()+1);
                             }
                           }
@@ -1465,7 +1468,7 @@ export default function OptionsFlowDashboard() {
                                   const dayDelta = prevD && prevD.oi > 0 && d.oi > 0 ? d.oi - prevD.oi : 0;
                                   return (
                                     <tr key={d.day} style={{ borderBottom:"1px solid "+P.bd+"12", background:d.hasFlow?(P.ac+"06"):"transparent" }}>
-                                      <td style={{ padding:"2px 4px", fontWeight:600, color:d.hasFlow?P.ac:P.mt, fontSize:8 }}>{d.day}</td>
+                                      <td style={{ padding:"2px 4px", fontWeight:600, color:d.hasFlow?P.ac:P.mt, fontSize:8 }}>{d.day.split("/").slice(0,2).join("/")}</td>
                                       <td style={{ padding:"2px 4px", textAlign:"right", fontWeight:d.vol>0?700:400, color:d.vol>0?P.wh:P.mt, fontSize:8 }}>{d.vol>0?fK(d.vol):"0"}</td>
                                       <td style={{ padding:"2px 4px", textAlign:"right", color:P.wh, fontSize:8 }}>{d.oi>0?d.oi.toLocaleString():"—"}</td>
                                       <td style={{ padding:"2px 4px", textAlign:"right", fontWeight:700, fontSize:8, color:dayDelta>0?P.bu:dayDelta<0?P.be:P.dm }}>
