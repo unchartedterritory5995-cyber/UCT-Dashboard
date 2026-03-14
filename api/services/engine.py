@@ -1388,12 +1388,24 @@ def get_analyst_actions() -> dict:
     wire = _load_wire_data()
     actions = wire.get("analyst_actions", []) if wire else []
 
-    UPGRADE_ACTIONS   = {"upgrade", "upgraded", "initiates", "initiated", "raises pt"}
-    DOWNGRADE_ACTIONS = {"downgrade", "downgraded", "lowers pt"}
+    UPGRADE_ACTIONS   = {"upgrade", "upgraded", "initiates", "initiated"}
+    DOWNGRADE_ACTIONS = {"downgrade", "downgraded"}
+    PT_RAISE_ACTIONS  = {"raises pt"}
+    PT_LOWER_ACTIONS  = {"lowers pt"}
 
-    upgrades   = [a for a in actions if a.get("action", "").lower() in UPGRADE_ACTIONS][:20]
-    downgrades = [a for a in actions if a.get("action", "").lower() in DOWNGRADE_ACTIONS][:20]
+    upgrades   = [a for a in actions if a.get("action", "").lower() in UPGRADE_ACTIONS][:12]
+    downgrades = [a for a in actions if a.get("action", "").lower() in DOWNGRADE_ACTIONS][:12]
+    pt_changes = [a for a in actions if a.get("action", "").lower() in (PT_RAISE_ACTIONS | PT_LOWER_ACTIONS)][:15]
 
-    result = {"upgrades": upgrades, "downgrades": downgrades}
+    result = {
+        "upgrades":   upgrades,
+        "downgrades": downgrades,
+        "pt_changes": pt_changes,
+        "summary": {
+            "upgrades":   len(upgrades),
+            "downgrades": len(downgrades),
+            "pt_changes": len(pt_changes),
+        },
+    }
     cache.set("analyst_actions", result, ttl=3600)
     return result

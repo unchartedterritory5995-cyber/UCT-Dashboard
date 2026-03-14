@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import useSWR from 'swr'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
@@ -48,29 +49,120 @@ function EarningsRow({ row }) {
   )
 }
 
-function ActionRow({ item, type }) {
-  const { ticker, action, firm, from_rating, to_rating, price_target } = item
-  const pt = price_target ? price_target.replace(/^\$/, '') : null
-  const hasRatingChange = from_rating && to_rating && from_rating !== to_rating
+// ── Analyst Activity ──────────────────────────────────────────────────────────
+
+const ANALYST_TABS = [
+  { key: 'upgrades',   label: 'Upgrades'   },
+  { key: 'downgrades', label: 'Downgrades' },
+  { key: 'pt_changes', label: 'PT Changes' },
+]
+
+function _badgeClass(action) {
+  const a = (action || '').toLowerCase()
+  if (a === 'upgrade' || a === 'upgraded')    return styles.aeBadgeUp
+  if (a === 'downgrade' || a === 'downgraded') return styles.aeBadgeDown
+  if (a === 'initiates' || a === 'initiated') return styles.aeBadgeInit
+  if (a === 'raises pt')                      return styles.aeBadgePtUp
+  if (a === 'lowers pt')                      return styles.aeBadgePtDn
+  return styles.aeBadgeMuted
+}
+
+function _borderClass(action) {
+  const a = (action || '').toLowerCase()
+  if (a === 'upgrade' || a === 'upgraded' || a === 'initiates' || a === 'initiated') return styles.aeUp
+  if (a === 'downgrade' || a === 'downgraded') return styles.aeDown
+  if (a === 'raises pt') return styles.aePtUp
+  if (a === 'lowers pt') return styles.aePtDn
+  return ''
+}
+
+function AnalystEntry({ item }) {
+  const { ticker, action, firm, from_rating, to_rating, price_target, implied_upside } = item
+  const hasChange = from_rating && to_rating && from_rating !== to_rating
+  const isPos = implied_upside ? implied_upside.startsWith('+') : null
 
   return (
-    <div className={`${styles.actionRow} ${type === 'upgrade' ? styles.actionUp : styles.actionDown}`}>
-      <TickerPopup sym={ticker} className={styles.actionTicker} />
-      <span className={`${styles.actionBadge} ${type === 'upgrade' ? styles.badgeUp : styles.badgeDown}`}>
-        {action}
+    <div className={`${styles.aeEntry} ${_borderClass(action)}`}>
+      <TickerPopup sym={ticker} className={styles.aeTicker} />
+      <span className={`${styles.aeBadge} ${_badgeClass(action)}`}>{action}</span>
+      <span className={styles.aeMid}>
+        {firm && <span className={styles.aeFirm}>{firm}</span>}
+        {hasChange
+          ? <span className={styles.aeRating}>
+              <span className={styles.aeRatingFrom}>{from_rating}</span>
+              <span className={styles.aeRatingArrow}> → </span>
+              <span className={styles.aeRatingTo}>{to_rating}</span>
+            </span>
+          : to_rating
+            ? <span className={`${styles.aeRating} ${styles.aeRatingTo}`}>{to_rating}</span>
+            : null
+        }
       </span>
-      {hasRatingChange && (
-        <span className={styles.actionRating}>
-          <span className={styles.ratingFrom}>{from_rating}</span>
-          <span className={styles.ratingArrow}>→</span>
-          <span className={styles.ratingTo}>{to_rating}</span>
-        </span>
-      )}
-      {!hasRatingChange && to_rating && (
-        <span className={styles.ratingTo}>{to_rating}</span>
-      )}
-      {pt && <span className={styles.actionPt}>${pt}</span>}
-      {firm && <span className={styles.actionFirm}>{firm}</span>}
+      <span className={styles.aePt}>
+        {price_target ? (price_target.startsWith('$') ? price_target : `$${price_target}`) : ''}
+      </span>
+      {implied_upside
+        ? <span className={`${styles.aeUpside} ${isPos ? styles.aeUpsidePos : styles.aeUpsideNeg}`}>
+            {implied_upside}
+          </span>
+        : <span className={styles.aeUpside} />
+      }
+    </div>
+  )
+}
+
+function AnalystActivity({ analysts }) {
+  const [tab, setTab] = useState('upgrades')
+  const summary = analysts?.summary || {}
+  const entries = analysts?.[tab] || []
+
+  return (
+    <div className={styles.analystBlock}>
+      <div className={styles.analystHeader}>
+        <div className={styles.analystTitleRow}>
+          <span className={styles.analystTitle}>Analyst Activity</span>
+          {summary.upgrades != null && (
+            <span className={styles.analystSummary}>
+              <span className={styles.aSumUp}>↑ {summary.upgrades}</span>
+              <span className={styles.aSumDot}> · </span>
+              <span className={styles.aSumDown}>↓ {summary.downgrades}</span>
+              <span className={styles.aSumDot}> · </span>
+              <span className={styles.aSumPt}>{summary.pt_changes} PT</span>
+            </span>
+          )}
+        </div>
+        <div className={styles.analystTabs}>
+          {ANALYST_TABS.map(t => (
+            <button
+              key={t.key}
+              className={`${styles.analystTab} ${tab === t.key ? styles.analystTabActive : ''}`}
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+              {summary[t.key] != null && summary[t.key] > 0 &&
+                <span className={styles.analystTabCount}>{summary[t.key]}</span>
+              }
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className={styles.analystBody}>
+        {entries.length > 0
+          ? <>
+              <div className={styles.aeHeaderRow}>
+                <span>Ticker</span>
+                <span>Action</span>
+                <span>Firm · Rating</span>
+                <span style={{textAlign:'right'}}>Price Target</span>
+                <span style={{textAlign:'right'}}>vs Current</span>
+              </div>
+              {entries.map((a, i) => <AnalystEntry key={i} item={a} />)}
+            </>
+          : <span className={styles.noData}>
+              {analysts ? `No ${tab.replace('_', ' ')} today` : 'Loading…'}
+            </span>
+        }
+      </div>
     </div>
   )
 }
@@ -78,9 +170,6 @@ function ActionRow({ item, type }) {
 export default function MorningWire() {
   const { data: rundown }  = useSWR('/api/rundown',         fetcher, { refreshInterval: 300000 })
   const { data: analysts } = useSWR('/api/analyst-actions', fetcher, { refreshInterval: 300000 })
-
-  const upgrades  = analysts?.upgrades  || []
-  const downgrades = analysts?.downgrades || []
 
   return (
     <div className={styles.page}>
@@ -107,20 +196,7 @@ export default function MorningWire() {
       </TileCard>
 
       {/* ── Analyst Activity ─────────────────────────────────────── */}
-      <div className={styles.analystRow}>
-        <TileCard title="Analyst Upgrades">
-          {upgrades.length > 0
-            ? upgrades.map((a, i) => <ActionRow key={i} item={a} type="upgrade" />)
-            : <span className={styles.noData}>{analysts ? 'No upgrades today' : 'Loading…'}</span>
-          }
-        </TileCard>
-        <TileCard title="Analyst Downgrades">
-          {downgrades.length > 0
-            ? downgrades.map((a, i) => <ActionRow key={i} item={a} type="downgrade" />)
-            : <span className={styles.noData}>{analysts ? 'No downgrades today' : 'Loading…'}</span>
-          }
-        </TileCard>
-      </div>
+      <AnalystActivity analysts={analysts} />
 
     </div>
   )
