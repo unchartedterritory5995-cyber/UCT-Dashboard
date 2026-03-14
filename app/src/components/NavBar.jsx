@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: '/dashboard',    label: 'Dashboard',    icon: '⊞' },
   { to: '/morning-wire', label: 'Morning Wire',  icon: '📰' },
   { to: '/uct-20',       label: 'UCT 20',        icon: '⭐' },
+  { to: '/breadth',      label: 'Breadth',       icon: '📶' },
   { to: '/traders',      label: 'Traders',       icon: '👥' },
   { to: '/screener',     label: 'Screener',      icon: '⚡' },
   { to: '/options-flow', label: 'Options Flow',  icon: '📊' },
