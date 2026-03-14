@@ -1266,7 +1266,8 @@ export default function OptionsFlowDashboard() {
                           const ep = tr.V > 0 ? tr.P / tr.V / 100 : 0;
                           if (ep > 0) byDay[day].prices.push(ep);
                         });
-                        const flowDays = Object.keys(byDay).sort();
+                        const _mdSort = (a,b) => { const [am,ad]=a.split('/').map(Number),[bm,bd]=b.split('/').map(Number); return am!==bm?am-bm:ad-bd; };
+                        const flowDays = Object.keys(byDay).sort(_mdSort);
                         // Build FULL range from first flow day to TODAY
                         const allDays = [];
                         if (flowDays.length > 0) {
