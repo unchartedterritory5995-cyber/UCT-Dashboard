@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 // ─── Flow Data loaded dynamically from /flow-data.csv ─────────────────────────
@@ -523,8 +523,8 @@ function processFlowData(rows) {
     const cp = cpRaw === "CALL" ? "C" : cpRaw === "PUT" ? "P" : cpRaw.replace(/[^CP]/g,"").slice(0,1);
     const strike = parseFloat(r.strike) || 0;
     const spot = parseFloat(r.spot) || 0;
-    const volume = parseInt(r.volume) || 0;
-    const oi = parseInt(r.oi) || 0;
+    const volume = parseInt((r.volume||"").replace(/,/g,"")) || 0;
+    const oi = parseInt((r.oi||"").replace(/,/g,"")) || 0;
     const premium = parseFloat((r.premium||"").replace(/[$,]/g,"")) || 0;
     const price = parseFloat((r.price||"").replace(/[$,]/g,"")) || 0;
     const iv = parseFloat(r.iv) || 0;
@@ -948,27 +948,6 @@ export default function OptionsFlowDashboard() {
     const charts = buildCharts(cc);
     return { ...D, ...charts };
   }, [D, capFilter]);
-
-  // ─── CONV ref: snapshot FD.CONV so the tracking effect can read it
-  //     without adding FD to its dep array (which would cause infinite loops
-  //     since FD is a useMemo that changes reference on every capFilter render).
-  const convRef = useRef([]);
-  useEffect(() => {
-    convRef.current = FD?.CONV ?? [];
-  }, [FD]);
-
-  // ─── Auto-register top-flow contracts for daily OI/price tracking.
-  //     Runs once per CSV load (when D changes). Reads CONV via ref — no FD dep.
-  useEffect(() => {
-    if (!D) return;
-    const conv = convRef.current;
-    if (!conv || conv.length === 0) return;
-    fetch("/api/schwab/track-contracts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(conv),
-    }).catch(err => console.warn("[tracker] track-contracts failed:", err));
-  }, [D]); // ✅ D only — stable state ref, no FD, no infinite loop
 
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
