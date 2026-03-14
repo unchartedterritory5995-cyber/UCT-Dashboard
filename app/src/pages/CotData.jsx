@@ -144,16 +144,21 @@ export default function CotData() {
   // ── Chart config ─────────────────────────────────────────────────────────────
   const labels = data ? data.map(d => fmtDate(d.date)) : []
 
-  // Symmetric left-axis bound — rounded up to nearest 50k
+  // Symmetric left-axis bound — 5% padding above actual data max
   const leftBound = data && data.length > 0
-    ? Math.ceil(Math.max(
+    ? Math.max(
         ...data.flatMap(d => [
           Math.abs(d.large_spec_net),
           Math.abs(d.commercial_net),
           Math.abs(d.small_spec_net),
         ])
-      ) / 50000) * 50000
+      ) * 1.05
     : 250000
+
+  // Right-axis cap — 5% above actual OI max so line fills the space
+  const maxOI = data && data.length > 0
+    ? Math.max(...data.map(d => d.open_interest)) * 1.05
+    : undefined
 
   const chartData = data && data.length > 0 ? {
     labels,
@@ -275,6 +280,7 @@ export default function CotData() {
       },
       y2: {
         position: 'right',
+        ...(maxOI != null ? { max: maxOI } : {}),
         grid:     { display: false },
         border:   { color: '#333' },
         ticks:    {
