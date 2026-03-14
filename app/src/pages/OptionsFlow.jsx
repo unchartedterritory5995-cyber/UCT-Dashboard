@@ -89,7 +89,9 @@ function Card({ children, title, sub }) {
   );
 }
 
-function TT({ rows, priceFn }) {
+function TT({ rows, priceFn, onRowClick }) {
+  const [expandedKey, setExpandedKey] = React.useState(null);
+  const colCount = ["Ticker","Day","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow","Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
@@ -110,8 +112,11 @@ function TT({ rows, priceFn }) {
           const curOI = px ? px.oi : 0;
           const dOI = curOI > 0 && csvOI > 0 ? curOI - csvOI : 0;
           const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
+          const rowKey = r.S+"|"+r.CP+"|"+r.K+"|"+r.E+"|"+i;
+          const isExpanded = expandedKey === rowKey;
           return (
-            <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent" }}>
+            <React.Fragment key={i}>
+            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent", cursor:"pointer" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
               <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.Dt}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
@@ -133,6 +138,12 @@ function TT({ rows, priceFn }) {
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
               <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
             </tr>
+            {isExpanded && onRowClick && (
+              <tr><td colSpan={colCount} style={{ padding:0, background:"#060e1e" }}>
+                {onRowClick._panel ? onRowClick._panel(r.S, r.CP, r.K, r.E, ()=>setExpandedKey(null)) : null}
+              </td></tr>
+            )}
+            </React.Fragment>
           );
         })}
       </tbody>
@@ -140,7 +151,9 @@ function TT({ rows, priceFn }) {
   );
 }
 
-function CT({ rows, priceFn }) {
+function CT({ rows, priceFn, onRowClick }) {
+  const [expandedKey, setExpandedKey] = React.useState(null);
+  const colCount = ["Ticker","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade","OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
@@ -161,8 +174,11 @@ function CT({ rows, priceFn }) {
           const curOI = px ? px.oi : 0;
           const dOI = curOI > 0 && csvOI > 0 ? curOI - csvOI : 0;
           const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
+          const rowKey = r.S+"|"+r.CP+"|"+r.K+"|"+r.E+"|"+i;
+          const isExpanded = expandedKey === rowKey;
           return (
-            <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:r.H>=5?(P.ac+"08"):"transparent" }}>
+            <React.Fragment key={i}>
+            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):r.H>=5?(P.ac+"08"):"transparent", cursor:"pointer" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
@@ -180,6 +196,12 @@ function CT({ rows, priceFn }) {
               {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:P.dm }}>{px&&px.delta?px.delta.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:px&&px.theta<0?P.be:P.dm }}>{px&&px.theta?px.theta.toFixed(2):"—"}</td>}
             </tr>
+            {isExpanded && onRowClick && (
+              <tr><td colSpan={colCount} style={{ padding:0, background:"#060e1e" }}>
+                {onRowClick._panel ? onRowClick._panel(r.S, r.CP, r.K, r.E, ()=>setExpandedKey(null)) : null}
+              </td></tr>
+            )}
+            </React.Fragment>
           );
         })}
       </tbody>
@@ -187,13 +209,14 @@ function CT({ rows, priceFn }) {
   );
 }
 
-function NC({ data, fill, dir }) {
+function NC({ data, fill, dir, onBarClick }) {
   const neg = dir === "bear";
   const cd = data.map(d => ({ ...d, v: neg ? -Math.abs(d.n) : d.n }));
   return (
     <div style={{ height:220 }}>
       <ResponsiveContainer>
-        <BarChart data={cd} layout="vertical" margin={{ top:0, right:8, left:5, bottom:0 }}>
+        <BarChart data={cd} layout="vertical" margin={{ top:0, right:8, left:5, bottom:0 }}
+          onClick={onBarClick ? (e) => { if (e && e.activePayload && e.activePayload[0]) { onBarClick(e.activePayload[0].payload); } } : undefined}>
           <CartesianGrid strokeDasharray="3 3" stroke={P.bd} horizontal={false} />
           <XAxis type="number" tick={{ fill:P.mt, fontSize:8 }} tickFormatter={v => fmt(Math.abs(v))} />
           <YAxis dataKey="s" type="category" tick={{ fill:P.tx, fontSize:11, fontWeight:700 }} width={60} interval={0} tickLine={false} axisLine={false} />
@@ -232,7 +255,7 @@ function NC({ data, fill, dir }) {
               </div>
             );
           }} />
-          <Bar dataKey="v" fill={fill} radius={neg?[4,0,0,4]:[0,4,4,0]} barSize={14} />
+          <Bar dataKey="v" fill={fill} radius={neg?[4,0,0,4]:[0,4,4,0]} barSize={14} cursor={onBarClick?"pointer":"default"} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -911,6 +934,7 @@ export default function OptionsFlowDashboard() {
   const [hover, setHover] = useState(null);
   const [hoverFlip, setHoverFlip] = useState(false); // true = tooltip opens left
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
+  const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
   const [priceCache, setPriceCache] = useState({}); // key: "SYM|CP|STRIKE|EXP" -> { mark, bid, ask, last, delta, theta, iv }
   const [marketIndices, setMarketIndices] = useState(null);
   const [marketNarrative, setMarketNarrative] = useState(null);
@@ -972,6 +996,212 @@ export default function OptionsFlowDashboard() {
 
   // Auto-load market data on mount
   useEffect(() => { fetchMarketData(); }, []);
+
+  // ─── Shared detail panel renderer ─────────────────────────────────────────
+  function renderDetailPanel(sym, cp, K, exp, onClose) {
+    if (!sym || !cp || !K || !exp) return null;
+    // Render as fixed modal overlay — appears centered over page
+    const modal = (content) => (
+      <div onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}
+        style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.75)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+        <div style={{ width:"min(900px,96vw)", maxHeight:"90vh", overflowY:"auto",
+          borderRadius:14, boxShadow:"0 24px 80px rgba(0,0,0,0.9)" }}
+          onClick={e=>e.stopPropagation()}>
+          {content}
+        </div>
+      </div>
+    );
+    const c = cp === "C" ? P.bu : P.be;
+    const px = getPrice(sym, cp, K, exp);
+    const curOI = px ? px.oi : 0;
+    const curPrice = px ? (px.mark || px.last || 0) : 0;
+    // Find all trades for this contract across all flow data
+    const allTrades = D ? (D.clean_confirmed || []).filter(t =>
+      t.S === sym && t.CP === cp && Math.abs(t.K - K) < 0.01 && t.E === exp
+    ) : [];
+    const byDay = {};
+    allTrades.forEach(tr => {
+      const day = tr.Dt ? tr.Dt+"/2026" : "—";
+      if (!byDay[day]) byDay[day] = { trades:[], vol:0, maxOI:0, prem:0, prices:[] };
+      byDay[day].trades.push(tr);
+      byDay[day].vol += tr.V;
+      byDay[day].prem += tr.P;
+      if (tr.OI > byDay[day].maxOI) byDay[day].maxOI = tr.OI;
+      const ep = tr.V > 0 ? tr.P / tr.V / 100 : 0;
+      if (ep > 0) byDay[day].prices.push(ep);
+    });
+    const _toDate = s => { const p=s.split('/').map(Number); const y=p.length>=3?p[2]:2026; return new Date(y,p[0]-1,p[1]); };
+    const _mdSort = (a,b) => _toDate(a)-_toDate(b);
+    const flowDays = Object.keys(byDay).sort(_mdSort);
+    const histKey = `${sym}|${cp}|${parseFloat(K)}|${exp}`;
+    const trackerHistory = contractHistory[histKey] || [];
+    const trackerByDay = {};
+    trackerHistory.forEach(h => {
+      const parts = h.date.split("/");
+      const key = parts.length >= 3 ? h.date : parts.length >= 2 ? h.date+"/2026" : h.date;
+      const dt = new Date(parseInt(parts.length>=3?parts[2]:2026), parseInt(parts[0])-1, parseInt(parts[1]));
+      trackerByDay[key] = dt.getDay()===0||dt.getDay()===6 ? {...h,volume:0} : h;
+    });
+    const allDays = [];
+    if (flowDays.length > 0) {
+      const first = _toDate(flowDays[0]);
+      const today = new Date();
+      const d = new Date(first);
+      while (d <= today) {
+        if (d.getDay()!==0&&d.getDay()!==6) allDays.push((d.getMonth()+1)+"/"+d.getDate()+"/"+(d.getFullYear()));
+        d.setDate(d.getDate()+1);
+      }
+    }
+    const allKnownDays = new Set([...(allDays.length>0?allDays:flowDays), ...Object.keys(trackerByDay)]);
+    const days = [...allKnownDays].filter(s => {
+      const p=s.split("/").map(Number); const y=p.length>=3?p[2]:2026;
+      const dow=new Date(y,p[0]-1,p[1]).getDay(); return dow!==0&&dow!==6;
+    }).sort(_mdSort);
+    const chartData = [];
+    let lastOI=0, lastPrice=0;
+    days.forEach(day => {
+      const fd=byDay[day], snap=trackerByDay[day];
+      if (fd) {
+        if (fd.maxOI>0) lastOI=fd.maxOI;
+        if (snap&&snap.oi>0) lastOI=snap.oi;
+        const dp=fd.prices.length>0?fd.prices.reduce((a,b)=>a+b,0)/fd.prices.length:0;
+        if (dp>0) lastPrice=dp;
+        if (snap&&snap.price>0) lastPrice=snap.price;
+        chartData.push({day,vol:snap?(snap.volume||fd.vol):fd.vol,oi:lastOI,price:lastPrice,prem:fd.prem,trades:fd.trades.length,hasFlow:true});
+      } else if (snap) {
+        if (snap.oi>0) lastOI=snap.oi;
+        if (snap.price>0) lastPrice=snap.price;
+        chartData.push({day,vol:snap.volume||0,oi:lastOI,price:lastPrice,prem:0,trades:0,hasFlow:false,isTracked:true});
+      } else {
+        chartData.push({day,vol:0,oi:lastOI,price:lastPrice,prem:0,trades:0,hasFlow:false});
+      }
+    });
+    if (curOI>0||curPrice>0) chartData.push({day:"Now",vol:0,oi:curOI>0?curOI:lastOI,price:curPrice>0?curPrice:lastPrice,prem:0,trades:0,hasFlow:false,isLive:true});
+    const chartKey = `item_${sym}_${cp}_${K}_${exp}`;
+    const chartRange = (window._chartRange||{})[chartKey] || "3mo";
+    const setChartRange = v => { if(!window._chartRange) window._chartRange={}; window._chartRange[chartKey]=v; setSelectedItem(null); setTimeout(()=>setSelectedItem({sym,cp,K,exp}),10); };
+    const dir = cp==="C"?"BULL":"BEAR";
+    const totalPrem = allTrades.reduce((s,t)=>s+t.P,0);
+
+    return modal(
+      <div style={{ background:"#0d1525", border:"1px solid "+P.bl, borderRadius:12, overflow:"hidden",
+        boxShadow:"0 8px 32px rgba(0,0,0,0.6)", borderTop:"2px solid "+c }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", borderBottom:"1px solid "+P.bd }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{sym}</span>
+            <span style={{ fontSize:14, fontWeight:800, color:c }}>${K}{cp}</span>
+            <span style={{ fontSize:13, fontWeight:700, color:P.wh }}>{exp}</span>
+            <Tag c={c}>{dir}</Tag>
+            {allTrades.length > 0 && <span style={{ fontSize:10, color:P.dm }}>{allTrades.length} trades · {fmt(totalPrem)}</span>}
+            {curPrice > 0 && <span style={{ fontSize:11, fontWeight:700, color:P.ac }}>Now: ${curPrice.toFixed(2)}</span>}
+          </div>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
+          <div style={{ borderRight:"1px solid "+P.bd, position:"relative" }}>
+            <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(sym)}&range=${chartRange}&v=${Math.floor(Date.now()/900000)}`}
+              alt={sym+" chart"} style={{ width:"100%", height:200, objectFit:"fill", display:"block", opacity:0.92 }}
+              onError={e=>{e.target.parentElement.style.display="none"}} />
+            <div style={{ position:"absolute", top:8, right:8, display:"flex", gap:4 }}>
+              {[["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
+                <button key={val} onClick={e=>{e.stopPropagation();setChartRange(val);}}
+                  style={{ padding:"2px 7px", borderRadius:4, border:"1px solid "+(chartRange===val?P.ac:P.bd+"80"),
+                    background:chartRange===val?P.ac+"22":"rgba(6,9,15,0.75)", color:chartRange===val?P.ac:P.dm,
+                    fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ padding:"12px 14px" }}>
+            <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}>VOLUME · OI · PRICE</div>
+            <div style={{ width:"100%", height:160 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top:4, right:4, left:-8, bottom:0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
+                  <XAxis dataKey="day" tick={{ fontSize:6, fill:"#4a5c73" }}
+                    interval={chartData.length>15?"preserveStartEnd":chartData.length>10?1:0}
+                    angle={-45} textAnchor="end" height={28}
+                    tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
+                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#ffab00" }}
+                    tickFormatter={v=>"$"+v.toFixed(1)} width={32} domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
+                  <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:7, fill:"#4a5c73" }}
+                    tickFormatter={v=>fK(v)} width={38} />
+                  <Tooltip contentStyle={{ background:"#0d1525", border:"1px solid #243352", borderRadius:6, fontSize:9, padding:"6px 10px" }}
+                    formatter={(val,name)=>{ if(name==="price") return ["$"+val.toFixed(2),"Price"]; if(name==="vol") return [fK(val),"Volume"]; return [val.toLocaleString(),"OI"]; }}
+                    labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
+                  <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={chartData.length>15?4:6} />
+                  <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={chartData.length>15?4:6} />
+                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#ffab00" strokeWidth={2}
+                    dot={{ r:2, fill:"#ffab00", stroke:"#0d1525", strokeWidth:1 }} connectNulls />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:0, borderTop:"1px solid "+P.bd }}>
+          <div style={{ maxHeight:180, overflowY:"auto", padding:"8px 0" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+              <thead><tr style={{ borderBottom:"1px solid "+P.bd, position:"sticky", top:0, background:"#0d1525" }}>
+                {["Date","Vol","OI","OI (+/-)","Price","Premium"].map(h=>(
+                  <th key={h} style={{ padding:"3px 8px", textAlign:h==="Date"?"left":"right", color:P.mt, fontWeight:600, fontSize:8 }}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {curOI>0 && (
+                  <tr style={{ borderBottom:"1px solid "+P.ac+"30", background:P.ac+"08" }}>
+                    <td style={{ padding:"3px 8px", fontWeight:700, color:P.ac }}>Live</td>
+                    <td style={{ padding:"3px 8px", textAlign:"right", color:P.mt }}>—</td>
+                    <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:P.wh }}>{curOI.toLocaleString()}</td>
+                    <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:800,
+                      color:(curOI-chartData.filter(d=>!d.isLive).slice(-1)[0]?.oi)>0?P.bu:P.be }}>
+                      {(()=>{const last=chartData.filter(d=>!d.isLive).slice(-1)[0]; const d=last&&last.oi>0?curOI-last.oi:0; return "("+((d>0?"+":"")+d.toLocaleString())+")";})()} 
+                    </td>
+                    <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:P.ac }}>{curPrice>0?"$"+curPrice.toFixed(2):"—"}</td>
+                    <td></td>
+                  </tr>
+                )}
+                {[...chartData].filter(d=>!d.isLive).reverse().map((d,di,arr)=>{
+                  const prevD=di<arr.length-1?arr[di+1]:null;
+                  const dayDelta=prevD&&prevD.oi>0&&d.oi>0?d.oi-prevD.oi:0;
+                  return (
+                    <tr key={d.day} style={{ borderBottom:"1px solid "+P.bd+"12", background:d.hasFlow?(P.ac+"06"):"transparent" }}>
+                      <td style={{ padding:"3px 8px", fontWeight:600, color:d.hasFlow?P.ac:P.mt, fontSize:8 }}>{d.day.split("/").slice(0,2).join("/")}</td>
+                      <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:d.vol>0?700:400, color:d.vol>0?P.wh:P.mt, fontSize:8 }}>{d.vol>0?fK(d.vol):"0"}</td>
+                      <td style={{ padding:"3px 8px", textAlign:"right", color:P.wh, fontSize:8 }}>{d.oi>0?d.oi.toLocaleString():"—"}</td>
+                      <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, fontSize:8, color:dayDelta>0?P.bu:dayDelta<0?P.be:P.dm }}>
+                        {dayDelta!==0?"("+((dayDelta>0?"+":"")+dayDelta.toLocaleString()+")"):"(0)"}
+                      </td>
+                      <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:600, color:d.price>0?P.ac:P.mt, fontSize:8 }}>{d.price>0?"$"+d.price.toFixed(2):"—"}</td>
+                      <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:d.prem>0?premC(d.prem):P.mt, fontSize:8 }}>{d.prem>0?fmt(d.prem):"—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {(()=>{
+            const nonLive=chartData.filter(d=>!d.isLive);
+            const lastOI2=nonLive.length>0?nonLive[nonLive.length-1].oi:0;
+            const liveD=curOI>0&&lastOI2>0?curOI-lastOI2:0;
+            const csvD=nonLive.length>1&&nonLive[0].oi>0&&lastOI2>0?lastOI2-nonLive[0].oi:0;
+            const delta=liveD||csvD;
+            if (!delta) return null;
+            const label=delta>0?"ADDING":"EXITING"; const col=delta>0?P.bu:P.be;
+            return (
+              <div style={{ display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center",
+                padding:"16px 20px", borderLeft:"1px solid "+P.bd, minWidth:140 }}>
+                <div style={{ fontSize:11, fontWeight:900, color:col, marginBottom:4 }}>{label}</div>
+                <div style={{ fontSize:13, fontWeight:800, color:col }}>{delta>0?"+":""}{Math.abs(delta).toLocaleString()} OI</div>
+                <div style={{ fontSize:8, color:P.dm, marginTop:4 }}>{curOI>0?"live data":"csv data"}</div>
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+    );
+  }
 
   // ─── Loading / Error / Empty States (AFTER all hooks) ──────────────────
   if (csvLoading) return (
@@ -1694,15 +1924,16 @@ export default function OptionsFlowDashboard() {
               </Card>
             )}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Short-Term Bullish" sub="0–59 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Short-Term Bearish" sub="0–59 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear"/></Card>
-              <Card title="Long-Term Bullish" sub="60+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Long-Term Bearish" sub="60+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear"/></Card>
+              <Card title="Short-Term Bullish" sub="0–59 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
+              <Card title="Short-Term Bearish" sub="0–59 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
+              <Card title="Long-Term Bullish" sub="60+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
+              <Card title="Long-Term Bearish" sub="60+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
             </div>
+            {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
             {/* UOA Section */}
             {D.UOA_TRADES.length > 0 && (
               <Card title="Unusual Options Activity" sub={D.UOA_TRADES.length+" UOA flagged"}>
-                <TT rows={D.UOA_TRADES} />
+                <TT rows={D.UOA_TRADES} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/>
               </Card>
             )}
           </div>
@@ -1852,9 +2083,10 @@ export default function OptionsFlowDashboard() {
         {tab==="Short Term" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Bets" sub="0–59 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Bearish Bets" sub="0–59 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear"/></Card>
+              <Card title="Bullish Bets" sub="0–59 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
+              <Card title="Bearish Bets" sub="0–59 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
             </div>
+            {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
             <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
               <button onClick={()=>fetchPrices(collectContracts(FD.SBL,FD.SBR))} disabled={fetchLoading}
                 style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -1863,11 +2095,11 @@ export default function OptionsFlowDashboard() {
               </button>
               {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
             </div>
-            <Card title="Short-Term Bullish Trades" sub={fmt(FD.shortBullTotal)}><TT rows={FD.SBL} priceFn={getPrice}/></Card>
-            <Card title="Short-Term Bearish Trades" sub={fmt(FD.shortBearTotal)}><TT rows={FD.SBR} priceFn={getPrice}/></Card>
+            <Card title="Short-Term Bullish Trades" sub={fmt(FD.shortBullTotal)}><TT rows={FD.SBL} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
+            <Card title="Short-Term Bearish Trades" sub={fmt(FD.shortBearTotal)}><TT rows={FD.SBR} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Consistency" sub="2+ hits"><CT rows={FD.SBLC} priceFn={getPrice}/></Card>
-              <Card title="Bearish Consistency" sub="2+ hits"><CT rows={FD.SBRC} priceFn={getPrice}/></Card>
+              <Card title="Bullish Consistency" sub="2+ hits"><CT rows={FD.SBLC} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
+              <Card title="Bearish Consistency" sub="2+ hits"><CT rows={FD.SBRC} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
             </div>
           </div>
         )}
@@ -1876,8 +2108,8 @@ export default function OptionsFlowDashboard() {
         {tab==="Long Term" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Bets" sub="60+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull"/></Card>
-              <Card title="Bearish Bets" sub="60+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear"/></Card>
+              <Card title="Bullish Bets" sub="60+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
+              <Card title="Bearish Bets" sub="60+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
             </div>
             <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
               <button onClick={()=>fetchPrices(collectContracts(FD.LBL,FD.LBR_T))} disabled={fetchLoading}
@@ -1887,11 +2119,11 @@ export default function OptionsFlowDashboard() {
               </button>
               {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
             </div>
-            <Card title="Long-Term Bullish Trades" sub={fmt(FD.longBullTotal)}><TT rows={FD.LBL} priceFn={getPrice}/></Card>
-            <Card title="Long-Term Bearish Trades" sub={fmt(FD.longBearTotal)}><TT rows={FD.LBR_T} priceFn={getPrice}/></Card>
+            <Card title="Long-Term Bullish Trades" sub={fmt(FD.longBullTotal)}><TT rows={FD.LBL} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
+            <Card title="Long-Term Bearish Trades" sub={fmt(FD.longBearTotal)}><TT rows={FD.LBR_T} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Consistency" sub="2+ hits"><CT rows={FD.LBLC} priceFn={getPrice}/></Card>
-              <Card title="Bearish Consistency" sub="2+ hits"><CT rows={FD.LBRC} priceFn={getPrice}/></Card>
+              <Card title="Bullish Consistency" sub="2+ hits"><CT rows={FD.LBLC} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
+              <Card title="Bearish Consistency" sub="2+ hits"><CT rows={FD.LBRC} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
             </div>
           </div>
         )}
@@ -1928,9 +2160,10 @@ export default function OptionsFlowDashboard() {
               </Card>
             )}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bullish Bets" sub="180+ DTE"><NC data={FD.LEAPS_B} fill={P.bu} dir="bull"/></Card>
-              <Card title="Bearish Bets" sub="180+ DTE"><NC data={FD.LEAPS_R} fill={P.be} dir="bear"/></Card>
+              <Card title="Bullish Bets" sub="180+ DTE"><NC data={FD.LEAPS_B} fill={P.bu} dir="bull" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
+              <Card title="Bearish Bets" sub="180+ DTE"><NC data={FD.LEAPS_R} fill={P.be} dir="bear" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
             </div>
+            {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
             <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
               <button onClick={()=>fetchPrices(collectContracts(FD.LEAPS_BL_T,FD.LEAPS_BR_T))} disabled={fetchLoading}
                 style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -1939,11 +2172,11 @@ export default function OptionsFlowDashboard() {
               </button>
               {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
             </div>
-            <Card title="LEAPS Bullish Trades"><TT rows={FD.LEAPS_BL_T} priceFn={getPrice}/></Card>
-            <Card title="LEAPS Bearish Trades"><TT rows={FD.LEAPS_BR_T} priceFn={getPrice}/></Card>
+            <Card title="LEAPS Bullish Trades"><TT rows={FD.LEAPS_BL_T} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
+            <Card title="LEAPS Bearish Trades"><TT rows={FD.LEAPS_BR_T} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Card title="Bull Consistency" sub="2+ hits"><CT rows={FD.LEAPS_BLC} priceFn={getPrice}/></Card>
-              <Card title="Bear Consistency" sub="2+ hits"><CT rows={FD.LEAPS_BRC} priceFn={getPrice}/></Card>
+              <Card title="Bull Consistency" sub="2+ hits"><CT rows={FD.LEAPS_BLC} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
+              <Card title="Bear Consistency" sub="2+ hits"><CT rows={FD.LEAPS_BRC} priceFn={getPrice} onRowClick={Object.assign(r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); },{_panel:renderDetailPanel})}/></Card>
             </div>
           </div>
         )}
