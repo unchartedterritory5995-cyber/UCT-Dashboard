@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 // ─── Flow Data loaded dynamically from /flow-data.csv ─────────────────────────
@@ -902,6 +902,10 @@ export default function OptionsFlowDashboard() {
   const [marketIndices, setMarketIndices] = useState(null);
   const [marketNarrative, setMarketNarrative] = useState(null);
   const [narrativeLoading, setNarrativeLoading] = useState(false);
+  // ─── Contract History (Polygon backfill + daily tracker) ─────────────
+  const [contractHistory, setContractHistory] = useState({});
+  const fetchingRef = useRef(new Set());
+  const backfilledRef = useRef(new Set());
 
   // ─── Dynamic CSV Loading ─────────────────────────────────────────────
   const [csvText, setCsvText] = useState(null);
@@ -1058,6 +1062,66 @@ export default function OptionsFlowDashboard() {
     return priceCache[k] || null;
   }
 
+  // ─── Fetch Polygon backfill + tracker history on hover ───────────────
+  async function fetchContractHistory(sym, cp, strike, exp, force = false) {
+    const k = `${sym}|${cp}|${parseFloat(strike)}|${exp}`;
+
+    // 1. Run Polygon backfill once per session (awaited so history read sees fresh data)
+    if (!backfilledRef.current.has(k) && !fetchingRef.current.has(k)) {
+      fetchingRef.current.add(k);
+      backfilledRef.current.add(k);
+      try {
+        await fetch(
+          `/api/schwab/backfill-contract?sym=${encodeURIComponent(sym)}&cp=${encodeURIComponent(cp)}&strike=${parseFloat(strike)}&exp=${encodeURIComponent(exp)}`
+        ).catch(() => {});
+      } finally {
+        fetchingRef.current.delete(k);
+      }
+    }
+
+    // 2. Fetch history — null/undefined = not loaded, [] = loaded empty
+    if ((contractHistory[k] == null || force) && !fetchingRef.current.has(k)) {
+      fetchingRef.current.add(k);
+      try {
+        const params = new URLSearchParams({ sym, cp, strike: String(parseFloat(strike)), exp });
+        const resp = await fetch(`/api/schwab/contract-history?${params}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        setContractHistory(prev => ({ ...prev, [k]: data.history || [] }));
+      } catch (e) {
+        setContractHistory(prev => ({ ...prev, [k]: null }));
+      } finally {
+        fetchingRef.current.delete(k);
+      }
+    }
+
+    // 3. Auto-fetch live Schwab price if not already cached
+    const priceCacheKey = `${sym}|${cp}|${parseFloat(strike)}|${exp}`;
+    if (!priceCache[priceCacheKey]) {
+      try {
+        const resp = await fetch("/api/schwab/options-quotes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify([{ symbol: sym, cp, strike: parseFloat(strike), expDate: expToISO(exp) }]),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          const q = data.quotes?.[0];
+          if (q && !q.error && !q.expired) {
+            setPriceCache(prev => ({
+              ...prev,
+              [priceCacheKey]: {
+                mark: q.mark||0, bid: q.bid||0, ask: q.ask||0, last: q.last||0,
+                delta: q.delta||0, theta: q.theta||0, iv: q.iv||0,
+                oi: q.openInterest||0, vol: q.volume||0, spot: q.underlyingPrice||0,
+              },
+            }));
+          }
+        }
+      } catch(e) {}
+    }
+  }
+
   async function fetchMarketData() {
     // Fetch index quotes
     try {
@@ -1199,7 +1263,14 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <div style={{ fontSize:10, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase" }}>Top Flow</div>
           <button
-            onClick={() => fetchPrices(FD.CONV.map(t => ({ sym:t.sym, cp:t.cp, strike:t.K, exp:t.exp })))}
+            onClick={async () => {
+              const convContracts = FD.CONV.map(t => ({ sym:t.sym, cp:t.cp, strike:t.K, exp:t.exp }));
+              await fetchPrices(convContracts);
+              try { await fetch("/api/schwab/snapshot-now"); } catch(e) {}
+              backfilledRef.current.clear();
+              setContractHistory({});
+              FD.CONV.forEach(t => fetchContractHistory(t.sym, t.cp, t.K, t.exp, true));
+            }}
             disabled={fetchLoading}
             style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.ac+"60", cursor:fetchLoading?"not-allowed":"pointer",
               fontSize:9, fontWeight:700, fontFamily:"inherit", background:"transparent",
@@ -1214,7 +1285,7 @@ export default function OptionsFlowDashboard() {
             const isHov = hover === hk;
             return (
               <div key={i} style={{ position:"relative" }}
-                onMouseEnter={()=>setHover(hk)} onMouseLeave={()=>setHover(null)}>
+                onMouseEnter={()=>{ setHover(hk); fetchContractHistory(t.sym, t.cp, t.K, t.exp); }} onMouseLeave={()=>setHover(null)}>
                 <div style={{ background:P.cd, border:"1px solid "+(isHov?P.ac:P.bd), borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+c, cursor:"default", transition:"border-color 0.15s" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span>
@@ -1268,6 +1339,17 @@ export default function OptionsFlowDashboard() {
                         });
                         const _mdSort = (a,b) => { const [am,ad]=a.split('/').map(Number),[bm,bd]=b.split('/').map(Number); return am!==bm?am-bm:ad-bd; };
                         const flowDays = Object.keys(byDay).sort(_mdSort);
+
+                        // ── Merge Polygon/tracker history ──────────────────────────
+                        const histKey = `${t.sym}|${t.cp}|${parseFloat(t.K)}|${t.exp}`;
+                        const trackerHistory = contractHistory[histKey] || [];
+                        const trackerByDay = {};
+                        trackerHistory.forEach(h => {
+                          const parts = h.date.split("/");
+                          const shortDate = parts.length >= 2 ? parts[0]+"/"+parts[1] : h.date;
+                          trackerByDay[shortDate] = h;
+                        });
+
                         // Build FULL range from first flow day to TODAY
                         const allDays = [];
                         if (flowDays.length > 0) {
@@ -1282,17 +1364,30 @@ export default function OptionsFlowDashboard() {
                             }
                           }
                         }
-                        const days = allDays.length > 0 ? allDays : flowDays;
-                        // Build chart data — carry OI and price forward every day
+                        // Include tracker-only days that predate the flow range
+                        const trackerOnlyDays = Object.keys(trackerByDay)
+                          .filter(d => !allDays.includes(d))
+                          .sort(_mdSort);
+                        const days = [...trackerOnlyDays, ...(allDays.length > 0 ? allDays : flowDays)];
+
+                        // Build chart data — Polygon fills vol+price, tracker fills OI
                         const chartData = [];
                         let lastOI = 0, lastPrice = 0;
                         days.forEach(day => {
                           const fd = byDay[day];
+                          const snap = trackerByDay[day];
                           if (fd) {
                             if (fd.maxOI > 0) lastOI = fd.maxOI;
+                            if (snap && snap.oi > 0) lastOI = snap.oi;
                             const dayPrice = fd.prices.length > 0 ? fd.prices.reduce((a,b)=>a+b,0)/fd.prices.length : 0;
                             if (dayPrice > 0) lastPrice = dayPrice;
-                            chartData.push({ day, vol:fd.vol, oi:lastOI, price:lastPrice, prem:fd.prem, trades:fd.trades.length, hasFlow:true });
+                            if (snap && snap.price > 0) lastPrice = snap.price;
+                            const vol = snap ? (snap.volume || fd.vol) : fd.vol;
+                            chartData.push({ day, vol, oi:lastOI, price:lastPrice, prem:fd.prem, trades:fd.trades.length, hasFlow:true });
+                          } else if (snap) {
+                            if (snap.oi > 0) lastOI = snap.oi;
+                            if (snap.price > 0) lastPrice = snap.price;
+                            chartData.push({ day, vol:snap.volume||0, oi:lastOI, price:lastPrice, prem:0, trades:0, hasFlow:false, isTracked:true });
                           } else {
                             chartData.push({ day, vol:0, oi:lastOI, price:lastPrice, prem:0, trades:0, hasFlow:false });
                           }
