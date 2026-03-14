@@ -35,8 +35,9 @@ _DEFAULT_DB_PATH = (
 DB_PATH: str = os.environ.get("COT_DB_PATH", _DEFAULT_DB_PATH)
 
 # ── CFTC public URLs ───────────────────────────────────────────────────────────
-_HIST_URL    = "https://www.cftc.gov/dea/newcot/deahistfo.zip"
-_CURRENT_URL = "https://www.cftc.gov/dea/newcot/deafut.txt"
+# Per-year zips: https://www.cftc.gov/files/dea/history/deacot{YEAR}.zip
+_HIST_BASE   = "https://www.cftc.gov/files/dea/history/deacot"
+_SEED_YEARS  = 10   # download last N years for seed (covers 5Y lookback + buffer)
 _TIMEOUT     = 120   # seconds
 
 # ── Symbol map: our symbol → CFTC market name (uppercase for matching) ─────────
@@ -328,31 +329,44 @@ def _log_refresh(n: int, status: str = "ok") -> None:
 
 # ── Public pipeline functions ──────────────────────────────────────────────────
 
-def seed_from_historical() -> int:
-    """Download CFTC historical zip, parse all records, upsert into DB.
-
-    Only called when cot_records is empty. Runs in a background thread
-    so it never blocks the FastAPI startup.
-    Returns total records inserted.
-    """
-    logger.info("COT: downloading historical archive (%s)...", _HIST_URL)
-    resp = requests.get(_HIST_URL, timeout=_TIMEOUT, stream=True)
+def _download_year_zip(year: int) -> tuple[list[dict], set[str]]:
+    """Download and parse one year's COT zip from CFTC. Returns (records, unmapped)."""
+    url = f"{_HIST_BASE}{year}.zip"
+    logger.info("COT: downloading %d data (%s)...", year, url)
+    resp = requests.get(url, timeout=_TIMEOUT)
     resp.raise_for_status()
-    raw = resp.content
-    logger.info("COT: historical zip received (%d bytes)", len(raw))
-
-    all_records: list[dict] = []
-    all_unmapped: set[str]  = set()
-
-    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+    records: list[dict] = []
+    unmapped: set[str]  = set()
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
         for name in zf.namelist():
             if not name.lower().endswith((".txt", ".csv")):
                 continue
             with zf.open(name) as f:
                 text = io.TextIOWrapper(f, encoding="utf-8", errors="replace")
-                recs, unmapped = _parse_cftc_stream(text)
-                all_records.extend(recs)
-                all_unmapped |= unmapped
+                recs, unmap = _parse_cftc_stream(text)
+                records.extend(recs)
+                unmapped |= unmap
+    return records, unmapped
+
+
+def seed_from_historical() -> int:
+    """Download last _SEED_YEARS years of CFTC per-year zips, parse, upsert into DB.
+
+    Runs in a background thread so it never blocks FastAPI startup.
+    Returns total records inserted.
+    """
+    current_year = datetime.now(timezone.utc).year
+    all_records: list[dict] = []
+    all_unmapped: set[str]  = set()
+
+    for year in range(current_year - _SEED_YEARS + 1, current_year + 1):
+        try:
+            recs, unmapped = _download_year_zip(year)
+            all_records.extend(recs)
+            all_unmapped |= unmapped
+            logger.info("COT: %d — %d records parsed", year, len(recs))
+        except Exception as exc:
+            logger.warning("COT: skipping %d — %s", year, exc)
 
     n = _upsert_records(all_records)
     _log_unmapped(all_unmapped)
@@ -365,19 +379,18 @@ def seed_from_historical() -> int:
 
 
 def refresh_from_current() -> int:
-    """Download current-year CFTC file and upsert into DB.
+    """Download current-year CFTC zip and upsert into DB.
 
     Called by APScheduler every Friday at 3:45 PM ET.
     Safe to call manually via POST /api/cot/refresh.
     Returns records inserted/updated.
     """
-    logger.info("COT: refreshing from current-year file (%s)...", _CURRENT_URL)
+    current_year = datetime.now(timezone.utc).year
+    url = f"{_HIST_BASE}{current_year}.zip"
+    logger.info("COT: refreshing from current-year zip (%s)...", url)
     try:
-        resp = requests.get(_CURRENT_URL, timeout=_TIMEOUT)
-        resp.raise_for_status()
-        stream  = io.StringIO(resp.text)
-        records, unmapped = _parse_cftc_stream(stream)
-        n = _upsert_records(records)
+        recs, unmapped = _download_year_zip(current_year)
+        n = _upsert_records(recs)
         _log_unmapped(unmapped)
         _log_refresh(n, "ok")
         logger.info("COT: refresh complete — %d records upserted", n)
