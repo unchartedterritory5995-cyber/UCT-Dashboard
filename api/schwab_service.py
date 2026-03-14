@@ -164,13 +164,18 @@ async def get_option_quote(symbol: str, strike: float, exp_date: str, cp: str) -
 
     contract_type = "CALL" if cp.upper() == "C" else "PUT"
 
-    # Widen date range by ±5 days to handle off-by-one expiry dates
-    # (CSV might say 1/16 but actual expiry is 1/15 — the 3rd Friday)
+    # Check if contract is expired
     from datetime import datetime as dt, timedelta
     try:
         target = dt.strptime(exp_date, "%Y-%m-%d")
     except Exception:
         target = dt.now()
+    
+    today = dt.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    if target < today:
+        return {"error": f"Expired contract ({exp_date})", "expired": True}
+
+    # Widen date range by ±5 days to handle off-by-one expiry dates
     from_date = (target - timedelta(days=5)).strftime("%Y-%m-%d")
     to_date = (target + timedelta(days=5)).strftime("%Y-%m-%d")
 
@@ -266,9 +271,20 @@ async def get_batch_option_quotes(contracts: list[dict]) -> list[dict]:
     from datetime import datetime as dt, timedelta
     from collections import defaultdict
 
-    # Group contracts by symbol
+    today = dt.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Pre-filter: mark expired contracts, group rest by symbol
     by_symbol = defaultdict(list)
-    for c in contracts:
+    expired_indices = set()
+    for i, c in enumerate(contracts):
+        try:
+            exp = dt.strptime(c["expDate"], "%Y-%m-%d")
+            if exp < today:
+                expired_indices.add(i)
+                continue
+        except Exception:
+            expired_indices.add(i)
+            continue
         by_symbol[c["symbol"].upper()].append(c)
 
     # Fetch one chain per symbol
@@ -360,7 +376,10 @@ async def get_batch_option_quotes(contracts: list[dict]) -> list[dict]:
 
     # Match requested contracts to chain data (fuzzy date match ±5 days)
     results = []
-    for c in contracts:
+    for i, c in enumerate(contracts):
+        if i in expired_indices:
+            results.append({"symbol": c.get("symbol",""), "strike": float(c.get("strike",0)), "cp": c.get("cp",""), "error": f"Expired ({c.get('expDate','')})", "expired": True})
+            continue
         sym = c["symbol"].upper()
         cp = c["cp"].upper()
         strike = float(c["strike"])
@@ -396,6 +415,56 @@ def is_authenticated() -> bool:
     """Check if we have tokens saved."""
     tokens = load_tokens()
     return tokens is not None and "access_token" in tokens
+
+
+# ─── Market Index Quotes ─────────────────────────────────────────────────────────
+MARKET_SYMBOLS = ["SPY", "QQQ", "DIA", "IWM", "$VIX.X"]
+
+async def get_market_summary() -> list[dict]:
+    """Fetch current quotes for major indices."""
+    token = await get_valid_token()
+    if not token:
+        return [{"error": "Not authenticated"}]
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(
+            QUOTES_URL,
+            headers={"Authorization": f"Bearer {token}"},
+            params={"symbols": ",".join(MARKET_SYMBOLS), "indicative": "false"},
+        )
+        if resp.status_code == 401:
+            new_tokens = await refresh_access_token()
+            if new_tokens:
+                token = new_tokens["access_token"]
+                resp = await client.get(
+                    QUOTES_URL,
+                    headers={"Authorization": f"Bearer {token}"},
+                    params={"symbols": ",".join(MARKET_SYMBOLS), "indicative": "false"},
+                )
+        if resp.status_code != 200:
+            return [{"error": f"Schwab API error {resp.status_code}"}]
+
+        data = resp.json()
+        results = []
+        display_names = {"SPY": "S&P 500", "QQQ": "NASDAQ", "DIA": "DOW 30", "IWM": "Russell 2000", "$VIX.X": "VIX"}
+        for sym in MARKET_SYMBOLS:
+            q = data.get(sym, {})
+            quote = q.get("quote", q)  # Schwab nests under "quote" key
+            ref = q.get("reference", {})
+            last = quote.get("lastPrice", quote.get("last", 0))
+            close = quote.get("closePrice", quote.get("previousClose", ref.get("previousClose", 0)))
+            change = last - close if last and close else 0
+            pct = (change / close * 100) if close else 0
+            results.append({
+                "symbol": sym.replace("$", "").replace(".X", ""),
+                "name": display_names.get(sym, sym),
+                "price": round(last, 2),
+                "change": round(change, 2),
+                "pct": round(pct, 2),
+                "high": round(quote.get("highPrice", quote.get("high", 0)), 2),
+                "low": round(quote.get("lowPrice", quote.get("low", 0)), 2),
+            })
+        return results
 
 
 # ─── Background Auto-Refresh ────────────────────────────────────────────────────
