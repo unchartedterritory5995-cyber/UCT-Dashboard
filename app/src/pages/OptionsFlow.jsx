@@ -1375,12 +1375,17 @@ export default function OptionsFlowDashboard() {
                             }
                           }
                         }
-                        // Merge all day sources and sort numerically — ensures correct order
+                        // Merge all day sources, strip weekends, sort numerically
                         const allKnownDays = new Set([
                           ...(allDays.length > 0 ? allDays : flowDays),
                           ...Object.keys(trackerByDay),
                         ]);
-                        const days = [...allKnownDays].sort(_mdSort);
+                        const days = [...allKnownDays].filter(s => {
+                          const p = s.split("/").map(Number);
+                          const y = p.length >= 3 ? p[2] : 2026;
+                          const dow = new Date(y, p[0]-1, p[1]).getDay();
+                          return dow !== 0 && dow !== 6; // exclude Sat/Sun
+                        }).sort(_mdSort);
 
                         // Build chart data — Polygon fills vol+price, tracker fills OI
                         const chartData = [];
