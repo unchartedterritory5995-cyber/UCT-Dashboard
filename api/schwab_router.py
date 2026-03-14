@@ -330,12 +330,19 @@ async def chart_proxy(
             )
             ax.add_patch(rect)
 
-        tick_indices = [i for i, (ts, *_) in enumerate(valid)
-                        if datetime.utcfromtimestamp(ts).day <= 5]
-        tick_labels  = [datetime.utcfromtimestamp(valid[i][0]).strftime("%b") for i in tick_indices]
+        # One label per month — find the first trading day of each month
+        seen_months = set()
+        tick_indices, tick_labels = [], []
+        for i, (ts, *_) in enumerate(valid):
+            dt = datetime.utcfromtimestamp(ts)
+            key = (dt.year, dt.month)
+            if key not in seen_months:
+                seen_months.add(key)
+                tick_indices.append(i)
+                tick_labels.append(dt.strftime("%b"))
         ax.set_xticks(tick_indices)
-        ax.set_xticklabels(tick_labels, fontsize=6, color="#4a5c73")
-        ax.tick_params(axis="x", length=0)
+        ax.set_xticklabels(tick_labels, fontsize=7, color="#4a5c73", fontweight="bold")
+        ax.tick_params(axis="x", length=0, pad=3)
         ax.set_xlim(-1, len(valid))
         ax.yaxis.set_visible(False)
         ax.spines[:].set_visible(False)
