@@ -578,3 +578,56 @@
   border-top: 1px solid var(--border);
   opacity: 0.7;
 }
+
+/* ── COT Data tile ─────────────────────────────────────────────── */
+.cotTileLink {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.cotTileLink:hover .column {
+  border-color: rgba(201, 168, 76, 0.5);
+  background: var(--bg-hover);
+}
+
+.cotArrow {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-left: auto;
+  transition: color 0.15s;
+}
+.cotTileLink:hover .cotArrow {
+  color: #c9a84c;
+}
+
+.cotTileBody {
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cotTileDesc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.cotCategories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.cotCategory {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
