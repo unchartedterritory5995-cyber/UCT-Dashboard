@@ -267,7 +267,7 @@ async def chart_proxy(
                 return Response(
                     content=resp.content,
                     media_type=resp.headers.get("content-type", "image/gif"),
-                    headers={"Cache-Control": "public, max-age=900"},
+                    headers={"Cache-Control": "no-cache"},
                 )
             # Try standard endpoint with key as query param
             async with httpx.AsyncClient(timeout=8.0) as client:
@@ -280,7 +280,7 @@ async def chart_proxy(
                 return Response(
                     content=resp.content,
                     media_type=resp.headers.get("content-type", "image/gif"),
-                    headers={"Cache-Control": "public, max-age=900"},
+                    headers={"Cache-Control": "no-cache"},
                 )
         except Exception:
             pass
@@ -356,7 +356,7 @@ async def chart_proxy(
         return Response(
             content=buf.read(),
             media_type="image/png",
-            headers={"Cache-Control": "public, max-age=900"},
+            headers={"Cache-Control": "no-cache"},
         )
     except Exception:
         return Response(content=transparent_gif, media_type="image/gif", status_code=404)
@@ -397,13 +397,19 @@ async def chart_proxy(
             )
             ax.add_patch(rect)
 
-        # X axis: show month labels sparsely
-        tick_indices = [i for i, (ts, *_) in enumerate(valid)
-                        if datetime.utcfromtimestamp(ts).day <= 5]
-        tick_labels  = [datetime.utcfromtimestamp(valid[i][0]).strftime("%b") for i in tick_indices]
+        # One label per month — first trading day of each month
+        seen_months = set()
+        tick_indices, tick_labels = [], []
+        for i, (ts, *_) in enumerate(valid):
+            dt = datetime.utcfromtimestamp(ts)
+            key = (dt.year, dt.month)
+            if key not in seen_months:
+                seen_months.add(key)
+                tick_indices.append(i)
+                tick_labels.append(dt.strftime("%b"))
         ax.set_xticks(tick_indices)
-        ax.set_xticklabels(tick_labels, fontsize=6, color="#4a5c73")
-        ax.tick_params(axis="x", length=0)
+        ax.set_xticklabels(tick_labels, fontsize=7, color="#4a5c73", fontweight="bold")
+        ax.tick_params(axis="x", length=0, pad=3)
         ax.set_xlim(-1, len(valid))
 
         ax.yaxis.set_visible(False)
@@ -418,7 +424,7 @@ async def chart_proxy(
         return Response(
             content=buf.read(),
             media_type="image/png",
-            headers={"Cache-Control": "public, max-age=900"},
+            headers={"Cache-Control": "no-cache"},
         )
     except Exception as e:
         transparent_gif = bytes([0x47,0x49,0x46,0x38,0x39,0x61,0x01,0x00,0x01,0x00,
