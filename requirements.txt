@@ -16,3 +16,5 @@ matplotlib>=3.9.0
 mplfinance>=0.12.10b0
 slowapi==0.1.9
 sentry-sdk[fastapi]==2.23.1
+apscheduler>=3.10.4
+tzdata>=2024.1
