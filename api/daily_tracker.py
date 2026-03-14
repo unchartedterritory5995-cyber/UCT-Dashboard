@@ -358,6 +358,11 @@ async def backfill_contract(
         dt_utc = datetime.utcfromtimestamp(ts_ms / 1000)
         # Use ET date (subtract 4h for EDT, good enough for end-of-day bars)
         dt_et = dt_utc.replace(tzinfo=timezone.utc).astimezone(ET)
+
+        # Skip weekends — no real options trading on Sat/Sun
+        if dt_et.weekday() >= 5:
+            continue
+
         date_str = f"{dt_et.month}/{dt_et.day}/{dt_et.year}"
 
         volume = int(bar.get("v", 0))
