@@ -909,6 +909,7 @@ export default function OptionsFlowDashboard() {
   const [oiSearch, setOiSearch] = useState("");
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [hover, setHover] = useState(null);
+  const [hoverFlip, setHoverFlip] = useState(false); // true = tooltip opens left
   const [priceCache, setPriceCache] = useState({}); // key: "SYM|CP|STRIKE|EXP" -> { mark, bid, ask, last, delta, theta, iv }
   const [marketIndices, setMarketIndices] = useState(null);
   const [marketNarrative, setMarketNarrative] = useState(null);
@@ -1296,7 +1297,7 @@ export default function OptionsFlowDashboard() {
             const isHov = hover === hk;
             return (
               <div key={i} style={{ position:"relative" }}
-                onMouseEnter={()=>{ setHover(hk); fetchContractHistory(t.sym, t.cp, t.K, t.exp); }} onMouseLeave={()=>setHover(null)}>
+                onMouseEnter={(e)=>{ setHover(hk); fetchContractHistory(t.sym, t.cp, t.K, t.exp); const r=e.currentTarget.getBoundingClientRect(); setHoverFlip(r.right+440>window.innerWidth); }} onMouseLeave={()=>{ setHover(null); setHoverFlip(false); }}>
                 <div style={{ background:P.cd, border:"1px solid "+(isHov?P.ac:P.bd), borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+c, cursor:"default", transition:"border-color 0.15s" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span>
@@ -1310,9 +1311,10 @@ export default function OptionsFlowDashboard() {
                   <div style={{ marginTop:4 }}><Tag c={c}>{t.dir}</Tag></div>
                 </div>
                 {isHov && t.trades && t.trades.length > 0 && (
-                  <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:380, maxWidth:440,
+                  <div style={{ position:"absolute", top:"100%", zIndex:50, marginTop:4, minWidth:380, maxWidth:440,
                     background:"#0d1525", border:"1px solid "+P.bl, borderRadius:10, padding:0,
-                    boxShadow:"0 12px 40px rgba(0,0,0,0.7)" }}>
+                    boxShadow:"0 12px 40px rgba(0,0,0,0.7)",
+                    ...(hoverFlip ? { right:0, left:"auto" } : { left:0 }) }}>
 
                     {/* Chart */}
                     <div style={{ borderRadius:"10px 10px 0 0", overflow:"hidden", background:"#000" }}>
