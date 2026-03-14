@@ -483,8 +483,14 @@ function buildCharts(cc) {
       side:c.hasAA?"AA":c.hasBB?"BB":"ASK", strike:"$"+c.K+c.cp, trades };
   }).filter(c => {
     if (!c.clean || c.DTE <= 7) return false;
-    // Re-check expiry against today's date at render time (not stale CSV DTE)
-    if (c.expiry && c.expiry < new Date()) return false;
+    // Re-check expiry against today — parse c.exp "M/D" or "M/D/YYYY" at render time
+    // so expired contracts disappear even if DTE in CSV was still positive
+    if (c.exp) {
+      const p = c.exp.split("/").map(Number);
+      const y = p.length >= 3 ? p[2] : (new Date().getMonth()+1 > p[0] ? new Date().getFullYear()+1 : new Date().getFullYear());
+      const expDate = new Date(y, p[0]-1, p[1], 23, 59, 59); // end of expiry day
+      if (expDate < new Date()) return false;
+    }
     return true;
   })
   .sort((a,b)=>b.score-a.score).slice(0,6)
