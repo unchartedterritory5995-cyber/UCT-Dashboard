@@ -70,6 +70,14 @@ function fmtDate(iso) {
   return `${parseInt(m)}/${parseInt(d)}/${y}`
 }
 
+// Round up to the nearest "nice" number (e.g. 302,371 → 350,000)
+function roundUpNice(val) {
+  if (val <= 0) return 0
+  const mag = Math.pow(10, Math.floor(Math.log10(val)) - 1)
+  const inc = mag * 5
+  return Math.ceil(val / inc) * inc
+}
+
 function fmtNum(v) {
   if (v == null) return ''
   const abs = Math.abs(Math.round(v)).toLocaleString()
@@ -144,20 +152,20 @@ export default function CotData() {
   // ── Chart config ─────────────────────────────────────────────────────────────
   const labels = data ? data.map(d => fmtDate(d.date)) : []
 
-  // Symmetric left-axis bound — 5% padding above actual data max
+  // Symmetric left-axis bound — rounded up to a clean number
   const leftBound = data && data.length > 0
-    ? Math.max(
+    ? roundUpNice(Math.max(
         ...data.flatMap(d => [
           Math.abs(d.large_spec_net),
           Math.abs(d.commercial_net),
           Math.abs(d.small_spec_net),
         ])
-      ) * 1.05
+      ))
     : 250000
 
-  // Right-axis cap — 5% above actual OI max so line fills the space
+  // Right-axis cap — rounded up to a clean number
   const maxOI = data && data.length > 0
-    ? Math.max(...data.map(d => d.open_interest)) * 1.05
+    ? roundUpNice(Math.max(...data.map(d => d.open_interest)))
     : undefined
 
   const chartData = data && data.length > 0 ? {
