@@ -11,6 +11,7 @@ from api.limiter import limiter
 from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts
 from api.schwab_router import router as schwab_router
 from api.routers import cot as cot_router
+from api.routers import breadth_monitor as breadth_monitor_router
 from api.services import cot_service as _cot_service
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
@@ -118,6 +119,7 @@ app.include_router(push.router)
 app.include_router(charts.router)
 app.include_router(schwab_router)
 app.include_router(cot_router.router)
+app.include_router(breadth_monitor_router.router)
 
 # Serve React build — must come AFTER all /api routes
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")

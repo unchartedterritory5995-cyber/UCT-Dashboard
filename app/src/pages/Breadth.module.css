@@ -1,4 +1,154 @@
-.page { padding: 20px 24px; }
-.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.heading { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; }
-.placeholder { font-family: 'Instrument Sans', sans-serif; font-size: 13px; color: var(--text-muted); margin: 0; }
+/* Breadth Monitor — spreadsheet-style table */
+
+.page { padding: 20px 24px; display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+.heading {
+  font-family: 'Cinzel', serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ut-gold);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+.meta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.empty {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 24px 0;
+}
+.empty code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  background: var(--bg-elevated);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* ── Table scroll container ─────────────────────────────────────────────────── */
+.tableWrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* ── Table ─────────────────────────────────────────────────────────────────── */
+.table {
+  border-collapse: collapse;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  white-space: nowrap;
+  width: max-content;
+}
+
+/* ── Header cells ────────────────────────────────────────────────────────────── */
+.th {
+  padding: 5px 8px;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Group header row */
+.groupHeader {
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.colLabel {
+  font-size: 9px;
+  color: var(--text-muted);
+  top: 26px; /* second sticky row — sits below group header */
+}
+
+/* Date column — sticky left */
+.dateCol {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  text-align: left;
+  min-width: 90px;
+}
+
+/* ── Group header colors ─────────────────────────────────────────────────────── */
+.ghDate     { background: var(--bg-elevated); color: var(--text-muted); }
+.ghRegime   { background: #1a1f2e; color: #7b9fc7; }
+.ghPrimary  { background: #1f2012; color: #b8c94a; }
+.ghMA       { background: #122018; color: #4ac97d; }
+.ghHighs    { background: #201a12; color: #c9944a; }
+.ghSetups   { background: #201212; color: #c94a4a; }
+.ghVolume   { background: #12161f; color: #4a8fc9; }
+.ghSentiment{ background: #1e1218; color: #b44ac9; }
+
+/* ── Body cells ──────────────────────────────────────────────────────────────── */
+.td {
+  padding: 3px 8px;
+  text-align: right;
+  color: var(--text);
+  border-right: 1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-variant-numeric: tabular-nums;
+}
+
+.dateCell {
+  position: sticky;
+  left: 0;
+  background: var(--bg-base);
+  color: var(--text-muted);
+  text-align: left;
+  border-right: 1px solid var(--border);
+  z-index: 1;
+  font-size: 11px;
+}
+
+.rowEven .dateCell { background: var(--bg-base); }
+.rowOdd  .dateCell { background: #0e1014; }
+.rowEven           { background: transparent; }
+.rowOdd            { background: #0e1014; }
+
+.table tbody tr:hover td {
+  background: rgba(255,255,255,0.025);
+}
+.table tbody tr:hover .dateCell {
+  background: rgba(255,255,255,0.025);
+}
+
+/* ── Cell color states ───────────────────────────────────────────────────────── */
+.cellGreen {
+  color: var(--ut-green-bright, #4ade80);
+  font-weight: 600;
+}
+.cellRed {
+  color: var(--loss, #f87171);
+  font-weight: 600;
+}
+.cellAmber {
+  color: var(--ut-gold, #c9a84c);
+  font-weight: 600;
+}
