@@ -1388,8 +1388,8 @@ def get_analyst_actions() -> dict:
     wire = _load_wire_data()
     actions = wire.get("analyst_actions", []) if wire else []
 
-    UPGRADE_ACTIONS   = {"upgrade", "upgraded", "initiates", "initiated"}
-    DOWNGRADE_ACTIONS = {"downgrade", "downgraded"}
+    UPGRADE_ACTIONS   = {"upgrade", "upgraded", "initiates", "initiated", "raises pt"}
+    DOWNGRADE_ACTIONS = {"downgrade", "downgraded", "lowers pt"}
 
     upgrades   = [a for a in actions if a.get("action", "").lower() in UPGRADE_ACTIONS][:20]
     downgrades = [a for a in actions if a.get("action", "").lower() in DOWNGRADE_ACTIONS][:20]
