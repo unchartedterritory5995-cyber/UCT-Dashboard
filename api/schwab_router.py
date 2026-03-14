@@ -348,6 +348,14 @@ async def chart_proxy(
         ax.spines[:].set_visible(False)
         ax.grid(axis="x", color=grid_col, linewidth=0.4, linestyle="--")
         fig.tight_layout(pad=0.2)
+        # Force exact month labels — prevent matplotlib auto-tick override
+        from matplotlib.ticker import FixedLocator, FixedFormatter
+        ax.xaxis.set_major_locator(FixedLocator(tick_indices))
+        ax.xaxis.set_major_formatter(FixedFormatter(tick_labels))
+        ax.xaxis.set_minor_locator(FixedLocator([]))
+        for lbl in ax.get_xticklabels():
+            lbl.set_fontsize(7); lbl.set_color("#4a5c73"); lbl.set_fontweight("bold")
+        ax.tick_params(axis="x", length=0, pad=3)
 
         buf = io.BytesIO()
         plt.savefig(buf, format="png", facecolor=bg, dpi=100)
@@ -416,6 +424,14 @@ async def chart_proxy(
         ax.spines[:].set_visible(False)
         ax.grid(axis="x", color=grid_col, linewidth=0.4, linestyle="--")
         fig.tight_layout(pad=0.2)
+        # Force exact month labels — prevent matplotlib auto-tick override
+        from matplotlib.ticker import FixedLocator, FixedFormatter
+        ax.xaxis.set_major_locator(FixedLocator(tick_indices))
+        ax.xaxis.set_major_formatter(FixedFormatter(tick_labels))
+        ax.xaxis.set_minor_locator(FixedLocator([]))
+        for lbl in ax.get_xticklabels():
+            lbl.set_fontsize(7); lbl.set_color("#4a5c73"); lbl.set_fontweight("bold")
+        ax.tick_params(axis="x", length=0, pad=3)
 
         buf = io.BytesIO()
         plt.savefig(buf, format="png", facecolor=bg, dpi=100)
