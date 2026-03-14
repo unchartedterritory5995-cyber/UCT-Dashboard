@@ -1316,11 +1316,11 @@ export default function OptionsFlowDashboard() {
                     boxShadow:"0 12px 40px rgba(0,0,0,0.7)",
                     ...(hoverFlip ? { right:0, left:"auto" } : { left:0 }) }}>
 
-                    {/* Chart */}
-                    <div style={{ borderRadius:"10px 10px 0 0", overflow:"hidden", background:"#000" }}>
-                      <img src={`https://finviz.com/chart.ashx?t=${t.sym}&ty=c&ta=0&p=d&s=l`}
-                        alt={t.sym+" chart"} referrerPolicy="no-referrer" crossOrigin="anonymous"
-                        style={{ width:"100%", height:140, objectFit:"cover", display:"block", opacity:0.9 }}
+                    {/* Stock price chart — proxied through backend to avoid CORS */}
+                    <div style={{ borderRadius:"10px 10px 0 0", overflow:"hidden", background:"#0d1525", height:140 }}>
+                      <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(t.sym)}`}
+                        alt={t.sym+" chart"}
+                        style={{ width:"100%", height:"100%", objectFit:"cover", display:"block", opacity:0.92 }}
                         onError={e=>{e.target.parentElement.style.display="none"}} />
                     </div>
 
