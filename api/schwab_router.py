@@ -155,3 +155,45 @@ async def market_narrative():
         return {"narrative": text if text else "Market summary unavailable."}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ─── Daily Tracker Endpoints ──────────────────────────────────────────────────
+
+@router.post("/track-contracts")
+async def track_contracts(contracts: list[dict]):
+    """
+    Register top-flow CONV contracts for daily OI/price tracking.
+    Called automatically by the dashboard whenever new flow data loads.
+    Body: [{sym, cp, K, exp, grade, dir, hits, prem}, ...]
+    """
+    from api.daily_tracker import register_contracts
+    count = register_contracts(contracts)
+    return {"status": "ok", "registered": count}
+
+
+@router.get("/snapshot-now")
+async def snapshot_now():
+    """
+    Manually trigger an OI/price snapshot for all registered contracts.
+    Normally runs automatically at 4:30 PM ET on weekdays.
+    """
+    from api.daily_tracker import store_daily_snapshot
+    result = await store_daily_snapshot()
+    return result
+
+
+@router.get("/contract-history")
+async def contract_history(
+    sym: str = Query(..., description="Ticker, e.g. AAPL"),
+    cp: str = Query(..., description="C or P"),
+    strike: float = Query(..., description="Strike price, e.g. 200"),
+    exp: str = Query(..., description="Expiry M/D or M/D/YYYY, e.g. 3/20"),
+):
+    """
+    Return daily OI/price snapshots for a single contract.
+    Used by the hover chart in the dashboard to overlay historical tracking data.
+    Response: {"history": [{"date":"3/14/2026","oi":5000,"price":2.50,"spot":198.0,"volume":1234}, ...]}
+    """
+    from api.daily_tracker import get_history
+    history = get_history(sym, cp, strike, exp)
+    return {"sym": sym, "cp": cp, "strike": strike, "exp": exp, "history": history}
