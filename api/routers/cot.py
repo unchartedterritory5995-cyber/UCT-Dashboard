@@ -39,6 +39,13 @@ def manual_refresh(background_tasks: BackgroundTasks):
     return {"status": "refresh started"}
 
 
+@router.post("/reseed")
+def force_reseed(background_tasks: BackgroundTasks):
+    """Force a full historical reseed regardless of current record count."""
+    background_tasks.add_task(cot_service.seed_from_historical)
+    return {"status": "historical reseed started"}
+
+
 @router.get("/{symbol}")
 def get_cot(symbol: str, weeks: int = 52):
     """Return the last `weeks` weekly COT records for `symbol`, ascending by date."""
