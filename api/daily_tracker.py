@@ -272,3 +272,138 @@ def stop_snapshot_scheduler() -> None:
         _scheduler_task.cancel()
         logger.info("[tracker] Snapshot scheduler cancelled.")
     _scheduler_task = None
+
+
+# ─── Polygon.io Backfill ──────────────────────────────────────────────────────
+
+def _poly_ticker(sym: str, cp: str, strike: float, exp: str) -> str:
+    """
+    Build OCC-format Polygon options ticker.
+    e.g. NVDA $200C exp 4/2/2026 → O:NVDA260402C00200000
+    """
+    parts = exp.split("/")
+    m, d = int(parts[0]), int(parts[1])
+    y = int(parts[2]) if len(parts) >= 3 else datetime.now().year
+    if y >= 2000:
+        y -= 2000
+    strike_int = round(float(strike) * 1000)
+    return (
+        f"O:{sym.upper()}"
+        f"{y:02d}{m:02d}{d:02d}"
+        f"{cp.upper()}"
+        f"{strike_int:08d}"
+    )
+
+
+async def backfill_contract(
+    sym: str,
+    cp: str,
+    strike: float,
+    exp: str,
+    days_back: int = 60,
+) -> dict:
+    """
+    Fetch daily volume + close price from Polygon.io for a single contract
+    going back `days_back` calendar days. Merges into contract_history.json
+    without overwriting existing OI data from the daily tracker.
+
+    Polygon free tier: 15-min delayed, 5 calls/min, unlimited history.
+    Set POLYGON_API_KEY env var (free at https://polygon.io).
+
+    Returns summary dict.
+    """
+    import httpx
+    from datetime import date, timedelta
+
+    api_key = os.getenv("POLYGON_API_KEY", "")
+    if not api_key:
+        return {"status": "error", "reason": "POLYGON_API_KEY env var not set"}
+
+    ticker = _poly_ticker(sym, cp, strike, exp)
+    today = date.today()
+    from_date = (today - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    to_date = today.strftime("%Y-%m-%d")
+
+    url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{from_date}/{to_date}"
+    params = {"adjusted": "true", "sort": "asc", "limit": 120, "apiKey": api_key}
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(url, params=params)
+        if resp.status_code == 404:
+            return {"status": "error", "reason": f"Contract not found on Polygon: {ticker}"}
+        if resp.status_code == 403:
+            return {"status": "error", "reason": "Invalid Polygon API key"}
+        if resp.status_code != 200:
+            return {"status": "error", "reason": f"Polygon HTTP {resp.status_code}"}
+        data = resp.json()
+    except Exception as e:
+        return {"status": "error", "reason": str(e)}
+
+    results = data.get("results", [])
+    if not results:
+        return {"status": "ok", "merged": 0, "reason": "No Polygon data for this contract/date range"}
+
+    k = _key(sym, cp, strike, exp)
+    snapshots = _data.setdefault("snapshots", {})
+    history = snapshots.setdefault(k, [])
+
+    # Build lookup of existing entries by date so we can merge without clobbering OI
+    existing_by_date = {h["date"]: h for h in history}
+
+    merged = 0
+    for bar in results:
+        # Polygon timestamp is milliseconds UTC — convert to M/D/YYYY ET
+        ts_ms = bar.get("t", 0)
+        dt_utc = datetime.utcfromtimestamp(ts_ms / 1000)
+        # Use ET date (subtract 4h for EDT, good enough for end-of-day bars)
+        dt_et = dt_utc.replace(tzinfo=timezone.utc).astimezone(ET)
+        date_str = f"{dt_et.month}/{dt_et.day}/{dt_et.year}"
+
+        volume = int(bar.get("v", 0))
+        close_price = float(bar.get("c", 0))
+
+        if date_str in existing_by_date:
+            # Merge: update volume and price only — preserve existing OI from tracker
+            existing_by_date[date_str]["volume"] = volume
+            if close_price > 0:
+                existing_by_date[date_str]["price"] = close_price
+        else:
+            # New entry — OI unknown (0 means "not yet tracked", not "zero OI")
+            existing_by_date[date_str] = {
+                "date": date_str,
+                "oi": 0,
+                "price": close_price,
+                "spot": 0,
+                "volume": volume,
+            }
+        merged += 1
+
+    # Rebuild history list sorted by date
+    def _sort_key(h):
+        parts = h["date"].split("/")
+        return (int(parts[2]) if len(parts) >= 3 else 2026,
+                int(parts[0]), int(parts[1]))
+
+    snapshots[k] = sorted(existing_by_date.values(), key=_sort_key)
+    _save()
+
+    logger.info("[tracker] Polygon backfill for %s: %d days merged.", ticker, merged)
+    return {"status": "ok", "ticker": ticker, "merged": merged, "from": from_date, "to": to_date}
+
+
+async def backfill_all_registered(days_back: int = 60) -> dict:
+    """Backfill Polygon history for all currently registered contracts."""
+    contracts = _data.get("registered", [])
+    if not contracts:
+        return {"status": "skipped", "reason": "no registered contracts"}
+
+    results = []
+    for c in contracts:
+        r = await backfill_contract(c["sym"], c["cp"], c["K"], c["exp"], days_back)
+        results.append({**r, "sym": c["sym"], "exp": c["exp"]})
+        # Polygon free tier: 5 req/min — add small delay between calls
+        await asyncio.sleep(13)
+
+    ok = sum(1 for r in results if r.get("status") == "ok")
+    return {"status": "ok", "total": len(contracts), "succeeded": ok, "results": results}
