@@ -910,6 +910,7 @@ export default function OptionsFlowDashboard() {
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [hover, setHover] = useState(null);
   const [hoverFlip, setHoverFlip] = useState(false); // true = tooltip opens left
+  const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [priceCache, setPriceCache] = useState({}); // key: "SYM|CP|STRIKE|EXP" -> { mark, bid, ask, last, delta, theta, iv }
   const [marketIndices, setMarketIndices] = useState(null);
   const [marketNarrative, setMarketNarrative] = useState(null);
@@ -1297,8 +1298,8 @@ export default function OptionsFlowDashboard() {
             const isHov = hover === hk;
             return (
               <div key={i} style={{ position:"relative" }}
-                onMouseEnter={(e)=>{ setHover(hk); fetchContractHistory(t.sym, t.cp, t.K, t.exp); const r=e.currentTarget.getBoundingClientRect(); setHoverFlip(r.right+440>window.innerWidth); }} onMouseLeave={()=>{ setHover(null); setHoverFlip(false); }}>
-                <div style={{ background:P.cd, border:"1px solid "+(isHov?P.ac:P.bd), borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+c, cursor:"default", transition:"border-color 0.15s" }}>
+                onClick={()=>{ const next = selectedConv===i ? null : i; setSelectedConv(next); if(next!==null) fetchContractHistory(t.sym, t.cp, t.K, t.exp); }}>
+                <div style={{ background:P.cd, border:"1px solid "+(selectedConv===i?P.ac:P.bd), borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+c, cursor:"pointer", transition:"border-color 0.15s" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span>
                     <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
@@ -1310,252 +1311,227 @@ export default function OptionsFlowDashboard() {
                   </div>
                   <div style={{ marginTop:4 }}><Tag c={c}>{t.dir}</Tag></div>
                 </div>
-                {isHov && t.trades && t.trades.length > 0 && (
-                  <div style={{ position:"absolute", top:"100%", zIndex:50, width:480,
-                    background:"#0d1525", border:"1px solid "+P.bl, borderRadius:10, padding:0,
-                    boxShadow:"0 12px 40px rgba(0,0,0,0.7)",
-                    ...(hoverFlip ? { right:0, left:"auto" } : { left:0 }) }}>
-
-                    {/* Stock price chart — proxied through backend to avoid CORS */}
-                    {(()=>{
-                      const chartKey = `chart_${t.sym}`;
-                      const [chartRange, setChartRange] = [
-                        (typeof window._chartRange === "undefined" ? (window._chartRange = {}) : window._chartRange)[chartKey] || "3mo",
-                        (v) => { window._chartRange[chartKey] = v; /* force re-render via hover state */ setHover(null); setTimeout(()=>setHover("conv_"+i), 10); }
-                      ];
-                      const ranges = [["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]];
-                      return (
-                        <>
-                          <div style={{ borderRadius:"10px 10px 0 0", overflow:"hidden", background:"#000", position:"relative" }}>
-                            <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(t.sym)}&range=${chartRange}&v=${Math.floor(Date.now()/900000)}`}
-                              alt={t.sym+" chart"}
-                              style={{ width:"100%", height:160, objectFit:"fill", display:"block", opacity:0.92 }}
-                              onError={e=>{e.target.parentElement.style.display="none"}} />
-                            {/* Timeframe selector overlaid on chart */}
-                            <div style={{ position:"absolute", top:6, right:8, display:"flex", gap:4, zIndex:10 }}>
-                              {ranges.map(([val,label])=>(
-                                <button key={val} onClick={(e)=>{ e.stopPropagation(); setChartRange(val); }}
-                                  style={{ padding:"2px 7px", borderRadius:4, border:"1px solid "+(chartRange===val?P.ac:P.bd+"80"),
-                                    background:chartRange===val?P.ac+"22":"rgba(6,9,15,0.75)", color:chartRange===val?P.ac:P.dm,
-                                    fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      );
-                    })()}
-
-                    <div style={{ padding:"12px 14px" }}>
-                      {/* Header */}
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                        <span style={{ fontWeight:800, fontSize:13, color:P.wh }}>{t.sym} {t.strike} {t.exp}</span>
-                        <div style={{ display:"flex", gap:4, alignItems:"center" }}>
-                          <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
-                          <span style={{ fontSize:9, color:P.dm }}>{t.trades.length} trades</span>
-                        </div>
-                      </div>
-
-                      {/* Position Tracking */}
-                      {(() => {
-                        const px = getPrice(t.sym, t.cp, t.K, t.exp);
-                        const curOI = px ? px.oi : 0;
-                        const curPrice = px ? (px.mark || px.last || 0) : 0;
-                        const byDay = {};
-                        t.trades.forEach(tr => {
-                          const day = tr.Dt ? tr.Dt+"/2026" : "—";
-                          if (!byDay[day]) byDay[day] = { trades:[], vol:0, maxOI:0, prem:0, prices:[] };
-                          byDay[day].trades.push(tr);
-                          byDay[day].vol += tr.V;
-                          byDay[day].prem += tr.P;
-                          if (tr.OI > byDay[day].maxOI) byDay[day].maxOI = tr.OI;
-                          const ep = tr.V > 0 ? tr.P / tr.V / 100 : 0;
-                          if (ep > 0) byDay[day].prices.push(ep);
-                        });
-                        // Year-aware sort: handles "M/D" and "M/D/YYYY" — uses current year as fallback
-                        const _toDate = s => { const p=s.split('/').map(Number); const y=p.length>=3?p[2]:2026; return new Date(y,p[0]-1,p[1]); };
-                        const _mdSort = (a,b) => _toDate(a)-_toDate(b);
-                        const flowDays = Object.keys(byDay).sort(_mdSort);
-
-                        // ── Merge Polygon/tracker history ──────────────────────────
-                        const histKey = `${t.sym}|${t.cp}|${parseFloat(t.K)}|${t.exp}`;
-                        const trackerHistory = contractHistory[histKey] || [];
-                        const trackerByDay = {};
-                        trackerHistory.forEach(h => {
-                          // Keep full "M/D/YYYY" key so year-aware sort works correctly
-                          const parts = h.date.split("/");
-                          const key = parts.length >= 3 ? h.date : parts.length >= 2 ? h.date+"/2026" : h.date;
-                          // Zero out volume on weekends — exchanges don't trade
-                          const dt = new Date(parseInt(parts.length>=3?parts[2]:2026), parseInt(parts[0])-1, parseInt(parts[1]));
-                          const isWeekend = dt.getDay()===0 || dt.getDay()===6;
-                          trackerByDay[key] = isWeekend ? { ...h, volume: 0 } : h;
-                        });
-
-                        // Build FULL range from first flow day to TODAY
-                        const allDays = [];
-                        if (flowDays.length > 0) {
-                          const parseMD = s => { const p=s.split("/"); return p.length>=2?new Date(2026,parseInt(p[0])-1,parseInt(p[1])):null; };
-                          const first = parseMD(flowDays[0]);
-                          const today = new Date();
-                          if (first) {
-                            const d = new Date(first);
-                            while (d <= today) {
-                              if (d.getDay()!==0 && d.getDay()!==6) allDays.push((d.getMonth()+1)+"/"+d.getDate()+"/"+(d.getFullYear()));
-                              d.setDate(d.getDate()+1);
-                            }
-                          }
-                        }
-                        // Merge all day sources, strip weekends, sort numerically
-                        const allKnownDays = new Set([
-                          ...(allDays.length > 0 ? allDays : flowDays),
-                          ...Object.keys(trackerByDay),
-                        ]);
-                        const days = [...allKnownDays].filter(s => {
-                          const p = s.split("/").map(Number);
-                          const y = p.length >= 3 ? p[2] : 2026;
-                          const dow = new Date(y, p[0]-1, p[1]).getDay();
-                          return dow !== 0 && dow !== 6; // exclude Sat/Sun
-                        }).sort(_mdSort);
-
-                        // Build chart data — Polygon fills vol+price, tracker fills OI
-                        const chartData = [];
-                        let lastOI = 0, lastPrice = 0;
-                        days.forEach(day => {
-                          const fd = byDay[day];
-                          const snap = trackerByDay[day];
-                          if (fd) {
-                            if (fd.maxOI > 0) lastOI = fd.maxOI;
-                            if (snap && snap.oi > 0) lastOI = snap.oi;
-                            const dayPrice = fd.prices.length > 0 ? fd.prices.reduce((a,b)=>a+b,0)/fd.prices.length : 0;
-                            if (dayPrice > 0) lastPrice = dayPrice;
-                            if (snap && snap.price > 0) lastPrice = snap.price;
-                            const vol = snap ? (snap.volume || fd.vol) : fd.vol;
-                            chartData.push({ day, vol, oi:lastOI, price:lastPrice, prem:fd.prem, trades:fd.trades.length, hasFlow:true });
-                          } else if (snap) {
-                            if (snap.oi > 0) lastOI = snap.oi;
-                            if (snap.price > 0) lastPrice = snap.price;
-                            chartData.push({ day, vol:snap.volume||0, oi:lastOI, price:lastPrice, prem:0, trades:0, hasFlow:false, isTracked:true });
-                          } else {
-                            chartData.push({ day, vol:0, oi:lastOI, price:lastPrice, prem:0, trades:0, hasFlow:false });
-                          }
-                        });
-                        // Add live data point
-                        if (curOI > 0 || curPrice > 0) {
-                          const liveOI = curOI > 0 ? curOI : lastOI;
-                          const livePrice = curPrice > 0 ? curPrice : lastPrice;
-                          chartData.push({ day:"Now", vol:0, oi:liveOI, price:livePrice, prem:0, trades:0, hasFlow:false, isLive:true });
-                        }
-
-                        return (
-                          <>
-                            {/* Recharts: Vol bars + OI bars + Price line */}
-                            <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4 }}>VOLUME · OI · PRICE</div>
-                            <div style={{ width:"100%", height:140 }}>
-                              <ResponsiveContainer width="100%" height="100%">
-                                <ComposedChart data={chartData} margin={{ top:4, right:4, left:-8, bottom:0 }}>
-                                  <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
-                                  <XAxis dataKey="day" tick={{ fontSize:6, fill:"#4a5c73" }}
-                                    interval={chartData.length>15?"preserveStartEnd":chartData.length>10?1:0}
-                                    angle={-45} textAnchor="end" height={28} />
-                                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#ffab00" }}
-                                    tickFormatter={v=>"$"+v.toFixed(1)} width={32}
-                                    domain={[dm => Math.max(0, dm * 0.8), dm => dm * 1.1]} />
-                                  <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:7, fill:"#4a5c73" }}
-                                    tickFormatter={v=>fK(v)} width={38} />
-                                  <Tooltip contentStyle={{ background:"#0d1525", border:"1px solid #243352", borderRadius:6, fontSize:9, padding:"6px 10px" }}
-                                    formatter={(val, name) => {
-                                      if (name==="price") return ["$"+val.toFixed(2), "Contract Price"];
-                                      if (name==="vol") return [fK(val), "Volume"];
-                                      return [val.toLocaleString(), "Open Interest"];
-                                    }}
-                                    labelStyle={{ color:"#f0f4f8", fontWeight:700, marginBottom:2 }} />
-                                  <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={chartData.length>15?4:6} />
-                                  <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={chartData.length>15?4:6} />
-                                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#ffab00" strokeWidth={2}
-                                    dot={{ r:2, fill:"#ffab00", stroke:"#0d1525", strokeWidth:1 }} connectNulls />
-                                </ComposedChart>
-                              </ResponsiveContainer>
-                            </div>
-                            {/* Legend */}
-                            <div style={{ display:"flex", gap:10, fontSize:8, color:P.dm, marginTop:2, marginBottom:8, justifyContent:"center" }}>
-                              <span><span style={{ display:"inline-block", width:7, height:7, background:"#ff6d00", borderRadius:1, marginRight:2, verticalAlign:"middle" }}/>Volume</span>
-                              <span><span style={{ display:"inline-block", width:7, height:7, background:"#00b0ff", borderRadius:1, marginRight:2, verticalAlign:"middle" }}/>OI</span>
-                              <span><span style={{ display:"inline-block", width:7, height:2, background:"#ffab00", marginRight:2, verticalAlign:"middle" }}/>Price</span>
-                              {curPrice > 0 && <span style={{ color:P.ac, fontWeight:600 }}>Now: ${curPrice.toFixed(2)}</span>}
-                            </div>
-
-                            {/* Per-Day Table (newest first) */}
-                            <div style={{ maxHeight:150, overflowY:"auto" }}>
-                            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
-                              <thead><tr style={{ borderBottom:"1px solid "+P.bd, position:"sticky", top:0, background:"#0d1525" }}>
-                                {["Date","Vol","OI","OI (+/-)","Price","Premium"].map(h=>(
-                                  <th key={h} style={{ padding:"2px 4px", textAlign:h==="Date"?"left":"right", color:P.mt, fontWeight:600, fontSize:8 }}>{h}</th>
-                                ))}
-                              </tr></thead>
-                              <tbody>
-                                {curOI > 0 && (
-                                  <tr style={{ borderBottom:"1px solid "+P.ac+"30", background:P.ac+"08" }}>
-                                    <td style={{ padding:"2px 4px", fontWeight:700, color:P.ac }}>Live</td>
-                                    <td style={{ padding:"2px 4px", textAlign:"right", color:P.mt }}>—</td>
-                                    <td style={{ padding:"2px 4px", textAlign:"right", fontWeight:700, color:P.wh }}>{curOI.toLocaleString()}</td>
-                                    <td style={{ padding:"2px 4px", textAlign:"right", fontWeight:800,
-                                      color:(curOI-chartData.filter(d=>!d.isLive).slice(-1)[0]?.oi)>0?P.bu:P.be }}>
-                                      {(()=>{const last=chartData.filter(d=>!d.isLive).slice(-1)[0]; const d=last&&last.oi>0?curOI-last.oi:0; return "("+((d>0?"+":"")+d.toLocaleString())+")";})()}
-                                    </td>
-                                    <td style={{ padding:"2px 4px", textAlign:"right", fontWeight:700, color:P.ac }}>{curPrice>0?"$"+curPrice.toFixed(2):"—"}</td>
-                                    <td style={{ padding:"2px 4px" }}></td>
-                                  </tr>
-                                )}
-                                {[...chartData].filter(d=>!d.isLive).reverse().map((d, di, arr) => {
-                                  const prevD = di < arr.length-1 ? arr[di+1] : null;
-                                  const dayDelta = prevD && prevD.oi > 0 && d.oi > 0 ? d.oi - prevD.oi : 0;
-                                  return (
-                                    <tr key={d.day} style={{ borderBottom:"1px solid "+P.bd+"12", background:d.hasFlow?(P.ac+"06"):"transparent" }}>
-                                      <td style={{ padding:"2px 4px", fontWeight:600, color:d.hasFlow?P.ac:P.mt, fontSize:8 }}>{d.day.split("/").slice(0,2).join("/")}</td>
-                                      <td style={{ padding:"2px 4px", textAlign:"right", fontWeight:d.vol>0?700:400, color:d.vol>0?P.wh:P.mt, fontSize:8 }}>{d.vol>0?fK(d.vol):"0"}</td>
-                                      <td style={{ padding:"2px 4px", textAlign:"right", color:P.wh, fontSize:8 }}>{d.oi>0?d.oi.toLocaleString():"—"}</td>
-                                      <td style={{ padding:"2px 4px", textAlign:"right", fontWeight:700, fontSize:8, color:dayDelta>0?P.bu:dayDelta<0?P.be:P.dm }}>
-                                        {dayDelta!==0?"("+((dayDelta>0?"+":"")+dayDelta.toLocaleString())+")":"(0)"}
-                                      </td>
-                                      <td style={{ padding:"2px 4px", textAlign:"right", fontWeight:600, color:d.price>0?P.ac:P.mt, fontSize:8 }}>{d.price>0?"$"+d.price.toFixed(2):"—"}</td>
-                                      <td style={{ padding:"2px 4px", textAlign:"right", fontWeight:700, color:d.prem>0?premC(d.prem):P.mt, fontSize:8 }}>{d.prem>0?fmt(d.prem):"—"}</td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                            </div>
-
-                            {/* Verdict */}
-                            {(() => {
-                              const nonLive = chartData.filter(d=>!d.isLive);
-                              const lastOI2 = nonLive.length>0 ? nonLive[nonLive.length-1].oi : 0;
-                              const firstOI2 = nonLive.length>0 ? nonLive[0].oi : 0;
-                              const liveD = curOI > 0 && lastOI2 > 0 ? curOI - lastOI2 : 0;
-                              const csvD = nonLive.length > 1 && firstOI2 > 0 && lastOI2 > 0 ? lastOI2 - firstOI2 : 0;
-                              const delta = liveD || csvD;
-                              if (delta === 0) return null;
-                              const label = delta > 0 ? "ADDING" : "EXITING";
-                              const col = delta > 0 ? P.bu : P.be;
-                              return (
-                                <div style={{ marginTop:6, padding:"5px 10px", background:col+"12", border:"1px solid "+col+"30", borderRadius:5,
-                                  display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                                  <span style={{ fontSize:10, fontWeight:800, color:col }}>{label} — {delta>0?"+":""}{Math.abs(delta).toLocaleString()} OI</span>
-                                  <span style={{ fontSize:9, color:P.dm }}>{curOI>0?"live":"csv"} data</span>
-                                </div>
-                              );
-                            })()}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
+
+        {/* ── Selected Top Flow Detail Panel ─────────────────────────── */}
+        {selectedConv !== null && FD.CONV[selectedConv] && (() => {
+          const t = FD.CONV[selectedConv];
+          const c = t.dir==="BULL" ? P.bu : P.be;
+          const px = getPrice(t.sym, t.cp, t.K, t.exp);
+          const curOI = px ? px.oi : 0;
+          const curPrice = px ? (px.mark || px.last || 0) : 0;
+
+          // Build byDay from trades
+          const byDay = {};
+          t.trades.forEach(tr => {
+            const day = tr.Dt ? tr.Dt+"/2026" : "—";
+            if (!byDay[day]) byDay[day] = { trades:[], vol:0, maxOI:0, prem:0, prices:[] };
+            byDay[day].trades.push(tr);
+            byDay[day].vol += tr.V;
+            byDay[day].prem += tr.P;
+            if (tr.OI > byDay[day].maxOI) byDay[day].maxOI = tr.OI;
+            const ep = tr.V > 0 ? tr.P / tr.V / 100 : 0;
+            if (ep > 0) byDay[day].prices.push(ep);
+          });
+          const _toDate = s => { const p=s.split('/').map(Number); const y=p.length>=3?p[2]:2026; return new Date(y,p[0]-1,p[1]); };
+          const _mdSort = (a,b) => _toDate(a)-_toDate(b);
+          const flowDays = Object.keys(byDay).sort(_mdSort);
+          const histKey = `${t.sym}|${t.cp}|${parseFloat(t.K)}|${t.exp}`;
+          const trackerHistory = contractHistory[histKey] || [];
+          const trackerByDay = {};
+          trackerHistory.forEach(h => {
+            const parts = h.date.split("/");
+            const key = parts.length >= 3 ? h.date : parts.length >= 2 ? h.date+"/2026" : h.date;
+            const dt = new Date(parseInt(parts.length>=3?parts[2]:2026), parseInt(parts[0])-1, parseInt(parts[1]));
+            trackerByDay[key] = dt.getDay()===0||dt.getDay()===6 ? {...h,volume:0} : h;
+          });
+          const allDays = [];
+          if (flowDays.length > 0) {
+            const first = _toDate(flowDays[0]);
+            const today = new Date();
+            if (first) {
+              const d = new Date(first);
+              while (d <= today) {
+                if (d.getDay()!==0 && d.getDay()!==6) allDays.push((d.getMonth()+1)+"/"+d.getDate()+"/"+(d.getFullYear()));
+                d.setDate(d.getDate()+1);
+              }
+            }
+          }
+          const allKnownDays = new Set([...(allDays.length>0?allDays:flowDays), ...Object.keys(trackerByDay)]);
+          const days = [...allKnownDays].filter(s => {
+            const p=s.split("/").map(Number); const y=p.length>=3?p[2]:2026;
+            const dow=new Date(y,p[0]-1,p[1]).getDay(); return dow!==0&&dow!==6;
+          }).sort(_mdSort);
+          const chartData = [];
+          let lastOI=0, lastPrice=0;
+          days.forEach(day => {
+            const fd=byDay[day], snap=trackerByDay[day];
+            if (fd) {
+              if (fd.maxOI>0) lastOI=fd.maxOI;
+              if (snap&&snap.oi>0) lastOI=snap.oi;
+              const dp=fd.prices.length>0?fd.prices.reduce((a,b)=>a+b,0)/fd.prices.length:0;
+              if (dp>0) lastPrice=dp;
+              if (snap&&snap.price>0) lastPrice=snap.price;
+              const vol=snap?(snap.volume||fd.vol):fd.vol;
+              chartData.push({day,vol,oi:lastOI,price:lastPrice,prem:fd.prem,trades:fd.trades.length,hasFlow:true});
+            } else if (snap) {
+              if (snap.oi>0) lastOI=snap.oi;
+              if (snap.price>0) lastPrice=snap.price;
+              chartData.push({day,vol:snap.volume||0,oi:lastOI,price:lastPrice,prem:0,trades:0,hasFlow:false,isTracked:true});
+            } else {
+              chartData.push({day,vol:0,oi:lastOI,price:lastPrice,prem:0,trades:0,hasFlow:false});
+            }
+          });
+          if (curOI>0||curPrice>0) {
+            chartData.push({day:"Now",vol:0,oi:curOI>0?curOI:lastOI,price:curPrice>0?curPrice:lastPrice,prem:0,trades:0,hasFlow:false,isLive:true});
+          }
+          const chartKey = `chart_${t.sym}`;
+          const chartRange = (window._chartRange||{})[chartKey] || "3mo";
+          const setChartRange = v => { if(!window._chartRange) window._chartRange={}; window._chartRange[chartKey]=v; setSelectedConv(null); setTimeout(()=>setSelectedConv(selectedConv),10); };
+
+          return (
+            <div style={{ background:"#0d1525", border:"1px solid "+P.bl, borderRadius:12, marginBottom:12, overflow:"hidden",
+              boxShadow:"0 8px 32px rgba(0,0,0,0.6)", borderTop:"2px solid "+c }}>
+
+              {/* Panel Header */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", borderBottom:"1px solid "+P.bd }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{t.sym}</span>
+                  <span style={{ fontSize:14, fontWeight:800, color:c }}>{t.strike}</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:P.wh }}>{t.exp}</span>
+                  <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
+                  <Tag c={c}>{t.dir}</Tag>
+                  <span style={{ fontSize:10, color:P.dm }}>{t.trades.length} trades · {t.hits}x · {fmt(t.prem)}</span>
+                </div>
+                <button onClick={()=>setSelectedConv(null)}
+                  style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
+              </div>
+
+              {/* Two column layout: chart left, OI chart right */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
+
+                {/* Left: Stock price chart */}
+                <div style={{ borderRight:"1px solid "+P.bd, position:"relative" }}>
+                  <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(t.sym)}&range=${chartRange}&v=${Math.floor(Date.now()/900000)}`}
+                    alt={t.sym+" chart"}
+                    style={{ width:"100%", height:200, objectFit:"fill", display:"block", opacity:0.92 }}
+                    onError={e=>{e.target.parentElement.style.display="none"}} />
+                  <div style={{ position:"absolute", top:8, right:8, display:"flex", gap:4 }}>
+                    {[["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
+                      <button key={val} onClick={e=>{e.stopPropagation();setChartRange(val);}}
+                        style={{ padding:"2px 7px", borderRadius:4, border:"1px solid "+(chartRange===val?P.ac:P.bd+"80"),
+                          background:chartRange===val?P.ac+"22":"rgba(6,9,15,0.75)", color:chartRange===val?P.ac:P.dm,
+                          fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right: Vol/OI/Price chart */}
+                <div style={{ padding:"12px 14px" }}>
+                  <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}>VOLUME · OI · PRICE</div>
+                  <div style={{ width:"100%", height:160 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={chartData} margin={{ top:4, right:4, left:-8, bottom:0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
+                        <XAxis dataKey="day" tick={{ fontSize:6, fill:"#4a5c73" }}
+                          interval={chartData.length>15?"preserveStartEnd":chartData.length>10?1:0}
+                          angle={-45} textAnchor="end" height={28}
+                          tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
+                        <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#ffab00" }}
+                          tickFormatter={v=>"$"+v.toFixed(1)} width={32}
+                          domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
+                        <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:7, fill:"#4a5c73" }}
+                          tickFormatter={v=>fK(v)} width={38} />
+                        <Tooltip contentStyle={{ background:"#0d1525", border:"1px solid #243352", borderRadius:6, fontSize:9, padding:"6px 10px" }}
+                          formatter={(val,name) => {
+                            if (name==="price") return ["$"+val.toFixed(2),"Contract Price"];
+                            if (name==="vol") return [fK(val),"Volume"];
+                            return [val.toLocaleString(),"Open Interest"];
+                          }}
+                          labelStyle={{ color:"#f0f4f8", fontWeight:700, marginBottom:2 }}
+                          labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
+                        <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={chartData.length>15?4:6} />
+                        <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={chartData.length>15?4:6} />
+                        <Line yAxisId="price" dataKey="price" type="monotone" stroke="#ffab00" strokeWidth={2}
+                          dot={{ r:2, fill:"#ffab00", stroke:"#0d1525", strokeWidth:1 }} connectNulls />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {curPrice>0 && <div style={{ fontSize:9, color:P.ac, fontWeight:700, marginTop:2, textAlign:"right" }}>Now: ${curPrice.toFixed(2)}</div>}
+                </div>
+              </div>
+
+              {/* Bottom: date table + verdict side by side */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:0, borderTop:"1px solid "+P.bd }}>
+                <div style={{ maxHeight:180, overflowY:"auto", padding:"8px 0" }}>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+                    <thead><tr style={{ borderBottom:"1px solid "+P.bd, position:"sticky", top:0, background:"#0d1525" }}>
+                      {["Date","Vol","OI","OI (+/-)","Price","Premium"].map(h=>(
+                        <th key={h} style={{ padding:"3px 8px", textAlign:h==="Date"?"left":"right", color:P.mt, fontWeight:600, fontSize:8 }}>{h}</th>
+                      ))}
+                    </tr></thead>
+                    <tbody>
+                      {curOI>0 && (
+                        <tr style={{ borderBottom:"1px solid "+P.ac+"30", background:P.ac+"08" }}>
+                          <td style={{ padding:"3px 8px", fontWeight:700, color:P.ac }}>Live</td>
+                          <td style={{ padding:"3px 8px", textAlign:"right", color:P.mt }}>—</td>
+                          <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:P.wh }}>{curOI.toLocaleString()}</td>
+                          <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:800,
+                            color:(curOI-chartData.filter(d=>!d.isLive).slice(-1)[0]?.oi)>0?P.bu:P.be }}>
+                            {(()=>{const last=chartData.filter(d=>!d.isLive).slice(-1)[0]; const d=last&&last.oi>0?curOI-last.oi:0; return "("+((d>0?"+":"")+d.toLocaleString())+")";})()} 
+                          </td>
+                          <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:P.ac }}>{curPrice>0?"$"+curPrice.toFixed(2):"—"}</td>
+                          <td></td>
+                        </tr>
+                      )}
+                      {[...chartData].filter(d=>!d.isLive).reverse().map((d,di,arr)=>{
+                        const prevD=di<arr.length-1?arr[di+1]:null;
+                        const dayDelta=prevD&&prevD.oi>0&&d.oi>0?d.oi-prevD.oi:0;
+                        return (
+                          <tr key={d.day} style={{ borderBottom:"1px solid "+P.bd+"12", background:d.hasFlow?(P.ac+"06"):"transparent" }}>
+                            <td style={{ padding:"3px 8px", fontWeight:600, color:d.hasFlow?P.ac:P.mt, fontSize:8 }}>{d.day.split("/").slice(0,2).join("/")}</td>
+                            <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:d.vol>0?700:400, color:d.vol>0?P.wh:P.mt, fontSize:8 }}>{d.vol>0?fK(d.vol):"0"}</td>
+                            <td style={{ padding:"3px 8px", textAlign:"right", color:P.wh, fontSize:8 }}>{d.oi>0?d.oi.toLocaleString():"—"}</td>
+                            <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, fontSize:8, color:dayDelta>0?P.bu:dayDelta<0?P.be:P.dm }}>
+                              {dayDelta!==0?"("+((dayDelta>0?"+":"")+dayDelta.toLocaleString()+")"):"(0)"}
+                            </td>
+                            <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:600, color:d.price>0?P.ac:P.mt, fontSize:8 }}>{d.price>0?"$"+d.price.toFixed(2):"—"}</td>
+                            <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:d.prem>0?premC(d.prem):P.mt, fontSize:8 }}>{d.prem>0?fmt(d.prem):"—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Verdict */}
+                {(()=>{
+                  const nonLive=chartData.filter(d=>!d.isLive);
+                  const lastOI2=nonLive.length>0?nonLive[nonLive.length-1].oi:0;
+                  const firstOI2=nonLive.length>0?nonLive[0].oi:0;
+                  const liveD=curOI>0&&lastOI2>0?curOI-lastOI2:0;
+                  const csvD=nonLive.length>1&&firstOI2>0&&lastOI2>0?lastOI2-firstOI2:0;
+                  const delta=liveD||csvD;
+                  if (!delta) return null;
+                  const label=delta>0?"ADDING":"EXITING";
+                  const col=delta>0?P.bu:P.be;
+                  return (
+                    <div style={{ display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center",
+                      padding:"16px 20px", borderLeft:"1px solid "+P.bd, minWidth:140 }}>
+                      <div style={{ fontSize:11, fontWeight:900, color:col, marginBottom:4 }}>{label}</div>
+                      <div style={{ fontSize:13, fontWeight:800, color:col }}>{delta>0?"+":""}{Math.abs(delta).toLocaleString()} OI</div>
+                      <div style={{ fontSize:8, color:P.dm, marginTop:4 }}>{curOI>0?"live data":"csv data"}</div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Cap Band Filter */}
         {(() => {
