@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 // ─── Flow Data loaded dynamically from /flow-data.csv ─────────────────────────
@@ -90,7 +90,7 @@ function Card({ children, title, sub }) {
 }
 
 function TT({ rows, priceFn, onRowClick }) {
-  const [expandedKey, setExpandedKey] = React.useState(null);
+  const [expandedKey, setExpandedKey] = useState(null);
   const colCount = ["Ticker","Day","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow","Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
@@ -115,7 +115,7 @@ function TT({ rows, priceFn, onRowClick }) {
           const rowKey = r.S+"|"+r.CP+"|"+r.K+"|"+r.E+"|"+i;
           const isExpanded = expandedKey === rowKey;
           return (
-            <React.Fragment key={i}>
+            <Fragment key={i}>
             <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent", cursor:"pointer" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
               <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.Dt}</td>
@@ -143,7 +143,7 @@ function TT({ rows, priceFn, onRowClick }) {
                 {onRowClick._panel ? onRowClick._panel(r.S, r.CP, r.K, r.E, ()=>setExpandedKey(null)) : null}
               </td></tr>
             )}
-            </React.Fragment>
+            </Fragment>
           );
         })}
       </tbody>
@@ -152,7 +152,7 @@ function TT({ rows, priceFn, onRowClick }) {
 }
 
 function CT({ rows, priceFn, onRowClick }) {
-  const [expandedKey, setExpandedKey] = React.useState(null);
+  const [expandedKey, setExpandedKey] = useState(null);
   const colCount = ["Ticker","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade","OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
@@ -177,7 +177,7 @@ function CT({ rows, priceFn, onRowClick }) {
           const rowKey = r.S+"|"+r.CP+"|"+r.K+"|"+r.E+"|"+i;
           const isExpanded = expandedKey === rowKey;
           return (
-            <React.Fragment key={i}>
+            <Fragment key={i}>
             <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):r.H>=5?(P.ac+"08"):"transparent", cursor:"pointer" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
@@ -201,7 +201,7 @@ function CT({ rows, priceFn, onRowClick }) {
                 {onRowClick._panel ? onRowClick._panel(r.S, r.CP, r.K, r.E, ()=>setExpandedKey(null)) : null}
               </td></tr>
             )}
-            </React.Fragment>
+            </Fragment>
           );
         })}
       </tbody>
