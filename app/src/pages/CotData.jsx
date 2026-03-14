@@ -167,15 +167,6 @@ export default function CotData() {
       ))
     : 250000
 
-  // Right-axis (OI) bounds: max = rounded-up maxOI, min pushes the OI line
-  // into the upper two-thirds of the chart (leave ~half the OI range below minOI)
-  const maxOI = data && data.length > 0
-    ? Math.max(...data.map(d => d.open_interest)) : 0
-  const minOI = data && data.length > 0
-    ? Math.min(...data.map(d => d.open_interest)) : 0
-  const y2Max = data && data.length > 0 ? roundUpNice(maxOI)   : 1000000
-  const y2Min = data && data.length > 0
-    ? roundDownNice(Math.max(0, minOI - (maxOI - minOI) / 2))  : 0
 
 
   const chartData = data && data.length > 0 ? {
@@ -298,8 +289,10 @@ export default function CotData() {
       },
       y2: {
         position: 'right',
-        min:      y2Min,
-        max:      y2Max,
+        afterDataLimits: axis => {
+          axis.max = roundUpNice(axis.max)
+          axis.min = Math.max(0, roundDownNice(axis.max / 4))
+        },
         grid:     { display: false },
         border:   { color: '#333' },
         ticks:    {
