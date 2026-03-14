@@ -171,16 +171,16 @@ SYMBOL_GROUPS: dict[str, list[str]] = {
 # Reverse lookup: CFTC market name (uppercase) → our symbol
 _NAME_TO_SYMBOL: dict[str, str] = {v.upper(): k for k, v in SYMBOL_MAP.items()}
 
-# ── CFTC column names ──────────────────────────────────────────────────────────
-_COL_MARKET   = "Market_and_Exchange_Names"
-_COL_DATE     = "Report_Date_as_MM_DD_YYYY"
-_COL_OI       = "Open_Interest_All"
-_COL_NC_LONG  = "NonComm_Positions_Long_All"
-_COL_NC_SHORT = "NonComm_Positions_Short_All"
-_COL_C_LONG   = "Comm_Positions_Long_All"
-_COL_C_SHORT  = "Comm_Positions_Short_All"
-_COL_NR_LONG  = "NonRept_Positions_Long_All"
-_COL_NR_SHORT = "NonRept_Positions_Short_All"
+# ── CFTC column names (actual names from deacot{year}.zip annual.txt) ─────────
+_COL_MARKET   = "Market and Exchange Names"
+_COL_DATE     = "As of Date in Form YYYY-MM-DD"
+_COL_OI       = "Open Interest (All)"
+_COL_NC_LONG  = "Noncommercial Positions-Long (All)"
+_COL_NC_SHORT = "Noncommercial Positions-Short (All)"
+_COL_C_LONG   = "Commercial Positions-Long (All)"
+_COL_C_SHORT  = "Commercial Positions-Short (All)"
+_COL_NR_LONG  = "Nonreportable Positions-Long (All)"
+_COL_NR_SHORT = "Nonreportable Positions-Short (All)"
 _REQUIRED_COLS = {
     _COL_MARKET, _COL_DATE, _COL_OI,
     _COL_NC_LONG, _COL_NC_SHORT,
@@ -272,7 +272,7 @@ def _parse_cftc_stream(stream: TextIO) -> tuple[list[dict], set[str]]:
 
         raw_date = row.get(_COL_DATE, "").strip()
         try:
-            date = datetime.strptime(raw_date, "%m/%d/%Y").date()
+            date = datetime.strptime(raw_date, "%Y-%m-%d").date()
         except ValueError:
             logger.warning("COT: bad date %r for symbol %s — row skipped", raw_date, sym)
             continue
