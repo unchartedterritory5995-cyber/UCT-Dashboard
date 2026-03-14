@@ -418,7 +418,8 @@ def is_authenticated() -> bool:
 
 
 # ─── Market Index Quotes ─────────────────────────────────────────────────────────
-MARKET_SYMBOLS = ["SPY", "QQQ", "DIA", "IWM", "$VIX.X"]
+MARKET_SYMBOLS = ["SPY", "QQQ", "DIA", "IWM"]
+VIX_SYMBOLS = ["$VIX.X", "$VIX", "VIX", "UVXY"]  # Try multiple formats
 
 async def get_market_summary() -> list[dict]:
     """Fetch current quotes for major indices."""
@@ -426,7 +427,11 @@ async def get_market_summary() -> list[dict]:
     if not token:
         return [{"error": "Not authenticated"}]
 
+    display_names = {"SPY": "S&P 500", "QQQ": "NASDAQ", "DIA": "DOW 30", "IWM": "Russell 2000"}
+    results = []
+
     async with httpx.AsyncClient(timeout=10.0) as client:
+        # Fetch main ETFs
         resp = await client.get(
             QUOTES_URL,
             headers={"Authorization": f"Bearer {token}"},
@@ -445,26 +450,62 @@ async def get_market_summary() -> list[dict]:
             return [{"error": f"Schwab API error {resp.status_code}"}]
 
         data = resp.json()
-        results = []
-        display_names = {"SPY": "S&P 500", "QQQ": "NASDAQ", "DIA": "DOW 30", "IWM": "Russell 2000", "$VIX.X": "VIX"}
         for sym in MARKET_SYMBOLS:
             q = data.get(sym, {})
-            quote = q.get("quote", q)  # Schwab nests under "quote" key
+            quote = q.get("quote", q)
             ref = q.get("reference", {})
-            last = quote.get("lastPrice", quote.get("last", 0))
-            close = quote.get("closePrice", quote.get("previousClose", ref.get("previousClose", 0)))
+            last = quote.get("lastPrice", quote.get("last", quote.get("regularMarketLastPrice", 0)))
+            close = quote.get("closePrice", quote.get("previousClose", ref.get("previousClose", quote.get("regularMarketPreviousClose", 0))))
             change = last - close if last and close else 0
             pct = (change / close * 100) if close else 0
             results.append({
-                "symbol": sym.replace("$", "").replace(".X", ""),
+                "symbol": sym,
                 "name": display_names.get(sym, sym),
                 "price": round(last, 2),
                 "change": round(change, 2),
                 "pct": round(pct, 2),
-                "high": round(quote.get("highPrice", quote.get("high", 0)), 2),
-                "low": round(quote.get("lowPrice", quote.get("low", 0)), 2),
             })
-        return results
+
+        # Try VIX symbols until one works
+        vix_result = None
+        for vix_sym in VIX_SYMBOLS:
+            try:
+                vresp = await client.get(
+                    QUOTES_URL,
+                    headers={"Authorization": f"Bearer {token}"},
+                    params={"symbols": vix_sym, "indicative": "true"},
+                )
+                if vresp.status_code == 200:
+                    vdata = vresp.json()
+                    vq = vdata.get(vix_sym, {})
+                    vquote = vq.get("quote", vq)
+                    vref = vq.get("reference", {})
+                    vlast = vquote.get("lastPrice", vquote.get("last", vquote.get("mark", 0)))
+                    vclose = vquote.get("closePrice", vquote.get("previousClose", vref.get("previousClose", 0)))
+                    if vlast and vlast > 0:
+                        vchange = vlast - vclose if vclose else 0
+                        vpct = (vchange / vclose * 100) if vclose else 0
+                        vix_result = {
+                            "symbol": "VIX",
+                            "name": "VIX",
+                            "price": round(vlast, 2),
+                            "change": round(vchange, 2),
+                            "pct": round(vpct, 2),
+                        }
+                        logger.info("VIX loaded from symbol: %s = %s", vix_sym, vlast)
+                        break
+                    else:
+                        logger.info("VIX symbol %s returned 0, trying next", vix_sym)
+            except Exception as e:
+                logger.info("VIX symbol %s failed: %s, trying next", vix_sym, e)
+
+        if vix_result:
+            results.append(vix_result)
+        else:
+            results.append({"symbol": "VIX", "name": "VIX", "price": 0, "change": 0, "pct": 0})
+            logger.warning("No VIX symbol returned data")
+
+    return results
 
 
 # ─── Background Auto-Refresh ────────────────────────────────────────────────────
