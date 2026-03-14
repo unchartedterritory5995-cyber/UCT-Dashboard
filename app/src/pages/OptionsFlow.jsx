@@ -1327,7 +1327,7 @@ export default function OptionsFlowDashboard() {
                       return (
                         <>
                           <div style={{ borderRadius:"10px 10px 0 0", overflow:"hidden", background:"#000", position:"relative" }}>
-                            <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(t.sym)}&range=${chartRange}`}
+                            <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(t.sym)}&range=${chartRange}&v=${Math.floor(Date.now()/900000)}`}
                               alt={t.sym+" chart"}
                               style={{ width:"100%", height:160, objectFit:"fill", display:"block", opacity:0.92 }}
                               onError={e=>{e.target.parentElement.style.display="none"}} />
