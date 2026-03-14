@@ -16,10 +16,13 @@ router = APIRouter(prefix="/api/schwab", tags=["schwab"])
 async def schwab_status():
     """Check if Schwab API is connected."""
     authenticated = schwab.is_authenticated()
+    persistent = str(schwab.TOKEN_FILE).startswith("/data")
     return {
         "connected": authenticated,
         "hasAppKey": bool(schwab.APP_KEY),
-        "message": "Connected to Schwab API" if authenticated else "Not connected. Visit /api/schwab/login to authenticate.",
+        "tokenStorage": str(schwab.TOKEN_FILE),
+        "persistent": persistent,
+        "message": "Connected to Schwab API" + (" (persistent)" if persistent else " (will reset on deploy)") if authenticated else "Not connected. Visit /api/schwab/login to authenticate.",
     }
 
 
@@ -97,3 +100,40 @@ async def options_quotes_batch(contracts: list[dict]):
     """
     results = await schwab.get_batch_option_quotes(contracts)
     return {"quotes": results}
+
+
+@router.get("/market-summary")
+async def market_summary():
+    """Fetch current prices for SPY, QQQ, DIA, IWM, VIX."""
+    results = await schwab.get_market_summary()
+    return {"indices": results}
+
+
+@router.get("/market-narrative")
+async def market_narrative():
+    """Generate AI narrative of today's market using Claude + web search."""
+    import os
+    import anthropic
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return JSONResponse(status_code=500, content={"error": "ANTHROPIC_API_KEY not set"})
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            messages=[{
+                "role": "user",
+                "content": "Give a 2-3 sentence summary of what happened in the US stock market today. Include major index moves, any catalysts (Fed, earnings, tariffs, economic data), and notable sector moves. Keep it factual and concise. No disclaimers. Today's date is important — only report today's market action."
+            }],
+        )
+        text = " ".join(
+            block.text for block in response.content
+            if hasattr(block, "text")
+        ).strip()
+        return {"narrative": text}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
