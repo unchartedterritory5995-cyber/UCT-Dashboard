@@ -144,6 +144,17 @@ export default function CotData() {
   // ── Chart config ─────────────────────────────────────────────────────────────
   const labels = data ? data.map(d => fmtDate(d.date)) : []
 
+  // Symmetric left-axis bound — rounded up to nearest 50k
+  const leftBound = data && data.length > 0
+    ? Math.ceil(Math.max(
+        ...data.flatMap(d => [
+          Math.abs(d.large_spec_net),
+          Math.abs(d.commercial_net),
+          Math.abs(d.small_spec_net),
+        ])
+      ) / 50000) * 50000
+    : 250000
+
   const chartData = data && data.length > 0 ? {
     labels,
     datasets: [
@@ -251,6 +262,8 @@ export default function CotData() {
         },
       },
       y: {
+        min:    -leftBound,
+        max:     leftBound,
         grid:   { color: '#2a2a2a' },
         border: { color: '#444', dash: [4, 4] },
         ticks:  {
@@ -260,10 +273,9 @@ export default function CotData() {
         },
       },
       y2: {
-        position:     'right',
-        beginAtZero:  false,
-        grid:         { display: false },
-        border:       { color: '#333' },
+        position: 'right',
+        grid:     { display: false },
+        border:   { color: '#333' },
         ticks:    {
           color: 'rgba(0,255,0,0.7)',
           font:  { size: 10 },
