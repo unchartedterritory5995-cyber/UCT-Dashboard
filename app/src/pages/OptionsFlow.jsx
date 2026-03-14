@@ -980,6 +980,22 @@ export default function OptionsFlowDashboard() {
     const px = getPrice(sym, cp, K, exp);
     const curOI = px ? px.oi : 0;
     const curPrice = px ? (px.mark || px.last || 0) : 0;
+    // Auto-fetch live price if not in cache yet
+    if (!px) {
+      fetch("/api/schwab/options-quotes", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify([{symbol:sym, cp, strike:parseFloat(K), expDate:expToISO(exp)}]),
+      }).then(r=>r.ok?r.json():null).then(data=>{
+        const q=data?.quotes?.[0];
+        if(q&&!q.error&&!q.expired){
+          setPriceCache(prev=>({...prev,[sym+"|"+cp+"|"+parseFloat(K)+"|"+exp]:{
+            mark:q.mark||0,bid:q.bid||0,ask:q.ask||0,last:q.last||0,
+            delta:q.delta||0,theta:q.theta||0,iv:q.iv||0,
+            oi:q.openInterest||0,vol:q.volume||0,spot:q.underlyingPrice||0,
+          }}));
+        }
+      }).catch(()=>{});
+    }
     // Find all trades for this contract across all flow data
     const allTrades = D ? (D.clean_confirmed || []).filter(t =>
       t.S === sym && t.CP === cp && Math.abs(t.K - K) < 0.01 && t.E === exp
@@ -1057,8 +1073,14 @@ export default function OptionsFlowDashboard() {
             <span style={{ fontSize:14, fontWeight:800, color:c }}>${K}{cp}</span>
             <span style={{ fontSize:13, fontWeight:700, color:P.wh }}>{exp}</span>
             <Tag c={c}>{dir}</Tag>
-            {allTrades.length > 0 && <span style={{ fontSize:10, color:P.dm }}>{allTrades.length} trades · {fmt(totalPrem)}</span>}
-            {curPrice > 0 && <span style={{ fontSize:11, fontWeight:700, color:P.ac }}>Now: ${curPrice.toFixed(2)}</span>}
+            {allTrades.length > 0 && <span style={{ fontSize:11, fontWeight:900, color:P.ac, background:P.ac+"18", padding:"2px 8px", borderRadius:4 }}>{fmt(totalPrem)}</span>}
+            {allTrades.length > 0 && <span style={{ fontSize:10, color:P.dm }}>{allTrades.length} trades</span>}
+            <span style={{ fontSize:11, fontWeight:900,
+              color:curPrice>0?P.wh:P.dm,
+              background:curPrice>0?(P.wh+"12"):(P.dm+"18"),
+              padding:"2px 8px", borderRadius:4 }}>
+              {curPrice>0 ? "$"+curPrice.toFixed(2) : fetchLoading ? "…" : "— fetch price"}
+            </span>
           </div>
           <button onClick={onClose} style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
         </div>
@@ -1597,7 +1619,12 @@ export default function OptionsFlowDashboard() {
                   <span style={{ fontSize:13, fontWeight:700, color:P.wh }}>{t.exp}</span>
                   <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
                   <Tag c={c}>{t.dir}</Tag>
-                  <span style={{ fontSize:10, color:P.dm }}>{t.trades.length} trades · {t.hits}x · {fmt(t.prem)}</span>
+                  <span style={{ fontSize:11, fontWeight:900, color:P.ac, background:P.ac+"18", padding:"2px 8px", borderRadius:4 }}>{fmt(t.prem)}</span>
+                  <span style={{ fontSize:10, color:P.dm }}>{t.trades.length} trades</span>
+                  {(()=>{ const px=getPrice(t.sym,t.cp,t.K,t.exp); const cp2=px?(px.mark||px.last||0):0;
+                    if(!px){ fetch("/api/schwab/options-quotes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify([{symbol:t.sym,cp:t.cp,strike:parseFloat(t.K),expDate:expToISO(t.exp)}])}).then(r=>r.ok?r.json():null).then(data=>{const q=data?.quotes?.[0];if(q&&!q.error&&!q.expired){setPriceCache(prev=>({...prev,[t.sym+"|"+t.cp+"|"+parseFloat(t.K)+"|"+t.exp]:{mark:q.mark||0,bid:q.bid||0,ask:q.ask||0,last:q.last||0,delta:q.delta||0,theta:q.theta||0,iv:q.iv||0,oi:q.openInterest||0,vol:q.volume||0,spot:q.underlyingPrice||0}}));}}).catch(()=>{});}
+                    return <span style={{ fontSize:11, fontWeight:900, color:cp2>0?P.wh:P.dm, background:cp2>0?(P.wh+"12"):(P.dm+"18"), padding:"2px 8px", borderRadius:4 }}>{cp2>0?"$"+cp2.toFixed(2):fetchLoading?"…":"— fetch price"}</span>;
+                  })()}
                 </div>
                 <button onClick={()=>setSelectedConv(null)}
                   style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
