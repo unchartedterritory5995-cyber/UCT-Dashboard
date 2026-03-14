@@ -899,6 +899,9 @@ export default function OptionsFlowDashboard() {
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [hover, setHover] = useState(null);
   const [priceCache, setPriceCache] = useState({}); // key: "SYM|CP|STRIKE|EXP" -> { mark, bid, ask, last, delta, theta, iv }
+  const [marketIndices, setMarketIndices] = useState(null);
+  const [marketNarrative, setMarketNarrative] = useState(null);
+  const [narrativeLoading, setNarrativeLoading] = useState(false);
 
   // ─── Dynamic CSV Loading ─────────────────────────────────────────────
   const [csvText, setCsvText] = useState(null);
@@ -1011,10 +1014,11 @@ export default function OptionsFlowDashboard() {
       if (!resp.ok) { setStatus("Schwab API error: " + resp.status); setFetchLoading(false); return; }
       const data = await resp.json();
       const quotes = data.quotes || [];
-      let successes = 0, failures = 0;
+      let successes = 0, failures = 0, expired = 0;
       quotes.forEach((q, i) => {
         const orig = unique[i];
         if (!orig) return;
+        if (q.expired) { expired++; return; }
         if (q.error) { failures++; return; }
         const key = orig.symbol+"|"+orig.cp+"|"+orig.strike+"|"+orig._exp;
         newCache[key] = {
@@ -1030,7 +1034,7 @@ export default function OptionsFlowDashboard() {
       });
       setPriceCache(newCache);
       if (updated) setPerf(updated);
-      setStatus(`Done. ${successes} priced, ${failures} failed of ${unique.length} contracts.`);
+      setStatus(`Done. ${successes} priced` + (expired > 0 ? `, ${expired} expired` : ``) + (failures > 0 ? `, ${failures} failed` : ``) + ` of ${unique.length} contracts.`);
     } catch(e) {
       setStatus("Fetch error: " + e.message);
     }
@@ -1051,6 +1055,27 @@ export default function OptionsFlowDashboard() {
     return priceCache[k] || null;
   }
 
+  async function fetchMarketData() {
+    // Fetch index quotes
+    try {
+      const resp = await fetch("/api/schwab/market-summary");
+      if (resp.ok) {
+        const data = await resp.json();
+        setMarketIndices(data.indices || []);
+      }
+    } catch(e) { console.warn("Market indices error:", e); }
+    // Fetch AI narrative
+    setNarrativeLoading(true);
+    try {
+      const resp = await fetch("/api/schwab/market-narrative");
+      if (resp.ok) {
+        const data = await resp.json();
+        setMarketNarrative(data.narrative || null);
+      }
+    } catch(e) { console.warn("Narrative error:", e); }
+    setNarrativeLoading(false);
+  }
+
   return (
     <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", padding:"16px 20px" }}>
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
@@ -1063,6 +1088,39 @@ export default function OptionsFlowDashboard() {
             {D.dateRange} · {D.confirmedCount} confirmed of {D.totalTrades} trades
           </span>
         </div>
+
+        {/* ── Market Pulse (indices + narrative) ─────────────────────────── */}
+        {tab==="Market Read" && (
+          <div style={{ marginBottom:12 }}>
+            {/* Index Cards */}
+            <div style={{ display:"flex", gap:8, marginBottom:8, alignItems:"center" }}>
+              {marketIndices ? marketIndices.map((idx,i) => (
+                <div key={i} style={{ flex:1, background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+(idx.symbol==="VIX"?(idx.pct>0?P.be:P.bu):(idx.pct>=0?P.bu:P.be)) }}>
+                  <div style={{ fontSize:9, color:P.dm, fontWeight:600, marginBottom:3 }}>{idx.name}</div>
+                  <div style={{ fontSize:15, fontWeight:900, color:P.wh }}>{idx.price>0?idx.price.toLocaleString(undefined,{minimumFractionDigits:2}):"—"}</div>
+                  <div style={{ fontSize:11, fontWeight:700, color:idx.symbol==="VIX"?(idx.pct>0?P.be:P.bu):(idx.pct>=0?P.bu:P.be) }}>
+                    {idx.change>0?"+":""}{idx.change} ({idx.pct>0?"+":""}{idx.pct}%)
+                  </div>
+                </div>
+              )) : (
+                <button onClick={fetchMarketData} style={{ padding:"8px 20px", borderRadius:6, border:"1px solid "+P.bl, background:P.al, color:P.dm, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                  📊 Load Market Data
+                </button>
+              )}
+              {marketIndices && (
+                <button onClick={fetchMarketData} title="Refresh" style={{ padding:"8px 10px", borderRadius:6, border:"1px solid "+P.bl, background:P.al, color:P.dm, fontSize:10, cursor:"pointer", fontFamily:"inherit" }}>↻</button>
+              )}
+            </div>
+            {/* AI Narrative */}
+            {narrativeLoading && <div style={{ fontSize:10, color:P.dm, marginBottom:8 }}>Generating market summary…</div>}
+            {marketNarrative && (
+              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"10px 14px", marginBottom:8 }}>
+                <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>TODAY'S MARKET</div>
+                <div style={{ fontSize:11, color:P.dm, lineHeight:1.8 }}>{marketNarrative}</div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Short/Long Banners */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
