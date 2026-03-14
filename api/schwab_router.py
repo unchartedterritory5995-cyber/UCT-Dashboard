@@ -227,3 +227,33 @@ async def backfill_all_contracts(days_back: int = 60):
     from api.daily_tracker import backfill_all_registered
     result = await backfill_all_registered(days_back)
     return result
+
+
+@router.get("/chart-proxy")
+async def chart_proxy(sym: str = Query(..., description="Ticker symbol, e.g. AAPL")):
+    """
+    Proxy Finviz daily chart image through the backend to avoid browser CORS blocks.
+    Returns the chart image directly with correct headers.
+    """
+    import httpx
+    from fastapi.responses import Response
+
+    url = f"https://finviz.com/chart.ashx?t={sym.upper()}&ty=c&ta=0&p=d&s=l"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "https://finviz.com/",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(url, headers=headers)
+        if resp.status_code == 200:
+            return Response(
+                content=resp.content,
+                media_type="image/gif",
+                headers={"Cache-Control": "public, max-age=900"},  # cache 15 min
+            )
+    except Exception:
+        pass
+    # Return a 1x1 transparent GIF on failure so onError fires cleanly
+    transparent_gif = b"GIF89a\x01\x00\x01\x00\x00\xff\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x00;"
+    return Response(content=transparent_gif, media_type="image/gif", status_code=404)
