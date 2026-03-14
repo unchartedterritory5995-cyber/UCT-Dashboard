@@ -10,8 +10,6 @@ import sentry_sdk
 from api.limiter import limiter
 from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts
 from api.schwab_router import router as schwab_router
-from api.routers import cot as cot_router
-from api.services import cot_service as _cot_service
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 if _SENTRY_DSN:
@@ -35,15 +33,6 @@ def _seed_cache_from_volume():
     except Exception as e:
         print(f"[startup] Could not load wire_data from volume: {e}")
 
-def _cot_seed_background():
-    """Run COT historical seed in a background thread (called once on first deploy)."""
-    try:
-        n = _cot_service.seed_from_historical()
-        print(f"[startup] COT initial seed complete — {n} records inserted")
-    except Exception as e:
-        print(f"[startup] COT seed failed: {e}")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _seed_cache_from_volume()
@@ -63,39 +52,12 @@ async def lifespan(app: FastAPI):
     else:
         print("[startup] No Schwab tokens found. Admin must visit /api/schwab/login once to connect.")
     start_auto_refresh()
-
-    # ── COT database ───────────────────────────────────────────────
-    try:
-        _cot_service.init_db()
-        if _cot_service.is_empty():
-            import threading
-            print("[startup] COT table empty — seeding from CFTC historical archive (background)...")
-            threading.Thread(
-                target=_cot_seed_background, daemon=True, name="cot-seed"
-            ).start()
-        else:
-            print("[startup] COT database ready.")
-    except Exception as e:
-        print(f"[startup] COT init error (non-fatal): {e}")
-
-    # ── COT weekly scheduler ───────────────────────────────────────
-    from apscheduler.schedulers.background import BackgroundScheduler
-    from apscheduler.triggers.cron import CronTrigger
-    from zoneinfo import ZoneInfo
-    _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
-    _scheduler.add_job(
-        _cot_service.refresh_from_current,
-        trigger=CronTrigger(day_of_week="fri", hour=15, minute=45),
-        id="cot_weekly_refresh",
-        max_instances=1,
-        replace_existing=True,
-    )
-    _scheduler.start()
-    print("[startup] COT scheduler running — refreshes every Friday at 3:45 PM ET")
-
+    # Daily OI/price snapshot tracker — fires at 4:30 PM ET on weekdays
+    from api.daily_tracker import start_snapshot_scheduler, stop_snapshot_scheduler
+    start_snapshot_scheduler()
     yield
-    _scheduler.shutdown(wait=False)
     stop_auto_refresh()
+    stop_snapshot_scheduler()
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.state.limiter = limiter
@@ -116,7 +78,6 @@ app.include_router(traders.router)
 app.include_router(push.router)
 app.include_router(charts.router)
 app.include_router(schwab_router)
-app.include_router(cot_router.router)
 
 # Serve React build — must come AFTER all /api routes
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
