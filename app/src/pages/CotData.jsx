@@ -1,5 +1,5 @@
 // app/src/pages/CotData.jsx
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Component } from 'react'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale,
@@ -72,6 +72,23 @@ function fmtNum(v) {
   if (v == null) return ''
   const abs = Math.abs(Math.round(v)).toLocaleString()
   return v < 0 ? `(${abs})` : abs
+}
+
+// ── Error boundary ─────────────────────────────────────────────────────────────
+
+class ChartErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(e) { return { error: e } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: '24px', color: '#ff6b6b', fontSize: '13px', fontFamily: 'monospace' }}>
+          Chart error: {String(this.state.error.message || this.state.error)}
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -238,7 +255,7 @@ export default function CotData() {
         ticks:  {
           color: 'rgba(255,255,255,0.6)',
           font:  { size: 10 },
-          callback: v => v < 0 ? `(${Math.abs(v).toLocaleString()})` : v.toLocaleString(),
+          callback: v => v == null ? '' : v < 0 ? `(${Math.abs(v).toLocaleString()})` : v.toLocaleString(),
         },
       },
       y2: {
@@ -248,7 +265,7 @@ export default function CotData() {
         ticks:    {
           color: 'rgba(0,255,0,0.7)',
           font:  { size: 10 },
-          callback: v => v.toLocaleString(),
+          callback: v => v == null ? '' : v.toLocaleString(),
         },
       },
     },
@@ -337,7 +354,9 @@ export default function CotData() {
           </div>
         )}
         {!loading && !error && chartData && (
-          <Chart type="bar" data={chartData} options={chartOptions} />
+          <ChartErrorBoundary>
+            <Chart type="bar" data={chartData} options={chartOptions} />
+          </ChartErrorBoundary>
         )}
       </div>
 
