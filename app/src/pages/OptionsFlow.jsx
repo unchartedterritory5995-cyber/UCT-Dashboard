@@ -481,7 +481,12 @@ function buildCharts(cc) {
     const trades = (consTrades[k]||[]).sort((a,b)=>b.P-a.P);
     return { ...c, grade, score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e5,
       side:c.hasAA?"AA":c.hasBB?"BB":"ASK", strike:"$"+c.K+c.cp, trades };
-  }).filter(c => c.clean && c.DTE > 7)
+  }).filter(c => {
+    if (!c.clean || c.DTE <= 7) return false;
+    // Re-check expiry against today's date at render time (not stale CSV DTE)
+    if (c.expiry && c.expiry < new Date()) return false;
+    return true;
+  })
   .sort((a,b)=>b.score-a.score).slice(0,6)
   .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"" })) }));
@@ -1350,7 +1355,10 @@ export default function OptionsFlowDashboard() {
                           // Keep full "M/D/YYYY" key so year-aware sort works correctly
                           const parts = h.date.split("/");
                           const key = parts.length >= 3 ? h.date : parts.length >= 2 ? h.date+"/2026" : h.date;
-                          trackerByDay[key] = h;
+                          // Zero out volume on weekends — exchanges don't trade
+                          const dt = new Date(parseInt(parts.length>=3?parts[2]:2026), parseInt(parts[0])-1, parseInt(parts[1]));
+                          const isWeekend = dt.getDay()===0 || dt.getDay()===6;
+                          trackerByDay[key] = isWeekend ? { ...h, volume: 0 } : h;
                         });
 
                         // Build FULL range from first flow day to TODAY
