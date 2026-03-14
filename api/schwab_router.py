@@ -120,20 +120,38 @@ async def market_narrative():
         return JSONResponse(status_code=500, content={"error": "ANTHROPIC_API_KEY not set"})
 
     try:
+        from datetime import datetime
+        today = datetime.now()
+        today_str = today.strftime("%A, %B %d, %Y")
+        # If weekend, ask for most recent trading day
+        weekday = today.weekday()
+        day_note = ""
+        if weekday == 5:  # Saturday
+            day_note = " (Saturday — markets closed, summarize Friday's action)"
+        elif weekday == 6:  # Sunday
+            day_note = " (Sunday — markets closed, summarize Friday's action)"
+        
         client = anthropic.Anthropic(api_key=api_key)
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=300,
+            max_tokens=250,
+            system="You are a financial news writer. Respond with ONLY 2-3 concise sentences. No preamble. No search commentary. No disclaimers. No 'based on my search' or 'I found'. Just the market summary as if writing a Bloomberg terminal flash.",
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=[{
                 "role": "user",
-                "content": "Give a 2-3 sentence summary of what happened in the US stock market today. Include major index moves, any catalysts (Fed, earnings, tariffs, economic data), and notable sector moves. Keep it factual and concise. No disclaimers. Today's date is important — only report today's market action."
+                "content": f"Today is {today_str}{day_note}. Write 2-3 sentences: How did US markets close on the most recent trading day? Include S&P 500, Nasdaq, Dow moves and the main catalyst."
             }],
         )
         text = " ".join(
             block.text for block in response.content
             if hasattr(block, "text")
         ).strip()
-        return {"narrative": text}
+        # Clean up any AI preamble that leaked through
+        for noise in ["Based on", "I can see", "Let me search", "The search results", "I notice", "I need to"]:
+            if text.startswith(noise):
+                # Find first sentence that looks like actual market data
+                sentences = text.split(". ")
+                text = ". ".join(s for s in sentences if any(w in s for w in ["S&P", "Nasdaq", "Dow", "market", "stock", "fell", "rose", "gained", "dropped", "declined"]))
+        return {"narrative": text if text else "Market summary unavailable."}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
