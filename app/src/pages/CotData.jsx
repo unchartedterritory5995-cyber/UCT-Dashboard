@@ -22,37 +22,36 @@ ChartJS.register(
 const SYMBOL_NAMES = {
   ES: 'S&P 500 E-Mini',      NQ: 'Nasdaq-100 E-Mini',   YM: 'DJIA E-Mini',
   QR: 'Russell 2000 Mini',   EW: 'S&P MidCap 400',      VI: 'VIX',
-  ET: 'S&P 500 Micro E-Mini', NM: 'Nasdaq-100 Micro',    NK: 'Nikkei 225',
+  NK: 'Nikkei 225',
   GC: 'Gold',                SI: 'Silver',               HG: 'Copper',
   PL: 'Platinum',            PA: 'Palladium',            AL: 'Aluminum',
   CL: 'Crude Oil (WTI)',     HO: 'Heating Oil',          RB: 'RBOB Gasoline',
   NG: 'Natural Gas',         FL: 'Fuel Ethanol',         BZ: 'Brent Crude',
   ZW: 'Wheat (SRW)',         ZC: 'Corn',                 ZS: 'Soybeans',
   ZM: 'Soybean Meal',        ZL: 'Soybean Oil',          ZR: 'Rough Rice',
-  KE: 'Wheat (HRW)',         MW: 'Wheat (Spring)',       RS: 'Canola',
-  OA: 'Oats',                CT: 'Cotton No. 2',         OJ: 'Orange Juice',
-  KC: 'Coffee C',            SB: 'Sugar No. 11',         CC: 'Cocoa',
-  LB: 'Lumber',              LE: 'Live Cattle',          GF: 'Feeder Cattle',
-  HE: 'Lean Hogs',           DL: 'Class III Milk',       DF: 'Nonfat Dry Milk',
-  BD: 'Butter',              BJ: 'Cheese',               ZB: '30-Year T-Bond',
-  UD: 'Ultra T-Bond',        ZN: '10-Year T-Note',       ZF: '5-Year T-Note',
-  ZT: '2-Year T-Note',       ZQ: 'Fed Funds 30-Day',     SR3:'SOFR 3-Month',
-  DX: 'US Dollar Index',     BA: 'Micro Bitcoin',        TA: 'Micro Ether',
-  B6: 'British Pound',       D6: 'Canadian Dollar',      J6: 'Japanese Yen',
-  S6: 'Swiss Franc',         E6: 'Euro FX',              A6: 'Australian Dollar',
-  M6: 'Mexican Peso',        N6: 'New Zealand Dollar',   T6: 'South African Rand',
+  KE: 'Wheat (HRW)',         MW: 'Wheat (Spring)',       OA: 'Oats',
+  CT: 'Cotton No. 2',        OJ: 'Orange Juice',         KC: 'Coffee C',
+  SB: 'Sugar No. 11',        CC: 'Cocoa',                LB: 'Lumber',
+  LE: 'Live Cattle',         GF: 'Feeder Cattle',        HE: 'Lean Hogs',
+  DF: 'Nonfat Dry Milk',     BJ: 'Cheese',
+  ZB: '30-Year T-Bond',      UD: 'Ultra T-Bond',         ZN: '10-Year T-Note',
+  ZF: '5-Year T-Note',       ZT: '2-Year T-Note',        ZQ: 'Fed Funds 30-Day',
+  SR3:'SOFR 3-Month',
+  DX: 'US Dollar Index',     B6: 'British Pound',        D6: 'Canadian Dollar',
+  J6: 'Japanese Yen',        S6: 'Swiss Franc',          E6: 'Euro FX',
+  A6: 'Australian Dollar',   M6: 'Mexican Peso',         N6: 'New Zealand Dollar',
   L6: 'Brazilian Real',      BTC:'Bitcoin',              ETH:'Ether',
 }
 
 const SYMBOL_GROUPS = {
-  INDICES:           ['ES','NQ','YM','QR','EW','VI','ET','NM','NK'],
+  INDICES:           ['ES','NQ','YM','QR','EW','VI','NK'],
   METALS:            ['GC','SI','HG','PL','PA','AL'],
   ENERGIES:          ['CL','HO','RB','NG','FL','BZ'],
-  GRAINS:            ['ZW','ZC','ZS','ZM','ZL','ZR','KE','MW','RS','OA'],
+  GRAINS:            ['ZW','ZC','ZS','ZM','ZL','ZR','KE','MW','OA'],
   SOFTS:             ['CT','OJ','KC','SB','CC','LB'],
-  'LIVESTOCK & DAIRY':['LE','GF','HE','DL','DF','BD','BJ'],
+  'LIVESTOCK & DAIRY':['LE','GF','HE','DF','BJ'],
   FINANCIALS:        ['ZB','UD','ZN','ZF','ZT','ZQ','SR3'],
-  CURRENCIES:        ['DX','BA','TA','B6','D6','J6','S6','E6','A6','M6','N6','T6','L6','BTC','ETH'],
+  CURRENCIES:        ['DX','B6','D6','J6','S6','E6','A6','M6','N6','L6','BTC','ETH'],
 }
 
 const LOOKBACKS = [
@@ -75,6 +74,12 @@ function roundUpNice(val) {
   if (val <= 0) return 0
   const mag = Math.pow(10, Math.floor(Math.log10(val)) - 1)
   return Math.ceil(val / mag) * mag
+}
+
+function roundDownNice(val) {
+  if (val <= 0) return 0
+  const mag = Math.pow(10, Math.floor(Math.log10(val)) - 1)
+  return Math.floor(val / mag) * mag
 }
 
 function fmtNum(v) {
@@ -161,6 +166,16 @@ export default function CotData() {
         ])
       ))
     : 250000
+
+  // Right-axis (OI) bounds: max = rounded-up maxOI, min pushes the OI line
+  // into the upper two-thirds of the chart (leave ~half the OI range below minOI)
+  const maxOI = data && data.length > 0
+    ? Math.max(...data.map(d => d.open_interest)) : 0
+  const minOI = data && data.length > 0
+    ? Math.min(...data.map(d => d.open_interest)) : 0
+  const y2Max = data && data.length > 0 ? roundUpNice(maxOI)   : 1000000
+  const y2Min = data && data.length > 0
+    ? roundDownNice(Math.max(0, minOI - (maxOI - minOI) / 2))  : 0
 
 
   const chartData = data && data.length > 0 ? {
@@ -282,9 +297,10 @@ export default function CotData() {
         },
       },
       y2: {
-        position:    'right',
-        beginAtZero: false,
-        grid:        { display: false },
+        position: 'right',
+        min:      y2Min,
+        max:      y2Max,
+        grid:     { display: false },
         border:   { color: '#333' },
         ticks:    {
           color: 'rgba(0,255,0,0.7)',

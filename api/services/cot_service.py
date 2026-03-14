@@ -55,17 +55,17 @@ SYMBOL_MAP: dict[str, str] = {
     # METALS
     "GC":  "GOLD - COMMODITY EXCHANGE INC.",
     "SI":  "SILVER - COMMODITY EXCHANGE INC.",
-    "HG":  "COPPER- GRADE #1 - COMMODITY EXCHANGE INC.",
+    "HG":  "COPPER-GRADE #1 - COMMODITY EXCHANGE INC.",        # pre-2021 name
     "PL":  "PLATINUM - NEW YORK MERCANTILE EXCHANGE",
     "PA":  "PALLADIUM - NEW YORK MERCANTILE EXCHANGE",
     "AL":  "ALUMINUM - COMMODITY EXCHANGE INC.",
     # ENERGIES
-    "CL":  "CRUDE OIL, LIGHT SWEET - NEW YORK MERCANTILE EXCHANGE",
-    "HO":  "NO. 2 HEATING OIL, NEW YORK HARBOR - NEW YORK MERCANTILE EXCHANGE",
-    "RB":  "GASOLINE BLENDSTOCK (RBOB) - NEW YORK MERCANTILE EXCHANGE",
-    "NG":  "NATURAL GAS - NEW YORK MERCANTILE EXCHANGE",
+    "CL":  "CRUDE OIL, LIGHT SWEET - NEW YORK MERCANTILE EXCHANGE",  # pre-2022 name
+    "HO":  "#2 HEATING OIL- NY HARBOR-ULSD - NEW YORK MERCANTILE EXCHANGE",  # pre-2022 name
+    "RB":  "GASOLINE BLENDSTOCK (RBOB) - NEW YORK MERCANTILE EXCHANGE",      # pre-2022 name
+    "NG":  "NATURAL GAS - NEW YORK MERCANTILE EXCHANGE",               # pre-2022 name
     "FL":  "ETHANOL - NEW YORK MERCANTILE EXCHANGE",
-    "BZ":  "BRENT CRUDE OIL LAST DAY - NEW YORK MERCANTILE EXCHANGE",
+    "BZ":  "BRENT CRUDE OIL LAST DAY - NEW YORK MERCANTILE EXCHANGE",  # pre-2022 name
     # GRAINS
     "ZW":  "WHEAT-SRW - CHICAGO BOARD OF TRADE",
     "ZC":  "CORN - CHICAGO BOARD OF TRADE",
@@ -74,12 +74,12 @@ SYMBOL_MAP: dict[str, str] = {
     "ZL":  "SOYBEAN OIL - CHICAGO BOARD OF TRADE",
     "ZR":  "ROUGH RICE - CHICAGO BOARD OF TRADE",
     "KE":  "WHEAT-HRW - CHICAGO BOARD OF TRADE",
-    "MW":  "WHEAT-SPRING (MGEX) - MINNEAPOLIS GRAIN EXCHANGE",
+    "MW":  "WHEAT-HRSpring - MINNEAPOLIS GRAIN EXCHANGE",
     "RS":  "CANOLA - ICE FUTURES U.S.",
     "OA":  "OATS - CHICAGO BOARD OF TRADE",
     # SOFTS
     "CT":  "COTTON NO. 2 - ICE FUTURES U.S.",
-    "OJ":  "FROZEN CONCENTRATED ORANGE JUICE - ICE FUTURES U.S.",
+    "OJ":  "FRZN CONCENTRATED ORANGE JUICE - ICE FUTURES U.S.",
     "KC":  "COFFEE C - ICE FUTURES U.S.",
     "SB":  "SUGAR NO. 11 - ICE FUTURES U.S.",
     "CC":  "COCOA - ICE FUTURES U.S.",
@@ -88,34 +88,57 @@ SYMBOL_MAP: dict[str, str] = {
     "LE":  "LIVE CATTLE - CHICAGO MERCANTILE EXCHANGE",
     "GF":  "FEEDER CATTLE - CHICAGO MERCANTILE EXCHANGE",
     "HE":  "LEAN HOGS - CHICAGO MERCANTILE EXCHANGE",
-    "DL":  "CLASS III MILK - CHICAGO MERCANTILE EXCHANGE",
-    "DF":  "NONFAT DRY MILK - CHICAGO MERCANTILE EXCHANGE",
-    "BD":  "CASH-SETTLED BUTTER - CHICAGO MERCANTILE EXCHANGE",
-    "BJ":  "CASH-SETTLED CHEESE - CHICAGO MERCANTILE EXCHANGE",
+    "DL":  "MILK, Class III - CHICAGO MERCANTILE EXCHANGE",
+    "DF":  "NON FAT DRY MILK - CHICAGO MERCANTILE EXCHANGE",
+    "BD":  "BUTTER (CASH SETTLED) - CHICAGO MERCANTILE EXCHANGE",
+    "BJ":  "CHEESE (CASH-SETTLED) - CHICAGO MERCANTILE EXCHANGE",
     # FINANCIALS
-    "ZB":  "30-YEAR U.S. TREASURY BONDS - CHICAGO BOARD OF TRADE",
-    "UD":  "ULTRA US T BOND - CHICAGO BOARD OF TRADE",
+    "ZB":  "U.S. TREASURY BONDS - CHICAGO BOARD OF TRADE",      # pre-2022 name
+    "UD":  "ULTRA U.S. TREASURY BONDS - CHICAGO BOARD OF TRADE", # pre-2022 name
     "ZN":  "10-YEAR U.S. TREASURY NOTES - CHICAGO BOARD OF TRADE",
     "ZF":  "5-YEAR U.S. TREASURY NOTES - CHICAGO BOARD OF TRADE",
     "ZT":  "2-YEAR U.S. TREASURY NOTES - CHICAGO BOARD OF TRADE",
     "ZQ":  "FED FUNDS - CHICAGO BOARD OF TRADE",
     "SR3": "SOFR-3M - CHICAGO MERCANTILE EXCHANGE",
     # CURRENCIES
-    "DX":  "U.S. DOLLAR INDEX - ICE FUTURES U.S.",
+    "DX":  "U.S. DOLLAR INDEX - ICE FUTURES U.S.",              # pre-2022 name
     "BA":  "MICRO BITCOIN - CHICAGO MERCANTILE EXCHANGE",
     "TA":  "MICRO ETHER - CHICAGO MERCANTILE EXCHANGE",
-    "B6":  "BRITISH POUND STERLING - CHICAGO MERCANTILE EXCHANGE",
+    "B6":  "BRITISH POUND STERLING - CHICAGO MERCANTILE EXCHANGE", # pre-2022 name
     "D6":  "CANADIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE",
     "J6":  "JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE",
     "S6":  "SWISS FRANC - CHICAGO MERCANTILE EXCHANGE",
     "E6":  "EURO FX - CHICAGO MERCANTILE EXCHANGE",
     "A6":  "AUSTRALIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE",
     "M6":  "MEXICAN PESO - CHICAGO MERCANTILE EXCHANGE",
-    "N6":  "NEW ZEALAND DOLLAR - CHICAGO MERCANTILE EXCHANGE",
-    "T6":  "SOUTH AFRICAN RAND - CHICAGO MERCANTILE EXCHANGE",
+    "N6":  "NEW ZEALAND DOLLAR - CHICAGO MERCANTILE EXCHANGE",   # pre-2022 name
+    "T6":  "SO AFRICAN RAND - CHICAGO MERCANTILE EXCHANGE",
     "L6":  "BRAZILIAN REAL - CHICAGO MERCANTILE EXCHANGE",
     "BTC": "BITCOIN - CHICAGO MERCANTILE EXCHANGE",
     "ETH": "ETHER CASH SETTLED - CHICAGO MERCANTILE EXCHANGE",
+}
+
+# CFTC renames contracts periodically. Map new names → symbol so both old and new
+# historical years resolve correctly. These are ADDITIONAL aliases on top of SYMBOL_MAP.
+_CFTC_ALIASES: dict[str, str] = {
+    # METALS — renamed ~2021
+    "COPPER- #1 - COMMODITY EXCHANGE INC.":                      "HG",
+    # ENERGIES — renamed ~2022
+    "WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE":                "CL",
+    "NY HARBOR ULSD - NEW YORK MERCANTILE EXCHANGE":              "HO",
+    "GASOLINE RBOB - NEW YORK MERCANTILE EXCHANGE":               "RB",
+    "NAT GAS NYME - NEW YORK MERCANTILE EXCHANGE":                "NG",
+    "BRENT LAST DAY - NEW YORK MERCANTILE EXCHANGE":              "BZ",
+    # FINANCIALS — renamed ~2022
+    "UST BOND - CHICAGO BOARD OF TRADE":                          "ZB",
+    "ULTRA UST BOND - CHICAGO BOARD OF TRADE":                    "UD",
+    "UST 10Y NOTE - CHICAGO BOARD OF TRADE":                      "ZN",
+    "UST 5Y NOTE - CHICAGO BOARD OF TRADE":                       "ZF",
+    "UST 2Y NOTE - CHICAGO BOARD OF TRADE":                       "ZT",
+    # CURRENCIES — renamed ~2022
+    "USD INDEX - ICE FUTURES U.S.":                               "DX",
+    "BRITISH POUND - CHICAGO MERCANTILE EXCHANGE":                "B6",
+    "NZ DOLLAR - CHICAGO MERCANTILE EXCHANGE":                    "N6",
 }
 
 SYMBOL_NAMES: dict[str, str] = {
@@ -157,19 +180,21 @@ SYMBOL_NAMES: dict[str, str] = {
 }
 
 SYMBOL_GROUPS: dict[str, list[str]] = {
-    "INDICES":          ["ES", "NQ", "YM", "QR", "EW", "VI", "ET", "NM", "NK"],
+    "INDICES":          ["ES", "NQ", "YM", "QR", "EW", "VI", "NK"],
     "METALS":           ["GC", "SI", "HG", "PL", "PA", "AL"],
     "ENERGIES":         ["CL", "HO", "RB", "NG", "FL", "BZ"],
-    "GRAINS":           ["ZW", "ZC", "ZS", "ZM", "ZL", "ZR", "KE", "MW", "RS", "OA"],
+    "GRAINS":           ["ZW", "ZC", "ZS", "ZM", "ZL", "ZR", "KE", "MW", "OA"],
     "SOFTS":            ["CT", "OJ", "KC", "SB", "CC", "LB"],
-    "LIVESTOCK & DAIRY":["LE", "GF", "HE", "DL", "DF", "BD", "BJ"],
+    "LIVESTOCK & DAIRY":["LE", "GF", "HE", "DF", "BJ"],
     "FINANCIALS":       ["ZB", "UD", "ZN", "ZF", "ZT", "ZQ", "SR3"],
-    "CURRENCIES":       ["DX", "BA", "TA", "B6", "D6", "J6", "S6", "E6",
-                         "A6", "M6", "N6", "T6", "L6", "BTC", "ETH"],
+    "CURRENCIES":       ["DX", "B6", "D6", "J6", "S6", "E6",
+                         "A6", "M6", "N6", "L6", "BTC", "ETH"],
 }
 
 # Reverse lookup: CFTC market name (uppercase) → our symbol
+# Built from both SYMBOL_MAP (historical names) and _CFTC_ALIASES (renamed contracts)
 _NAME_TO_SYMBOL: dict[str, str] = {v.upper(): k for k, v in SYMBOL_MAP.items()}
+_NAME_TO_SYMBOL.update({k.upper(): v for k, v in _CFTC_ALIASES.items()})
 
 # ── CFTC column names (actual names from deacot{year}.zip annual.txt) ─────────
 _COL_MARKET   = "Market and Exchange Names"
