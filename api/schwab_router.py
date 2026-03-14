@@ -230,7 +230,10 @@ async def backfill_all_contracts(days_back: int = 60):
 
 
 @router.get("/chart-proxy")
-async def chart_proxy(sym: str = Query(..., description="Ticker symbol, e.g. AAPL")):
+async def chart_proxy(
+    sym: str = Query(..., description="Ticker symbol, e.g. AAPL"),
+    range: str = Query("3mo", description="Chart range: 1mo, 3mo, 6mo, 1y"),
+):
     """
     Proxy Finviz chart image using FINVIZ_API_KEY env var.
     Falls back to Yahoo Finance + matplotlib rendered chart if Finviz fails.
@@ -253,7 +256,7 @@ async def chart_proxy(sym: str = Query(..., description="Ticker symbol, e.g. AAP
             async with httpx.AsyncClient(timeout=8.0) as client:
                 resp = await client.get(
                     f"https://elite.finviz.com/chart.ashx",
-                    params={"t": sym, "ty": "c", "ta": "0", "p": "d", "s": "l"},
+                    params={"t": sym, "ty": "c", "ta": "0", "p": "d" if range in ("1mo","3mo") else "w" if range=="6mo" else "m", "s": "l"},
                     headers={
                         "User-Agent": ua,
                         "Referer": "https://elite.finviz.com/",
@@ -287,7 +290,7 @@ async def chart_proxy(sym: str = Query(..., description="Ticker symbol, e.g. AAP
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(
                 f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
-                params={"interval": "1d", "range": "3mo", "includePrePost": "false"},
+                params={"interval": "1d" if range != "1y" else "1wk", "range": range, "includePrePost": "false"},
                 headers={"User-Agent": ua},
             )
         if resp.status_code != 200:
