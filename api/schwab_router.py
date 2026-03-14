@@ -232,28 +232,185 @@ async def backfill_all_contracts(days_back: int = 60):
 @router.get("/chart-proxy")
 async def chart_proxy(sym: str = Query(..., description="Ticker symbol, e.g. AAPL")):
     """
-    Proxy Finviz daily chart image through the backend to avoid browser CORS blocks.
-    Returns the chart image directly with correct headers.
+    Proxy Finviz chart image using FINVIZ_API_KEY env var.
+    Falls back to Yahoo Finance + matplotlib rendered chart if Finviz fails.
     """
     import httpx
+    import io
+    import os
     from fastapi.responses import Response
 
-    url = f"https://finviz.com/chart.ashx?t={sym.upper()}&ty=c&ta=0&p=d&s=l"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://finviz.com/",
-    }
+    sym = sym.upper()
+    ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    finviz_key = os.getenv("FINVIZ_API_KEY", "")
+
+    transparent_gif = bytes([0x47,0x49,0x46,0x38,0x39,0x61,0x01,0x00,0x01,0x00,
+        0x00,0xff,0x00,0x2c,0x00,0x00,0x00,0x00,0x01,0x00,0x01,0x00,0x00,0x02,0x00,0x3b])
+
+    # 1. Try Finviz with API key
+    if finviz_key:
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                resp = await client.get(
+                    f"https://elite.finviz.com/chart.ashx",
+                    params={"t": sym, "ty": "c", "ta": "0", "p": "d", "s": "l"},
+                    headers={
+                        "User-Agent": ua,
+                        "Referer": "https://elite.finviz.com/",
+                        "Authorization": f"Bearer {finviz_key}",
+                    },
+                )
+            if resp.status_code == 200 and len(resp.content) > 500:
+                return Response(
+                    content=resp.content,
+                    media_type=resp.headers.get("content-type", "image/gif"),
+                    headers={"Cache-Control": "public, max-age=900"},
+                )
+            # Try standard endpoint with key as query param
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                resp = await client.get(
+                    f"https://finviz.com/chart.ashx",
+                    params={"t": sym, "ty": "c", "ta": "0", "p": "d", "s": "l", "apikey": finviz_key},
+                    headers={"User-Agent": ua, "Referer": "https://finviz.com/"},
+                )
+            if resp.status_code == 200 and len(resp.content) > 500:
+                return Response(
+                    content=resp.content,
+                    media_type=resp.headers.get("content-type", "image/gif"),
+                    headers={"Cache-Control": "public, max-age=900"},
+                )
+        except Exception:
+            pass
+
+    # 2. Fallback: Yahoo Finance data + matplotlib candlestick chart
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.get(url, headers=headers)
-        if resp.status_code == 200:
-            return Response(
-                content=resp.content,
-                media_type="image/gif",
-                headers={"Cache-Control": "public, max-age=900"},  # cache 15 min
+            resp = await client.get(
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
+                params={"interval": "1d", "range": "3mo", "includePrePost": "false"},
+                headers={"User-Agent": ua},
             )
+        if resp.status_code != 200:
+            return Response(content=transparent_gif, media_type="image/gif", status_code=404)
+        data = resp.json()
+        result = data["chart"]["result"][0]
+        timestamps = result["timestamp"]
+        ohlc = result["indicators"]["quote"][0]
+        opens  = ohlc.get("open",  [])
+        closes = ohlc.get("close", [])
+        highs  = ohlc.get("high",  [])
+        lows   = ohlc.get("low",   [])
+
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as mpatches
+        from datetime import datetime
+
+        valid = [(t, o, h, l, c) for t, o, h, l, c in zip(timestamps, opens, highs, lows, closes)
+                 if all(v is not None for v in (o, h, l, c))]
+        if not valid:
+            return Response(content=transparent_gif, media_type="image/gif", status_code=404)
+
+        bg, up_col, dn_col, grid_col = "#06090f", "#00e676", "#ff1744", "#1a2540"
+        fig, ax = plt.subplots(figsize=(5.6, 1.4), dpi=100)
+        fig.patch.set_facecolor(bg)
+        ax.set_facecolor(bg)
+
+        for i, (ts, o, h, l, c) in enumerate(valid):
+            col = up_col if c >= o else dn_col
+            ax.plot([i, i], [l, h], color=col, linewidth=0.6, solid_capstyle="round")
+            body_h = max(abs(c - o), (h - l) * 0.015)
+            rect = mpatches.FancyBboxPatch(
+                (i - 0.28, min(o, c)), 0.56, body_h,
+                boxstyle="square,pad=0", facecolor=col, edgecolor="none"
+            )
+            ax.add_patch(rect)
+
+        tick_indices = [i for i, (ts, *_) in enumerate(valid)
+                        if datetime.utcfromtimestamp(ts).day <= 5]
+        tick_labels  = [datetime.utcfromtimestamp(valid[i][0]).strftime("%b") for i in tick_indices]
+        ax.set_xticks(tick_indices)
+        ax.set_xticklabels(tick_labels, fontsize=6, color="#4a5c73")
+        ax.tick_params(axis="x", length=0)
+        ax.set_xlim(-1, len(valid))
+        ax.yaxis.set_visible(False)
+        ax.spines[:].set_visible(False)
+        ax.grid(axis="x", color=grid_col, linewidth=0.4, linestyle="--")
+        fig.tight_layout(pad=0.2)
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", facecolor=bg, dpi=100)
+        plt.close(fig)
+        buf.seek(0)
+        return Response(
+            content=buf.read(),
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=900"},
+        )
     except Exception:
-        pass
-    # Return a 1x1 transparent GIF on failure so onError fires cleanly
-    transparent_gif = b"GIF89a\x01\x00\x01\x00\x00\xff\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x00;"
-    return Response(content=transparent_gif, media_type="image/gif", status_code=404)
+        return Response(content=transparent_gif, media_type="image/gif", status_code=404)
+
+    # 2. Render with matplotlib — dark theme matching dashboard
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as mpatches
+        from datetime import datetime
+
+        # Filter out None values
+        valid = [(t, o, h, l, c) for t, o, h, l, c in zip(timestamps, opens, highs, lows, closes)
+                 if all(v is not None for v in (o, h, l, c))]
+        if not valid:
+            raise ValueError("No valid OHLC data")
+
+        xs = list(range(len(valid)))
+        bg = "#06090f"
+        up_col = "#00e676"
+        dn_col = "#ff1744"
+        grid_col = "#1a2540"
+
+        fig, ax = plt.subplots(figsize=(5.6, 1.4), dpi=100)
+        fig.patch.set_facecolor(bg)
+        ax.set_facecolor(bg)
+
+        for i, (ts, o, h, l, c) in enumerate(valid):
+            col = up_col if c >= o else dn_col
+            # Wick
+            ax.plot([i, i], [l, h], color=col, linewidth=0.6, solid_capstyle="round")
+            # Body
+            body_h = max(abs(c - o), (h - l) * 0.015)
+            rect = mpatches.FancyBboxPatch(
+                (i - 0.28, min(o, c)), 0.56, body_h,
+                boxstyle="square,pad=0", facecolor=col, edgecolor="none"
+            )
+            ax.add_patch(rect)
+
+        # X axis: show month labels sparsely
+        tick_indices = [i for i, (ts, *_) in enumerate(valid)
+                        if datetime.utcfromtimestamp(ts).day <= 5]
+        tick_labels  = [datetime.utcfromtimestamp(valid[i][0]).strftime("%b") for i in tick_indices]
+        ax.set_xticks(tick_indices)
+        ax.set_xticklabels(tick_labels, fontsize=6, color="#4a5c73")
+        ax.tick_params(axis="x", length=0)
+        ax.set_xlim(-1, len(valid))
+
+        ax.yaxis.set_visible(False)
+        ax.spines[:].set_visible(False)
+        ax.grid(axis="x", color=grid_col, linewidth=0.4, linestyle="--")
+        fig.tight_layout(pad=0.2)
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", facecolor=bg, dpi=100)
+        plt.close(fig)
+        buf.seek(0)
+        return Response(
+            content=buf.read(),
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=900"},
+        )
+    except Exception as e:
+        transparent_gif = bytes([0x47,0x49,0x46,0x38,0x39,0x61,0x01,0x00,0x01,0x00,
+            0x00,0xff,0x00,0x2c,0x00,0x00,0x00,0x00,0x01,0x00,0x01,0x00,0x00,0x02,0x00,0x3b])
+        return Response(content=transparent_gif, media_type="image/gif", status_code=404)
