@@ -282,8 +282,9 @@ export default function CotData() {
         },
       },
       y2: {
-        position: 'right',
-        grid:     { display: false },
+        position:    'right',
+        beginAtZero: false,
+        grid:        { display: false },
         border:   { color: '#333' },
         ticks:    {
           color: 'rgba(0,255,0,0.7)',
