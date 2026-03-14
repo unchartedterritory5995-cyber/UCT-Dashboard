@@ -189,6 +189,7 @@ export default function CotData() {
         borderColor:     '#00FF00',
         backgroundColor: 'transparent',
         borderWidth:     2,
+        tension:         0.4,
         pointRadius:     0,
         pointHoverRadius:5,
         yAxisID:         'y2',
