@@ -1196,7 +1196,17 @@ export default function OptionsFlowDashboard() {
         </div>
 
         {/* Conviction Strikes */}
-        <div style={{ fontSize:10, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase", marginBottom:6 }}>Top Flow</div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <div style={{ fontSize:10, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase" }}>Top Flow</div>
+          <button
+            onClick={() => fetchPrices(FD.CONV.map(t => ({ sym:t.sym, cp:t.cp, strike:t.K, exp:t.exp })))}
+            disabled={fetchLoading}
+            style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.ac+"60", cursor:fetchLoading?"not-allowed":"pointer",
+              fontSize:9, fontWeight:700, fontFamily:"inherit", background:"transparent",
+              color:fetchLoading?P.dm:P.ac, opacity:fetchLoading?0.5:1, letterSpacing:"0.05em" }}>
+            {fetchLoading ? "FETCHING…" : "⟳ FETCH LIVE"}
+          </button>
+        </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:8, marginBottom:12 }}>
           {FD.CONV.map((t, i) => {
             const c = t.dir==="BULL" ? P.bu : P.be;
