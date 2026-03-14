@@ -1311,18 +1311,41 @@ export default function OptionsFlowDashboard() {
                   <div style={{ marginTop:4 }}><Tag c={c}>{t.dir}</Tag></div>
                 </div>
                 {isHov && t.trades && t.trades.length > 0 && (
-                  <div style={{ position:"absolute", top:"100%", zIndex:50, marginTop:4, minWidth:380, maxWidth:440,
+                  <div style={{ position:"absolute", top:"100%", zIndex:50, width:480,
                     background:"#0d1525", border:"1px solid "+P.bl, borderRadius:10, padding:0,
                     boxShadow:"0 12px 40px rgba(0,0,0,0.7)",
                     ...(hoverFlip ? { right:0, left:"auto" } : { left:0 }) }}>
 
                     {/* Stock price chart — proxied through backend to avoid CORS */}
-                    <div style={{ borderRadius:"10px 10px 0 0", overflow:"hidden", background:"#0d1525", height:140 }}>
-                      <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(t.sym)}`}
-                        alt={t.sym+" chart"}
-                        style={{ width:"100%", height:"100%", objectFit:"cover", display:"block", opacity:0.92 }}
-                        onError={e=>{e.target.parentElement.style.display="none"}} />
-                    </div>
+                    {(()=>{
+                      const chartKey = `chart_${t.sym}`;
+                      const [chartRange, setChartRange] = [
+                        (typeof window._chartRange === "undefined" ? (window._chartRange = {}) : window._chartRange)[chartKey] || "3mo",
+                        (v) => { window._chartRange[chartKey] = v; /* force re-render via hover state */ setHover(null); setTimeout(()=>setHover("conv_"+i), 10); }
+                      ];
+                      const ranges = [["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]];
+                      return (
+                        <>
+                          <div style={{ borderRadius:"10px 10px 0 0", overflow:"hidden", background:"#000", position:"relative" }}>
+                            <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(t.sym)}&range=${chartRange}`}
+                              alt={t.sym+" chart"}
+                              style={{ width:"100%", height:160, objectFit:"fill", display:"block", opacity:0.92 }}
+                              onError={e=>{e.target.parentElement.style.display="none"}} />
+                            {/* Timeframe selector overlaid on chart */}
+                            <div style={{ position:"absolute", top:6, right:8, display:"flex", gap:4, zIndex:10 }}>
+                              {ranges.map(([val,label])=>(
+                                <button key={val} onClick={(e)=>{ e.stopPropagation(); setChartRange(val); }}
+                                  style={{ padding:"2px 7px", borderRadius:4, border:"1px solid "+(chartRange===val?P.ac:P.bd+"80"),
+                                    background:chartRange===val?P.ac+"22":"rgba(6,9,15,0.75)", color:chartRange===val?P.ac:P.dm,
+                                    fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
 
                     <div style={{ padding:"12px 14px" }}>
                       {/* Header */}
