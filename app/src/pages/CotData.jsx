@@ -177,8 +177,7 @@ export default function CotData() {
         data:            data.map(d => d.open_interest),
         borderColor:     '#00FF00',
         backgroundColor: 'transparent',
-        borderDash:      [5, 5],
-        borderWidth:     1.5,
+        borderWidth:     2,
         pointRadius:     0,
         pointHoverRadius:5,
         yAxisID:         'y2',
@@ -252,8 +251,8 @@ export default function CotData() {
         },
       },
       y: {
-        grid:   { color: '#1e1e1e', drawBorder: false },
-        border: { color: '#444', dash: [2, 2] },
+        grid:   { color: '#2a2a2a' },
+        border: { color: '#444', dash: [4, 4] },
         ticks:  {
           color: 'rgba(255,255,255,0.6)',
           font:  { size: 10 },
@@ -261,9 +260,10 @@ export default function CotData() {
         },
       },
       y2: {
-        position: 'right',
-        grid:     { display: false },
-        border:   { color: '#333' },
+        position:     'right',
+        beginAtZero:  false,
+        grid:         { display: false },
+        border:       { color: '#333' },
         ticks:    {
           color: 'rgba(0,255,0,0.7)',
           font:  { size: 10 },
