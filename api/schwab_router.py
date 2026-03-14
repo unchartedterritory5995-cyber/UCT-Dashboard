@@ -197,3 +197,33 @@ async def contract_history(
     from api.daily_tracker import get_history
     history = get_history(sym, cp, strike, exp)
     return {"sym": sym, "cp": cp, "strike": strike, "exp": exp, "history": history}
+
+
+@router.get("/backfill-contract")
+async def backfill_contract_history(
+    sym: str = Query(..., description="Ticker, e.g. NVDA"),
+    cp: str = Query(..., description="C or P"),
+    strike: float = Query(..., description="Strike price, e.g. 200"),
+    exp: str = Query(..., description="Expiry M/D or M/D/YYYY, e.g. 4/2"),
+    days_back: int = Query(60, description="How many calendar days to backfill"),
+):
+    """
+    Backfill daily volume + close price from Polygon.io for a single contract.
+    Merges into contract_history.json without overwriting existing OI from daily tracker.
+    Requires POLYGON_API_KEY env var (free key at https://polygon.io).
+    """
+    from api.daily_tracker import backfill_contract
+    result = await backfill_contract(sym, cp, strike, exp, days_back)
+    return result
+
+
+@router.post("/backfill-all")
+async def backfill_all_contracts(days_back: int = 60):
+    """
+    Backfill Polygon history for all registered CONV contracts.
+    Polygon free tier allows 5 req/min — adds 13s delay between contracts.
+    For 6 CONV contracts, completes in ~75 seconds.
+    """
+    from api.daily_tracker import backfill_all_registered
+    result = await backfill_all_registered(days_back)
+    return result
