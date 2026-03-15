@@ -123,6 +123,19 @@
 }
 .chip:hover { border-color: var(--ut-green-bright); color: var(--ut-green-bright); }
 
+/* ─── Mobile: stack Leaders above Laggards ──────────────────────────────────── */
+@media (max-width: 900px) {
+  .cols {
+    grid-template-columns: 1fr;
+  }
+  .scroll {
+    max-height: none;
+  }
+  .name {
+    max-width: 160px;
+  }
+}
+
 /* International badge */
 .intlBadge {
   font-family: 'IBM Plex Mono', monospace;
