@@ -1130,65 +1130,23 @@ export default function OptionsFlowDashboard() {
             </div>
           </div>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:0, borderTop:"1px solid "+P.bd }}>
-          <div style={{ maxHeight:180, overflowY:"auto", padding:"8px 0" }}>
-            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
-              <thead><tr style={{ borderBottom:"1px solid "+P.bd, position:"sticky", top:0, background:"#0d1525" }}>
-                {["Date","Vol","OI","OI (+/-)","Price","Premium"].map(h=>(
-                  <th key={h} style={{ padding:"3px 8px", textAlign:h==="Date"?"left":"right", color:P.mt, fontWeight:600, fontSize:8 }}>{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {curOI>0 && (
-                  <tr style={{ borderBottom:"1px solid "+P.ac+"30", background:P.ac+"08" }}>
-                    <td style={{ padding:"3px 8px", fontWeight:700, color:P.ac }}>Live</td>
-                    <td style={{ padding:"3px 8px", textAlign:"right", color:P.mt }}>—</td>
-                    <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:P.wh }}>{curOI.toLocaleString()}</td>
-                    <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:800,
-                      color:(curOI-chartData.filter(d=>!d.isLive).slice(-1)[0]?.oi)>0?P.bu:P.be }}>
-                      {(()=>{const last=chartData.filter(d=>!d.isLive).slice(-1)[0]; const d=last&&last.oi>0?curOI-last.oi:0; return "("+((d>0?"+":"")+d.toLocaleString())+")";})()} 
-                    </td>
-                    <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:P.ac }}>{curPrice>0?"$"+curPrice.toFixed(2):"—"}</td>
-                    <td></td>
-                  </tr>
-                )}
-                {[...chartData].filter(d=>!d.isLive).reverse().map((d,di,arr)=>{
-                  const prevD=di<arr.length-1?arr[di+1]:null;
-                  const dayDelta=prevD&&prevD.oi>0&&d.oi>0?d.oi-prevD.oi:0;
-                  return (
-                    <tr key={d.day} style={{ borderBottom:"1px solid "+P.bd+"12", background:d.hasFlow?(P.ac+"06"):"transparent" }}>
-                      <td style={{ padding:"3px 8px", fontWeight:600, color:d.hasFlow?P.ac:P.mt, fontSize:8 }}>{d.day.split("/").slice(0,2).join("/")}</td>
-                      <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:d.vol>0?700:400, color:d.vol>0?P.wh:P.mt, fontSize:8 }}>{d.vol>0?fK(d.vol):"0"}</td>
-                      <td style={{ padding:"3px 8px", textAlign:"right", color:P.wh, fontSize:8 }}>{d.oi>0?d.oi.toLocaleString():"—"}</td>
-                      <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, fontSize:8, color:dayDelta>0?P.bu:dayDelta<0?P.be:P.dm }}>
-                        {dayDelta!==0?"("+((dayDelta>0?"+":"")+dayDelta.toLocaleString()+")"):"(0)"}
-                      </td>
-                      <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:600, color:d.price>0?P.ac:P.mt, fontSize:8 }}>{d.price>0?"$"+d.price.toFixed(2):"—"}</td>
-                      <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:d.prem>0?premC(d.prem):P.mt, fontSize:8 }}>{d.prem>0?fmt(d.prem):"—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {(()=>{
-            const nonLive=chartData.filter(d=>!d.isLive);
-            const lastOI2=nonLive.length>0?nonLive[nonLive.length-1].oi:0;
-            const liveD=curOI>0&&lastOI2>0?curOI-lastOI2:0;
-            const csvD=nonLive.length>1&&nonLive[0].oi>0&&lastOI2>0?lastOI2-nonLive[0].oi:0;
-            const delta=liveD||csvD;
-            if (!delta) return null;
-            const label=delta>0?"ADDING":"EXITING"; const col=delta>0?P.bu:P.be;
-            return (
-              <div style={{ display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center",
-                padding:"16px 20px", borderLeft:"1px solid "+P.bd, minWidth:140 }}>
-                <div style={{ fontSize:11, fontWeight:900, color:col, marginBottom:4 }}>{label}</div>
-                <div style={{ fontSize:13, fontWeight:800, color:col }}>{delta>0?"+":""}{Math.abs(delta).toLocaleString()} OI</div>
-                <div style={{ fontSize:8, color:P.dm, marginTop:4 }}>{curOI>0?"live data":"csv data"}</div>
-              </div>
-            );
-          })()}
-        </div>
+        {(()=>{
+          const nonLive=chartData.filter(d=>!d.isLive);
+          const lastOI2=nonLive.length>0?nonLive[nonLive.length-1].oi:0;
+          const liveD=curOI>0&&lastOI2>0?curOI-lastOI2:0;
+          const csvD=nonLive.length>1&&nonLive[0].oi>0&&lastOI2>0?lastOI2-nonLive[0].oi:0;
+          const delta=liveD||csvD;
+          if (!delta) return null;
+          const label=delta>0?"ADDING":"EXITING"; const col=delta>0?P.bu:P.be;
+          return (
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12,
+              padding:"8px 16px", borderTop:"1px solid "+P.bd, background:col+"08" }}>
+              <span style={{ fontSize:11, fontWeight:900, color:col }}>{label}</span>
+              <span style={{ fontSize:13, fontWeight:800, color:col }}>{delta>0?"+":""}{Math.abs(delta).toLocaleString()} OI</span>
+              <span style={{ fontSize:8, color:P.dm }}>{curOI>0?"live data":"csv data"}</span>
+            </div>
+          );
+        })()}
         {/* ── Strike Flow Detail ─────────────────────────────── */}
         {(()=>{
           const tk = D ? D.TICKER_DB.find(t=>t.s===sym) : null;
@@ -1818,69 +1776,26 @@ export default function OptionsFlowDashboard() {
                 </div>
               </div>
 
-              {/* Bottom: date table + verdict side by side */}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:0, borderTop:"1px solid "+P.bd }}>
-                <div style={{ maxHeight:180, overflowY:"auto", padding:"8px 0" }}>
-                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
-                    <thead><tr style={{ borderBottom:"1px solid "+P.bd, position:"sticky", top:0, background:"#0d1525" }}>
-                      {["Date","Vol","OI","OI (+/-)","Price","Premium"].map(h=>(
-                        <th key={h} style={{ padding:"3px 8px", textAlign:h==="Date"?"left":"right", color:P.mt, fontWeight:600, fontSize:8 }}>{h}</th>
-                      ))}
-                    </tr></thead>
-                    <tbody>
-                      {curOI>0 && (
-                        <tr style={{ borderBottom:"1px solid "+P.ac+"30", background:P.ac+"08" }}>
-                          <td style={{ padding:"3px 8px", fontWeight:700, color:P.ac }}>Live</td>
-                          <td style={{ padding:"3px 8px", textAlign:"right", color:P.mt }}>—</td>
-                          <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:P.wh }}>{curOI.toLocaleString()}</td>
-                          <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:800,
-                            color:(curOI-chartData.filter(d=>!d.isLive).slice(-1)[0]?.oi)>0?P.bu:P.be }}>
-                            {(()=>{const last=chartData.filter(d=>!d.isLive).slice(-1)[0]; const d=last&&last.oi>0?curOI-last.oi:0; return "("+((d>0?"+":"")+d.toLocaleString())+")";})()} 
-                          </td>
-                          <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:P.ac }}>{curPrice>0?"$"+curPrice.toFixed(2):"—"}</td>
-                          <td></td>
-                        </tr>
-                      )}
-                      {[...chartData].filter(d=>!d.isLive).reverse().map((d,di,arr)=>{
-                        const prevD=di<arr.length-1?arr[di+1]:null;
-                        const dayDelta=prevD&&prevD.oi>0&&d.oi>0?d.oi-prevD.oi:0;
-                        return (
-                          <tr key={d.day} style={{ borderBottom:"1px solid "+P.bd+"12", background:d.hasFlow?(P.ac+"06"):"transparent" }}>
-                            <td style={{ padding:"3px 8px", fontWeight:600, color:d.hasFlow?P.ac:P.mt, fontSize:8 }}>{d.day.split("/").slice(0,2).join("/")}</td>
-                            <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:d.vol>0?700:400, color:d.vol>0?P.wh:P.mt, fontSize:8 }}>{d.vol>0?fK(d.vol):"0"}</td>
-                            <td style={{ padding:"3px 8px", textAlign:"right", color:P.wh, fontSize:8 }}>{d.oi>0?d.oi.toLocaleString():"—"}</td>
-                            <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, fontSize:8, color:dayDelta>0?P.bu:dayDelta<0?P.be:P.dm }}>
-                              {dayDelta!==0?"("+((dayDelta>0?"+":"")+dayDelta.toLocaleString()+")"):"(0)"}
-                            </td>
-                            <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:600, color:d.price>0?P.ac:P.mt, fontSize:8 }}>{d.price>0?"$"+d.price.toFixed(2):"—"}</td>
-                            <td style={{ padding:"3px 8px", textAlign:"right", fontWeight:700, color:d.prem>0?premC(d.prem):P.mt, fontSize:8 }}>{d.prem>0?fmt(d.prem):"—"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {/* Verdict */}
-                {(()=>{
-                  const nonLive=chartData.filter(d=>!d.isLive);
-                  const lastOI2=nonLive.length>0?nonLive[nonLive.length-1].oi:0;
-                  const firstOI2=nonLive.length>0?nonLive[0].oi:0;
-                  const liveD=curOI>0&&lastOI2>0?curOI-lastOI2:0;
-                  const csvD=nonLive.length>1&&firstOI2>0&&lastOI2>0?lastOI2-firstOI2:0;
-                  const delta=liveD||csvD;
-                  if (!delta) return null;
-                  const label=delta>0?"ADDING":"EXITING";
-                  const col=delta>0?P.bu:P.be;
-                  return (
-                    <div style={{ display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center",
-                      padding:"16px 20px", borderLeft:"1px solid "+P.bd, minWidth:140 }}>
-                      <div style={{ fontSize:11, fontWeight:900, color:col, marginBottom:4 }}>{label}</div>
-                      <div style={{ fontSize:13, fontWeight:800, color:col }}>{delta>0?"+":""}{Math.abs(delta).toLocaleString()} OI</div>
-                      <div style={{ fontSize:8, color:P.dm, marginTop:4 }}>{curOI>0?"live data":"csv data"}</div>
-                    </div>
-                  );
-                })()}
-              </div>
+              {/* Verdict */}
+              {(()=>{
+                const nonLive=chartData.filter(d=>!d.isLive);
+                const lastOI2=nonLive.length>0?nonLive[nonLive.length-1].oi:0;
+                const firstOI2=nonLive.length>0?nonLive[0].oi:0;
+                const liveD=curOI>0&&lastOI2>0?curOI-lastOI2:0;
+                const csvD=nonLive.length>1&&firstOI2>0&&lastOI2>0?lastOI2-firstOI2:0;
+                const delta=liveD||csvD;
+                if (!delta) return null;
+                const label=delta>0?"ADDING":"EXITING";
+                const col=delta>0?P.bu:P.be;
+                return (
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12,
+                    padding:"8px 16px", borderTop:"1px solid "+P.bd, background:col+"08" }}>
+                    <span style={{ fontSize:11, fontWeight:900, color:col }}>{label}</span>
+                    <span style={{ fontSize:13, fontWeight:800, color:col }}>{delta>0?"+":""}{Math.abs(delta).toLocaleString()} OI</span>
+                    <span style={{ fontSize:8, color:P.dm }}>{curOI>0?"live data":"csv data"}</span>
+                  </div>
+                );
+              })()}
               {/* ── Strike Flow Detail ─────────────────────────────── */}
               {(()=>{
                 const tk = D ? D.TICKER_DB.find(x=>x.s===t.sym) : null;
