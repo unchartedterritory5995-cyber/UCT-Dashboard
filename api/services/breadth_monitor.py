@@ -90,14 +90,21 @@ def get_history(days: int = 90) -> list:
     result_asc = list(reversed(result))
 
     for i, row in enumerate(result_asc):
-        # 5-day ratio: sum(up_4pct_today last 5 days) / sum(down_4pct_today last 5 days)
-        w5 = result_asc[max(0, i - 4): i + 1]
-        w10 = result_asc[max(0, i - 9): i + 1]
-        row["ratio_5day"] = _ratio(w5, "up_4pct_today", "down_4pct_today")
-        row["ratio_10day"] = _ratio(w10, "up_4pct_today", "down_4pct_today")
+        w5  = result_asc[max(0, i - 4):  i + 1]
+        w10 = result_asc[max(0, i - 9):  i + 1]
+        row["ratio_5day"]   = _ratio(w5,  "up_4pct_today", "down_4pct_today")
+        row["ratio_10day"]  = _ratio(w10, "up_4pct_today", "down_4pct_today")
+        row["avg_10d_cpc"]  = _rolling_avg(w10, "cboe_putcall", 2)
 
     # Return newest-first
     return list(reversed(result_asc))
+
+
+def _rolling_avg(window: list, key: str, decimals: int = 1) -> Optional[float]:
+    vals = [r[key] for r in window if r.get(key) is not None]
+    if len(vals) < 3:
+        return None
+    return round(sum(vals) / len(vals), decimals)
 
 
 def _ratio(window: list, key_up: str, key_dn: str) -> Optional[float]:
