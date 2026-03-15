@@ -44,14 +44,14 @@ const SYMBOL_NAMES = {
 }
 
 const SYMBOL_GROUPS = {
-  INDICES:           ['ES','NQ','YM','QR','EW','VI','NK'],
+  'MOST WATCHED':    ['ES','NQ','YM','QR','EW','VI','NK','DX','J6','ZN','BTC','ETH'],
   METALS:            ['GC','SI','HG','PL','PA','AL'],
   ENERGIES:          ['CL','HO','RB','NG','FL','BZ'],
   GRAINS:            ['ZW','ZC','ZS','ZM','ZL','ZR','KE','MW','OA'],
   SOFTS:             ['CT','OJ','KC','SB','CC','LB'],
   'LIVESTOCK & DAIRY':['LE','GF','HE','DF','BJ'],
   FINANCIALS:        ['ZB','UD','ZN','ZF','ZT','ZQ','SR3'],
-  CURRENCIES:        ['DX','B6','D6','J6','S6','E6','A6','M6','N6','L6','BTC','ETH'],
+  CURRENCIES:        ['DX','B6','D6','J6','S6','E6','A6','M6','N6','L6'],
 }
 
 const LOOKBACKS = [
