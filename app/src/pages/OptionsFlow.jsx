@@ -1058,6 +1058,10 @@ export default function OptionsFlowDashboard() {
       }
     });
     if (curOI>0||curPrice>0) chartData.push({day:"Now",vol:0,oi:curOI>0?curOI:lastOI,price:curPrice>0?curPrice:lastPrice,prem:0,trades:0,hasFlow:false,isLive:true});
+    // Trim to last 2 weeks (10 trading days) + live
+    const liveEntry = chartData.filter(d=>d.isLive);
+    const nonLiveAll = chartData.filter(d=>!d.isLive);
+    const trimmed = nonLiveAll.slice(-10).concat(liveEntry);
     const chartKey = `item_${sym}_${cp}_${K}_${exp}`;
     const chartRange = (window._chartRange||{})[chartKey] || "3mo";
     const setChartRange = v => { if(!window._chartRange) window._chartRange={}; window._chartRange[chartKey]=v; setSelectedItem(null); setTimeout(()=>setSelectedItem({sym,cp,K,exp}),10); };
@@ -1104,10 +1108,10 @@ export default function OptionsFlowDashboard() {
             <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}>VOLUME · OI · PRICE</div>
             <div style={{ width:"100%", height:160 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top:4, right:4, left:-8, bottom:0 }}>
+                <ComposedChart data={trimmed} margin={{ top:4, right:4, left:-8, bottom:0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
                   <XAxis dataKey="day" tick={{ fontSize:6, fill:"#4a5c73" }}
-                    interval={chartData.length>15?"preserveStartEnd":chartData.length>10?1:0}
+                    interval={trimmed.length>15?"preserveStartEnd":trimmed.length>10?1:0}
                     angle={-45} textAnchor="end" height={28}
                     tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
                   <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#ffab00" }}
@@ -1117,8 +1121,8 @@ export default function OptionsFlowDashboard() {
                   <Tooltip contentStyle={{ background:"#0d1525", border:"1px solid #243352", borderRadius:6, fontSize:9, padding:"6px 10px" }}
                     formatter={(val,name)=>{ if(name==="price") return ["$"+val.toFixed(2),"Price"]; if(name==="vol") return [fK(val),"Volume"]; return [val.toLocaleString(),"OI"]; }}
                     labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
-                  <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={chartData.length>15?4:6} />
-                  <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={chartData.length>15?4:6} />
+                  <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
+                  <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
                   <Line yAxisId="price" dataKey="price" type="monotone" stroke="#ffab00" strokeWidth={2}
                     dot={{ r:2, fill:"#ffab00", stroke:"#0d1525", strokeWidth:1 }} connectNulls />
                 </ComposedChart>
@@ -1727,6 +1731,10 @@ export default function OptionsFlowDashboard() {
           if (curOI>0||curPrice>0) {
             chartData.push({day:"Now",vol:0,oi:curOI>0?curOI:lastOI,price:curPrice>0?curPrice:lastPrice,prem:0,trades:0,hasFlow:false,isLive:true});
           }
+          // Trim to last 2 weeks (10 trading days) + live
+          const liveEntry2 = chartData.filter(d=>d.isLive);
+          const nonLiveAll2 = chartData.filter(d=>!d.isLive);
+          const trimmed = nonLiveAll2.slice(-10).concat(liveEntry2);
           const chartKey = `chart_${t.sym}`;
           const chartRange = (window._chartRange||{})[chartKey] || "3mo";
           const setChartRange = v => { if(!window._chartRange) window._chartRange={}; window._chartRange[chartKey]=v; setSelectedConv(null); setTimeout(()=>setSelectedConv(selectedConv),10); };
@@ -1780,10 +1788,10 @@ export default function OptionsFlowDashboard() {
                   <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}>VOLUME · OI · PRICE</div>
                   <div style={{ width:"100%", height:160 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={chartData} margin={{ top:4, right:4, left:-8, bottom:0 }}>
+                      <ComposedChart data={trimmed} margin={{ top:4, right:4, left:-8, bottom:0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
                         <XAxis dataKey="day" tick={{ fontSize:6, fill:"#4a5c73" }}
-                          interval={chartData.length>15?"preserveStartEnd":chartData.length>10?1:0}
+                          interval={trimmed.length>15?"preserveStartEnd":trimmed.length>10?1:0}
                           angle={-45} textAnchor="end" height={28}
                           tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
                         <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#ffab00" }}
@@ -1799,8 +1807,8 @@ export default function OptionsFlowDashboard() {
                           }}
                           labelStyle={{ color:"#f0f4f8", fontWeight:700, marginBottom:2 }}
                           labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
-                        <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={chartData.length>15?4:6} />
-                        <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={chartData.length>15?4:6} />
+                        <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
+                        <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
                         <Line yAxisId="price" dataKey="price" type="monotone" stroke="#ffab00" strokeWidth={2}
                           dot={{ r:2, fill:"#ffab00", stroke:"#0d1525", strokeWidth:1 }} connectNulls />
                       </ComposedChart>
