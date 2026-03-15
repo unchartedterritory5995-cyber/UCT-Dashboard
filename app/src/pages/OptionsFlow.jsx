@@ -1185,6 +1185,78 @@ export default function OptionsFlowDashboard() {
             );
           })()}
         </div>
+        {/* ── Ticker Top Flow ────────────────────────────────── */}
+        {(()=>{
+          const tk = D ? D.TICKER_DB.find(t=>t.s===sym) : null;
+          if (!tk) return null;
+          // Other clusters for this ticker (exclude current contract)
+          const otherClusters = (tk.c||[]).filter(c => !(c.CP===cp && Math.abs(c.K-K)<0.01 && c.E===exp));
+          // Top trades for this ticker (exclude current contract)
+          const otherTrades = (tk.t||[]).filter(t => !(t.CP===cp && Math.abs(t.K-K)<0.01 && t.E===exp)).slice(0,6);
+          if (otherClusters.length===0 && otherTrades.length===0) return null;
+          return (
+            <div style={{ borderTop:"1px solid "+P.bd, padding:"10px 16px" }}>
+              <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1.5, textTransform:"uppercase", marginBottom:8 }}>
+                Other Flow for {sym}
+              </div>
+              {otherClusters.length>0 && (
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:otherTrades.length>0?10:0 }}>
+                  {otherClusters.map((cl,i)=>{
+                    const clC = cl.D==="BULL"?P.bu:cl.D==="BEAR"?P.be:P.dm;
+                    const gc = GRADE_COLORS[cl.grade]||P.mt;
+                    return (
+                      <div key={i} onClick={e=>{e.stopPropagation(); fetchContractHistory(cl.S,cl.CP,cl.K,cl.E); setSelectedItem({sym:cl.S,cp:cl.CP,K:cl.K,exp:cl.E}); if(onClose) onClose();}}
+                        style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:6, padding:"6px 10px", cursor:"pointer",
+                          borderLeft:"3px solid "+clC, minWidth:120, transition:"border-color 0.15s" }}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor=P.ac}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor=P.bd}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:2 }}>
+                          <span style={{ fontSize:11, fontWeight:800, color:clC }}>${cl.K}{cl.CP}</span>
+                          <Tag c={gc}>{cl.grade}</Tag>
+                        </div>
+                        <div style={{ fontSize:10, fontWeight:700, color:P.wh }}>{cl.E}</div>
+                        <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:3 }}>
+                          <span style={{ fontSize:9, fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm }}>{cl.H}x</span>
+                          <span style={{ fontSize:9, fontWeight:700, color:premC(cl.P) }}>{fmt(cl.P)}</span>
+                          {cl.clean && <span style={{ fontSize:7, color:P.bu, fontWeight:700 }}>CLEAN</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {otherTrades.length>0 && (
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+                  <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                    {["Strike","C/P","Exp","Type","Side","Color","Vol","Premium"].map(h=>(
+                      <th key={h} style={{ padding:"3px 6px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {otherTrades.map((tr,i)=>{
+                      const trC = tr.CP==="C"?P.bu:P.be;
+                      return (
+                        <tr key={i} onClick={e=>{e.stopPropagation(); fetchContractHistory(tr.S,tr.CP,tr.K,tr.E); setSelectedItem({sym:tr.S,cp:tr.CP,K:tr.K,exp:tr.E}); if(onClose) onClose();}}
+                          style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
+                          onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                          <td style={{ padding:"3px 6px", fontWeight:800, color:P.wh }}>${tr.K}</td>
+                          <td style={{ padding:"3px 6px" }}><Tag c={trC}>{tr.CP}</Tag></td>
+                          <td style={{ padding:"3px 6px", fontWeight:700, color:P.wh }}>{tr.E}</td>
+                          <td style={{ padding:"3px 6px" }}><Tag c={tc(tr.Ty)}>{tr.Ty}</Tag></td>
+                          <td style={{ padding:"3px 6px" }}>{tr.Si==="AA"?<Tag c={P.ac}>AA</Tag>:tr.Si==="BB"?<Tag c={P.be}>BB</Tag>:tr.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>A</Tag>}</td>
+                          <td style={{ padding:"3px 6px" }}><Tag c={tr.Co==="YELLOW"?P.ye:tr.Co==="MAGENTA"?P.ma:P.uc}>{tr.Co}</Tag></td>
+                          <td style={{ padding:"3px 6px", color:P.dm }}>{fK(tr.V)}</td>
+                          <td style={{ padding:"3px 6px", fontWeight:700, color:premC(tr.P) }}>{fmt(tr.P)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          );
+        })()}
       </div>
     );
   }
@@ -1749,6 +1821,76 @@ export default function OptionsFlowDashboard() {
                   );
                 })()}
               </div>
+              {/* ── Ticker Top Flow ────────────────────────────────── */}
+              {(()=>{
+                const tk = D ? D.TICKER_DB.find(x=>x.s===t.sym) : null;
+                if (!tk) return null;
+                const otherClusters = (tk.c||[]).filter(c => !(c.CP===t.cp && Math.abs(c.K-t.K)<0.01 && c.E===t.exp));
+                const otherTrades = (tk.t||[]).filter(tr => !(tr.CP===t.cp && Math.abs(tr.K-t.K)<0.01 && tr.E===t.exp)).slice(0,6);
+                if (otherClusters.length===0 && otherTrades.length===0) return null;
+                return (
+                  <div style={{ borderTop:"1px solid "+P.bd, padding:"10px 16px" }}>
+                    <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1.5, textTransform:"uppercase", marginBottom:8 }}>
+                      Other Flow for {t.sym}
+                    </div>
+                    {otherClusters.length>0 && (
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:otherTrades.length>0?10:0 }}>
+                        {otherClusters.map((cl,ci)=>{
+                          const clC = cl.D==="BULL"?P.bu:cl.D==="BEAR"?P.be:P.dm;
+                          const gc = GRADE_COLORS[cl.grade]||P.mt;
+                          return (
+                            <div key={ci} onClick={e=>{e.stopPropagation(); fetchContractHistory(cl.S,cl.CP,cl.K,cl.E); setSelectedItem({sym:cl.S,cp:cl.CP,K:cl.K,exp:cl.E}); setSelectedConv(null);}}
+                              style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:6, padding:"6px 10px", cursor:"pointer",
+                                borderLeft:"3px solid "+clC, minWidth:120, transition:"border-color 0.15s" }}
+                              onMouseEnter={e=>e.currentTarget.style.borderColor=P.ac}
+                              onMouseLeave={e=>e.currentTarget.style.borderColor=P.bd}>
+                              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:2 }}>
+                                <span style={{ fontSize:11, fontWeight:800, color:clC }}>${cl.K}{cl.CP}</span>
+                                <Tag c={gc}>{cl.grade}</Tag>
+                              </div>
+                              <div style={{ fontSize:10, fontWeight:700, color:P.wh }}>{cl.E}</div>
+                              <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:3 }}>
+                                <span style={{ fontSize:9, fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm }}>{cl.H}x</span>
+                                <span style={{ fontSize:9, fontWeight:700, color:premC(cl.P) }}>{fmt(cl.P)}</span>
+                                {cl.clean && <span style={{ fontSize:7, color:P.bu, fontWeight:700 }}>CLEAN</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {otherTrades.length>0 && (
+                      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+                        <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                          {["Strike","C/P","Exp","Type","Side","Color","Vol","Premium"].map(h=>(
+                            <th key={h} style={{ padding:"3px 6px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {otherTrades.map((tr,ti)=>{
+                            const trC = tr.CP==="C"?P.bu:P.be;
+                            return (
+                              <tr key={ti} onClick={e=>{e.stopPropagation(); fetchContractHistory(tr.S,tr.CP,tr.K,tr.E); setSelectedItem({sym:tr.S,cp:tr.CP,K:tr.K,exp:tr.E}); setSelectedConv(null);}}
+                                style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
+                                onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
+                                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                                <td style={{ padding:"3px 6px", fontWeight:800, color:P.wh }}>${tr.K}</td>
+                                <td style={{ padding:"3px 6px" }}><Tag c={trC}>{tr.CP}</Tag></td>
+                                <td style={{ padding:"3px 6px", fontWeight:700, color:P.wh }}>{tr.E}</td>
+                                <td style={{ padding:"3px 6px" }}><Tag c={tc(tr.Ty)}>{tr.Ty}</Tag></td>
+                                <td style={{ padding:"3px 6px" }}>{tr.Si==="AA"?<Tag c={P.ac}>AA</Tag>:tr.Si==="BB"?<Tag c={P.be}>BB</Tag>:tr.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>A</Tag>}</td>
+                                <td style={{ padding:"3px 6px" }}><Tag c={tr.Co==="YELLOW"?P.ye:tr.Co==="MAGENTA"?P.ma:P.uc}>{tr.Co}</Tag></td>
+                                <td style={{ padding:"3px 6px", color:P.dm }}>{fK(tr.V)}</td>
+                                <td style={{ padding:"3px 6px", fontWeight:700, color:premC(tr.P) }}>{fmt(tr.P)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           );
         })()}
