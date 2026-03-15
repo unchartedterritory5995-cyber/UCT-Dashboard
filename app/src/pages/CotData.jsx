@@ -200,7 +200,7 @@ export default function CotData() {
         type:            'line',
         label:           'Open Interest',
         data:            data.map(d => d.open_interest),
-        borderColor:     '#00FF00',
+        borderColor:     'rgba(0, 200, 80, 0.45)',
         backgroundColor: 'transparent',
         borderWidth:     2,
         tension:         0.4,
@@ -257,7 +257,7 @@ export default function CotData() {
               'Small Speculators': '#FFD700',
               'Large Speculators': '#1E90FF',
               'Commercials':       '#FF3333',
-              'Open Interest':     '#00FF00',
+              'Open Interest':     'rgba(0, 200, 80, 0.45)',
             }
             const c = colors[ctx.dataset.label] || 'white'
             return { borderColor: c, backgroundColor: c }
@@ -296,7 +296,7 @@ export default function CotData() {
         grid:     { display: false },
         border:   { color: '#333' },
         ticks:    {
-          color: 'rgba(0,255,0,0.7)',
+          color: 'rgba(0, 200, 80, 0.45)',
           font:  { size: 10 },
           callback: v => v == null ? '' : v.toLocaleString(),
         },
