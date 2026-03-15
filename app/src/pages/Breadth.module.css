@@ -136,7 +136,7 @@
   background: rgba(255,255,255,0.025);
 }
 .table tbody tr:hover .dateCell {
-  background: rgba(255,255,255,0.025);
+  background: var(--bg-hover);
 }
 
 /* ── Cell color states ───────────────────────────────────────────────────────── */
