@@ -39,14 +39,12 @@ const COLS = [
     colorFn: v => v == null ? '' : v > 28 ? 'red' : v > 20 ? 'amber' : 'green' },
   { key: 'avg_10d_vxn',    label: '10d VXN',      group: G.REGIME, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v > 32 ? 'red' : v > 24 ? 'amber' : 'green' },
-  { key: 'spy_above_50sma',  label: 'SPY>50',   group: G.REGIME, fmt: fmtBool,
-    colorFn: v => v === 1 ? 'green' : v === 0 ? 'red' : '' },
-  { key: 'spy_above_200sma', label: 'SPY>200',  group: G.REGIME, fmt: fmtBool,
-    colorFn: v => v === 1 ? 'green' : v === 0 ? 'red' : '' },
-  { key: 'qqq_above_50sma',  label: 'QQQ>50',   group: G.REGIME, fmt: fmtBool,
-    colorFn: v => v === 1 ? 'green' : v === 0 ? 'red' : '' },
-  { key: 'qqq_above_200sma', label: 'QQQ>200',  group: G.REGIME, fmt: fmtBool,
-    colorFn: v => v === 1 ? 'green' : v === 0 ? 'red' : '' },
+  { key: 'spy_ma_stack', label: 'SPY MAs', group: G.REGIME, type: 'ma_stack',
+    keys: ['spy_above_10sma', 'spy_above_20sma', 'spy_above_50sma', 'spy_above_200sma'],
+    maLabels: ['10', '20', '50', '200'] },
+  { key: 'qqq_ma_stack', label: 'QQQ MAs', group: G.REGIME, type: 'ma_stack',
+    keys: ['qqq_above_10sma', 'qqq_above_20sma', 'qqq_above_50sma', 'qqq_above_200sma'],
+    maLabels: ['10', '20', '50', '200'] },
   { key: 'uct_exposure',   label: 'UCT Exp',     group: G.REGIME, fmt: v => fmtDec(v, 0),
     colorFn: v => v == null ? '' : v >= 70 ? 'green' : v <= 30 ? 'red' : 'amber' },
 
@@ -258,6 +256,27 @@ export default function Breadth() {
                 <tr key={row.date} className={ri % 2 === 0 ? styles.rowEven : styles.rowOdd}>
                   <td className={`${styles.td} ${styles.dateCell}`}>{row.date}</td>
                   {COLS.map(col => {
+                    if (col.type === 'ma_stack') {
+                      return (
+                        <td key={col.key} className={`${styles.td} ${styles.maStackCell}`}>
+                          <div className={styles.maStack}>
+                            {col.keys.map((k, i) => {
+                              const v = row[k]
+                              const isCheck = v === 1
+                              const isCross = v === 0
+                              return (
+                                <div key={k} className={styles.maItem}>
+                                  <span className={styles.maLabel}>{col.maLabels[i]}</span>
+                                  <span className={isCheck ? styles.maCheck : isCross ? styles.maCross : styles.maDash}>
+                                    {v === null || v === undefined ? '—' : isCheck ? '✓' : '✗'}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </td>
+                      )
+                    }
                     const val = row[col.key]
                     return (
                       <td
