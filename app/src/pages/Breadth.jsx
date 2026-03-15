@@ -207,11 +207,20 @@ export default function Breadth() {
     refreshInterval: 5 * 60 * 1000,
   })
   const [collapsed, setCollapsed] = useState(new Set())
+  const [collapsedCols, setCollapsedCols] = useState(new Set())
 
   const toggleGroup = group => {
     setCollapsed(prev => {
       const next = new Set(prev)
       next.has(group) ? next.delete(group) : next.add(group)
+      return next
+    })
+  }
+
+  const toggleCol = key => {
+    setCollapsedCols(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
       return next
     })
   }
@@ -245,10 +254,13 @@ export default function Breadth() {
                 </th>
                 {GROUP_SPANS.map((gs, i) => {
                   const isCollapsed = collapsed.has(gs.group)
+                  // Count how many individual cols in this group are collapsed (they still occupy 1 slot each)
+                  const groupCols = COLS.filter(c => c.group === gs.group)
+                  const visibleSpan = isCollapsed ? 1 : groupCols.reduce((acc, c) => acc + 1, 0)
                   return (
                     <th
                       key={i}
-                      colSpan={isCollapsed ? 1 : gs.span}
+                      colSpan={visibleSpan}
                       rowSpan={isCollapsed ? 2 : 1}
                       title={isCollapsed ? `Click to expand ${gs.group}` : `Click to collapse ${gs.group}`}
                       className={`${styles.th} ${styles.groupHeader} ${GROUP_HEADER_CLASS[gs.group] ?? ''} ${styles.groupHeaderClickable} ${isCollapsed ? styles.groupHeaderCollapsed : ''}`}
@@ -264,11 +276,22 @@ export default function Breadth() {
               </tr>
               {/* Column label row — only visible (non-collapsed) groups */}
               <tr>
-                {visibleCols.map(col => (
-                  <th key={col.key} className={`${styles.th} ${styles.colLabel}`} title={col.key}>
-                    {col.label}
-                  </th>
-                ))}
+                {visibleCols.map(col => {
+                  const isColCollapsed = collapsedCols.has(col.key)
+                  return (
+                    <th
+                      key={col.key}
+                      title={isColCollapsed ? `Click to expand ${col.label}` : `Click to hide ${col.label}`}
+                      className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''}`}
+                      onClick={() => toggleCol(col.key)}
+                    >
+                      {isColCollapsed
+                        ? <span className={styles.colCollapsedLabel}>{col.label}</span>
+                        : col.label
+                      }
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
@@ -276,6 +299,9 @@ export default function Breadth() {
                 <tr key={row.date} className={ri % 2 === 0 ? styles.rowEven : styles.rowOdd}>
                   <td className={`${styles.td} ${styles.dateCell}`}>{row.date}</td>
                   {visibleCols.map(col => {
+                    if (collapsedCols.has(col.key)) {
+                      return <td key={col.key} className={`${styles.td} ${styles.colCollapsedCell}`} />
+                    }
                     if (col.type === 'ma_stack') {
                       return (
                         <td key={col.key} className={`${styles.td} ${styles.maStackCell}`}>
