@@ -404,10 +404,11 @@ const QUOTES = [
 
 function QuoteOfTheDay() {
   const quote = useMemo(() => {
-    // Seed by calendar date so it changes daily but is stable within the day
+    // Seed by calendar date — multiply by prime 97 so each day jumps ~97 positions
+    // (97 is coprime to 392 so all quotes are reached before any repeat)
     const today = new Date()
     const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate()
-    return QUOTES[seed % QUOTES.length]
+    return QUOTES[(seed * 97) % QUOTES.length]
   }, [])
 
   return (
