@@ -118,6 +118,28 @@ def _ratio(window: list, key_up: str, key_dn: str) -> Optional[float]:
     return round(sum(ups) / total_dn, 2)
 
 
+def patch_field(date_str: str, key: str, value) -> bool:
+    """Update a single field in an existing snapshot's metrics JSON."""
+    try:
+        with _conn() as c:
+            row = c.execute(
+                "SELECT metrics FROM breadth_snapshots WHERE date = ?", (date_str,)
+            ).fetchone()
+            if not row:
+                return False
+            m = json.loads(row["metrics"])
+            m[key] = value
+            c.execute(
+                "UPDATE breadth_snapshots SET metrics = ? WHERE date = ?",
+                (json.dumps(m), date_str),
+            )
+            c.commit()
+        return True
+    except Exception as e:
+        print(f"[breadth_monitor] patch_field error: {e}")
+        return False
+
+
 def get_latest() -> Optional[dict]:
     history = get_history(1)
     return history[0] if history else None

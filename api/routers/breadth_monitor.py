@@ -66,3 +66,20 @@ async def push_breadth_snapshot(request: Request):
         raise HTTPException(status_code=500, detail="Failed to store snapshot")
 
     return {"status": "ok", "date": date_str, "keys": len(metrics)}
+
+
+@router.patch("/api/breadth-monitor/{date_str}/field")
+async def patch_breadth_field(date_str: str, request: Request):
+    _check_auth(request)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    key = body.get("key")
+    value = body.get("value")
+    if not key:
+        raise HTTPException(status_code=400, detail="'key' required")
+    ok = svc.patch_field(date_str, key, value)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"No snapshot for {date_str}")
+    return {"status": "ok", "date": date_str, "key": key, "value": value}
