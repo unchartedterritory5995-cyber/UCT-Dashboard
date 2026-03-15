@@ -153,6 +153,43 @@
   font-weight: 600;
 }
 
+/* ── Collapsible group headers ───────────────────────────────────────────────── */
+.groupHeaderClickable {
+  cursor: pointer;
+  user-select: none;
+  transition: filter 0.15s;
+}
+.groupHeaderClickable:hover {
+  filter: brightness(1.3);
+}
+.groupHeaderCollapsed {
+  width: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  padding: 6px 3px;
+  vertical-align: middle;
+}
+.groupExpandedLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.groupChevron {
+  font-size: 10px;
+  opacity: 0.6;
+}
+.groupCollapsedLabel {
+  display: block;
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  font-size: 8px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
 /* ── MA Stack cell (SPY / QQQ combined) ──────────────────────────────────────── */
 .maStackCell {
   padding: 2px 6px;

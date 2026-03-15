@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import useSWR from 'swr'
 import styles from './Breadth.module.css'
 
@@ -205,8 +206,18 @@ export default function Breadth() {
   const { data, isLoading } = useSWR('/api/breadth-monitor?days=90', fetcher, {
     refreshInterval: 5 * 60 * 1000,
   })
+  const [collapsed, setCollapsed] = useState(new Set())
+
+  const toggleGroup = group => {
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      next.has(group) ? next.delete(group) : next.add(group)
+      return next
+    })
+  }
 
   const rows = data?.rows ?? []
+  const visibleCols = COLS.filter(col => !collapsed.has(col.group))
 
   return (
     <div className={styles.page}>
@@ -232,19 +243,28 @@ export default function Breadth() {
                 <th className={`${styles.th} ${styles.dateCol} ${styles.ghDate}`} rowSpan={2}>
                   Date
                 </th>
-                {GROUP_SPANS.map((gs, i) => (
-                  <th
-                    key={i}
-                    colSpan={gs.span}
-                    className={`${styles.th} ${styles.groupHeader} ${GROUP_HEADER_CLASS[gs.group] ?? ''}`}
-                  >
-                    {gs.group}
-                  </th>
-                ))}
+                {GROUP_SPANS.map((gs, i) => {
+                  const isCollapsed = collapsed.has(gs.group)
+                  return (
+                    <th
+                      key={i}
+                      colSpan={isCollapsed ? 1 : gs.span}
+                      rowSpan={isCollapsed ? 2 : 1}
+                      title={isCollapsed ? `Click to expand ${gs.group}` : `Click to collapse ${gs.group}`}
+                      className={`${styles.th} ${styles.groupHeader} ${GROUP_HEADER_CLASS[gs.group] ?? ''} ${styles.groupHeaderClickable} ${isCollapsed ? styles.groupHeaderCollapsed : ''}`}
+                      onClick={() => toggleGroup(gs.group)}
+                    >
+                      {isCollapsed
+                        ? <span className={styles.groupCollapsedLabel}>{gs.group}</span>
+                        : <span className={styles.groupExpandedLabel}>{gs.group} <span className={styles.groupChevron}>▾</span></span>
+                      }
+                    </th>
+                  )
+                })}
               </tr>
-              {/* Column label row */}
+              {/* Column label row — only visible (non-collapsed) groups */}
               <tr>
-                {COLS.map(col => (
+                {visibleCols.map(col => (
                   <th key={col.key} className={`${styles.th} ${styles.colLabel}`} title={col.key}>
                     {col.label}
                   </th>
@@ -255,7 +275,7 @@ export default function Breadth() {
               {rows.map((row, ri) => (
                 <tr key={row.date} className={ri % 2 === 0 ? styles.rowEven : styles.rowOdd}>
                   <td className={`${styles.td} ${styles.dateCell}`}>{row.date}</td>
-                  {COLS.map(col => {
+                  {visibleCols.map(col => {
                     if (col.type === 'ma_stack') {
                       return (
                         <td key={col.key} className={`${styles.td} ${styles.maStackCell}`}>
