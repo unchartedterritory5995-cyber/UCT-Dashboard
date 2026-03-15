@@ -264,9 +264,12 @@ CSS: `MorningWire.module.css` lines ~192–280
 ### API: Breadth (`api/services/engine.py` → `_normalize_breadth()`)
 - Fields: `pct_above_5ma`, `pct_above_50ma`, `pct_above_200ma`, `advancing`, `declining`, `new_highs`, `new_lows`, `new_highs_list`, `new_lows_list`, `breadth_score`, `distribution_days`, `market_phase`
 
-### FuturesStrip sparklines (`app/src/components/tiles/FuturesStrip.jsx`)
+### FuturesStrip (`app/src/components/tiles/FuturesStrip.jsx`)
 - Each index tile has a background sparkline SVG: linearGradient stroke, feGaussianBlur glow, fog fill polygon, last-point circle marker
 - Static SPARK point arrays per symbol (pos/neg/neu variants)
+- **Layout**: left 50% = index grid (QQQ/SPY/IWM/DIA/BTC/VIX), right 50% = Quote of the Day panel
+- **Quote of the Day**: 392-quote library (ported from morning-wire `ut_morning_wire_template.html`) — legendary traders, stoics, UCT KB voices. Date-seeded (`seed * 97 % 392`) so quote is stable all day and jumps ~97 positions each day for variety. No backend needed — pure client-side.
+- Mobile (<900px): stacks index grid above quote panel, border flips left→top
 
 ## Key Components Built (2026-02-23)
 
