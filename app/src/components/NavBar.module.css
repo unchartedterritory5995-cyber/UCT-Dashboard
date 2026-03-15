@@ -79,3 +79,18 @@
 .nav:hover .label {
   opacity: 1;
 }
+
+/* ─── Mobile: lock to icon-only, no hover expand ────────────────────────────── */
+@media (hover: none), (max-width: 900px) {
+  .nav {
+    width: 60px !important;
+    align-items: center !important;
+  }
+  .nav:hover {
+    width: 60px;
+    align-items: center;
+  }
+  .label {
+    display: none;
+  }
+}
