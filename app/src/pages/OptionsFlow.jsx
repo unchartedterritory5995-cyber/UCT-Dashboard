@@ -1185,6 +1185,58 @@ export default function OptionsFlowDashboard() {
             );
           })()}
         </div>
+        {/* ── Strike Flow Detail ─────────────────────────────── */}
+        {(()=>{
+          const tk = D ? D.TICKER_DB.find(t=>t.s===sym) : null;
+          const strikeTrades = tk ? tk.t.filter(tr => tr.CP===cp && Math.abs(tr.K-K)<0.01 && tr.E===exp).sort((a,b)=>{
+            // Sort by date desc, then time desc
+            const da = a.Dt||"", db = b.Dt||"";
+            if (da!==db) { const [am,ad]=(da||"0/0").split("/").map(Number); const [bm,bd]=(db||"0/0").split("/").map(Number); return bm!==am?bm-am:bd-ad; }
+            return (b.time||"").localeCompare(a.time||"");
+          }) : [];
+          if (strikeTrades.length===0) return null;
+          const clusterInfo = tk.c.find(c => c.CP===cp && Math.abs(c.K-K)<0.01 && c.E===exp);
+          return (
+            <div style={{ borderTop:"1px solid "+P.bd, padding:"10px 16px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1.5, textTransform:"uppercase" }}>
+                  Flow for {sym} ${K}{cp} {exp}
+                </div>
+                <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                  {clusterInfo && <Tag c={GRADE_COLORS[clusterInfo.grade]||P.mt}>{clusterInfo.grade}</Tag>}
+                  {clusterInfo && clusterInfo.clean && <span style={{ fontSize:7, color:P.bu, fontWeight:700 }}>CLEAN</span>}
+                  {clusterInfo && !clusterInfo.clean && <span style={{ fontSize:7, color:P.be, fontWeight:700 }}>MIXED</span>}
+                  <span style={{ fontSize:9, color:P.dm }}>{strikeTrades.length} trade{strikeTrades.length>1?"s":""}</span>
+                </div>
+              </div>
+              <div style={{ maxHeight:180, overflowY:"auto" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+                  <thead><tr style={{ borderBottom:"1px solid "+P.bd, position:"sticky", top:0, background:"#0d1525" }}>
+                    {["Day","Time","Type","Side","Color","Vol","OI","Premium","Price"].map(h=>(
+                      <th key={h} style={{ padding:"3px 6px", textAlign:h==="Premium"||h==="Price"||h==="Vol"||h==="OI"?"right":"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {strikeTrades.map((tr,i)=>(
+                      <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10",
+                        background:(tr.Si==="AA"||tr.Si==="BB")?(P.ac+"06"):"transparent" }}>
+                        <td style={{ padding:"3px 6px", color:P.dm, fontSize:8 }}>{tr.Dt||"—"}</td>
+                        <td style={{ padding:"3px 6px", color:P.dm, fontSize:8 }}>{tr.time||"—"}</td>
+                        <td style={{ padding:"3px 6px" }}><Tag c={tc(tr.Ty)}>{tr.Ty}</Tag></td>
+                        <td style={{ padding:"3px 6px" }}>{tr.Si==="AA"?<Tag c={P.ac}>AA</Tag>:tr.Si==="BB"?<Tag c={P.be}>BB</Tag>:tr.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>A</Tag>}</td>
+                        <td style={{ padding:"3px 6px" }}><Tag c={tr.Co==="YELLOW"?P.ye:tr.Co==="MAGENTA"?P.ma:P.uc}>{tr.Co}</Tag></td>
+                        <td style={{ padding:"3px 6px", textAlign:"right", color:P.dm }}>{fK(tr.V)}</td>
+                        <td style={{ padding:"3px 6px", textAlign:"right", color:P.dm }}>{tr.OI>0?tr.OI.toLocaleString():"—"}</td>
+                        <td style={{ padding:"3px 6px", textAlign:"right", fontWeight:700, color:premC(tr.P) }}>{fmt(tr.P)}</td>
+                        <td style={{ padding:"3px 6px", textAlign:"right", fontWeight:600, color:P.ac }}>{tr.price>0?"$"+tr.price.toFixed(2):"—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
         {/* ── Ticker Top Flow ────────────────────────────────── */}
         {(()=>{
           const tk = D ? D.TICKER_DB.find(t=>t.s===sym) : null;
@@ -1821,6 +1873,57 @@ export default function OptionsFlowDashboard() {
                   );
                 })()}
               </div>
+              {/* ── Strike Flow Detail ─────────────────────────────── */}
+              {(()=>{
+                const tk = D ? D.TICKER_DB.find(x=>x.s===t.sym) : null;
+                const strikeTrades = tk ? tk.t.filter(tr => tr.CP===t.cp && Math.abs(tr.K-t.K)<0.01 && tr.E===t.exp).sort((a,b)=>{
+                  const da = a.Dt||"", db = b.Dt||"";
+                  if (da!==db) { const [am,ad]=(da||"0/0").split("/").map(Number); const [bm,bd]=(db||"0/0").split("/").map(Number); return bm!==am?bm-am:bd-ad; }
+                  return (b.time||"").localeCompare(a.time||"");
+                }) : [];
+                if (strikeTrades.length===0) return null;
+                const clusterInfo = tk ? tk.c.find(cl => cl.CP===t.cp && Math.abs(cl.K-t.K)<0.01 && cl.E===t.exp) : null;
+                return (
+                  <div style={{ borderTop:"1px solid "+P.bd, padding:"10px 16px" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1.5, textTransform:"uppercase" }}>
+                        Flow for {t.sym} ${t.K}{t.cp} {t.exp}
+                      </div>
+                      <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                        {clusterInfo && <Tag c={GRADE_COLORS[clusterInfo.grade]||P.mt}>{clusterInfo.grade}</Tag>}
+                        {clusterInfo && clusterInfo.clean && <span style={{ fontSize:7, color:P.bu, fontWeight:700 }}>CLEAN</span>}
+                        {clusterInfo && !clusterInfo.clean && <span style={{ fontSize:7, color:P.be, fontWeight:700 }}>MIXED</span>}
+                        <span style={{ fontSize:9, color:P.dm }}>{strikeTrades.length} trade{strikeTrades.length>1?"s":""}</span>
+                      </div>
+                    </div>
+                    <div style={{ maxHeight:180, overflowY:"auto" }}>
+                      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+                        <thead><tr style={{ borderBottom:"1px solid "+P.bd, position:"sticky", top:0, background:"#0d1525" }}>
+                          {["Day","Time","Type","Side","Color","Vol","OI","Premium","Price"].map(h=>(
+                            <th key={h} style={{ padding:"3px 6px", textAlign:h==="Premium"||h==="Price"||h==="Vol"||h==="OI"?"right":"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {strikeTrades.map((tr,i)=>(
+                            <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10",
+                              background:(tr.Si==="AA"||tr.Si==="BB")?(P.ac+"06"):"transparent" }}>
+                              <td style={{ padding:"3px 6px", color:P.dm, fontSize:8 }}>{tr.Dt||"—"}</td>
+                              <td style={{ padding:"3px 6px", color:P.dm, fontSize:8 }}>{tr.time||"—"}</td>
+                              <td style={{ padding:"3px 6px" }}><Tag c={tc(tr.Ty)}>{tr.Ty}</Tag></td>
+                              <td style={{ padding:"3px 6px" }}>{tr.Si==="AA"?<Tag c={P.ac}>AA</Tag>:tr.Si==="BB"?<Tag c={P.be}>BB</Tag>:tr.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>A</Tag>}</td>
+                              <td style={{ padding:"3px 6px" }}><Tag c={tr.Co==="YELLOW"?P.ye:tr.Co==="MAGENTA"?P.ma:P.uc}>{tr.Co}</Tag></td>
+                              <td style={{ padding:"3px 6px", textAlign:"right", color:P.dm }}>{fK(tr.V)}</td>
+                              <td style={{ padding:"3px 6px", textAlign:"right", color:P.dm }}>{tr.OI>0?tr.OI.toLocaleString():"—"}</td>
+                              <td style={{ padding:"3px 6px", textAlign:"right", fontWeight:700, color:premC(tr.P) }}>{fmt(tr.P)}</td>
+                              <td style={{ padding:"3px 6px", textAlign:"right", fontWeight:600, color:P.ac }}>{tr.price>0?"$"+tr.price.toFixed(2):"—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
               {/* ── Ticker Top Flow ────────────────────────────────── */}
               {(()=>{
                 const tk = D ? D.TICKER_DB.find(x=>x.s===t.sym) : null;
