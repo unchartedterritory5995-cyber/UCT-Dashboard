@@ -97,8 +97,9 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 ```
 
 **Engine run:** `cd C:\Users\Patrick\morning-wire && python morning_wire_engine.py`
-- Takes ~3 min. Pushes to Railway automatically on completion.
+- Takes ~7.7 min. Pushes to Railway automatically on completion.
 - Windows Task Scheduler: runs daily at 7:35 AM ET (Mon–Fri), task name "UCT Morning Wire"
+- Scanner (`scanner_candidates.py`) should run at 7:00 AM CT via separate Task Scheduler entry to avoid 151s inline cost
 - **After any Railway redeploy, the in-memory cache resets but is seeded from `/data/wire_data.json` (Railway volume) on startup — no manual repopulation needed after the first engine run.**
 
 **POST /api/push** (`api/routers/push.py`):
@@ -126,6 +127,34 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 | MA Relationship Panel | Massive API live prices (SPY/QQQ) + engine push (MA %s) | 15s / Daily |
 | Earnings | wire_data push from engine | Daily (7:35 AM ET) |
 | Scanner Candidates | scanner_candidates.py → wire_data push | Daily (7:00 AM CT scanner + 7:35 AM ET engine push) |
+| COT Data | CFTC public zips (cftc.gov) | Weekly (Friday 3:45 PM ET auto-refresh) |
+
+## Morning Wire CSS Architecture — CRITICAL
+
+**`rundown_html` in wire_data contains NO `<style>` block.** It is a plain HTML fragment.
+All CSS for Morning Wire rendered content MUST live in `app/src/pages/MorningWire.module.css` using `:global(.classname)` selectors.
+
+The `ut_morning_wire_template.html` CSS only applies when the engine generates a standalone file — it does NOT reach the React dashboard.
+
+**Key `:global()` classes already defined in MorningWire.module.css:**
+`rd-regime-banner`, `rd-col`, `rd-stockbee`, `rd-exposure`, `rd-subsection-header`, `rd-subsection-label`, `rd-pick*` (all Top 5 cards)
+
+Never add new rundown CSS classes to the template alone — always add them to MorningWire.module.css.
+
+## Top 5 Picks — Design (2026-03-10)
+
+- **Layout**: vertical list; each pick separated by gold `<hr class="rd-pick-hr">` lines flanking the ticker
+- **Always exactly 5 picks** — AI mandated to fill all 5 slots; lower-conviction fills noted in narrative
+- **No number labels** — removed from prompt template
+- **Ticker** (`rd-pick-sym`): gold `#c9a84c`, 16px IBM Plex Mono, letter-spacing 2px
+- **Fields** (`rd-pick-flabel`): gold — **Entry Type**, Entry, Stop, Target, Invalidation (5 fields)
+  - `Entry Type`: one of `PREV DAY HIGH BREAK` / `PREV LOW RECLAIM` / `RED TO GREEN` / `BASE BREAKOUT`
+  - `Entry`: exact dollar trigger — e.g. "above $47.83 (prev day high) on volume"
+- **Fields**: flex row, gap 10px, label `min-width: 80px`
+- **Narrative** (`rd-pick-narrative`): 12px, line-height 1.65
+- **Prev day OHLC data pipeline**: scanner candidates carry `prev_day_high/low/close` from Massive API; non-scanner candidates (UCT20, gappers) filled via `yf.download()` batch in `generate_top_picks()`
+
+CSS: `MorningWire.module.css` lines ~192–280
 
 ## Key Components Built (2026-03-07 — Scanner v2 "World-Class")
 
@@ -167,6 +196,7 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 - `volume_n_week_low` — 20/15/10 bar volume low (4/3/2 week)
 - `ma_stack_intact` — close > EMA10 > EMA20, both slopes positive
 - `earnings_date` / `earnings_tod` — from UCT Intelligence `earnings_analytics` DB (next 10 days)
+- `prev_day_open` / `prev_day_high` / `prev_day_low` / `prev_day_close` — from `df.iloc[-1]` of Massive OHLCV fetch (scanner runs pre-market so last bar = previous trading day)
 
 **7-criteria candle scoring (0–110):**
 | Criterion | Points |
@@ -302,6 +332,57 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 - `_MassiveRestClient` is the internal wrapper (replaces old uct_intelligence import)
 - **ETFs (SPY, QQQ, IWM, DIA) are supported** — treated as equities, no special handling needed
 - `MARelationship` panel (`app/src/components/tiles/MARelationship.jsx`) fetches `/api/snapshot` every 15s for live SPY/QQQ prices; MA % distances (9EMA/20EMA/50SMA/200SMA) come from daily engine push
+
+## COT Data Tab (Screener → /screener/cot) — Built 2026-03-14
+
+### Architecture
+- **Database:** SQLite at `/data/cot.db` (Railway persistent volume — survives redeploys)
+- **Source:** CFTC public zips — `https://www.cftc.gov/files/dea/history/deacot{YEAR}.zip`
+- **Seed:** 10 years of history downloaded on first startup (background thread, daemon=True)
+- **Refresh:** APScheduler CronTrigger — every Friday 3:45 PM ET (`refresh_from_current()`)
+- **Manual reseed:** `POST /api/cot/reseed` — triggers full 10-year re-download in background
+- **Force reseed via curl:** `curl -X POST https://web-production-05cb6.up.railway.app/api/cot/reseed`
+
+### Key Files
+- `api/services/cot_service.py` — CFTC pipeline, SQLite schema, SYMBOL_MAP, seed/refresh
+- `api/routers/cot.py` — 4 routes: GET /symbols, GET /status, POST /refresh, POST /reseed, GET /{symbol}
+- `app/src/pages/CotData.jsx` — Chart.js mixed bar+line chart, symbol dropdown, lookback buttons
+- `app/src/pages/CotData.module.css` — page styles
+
+### SYMBOL_MAP — Critical Notes
+CFTC renamed many contracts around 2021–2022. The map uses OLD names (pre-2022) as primary entries for historical coverage. New names are handled via `_CFTC_ALIASES` dict which merges into `_NAME_TO_SYMBOL`. Both old and new names map to the same symbol, so all 10 years of history parse correctly.
+
+Key renames handled by aliases:
+- CL: "CRUDE OIL, LIGHT SWEET" → "WTI-PHYSICAL"
+- HO: "#2 HEATING OIL- NY HARBOR-ULSD" → "NY HARBOR ULSD"
+- RB: "GASOLINE BLENDSTOCK (RBOB)" → "GASOLINE RBOB"
+- NG: "NATURAL GAS" → "NAT GAS NYME"
+- BZ: "BRENT CRUDE OIL LAST DAY" → "BRENT LAST DAY"
+- ZB/ZN/ZF/ZT/UD: old treasury note/bond names → "UST BOND", "UST 10Y NOTE", etc.
+- DX: "U.S. DOLLAR INDEX" → "USD INDEX"
+- B6: "BRITISH POUND STERLING" → "BRITISH POUND"
+- N6: "NEW ZEALAND DOLLAR" → "NZ DOLLAR"
+
+### Chart Scaling
+- **Left Y-axis (y):** symmetric ±leftBound — computed from max absolute net position value, rounded via `roundUpNice()`
+- **Right Y-axis (y2, OI line):** uses `afterDataLimits` callback — forces `min = roundDownNice(max / 4)` so OI line occupies the upper portion of the chart. Do NOT use explicit `min`/`max` props or `beginAtZero` — they get overridden by Chart.js internals.
+- **Chart.js registration:** Must register BOTH `BarController` AND `BarElement` (and `LineController`/`LineElement`) for mixed charts — omitting the Controller causes "bar is not a registered controller" error.
+- **ChartErrorBoundary:** Class component wrapping Chart — prevents React tree crash on chart errors.
+
+### Symbols Available (62 total, removed: ET, NM, T6, TA, BA, RS, DL, BD)
+INDICES: ES, NQ, YM, QR, EW, VI, NK
+METALS: GC, SI, HG, PL, PA, AL
+ENERGIES: CL, HO, RB, NG, FL, BZ
+GRAINS: ZW, ZC, ZS, ZM, ZL, ZR, KE, MW, OA
+SOFTS: CT, OJ, KC, SB, CC, LB
+LIVESTOCK & DAIRY: LE, GF, HE, DF, BJ
+FINANCIALS: ZB, UD, ZN, ZF, ZT, ZQ, SR3
+CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
+
+### Data Sources Table Addition
+| COT Data | CFTC public zips (cftc.gov) | Weekly (Friday 3:45 PM ET auto-refresh) |
+
+---
 
 ## Known Issues / Gotchas
 
