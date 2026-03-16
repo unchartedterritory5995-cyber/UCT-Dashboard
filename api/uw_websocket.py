@@ -200,3 +200,35 @@ async def _listen_to_uw():
                                         rows.append(r)
                             if rows:
                                 await broadcast(json.dumps({
+                                    "type": "flow_batch",
+                                    "rows": rows,
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                }))
+                    except json.JSONDecodeError:
+                        logger.debug(f"Non-JSON message from UW: {raw_msg[:100]}")
+
+        except Exception as e:
+            _uw_connected = False
+            logger.warning(f"UW WebSocket error: {e}. Reconnecting in {backoff}s...")
+
+            await broadcast(json.dumps({
+                "type": "status",
+                "connected": False,
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }))
+
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 60)  # exponential backoff, cap at 60s
+
+
+def start_uw_listener():
+    """Call once at app startup to begin the UW WebSocket listener task."""
+    global _uw_task
+    if _uw_task is None or _uw_task.done():
+        _uw_task = asyncio.create_task(_listen_to_uw())
+        logger.info("UW WebSocket listener task started")
+
+
+def is_uw_connected() -> bool:
+    return _uw_connected
