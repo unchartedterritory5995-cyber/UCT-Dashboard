@@ -26,6 +26,31 @@ function exportCsv(rows, cols) {
   URL.revokeObjectURL(url)
 }
 
+function Sparkline({ values, color = 'var(--text-muted)', width = 50, height = 18 }) {
+  const vals = values.filter(v => v != null)
+  if (vals.length < 2) return null
+  const min = Math.min(...vals)
+  const max = Math.max(...vals)
+  const range = max - min || 1
+  const pts = vals.map((v, i) => {
+    const x = (i / (vals.length - 1)) * width
+    const y = height - ((v - min) / range) * (height - 2) - 1
+    return `${x},${y}`
+  })
+  return (
+    <svg width={width} height={height} className={styles.sparkline}>
+      <polyline
+        points={pts.join(' ')}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 // ── Column definitions ────────────────────────────────────────────────────────
 // Each entry: { key, label, group, fmt?, colorFn? }
 // colorFn(val) → 'green' | 'red' | 'amber' | ''
@@ -53,7 +78,7 @@ function pctColor(low, mid, high) {
 
 const COLS = [
   // ── Score ─────────────────────────────────────────────────────────────────
-  { key: 'breadth_score', label: 'Health', group: G.SCORE,
+  { key: 'breadth_score', label: 'Health', group: G.SCORE, type: 'sparkline',
     fmt: v => fmtDec(v, 0),
     colorFn: v => v == null ? '' : v >= 65 ? 'green' : v <= 35 ? 'red' : 'amber' },
 
@@ -142,7 +167,7 @@ const COLS = [
     colorFn: pctColor(30, 45, 60) },
 
   // ── Highs / Lows ──────────────────────────────────────────────────────────
-  { key: 'new_52w_highs',  label: '52W Hi',    group: G.HIGHS,
+  { key: 'new_52w_highs',  label: '52W Hi',    group: G.HIGHS, type: 'sparkline',
     colorFn: v => v == null ? '' : v > 150 ? 'green' : v < 20 ? 'red' : '' },
   { key: 'new_52w_lows',   label: '52W Lo',    group: G.HIGHS,
     colorFn: v => v == null ? '' : v > 150 ? 'red' : v < 20 ? 'green' : '' },
@@ -160,7 +185,7 @@ const COLS = [
     colorFn: v => v == null ? '' : v > 4 ? 'red' : v < 0.5 ? 'green' : '' },
 
   // ── Setups ────────────────────────────────────────────────────────────────
-  { key: 'stage2_count', label: 'Stage 2', group: G.SETUPS,
+  { key: 'stage2_count', label: 'Stage 2', group: G.SETUPS, type: 'sparkline',
     colorFn: v => v == null ? '' : v > 800 ? 'green' : v < 300 ? 'red' : '' },
   { key: 'stage4_count', label: 'Stage 4', group: G.SETUPS,
     colorFn: v => v == null ? '' : v > 800 ? 'red' : v < 200 ? 'green' : '' },
@@ -316,6 +341,27 @@ export default function Breadth() {
     })
   }, [rows, sortKey, sortDir])
 
+  const sparkData = useMemo(() => {
+    const out = {}
+    const sparkCols = COLS.filter(c => c.type === 'sparkline')
+    if (!sparkCols.length) return out
+    // rows is newest-first; reverse to get oldest-first
+    const asc = [...rows].reverse()
+    const dateToIdx = Object.fromEntries(asc.map((r, i) => [r.date, i]))
+    for (const col of sparkCols) {
+      out[col.key] = {}
+      for (const row of rows) {
+        const idx = dateToIdx[row.date]
+        if (idx != null) {
+          out[col.key][row.date] = asc
+            .slice(Math.max(0, idx - 9), idx + 1)
+            .map(r => r[col.key] ?? null)
+        }
+      }
+    }
+    return out
+  }, [rows])
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -469,6 +515,19 @@ export default function Breadth() {
                   {visibleCols.map(col => {
                     if (collapsedCols.has(col.key)) {
                       return <td key={col.key} className={`${styles.td} ${styles.colCollapsedCell}`} />
+                    }
+                    if (col.type === 'sparkline') {
+                      const val = row[col.key]
+                      const last10 = sparkData[col.key]?.[row.date] ?? []
+                      // Determine line color from cell color class
+                      const colorResult = col.colorFn ? col.colorFn(val) : ''
+                      const lineColor = colorResult === 'green' ? 'var(--ut-green-bright)'
+                        : colorResult === 'red' ? 'var(--loss)' : 'var(--text-muted)'
+                      return (
+                        <td key={col.key} className={`${styles.td} ${styles.sparklineCell}`} title={val != null ? String(val) : '—'}>
+                          <Sparkline values={last10} color={lineColor} />
+                        </td>
+                      )
                     }
                     if (col.type === 'ma_stack') {
                       return (

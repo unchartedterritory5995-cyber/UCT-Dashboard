@@ -303,6 +303,9 @@
 }
 .exportBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
 
+.sparkline { display: block; }
+.sparklineCell { padding: 2px 6px; text-align: center; min-width: 62px; }
+
 .aaiiStale {
   opacity: 0.45;
   font-style: italic;
