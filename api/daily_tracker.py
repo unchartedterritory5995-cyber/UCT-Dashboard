@@ -248,6 +248,12 @@ async def _snapshot_loop() -> None:
             # Double-check it's still a weekday (handles DST edge cases)
             if datetime.now(ET).weekday() < 5:
                 await store_daily_snapshot()
+                # Also snapshot Top Flow tracker picks
+                try:
+                    from api.top_flow_tracker import snapshot_prices as _tf_snapshot
+                    await _tf_snapshot()
+                except Exception as e:
+                    logger.error("[tracker] Top Flow snapshot error (non-fatal): %s", e)
         except asyncio.CancelledError:
             logger.info("[tracker] Snapshot scheduler stopped.")
             return
