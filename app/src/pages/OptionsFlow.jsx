@@ -1148,7 +1148,11 @@ export default function OptionsFlowDashboard() {
             </div>
           </div>
           <div style={{ padding:"12px 14px" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}><span style={{ display:"inline-flex", alignItems:"center", gap:3 }}><span style={{ width:8, height:8, borderRadius:1, background:"#ff6d00", opacity:0.8, display:"inline-block" }}/> Vol</span><span style={{ display:"inline-flex", alignItems:"center", gap:3 }}><span style={{ width:8, height:8, borderRadius:1, background:"#00b0ff", opacity:0.7, display:"inline-block" }}/> OI</span><span style={{ display:"inline-flex", alignItems:"center", gap:3 }}><span style={{ width:14, height:2, borderRadius:1, background:"#5ec4d4", opacity:0.7, display:"inline-block" }}/> Contract Price</span></div>
+            <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#ff6d00", display:"inline-block", flexShrink:0 }}>{""}</span> Vol</span>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#00b0ff", display:"inline-block", flexShrink:0 }}>{""}</span> OI</span>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:14, height:3, borderRadius:2, background:"#d4a5ff", display:"inline-block", flexShrink:0 }}>{""}</span> Contract Price</span>
+            </div>
             <div style={{ width:"100%", height:160 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={trimmed} margin={{ top:4, right:4, left:-8, bottom:0 }}>
@@ -1157,7 +1161,7 @@ export default function OptionsFlowDashboard() {
                     interval={trimmed.length>15?"preserveStartEnd":trimmed.length>10?1:0}
                     angle={-45} textAnchor="end" height={28}
                     tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
-                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#5ec4d4" }}
+                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#d4a5ff" }}
                     tickFormatter={v=>"$"+v.toFixed(1)} width={32} domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
                   <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:7, fill:"#4a5c73" }}
                     tickFormatter={v=>fK(v)} width={38} />
@@ -1166,8 +1170,8 @@ export default function OptionsFlowDashboard() {
                     labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
                   <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
                   <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
-                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#5ec4d4" strokeWidth={2} strokeOpacity={0.75}
-                    dot={{ r:4, fill:"#5ec4d4", stroke:"#0d1525", strokeWidth:1.5 }} connectNulls />
+                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#d4a5ff" strokeWidth={2} strokeOpacity={0.5}
+                    dot={{ r:4, fill:"#d4a5ff", stroke:"#0d1525", strokeWidth:1.5 }} connectNulls />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -1810,7 +1814,11 @@ export default function OptionsFlowDashboard() {
 
                 {/* Right: Vol/OI/Price chart */}
                 <div style={{ padding:"12px 14px" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}><span style={{ display:"inline-flex", alignItems:"center", gap:3 }}><span style={{ width:8, height:8, borderRadius:1, background:"#ff6d00", opacity:0.8, display:"inline-block" }}/> Vol</span><span style={{ display:"inline-flex", alignItems:"center", gap:3 }}><span style={{ width:8, height:8, borderRadius:1, background:"#00b0ff", opacity:0.7, display:"inline-block" }}/> OI</span><span style={{ display:"inline-flex", alignItems:"center", gap:3 }}><span style={{ width:14, height:2, borderRadius:1, background:"#5ec4d4", opacity:0.7, display:"inline-block" }}/> Contract Price</span></div>
+                  <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}>
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#ff6d00", display:"inline-block", flexShrink:0 }}>{""}</span> Vol</span>
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#00b0ff", display:"inline-block", flexShrink:0 }}>{""}</span> OI</span>
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:14, height:3, borderRadius:2, background:"#d4a5ff", display:"inline-block", flexShrink:0 }}>{""}</span> Contract Price</span>
+                  </div>
                   <div style={{ width:"100%", height:160 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={trimmed} margin={{ top:4, right:4, left:-8, bottom:0 }}>
@@ -1819,7 +1827,7 @@ export default function OptionsFlowDashboard() {
                           interval={trimmed.length>15?"preserveStartEnd":trimmed.length>10?1:0}
                           angle={-45} textAnchor="end" height={28}
                           tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
-                        <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#5ec4d4" }}
+                        <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#d4a5ff" }}
                           tickFormatter={v=>"$"+v.toFixed(1)} width={32}
                           domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
                         <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:7, fill:"#4a5c73" }}
@@ -1834,12 +1842,12 @@ export default function OptionsFlowDashboard() {
                           labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
                         <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
                         <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
-                        <Line yAxisId="price" dataKey="price" type="monotone" stroke="#5ec4d4" strokeWidth={2} strokeOpacity={0.75}
-                          dot={{ r:4, fill:"#5ec4d4", stroke:"#0d1525", strokeWidth:1.5 }} connectNulls />
+                        <Line yAxisId="price" dataKey="price" type="monotone" stroke="#d4a5ff" strokeWidth={2} strokeOpacity={0.5}
+                          dot={{ r:4, fill:"#d4a5ff", stroke:"#0d1525", strokeWidth:1.5 }} connectNulls />
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>
-                  {curPrice>0 && <div style={{ fontSize:9, color:"#5ec4d4", fontWeight:700, marginTop:2, textAlign:"right" }}>Now: ${curPrice.toFixed(2)}</div>}
+                  {curPrice>0 && <div style={{ fontSize:9, color:"#d4a5ff", fontWeight:700, marginTop:2, textAlign:"right" }}>Now: ${curPrice.toFixed(2)}</div>}
                 </div>
               </div>
 
