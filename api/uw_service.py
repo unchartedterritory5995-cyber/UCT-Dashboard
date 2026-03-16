@@ -241,3 +241,125 @@ async def get_oi_change(ticker: str) -> list[dict]:
         return []
     
     return data.get("data", [])
+
+
+# ─── Live Flow (transforms UW alerts → CSV-equivalent rows) ──────────────────
+
+async def get_live_flow(limit: int = 200, min_premium: int = 50000) -> list[dict]:
+    """
+    Fetch flow alerts from UW and transform each into the same dict format
+    that the frontend's parseCSV produces. This lets processFlowData run
+    on live data with zero changes.
+    """
+    url = f"{BASE}/api/option-trades/flow-alerts"
+    params = {"limit": limit, "min_premium": min_premium}
+    
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(url, headers=_headers())
+            resp.raise_for_status()
+            raw = resp.json()
+    except Exception as e:
+        logger.error("[UW] flow-alerts fetch failed: %s", e)
+        return []
+    
+    alerts = raw.get("data", [])
+    rows = []
+    today = date.today()
+    
+    for a in alerts:
+        try:
+            ticker = (a.get("ticker") or "").upper()
+            strike = float(a.get("strike") or 0)
+            cp_raw = (a.get("type") or "").lower()
+            cp = "CALL" if cp_raw == "call" else "PUT" if cp_raw == "put" else ""
+            spot = float(a.get("underlying_price") or 0)
+            volume = int(a.get("total_size") or 0)
+            oi = int(a.get("open_interest") or 0)
+            premium = float(a.get("total_premium") or 0)
+            price = float(a.get("price") or 0)
+            iv = float(a.get("iv_start") or 0)
+            mktcap = float(a.get("marketcap") or 0)
+            sector = a.get("sector") or ""
+            
+            # Expiry
+            exp_raw = a.get("expiry") or ""
+            if "-" in exp_raw:
+                ep = exp_raw.split("-")
+                expiry_str = f"{int(ep[1])}/{int(ep[2])}/{ep[0]}"
+                try:
+                    exp_date = date(int(ep[0]), int(ep[1]), int(ep[2]))
+                    dte = (exp_date - today).days
+                except ValueError:
+                    dte = -1
+            else:
+                expiry_str = exp_raw
+                dte = -1
+            
+            # Type
+            has_sweep = a.get("has_sweep", False)
+            order_type = "SWEEP" if has_sweep else "BLOCK"
+            
+            # Side
+            ask_prem = float(a.get("total_ask_side_prem") or 0)
+            bid_prem = float(a.get("total_bid_side_prem") or 0)
+            if ask_prem > 0 and bid_prem == 0:
+                side = "ABOVE ASK" if has_sweep else "ASK"
+            elif bid_prem > 0 and ask_prem == 0:
+                side = "BELOW BID" if has_sweep else "BID"
+            elif ask_prem > bid_prem:
+                side = "ASK"
+            elif bid_prem > ask_prem:
+                side = "BID"
+            else:
+                side = "ASK"
+            
+            # Color
+            vol_oi = float(a.get("volume_oi_ratio") or 0)
+            if vol_oi > 1.0:
+                trades = int(a.get("trade_count") or 1)
+                color = "MAGENTA" if trades >= 3 and vol_oi > 1.5 else "YELLOW"
+            else:
+                color = "WHITE"
+            
+            # Time & Date
+            created = a.get("created_at") or ""
+            time_str = ""
+            date_str = ""
+            if created:
+                try:
+                    from zoneinfo import ZoneInfo
+                    dt_obj = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    et = dt_obj.astimezone(ZoneInfo("America/New_York"))
+                    time_str = et.strftime("%-I:%M:%S %p")
+                    date_str = f"{et.month}/{et.day}/{et.year}"
+                except Exception:
+                    pass
+            
+            # Stock/ETF
+            issue = (a.get("issue_type") or "").upper()
+            stocketf = "ETF" if "ETF" in issue else "STOCK"
+            
+            # UOA
+            alert_rule = a.get("alert_rule") or ""
+            uoa = "T" if vol_oi > 1.0 or "Golden" in alert_rule else ""
+            
+            rows.append({
+                "ticker": ticker, "type": order_type, "cp": cp,
+                "strike": str(strike), "spot": str(spot), "side": side,
+                "volume": str(volume), "oi": str(oi), "iv": str(iv),
+                "premium": str(premium), "price": str(price), "color": color,
+                "dte": str(dte), "mktcap": str(mktcap), "sector": sector,
+                "stocketf": stocketf, "expiry": expiry_str,
+                "date": date_str, "time": time_str, "uoa": uoa,
+                "_alert_rule": alert_rule,
+                "_trade_count": str(a.get("trade_count") or 1),
+                "_has_multileg": str(a.get("has_multileg", False)),
+                "_vol_oi_ratio": str(vol_oi),
+            })
+        except Exception as e:
+            logger.warning("[UW] Skipping alert: %s", e)
+            continue
+    
+    logger.info("[UW] Live flow: %d alerts -> %d rows", len(alerts), len(rows))
+    return rows
