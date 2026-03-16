@@ -30,14 +30,16 @@ function pctColor(low, mid, high) {
 
 const COLS = [
   // ── Regime ────────────────────────────────────────────────────────────────
+  { key: 'uct_exposure',   label: 'UCT Exp',     group: G.REGIME, fmt: v => fmtDec(v, 0),
+    colorFn: v => v == null ? '' : v >= 70 ? 'green' : v <= 30 ? 'red' : 'amber' },
   { key: 'sp500_close',    label: 'S&P 500',    group: G.REGIME, fmt: fmtPrice },
   { key: 'qqq_close',      label: 'QQQ',         group: G.REGIME, fmt: fmtPrice },
   { key: 'vix',            label: 'VIX',          group: G.REGIME, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v > 30 ? 'red' : v > 20 ? 'amber' : 'green' },
-  { key: 'vxn',            label: 'VXN',          group: G.REGIME, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 35 ? 'red' : v > 25 ? 'amber' : 'green' },
   { key: 'avg_10d_vix',    label: '10d VIX',      group: G.REGIME, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v > 28 ? 'red' : v > 20 ? 'amber' : 'green' },
+  { key: 'vxn',            label: 'VXN',          group: G.REGIME, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v > 35 ? 'red' : v > 25 ? 'amber' : 'green' },
   { key: 'avg_10d_vxn',    label: '10d VXN',      group: G.REGIME, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v > 32 ? 'red' : v > 24 ? 'amber' : 'green' },
   { key: 'spy_ma_stack', label: 'SPY MAs', group: G.REGIME, type: 'ma_stack',
@@ -46,8 +48,6 @@ const COLS = [
   { key: 'qqq_ma_stack', label: 'QQQ MAs', group: G.REGIME, type: 'ma_stack',
     keys: ['qqq_above_10sma', 'qqq_above_20sma', 'qqq_above_50sma', 'qqq_above_200sma'],
     maLabels: ['10', '20', '50', '200'] },
-  { key: 'uct_exposure',   label: 'UCT Exp',     group: G.REGIME, fmt: v => fmtDec(v, 0),
-    colorFn: v => v == null ? '' : v >= 70 ? 'green' : v <= 30 ? 'red' : 'amber' },
 
   // ── Primary Breadth ───────────────────────────────────────────────────────
   { key: 'up_4pct_today',      label: 'Up 4%+',     group: G.PRIMARY,
@@ -117,23 +117,23 @@ const COLS = [
     colorFn: v => v == null ? '' : v > 500 ? 'green' : v < -500 ? 'red' : '' },
   { key: 'up_vol_ratio',  label: 'UpVol',      group: G.VOLUME, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v > 2 ? 'green' : v < 0.5 ? 'red' : '' },
-  { key: 'mcclellan_osc', label: 'McClellan',  group: G.VOLUME, fmt: v => fmtDec(v, 1),
-    colorFn: v => v == null ? '' : v > 0 ? 'green' : 'red' },
+  { key: 'mcclellan_osc', label: 'McClellan', group: G.VOLUME, fmt: v => fmtDec(v, 1),
+    colorFn: v => v == null ? '' : v > 150 ? 'amber' : v > 0 ? 'green' : v < -150 ? 'amber' : 'red' },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
   { key: 'cboe_putcall',  label: 'CBOE P/C',   group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v >= 1.0 ? 'green' : v <= 0.7 ? 'red' : '' },
+    colorFn: v => v == null ? '' : v >= 0.85 ? 'green' : v <= 0.65 ? 'red' : '' },
   { key: 'avg_10d_cpc',   label: '10d P/C',    group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v >= 0.95 ? 'green' : v <= 0.72 ? 'red' : '' },
+    colorFn: v => v == null ? '' : v >= 0.82 ? 'green' : v <= 0.68 ? 'red' : '' },
   { key: 'cnn_fear_greed',label: 'CNN F/G',    group: G.SENTIMENT, fmt: v => fmtDec(v, 0),
     colorFn: v => v == null ? '' : v <= 25 ? 'green' : v >= 75 ? 'red' : v <= 40 ? 'amber' : '' },
   { key: 'aaii_bulls',    label: 'AAII Bulls', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
   { key: 'aaii_neutral',  label: 'Neutral',    group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
   { key: 'aaii_bears',    label: 'AAII Bears', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
-  { key: 'aaii_spread',   label: 'Spread',     group: G.SENTIMENT, fmt: v => fmtDec(v, 1),
-    colorFn: v => v == null ? '' : v > 10 ? 'green' : v < -10 ? 'red' : '' },
+  { key: 'aaii_spread', label: 'B-B Sprd', group: G.SENTIMENT, fmt: v => fmtDec(v, 1),
+    colorFn: v => v == null ? '' : v < -20 ? 'green' : v > 30 ? 'red' : v < -10 ? 'amber' : '' },
   { key: 'naaim',         label: 'NAAIM',      group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 80 ? 'amber' : v < 25 ? 'green' : '' },
+    colorFn: v => v == null ? '' : v > 90 ? 'amber' : v < 25 ? 'green' : '' },
 ]
 
 // ── Group spans ────────────────────────────────────────────────────────────
