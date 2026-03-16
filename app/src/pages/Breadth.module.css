@@ -153,6 +153,10 @@
   color: var(--ut-gold, #c9a84c);
   font-weight: 600;
 }
+.cellLightRed {
+  color: #f4a0a0;
+  font-weight: 600;
+}
 
 /* ── Collapsible group headers ───────────────────────────────────────────────── */
 .groupHeaderClickable {

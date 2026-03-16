@@ -90,7 +90,7 @@ const COLS = [
   { key: 'qqq_close',      label: 'QQQ',         group: G.REGIME, fmt: fmtPrice,
     rowColorFn: row => row.qqq_day_pct == null ? '' : row.qqq_day_pct > 0 ? 'green' : row.qqq_day_pct < 0 ? 'red' : '' },
   { key: 'vix',            label: 'VIX',          group: G.REGIME, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 30 ? 'red' : v > 20 ? 'amber' : 'green' },
+    colorFn: v => v == null ? '' : v >= 25 ? 'red' : v >= 22 ? 'lightred' : v >= 18 ? 'amber' : 'green' },
   { key: 'avg_10d_vix',    label: '10d VIX',      group: G.REGIME, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v > 28 ? 'red' : v > 20 ? 'amber' : 'green' },
   { key: 'spy_ma_stack', label: 'SPY MAs', group: G.REGIME, type: 'ma_stack',
@@ -257,9 +257,10 @@ function cellClass(col, val, row = null) {
   } else if (col.colorFn && val != null) {
     c = col.colorFn(val)
   }
-  if (c === 'green') return styles.cellGreen
-  if (c === 'red')   return styles.cellRed
-  if (c === 'amber') return styles.cellAmber
+  if (c === 'green')    return styles.cellGreen
+  if (c === 'red')      return styles.cellRed
+  if (c === 'amber')    return styles.cellAmber
+  if (c === 'lightred') return styles.cellLightRed
   return ''
 }
 
