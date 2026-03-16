@@ -152,6 +152,8 @@ const COLS = [
     colorFn: v => v == null ? '' : v < 14 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 25 ? 'r1' : v < 30 ? 'r2' : 'r3' },
   { key: 'avg_10d_vix', label: '10d VIX', group: G.REGIME, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v < 15 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 26 ? 'r1' : v < 30 ? 'r2' : 'r3' },
+  { key: 'mcclellan_osc', label: 'McClellan', group: G.REGIME, fmt: v => fmtDec(v, 1),
+    colorFn: v => v == null ? '' : v > 200 ? 'a' : v > 80 ? 'g3' : v > 20 ? 'g2' : v > 0 ? 'g1' : v > -20 ? 'r1' : v > -80 ? 'r2' : v > -200 ? 'r3' : 'a' },
   { key: 'market_phase', label: 'Phase', group: G.REGIME,
     colorFn: v => {
       if (v == null) return ''
@@ -187,16 +189,6 @@ const COLS = [
     colorFn: v => v == null ? '' : v > 1200 ? 'g3' : v > 800 ? 'g2' : v > 500 ? 'g1' : v < 150 ? 'r2' : v < 300 ? 'r1' : '' },
   { key: 'stage4_count', label: 'Stage 4', group: G.SETUPS,
     colorFn: v => v == null ? '' : v > 1200 ? 'r3' : v > 800 ? 'r2' : v > 500 ? 'r1' : v < 100 ? 'g2' : v < 200 ? 'g1' : '' },
-
-  // ── Volume / A-D ──────────────────────────────────────────────────────────
-  { key: 'adv_decline', label: 'A-D', group: G.VOLUME,
-    colorFn: v => v == null ? '' : v > 2000 ? 'g3' : v > 500 ? 'g2' : v > 100 ? 'g1' : v < -2000 ? 'r3' : v < -500 ? 'r2' : v < -100 ? 'r1' : 'a' },
-  { key: 'up_vol_ratio', label: 'UpVol', group: G.VOLUME, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 3 ? 'g3' : v > 2 ? 'g2' : v > 1.3 ? 'g1' : v < 0.33 ? 'r3' : v < 0.5 ? 'r2' : v < 0.77 ? 'r1' : 'a' },
-  { key: 'mcclellan_osc', label: 'McClellan', group: G.VOLUME, fmt: v => fmtDec(v, 1),
-    colorFn: v => v == null ? '' : v > 200 ? 'a' : v > 80 ? 'g3' : v > 20 ? 'g2' : v > 0 ? 'g1' : v > -20 ? 'r1' : v > -80 ? 'r2' : v > -200 ? 'r3' : 'a' },
-  { key: 'adv_decline_cum', label: 'A-D Cum', group: G.VOLUME, fmt: v => fmtDec(v, 0),
-    colorFn: v => v == null ? '' : v > 2000 ? 'g3' : v > 500 ? 'g2' : v > 0 ? 'g1' : v < -2000 ? 'r3' : v < -500 ? 'r2' : 'r1' },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
   { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
