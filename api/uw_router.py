@@ -250,11 +250,54 @@ async def debug_ticker_flow(ticker: str, limit: int = Query(5)):
     except Exception as e:
         return {"error": str(e)}
     
+    # Handle any response shape
+    top_keys = list(raw.keys()) if isinstance(raw, dict) else ["not_dict"]
+    data = raw.get("data", raw.get("flows", raw.get("trades", [])))
+    if isinstance(data, list) and len(data) > 0:
+        return {
+            "status": resp.status_code,
+            "top_keys": top_keys,
+            "count": len(data),
+            "first_row_keys": list(data[0].keys()) if isinstance(data[0], dict) else [],
+            "first_row": data[0],
+            "second_row": data[1] if len(data) > 1 else "no_data",
+        }
+    return {
+        "status": resp.status_code,
+        "top_keys": top_keys,
+        "raw_truncated": str(raw)[:2000],
+    }
+
+
+# ─── Debug: Flow Alerts for specific ticker ───────────────────────────────────
+
+@router.get("/debug-ticker-alerts/{ticker}")
+async def debug_ticker_alerts(ticker: str, limit: int = Query(5)):
+    """
+    Debug: flow-alerts filtered to a specific ticker.
+    /api/uw/debug-ticker-alerts/NVDA?limit=3
+    """
+    import httpx, os
+    
+    headers = {
+        "Authorization": f"Bearer {os.environ.get('UW_API_KEY', '')}",
+        "UW-CLIENT-API-ID": "100001",
+        "Accept": "application/json",
+    }
+    url = "https://api.unusualwhales.com/api/option-trades/flow-alerts"
+    params = {"ticker_symbol": ticker.upper(), "limit": limit}
+    
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.get(url, headers=headers, params=params)
+            raw = resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+    
     data = raw.get("data", [])
     return {
         "status": resp.status_code,
         "count": len(data),
-        "first_row_keys": list(data[0].keys()) if data else [],
         "first_row": data[0] if data else "no_data",
         "second_row": data[1] if len(data) > 1 else "no_data",
     }
