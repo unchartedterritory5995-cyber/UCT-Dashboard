@@ -122,6 +122,12 @@ const COLS = [
     colorFn: v => v ? 'g2' : '' },
 
   // ── MA Breadth ────────────────────────────────────────────────────────────
+  { key: 'spy_ma_stack', label: 'SPY MAs', group: G.MA, type: 'ma_stack',
+    keys: ['spy_above_10sma', 'spy_above_20sma', 'spy_above_50sma', 'spy_above_200sma'],
+    maLabels: ['10', '20', '50', '200'] },
+  { key: 'qqq_ma_stack', label: 'QQQ MAs', group: G.MA, type: 'ma_stack',
+    keys: ['qqq_above_10sma', 'qqq_above_20sma', 'qqq_above_50sma', 'qqq_above_200sma'],
+    maLabels: ['10', '20', '50', '200'] },
   { key: 'pct_above_5sma',   label: '>5SMA',    group: G.MA, fmt: fmtPct,
     colorFn: pctColor(30, 50, 65) },
   { key: 'pct_above_10sma',  label: '>10SMA',   group: G.MA, fmt: fmtPct,
@@ -146,12 +152,6 @@ const COLS = [
     colorFn: v => v == null ? '' : v < 14 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 25 ? 'r1' : v < 30 ? 'r2' : 'r3' },
   { key: 'avg_10d_vix', label: '10d VIX', group: G.REGIME, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v < 15 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 26 ? 'r1' : v < 30 ? 'r2' : 'r3' },
-  { key: 'spy_ma_stack', label: 'SPY MAs', group: G.REGIME, type: 'ma_stack',
-    keys: ['spy_above_10sma', 'spy_above_20sma', 'spy_above_50sma', 'spy_above_200sma'],
-    maLabels: ['10', '20', '50', '200'] },
-  { key: 'qqq_ma_stack', label: 'QQQ MAs', group: G.REGIME, type: 'ma_stack',
-    keys: ['qqq_above_10sma', 'qqq_above_20sma', 'qqq_above_50sma', 'qqq_above_200sma'],
-    maLabels: ['10', '20', '50', '200'] },
   { key: 'market_phase', label: 'Phase', group: G.REGIME,
     colorFn: v => {
       if (v == null) return ''
