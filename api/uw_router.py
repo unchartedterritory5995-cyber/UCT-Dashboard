@@ -111,3 +111,40 @@ async def oi_change(ticker: str):
     """Get OI changes for a ticker's options."""
     data = await get_oi_change(ticker)
     return {"data": data}
+
+
+# ─── Debug: Raw UW Response ───────────────────────────────────────────────────
+
+@router.get("/debug-raw")
+async def debug_raw(
+    sym: str = Query(...),
+    cp: str = Query(...),
+    strike: float = Query(...),
+    exp: str = Query(...),
+):
+    """
+    Debug endpoint: returns raw UW API response + computed OCC symbol.
+    Hit this in the browser to see actual field names.
+    """
+    import httpx
+    from api.uw_service import build_occ, _headers, BASE
+    
+    occ = build_occ(sym, cp, strike, exp)
+    url = f"{BASE}/api/option-contract/{occ}/historic"
+    
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.get(url, headers=_headers())
+            raw = resp.json()
+    except Exception as e:
+        raw = {"error": str(e)}
+    
+    return {
+        "occ_symbol": occ,
+        "url": url,
+        "status": resp.status_code if 'resp' in dir() else "error",
+        "raw_response_keys": list(raw.keys()) if isinstance(raw, dict) else "not_dict",
+        "first_row": raw.get("data", [{}])[0] if isinstance(raw.get("data"), list) and len(raw.get("data",[])) > 0 else "no_data",
+        "row_count": len(raw.get("data", [])) if isinstance(raw.get("data"), list) else 0,
+        "full_data": raw,
+    }
