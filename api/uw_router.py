@@ -21,10 +21,27 @@ from api.uw_service import (
     get_batch_quotes,
     get_oi_change,
 )
+from api.uw_live_flow import fetch_live_flow, fetch_live_flow_csv_text
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/uw", tags=["unusual-whales"])
+
+
+# ─── Live Flow (replaces CSV upload) ─────────────────────────────────────────
+
+@router.get("/live-flow")
+async def live_flow(
+    limit: int = Query(200, ge=10, le=500),
+    min_premium: int = Query(50000, ge=0),
+):
+    """
+    Fetch live flow alerts from UW, transformed into CSV-equivalent rows.
+    The frontend can feed these directly into processFlowData().
+    Returns: { rows: [...], count: N, source: "unusual_whales" }
+    """
+    rows = await get_live_flow(limit=limit, min_premium=min_premium)
+    return {"rows": rows, "count": len(rows), "source": "unusual_whales"}
 
 
 # ─── Contract History (for popup OI/Vol/Price chart) ─────────────────────────
@@ -102,6 +119,37 @@ async def contract_intraday(
     """Real-time intraday data for a contract."""
     data = await get_contract_intraday(sym, cp, strike, exp)
     return data
+
+
+# ─── Live Flow (replaces CSV upload) ─────────────────────────────────────────
+
+@router.get("/live-flow")
+async def live_flow(
+    limit: int = Query(200),
+    min_premium: int = Query(50000),
+    ticker: str = Query(None),
+):
+    """
+    Fetch live flow alerts from UW, transformed to BBS-compatible rows.
+    Returns JSON array of rows that processFlowData can consume.
+    """
+    rows = await fetch_live_flow(limit=limit, min_premium=min_premium, ticker=ticker)
+    return {"rows": rows, "count": len(rows)}
+
+
+@router.get("/live-flow.csv")
+async def live_flow_csv(
+    limit: int = Query(200),
+    min_premium: int = Query(50000),
+    ticker: str = Query(None),
+):
+    """
+    Fetch live flow as CSV text — drop-in replacement for flow-data.csv.
+    Frontend can fetch this URL the same way it fetches the static CSV.
+    """
+    from fastapi.responses import PlainTextResponse
+    csv_text = await fetch_live_flow_csv_text(limit=limit, min_premium=min_premium, ticker=ticker)
+    return PlainTextResponse(csv_text, media_type="text/csv")
 
 
 # ─── OI Change ────────────────────────────────────────────────────────────────
