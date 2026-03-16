@@ -298,8 +298,19 @@ export default function Breadth() {
     fetcher,
     { refreshInterval: 5 * 60 * 1000 }
   )
-  const [collapsed, setCollapsed] = useState(new Set())
-  const [collapsedCols, setCollapsedCols] = useState(new Set())
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const raw = localStorage.getItem('breadth_collapsed_groups')
+      return raw ? new Set(JSON.parse(raw)) : new Set()
+    } catch { return new Set() }
+  })
+
+  const [collapsedCols, setCollapsedCols] = useState(() => {
+    try {
+      const raw = localStorage.getItem('breadth_collapsed_cols')
+      return raw ? new Set(JSON.parse(raw)) : new Set()
+    } catch { return new Set() }
+  })
   const [sortKey, setSortKey] = useState(null)
   const [sortDir, setSortDir] = useState('desc')
 
@@ -307,6 +318,7 @@ export default function Breadth() {
     setCollapsed(prev => {
       const next = new Set(prev)
       next.has(group) ? next.delete(group) : next.add(group)
+      try { localStorage.setItem('breadth_collapsed_groups', JSON.stringify([...next])) } catch {}
       return next
     })
   }
@@ -315,6 +327,7 @@ export default function Breadth() {
     setCollapsedCols(prev => {
       const next = new Set(prev)
       next.has(key) ? next.delete(key) : next.add(key)
+      try { localStorage.setItem('breadth_collapsed_cols', JSON.stringify([...next])) } catch {}
       return next
     })
   }
