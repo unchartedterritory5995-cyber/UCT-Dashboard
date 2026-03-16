@@ -1058,17 +1058,34 @@ export default function OptionsFlowDashboard() {
       const perfInit = D.PERF_INIT.map(p => ({ ...p, now:0 }));
       setPerf(perfInit);
       pricesFetchedRef.current = false;
-      // Auto-fetch prices for all visible contracts after data loads
-      setTimeout(() => {
-        const allContracts = [];
-        // Conviction picks
-        if (D.CONV) D.CONV.forEach(t => allContracts.push({ sym:t.sym, cp:t.cp, strike:t.K, exp:t.exp }));
-        // Perf items
-        perfInit.forEach(p => allContracts.push({ sym:p.sym, cp:p.cp, strike:p.strike, exp:p.exp }));
-        if (allContracts.length > 0) fetchPrices(allContracts);
-      }, 600);
     }
   }, [D]);
+
+  // Auto-fetch prices when data loads or tab changes
+  useEffect(() => {
+    if (!FD || csvLoading) return;
+    const contracts = [];
+    // Always fetch conviction picks (visible on Market Read)
+    if (FD.CONV) FD.CONV.forEach(t => { if(t.sym && t.exp) contracts.push({ sym:t.sym, cp:t.cp, strike:t.K, exp:t.exp }); });
+    // Add tab-specific contracts
+    if (tab === "Performance") {
+      perf.forEach(p => { if(p.sym && p.exp) contracts.push({ sym:p.sym, cp:p.cp, strike:p.strike, exp:p.exp }); });
+    } else if (tab === "Short Term") {
+      [FD.SBL, FD.SBR].forEach(list => { if(list) list.forEach(t => contracts.push({ sym:t.S, cp:t.CP, strike:t.K, exp:t.E })); });
+    } else if (tab === "Long Term") {
+      [FD.LBL, FD.LBR_T].forEach(list => { if(list) list.forEach(t => contracts.push({ sym:t.S, cp:t.CP, strike:t.K, exp:t.E })); });
+    } else if (tab === "LEAPS") {
+      [FD.LEAPS_BL_T, FD.LEAPS_BR_T].forEach(list => { if(list) list.forEach(t => contracts.push({ sym:t.S, cp:t.CP, strike:t.K, exp:t.E })); });
+    } else if (tab === "Tracker") {
+      topFlowPicks.active.forEach(p => { if(p.sym && p.exp) contracts.push({ sym:p.sym, cp:p.cp, strike:p.strike, exp:p.exp }); });
+    } else if (tab === "OI Check") {
+      (FD.WATCH||[]).slice(0,20).forEach(w => contracts.push({ sym:w.S, cp:w.CP, strike:w.K, exp:w.E }));
+    }
+    if (contracts.length > 0) {
+      const tid = setTimeout(() => fetchPrices(contracts), 400);
+      return () => clearTimeout(tid);
+    }
+  }, [FD, tab]);
 
   // Auto-scroll to Top Flow detail panel when opened
   useEffect(() => {
@@ -1489,36 +1506,14 @@ export default function OptionsFlowDashboard() {
   const shortC = shortDir==="BULL" ? P.bu : P.be;
   const longC = longDir==="BULL" ? P.bu : P.be;
 
-  // ─── Tab switch with auto-fetch ──────────────────────────────────────
-  function handleTabSwitch(newTab) {
-    setTab(newTab);
-    if (!FD) return;
-    // Auto-fetch prices for the tab's contracts if not already fetched
-    const tabContracts = [];
-    if (newTab === "Performance") {
-      perf.forEach(p => tabContracts.push({ sym:p.sym, cp:p.cp, strike:p.strike, exp:p.exp }));
-    } else if (newTab === "Short Term") {
-      [FD.SBL, FD.SBR].forEach(list => { if(list) list.forEach(t => tabContracts.push({ sym:t.S, cp:t.CP, strike:t.K, exp:t.E })); });
-    } else if (newTab === "Long Term") {
-      [FD.LBL, FD.LBR_T].forEach(list => { if(list) list.forEach(t => tabContracts.push({ sym:t.S, cp:t.CP, strike:t.K, exp:t.E })); });
-    } else if (newTab === "LEAPS") {
-      [FD.LEAPS_BL_T, FD.LEAPS_BR_T].forEach(list => { if(list) list.forEach(t => tabContracts.push({ sym:t.S, cp:t.CP, strike:t.K, exp:t.E })); });
-    } else if (newTab === "Tracker") {
-      topFlowPicks.active.forEach(p => tabContracts.push({ sym:p.sym, cp:p.cp, strike:p.strike, exp:p.exp }));
-    } else if (newTab === "OI Check") {
-      (FD.WATCH||[]).slice(0,20).forEach(w => tabContracts.push({ sym:w.S, cp:w.CP, strike:w.K, exp:w.E }));
-    }
-    if (tabContracts.length > 0) {
-      setTimeout(() => fetchPrices(tabContracts), 200);
-    }
-  }
+  // ─── Tab switch (auto-fetch handled by useEffect above) ────────────
 
   async function fetchPrices(contracts) {
     const items = contracts || perf;
     if (!items || items.length === 0) { setStatus("No contracts to fetch."); return; }
+    if (fetchLoading) return; // prevent concurrent fetches
     setFetchLoading(true);
     setStatus("Fetching live prices…");
-    const newCache = { ...priceCache };
     const updated = contracts ? null : [...perf];
     // Deduplicate
     const seen = new Set();
@@ -1528,7 +1523,9 @@ export default function OptionsFlowDashboard() {
       const key = sym+"|"+cp+"|"+strike+"|"+exp;
       if (sym && exp && !seen.has(key)) { seen.add(key); unique.push({ symbol:sym, cp, strike, expDate:expToISO(exp), _exp:exp }); }
     });
-    setStatus(`Fetching ${unique.length} contracts across ${new Set(unique.map(c=>c.symbol)).size} tickers…`);
+    if (unique.length === 0) { setStatus("No valid contracts."); setFetchLoading(false); return; }
+    setStatus(`Fetching ${unique.length} contracts…`);
+    console.log(`[auto-fetch] ${unique.length} contracts for tab="${tab}"`);
     try {
       // Try UW first
       let resp = await fetch("/api/uw/options-quotes", {
@@ -1538,6 +1535,7 @@ export default function OptionsFlowDashboard() {
       });
       // Fallback to Schwab if UW fails
       if (!resp.ok) {
+        console.log(`[auto-fetch] UW failed (${resp.status}), trying Schwab…`);
         resp = await fetch("/api/schwab/options-quotes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1548,13 +1546,14 @@ export default function OptionsFlowDashboard() {
       const data = await resp.json();
       const quotes = data.quotes || [];
       let successes = 0, failures = 0, expired = 0;
+      const newEntries = {};
       quotes.forEach((q, i) => {
         const orig = unique[i];
         if (!orig) return;
         if (q.expired) { expired++; return; }
         if (q.error) { failures++; return; }
         const key = orig.symbol+"|"+orig.cp+"|"+orig.strike+"|"+orig._exp;
-        newCache[key] = {
+        newEntries[key] = {
           mark: q.mark||0, bid: q.bid||0, ask: q.ask||0, last: q.last||0,
           delta: q.delta||0, theta: q.theta||0, iv: q.iv||0,
           oi: q.openInterest||0, vol: q.volume||0, spot: q.underlyingPrice||0,
@@ -1565,9 +1564,11 @@ export default function OptionsFlowDashboard() {
         }
         successes++;
       });
-      setPriceCache(newCache);
+      // Use functional update to merge with latest cache (prevents overwriting popup fetches)
+      setPriceCache(prev => ({ ...prev, ...newEntries }));
       if (updated) setPerf(updated);
       pricesFetchedRef.current = true;
+      console.log(`[auto-fetch] Done: ${successes} priced, ${failures} failed, ${expired} expired`);
       setStatus(`${successes} priced` + (expired > 0 ? `, ${expired} expired` : ``) + (failures > 0 ? `, ${failures} failed` : ``));
     } catch(e) {
       setStatus("Fetch error: " + e.message);
@@ -2221,7 +2222,7 @@ export default function OptionsFlowDashboard() {
         {/* Tabs */}
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
-            <button key={t} onClick={()=>handleTabSwitch(t)} style={{
+            <button key={t} onClick={()=>setTab(t)} style={{
               padding:"6px 14px", borderRadius:5, border:"none", cursor:"pointer",
               fontSize:11, fontWeight:600, fontFamily:"inherit",
               background:tab===t?P.cd:"transparent", color:tab===t?P.wh:P.mt
