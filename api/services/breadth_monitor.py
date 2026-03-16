@@ -68,6 +68,63 @@ def store_snapshot(date_str: str, metrics: dict) -> bool:
 
 # ── Read ──────────────────────────────────────────────────────────────────────
 
+def _lerp(val, lo, hi, max_pts):
+    """Linear interpolation: map val in [lo..hi] -> [0..max_pts], clamped."""
+    if val is None:
+        return 0
+    if val <= lo:
+        return 0
+    if val >= hi:
+        return max_pts
+    return round((val - lo) / (hi - lo) * max_pts, 1)
+
+
+def _compute_breadth_score(row: dict) -> Optional[float]:
+    """Composite market breadth health score 0-100."""
+    score = 0.0
+
+    # 1. % above 50 SMA (20pts)
+    score += _lerp(row.get("pct_above_50sma"), 30, 65, 20)
+
+    # 2. 5-day up/down ratio (15pts)
+    score += _lerp(row.get("ratio_5day"), 0.7, 1.5, 15)
+
+    # 3. MAGNA ratio — up / (up + down) (10pts)
+    mu = row.get("magna_up")
+    md = row.get("magna_down")
+    if mu is not None and md is not None and (mu + md) > 0:
+        score += _lerp(mu / (mu + md) * 100, 40, 70, 10)
+
+    # 4. 52W Hi ratio % (10pts)
+    score += _lerp(row.get("hi_ratio"), 0.5, 5.0, 10)
+
+    # 5. CBOE P/C contrarian (10pts) — higher P/C = more fearful = bullish setup
+    score += _lerp(row.get("cboe_putcall"), 0.65, 0.85, 10)
+
+    # 6. AAII Spread contrarian (10pts) — more bearish spread = more bullish setup
+    spread = row.get("aaii_spread")
+    if spread is not None:
+        score += _lerp(-spread, -30, 20, 10)  # invert: -30 spread (very bearish) maps to 10pts
+
+    # 7. VIX (10pts) — lower VIX = calmer market = higher score
+    vix = row.get("vix")
+    if vix is not None:
+        score += _lerp(30 - vix, 0, 12, 10)  # 30-VIX: VIX=18 -> 12pts input -> 10pts out
+
+    # 8. Stage 2 % of universe (10pts)
+    s2 = row.get("stage2_count")
+    uni = row.get("universe_count")
+    if s2 is not None and uni and uni > 0:
+        score += _lerp(s2 / uni * 100, 5, 25, 10)
+
+    # 9. Daily A/D direction (5pts)
+    ad = row.get("adv_decline")
+    if ad is not None and ad > 0:
+        score += 5
+
+    return round(min(100, max(0, score)), 1)
+
+
 def get_history(days: int = 90) -> list:
     """Return last N trading days, newest first. Ratios computed from stored data."""
     try:
@@ -159,6 +216,8 @@ def get_history(days: int = 90) -> list:
                 drawdown = (recent_low - recent_high) / recent_high * 100
                 if rally_days >= 4 and drawdown <= -3.0:
                     row["is_ftd"] = True
+
+        row["breadth_score"] = _compute_breadth_score(row)
 
     # Return newest-first
     return list(reversed(result_asc))
