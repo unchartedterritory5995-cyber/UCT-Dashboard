@@ -960,8 +960,8 @@ function processFlowData(rows) {
 const TABS = ["Market Read","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker"];
 
 export default function LiveFlowDashboard() {
-  const [liveLimit, setLiveLimit] = useState(200);
-  const [liveMinPrem, setLiveMinPrem] = useState(50000);
+  const [liveLimit, setLiveLimit] = useState(500);
+  const [liveMinPrem, setLiveMinPrem] = useState(25000);
   const [tab, setTab] = useState("Market Read");
   const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
   const [perf, setPerf] = useState([]);
@@ -1647,7 +1647,7 @@ export default function LiveFlowDashboard() {
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
 
         {/* Live Flow Header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12, padding:"10px 16px", background:P.cd, borderRadius:10, border:"1px solid "+P.bd }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4, padding:"10px 16px", background:P.cd, borderRadius:10, border:"1px solid "+P.bd }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ width:8, height:8, borderRadius:"50%", background:"#00e676", boxShadow:"0 0 12px #00e676" }} />
             <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>⚡ LIVE FLOW</h1>
@@ -1667,6 +1667,23 @@ export default function LiveFlowDashboard() {
               ← CSV Dashboard
             </a>
           </div>
+        </div>
+        {/* Filter Controls */}
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12, padding:"6px 16px", fontSize:10 }}>
+          <span style={{ color:P.mt, fontWeight:700 }}>Alerts:</span>
+          {[200, 500, 1000].map(n => (
+            <button key={n} onClick={()=>{ setLiveLimit(n); setRefreshKey(k=>k+1); }}
+              style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+(liveLimit===n?"#00e676":P.bd),
+                background:liveLimit===n?"#00e67615":"transparent", color:liveLimit===n?"#00e676":P.dm,
+                fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{n}</button>
+          ))}
+          <span style={{ color:P.mt, fontWeight:700, marginLeft:8 }}>Min Premium:</span>
+          {[{v:10000,l:"$10K"},{v:25000,l:"$25K"},{v:50000,l:"$50K"},{v:100000,l:"$100K"}].map(({v,l}) => (
+            <button key={v} onClick={()=>{ setLiveMinPrem(v); setRefreshKey(k=>k+1); }}
+              style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+(liveMinPrem===v?"#00e676":P.bd),
+                background:liveMinPrem===v?"#00e67615":"transparent", color:liveMinPrem===v?"#00e676":P.dm,
+                fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{l}</button>
+          ))}
         </div>
 
         {/* Header */}
