@@ -486,11 +486,27 @@ export default function Breadth() {
                       )
                     }
                     if (col.type === 'ma_stack') {
-                      // weights: 10SMA=1, 20SMA=1, 50SMA=2, 200SMA=3 (max 7)
-                      const weights = [1, 1, 2, 3]
-                      const score = col.keys.reduce((s, k, i) => s + (row[k] === 1 ? weights[i] : 0), 0)
-                      const hasData = col.keys.some(k => row[k] != null)
-                      const stackBg = !hasData ? '' : score >= 6 ? styles.bgG3 : score >= 4 ? styles.bgG2 : score >= 3 ? styles.bgG1 : score >= 2 ? styles.bgA : score >= 1 ? styles.bgR2 : styles.bgR3
+                      // keys order: [10sma, 20sma, 50sma, 200sma]
+                      const above10  = row[col.keys[0]] === 1
+                      const above20  = row[col.keys[1]] === 1
+                      const above50  = row[col.keys[2]] === 1
+                      const above200 = row[col.keys[3]] === 1
+                      const hasData  = col.keys.some(k => row[k] != null)
+                      let stackBg = ''
+                      if (hasData) {
+                        if (above50) {
+                          // Green side — above 50SMA
+                          if (above10 && above20 && above200) stackBg = styles.bgG3  // all 4
+                          else if (above200 && (above10 || above20)) stackBg = styles.bgG2  // 50+200+1 short
+                          else if (above200)                         stackBg = styles.bgG1  // 50+200 only
+                          else                                       stackBg = styles.bgA   // above 50, not 200
+                        } else {
+                          // Red side — below 50SMA
+                          if (above200)              stackBg = styles.bgR1  // below 50, still above 200
+                          else if (above10 || above20) stackBg = styles.bgR2  // below 50+200, short-term bounce
+                          else                         stackBg = styles.bgR3  // below all
+                        }
+                      }
                       return (
                         <td key={col.key} className={`${styles.td} ${styles.maStackCell} ${stackBg}`}>
                           <div className={styles.maStack}>
