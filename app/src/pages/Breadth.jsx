@@ -181,12 +181,6 @@ const COLS = [
     colorFn: v => v == null ? '' : v > 400 ? 'r3' : v > 200 ? 'r2' : v > 100 ? 'r1' : v < 30 ? 'g2' : v < 50 ? 'g1' : '' },
   { key: 'new_ath', label: 'ATH', group: G.HIGHS,
     colorFn: v => v == null ? '' : v > 200 ? 'g3' : v > 100 ? 'g2' : v > 40 ? 'g1' : '' },
-  { key: 'near_52w_high', label: 'Near52W', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 1000 ? 'g3' : v > 600 ? 'g2' : v > 350 ? 'g1' : v < 80 ? 'r2' : v < 150 ? 'r1' : '' },
-  { key: 'hi_ratio', label: 'Hi%', group: G.HIGHS, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 8 ? 'g3' : v > 4 ? 'g2' : v > 2 ? 'g1' : v < 0.25 ? 'r2' : v < 0.5 ? 'r1' : '' },
-  { key: 'lo_ratio', label: 'Lo%', group: G.HIGHS, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 8 ? 'r3' : v > 4 ? 'r2' : v > 2 ? 'r1' : v < 0.25 ? 'g2' : v < 0.5 ? 'g1' : '' },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
   { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
