@@ -7,15 +7,17 @@ import Breadth from './pages/Breadth'
 import Traders from './pages/Traders'
 import Screener from './pages/Screener'
 import OptionsFlow from './pages/OptionsFlow'
+import LiveFlow from './pages/LiveFlow'
 import DarkPool from './pages/DarkPool'
 import PostMarket from './pages/PostMarket'
 import ModelBook from './pages/ModelBook'
 import Settings from './pages/Settings'
-
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* LiveFlow has its own full-page layout — no sidebar/nav wrapper */}
+        <Route path="/live-flow" element={<LiveFlow />} />
         <Route element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
