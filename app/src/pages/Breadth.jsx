@@ -409,37 +409,6 @@ export default function Breadth() {
         </div>
       )}
 
-      {rows.length > 0 && (() => {
-        const latest = rows[0]
-        const score = latest?.breadth_score
-        const phase = latest?.webster_phase ?? latest?.market_phase ?? '—'
-        const exp = latest?.uct_exposure
-        const dd = latest?.spy_dist_days
-        return (
-          <div className={styles.scoreSummary}>
-            <div className={styles.scoreGauge}>
-              <span className={styles.scoreLabel}>HEALTH</span>
-              <span className={`${styles.scoreValue} ${
-                score >= 65 ? styles.scoreGreen : score <= 35 ? styles.scoreRed : styles.scoreAmber
-              }`}>{score != null ? score : '—'}</span>
-              <div className={styles.scoreBar}>
-                <div
-                  className={styles.scoreBarFill}
-                  style={{ width: `${score ?? 0}%`, background:
-                    score >= 65 ? 'var(--ut-green-bright)' :
-                    score <= 35 ? 'var(--loss)' : 'var(--ut-gold)'
-                  }}
-                />
-              </div>
-            </div>
-            <div className={styles.scoreMeta}>
-              <span className={styles.scoreMetaItem}>Phase: <strong>{phase}</strong></span>
-              <span className={styles.scoreMetaItem}>Exposure: <strong>{exp != null ? `${exp}%` : '—'}</strong></span>
-              <span className={styles.scoreMetaItem}>SPY DD: <strong>{dd ?? '—'}</strong></span>
-            </div>
-          </div>
-        )
-      })()}
 
       {rows.length > 0 && (
         <div className={styles.tableWrap}>
