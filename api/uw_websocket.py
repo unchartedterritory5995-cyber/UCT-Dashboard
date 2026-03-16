@@ -9,7 +9,7 @@ import json
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Set
+from typing import Set, Optional
 
 import websockets
 from fastapi import WebSocket, WebSocketDisconnect
@@ -24,7 +24,7 @@ active_clients: Set[WebSocket] = set()
 
 
 # ── BBS CSV transform (mirrors uw_live_flow.py logic) ───────────────
-def transform_alert_to_bbs_row(alert: dict) -> str | None:
+def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:   # ← FIXED
     """
     Convert a single UW flow_alerts JSON payload into a BBS-style CSV row.
     Returns a CSV line string or None if the alert should be skipped.
@@ -139,7 +139,7 @@ async def broadcast(message: str):
 
 
 # ── UW upstream WebSocket listener ──────────────────────────────────
-_uw_task: asyncio.Task | None = None
+_uw_task = None              # ← FIXED
 _uw_connected = False
 
 
@@ -200,35 +200,3 @@ async def _listen_to_uw():
                                         rows.append(r)
                             if rows:
                                 await broadcast(json.dumps({
-                                    "type": "flow_batch",
-                                    "rows": rows,
-                                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                                }))
-                    except json.JSONDecodeError:
-                        logger.debug(f"Non-JSON message from UW: {raw_msg[:100]}")
-
-        except Exception as e:
-            _uw_connected = False
-            logger.warning(f"UW WebSocket error: {e}. Reconnecting in {backoff}s...")
-
-            await broadcast(json.dumps({
-                "type": "status",
-                "connected": False,
-                "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }))
-
-            await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, 60)  # exponential backoff, cap at 60s
-
-
-def start_uw_listener():
-    """Call once at app startup to begin the UW WebSocket listener task."""
-    global _uw_task
-    if _uw_task is None or _uw_task.done():
-        _uw_task = asyncio.create_task(_listen_to_uw())
-        logger.info("UW WebSocket listener task started")
-
-
-def is_uw_connected() -> bool:
-    return _uw_connected
