@@ -287,6 +287,11 @@
   font-weight: 700;
 }
 
+/* Row phase — left border color indicates market regime for that day */
+.phaseGreen  { border-left: 3px solid rgba(74, 222, 128, 0.5); }
+.phaseRed    { border-left: 3px solid rgba(248, 113, 113, 0.5); }
+.phaseAmber  { border-left: 3px solid rgba(201, 168, 76, 0.3); }
+
 .errorBanner {
   font-family: 'Instrument Sans', sans-serif;
   font-size: 13px;

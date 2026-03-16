@@ -236,6 +236,14 @@ const GROUP_HEADER_CLASS = {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────
+const phaseClass = (phase, styles) => {
+  if (!phase) return ''
+  const p = phase.toLowerCase()
+  if (['uptrend', 'bull', 'recovery'].some(k => p.includes(k))) return styles.phaseGreen
+  if (['distribution', 'liquidation', 'correction'].some(k => p.includes(k))) return styles.phaseRed
+  return styles.phaseAmber
+}
+
 export default function Breadth() {
   const [days, setDays] = useState(90)
   const { data, isLoading, error } = useSWR(
@@ -357,7 +365,7 @@ export default function Breadth() {
             </thead>
             <tbody>
               {rows.map((row, ri) => (
-                <tr key={row.date} className={ri % 2 === 0 ? styles.rowEven : styles.rowOdd}>
+                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.market_phase, styles)}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>{row.date}</td>
                   {visibleCols.map(col => {
                     if (collapsedCols.has(col.key)) {
