@@ -1,7 +1,7 @@
 """
-WebSocket relay: connects to Unusual Whales flow_alerts socket,
+SSE relay: connects to Unusual Whales flow_alerts SSE stream,
 transforms each alert into BBS-CSV format, and broadcasts to
-all connected frontend clients.
+all connected frontend clients via WebSocket.
 """
 
 import os
@@ -11,32 +11,23 @@ import logging
 from datetime import datetime, timezone
 from typing import Set, Optional
 
-import websockets
+import httpx
 from fastapi import WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger("uw_websocket")
 
 UW_API_KEY = os.getenv("UW_API_KEY", "")
-UW_WS_URL = "wss://api.unusualwhales.com/api/socket/flow_alerts"
+UW_SSE_URL = "https://api.unusualwhales.com/api/socket/flow_alerts"
 
 # ── Connected frontend clients ──────────────────────────────────────
 active_clients: Set[WebSocket] = set()
 
 
-# ── BBS CSV transform (mirrors uw_live_flow.py logic) ───────────────
+# ── BBS CSV transform ───────────────────────────────────────────────
 def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:
     """
     Convert a single UW flow_alerts JSON payload into a BBS-style CSV row.
     Returns a CSV line string or None if the alert should be skipped.
-
-    Actual UW flow_alerts fields:
-      ticker, strike, expiry (YYYY-MM-DD), type (call/put),
-      total_ask_side_prem, total_bid_side_prem, total_premium,
-      volume, open_interest, price, underlying_price,
-      has_sweep, has_multileg, has_singleleg, has_floor,
-      total_size, trade_count, created_at, alert_rule,
-      bid, ask, iv_start, iv_end, option_chain, issue_type,
-      volume_oi_ratio, all_opening_trades, marketcap, sector
     """
     try:
         ticker = (alert.get("ticker") or "").upper()
@@ -44,8 +35,8 @@ def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:
             return None
 
         strike = alert.get("strike", "")
-        expiry = alert.get("expiry", "")              # YYYY-MM-DD
-        put_call = (alert.get("type") or "").lower()   # "call" or "put"
+        expiry = alert.get("expiry", "")
+        put_call = (alert.get("type") or "").lower()
         option_type = "C" if put_call == "call" else "P"
 
         volume = int(alert.get("volume", 0) or 0)
@@ -55,7 +46,6 @@ def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:
         total_premium = alert.get("total_premium", "0")
         total_size = int(alert.get("total_size", 0) or 0)
 
-        # ── Order type from boolean flags ───────────────────────────
         has_sweep = alert.get("has_sweep", False)
         has_multileg = alert.get("has_multileg", False)
 
@@ -66,15 +56,12 @@ def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:
         else:
             order_type = "BLOCK"
 
-        # ── Side from ask/bid premium ───────────────────────────────
         ask_prem = float(alert.get("total_ask_side_prem", 0) or 0)
         bid_prem = float(alert.get("total_bid_side_prem", 0) or 0)
 
         if ask_prem > 0 and bid_prem == 0:
-            # All premium on ask side
             side = "AA" if has_sweep else "A"
         elif bid_prem > 0 and ask_prem == 0:
-            # All premium on bid side
             side = "BB" if has_sweep else "B"
         elif ask_prem > bid_prem:
             side = "A"
@@ -83,13 +70,11 @@ def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:
         else:
             side = "M"
 
-        # ── Color logic: check OI exceeded ──────────────────────────
         if oi > 0 and volume > oi:
             color = "Yellow"
         else:
             color = "White"
 
-        # ── Format expiration to M/D/YYYY for BBS compat ───────────
         exp_formatted = expiry
         try:
             exp_dt = datetime.strptime(expiry, "%Y-%m-%d")
@@ -97,7 +82,6 @@ def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:
         except Exception:
             pass
 
-        # ── Timestamp ───────────────────────────────────────────────
         ts_raw = alert.get("created_at", "")
         time_str = ts_raw
         try:
@@ -106,8 +90,6 @@ def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:
         except Exception:
             pass
 
-        # ── Build BBS CSV row ───────────────────────────────────────
-        # Time,Ticker,Spot,Strike,Exp,C/P,Side,Order,Price,Volume,OI,Premium,Color
         row = ",".join([
             time_str,
             ticker,
@@ -132,7 +114,6 @@ def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:
 
 # ── Broadcast to all connected frontends ────────────────────────────
 async def broadcast(message: str):
-    """Send a message to every connected frontend WebSocket."""
     dead = set()
     for ws in active_clients:
         try:
@@ -142,14 +123,14 @@ async def broadcast(message: str):
     active_clients.difference_update(dead)
 
 
-# ── UW upstream WebSocket listener ──────────────────────────────────
+# ── UW upstream SSE listener ────────────────────────────────────────
 _uw_task = None
 _uw_connected = False
 
 
 async def _listen_to_uw():
     """
-    Persistent connection to UW WebSocket with auto-reconnect.
+    Persistent SSE connection to UW flow_alerts with auto-reconnect.
     Each incoming alert is transformed and broadcast to frontend clients.
     """
     global _uw_connected
@@ -159,61 +140,89 @@ async def _listen_to_uw():
         try:
             headers = {
                 "Authorization": f"Bearer {UW_API_KEY}",
+                "UW-CLIENT-API-ID": "100001",
+                "Accept": "text/event-stream",
             }
-            logger.info(f"Connecting to UW WebSocket: {UW_WS_URL}")
+            logger.info(f"Connecting to UW SSE: {UW_SSE_URL}")
 
-            async with websockets.connect(
-                UW_WS_URL,
-                additional_headers=headers,
-                ping_interval=30,
-                ping_timeout=10,
-                close_timeout=5,
-            ) as ws:
-                _uw_connected = True
-                backoff = 1  # reset on successful connect
-                logger.info("UW WebSocket connected")
+            async with httpx.AsyncClient(timeout=None) as client:
+                async with client.stream("GET", UW_SSE_URL, headers=headers) as resp:
+                    if resp.status_code != 200:
+                        raise Exception(f"UW SSE returned HTTP {resp.status_code}")
 
-                # Notify frontends of connection status
-                await broadcast(json.dumps({
-                    "type": "status",
-                    "connected": True,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                }))
+                    _uw_connected = True
+                    backoff = 1
+                    logger.info("UW SSE connected")
 
-                async for raw_msg in ws:
-                    try:
-                        alert = json.loads(raw_msg)
+                    await broadcast(json.dumps({
+                        "type": "status",
+                        "connected": True,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }))
 
-                        # UW may send heartbeats or other message types
-                        if isinstance(alert, dict) and alert.get("ticker"):
-                            csv_row = transform_alert_to_bbs_row(alert)
-                            if csv_row:
-                                await broadcast(json.dumps({
-                                    "type": "flow",
-                                    "row": csv_row,
-                                    "raw": alert,
-                                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                                }))
-                        elif isinstance(alert, list):
-                            # Batch of alerts
-                            rows = []
-                            for a in alert:
-                                if isinstance(a, dict) and a.get("ticker"):
-                                    r = transform_alert_to_bbs_row(a)
-                                    if r:
-                                        rows.append(r)
-                            if rows:
-                                await broadcast(json.dumps({
-                                    "type": "flow_batch",
-                                    "rows": rows,
-                                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                                }))
-                    except json.JSONDecodeError:
-                        logger.debug(f"Non-JSON message from UW: {raw_msg[:100]}")
+                    # Parse SSE stream
+                    buffer = ""
+                    async for chunk in resp.aiter_text():
+                        buffer += chunk
+                        while "\n" in buffer:
+                            line, buffer = buffer.split("\n", 1)
+                            line = line.strip()
+
+                            if not line:
+                                continue
+
+                            # SSE format: "data: {...json...}"
+                            if line.startswith("data:"):
+                                json_str = line[5:].strip()
+                                if not json_str:
+                                    continue
+                                try:
+                                    alert = json.loads(json_str)
+
+                                    if isinstance(alert, dict) and alert.get("ticker"):
+                                        csv_row = transform_alert_to_bbs_row(alert)
+                                        if csv_row:
+                                            await broadcast(json.dumps({
+                                                "type": "flow",
+                                                "row": csv_row,
+                                                "raw": alert,
+                                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                            }))
+                                    elif isinstance(alert, list):
+                                        rows = []
+                                        for a in alert:
+                                            if isinstance(a, dict) and a.get("ticker"):
+                                                r = transform_alert_to_bbs_row(a)
+                                                if r:
+                                                    rows.append(r)
+                                        if rows:
+                                            await broadcast(json.dumps({
+                                                "type": "flow_batch",
+                                                "rows": rows,
+                                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                            }))
+                                except json.JSONDecodeError:
+                                    logger.debug(f"Non-JSON SSE data: {json_str[:100]}")
+
+                            # Also handle raw JSON lines (no "data:" prefix)
+                            elif line.startswith("{") or line.startswith("["):
+                                try:
+                                    alert = json.loads(line)
+                                    if isinstance(alert, dict) and alert.get("ticker"):
+                                        csv_row = transform_alert_to_bbs_row(alert)
+                                        if csv_row:
+                                            await broadcast(json.dumps({
+                                                "type": "flow",
+                                                "row": csv_row,
+                                                "raw": alert,
+                                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                            }))
+                                except json.JSONDecodeError:
+                                    pass
 
         except Exception as e:
             _uw_connected = False
-            logger.warning(f"UW WebSocket error: {e}. Reconnecting in {backoff}s...")
+            logger.warning(f"UW SSE error: {e}. Reconnecting in {backoff}s...")
 
             await broadcast(json.dumps({
                 "type": "status",
@@ -223,15 +232,14 @@ async def _listen_to_uw():
             }))
 
             await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, 60)  # exponential backoff, cap at 60s
+            backoff = min(backoff * 2, 60)
 
 
 def start_uw_listener():
-    """Call once at app startup to begin the UW WebSocket listener task."""
     global _uw_task
     if _uw_task is None or _uw_task.done():
         _uw_task = asyncio.create_task(_listen_to_uw())
-        logger.info("UW WebSocket listener task started")
+        logger.info("UW SSE listener task started")
 
 
 def is_uw_connected() -> bool:
