@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import styles from './Breadth.module.css'
+import CotData from './CotData'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -297,6 +298,7 @@ const phaseClass = (phase, styles) => {
 }
 
 export default function Breadth() {
+  const [activeTab, setActiveTab] = useState('breadth')
   const [days, setDays] = useState(90)
   const { data, isLoading, error } = useSWR(
     `/api/breadth-monitor?days=${days}`,
@@ -365,10 +367,29 @@ export default function Breadth() {
     return out
   }, [rows])
 
+  if (activeTab === 'cot') {
+    return (
+      <div className={`${styles.page} ${styles.pageCot}`}>
+        <div className={`${styles.header} ${styles.cotTabHeader}`}>
+          <h1 className={styles.heading}>Breadth</h1>
+          <div className={styles.tabs}>
+            <button className={styles.tab} onClick={() => setActiveTab('breadth')}>Monitor</button>
+            <button className={`${styles.tab} ${styles.tabActive}`}>COT Data</button>
+          </div>
+        </div>
+        <CotData />
+      </div>
+    )
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.heading}>Breadth Monitor</h1>
+        <h1 className={styles.heading}>Breadth</h1>
+        <div className={styles.tabs}>
+          <button className={`${styles.tab} ${styles.tabActive}`}>Monitor</button>
+          <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
+        </div>
         <span className={styles.meta}>
           {rows.length > 0
             ? `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`

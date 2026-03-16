@@ -11,7 +11,6 @@ import DarkPool from './pages/DarkPool'
 import PostMarket from './pages/PostMarket'
 import ModelBook from './pages/ModelBook'
 import Settings from './pages/Settings'
-import CotData from './pages/CotData'
 
 export default function App() {
   return (
@@ -25,7 +24,6 @@ export default function App() {
           <Route path="/breadth" element={<Breadth />} />
           <Route path="/traders" element={<Traders />} />
           <Route path="/screener" element={<Screener />} />
-          <Route path="/screener/cot" element={<CotData />} />
           <Route path="/options-flow" element={<OptionsFlow />} />
           <Route path="/dark-pool" element={<DarkPool />} />
           <Route path="/post-market" element={<PostMarket />} />

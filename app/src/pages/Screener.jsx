@@ -1,5 +1,4 @@
 import useSWR from 'swr'
-import { Link } from 'react-router-dom'
 import TickerPopup from '../components/TickerPopup'
 import styles from './Screener.module.css'
 
@@ -86,24 +85,6 @@ export default function Screener() {
               </div>
             </div>
 
-            <Link to="/screener/cot" className={styles.cotTileLink}>
-              <div className={styles.column}>
-                <div className={styles.columnHeader}>
-                  <span className={styles.columnTitle}>COT Data</span>
-                  <span className={styles.cotArrow}>↗</span>
-                </div>
-                <div className={styles.cotTileBody}>
-                  <p className={styles.cotTileDesc}>
-                    CFTC Commitment of Traders — weekly positioning across 70+ futures markets
-                  </p>
-                  <div className={styles.cotCategories}>
-                    {['Indices', 'Metals', 'Energies', 'Grains', 'Currencies'].map(cat => (
-                      <span key={cat} className={styles.cotCategory}>{cat}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </Link>
 
             <div className={`${styles.column} ${styles.columnDim}`}>
               <div className={styles.columnHeader}>

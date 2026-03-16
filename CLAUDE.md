@@ -13,7 +13,7 @@ The **Morning Wire** is one tab within this dashboard. Its engine (`morning_wire
 
 ## Nav Tabs (left sidebar)
 
-Dashboard · Morning Wire · UCT 20 · Traders · Screener · Options Flow · Post Market · Model Book
+Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | COT Data) · Traders · Screener · Options Flow · Post Market · Model Book
 Settings + Website buttons pinned to bottom of sidebar.
 
 ## Worktree Directory
