@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 
-import { useFlowWebSocket } from "./useFlowWebSocket";
+import { useFlowWebSocket } from "../useFlowWebSocket";
 
 // ─── Flow Data loaded dynamically from /flow-data.csv ─────────────────────────
 
