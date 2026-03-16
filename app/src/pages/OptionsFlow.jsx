@@ -962,8 +962,10 @@ export default function OptionsFlowDashboard() {
     setOiSearch("");
     setCapFilter("All");
     setTab("Market Read");
+    const t0 = performance.now();
     fetch(csvFile)
       .then(res => {
+        console.log(`[perf] CSV fetch: ${(performance.now()-t0).toFixed(0)}ms`);
         if (!res.ok) throw new Error(`Server returned ${res.status} for ${csvFile}`);
         const ct = res.headers.get("content-type") || "";
         if (ct.includes("text/html")) throw new Error(`Got HTML instead of CSV — ${csvFile} not found. Upload it to app/public/ and redeploy.`);
@@ -971,6 +973,7 @@ export default function OptionsFlowDashboard() {
       })
       .then(text => {
         if (cancelled) return;
+        console.log(`[perf] CSV downloaded: ${(performance.now()-t0).toFixed(0)}ms (${(text.length/1024).toFixed(0)}KB)`);
         const trimmed = text.trim();
         if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
           throw new Error(`Got HTML instead of CSV — ${csvFile} not found on server.`);
@@ -982,9 +985,14 @@ export default function OptionsFlowDashboard() {
         setTimeout(() => {
           if (cancelled) return;
           try {
+            const t1 = performance.now();
             const rows = parseCSV(text);
+            console.log(`[perf] CSV parsed: ${(performance.now()-t1).toFixed(0)}ms (${rows.length} rows)`);
             if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
+            const t2 = performance.now();
             const data = processFlowData(rows);
+            console.log(`[perf] processFlowData: ${(performance.now()-t2).toFixed(0)}ms`);
+            console.log(`[perf] Total: ${(performance.now()-t0).toFixed(0)}ms`);
             if (!cancelled) { setD(data); setCsvLoading(false); }
           } catch(err) {
             if (!cancelled) { setCsvError(err.message); setCsvLoading(false); }
