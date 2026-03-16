@@ -183,10 +183,6 @@ const COLS = [
     colorFn: v => v == null ? '' : v > 200 ? 'g3' : v > 100 ? 'g2' : v > 40 ? 'g1' : '' },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
-  { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v >= 1.0 ? 'g3' : v >= 0.9 ? 'g2' : v >= 0.85 ? 'g1' : v >= 0.75 ? 'a' : v >= 0.7 ? 'r1' : v >= 0.65 ? 'r2' : 'r3' },
-  { key: 'avg_10d_cpc', label: '10d P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v >= 0.95 ? 'g3' : v >= 0.88 ? 'g2' : v >= 0.82 ? 'g1' : v >= 0.74 ? 'a' : v >= 0.68 ? 'r1' : v >= 0.62 ? 'r2' : 'r3' },
   { key: 'cnn_fear_greed', label: 'CNN F/G', group: G.SENTIMENT, fmt: v => fmtDec(v, 0),
     colorFn: v => v == null ? '' : v <= 15 ? 'g3' : v <= 25 ? 'g2' : v <= 40 ? 'g1' : v <= 60 ? 'a' : v <= 70 ? 'r1' : v <= 80 ? 'r2' : 'r3' },
   { key: 'aaii_bulls',    label: 'AAII Bulls', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
@@ -196,6 +192,8 @@ const COLS = [
     colorFn: v => v == null ? '' : v < -35 ? 'g3' : v < -20 ? 'g2' : v < -10 ? 'g1' : v < 10 ? 'a' : v < 20 ? 'r1' : v < 30 ? 'r2' : 'r3' },
   { key: 'naaim', label: 'NAAIM', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v < 15 ? 'g3' : v < 25 ? 'g2' : v < 40 ? 'g1' : v < 65 ? 'a' : v < 80 ? 'r1' : v < 95 ? 'r2' : 'r3' },
+  { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v >= 1.0 ? 'g3' : v >= 0.9 ? 'g2' : v >= 0.85 ? 'g1' : v >= 0.75 ? 'a' : v >= 0.7 ? 'r1' : v >= 0.65 ? 'r2' : 'r3' },
 ]
 
 // ── Group spans ────────────────────────────────────────────────────────────
