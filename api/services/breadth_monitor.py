@@ -73,7 +73,7 @@ def get_history(days: int = 90) -> list:
     try:
         with _conn() as c:
             rows = c.execute(
-                "SELECT date, metrics FROM breadth_snapshots ORDER BY date DESC LIMIT ?",
+                "SELECT date, metrics, created_at FROM breadth_snapshots ORDER BY date DESC LIMIT ?",
                 (days,),
             ).fetchall()
     except Exception as e:
@@ -84,6 +84,7 @@ def get_history(days: int = 90) -> list:
     for row in rows:
         m = json.loads(row["metrics"])
         m["date"] = row["date"]
+        m["_created_at"] = row["created_at"]   # expose for "last updated" display
         result.append(m)
 
     # Need oldest-first to compute rolling windows, then reverse back

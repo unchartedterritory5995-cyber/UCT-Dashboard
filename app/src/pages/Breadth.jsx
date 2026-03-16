@@ -229,6 +229,11 @@ export default function Breadth() {
   }
 
   const rows = data?.rows ?? []
+  const lastUpdated = rows[0]?._created_at
+    ? new Date(rows[0]._created_at + 'Z').toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+      })
+    : null
   const visibleCols = COLS.filter(col => !collapsed.has(col.group))
 
   return (
@@ -236,7 +241,9 @@ export default function Breadth() {
       <div className={styles.header}>
         <h1 className={styles.heading}>Breadth Monitor</h1>
         <span className={styles.meta}>
-          {rows.length > 0 ? `${rows.length} trading days` : isLoading ? 'Loading…' : 'No data'}
+          {rows.length > 0
+            ? `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+            : isLoading ? 'Loading…' : 'No data'}
         </span>
         <div className={styles.daysPills}>
           {[30, 60, 90].map(d => (
