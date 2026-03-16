@@ -966,7 +966,6 @@ export default function OptionsFlowDashboard() {
   const [perf, setPerf] = useState([]);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [status, setStatus] = useState("");
-  const pricesFetchedRef = useRef(false);
   const [search, setSearch] = useState("");
   const [oiSearch, setOiSearch] = useState("");
   const [selectedTicker, setSelectedTicker] = useState(null);
@@ -1054,59 +1053,8 @@ export default function OptionsFlowDashboard() {
   }, [D, capFilter]);
 
   useEffect(() => {
-    if (D) {
-      const perfInit = D.PERF_INIT.map(p => ({ ...p, now:0 }));
-      setPerf(perfInit);
-      pricesFetchedRef.current = false;
-    }
+    if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
   }, [D]);
-
-  // Auto-fetch ALL prices when data loads (one big batch across all tabs)
-  useEffect(() => {
-    if (!FD || csvLoading) return;
-    const contracts = [];
-    const addC = (sym, cp, strike, exp) => { if(sym && exp) contracts.push({ sym, cp, strike, exp }); };
-    // Conviction / Top Flow
-    if (FD.CONV) FD.CONV.forEach(t => addC(t.sym, t.cp, t.K, t.exp));
-    // Performance
-    if (D && D.PERF_INIT) D.PERF_INIT.forEach(p => addC(p.sym, p.cp, p.strike, p.exp));
-    // Short Term
-    [FD.SBL, FD.SBR].forEach(list => { if(list) list.forEach(t => addC(t.S, t.CP, t.K, t.E)); });
-    // Long Term
-    [FD.LBL, FD.LBR_T].forEach(list => { if(list) list.forEach(t => addC(t.S, t.CP, t.K, t.E)); });
-    // LEAPS
-    [FD.LEAPS_BL_T, FD.LEAPS_BR_T].forEach(list => { if(list) list.forEach(t => addC(t.S, t.CP, t.K, t.E)); });
-    // OI Check (top 20)
-    if (FD.WATCH) FD.WATCH.slice(0,20).forEach(w => addC(w.S, w.CP, w.K, w.E));
-    // UOA
-    if (D && D.UOA_TRADES) D.UOA_TRADES.forEach(t => addC(t.S, t.CP, t.K, t.E));
-    if (contracts.length > 0) {
-      console.log(`[auto-fetch] Loading ALL ${contracts.length} contracts on data load…`);
-      const tid = setTimeout(() => fetchPrices(contracts), 400);
-      return () => clearTimeout(tid);
-    }
-  }, [FD]);
-
-  // Supplementary fetch on tab switch — only fetch contracts missing from cache
-  useEffect(() => {
-    if (!FD || csvLoading || !pricesFetchedRef.current) return;
-    const contracts = [];
-    const addIfMissing = (sym, cp, strike, exp) => {
-      if (!sym || !exp) return;
-      const k = sym+"|"+cp+"|"+parseFloat(strike)+"|"+exp;
-      if (!priceCache[k]) contracts.push({ sym, cp, strike, exp });
-    };
-    if (tab === "Tracker") {
-      topFlowPicks.active.forEach(p => addIfMissing(p.sym, p.cp, p.strike, p.exp));
-    } else if (tab === "OI Check") {
-      (FD.WATCH||[]).slice(0,30).forEach(w => addIfMissing(w.S, w.CP, w.K, w.E));
-    }
-    if (contracts.length > 0) {
-      console.log(`[auto-fetch] Supplementary: ${contracts.length} cache misses for tab="${tab}"`);
-      const tid = setTimeout(() => fetchPrices(contracts), 200);
-      return () => clearTimeout(tid);
-    }
-  }, [tab]);
 
   // Auto-scroll to Top Flow detail panel when opened
   useEffect(() => {
@@ -1527,13 +1475,12 @@ export default function OptionsFlowDashboard() {
   const shortC = shortDir==="BULL" ? P.bu : P.be;
   const longC = longDir==="BULL" ? P.bu : P.be;
 
-  // ─── Tab switch (auto-fetch handled by useEffect above) ────────────
-
   async function fetchPrices(contracts) {
     const items = contracts || perf;
     if (!items || items.length === 0) { setStatus("No contracts to fetch."); return; }
     setFetchLoading(true);
-    setStatus("Fetching live prices…");
+    setStatus("Fetching live prices from Schwab…");
+    const newCache = { ...priceCache };
     const updated = contracts ? null : [...perf];
     // Deduplicate
     const seen = new Set();
@@ -1543,9 +1490,7 @@ export default function OptionsFlowDashboard() {
       const key = sym+"|"+cp+"|"+strike+"|"+exp;
       if (sym && exp && !seen.has(key)) { seen.add(key); unique.push({ symbol:sym, cp, strike, expDate:expToISO(exp), _exp:exp }); }
     });
-    if (unique.length === 0) { setStatus("No valid contracts."); setFetchLoading(false); return; }
-    setStatus(`Fetching ${unique.length} contracts…`);
-    console.log(`[auto-fetch] ${unique.length} contracts for tab="${tab}"`);
+    setStatus(`Fetching ${unique.length} contracts across ${new Set(unique.map(c=>c.symbol)).size} tickers…`);
     try {
       // Try UW first
       let resp = await fetch("/api/uw/options-quotes", {
@@ -1555,7 +1500,6 @@ export default function OptionsFlowDashboard() {
       });
       // Fallback to Schwab if UW fails
       if (!resp.ok) {
-        console.log(`[auto-fetch] UW failed (${resp.status}), trying Schwab…`);
         resp = await fetch("/api/schwab/options-quotes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1566,14 +1510,13 @@ export default function OptionsFlowDashboard() {
       const data = await resp.json();
       const quotes = data.quotes || [];
       let successes = 0, failures = 0, expired = 0;
-      const newEntries = {};
       quotes.forEach((q, i) => {
         const orig = unique[i];
         if (!orig) return;
         if (q.expired) { expired++; return; }
         if (q.error) { failures++; return; }
         const key = orig.symbol+"|"+orig.cp+"|"+orig.strike+"|"+orig._exp;
-        newEntries[key] = {
+        newCache[key] = {
           mark: q.mark||0, bid: q.bid||0, ask: q.ask||0, last: q.last||0,
           delta: q.delta||0, theta: q.theta||0, iv: q.iv||0,
           oi: q.openInterest||0, vol: q.volume||0, spot: q.underlyingPrice||0,
@@ -1584,12 +1527,9 @@ export default function OptionsFlowDashboard() {
         }
         successes++;
       });
-      // Use functional update to merge with latest cache (prevents overwriting popup fetches)
-      setPriceCache(prev => ({ ...prev, ...newEntries }));
+      setPriceCache(newCache);
       if (updated) setPerf(updated);
-      pricesFetchedRef.current = true;
-      console.log(`[auto-fetch] Done: ${successes} priced, ${failures} failed, ${expired} expired`);
-      setStatus(`${successes} priced` + (expired > 0 ? `, ${expired} expired` : ``) + (failures > 0 ? `, ${failures} failed` : ``));
+      setStatus(`Done. ${successes} priced` + (expired > 0 ? `, ${expired} expired` : ``) + (failures > 0 ? `, ${failures} failed` : ``) + ` of ${unique.length} contracts.`);
     } catch(e) {
       setStatus("Fetch error: " + e.message);
     }
@@ -1848,10 +1788,21 @@ export default function OptionsFlowDashboard() {
         {/* Conviction Strikes */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <div style={{ fontSize:10, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase" }}>Top Flow</div>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            {fetchLoading && <span style={{ fontSize:9, color:P.ac, fontWeight:600 }}>● Fetching…</span>}
-            {!fetchLoading && status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
-          </div>
+          <button
+            onClick={async () => {
+              const convContracts = FD.CONV.map(t => ({ sym:t.sym, cp:t.cp, strike:t.K, exp:t.exp }));
+              await fetchPrices(convContracts);
+              try { await fetch("/api/schwab/snapshot-now"); } catch(e) {}
+              backfilledRef.current.clear();
+              setContractHistory({});
+              FD.CONV.forEach(t => fetchContractHistory(t.sym, t.cp, t.K, t.exp, true));
+            }}
+            disabled={fetchLoading}
+            style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.ac+"60", cursor:fetchLoading?"not-allowed":"pointer",
+              fontSize:9, fontWeight:700, fontFamily:"inherit", background:"transparent",
+              color:fetchLoading?P.dm:P.ac, opacity:fetchLoading?0.5:1, letterSpacing:"0.05em" }}>
+            {fetchLoading ? "FETCHING…" : "⟳ FETCH LIVE"}
+          </button>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:8, marginBottom:12 }}>
           {FD.CONV.map((t, i) => {
@@ -2446,13 +2397,15 @@ export default function OptionsFlowDashboard() {
                 <div style={{ width:3, background:P.ac, borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:13, fontWeight:700, color:P.ac, marginBottom:5 }}>Contract Performance Tracker</div>
-                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Entry = median contract price. Live prices auto-fetch from UW API.</div>
+                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Entry = median contract price. Live prices from Schwab API.</div>
                 </div>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  {fetchLoading && <span style={{ fontSize:10, color:P.ac, fontWeight:600 }}>● Fetching…</span>}
-                  {!fetchLoading && status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
-                </div>
+                <button onClick={()=>fetchPrices()} disabled={fetchLoading} style={{
+                  padding:"8px 20px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                  fontSize:11, fontWeight:700, fontFamily:"inherit",
+                  background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg, opacity:fetchLoading?0.6:1,
+                }}>{fetchLoading?"Fetching…":"Refresh Prices"}</button>
               </div>
+              {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
             </Card>
             {["Conviction","Short Bull","Short Bear","Long Bull","Long Bear","LEAPS Bull","LEAPS Bear"].map(cat => {
               const items = perf.filter(p=>p.cat===cat);
@@ -2586,8 +2539,12 @@ export default function OptionsFlowDashboard() {
             </div>
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
             <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
-              {fetchLoading && <span style={{ fontSize:10, color:P.sw, fontWeight:600 }}>● Fetching…</span>}
-              {!fetchLoading && status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
+              <button onClick={()=>fetchPrices(collectContracts(FD.SBL,FD.SBR))} disabled={fetchLoading}
+                style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
+              </button>
+              {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
             </div>
             <Card title="Short-Term Bullish Trades" sub={fmt(FD.shortBullTotal)}><TT rows={FD.SBL} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
             <Card title="Short-Term Bearish Trades" sub={fmt(FD.shortBearTotal)}><TT rows={FD.SBR} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
@@ -2606,8 +2563,12 @@ export default function OptionsFlowDashboard() {
               <Card title="Bearish Bets" sub="60+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
             </div>
             <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
-              {fetchLoading && <span style={{ fontSize:10, color:P.sw, fontWeight:600 }}>● Fetching…</span>}
-              {!fetchLoading && status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
+              <button onClick={()=>fetchPrices(collectContracts(FD.LBL,FD.LBR_T))} disabled={fetchLoading}
+                style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
+              </button>
+              {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
             </div>
             <Card title="Long-Term Bullish Trades" sub={fmt(FD.longBullTotal)}><TT rows={FD.LBL} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
             <Card title="Long-Term Bearish Trades" sub={fmt(FD.longBearTotal)}><TT rows={FD.LBR_T} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
@@ -2655,8 +2616,12 @@ export default function OptionsFlowDashboard() {
             </div>
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
             <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
-              {fetchLoading && <span style={{ fontSize:10, color:P.sw, fontWeight:600 }}>● Fetching…</span>}
-              {!fetchLoading && status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
+              <button onClick={()=>fetchPrices(collectContracts(FD.LEAPS_BL_T,FD.LEAPS_BR_T))} disabled={fetchLoading}
+                style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
+              </button>
+              {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
             </div>
             <Card title="LEAPS Bullish Trades"><TT rows={FD.LEAPS_BL_T} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
             <Card title="LEAPS Bearish Trades"><TT rows={FD.LEAPS_BR_T} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
@@ -2686,8 +2651,15 @@ export default function OptionsFlowDashboard() {
                 style={{ width:180, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
               />
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                {fetchLoading && <span style={{ fontSize:10, color:P.sw, fontWeight:600 }}>● Fetching…</span>}
-                {!fetchLoading && status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
+                <button onClick={()=>{
+                  const visible = oiSearch ? D.WATCH.filter(w=>w.S.includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,10) : D.WATCH.slice(0,20);
+                  fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
+                }} disabled={fetchLoading}
+                  style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                    fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                  {fetchLoading?"Fetching…":"⚡ Fetch Live OI"}
+                </button>
+                {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
               </div>
             </div>
             {(() => {
@@ -2754,8 +2726,17 @@ export default function OptionsFlowDashboard() {
             {topFlowPicks.active.length > 0 ? (
               <Card title="Active Picks" sub={topFlowPicks.active.length+" contracts"}>
                 <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
-                  {fetchLoading && <span style={{ fontSize:10, color:P.sw, fontWeight:600 }}>● Fetching…</span>}
-                  {!fetchLoading && status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
+                  <button onClick={()=>{
+                    const contracts = topFlowPicks.active.map(p=>({sym:p.sym,cp:p.cp,strike:p.strike,exp:p.exp}));
+                    fetchPrices(contracts).then(()=>{
+                      fetch("/api/top-flow/snapshot",{method:"POST"}).then(()=>fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(d=>{if(d)setTopFlowPicks(d);})).catch(()=>{});
+                    });
+                  }} disabled={fetchLoading}
+                    style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                      fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                    {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
+                  </button>
+                  {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
                 </div>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
