@@ -1,5 +1,8 @@
-import { useState, useEffect, useMemo, useRef, Fragment } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+
+
+import { useFlowWebSocket } from "./useFlowWebSocket";
 
 // ─── Flow Data loaded dynamically from /flow-data.csv ─────────────────────────
 
@@ -989,6 +992,14 @@ export default function LiveFlowDashboard() {
 
   const csvFile = `/api/uw/live-flow.csv?limit=${liveLimit}&min_premium=${liveMinPrem}`;
   const [refreshKey, setRefreshKey] = useState(0); // bump to re-trigger fetch
+// ─── WebSocket real-time streaming ────────────────────────────────
+  const { newRows, clearRows, wsStatus, uwConnected } = useFlowWebSocket();
+  useEffect(() => {
+    if (newRows.length === 0 || !D) return;
+    setRefreshKey(k => k + 1);
+    setLastRefresh(new Date());
+    clearRows();
+  }, [newRows, clearRows, D]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1429,7 +1440,7 @@ export default function LiveFlowDashboard() {
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #00e676",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#00e676",fontSize:14,fontWeight:700,marginBottom:4}}>⚡ LIVE FLOW</div>
         <div style={{color:"#7b8fa3",fontSize:12}}>Fetching live flow from Unusual Whales…</div>
-        <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
+       <style>{"@keyframes spin{to{transform:rotate(360deg)}} @keyframes wsPulse{0%,100%{opacity:1}50%{opacity:0.4}}"}</style>
       </div>
     </div>
   );
@@ -1656,7 +1667,12 @@ export default function LiveFlowDashboard() {
             </span>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:5, fontSize:10, color:P.dm }}>
+              <span style={{ width:8, height:8, borderRadius:"50%", display:"inline-block", background: wsStatus==="connected" && uwConnected ? "#22c55e" : wsStatus==="connected" ? "#eab308" : "#ef4444", boxShadow: wsStatus==="connected" && uwConnected ? "0 0 6px #22c55e88" : "none", animation: wsStatus==="connected" && uwConnected ? "wsPulse 2s ease-in-out infinite" : "none" }} />
+              {wsStatus==="connected" && uwConnected ? "Live" : wsStatus==="connected" ? "UW…" : "Offline"}
+            </div>
             {lastRefresh && <span style={{ fontSize:9, color:P.dm }}>Updated {lastRefresh.toLocaleTimeString()}</span>}
+
             <button onClick={()=>setRefreshKey(k=>k+1)} disabled={csvLoading}
               style={{ padding:"5px 14px", borderRadius:5, border:"none", cursor:csvLoading?"not-allowed":"pointer",
                 fontSize:10, fontWeight:700, fontFamily:"inherit", background:"#00e676", color:"#06090f" }}>
