@@ -156,6 +156,47 @@ Never add new rundown CSS classes to the template alone — always add them to M
 
 CSS: `MorningWire.module.css` lines ~192–280
 
+## Breadth Monitor — Visual System (2026-03-15)
+
+### Files
+- `app/src/pages/Breadth.jsx` — full breadth monitor + COT Data tab
+- `app/src/pages/Breadth.module.css` — all styles
+- `api/services/breadth_monitor.py` — SQLite service (get_history, store_snapshot, patch_field, delete_snapshot)
+- `api/routers/breadth_monitor.py` — REST endpoints
+
+### Color System — 8-tier background heat-map
+Dark ink = extreme signal. Light tint = mild signal. Text stays uniform white.
+```
+.bgG3  rgba(10,50,22,0.97)    — extreme bullish (near-black green)
+.bgG2  rgba(22,100,48,0.80)   — bullish (dark forest green)
+.bgG1  rgba(74,222,128,0.16)  — mild bullish (light mint tint)
+.bgA   rgba(180,130,20,0.32)  — caution (dark amber)
+.bgR1  rgba(248,113,113,0.16) — mild bearish (light red tint)
+.bgR2  rgba(160,25,25,0.80)   — bearish (dark crimson)
+.bgR3  rgba(55,6,6,0.97)      — extreme bearish (near-black red)
+```
+`cellClass(col, val, row)` maps colorFn/rowColorFn return values ('g3'–'r3') to these classes.
+
+### Column Group Order
+Score → Primary Breadth → MA Breadth → Regime → Highs/Lows → Sentiment
+
+### Regime Group Contents
+S&P 500 · QQQ · VIX · 10d VIX · McClellan · Phase · Stage 2 · Stage 4
+
+### MA Stack Shading (SPY MA / QQQ MA)
+50SMA is the dividing line between green and red:
+- Above 50: all 4=g3, 50+200+1short=g2, 50+200=g1, 50 only=amber
+- Below 50: above 200=r1, below 200+short bounce=r2, below all=r3
+Header shows two lines: label + "10  20  50  200". Cells show ✓/✗ only, spread full width.
+
+### API Endpoints
+- `GET  /api/breadth-monitor?days=N` — history with rolling metrics computed server-side
+- `POST /api/breadth-monitor/push` — store snapshot (auth required)
+- `PATCH /api/breadth-monitor/{date}/field` — surgical single-field update
+- `DELETE /api/breadth-monitor/{date}` — remove a snapshot row (auth required)
+
+---
+
 ## Key Components Built (2026-03-07 — Scanner v2 "World-Class")
 
 ### Scanner Hub (`app/src/pages/Screener.jsx` + `Screener.module.css`)
