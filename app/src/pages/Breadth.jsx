@@ -165,6 +165,10 @@ const COLS = [
       if (['distribution'].some(k => p.includes(k)))                 return 'r2'
       return 'a'
     } },
+  { key: 'stage2_count', label: 'Stage 2', group: G.REGIME,
+    colorFn: v => v == null ? '' : v > 1200 ? 'g3' : v > 800 ? 'g2' : v > 500 ? 'g1' : v < 150 ? 'r2' : v < 300 ? 'r1' : '' },
+  { key: 'stage4_count', label: 'Stage 4', group: G.REGIME,
+    colorFn: v => v == null ? '' : v > 1200 ? 'r3' : v > 800 ? 'r2' : v > 500 ? 'r1' : v < 100 ? 'g2' : v < 200 ? 'g1' : '' },
 
   // ── Highs / Lows ──────────────────────────────────────────────────────────
   { key: 'new_52w_highs', label: '52W Hi', group: G.HIGHS,
@@ -183,12 +187,6 @@ const COLS = [
     colorFn: v => v == null ? '' : v > 8 ? 'g3' : v > 4 ? 'g2' : v > 2 ? 'g1' : v < 0.25 ? 'r2' : v < 0.5 ? 'r1' : '' },
   { key: 'lo_ratio', label: 'Lo%', group: G.HIGHS, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v > 8 ? 'r3' : v > 4 ? 'r2' : v > 2 ? 'r1' : v < 0.25 ? 'g2' : v < 0.5 ? 'g1' : '' },
-
-  // ── Setups ────────────────────────────────────────────────────────────────
-  { key: 'stage2_count', label: 'Stage 2', group: G.SETUPS,
-    colorFn: v => v == null ? '' : v > 1200 ? 'g3' : v > 800 ? 'g2' : v > 500 ? 'g1' : v < 150 ? 'r2' : v < 300 ? 'r1' : '' },
-  { key: 'stage4_count', label: 'Stage 4', group: G.SETUPS,
-    colorFn: v => v == null ? '' : v > 1200 ? 'r3' : v > 800 ? 'r2' : v > 500 ? 'r1' : v < 100 ? 'g2' : v < 200 ? 'g1' : '' },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
   { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
