@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import styles from './Breadth.module.css'
 
@@ -253,6 +253,8 @@ export default function Breadth() {
   )
   const [collapsed, setCollapsed] = useState(new Set())
   const [collapsedCols, setCollapsedCols] = useState(new Set())
+  const [sortKey, setSortKey] = useState(null)
+  const [sortDir, setSortDir] = useState('desc')
 
   const toggleGroup = group => {
     setCollapsed(prev => {
@@ -279,6 +281,18 @@ export default function Breadth() {
       })
     : null
   const visibleCols = COLS.filter(col => !collapsed.has(col.group))
+
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return rows
+    return [...rows].sort((a, b) => {
+      const av = a[sortKey] ?? (sortDir === 'asc' ? Infinity : -Infinity)
+      const bv = b[sortKey] ?? (sortDir === 'asc' ? Infinity : -Infinity)
+      if (typeof av === 'string' && typeof bv === 'string') {
+        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
+      }
+      return sortDir === 'asc' ? av - bv : bv - av
+    })
+  }, [rows, sortKey, sortDir])
 
   return (
     <div className={styles.page}>
@@ -352,7 +366,12 @@ export default function Breadth() {
             <thead>
               {/* Group header row */}
               <tr>
-                <th className={`${styles.th} ${styles.dateCol} ${styles.ghDate}`} rowSpan={2}>
+                <th
+                  className={`${styles.th} ${styles.dateCol} ${styles.ghDate}`}
+                  rowSpan={2}
+                  onDoubleClick={() => setSortKey(null)}
+                  title="Double-click to reset sort"
+                >
                   Date
                 </th>
                 {GROUP_SPANS.map((gs, i) => {
@@ -384,13 +403,30 @@ export default function Breadth() {
                   return (
                     <th
                       key={col.key}
-                      title={isColCollapsed ? `Click to expand ${col.label}` : `Click to hide ${col.label}`}
+                      title={isColCollapsed ? `Click to expand ${col.label}` : `Click to sort by ${col.label} (double-click to hide)`}
                       className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''}`}
-                      onClick={() => toggleCol(col.key)}
+                      onClick={() => {
+                        if (isColCollapsed) {
+                          toggleCol(col.key)
+                        } else if (sortKey === col.key) {
+                          setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+                        } else {
+                          setSortKey(col.key)
+                          setSortDir('desc')
+                        }
+                      }}
+                      onDoubleClick={() => {
+                        if (!isColCollapsed) toggleCol(col.key)
+                      }}
                     >
                       {isColCollapsed
                         ? <span className={styles.colCollapsedLabel}>{col.label}</span>
-                        : col.label
+                        : <>
+                            {col.label}
+                            {sortKey === col.key && (
+                              <span className={styles.sortIndicator}>{sortDir === 'desc' ? ' ▾' : ' ▴'}</span>
+                            )}
+                          </>
                       }
                     </th>
                   )
@@ -398,7 +434,7 @@ export default function Breadth() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, ri) => (
+              {sortedRows.map((row, ri) => (
                 <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.market_phase, styles)}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>{row.date}</td>
                   {visibleCols.map(col => {

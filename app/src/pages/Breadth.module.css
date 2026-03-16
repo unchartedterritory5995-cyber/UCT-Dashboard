@@ -287,6 +287,8 @@
   font-weight: 700;
 }
 
+.sortIndicator { font-size: 9px; opacity: 0.8; }
+
 .aaiiStale {
   opacity: 0.45;
   font-style: italic;
