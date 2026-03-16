@@ -90,12 +90,51 @@ def get_history(days: int = 90) -> list:
     # Need oldest-first to compute rolling windows, then reverse back
     result_asc = list(reversed(result))
 
+    adv_decline_cum = 0  # running total for cumulative A/D line
+
     for i, row in enumerate(result_asc):
         w5  = result_asc[max(0, i - 4):  i + 1]
         w10 = result_asc[max(0, i - 9):  i + 1]
-        row["ratio_5day"]   = _ratio(w5,  "up_4pct_today", "down_4pct_today")
-        row["ratio_10day"]  = _ratio(w10, "up_4pct_today", "down_4pct_today")
-        row["avg_10d_cpc"]  = _rolling_avg(w10, "cboe_putcall", 2)
+
+        # Existing rolling metrics
+        row["ratio_5day"]  = _ratio(w5,  "up_4pct_today", "down_4pct_today")
+        row["ratio_10day"] = _ratio(w10, "up_4pct_today", "down_4pct_today")
+        row["avg_10d_cpc"] = _rolling_avg(w10, "cboe_putcall", 2)
+
+        # Hi/Lo ratio: new 52W highs as % of universe
+        nh = row.get("new_52w_highs")
+        nl = row.get("new_52w_lows")
+        uni = row.get("universe_count")
+        if nh is not None and uni and uni > 0:
+            row["hi_ratio"] = round(nh / uni * 100, 2)
+        else:
+            row["hi_ratio"] = None
+        if nl is not None and uni and uni > 0:
+            row["lo_ratio"] = round(nl / uni * 100, 2)
+        else:
+            row["lo_ratio"] = None
+
+        # Day-over-day % change for QQQ and SPY
+        if i > 0:
+            prev = result_asc[i - 1]
+            for sym in ("qqq", "spy"):
+                curr_c = row.get(f"{sym}_close")
+                prev_c = prev.get(f"{sym}_close")
+                if curr_c and prev_c and prev_c != 0:
+                    row[f"{sym}_day_pct"] = round((curr_c - prev_c) / prev_c * 100, 2)
+                else:
+                    row[f"{sym}_day_pct"] = None
+        else:
+            row["qqq_day_pct"] = None
+            row["spy_day_pct"] = None
+
+        # Cumulative A/D line
+        ad = row.get("adv_decline")
+        if ad is not None:
+            adv_decline_cum += ad
+            row["adv_decline_cum"] = adv_decline_cum
+        else:
+            row["adv_decline_cum"] = None
 
     # Return newest-first
     return list(reversed(result_asc))
