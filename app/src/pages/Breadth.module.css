@@ -287,6 +287,71 @@
   font-weight: 700;
 }
 
+.aaiiStale {
+  opacity: 0.45;
+  font-style: italic;
+}
+.scoreSummary {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+.scoreGauge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.scoreLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.scoreValue {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 44px;
+}
+.scoreGreen { color: var(--ut-green-bright, #4ade80); }
+.scoreRed   { color: var(--loss, #f87171); }
+.scoreAmber { color: var(--ut-gold, #c9a84c); }
+.scoreBar {
+  width: 100px;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.scoreBarFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.scoreMeta {
+  display: flex;
+  gap: 20px;
+  border-left: 1px solid var(--border);
+  padding-left: 20px;
+}
+.scoreMetaItem {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.scoreMetaItem strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
 /* Row phase — left border color indicates market regime for that day */
 .phaseGreen  { border-left: 3px solid rgba(74, 222, 128, 0.5); }
 .phaseRed    { border-left: 3px solid rgba(248, 113, 113, 0.5); }

@@ -270,6 +270,8 @@ export default function Breadth() {
     })
   }
 
+  const AAII_KEYS = new Set(['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread'])
+
   const rows = data?.rows ?? []
   const lastUpdated = rows[0]?._created_at
     ? new Date(rows[0]._created_at + 'Z').toLocaleString('en-US', {
@@ -311,6 +313,38 @@ export default function Breadth() {
           No data yet. Run <code>python scripts/breadth_collector.py</code> in uct-intelligence.
         </div>
       )}
+
+      {rows.length > 0 && (() => {
+        const latest = rows[0]
+        const score = latest?.breadth_score
+        const phase = latest?.market_phase ?? '—'
+        const exp = latest?.uct_exposure
+        const dd = latest?.spy_dist_days
+        return (
+          <div className={styles.scoreSummary}>
+            <div className={styles.scoreGauge}>
+              <span className={styles.scoreLabel}>HEALTH</span>
+              <span className={`${styles.scoreValue} ${
+                score >= 65 ? styles.scoreGreen : score <= 35 ? styles.scoreRed : styles.scoreAmber
+              }`}>{score != null ? score : '—'}</span>
+              <div className={styles.scoreBar}>
+                <div
+                  className={styles.scoreBarFill}
+                  style={{ width: `${score ?? 0}%`, background:
+                    score >= 65 ? 'var(--ut-green-bright)' :
+                    score <= 35 ? 'var(--loss)' : 'var(--ut-gold)'
+                  }}
+                />
+              </div>
+            </div>
+            <div className={styles.scoreMeta}>
+              <span className={styles.scoreMetaItem}>Phase: <strong>{phase}</strong></span>
+              <span className={styles.scoreMetaItem}>Exposure: <strong>{exp != null ? `${exp}%` : '—'}</strong></span>
+              <span className={styles.scoreMetaItem}>SPY DD: <strong>{dd ?? '—'}</strong></span>
+            </div>
+          </div>
+        )
+      })()}
 
       {rows.length > 0 && (
         <div className={styles.tableWrap}>
@@ -393,10 +427,14 @@ export default function Breadth() {
                       )
                     }
                     const val = row[col.key]
+                    const isStaleAaii = AAII_KEYS.has(col.key) &&
+                      row.aaii_survey_date &&
+                      row.aaii_survey_date !== row.date
                     return (
                       <td
                         key={col.key}
-                        className={`${styles.td} ${cellClass(col, val)}`}
+                        className={`${styles.td} ${cellClass(col, val)} ${isStaleAaii ? styles.aaiiStale : ''}`}
+                        title={isStaleAaii ? `Survey: ${row.aaii_survey_date}` : undefined}
                       >
                         {fmtCell(col, val)}
                       </td>
