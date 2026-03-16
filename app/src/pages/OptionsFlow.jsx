@@ -1061,31 +1061,52 @@ export default function OptionsFlowDashboard() {
     }
   }, [D]);
 
-  // Auto-fetch prices when data loads or tab changes
+  // Auto-fetch ALL prices when data loads (one big batch across all tabs)
   useEffect(() => {
     if (!FD || csvLoading) return;
     const contracts = [];
-    // Always fetch conviction picks (visible on Market Read)
-    if (FD.CONV) FD.CONV.forEach(t => { if(t.sym && t.exp) contracts.push({ sym:t.sym, cp:t.cp, strike:t.K, exp:t.exp }); });
-    // Add tab-specific contracts
-    if (tab === "Performance") {
-      perf.forEach(p => { if(p.sym && p.exp) contracts.push({ sym:p.sym, cp:p.cp, strike:p.strike, exp:p.exp }); });
-    } else if (tab === "Short Term") {
-      [FD.SBL, FD.SBR].forEach(list => { if(list) list.forEach(t => contracts.push({ sym:t.S, cp:t.CP, strike:t.K, exp:t.E })); });
-    } else if (tab === "Long Term") {
-      [FD.LBL, FD.LBR_T].forEach(list => { if(list) list.forEach(t => contracts.push({ sym:t.S, cp:t.CP, strike:t.K, exp:t.E })); });
-    } else if (tab === "LEAPS") {
-      [FD.LEAPS_BL_T, FD.LEAPS_BR_T].forEach(list => { if(list) list.forEach(t => contracts.push({ sym:t.S, cp:t.CP, strike:t.K, exp:t.E })); });
-    } else if (tab === "Tracker") {
-      topFlowPicks.active.forEach(p => { if(p.sym && p.exp) contracts.push({ sym:p.sym, cp:p.cp, strike:p.strike, exp:p.exp }); });
-    } else if (tab === "OI Check") {
-      (FD.WATCH||[]).slice(0,20).forEach(w => contracts.push({ sym:w.S, cp:w.CP, strike:w.K, exp:w.E }));
-    }
+    const addC = (sym, cp, strike, exp) => { if(sym && exp) contracts.push({ sym, cp, strike, exp }); };
+    // Conviction / Top Flow
+    if (FD.CONV) FD.CONV.forEach(t => addC(t.sym, t.cp, t.K, t.exp));
+    // Performance
+    if (D && D.PERF_INIT) D.PERF_INIT.forEach(p => addC(p.sym, p.cp, p.strike, p.exp));
+    // Short Term
+    [FD.SBL, FD.SBR].forEach(list => { if(list) list.forEach(t => addC(t.S, t.CP, t.K, t.E)); });
+    // Long Term
+    [FD.LBL, FD.LBR_T].forEach(list => { if(list) list.forEach(t => addC(t.S, t.CP, t.K, t.E)); });
+    // LEAPS
+    [FD.LEAPS_BL_T, FD.LEAPS_BR_T].forEach(list => { if(list) list.forEach(t => addC(t.S, t.CP, t.K, t.E)); });
+    // OI Check (top 20)
+    if (FD.WATCH) FD.WATCH.slice(0,20).forEach(w => addC(w.S, w.CP, w.K, w.E));
+    // UOA
+    if (D && D.UOA_TRADES) D.UOA_TRADES.forEach(t => addC(t.S, t.CP, t.K, t.E));
     if (contracts.length > 0) {
+      console.log(`[auto-fetch] Loading ALL ${contracts.length} contracts on data load…`);
       const tid = setTimeout(() => fetchPrices(contracts), 400);
       return () => clearTimeout(tid);
     }
-  }, [FD, tab]);
+  }, [FD]);
+
+  // Supplementary fetch on tab switch — only fetch contracts missing from cache
+  useEffect(() => {
+    if (!FD || csvLoading || !pricesFetchedRef.current) return;
+    const contracts = [];
+    const addIfMissing = (sym, cp, strike, exp) => {
+      if (!sym || !exp) return;
+      const k = sym+"|"+cp+"|"+parseFloat(strike)+"|"+exp;
+      if (!priceCache[k]) contracts.push({ sym, cp, strike, exp });
+    };
+    if (tab === "Tracker") {
+      topFlowPicks.active.forEach(p => addIfMissing(p.sym, p.cp, p.strike, p.exp));
+    } else if (tab === "OI Check") {
+      (FD.WATCH||[]).slice(0,30).forEach(w => addIfMissing(w.S, w.CP, w.K, w.E));
+    }
+    if (contracts.length > 0) {
+      console.log(`[auto-fetch] Supplementary: ${contracts.length} cache misses for tab="${tab}"`);
+      const tid = setTimeout(() => fetchPrices(contracts), 200);
+      return () => clearTimeout(tid);
+    }
+  }, [tab]);
 
   // Auto-scroll to Top Flow detail panel when opened
   useEffect(() => {
@@ -1511,7 +1532,6 @@ export default function OptionsFlowDashboard() {
   async function fetchPrices(contracts) {
     const items = contracts || perf;
     if (!items || items.length === 0) { setStatus("No contracts to fetch."); return; }
-    if (fetchLoading) return; // prevent concurrent fetches
     setFetchLoading(true);
     setStatus("Fetching live prices…");
     const updated = contracts ? null : [...perf];
