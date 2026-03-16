@@ -978,11 +978,18 @@ export default function OptionsFlowDashboard() {
         if (!trimmed.includes(",") || trimmed.length < 100) {
           throw new Error("File appears empty or invalid (no CSV data found).");
         }
-        // Parse and process
-        const rows = parseCSV(text);
-        if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
-        const data = processFlowData(rows);
-        if (!cancelled) { setD(data); setCsvLoading(false); }
+        // Defer heavy processing so "Processing..." spinner paints first
+        setTimeout(() => {
+          if (cancelled) return;
+          try {
+            const rows = parseCSV(text);
+            if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
+            const data = processFlowData(rows);
+            if (!cancelled) { setD(data); setCsvLoading(false); }
+          } catch(err) {
+            if (!cancelled) { setCsvError(err.message); setCsvLoading(false); }
+          }
+        }, 0);
       })
       .catch(err => { if (!cancelled) { setCsvError(err.message); setCsvLoading(false); } });
     return () => { cancelled = true; };
@@ -1013,11 +1020,14 @@ export default function OptionsFlowDashboard() {
   const [topFlowPicks, setTopFlowPicks] = useState({ active:[], archived:[] });
   const [showArchived, setShowArchived] = useState(false);
 
-  // Fetch history on mount
+  // Fetch history after initial render (deferred)
   useEffect(() => {
-    fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{
-      if (data) setTopFlowPicks(data);
-    }).catch(()=>{});
+    const t = setTimeout(() => {
+      fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{
+        if (data) setTopFlowPicks(data);
+      }).catch(()=>{});
+    }, 500);
+    return () => clearTimeout(t);
   }, []);
 
   // Auto-save Top Flow picks when CSV loads — also populate locally as fallback
@@ -1042,17 +1052,19 @@ export default function OptionsFlowDashboard() {
       const merged = localPicks.map(lp => existingMap[lp.id] ? { ...existingMap[lp.id], grade:lp.grade, hits:lp.hits, prem:lp.prem, dir:lp.dir } : lp);
       return { ...prev, active: merged };
     });
-    // Also try to save to backend
-    fetch("/api/top-flow/save", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(picks) })
-      .then(r=>r.ok?r.json():null)
-      .then(()=>{
-        fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{ if(data) setTopFlowPicks(data); }).catch(()=>{});
-      })
-      .catch(()=>{});
+    // Also try to save to backend (deferred — non-critical)
+    setTimeout(() => {
+      fetch("/api/top-flow/save", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(picks) })
+        .then(r=>r.ok?r.json():null)
+        .then(()=>{
+          fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{ if(data) setTopFlowPicks(data); }).catch(()=>{});
+        })
+        .catch(()=>{});
+    }, 1000);
   }, [D]);
 
-  // Auto-load market data on mount
-  useEffect(() => { fetchMarketData(); }, []);
+  // Auto-load market data (deferred — non-critical)
+  useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
 
   // ─── Shared detail panel renderer ─────────────────────────────────────────
   function renderDetailPanel(sym, cp, K, exp, onClose) {
@@ -1565,7 +1577,7 @@ export default function OptionsFlowDashboard() {
 
 
   return (
-    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", padding:"16px 20px", zoom:1.2 }}>
+    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", padding:"16px 20px", zoom:1.18 }}>
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
 
         {/* Data Mode Toggle */}
