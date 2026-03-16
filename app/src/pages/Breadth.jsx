@@ -301,9 +301,6 @@ export default function Breadth() {
       return raw ? new Set(JSON.parse(raw)) : new Set()
     } catch { return new Set() }
   })
-  const [sortKey, setSortKey] = useState(null)
-  const [sortDir, setSortDir] = useState('desc')
-
   const toggleGroup = group => {
     setCollapsed(prev => {
       const next = new Set(prev)
@@ -331,18 +328,6 @@ export default function Breadth() {
       })
     : null
   const visibleCols = COLS.filter(col => !collapsed.has(col.group))
-
-  const sortedRows = useMemo(() => {
-    if (!sortKey) return rows
-    return [...rows].sort((a, b) => {
-      const av = a[sortKey] ?? (sortDir === 'asc' ? Infinity : -Infinity)
-      const bv = b[sortKey] ?? (sortDir === 'asc' ? Infinity : -Infinity)
-      if (typeof av === 'string' && typeof bv === 'string') {
-        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
-      }
-      return sortDir === 'asc' ? av - bv : bv - av
-    })
-  }, [rows, sortKey, sortDir])
 
   const sparkData = useMemo(() => {
     const out = {}
@@ -387,7 +372,7 @@ export default function Breadth() {
         </div>
         <button
           className={styles.exportBtn}
-          onClick={() => exportCsv(sortedRows, COLS)}
+          onClick={() => exportCsv(rows, COLS)}
           title="Download as CSV"
         >
           ↓ CSV
@@ -447,8 +432,6 @@ export default function Breadth() {
                 <th
                   className={`${styles.th} ${styles.dateCol} ${styles.ghDate}`}
                   rowSpan={2}
-                  onDoubleClick={() => setSortKey(null)}
-                  title="Double-click to reset sort"
                 >
                   Date
                 </th>
@@ -481,30 +464,13 @@ export default function Breadth() {
                   return (
                     <th
                       key={col.key}
-                      title={isColCollapsed ? `Click to expand ${col.label}` : `Click to sort by ${col.label} (double-click to hide)`}
+                      title={isColCollapsed ? `Click to expand ${col.label}` : `Click to collapse ${col.label}`}
                       className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''}`}
-                      onClick={() => {
-                        if (isColCollapsed) {
-                          toggleCol(col.key)
-                        } else if (sortKey === col.key) {
-                          setSortDir(d => d === 'desc' ? 'asc' : 'desc')
-                        } else {
-                          setSortKey(col.key)
-                          setSortDir('desc')
-                        }
-                      }}
-                      onDoubleClick={() => {
-                        if (!isColCollapsed) toggleCol(col.key)
-                      }}
+                      onClick={() => toggleCol(col.key)}
                     >
                       {isColCollapsed
                         ? <span className={styles.colCollapsedLabel}>{col.label}</span>
-                        : <>
-                            {col.label}
-                            {sortKey === col.key && (
-                              <span className={styles.sortIndicator}>{sortDir === 'desc' ? ' ▾' : ' ▴'}</span>
-                            )}
-                          </>
+                        : col.label
                       }
                     </th>
                   )
@@ -512,7 +478,7 @@ export default function Breadth() {
               </tr>
             </thead>
             <tbody>
-              {sortedRows.map((row, ri) => (
+              {rows.map((row, ri) => (
                 <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.market_phase, styles)}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>{row.date}</td>
                   {visibleCols.map(col => {
