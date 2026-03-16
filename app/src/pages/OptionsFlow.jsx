@@ -918,7 +918,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Performance","Search","Short Term","Long Term","LEAPS","OI Check"];
+const TABS = ["Market Read","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -999,6 +999,48 @@ export default function OptionsFlowDashboard() {
 
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
+  }, [D]);
+
+  // ─── Top Flow Tracker ───────────────────────────────────────────────
+  const [topFlowPicks, setTopFlowPicks] = useState({ active:[], archived:[] });
+  const [showArchived, setShowArchived] = useState(false);
+
+  // Fetch history on mount
+  useEffect(() => {
+    fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{
+      if (data) setTopFlowPicks(data);
+    }).catch(()=>{});
+  }, []);
+
+  // Auto-save Top Flow picks when CSV loads — also populate locally as fallback
+  useEffect(() => {
+    if (!D || !D.CONV || D.CONV.length === 0) return;
+    const today = new Date().toISOString().slice(0,10);
+    const picks = D.CONV.map(c => {
+      const trades = c.trades || [];
+      const prices = trades.filter(t=>t.V>0).map(t=>t.P/t.V/100).filter(p=>p>0);
+      const sorted = [...prices].sort((a,b)=>a-b);
+      const entry = sorted.length > 0 ? sorted[Math.floor(sorted.length/2)] : 0;
+      return { sym:c.sym, cp:c.cp, strike:parseFloat(c.K), exp:c.exp, entry:Math.round(entry*100)/100, grade:c.grade, dir:c.dir, hits:c.hits, prem:c.prem };
+    });
+    // Populate locally immediately so tracker shows even without backend
+    const localPicks = picks.map(p => ({
+      id: `${p.sym}|${p.cp}|${p.strike}|${p.exp}`,
+      ...p, dateSaved: today, history: []
+    }));
+    setTopFlowPicks(prev => {
+      const existingMap = {};
+      prev.active.forEach(a => { existingMap[a.id] = a; });
+      const merged = localPicks.map(lp => existingMap[lp.id] ? { ...existingMap[lp.id], grade:lp.grade, hits:lp.hits, prem:lp.prem, dir:lp.dir } : lp);
+      return { ...prev, active: merged };
+    });
+    // Also try to save to backend
+    fetch("/api/top-flow/save", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(picks) })
+      .then(r=>r.ok?r.json():null)
+      .then(()=>{
+        fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{ if(data) setTopFlowPicks(data); }).catch(()=>{});
+      })
+      .catch(()=>{});
   }, [D]);
 
   // Auto-load market data on mount
@@ -2568,6 +2610,111 @@ export default function OptionsFlowDashboard() {
             </Card>
               );
             })()}
+          </div>
+        )}
+
+        {/* Tracker */}
+        {tab==="Tracker" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <Card>
+              <div style={{ display:"flex", gap:14 }}>
+                <div style={{ width:3, background:P.ac, borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700, color:P.ac, marginBottom:5 }}>Top Flow Tracker</div>
+                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Tracks performance of Top Flow conviction picks over time. Picks are auto-saved when new flow data loads. Daily snapshots at 4:30 PM ET update prices. Expired contracts auto-archive.</div>
+                </div>
+              </div>
+            </Card>
+            {topFlowPicks.active.length > 0 ? (
+              <Card title="Active Picks" sub={topFlowPicks.active.length+" contracts"}>
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
+                  <button onClick={()=>{
+                    const contracts = topFlowPicks.active.map(p=>({sym:p.sym,cp:p.cp,strike:p.strike,exp:p.exp}));
+                    fetchPrices(contracts).then(()=>{
+                      fetch("/api/top-flow/snapshot",{method:"POST"}).then(()=>fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(d=>{if(d)setTopFlowPicks(d);})).catch(()=>{});
+                    });
+                  }} disabled={fetchLoading}
+                    style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                      fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                    {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
+                  </button>
+                  {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
+                </div>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                  <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                    {["Ticker","Strike","C/P","Exp","Grade","Dir","Entry","Now","P&L","Days","Trend","Added"].map(h=>(
+                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {topFlowPicks.active.map((p,i)=>{
+                      const px = getPrice(p.sym, p.cp, p.strike, p.exp);
+                      const now = px ? (px.mark||px.last||0) : (p.history&&p.history.length>0 ? p.history[p.history.length-1].price : 0);
+                      const pnl = now>0 && p.entry>0 ? (now-p.entry)/p.entry*100 : 0;
+                      const pnlC = pnl>0?P.bu:pnl<0?P.be:P.dm;
+                      const days = p.dateSaved ? Math.max(1, Math.round((Date.now()-new Date(p.dateSaved).getTime())/86400000)) : 0;
+                      const hist = p.history||[];
+                      const trend = hist.length>=2 ? (hist[hist.length-1].price > hist[hist.length-2].price ? "↑" : hist[hist.length-1].price < hist[hist.length-2].price ? "↓" : "→") : "—";
+                      const trendC = trend==="↑"?P.bu:trend==="↓"?P.be:P.dm;
+                      const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
+                      return (
+                        <tr key={p.id||i} onClick={()=>{ fetchContractHistory(p.sym,p.cp,p.strike,p.exp); setSelectedItem({sym:p.sym,cp:p.cp,K:p.strike,exp:p.exp}); }}
+                          style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
+                          onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
+                          <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
+                          <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.exp}</td>
+                          <td style={{ padding:"5px 5px" }}><Tag c={GRADE_COLORS[p.grade]||P.mt}>{p.grade}</Tag></td>
+                          <td style={{ padding:"5px 5px" }}><Tag c={dirC}>{p.dir}</Tag></td>
+                          <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{p.entry>0?"$"+p.entry.toFixed(2):"—"}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
+                          <td style={{ padding:"5px 5px", color:P.dm }}>{days}d</td>
+                          <td style={{ padding:"5px 5px", fontSize:14, fontWeight:800, color:trendC }}>{trend}</td>
+                          <td style={{ padding:"5px 5px", color:P.dm, fontSize:9 }}>{p.dateSaved||"—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </Card>
+            ) : (
+              <Card><div style={{ textAlign:"center", padding:"20px 0", color:P.dm, fontSize:12 }}>No active picks yet. Upload flow data — Top Flow picks will be tracked automatically.</div></Card>
+            )}
+            {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
+            {topFlowPicks.archived.length > 0 && (
+              <Card title="Archived Picks" sub={topFlowPicks.archived.length+" expired"}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                  <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                    {["Ticker","Strike","C/P","Exp","Grade","Dir","Entry","Final","P&L","Saved"].map(h=>(
+                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {topFlowPicks.archived.slice().reverse().map((p,i)=>{
+                      const pnlC = p.finalPnl>0?P.bu:p.finalPnl<0?P.be:P.dm;
+                      const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
+                      return (
+                        <tr key={p.id||i} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.7 }}>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
+                          <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
+                          <td style={{ padding:"5px 5px", color:P.dm }}>{p.exp}</td>
+                          <td style={{ padding:"5px 5px" }}><Tag c={GRADE_COLORS[p.grade]||P.mt}>{p.grade}</Tag></td>
+                          <td style={{ padding:"5px 5px" }}><Tag c={dirC}>{p.dir}</Tag></td>
+                          <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{p.entry>0?"$"+p.entry.toFixed(2):"—"}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.finalPrice>0?"$"+p.finalPrice.toFixed(2):"—"}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:pnlC }}>{p.finalPnl?(p.finalPnl>0?"+":"")+p.finalPnl.toFixed(1)+"%":"—"}</td>
+                          <td style={{ padding:"5px 5px", color:P.dm, fontSize:9 }}>{p.dateSaved||"—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </Card>
+            )}
           </div>
         )}
 
