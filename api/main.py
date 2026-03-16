@@ -135,6 +135,9 @@ app.include_router(top_flow_router)
 app.include_router(uw_router)
 app.include_router(ws_router)
 
+from api.batch_quotes import router as batch_quotes_router
+app.include_router(batch_quotes_router)
+
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 if os.path.exists(DIST):
     app.mount("/assets", StaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
