@@ -140,23 +140,15 @@
   background: var(--bg-hover);
 }
 
-/* ── Cell color states ───────────────────────────────────────────────────────── */
-.cellGreen {
-  color: var(--ut-green-bright, #4ade80);
-  font-weight: 600;
-}
-.cellRed {
-  color: var(--loss, #f87171);
-  font-weight: 600;
-}
-.cellAmber {
-  color: var(--ut-gold, #c9a84c);
-  font-weight: 600;
-}
-.cellLightRed {
-  color: #f4a0a0;
-  font-weight: 600;
-}
+/* ── Cell background tiers (8-tier heat-map system) ─────────────────────────── */
+/* Text stays uniform white — background carries all signal                      */
+.bgG3 { background: rgba(34,  197,  94, 0.38); }
+.bgG2 { background: rgba(74,  222, 128, 0.22); }
+.bgG1 { background: rgba(74,  222, 128, 0.10); }
+.bgA  { background: rgba(251, 191,  36, 0.16); }
+.bgR1 { background: rgba(248, 113, 113, 0.12); }
+.bgR2 { background: rgba(248, 113, 113, 0.26); }
+.bgR3 { background: rgba(239,  68,  68, 0.42); }
 
 /* ── Collapsible group headers ───────────────────────────────────────────────── */
 .groupHeaderClickable {

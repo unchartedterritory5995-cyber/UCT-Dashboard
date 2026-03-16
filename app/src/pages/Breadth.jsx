@@ -90,33 +90,6 @@ const COLS = [
   { key: 'uct_exposure', label: 'UCT Exp', group: G.SCORE, fmt: v => fmtDec(v, 0),
     colorFn: v => v == null ? '' : v >= 80 ? 'g3' : v >= 65 ? 'g2' : v >= 50 ? 'g1' : v >= 35 ? 'a' : v >= 20 ? 'r1' : v >= 10 ? 'r2' : 'r3' },
 
-  // ── Regime ────────────────────────────────────────────────────────────────
-  { key: 'sp500_close', label: 'S&P 500', group: G.REGIME, fmt: fmtPrice,
-    rowColorFn: row => { const p = row.spy_day_pct; return p == null ? '' : p >= 1.5 ? 'g3' : p >= 0.5 ? 'g2' : p > 0 ? 'g1' : p <= -1.5 ? 'r3' : p <= -0.5 ? 'r2' : 'r1' } },
-  { key: 'qqq_close', label: 'QQQ', group: G.REGIME, fmt: fmtPrice,
-    rowColorFn: row => { const p = row.qqq_day_pct; return p == null ? '' : p >= 1.5 ? 'g3' : p >= 0.5 ? 'g2' : p > 0 ? 'g1' : p <= -1.5 ? 'r3' : p <= -0.5 ? 'r2' : 'r1' } },
-  { key: 'vix', label: 'VIX', group: G.REGIME, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v < 14 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 25 ? 'r1' : v < 30 ? 'r2' : 'r3' },
-  { key: 'avg_10d_vix', label: '10d VIX', group: G.REGIME, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v < 15 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 26 ? 'r1' : v < 30 ? 'r2' : 'r3' },
-  { key: 'spy_ma_stack', label: 'SPY MAs', group: G.REGIME, type: 'ma_stack',
-    keys: ['spy_above_10sma', 'spy_above_20sma', 'spy_above_50sma', 'spy_above_200sma'],
-    maLabels: ['10', '20', '50', '200'] },
-  { key: 'qqq_ma_stack', label: 'QQQ MAs', group: G.REGIME, type: 'ma_stack',
-    keys: ['qqq_above_10sma', 'qqq_above_20sma', 'qqq_above_50sma', 'qqq_above_200sma'],
-    maLabels: ['10', '20', '50', '200'] },
-  { key: 'market_phase', label: 'Phase', group: G.REGIME,
-    colorFn: v => {
-      if (v == null) return ''
-      const p = v.toLowerCase()
-      if (['power trend','ftd confirmed'].some(k => p.includes(k))) return 'g3'
-      if (['uptrend','bull'].some(k => p.includes(k)))               return 'g2'
-      if (['recovery'].some(k => p.includes(k)))                     return 'g1'
-      if (['liquidation','correction','circuit breaker'].some(k => p.includes(k))) return 'r3'
-      if (['distribution'].some(k => p.includes(k)))                 return 'r2'
-      return 'a'
-    } },
-
   // ── Primary Breadth ───────────────────────────────────────────────────────
   { key: 'up_4pct_today', label: 'Up 4%+', group: G.PRIMARY,
     colorFn: v => v == null ? '' : v > 500 ? 'g3' : v > 300 ? 'g2' : v > 150 ? 'g1' : v < 50 ? 'r2' : v < 100 ? 'r1' : '' },
@@ -164,53 +137,53 @@ const COLS = [
     colorFn: pctColor(30, 45, 60) },
 
   // ── Highs / Lows ──────────────────────────────────────────────────────────
-  { key: 'new_52w_highs',  label: '52W Hi',    group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 150 ? 'green' : v < 20 ? 'red' : '' },
-  { key: 'new_52w_lows',   label: '52W Lo',    group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 150 ? 'red' : v < 20 ? 'green' : '' },
-  { key: 'new_20d_highs',  label: '20D Hi',    group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 200 ? 'green' : v < 50 ? 'red' : '' },
-  { key: 'new_20d_lows',   label: '20D Lo',    group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 200 ? 'red' : v < 50 ? 'green' : '' },
-  { key: 'new_ath',        label: 'ATH',       group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 100 ? 'green' : '' },
-  { key: 'near_52w_high',  label: 'Near52W',   group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 600 ? 'green' : v < 150 ? 'red' : '' },
-  { key: 'hi_ratio',          label: 'Hi%',        group: G.HIGHS, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 4 ? 'green' : v < 0.5 ? 'red' : '' },
-  { key: 'lo_ratio',          label: 'Lo%',        group: G.HIGHS, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 4 ? 'red' : v < 0.5 ? 'green' : '' },
+  { key: 'new_52w_highs', label: '52W Hi', group: G.HIGHS,
+    colorFn: v => v == null ? '' : v > 300 ? 'g3' : v > 150 ? 'g2' : v > 80 ? 'g1' : v < 10 ? 'r2' : v < 20 ? 'r1' : '' },
+  { key: 'new_52w_lows', label: '52W Lo', group: G.HIGHS,
+    colorFn: v => v == null ? '' : v > 300 ? 'r3' : v > 150 ? 'r2' : v > 80 ? 'r1' : v < 10 ? 'g2' : v < 20 ? 'g1' : '' },
+  { key: 'new_20d_highs', label: '20D Hi', group: G.HIGHS,
+    colorFn: v => v == null ? '' : v > 400 ? 'g3' : v > 200 ? 'g2' : v > 100 ? 'g1' : v < 30 ? 'r2' : v < 50 ? 'r1' : '' },
+  { key: 'new_20d_lows', label: '20D Lo', group: G.HIGHS,
+    colorFn: v => v == null ? '' : v > 400 ? 'r3' : v > 200 ? 'r2' : v > 100 ? 'r1' : v < 30 ? 'g2' : v < 50 ? 'g1' : '' },
+  { key: 'new_ath', label: 'ATH', group: G.HIGHS,
+    colorFn: v => v == null ? '' : v > 200 ? 'g3' : v > 100 ? 'g2' : v > 40 ? 'g1' : '' },
+  { key: 'near_52w_high', label: 'Near52W', group: G.HIGHS,
+    colorFn: v => v == null ? '' : v > 1000 ? 'g3' : v > 600 ? 'g2' : v > 350 ? 'g1' : v < 80 ? 'r2' : v < 150 ? 'r1' : '' },
+  { key: 'hi_ratio', label: 'Hi%', group: G.HIGHS, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v > 8 ? 'g3' : v > 4 ? 'g2' : v > 2 ? 'g1' : v < 0.25 ? 'r2' : v < 0.5 ? 'r1' : '' },
+  { key: 'lo_ratio', label: 'Lo%', group: G.HIGHS, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v > 8 ? 'r3' : v > 4 ? 'r2' : v > 2 ? 'r1' : v < 0.25 ? 'g2' : v < 0.5 ? 'g1' : '' },
 
   // ── Setups ────────────────────────────────────────────────────────────────
   { key: 'stage2_count', label: 'Stage 2', group: G.SETUPS,
-    colorFn: v => v == null ? '' : v > 800 ? 'green' : v < 300 ? 'red' : '' },
+    colorFn: v => v == null ? '' : v > 1200 ? 'g3' : v > 800 ? 'g2' : v > 500 ? 'g1' : v < 150 ? 'r2' : v < 300 ? 'r1' : '' },
   { key: 'stage4_count', label: 'Stage 4', group: G.SETUPS,
-    colorFn: v => v == null ? '' : v > 800 ? 'red' : v < 200 ? 'green' : '' },
+    colorFn: v => v == null ? '' : v > 1200 ? 'r3' : v > 800 ? 'r2' : v > 500 ? 'r1' : v < 100 ? 'g2' : v < 200 ? 'g1' : '' },
 
   // ── Volume / A-D ──────────────────────────────────────────────────────────
-  { key: 'adv_decline',   label: 'A-D',        group: G.VOLUME,
-    colorFn: v => v == null ? '' : v > 500 ? 'green' : v < -500 ? 'red' : '' },
-  { key: 'up_vol_ratio',  label: 'UpVol',      group: G.VOLUME, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 2 ? 'green' : v < 0.5 ? 'red' : '' },
+  { key: 'adv_decline', label: 'A-D', group: G.VOLUME,
+    colorFn: v => v == null ? '' : v > 2000 ? 'g3' : v > 500 ? 'g2' : v > 100 ? 'g1' : v < -2000 ? 'r3' : v < -500 ? 'r2' : v < -100 ? 'r1' : 'a' },
+  { key: 'up_vol_ratio', label: 'UpVol', group: G.VOLUME, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v > 3 ? 'g3' : v > 2 ? 'g2' : v > 1.3 ? 'g1' : v < 0.33 ? 'r3' : v < 0.5 ? 'r2' : v < 0.77 ? 'r1' : 'a' },
   { key: 'mcclellan_osc', label: 'McClellan', group: G.VOLUME, fmt: v => fmtDec(v, 1),
-    colorFn: v => v == null ? '' : v > 150 ? 'amber' : v > 0 ? 'green' : v < -150 ? 'amber' : 'red' },
-  { key: 'adv_decline_cum',   label: 'A-D Cum',    group: G.VOLUME, fmt: v => fmtDec(v, 0),
-    colorFn: v => v == null ? '' : v > 0 ? 'green' : 'red' },
+    colorFn: v => v == null ? '' : v > 200 ? 'a' : v > 80 ? 'g3' : v > 20 ? 'g2' : v > 0 ? 'g1' : v > -20 ? 'r1' : v > -80 ? 'r2' : v > -200 ? 'r3' : 'a' },
+  { key: 'adv_decline_cum', label: 'A-D Cum', group: G.VOLUME, fmt: v => fmtDec(v, 0),
+    colorFn: v => v == null ? '' : v > 2000 ? 'g3' : v > 500 ? 'g2' : v > 0 ? 'g1' : v < -2000 ? 'r3' : v < -500 ? 'r2' : 'r1' },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
-  { key: 'cboe_putcall',  label: 'CBOE P/C',   group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v >= 0.85 ? 'green' : v <= 0.65 ? 'red' : '' },
-  { key: 'avg_10d_cpc',   label: '10d P/C',    group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v >= 0.82 ? 'green' : v <= 0.68 ? 'red' : '' },
-  { key: 'cnn_fear_greed',label: 'CNN F/G',    group: G.SENTIMENT, fmt: v => fmtDec(v, 0),
-    colorFn: v => v == null ? '' : v <= 25 ? 'green' : v >= 75 ? 'red' : v <= 40 ? 'amber' : '' },
+  { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v >= 1.0 ? 'g3' : v >= 0.9 ? 'g2' : v >= 0.85 ? 'g1' : v >= 0.75 ? 'a' : v >= 0.7 ? 'r1' : v >= 0.65 ? 'r2' : 'r3' },
+  { key: 'avg_10d_cpc', label: '10d P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v >= 0.95 ? 'g3' : v >= 0.88 ? 'g2' : v >= 0.82 ? 'g1' : v >= 0.74 ? 'a' : v >= 0.68 ? 'r1' : v >= 0.62 ? 'r2' : 'r3' },
+  { key: 'cnn_fear_greed', label: 'CNN F/G', group: G.SENTIMENT, fmt: v => fmtDec(v, 0),
+    colorFn: v => v == null ? '' : v <= 15 ? 'g3' : v <= 25 ? 'g2' : v <= 40 ? 'g1' : v <= 60 ? 'a' : v <= 70 ? 'r1' : v <= 80 ? 'r2' : 'r3' },
   { key: 'aaii_bulls',    label: 'AAII Bulls', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
   { key: 'aaii_neutral',  label: 'Neutral',    group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
   { key: 'aaii_bears',    label: 'AAII Bears', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
   { key: 'aaii_spread', label: 'B-B Sprd', group: G.SENTIMENT, fmt: v => fmtDec(v, 1),
-    colorFn: v => v == null ? '' : v < -20 ? 'green' : v > 30 ? 'red' : v < -10 ? 'amber' : '' },
-  { key: 'naaim',         label: 'NAAIM',      group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 90 ? 'amber' : v < 25 ? 'green' : '' },
+    colorFn: v => v == null ? '' : v < -35 ? 'g3' : v < -20 ? 'g2' : v < -10 ? 'g1' : v < 10 ? 'a' : v < 20 ? 'r1' : v < 30 ? 'r2' : 'r3' },
+  { key: 'naaim', label: 'NAAIM', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v < 15 ? 'g3' : v < 25 ? 'g2' : v < 40 ? 'g1' : v < 65 ? 'a' : v < 80 ? 'r1' : v < 95 ? 'r2' : 'r3' },
 ]
 
 // ── Group spans ────────────────────────────────────────────────────────────
