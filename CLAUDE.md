@@ -336,7 +336,9 @@ CSS: `MorningWire.module.css` lines ~192–280
 - **ETFs (SPY, QQQ, IWM, DIA) are supported** — treated as equities, no special handling needed
 - `MARelationship` panel (`app/src/components/tiles/MARelationship.jsx`) fetches `/api/snapshot` every 15s for live SPY/QQQ prices; MA % distances (9EMA/20EMA/50SMA/200SMA) come from daily engine push
 
-## COT Data Tab (Screener → /screener/cot) — Built 2026-03-14
+## COT Data Tab (Breadth → COT Data tab) — Built 2026-03-14, moved under Breadth 2026-03-15
+
+COT Data lives as the second tab on the Breadth page (`/breadth`). There is NO standalone `/screener/cot` route — it was removed. `Breadth.jsx` imports `CotData` directly and renders it when `activeTab === 'cot'`. The tab bar (Monitor | COT Data) is in the Breadth page header using `.tabs` / `.tab` / `.tabActive` classes in `Breadth.module.css`. When COT tab is active, Breadth uses `.pageCot` (padding: 0) so CotData's own padding (`20px 24px 40px`) takes over cleanly.
 
 ### Architecture
 - **Database:** SQLite at `/data/cot.db` (Railway persistent volume — survives redeploys)
@@ -349,7 +351,7 @@ CSS: `MorningWire.module.css` lines ~192–280
 ### Key Files
 - `api/services/cot_service.py` — CFTC pipeline, SQLite schema, SYMBOL_MAP, seed/refresh
 - `api/routers/cot.py` — 4 routes: GET /symbols, GET /status, POST /refresh, POST /reseed, GET /{symbol}
-- `app/src/pages/CotData.jsx` — Chart.js mixed bar+line chart, symbol dropdown, lookback buttons
+- `app/src/pages/CotData.jsx` — Chart.js mixed bar+line chart, symbol dropdown, lookback buttons (rendered inside Breadth.jsx)
 - `app/src/pages/CotData.module.css` — page styles
 
 ### SYMBOL_MAP — Critical Notes
