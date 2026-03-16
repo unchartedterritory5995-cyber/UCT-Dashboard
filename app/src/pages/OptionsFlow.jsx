@@ -509,7 +509,7 @@ function buildCharts(cc) {
     sectorMap[sec].tickers[t.S].p += t.P;
     t.D === "BULL" ? (sectorMap[sec].tickers[t.S].bull += t.P) : (sectorMap[sec].tickers[t.S].bear += t.P);
     // Also build per-ticker map for fallback
-    if (!tickerFlowMap[t.S]) tickerFlowMap[t.S] = { name:t.S, bull:0, bear:0, count:0, tickers:{} };
+    if (!tickerFlowMap[t.S]) tickerFlowMap[t.S] = { name:t.S, bull:0, bear:0, count:0, tickers:{}, stocketf:t.stocketf };
     tickerFlowMap[t.S].count++;
     t.D === "BULL" ? (tickerFlowMap[t.S].bull += t.P) : (tickerFlowMap[t.S].bear += t.P);
     tickerFlowMap[t.S].tickers[t.S] = tickerFlowMap[t.S].tickers[t.S] || { s:t.S, p:0, bull:0, bear:0 };
@@ -521,8 +521,12 @@ function buildCharts(cc) {
   const useTickers = meaningfulSectors.length < 3;
   // Detect if majority of trades are ETFs/indexes
   const isETFData = etfCount > cc.length * 0.5;
+  // When in ETF mode, exclude non-ETF/INDEX tickers (e.g. AAL misclassified by BBS)
+  const etfFiltered = isETFData
+    ? Object.values(tickerFlowMap).filter(t => t.stocketf === "ETF" || t.stocketf === "INDEX")
+    : Object.values(tickerFlowMap);
   const SECTORS = useTickers
-    ? Object.values(tickerFlowMap).sort((a,b)=>(b.bull+b.bear)-(a.bull+a.bear)).slice(0,16)
+    ? etfFiltered.sort((a,b)=>(b.bull+b.bear)-(a.bull+a.bear)).slice(0,16)
         .map(s => ({ ...s, topTickers: Object.values(s.tickers).sort((a,b)=>b.p-a.p).slice(0,5) }))
     : Object.values(sectorMap).sort((a,b)=>(b.bull+b.bear)-(a.bull+a.bear)).slice(0,8)
         .map(s => ({ ...s, topTickers: Object.values(s.tickers).sort((a,b)=>b.p-a.p).slice(0,5) }));
@@ -618,6 +622,10 @@ function processFlowData(rows) {
       time:(r.time||"").trim()
     };
   });
+
+  // Fix BBS misclassifications — these are stocks, not ETFs/indexes
+  const ETF_BLACKLIST = new Set(["AAL"]);
+  rawTrades.forEach(t => { if (ETF_BLACKLIST.has(t.S)) t.stocketf = "STOCK"; });
 
   // ML/ Volume Matching: when an ML/ trade has the same volume as a BLOCK/SWEEP
   // at the same ticker+strike+exp, it means the original position was closed/rolled
