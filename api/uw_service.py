@@ -48,7 +48,7 @@ def build_occ(sym: str, cp: str, strike: float, exp_str: str) -> str:
     
     exp_str can be 'M/D', 'M/D/YY', or 'M/D/YYYY'
     """
-    ticker = sym.upper().ljust(6)
+    ticker = sym.upper()
     
     parts = exp_str.strip().split("/")
     m = int(parts[0])
