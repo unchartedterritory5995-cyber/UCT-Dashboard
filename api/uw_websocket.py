@@ -141,7 +141,7 @@ async def _listen_to_uw():
             headers = {
                 "Authorization": f"Bearer {UW_API_KEY}",
                 "UW-CLIENT-API-ID": "100001",
-                "Accept": "text/event-stream",
+                "Accept": "application/json",
             }
             logger.info(f"Connecting to UW SSE: {UW_SSE_URL}")
 
