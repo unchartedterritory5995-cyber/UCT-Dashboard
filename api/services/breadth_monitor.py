@@ -263,6 +263,20 @@ def patch_field(date_str: str, key: str, value) -> bool:
         return False
 
 
+def delete_snapshot(date_str: str) -> bool:
+    """Delete a snapshot row by date. Returns True if a row was deleted."""
+    try:
+        with _conn() as c:
+            cur = c.execute(
+                "DELETE FROM breadth_snapshots WHERE date = ?", (date_str,)
+            )
+            c.commit()
+        return cur.rowcount > 0
+    except Exception as e:
+        print(f"[breadth_monitor] delete_snapshot error: {e}")
+        return False
+
+
 def get_latest() -> Optional[dict]:
     history = get_history(1)
     return history[0] if history else None

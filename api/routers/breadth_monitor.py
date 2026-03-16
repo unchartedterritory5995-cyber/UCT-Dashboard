@@ -68,6 +68,15 @@ async def push_breadth_snapshot(request: Request):
     return {"status": "ok", "date": date_str, "keys": len(metrics)}
 
 
+@router.delete("/api/breadth-monitor/{date_str}")
+async def delete_breadth_snapshot(date_str: str, request: Request):
+    _check_auth(request)
+    ok = svc.delete_snapshot(date_str)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"No snapshot for {date_str}")
+    return {"status": "deleted", "date": date_str}
+
+
 @router.patch("/api/breadth-monitor/{date_str}/field")
 async def patch_breadth_field(date_str: str, request: Request):
     _check_auth(request)
