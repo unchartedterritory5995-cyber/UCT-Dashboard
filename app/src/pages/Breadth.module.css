@@ -289,6 +289,20 @@
 
 .sortIndicator { font-size: 9px; opacity: 0.8; }
 
+.exportBtn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-left: 8px;
+}
+.exportBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+
 .aaiiStale {
   opacity: 0.45;
   font-style: italic;

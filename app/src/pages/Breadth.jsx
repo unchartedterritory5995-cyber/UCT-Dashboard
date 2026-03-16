@@ -4,6 +4,28 @@ import styles from './Breadth.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
+function exportCsv(rows, cols) {
+  const headers = ['date', ...cols.map(c => c.key)]
+  const lines = [
+    headers.join(','),
+    ...rows.map(row =>
+      headers.map(h => {
+        const v = row[h]
+        if (v === null || v === undefined) return ''
+        if (typeof v === 'string' && v.includes(',')) return `"${v}"`
+        return v
+      }).join(',')
+    )
+  ]
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `breadth-monitor-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // ── Column definitions ────────────────────────────────────────────────────────
 // Each entry: { key, label, group, fmt?, colorFn? }
 // colorFn(val) → 'green' | 'red' | 'amber' | ''
@@ -314,6 +336,13 @@ export default function Breadth() {
             </button>
           ))}
         </div>
+        <button
+          className={styles.exportBtn}
+          onClick={() => exportCsv(sortedRows, COLS)}
+          title="Download as CSV"
+        >
+          ↓ CSV
+        </button>
       </div>
 
       {error && (
