@@ -518,7 +518,6 @@ export default function Breadth() {
                               const isCross = v === 0
                               return (
                                 <div key={k} className={styles.maItem}>
-                                  <span className={styles.maLabel}>{col.maLabels[i]}</span>
                                   <span className={isCheck ? styles.maCheck : isCross ? styles.maCross : styles.maDash}>
                                     {v === null || v === undefined ? '—' : isCheck ? '✓' : '✗'}
                                   </span>
