@@ -407,39 +407,51 @@ function consistencyTable(trades, n=8) {
 // Recomputes all chart data from a clean_confirmed slice (used by cap filter)
 function buildCharts(cc) {
   const dayMap = {};
-  cc.forEach(t => {
-    if (!t.Dt) return;
-    if (!dayMap[t.Dt]) dayMap[t.Dt] = { d:t.Dt, b:0, r:0 };
-    t.D === "BULL" ? (dayMap[t.Dt].b += t.P) : (dayMap[t.Dt].r += t.P);
-  });
+  // Pre-split all trades in one pass into 6 buckets + day map
+  const sb=[], sbr=[], lb=[], lbr=[], lpb=[], lpr=[], leapsAll=[];
+  let etfCount = 0;
+  for (let i = 0; i < cc.length; i++) {
+    const t = cc[i];
+    if (t.stocketf === "ETF" || t.stocketf === "INDEX") etfCount++;
+    if (t.Dt) {
+      if (!dayMap[t.Dt]) dayMap[t.Dt] = { d:t.Dt, b:0, r:0 };
+      t.D === "BULL" ? (dayMap[t.Dt].b += t.P) : (dayMap[t.Dt].r += t.P);
+    }
+    const dte = t.DTE;
+    if (dte >= 0 && dte < 60) {
+      t.D === "BULL" ? sb.push(t) : t.D === "BEAR" ? sbr.push(t) : 0;
+    } else if (dte >= 60 && dte < 180) {
+      t.D === "BULL" ? lb.push(t) : t.D === "BEAR" ? lbr.push(t) : 0;
+    } else if (dte >= 180) {
+      leapsAll.push(t);
+      t.D === "BULL" ? lpb.push(t) : t.D === "BEAR" ? lpr.push(t) : 0;
+    }
+  }
   const DAYS = Object.values(dayMap).sort((a,b) => {
     const [am,ad] = a.d.split("/").map(Number);
     const [bm,bd] = b.d.split("/").map(Number);
     return am!==bm ? am-bm : ad-bd;
   });
-  const shortTerm = cc.filter(t => t.DTE >= 0 && t.DTE < 60);
-  const longTerm  = cc.filter(t => t.DTE >= 60 && t.DTE < 180);
-  const leaps     = cc.filter(t => t.DTE >= 180);
-  const SB_SYM = netByTicker(shortTerm.filter(t=>t.D==="BULL"));
-  const SR_SYM = netByTicker(shortTerm.filter(t=>t.D==="BEAR"));
-  const LB_SYM = netByTicker(longTerm.filter(t=>t.D==="BULL"));
-  const LR_SYM = netByTicker(longTerm.filter(t=>t.D==="BEAR"));
-  const LEAPS_B = netByTicker(leaps.filter(t=>t.D==="BULL"));
-  const LEAPS_R = netByTicker(leaps.filter(t=>t.D==="BEAR"));
-  const SBL = topTradesFn(shortTerm.filter(t=>t.D==="BULL"));
-  const SBR = topTradesFn(shortTerm.filter(t=>t.D==="BEAR"));
-  const LBL = topTradesFn(longTerm.filter(t=>t.D==="BULL"));
-  const LBR_T = topTradesFn(longTerm.filter(t=>t.D==="BEAR"));
-  const LEAPS_BL_T = topTradesFn(leaps.filter(t=>t.D==="BULL"));
-  const LEAPS_BR_T = topTradesFn(leaps.filter(t=>t.D==="BEAR"));
-  const SBLC = consistencyTable(shortTerm.filter(t=>t.D==="BULL"));
-  const SBRC = consistencyTable(shortTerm.filter(t=>t.D==="BEAR"));
-  const LBLC = consistencyTable(longTerm.filter(t=>t.D==="BULL"));
-  const LBRC = consistencyTable(longTerm.filter(t=>t.D==="BEAR"));
-  const LEAPS_BLC = consistencyTable(leaps.filter(t=>t.D==="BULL"));
-  const LEAPS_BRC = consistencyTable(leaps.filter(t=>t.D==="BEAR"));
+  const SB_SYM = netByTicker(sb);
+  const SR_SYM = netByTicker(sbr);
+  const LB_SYM = netByTicker(lb);
+  const LR_SYM = netByTicker(lbr);
+  const LEAPS_B = netByTicker(lpb);
+  const LEAPS_R = netByTicker(lpr);
+  const SBL = topTradesFn(sb);
+  const SBR = topTradesFn(sbr);
+  const LBL = topTradesFn(lb);
+  const LBR_T = topTradesFn(lbr);
+  const LEAPS_BL_T = topTradesFn(lpb);
+  const LEAPS_BR_T = topTradesFn(lpr);
+  const SBLC = consistencyTable(sb);
+  const SBRC = consistencyTable(sbr);
+  const LBLC = consistencyTable(lb);
+  const LBRC = consistencyTable(lbr);
+  const LEAPS_BLC = consistencyTable(lpb);
+  const LEAPS_BRC = consistencyTable(lpr);
   const leapsExpMap = {};
-  leaps.forEach(t => {
+  leapsAll.forEach(t => {
     if (!leapsExpMap[t.E]) leapsExpMap[t.E] = { exp:t.E, p:0, n:0, dte:t.DTE, syms:{} };
     leapsExpMap[t.E].p += t.P; leapsExpMap[t.E].n++;
     leapsExpMap[t.E].syms[t.S] = (leapsExpMap[t.E].syms[t.S]||0) + t.P;
@@ -508,7 +520,6 @@ function buildCharts(cc) {
   const meaningfulSectors = Object.keys(sectorMap).filter(s => s !== "None" && s !== "Unknown" && s !== "");
   const useTickers = meaningfulSectors.length < 3;
   // Detect if majority of trades are ETFs/indexes
-  const etfCount = cc.filter(t => t.stocketf === "ETF" || t.stocketf === "INDEX").length;
   const isETFData = etfCount > cc.length * 0.5;
   const SECTORS = useTickers
     ? Object.values(tickerFlowMap).sort((a,b)=>(b.bull+b.bear)-(a.bull+a.bear)).slice(0,16)
@@ -520,12 +531,12 @@ function buildCharts(cc) {
     SBL, SBR, LBL, LBR_T, LEAPS_BL_T, LEAPS_BR_T,
     SBLC, SBRC, LBLC, LBRC, LEAPS_BLC, LEAPS_BRC, LEAPS_EXPS, SECTORS,
     sectorTickerMode: useTickers, sectorIsETF: isETFData,
-    shortBullTotal:sum(shortTerm.filter(t=>t.D==="BULL")),
-    shortBearTotal:sum(shortTerm.filter(t=>t.D==="BEAR")),
-    longBullTotal:sum(longTerm.filter(t=>t.D==="BULL")),
-    longBearTotal:sum(longTerm.filter(t=>t.D==="BEAR")),
-    leapsBullTotal:sum(leaps.filter(t=>t.D==="BULL")),
-    leapsBearTotal:sum(leaps.filter(t=>t.D==="BEAR")),
+    shortBullTotal:sum(sb),
+    shortBearTotal:sum(sbr),
+    longBullTotal:sum(lb),
+    longBearTotal:sum(lbr),
+    leapsBullTotal:sum(lpb),
+    leapsBearTotal:sum(lpr),
   };
 }
 
@@ -614,13 +625,24 @@ function processFlowData(rows) {
   const mlMatched = new Set();
   {
     const mlTrades = rawTrades.filter(t => t.isML && t.S && t.V > 0);
-    const nonML = rawTrades.filter(t => !t.isML && t.Ty && t.S && t.V > 0);
-    mlTrades.forEach(ml => {
-      const match = nonML.find(t =>
-        t.S === ml.S && t.K === ml.K && t.E === ml.E && t.CP === ml.CP && t.V === ml.V && !mlMatched.has(t)
-      );
-      if (match) mlMatched.add(match);
-    });
+    if (mlTrades.length > 0) {
+      // Build hash map for O(1) lookup instead of O(n) .find()
+      const nonMLMap = {};
+      rawTrades.forEach((t, idx) => {
+        if (t.isML || !t.Ty || !t.S || t.V <= 0) return;
+        const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E + "|" + t.V;
+        if (!nonMLMap[k]) nonMLMap[k] = [];
+        nonMLMap[k].push({ trade: t, idx });
+      });
+      mlTrades.forEach(ml => {
+        const k = ml.S + "|" + ml.CP + "|" + ml.K + "|" + ml.E + "|" + ml.V;
+        const candidates = nonMLMap[k];
+        if (candidates) {
+          const match = candidates.find(c => !mlMatched.has(c.trade));
+          if (match) mlMatched.add(match.trade);
+        }
+      });
+    }
   }
 
   // Filter: remove ML/, RED/canceled, invalid, and ML/-matched trades
@@ -874,11 +896,20 @@ function processFlowData(rows) {
 
   // Ticker DB for Search (all filtered trades, confirmed + unconfirmed)
   const tickerMap = {};
-  filtered.forEach(t => {
-    if (!tickerMap[t.S]) tickerMap[t.S] = { s:t.S, b:0, r:0, n:0, trades:[], consMap:{} };
+  for (let i = 0; i < filtered.length; i++) {
+    const t = filtered[i];
+    if (!tickerMap[t.S]) tickerMap[t.S] = { s:t.S, b:0, r:0, n:0, topTrades:[], minTopP:0, consMap:{} };
     const tk = tickerMap[t.S];
     tk.n++; if (t.D==="BULL") tk.b+=t.P; else if (t.D==="BEAR") tk.r+=t.P;
-    tk.trades.push(t);
+    // Keep running top 10 by premium (avoid sorting huge arrays)
+    if (tk.topTrades.length < 10) {
+      tk.topTrades.push(t);
+      if (tk.topTrades.length === 10) tk.minTopP = Math.min(...tk.topTrades.map(x=>x.P));
+    } else if (t.P > tk.minTopP) {
+      const minIdx = tk.topTrades.findIndex(x=>x.P===tk.minTopP);
+      if (minIdx >= 0) tk.topTrades[minIdx] = t;
+      tk.minTopP = Math.min(...tk.topTrades.map(x=>x.P));
+    }
     const ck = t.CP+"|"+t.K+"|"+t.E;
     if (!tk.consMap[ck]) tk.consMap[ck] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
       hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true };
@@ -887,12 +918,12 @@ function processFlowData(rows) {
     if (t.Ty==="BLK") tk.consMap[ck].hasBlock = true;
     if (t.Co==="YELLOW"||t.Co==="MAGENTA") tk.consMap[ck].oiExceeded = true;
     if (t.D) tk.consMap[ck].dirs.add(t.D);
-  });
+  }
   const TICKER_DB = Object.values(tickerMap)
     .sort((a,b)=>(b.b+b.r)-(a.b+a.r))
     .map(tk => ({
       s:tk.s, b:tk.b, r:tk.r, n:tk.n,
-      t:tk.trades.sort((a,b)=>b.P-a.P).slice(0,10),
+      t:tk.topTrades.sort((a,b)=>b.P-a.P),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
         c.clean = c.dirs.size <= 1;
         c.grade = gradeCluster(c);
