@@ -85,8 +85,10 @@ const COLS = [
   // ── Regime ────────────────────────────────────────────────────────────────
   { key: 'uct_exposure',   label: 'UCT Exp',     group: G.REGIME, fmt: v => fmtDec(v, 0),
     colorFn: v => v == null ? '' : v >= 70 ? 'green' : v <= 30 ? 'red' : 'amber' },
-  { key: 'sp500_close',    label: 'S&P 500',    group: G.REGIME, fmt: fmtPrice },
-  { key: 'qqq_close',      label: 'QQQ',         group: G.REGIME, fmt: fmtPrice },
+  { key: 'sp500_close',    label: 'S&P 500',    group: G.REGIME, fmt: fmtPrice,
+    rowColorFn: row => row.spy_day_pct == null ? '' : row.spy_day_pct > 0 ? 'green' : row.spy_day_pct < 0 ? 'red' : '' },
+  { key: 'qqq_close',      label: 'QQQ',         group: G.REGIME, fmt: fmtPrice,
+    rowColorFn: row => row.qqq_day_pct == null ? '' : row.qqq_day_pct > 0 ? 'green' : row.qqq_day_pct < 0 ? 'red' : '' },
   { key: 'vix',            label: 'VIX',          group: G.REGIME, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v > 30 ? 'red' : v > 20 ? 'amber' : 'green' },
   { key: 'avg_10d_vix',    label: '10d VIX',      group: G.REGIME, fmt: v => fmtDec(v, 2),
@@ -248,9 +250,13 @@ function fmtCell(col, val) {
   return String(val)
 }
 
-function cellClass(col, val) {
-  if (!col.colorFn || val === null || val === undefined) return ''
-  const c = col.colorFn(val)
+function cellClass(col, val, row = null) {
+  let c = ''
+  if (col.rowColorFn && row) {
+    c = col.rowColorFn(row)
+  } else if (col.colorFn && val != null) {
+    c = col.colorFn(val)
+  }
   if (c === 'green') return styles.cellGreen
   if (c === 'red')   return styles.cellRed
   if (c === 'amber') return styles.cellAmber
@@ -522,7 +528,7 @@ export default function Breadth() {
                     return (
                       <td
                         key={col.key}
-                        className={`${styles.td} ${cellClass(col, val)} ${isStaleAaii ? styles.aaiiStale : ''}`}
+                        className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''}`}
                         title={isStaleAaii ? `Survey: ${row.aaii_survey_date}` : undefined}
                       >
                         {fmtCell(col, val)}
