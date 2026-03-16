@@ -1157,7 +1157,7 @@ export default function OptionsFlowDashboard() {
                     interval={trimmed.length>15?"preserveStartEnd":trimmed.length>10?1:0}
                     angle={-45} textAnchor="end" height={28}
                     tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
-                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#ffab00" }}
+                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#00e5ff" }}
                     tickFormatter={v=>"$"+v.toFixed(1)} width={32} domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
                   <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:7, fill:"#4a5c73" }}
                     tickFormatter={v=>fK(v)} width={38} />
@@ -1166,8 +1166,8 @@ export default function OptionsFlowDashboard() {
                     labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
                   <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
                   <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
-                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#ffab00" strokeWidth={2}
-                    dot={{ r:2, fill:"#ffab00", stroke:"#0d1525", strokeWidth:1 }} connectNulls />
+                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#00e5ff" strokeWidth={2}
+                    dot={{ r:4, fill:"#00e5ff", stroke:"#0d1525", strokeWidth:1 }} connectNulls />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -1332,10 +1332,10 @@ export default function OptionsFlowDashboard() {
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center",maxWidth:400}}>
         <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
-          {[["stocks","Stocks"],["index","Index"]].map(([m,label])=>(
+          {[["stocks","Stocks"],["index","Indexes / ETF's"]].map(([m,label])=>(
             <button key={m} onClick={()=>{ if(dataMode!==m) setDataMode(m); }} style={{
-              padding:"6px 18px", borderRadius:5, border:"none", cursor:"pointer",
-              fontSize:12, fontWeight:700, fontFamily:"inherit",
+              padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
+              fontSize:14, fontWeight:800, fontFamily:"inherit",
               background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
             }}>{label}</button>
           ))}
@@ -1515,21 +1515,25 @@ export default function OptionsFlowDashboard() {
     <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", padding:"16px 20px" }}>
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
 
-        {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-          <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
-          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — MARKET READ</h1>
-          {/* Stocks / Index toggle */}
-          <div style={{ display:"flex", background:P.al, borderRadius:6, padding:2, marginLeft:8 }}>
-            {[["stocks","Stocks"],["index","Index"]].map(([m,label])=>(
+        {/* Data Mode Toggle */}
+        <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
+          <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
+            {[["stocks","Stocks"],["index","Indexes / ETF's"]].map(([m,label])=>(
               <button key={m} onClick={()=>{ if(dataMode!==m) setDataMode(m); }} style={{
-                padding:"4px 14px", borderRadius:4, border:"none", cursor:"pointer",
-                fontSize:11, fontWeight:700, fontFamily:"inherit",
+                padding:"8px 28px", borderRadius:6, border:"none", cursor:"pointer",
+                fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
                 background:dataMode===m?P.cd:"transparent", color:dataMode===m?P.wh:P.mt,
+                boxShadow:dataMode===m?("0 2px 8px rgba(0,0,0,0.3)"):"none",
                 transition:"all 0.15s"
               }}>{label}</button>
             ))}
           </div>
+        </div>
+
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+          <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
+          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — MARKET READ</h1>
           <span style={{ marginLeft:"auto", fontSize:10, color:P.mt, background:P.al, padding:"3px 10px", borderRadius:4 }}>
             {D.dateRange} · {D.confirmedCount} confirmed of {D.totalTrades} trades
           </span>
@@ -1815,7 +1819,7 @@ export default function OptionsFlowDashboard() {
                           interval={trimmed.length>15?"preserveStartEnd":trimmed.length>10?1:0}
                           angle={-45} textAnchor="end" height={28}
                           tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
-                        <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#ffab00" }}
+                        <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#00e5ff" }}
                           tickFormatter={v=>"$"+v.toFixed(1)} width={32}
                           domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
                         <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:7, fill:"#4a5c73" }}
@@ -1830,12 +1834,12 @@ export default function OptionsFlowDashboard() {
                           labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
                         <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
                         <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
-                        <Line yAxisId="price" dataKey="price" type="monotone" stroke="#ffab00" strokeWidth={2}
-                          dot={{ r:2, fill:"#ffab00", stroke:"#0d1525", strokeWidth:1 }} connectNulls />
+                        <Line yAxisId="price" dataKey="price" type="monotone" stroke="#00e5ff" strokeWidth={2}
+                          dot={{ r:4, fill:"#00e5ff", stroke:"#0d1525", strokeWidth:1 }} connectNulls />
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>
-                  {curPrice>0 && <div style={{ fontSize:9, color:P.ac, fontWeight:700, marginTop:2, textAlign:"right" }}>Now: ${curPrice.toFixed(2)}</div>}
+                  {curPrice>0 && <div style={{ fontSize:9, color:"#00e5ff", fontWeight:700, marginTop:2, textAlign:"right" }}>Now: ${curPrice.toFixed(2)}</div>}
                 </div>
               </div>
 
