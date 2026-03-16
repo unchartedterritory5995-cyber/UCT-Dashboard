@@ -51,14 +51,14 @@
 .table {
   border-collapse: collapse;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
+  font-size: 13px;
   white-space: nowrap;
   width: max-content;
 }
 
 /* ── Header cells ────────────────────────────────────────────────────────────── */
 .th {
-  padding: 5px 8px;
+  padding: 7px 12px;
   text-align: center;
   font-weight: 700;
   letter-spacing: 0.3px;
@@ -72,17 +72,17 @@
 
 /* Group header row */
 .groupHeader {
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
 .colLabel {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-muted);
-  top: 26px; /* second sticky row — sits below group header */
+  top: 32px; /* second sticky row — sits below group header */
 }
 
 /* Date column — sticky left */
@@ -109,7 +109,7 @@
 
 /* ── Body cells ──────────────────────────────────────────────────────────────── */
 .td {
-  padding: 3px 8px;
+  padding: 6px 12px;
   text-align: right;
   color: var(--text);
   border-right: 1px solid rgba(255,255,255,0.03);
@@ -125,7 +125,7 @@
   text-align: left;
   border-right: 1px solid var(--border);
   z-index: 1;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .rowEven .dateCell { background: var(--bg); }
