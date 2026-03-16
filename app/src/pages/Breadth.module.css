@@ -262,6 +262,30 @@
   line-height: 1;
 }
 
+.daysPills {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.daysPill {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.daysPill:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+.daysPillActive {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+  color: #000;
+  font-weight: 700;
+}
+
 .errorBanner {
   font-family: 'Instrument Sans', sans-serif;
   font-size: 13px;

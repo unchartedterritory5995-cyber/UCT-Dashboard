@@ -238,6 +238,17 @@ export default function Breadth() {
         <span className={styles.meta}>
           {rows.length > 0 ? `${rows.length} trading days` : isLoading ? 'Loading…' : 'No data'}
         </span>
+        <div className={styles.daysPills}>
+          {[30, 60, 90].map(d => (
+            <button
+              key={d}
+              className={`${styles.daysPill} ${days === d ? styles.daysPillActive : ''}`}
+              onClick={() => setDays(d)}
+            >
+              {d}d
+            </button>
+          ))}
+        </div>
       </div>
 
       {error && (
