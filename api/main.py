@@ -16,6 +16,8 @@ from api.services import cot_service as _cot_service
 from api.top_flow_router import router as top_flow_router
 from api import top_flow_tracker as _top_flow_tracker
 from api.uw_router import router as uw_router
+from api.uw_ws_router import router as ws_router          # ← NEW
+from api.uw_websocket import start_uw_listener             # ← NEW
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 if _SENTRY_DSN:
@@ -102,6 +104,10 @@ async def lifespan(app: FastAPI):
     _scheduler.start()
     print("[startup] COT scheduler running — refreshes every Friday at 3:45 PM ET")
 
+    # ── UW WebSocket relay ─────────────────────────────────────────
+    start_uw_listener()                                     # ← NEW
+    print("[startup] UW WebSocket listener started")
+
     yield
     _scheduler.shutdown(wait=False)
     stop_auto_refresh()
@@ -114,6 +120,21 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+# ── Test endpoint to check UW field names (remove after verifying) ──  # ← NEW
+@app.get("/api/test-uw-fields")                                         # ← NEW
+async def test_uw_fields():                                             # ← NEW
+    import httpx                                                        # ← NEW
+    async with httpx.AsyncClient() as client:                           # ← NEW
+        resp = await client.get(                                        # ← NEW
+            "https://api.unusualwhales.com/api/option-trades/flow-alerts",
+            headers={                                                   # ← NEW
+                "Authorization": f"Bearer {os.getenv('UW_API_KEY', '')}",
+                "UW-CLIENT-API-ID": "100001",                           # ← NEW
+            },                                                          # ← NEW
+            params={"limit": 1},                                        # ← NEW
+        )                                                               # ← NEW
+        return resp.json()                                              # ← NEW
 
 app.include_router(snapshot.router)
 app.include_router(movers.router)
@@ -130,6 +151,7 @@ app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
 app.include_router(top_flow_router)
 app.include_router(uw_router)
+app.include_router(ws_router)                               # ← NEW
 
 # Serve React build — must come AFTER all /api routes
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
@@ -160,3 +182,8 @@ if os.path.exists(DIST):
     @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
         return FileResponse(os.path.join(DIST, "index.html"))
+```
+
+Copy-paste the whole thing into `api/main.py` on GitHub and commit. Once Railway deploys, visit:
+```
+https://your-railway-url.up.railway.app/api/test-uw-fields
