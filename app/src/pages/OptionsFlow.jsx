@@ -1565,7 +1565,7 @@ export default function OptionsFlowDashboard() {
 
 
   return (
-    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", padding:"16px 20px" }}>
+    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", padding:"16px 20px", zoom:1.2 }}>
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
 
         {/* Data Mode Toggle */}
