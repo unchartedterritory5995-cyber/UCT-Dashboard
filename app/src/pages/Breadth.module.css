@@ -220,6 +220,14 @@
 }
 
 /* ── Individual column collapse ──────────────────────────────────────────────── */
+.colSubLabel {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
 .colLabelClickable {
   cursor: pointer;
   user-select: none;

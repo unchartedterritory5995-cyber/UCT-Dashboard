@@ -122,10 +122,10 @@ const COLS = [
     colorFn: v => v ? 'g2' : '' },
 
   // ── MA Breadth ────────────────────────────────────────────────────────────
-  { key: 'spy_ma_stack', label: 'SPY MAs', group: G.MA, type: 'ma_stack',
+  { key: 'spy_ma_stack', label: 'SPY MA', subLabels: '10  20  50  200', group: G.MA, type: 'ma_stack',
     keys: ['spy_above_10sma', 'spy_above_20sma', 'spy_above_50sma', 'spy_above_200sma'],
     maLabels: ['10', '20', '50', '200'] },
-  { key: 'qqq_ma_stack', label: 'QQQ MAs', group: G.MA, type: 'ma_stack',
+  { key: 'qqq_ma_stack', label: 'QQQ MA', subLabels: '10  20  50  200', group: G.MA, type: 'ma_stack',
     keys: ['qqq_above_10sma', 'qqq_above_20sma', 'qqq_above_50sma', 'qqq_above_200sma'],
     maLabels: ['10', '20', '50', '200'] },
   { key: 'pct_above_5sma',   label: '>5SMA',    group: G.MA, fmt: fmtPct,
@@ -457,7 +457,9 @@ export default function Breadth() {
                     >
                       {isColCollapsed
                         ? <span className={styles.colCollapsedLabel}>{col.label}</span>
-                        : col.label
+                        : col.subLabels
+                          ? <><div>{col.label}</div><div className={styles.colSubLabel}>{col.subLabels}</div></>
+                          : col.label
                       }
                     </th>
                   )
