@@ -78,7 +78,7 @@ function pctColor(low, mid, high) {
 
 const COLS = [
   // ── Score ─────────────────────────────────────────────────────────────────
-  { key: 'breadth_score', label: 'Health', group: G.SCORE, type: 'sparkline',
+  { key: 'breadth_score', label: 'Health', group: G.SCORE,
     fmt: v => fmtDec(v, 0),
     colorFn: v => v == null ? '' : v >= 65 ? 'green' : v <= 35 ? 'red' : 'amber' },
 
@@ -91,10 +91,6 @@ const COLS = [
     colorFn: v => v == null ? '' : v > 30 ? 'red' : v > 20 ? 'amber' : 'green' },
   { key: 'avg_10d_vix',    label: '10d VIX',      group: G.REGIME, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v > 28 ? 'red' : v > 20 ? 'amber' : 'green' },
-  { key: 'vxn',            label: 'VXN',          group: G.REGIME, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 35 ? 'red' : v > 25 ? 'amber' : 'green' },
-  { key: 'avg_10d_vxn',    label: '10d VXN',      group: G.REGIME, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 32 ? 'red' : v > 24 ? 'amber' : 'green' },
   { key: 'spy_ma_stack', label: 'SPY MAs', group: G.REGIME, type: 'ma_stack',
     keys: ['spy_above_10sma', 'spy_above_20sma', 'spy_above_50sma', 'spy_above_200sma'],
     maLabels: ['10', '20', '50', '200'] },
@@ -105,16 +101,10 @@ const COLS = [
     colorFn: v => v == null ? '' :
       ['uptrend','bull','recovery'].some(p => v.toLowerCase().includes(p)) ? 'green' :
       ['distribution','liquidation','correction'].some(p => v.toLowerCase().includes(p)) ? 'red' : 'amber' },
-  { key: 'spy_dist_days',     label: 'SPY DD',     group: G.REGIME,
-    colorFn: v => v == null ? '' : v >= 7 ? 'red' : v >= 4 ? 'amber' : v <= 1 ? 'green' : '' },
-  { key: 'qqq_dist_days',     label: 'QQQ DD',     group: G.REGIME,
-    colorFn: v => v == null ? '' : v >= 7 ? 'red' : v >= 4 ? 'amber' : v <= 1 ? 'green' : '' },
   { key: 'rsp_spy_ratio',     label: 'RSP/SPY',    group: G.REGIME, fmt: v => fmtDec(v, 4),
     colorFn: v => v == null ? '' : v > 0.46 ? 'green' : v < 0.43 ? 'red' : '' },
   { key: 'iwm_qqq_ratio',     label: 'IWM/QQQ',    group: G.REGIME, fmt: v => fmtDec(v, 4),
     colorFn: v => v == null ? '' : v > 0.18 ? 'green' : v < 0.15 ? 'red' : '' },
-  { key: 'vix_term_structure',label: 'VTS',        group: G.REGIME, fmt: v => fmtDec(v, 3),
-    colorFn: v => v == null ? '' : v >= 1.05 ? 'green' : v < 1.0 ? 'red' : 'amber' },
 
   // ── Primary Breadth ───────────────────────────────────────────────────────
   { key: 'up_4pct_today',      label: 'Up 4%+',     group: G.PRIMARY,
@@ -137,9 +127,9 @@ const COLS = [
     colorFn: v => v == null ? '' : v > 50 ? 'green' : '' },
   { key: 'down_50pct_month',   label: 'Dn50%/Mo',   group: G.PRIMARY,
     colorFn: v => v == null ? '' : v > 50 ? 'red' : '' },
-  { key: 'magna_up',           label: 'MAGNA↑',     group: G.PRIMARY,
+  { key: 'magna_up',           label: 'Up13%/34d',  group: G.PRIMARY,
     colorFn: v => v == null ? '' : v > 800 ? 'green' : v < 250 ? 'red' : '' },
-  { key: 'magna_down',         label: 'MAGNA↓',     group: G.PRIMARY,
+  { key: 'magna_down',         label: 'Dn13%/34d',  group: G.PRIMARY,
     colorFn: v => v == null ? '' : v > 800 ? 'red' : v < 150 ? 'green' : '' },
   { key: 'universe_count',     label: 'Universe',   group: G.PRIMARY },
   { key: 'qqq_day_pct',       label: 'QQQ%',       group: G.PRIMARY, fmt: v => fmtDec(v, 2),
@@ -167,7 +157,7 @@ const COLS = [
     colorFn: pctColor(30, 45, 60) },
 
   // ── Highs / Lows ──────────────────────────────────────────────────────────
-  { key: 'new_52w_highs',  label: '52W Hi',    group: G.HIGHS, type: 'sparkline',
+  { key: 'new_52w_highs',  label: '52W Hi',    group: G.HIGHS,
     colorFn: v => v == null ? '' : v > 150 ? 'green' : v < 20 ? 'red' : '' },
   { key: 'new_52w_lows',   label: '52W Lo',    group: G.HIGHS,
     colorFn: v => v == null ? '' : v > 150 ? 'red' : v < 20 ? 'green' : '' },
@@ -185,7 +175,7 @@ const COLS = [
     colorFn: v => v == null ? '' : v > 4 ? 'red' : v < 0.5 ? 'green' : '' },
 
   // ── Setups ────────────────────────────────────────────────────────────────
-  { key: 'stage2_count', label: 'Stage 2', group: G.SETUPS, type: 'sparkline',
+  { key: 'stage2_count', label: 'Stage 2', group: G.SETUPS,
     colorFn: v => v == null ? '' : v > 800 ? 'green' : v < 300 ? 'red' : '' },
   { key: 'stage4_count', label: 'Stage 4', group: G.SETUPS,
     colorFn: v => v == null ? '' : v > 800 ? 'red' : v < 200 ? 'green' : '' },
