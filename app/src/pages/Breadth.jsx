@@ -517,8 +517,13 @@ export default function Breadth() {
                       )
                     }
                     if (col.type === 'ma_stack') {
+                      // weights: 10SMA=1, 20SMA=1, 50SMA=2, 200SMA=3 (max 7)
+                      const weights = [1, 1, 2, 3]
+                      const score = col.keys.reduce((s, k, i) => s + (row[k] === 1 ? weights[i] : 0), 0)
+                      const hasData = col.keys.some(k => row[k] != null)
+                      const stackBg = !hasData ? '' : score >= 6 ? styles.bgG3 : score >= 4 ? styles.bgG2 : score >= 3 ? styles.bgG1 : score >= 2 ? styles.bgA : score >= 1 ? styles.bgR2 : styles.bgR3
                       return (
-                        <td key={col.key} className={`${styles.td} ${styles.maStackCell}`}>
+                        <td key={col.key} className={`${styles.td} ${styles.maStackCell} ${stackBg}`}>
                           <div className={styles.maStack}>
                             {col.keys.map((k, i) => {
                               const v = row[k]
