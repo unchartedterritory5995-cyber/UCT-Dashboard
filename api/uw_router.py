@@ -148,3 +148,113 @@ async def debug_raw(
         "row_count": len(raw.get("data", [])) if isinstance(raw.get("data"), list) else 0,
         "full_data": raw,
     }
+
+
+# ─── Debug: Raw Flow Alerts ──────────────────────────────────────────────────
+
+@router.get("/debug-flow-alerts")
+async def debug_flow_alerts(
+    ticker: str = Query(None),
+    limit: int = Query(5),
+):
+    """
+    Debug endpoint: returns raw UW flow-alerts response to see field names.
+    /api/uw/debug-flow-alerts?limit=3
+    /api/uw/debug-flow-alerts?ticker=NVDA&limit=3
+    """
+    import httpx, os
+    
+    headers = {
+        "Authorization": f"Bearer {os.environ.get('UW_API_KEY', '')}",
+        "UW-CLIENT-API-ID": "100001",
+        "Accept": "application/json",
+    }
+    url = "https://api.unusualwhales.com/api/option-trades/flow-alerts"
+    params = {"limit": limit, "min_premium": 100000}
+    if ticker:
+        params["ticker_symbol"] = ticker.upper()
+    
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.get(url, headers=headers, params=params)
+            raw = resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+    
+    data = raw.get("data", [])
+    return {
+        "status": resp.status_code,
+        "count": len(data),
+        "first_row_keys": list(data[0].keys()) if data else [],
+        "first_row": data[0] if data else "no_data",
+        "second_row": data[1] if len(data) > 1 else "no_data",
+    }
+
+
+# ─── Debug: Hottest Chains (Screener) ────────────────────────────────────────
+
+@router.get("/debug-screener")
+async def debug_screener(limit: int = Query(5)):
+    """
+    Debug: raw UW screener/option-contracts response.
+    /api/uw/debug-screener?limit=3
+    """
+    import httpx, os
+    
+    headers = {
+        "Authorization": f"Bearer {os.environ.get('UW_API_KEY', '')}",
+        "UW-CLIENT-API-ID": "100001",
+        "Accept": "application/json",
+    }
+    url = "https://api.unusualwhales.com/api/screener/option-contracts"
+    params = {"limit": limit, "min_premium": 200000, "min_volume": 500}
+    
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.get(url, headers=headers, params=params)
+            raw = resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+    
+    data = raw.get("data", [])
+    return {
+        "status": resp.status_code,
+        "count": len(data),
+        "first_row_keys": list(data[0].keys()) if data else [],
+        "first_row": data[0] if data else "no_data",
+        "second_row": data[1] if len(data) > 1 else "no_data",
+    }
+
+
+# ─── Debug: Recent Ticker Flow ───────────────────────────────────────────────
+
+@router.get("/debug-ticker-flow/{ticker}")
+async def debug_ticker_flow(ticker: str, limit: int = Query(5)):
+    """
+    Debug: raw UW stock/{ticker}/flow-recent response.
+    /api/uw/debug-ticker-flow/NVDA?limit=3
+    """
+    import httpx, os
+    
+    headers = {
+        "Authorization": f"Bearer {os.environ.get('UW_API_KEY', '')}",
+        "UW-CLIENT-API-ID": "100001",
+        "Accept": "application/json",
+    }
+    url = f"https://api.unusualwhales.com/api/stock/{ticker.upper()}/flow-recent"
+    
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.get(url, headers=headers)
+            raw = resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+    
+    data = raw.get("data", [])
+    return {
+        "status": resp.status_code,
+        "count": len(data),
+        "first_row_keys": list(data[0].keys()) if data else [],
+        "first_row": data[0] if data else "no_data",
+        "second_row": data[1] if len(data) > 1 else "no_data",
+    }
