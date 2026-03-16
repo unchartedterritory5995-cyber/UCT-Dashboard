@@ -92,19 +92,25 @@ async def get_contract_history(sym: str, cp: str, strike: float, exp: str) -> li
         logger.error("[UW] historic fetch failed for %s: %s", occ, e)
         return []
     
-    rows = data.get("data", [])
+    rows = data.get("chains", data.get("data", []))
     history = []
     for r in rows:
         try:
+            price = float(r.get("last_price") or r.get("avg_price") or 0)
             history.append({
                 "date": r.get("date", ""),
                 "oi": int(r.get("open_interest", 0) or 0),
                 "volume": int(r.get("volume", 0) or 0),
-                "price": float(r.get("close", 0) or r.get("last_price", 0) or 0),
-                "spot": float(r.get("underlying_price", 0) or 0),
-                "high": float(r.get("high", 0) or 0),
-                "low": float(r.get("low", 0) or 0),
-                "open": float(r.get("open", 0) or 0),
+                "price": price,
+                "spot": 0,  # UW doesn't provide underlying_price in historic
+                "high": float(r.get("high_price") or 0),
+                "low": float(r.get("low_price") or 0),
+                "open": float(r.get("open_price") or 0),
+                "premium": float(r.get("total_premium") or 0),
+                "iv": float(r.get("implied_volatility") or 0),
+                "ask_vol": int(r.get("ask_volume") or 0),
+                "bid_vol": int(r.get("bid_volume") or 0),
+                "sweep_vol": int(r.get("sweep_volume") or 0),
             })
         except (ValueError, TypeError):
             continue
@@ -134,23 +140,23 @@ async def get_contract_intraday(sym: str, cp: str, strike: float, exp: str) -> d
         logger.error("[UW] intraday fetch failed for %s: %s", occ, e)
         return {"error": str(e)}
     
-    rows = data.get("data", [])
+    rows = data.get("chains", data.get("data", []))
     if not rows:
         return {"error": "no_data"}
     
-    # Return latest entry
-    latest = rows[-1] if isinstance(rows, list) else rows
+    # Return latest entry (first = newest from UW)
+    latest = rows[0] if isinstance(rows, list) else rows
     return {
-        "mark": float(latest.get("close", 0) or latest.get("last_price", 0) or 0),
-        "last": float(latest.get("last_price", 0) or latest.get("close", 0) or 0),
-        "bid": float(latest.get("bid", 0) or 0),
-        "ask": float(latest.get("ask", 0) or 0),
-        "openInterest": int(latest.get("open_interest", 0) or 0),
-        "volume": int(latest.get("volume", 0) or 0),
-        "underlyingPrice": float(latest.get("underlying_price", 0) or 0),
-        "iv": float(latest.get("implied_volatility", 0) or 0),
-        "delta": float(latest.get("delta", 0) or 0),
-        "theta": float(latest.get("theta", 0) or 0),
+        "mark": float(latest.get("last_price") or latest.get("avg_price") or 0),
+        "last": float(latest.get("last_price") or 0),
+        "bid": float(latest.get("nbbo_bid") or 0),
+        "ask": float(latest.get("nbbo_ask") or 0),
+        "openInterest": int(latest.get("open_interest") or 0),
+        "volume": int(latest.get("volume") or 0),
+        "underlyingPrice": 0,
+        "iv": float(latest.get("implied_volatility") or 0),
+        "delta": 0,
+        "theta": 0,
     }
 
 
@@ -176,18 +182,19 @@ async def get_batch_quotes(contracts: list[dict]) -> list[dict]:
                 if resp.status_code != 200:
                     return {"error": f"HTTP {resp.status_code}"}
                 data = resp.json()
-                rows = data.get("data", [])
+                rows = data.get("chains", data.get("data", []))
                 if not rows:
                     return {"error": "no_data"}
-                latest = rows[-1]
+                latest = rows[0]  # newest first from UW
                 return {
-                    "mark": float(latest.get("close", 0) or 0),
-                    "last": float(latest.get("last_price", 0) or latest.get("close", 0) or 0),
-                    "bid": float(latest.get("bid", 0) or 0),
-                    "ask": float(latest.get("ask", 0) or 0),
-                    "openInterest": int(latest.get("open_interest", 0) or 0),
-                    "volume": int(latest.get("volume", 0) or 0),
-                    "underlyingPrice": float(latest.get("underlying_price", 0) or 0),
+                    "mark": float(latest.get("last_price") or latest.get("avg_price") or 0),
+                    "last": float(latest.get("last_price") or 0),
+                    "bid": float(latest.get("nbbo_bid") or 0),
+                    "ask": float(latest.get("nbbo_ask") or 0),
+                    "openInterest": int(latest.get("open_interest") or 0),
+                    "volume": int(latest.get("volume") or 0),
+                    "underlyingPrice": 0,
+                    "iv": float(latest.get("implied_volatility") or 0),
                 }
         except Exception as e:
             return {"error": str(e)}
