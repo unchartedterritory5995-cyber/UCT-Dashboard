@@ -136,6 +136,30 @@ def get_history(days: int = 90) -> list:
         else:
             row["adv_decline_cum"] = None
 
+        # FTD detection: simplified O'Neil Follow-Through Day
+        # Criteria: QQQ up >= 1.25% on above-avg volume, on Day 4+ of rally from a prior trough
+        row["is_ftd"] = False
+        qqq_pct = row.get("qqq_day_pct")
+        up_vol   = row.get("up_vol_ratio")
+        if qqq_pct is not None and qqq_pct >= 1.25 and up_vol is not None and up_vol >= 1.3 and i >= 3:
+            # Walk backwards from the PRIOR day (j=i-1) counting consecutive up days
+            rally_days = 1  # count current day
+            for j in range(i - 1, max(i - 10, -1), -1):
+                prev_pct = result_asc[j].get("qqq_day_pct")
+                if prev_pct is not None and prev_pct > 0:
+                    rally_days += 1
+                else:
+                    break
+            # Check drawdown: use closes BEFORE the current day's rally (exclude current day)
+            window = result_asc[max(0, i - 15): i]  # exclude current day
+            prior_closes = [r.get("qqq_close") for r in window if r.get("qqq_close")]
+            if prior_closes and len(prior_closes) >= 4:
+                recent_high = max(prior_closes)
+                recent_low  = min(prior_closes)
+                drawdown = (recent_low - recent_high) / recent_high * 100
+                if rally_days >= 4 and drawdown <= -3.0:
+                    row["is_ftd"] = True
+
     # Return newest-first
     return list(reversed(result_asc))
 
