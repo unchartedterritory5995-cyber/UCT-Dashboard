@@ -940,6 +940,7 @@ export default function OptionsFlowDashboard() {
   const [contractHistory, setContractHistory] = useState({});
   const fetchingRef = useRef(new Set());
   const backfilledRef = useRef(new Set());
+  const convPanelRef = useRef(null);
 
   // ─── Dynamic CSV Loading ─────────────────────────────────────────────
   const [csvText, setCsvText] = useState(null);
@@ -1000,6 +1001,13 @@ export default function OptionsFlowDashboard() {
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
   }, [D]);
+
+  // Auto-scroll to Top Flow detail panel when opened
+  useEffect(() => {
+    if (selectedConv !== null && convPanelRef.current) {
+      setTimeout(() => convPanelRef.current?.scrollIntoView({ behavior:"smooth", block:"start" }), 100);
+    }
+  }, [selectedConv]);
 
   // ─── Top Flow Tracker ───────────────────────────────────────────────
   const [topFlowPicks, setTopFlowPicks] = useState({ active:[], archived:[] });
@@ -1238,15 +1246,14 @@ export default function OptionsFlowDashboard() {
         })()}
         {/* ── Strike Flow Detail ─────────────────────────────── */}
         {(()=>{
-          const tk = D ? D.TICKER_DB.find(t=>t.s===sym) : null;
-          const strikeTrades = tk ? tk.t.filter(tr => tr.CP===cp && Math.abs(tr.K-K)<0.01 && tr.E===exp).sort((a,b)=>{
-            // Sort by date desc, then time desc
+          const strikeTrades = D ? (D.clean_confirmed||[]).filter(tr => tr.S===sym && tr.CP===cp && Math.abs(tr.K-K)<0.01 && tr.E===exp).sort((a,b)=>{
             const da = a.Dt||"", db = b.Dt||"";
             if (da!==db) { const [am,ad]=(da||"0/0").split("/").map(Number); const [bm,bd]=(db||"0/0").split("/").map(Number); return bm!==am?bm-am:bd-ad; }
             return (b.time||"").localeCompare(a.time||"");
           }) : [];
           if (strikeTrades.length===0) return null;
-          const clusterInfo = tk.c.find(c => c.CP===cp && Math.abs(c.K-K)<0.01 && c.E===exp);
+          const tk = D ? D.TICKER_DB.find(t=>t.s===sym) : null;
+          const clusterInfo = tk ? tk.c.find(c => c.CP===cp && Math.abs(c.K-K)<0.01 && c.E===exp) : null;
           return (
             <div style={{ borderTop:"1px solid "+P.bd, padding:"10px 16px" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -1811,7 +1818,7 @@ export default function OptionsFlowDashboard() {
           const setChartRange = v => { if(!window._chartRange) window._chartRange={}; window._chartRange[chartKey]=v; setSelectedConv(null); setTimeout(()=>setSelectedConv(selectedConv),10); };
 
           return (
-            <div style={{ background:"#0d1525", border:"1px solid "+P.bl, borderRadius:12, marginBottom:12, overflow:"hidden",
+            <div ref={convPanelRef} style={{ background:"#0d1525", border:"1px solid "+P.bl, borderRadius:12, marginBottom:12, overflow:"hidden",
               boxShadow:"0 8px 32px rgba(0,0,0,0.6)", borderTop:"2px solid "+c }}>
 
               {/* Panel Header */}
@@ -1915,14 +1922,12 @@ export default function OptionsFlowDashboard() {
               })()}
               {/* ── Strike Flow Detail ─────────────────────────────── */}
               {(()=>{
-                const tk = D ? D.TICKER_DB.find(x=>x.s===t.sym) : null;
-                const strikeTrades = tk ? tk.t.filter(tr => tr.CP===t.cp && Math.abs(tr.K-t.K)<0.01 && tr.E===t.exp).sort((a,b)=>{
+                const strikeTrades = (t.trades||[]).slice().sort((a,b)=>{
                   const da = a.Dt||"", db = b.Dt||"";
                   if (da!==db) { const [am,ad]=(da||"0/0").split("/").map(Number); const [bm,bd]=(db||"0/0").split("/").map(Number); return bm!==am?bm-am:bd-ad; }
                   return (b.time||"").localeCompare(a.time||"");
-                }) : [];
+                });
                 if (strikeTrades.length===0) return null;
-                const clusterInfo = tk ? tk.c.find(cl => cl.CP===t.cp && Math.abs(cl.K-t.K)<0.01 && cl.E===t.exp) : null;
                 return (
                   <div style={{ borderTop:"1px solid "+P.bd, padding:"10px 16px" }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -1930,9 +1935,8 @@ export default function OptionsFlowDashboard() {
                         Flow for {t.sym} ${t.K}{t.cp} {t.exp}
                       </div>
                       <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-                        {clusterInfo && <Tag c={GRADE_COLORS[clusterInfo.grade]||P.mt}>{clusterInfo.grade}</Tag>}
-                        {clusterInfo && clusterInfo.clean && <span style={{ fontSize:7, color:P.bu, fontWeight:700 }}>CLEAN</span>}
-                        {clusterInfo && !clusterInfo.clean && <span style={{ fontSize:7, color:P.be, fontWeight:700 }}>MIXED</span>}
+                        <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
+                        {t.dir && <span style={{ fontSize:7, color:t.dir==="BULL"?P.bu:P.be, fontWeight:700 }}>{strikeTrades.every(tr=>{const s=tr.Si; return s==="A"||s==="AA"||(s==="BB"&&tr.Ty==="SWP");})?"CLEAN":"MIXED"}</span>}
                         <span style={{ fontSize:9, color:P.dm }}>{strikeTrades.length} trade{strikeTrades.length>1?"s":""}</span>
                       </div>
                     </div>
@@ -1944,7 +1948,9 @@ export default function OptionsFlowDashboard() {
                           ))}
                         </tr></thead>
                         <tbody>
-                          {strikeTrades.map((tr,i)=>(
+                          {strikeTrades.map((tr,i)=>{
+                            const trPrice = tr.price > 0 ? tr.price : (tr.V > 0 ? tr.P / tr.V / 100 : 0);
+                            return (
                             <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10",
                               background:(tr.Si==="AA"||tr.Si==="BB")?(P.ac+"06"):"transparent" }}>
                               <td style={{ padding:"3px 6px", color:P.dm, fontSize:8 }}>{tr.Dt||"—"}</td>
@@ -1955,9 +1961,10 @@ export default function OptionsFlowDashboard() {
                               <td style={{ padding:"3px 6px", textAlign:"right", color:P.dm }}>{fK(tr.V)}</td>
                               <td style={{ padding:"3px 6px", textAlign:"right", color:P.dm }}>{tr.OI>0?tr.OI.toLocaleString():"—"}</td>
                               <td style={{ padding:"3px 6px", textAlign:"right", fontWeight:700, color:premC(tr.P) }}>{fmt(tr.P)}</td>
-                              <td style={{ padding:"3px 6px", textAlign:"right", fontWeight:600, color:P.ac }}>{tr.price>0?"$"+tr.price.toFixed(2):"—"}</td>
+                              <td style={{ padding:"3px 6px", textAlign:"right", fontWeight:600, color:P.ac }}>{trPrice>0?"$"+trPrice.toFixed(2):"—"}</td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
