@@ -136,6 +136,33 @@ const COLS = [
   { key: 'pct_above_200sma', label: '>200SMA',  group: G.MA, fmt: fmtPct,
     colorFn: pctColor(30, 45, 60) },
 
+  // ── Regime ────────────────────────────────────────────────────────────────
+  { key: 'sp500_close', label: 'S&P 500', group: G.REGIME, fmt: fmtPrice,
+    rowColorFn: row => { const p = row.spy_day_pct; return p == null ? '' : p >= 1.5 ? 'g3' : p >= 0.5 ? 'g2' : p > 0 ? 'g1' : p <= -1.5 ? 'r3' : p <= -0.5 ? 'r2' : 'r1' } },
+  { key: 'qqq_close', label: 'QQQ', group: G.REGIME, fmt: fmtPrice,
+    rowColorFn: row => { const p = row.qqq_day_pct; return p == null ? '' : p >= 1.5 ? 'g3' : p >= 0.5 ? 'g2' : p > 0 ? 'g1' : p <= -1.5 ? 'r3' : p <= -0.5 ? 'r2' : 'r1' } },
+  { key: 'vix', label: 'VIX', group: G.REGIME, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v < 14 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 25 ? 'r1' : v < 30 ? 'r2' : 'r3' },
+  { key: 'avg_10d_vix', label: '10d VIX', group: G.REGIME, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v < 15 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 26 ? 'r1' : v < 30 ? 'r2' : 'r3' },
+  { key: 'spy_ma_stack', label: 'SPY MAs', group: G.REGIME, type: 'ma_stack',
+    keys: ['spy_above_10sma', 'spy_above_20sma', 'spy_above_50sma', 'spy_above_200sma'],
+    maLabels: ['10', '20', '50', '200'] },
+  { key: 'qqq_ma_stack', label: 'QQQ MAs', group: G.REGIME, type: 'ma_stack',
+    keys: ['qqq_above_10sma', 'qqq_above_20sma', 'qqq_above_50sma', 'qqq_above_200sma'],
+    maLabels: ['10', '20', '50', '200'] },
+  { key: 'market_phase', label: 'Phase', group: G.REGIME,
+    colorFn: v => {
+      if (v == null) return ''
+      const p = v.toLowerCase()
+      if (['power trend','ftd confirmed'].some(k => p.includes(k))) return 'g3'
+      if (['uptrend','bull'].some(k => p.includes(k)))               return 'g2'
+      if (['recovery'].some(k => p.includes(k)))                     return 'g1'
+      if (['liquidation','correction','circuit breaker'].some(k => p.includes(k))) return 'r3'
+      if (['distribution'].some(k => p.includes(k)))                 return 'r2'
+      return 'a'
+    } },
+
   // ── Highs / Lows ──────────────────────────────────────────────────────────
   { key: 'new_52w_highs', label: '52W Hi', group: G.HIGHS,
     colorFn: v => v == null ? '' : v > 300 ? 'g3' : v > 150 ? 'g2' : v > 80 ? 'g1' : v < 10 ? 'r2' : v < 20 ? 'r1' : '' },
