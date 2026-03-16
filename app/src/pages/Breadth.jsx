@@ -81,10 +81,10 @@ const COLS = [
   { key: 'breadth_score', label: 'Health', group: G.SCORE,
     fmt: v => fmtDec(v, 0),
     colorFn: v => v == null ? '' : v >= 65 ? 'green' : v <= 35 ? 'red' : 'amber' },
+  { key: 'uct_exposure',   label: 'UCT Exp',     group: G.SCORE, fmt: v => fmtDec(v, 0),
+    colorFn: v => v == null ? '' : v >= 70 ? 'green' : v <= 30 ? 'red' : 'amber' },
 
   // ── Regime ────────────────────────────────────────────────────────────────
-  { key: 'uct_exposure',   label: 'UCT Exp',     group: G.REGIME, fmt: v => fmtDec(v, 0),
-    colorFn: v => v == null ? '' : v >= 70 ? 'green' : v <= 30 ? 'red' : 'amber' },
   { key: 'sp500_close',    label: 'S&P 500',    group: G.REGIME, fmt: fmtPrice,
     rowColorFn: row => row.spy_day_pct == null ? '' : row.spy_day_pct > 0 ? 'green' : row.spy_day_pct < 0 ? 'red' : '' },
   { key: 'qqq_close',      label: 'QQQ',         group: G.REGIME, fmt: fmtPrice,
