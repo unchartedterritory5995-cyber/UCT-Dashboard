@@ -98,6 +98,7 @@
 
 /* ── Group header colors ─────────────────────────────────────────────────────── */
 .ghDate     { background: var(--bg-elevated); color: var(--text-muted); }
+.ghScore    { background: #141414; color: #c9a84c; font-weight: 900; }
 .ghRegime   { background: #1a1f2e; color: #7b9fc7; }
 .ghPrimary  { background: #1f2012; color: #b8c94a; }
 .ghMA       { background: #122018; color: #4ac97d; }
