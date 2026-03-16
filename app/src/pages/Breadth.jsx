@@ -67,12 +67,18 @@ const G = {
 }
 
 function pctColor(low, mid, high) {
+  const vHigh = Math.round((high + 100) / 2)
+  const vLow  = Math.round(low / 2)
+  const vMid  = Math.round((low + mid) / 2)
   return v => {
-    if (v === null || v === undefined) return ''
-    if (v >= high) return 'green'
-    if (v <= low)  return 'red'
-    if (v >= mid)  return 'amber'
-    return ''
+    if (v == null) return ''
+    if (v >= vHigh) return 'g3'
+    if (v >= high)  return 'g2'
+    if (v >= mid)   return 'g1'
+    if (v >= vMid)  return 'a'
+    if (v >= low)   return 'r1'
+    if (v >= vLow)  return 'r2'
+    return 'r3'
   }
 }
 
@@ -80,59 +86,66 @@ const COLS = [
   // ── Score ─────────────────────────────────────────────────────────────────
   { key: 'breadth_score', label: 'Health', group: G.SCORE,
     fmt: v => fmtDec(v, 0),
-    colorFn: v => v == null ? '' : v >= 65 ? 'green' : v <= 35 ? 'red' : 'amber' },
-  { key: 'uct_exposure',   label: 'UCT Exp',     group: G.SCORE, fmt: v => fmtDec(v, 0),
-    colorFn: v => v == null ? '' : v >= 70 ? 'green' : v <= 30 ? 'red' : 'amber' },
+    colorFn: v => v == null ? '' : v >= 80 ? 'g3' : v >= 65 ? 'g2' : v >= 52 ? 'g1' : v >= 45 ? 'a' : v >= 35 ? 'r1' : v >= 20 ? 'r2' : 'r3' },
+  { key: 'uct_exposure', label: 'UCT Exp', group: G.SCORE, fmt: v => fmtDec(v, 0),
+    colorFn: v => v == null ? '' : v >= 80 ? 'g3' : v >= 65 ? 'g2' : v >= 50 ? 'g1' : v >= 35 ? 'a' : v >= 20 ? 'r1' : v >= 10 ? 'r2' : 'r3' },
 
   // ── Regime ────────────────────────────────────────────────────────────────
-  { key: 'sp500_close',    label: 'S&P 500',    group: G.REGIME, fmt: fmtPrice,
-    rowColorFn: row => row.spy_day_pct == null ? '' : row.spy_day_pct > 0 ? 'green' : row.spy_day_pct < 0 ? 'red' : '' },
-  { key: 'qqq_close',      label: 'QQQ',         group: G.REGIME, fmt: fmtPrice,
-    rowColorFn: row => row.qqq_day_pct == null ? '' : row.qqq_day_pct > 0 ? 'green' : row.qqq_day_pct < 0 ? 'red' : '' },
-  { key: 'vix',            label: 'VIX',          group: G.REGIME, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v >= 25 ? 'red' : v >= 22 ? 'lightred' : v >= 18 ? 'amber' : 'green' },
-  { key: 'avg_10d_vix',    label: '10d VIX',      group: G.REGIME, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v > 28 ? 'red' : v > 20 ? 'amber' : 'green' },
+  { key: 'sp500_close', label: 'S&P 500', group: G.REGIME, fmt: fmtPrice,
+    rowColorFn: row => { const p = row.spy_day_pct; return p == null ? '' : p >= 1.5 ? 'g3' : p >= 0.5 ? 'g2' : p > 0 ? 'g1' : p <= -1.5 ? 'r3' : p <= -0.5 ? 'r2' : 'r1' } },
+  { key: 'qqq_close', label: 'QQQ', group: G.REGIME, fmt: fmtPrice,
+    rowColorFn: row => { const p = row.qqq_day_pct; return p == null ? '' : p >= 1.5 ? 'g3' : p >= 0.5 ? 'g2' : p > 0 ? 'g1' : p <= -1.5 ? 'r3' : p <= -0.5 ? 'r2' : 'r1' } },
+  { key: 'vix', label: 'VIX', group: G.REGIME, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v < 14 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 25 ? 'r1' : v < 30 ? 'r2' : 'r3' },
+  { key: 'avg_10d_vix', label: '10d VIX', group: G.REGIME, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v < 15 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 26 ? 'r1' : v < 30 ? 'r2' : 'r3' },
   { key: 'spy_ma_stack', label: 'SPY MAs', group: G.REGIME, type: 'ma_stack',
     keys: ['spy_above_10sma', 'spy_above_20sma', 'spy_above_50sma', 'spy_above_200sma'],
     maLabels: ['10', '20', '50', '200'] },
   { key: 'qqq_ma_stack', label: 'QQQ MAs', group: G.REGIME, type: 'ma_stack',
     keys: ['qqq_above_10sma', 'qqq_above_20sma', 'qqq_above_50sma', 'qqq_above_200sma'],
     maLabels: ['10', '20', '50', '200'] },
-  { key: 'market_phase',      label: 'Phase',      group: G.REGIME,
-    colorFn: v => v == null ? '' :
-      ['uptrend','bull','recovery'].some(p => v.toLowerCase().includes(p)) ? 'green' :
-      ['distribution','liquidation','correction'].some(p => v.toLowerCase().includes(p)) ? 'red' : 'amber' },
+  { key: 'market_phase', label: 'Phase', group: G.REGIME,
+    colorFn: v => {
+      if (v == null) return ''
+      const p = v.toLowerCase()
+      if (['power trend','ftd confirmed'].some(k => p.includes(k))) return 'g3'
+      if (['uptrend','bull'].some(k => p.includes(k)))               return 'g2'
+      if (['recovery'].some(k => p.includes(k)))                     return 'g1'
+      if (['liquidation','correction','circuit breaker'].some(k => p.includes(k))) return 'r3'
+      if (['distribution'].some(k => p.includes(k)))                 return 'r2'
+      return 'a'
+    } },
 
   // ── Primary Breadth ───────────────────────────────────────────────────────
-  { key: 'up_4pct_today',      label: 'Up 4%+',     group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 300 ? 'green' : v < 100 ? 'red' : '' },
-  { key: 'down_4pct_today',    label: 'Dn 4%+',     group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 300 ? 'red' : v < 100 ? 'green' : '' },
-  { key: 'ratio_5day',         label: '5D Ratio',   group: G.PRIMARY, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v >= 1.2 ? 'green' : v <= 0.8 ? 'red' : '' },
-  { key: 'ratio_10day',        label: '10D Ratio',  group: G.PRIMARY, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v >= 1.2 ? 'green' : v <= 0.8 ? 'red' : '' },
-  { key: 'up_25pct_quarter',   label: 'Up25%/Qtr',  group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 500 ? 'green' : v < 150 ? 'red' : '' },
-  { key: 'down_25pct_quarter', label: 'Dn25%/Qtr',  group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 500 ? 'red' : v < 100 ? 'green' : '' },
-  { key: 'up_25pct_month',     label: 'Up25%/Mo',   group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 200 ? 'green' : v < 60 ? 'red' : '' },
-  { key: 'down_25pct_month',   label: 'Dn25%/Mo',   group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 200 ? 'red' : v < 60 ? 'green' : '' },
-  { key: 'up_50pct_month',     label: 'Up50%/Mo',   group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 50 ? 'green' : '' },
-  { key: 'down_50pct_month',   label: 'Dn50%/Mo',   group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 50 ? 'red' : '' },
-  { key: 'magna_up',           label: 'Up13%/34d',  group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 800 ? 'green' : v < 250 ? 'red' : '' },
-  { key: 'magna_down',         label: 'Dn13%/34d',  group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 800 ? 'red' : v < 150 ? 'green' : '' },
+  { key: 'up_4pct_today', label: 'Up 4%+', group: G.PRIMARY,
+    colorFn: v => v == null ? '' : v > 500 ? 'g3' : v > 300 ? 'g2' : v > 150 ? 'g1' : v < 50 ? 'r2' : v < 100 ? 'r1' : '' },
+  { key: 'down_4pct_today', label: 'Dn 4%+', group: G.PRIMARY,
+    colorFn: v => v == null ? '' : v > 500 ? 'r3' : v > 300 ? 'r2' : v > 150 ? 'r1' : v < 50 ? 'g2' : v < 100 ? 'g1' : '' },
+  { key: 'ratio_5day', label: '5D Ratio', group: G.PRIMARY, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v >= 1.5 ? 'g3' : v >= 1.2 ? 'g2' : v >= 1.05 ? 'g1' : v >= 0.95 ? 'a' : v >= 0.8 ? 'r1' : v >= 0.6 ? 'r2' : 'r3' },
+  { key: 'ratio_10day', label: '10D Ratio', group: G.PRIMARY, fmt: v => fmtDec(v, 2),
+    colorFn: v => v == null ? '' : v >= 1.5 ? 'g3' : v >= 1.2 ? 'g2' : v >= 1.05 ? 'g1' : v >= 0.95 ? 'a' : v >= 0.8 ? 'r1' : v >= 0.6 ? 'r2' : 'r3' },
+  { key: 'up_25pct_quarter', label: 'Up25%/Qtr', group: G.PRIMARY,
+    colorFn: v => v == null ? '' : v > 800 ? 'g3' : v > 500 ? 'g2' : v > 300 ? 'g1' : v < 80 ? 'r2' : v < 150 ? 'r1' : '' },
+  { key: 'down_25pct_quarter', label: 'Dn25%/Qtr', group: G.PRIMARY,
+    colorFn: v => v == null ? '' : v > 800 ? 'r3' : v > 500 ? 'r2' : v > 300 ? 'r1' : v < 60 ? 'g2' : v < 100 ? 'g1' : '' },
+  { key: 'up_25pct_month', label: 'Up25%/Mo', group: G.PRIMARY,
+    colorFn: v => v == null ? '' : v > 400 ? 'g3' : v > 200 ? 'g2' : v > 100 ? 'g1' : v < 30 ? 'r2' : v < 60 ? 'r1' : '' },
+  { key: 'down_25pct_month', label: 'Dn25%/Mo', group: G.PRIMARY,
+    colorFn: v => v == null ? '' : v > 400 ? 'r3' : v > 200 ? 'r2' : v > 100 ? 'r1' : v < 30 ? 'g2' : v < 60 ? 'g1' : '' },
+  { key: 'up_50pct_month', label: 'Up50%/Mo', group: G.PRIMARY,
+    colorFn: v => v == null ? '' : v > 100 ? 'g3' : v > 50 ? 'g2' : v > 20 ? 'g1' : '' },
+  { key: 'down_50pct_month', label: 'Dn50%/Mo', group: G.PRIMARY,
+    colorFn: v => v == null ? '' : v > 100 ? 'r3' : v > 50 ? 'r2' : v > 20 ? 'r1' : '' },
+  { key: 'magna_up', label: 'Up13%/34d', group: G.PRIMARY,
+    colorFn: v => v == null ? '' : v > 1200 ? 'g3' : v > 800 ? 'g2' : v > 500 ? 'g1' : v < 150 ? 'r2' : v < 250 ? 'r1' : '' },
+  { key: 'magna_down', label: 'Dn13%/34d', group: G.PRIMARY,
+    colorFn: v => v == null ? '' : v > 1200 ? 'r3' : v > 800 ? 'r2' : v > 500 ? 'r1' : v < 100 ? 'g2' : v < 150 ? 'g1' : '' },
   { key: 'universe_count',     label: 'Universe',   group: G.PRIMARY },
   { key: 'is_ftd',            label: 'FTD',        group: G.PRIMARY,
     fmt: v => v ? 'FTD' : '—',
-    colorFn: v => v ? 'green' : '' },
+    colorFn: v => v ? 'g2' : '' },
 
   // ── MA Breadth ────────────────────────────────────────────────────────────
   { key: 'pct_above_5sma',   label: '>5SMA',    group: G.MA, fmt: fmtPct,
@@ -253,10 +266,13 @@ function cellClass(col, val, row = null) {
   } else if (col.colorFn && val != null) {
     c = col.colorFn(val)
   }
-  if (c === 'green')    return styles.cellGreen
-  if (c === 'red')      return styles.cellRed
-  if (c === 'amber')    return styles.cellAmber
-  if (c === 'lightred') return styles.cellLightRed
+  if (c === 'g3') return styles.bgG3
+  if (c === 'g2') return styles.bgG2
+  if (c === 'g1') return styles.bgG1
+  if (c === 'a')  return styles.bgA
+  if (c === 'r1') return styles.bgR1
+  if (c === 'r2') return styles.bgR2
+  if (c === 'r3') return styles.bgR3
   return ''
 }
 
@@ -275,9 +291,9 @@ const GROUP_HEADER_CLASS = {
 const phaseClass = (phase, styles) => {
   if (!phase) return ''
   const p = phase.toLowerCase()
-  if (['uptrend', 'bull', 'recovery'].some(k => p.includes(k))) return styles.phaseGreen
-  if (['distribution', 'liquidation', 'correction'].some(k => p.includes(k))) return styles.phaseRed
-  return styles.phaseAmber
+  if (['uptrend', 'bull', 'recovery', 'power trend', 'ftd confirmed'].some(k => p.includes(k))) return styles.phaseGreen
+  if (['distribution', 'liquidation', 'correction', 'circuit breaker'].some(k => p.includes(k))) return styles.phaseRed
+  return styles.phaseAmber   // rally attempt, under pressure, late stage
 }
 
 export default function Breadth() {
@@ -393,7 +409,7 @@ export default function Breadth() {
       {rows.length > 0 && (() => {
         const latest = rows[0]
         const score = latest?.breadth_score
-        const phase = latest?.market_phase ?? '—'
+        const phase = latest?.webster_phase ?? latest?.market_phase ?? '—'
         const exp = latest?.uct_exposure
         const dd = latest?.spy_dist_days
         return (
@@ -478,7 +494,7 @@ export default function Breadth() {
             </thead>
             <tbody>
               {rows.map((row, ri) => (
-                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.market_phase, styles)}`}>
+                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>{row.date}</td>
                   {visibleCols.map(col => {
                     if (collapsedCols.has(col.key)) {

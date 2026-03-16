@@ -210,6 +210,7 @@ def _normalize_breadth(raw: dict, state: dict) -> dict:
         "breadth_score":   raw.get("breadth_score", 50.0),
         "distribution_days": state.get("distribution_days_qqq", 0),
         "market_phase":    state.get("market_phase", ""),
+        "webster_phase":   state.get("webster_phase", state.get("market_phase", "")),
     }
 
 

@@ -56,7 +56,7 @@ export default function MarketBreadth({ data: propData }) {
     return <TileCard title="UCT Exposure Rating"><p className={styles.loading}>Loading…</p></TileCard>
   }
 
-  const phase = data.market_phase ?? ''
+  const phase = data.webster_phase ?? data.market_phase ?? ''
   const maData = data.ma_data ?? null
 
   const expScore  = data.exposure?.score       ?? null
