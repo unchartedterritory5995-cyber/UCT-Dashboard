@@ -267,6 +267,7 @@ function parseCSV(text) {
     mktcap:["mktcap","marketcap","mcap"],
     sector:["sector"],
     uoa:["uoa"],
+    stocketf:["stocketf","stocketf","assettype","type2"],
   };
   const colIdx = {};
   Object.entries(ALIASES).forEach(([field, aliases]) => {
@@ -486,6 +487,7 @@ function buildCharts(cc) {
   .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"" })) }));
   const sectorMap = {};
+  const tickerFlowMap = {};
   cc.forEach(t => {
     const sec = t.sector || "Unknown";
     if (!sectorMap[sec]) sectorMap[sec] = { name:sec, bull:0, bear:0, count:0, tickers:{} };
@@ -494,13 +496,30 @@ function buildCharts(cc) {
     if (!sectorMap[sec].tickers[t.S]) sectorMap[sec].tickers[t.S] = { s:t.S, p:0, bull:0, bear:0 };
     sectorMap[sec].tickers[t.S].p += t.P;
     t.D === "BULL" ? (sectorMap[sec].tickers[t.S].bull += t.P) : (sectorMap[sec].tickers[t.S].bear += t.P);
+    // Also build per-ticker map for fallback
+    if (!tickerFlowMap[t.S]) tickerFlowMap[t.S] = { name:t.S, bull:0, bear:0, count:0, tickers:{} };
+    tickerFlowMap[t.S].count++;
+    t.D === "BULL" ? (tickerFlowMap[t.S].bull += t.P) : (tickerFlowMap[t.S].bear += t.P);
+    tickerFlowMap[t.S].tickers[t.S] = tickerFlowMap[t.S].tickers[t.S] || { s:t.S, p:0, bull:0, bear:0 };
+    tickerFlowMap[t.S].tickers[t.S].p += t.P;
+    t.D === "BULL" ? (tickerFlowMap[t.S].tickers[t.S].bull += t.P) : (tickerFlowMap[t.S].tickers[t.S].bear += t.P);
   });
-  const SECTORS = Object.values(sectorMap).sort((a,b)=>(b.bull+b.bear)-(a.bull+a.bear)).slice(0,8)
-    .map(s => ({ ...s, topTickers: Object.values(s.tickers).sort((a,b)=>b.p-a.p).slice(0,5) }));
+  // If fewer than 3 meaningful sectors (e.g. all ETFs/indexes = "None"), show individual tickers
+  const meaningfulSectors = Object.keys(sectorMap).filter(s => s !== "None" && s !== "Unknown" && s !== "");
+  const useTickers = meaningfulSectors.length < 3;
+  // Detect if majority of trades are ETFs/indexes
+  const etfCount = cc.filter(t => t.stocketf === "ETF" || t.stocketf === "INDEX").length;
+  const isETFData = etfCount > cc.length * 0.5;
+  const SECTORS = useTickers
+    ? Object.values(tickerFlowMap).sort((a,b)=>(b.bull+b.bear)-(a.bull+a.bear)).slice(0,16)
+        .map(s => ({ ...s, topTickers: Object.values(s.tickers).sort((a,b)=>b.p-a.p).slice(0,5) }))
+    : Object.values(sectorMap).sort((a,b)=>(b.bull+b.bear)-(a.bull+a.bear)).slice(0,8)
+        .map(s => ({ ...s, topTickers: Object.values(s.tickers).sort((a,b)=>b.p-a.p).slice(0,5) }));
   return {
     DAYS, CONV, SB_SYM, SR_SYM, LB_SYM, LR_SYM, LEAPS_B, LEAPS_R,
     SBL, SBR, LBL, LBR_T, LEAPS_BL_T, LEAPS_BR_T,
     SBLC, SBRC, LBLC, LBRC, LEAPS_BLC, LEAPS_BRC, LEAPS_EXPS, SECTORS,
+    sectorTickerMode: useTickers, sectorIsETF: isETFData,
     shortBullTotal:sum(shortTerm.filter(t=>t.D==="BULL")),
     shortBearTotal:sum(shortTerm.filter(t=>t.D==="BEAR")),
     longBullTotal:sum(longTerm.filter(t=>t.D==="BULL")),
@@ -584,6 +603,7 @@ function processFlowData(rows) {
       E:expStr, expiry, Si:side, Co:color, DTE:dte, Dt:dt,
       D:direction, OI:oi, IV:iv, Spot:spot, isML, confirmed,
       mktcap, sector, uoa, isDeep, pctFromSpot,
+      stocketf:(r.stocketf||"").toUpperCase().trim(),
       time:(r.time||"").trim()
     };
   });
@@ -728,6 +748,18 @@ function processFlowData(rows) {
             const bidIV = c.bidIVs.length > 0 ? Math.max(...c.bidIVs) : 0;
             const askIV = c.askIVs.length > 0 ? Math.max(...c.askIVs) : 0;
             if (askIV > 0 && askIV >= bidIV) return; // IV rising = escalation, not dirty
+          }
+        }
+        // Exception 3: De-escalation — ask first → bid later with falling IV = profit-taking
+        // When ask-side trades build a position, then bid-side comes later at lower IV,
+        // the bid-side is closing/profit-taking, not an opposing directional bet.
+        if (c.askTimes.length > 0 && c.bidTimes.length > 0) {
+          const earliestAsk = Math.max(...c.askTimes); // highest idx = earliest in time
+          const latestBid = Math.min(...c.bidTimes);    // lowest idx = most recent
+          if (earliestAsk > latestBid) { // some ask came before some bid chronologically
+            const peakAskIV = c.askIVs.length > 0 ? Math.max(...c.askIVs) : 0;
+            const lateBidIV = c.bidIVs.length > 0 ? Math.min(...c.bidIVs) : 0;
+            if (peakAskIV > 0 && lateBidIV > 0 && lateBidIV < peakAskIV) return; // IV falling = de-escalation, not dirty
           }
         }
         dirtyClusterKeys.add(k);
@@ -889,6 +921,7 @@ function processFlowData(rows) {
 const TABS = ["Market Read","Performance","Search","Short Term","Long Term","LEAPS","OI Check"];
 
 export default function OptionsFlowDashboard() {
+  const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
   const [tab, setTab] = useState("Market Read");
   const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
   const [perf, setPerf] = useState([]);
@@ -914,22 +947,32 @@ export default function OptionsFlowDashboard() {
   const [csvError, setCsvError] = useState(null);
   const [D, setD] = useState(null);
 
+  const csvFile = dataMode === "index" ? "/Indexes-data.csv" : "/flow-data.csv";
+
   useEffect(() => {
     let cancelled = false;
     setCsvLoading(true);
     setCsvError(null);
-    fetch("/flow-data.csv")
+    setD(null);
+    setSelectedConv(null);
+    setSelectedItem(null);
+    setSelectedTicker(null);
+    setSearch("");
+    setOiSearch("");
+    setCapFilter("All");
+    setTab("Market Read");
+    fetch(csvFile)
       .then(res => {
-        if (!res.ok) throw new Error(`Server returned ${res.status} for /flow-data.csv`);
+        if (!res.ok) throw new Error(`Server returned ${res.status} for ${csvFile}`);
         const ct = res.headers.get("content-type") || "";
-        if (ct.includes("text/html")) throw new Error("Got HTML instead of CSV — flow-data.csv not found. The SPA fallback returned index.html. Upload flow-data.csv to app/public/ and redeploy.");
+        if (ct.includes("text/html")) throw new Error(`Got HTML instead of CSV — ${csvFile} not found. Upload it to app/public/ and redeploy.`);
         return res.text();
       })
       .then(text => {
         if (cancelled) return;
         const trimmed = text.trim();
         if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
-          throw new Error("Got HTML instead of CSV — flow-data.csv not found on server.");
+          throw new Error(`Got HTML instead of CSV — ${csvFile} not found on server.`);
         }
         if (!trimmed.includes(",") || trimmed.length < 100) {
           throw new Error("File appears empty or invalid (no CSV data found).");
@@ -942,7 +985,7 @@ export default function OptionsFlowDashboard() {
       })
       .catch(err => { if (!cancelled) { setCsvError(err.message); setCsvLoading(false); } });
     return () => { cancelled = true; };
-  }, []);
+  }, [csvFile]);
 
 
   // Cap-filtered view: recompute charts using only the selected cap band's clean_confirmed
@@ -1288,10 +1331,19 @@ export default function OptionsFlowDashboard() {
   if (csvError) return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center",maxWidth:400}}>
+        <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
+          {[["stocks","Stocks"],["index","Index"]].map(([m,label])=>(
+            <button key={m} onClick={()=>{ if(dataMode!==m) setDataMode(m); }} style={{
+              padding:"6px 18px", borderRadius:5, border:"none", cursor:"pointer",
+              fontSize:12, fontWeight:700, fontFamily:"inherit",
+              background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
+            }}>{label}</button>
+          ))}
+        </div>
         <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
-        <div style={{color:"#ff1744",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load flow data</div>
+        <div style={{color:"#ff1744",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
         <div style={{color:"#7b8fa3",fontSize:12,marginBottom:16}}>{csvError}</div>
-        <div style={{color:"#4a5c73",fontSize:11}}>Make sure <code style={{color:"#ffab00"}}>flow-data.csv</code> is in <code style={{color:"#ffab00"}}>app/public/</code> and redeploy.</div>
+        <div style={{color:"#4a5c73",fontSize:11}}>Make sure <code style={{color:"#ffab00"}}>{dataMode==="index"?"Indexes-data.csv":"flow-data.csv"}</code> is in <code style={{color:"#ffab00"}}>app/public/</code> and redeploy.</div>
         <button onClick={()=>window.location.reload()} style={{marginTop:16,background:"#1a2540",color:"#c8d6e5",border:"1px solid #243352",borderRadius:6,padding:"8px 20px",fontSize:12,cursor:"pointer"}}>Retry</button>
       </div>
     </div>
@@ -1466,7 +1518,18 @@ export default function OptionsFlowDashboard() {
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
           <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
-          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>OPTIONS FLOW — MARKET READ</h1>
+          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — MARKET READ</h1>
+          {/* Stocks / Index toggle */}
+          <div style={{ display:"flex", background:P.al, borderRadius:6, padding:2, marginLeft:8 }}>
+            {[["stocks","Stocks"],["index","Index"]].map(([m,label])=>(
+              <button key={m} onClick={()=>{ if(dataMode!==m) setDataMode(m); }} style={{
+                padding:"4px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                fontSize:11, fontWeight:700, fontFamily:"inherit",
+                background:dataMode===m?P.cd:"transparent", color:dataMode===m?P.wh:P.mt,
+                transition:"all 0.15s"
+              }}>{label}</button>
+            ))}
+          </div>
           <span style={{ marginLeft:"auto", fontSize:10, color:P.mt, background:P.al, padding:"3px 10px", borderRadius:4 }}>
             {D.dateRange} · {D.confirmedCount} confirmed of {D.totalTrades} trades
           </span>
@@ -2035,39 +2098,117 @@ export default function OptionsFlowDashboard() {
                 </ResponsiveContainer>
               </div>
             </Card>
-            {/* Sector Breakdown */}
+            {/* Sector / Ticker Breakdown */}
             {FD.SECTORS.length > 0 && (
-              <Card title="Sector Flow" sub="Confirmed premium by sector">
+              <Card title={FD.sectorTickerMode?(FD.sectorIsETF?"ETF Flow":"Ticker Flow"):"Sector Flow"} sub={FD.sectorTickerMode?"Confirmed premium by ticker":"Confirmed premium by sector"}>
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:6 }}>
                   {FD.SECTORS.map((s,i) => {
                     const total = s.bull + s.bear;
                     const bullPct = total > 0 ? s.bull / total * 100 : 50;
+                    const isBull = s.bull >= s.bear;
+                    const dirC = isBull ? P.bu : P.be;
                     const hk = "sec_"+i;
                             return (
                       <div key={i} style={{ position:"relative" }}
                         onClick={()=>setSelectedItem(prev=>prev&&prev._secKey===hk?null:{_secKey:hk})}>
-                        <div style={{ background:P.al, borderRadius:6, padding:"8px 10px", border:"1px solid "+((selectedItem&&selectedItem._secKey===hk)?P.ac:P.bd), cursor:"pointer", transition:"border-color 0.15s" }}>
-                          <div style={{ fontSize:10, fontWeight:700, color:P.wh, marginBottom:4 }}>{s.name}</div>
+                        <div style={{ background:P.al, borderRadius:6, padding:"8px 10px", border:"1px solid "+((selectedItem&&selectedItem._secKey===hk)?P.ac:P.bd), cursor:"pointer", transition:"border-color 0.15s",
+                          borderLeft:FD.sectorTickerMode?("3px solid "+dirC):undefined }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                            <span style={{ fontSize:FD.sectorTickerMode?12:10, fontWeight:FD.sectorTickerMode?800:700, color:P.wh }}>{s.name}</span>
+                            {FD.sectorTickerMode && <span style={{ width:8, height:8, borderRadius:2, background:dirC, display:"inline-block" }} title={isBull?"Bullish":"Bearish"} />}
+                          </div>
                           <div style={{ fontSize:12, fontWeight:800, color:P.ac }}>{fmt(total)}</div>
+                          {FD.sectorTickerMode && total > 0 && (
+                            <div style={{ display:"flex", gap:8, fontSize:9, marginTop:3 }}>
+                              <span style={{ color:P.bu, fontWeight:700 }}>B {fmt(s.bull)}</span>
+                              <span style={{ color:P.be, fontWeight:700 }}>R {fmt(s.bear)}</span>
+                            </div>
+                          )}
                           <div style={{ width:"100%", height:3, background:P.be, borderRadius:2, marginTop:4 }}>
                             <div style={{ width:bullPct+"%", height:"100%", background:P.bu, borderRadius:2 }} />
                           </div>
                           <div style={{ fontSize:8, color:P.dm, marginTop:2 }}>{s.count} trades</div>
                         </div>
-                        {selectedItem&&selectedItem._secKey===hk && s.topTickers && s.topTickers.length > 0 && (
+                        {/* Ticker mode dropdown */}
+                        {FD.sectorTickerMode && selectedItem&&selectedItem._secKey===hk && (()=>{
+                          const tk = D.TICKER_DB.find(t=>t.s===s.name);
+                          if (!tk) return null;
+                          const topTrades = (tk.t||[]).slice(0,6);
+                          const clusters = (tk.c||[]).slice(0,4);
+                          return (
+                            <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:280, maxWidth:400,
+                              background:"#152038", border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
+                              boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}
+                              onClick={e=>e.stopPropagation()}>
+                              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                                <span style={{ fontWeight:800, color:P.ac, fontSize:12 }}>{s.name}</span>
+                                <button onClick={e=>{e.stopPropagation();setSelectedItem(null);}}
+                                  style={{ background:"none", border:"none", color:P.dm, fontSize:14, cursor:"pointer", padding:"0 2px" }}>×</button>
+                              </div>
+                              {clusters.length>0 && (
+                                <>
+                                <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, textTransform:"uppercase" }}>Consistency (2+ hits)</div>
+                                {clusters.map((cl,ci)=>{
+                                  const clC = cl.D==="BULL"?P.bu:cl.D==="BEAR"?P.be:P.dm;
+                                  return (
+                                    <div key={ci} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"3px 0", borderBottom:"1px solid "+P.bd+"20" }}>
+                                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                        <span style={{ fontWeight:800, color:clC }}>${cl.K}{cl.CP}</span>
+                                        <span style={{ color:P.wh, fontSize:9 }}>{cl.E}</span>
+                                        <Tag c={GRADE_COLORS[cl.grade]||P.mt}>{cl.grade}</Tag>
+                                      </div>
+                                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                        <span style={{ fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm, fontSize:9 }}>{cl.H}x</span>
+                                        <span style={{ fontWeight:700, color:clC, fontSize:9 }}>{fmt(cl.P)}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                </>
+                              )}
+                              {topTrades.length>0 && (
+                                <>
+                                <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, marginTop:clusters.length>0?8:0, textTransform:"uppercase" }}>Top Trades</div>
+                                {topTrades.map((tr,ti)=>{
+                                  const trDirC = tr.D==="BULL"?P.bu:tr.D==="BEAR"?P.be:P.dm;
+                                  return (
+                                  <div key={ti} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"2px 0", borderBottom:"1px solid "+P.bd+"12" }}>
+                                    <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                                      <span style={{ fontWeight:800, color:P.wh, fontSize:9 }}>${tr.K}{tr.CP}</span>
+                                      <span style={{ color:P.dm, fontSize:8 }}>{tr.E}</span>
+                                      <Tag c={tc(tr.Ty)}>{tr.Ty}</Tag>
+                                      {tr.Si==="AA"?<Tag c={P.ac}>AA</Tag>:tr.Si==="BB"?<Tag c={P.be}>BB</Tag>:null}
+                                    </div>
+                                    <span style={{ fontWeight:700, color:trDirC, fontSize:9 }}>{fmt(tr.P)}</span>
+                                  </div>
+                                  );
+                                })}
+                                </>
+                              )}
+                              <div style={{ marginTop:8, textAlign:"center" }}>
+                                <button onClick={e=>{e.stopPropagation(); setSearch(s.name); setSelectedTicker(tk); setTab("Search"); setSelectedItem(null);}}
+                                  style={{ padding:"4px 14px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                                  View Full {s.name} Flow →
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        {/* Sector mode dropdown */}
+                        {!FD.sectorTickerMode && selectedItem&&selectedItem._secKey===hk && s.topTickers && s.topTickers.length > 0 && (
                           <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:180,
                             background:"#152038", border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
                             boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
                             <div style={{ fontWeight:700, color:P.ac, marginBottom:6 }}>{s.name} — Top Flow</div>
                             {s.topTickers.map((tk,j) => {
-                              const isBull = tk.bull >= tk.bear;
-                              const sqColor = isBull ? P.bu : P.be;
+                              const tkBull = tk.bull >= tk.bear;
+                              const sqColor = tkBull ? P.bu : P.be;
                               return (
                               <div key={j} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"3px 0", borderBottom:j<s.topTickers.length-1?("1px solid "+P.bd+"20"):"none" }}>
                                 <span style={{ fontWeight:800, color:P.wh }}>{tk.s}</span>
                                 <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                                   <span style={{ fontWeight:700, color:P.ac }}>{fmt(tk.p)}</span>
-                                  <span style={{ width:9, height:9, borderRadius:2, background:sqColor, display:"inline-block", flexShrink:0 }} title={isBull?"Bullish":"Bearish"} />
+                                  <span style={{ width:9, height:9, borderRadius:2, background:sqColor, display:"inline-block", flexShrink:0 }} title={tkBull?"Bullish":"Bearish"} />
                                 </div>
                               </div>
                               );
