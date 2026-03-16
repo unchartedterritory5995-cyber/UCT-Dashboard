@@ -171,31 +171,67 @@ async def fetch_live_flow(
 ) -> list[dict]:
     """
     Fetch live flow alerts from UW and transform to BBS-compatible rows.
+    UW caps at 200 per request, so we paginate if limit > 200.
     Returns list of row dicts ready for processFlowData.
     """
     url = f"{BASE}/api/option-trades/flow-alerts"
-    params = {"limit": limit, "min_premium": min_premium}
-    if ticker:
-        params["ticker_symbol"] = ticker.upper()
-    if is_call is True:
-        params["is_call"] = True
-    if is_put is True:
-        params["is_put"] = True
+    
+    all_alerts = []
+    seen_ids = set()
+    pages = max(1, (limit + 199) // 200)  # ceil division
+    page_size = min(limit, 200)
     
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            resp = await client.get(url, headers=_headers(), params=params)
-            resp.raise_for_status()
-            data = resp.json()
+            for page in range(pages):
+                params = {"limit": page_size, "min_premium": min_premium}
+                if ticker:
+                    params["ticker_symbol"] = ticker.upper()
+                if is_call is True:
+                    params["is_call"] = True
+                if is_put is True:
+                    params["is_put"] = True
+                
+                # Use the oldest alert's ID as cursor for next page
+                if all_alerts:
+                    last_id = all_alerts[-1].get("id")
+                    if last_id:
+                        params["before_id"] = last_id
+                
+                resp = await client.get(url, headers=_headers(), params=params)
+                resp.raise_for_status()
+                data = resp.json()
+                alerts = data.get("data", [])
+                
+                if not alerts:
+                    break
+                
+                new_count = 0
+                for a in alerts:
+                    aid = a.get("id", "")
+                    if aid and aid not in seen_ids:
+                        seen_ids.add(aid)
+                        all_alerts.append(a)
+                        new_count += 1
+                
+                logger.info("[UW-live] Page %d: %d alerts (%d new)", page + 1, len(alerts), new_count)
+                
+                # If we got fewer than page_size or no new alerts, we've exhausted the feed
+                if len(alerts) < page_size or new_count == 0:
+                    break
+                
+                if len(all_alerts) >= limit:
+                    break
+    
     except Exception as e:
         logger.error("[UW-live] flow-alerts fetch failed: %s", e)
         return []
     
-    alerts = data.get("data", [])
-    logger.info("[UW-live] Fetched %d flow alerts (limit=%d, min_prem=%d)", len(alerts), limit, min_premium)
+    all_alerts = all_alerts[:limit]
+    logger.info("[UW-live] Total: %d flow alerts (limit=%d, min_prem=%d, pages=%d)", len(all_alerts), limit, min_premium, pages)
     
     rows = []
-    for alert in alerts:
+    for alert in all_alerts:
         try:
             row = transform_alert_to_bbs_row(alert)
             rows.append(row)
