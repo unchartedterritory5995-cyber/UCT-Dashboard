@@ -140,6 +140,13 @@ if os.path.exists(DIST):
             return FileResponse(csv_path, media_type="text/csv")
         return JSONResponse(status_code=404, content={"error": "Darkpool-data.csv not found"})
 
+    @app.get("/Indexes-data.csv")
+    def serve_indexes_csv():
+        csv_path = os.path.join(DIST, "Indexes-data.csv")
+        if os.path.exists(csv_path):
+            return FileResponse(csv_path, media_type="text/csv")
+        return JSONResponse(status_code=404, content={"error": "Indexes-data.csv not found"})
+
     @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
         return FileResponse(os.path.join(DIST, "index.html"))
