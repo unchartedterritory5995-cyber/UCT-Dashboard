@@ -101,10 +101,6 @@ const COLS = [
     colorFn: v => v == null ? '' :
       ['uptrend','bull','recovery'].some(p => v.toLowerCase().includes(p)) ? 'green' :
       ['distribution','liquidation','correction'].some(p => v.toLowerCase().includes(p)) ? 'red' : 'amber' },
-  { key: 'rsp_spy_ratio',     label: 'RSP/SPY',    group: G.REGIME, fmt: v => fmtDec(v, 4),
-    colorFn: v => v == null ? '' : v > 0.46 ? 'green' : v < 0.43 ? 'red' : '' },
-  { key: 'iwm_qqq_ratio',     label: 'IWM/QQQ',    group: G.REGIME, fmt: v => fmtDec(v, 4),
-    colorFn: v => v == null ? '' : v > 0.18 ? 'green' : v < 0.15 ? 'red' : '' },
 
   // ── Primary Breadth ───────────────────────────────────────────────────────
   { key: 'up_4pct_today',      label: 'Up 4%+',     group: G.PRIMARY,
