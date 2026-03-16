@@ -118,20 +118,6 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 def health():
     return {"status": "ok"}
 
-@app.get("/api/test-uw-fields")
-async def test_uw_fields():
-    import httpx
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            "https://api.unusualwhales.com/api/option-trades/flow-alerts",
-            headers={
-                "Authorization": f"Bearer {os.getenv('UW_API_KEY', '')}",
-                "UW-CLIENT-API-ID": "100001",
-            },
-            params={"limit": 1},
-        )
-        return resp.json()
-
 app.include_router(snapshot.router)
 app.include_router(movers.router)
 app.include_router(engine_data.router)
