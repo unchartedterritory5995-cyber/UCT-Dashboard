@@ -203,9 +203,12 @@ const GROUP_HEADER_CLASS = {
 
 // ── Component ─────────────────────────────────────────────────────────────
 export default function Breadth() {
-  const { data, isLoading } = useSWR('/api/breadth-monitor?days=90', fetcher, {
-    refreshInterval: 5 * 60 * 1000,
-  })
+  const [days, setDays] = useState(90)
+  const { data, isLoading, error } = useSWR(
+    `/api/breadth-monitor?days=${days}`,
+    fetcher,
+    { refreshInterval: 5 * 60 * 1000 }
+  )
   const [collapsed, setCollapsed] = useState(new Set())
   const [collapsedCols, setCollapsedCols] = useState(new Set())
 
@@ -237,9 +240,15 @@ export default function Breadth() {
         </span>
       </div>
 
-      {rows.length === 0 && !isLoading && (
+      {error && (
+        <div className={styles.errorBanner}>
+          Could not load breadth data — {error.message ?? 'network error'}. Retrying in 5m.
+        </div>
+      )}
+
+      {!error && rows.length === 0 && !isLoading && (
         <div className={styles.empty}>
-          No data yet. Run <code>python scripts/breadth_collector.py</code> in uct-intelligence to populate.
+          No data yet. Run <code>python scripts/breadth_collector.py</code> in uct-intelligence.
         </div>
       )}
 

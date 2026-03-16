@@ -261,3 +261,15 @@
   color: var(--text-muted);
   line-height: 1;
 }
+
+.errorBanner {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 13px;
+  color: var(--loss, #f87171);
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
