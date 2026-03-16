@@ -24,77 +24,81 @@ active_clients: Set[WebSocket] = set()
 
 
 # ── BBS CSV transform (mirrors uw_live_flow.py logic) ───────────────
-def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:   # ← FIXED
+def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:
     """
     Convert a single UW flow_alerts JSON payload into a BBS-style CSV row.
     Returns a CSV line string or None if the alert should be skipped.
 
-    Expected UW fields (adjust if their schema differs):
-      ticker, strike, expires, put_call, bid_ask, sentiment,
-      volume, open_interest, price, underlying_price, total_premium,
-      execution_estimate (SWEEP / BLOCK / MULTI), timestamp
+    Actual UW flow_alerts fields:
+      ticker, strike, expiry (YYYY-MM-DD), type (call/put),
+      total_ask_side_prem, total_bid_side_prem, total_premium,
+      volume, open_interest, price, underlying_price,
+      has_sweep, has_multileg, has_singleleg, has_floor,
+      total_size, trade_count, created_at, alert_rule,
+      bid, ask, iv_start, iv_end, option_chain, issue_type,
+      volume_oi_ratio, all_opening_trades, marketcap, sector
     """
     try:
-        ticker = alert.get("ticker", "").upper()
+        ticker = (alert.get("ticker") or "").upper()
         if not ticker:
             return None
 
         strike = alert.get("strike", "")
-        expires = alert.get("expires", "")          # YYYY-MM-DD
-        put_call = alert.get("put_call", "").upper()  # CALL / PUT
-        option_type = "C" if put_call == "CALL" else "P"
+        expiry = alert.get("expiry", "")              # YYYY-MM-DD
+        put_call = (alert.get("type") or "").lower()   # "call" or "put"
+        option_type = "C" if put_call == "call" else "P"
 
-        bid_ask = alert.get("bid_ask", "").upper()   # ASK / BID / MID
-        sentiment = alert.get("sentiment", "").upper()
+        volume = int(alert.get("volume", 0) or 0)
+        oi = int(alert.get("open_interest", 0) or 0)
+        price = alert.get("price", "0")
+        spot = alert.get("underlying_price", "0")
+        total_premium = alert.get("total_premium", "0")
+        total_size = int(alert.get("total_size", 0) or 0)
 
-        volume = alert.get("volume", 0)
-        oi = alert.get("open_interest", 0)
-        price = alert.get("price", 0)
-        spot = alert.get("underlying_price", 0)
-        premium = alert.get("total_premium", 0)
+        # ── Order type from boolean flags ───────────────────────────
+        has_sweep = alert.get("has_sweep", False)
+        has_multileg = alert.get("has_multileg", False)
 
-        exec_type = alert.get("execution_estimate", "").upper()
-        # Map to BBS order types
-        if "SWEEP" in exec_type:
-            order_type = "SWEEP"
-        elif "BLOCK" in exec_type:
-            order_type = "BLOCK"
-        elif "MULTI" in exec_type or "SPLIT" in exec_type:
+        if has_multileg:
             order_type = "ML/"
+        elif has_sweep:
+            order_type = "SWEEP"
         else:
-            order_type = exec_type or "UNKNOWN"
+            order_type = "BLOCK"
 
-        # Map bid/ask to BBS side codes
-        #   AA = At/Above Ask, A = Ask, BB = At/Below Bid, B = Bid, M = Mid
-        if bid_ask == "ASK":
-            if sentiment in ("BULLISH", "VERY_BULLISH"):
-                side = "AA"
-            else:
-                side = "A"
-        elif bid_ask == "BID":
-            if sentiment in ("BEARISH", "VERY_BEARISH"):
-                side = "BB"
-            else:
-                side = "B"
+        # ── Side from ask/bid premium ───────────────────────────────
+        ask_prem = float(alert.get("total_ask_side_prem", 0) or 0)
+        bid_prem = float(alert.get("total_bid_side_prem", 0) or 0)
+
+        if ask_prem > 0 and bid_prem == 0:
+            # All premium on ask side
+            side = "AA" if has_sweep else "A"
+        elif bid_prem > 0 and ask_prem == 0:
+            # All premium on bid side
+            side = "BB" if has_sweep else "B"
+        elif ask_prem > bid_prem:
+            side = "A"
+        elif bid_prem > ask_prem:
+            side = "B"
         else:
             side = "M"
 
-        # Color logic: check OI exceeded
+        # ── Color logic: check OI exceeded ──────────────────────────
         if oi > 0 and volume > oi:
-            color = "Yellow"  # OI exceeded in 1 trade
+            color = "Yellow"
         else:
             color = "White"
 
-        # Format expiration to M/D/YYYY for BBS compat
-        exp_formatted = expires
+        # ── Format expiration to M/D/YYYY for BBS compat ───────────
+        exp_formatted = expiry
         try:
-            exp_dt = datetime.strptime(expires, "%Y-%m-%d")
+            exp_dt = datetime.strptime(expiry, "%Y-%m-%d")
             exp_formatted = exp_dt.strftime("%-m/%-d/%Y")
         except Exception:
             pass
 
-        # Timestamp
-        ts_raw = alert.get("timestamp", "")
+        # ── Timestamp ───────────────────────────────────────────────
+        ts_raw = alert.get("created_at", "")
         time_str = ts_raw
         try:
             ts_dt = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
@@ -102,7 +106,7 @@ def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:   # ← FIXED
         except Exception:
             pass
 
-        # BBS CSV columns (match your existing CSV header order):
+        # ── Build BBS CSV row ───────────────────────────────────────
         # Time,Ticker,Spot,Strike,Exp,C/P,Side,Order,Price,Volume,OI,Premium,Color
         row = ",".join([
             time_str,
@@ -114,9 +118,9 @@ def transform_alert_to_bbs_row(alert: dict) -> Optional[str]:   # ← FIXED
             side,
             order_type,
             f"{float(price):.2f}" if price else "",
-            str(volume),
+            str(total_size if total_size else volume),
             str(oi),
-            f"{float(premium):.0f}" if premium else "",
+            str(int(float(total_premium))) if total_premium else "",
             color,
         ])
         return row
@@ -139,7 +143,7 @@ async def broadcast(message: str):
 
 
 # ── UW upstream WebSocket listener ──────────────────────────────────
-_uw_task = None              # ← FIXED
+_uw_task = None
 _uw_connected = False
 
 
@@ -187,7 +191,7 @@ async def _listen_to_uw():
                                 await broadcast(json.dumps({
                                     "type": "flow",
                                     "row": csv_row,
-                                    "raw": alert,  # optional: frontend can use for extras
+                                    "raw": alert,
                                     "timestamp": datetime.now(timezone.utc).isoformat(),
                                 }))
                         elif isinstance(alert, list):
