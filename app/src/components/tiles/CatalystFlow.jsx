@@ -101,11 +101,15 @@ export default function CatalystFlow({ data: propData }) {
       clone.style.height = 'auto'
 
       // TileCard structure: .tile > .header + .body > .scrollBody
-      // Remove scroll constraints from the cloned inner divs
+      // Remove scroll/flex constraints from the cloned inner divs.
+      // .body has flex:1 + min-height:0 which collapses to zero when parent
+      // has height:auto — must set flex:none so it sizes from content.
       const bodyEl = clone.children[1]
       if (bodyEl) {
         bodyEl.style.overflow = 'visible'
         bodyEl.style.height = 'auto'
+        bodyEl.style.flex = 'none'
+        bodyEl.style.minHeight = '0'
         const scrollEl = bodyEl.children[0]
         if (scrollEl) {
           scrollEl.style.overflow = 'visible'
