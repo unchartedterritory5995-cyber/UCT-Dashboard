@@ -1,9 +1,10 @@
 // app/src/components/tiles/CatalystFlow.jsx
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import useSWR from 'swr'
 import TileCard from '../TileCard'
 import EarningsModal from './EarningsModal'
 import ErrorBoundary from '../ErrorBoundary'
+import { useTileCapture } from '../../hooks/useTileCapture'
 import styles from './CatalystFlow.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -81,73 +82,13 @@ export default function CatalystFlow({ data: propData }) {
 
   const data = propData !== undefined ? propData : fetched
   const [selected, setSelected] = useState(null)
-  const [capturing, setCapturing] = useState(false)
-  const tileRef = useRef(null)
   const scrollBodyRef = useRef(null)
-
-  const captureScreenshot = useCallback(async () => {
-    if (!tileRef.current || capturing) return
-    setCapturing(true)
-
-    try {
-      const { default: html2canvas } = await import('html2canvas')
-      const tileEl = tileRef.current
-      const width = tileEl.offsetWidth
-
-      // Clone into an off-screen fixed container so the grid cell
-      // no longer constrains the height — the clone can grow freely
-      const clone = tileEl.cloneNode(true)
-      clone.style.overflow = 'visible'
-      clone.style.height = 'auto'
-
-      // TileCard structure: .tile > .header + .body > .scrollBody
-      // Remove scroll/flex constraints from the cloned inner divs.
-      // .body has flex:1 + min-height:0 which collapses to zero when parent
-      // has height:auto — must set flex:none so it sizes from content.
-      const bodyEl = clone.children[1]
-      if (bodyEl) {
-        bodyEl.style.overflow = 'visible'
-        bodyEl.style.height = 'auto'
-        bodyEl.style.flex = 'none'
-        bodyEl.style.minHeight = '0'
-        const scrollEl = bodyEl.children[0]
-        if (scrollEl) {
-          scrollEl.style.overflow = 'visible'
-          scrollEl.style.height = 'auto'
-        }
-      }
-
-      const wrapper = document.createElement('div')
-      wrapper.style.cssText = `position:fixed;top:-99999px;left:0;width:${width}px;overflow:visible;`
-      wrapper.appendChild(clone)
-      document.body.appendChild(wrapper)
-
-      const bgColor = getComputedStyle(tileEl).backgroundColor
-      const canvas = await html2canvas(clone, {
-        backgroundColor: bgColor || '#0d0d0f',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      })
-
-      document.body.removeChild(wrapper)
-
-      const date = new Date().toISOString().slice(0, 10)
-      const link = document.createElement('a')
-      link.download = `earnings-${date}.png`
-      link.href = canvas.toDataURL('image/png')
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    } finally {
-      setCapturing(false)
-    }
-  }, [capturing])
+  const { tileRef, capturing, capture } = useTileCapture('earnings')
 
   const exportBtn = (
     <button
       className={styles.exportBtn}
-      onClick={captureScreenshot}
+      onClick={capture}
       disabled={capturing}
       title="Export as PNG"
     >

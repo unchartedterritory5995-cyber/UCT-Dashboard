@@ -3,6 +3,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
+import { useTileCapture } from '../../hooks/useTileCapture'
 import styles from './ThemeTracker.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
@@ -58,9 +59,21 @@ export default function ThemeTracker({ data: propData }) {
     { refreshInterval: period === 'Today' ? 30000 : 0 }
   )
   const data = propData !== undefined ? propData : fetched
+  const { tileRef, capturing, capture } = useTileCapture('themetracker')
+
+  const captureBtn = (
+    <button
+      className={styles.captureBtn}
+      onClick={capture}
+      disabled={capturing}
+      title="Export as PNG"
+    >
+      {capturing ? '…' : '📷'}
+    </button>
+  )
 
   return (
-    <TileCard title="Theme Tracker" badge={period}>
+    <TileCard ref={tileRef} title="Theme Tracker" badge={period} actions={captureBtn}>
       <div className={styles.tabs}>
         {PERIODS.map(p => (
           <button

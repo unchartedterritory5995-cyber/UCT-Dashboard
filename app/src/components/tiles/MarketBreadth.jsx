@@ -2,6 +2,7 @@
 import useSWR from 'swr'
 import TileCard from '../TileCard'
 import MARelationship from './MARelationship'
+import { useTileCapture } from '../../hooks/useTileCapture'
 import styles from './MarketBreadth.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -51,6 +52,18 @@ function ExposureBar({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus
 export default function MarketBreadth({ data: propData }) {
   const { data: fetched } = useSWR(propData !== undefined ? null : '/api/breadth', fetcher)
   const data = propData !== undefined ? propData : fetched
+  const { tileRef, capturing, capture } = useTileCapture('breadth')
+
+  const captureBtn = (
+    <button
+      className={styles.captureBtn}
+      onClick={capture}
+      disabled={capturing}
+      title="Export as PNG"
+    >
+      {capturing ? '…' : '📷'}
+    </button>
+  )
 
   if (!data) {
     return <TileCard title="UCT Exposure Rating"><p className={styles.loading}>Loading…</p></TileCard>
@@ -67,7 +80,7 @@ export default function MarketBreadth({ data: propData }) {
   const expBonus  = data.exposure?.bonus       ?? 0
 
   return (
-    <TileCard title="UCT Exposure Rating">
+    <TileCard ref={tileRef} title="UCT Exposure Rating" actions={captureBtn}>
       <ExposureBar
         value={expScore != null ? Math.min(expScore, 100) : null}
         label="UCT EXPOSURE RATING"
