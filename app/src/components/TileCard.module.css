@@ -52,3 +52,8 @@
   min-height: 0;
   overflow: hidden;
 }
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
