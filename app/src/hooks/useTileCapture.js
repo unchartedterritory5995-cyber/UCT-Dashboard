@@ -21,19 +21,16 @@ export function useTileCapture(filename) {
       const { default: html2canvas } = await import('html2canvas')
       const tileEl = tileRef.current
 
-      // Use scrollWidth/scrollHeight so horizontally or vertically scrollable
-      // content (e.g. the wide Breadth Monitor table) is fully captured.
-      const fullWidth  = tileEl.scrollWidth  || tileEl.offsetWidth
-      const fullHeight = tileEl.scrollHeight || tileEl.offsetHeight
-
       const clone = tileEl.cloneNode(true)
+
+      // Start with max-content so the clone is not artificially capped.
+      // We'll measure the true rendered width AFTER DOM insertion.
       clone.style.overflow = 'visible'
-      clone.style.width    = `${fullWidth}px`
       clone.style.height   = 'auto'
+      clone.style.width    = 'max-content'
 
       // TileCard structure: .tile > .header (children[0]) + .body (children[1])
       // .body has flex:1 + min-height:0 — collapses when parent has height:auto.
-      // Fix: remove flex/height constraints so it sizes from content.
       // (Safe no-op for non-TileCard elements where children[1] may not exist.)
       const bodyEl = clone.children[1]
       if (bodyEl) {
@@ -50,19 +47,18 @@ export function useTileCapture(filename) {
         el.style.maxHeight = 'none'
       })
 
-      // Wrapper must be at least fullWidth wide so html2canvas sees all columns.
+      // Insert into DOM so getComputedStyle works for the sticky-fix pass.
+      // Wrapper uses max-content too so it doesn't clip the clone.
       const wrapper = document.createElement('div')
       wrapper.style.cssText =
-        `position:fixed;top:-99999px;left:0;width:${fullWidth}px;overflow:visible;`
+        'position:fixed;top:-99999px;left:0;width:max-content;overflow:visible;'
       wrapper.appendChild(clone)
       document.body.appendChild(wrapper)
 
       // Fix sticky positioning AFTER insertion so getComputedStyle works.
-      // With overflow:visible there is no scroll container, so sticky elements
-      // lose their scroll reference and get displaced (headers disappear or gap).
-      // Must set top:'0'/left:'0' explicitly — clearing to '' leaves CSS class
-      // values in effect (e.g. .colLabel has top:32px which displaces the
-      // second header row down, creating a gap and covering the first data row).
+      // Must set top:'0'/left:'0' — clearing to '' leaves CSS class values
+      // active (e.g. .colLabel has top:32px which creates a gap and hides
+      // the first data row beneath the displaced column-label row).
       clone.querySelectorAll('*').forEach(el => {
         if (window.getComputedStyle(el).position === 'sticky') {
           el.style.position = 'relative'
@@ -72,16 +68,23 @@ export function useTileCapture(filename) {
         }
       })
 
+      // Measure AFTER all modifications so we get the true rendered dimensions
+      // (not the original constrained dimensions from the live DOM element).
+      const captureWidth  = clone.offsetWidth
+      const captureHeight = clone.offsetHeight
+
+      // Give the wrapper a concrete width so html2canvas knows the canvas size.
+      wrapper.style.width = `${captureWidth}px`
+
       const bgColor = getComputedStyle(tileEl).backgroundColor
       const canvas = await html2canvas(clone, {
         backgroundColor: bgColor || '#0d0d0f',
         scale: 2,
         useCORS: true,
         logging: false,
-        width:  fullWidth,
-        height: fullHeight,
-        windowWidth:  fullWidth,
-        windowHeight: fullHeight,
+        // Let html2canvas auto-detect dimensions from the element —
+        // do NOT pass width/height/windowWidth/windowHeight as they
+        // can cause html2canvas to crop at the original viewport size.
       })
 
       document.body.removeChild(wrapper)
