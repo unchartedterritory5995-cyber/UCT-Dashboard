@@ -91,12 +91,12 @@ function Card({ children, title, sub }) {
 
 function TT({ rows, priceFn, onRowClick, panelFn }) {
   const [expandedKey, setExpandedKey] = useState(null);
-  const colCount = ["Ticker","Day","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow","Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).length;
+  const colCount = ["Ticker","Day","Exp","Strike","C/P","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow","Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
-          {["Ticker","Day","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow","Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).map(h => (
+          {["Ticker","Day","Exp","Strike","C/P","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow","Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).map(h => (
             <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
           ))}
         </tr>
@@ -119,9 +119,9 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
             <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent", cursor:"pointer" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
               <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.Dt}</td>
+              <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
-              <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
@@ -153,12 +153,12 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
 
 function CT({ rows, priceFn, onRowClick, panelFn }) {
   const [expandedKey, setExpandedKey] = useState(null);
-  const colCount = ["Ticker","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade","OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).length;
+  const colCount = ["Ticker","Exp","Strike","C/P","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade","OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
-          {["Ticker","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade","OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).map(h => (
+          {["Ticker","Exp","Strike","C/P","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade","OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).map(h => (
             <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
           ))}
         </tr>
@@ -180,9 +180,9 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
             <Fragment key={i}>
             <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):r.H>=5?(P.ac+"08"):"transparent", cursor:"pointer" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
+              <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
-              <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
@@ -1397,7 +1397,7 @@ export default function OptionsFlowDashboard() {
               {otherTrades.length>0 && (
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Strike","C/P","Exp","Type","Side","Color","Vol","Premium"].map(h=>(
+                    {["Exp","Strike","C/P","Type","Side","Color","Vol","Premium"].map(h=>(
                       <th key={h} style={{ padding:"3px 6px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr></thead>
@@ -2103,7 +2103,7 @@ export default function OptionsFlowDashboard() {
                     {otherTrades.length>0 && (
                       <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
                         <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                          {["Strike","C/P","Exp","Type","Side","Color","Vol","Premium"].map(h=>(
+                          {["Exp","Strike","C/P","Type","Side","Color","Vol","Premium"].map(h=>(
                             <th key={h} style={{ padding:"3px 6px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
                           ))}
                         </tr></thead>
@@ -2429,7 +2429,7 @@ export default function OptionsFlowDashboard() {
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                     <thead>
                       <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                        {["Ticker","Strike","C/P","Exp","Entry","Range","Now","P&L","Hits","Dir","OI","ΔOI"].map(h=>(
+                        {["Ticker","Exp","Strike","C/P","Entry","Range","Now","P&L","Hits","Dir","OI","ΔOI"].map(h=>(
                           <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
                         ))}
                       </tr>
@@ -2444,9 +2444,9 @@ export default function OptionsFlowDashboard() {
                         return (
                           <tr key={r.id} onClick={()=>{ fetchContractHistory(r.sym,r.cp,r.strike,r.exp); setSelectedItem(prev=>prev&&prev.sym===r.sym&&prev.cp===r.cp&&String(prev.K)===String(r.strike)&&prev.exp===r.exp?null:{sym:r.sym,cp:r.cp,K:r.strike,exp:r.exp}); }} style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}>
                             <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}</td>
+                            <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.exp}</td>
                             <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.strike}</td>
                             <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
-                            <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.exp}</td>
                             <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{r.entry>0?"$"+r.entry.toFixed(2):"—"}</td>
                             <td style={{ padding:"5px 5px", fontSize:9, color:P.mt }}>{r.lo&&r.lo!==r.hi?"$"+r.lo.toFixed(2)+"–$"+r.hi.toFixed(2):"—"}</td>
                             <td style={{ padding:"5px 5px", fontWeight:700, color:curr>0?P.wh:P.mt }}>{curr>0?"$"+curr.toFixed(2):"—"}</td>
@@ -2669,7 +2669,7 @@ export default function OptionsFlowDashboard() {
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","Strike","C/P","Exp","Entry","Premium","Flow","Vol","OI","ΔOI","Vol/OI","DTE"].map(h=>(
+                    {["Ticker","Exp","Strike","C/P","Entry","Premium","Flow","Vol","OI","ΔOI","Vol/OI","DTE"].map(h=>(
                       <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
                     ))}
                   </tr>
@@ -2684,9 +2684,9 @@ export default function OptionsFlowDashboard() {
                     return (
                       <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:pct>=1?(P.ac+"08"):pct>=0.5?(P.ye+"08"):"transparent" }}>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
-                        <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
                         <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{r.price>0?"$"+r.price.toFixed(2):"—"}</td>
                         <td style={{ padding:"5px 4px", fontWeight:700, color:premC(r.P) }}>{fmt(r.P)}</td>
                         <td style={{ padding:"5px 4px" }}>
@@ -2740,7 +2740,7 @@ export default function OptionsFlowDashboard() {
                 </div>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","Strike","C/P","Exp","Grade","Dir","Entry","Now","P&L","Days","Trend","Added"].map(h=>(
+                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Now","P&L","Days","Trend","Added"].map(h=>(
                       <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr></thead>
@@ -2761,9 +2761,9 @@ export default function OptionsFlowDashboard() {
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
-                          <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={GRADE_COLORS[p.grade]||P.mt}>{p.grade}</Tag></td>
                           <td style={{ padding:"5px 5px" }}><Tag c={dirC}>{p.dir}</Tag></td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{p.entry>0?"$"+p.entry.toFixed(2):"—"}</td>
@@ -2786,7 +2786,7 @@ export default function OptionsFlowDashboard() {
               <Card title="Archived Picks" sub={topFlowPicks.archived.length+" expired"}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","Strike","C/P","Exp","Grade","Dir","Entry","Final","P&L","Saved"].map(h=>(
+                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Final","P&L","Saved"].map(h=>(
                       <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr></thead>
@@ -2797,9 +2797,9 @@ export default function OptionsFlowDashboard() {
                       return (
                         <tr key={p.id||i} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.7 }}>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}</td>
+                          <td style={{ padding:"5px 5px", color:P.dm }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
-                          <td style={{ padding:"5px 5px", color:P.dm }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={GRADE_COLORS[p.grade]||P.mt}>{p.grade}</Tag></td>
                           <td style={{ padding:"5px 5px" }}><Tag c={dirC}>{p.dir}</Tag></td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{p.entry>0?"$"+p.entry.toFixed(2):"—"}</td>
