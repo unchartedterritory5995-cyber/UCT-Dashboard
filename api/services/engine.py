@@ -564,39 +564,57 @@ def get_earnings() -> dict:
             [e for e in today_ew if e["hour"] == "amc"],
             key=lambda x: x.get("ew_total", 0), reverse=True,
         )
-        # Patch any already-reported results from EW itself (some report early)
-        # Finnhub patch for tonight entries that have already reported
-        if fh_key:
-            tonight_pending = {e["symbol"] for e in amc_tonight_raw if e.get("eps_actual") is None}
-            if tonight_pending:
-                try:
-                    import requests as _req3
-                    fh_r2 = _req3.get(
-                        "https://finnhub.io/api/v1/calendar/earnings",
-                        params={"from": today, "to": today, "token": fh_key},
-                        timeout=15,
+
+    # Finnhub patch + supplement: patch EW entries that already reported,
+    # and add Finnhub-only AMC reporters not tracked by EarningsWhispers.
+    if fh_key:
+        ew_syms = {e["symbol"] for e in amc_tonight_raw}
+        try:
+            import requests as _req3
+            fh_r2 = _req3.get(
+                "https://finnhub.io/api/v1/calendar/earnings",
+                params={"from": today, "to": today, "token": fh_key},
+                timeout=15,
+            )
+            fh_today_amc = [
+                e for e in fh_r2.json().get("earningsCalendar", [])
+                if e.get("hour", "").lower() == "amc"
+            ]
+            fh_by_sym = {e["symbol"]: e for e in fh_today_amc}
+
+            # Patch existing EW entries with actuals from Finnhub
+            for entry in amc_tonight_raw:
+                if entry.get("eps_actual") is not None:
+                    continue
+                fh = fh_by_sym.get(entry["symbol"])
+                if fh and fh.get("epsActual") is not None:
+                    rev_a = fh.get("revenueActual")
+                    rev_e = fh.get("revenueEstimate")
+                    entry["eps_actual"]   = fh["epsActual"]
+                    entry["eps_estimate"] = entry.get("eps_estimate") or fh.get("epsEstimate")
+                    entry["rev_actual"]   = (rev_a / 1_000_000) if rev_a else None
+                    entry["rev_estimate"] = entry.get("rev_estimate") or (
+                        (rev_e / 1_000_000) if rev_e else None
                     )
-                    fh_tonight = {
-                        e["symbol"]: e
-                        for e in fh_r2.json().get("earningsCalendar", [])
-                        if e.get("symbol") in tonight_pending
-                        and e.get("epsActual") is not None
-                    }
-                    for entry in amc_tonight_raw:
-                        if entry.get("eps_actual") is not None:
-                            continue
-                        fh = fh_tonight.get(entry["symbol"])
-                        if fh:
-                            rev_a = fh.get("revenueActual")
-                            rev_e = fh.get("revenueEstimate")
-                            entry["eps_actual"]   = fh["epsActual"]
-                            entry["eps_estimate"] = entry.get("eps_estimate") or fh.get("epsEstimate")
-                            entry["rev_actual"]   = (rev_a / 1_000_000) if rev_a else None
-                            entry["rev_estimate"] = entry.get("rev_estimate") or (
-                                (rev_e / 1_000_000) if rev_e else None
-                            )
-                except Exception:
-                    pass
+
+            # Add Finnhub-only AMC reporters not tracked by EarningsWhispers
+            for fh in fh_today_amc:
+                sym = fh.get("symbol", "")
+                if not sym or sym in ew_syms:
+                    continue
+                rev_a = fh.get("revenueActual")
+                rev_e = fh.get("revenueEstimate")
+                amc_tonight_raw.append({
+                    "symbol":       sym,
+                    "hour":         "amc",
+                    "eps_actual":   fh.get("epsActual"),
+                    "eps_estimate": fh.get("epsEstimate"),
+                    "rev_actual":   (rev_a / 1_000_000) if rev_a else None,
+                    "rev_estimate": (rev_e / 1_000_000) if rev_e else None,
+                    "ew_total":     0,
+                })
+        except Exception:
+            pass
 
     # ── Apply $300M cap filter from engine push ───────────────────────────────
     # wire_data["cap_universe"] is a sorted list of $300M+ tickers written by
