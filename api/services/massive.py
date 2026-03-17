@@ -475,6 +475,12 @@ def get_movers() -> dict:
         ripping  = _apply_live(ripping,  positive=True)
         drilling = _apply_live(drilling, positive=False)
 
+    # Drop any entry that has flipped direction after the Massive % overlay.
+    # e.g. a stock discovered as a driller at -5% that has since reversed to
+    # +6% should not appear in the drilling list (and vice versa).
+    ripping  = [m for m in ripping  if not m["pct"].startswith("-")]
+    drilling = [m for m in drilling if     m["pct"].startswith("-")]
+
     # Re-sort by magnitude after Massive % update (order may shift intraday)
     def _abs_pct(m: dict) -> float:
         try:
