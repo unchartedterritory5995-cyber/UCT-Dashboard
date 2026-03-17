@@ -169,16 +169,23 @@ async def get_batch_quotes(contracts: list[dict]) -> list[dict]:
     Returns list of quote dicts matching input order.
     
     Uses individual /historic calls (last entry) since UW doesn't have batch.
-    Runs concurrently for speed.
+    Rate-limited: 8 concurrent, 0.6s spacing to stay under 120 req/min.
     """
     import asyncio
     
-    async def _fetch_one(c: dict) -> dict:
-        occ = build_occ(c["symbol"], c["cp"], c["strike"], c.get("exp", c.get("expDate", "")))
-        url = f"{BASE}/api/option-contract/{occ}/historic"
-        try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+    semaphore = asyncio.Semaphore(8)  # max 8 concurrent
+    
+    async def _fetch_one(client: httpx.AsyncClient, c: dict) -> dict:
+        async with semaphore:
+            occ = build_occ(c["symbol"], c["cp"], c["strike"], c.get("exp", c.get("expDate", "")))
+            url = f"{BASE}/api/option-contract/{occ}/historic"
+            try:
                 resp = await client.get(url, headers=_headers())
+                if resp.status_code == 429:
+                    # Rate limited — wait and retry once
+                    logger.warning("[UW] Rate limited on %s, waiting 5s…", occ)
+                    await asyncio.sleep(5)
+                    resp = await client.get(url, headers=_headers())
                 if resp.status_code != 200:
                     return {"error": f"HTTP {resp.status_code}"}
                 data = resp.json()
@@ -196,10 +203,13 @@ async def get_batch_quotes(contracts: list[dict]) -> list[dict]:
                     "underlyingPrice": 0,
                     "iv": float(latest.get("implied_volatility") or 0),
                 }
-        except Exception as e:
-            return {"error": str(e)}
+            except Exception as e:
+                return {"error": str(e)}
+            finally:
+                await asyncio.sleep(0.6)  # space requests ~0.6s apart
     
-    results = await asyncio.gather(*[_fetch_one(c) for c in contracts])
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        results = await asyncio.gather(*[_fetch_one(client, c) for c in contracts])
     return list(results)
 
 
