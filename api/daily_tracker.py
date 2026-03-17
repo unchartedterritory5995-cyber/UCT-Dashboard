@@ -130,7 +130,8 @@ def get_all_history() -> dict:
 
 async def store_daily_snapshot() -> dict:
     """
-    Fetch live Schwab quotes for all registered contracts and append today's snapshot.
+    Fetch live quotes for all registered contracts and append today's snapshot.
+    Uses UW API as primary source, falls back to Schwab if UW fails.
     One entry per contract per date — idempotent (re-running today just overwrites today's row).
     Returns a summary dict.
     """
@@ -141,42 +142,70 @@ async def store_daily_snapshot() -> dict:
 
     today_str = datetime.now(ET).strftime("%-m/%-d/%Y")  # e.g. "3/14/2026"
 
-    # Build request list for schwab batch
-    from api.schwab_service import get_batch_option_quotes
-
-    def _exp_to_iso(exp_str: str) -> str:
-        """Convert 'M/D' or 'M/D/YYYY' to 'YYYY-MM-DD'."""
-        parts = exp_str.split("/")
-        if len(parts) < 2:
-            return ""
-        m, d = int(parts[0]), int(parts[1])
-        if len(parts) >= 3:
-            y = int(parts[2])
-            if y < 100:
-                y += 2000
-        else:
-            y = datetime.now().year
-            from datetime import date
-            if date(y, m, d) < date.today():
-                y += 1
-        return f"{y}-{m:02d}-{d:02d}"
-
+    # Build request list for UW batch quotes
     batch = [
         {
             "symbol": c["sym"],
             "cp": c["cp"],
             "strike": c["K"],
-            "expDate": _exp_to_iso(c["exp"]),
+            "exp": c["exp"],
         }
         for c in contracts
     ]
 
-    logger.info("[tracker] Fetching quotes for %d contracts…", len(batch))
+    logger.info("[tracker] Fetching quotes for %d contracts via UW API…", len(batch))
+    quotes = None
+    source = "unknown"
+
+    # ── Try UW first ──────────────────────────────────────────────────────
     try:
-        quotes = await get_batch_option_quotes(batch)
+        from api.uw_service import get_batch_quotes
+        quotes = await get_batch_quotes(batch)
+        source = "UW"
+        # Check if UW returned mostly errors — if so, fall through to Schwab
+        errors = sum(1 for q in quotes if q.get("error"))
+        if errors > len(quotes) * 0.5:
+            logger.warning("[tracker] UW returned %d/%d errors, trying Schwab fallback…", errors, len(quotes))
+            quotes = None
     except Exception as e:
-        logger.error("[tracker] Schwab batch fetch failed: %s", e)
-        return {"status": "error", "reason": str(e)}
+        logger.error("[tracker] UW batch fetch failed: %s — trying Schwab fallback…", e)
+        quotes = None
+
+    # ── Schwab fallback ───────────────────────────────────────────────────
+    if quotes is None:
+        try:
+            from api.schwab_service import get_batch_option_quotes
+
+            def _exp_to_iso(exp_str: str) -> str:
+                parts = exp_str.split("/")
+                if len(parts) < 2:
+                    return ""
+                m, d = int(parts[0]), int(parts[1])
+                if len(parts) >= 3:
+                    y = int(parts[2])
+                    if y < 100:
+                        y += 2000
+                else:
+                    y = datetime.now().year
+                    from datetime import date
+                    if date(y, m, d) < date.today():
+                        y += 1
+                return f"{y}-{m:02d}-{d:02d}"
+
+            schwab_batch = [
+                {
+                    "symbol": c["sym"],
+                    "cp": c["cp"],
+                    "strike": c["K"],
+                    "expDate": _exp_to_iso(c["exp"]),
+                }
+                for c in contracts
+            ]
+            quotes = await get_batch_option_quotes(schwab_batch)
+            source = "Schwab"
+        except Exception as e:
+            logger.error("[tracker] Schwab fallback also failed: %s", e)
+            return {"status": "error", "reason": f"Both UW and Schwab failed: {e}"}
 
     saved = 0
     skipped = 0
@@ -188,14 +217,15 @@ async def store_daily_snapshot() -> dict:
             continue
         k = _key(c["sym"], c["cp"], c["K"], c["exp"])
         history = snapshots.setdefault(k, [])
-        # Overwrite today's entry if it already exists (idempotent)
+        # Map field names (UW uses mark/openInterest, Schwab uses the same)
         entry = {
             "date": today_str,
-            "oi": q.get("openInterest", 0),
+            "oi": q.get("openInterest") or q.get("open_interest") or 0,
             "price": q.get("mark") or q.get("last") or 0,
-            "spot": q.get("underlyingPrice", 0),
-            "volume": q.get("volume", 0),
+            "spot": q.get("underlyingPrice") or q.get("spot") or 0,
+            "volume": q.get("volume") or 0,
         }
+        # Overwrite today's entry if it already exists (idempotent)
         existing = next((i for i, h in enumerate(history) if h.get("date") == today_str), None)
         if existing is not None:
             history[existing] = entry
@@ -206,6 +236,7 @@ async def store_daily_snapshot() -> dict:
     _save()
     result = {
         "status": "ok",
+        "source": source,
         "date": today_str,
         "saved": saved,
         "skipped": skipped,
