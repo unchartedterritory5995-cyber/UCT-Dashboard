@@ -89,15 +89,21 @@ export default function CatalystFlow({ data: propData }) {
     if (!tileRef.current || !scrollBodyRef.current || capturing) return
     setCapturing(true)
 
+    const tileEl = tileRef.current
     const scrollEl = scrollBodyRef.current
     const bodyEl = scrollEl.parentElement   // TileCard's .body div (has overflow:hidden)
 
+    // Save all constrained styles
+    const prevTileOverflow = tileEl.style.overflow
+    const prevTileHeight = tileEl.style.height
     const prevScrollOverflow = scrollEl.style.overflow
     const prevScrollHeight = scrollEl.style.height
     const prevBodyOverflow = bodyEl.style.overflow
     const prevBodyHeight = bodyEl.style.height
 
-    // Expand both containers so all rows are visible before capture
+    // Expand all three containers so every row is visible before capture
+    tileEl.style.overflow = 'visible'
+    tileEl.style.height = 'auto'
     scrollEl.style.overflow = 'visible'
     scrollEl.style.height = 'auto'
     bodyEl.style.overflow = 'visible'
@@ -105,12 +111,14 @@ export default function CatalystFlow({ data: propData }) {
 
     try {
       const { default: html2canvas } = await import('html2canvas')
-      const bgColor = getComputedStyle(tileRef.current).backgroundColor
-      const canvas = await html2canvas(tileRef.current, {
+      const bgColor = getComputedStyle(tileEl).backgroundColor
+      const canvas = await html2canvas(tileEl, {
         backgroundColor: bgColor || '#0d0d0f',
         scale: 2,
         useCORS: true,
         logging: false,
+        height: tileEl.scrollHeight,
+        windowHeight: tileEl.scrollHeight,
       })
 
       const date = new Date().toISOString().slice(0, 10)
@@ -121,6 +129,8 @@ export default function CatalystFlow({ data: propData }) {
       link.click()
       document.body.removeChild(link)
     } finally {
+      tileEl.style.overflow = prevTileOverflow
+      tileEl.style.height = prevTileHeight
       scrollEl.style.overflow = prevScrollOverflow
       scrollEl.style.height = prevScrollHeight
       bodyEl.style.overflow = prevBodyOverflow
