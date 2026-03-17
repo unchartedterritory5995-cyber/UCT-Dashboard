@@ -52,7 +52,7 @@ function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, posi
 }
 
 export default function ThemeTracker({ data: propData }) {
-  const [period, setPeriod] = useState('1W')
+  const [period, setPeriod] = useState('Today')
   const { data: fetched } = useSWR(
     propData !== undefined ? null : `/api/themes?period=${period}`,
     fetcher,

@@ -453,6 +453,6 @@ def get_movers() -> dict:
     from datetime import datetime as _dt
     _now = _dt.now(_et)
     _is_premarket = 4 <= _now.hour < 9 or (_now.hour == 9 and _now.minute < 30)
-    ttl = 120 if _is_premarket else 300
+    ttl = 60 if _is_premarket else 60
     cache.set("movers", data, ttl=ttl)
     return data
