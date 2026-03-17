@@ -79,3 +79,17 @@
   overflow-y: auto;
   height: 100%;
 }
+
+.exportBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.exportBtn:hover { color: var(--text-bright); }
+.exportBtn:disabled { opacity: 0.4; cursor: default; }

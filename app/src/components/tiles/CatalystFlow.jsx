@@ -1,5 +1,5 @@
 // app/src/components/tiles/CatalystFlow.jsx
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import useSWR from 'swr'
 import TileCard from '../TileCard'
 import EarningsModal from './EarningsModal'
@@ -71,23 +71,79 @@ export default function CatalystFlow({ data: propData }) {
   const { data: fetched } = useSWR(
     propData !== undefined ? null : '/api/earnings',
     fetcher,
-    { refreshInterval: 300000 }   // refresh every 5 min — picks up BMO reports as they drop
+    { refreshInterval: 300000 }
   )
   const { data: liveGaps } = useSWR(
     '/api/earnings-gaps',
     fetcher,
-    { refreshInterval: 30000 }    // live gap % refreshed every 30 s
+    { refreshInterval: 30000 }
   )
 
   const data = propData !== undefined ? propData : fetched
   const [selected, setSelected] = useState(null)
+  const [capturing, setCapturing] = useState(false)
+  const tileRef = useRef(null)
+  const scrollBodyRef = useRef(null)
+
+  const captureScreenshot = useCallback(async () => {
+    if (!tileRef.current || !scrollBodyRef.current || capturing) return
+    setCapturing(true)
+
+    const scrollEl = scrollBodyRef.current
+    const bodyEl = scrollEl.parentElement   // TileCard's .body div (has overflow:hidden)
+
+    const prevScrollOverflow = scrollEl.style.overflow
+    const prevScrollHeight = scrollEl.style.height
+    const prevBodyOverflow = bodyEl.style.overflow
+    const prevBodyHeight = bodyEl.style.height
+
+    // Expand both containers so all rows are visible before capture
+    scrollEl.style.overflow = 'visible'
+    scrollEl.style.height = 'auto'
+    bodyEl.style.overflow = 'visible'
+    bodyEl.style.height = 'auto'
+
+    try {
+      const { default: html2canvas } = await import('html2canvas')
+      const bgColor = getComputedStyle(tileRef.current).backgroundColor
+      const canvas = await html2canvas(tileRef.current, {
+        backgroundColor: bgColor || '#0d0d0f',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      })
+
+      const date = new Date().toISOString().slice(0, 10)
+      const link = document.createElement('a')
+      link.download = `earnings-${date}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } finally {
+      scrollEl.style.overflow = prevScrollOverflow
+      scrollEl.style.height = prevScrollHeight
+      bodyEl.style.overflow = prevBodyOverflow
+      bodyEl.style.height = prevBodyHeight
+      setCapturing(false)
+    }
+  }, [capturing])
+
+  const exportBtn = (
+    <button
+      className={styles.exportBtn}
+      onClick={captureScreenshot}
+      disabled={capturing}
+      title="Export as PNG"
+    >
+      {capturing ? '…' : '📷'}
+    </button>
+  )
 
   if (!data) return <TileCard title="Catalyst Flow"><p className={styles.loading}>Loading…</p></TileCard>
 
   return (
     <>
-      <TileCard title="Earnings">
-        <div className={styles.scrollBody}>
+      <TileCard ref={tileRef} title="Earnings" actions={exportBtn}>
+        <div className={styles.scrollBody} ref={scrollBodyRef}>
           <EarningsTable
             rows={data.bmo}
             label="BEFORE MARKET OPEN"
