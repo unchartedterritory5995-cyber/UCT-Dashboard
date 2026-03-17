@@ -57,6 +57,19 @@ export function useTileCapture(filename) {
       wrapper.appendChild(clone)
       document.body.appendChild(wrapper)
 
+      // Fix sticky positioning AFTER insertion so getComputedStyle works.
+      // With overflow:visible there is no scroll container, so sticky elements
+      // lose their scroll reference and get displaced (headers disappear).
+      // Reset them to relative so they render in normal document flow.
+      clone.querySelectorAll('*').forEach(el => {
+        if (window.getComputedStyle(el).position === 'sticky') {
+          el.style.position = 'relative'
+          el.style.top      = ''
+          el.style.left     = ''
+          el.style.zIndex   = ''
+        }
+      })
+
       const bgColor = getComputedStyle(tileEl).backgroundColor
       const canvas = await html2canvas(clone, {
         backgroundColor: bgColor || '#0d0d0f',
