@@ -117,7 +117,9 @@ export default function CatalystFlow({ data: propData }) {
       const link = document.createElement('a')
       link.download = `earnings-${date}.png`
       link.href = canvas.toDataURL('image/png')
+      document.body.appendChild(link)
       link.click()
+      document.body.removeChild(link)
     } finally {
       scrollEl.style.overflow = prevScrollOverflow
       scrollEl.style.height = prevScrollHeight
