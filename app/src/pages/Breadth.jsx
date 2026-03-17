@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
+import { useTileCapture } from '../hooks/useTileCapture'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -301,6 +302,7 @@ const phaseClass = (phase, styles) => {
 
 export default function Breadth() {
   const [activeTab, setActiveTab] = useState('breadth')
+  const { tileRef: tableRef, capturing, capture } = useTileCapture('breadth-monitor')
   const [days, setDays] = useState(90)
   const { data, isLoading, error } = useSWR(
     `/api/breadth-monitor?days=${days}`,
@@ -415,6 +417,14 @@ export default function Breadth() {
         >
           ↓ CSV
         </button>
+        <button
+          className={styles.exportBtn}
+          onClick={capture}
+          disabled={capturing || rows.length === 0}
+          title="Export as PNG"
+        >
+          {capturing ? '…' : '📷'}
+        </button>
       </div>
 
       {error && (
@@ -431,7 +441,7 @@ export default function Breadth() {
 
 
       {rows.length > 0 && (
-        <div className={styles.tableWrap}>
+        <div className={styles.tableWrap} ref={tableRef}>
           <table className={styles.table}>
             <thead>
               {/* Group header row */}
