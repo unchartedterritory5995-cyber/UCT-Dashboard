@@ -83,6 +83,26 @@ function pctColor(low, mid, high) {
   }
 }
 
+// Paired up/down coloring: color family is set by whichever side is dominant.
+// upRatio = up/(up+dn). ≥0.5 = bull wins → both green. <0.5 = bear wins → both red.
+// The winning side escalates (g1→g3 or r1→r3); the losing side stays at the mildest shade.
+function pairedUpColor(u, d) {
+  if (u == null || d == null || u + d === 0) return ''
+  const r = u / (u + d)
+  if (r >= 0.70) return 'g3'
+  if (r >= 0.60) return 'g2'
+  if (r >= 0.50) return 'g1'
+  return 'r1'  // bear wins; up is minority → lightest red
+}
+function pairedDnColor(u, d) {
+  if (u == null || d == null || u + d === 0) return ''
+  const r = u / (u + d)
+  if (r <= 0.30) return 'r3'
+  if (r <= 0.40) return 'r2'
+  if (r < 0.50)  return 'r1'
+  return 'g1'  // bull wins; dn is minority → lightest green
+}
+
 const COLS = [
   // ── Score ─────────────────────────────────────────────────────────────────
   { key: 'breadth_score', label: 'Health', group: G.SCORE,
@@ -93,29 +113,29 @@ const COLS = [
 
   // ── Primary Breadth ───────────────────────────────────────────────────────
   { key: 'up_4pct_today', label: 'Up 4%+', group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 500 ? 'g3' : v > 300 ? 'g2' : v > 150 ? 'g1' : v < 50 ? 'r2' : v < 100 ? 'r1' : '' },
+    rowColorFn: row => pairedUpColor(row.up_4pct_today, row.down_4pct_today) },
   { key: 'down_4pct_today', label: 'Dn 4%+', group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 500 ? 'r3' : v > 300 ? 'r2' : v > 150 ? 'r1' : v < 50 ? 'g2' : v < 100 ? 'g1' : '' },
+    rowColorFn: row => pairedDnColor(row.up_4pct_today, row.down_4pct_today) },
   { key: 'ratio_5day', label: '5D Ratio', group: G.PRIMARY, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v >= 1.5 ? 'g3' : v >= 1.2 ? 'g2' : v >= 1.05 ? 'g1' : v >= 0.95 ? 'a' : v >= 0.8 ? 'r1' : v >= 0.6 ? 'r2' : 'r3' },
   { key: 'ratio_10day', label: '10D Ratio', group: G.PRIMARY, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v >= 1.5 ? 'g3' : v >= 1.2 ? 'g2' : v >= 1.05 ? 'g1' : v >= 0.95 ? 'a' : v >= 0.8 ? 'r1' : v >= 0.6 ? 'r2' : 'r3' },
   { key: 'up_25pct_quarter', label: 'Up25%/Qtr', group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 800 ? 'g3' : v > 500 ? 'g2' : v > 300 ? 'g1' : v < 80 ? 'r2' : v < 150 ? 'r1' : '' },
+    rowColorFn: row => pairedUpColor(row.up_25pct_quarter, row.down_25pct_quarter) },
   { key: 'down_25pct_quarter', label: 'Dn25%/Qtr', group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 800 ? 'r3' : v > 500 ? 'r2' : v > 300 ? 'r1' : v < 60 ? 'g2' : v < 100 ? 'g1' : '' },
+    rowColorFn: row => pairedDnColor(row.up_25pct_quarter, row.down_25pct_quarter) },
   { key: 'up_25pct_month', label: 'Up25%/Mo', group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 400 ? 'g3' : v > 200 ? 'g2' : v > 100 ? 'g1' : v < 30 ? 'r2' : v < 60 ? 'r1' : '' },
+    rowColorFn: row => pairedUpColor(row.up_25pct_month, row.down_25pct_month) },
   { key: 'down_25pct_month', label: 'Dn25%/Mo', group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 400 ? 'r3' : v > 200 ? 'r2' : v > 100 ? 'r1' : v < 30 ? 'g2' : v < 60 ? 'g1' : '' },
+    rowColorFn: row => pairedDnColor(row.up_25pct_month, row.down_25pct_month) },
   { key: 'up_50pct_month', label: 'Up50%/Mo', group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 100 ? 'g3' : v > 50 ? 'g2' : v > 20 ? 'g1' : '' },
+    rowColorFn: row => pairedUpColor(row.up_50pct_month, row.down_50pct_month) },
   { key: 'down_50pct_month', label: 'Dn50%/Mo', group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 100 ? 'r3' : v > 50 ? 'r2' : v > 20 ? 'r1' : '' },
+    rowColorFn: row => pairedDnColor(row.up_50pct_month, row.down_50pct_month) },
   { key: 'magna_up', label: 'Up13%/34d', group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 1200 ? 'g3' : v > 800 ? 'g2' : v > 500 ? 'g1' : v < 150 ? 'r2' : v < 250 ? 'r1' : '' },
+    rowColorFn: row => pairedUpColor(row.magna_up, row.magna_down) },
   { key: 'magna_down', label: 'Dn13%/34d', group: G.PRIMARY,
-    colorFn: v => v == null ? '' : v > 1200 ? 'r3' : v > 800 ? 'r2' : v > 500 ? 'r1' : v < 100 ? 'g2' : v < 150 ? 'g1' : '' },
+    rowColorFn: row => pairedDnColor(row.magna_up, row.magna_down) },
   { key: 'universe_count',     label: 'Universe',   group: G.PRIMARY },
   { key: 'is_ftd',            label: 'FTD',        group: G.PRIMARY,
     fmt: v => v ? 'FTD' : '—',
@@ -166,19 +186,19 @@ const COLS = [
       return 'a'
     } },
   { key: 'stage2_count', label: 'Stage 2', group: G.REGIME,
-    colorFn: v => v == null ? '' : v > 1200 ? 'g3' : v > 800 ? 'g2' : v > 500 ? 'g1' : v < 150 ? 'r2' : v < 300 ? 'r1' : '' },
+    rowColorFn: row => pairedUpColor(row.stage2_count, row.stage4_count) },
   { key: 'stage4_count', label: 'Stage 4', group: G.REGIME,
-    colorFn: v => v == null ? '' : v > 1200 ? 'r3' : v > 800 ? 'r2' : v > 500 ? 'r1' : v < 100 ? 'g2' : v < 200 ? 'g1' : '' },
+    rowColorFn: row => pairedDnColor(row.stage2_count, row.stage4_count) },
 
   // ── Highs / Lows ──────────────────────────────────────────────────────────
   { key: 'new_52w_highs', label: '52W Hi', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 300 ? 'g3' : v > 150 ? 'g2' : v > 80 ? 'g1' : v < 10 ? 'r2' : v < 20 ? 'r1' : '' },
+    rowColorFn: row => pairedUpColor(row.new_52w_highs, row.new_52w_lows) },
   { key: 'new_52w_lows', label: '52W Lo', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 300 ? 'r3' : v > 150 ? 'r2' : v > 80 ? 'r1' : v < 10 ? 'g2' : v < 20 ? 'g1' : '' },
+    rowColorFn: row => pairedDnColor(row.new_52w_highs, row.new_52w_lows) },
   { key: 'new_20d_highs', label: '20D Hi', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 400 ? 'g3' : v > 200 ? 'g2' : v > 100 ? 'g1' : v < 30 ? 'r2' : v < 50 ? 'r1' : '' },
+    rowColorFn: row => pairedUpColor(row.new_20d_highs, row.new_20d_lows) },
   { key: 'new_20d_lows', label: '20D Lo', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 400 ? 'r3' : v > 200 ? 'r2' : v > 100 ? 'r1' : v < 30 ? 'g2' : v < 50 ? 'g1' : '' },
+    rowColorFn: row => pairedDnColor(row.new_20d_highs, row.new_20d_lows) },
   { key: 'new_ath', label: 'ATH', group: G.HIGHS,
     colorFn: v => v == null ? '' : v > 200 ? 'g3' : v > 100 ? 'g2' : v > 40 ? 'g1' : '' },
 
