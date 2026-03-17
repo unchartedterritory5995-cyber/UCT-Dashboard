@@ -131,7 +131,7 @@ def get_all_history() -> dict:
 async def store_daily_snapshot() -> dict:
     """
     Fetch live quotes for all registered contracts and append today's snapshot.
-    Uses UW API as primary source, falls back to Schwab if UW fails.
+    Uses Schwab API as primary source, falls back to UW if Schwab fails.
     One entry per contract per date — idempotent (re-running today just overwrites today's row).
     Returns a summary dict.
     """
@@ -153,59 +153,59 @@ async def store_daily_snapshot() -> dict:
         for c in contracts
     ]
 
-    logger.info("[tracker] Fetching quotes for %d contracts via UW API…", len(batch))
+    logger.info("[tracker] Fetching quotes for %d contracts via Schwab API…", len(batch))
     quotes = None
     source = "unknown"
 
-    # ── Try UW first ──────────────────────────────────────────────────────
+    # ── Try Schwab first (batch-friendly, no rate limit) ──────────────────
     try:
-        from api.uw_service import get_batch_quotes
-        quotes = await get_batch_quotes(batch)
-        source = "UW"
-        # Check if UW returned mostly errors — if so, fall through to Schwab
-        errors = sum(1 for q in quotes if q.get("error"))
+        from api.schwab_service import get_batch_option_quotes
+
+        def _exp_to_iso(exp_str: str) -> str:
+            parts = exp_str.split("/")
+            if len(parts) < 2:
+                return ""
+            m, d = int(parts[0]), int(parts[1])
+            if len(parts) >= 3:
+                y = int(parts[2])
+                if y < 100:
+                    y += 2000
+            else:
+                y = datetime.now().year
+                from datetime import date
+                if date(y, m, d) < date.today():
+                    y += 1
+            return f"{y}-{m:02d}-{d:02d}"
+
+        schwab_batch = [
+            {
+                "symbol": c["sym"],
+                "cp": c["cp"],
+                "strike": c["K"],
+                "expDate": _exp_to_iso(c["exp"]),
+            }
+            for c in contracts
+        ]
+        quotes = await get_batch_option_quotes(schwab_batch)
+        source = "Schwab"
+        # Check if Schwab returned mostly errors — if so, fall through to UW
+        errors = sum(1 for q in quotes if q.get("error") or q.get("expired"))
         if errors > len(quotes) * 0.5:
-            logger.warning("[tracker] UW returned %d/%d errors, trying Schwab fallback…", errors, len(quotes))
+            logger.warning("[tracker] Schwab returned %d/%d errors, trying UW fallback…", errors, len(quotes))
             quotes = None
     except Exception as e:
-        logger.error("[tracker] UW batch fetch failed: %s — trying Schwab fallback…", e)
+        logger.error("[tracker] Schwab batch fetch failed: %s — trying UW fallback…", e)
         quotes = None
 
-    # ── Schwab fallback ───────────────────────────────────────────────────
+    # ── UW fallback ───────────────────────────────────────────────────────
     if quotes is None:
         try:
-            from api.schwab_service import get_batch_option_quotes
-
-            def _exp_to_iso(exp_str: str) -> str:
-                parts = exp_str.split("/")
-                if len(parts) < 2:
-                    return ""
-                m, d = int(parts[0]), int(parts[1])
-                if len(parts) >= 3:
-                    y = int(parts[2])
-                    if y < 100:
-                        y += 2000
-                else:
-                    y = datetime.now().year
-                    from datetime import date
-                    if date(y, m, d) < date.today():
-                        y += 1
-                return f"{y}-{m:02d}-{d:02d}"
-
-            schwab_batch = [
-                {
-                    "symbol": c["sym"],
-                    "cp": c["cp"],
-                    "strike": c["K"],
-                    "expDate": _exp_to_iso(c["exp"]),
-                }
-                for c in contracts
-            ]
-            quotes = await get_batch_option_quotes(schwab_batch)
-            source = "Schwab"
+            from api.uw_service import get_batch_quotes
+            quotes = await get_batch_quotes(batch)
+            source = "UW"
         except Exception as e:
-            logger.error("[tracker] Schwab fallback also failed: %s", e)
-            return {"status": "error", "reason": f"Both UW and Schwab failed: {e}"}
+            logger.error("[tracker] UW fallback also failed: %s", e)
+            return {"status": "error", "reason": f"Both Schwab and UW failed: {e}"}
 
     saved = 0
     skipped = 0
