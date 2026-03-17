@@ -86,40 +86,47 @@ export default function CatalystFlow({ data: propData }) {
   const scrollBodyRef = useRef(null)
 
   const captureScreenshot = useCallback(async () => {
-    if (!tileRef.current || !scrollBodyRef.current || capturing) return
+    if (!tileRef.current || capturing) return
     setCapturing(true)
-
-    const tileEl = tileRef.current
-    const scrollEl = scrollBodyRef.current
-    const bodyEl = scrollEl.parentElement   // TileCard's .body div (has overflow:hidden)
-
-    // Save all constrained styles
-    const prevTileOverflow = tileEl.style.overflow
-    const prevTileHeight = tileEl.style.height
-    const prevScrollOverflow = scrollEl.style.overflow
-    const prevScrollHeight = scrollEl.style.height
-    const prevBodyOverflow = bodyEl.style.overflow
-    const prevBodyHeight = bodyEl.style.height
-
-    // Expand all three containers so every row is visible before capture
-    tileEl.style.overflow = 'visible'
-    tileEl.style.height = 'auto'
-    scrollEl.style.overflow = 'visible'
-    scrollEl.style.height = 'auto'
-    bodyEl.style.overflow = 'visible'
-    bodyEl.style.height = 'auto'
 
     try {
       const { default: html2canvas } = await import('html2canvas')
+      const tileEl = tileRef.current
+      const width = tileEl.offsetWidth
+
+      // Clone into an off-screen fixed container so the grid cell
+      // no longer constrains the height — the clone can grow freely
+      const clone = tileEl.cloneNode(true)
+      clone.style.overflow = 'visible'
+      clone.style.height = 'auto'
+
+      // TileCard structure: .tile > .header + .body > .scrollBody
+      // Remove scroll constraints from the cloned inner divs
+      const bodyEl = clone.children[1]
+      if (bodyEl) {
+        bodyEl.style.overflow = 'visible'
+        bodyEl.style.height = 'auto'
+        const scrollEl = bodyEl.children[0]
+        if (scrollEl) {
+          scrollEl.style.overflow = 'visible'
+          scrollEl.style.height = 'auto'
+        }
+      }
+
+      const wrapper = document.createElement('div')
+      wrapper.style.cssText = `position:fixed;top:-99999px;left:0;width:${width}px;overflow:visible;`
+      wrapper.appendChild(clone)
+      document.body.appendChild(wrapper)
+
       const bgColor = getComputedStyle(tileEl).backgroundColor
-      const canvas = await html2canvas(tileEl, {
+      const canvas = await html2canvas(clone, {
         backgroundColor: bgColor || '#0d0d0f',
         scale: 2,
         useCORS: true,
         logging: false,
-        height: tileEl.scrollHeight,
-        windowHeight: tileEl.scrollHeight,
       })
+
+      document.body.removeChild(wrapper)
 
       const date = new Date().toISOString().slice(0, 10)
       const link = document.createElement('a')
@@ -129,12 +136,6 @@ export default function CatalystFlow({ data: propData }) {
       link.click()
       document.body.removeChild(link)
     } finally {
-      tileEl.style.overflow = prevTileOverflow
-      tileEl.style.height = prevTileHeight
-      scrollEl.style.overflow = prevScrollOverflow
-      scrollEl.style.height = prevScrollHeight
-      bodyEl.style.overflow = prevBodyOverflow
-      bodyEl.style.height = prevBodyHeight
       setCapturing(false)
     }
   }, [capturing])
