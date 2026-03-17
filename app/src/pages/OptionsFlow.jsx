@@ -1963,15 +1963,15 @@ export default function OptionsFlowDashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={trimmed} margin={{ top:4, right:4, left:-8, bottom:0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
-                        <XAxis dataKey="day" tick={{ fontSize:6, fill:"#4a5c73" }}
+                        <XAxis dataKey="day" tick={{ fontSize:9, fill:"#7b8fa3" }}
                           interval={trimmed.length>15?"preserveStartEnd":trimmed.length>10?1:0}
-                          angle={-45} textAnchor="end" height={28}
+                          angle={-45} textAnchor="end" height={32}
                           tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
-                        <YAxis yAxisId="price" orientation="left" tick={{ fontSize:7, fill:"#d4a5ff" }}
-                          tickFormatter={v=>"$"+v.toFixed(1)} width={32}
+                        <YAxis yAxisId="price" orientation="left" tick={{ fontSize:9, fill:"#d4a5ff" }}
+                          tickFormatter={v=>"$"+v.toFixed(1)} width={36}
                           domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
-                        <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:7, fill:"#4a5c73" }}
-                          tickFormatter={v=>fK(v)} width={38} />
+                        <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:9, fill:"#7b8fa3" }}
+                          tickFormatter={v=>fK(v)} width={42} />
                         <Tooltip contentStyle={{ background:"#0d1525", border:"1px solid #243352", borderRadius:6, fontSize:9, padding:"6px 10px" }}
                           formatter={(val,name) => {
                             if (name==="price") return ["$"+val.toFixed(2),"Contract Price"];
