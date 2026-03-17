@@ -446,7 +446,7 @@ def get_movers() -> dict:
     discovery = cache.get("movers_discovery")
     if discovery is None:
         discovery = _build_movers_discovery()
-        cache.set("movers_discovery", discovery, ttl=120)
+        cache.set("movers_discovery", discovery, ttl=60)
 
     ripping  = list(discovery["ripping"])
     drilling = list(discovery["drilling"])
@@ -475,19 +475,20 @@ def get_movers() -> dict:
         ripping  = _apply_live(ripping,  positive=True)
         drilling = _apply_live(drilling, positive=False)
 
-    # Drop any entry that has flipped direction after the Massive % overlay.
-    # e.g. a stock discovered as a driller at -5% that has since reversed to
-    # +6% should not appear in the drilling list (and vice versa).
-    ripping  = [m for m in ripping  if not m["pct"].startswith("-")]
-    drilling = [m for m in drilling if     m["pct"].startswith("-")]
-
-    # Re-sort by magnitude after Massive % update (order may shift intraday)
     def _abs_pct(m: dict) -> float:
         try:
             return abs(float(m["pct"].replace("%", "").replace("+", "")))
         except (KeyError, ValueError):
             return 0.0
 
+    # After Massive overlay, enforce live thresholds:
+    # - ripping: must still be >= +3% and positive (faded movers drop off)
+    # - drilling: must still be <= -3% and negative (recovered movers drop off)
+    # This keeps the list reflecting who is actually moving RIGHT NOW.
+    ripping  = [m for m in ripping  if _abs_pct(m) >= 3.0 and not m["pct"].startswith("-")]
+    drilling = [m for m in drilling if _abs_pct(m) >= 3.0 and     m["pct"].startswith("-")]
+
+    # Re-sort by magnitude so biggest movers stay at the top
     ripping  = sorted(ripping,  key=_abs_pct, reverse=True)
     drilling = sorted(drilling, key=_abs_pct, reverse=True)
 
