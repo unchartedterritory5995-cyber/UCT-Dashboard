@@ -23,6 +23,18 @@ export function useTileCapture(filename) {
 
       const clone = tileEl.cloneNode(true)
 
+      // cloneNode() copies <canvas> elements but NOT their pixel data.
+      // Copy each canvas's drawn content from the original into the clone.
+      const origCanvases  = Array.from(tileEl.querySelectorAll('canvas'))
+      const cloneCanvases = Array.from(clone.querySelectorAll('canvas'))
+      origCanvases.forEach((orig, i) => {
+        const dest = cloneCanvases[i]
+        if (!dest) return
+        dest.width  = orig.width
+        dest.height = orig.height
+        dest.getContext('2d').drawImage(orig, 0, 0)
+      })
+
       // Start with max-content so the clone is not artificially capped.
       // We'll measure the true rendered width AFTER DOM insertion.
       clone.style.overflow = 'visible'
