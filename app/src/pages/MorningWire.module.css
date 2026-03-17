@@ -18,9 +18,24 @@
 
 .titleRow {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 14px;
 }
+
+.captureBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.15s;
+  margin-left: auto;
+}
+.captureBtn:hover { color: var(--text-bright); }
+.captureBtn:disabled { opacity: 0.4; cursor: default; }
 
 .wireName {
   font-family: 'Cinzel', serif;
