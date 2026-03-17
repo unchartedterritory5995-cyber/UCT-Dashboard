@@ -370,17 +370,67 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
     return ripping, drilling
 
 
-def get_movers() -> dict:
-    """Return morning gappers for the Movers at the Open sidebar.
+def _build_movers_discovery() -> dict:
+    """Run Finviz + wire_data discovery to get the quality-filtered mover list.
 
-    Sources merged to reach ~12 movers per side:
-      1. wire_data movers — captured at 7:35 AM ET by the engine from Finviz.
-         High-quality pre-market gappers (price > $10, avg vol > 300K, mktcap > $300M,
-         session dollar vol >= $5M, gap >= 3%). Listed first.
-      2. Finviz Elite live screener — fills remaining slots to 12.
-         Quality filters at URL level: price > $5, avg vol > 300K, mktcap > $300M.
-         Post-filter: |change| >= 3%, no leveraged ETFs.
-         Beats Massive's raw top-N which gets crowded out by micro-cap noise.
+    Expensive (~1-2s). Result cached separately at 120s so the cheap Massive
+    price-refresh path doesn't re-run Finviz on every 30s poll.
+
+    Returns {"ripping": [...], "drilling": [...]} with Finviz % values.
+    """
+    wire = cache.get("wire_data")
+
+    # wire_data movers — pre-market gappers from 7:35 AM engine run
+    engine_ripping:  list = []
+    engine_drilling: list = []
+    if wire and wire.get("movers"):
+        d = wire["movers"]
+        engine_ripping  = d.get("rippers",  d.get("ripping",  []))
+        engine_drilling = d.get("drillers", d.get("drilling", []))
+        engine_ripping  = [m for m in engine_ripping  if not _is_leveraged_etf(m["sym"])]
+        engine_drilling = [m for m in engine_drilling if not _is_leveraged_etf(m["sym"])]
+
+    # Finviz Elite live screener — quality-filtered (price>$5, avgvol>300K, mktcap>$300M)
+    fv_ripping, fv_drilling = _fetch_finviz_movers_live()
+
+    engine_syms_rip = {m["sym"] for m in engine_ripping}
+    engine_syms_drl = {m["sym"] for m in engine_drilling}
+
+    _TARGET = 12
+
+    def _abs_pct(m: dict) -> float:
+        try:
+            return abs(float(m["pct"].replace("%", "").replace("+", "")))
+        except (KeyError, ValueError):
+            return 0.0
+
+    combined_rip = engine_ripping + [m for m in fv_ripping  if m["sym"] not in engine_syms_rip]
+    combined_drl = engine_drilling + [m for m in fv_drilling if m["sym"] not in engine_syms_drl]
+
+    ripping  = sorted(combined_rip[:_TARGET], key=_abs_pct, reverse=True)
+    drilling = sorted(combined_drl[:_TARGET], key=_abs_pct, reverse=True)
+
+    # cap_universe filter — removes stocks below $300M that gapped into range
+    cap_uni = set(wire.get("cap_universe", []) if wire else [])
+    if cap_uni:
+        ripping  = [m for m in ripping  if m["sym"] in cap_uni]
+        drilling = [m for m in drilling if m["sym"] in cap_uni]
+
+    return {"ripping": ripping, "drilling": drilling}
+
+
+def get_movers() -> dict:
+    """Return live movers for the sidebar, refreshed every 30s.
+
+    Two-layer cache:
+      Layer 1 — discovery (120s TTL): Finviz Elite + wire_data determine *which*
+        tickers qualify (quality-filtered, no micro-cap noise). Runs ~every 2 min.
+      Layer 2 — price refresh (30s TTL): Massive batch snapshot updates the %
+        change on the discovered tickers in real time. Runs every 30s.
+
+    During regular session the displayed % reflects Massive's real-time price.
+    Pre-market: Massive todaysChangePerc is often 0 (no regular-session trades yet)
+    so Finviz values are kept as fallback when Massive returns < 0.5% absolute.
 
     Returns:
         {
@@ -392,67 +442,49 @@ def get_movers() -> dict:
     if cached is not None:
         return cached
 
-    # Stage 1: wire_data movers (pre-market gappers from 7:35 AM Finviz engine run)
-    # Engine outputs "rippers"/"drillers"; normalize to "ripping"/"drilling".
-    wire = cache.get("wire_data")
-    engine_ripping:  list = []
-    engine_drilling: list = []
-    if wire and wire.get("movers"):
-        data = wire["movers"]
-        # Support both key conventions: rippers/drillers (engine) and ripping/drilling (legacy)
-        engine_ripping  = data.get("rippers",  data.get("ripping",  []))
-        engine_drilling = data.get("drillers", data.get("drilling", []))
-        engine_ripping  = [m for m in engine_ripping  if not _is_leveraged_etf(m["sym"])]
-        engine_drilling = [m for m in engine_drilling if not _is_leveraged_etf(m["sym"])]
+    # ── Layer 1: discovery (expensive — Finviz HTTP, cached 120s) ─────────────
+    discovery = cache.get("movers_discovery")
+    if discovery is None:
+        discovery = _build_movers_discovery()
+        cache.set("movers_discovery", discovery, ttl=120)
 
-    # Stage 2: Finviz Elite live screener — quality-filtered by mktcap/avgvol at URL level.
-    # This beats Massive's raw top-N list which gets dominated by micro-cap noise
-    # on high-volatility days (e.g. BTC pumps crowd out COIN, ASTS, etc.).
-    fv_ripping, fv_drilling = _fetch_finviz_movers_live()
+    ripping  = list(discovery["ripping"])
+    drilling = list(discovery["drilling"])
 
-    engine_syms_rip = {m["sym"] for m in engine_ripping}
-    engine_syms_drl = {m["sym"] for m in engine_drilling}
+    # ── Layer 2: Massive real-time % overlay (cheap batch call) ───────────────
+    all_syms = [m["sym"] for m in ripping + drilling]
+    if all_syms:
+        try:
+            live = _get_client().get_batch_snapshots(all_syms)
+        except Exception:
+            live = {}
 
-    supplement_rip = [m for m in fv_ripping  if m["sym"] not in engine_syms_rip]
-    supplement_drl = [m for m in fv_drilling if m["sym"] not in engine_syms_drl]
+        def _apply_live(items: list, positive: bool) -> list:
+            result = []
+            for m in items:
+                raw = live.get(m["sym"])
+                # Only override when Massive has a meaningful value (>= 0.5% abs).
+                # Pre-market: day.c == 0 so todaysChangePerc ≈ 0 — keep Finviz value.
+                if raw is not None and abs(raw) >= 0.5:
+                    sign = "+" if raw >= 0 else ""
+                    result.append({**m, "pct": f"{sign}{raw:.2f}%"})
+                else:
+                    result.append(m)
+            return result
 
-    _TARGET = 12
+        ripping  = _apply_live(ripping,  positive=True)
+        drilling = _apply_live(drilling, positive=False)
 
+    # Re-sort by magnitude after Massive % update (order may shift intraday)
     def _abs_pct(m: dict) -> float:
         try:
             return abs(float(m["pct"].replace("%", "").replace("+", "")))
         except (KeyError, ValueError):
             return 0.0
 
-    combined_rip = engine_ripping + supplement_rip[:max(0, _TARGET - len(engine_ripping))]
-    combined_drl = engine_drilling + supplement_drl[:max(0, _TARGET - len(engine_drilling))]
-
-    # Sort by magnitude descending so biggest movers always appear first
-    ripping  = sorted(combined_rip[:_TARGET], key=_abs_pct, reverse=True)
-    drilling = sorted(combined_drl[:_TARGET], key=_abs_pct, reverse=True)
-
-    # Apply cap_universe filter from engine push — removes ETFs and stocks that
-    # only crossed $300M intraday due to a gap move but are normally sub-$300M.
-    # cap_universe is built from the Finviz equity screener (cap_smallover), so
-    # ETFs like USO/BNO/SVIX are excluded by construction.
-    cap_uni = set(wire.get("cap_universe", []) if wire else [])
-    if cap_uni:
-        ripping  = [m for m in ripping  if m["sym"] in cap_uni]
-        drilling = [m for m in drilling if m["sym"] in cap_uni]
+    ripping  = sorted(ripping,  key=_abs_pct, reverse=True)
+    drilling = sorted(drilling, key=_abs_pct, reverse=True)
 
     data = {"ripping": ripping, "drilling": drilling}
-
-    # Pre-market (4–9:30 AM ET): 2-min TTL so fresh gaps show up quickly.
-    # Regular hours / engine present: 5-min TTL (Finviz updates ~every 2 min anyway).
-    try:
-        from zoneinfo import ZoneInfo
-        _et = ZoneInfo("America/New_York")
-    except ImportError:
-        from datetime import timezone, timedelta
-        _et = timezone(timedelta(hours=-5))
-    from datetime import datetime as _dt
-    _now = _dt.now(_et)
-    _is_premarket = 4 <= _now.hour < 9 or (_now.hour == 9 and _now.minute < 30)
-    ttl = 60 if _is_premarket else 60
-    cache.set("movers", data, ttl=ttl)
+    cache.set("movers", data, ttl=30)
     return data
