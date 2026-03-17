@@ -59,13 +59,15 @@ export function useTileCapture(filename) {
 
       // Fix sticky positioning AFTER insertion so getComputedStyle works.
       // With overflow:visible there is no scroll container, so sticky elements
-      // lose their scroll reference and get displaced (headers disappear).
-      // Reset them to relative so they render in normal document flow.
+      // lose their scroll reference and get displaced (headers disappear or gap).
+      // Must set top:'0'/left:'0' explicitly — clearing to '' leaves CSS class
+      // values in effect (e.g. .colLabel has top:32px which displaces the
+      // second header row down, creating a gap and covering the first data row).
       clone.querySelectorAll('*').forEach(el => {
         if (window.getComputedStyle(el).position === 'sticky') {
           el.style.position = 'relative'
-          el.style.top      = ''
-          el.style.left     = ''
+          el.style.top      = '0'
+          el.style.left     = '0'
           el.style.zIndex   = ''
         }
       })
