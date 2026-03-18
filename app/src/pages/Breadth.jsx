@@ -171,8 +171,6 @@ const COLS = [
     rowColorFn: row => { const p = row.qqq_day_pct; return p == null ? '' : p >= 1.5 ? 'g3' : p >= 0.5 ? 'g2' : p > 0 ? 'g1' : p <= -1.5 ? 'r3' : p <= -0.5 ? 'r2' : 'r1' } },
   { key: 'vix', label: 'VIX', group: G.REGIME, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v < 14 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 25 ? 'r1' : v < 30 ? 'r2' : 'r3' },
-  { key: 'avg_10d_vix', label: '10d VIX', group: G.REGIME, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v < 15 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 26 ? 'r1' : v < 30 ? 'r2' : 'r3' },
   { key: 'mcclellan_osc', label: 'McClellan', group: G.REGIME, fmt: v => fmtDec(v, 1),
     colorFn: v => v == null ? '' : v > 200 ? 'a' : v > 80 ? 'g3' : v > 20 ? 'g2' : v > 0 ? 'g1' : v > -20 ? 'r1' : v > -80 ? 'r2' : v > -200 ? 'r3' : 'a' },
   { key: 'market_phase', label: 'Phase', group: G.REGIME,
