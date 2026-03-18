@@ -294,6 +294,80 @@ const GROUP_HEADER_CLASS = {
   [G.SENTIMENT]: styles.ghSentiment,
 }
 
+// ── TvChart ── TradingView tv.js widget with 20 EMA + 50 SMA ─────────────
+let tvScriptLoaded = false
+function TvChart({ sym }) {
+  const containerRef = useRef(null)
+  const widgetRef = useRef(null)
+
+  useEffect(() => {
+    if (!sym) return
+
+    function initWidget() {
+      if (!containerRef.current) return
+      // Destroy previous widget if any
+      if (widgetRef.current) {
+        try { widgetRef.current.remove() } catch (_) {}
+        widgetRef.current = null
+      }
+      // Clear container
+      containerRef.current.innerHTML = ''
+      const divId = `tv_chart_${sym}_${Date.now()}`
+      const div = document.createElement('div')
+      div.id = divId
+      div.style.width = '100%'
+      div.style.height = '100%'
+      containerRef.current.appendChild(div)
+
+      widgetRef.current = new window.TradingView.widget({
+        autosize: true,
+        symbol: sym,
+        interval: 'D',
+        timezone: 'America/New_York',
+        theme: 'dark',
+        style: '1',
+        locale: 'en',
+        toolbar_bg: '#0e0e0e',
+        enable_publishing: false,
+        hide_side_toolbar: false,
+        allow_symbol_change: true,
+        container_id: divId,
+        studies: [
+          'MAExp@tv-basicstudies',
+          'MASimple@tv-basicstudies',
+        ],
+        studies_overrides: {
+          'moving average exponential.length': 20,
+          'moving average exponential.plot.color': '#c9a84c',
+          'moving average exponential.plot.linewidth': 2,
+          'moving average.length': 50,
+          'moving average.plot.color': '#4ade80',
+          'moving average.plot.linewidth': 2,
+        },
+      })
+    }
+
+    if (window.TradingView) {
+      initWidget()
+    } else if (!tvScriptLoaded) {
+      tvScriptLoaded = true
+      const script = document.createElement('script')
+      script.src = 'https://s3.tradingview.com/tv.js'
+      script.async = true
+      script.onload = initWidget
+      document.head.appendChild(script)
+    } else {
+      // Script is loading — poll until ready
+      const poll = setInterval(() => {
+        if (window.TradingView) { clearInterval(poll); initWidget() }
+      }, 100)
+      return () => clearInterval(poll)
+    }
+  }, [sym])
+
+  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+}
+
 // ── DrillModal ────────────────────────────────────────────────────────────
 function DrillModal({ drill, onClose }) {
   const items = drill.items ?? []
@@ -403,13 +477,9 @@ function DrillModal({ drill, onClose }) {
                 {selected.n && <span className={styles.drillChartName}>{selected.n}</span>}
                 <span className={styles.drillChartHint}>↑ ↓ to navigate</span>
               </div>
-              <iframe
-                key={selected.t}
-                className={styles.drillChartFrame}
-                src={`https://www.tradingview.com/widgetembed/?symbol=${selected.t}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=0&hideideas=1&save_image=0`}
-                title={`${selected.t} chart`}
-                allowFullScreen
-              />
+              <div className={styles.drillChartFrame}>
+                <TvChart sym={selected.t} />
+              </div>
             </div>
           )}
         </div>
