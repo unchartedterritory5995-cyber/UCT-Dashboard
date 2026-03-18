@@ -1,0 +1,220 @@
+/* app/src/pages/ThemeTrackerPage.module.css */
+
+/* ── Page shell ─────────────────────────────────────────────────────────── */
+.page {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ── Left panel — theme table ───────────────────────────────────────────── */
+.leftPanel {
+  width: 45%;
+  min-width: 360px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* Sticky column header */
+.tableHeader {
+  display: grid;
+  grid-template-columns: 1fr repeat(6, 72px);
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.colLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  text-align: right;
+}
+
+.colLabel:first-child {
+  text-align: left;
+}
+
+/* Scrollable rows area */
+.tableBody {
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ── Theme group row ────────────────────────────────────────────────────── */
+.groupRow {
+  display: grid;
+  grid-template-columns: 1fr repeat(6, 72px);
+  align-items: center;
+  padding: 7px 12px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+
+.groupRow:hover {
+  background: var(--bg-hover);
+}
+
+.groupName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--ut-gold);
+  text-transform: uppercase;
+}
+
+.groupCaret {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.groupCount {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+/* ── Stock row ──────────────────────────────────────────────────────────── */
+.stockRow {
+  display: grid;
+  grid-template-columns: 1fr repeat(6, 72px);
+  align-items: center;
+  padding: 5px 12px 5px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.stockRow:hover {
+  background: var(--bg-hover);
+}
+
+.stockRow.selected {
+  background: rgba(201, 168, 76, 0.08);
+  border-left: 2px solid var(--ut-gold);
+  padding-left: 18px;
+}
+
+.stockName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dotPos  { background: var(--gain, #4ade80); }
+.dotNeg  { background: var(--loss, #f87171); }
+.dotFlat { background: var(--text-muted); }
+
+.sym {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+
+/* ── Return cell ────────────────────────────────────────────────────────── */
+.ret {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.retPos   { color: var(--gain, #4ade80); }
+.retNeg   { color: var(--loss, #f87171); }
+.retFlat  { color: var(--text-muted); }
+
+/* ── Loading / empty states ─────────────────────────────────────────────── */
+.loading {
+  padding: 40px 24px;
+  text-align: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Right panel — chart ────────────────────────────────────────────────── */
+.rightPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chartHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+.chartSym {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ut-gold);
+}
+
+.chartName {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.chartFrame {
+  flex: 1;
+  border: none;
+  min-height: 0;
+}
+
+.newsLabel {
+  padding: 8px 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Empty right panel ──────────────────────────────────────────────────── */
+.chartEmpty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
