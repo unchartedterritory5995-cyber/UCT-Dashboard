@@ -1,6 +1,8 @@
 # tests/test_theme_performance.py
 import pytest
 from unittest.mock import patch, MagicMock
+from fastapi.testclient import TestClient
+from api.main import app
 
 
 # ── Task 1 tests ──────────────────────────────────────────────────────────────
@@ -138,3 +140,24 @@ def test_build_theme_performance_no_wire_data():
         result = get_theme_performance()
 
     assert result["themes"] == []
+
+
+# ── Task 3 tests ──────────────────────────────────────────────────────────────
+
+def test_theme_performance_endpoint_returns_200():
+    """GET /api/theme-performance returns 200 with correct shape."""
+    MOCK_RESULT = {
+        "themes": [{"name": "Space", "ticker": "UFO", "etf_name": "Procure Space ETF", "holdings": []}],
+        "generated_at": "2026-03-18T09:00:00",
+    }
+
+    # Patch at the service level (not the router alias) so the mock is reliable
+    # even when api.main is already cached in sys.modules from prior test imports.
+    with patch("api.services.theme_performance.get_theme_performance", return_value=MOCK_RESULT):
+        client = TestClient(app)
+        resp = client.get("/api/theme-performance")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "themes" in data
+    assert "generated_at" in data
