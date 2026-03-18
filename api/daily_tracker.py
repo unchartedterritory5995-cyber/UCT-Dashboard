@@ -142,22 +142,11 @@ async def store_daily_snapshot() -> dict:
 
     today_str = datetime.now(ET).strftime("%-m/%-d/%Y")  # e.g. "3/14/2026"
 
-    # Build request list for UW batch quotes
-    batch = [
-        {
-            "symbol": c["sym"],
-            "cp": c["cp"],
-            "strike": c["K"],
-            "exp": c["exp"],
-        }
-        for c in contracts
-    ]
-
-    logger.info("[tracker] Fetching quotes for %d contracts via Schwab API…", len(batch))
+    logger.info("[tracker] Fetching quotes for %d contracts via Schwab…", len(contracts))
     quotes = None
     source = "unknown"
 
-    # ── Try Schwab first (batch-friendly, no rate limit) ──────────────────
+    # ── Schwab only ─────────────────────────────────────────────────────
     try:
         from api.schwab_service import get_batch_option_quotes
 
@@ -188,24 +177,9 @@ async def store_daily_snapshot() -> dict:
         ]
         quotes = await get_batch_option_quotes(schwab_batch)
         source = "Schwab"
-        # Check if Schwab returned mostly errors — if so, fall through to UW
-        errors = sum(1 for q in quotes if q.get("error") or q.get("expired"))
-        if errors > len(quotes) * 0.5:
-            logger.warning("[tracker] Schwab returned %d/%d errors, trying UW fallback…", errors, len(quotes))
-            quotes = None
     except Exception as e:
-        logger.error("[tracker] Schwab batch fetch failed: %s — trying UW fallback…", e)
-        quotes = None
-
-    # ── UW fallback ───────────────────────────────────────────────────────
-    if quotes is None:
-        try:
-            from api.uw_service import get_batch_quotes
-            quotes = await get_batch_quotes(batch)
-            source = "UW"
-        except Exception as e:
-            logger.error("[tracker] UW fallback also failed: %s", e)
-            return {"status": "error", "reason": f"Both Schwab and UW failed: {e}"}
+        logger.error("[tracker] Schwab batch fetch failed: %s", e)
+        return {"status": "error", "reason": f"Schwab failed: {e}"}
 
     saved = 0
     skipped = 0
