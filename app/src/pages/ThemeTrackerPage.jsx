@@ -29,7 +29,7 @@ function dotClass(val, styles) {
 }
 
 function ThemeGroup({ theme, selectedSym, onSelectSym }) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
 
   return (
     <>
