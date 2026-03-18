@@ -1132,7 +1132,7 @@ export default function OptionsFlowDashboard() {
     const px = getPrice(sym, cp, K, exp);
     const curOI = px ? px.oi : 0;
     const curPrice = px ? (px.mark || px.last || 0) : 0;
-    // Auto-fetch live price if not in cache yet (Schwab primary, UW fallback)
+    // Auto-fetch live price if not in cache yet
     if (!px) {
       fetch("/api/schwab/options-quotes", {
         method:"POST", headers:{"Content-Type":"application/json"},
@@ -1145,9 +1145,6 @@ export default function OptionsFlowDashboard() {
             delta:q.delta||0,theta:q.theta||0,iv:q.iv||0,
             oi:q.openInterest||0,vol:q.volume||0,spot:q.underlyingPrice||0,
           }}));
-        } else {
-          // Fallback to UW
-          fetch("/api/uw/options-quotes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify([{symbol:sym,cp,strike:parseFloat(K),expDate:expToISO(exp)}])}).then(r=>r.ok?r.json():null).then(d2=>{const q2=d2?.quotes?.[0];if(q2&&!q2.error){setPriceCache(prev=>({...prev,[sym+"|"+cp+"|"+parseFloat(K)+"|"+exp]:{mark:q2.mark||0,bid:q2.bid||0,ask:q2.ask||0,last:q2.last||0,delta:q2.delta||0,theta:q2.theta||0,iv:q2.iv||0,oi:q2.openInterest||0,vol:q2.volume||0,spot:q2.underlyingPrice||0}}));}}).catch(()=>{});
         }
       }).catch(()=>{});
     }
@@ -1495,20 +1492,12 @@ export default function OptionsFlowDashboard() {
     });
     setStatus(`Fetching ${unique.length} contracts across ${new Set(unique.map(c=>c.symbol)).size} tickers…`);
     try {
-      // Try Schwab first (batch-friendly, no rate limit)
+      // Schwab batch quotes
       let resp = await fetch("/api/schwab/options-quotes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(unique.map(c => ({ symbol:c.symbol, strike:c.strike, expDate:c.expDate, cp:c.cp }))),
       });
-      // Fallback to UW if Schwab fails
-      if (!resp.ok) {
-        resp = await fetch("/api/uw/options-quotes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(unique.map(c => ({ symbol:c.symbol, strike:c.strike, expDate:c.expDate, cp:c.cp }))),
-        });
-      }
       if (!resp.ok) { setStatus("API error: " + resp.status); setFetchLoading(false); return; }
       const data = await resp.json();
       const quotes = data.quotes || [];
@@ -1553,40 +1542,31 @@ export default function OptionsFlowDashboard() {
     return priceCache[k] || null;
   }
 
-  // ─── Fetch Polygon backfill + tracker history on hover ───────────────
+  // ─── Fetch contract history + live quote on hover ───────────────────
   async function fetchContractHistory(sym, cp, strike, exp, force = false) {
     const k = `${sym}|${cp}|${parseFloat(strike)}|${exp}`;
 
-    // 1. Fetch history from Unusual Whales API (replaces Schwab backfill + history)
+    // 1. Fetch history from Schwab backfill + tracker
     if ((contractHistory[k] == null || force) && !fetchingRef.current.has(k)) {
       fetchingRef.current.add(k);
       try {
+        await fetch(`/api/schwab/backfill-contract?sym=${encodeURIComponent(sym)}&cp=${encodeURIComponent(cp)}&strike=${parseFloat(strike)}&exp=${encodeURIComponent(exp)}`).catch(() => {});
         const params = new URLSearchParams({ sym, cp, strike: String(parseFloat(strike)), exp });
-        const resp = await fetch(`/api/uw/contract-history?${params}`);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        setContractHistory(prev => ({ ...prev, [k]: data.history || [] }));
-      } catch (e) {
-        // Fallback to Schwab if UW fails
-        try {
-          await fetch(`/api/schwab/backfill-contract?sym=${encodeURIComponent(sym)}&cp=${encodeURIComponent(cp)}&strike=${parseFloat(strike)}&exp=${encodeURIComponent(exp)}`).catch(() => {});
-          const params = new URLSearchParams({ sym, cp, strike: String(parseFloat(strike)), exp });
-          const resp = await fetch(`/api/schwab/contract-history?${params}`);
-          if (resp.ok) {
-            const data = await resp.json();
-            setContractHistory(prev => ({ ...prev, [k]: data.history || [] }));
-          } else {
-            setContractHistory(prev => ({ ...prev, [k]: [] }));
-          }
-        } catch(e2) {
+        const resp = await fetch(`/api/schwab/contract-history?${params}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          setContractHistory(prev => ({ ...prev, [k]: data.history || [] }));
+        } else {
           setContractHistory(prev => ({ ...prev, [k]: [] }));
         }
+      } catch(e) {
+        setContractHistory(prev => ({ ...prev, [k]: [] }));
       } finally {
         fetchingRef.current.delete(k);
       }
     }
 
-    // 2. Auto-fetch live quote if not already cached (Schwab primary, UW fallback)
+    // 2. Auto-fetch live quote if not already cached
     const priceCacheKey = `${sym}|${cp}|${parseFloat(strike)}|${exp}`;
     if (!priceCache[priceCacheKey]) {
       try {
@@ -1599,29 +1579,6 @@ export default function OptionsFlowDashboard() {
           const data = await resp.json();
           const q = data.quotes?.[0];
           if (q && !q.error && !q.expired) {
-            setPriceCache(prev => ({
-              ...prev,
-              [priceCacheKey]: {
-                mark: q.mark||0, bid: q.bid||0, ask: q.ask||0, last: q.last||0,
-                delta: q.delta||0, theta: q.theta||0, iv: q.iv||0,
-                oi: q.openInterest||0, vol: q.volume||0, spot: q.underlyingPrice||0,
-              },
-            }));
-            return;
-          }
-        }
-      } catch(e) {}
-      // Fallback to UW for live quotes
-      try {
-        const resp = await fetch("/api/uw/options-quotes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify([{ symbol: sym, cp, strike: parseFloat(strike), expDate: expToISO(exp) }]),
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          const q = data.quotes?.[0];
-          if (q && !q.error) {
             setPriceCache(prev => ({
               ...prev,
               [priceCacheKey]: {
@@ -1926,7 +1883,7 @@ export default function OptionsFlowDashboard() {
                   <span style={{ fontSize:11, fontWeight:900, color:P.ac, background:P.ac+"18", padding:"2px 8px", borderRadius:4 }}>{fmt(t.prem)}</span>
                   <span style={{ fontSize:10, color:P.dm }}>{t.trades.length} trades</span>
                   {(()=>{ const px=getPrice(t.sym,t.cp,t.K,t.exp); const cp2=px?(px.mark||px.last||0):0;
-                    if(!px){ fetch("/api/schwab/options-quotes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify([{symbol:t.sym,cp:t.cp,strike:parseFloat(t.K),expDate:expToISO(t.exp)}])}).then(r=>r.ok?r.json():null).then(data=>{const q=data?.quotes?.[0];if(q&&!q.error&&!q.expired){setPriceCache(prev=>({...prev,[t.sym+"|"+t.cp+"|"+parseFloat(t.K)+"|"+t.exp]:{mark:q.mark||0,bid:q.bid||0,ask:q.ask||0,last:q.last||0,delta:q.delta||0,theta:q.theta||0,iv:q.iv||0,oi:q.openInterest||0,vol:q.volume||0,spot:q.underlyingPrice||0}}));}else{fetch("/api/uw/options-quotes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify([{symbol:t.sym,cp:t.cp,strike:parseFloat(t.K),expDate:expToISO(t.exp)}])}).then(r2=>r2.ok?r2.json():null).then(d2=>{const q2=d2?.quotes?.[0];if(q2&&!q2.error){setPriceCache(prev=>({...prev,[t.sym+"|"+t.cp+"|"+parseFloat(t.K)+"|"+t.exp]:{mark:q2.mark||0,bid:q2.bid||0,ask:q2.ask||0,last:q2.last||0,delta:q2.delta||0,theta:q2.theta||0,iv:q2.iv||0,oi:q2.openInterest||0,vol:q2.volume||0,spot:q2.underlyingPrice||0}}));}}).catch(()=>{});}}).catch(()=>{});}
+                    if(!px){ fetch("/api/schwab/options-quotes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify([{symbol:t.sym,cp:t.cp,strike:parseFloat(t.K),expDate:expToISO(t.exp)}])}).then(r=>r.ok?r.json():null).then(data=>{const q=data?.quotes?.[0];if(q&&!q.error&&!q.expired){setPriceCache(prev=>({...prev,[t.sym+"|"+t.cp+"|"+parseFloat(t.K)+"|"+t.exp]:{mark:q.mark||0,bid:q.bid||0,ask:q.ask||0,last:q.last||0,delta:q.delta||0,theta:q.theta||0,iv:q.iv||0,oi:q.openInterest||0,vol:q.volume||0,spot:q.underlyingPrice||0}}));}}).catch(()=>{});}
                     return <span style={{ fontSize:11, fontWeight:900, color:cp2>0?P.wh:P.dm, background:cp2>0?(P.wh+"12"):(P.dm+"18"), padding:"2px 8px", borderRadius:4 }}>{cp2>0?"$"+cp2.toFixed(2):fetchLoading?"…":"— fetch price"}</span>;
                   })()}
                 </div>
