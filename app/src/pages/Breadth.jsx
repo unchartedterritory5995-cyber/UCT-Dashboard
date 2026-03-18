@@ -330,6 +330,7 @@ function DrillModal({ drill, onClose }) {
                   <th className={`${styles.drillTh} ${styles.drillThRight}`}>Price</th>
                   <th className={`${styles.drillTh} ${styles.drillThRight}`}>Vol</th>
                   <th className={`${styles.drillTh} ${styles.drillThRight}`}>ATR%</th>
+                  <th className={`${styles.drillTh} ${styles.drillThRight}`}>50SMA</th>
                   <th className={`${styles.drillTh} ${styles.drillThRight}`}>Change</th>
                 </tr>
               </thead>
@@ -354,6 +355,9 @@ function DrillModal({ drill, onClose }) {
                       </td>
                       <td className={styles.drillTdAtr}>
                         {item.atr != null ? `${item.atr}%` : '—'}
+                      </td>
+                      <td className={item.a50 != null ? (item.a50 >= 0 ? styles.drillTdA50Up : styles.drillTdA50Dn) : styles.drillTdAtr}>
+                        {item.a50 != null ? `${item.a50 > 0 ? '+' : ''}${item.a50}` : '—'}
                       </td>
                       <td className={item.pct >= 0 ? styles.drillTdUp : styles.drillTdDn}>
                         {item.pct > 0 ? '+' : ''}{item.pct}%
