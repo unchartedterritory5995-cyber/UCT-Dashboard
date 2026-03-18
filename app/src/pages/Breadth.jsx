@@ -294,30 +294,24 @@ const GROUP_HEADER_CLASS = {
   [G.SENTIMENT]: styles.ghSentiment,
 }
 
-// ── TvChart ── TradingView tv.js widget with 20 EMA + 50 SMA ─────────────
+// ── TvChart ── TradingView tv.js widget with 9/20 EMA + 50/200 SMA ────────
 let tvScriptLoaded = false
 function TvChart({ sym }) {
   const containerRef = useRef(null)
-  const widgetRef = useRef(null)
 
   useEffect(() => {
-    if (!sym) return
+    if (!sym || !containerRef.current) return
+    const container = containerRef.current
+    let cancelled = false
 
     function initWidget() {
-      if (!containerRef.current) return
-      // Destroy previous widget if any
-      if (widgetRef.current) {
-        try { widgetRef.current.remove() } catch (_) {}
-        widgetRef.current = null
-      }
-      // Clear container
-      containerRef.current.innerHTML = ''
-      const divId = `tv_chart_${sym}_${Date.now()}`
+      if (cancelled) return
+      container.innerHTML = ''
+      const divId = `tv_${Math.random().toString(36).slice(2)}`
       const div = document.createElement('div')
       div.id = divId
-      div.style.width = '100%'
-      div.style.height = '100%'
-      containerRef.current.appendChild(div)
+      div.style.cssText = 'width:100%;height:100%'
+      container.appendChild(div)
 
       const w = new window.TradingView.widget({
         autosize: true,
@@ -333,8 +327,9 @@ function TvChart({ sym }) {
         allow_symbol_change: true,
         container_id: divId,
       })
-      widgetRef.current = w
+
       w.onChartReady(() => {
+        if (cancelled) return
         const chart = w.chart()
         chart.createStudy('Moving Average Exponential', false, false, [9],   { 'Plot.color': '#4ade80', 'Plot.linewidth': 1 })
         chart.createStudy('Moving Average Exponential', false, false, [20],  { 'Plot.color': '#f472b6', 'Plot.linewidth': 1 })
@@ -353,11 +348,15 @@ function TvChart({ sym }) {
       script.onload = initWidget
       document.head.appendChild(script)
     } else {
-      // Script is loading — poll until ready
       const poll = setInterval(() => {
         if (window.TradingView) { clearInterval(poll); initWidget() }
       }, 100)
-      return () => clearInterval(poll)
+      return () => { cancelled = true; clearInterval(poll) }
+    }
+
+    return () => {
+      cancelled = true
+      container.innerHTML = ''
     }
   }, [sym])
 
