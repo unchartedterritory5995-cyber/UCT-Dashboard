@@ -296,6 +296,18 @@ const GROUP_HEADER_CLASS = {
 
 // ── TvChart ── TradingView tv.js widget with 9/20 EMA + 50/200 SMA ────────
 let tvScriptLoaded = false
+
+// Suppress async errors thrown by TradingView's internals when its iframe is
+// removed from the DOM mid-load (e.g. rapid arrow-key navigation).
+function suppressTvError(e) {
+  const src = (e.filename || '') + (e.message || '')
+  if (src.includes('tradingview') || src.includes('tv.js')) { e.preventDefault(); return true }
+}
+function suppressTvRejection(e) {
+  const msg = String(e.reason || e.message || '')
+  if (msg.includes('tradingview') || msg.includes('Cannot read')) e.preventDefault()
+}
+
 function TvChart({ sym }) {
   const containerRef = useRef(null)
 
@@ -303,7 +315,9 @@ function TvChart({ sym }) {
     if (!sym || !containerRef.current) return
     const container = containerRef.current
     let cancelled = false
-    let timer = null
+
+    window.addEventListener('error', suppressTvError)
+    window.addEventListener('unhandledrejection', suppressTvRejection)
 
     function initWidget() {
       if (cancelled || !container) return
@@ -343,28 +357,32 @@ function TvChart({ sym }) {
       } catch (_) {}
     }
 
-    function scheduleInit() {
-      // Debounce: 350ms pause before creating a widget — prevents thrashing on arrow key spam
-      timer = setTimeout(initWidget, 350)
-    }
-
     if (window.TradingView) {
-      scheduleInit()
+      initWidget()
     } else if (!tvScriptLoaded) {
       tvScriptLoaded = true
       const script = document.createElement('script')
       script.src = 'https://s3.tradingview.com/tv.js'
       script.async = true
-      script.onload = () => { if (!cancelled) scheduleInit() }
+      script.onload = () => { if (!cancelled) initWidget() }
       document.head.appendChild(script)
     } else {
       const poll = setInterval(() => {
-        if (window.TradingView) { clearInterval(poll); if (!cancelled) scheduleInit() }
+        if (window.TradingView) { clearInterval(poll); if (!cancelled) initWidget() }
       }, 100)
-      return () => { cancelled = true; clearInterval(poll); clearTimeout(timer) }
+      return () => {
+        cancelled = true
+        clearInterval(poll)
+        window.removeEventListener('error', suppressTvError)
+        window.removeEventListener('unhandledrejection', suppressTvRejection)
+      }
     }
 
-    return () => { cancelled = true; clearTimeout(timer) }
+    return () => {
+      cancelled = true
+      window.removeEventListener('error', suppressTvError)
+      window.removeEventListener('unhandledrejection', suppressTvRejection)
+    }
   }, [sym])
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
