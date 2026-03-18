@@ -334,15 +334,23 @@ function TvChart({ sym }) {
         container_id: divId,
         studies: [
           'MAExp@tv-basicstudies',
+          'MAExp@tv-basicstudies',
+          'MASimple@tv-basicstudies',
           'MASimple@tv-basicstudies',
         ],
         studies_overrides: {
-          'moving average exponential.length': 20,
-          'moving average exponential.plot.color': '#c9a84c',
-          'moving average exponential.plot.linewidth': 2,
+          'moving average exponential.length': 9,
+          'moving average exponential.plot.color': '#4ade80',
+          'moving average exponential.plot.linewidth': 1,
+          'moving average exponential.1.length': 20,
+          'moving average exponential.1.plot.color': '#f472b6',
+          'moving average exponential.1.plot.linewidth': 1,
           'moving average.length': 50,
-          'moving average.plot.color': '#4ade80',
-          'moving average.plot.linewidth': 2,
+          'moving average.plot.color': '#60a5fa',
+          'moving average.plot.linewidth': 1,
+          'moving average.1.length': 200,
+          'moving average.1.plot.color': '#fb923c',
+          'moving average.1.plot.linewidth': 1,
         },
       })
     }
