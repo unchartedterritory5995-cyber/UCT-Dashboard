@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import useSWR from 'swr'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
@@ -296,11 +296,27 @@ const GROUP_HEADER_CLASS = {
 
 // ── DrillModal ────────────────────────────────────────────────────────────
 function DrillModal({ drill, onClose }) {
+  const items = drill.items ?? []
+  const [selectedIdx, setSelectedIdx] = useState(0)
+  const rowRefs = useRef([])
+
+  // Keyboard: Escape closes, arrows navigate
   useEffect(() => {
-    const handler = e => { if (e.key === 'Escape') onClose() }
+    const handler = e => {
+      if (e.key === 'Escape') { onClose(); return }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, items.length - 1)) }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, 0)) }
+    }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  }, [onClose, items.length])
+
+  // Scroll selected row into view
+  useEffect(() => {
+    rowRefs.current[selectedIdx]?.scrollIntoView({ block: 'nearest' })
+  }, [selectedIdx])
+
+  const selected = items[selectedIdx]
 
   return (
     <div className={styles.drillOverlay} onClick={onClose} role="dialog" aria-modal="true">
@@ -315,58 +331,86 @@ function DrillModal({ drill, onClose }) {
           </div>
           <button className={styles.drillClose} onClick={onClose} aria-label="Close">✕</button>
         </div>
-        <div className={styles.drillBody}>
-          {!drill.items ? (
-            <div className={styles.drillLoading}>Loading…</div>
-          ) : drill.items.length === 0 ? (
-            <div className={styles.drillEmpty}>No stocks matched this filter on {drill.date}.</div>
-          ) : (
-            <table className={styles.drillTable}>
-              <thead>
-                <tr>
-                  <th className={`${styles.drillTh} ${styles.drillThNum}`}>#</th>
-                  <th className={styles.drillTh}>Ticker</th>
-                  <th className={styles.drillTh}>Company</th>
-                  <th className={`${styles.drillTh} ${styles.drillThRight}`}>Price</th>
-                  <th className={`${styles.drillTh} ${styles.drillThRight}`}>Vol</th>
-                  <th className={`${styles.drillTh} ${styles.drillThRight}`}>ATR%</th>
-                  <th className={`${styles.drillTh} ${styles.drillThRight}`}>50SMA</th>
-                  <th className={`${styles.drillTh} ${styles.drillThRight}`}>Change</th>
-                </tr>
-              </thead>
-              <tbody>
-                {drill.items.map((item, i) => {
-                  const absPct = Math.abs(item.pct)
-                  const rowHeat = item.pct >= 0
-                    ? absPct >= 15 ? styles.drillHeatG3 : absPct >= 8 ? styles.drillHeatG2 : styles.drillHeatG1
-                    : absPct >= 15 ? styles.drillHeatR3 : absPct >= 8 ? styles.drillHeatR2 : styles.drillHeatR1
-                  return (
-                    <tr key={item.t} className={`${i % 2 === 0 ? styles.drillRowEven : styles.drillRowOdd} ${rowHeat}`}>
-                      <td className={styles.drillTdNum}>{i + 1}</td>
-                      <td className={styles.drillTdTicker}>
-                        <TickerPopup sym={item.t} />
-                      </td>
-                      <td className={styles.drillTdName}>{item.n ?? ''}</td>
-                      <td className={styles.drillTdPrice}>
-                        {item.c != null ? `$${item.c.toFixed(2)}` : '—'}
-                      </td>
-                      <td className={item.vr >= 2 ? styles.drillTdVolHigh : item.vr >= 1.2 ? styles.drillTdVolMid : styles.drillTdVol}>
-                        {item.vr != null ? `${item.vr}x` : '—'}
-                      </td>
-                      <td className={styles.drillTdAtr}>
-                        {item.atr != null ? `${item.atr}%` : '—'}
-                      </td>
-                      <td className={item.a50 != null ? (item.a50 >= 0 ? styles.drillTdA50Up : styles.drillTdA50Dn) : styles.drillTdAtr}>
-                        {item.a50 != null ? `${item.a50 > 0 ? '+' : ''}${item.a50}` : '—'}
-                      </td>
-                      <td className={item.pct >= 0 ? styles.drillTdUp : styles.drillTdDn}>
-                        {item.pct > 0 ? '+' : ''}{item.pct}%
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+
+        <div className={styles.drillSplit}>
+          {/* ── Left: table ── */}
+          <div className={styles.drillTablePanel}>
+            {!drill.items ? (
+              <div className={styles.drillLoading}>Loading…</div>
+            ) : items.length === 0 ? (
+              <div className={styles.drillEmpty}>No stocks matched this filter on {drill.date}.</div>
+            ) : (
+              <table className={styles.drillTable}>
+                <thead>
+                  <tr>
+                    <th className={`${styles.drillTh} ${styles.drillThNum}`}>#</th>
+                    <th className={styles.drillTh}>Ticker</th>
+                    <th className={styles.drillTh}>Company</th>
+                    <th className={`${styles.drillTh} ${styles.drillThRight}`}>Price</th>
+                    <th className={`${styles.drillTh} ${styles.drillThRight}`}>Vol</th>
+                    <th className={`${styles.drillTh} ${styles.drillThRight}`}>ATR%</th>
+                    <th className={`${styles.drillTh} ${styles.drillThRight}`}>50SMA</th>
+                    <th className={`${styles.drillTh} ${styles.drillThRight}`}>Change</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, i) => {
+                    const absPct = Math.abs(item.pct)
+                    const rowHeat = item.pct >= 0
+                      ? absPct >= 15 ? styles.drillHeatG3 : absPct >= 8 ? styles.drillHeatG2 : styles.drillHeatG1
+                      : absPct >= 15 ? styles.drillHeatR3 : absPct >= 8 ? styles.drillHeatR2 : styles.drillHeatR1
+                    const isSelected = i === selectedIdx
+                    return (
+                      <tr
+                        key={item.t}
+                        ref={el => rowRefs.current[i] = el}
+                        className={`${i % 2 === 0 ? styles.drillRowEven : styles.drillRowOdd} ${rowHeat} ${isSelected ? styles.drillRowSelected : ''}`}
+                        onClick={() => setSelectedIdx(i)}
+                      >
+                        <td className={styles.drillTdNum}>{i + 1}</td>
+                        <td className={styles.drillTdTicker}>
+                          <TickerPopup sym={item.t} />
+                        </td>
+                        <td className={styles.drillTdName}>{item.n ?? ''}</td>
+                        <td className={styles.drillTdPrice}>
+                          {item.c != null ? `$${item.c.toFixed(2)}` : '—'}
+                        </td>
+                        <td className={item.vr >= 2 ? styles.drillTdVolHigh : item.vr >= 1.2 ? styles.drillTdVolMid : styles.drillTdVol}>
+                          {item.vr != null ? `${item.vr}x` : '—'}
+                        </td>
+                        <td className={styles.drillTdAtr}>
+                          {item.atr != null ? `${item.atr}%` : '—'}
+                        </td>
+                        <td className={item.a50 != null ? (item.a50 >= 0 ? styles.drillTdA50Up : styles.drillTdA50Dn) : styles.drillTdAtr}>
+                          {item.a50 != null ? `${item.a50 > 0 ? '+' : ''}${item.a50}` : '—'}
+                        </td>
+                        <td className={item.pct >= 0 ? styles.drillTdUp : styles.drillTdDn}>
+                          {item.pct > 0 ? '+' : ''}{item.pct}%
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* ── Right: TradingView chart ── */}
+          {selected && (
+            <div className={styles.drillChartPanel}>
+              <div className={styles.drillChartBar}>
+                <span className={styles.drillChartSym}>{selected.t}</span>
+                {selected.n && <span className={styles.drillChartName}>{selected.n}</span>}
+                <span className={styles.drillChartHint}>↑ ↓ to navigate</span>
+              </div>
+              <iframe
+                key={selected.t}
+                className={styles.drillChartFrame}
+                src={`https://www.tradingview.com/widgetembed/?symbol=${selected.t}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=0&hideideas=1&save_image=0`}
+                title={`${selected.t} chart`}
+                allowFullScreen
+              />
+            </div>
           )}
         </div>
       </div>
