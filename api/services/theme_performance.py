@@ -9,7 +9,7 @@ Cache TTL: 15 min (covers intraday refreshes without hammering Massive).
 from __future__ import annotations
 
 import concurrent.futures
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from api.services.cache import cache
@@ -53,7 +53,7 @@ def _compute_returns(bars: list[dict]) -> dict[str, Optional[float]]:
     current_year = date.today().year
     ytd_close = None
     for b in bars:
-        if datetime.utcfromtimestamp(b["t"] / 1000).year == current_year:
+        if datetime.fromtimestamp(b["t"] / 1000, tz=timezone.utc).year == current_year:
             ytd_close = b["c"]
             break
     if ytd_close is None:
@@ -109,7 +109,7 @@ def get_theme_performance() -> dict:
     raw_themes = wire.get("themes", {}) if wire else {}
 
     if not raw_themes or not isinstance(raw_themes, dict):
-        result = {"themes": [], "generated_at": datetime.utcnow().isoformat()}
+        result = {"themes": [], "generated_at": datetime.now(timezone.utc).isoformat()}
         cache.set(_CACHE_KEY, result, ttl=60)  # retry sooner if no data
         return result
 
@@ -168,7 +168,7 @@ def get_theme_performance() -> dict:
 
     result = {
         "themes": themes_out,
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     cache.set(_CACHE_KEY, result, ttl=_CACHE_TTL)
     return result
