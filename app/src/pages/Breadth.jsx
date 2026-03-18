@@ -307,11 +307,11 @@ function DrillModal({ drill, onClose }) {
       <div className={styles.drillDialog} onClick={e => e.stopPropagation()}>
         <div className={styles.drillHeader}>
           <div>
-            <div className={styles.drillTitle}>{drill.label}</div>
-            <div className={styles.drillSub}>
-              {drill.date}
-              {drill.items && ` · ${drill.items.length.toLocaleString()} stocks`}
+            <div className={styles.drillTitle}>
+              {drill.label}
+              {drill.items && <span className={styles.drillCount}> ({drill.items.length.toLocaleString()} stocks)</span>}
             </div>
+            <div className={styles.drillSub}>{drill.date}</div>
           </div>
           <button className={styles.drillClose} onClick={onClose} aria-label="Close">✕</button>
         </div>
@@ -321,16 +321,30 @@ function DrillModal({ drill, onClose }) {
           ) : drill.items.length === 0 ? (
             <div className={styles.drillEmpty}>No stocks matched this filter on {drill.date}.</div>
           ) : (
-            <div className={styles.drillChips}>
-              {drill.items.map(item => (
-                <div key={item.t} className={styles.drillChip}>
-                  <TickerPopup sym={item.t} />
-                  <span className={item.pct >= 0 ? styles.drillPctUp : styles.drillPctDn}>
-                    {item.pct > 0 ? '+' : ''}{item.pct}%
-                  </span>
-                </div>
-              ))}
-            </div>
+            <table className={styles.drillTable}>
+              <thead>
+                <tr>
+                  <th className={`${styles.drillTh} ${styles.drillThNum}`}>#</th>
+                  <th className={styles.drillTh}>Ticker</th>
+                  <th className={styles.drillTh}>Company</th>
+                  <th className={`${styles.drillTh} ${styles.drillThRight}`}>Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drill.items.map((item, i) => (
+                  <tr key={item.t} className={i % 2 === 0 ? styles.drillRowEven : styles.drillRowOdd}>
+                    <td className={styles.drillTdNum}>{i + 1}</td>
+                    <td className={styles.drillTdTicker}>
+                      <TickerPopup sym={item.t} />
+                    </td>
+                    <td className={styles.drillTdName}>{item.n ?? ''}</td>
+                    <td className={item.pct >= 0 ? styles.drillTdUp : styles.drillTdDn}>
+                      {item.pct > 0 ? '+' : ''}{item.pct}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </div>

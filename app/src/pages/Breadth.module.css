@@ -488,7 +488,7 @@
 .drillClose:hover { color: var(--text, #e0e0e0); }
 .drillBody {
   overflow-y: auto;
-  padding: 16px 20px 20px;
+  padding: 12px 20px 20px;
   flex: 1;
   min-height: 0;
 }
@@ -500,28 +500,79 @@
   padding: 20px 0;
   text-align: center;
 }
-.drillChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.drillCount {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted, #888);
+  margin-left: 4px;
 }
-.drillChip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-.drillPctUp {
+.drillTable {
+  width: 100%;
+  border-collapse: collapse;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px;
+  font-size: 12px;
+}
+.drillTh {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted, #666);
+  padding: 0 10px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.drillThNum {
+  width: 42px;
+  padding-left: 0;
+  text-align: right;
+  padding-right: 14px;
+}
+.drillThRight {
+  text-align: right;
+  padding-right: 0;
+}
+.drillRowEven {
+  background: transparent;
+}
+.drillRowOdd {
+  background: rgba(255,255,255,0.025);
+}
+.drillTdNum {
+  padding: 6px 14px 6px 0;
+  text-align: right;
+  color: var(--text-muted, #555);
+  font-size: 11px;
+  width: 42px;
+  user-select: none;
+}
+.drillTdTicker {
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.drillTdName {
+  padding: 6px 10px;
+  color: var(--text-muted, #999);
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 12px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.drillTdUp {
+  padding: 6px 0 6px 10px;
+  text-align: right;
   color: var(--ut-green-bright, #4ade80);
-  line-height: 1;
+  font-size: 11px;
+  white-space: nowrap;
 }
-.drillPctDn {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px;
+.drillTdDn {
+  padding: 6px 0 6px 10px;
+  text-align: right;
   color: var(--loss, #f87171);
-  line-height: 1;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .errorBanner {
