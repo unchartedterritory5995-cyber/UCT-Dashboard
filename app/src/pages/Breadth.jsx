@@ -327,22 +327,36 @@ function DrillModal({ drill, onClose }) {
                   <th className={`${styles.drillTh} ${styles.drillThNum}`}>#</th>
                   <th className={styles.drillTh}>Ticker</th>
                   <th className={styles.drillTh}>Company</th>
+                  <th className={`${styles.drillTh} ${styles.drillThRight}`}>Price</th>
+                  <th className={`${styles.drillTh} ${styles.drillThRight}`}>Vol</th>
                   <th className={`${styles.drillTh} ${styles.drillThRight}`}>Change</th>
                 </tr>
               </thead>
               <tbody>
-                {drill.items.map((item, i) => (
-                  <tr key={item.t} className={i % 2 === 0 ? styles.drillRowEven : styles.drillRowOdd}>
-                    <td className={styles.drillTdNum}>{i + 1}</td>
-                    <td className={styles.drillTdTicker}>
-                      <TickerPopup sym={item.t} />
-                    </td>
-                    <td className={styles.drillTdName}>{item.n ?? ''}</td>
-                    <td className={item.pct >= 0 ? styles.drillTdUp : styles.drillTdDn}>
-                      {item.pct > 0 ? '+' : ''}{item.pct}%
-                    </td>
-                  </tr>
-                ))}
+                {drill.items.map((item, i) => {
+                  const absPct = Math.abs(item.pct)
+                  const rowHeat = item.pct >= 0
+                    ? absPct >= 15 ? styles.drillHeatG3 : absPct >= 8 ? styles.drillHeatG2 : styles.drillHeatG1
+                    : absPct >= 15 ? styles.drillHeatR3 : absPct >= 8 ? styles.drillHeatR2 : styles.drillHeatR1
+                  return (
+                    <tr key={item.t} className={`${i % 2 === 0 ? styles.drillRowEven : styles.drillRowOdd} ${rowHeat}`}>
+                      <td className={styles.drillTdNum}>{i + 1}</td>
+                      <td className={styles.drillTdTicker}>
+                        <TickerPopup sym={item.t} />
+                      </td>
+                      <td className={styles.drillTdName}>{item.n ?? ''}</td>
+                      <td className={styles.drillTdPrice}>
+                        {item.c != null ? `$${item.c.toFixed(2)}` : '—'}
+                      </td>
+                      <td className={item.vr >= 2 ? styles.drillTdVolHigh : item.vr >= 1.2 ? styles.drillTdVolMid : styles.drillTdVol}>
+                        {item.vr != null ? `${item.vr}x` : '—'}
+                      </td>
+                      <td className={item.pct >= 0 ? styles.drillTdUp : styles.drillTdDn}>
+                        {item.pct > 0 ? '+' : ''}{item.pct}%
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           )}

@@ -560,6 +560,35 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.drillTdPrice {
+  padding: 6px 0 6px 10px;
+  text-align: right;
+  color: var(--text-muted, #999);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.drillTdVol {
+  padding: 6px 0 6px 10px;
+  text-align: right;
+  color: var(--text-muted, #666);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.drillTdVolMid {
+  padding: 6px 0 6px 10px;
+  text-align: right;
+  color: var(--text, #ccc);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.drillTdVolHigh {
+  padding: 6px 0 6px 10px;
+  text-align: right;
+  color: var(--ut-gold, #c9a84c);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 .drillTdUp {
   padding: 6px 0 6px 10px;
   text-align: right;
@@ -574,6 +603,13 @@
   font-size: 11px;
   white-space: nowrap;
 }
+/* Row heat-map — subtle background tint by magnitude */
+.drillHeatG1 { background: rgba(74,222,128,0.04) !important; }
+.drillHeatG2 { background: rgba(74,222,128,0.10) !important; }
+.drillHeatG3 { background: rgba(22,100,48,0.22) !important; }
+.drillHeatR1 { background: rgba(248,113,113,0.04) !important; }
+.drillHeatR2 { background: rgba(248,113,113,0.10) !important; }
+.drillHeatR3 { background: rgba(160,25,25,0.22) !important; }
 
 .errorBanner {
   font-family: 'Instrument Sans', sans-serif;
