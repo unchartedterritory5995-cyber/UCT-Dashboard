@@ -88,15 +88,19 @@
   width: max-content;
 }
 
+/* ── Sticky thead — entire header block moves as one unit, no inter-row gaps */
+.table thead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
 /* ── Header cells ────────────────────────────────────────────────────────────── */
 .th {
   padding: 7px 12px;
   text-align: center;
   font-weight: 700;
   letter-spacing: 0.3px;
-  position: sticky;
-  top: 0;
-  z-index: 2;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
   border-right: 1px solid rgba(255,255,255,0.04);
@@ -114,7 +118,6 @@
 .colLabel {
   font-size: 11px;
   color: var(--text-muted);
-  top: 32px; /* second sticky row — sits below group header */
 }
 
 /* Date column — sticky left */
