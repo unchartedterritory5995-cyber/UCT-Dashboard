@@ -173,17 +173,6 @@ const COLS = [
     colorFn: v => v == null ? '' : v < 14 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 25 ? 'r1' : v < 30 ? 'r2' : 'r3' },
   { key: 'mcclellan_osc', label: 'McClellan', group: G.REGIME, fmt: v => fmtDec(v, 1),
     colorFn: v => v == null ? '' : v > 200 ? 'a' : v > 80 ? 'g3' : v > 20 ? 'g2' : v > 0 ? 'g1' : v > -20 ? 'r1' : v > -80 ? 'r2' : v > -200 ? 'r3' : 'a' },
-  { key: 'market_phase', label: 'Phase', group: G.REGIME,
-    colorFn: v => {
-      if (v == null) return ''
-      const p = v.toLowerCase()
-      if (['power trend','ftd confirmed'].some(k => p.includes(k))) return 'g3'
-      if (['uptrend','bull'].some(k => p.includes(k)))               return 'g2'
-      if (['recovery'].some(k => p.includes(k)))                     return 'g1'
-      if (['liquidation','correction','circuit breaker'].some(k => p.includes(k))) return 'r3'
-      if (['distribution'].some(k => p.includes(k)))                 return 'r2'
-      return 'a'
-    } },
   { key: 'stage2_count', label: 'Stage 2', group: G.REGIME,
     rowColorFn: row => pairedUpColor(row.stage2_count, row.stage4_count) },
   { key: 'stage4_count', label: 'Stage 4', group: G.REGIME,
