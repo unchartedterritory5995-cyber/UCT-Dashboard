@@ -12,6 +12,7 @@ from api.routers import snapshot, movers, engine_data, earnings, news, screener,
 from api.schwab_router import router as schwab_router
 from api.routers import cot as cot_router
 from api.routers import breadth_monitor as breadth_monitor_router
+from api.routers import theme_performance as theme_performance_router
 from api.services import cot_service as _cot_service
 from api.top_flow_router import router as top_flow_router
 from api import top_flow_tracker as _top_flow_tracker
@@ -131,6 +132,7 @@ app.include_router(charts.router)
 app.include_router(schwab_router)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
+app.include_router(theme_performance_router.router)
 app.include_router(top_flow_router)
 app.include_router(uw_router)
 app.include_router(ws_router)

@@ -234,6 +234,31 @@ def get_etf_snapshots(tickers: list[str]) -> dict[str, float]:
         return {}
 
 
+def get_agg_bars(ticker: str, from_date: str, to_date: str) -> list[dict]:
+    """Return daily OHLCV bars for a ticker from the Massive agg endpoint.
+
+    Args:
+        ticker:    Equity ticker symbol (e.g. "RKLB")
+        from_date: Start date in "YYYY-MM-DD" format
+        to_date:   End date in "YYYY-MM-DD" format
+
+    Returns:
+        List of bar dicts with keys: t (unix ms), o, h, l, c, v
+        Empty list on any error or if ticker not found.
+    """
+    try:
+        client = _get_client()
+        url = (
+            f"{_REST_BASE}/v2/aggs/ticker/{ticker.upper()}/range/1/day"
+            f"/{from_date}/{to_date}"
+            f"?adjusted=true&sort=asc&limit=400&apiKey={client._api_key}"
+        )
+        data = client._get(url)
+        return data.get("results") or []
+    except Exception:
+        return []
+
+
 def get_snapshot() -> dict:
     """Return formatted market snapshot for the FuturesStrip tile (QQQ/SPY/IWM/DIA/BTC/VIX).
 
