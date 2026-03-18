@@ -354,10 +354,7 @@ function TvChart({ sym }) {
       return () => { cancelled = true; clearInterval(poll) }
     }
 
-    return () => {
-      cancelled = true
-      container.innerHTML = ''
-    }
+    return () => { cancelled = true }
   }, [sym])
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
