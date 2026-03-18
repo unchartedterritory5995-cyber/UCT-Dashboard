@@ -77,6 +77,14 @@ async def delete_breadth_snapshot(date_str: str, request: Request):
     return {"status": "deleted", "date": date_str}
 
 
+@router.get("/api/breadth-monitor/{date_str}/drill/{metric_key}")
+def get_drill_list(date_str: str, metric_key: str):
+    items = svc.get_drill_list(date_str, metric_key)
+    if items is None:
+        raise HTTPException(status_code=404, detail=f"No data for {date_str}/{metric_key}")
+    return {"date": date_str, "metric": metric_key, "items": items}
+
+
 @router.patch("/api/breadth-monitor/{date_str}/field")
 async def patch_breadth_field(date_str: str, request: Request):
     _check_auth(request)

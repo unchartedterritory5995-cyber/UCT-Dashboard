@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import useSWR from 'swr'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
 import { useTileCapture } from '../hooks/useTileCapture'
+import TickerPopup from '../components/TickerPopup'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -114,31 +115,42 @@ const COLS = [
 
   // ── Primary Breadth ───────────────────────────────────────────────────────
   { key: 'up_4pct_today', label: 'Up 4%+', group: G.PRIMARY,
-    rowColorFn: row => pairedUpColor(row.up_4pct_today, row.down_4pct_today) },
+    rowColorFn: row => pairedUpColor(row.up_4pct_today, row.down_4pct_today),
+    drillKey: 'up_4pct_today_list' },
   { key: 'down_4pct_today', label: 'Dn 4%+', group: G.PRIMARY,
-    rowColorFn: row => pairedDnColor(row.up_4pct_today, row.down_4pct_today) },
+    rowColorFn: row => pairedDnColor(row.up_4pct_today, row.down_4pct_today),
+    drillKey: 'down_4pct_today_list' },
   { key: 'ratio_5day', label: '5D Ratio', group: G.PRIMARY, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v >= 2.0 ? 'g3' : v >= 1.5 ? 'g2' : v > 0.6 ? '' : v > 0.5 ? 'r1' : v > 0.4 ? 'r2' : 'r3' },
   { key: 'ratio_10day', label: '10D Ratio', group: G.PRIMARY, fmt: v => fmtDec(v, 2),
     colorFn: v => v == null ? '' : v >= 2.0 ? 'g3' : v >= 1.5 ? 'g2' : v > 0.6 ? '' : v > 0.5 ? 'r1' : v > 0.4 ? 'r2' : 'r3' },
   { key: 'up_25pct_quarter', label: 'Up25%/Qtr', group: G.PRIMARY,
-    rowColorFn: row => pairedUpColor(row.up_25pct_quarter, row.down_25pct_quarter) },
+    rowColorFn: row => pairedUpColor(row.up_25pct_quarter, row.down_25pct_quarter),
+    drillKey: 'up_25pct_quarter_list' },
   { key: 'down_25pct_quarter', label: 'Dn25%/Qtr', group: G.PRIMARY,
-    rowColorFn: row => pairedDnColor(row.up_25pct_quarter, row.down_25pct_quarter) },
+    rowColorFn: row => pairedDnColor(row.up_25pct_quarter, row.down_25pct_quarter),
+    drillKey: 'down_25pct_quarter_list' },
   { key: 'up_25pct_month', label: 'Up25%/Mo', group: G.PRIMARY,
-    rowColorFn: row => pairedUpColor(row.up_25pct_month, row.down_25pct_month) },
+    rowColorFn: row => pairedUpColor(row.up_25pct_month, row.down_25pct_month),
+    drillKey: 'up_25pct_month_list' },
   { key: 'down_25pct_month', label: 'Dn25%/Mo', group: G.PRIMARY,
-    rowColorFn: row => pairedDnColor(row.up_25pct_month, row.down_25pct_month) },
+    rowColorFn: row => pairedDnColor(row.up_25pct_month, row.down_25pct_month),
+    drillKey: 'down_25pct_month_list' },
   { key: 'up_50pct_month', label: 'Up50%/Mo', group: G.PRIMARY,
-    rowColorFn: row => pairedUpColor(row.up_50pct_month, row.down_50pct_month) },
+    rowColorFn: row => pairedUpColor(row.up_50pct_month, row.down_50pct_month),
+    drillKey: 'up_50pct_month_list' },
   { key: 'down_50pct_month', label: 'Dn50%/Mo', group: G.PRIMARY,
-    rowColorFn: row => pairedDnColor(row.up_50pct_month, row.down_50pct_month) },
+    rowColorFn: row => pairedDnColor(row.up_50pct_month, row.down_50pct_month),
+    drillKey: 'down_50pct_month_list' },
   { key: 'magna_up', label: 'Up13%/34d', group: G.PRIMARY,
-    rowColorFn: row => pairedUpColor(row.magna_up, row.magna_down) },
+    rowColorFn: row => pairedUpColor(row.magna_up, row.magna_down),
+    drillKey: 'magna_up_list' },
   { key: 'magna_down', label: 'Dn13%/34d', group: G.PRIMARY,
-    rowColorFn: row => pairedDnColor(row.magna_up, row.magna_down) },
-  { key: 'universe_count',     label: 'Universe',   group: G.PRIMARY },
-  { key: 'is_ftd',            label: 'FTD',        group: G.PRIMARY,
+    rowColorFn: row => pairedDnColor(row.magna_up, row.magna_down),
+    drillKey: 'magna_down_list' },
+  { key: 'universe_count', label: 'Universe', group: G.PRIMARY,
+    drillKey: 'universe_list' },
+  { key: 'is_ftd', label: 'FTD', group: G.PRIMARY,
     fmt: v => v ? 'FTD' : '—',
     colorFn: v => v ? 'g2' : '' },
 
@@ -174,21 +186,28 @@ const COLS = [
   { key: 'mcclellan_osc', label: 'McClellan', group: G.REGIME, fmt: v => fmtDec(v, 1),
     colorFn: v => v == null ? '' : v > 200 ? 'a' : v > 80 ? 'g3' : v > 20 ? 'g2' : v > 0 ? 'g1' : v > -20 ? 'r1' : v > -80 ? 'r2' : v > -200 ? 'r3' : 'a' },
   { key: 'stage2_count', label: 'Stage 2', group: G.REGIME,
-    rowColorFn: row => pairedUpColor(row.stage2_count, row.stage4_count) },
+    rowColorFn: row => pairedUpColor(row.stage2_count, row.stage4_count),
+    drillKey: 'stage2_list' },
   { key: 'stage4_count', label: 'Stage 4', group: G.REGIME,
-    rowColorFn: row => pairedDnColor(row.stage2_count, row.stage4_count) },
+    rowColorFn: row => pairedDnColor(row.stage2_count, row.stage4_count),
+    drillKey: 'stage4_list' },
 
   // ── Highs / Lows ──────────────────────────────────────────────────────────
   { key: 'new_52w_highs', label: '52W Hi', group: G.HIGHS,
-    rowColorFn: row => pairedUpColor(row.new_52w_highs, row.new_52w_lows) },
+    rowColorFn: row => pairedUpColor(row.new_52w_highs, row.new_52w_lows),
+    drillKey: 'new_52w_highs_list' },
   { key: 'new_52w_lows', label: '52W Lo', group: G.HIGHS,
-    rowColorFn: row => pairedDnColor(row.new_52w_highs, row.new_52w_lows) },
+    rowColorFn: row => pairedDnColor(row.new_52w_highs, row.new_52w_lows),
+    drillKey: 'new_52w_lows_list' },
   { key: 'new_20d_highs', label: '20D Hi', group: G.HIGHS,
-    rowColorFn: row => pairedUpColor(row.new_20d_highs, row.new_20d_lows) },
+    rowColorFn: row => pairedUpColor(row.new_20d_highs, row.new_20d_lows),
+    drillKey: 'new_20d_highs_list' },
   { key: 'new_20d_lows', label: '20D Lo', group: G.HIGHS,
-    rowColorFn: row => pairedDnColor(row.new_20d_highs, row.new_20d_lows) },
+    rowColorFn: row => pairedDnColor(row.new_20d_highs, row.new_20d_lows),
+    drillKey: 'new_20d_lows_list' },
   { key: 'new_ath', label: 'ATH', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 200 ? 'g3' : v > 100 ? 'g2' : v > 40 ? 'g1' : '' },
+    colorFn: v => v == null ? '' : v > 200 ? 'g3' : v > 100 ? 'g2' : v > 40 ? 'g1' : '',
+    drillKey: 'new_ath_list' },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
   { key: 'cnn_fear_greed', label: 'CNN F/G', group: G.SENTIMENT, fmt: v => fmtDec(v, 0),
@@ -196,12 +215,9 @@ const COLS = [
   { key: 'aaii_bulls',    label: 'AAII Bulls', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
   { key: 'aaii_neutral',  label: 'Neutral',    group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
   { key: 'aaii_bears',    label: 'AAII Bears', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
-  { key: 'aaii_spread', label: 'B-B Sprd', group: G.SENTIMENT, fmt: v => fmtDec(v, 1),
-    colorFn: v => v == null ? '' : v < -35 ? 'g3' : v < -20 ? 'g2' : v < -10 ? 'g1' : v < 10 ? 'a' : v < 20 ? 'r1' : v < 30 ? 'r2' : 'r3' },
-  { key: 'naaim', label: 'NAAIM', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v < 15 ? 'g3' : v < 25 ? 'g2' : v < 40 ? 'g1' : v < 65 ? 'a' : v < 80 ? 'r1' : v < 95 ? 'r2' : 'r3' },
-  { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2),
-    colorFn: v => v == null ? '' : v >= 1.0 ? 'g3' : v >= 0.9 ? 'g2' : v >= 0.85 ? 'g1' : v >= 0.75 ? 'a' : v >= 0.7 ? 'r1' : v >= 0.65 ? 'r2' : 'r3' },
+  { key: 'aaii_spread', label: 'B-B Sprd', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
+  { key: 'naaim', label: 'NAAIM', group: G.SENTIMENT, fmt: v => fmtDec(v, 2) },
+  { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2) },
 ]
 
 // ── Group spans ────────────────────────────────────────────────────────────
@@ -278,6 +294,50 @@ const GROUP_HEADER_CLASS = {
   [G.SENTIMENT]: styles.ghSentiment,
 }
 
+// ── DrillModal ────────────────────────────────────────────────────────────
+function DrillModal({ drill, onClose }) {
+  useEffect(() => {
+    const handler = e => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  return (
+    <div className={styles.drillOverlay} onClick={onClose} role="dialog" aria-modal="true">
+      <div className={styles.drillDialog} onClick={e => e.stopPropagation()}>
+        <div className={styles.drillHeader}>
+          <div>
+            <div className={styles.drillTitle}>{drill.label}</div>
+            <div className={styles.drillSub}>
+              {drill.date}
+              {drill.items && ` · ${drill.items.length.toLocaleString()} stocks`}
+            </div>
+          </div>
+          <button className={styles.drillClose} onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className={styles.drillBody}>
+          {!drill.items ? (
+            <div className={styles.drillLoading}>Loading…</div>
+          ) : drill.items.length === 0 ? (
+            <div className={styles.drillEmpty}>No stocks matched this filter on {drill.date}.</div>
+          ) : (
+            <div className={styles.drillChips}>
+              {drill.items.map(item => (
+                <div key={item.t} className={styles.drillChip}>
+                  <TickerPopup sym={item.t} />
+                  <span className={item.pct >= 0 ? styles.drillPctUp : styles.drillPctDn}>
+                    {item.pct > 0 ? '+' : ''}{item.pct}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Component ─────────────────────────────────────────────────────────────
 const phaseClass = (phase, styles) => {
   if (!phase) return ''
@@ -326,6 +386,17 @@ export default function Breadth() {
       return next
     })
   }
+
+  const [drill, setDrill] = useState(null)
+  // drill = { date, label, items: [{t,pct}] | null }
+
+  const openDrill = useCallback((date, col) => {
+    setDrill({ date, label: col.label, items: null })
+    fetch(`/api/breadth-monitor/${date}/drill/${col.drillKey}`)
+      .then(r => r.json())
+      .then(data => setDrill(prev => prev ? { ...prev, items: data.items ?? [] } : null))
+      .catch(() => setDrill(prev => prev ? { ...prev, items: [] } : null))
+  }, [])
 
   const AAII_KEYS = new Set(['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread'])
 
@@ -549,11 +620,13 @@ export default function Breadth() {
                     const isStaleAaii = AAII_KEYS.has(col.key) &&
                       row.aaii_survey_date &&
                       row.aaii_survey_date !== row.date
+                    const isDrillable = !!col.drillKey
                     return (
                       <td
                         key={col.key}
-                        className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''}`}
-                        title={isStaleAaii ? `Survey: ${row.aaii_survey_date}` : undefined}
+                        className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''} ${isDrillable ? styles.drillable : ''}`}
+                        title={isStaleAaii ? `Survey: ${row.aaii_survey_date}` : isDrillable ? `Click to see stocks` : undefined}
+                        onClick={isDrillable ? () => openDrill(row.date, col) : undefined}
                       >
                         {fmtCell(col, val)}
                       </td>
@@ -565,6 +638,7 @@ export default function Breadth() {
           </table>
         </div>
       )}
+      {drill && <DrillModal drill={drill} onClose={() => setDrill(null)} />}
     </div>
   )
 }

@@ -416,6 +416,114 @@
 .phaseRed    { border-left: 3px solid rgba(248, 113, 113, 0.5); }
 .phaseAmber  { border-left: 3px solid rgba(201, 168, 76, 0.3); }
 
+/* ── Drillable cells ─────────────────────────────────────────────────────── */
+.drillable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: rgba(255,255,255,0.25);
+  text-underline-offset: 2px;
+}
+.drillable:hover {
+  text-decoration-color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+}
+
+/* ── Drill modal ─────────────────────────────────────────────────────────── */
+.drillOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.drillDialog {
+  background: var(--bg-elevated, #141414);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 8px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.drillHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
+  flex-shrink: 0;
+}
+.drillTitle {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ut-gold, #c9a84c);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.drillSub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted, #666);
+  margin-top: 3px;
+}
+.drillClose {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #666);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.drillClose:hover { color: var(--text, #e0e0e0); }
+.drillBody {
+  overflow-y: auto;
+  padding: 16px 20px 20px;
+  flex: 1;
+  min-height: 0;
+}
+.drillLoading,
+.drillEmpty {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted, #666);
+  padding: 20px 0;
+  text-align: center;
+}
+.drillChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.drillChip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.drillPctUp {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--ut-green-bright, #4ade80);
+  line-height: 1;
+}
+.drillPctDn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--loss, #f87171);
+  line-height: 1;
+}
+
 .errorBanner {
   font-family: 'Instrument Sans', sans-serif;
   font-size: 13px;

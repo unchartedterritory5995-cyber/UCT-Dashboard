@@ -142,6 +142,9 @@ def get_history(days: int = 90) -> list:
         m = json.loads(row["metrics"])
         m["date"] = row["date"]
         m["_created_at"] = row["created_at"]   # expose for "last updated" display
+        # Strip large list keys — served on demand via drill endpoint
+        for k in [k for k in list(m.keys()) if k.endswith("_list")]:
+            del m[k]
         result.append(m)
 
     # Need oldest-first to compute rolling windows, then reverse back
@@ -280,3 +283,19 @@ def delete_snapshot(date_str: str) -> bool:
 def get_latest() -> Optional[dict]:
     history = get_history(1)
     return history[0] if history else None
+
+
+def get_drill_list(date_str: str, metric_key: str) -> Optional[list]:
+    """Return a single *_list metric for a given date, or None if not found."""
+    try:
+        with _conn() as c:
+            row = c.execute(
+                "SELECT metrics FROM breadth_snapshots WHERE date = ?", (date_str,)
+            ).fetchone()
+            if not row:
+                return None
+            m = json.loads(row["metrics"])
+            return m.get(metric_key)
+    except Exception as e:
+        print(f"[breadth_monitor] get_drill_list error: {e}")
+        return None
