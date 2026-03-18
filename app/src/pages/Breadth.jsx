@@ -319,7 +319,7 @@ function TvChart({ sym }) {
       div.style.height = '100%'
       containerRef.current.appendChild(div)
 
-      widgetRef.current = new window.TradingView.widget({
+      const w = new window.TradingView.widget({
         autosize: true,
         symbol: sym,
         interval: 'D',
@@ -332,26 +332,14 @@ function TvChart({ sym }) {
         hide_side_toolbar: false,
         allow_symbol_change: true,
         container_id: divId,
-        studies: [
-          'MAExp@tv-basicstudies',
-          'MAExp@tv-basicstudies',
-          'MASimple@tv-basicstudies',
-          'MASimple@tv-basicstudies',
-        ],
-        studies_overrides: {
-          'moving average exponential.length': 9,
-          'moving average exponential.plot.color': '#4ade80',
-          'moving average exponential.plot.linewidth': 1,
-          'moving average exponential.1.length': 20,
-          'moving average exponential.1.plot.color': '#f472b6',
-          'moving average exponential.1.plot.linewidth': 1,
-          'moving average.length': 50,
-          'moving average.plot.color': '#60a5fa',
-          'moving average.plot.linewidth': 1,
-          'moving average.1.length': 200,
-          'moving average.1.plot.color': '#fb923c',
-          'moving average.1.plot.linewidth': 1,
-        },
+      })
+      widgetRef.current = w
+      w.onChartReady(() => {
+        const chart = w.chart()
+        chart.createStudy('Moving Average Exponential', false, false, [9],   { 'Plot.color': '#4ade80', 'Plot.linewidth': 1 })
+        chart.createStudy('Moving Average Exponential', false, false, [20],  { 'Plot.color': '#f472b6', 'Plot.linewidth': 1 })
+        chart.createStudy('Moving Average',             false, false, [50],  { 'Plot.color': '#60a5fa', 'Plot.linewidth': 1 })
+        chart.createStudy('Moving Average',             false, false, [200], { 'Plot.color': '#fb923c', 'Plot.linewidth': 1 })
       })
     }
 
