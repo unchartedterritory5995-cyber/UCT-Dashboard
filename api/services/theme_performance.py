@@ -19,7 +19,7 @@ from api.services.massive import get_agg_bars
 
 _CACHE_KEY = "theme_performance"
 _CACHE_TTL = 900  # 15 minutes
-_MAX_WORKERS = 10
+_MAX_WORKERS = 40
 _BAR_DAYS = 420   # ~14 months of calendar days → ≥252 trading days for 1Y
 _EXCLUDED = {"TLT", "HYG", "URA", "IBB", "FXI", "MSOS"}
 
