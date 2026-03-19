@@ -446,7 +446,7 @@
   border-radius: 8px;
   width: 100%;
   max-width: 1600px;
-  max-height: 96vh;
+  height: 96vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -496,7 +496,7 @@
 .drillSplit {
   display: flex;
   flex: 1;
-  min-height: 600px;
+  min-height: 0;
   overflow: hidden;
 }
 .drillTablePanel {
