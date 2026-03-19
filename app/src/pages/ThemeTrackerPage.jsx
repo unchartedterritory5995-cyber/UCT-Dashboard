@@ -1,13 +1,11 @@
 // app/src/pages/ThemeTrackerPage.jsx
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import useSWR from 'swr'
 import styles from './ThemeTrackerPage.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
-const PERIODS = ['1d', '1w', '1m', '3m', '1y', 'ytd']
 const PERIOD_LABELS = { '1d': '1D', '1w': '1W', '1m': '1M', '3m': '3M', '1y': '1Y', 'ytd': 'YTD' }
-
 const RANK_TABS = ['Today', '1W', '1M', '3M', '1Y', 'YTD']
 const RANK_TO_KEY = { 'Today': '1d', '1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd' }
 
@@ -24,26 +22,18 @@ function retClass(val, styles) {
   return styles.retFlat
 }
 
-function dotClass(val, styles) {
-  if (val === null || val === undefined) return styles.dotFlat
-  if (val > 0) return styles.dotPos
-  if (val < 0) return styles.dotNeg
-  return styles.dotFlat
-}
-
 function avgReturn(holdings, periodKey) {
   const vals = holdings.map(h => h.returns?.[periodKey]).filter(v => v != null)
   if (vals.length === 0) return null
   return vals.reduce((a, b) => a + b, 0) / vals.length
 }
 
-function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey }) {
-  const [open, setOpen] = useState(false)
+function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, open, onToggle, rowRefs }) {
   const groupAvg = avgReturn(theme.holdings, activeKey)
 
   return (
     <>
-      <div className={styles.groupRow} onClick={() => setOpen(o => !o)}>
+      <div className={styles.groupRow} onClick={() => onToggle(theme.ticker)}>
         <span className={styles.groupName}>
           <span className={styles.groupCaret}>{open ? '▾' : '▸'}</span>
           {theme.name}
@@ -60,13 +50,11 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey }) {
         return (
           <div
             key={h.sym}
+            ref={el => { if (rowRefs) rowRefs.current[h.sym] = el }}
             className={`${styles.stockRow} ${isSelected ? styles.selected : ''}`}
             onClick={() => onSelectSym(h.sym, h.name)}
           >
-            <span className={styles.stockName}>
-              <span className={`${styles.dot} ${dotClass(retVal, styles)}`} />
-              <span className={styles.sym}>{h.sym}</span>
-            </span>
+            <span className={styles.sym}>{h.sym}</span>
             <span className={`${styles.ret} ${retClass(retVal, styles)}`}>
               {fmtRet(retVal)}
             </span>
@@ -79,7 +67,6 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey }) {
 
 export default function ThemeTrackerPage() {
   const { data, isLoading } = useSWR('/api/theme-performance', fetcher, {
-    // SWR passes latest data to refreshInterval fn — poll fast while computing
     refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 900_000,
     dedupingInterval: 10_000,
     revalidateOnFocus: false,
@@ -90,7 +77,9 @@ export default function ThemeTrackerPage() {
   const [selectedName, setSelectedName] = useState('')
   const [activeTab, setActiveTab] = useState('1W')
   const [sortDir, setSortDir] = useState('desc')
+  const [openThemes, setOpenThemes] = useState(new Set())
 
+  const rowRefs = useRef({})
   const activeKey = RANK_TO_KEY[activeTab]
 
   function handleTabClick(tab) {
@@ -100,6 +89,15 @@ export default function ThemeTrackerPage() {
       setActiveTab(tab)
       setSortDir('desc')
     }
+  }
+
+  function toggleTheme(ticker) {
+    setOpenThemes(prev => {
+      const next = new Set(prev)
+      if (next.has(ticker)) next.delete(ticker)
+      else next.add(ticker)
+      return next
+    })
   }
 
   function handleSelect(sym, name) {
@@ -116,6 +114,47 @@ export default function ThemeTrackerPage() {
     })
   }, [data, activeKey, sortDir])
 
+  // Flat list of all stocks across all themes (for keyboard nav)
+  const allStocks = useMemo(() =>
+    sortedThemes.flatMap(theme =>
+      theme.holdings.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker }))
+    ), [sortedThemes])
+
+  // Arrow key navigation
+  const handleKeyDown = useCallback((e) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    e.preventDefault()
+
+    const idx = allStocks.findIndex(s => s.sym === selectedSym)
+    const nextIdx = e.key === 'ArrowDown'
+      ? Math.min(idx + 1, allStocks.length - 1)
+      : Math.max(idx - 1, 0)
+
+    if (nextIdx < 0 || nextIdx === idx) return
+    const stock = allStocks[nextIdx]
+
+    // Auto-open the group containing the next stock
+    setOpenThemes(prev => {
+      if (prev.has(stock.themeTicker)) return prev
+      const next = new Set(prev)
+      next.add(stock.themeTicker)
+      return next
+    })
+
+    setSelectedSym(stock.sym)
+    setSelectedName(stock.name || stock.sym)
+
+    // Scroll the row into view after render
+    setTimeout(() => {
+      rowRefs.current[stock.sym]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }, 30)
+  }, [allStocks, selectedSym])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
+
   const tvUrl = selectedSym
     ? `https://s.tradingview.com/widgetembed/?frameElementId=tv_theme&symbol=${selectedSym}&interval=D&theme=dark&style=1&locale=en&toolbar_bg=161b22&enable_publishing=false&hide_top_toolbar=false&save_image=false&hide_legend=false&hide_volume=false`
     : null
@@ -124,7 +163,6 @@ export default function ThemeTrackerPage() {
     <div className={styles.page}>
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
-        {/* Period rank tabs */}
         <div className={styles.periodBar}>
           {RANK_TABS.map(tab => (
             <button
@@ -160,6 +198,9 @@ export default function ThemeTrackerPage() {
               selectedSym={selectedSym}
               onSelectSym={handleSelect}
               activeKey={activeKey}
+              open={openThemes.has(theme.ticker)}
+              onToggle={toggleTheme}
+              rowRefs={rowRefs}
             />
           ))}
         </div>
