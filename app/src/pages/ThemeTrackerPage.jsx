@@ -132,7 +132,7 @@ export default function ThemeTrackerPage() {
               className={`${styles.periodTab} ${activeTab === tab ? styles.periodTabActive : ''}`}
               onClick={() => handleTabClick(tab)}
             >
-              {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
+              {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
             </button>
           ))}
         </div>
