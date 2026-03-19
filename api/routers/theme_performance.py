@@ -15,3 +15,11 @@ def get_theme_performance():
         return svc.get_theme_performance()
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.post("/api/theme-performance/refresh")
+def refresh_theme_performance():
+    """Bust the theme-performance cache so next GET recomputes."""
+    from api.services.cache import cache
+    cache.delete(svc._CACHE_KEY)
+    return {"status": "ok"}

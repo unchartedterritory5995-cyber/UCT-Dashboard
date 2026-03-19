@@ -140,10 +140,14 @@ def get_theme_performance() -> dict:
             except Exception:
                 returns_map[sym] = {k: None for k in ("1d", "1w", "1m", "3m", "1y", "ytd")}
 
+    _EXCLUDED = {"TLT", "HYG"}
+
     # Build structured response — preserve wire_data theme order
     themes_out = []
     for etf_ticker, theme_data in raw_themes.items():
         if not isinstance(theme_data, dict):
+            continue
+        if etf_ticker in _EXCLUDED:
             continue
 
         raw_holdings = theme_data.get("holdings", [])
