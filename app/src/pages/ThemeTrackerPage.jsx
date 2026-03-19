@@ -39,6 +39,7 @@ function avgReturn(holdings, periodKey) {
 
 function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey }) {
   const [open, setOpen] = useState(false)
+  const groupAvg = avgReturn(theme.holdings, activeKey)
 
   return (
     <>
@@ -48,18 +49,13 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey }) {
           {theme.name}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
         </span>
-        {PERIODS.map(p => (
-          <span
-            key={p}
-            className={`${styles.ret} ${retClass(avgReturn(theme.holdings, p), styles)} ${p === activeKey ? styles.retActive : ''}`}
-          >
-            {fmtRet(avgReturn(theme.holdings, p))}
-          </span>
-        ))}
+        <span className={`${styles.ret} ${styles.retActive} ${retClass(groupAvg, styles)}`}>
+          {fmtRet(groupAvg)}
+        </span>
       </div>
 
       {open && theme.holdings.map(h => {
-        const retActive = h.returns?.[activeKey]
+        const retVal = h.returns?.[activeKey]
         const isSelected = h.sym === selectedSym
         return (
           <div
@@ -68,17 +64,12 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey }) {
             onClick={() => onSelectSym(h.sym, h.name)}
           >
             <span className={styles.stockName}>
-              <span className={`${styles.dot} ${dotClass(retActive, styles)}`} />
+              <span className={`${styles.dot} ${dotClass(retVal, styles)}`} />
               <span className={styles.sym}>{h.sym}</span>
             </span>
-            {PERIODS.map(p => (
-              <span
-                key={p}
-                className={`${styles.ret} ${retClass(h.returns?.[p], styles)} ${p === activeKey ? styles.retActive : ''}`}
-              >
-                {fmtRet(h.returns?.[p])}
-              </span>
-            ))}
+            <span className={`${styles.ret} ${retClass(retVal, styles)}`}>
+              {fmtRet(retVal)}
+            </span>
           </div>
         )
       })}
@@ -134,11 +125,9 @@ export default function ThemeTrackerPage() {
 
         <div className={styles.tableHeader}>
           <span className={styles.colLabel}>Theme</span>
-          {PERIODS.map(p => (
-            <span key={p} className={`${styles.colLabel} ${p === activeKey ? styles.colLabelActive : ''}`}>
-              {PERIOD_LABELS[p]}
-            </span>
-          ))}
+          <span className={`${styles.colLabel} ${styles.colLabelActive}`}>
+            {PERIOD_LABELS[activeKey]}
+          </span>
         </div>
 
         <div className={styles.tableBody}>

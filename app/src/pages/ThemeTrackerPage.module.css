@@ -67,7 +67,7 @@
 /* Sticky column header */
 .tableHeader {
   display: grid;
-  grid-template-columns: 1fr repeat(6, 72px);
+  grid-template-columns: 1fr 80px;
   padding: 8px 12px;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
@@ -97,7 +97,7 @@
 /* ── Theme group row ────────────────────────────────────────────────────── */
 .groupRow {
   display: grid;
-  grid-template-columns: 1fr repeat(6, 72px);
+  grid-template-columns: 1fr 80px;
   align-items: center;
   padding: 7px 12px;
   background: var(--bg-elevated);
@@ -139,7 +139,7 @@
 /* ── Stock row ──────────────────────────────────────────────────────────── */
 .stockRow {
   display: grid;
-  grid-template-columns: 1fr repeat(6, 72px);
+  grid-template-columns: 1fr 80px;
   align-items: center;
   padding: 5px 12px 5px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
