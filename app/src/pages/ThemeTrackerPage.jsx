@@ -89,8 +89,18 @@ export default function ThemeTrackerPage() {
   const [selectedSym, setSelectedSym] = useState(null)
   const [selectedName, setSelectedName] = useState('')
   const [activeTab, setActiveTab] = useState('1W')
+  const [sortDir, setSortDir] = useState('desc')
 
   const activeKey = RANK_TO_KEY[activeTab]
+
+  function handleTabClick(tab) {
+    if (tab === activeTab) {
+      setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+    } else {
+      setActiveTab(tab)
+      setSortDir('desc')
+    }
+  }
 
   function handleSelect(sym, name) {
     setSelectedSym(sym)
@@ -100,11 +110,11 @@ export default function ThemeTrackerPage() {
   const sortedThemes = useMemo(() => {
     if (!data?.themes) return []
     return [...data.themes].sort((a, b) => {
-      const aAvg = avgReturn(a.holdings, activeKey) ?? -Infinity
-      const bAvg = avgReturn(b.holdings, activeKey) ?? -Infinity
-      return bAvg - aAvg
+      const aAvg = avgReturn(a.holdings, activeKey) ?? (sortDir === 'desc' ? -Infinity : Infinity)
+      const bAvg = avgReturn(b.holdings, activeKey) ?? (sortDir === 'desc' ? -Infinity : Infinity)
+      return sortDir === 'desc' ? bAvg - aAvg : aAvg - bAvg
     })
-  }, [data, activeKey])
+  }, [data, activeKey, sortDir])
 
   const tvUrl = selectedSym
     ? `https://s.tradingview.com/widgetembed/?frameElementId=tv_theme&symbol=${selectedSym}&interval=D&theme=dark&style=1&locale=en&toolbar_bg=161b22&enable_publishing=false&hide_top_toolbar=false&save_image=false&hide_legend=false&hide_volume=false`
@@ -120,9 +130,9 @@ export default function ThemeTrackerPage() {
             <button
               key={tab}
               className={`${styles.periodTab} ${activeTab === tab ? styles.periodTabActive : ''}`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
             >
-              {tab}
+              {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
             </button>
           ))}
         </div>
