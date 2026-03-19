@@ -26,6 +26,17 @@ if _SENTRY_DSN:
 
 PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"
 
+def _warm_theme_cache():
+    """Pre-fetch theme performance in background so first user request hits cache."""
+    try:
+        from api.services.theme_performance import get_theme_performance
+        result = get_theme_performance()
+        n = len(result.get("themes", []))
+        print(f"[startup] Theme cache warmed — {n} themes ready")
+    except Exception as e:
+        print(f"[startup] Theme cache warm failed (non-fatal): {e}")
+
+
 def _cot_seed_background():
     try:
         n = _cot_service.seed_from_historical()
@@ -49,6 +60,8 @@ def _seed_cache_from_volume():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _seed_cache_from_volume()
+    import threading
+    threading.Thread(target=_warm_theme_cache, daemon=True, name="theme-warm").start()
     from api.daily_tracker import start_snapshot_scheduler, stop_snapshot_scheduler
     start_snapshot_scheduler()
 
