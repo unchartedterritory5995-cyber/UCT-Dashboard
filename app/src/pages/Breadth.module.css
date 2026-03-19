@@ -446,7 +446,8 @@
   border-radius: 8px;
   width: 100%;
   max-width: 1600px;
-  max-height: 90vh;
+  height: 96vh;
+  max-height: 96vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -603,7 +604,7 @@ tbody tr { cursor: pointer; }
   background: rgba(255,255,255,0.025);
 }
 .drillTdNum {
-  padding: 6px 14px 6px 0;
+  padding: 4px 14px 4px 0;
   text-align: right;
   color: var(--text-muted, #555);
   font-size: 11px;
@@ -611,7 +612,7 @@ tbody tr { cursor: pointer; }
   user-select: none;
 }
 .drillTdTicker {
-  padding: 4px 10px;
+  padding: 4px 8px;
   white-space: nowrap;
 }
 .drillTdName {
@@ -625,28 +626,28 @@ tbody tr { cursor: pointer; }
   white-space: nowrap;
 }
 .drillTdPrice {
-  padding: 6px 0 6px 10px;
+  padding: 4px 0 4px 10px;
   text-align: right;
   color: var(--text-muted, #999);
   font-size: 11px;
   white-space: nowrap;
 }
 .drillTdVol {
-  padding: 6px 0 6px 10px;
+  padding: 4px 0 4px 10px;
   text-align: right;
   color: var(--text-muted, #666);
   font-size: 11px;
   white-space: nowrap;
 }
 .drillTdVolMid {
-  padding: 6px 0 6px 10px;
+  padding: 4px 0 4px 10px;
   text-align: right;
   color: var(--text, #ccc);
   font-size: 11px;
   white-space: nowrap;
 }
 .drillTdVolHigh {
-  padding: 6px 0 6px 10px;
+  padding: 4px 0 4px 10px;
   text-align: right;
   color: var(--ut-gold, #c9a84c);
   font-size: 11px;
@@ -654,14 +655,14 @@ tbody tr { cursor: pointer; }
   white-space: nowrap;
 }
 .drillTdAtr {
-  padding: 6px 0 6px 10px;
+  padding: 4px 0 4px 10px;
   text-align: right;
   color: var(--text-muted, #777);
   font-size: 11px;
   white-space: nowrap;
 }
 .drillTdA50Up {
-  padding: 6px 0 6px 10px;
+  padding: 4px 0 4px 10px;
   text-align: right;
   color: var(--ut-green-bright, #4ade80);
   font-size: 11px;
@@ -669,7 +670,7 @@ tbody tr { cursor: pointer; }
   opacity: 0.75;
 }
 .drillTdA50Dn {
-  padding: 6px 0 6px 10px;
+  padding: 4px 0 4px 10px;
   text-align: right;
   color: var(--loss, #f87171);
   font-size: 11px;
@@ -677,14 +678,14 @@ tbody tr { cursor: pointer; }
   opacity: 0.75;
 }
 .drillTdUp {
-  padding: 6px 0 6px 10px;
+  padding: 4px 0 4px 10px;
   text-align: right;
   color: var(--ut-green-bright, #4ade80);
   font-size: 11px;
   white-space: nowrap;
 }
 .drillTdDn {
-  padding: 6px 0 6px 10px;
+  padding: 4px 0 4px 10px;
   text-align: right;
   color: var(--loss, #f87171);
   font-size: 11px;
