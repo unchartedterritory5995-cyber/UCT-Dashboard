@@ -56,8 +56,9 @@
 
 /* ── Left panel — theme table ───────────────────────────────────────────── */
 .leftPanel {
-  width: 45%;
-  min-width: 360px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border);
