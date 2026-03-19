@@ -500,9 +500,10 @@
   overflow: hidden;
 }
 .drillTablePanel {
-  width: 520px;
+  width: 460px;
   flex-shrink: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   border-right: 1px solid var(--border, rgba(255,255,255,0.1));
   padding: 10px 0 16px;
 }
@@ -615,11 +616,11 @@ tbody tr { cursor: pointer; }
   white-space: nowrap;
 }
 .drillTdName {
-  padding: 6px 10px;
+  padding: 4px 8px;
   color: var(--text-muted, #999);
   font-family: 'Instrument Sans', sans-serif;
   font-size: 12px;
-  max-width: 260px;
+  max-width: 130px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
