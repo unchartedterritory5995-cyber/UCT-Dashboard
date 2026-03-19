@@ -19,7 +19,8 @@ def get_theme_performance():
 
 @router.post("/api/theme-performance/refresh")
 def refresh_theme_performance():
-    """Bust the theme-performance cache so next GET recomputes."""
+    """Invalidate cache and trigger fresh background recomputation."""
     from api.services.cache import cache
     cache.invalidate(svc._CACHE_KEY)
-    return {"status": "ok"}
+    svc.trigger_recompute()
+    return {"status": "ok", "message": "Recomputation started in background"}

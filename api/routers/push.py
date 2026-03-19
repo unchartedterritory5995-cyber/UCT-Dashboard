@@ -43,4 +43,11 @@ def push_wire_data(
     except OSError:
         pass  # Volume not mounted in local dev — safe to ignore
 
+    # Trigger theme performance recompute in background (UCT20 holdings may have changed)
+    try:
+        from api.services.theme_performance import trigger_recompute
+        trigger_recompute()
+    except Exception:
+        pass
+
     return {"ok": True, "date": payload.get("date", "")}
