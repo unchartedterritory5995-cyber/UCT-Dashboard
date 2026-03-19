@@ -9,6 +9,51 @@
   background: var(--bg);
 }
 
+/* ── Period rank tabs ───────────────────────────────────────────────────── */
+.periodBar {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.periodTab {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.1s, background 0.1s;
+}
+
+.periodTab:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.periodTabActive {
+  color: var(--ut-gold);
+  background: rgba(201, 168, 76, 0.12);
+  border-color: rgba(201, 168, 76, 0.3);
+}
+
+/* ── Active column highlight ────────────────────────────────────────────── */
+.colLabelActive {
+  color: var(--ut-gold);
+}
+
+.retActive {
+  font-weight: 700;
+}
+
 /* ── Left panel — theme table ───────────────────────────────────────────── */
 .leftPanel {
   width: 45%;

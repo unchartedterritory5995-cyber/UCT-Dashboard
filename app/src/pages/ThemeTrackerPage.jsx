@@ -1,5 +1,5 @@
 // app/src/pages/ThemeTrackerPage.jsx
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import styles from './ThemeTrackerPage.module.css'
 
@@ -7,6 +7,9 @@ const fetcher = (url) => fetch(url).then(r => r.json())
 
 const PERIODS = ['1d', '1w', '1m', '3m', '1y', 'ytd']
 const PERIOD_LABELS = { '1d': '1D', '1w': '1W', '1m': '1M', '3m': '3M', '1y': '1Y', 'ytd': 'YTD' }
+
+const RANK_TABS = ['Today', '1W', '1M', '3M']
+const RANK_TO_KEY = { 'Today': '1d', '1W': '1w', '1M': '1m', '3M': '3m' }
 
 function fmtRet(val) {
   if (val === null || val === undefined) return '—'
@@ -28,7 +31,13 @@ function dotClass(val, styles) {
   return styles.dotFlat
 }
 
-function ThemeGroup({ theme, selectedSym, onSelectSym }) {
+function avgReturn(holdings, periodKey) {
+  const vals = holdings.map(h => h.returns?.[periodKey]).filter(v => v != null)
+  if (vals.length === 0) return null
+  return vals.reduce((a, b) => a + b, 0) / vals.length
+}
+
+function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -40,12 +49,17 @@ function ThemeGroup({ theme, selectedSym, onSelectSym }) {
           <span className={styles.groupCount}>{theme.holdings.length}</span>
         </span>
         {PERIODS.map(p => (
-          <span key={p} className={`${styles.ret} ${styles.retFlat}`} />
+          <span
+            key={p}
+            className={`${styles.ret} ${retClass(avgReturn(theme.holdings, p), styles)} ${p === activeKey ? styles.retActive : ''}`}
+          >
+            {fmtRet(avgReturn(theme.holdings, p))}
+          </span>
         ))}
       </div>
 
       {open && theme.holdings.map(h => {
-        const ret1d = h.returns?.['1d']
+        const retActive = h.returns?.[activeKey]
         const isSelected = h.sym === selectedSym
         return (
           <div
@@ -54,13 +68,13 @@ function ThemeGroup({ theme, selectedSym, onSelectSym }) {
             onClick={() => onSelectSym(h.sym, h.name)}
           >
             <span className={styles.stockName}>
-              <span className={`${styles.dot} ${dotClass(ret1d, styles)}`} />
+              <span className={`${styles.dot} ${dotClass(retActive, styles)}`} />
               <span className={styles.sym}>{h.sym}</span>
             </span>
             {PERIODS.map(p => (
               <span
                 key={p}
-                className={`${styles.ret} ${retClass(h.returns?.[p], styles)}`}
+                className={`${styles.ret} ${retClass(h.returns?.[p], styles)} ${p === activeKey ? styles.retActive : ''}`}
               >
                 {fmtRet(h.returns?.[p])}
               </span>
@@ -79,11 +93,23 @@ export default function ThemeTrackerPage() {
 
   const [selectedSym, setSelectedSym] = useState(null)
   const [selectedName, setSelectedName] = useState('')
+  const [activeTab, setActiveTab] = useState('1W')
+
+  const activeKey = RANK_TO_KEY[activeTab]
 
   function handleSelect(sym, name) {
     setSelectedSym(sym)
     setSelectedName(name || sym)
   }
+
+  const sortedThemes = useMemo(() => {
+    if (!data?.themes) return []
+    return [...data.themes].sort((a, b) => {
+      const aAvg = avgReturn(a.holdings, activeKey) ?? -Infinity
+      const bAvg = avgReturn(b.holdings, activeKey) ?? -Infinity
+      return bAvg - aAvg
+    })
+  }, [data, activeKey])
 
   const tvUrl = selectedSym
     ? `https://s.tradingview.com/widgetembed/?frameElementId=tv_theme&symbol=${selectedSym}&interval=D&theme=dark&style=1&locale=en&toolbar_bg=161b22&enable_publishing=false&hide_top_toolbar=false&save_image=false&hide_legend=false&hide_volume=false`
@@ -93,10 +119,25 @@ export default function ThemeTrackerPage() {
     <div className={styles.page}>
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
+        {/* Period rank tabs */}
+        <div className={styles.periodBar}>
+          {RANK_TABS.map(tab => (
+            <button
+              key={tab}
+              className={`${styles.periodTab} ${activeTab === tab ? styles.periodTabActive : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
         <div className={styles.tableHeader}>
           <span className={styles.colLabel}>Theme</span>
           {PERIODS.map(p => (
-            <span key={p} className={styles.colLabel}>{PERIOD_LABELS[p]}</span>
+            <span key={p} className={`${styles.colLabel} ${p === activeKey ? styles.colLabelActive : ''}`}>
+              {PERIOD_LABELS[p]}
+            </span>
           ))}
         </div>
 
@@ -107,12 +148,13 @@ export default function ThemeTrackerPage() {
           {!isLoading && (!data || data.themes?.length === 0) && (
             <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
           )}
-          {data?.themes?.map(theme => (
+          {sortedThemes.map(theme => (
             <ThemeGroup
               key={theme.ticker}
               theme={theme}
               selectedSym={selectedSym}
               onSelectSym={handleSelect}
+              activeKey={activeKey}
             />
           ))}
         </div>
