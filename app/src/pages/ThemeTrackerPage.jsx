@@ -8,8 +8,8 @@ const fetcher = (url) => fetch(url).then(r => r.json())
 const PERIODS = ['1d', '1w', '1m', '3m', '1y', 'ytd']
 const PERIOD_LABELS = { '1d': '1D', '1w': '1W', '1m': '1M', '3m': '3M', '1y': '1Y', 'ytd': 'YTD' }
 
-const RANK_TABS = ['Today', '1W', '1M', '3M']
-const RANK_TO_KEY = { 'Today': '1d', '1W': '1w', '1M': '1m', '3M': '3m' }
+const RANK_TABS = ['Today', '1W', '1M', '3M', '1Y', 'YTD']
+const RANK_TO_KEY = { 'Today': '1d', '1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd' }
 
 function fmtRet(val) {
   if (val === null || val === undefined) return '—'
