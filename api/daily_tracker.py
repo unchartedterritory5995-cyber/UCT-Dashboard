@@ -146,40 +146,8 @@ async def store_daily_snapshot() -> dict:
     quotes = None
     source = "unknown"
 
-    # ── Schwab only ─────────────────────────────────────────────────────
-    try:
-        from api.schwab_service import get_batch_option_quotes
-
-        def _exp_to_iso(exp_str: str) -> str:
-            parts = exp_str.split("/")
-            if len(parts) < 2:
-                return ""
-            m, d = int(parts[0]), int(parts[1])
-            if len(parts) >= 3:
-                y = int(parts[2])
-                if y < 100:
-                    y += 2000
-            else:
-                y = datetime.now().year
-                from datetime import date
-                if date(y, m, d) < date.today():
-                    y += 1
-            return f"{y}-{m:02d}-{d:02d}"
-
-        schwab_batch = [
-            {
-                "symbol": c["sym"],
-                "cp": c["cp"],
-                "strike": c["K"],
-                "expDate": _exp_to_iso(c["exp"]),
-            }
-            for c in contracts
-        ]
-        quotes = await get_batch_option_quotes(schwab_batch)
-        source = "Schwab"
-    except Exception as e:
-        logger.error("[tracker] Schwab batch fetch failed: %s", e)
-        return {"status": "error", "reason": f"Schwab failed: {e}"}
+    # Schwab integration removed — option quote fetching disabled
+    return {"status": "skipped", "reason": "Schwab integration removed"}
 
     saved = 0
     skipped = 0

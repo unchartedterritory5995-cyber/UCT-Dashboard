@@ -1,6 +1,5 @@
 import os
 import json
-import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -10,7 +9,6 @@ from slowapi.errors import RateLimitExceeded
 import sentry_sdk
 from api.limiter import limiter
 from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts
-from api.schwab_router import router as schwab_router
 from api.routers import cot as cot_router
 from api.routers import breadth_monitor as breadth_monitor_router
 from api.routers import theme_performance as theme_performance_router
@@ -54,23 +52,6 @@ def _seed_cache_from_volume():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _seed_cache_from_volume()
-    from api.schwab_service import start_auto_refresh, stop_auto_refresh, refresh_access_token, is_authenticated, load_tokens
-    tokens = load_tokens()
-    if tokens and "refresh_token" in tokens:
-        print("[startup] Found Schwab refresh token on disk, refreshing access token...")
-        try:
-            result = await asyncio.wait_for(refresh_access_token(), timeout=8.0)
-            if result:
-                print("[startup] Schwab access token refreshed — API ready for all users.")
-            else:
-                print("[startup] Schwab token refresh FAILED — re-auth needed at /api/schwab/login")
-        except asyncio.TimeoutError:
-            print("[startup] Schwab token refresh timed out (8s) — skipping, app will continue")
-        except Exception as e:
-            print(f"[startup] Schwab token refresh error: {e}")
-    else:
-        print("[startup] No Schwab tokens found. Admin must visit /api/schwab/login once to connect.")
-    start_auto_refresh()
     from api.daily_tracker import start_snapshot_scheduler, stop_snapshot_scheduler
     start_snapshot_scheduler()
 
@@ -111,7 +92,6 @@ async def lifespan(app: FastAPI):
 
     yield
     _scheduler.shutdown(wait=False)
-    stop_auto_refresh()
     stop_snapshot_scheduler()
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
@@ -132,7 +112,6 @@ app.include_router(trades.router)
 app.include_router(traders.router)
 app.include_router(push.router)
 app.include_router(charts.router)
-app.include_router(schwab_router)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)

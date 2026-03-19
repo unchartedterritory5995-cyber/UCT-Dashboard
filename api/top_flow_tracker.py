@@ -149,35 +149,8 @@ async def snapshot_prices() -> dict:
     if not active:
         return {"status": "skipped", "reason": "no active picks"}
 
-    today_str = datetime.now(ET).strftime("%-m/%-d/%Y")
-
-    from api.schwab_service import get_batch_option_quotes
-
-    def _exp_to_iso(exp_str: str) -> str:
-        parts = exp_str.split("/")
-        if len(parts) < 2:
-            return ""
-        m, d = int(parts[0]), int(parts[1])
-        if len(parts) >= 3:
-            y = int(parts[2])
-            if y < 100:
-                y += 2000
-        else:
-            y = datetime.now().year
-            if date(y, m, d) < date.today():
-                y += 1
-        return f"{y}-{m:02d}-{d:02d}"
-
-    batch = [
-        {"symbol": p["sym"], "cp": p["cp"], "strike": p["strike"], "expDate": _exp_to_iso(p["exp"])}
-        for p in active
-    ]
-
-    try:
-        quotes = await get_batch_option_quotes(batch)
-    except Exception as e:
-        logger.error("[top-flow] Schwab batch fetch failed: %s", e)
-        return {"status": "error", "reason": str(e)}
+    # Schwab integration removed — option quote fetching disabled
+    return {"status": "skipped", "reason": "Schwab integration removed"}
 
     saved = 0
     for pick, q in zip(active, quotes):
