@@ -526,7 +526,7 @@
   overflow: hidden;
 }
 .drillTablePanel {
-  width: 460px;
+  width: 540px;
   flex-shrink: 0;
   overflow-y: auto;
   overflow-x: hidden;
