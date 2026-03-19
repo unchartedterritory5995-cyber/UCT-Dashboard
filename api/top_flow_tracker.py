@@ -141,40 +141,12 @@ def get_all() -> dict:
 # ─── Daily Snapshot (called by daily_tracker at 4:30 PM ET) ──────────────────
 
 async def snapshot_prices() -> dict:
-    """
-    Fetch live Schwab quotes for all active Top Flow picks and append today's snapshot.
-    Also runs archive_expired afterward.
-    """
+    """Placeholder — quote fetching not currently wired up."""
     active = _data.get("active", [])
     if not active:
         return {"status": "skipped", "reason": "no active picks"}
 
-    # Schwab integration removed — option quote fetching disabled
-    return {"status": "skipped", "reason": "Schwab integration removed"}
-
-    saved = 0
-    for pick, q in zip(active, quotes):
-        if not q or q.get("error") or q.get("expired"):
-            continue
-        entry = {
-            "date": today_str,
-            "price": q.get("mark") or q.get("last") or 0,
-            "oi": q.get("openInterest", 0),
-            "spot": q.get("underlyingPrice", 0),
-        }
-        history = pick.setdefault("history", [])
-        existing_idx = next((i for i, h in enumerate(history) if h.get("date") == today_str), None)
-        if existing_idx is not None:
-            history[existing_idx] = entry
-        else:
-            history.append(entry)
-        saved += 1
-
-    _save()
-    # Archive expired after snapshotting
-    archive_expired()
-    logger.info("[top-flow] Snapshot: %d/%d priced.", saved, len(active))
-    return {"status": "ok", "saved": saved, "total": len(active)}
+    return {"status": "skipped", "reason": "option quote fetching not available"}
 
 
 # ─── Archive Expired ──────────────────────────────────────────────────────────

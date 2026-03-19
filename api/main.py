@@ -15,9 +15,6 @@ from api.routers import theme_performance as theme_performance_router
 from api.services import cot_service as _cot_service
 from api.top_flow_router import router as top_flow_router
 from api import top_flow_tracker as _top_flow_tracker
-from api.uw_router import router as uw_router
-from api.uw_ws_router import router as ws_router
-from api.uw_websocket import start_uw_listener
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 if _SENTRY_DSN:
@@ -84,12 +81,6 @@ async def lifespan(app: FastAPI):
     _scheduler.start()
     print("[startup] COT scheduler running — refreshes every Friday at 3:45 PM ET")
 
-    try:
-        start_uw_listener()
-        print("[startup] UW WebSocket listener started")
-    except Exception as e:
-        print(f"[startup] UW WebSocket listener failed (non-fatal): {e}")
-
     yield
     _scheduler.shutdown(wait=False)
     stop_snapshot_scheduler()
@@ -116,11 +107,6 @@ app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)
 app.include_router(top_flow_router)
-app.include_router(uw_router)
-app.include_router(ws_router)
-
-from api.batch_quotes import router as batch_quotes_router
-app.include_router(batch_quotes_router)
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 if os.path.exists(DIST):

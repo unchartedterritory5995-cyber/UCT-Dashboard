@@ -142,50 +142,7 @@ async def store_daily_snapshot() -> dict:
 
     today_str = datetime.now(ET).strftime("%-m/%-d/%Y")  # e.g. "3/14/2026"
 
-    logger.info("[tracker] Fetching quotes for %d contracts via Schwab…", len(contracts))
-    quotes = None
-    source = "unknown"
-
-    # Schwab integration removed — option quote fetching disabled
-    return {"status": "skipped", "reason": "Schwab integration removed"}
-
-    saved = 0
-    skipped = 0
-    snapshots = _data.setdefault("snapshots", {})
-
-    for c, q in zip(contracts, quotes):
-        if not q or q.get("error") or q.get("expired"):
-            skipped += 1
-            continue
-        k = _key(c["sym"], c["cp"], c["K"], c["exp"])
-        history = snapshots.setdefault(k, [])
-        # Map field names (UW uses mark/openInterest, Schwab uses the same)
-        entry = {
-            "date": today_str,
-            "oi": q.get("openInterest") or q.get("open_interest") or 0,
-            "price": q.get("mark") or q.get("last") or 0,
-            "spot": q.get("underlyingPrice") or q.get("spot") or 0,
-            "volume": q.get("volume") or 0,
-        }
-        # Overwrite today's entry if it already exists (idempotent)
-        existing = next((i for i, h in enumerate(history) if h.get("date") == today_str), None)
-        if existing is not None:
-            history[existing] = entry
-        else:
-            history.append(entry)
-        saved += 1
-
-    _save()
-    result = {
-        "status": "ok",
-        "source": source,
-        "date": today_str,
-        "saved": saved,
-        "skipped": skipped,
-        "total": len(contracts),
-    }
-    logger.info("[tracker] Snapshot complete: %s", result)
-    return result
+    return {"status": "skipped", "reason": "option quote fetching not available"}
 
 
 # ─── Scheduler ────────────────────────────────────────────────────────────────
