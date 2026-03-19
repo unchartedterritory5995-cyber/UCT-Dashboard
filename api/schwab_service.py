@@ -108,7 +108,7 @@ async def refresh_access_token() -> dict | None:
     if not tokens or "refresh_token" not in tokens:
         return None
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(
             TOKEN_URL,
             headers={

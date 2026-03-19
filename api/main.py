@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -58,11 +59,13 @@ async def lifespan(app: FastAPI):
     if tokens and "refresh_token" in tokens:
         print("[startup] Found Schwab refresh token on disk, refreshing access token...")
         try:
-            result = await refresh_access_token()
+            result = await asyncio.wait_for(refresh_access_token(), timeout=8.0)
             if result:
                 print("[startup] Schwab access token refreshed — API ready for all users.")
             else:
                 print("[startup] Schwab token refresh FAILED — re-auth needed at /api/schwab/login")
+        except asyncio.TimeoutError:
+            print("[startup] Schwab token refresh timed out (8s) — skipping, app will continue")
         except Exception as e:
             print(f"[startup] Schwab token refresh error: {e}")
     else:
