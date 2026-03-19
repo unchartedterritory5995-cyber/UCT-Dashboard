@@ -486,6 +486,12 @@
   flex-shrink: 0;
 }
 .drillClose:hover { color: var(--text, #e0e0e0); }
+.drillSubRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 3px;
+}
 .drillHeaderActions {
   display: flex;
   align-items: center;

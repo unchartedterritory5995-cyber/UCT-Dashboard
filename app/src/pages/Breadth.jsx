@@ -306,7 +306,7 @@ function CopyTickersButton({ items }) {
   }
   return (
     <button className={styles.copyBtn} onClick={handleCopy} title="Copy all tickers to clipboard">
-      {copied ? '✓ Copied' : 'Copy Tickers'}
+      {copied ? '✓ Copied' : 'Copy List'}
     </button>
   )
 }
@@ -438,12 +438,12 @@ function DrillModal({ drill, onClose }) {
               {drill.label}
               {drill.items && <span className={styles.drillCount}> ({drill.items.length.toLocaleString()} stocks)</span>}
             </div>
-            <div className={styles.drillSub}>{drill.date}</div>
+            <div className={styles.drillSubRow}>
+              <span className={styles.drillSub}>{drill.date}</span>
+              <CopyTickersButton items={items} />
+            </div>
           </div>
-          <div className={styles.drillHeaderActions}>
-            <CopyTickersButton items={items} />
-            <button className={styles.drillClose} onClick={onClose} aria-label="Close">✕</button>
-          </div>
+          <button className={styles.drillClose} onClick={onClose} aria-label="Close">✕</button>
         </div>
 
         <div className={styles.drillSplit}>
