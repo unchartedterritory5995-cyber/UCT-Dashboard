@@ -294,6 +294,23 @@ const GROUP_HEADER_CLASS = {
   [G.SENTIMENT]: styles.ghSentiment,
 }
 
+// ── CopyTickersButton ─────────────────────────────────────────────────────
+function CopyTickersButton({ items }) {
+  const [copied, setCopied] = useState(false)
+  function handleCopy() {
+    const text = (items ?? []).map(i => i.t).join(',')
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <button className={styles.copyBtn} onClick={handleCopy} title="Copy all tickers to clipboard">
+      {copied ? '✓ Copied' : 'Copy Tickers'}
+    </button>
+  )
+}
+
 // ── TvChart ── TradingView tv.js widget with 9/20 EMA + 50/200 SMA ────────
 let tvScriptLoaded = false
 
@@ -423,7 +440,10 @@ function DrillModal({ drill, onClose }) {
             </div>
             <div className={styles.drillSub}>{drill.date}</div>
           </div>
-          <button className={styles.drillClose} onClick={onClose} aria-label="Close">✕</button>
+          <div className={styles.drillHeaderActions}>
+            <CopyTickersButton items={items} />
+            <button className={styles.drillClose} onClick={onClose} aria-label="Close">✕</button>
+          </div>
         </div>
 
         <div className={styles.drillSplit}>

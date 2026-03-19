@@ -486,6 +486,26 @@
   flex-shrink: 0;
 }
 .drillClose:hover { color: var(--text, #e0e0e0); }
+.drillHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.copyBtn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid rgba(201,168,76,0.4);
+  color: var(--ut-gold, #c9a84c);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.copyBtn:hover { background: rgba(201,168,76,0.12); }
+.copyBtn:active { background: rgba(201,168,76,0.2); }
 .drillBody {
   overflow-y: auto;
   padding: 12px 20px 20px;
