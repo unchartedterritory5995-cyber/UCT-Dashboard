@@ -356,7 +356,7 @@ function TvChart({ sym }) {
           locale: 'en',
           toolbar_bg: '#0e0e0e',
           enable_publishing: false,
-          hide_side_toolbar: false,
+          hide_side_toolbar: true,
           allow_symbol_change: true,
           container_id: divId,
         })

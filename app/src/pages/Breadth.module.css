@@ -704,14 +704,14 @@ tbody tr { cursor: pointer; }
   opacity: 0.75;
 }
 .drillTdUp {
-  padding: 4px 0 4px 10px;
+  padding: 4px 14px 4px 10px;
   text-align: right;
   color: var(--ut-green-bright, #4ade80);
   font-size: 11px;
   white-space: nowrap;
 }
 .drillTdDn {
-  padding: 4px 0 4px 10px;
+  padding: 4px 14px 4px 10px;
   text-align: right;
   color: var(--loss, #f87171);
   font-size: 11px;
