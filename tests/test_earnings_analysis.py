@@ -252,8 +252,8 @@ class TestGenerateEarningsPreview:
         assert isinstance(result["preview_bullets"], list)
         assert len(result["preview_bullets"]) == 3
         assert isinstance(result["beat_history"], list)
-        assert isinstance(result["yoy_eps_growth"], str)
-        assert isinstance(result["beat_streak"], str)
+        assert result["yoy_eps_growth"] == "+150.0%"
+        assert result["beat_streak"] == "Beat 1 of last 4"
         assert isinstance(result["news"], list)
 
     def test_preview_graceful_av_failure(self):
@@ -281,6 +281,9 @@ class TestGenerateEarningsPreview:
             result = engine._generate_earnings_preview("PL", self.PENDING_ROW)
         assert result["news"] == []
         assert len(result["preview_text"]) > 0
+        assert result["yoy_eps_growth"] == "+150.0%"
+        assert result["beat_streak"] == "Beat 1 of last 4"
+        assert len(result["beat_history"]) == 4
 
     def test_preview_graceful_ai_failure(self):
         """Claude failure: preview_text and bullets are empty; data fields still populated."""
@@ -294,8 +297,9 @@ class TestGenerateEarningsPreview:
         assert result["preview_text"] == ""
         assert result["preview_bullets"] == []
         # Data fields still populated — AV succeeded so yoy_eps_growth is a real value, not "N/A"
-        assert isinstance(result["beat_history"], list)
-        assert result["yoy_eps_growth"] not in ("", "N/A")
+        assert result["yoy_eps_growth"] == "+150.0%"
+        assert result["beat_streak"] == "Beat 1 of last 4"
+        assert len(result["beat_history"]) == 4
 
     def test_preview_uses_separate_cache_key(self):
         """Cache must be written to earnings_preview_SYM, not earnings_analysis_SYM."""
