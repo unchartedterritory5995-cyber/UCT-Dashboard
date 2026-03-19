@@ -79,8 +79,12 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey }) {
 
 export default function ThemeTrackerPage() {
   const { data, isLoading } = useSWR('/api/theme-performance', fetcher, {
-    refreshInterval: 900_000, // 15 min — matches server cache TTL
+    // SWR passes latest data to refreshInterval fn — poll fast while computing
+    refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 900_000,
+    dedupingInterval: 10_000,
+    revalidateOnFocus: false,
   })
+  const isComputing = data?.status === 'computing'
 
   const [selectedSym, setSelectedSym] = useState(null)
   const [selectedName, setSelectedName] = useState('')
@@ -131,10 +135,12 @@ export default function ThemeTrackerPage() {
         </div>
 
         <div className={styles.tableBody}>
-          {isLoading && (
-            <p className={styles.loading}>Loading theme data…</p>
+          {(isLoading || isComputing) && (
+            <p className={styles.loading}>
+              {isComputing ? 'Computing returns… ready in ~30s' : 'Loading theme data…'}
+            </p>
           )}
-          {!isLoading && (!data || data.themes?.length === 0) && (
+          {!isLoading && !isComputing && (!data || data.themes?.length === 0) && (
             <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
           )}
           {sortedThemes.map(theme => (
