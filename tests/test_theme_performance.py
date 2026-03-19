@@ -161,3 +161,76 @@ def test_theme_performance_endpoint_returns_200():
     data = resp.json()
     assert "themes" in data
     assert "generated_at" in data
+
+
+# ── Task 4 tests ──────────────────────────────────────────────────────────────
+
+def test_uct20_pulls_from_leadership():
+    """UCT20 theme uses wire_data['leadership'] symbols, not a static list."""
+    MOCK_WIRE = {
+        "themes": {
+            "UCT20": {
+                "name": "UCT 20",
+                "etf_name": "UCT Intelligence Leadership 20",
+                "holdings": [],  # empty static list
+            }
+        },
+        "leadership": [
+            {"sym": "NVDA", "name": "Nvidia", "rank": 1},
+            {"sym": "TSLA", "name": "Tesla", "rank": 2},
+            {"sym": "MRVL", "name": "Marvell", "rank": 3},
+        ]
+    }
+    FAKE_BARS = [{"t": 1700000000000 + i * 86400000, "c": float(100 + i)} for i in range(300)]
+
+    with patch("api.services.theme_performance._load_wire_data", return_value=MOCK_WIRE), \
+         patch("api.services.theme_performance.get_agg_bars", return_value=FAKE_BARS), \
+         patch("api.services.theme_performance.cache") as mock_cache:
+        mock_cache.get.return_value = None
+
+        from api.services.theme_performance import get_theme_performance
+        result = get_theme_performance()
+
+    themes = {t["ticker"]: t for t in result["themes"]}
+    assert "UCT20" in themes
+    syms = [h["sym"] for h in themes["UCT20"]["holdings"]]
+    assert "NVDA" in syms
+    assert "TSLA" in syms
+    assert "MRVL" in syms
+
+
+def test_excluded_themes_not_in_output():
+    """URA, IBB, FXI, MSOS are filtered out even if present in wire_data."""
+    MOCK_WIRE = {
+        "themes": {
+            "UFO": {
+                "name": "Space",
+                "etf_name": "Procure Space ETF",
+                "holdings": [{"sym": "RKLB", "name": "Rocket Lab", "pct": 8.5}],
+            },
+            "URA": {
+                "name": "Uranium",
+                "etf_name": "Global X Uranium ETF",
+                "holdings": [{"sym": "CCJ", "name": "Cameco", "pct": 20.0}],
+            },
+            "MSOS": {
+                "name": "Cannabis",
+                "etf_name": "AdvisorShares Cannabis ETF",
+                "holdings": [{"sym": "CURA", "name": "Curaleaf", "pct": 10.0}],
+            },
+        }
+    }
+    FAKE_BARS = [{"t": 1700000000000 + i * 86400000, "c": float(100 + i)} for i in range(10)]
+
+    with patch("api.services.theme_performance._load_wire_data", return_value=MOCK_WIRE), \
+         patch("api.services.theme_performance.get_agg_bars", return_value=FAKE_BARS), \
+         patch("api.services.theme_performance.cache") as mock_cache:
+        mock_cache.get.return_value = None
+
+        from api.services.theme_performance import get_theme_performance
+        result = get_theme_performance()
+
+    tickers = [t["ticker"] for t in result["themes"]]
+    assert "UFO" in tickers
+    assert "URA" not in tickers
+    assert "MSOS" not in tickers

@@ -21,6 +21,20 @@ _CACHE_KEY = "theme_performance"
 _CACHE_TTL = 900  # 15 minutes
 _MAX_WORKERS = 10
 _BAR_DAYS = 420   # ~14 months of calendar days → ≥252 trading days for 1Y
+_EXCLUDED = {"TLT", "HYG", "URA", "IBB", "FXI", "MSOS"}
+
+
+def _resolve_holdings(etf_key: str, theme_data: dict, wire: dict) -> list[str]:
+    """Return the symbol list for a theme.
+
+    UCT20 is special-cased to pull from wire_data['leadership'] so the theme
+    updates daily when the morning wire pushes new data. All other themes use
+    the static holdings list stored in theme_data.
+    """
+    if etf_key == "UCT20":
+        leadership = wire.get("leadership", [])
+        return [entry["sym"] for entry in leadership if isinstance(entry, dict) and "sym" in entry]
+    return [h["sym"] for h in theme_data.get("holdings", []) if isinstance(h, dict) and h.get("sym")]
 
 
 def _compute_returns(bars: list[dict]) -> dict[str, Optional[float]]:
@@ -119,12 +133,11 @@ def get_theme_performance() -> dict:
 
     # Collect all unique US holdings across all themes
     all_syms: set[str] = set()
-    for theme_data in raw_themes.values():
-        if not isinstance(theme_data, dict):
+    for etf_key, theme_data in raw_themes.items():
+        if not isinstance(theme_data, dict) or etf_key in _EXCLUDED:
             continue
-        for h in theme_data.get("holdings", []):
-            if isinstance(h, dict) and h.get("sym"):
-                all_syms.add(h["sym"])
+        for sym in _resolve_holdings(etf_key, theme_data, wire):
+            all_syms.add(sym)
 
     # Fetch bars in parallel
     returns_map: dict[str, dict] = {}
@@ -140,8 +153,6 @@ def get_theme_performance() -> dict:
             except Exception:
                 returns_map[sym] = {k: None for k in ("1d", "1w", "1m", "3m", "1y", "ytd")}
 
-    _EXCLUDED = {"TLT", "HYG"}
-
     # Build structured response — preserve wire_data theme order
     themes_out = []
     for etf_ticker, theme_data in raw_themes.items():
@@ -150,16 +161,13 @@ def get_theme_performance() -> dict:
         if etf_ticker in _EXCLUDED:
             continue
 
-        raw_holdings = theme_data.get("holdings", [])
+        syms = _resolve_holdings(etf_ticker, theme_data, wire)
         holdings_out = []
-        for h in raw_holdings:
-            if not isinstance(h, dict) or not h.get("sym"):
-                continue
-            sym = h["sym"]
+        for sym in syms:
             holdings_out.append({
                 "sym": sym,
-                "name": h.get("name", sym),
-                "weight_pct": h.get("pct", 0.0),
+                "name": theme_data.get("name", sym),
+                "weight_pct": 0.0,
                 "returns": returns_map.get(sym, {k: None for k in ("1d", "1w", "1m", "3m", "1y", "ytd")}),
             })
 
