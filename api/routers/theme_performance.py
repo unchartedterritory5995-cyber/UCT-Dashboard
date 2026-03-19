@@ -21,5 +21,5 @@ def get_theme_performance():
 def refresh_theme_performance():
     """Bust the theme-performance cache so next GET recomputes."""
     from api.services.cache import cache
-    cache.delete(svc._CACHE_KEY)
+    cache.invalidate(svc._CACHE_KEY)
     return {"status": "ok"}
