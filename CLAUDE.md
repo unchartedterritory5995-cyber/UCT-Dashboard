@@ -120,7 +120,8 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 | Market Snapshot | Massive API (Railway fetches live) | 15s |
 | Top Movers | Massive API (Railway fetches live) | 30s |
 | News | AlphaVantage (primary) + RSS fallback (live) | 30 min (AV) / 10 min (RSS) |
-| Theme Tracker | wire_data push from engine | Daily (7:35 AM ET) |
+| Theme Tracker | Massive API bars (per-holding returns) | Daily recompute on wire push |
+| UCT20 Portfolio NAV | Massive API bars + composition history | Daily recompute on wire push |
 | Leadership 20 | wire_data + Claude AI + UCT KB | Daily (7:35 AM ET) |
 | Morning Rundown | wire_data + Claude AI + UCT KB | Daily (7:35 AM ET) |
 | UCT Exposure Rating (Breadth) | wire_data push from engine | Daily (7:35 AM ET) |
@@ -301,6 +302,14 @@ Header shows two lines: label + "10  20  50  200". Cells show ✓/✗ only, spre
 - Shows: sym header, BMO/AMC badge, METRIC/EXPECTED/REPORTED/SURPRISE table
 - Live gap % fetched from `/api/snapshot/{sym}` on open
 - View Chart via TickerPopup + FinViz button; Escape closes
+- **Pending entries** (verdict = "Pending"): shows AI-generated pre-earnings preview instead of red "not yet reported" box
+  - Preview fetched from `/api/earnings-analysis/{sym}` — router branches on `verdict.lower() == "pending"`
+  - `_generate_earnings_preview(sym, row)` in `engine.py` — AV beat history + Finnhub news + Claude Haiku (350 tokens)
+  - Returns: `preview_text`, `preview_bullets` (exactly 3), `beat_history`, `yoy_eps_growth`, `beat_streak`, `news`
+  - Cache key: `earnings_preview_{sym}` (separate from `earnings_analysis_{sym}` — prevents stale data on verdict transition)
+  - Pre-warm: fires for all Pending entries across all buckets (bmo + amc + amc_tonight) on earnings rebuild
+  - `yoy_eps_growth` / `beat_streak` return `None` on AV failure (not `"N/A"` — avoids rendering red "YoY EPS N/A" in trend block)
+  - CSS: `.previewBox` (gold left border), `.watchLabel`, `.watchList`, `.previewUnavailable` in `EarningsModal.module.css`
 
 ### API: Breadth (`api/services/engine.py` → `_normalize_breadth()`)
 - Fields: `pct_above_5ma`, `pct_above_50ma`, `pct_above_200ma`, `advancing`, `declining`, `new_highs`, `new_lows`, `new_highs_list`, `new_lows_list`, `breadth_score`, `distribution_days`, `market_phase`
@@ -429,6 +438,38 @@ CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
 | COT Data | CFTC public zips (cftc.gov) | Weekly (Friday 3:45 PM ET auto-refresh) |
 
 ---
+
+## Theme Tracker Page — Built 2026-03-20
+
+### Files
+- `app/src/pages/ThemeTrackerPage.jsx` — full-page theme tracker
+- `app/src/pages/ThemeTrackerPage.module.css` — styles
+- `api/services/theme_performance.py` — background compute, volume persistence
+- `api/services/uct20_nav.py` — UCT20 portfolio NAV tracking
+- `api/routers/theme_performance.py` — GET /api/theme-performance, POST /api/theme-performance/refresh
+
+### Architecture
+- **Non-blocking**: always returns immediately — memory cache → disk → `{status: "computing"}`
+- **Persistence**: results written to `/data/theme_performance.json` (Railway volume); loaded on startup
+- **Recompute triggers**: wire push (`/api/push`) + manual refresh endpoint
+- **Workers**: `_MAX_WORKERS = 6` (conservative for Railway 512MB)
+- **Excluded ETFs**: TLT, HYG, URA, IBB, FXI, MSOS
+- **UCT20**: injected into raw_themes (not a real ETF — holdings from leadership list)
+
+### UCT20 Portfolio NAV (`api/services/uct20_nav.py`)
+- Each wire push records current UCT20 holdings to `/data/uct20_compositions.json` (persists forever)
+- `compute_portfolio_returns()` — loads composition history, fetches bars for all ever-held symbols, builds equal-weight NAV time series, returns 1d/1w/1m/3m/1y/ytd
+- Returns `None` for periods without enough history (shows "—" until data accumulates)
+- Falls back to avg of current holdings while NAV history is building
+- `group_return` field attached to UCT20 theme object — frontend uses it over simple avg
+
+### UI Features
+- Period tabs (Today/1W/1M/3M/1Y/YTD) — click active tab to toggle ↑/↓ sort
+- Search bar — filters by theme name, ETF ticker, or individual holding symbol; auto-expands matching groups
+- Holdings sorted within each group by active period in same direction as theme list
+- Arrow key navigation — moves in visual sort order, auto-expands groups, auto-scrolls
+- UCT 20 shows gold ★ badge (managed portfolio, not ETF-tracked)
+- Right panel: TradingView chart for selected ticker
 
 ## Known Issues / Gotchas
 
