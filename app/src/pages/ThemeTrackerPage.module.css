@@ -9,15 +9,40 @@
   background: var(--bg);
 }
 
-/* ── Left panel — theme table ───────────────────────────────────────────── */
-.leftPanel {
-  width: 480px;
-  min-width: 480px;
-  max-width: 480px;
+/* ── Period rank tabs ───────────────────────────────────────────────────── */
+.periodBar {
   display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--border);
-  overflow: hidden;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.periodTab {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.1s, background 0.1s;
+}
+
+.periodTab:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.periodTabActive {
+  color: var(--ut-gold);
+  background: rgba(201, 168, 76, 0.12);
+  border-color: rgba(201, 168, 76, 0.3);
 }
 
 /* ── Search bar ─────────────────────────────────────────────────────────── */
@@ -25,7 +50,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  padding: 7px 10px;
+  padding: 6px 10px;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -68,19 +93,31 @@
   color: var(--text);
 }
 
-/* ── 7-column grid (theme + 6 periods) ──────────────────────────────────── */
-/* theme col is flexible; each period col is fixed 46px */
-.tableHeader,
-.groupRow,
-.stockRow {
-  display: grid;
-  grid-template-columns: 1fr 46px 46px 46px 46px 46px 46px;
-  align-items: center;
+/* ── Active column highlight ────────────────────────────────────────────── */
+.colLabelActive {
+  color: var(--ut-gold);
 }
 
-/* ── Column headers ─────────────────────────────────────────────────────── */
+.retActive {
+  font-weight: 700;
+}
+
+/* ── Left panel — theme table ───────────────────────────────────────────── */
+.leftPanel {
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* Sticky column header */
 .tableHeader {
-  padding: 6px 10px;
+  display: grid;
+  grid-template-columns: 1fr 80px;
+  padding: 8px 12px;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -88,33 +125,16 @@
 
 .colLabel {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.8px;
   color: var(--text-muted);
   text-transform: uppercase;
   text-align: right;
-  white-space: nowrap;
 }
 
-.colTheme {
+.colLabel:first-child {
   text-align: left;
-}
-
-.colSort {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 0;
-  transition: color 0.1s;
-}
-
-.colSort:hover {
-  color: var(--text);
-}
-
-.colSortActive {
-  color: var(--ut-gold);
 }
 
 /* Scrollable rows area */
@@ -125,7 +145,10 @@
 
 /* ── Theme group row ────────────────────────────────────────────────────── */
 .groupRow {
-  padding: 6px 10px;
+  display: grid;
+  grid-template-columns: 1fr 80px;
+  align-items: center;
+  padding: 7px 12px;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
   cursor: pointer;
@@ -139,30 +162,27 @@
 .groupName {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
   color: var(--ut-gold);
   text-transform: uppercase;
-  overflow: hidden;
 }
 
 .groupCaret {
   font-size: 9px;
   color: var(--text-muted);
-  flex-shrink: 0;
 }
 
 .groupCount {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--text-muted);
   background: rgba(255, 255, 255, 0.06);
   border-radius: 3px;
-  padding: 1px 4px;
-  flex-shrink: 0;
+  padding: 1px 5px;
 }
 
 .portfolioBadge {
@@ -179,7 +199,10 @@
 
 /* ── Stock row ──────────────────────────────────────────────────────────── */
 .stockRow {
-  padding: 4px 10px 4px 18px;
+  display: grid;
+  grid-template-columns: 1fr 80px;
+  align-items: center;
+  padding: 5px 12px 5px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   cursor: pointer;
   transition: background 0.1s;
@@ -192,35 +215,28 @@
 .stockRow.selected {
   background: rgba(201, 168, 76, 0.08);
   border-left: 2px solid var(--ut-gold);
-  padding-left: 16px;
+  padding-left: 18px;
 }
 
 .sym {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
   color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ── Return cell ────────────────────────────────────────────────────────── */
 .ret {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: 11px;
   text-align: right;
   white-space: nowrap;
 }
 
-.retActive {
-  font-weight: 700;
-}
-
-.retPos  { color: var(--gain, #4ade80); }
-.retNeg  { color: var(--loss, #f87171); }
-.retFlat { color: var(--text-muted); }
+.retPos   { color: var(--gain, #4ade80); }
+.retNeg   { color: var(--loss, #f87171); }
+.retFlat  { color: var(--text-muted); }
 
 /* ── Loading / empty states ─────────────────────────────────────────────── */
 .loading {

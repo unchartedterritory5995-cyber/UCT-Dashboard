@@ -5,8 +5,9 @@ import styles from './ThemeTrackerPage.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
-const PERIODS = ['1d', '1w', '1m', '3m', '1y', 'ytd']
 const PERIOD_LABELS = { '1d': '1D', '1w': '1W', '1m': '1M', '3m': '3M', '1y': '1Y', 'ytd': 'YTD' }
+const RANK_TABS = ['Today', '1W', '1M', '3M', '1Y', 'YTD']
+const RANK_TO_KEY = { 'Today': '1d', '1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd' }
 
 function fmtRet(val) {
   if (val === null || val === undefined) return '—'
@@ -35,6 +36,7 @@ function groupReturn(theme, periodKey) {
 
 function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs }) {
   const isPortfolio = theme.ticker === 'UCT20'
+  const groupAvg = groupReturn(theme, activeKey)
 
   const sortedHoldings = useMemo(() => {
     return [...theme.holdings].sort((a, b) => {
@@ -53,20 +55,13 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
           {isPortfolio && <span className={styles.portfolioBadge}>MANAGED</span>}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
         </span>
-        {PERIODS.map(p => {
-          const val = groupReturn(theme, p)
-          return (
-            <span
-              key={p}
-              className={`${styles.ret} ${p === activeKey ? styles.retActive : ''} ${retClass(val, styles)}`}
-            >
-              {fmtRet(val)}
-            </span>
-          )
-        })}
+        <span className={`${styles.ret} ${styles.retActive} ${retClass(groupAvg, styles)}`}>
+          {fmtRet(groupAvg)}
+        </span>
       </div>
 
       {open && sortedHoldings.map(h => {
+        const retVal = h.returns?.[activeKey]
         const isSelected = h.sym === selectedSym
         return (
           <div
@@ -76,17 +71,9 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
             onClick={() => onSelectSym(h.sym, h.name)}
           >
             <span className={styles.sym}>{h.sym}</span>
-            {PERIODS.map(p => {
-              const val = h.returns?.[p]
-              return (
-                <span
-                  key={p}
-                  className={`${styles.ret} ${p === activeKey ? styles.retActive : ''} ${retClass(val, styles)}`}
-                >
-                  {fmtRet(val)}
-                </span>
-              )
-            })}
+            <span className={`${styles.ret} ${retClass(retVal, styles)}`}>
+              {fmtRet(retVal)}
+            </span>
           </div>
         )
       })}
@@ -104,18 +91,19 @@ export default function ThemeTrackerPage() {
 
   const [selectedSym, setSelectedSym] = useState(null)
   const [selectedName, setSelectedName] = useState('')
-  const [activeKey, setActiveKey] = useState('1w')
+  const [activeTab, setActiveTab] = useState('1W')
   const [sortDir, setSortDir] = useState('desc')
   const [openThemes, setOpenThemes] = useState(new Set())
   const [search, setSearch] = useState('')
 
   const rowRefs = useRef({})
+  const activeKey = RANK_TO_KEY[activeTab]
 
-  function handleColClick(key) {
-    if (key === activeKey) {
+  function handleTabClick(tab) {
+    if (tab === activeTab) {
       setSortDir(d => d === 'desc' ? 'asc' : 'desc')
     } else {
-      setActiveKey(key)
+      setActiveTab(tab)
       setSortDir('desc')
     }
   }
@@ -212,6 +200,19 @@ export default function ThemeTrackerPage() {
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
 
+        {/* Period tabs */}
+        <div className={styles.periodBar}>
+          {RANK_TABS.map(tab => (
+            <button
+              key={tab}
+              className={`${styles.periodTab} ${activeTab === tab ? styles.periodTabActive : ''}`}
+              onClick={() => handleTabClick(tab)}
+            >
+              {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
+            </button>
+          ))}
+        </div>
+
         {/* Search */}
         <div className={styles.searchBar}>
           <input
@@ -225,18 +226,11 @@ export default function ThemeTrackerPage() {
           )}
         </div>
 
-        {/* Column headers — click to sort */}
         <div className={styles.tableHeader}>
-          <span className={`${styles.colLabel} ${styles.colTheme}`}>Theme</span>
-          {PERIODS.map(p => (
-            <button
-              key={p}
-              className={`${styles.colLabel} ${styles.colSort} ${activeKey === p ? styles.colSortActive : ''}`}
-              onClick={() => handleColClick(p)}
-            >
-              {PERIOD_LABELS[p]}{activeKey === p ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
-            </button>
-          ))}
+          <span className={styles.colLabel}>Theme</span>
+          <span className={`${styles.colLabel} ${styles.colLabelActive}`}>
+            {PERIOD_LABELS[activeKey]}
+          </span>
         </div>
 
         <div className={styles.tableBody}>
