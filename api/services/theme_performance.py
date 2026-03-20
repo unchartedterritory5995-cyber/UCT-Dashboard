@@ -133,7 +133,16 @@ def _run_computation() -> None:
     global _computing
     try:
         wire = _load_wire_data()
-        raw_themes = wire.get("themes", {}) if wire else {}
+        raw_themes = dict(wire.get("themes", {})) if wire else {}
+
+        # UCT20 is not a real ETF — inject it so _resolve_holdings can pull from leadership list
+        if wire and "UCT20" not in raw_themes:
+            raw_themes["UCT20"] = {
+                "name": "UCT 20",
+                "ticker": "UCT20",
+                "etf_name": "UCT Intelligence Leadership 20",
+                "holdings": [],
+            }
 
         if not raw_themes or not isinstance(raw_themes, dict):
             result = {"themes": [], "status": "ok",
