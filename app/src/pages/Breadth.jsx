@@ -587,67 +587,175 @@ function DrillModal({ drill, onClose }) {
   )
 }
 
-// ── BreadthHeatmap ────────────────────────────────────────────────────────
+// ── COLS lookup map ────────────────────────────────────────────────────────
+const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
+
+// ── Squarify treemap layout algorithm ─────────────────────────────────────
+function _tmWorst(row, short) {
+  const s = row.reduce((sum, i) => sum + i._n, 0)
+  const mx = Math.max(...row.map(i => i._n))
+  const mn = Math.min(...row.map(i => i._n))
+  return Math.max((short * short * mx) / (s * s), (s * s) / (short * short * mn))
+}
+
+function _tmLayoutRow(row, x, y, w, h, out) {
+  const rowSum = row.reduce((s, i) => s + i._n, 0)
+  if (w >= h) {
+    const rw = rowSum / h; let cy = y
+    for (const item of row) { const ih = item._n / rw; out.push({ ...item, x, y: cy, w: rw, h: ih }); cy += ih }
+    return { nx: x + rw, ny: y, nw: w - rw, nh: h }
+  } else {
+    const rh = rowSum / w; let cx = x
+    for (const item of row) { const iw = item._n / rh; out.push({ ...item, x: cx, y, w: iw, h: rh }); cx += iw }
+    return { nx: x, ny: y + rh, nw: w, nh: h - rh }
+  }
+}
+
+function squarify(items, x, y, w, h) {
+  if (!items.length || w <= 0 || h <= 0) return []
+  const total = items.reduce((s, i) => s + (i.weight || 1), 0)
+  const normed = items.map(i => ({ ...i, _n: (i.weight || 1) / total * w * h }))
+  const out = []
+  let remaining = normed
+  let cx = x, cy = y, cw = w, ch = h
+  while (remaining.length > 0) {
+    let row = [remaining[0]]
+    let ri = 1
+    while (ri < remaining.length) {
+      const cand = [...row, remaining[ri]]
+      if (_tmWorst(cand, Math.min(cw, ch)) <= _tmWorst(row, Math.min(cw, ch))) { row = cand; ri++ } else break
+    }
+    const next = _tmLayoutRow(row, cx, cy, cw, ch, out)
+    cx = next.nx; cy = next.ny; cw = next.nw; ch = next.nh
+    remaining = remaining.slice(row.length)
+  }
+  return out
+}
+
+// ── Treemap group + item definitions (weight = relative tile size) ──────────
+const TREEMAP_GROUPS = [
+  { key: 'score',     label: 'Score',           ghKey: G.SCORE,     weight: 18, items: [
+    { key: 'breadth_score',   label: 'Health',    weight: 12 },
+    { key: 'uct_exposure',    label: 'UCT Exp',   weight: 6 },
+  ]},
+  { key: 'primary',   label: 'Primary Breadth', ghKey: G.PRIMARY,   weight: 38, items: [
+    { key: 'up_4pct_today',       label: 'Up 4%+',     weight: 9 },
+    { key: 'down_4pct_today',     label: 'Dn 4%+',     weight: 9 },
+    { key: 'ratio_5day',          label: '5D Ratio',   weight: 6 },
+    { key: 'ratio_10day',         label: '10D Ratio',  weight: 6 },
+    { key: 'magna_up',            label: 'MAGNA↑',     weight: 4 },
+    { key: 'magna_down',          label: 'MAGNA↓',     weight: 4 },
+  ]},
+  { key: 'ma',        label: 'MA Breadth',      ghKey: G.MA,        weight: 31, items: [
+    { key: 'pct_above_50sma',  label: '>50SMA',  weight: 10 },
+    { key: 'pct_above_200sma', label: '>200SMA', weight: 9 },
+    { key: 'pct_above_20ema',  label: '>20EMA',  weight: 7 },
+    { key: 'spy_ma_stack', label: 'SPY MA', weight: 5, type: 'ma_stack',
+      keys: ['spy_above_10sma','spy_above_20sma','spy_above_50sma','spy_above_200sma'], maLabels: ['10','20','50','200'] },
+    { key: 'qqq_ma_stack', label: 'QQQ MA', weight: 5, type: 'ma_stack',
+      keys: ['qqq_above_10sma','qqq_above_20sma','qqq_above_50sma','qqq_above_200sma'], maLabels: ['10','20','50','200'] },
+  ]},
+  { key: 'regime',    label: 'Regime',          ghKey: G.REGIME,    weight: 32, items: [
+    { key: 'vix',           label: 'VIX',       weight: 9 },
+    { key: 'mcclellan_osc', label: 'McClellan', weight: 8 },
+    { key: 'stage2_count',  label: 'Stage 2',   weight: 6 },
+    { key: 'stage4_count',  label: 'Stage 4',   weight: 5 },
+    { key: 'sp500_close',   label: 'S&P 500',   weight: 4 },
+  ]},
+  { key: 'highs',     label: 'Highs / Lows',    ghKey: G.HIGHS,     weight: 30, items: [
+    { key: 'new_52w_highs', label: '52W Hi', weight: 9 },
+    { key: 'new_52w_lows',  label: '52W Lo', weight: 9 },
+    { key: 'new_20d_highs', label: '20D Hi', weight: 5 },
+    { key: 'new_20d_lows',  label: '20D Lo', weight: 4 },
+    { key: 'new_ath',       label: 'ATH',    weight: 3 },
+  ]},
+  { key: 'sentiment', label: 'Sentiment',       ghKey: G.SENTIMENT, weight: 27, items: [
+    { key: 'cnn_fear_greed', label: 'CNN F/G',   weight: 7 },
+    { key: 'aaii_spread',    label: 'B-B Sprd',  weight: 7 },
+    { key: 'aaii_bulls',     label: 'Bulls',      weight: 4 },
+    { key: 'aaii_bears',     label: 'Bears',      weight: 4 },
+    { key: 'cboe_putcall',   label: 'CBOE P/C',  weight: 5 },
+  ]},
+]
+
+// ── BreadthHeatmap (treemap view) ──────────────────────────────────────────
 function BreadthHeatmap({ rows }) {
+  const [size, setSize]       = useState({ w: 0, h: 0 })
   const [tooltip, setTooltip] = useState(null)
-  if (!rows.length) return null
+  const containerRef          = useRef(null)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const obs = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      setSize({ w: Math.floor(width), h: Math.floor(height) })
+    })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  const row = rows[0]
+
+  const layout = useMemo(() => {
+    if (!size.w || !size.h || !row) return null
+    const GAP = 3
+    const HDR = 20
+
+    const groupRects = squarify(TREEMAP_GROUPS, 0, 0, size.w, size.h)
+
+    return groupRects.map(gr => {
+      const bx = gr.x + GAP
+      const by = gr.y + HDR + GAP
+      const bw = Math.max(0, gr.w - GAP * 2)
+      const bh = Math.max(0, gr.h - HDR - GAP * 2)
+
+      const enriched = gr.items.map(item => {
+        const colDef = item.type === 'ma_stack' ? item : (COLS_BY_KEY[item.key] ?? item)
+        const tier    = getCellTier(colDef, row)
+        const displayVal = item.type === 'ma_stack'
+          ? item.keys.map((k, i) => `${item.maLabels[i]}:${row[k] === 1 ? '✓' : row[k] === 0 ? '✗' : '—'}`).join('  ')
+          : fmtCell(COLS_BY_KEY[item.key] ?? {}, row[item.key])
+        return { ...item, tier, displayVal }
+      })
+
+      return { ...gr, itemRects: squarify(enriched, bx, by, bw, bh) }
+    })
+  }, [size, row])
+
+  const tiles = []
+  layout?.forEach(gr => {
+    tiles.push(
+      <div
+        key={`hdr-${gr.key}`}
+        className={`${styles.tmGroupHdr} ${GROUP_HEADER_CLASS[gr.ghKey] ?? ''}`}
+        style={{ left: Math.round(gr.x), top: Math.round(gr.y), width: Math.round(gr.w), height: 20 }}
+      >
+        {gr.label}
+      </div>
+    )
+    gr.itemRects.forEach(item => {
+      const w = Math.round(item.w), h = Math.round(item.h)
+      tiles.push(
+        <div
+          key={item.key}
+          className={`${styles.tmTile} ${tierToClass(item.tier, styles)}`}
+          style={{ left: Math.round(item.x), top: Math.round(item.y), width: w, height: h }}
+          onMouseEnter={e => setTooltip({ x: e.clientX, y: e.clientY, label: item.label, value: item.displayVal, date: row.date })}
+          onMouseLeave={() => setTooltip(null)}
+        >
+          {w >= 46 && h >= 22 && <span className={styles.tmLabel}>{item.label}</span>}
+          {w >= 46 && h >= 46 && <span className={styles.tmValue}>{item.displayVal}</span>}
+        </div>
+      )
+    })
+  })
 
   return (
-    <div className={styles.tableWrap}>
-      <table className={styles.hmTable}>
-        <thead>
-          <tr>
-            <th className={`${styles.th} ${styles.dateCol} ${styles.ghDate}`} rowSpan={2}>Date</th>
-            {HEATMAP_GROUP_SPANS.map((gs, i) => (
-              <th
-                key={i}
-                colSpan={gs.span}
-                className={`${styles.th} ${styles.groupHeader} ${GROUP_HEADER_CLASS[gs.group] ?? ''}`}
-              >
-                {gs.group}
-              </th>
-            ))}
-          </tr>
-          <tr>
-            {HEATMAP_COLS.map(col => (
-              <th key={col.key} className={`${styles.th} ${styles.hmColTh}`} title={col.label}>
-                <span className={styles.hmColLabel}>{col.label}</span>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, ri) => (
-            <tr key={row.date} className={ri % 2 === 0 ? styles.rowEven : styles.rowOdd}>
-              <td className={`${styles.td} ${styles.dateCell} ${styles.hmDateCell}`}>
-                {row.date.slice(5)}
-              </td>
-              {HEATMAP_COLS.map(col => {
-                const tier = getCellTier(col, row)
-                return (
-                  <td
-                    key={col.key}
-                    className={`${styles.hmCell} ${tierToClass(tier, styles)}`}
-                    onMouseEnter={e => setTooltip({
-                      x: e.clientX,
-                      y: e.clientY,
-                      date: row.date,
-                      label: col.label,
-                      value: fmtTooltipVal(col, row),
-                    })}
-                    onMouseLeave={() => setTooltip(null)}
-                  />
-                )
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className={styles.tmOuter} ref={containerRef}>
+      {tiles}
       {tooltip && (
-        <div
-          className={styles.hmTooltip}
-          style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}
-        >
+        <div className={styles.hmTooltip} style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}>
           <span className={styles.hmTipDate}>{tooltip.date}</span>
           <span className={styles.hmTipLabel}>{tooltip.label}</span>
           <span className={styles.hmTipValue}>{tooltip.value}</span>
