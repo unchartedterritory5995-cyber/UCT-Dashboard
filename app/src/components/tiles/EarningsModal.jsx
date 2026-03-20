@@ -62,7 +62,7 @@ export default function EarningsModal({ row, label, onClose }) {
   const verdictLabel = isBeat ? '✓ Beat' : isMixed ? '~ Mixed' : '✗ Miss'
   const summaryText = row.reported_eps != null && row.eps_estimate != null
     ? `${verdictLabel} — EPS ${fmtEps(row.reported_eps)} vs ${fmtEps(row.eps_estimate)} est (${row.surprise_pct} surprise)`
-    : isPending ? 'Pending — not yet reported' : null
+    : null
 
   const hasAiContent = aiState.data?.analysis || aiState.data?.news?.length
 
@@ -113,6 +113,51 @@ export default function EarningsModal({ row, label, onClose }) {
           <div className={`${styles.summary} ${isBeat ? styles.summaryBeat : isMixed ? styles.summaryMixed : styles.summaryMiss}`}>
             {summaryText}
           </div>
+        )}
+
+        {isPending && (
+          aiState.loading ? (
+            <div className={styles.aiLoading}>
+              <span className={styles.aiSpinner} />
+              Generating preview…
+            </div>
+          ) : aiState.data?.preview_text ? (
+            <div className={styles.previewBox}>
+              <span className={styles.badge}>▸ EARNINGS PREVIEW</span>
+              <p className={styles.aiText}>{aiState.data.preview_text}</p>
+              {aiState.data.preview_bullets?.length > 0 && (
+                <>
+                  <div className={styles.watchLabel}>▸ THINGS TO WATCH</div>
+                  <ul className={styles.watchList}>
+                    {aiState.data.preview_bullets.map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {aiState.data.news?.length > 0 && (
+                <div className={styles.newsList}>
+                  {aiState.data.news.map((item, i) => (
+                    <a
+                      key={i}
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.newsItem}
+                      aria-label={`${item.source}: ${item.headline}`}
+                    >
+                      <span className={styles.newsItemSource}>
+                        {item.source}{item.time ? ` · ${item.time}` : ''}
+                      </span>
+                      <span className={styles.newsItemHeadline}>{item.headline} ↗</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : aiState.data && !aiState.data.preview_text ? (
+            <div className={styles.previewUnavailable}>Preview unavailable</div>
+          ) : null
         )}
 
         {(aiState.data?.yoy_eps_growth || aiState.data?.beat_streak) && (
