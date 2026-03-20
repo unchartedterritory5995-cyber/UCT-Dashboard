@@ -56,3 +56,57 @@ async def test_earnings_analysis_sym_not_found_passes_none_row():
     assert r.status_code == 200
     call_args = mock_gen.call_args
     assert call_args[0][1] is None  # row=None when sym not found
+
+
+MOCK_PENDING_ROW = {
+    "sym": "PL",
+    "verdict": "Pending",
+    "eps_estimate": -0.04,
+    "rev_estimate": 78.0,
+    "change_pct": 5.64,
+}
+
+MOCK_PREVIEW = {
+    "sym": "PL",
+    "preview_text": "Palantir reports tonight with elevated expectations.",
+    "preview_bullets": ["Beat 2 of last 4.", "Watch $78M revenue target.", "Gap +5.6% raises the bar."],
+    "beat_history": ["✗", "✓", "✗", "✓"],
+    "yoy_eps_growth": "-12.3%",
+    "beat_streak": "Beat 2 of last 4",
+    "news": [],
+}
+
+MOCK_EARNINGS_WITH_PENDING = {
+    "bmo": [],
+    "amc": [],
+    "amc_tonight": [MOCK_PENDING_ROW],
+}
+
+
+@pytest.mark.asyncio
+async def test_pending_verdict_routes_to_preview():
+    """Pending verdict → _generate_earnings_preview called, not _generate_earnings_analysis."""
+    with patch("api.routers.earnings.get_earnings", return_value=MOCK_EARNINGS_WITH_PENDING), \
+         patch("api.routers.earnings._generate_earnings_preview", return_value=MOCK_PREVIEW) as mock_prev, \
+         patch("api.routers.earnings._generate_earnings_analysis") as mock_anal:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            r = await ac.get("/api/earnings-analysis/PL")
+    assert r.status_code == 200
+    mock_prev.assert_called_once()
+    mock_anal.assert_not_called()
+    call_args = mock_prev.call_args
+    assert call_args[0][0] == "PL"
+    assert call_args[0][1]["verdict"] == "Pending"
+
+
+@pytest.mark.asyncio
+async def test_non_pending_verdict_routes_to_analysis():
+    """Non-pending verdict → _generate_earnings_analysis called, not _generate_earnings_preview."""
+    with patch("api.routers.earnings.get_earnings", return_value=MOCK_EARNINGS), \
+         patch("api.routers.earnings._generate_earnings_analysis", return_value=MOCK_ANALYSIS) as mock_anal, \
+         patch("api.routers.earnings._generate_earnings_preview") as mock_prev:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            r = await ac.get("/api/earnings-analysis/AVGO")
+    assert r.status_code == 200
+    mock_anal.assert_called_once()
+    mock_prev.assert_not_called()

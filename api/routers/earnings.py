@@ -1,6 +1,6 @@
 import os
 from fastapi import APIRouter, HTTPException, Request
-from api.services.engine import get_earnings, _generate_earnings_analysis
+from api.services.engine import get_earnings, _generate_earnings_analysis, _generate_earnings_preview
 from api.services.cache import cache
 from api.limiter import limiter
 
@@ -58,4 +58,6 @@ def earnings_analysis(request: Request, sym: str):
         if row:
             break
 
+    if row and row.get("verdict", "").lower() == "pending":
+        return _generate_earnings_preview(sym, row)
     return _generate_earnings_analysis(sym, row)
