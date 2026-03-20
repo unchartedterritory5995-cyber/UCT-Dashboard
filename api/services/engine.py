@@ -893,8 +893,8 @@ def _generate_earnings_preview(sym: str, row: dict) -> dict:
     fh_key = os.environ.get("FINNHUB_API_KEY", "")
 
     # ── Step 1: Alpha Vantage quarterly history ────────────────────────────────
-    yoy_eps_growth = "N/A"
-    beat_streak    = ""
+    yoy_eps_growth = None
+    beat_streak    = None
     beat_history   = []
     try:
         av_url = (

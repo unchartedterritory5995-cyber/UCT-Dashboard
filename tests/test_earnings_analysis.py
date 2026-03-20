@@ -264,8 +264,8 @@ class TestGenerateEarningsPreview:
             mock_ac.return_value.messages.create.return_value = _mock_preview_response()
             result = engine._generate_earnings_preview("PL", self.PENDING_ROW)
         assert result["beat_history"] == []
-        assert result["yoy_eps_growth"] == "N/A"
-        assert result["beat_streak"] == ""
+        assert result["yoy_eps_growth"] is None
+        assert result["beat_streak"] is None
         # AI still ran — verify client was called and text was returned
         mock_ac.return_value.messages.create.assert_called_once()
         assert len(result["preview_text"]) > 0
