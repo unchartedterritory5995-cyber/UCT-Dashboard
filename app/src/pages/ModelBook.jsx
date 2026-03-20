@@ -5,11 +5,61 @@ import styles from './ModelBook.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
+const YEARS = Array.from({ length: 12 }, (_, i) => 2026 - i)
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const SETUPS = [
+  'VCP', 'EP', 'HTF', 'PEG', 'Base Breakout',
+  'Pullback/Flag', 'Remount', 'IPO Base',
+  'Parabolic Short', 'Red to Green', 'Wedge Pop', 'Kicker Candle'
+]
+
+const EMPTY_FORM = { sym: '', entry: '', stop: '', target: '', size_pct: '', notes: '', setup: '', date: '' }
+
+function selectedLabel(sel) {
+  if (!sel) return 'All Trades'
+  if (sel.type === 'year') return String(sel.year)
+  if (sel.type === 'month') return `${MONTHS[sel.month]} ${sel.year}`
+  if (sel.type === 'setup') return sel.setup
+  return 'All Trades'
+}
+
+function filterTrades(trades, sel) {
+  if (!trades) return []
+  if (!sel) return trades
+  if (sel.type === 'year') {
+    return trades.filter(t => t.date && new Date(t.date).getFullYear() === sel.year)
+  }
+  if (sel.type === 'month') {
+    return trades.filter(t => {
+      if (!t.date) return false
+      const d = new Date(t.date)
+      return d.getFullYear() === sel.year && d.getMonth() === sel.month
+    })
+  }
+  if (sel.type === 'setup') {
+    return trades.filter(t => (t.setup || '').toLowerCase() === sel.setup.toLowerCase())
+  }
+  return trades
+}
+
 export default function ModelBook() {
   const { data: trades, mutate } = useSWR('/api/trades', fetcher, { refreshInterval: 60000 })
-  const [form, setForm] = useState({ sym: '', entry: '', stop: '', target: '', size_pct: '', notes: '' })
+  const [form, setForm] = useState(EMPTY_FORM)
   const [adding, setAdding] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [expandedYears, setExpandedYears] = useState({})
+  const [expandedSetups, setExpandedSetups] = useState(false)
+  const [selected, setSelected] = useState(null)
+
+  function toggleYear(year, e) {
+    e.stopPropagation()
+    setExpandedYears(prev => ({ ...prev, [year]: !prev[year] }))
+  }
+
+  function selectYear(year) {
+    setSelected({ type: 'year', year })
+    setExpandedYears(prev => ({ ...prev, [year]: true }))
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -24,16 +74,20 @@ export default function ModelBook() {
           stop: parseFloat(form.stop),
           target: parseFloat(form.target),
           size_pct: parseFloat(form.size_pct),
-          notes: form.notes
+          notes: form.notes,
+          setup: form.setup,
+          date: form.date || new Date().toISOString().slice(0, 10),
         })
       })
-      setForm({ sym: '', entry: '', stop: '', target: '', size_pct: '', notes: '' })
+      setForm(EMPTY_FORM)
       setShowForm(false)
       mutate()
     } finally {
       setAdding(false)
     }
   }
+
+  const filtered = filterTrades(trades, selected)
 
   return (
     <div className={styles.page}>
@@ -53,6 +107,11 @@ export default function ModelBook() {
               <input className={styles.input} placeholder="Stop" type="number" step="0.01" value={form.stop} onChange={e => setForm(f => ({...f, stop: e.target.value}))} required />
               <input className={styles.input} placeholder="Target" type="number" step="0.01" value={form.target} onChange={e => setForm(f => ({...f, target: e.target.value}))} required />
               <input className={styles.input} placeholder="Size %" type="number" step="0.5" value={form.size_pct} onChange={e => setForm(f => ({...f, size_pct: e.target.value}))} required />
+              <input className={styles.input} placeholder="Date" type="date" value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} />
+              <select className={styles.input} value={form.setup} onChange={e => setForm(f => ({...f, setup: e.target.value}))}>
+                <option value="">Setup…</option>
+                {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
             <input className={`${styles.input} ${styles.notesInput}`} placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} />
             <button className={styles.submitBtn} type="submit" disabled={adding}>{adding ? 'Adding…' : 'Add Trade'}</button>
@@ -60,46 +119,110 @@ export default function ModelBook() {
         </TileCard>
       )}
 
-      <TileCard title="Open Positions">
-        {trades
-          ? trades.length > 0
-            ? (
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Ticker</th>
-                    <th>Entry</th>
-                    <th>Stop</th>
-                    <th>Target</th>
-                    <th>Size %</th>
-                    <th>R:R</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trades.map(trade => {
-                    const risk = trade.entry - trade.stop
-                    const reward = trade.target - trade.entry
-                    const rr = risk > 0 ? (reward / risk).toFixed(1) : '—'
-                    return (
-                      <tr key={trade.id || trade.sym} className={styles.tradeRow}>
-                        <td className={styles.sym}>{trade.sym}</td>
-                        <td className={styles.num}>{trade.entry}</td>
-                        <td className={styles.num} style={{color:'var(--loss)'}}>{trade.stop}</td>
-                        <td className={styles.num} style={{color:'var(--gain)'}}>{trade.target}</td>
-                        <td className={styles.num}>{trade.size_pct}%</td>
-                        <td className={styles.num}>{rr}:1</td>
-                        <td><span className={trade.status === 'open' ? styles.open : styles.closed}>{trade.status}</span></td>
+      <div className={styles.layout}>
+        {/* Left sidebar — collapsible tree */}
+        <nav className={styles.sidebar}>
+          {YEARS.map(year => (
+            <div key={year} className={styles.treeGroup}>
+              <button
+                className={`${styles.treeItem} ${selected?.type === 'year' && selected.year === year ? styles.treeActive : ''}`}
+                onClick={() => selectYear(year)}
+              >
+                <span className={styles.treeArrow} onClick={e => toggleYear(year, e)}>
+                  {expandedYears[year] ? '▾' : '▸'}
+                </span>
+                {year}
+              </button>
+              {expandedYears[year] && (
+                <div className={styles.treeChildren}>
+                  {MONTHS.map((m, i) => (
+                    <button
+                      key={m}
+                      className={`${styles.treeChild} ${selected?.type === 'month' && selected.year === year && selected.month === i ? styles.treeActive : ''}`}
+                      onClick={() => setSelected({ type: 'month', year, month: i })}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div className={styles.treeDivider} />
+
+          <div className={styles.treeGroup}>
+            <button
+              className={`${styles.treeItem} ${styles.treeSetupsBtn}`}
+              onClick={() => setExpandedSetups(v => !v)}
+            >
+              <span className={styles.treeArrow}>{expandedSetups ? '▾' : '▸'}</span>
+              Setups
+            </button>
+            {expandedSetups && (
+              <div className={styles.treeChildren}>
+                {SETUPS.map(s => (
+                  <button
+                    key={s}
+                    className={`${styles.treeChild} ${selected?.type === 'setup' && selected.setup === s ? styles.treeActive : ''}`}
+                    onClick={() => setSelected({ type: 'setup', setup: s })}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </nav>
+
+        {/* Right content */}
+        <div className={styles.content}>
+          <TileCard title={selectedLabel(selected)}>
+            {!trades
+              ? <p className={styles.loading}>Loading trades…</p>
+              : filtered.length === 0
+                ? <p className={styles.noTrades}>No trades{selected ? ` for ${selectedLabel(selected)}` : ''}</p>
+                : (
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Ticker</th>
+                        <th>Setup</th>
+                        <th>Date</th>
+                        <th>Entry</th>
+                        <th>Stop</th>
+                        <th>Target</th>
+                        <th>Size %</th>
+                        <th>R:R</th>
+                        <th>Status</th>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            )
-            : <p className={styles.noTrades}>No open positions</p>
-          : <p className={styles.loading}>Loading trades…</p>
-        }
-      </TileCard>
+                    </thead>
+                    <tbody>
+                      {filtered.map(trade => {
+                        const risk = trade.entry - trade.stop
+                        const reward = trade.target - trade.entry
+                        const rr = risk > 0 ? (reward / risk).toFixed(1) : '—'
+                        return (
+                          <tr key={trade.id || trade.sym} className={styles.tradeRow}>
+                            <td className={styles.sym}>{trade.sym}</td>
+                            <td className={styles.setupChip}>{trade.setup || '—'}</td>
+                            <td className={styles.dateCell}>{trade.date || '—'}</td>
+                            <td className={styles.num}>{trade.entry}</td>
+                            <td className={styles.num} style={{color:'var(--loss)'}}>{trade.stop}</td>
+                            <td className={styles.num} style={{color:'var(--gain)'}}>{trade.target}</td>
+                            <td className={styles.num}>{trade.size_pct}%</td>
+                            <td className={styles.num}>{rr}:1</td>
+                            <td><span className={trade.status === 'open' ? styles.open : styles.closed}>{trade.status}</span></td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )
+            }
+          </TileCard>
+        </div>
+      </div>
     </div>
   )
 }

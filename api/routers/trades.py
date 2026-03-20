@@ -1,6 +1,7 @@
 import json
 import os
 import uuid
+from datetime import date as date_type
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
@@ -33,6 +34,8 @@ class Trade(BaseModel):
     target: float
     size_pct: float
     notes: Optional[str] = ""
+    setup: Optional[str] = ""
+    date: Optional[str] = ""  # ISO date string e.g. "2026-03-19"
 
 
 @router.get("/api/trades")
@@ -47,6 +50,7 @@ def add_trade(trade: Trade):
         **trade.model_dump(),
         "id": str(uuid.uuid4())[:8],
         "status": "open",
+        "date": trade.date or str(date_type.today()),
     }
     trades.append(new_trade)
     _save(trades)
