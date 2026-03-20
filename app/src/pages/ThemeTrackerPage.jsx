@@ -158,11 +158,16 @@ export default function ThemeTrackerPage() {
     })
   }, [search, sortedThemes])
 
-  // Flat list for keyboard navigation
+  // Flat list for keyboard navigation — must match visual sort order
   const allStocks = useMemo(() =>
-    filteredThemes.flatMap(theme =>
-      theme.holdings.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker }))
-    ), [filteredThemes])
+    filteredThemes.flatMap(theme => {
+      const sorted = [...theme.holdings].sort((a, b) => {
+        const av = a.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
+        const bv = b.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
+        return sortDir === 'desc' ? bv - av : av - bv
+      })
+      return sorted.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker }))
+    }), [filteredThemes, activeKey, sortDir])
 
   const handleKeyDown = useCallback((e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
