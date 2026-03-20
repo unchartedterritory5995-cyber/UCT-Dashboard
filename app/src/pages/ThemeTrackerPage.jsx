@@ -52,7 +52,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
         <span className={styles.groupName}>
           <span className={styles.groupCaret}>{open ? '▾' : '▸'}</span>
           {theme.name}
-          {isPortfolio && <span className={styles.portfolioBadge}>MANAGED</span>}
+          {isPortfolio && <span className={styles.portfolioBadge}>★</span>}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
         </span>
         <span className={`${styles.ret} ${styles.retActive} ${retClass(groupAvg, styles)}`}>
