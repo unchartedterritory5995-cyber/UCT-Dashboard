@@ -30,7 +30,8 @@ function avgReturn(holdings, periodKey) {
 
 function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, open, onToggle, rowRefs }) {
   // Use portfolio NAV return if available (UCT20), otherwise avg of current holdings
-  const groupAvg = theme.group_return?.[activeKey] !== undefined
+  // Use portfolio NAV return if available, fall back to avg of current holdings
+  const groupAvg = (theme.group_return?.[activeKey] != null)
     ? theme.group_return[activeKey]
     : avgReturn(theme.holdings, activeKey)
 
