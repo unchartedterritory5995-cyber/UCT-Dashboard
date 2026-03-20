@@ -43,6 +43,16 @@ def push_wire_data(
     except OSError:
         pass  # Volume not mounted in local dev — safe to ignore
 
+    # Record UCT20 composition snapshot (for portfolio NAV tracking)
+    try:
+        from api.services.uct20_nav import record_composition
+        leadership = payload.get("leadership", [])
+        holdings = [e["sym"] for e in leadership if isinstance(e, dict) and "sym" in e]
+        if holdings:
+            record_composition(holdings)
+    except Exception:
+        pass
+
     # Trigger theme performance recompute in background (UCT20 holdings may have changed)
     try:
         from api.services.theme_performance import trigger_recompute

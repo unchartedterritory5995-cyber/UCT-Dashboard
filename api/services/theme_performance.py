@@ -178,13 +178,20 @@ def _run_computation() -> None:
                 except Exception:
                     returns_map[sym] = null_returns.copy()
 
+        # Compute UCT20 portfolio NAV returns (composition-history based)
+        try:
+            from api.services.uct20_nav import compute_portfolio_returns
+            uct20_nav_returns = compute_portfolio_returns()
+        except Exception:
+            uct20_nav_returns = None
+
         # Build response
         themes_out = []
         for etf_ticker, theme_data in raw_themes.items():
             if not isinstance(theme_data, dict) or etf_ticker in _EXCLUDED:
                 continue
             syms = _resolve_holdings(etf_ticker, theme_data, wire)
-            themes_out.append({
+            theme_obj = {
                 "name": theme_data.get("name", etf_ticker),
                 "ticker": etf_ticker,
                 "etf_name": theme_data.get("etf_name", ""),
@@ -197,7 +204,12 @@ def _run_computation() -> None:
                     }
                     for sym in syms
                 ],
-            })
+            }
+            # UCT20: attach portfolio NAV returns as group_return so the UI
+            # shows proper portfolio accounting instead of simple avg of holdings
+            if etf_ticker == "UCT20" and uct20_nav_returns:
+                theme_obj["group_return"] = uct20_nav_returns
+            themes_out.append(theme_obj)
 
         result = {
             "themes": themes_out,
