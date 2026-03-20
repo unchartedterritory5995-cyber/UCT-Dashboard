@@ -237,6 +237,65 @@ function buildGroupSpans(cols) {
 
 const GROUP_SPANS = buildGroupSpans(COLS)
 
+// ── Heatmap column set (curated — most color-meaningful metrics) ───────────
+const HEATMAP_COL_KEYS = new Set([
+  'breadth_score', 'uct_exposure',
+  'up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day',
+  'up_25pct_quarter', 'down_25pct_quarter', 'magna_up', 'magna_down',
+  'spy_ma_stack', 'qqq_ma_stack',
+  'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma',
+  'sp500_close', 'qqq_close', 'vix', 'mcclellan_osc', 'stage2_count', 'stage4_count',
+  'new_52w_highs', 'new_52w_lows', 'new_20d_highs', 'new_20d_lows', 'new_ath',
+  'cnn_fear_greed', 'aaii_spread', 'cboe_putcall',
+])
+const HEATMAP_COLS = COLS.filter(c => HEATMAP_COL_KEYS.has(c.key))
+const HEATMAP_GROUP_SPANS = buildGroupSpans(HEATMAP_COLS)
+
+function getMaStackTier(col, row) {
+  const above10  = row[col.keys[0]] === 1
+  const above20  = row[col.keys[1]] === 1
+  const above50  = row[col.keys[2]] === 1
+  const above200 = row[col.keys[3]] === 1
+  const hasData  = col.keys.some(k => row[k] != null)
+  if (!hasData) return ''
+  if (above50) {
+    if (above10 && above20 && above200) return 'g3'
+    if (above200 && (above10 || above20)) return 'g2'
+    if (above200) return 'g1'
+    return 'a'
+  } else {
+    if (above200) return 'r1'
+    if (above10 || above20) return 'r2'
+    return 'r3'
+  }
+}
+
+function getCellTier(col, row) {
+  if (col.type === 'ma_stack') return getMaStackTier(col, row)
+  const val = row[col.key]
+  if (col.rowColorFn) return col.rowColorFn(row)
+  if (col.colorFn && val != null) return col.colorFn(val)
+  return ''
+}
+
+function tierToClass(tier, s) {
+  if (tier === 'g3') return s.bgG3
+  if (tier === 'g2') return s.bgG2
+  if (tier === 'g1') return s.bgG1
+  if (tier === 'a')  return s.bgA
+  if (tier === 'r1') return s.bgR1
+  if (tier === 'r2') return s.bgR2
+  if (tier === 'r3') return s.bgR3
+  return s.hmEmpty
+}
+
+function fmtTooltipVal(col, row) {
+  if (col.type === 'ma_stack') {
+    return col.keys.map((k, i) => `${col.maLabels[i]}:${row[k] === 1 ? '✓' : row[k] === 0 ? '✗' : '—'}`).join('  ')
+  }
+  return fmtCell(col, row[col.key])
+}
+
 // ── Formatters ─────────────────────────────────────────────────────────────
 function fmtDec(v, d = 1) {
   if (v === null || v === undefined) return '—'
@@ -528,6 +587,76 @@ function DrillModal({ drill, onClose }) {
   )
 }
 
+// ── BreadthHeatmap ────────────────────────────────────────────────────────
+function BreadthHeatmap({ rows }) {
+  const [tooltip, setTooltip] = useState(null)
+  if (!rows.length) return null
+
+  return (
+    <div className={styles.tableWrap}>
+      <table className={styles.hmTable}>
+        <thead>
+          <tr>
+            <th className={`${styles.th} ${styles.dateCol} ${styles.ghDate}`} rowSpan={2}>Date</th>
+            {HEATMAP_GROUP_SPANS.map((gs, i) => (
+              <th
+                key={i}
+                colSpan={gs.span}
+                className={`${styles.th} ${styles.groupHeader} ${GROUP_HEADER_CLASS[gs.group] ?? ''}`}
+              >
+                {gs.group}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            {HEATMAP_COLS.map(col => (
+              <th key={col.key} className={`${styles.th} ${styles.hmColTh}`} title={col.label}>
+                <span className={styles.hmColLabel}>{col.label}</span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr key={row.date} className={ri % 2 === 0 ? styles.rowEven : styles.rowOdd}>
+              <td className={`${styles.td} ${styles.dateCell} ${styles.hmDateCell}`}>
+                {row.date.slice(5)}
+              </td>
+              {HEATMAP_COLS.map(col => {
+                const tier = getCellTier(col, row)
+                return (
+                  <td
+                    key={col.key}
+                    className={`${styles.hmCell} ${tierToClass(tier, styles)}`}
+                    onMouseEnter={e => setTooltip({
+                      x: e.clientX,
+                      y: e.clientY,
+                      date: row.date,
+                      label: col.label,
+                      value: fmtTooltipVal(col, row),
+                    })}
+                    onMouseLeave={() => setTooltip(null)}
+                  />
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {tooltip && (
+        <div
+          className={styles.hmTooltip}
+          style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}
+        >
+          <span className={styles.hmTipDate}>{tooltip.date}</span>
+          <span className={styles.hmTipLabel}>{tooltip.label}</span>
+          <span className={styles.hmTipValue}>{tooltip.value}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Component ─────────────────────────────────────────────────────────────
 const phaseClass = (phase, styles) => {
   if (!phase) return ''
@@ -626,6 +755,7 @@ export default function Breadth() {
           <h1 className={styles.heading}>Breadth</h1>
           <div className={styles.tabs}>
             <button className={styles.tab} onClick={() => setActiveTab('breadth')}>Monitor</button>
+            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
             <button className={`${styles.tab} ${styles.tabActive}`}>COT Data</button>
           </div>
         </div>
@@ -639,7 +769,8 @@ export default function Breadth() {
       <div className={styles.header}>
         <h1 className={styles.heading}>Breadth</h1>
         <div className={styles.tabs}>
-          <button className={`${styles.tab} ${styles.tabActive}`}>Monitor</button>
+          <button className={`${styles.tab} ${activeTab === 'breadth' ? styles.tabActive : ''}`} onClick={() => setActiveTab('breadth')}>Monitor</button>
+          <button className={`${styles.tab} ${activeTab === 'heatmap' ? styles.tabActive : ''}`} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
           <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
         </div>
         <span className={styles.meta}>
@@ -688,7 +819,11 @@ export default function Breadth() {
       )}
 
 
-      {rows.length > 0 && (
+      {rows.length > 0 && activeTab === 'heatmap' && (
+        <BreadthHeatmap rows={rows} />
+      )}
+
+      {rows.length > 0 && activeTab === 'breadth' && (
         <div className={styles.tableWrap} ref={tableRef}>
           <table className={styles.table}>
             <thead>
