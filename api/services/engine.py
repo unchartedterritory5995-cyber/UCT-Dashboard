@@ -1045,35 +1045,26 @@ def _generate_earnings_preview(sym: str, row: dict) -> dict:
 
 
 def _prewarm_earnings_analysis(data: dict) -> None:
-    """Pre-cache AI analysis for reported tickers; pre-fetch context for Pending AMC tonight."""
+    """Pre-cache AI analysis for reported tickers; AI preview for Pending entries."""
     if not os.environ.get("ANTHROPIC_API_KEY"):
         return
     _logger.info("prewarm: starting for buckets bmo/amc/amc_tonight")
-
-    def _partial_prewarm(sym: str) -> None:
-        """For Pending entries: cache news + AV history without AI call."""
-        cache_key = f"earnings_analysis_{sym}"
-        if cache.get(cache_key):
-            return
-        # Calling with row=None causes _generate_earnings_analysis to skip AI
-        # but still fetches AV history and Finnhub news, then caches the partial result.
-        _generate_earnings_analysis(sym, None)
 
     for bucket in ("bmo", "amc", "amc_tonight"):
         for entry in data.get(bucket, []):
             sym = entry.get("sym", "")
             if not sym:
                 continue
-            is_pending = entry.get("verdict", "").lower() in ("pending", "")
-            if cache.get(f"earnings_analysis_{sym}"):
-                continue  # already warmed
+            is_pending = entry.get("verdict", "").lower() in ("pending", "")  # "" = no verdict yet (edge case)
 
-            if is_pending and bucket == "amc_tonight":
-                # Partial pre-warm: AV history + news, no AI
-                _prewarm_executor.submit(_partial_prewarm, sym)
-            elif not is_pending:
-                # Full pre-warm: AV history + news + AI analysis
-                _prewarm_executor.submit(_generate_earnings_analysis, sym, dict(entry))
+            if is_pending:
+                # Full AI preview (AV history + news + Claude)
+                if not cache.get(f"earnings_preview_{sym}"):
+                    _prewarm_executor.submit(_generate_earnings_preview, sym, dict(entry))
+            else:
+                # Full post-earnings analysis (AV history + news + Claude)
+                if not cache.get(f"earnings_analysis_{sym}"):
+                    _prewarm_executor.submit(_generate_earnings_analysis, sym, dict(entry))
 
 
 # ─── News ─────────────────────────────────────────────────────────────────────
