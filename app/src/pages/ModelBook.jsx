@@ -48,7 +48,6 @@ export default function ModelBook() {
   const [adding, setAdding] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [expandedYears, setExpandedYears] = useState({})
-  const [expandedSetups, setExpandedSetups] = useState(false)
   const [selected, setSelected] = useState(null)
 
   function toggleYear(year, e) {
@@ -120,58 +119,51 @@ export default function ModelBook() {
       )}
 
       <div className={styles.layout}>
-        {/* Left sidebar — collapsible tree */}
-        <nav className={styles.sidebar}>
-          {YEARS.map(year => (
-            <div key={year} className={styles.treeGroup}>
-              <button
-                className={`${styles.treeItem} ${selected?.type === 'year' && selected.year === year ? styles.treeActive : ''}`}
-                onClick={() => selectYear(year)}
-              >
-                <span className={styles.treeArrow} onClick={e => toggleYear(year, e)}>
-                  {expandedYears[year] ? '▾' : '▸'}
-                </span>
-                {year}
-              </button>
-              {expandedYears[year] && (
-                <div className={styles.treeChildren}>
-                  {MONTHS.map((m, i) => (
-                    <button
-                      key={m}
-                      className={`${styles.treeChild} ${selected?.type === 'month' && selected.year === year && selected.month === i ? styles.treeActive : ''}`}
-                      onClick={() => setSelected({ type: 'month', year, month: i })}
-                    >
-                      {m}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-
-          <div className={styles.treeDivider} />
-
-          <div className={styles.treeGroup}>
-            <button
-              className={`${styles.treeItem} ${styles.treeSetupsBtn}`}
-              onClick={() => setExpandedSetups(v => !v)}
-            >
-              <span className={styles.treeArrow}>{expandedSetups ? '▾' : '▸'}</span>
-              Setups
-            </button>
-            {expandedSetups && (
-              <div className={styles.treeChildren}>
-                {SETUPS.map(s => (
-                  <button
-                    key={s}
-                    className={`${styles.treeChild} ${selected?.type === 'setup' && selected.setup === s ? styles.treeActive : ''}`}
-                    onClick={() => setSelected({ type: 'setup', setup: s })}
-                  >
-                    {s}
-                  </button>
-                ))}
+        {/* Left nav — two side-by-side columns */}
+        <nav className={styles.navPanel}>
+          {/* Column 1: Year / Month */}
+          <div className={styles.navCol}>
+            <div className={styles.navColHeader}>Year / Month</div>
+            {YEARS.map(year => (
+              <div key={year} className={styles.treeGroup}>
+                <button
+                  className={`${styles.treeItem} ${selected?.type === 'year' && selected.year === year ? styles.treeActive : ''}`}
+                  onClick={() => selectYear(year)}
+                >
+                  <span className={styles.treeArrow} onClick={e => toggleYear(year, e)}>
+                    {expandedYears[year] ? '▾' : '▸'}
+                  </span>
+                  {year}
+                </button>
+                {expandedYears[year] && (
+                  <div className={styles.treeChildren}>
+                    {MONTHS.map((m, i) => (
+                      <button
+                        key={m}
+                        className={`${styles.treeChild} ${selected?.type === 'month' && selected.year === year && selected.month === i ? styles.treeActive : ''}`}
+                        onClick={() => setSelected({ type: 'month', year, month: i })}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+            ))}
+          </div>
+
+          {/* Column 2: Setups */}
+          <div className={styles.navCol}>
+            <div className={styles.navColHeader}>Setups</div>
+            {SETUPS.map(s => (
+              <button
+                key={s}
+                className={`${styles.treeItem} ${selected?.type === 'setup' && selected.setup === s ? styles.treeActive : ''}`}
+                onClick={() => setSelected({ type: 'setup', setup: s })}
+              >
+                {s}
+              </button>
+            ))}
           </div>
         </nav>
 
