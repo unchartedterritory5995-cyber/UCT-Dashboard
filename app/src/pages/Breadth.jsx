@@ -633,20 +633,20 @@ function squarify(items, x, y, w, h) {
 }
 
 // ── Treemap group + item definitions (weight = relative tile size) ──────────
+// type:'paired' merges up/down pairs into one tile using ratio coloring
 const TREEMAP_GROUPS = [
-  { key: 'score',     label: 'Score',           ghKey: G.SCORE,     weight: 18, items: [
-    { key: 'breadth_score',   label: 'Health',    weight: 12 },
-    { key: 'uct_exposure',    label: 'UCT Exp',   weight: 6 },
+  { key: 'score', label: 'Score', ghKey: G.SCORE, weight: 18, items: [
+    { key: 'breadth_score', label: 'Health',  weight: 12 },
+    { key: 'uct_exposure',  label: 'UCT Exp', weight: 6 },
   ]},
-  { key: 'primary',   label: 'Primary Breadth', ghKey: G.PRIMARY,   weight: 38, items: [
-    { key: 'up_4pct_today',       label: 'Up 4%+',     weight: 9 },
-    { key: 'down_4pct_today',     label: 'Dn 4%+',     weight: 9 },
-    { key: 'ratio_5day',          label: '5D Ratio',   weight: 6 },
-    { key: 'ratio_10day',         label: '10D Ratio',  weight: 6 },
-    { key: 'magna_up',            label: 'MAGNA↑',     weight: 4 },
-    { key: 'magna_down',          label: 'MAGNA↓',     weight: 4 },
+  { key: 'primary', label: 'Primary Breadth', ghKey: G.PRIMARY, weight: 38, items: [
+    { key: 'ad_4pct',    label: 'A/D 4%+',   weight: 12, type: 'paired', upKey: 'up_4pct_today', dnKey: 'down_4pct_today' },
+    { key: 'ratio_5day', label: '5D Ratio',  weight: 7 },
+    { key: 'ratio_10day',label: '10D Ratio', weight: 7 },
+    { key: 'magna',      label: 'MAGNA',     weight: 8,  type: 'paired', upKey: 'magna_up',       dnKey: 'magna_down' },
+    { key: 'is_ftd',     label: 'FTD',       weight: 4 },
   ]},
-  { key: 'ma',        label: 'MA Breadth',      ghKey: G.MA,        weight: 31, items: [
+  { key: 'ma', label: 'MA Breadth', ghKey: G.MA, weight: 31, items: [
     { key: 'pct_above_50sma',  label: '>50SMA',  weight: 10 },
     { key: 'pct_above_200sma', label: '>200SMA', weight: 9 },
     { key: 'pct_above_20ema',  label: '>20EMA',  weight: 7 },
@@ -655,34 +655,50 @@ const TREEMAP_GROUPS = [
     { key: 'qqq_ma_stack', label: 'QQQ MA', weight: 5, type: 'ma_stack',
       keys: ['qqq_above_10sma','qqq_above_20sma','qqq_above_50sma','qqq_above_200sma'], maLabels: ['10','20','50','200'] },
   ]},
-  { key: 'regime',    label: 'Regime',          ghKey: G.REGIME,    weight: 32, items: [
+  { key: 'regime', label: 'Regime', ghKey: G.REGIME, weight: 32, items: [
     { key: 'vix',           label: 'VIX',       weight: 9 },
     { key: 'mcclellan_osc', label: 'McClellan', weight: 8 },
-    { key: 'stage2_count',  label: 'Stage 2',   weight: 6 },
-    { key: 'stage4_count',  label: 'Stage 4',   weight: 5 },
+    { key: 'stage_ratio',   label: 'Stage 2/4', weight: 11, type: 'paired', upKey: 'stage2_count', dnKey: 'stage4_count' },
     { key: 'sp500_close',   label: 'S&P 500',   weight: 4 },
   ]},
-  { key: 'highs',     label: 'Highs / Lows',    ghKey: G.HIGHS,     weight: 30, items: [
-    { key: 'new_52w_highs', label: '52W Hi', weight: 9 },
-    { key: 'new_52w_lows',  label: '52W Lo', weight: 9 },
-    { key: 'new_20d_highs', label: '20D Hi', weight: 5 },
-    { key: 'new_20d_lows',  label: '20D Lo', weight: 4 },
-    { key: 'new_ath',       label: 'ATH',    weight: 3 },
+  { key: 'highs', label: 'Highs / Lows', ghKey: G.HIGHS, weight: 30, items: [
+    { key: 'hi_lo_52w', label: '52W Hi/Lo', weight: 18, type: 'paired', upKey: 'new_52w_highs', dnKey: 'new_52w_lows' },
+    { key: 'hi_lo_20d', label: '20D Hi/Lo', weight: 9,  type: 'paired', upKey: 'new_20d_highs', dnKey: 'new_20d_lows' },
+    { key: 'new_ath',   label: 'ATH',       weight: 3 },
   ]},
-  { key: 'sentiment', label: 'Sentiment',       ghKey: G.SENTIMENT, weight: 27, items: [
-    { key: 'cnn_fear_greed', label: 'CNN F/G',   weight: 7 },
-    { key: 'aaii_spread',    label: 'B-B Sprd',  weight: 7 },
-    { key: 'aaii_bulls',     label: 'Bulls',      weight: 4 },
-    { key: 'aaii_bears',     label: 'Bears',      weight: 4 },
-    { key: 'cboe_putcall',   label: 'CBOE P/C',  weight: 5 },
+  { key: 'sentiment', label: 'Sentiment', ghKey: G.SENTIMENT, weight: 27, items: [
+    { key: 'cnn_fear_greed', label: 'CNN F/G',  weight: 7 },
+    { key: 'aaii_spread',    label: 'B-B Sprd', weight: 7 },
+    { key: 'aaii_bulls',     label: 'Bulls',    weight: 4 },
+    { key: 'aaii_bears',     label: 'Bears',    weight: 4 },
+    { key: 'cboe_putcall',   label: 'P/C Ratio',weight: 5 },
   ]},
 ]
+
+function getTmTier(item, row) {
+  if (item.type === 'paired') return pairedUpColor(row[item.upKey], row[item.dnKey])
+  if (item.type === 'ma_stack') return getMaStackTier(item, row)
+  return getCellTier(COLS_BY_KEY[item.key] ?? item, row)
+}
+
+function getTmDisplay(item, row) {
+  if (item.type === 'paired') {
+    const u = row[item.upKey], d = row[item.dnKey]
+    if (u == null && d == null) return '—'
+    return `${u ?? '—'}↑  ${d ?? '—'}↓`
+  }
+  if (item.type === 'ma_stack') return null  // rendered as grid
+  return fmtCell(COLS_BY_KEY[item.key] ?? {}, row[item.key])
+}
 
 // ── BreadthHeatmap (treemap view) ──────────────────────────────────────────
 function BreadthHeatmap({ rows }) {
   const [size, setSize]       = useState({ w: 0, h: 0 })
   const [tooltip, setTooltip] = useState(null)
+  const [rowIdx, setRowIdx]   = useState(0)   // 0 = newest
   const containerRef          = useRef(null)
+
+  useEffect(() => { setRowIdx(0) }, [rows])
 
   useEffect(() => {
     const el = containerRef.current
@@ -695,57 +711,95 @@ function BreadthHeatmap({ rows }) {
     return () => obs.disconnect()
   }, [])
 
-  const row = rows[0]
+  // Arrow keys to step through dates
+  useEffect(() => {
+    const handler = e => {
+      if (e.key === 'ArrowLeft')  setRowIdx(i => Math.min(i + 1, rows.length - 1))
+      if (e.key === 'ArrowRight') setRowIdx(i => Math.max(i - 1, 0))
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [rows.length])
+
+  const row = rows[rowIdx]
 
   const layout = useMemo(() => {
     if (!size.w || !size.h || !row) return null
-    const GAP = 3
-    const HDR = 20
+    const OUTER = 4   // gap between groups (shows page bg)
+    const HDR   = 20  // group header height
+    const INNER = 1   // gap between tiles within group
 
     const groupRects = squarify(TREEMAP_GROUPS, 0, 0, size.w, size.h)
 
     return groupRects.map(gr => {
-      const bx = gr.x + GAP
-      const by = gr.y + HDR + GAP
-      const bw = Math.max(0, gr.w - GAP * 2)
-      const bh = Math.max(0, gr.h - HDR - GAP * 2)
+      // Shrink by outer padding so groups have clear separation
+      const gx = gr.x + OUTER, gy = gr.y + OUTER
+      const gw = Math.max(0, gr.w - OUTER * 2), gh = Math.max(0, gr.h - OUTER * 2)
+      const bx = gx + INNER, by = gy + HDR + INNER
+      const bw = Math.max(0, gw - INNER * 2), bh = Math.max(0, gh - HDR - INNER * 2)
 
-      const enriched = gr.items.map(item => {
-        const colDef = item.type === 'ma_stack' ? item : (COLS_BY_KEY[item.key] ?? item)
-        const tier    = getCellTier(colDef, row)
-        const displayVal = item.type === 'ma_stack'
-          ? item.keys.map((k, i) => `${item.maLabels[i]}:${row[k] === 1 ? '✓' : row[k] === 0 ? '✗' : '—'}`).join('  ')
-          : fmtCell(COLS_BY_KEY[item.key] ?? {}, row[item.key])
-        return { ...item, tier, displayVal }
-      })
+      const enriched = gr.items.map(item => ({
+        ...item,
+        tier:       getTmTier(item, row),
+        displayVal: getTmDisplay(item, row),
+      }))
 
-      return { ...gr, itemRects: squarify(enriched, bx, by, bw, bh) }
+      return { ...gr, gx, gy, gw, gh, itemRects: squarify(enriched, bx, by, bw, bh) }
     })
   }, [size, row])
 
   const tiles = []
   layout?.forEach(gr => {
+    // Colored group background — bleeds through inter-tile gaps
+    tiles.push(
+      <div
+        key={`bg-${gr.key}`}
+        className={`${styles.tmGroupBg} ${GROUP_HEADER_CLASS[gr.ghKey] ?? ''}`}
+        style={{ left: Math.round(gr.gx), top: Math.round(gr.gy), width: Math.round(gr.gw), height: Math.round(gr.gh) }}
+      />
+    )
+    // Group header label
     tiles.push(
       <div
         key={`hdr-${gr.key}`}
         className={`${styles.tmGroupHdr} ${GROUP_HEADER_CLASS[gr.ghKey] ?? ''}`}
-        style={{ left: Math.round(gr.x), top: Math.round(gr.y), width: Math.round(gr.w), height: 20 }}
+        style={{ left: Math.round(gr.gx), top: Math.round(gr.gy), width: Math.round(gr.gw), height: 20 }}
       >
         {gr.label}
       </div>
     )
+    // Metric tiles
     gr.itemRects.forEach(item => {
       const w = Math.round(item.w), h = Math.round(item.h)
+      const showLabel = w >= 44 && h >= 20
+      const showValue = w >= 44 && h >= 44
       tiles.push(
         <div
           key={item.key}
           className={`${styles.tmTile} ${tierToClass(item.tier, styles)}`}
           style={{ left: Math.round(item.x), top: Math.round(item.y), width: w, height: h }}
-          onMouseEnter={e => setTooltip({ x: e.clientX, y: e.clientY, label: item.label, value: item.displayVal, date: row.date })}
+          onMouseEnter={e => setTooltip({
+            x: e.clientX, y: e.clientY,
+            label: item.label,
+            value: item.type === 'ma_stack'
+              ? item.keys.map((k, i) => `${item.maLabels[i]}:${row[k] === 1 ? '✓' : row[k] === 0 ? '✗' : '—'}`).join('  ')
+              : (item.displayVal ?? '—'),
+          })}
           onMouseLeave={() => setTooltip(null)}
         >
-          {w >= 46 && h >= 22 && <span className={styles.tmLabel}>{item.label}</span>}
-          {w >= 46 && h >= 46 && <span className={styles.tmValue}>{item.displayVal}</span>}
+          {showLabel && <span className={styles.tmLabel}>{item.label}</span>}
+          {showValue && item.type === 'ma_stack' && (
+            <div className={styles.tmMaGrid}>
+              {item.keys.map((k, i) => (
+                <span key={k} className={row[k] === 1 ? styles.tmMaCheck : row[k] === 0 ? styles.tmMaCross : styles.tmMaDash}>
+                  {item.maLabels[i]}{row[k] === 1 ? '✓' : row[k] === 0 ? '✗' : '—'}
+                </span>
+              ))}
+            </div>
+          )}
+          {showValue && item.type !== 'ma_stack' && item.displayVal != null && (
+            <span className={styles.tmValue}>{item.displayVal}</span>
+          )}
         </div>
       )
     })
@@ -754,9 +808,29 @@ function BreadthHeatmap({ rows }) {
   return (
     <div className={styles.tmOuter} ref={containerRef}>
       {tiles}
+      {/* Date navigation bar */}
+      {row && (
+        <div className={styles.tmDateNav}>
+          <button
+            className={styles.tmNavBtn}
+            onClick={() => setRowIdx(i => Math.min(i + 1, rows.length - 1))}
+            disabled={rowIdx >= rows.length - 1}
+            title="Older (←)"
+          >←</button>
+          <span className={styles.tmNavDate}>
+            {row.date}
+            {rowIdx === 0 && <span className={styles.tmNavLatest}>LATEST</span>}
+          </span>
+          <button
+            className={styles.tmNavBtn}
+            onClick={() => setRowIdx(i => Math.max(i - 1, 0))}
+            disabled={rowIdx === 0}
+            title="Newer (→)"
+          >→</button>
+        </div>
+      )}
       {tooltip && (
         <div className={styles.hmTooltip} style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}>
-          <span className={styles.hmTipDate}>{tooltip.date}</span>
           <span className={styles.hmTipLabel}>{tooltip.label}</span>
           <span className={styles.hmTipValue}>{tooltip.value}</span>
         </div>
@@ -886,32 +960,36 @@ export default function Breadth() {
             ? `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
             : isLoading ? 'Loading…' : 'No data'}
         </span>
-        <div className={styles.daysPills}>
-          {[30, 60, 90].map(d => (
+        {activeTab !== 'heatmap' && (
+          <>
+            <div className={styles.daysPills}>
+              {[30, 60, 90].map(d => (
+                <button
+                  key={d}
+                  className={`${styles.daysPill} ${days === d ? styles.daysPillActive : ''}`}
+                  onClick={() => setDays(d)}
+                >
+                  {d}d
+                </button>
+              ))}
+            </div>
             <button
-              key={d}
-              className={`${styles.daysPill} ${days === d ? styles.daysPillActive : ''}`}
-              onClick={() => setDays(d)}
+              className={styles.exportBtn}
+              onClick={() => exportCsv(rows, COLS)}
+              title="Download as CSV"
             >
-              {d}d
+              ↓ CSV
             </button>
-          ))}
-        </div>
-        <button
-          className={styles.exportBtn}
-          onClick={() => exportCsv(rows, COLS)}
-          title="Download as CSV"
-        >
-          ↓ CSV
-        </button>
-        <button
-          className={styles.exportBtn}
-          onClick={capture}
-          disabled={capturing || rows.length === 0}
-          title="Export as PNG"
-        >
-          {capturing ? '…' : '📷'}
-        </button>
+            <button
+              className={styles.exportBtn}
+              onClick={capture}
+              disabled={capturing || rows.length === 0}
+              title="Export as PNG"
+            >
+              {capturing ? '…' : '📷'}
+            </button>
+          </>
+        )}
       </div>
 
       {error && (
