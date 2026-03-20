@@ -67,7 +67,8 @@ def _get_anthropic_client():
 
 # ── Earnings analysis configuration ───────────────────────────────────────────
 _EARNINGS_NEWS_MAX_ITEMS    = 4        # max Finnhub headlines per ticker
-_EARNINGS_AI_MAX_TOKENS     = 400      # Haiku response token limit
+_EARNINGS_AI_MAX_TOKENS         = 400      # Haiku response token limit
+_EARNINGS_PREVIEW_AI_MAX_TOKENS = 350  # JSON-structured output fits in fewer tokens
 _EARNINGS_CACHE_TTL_HIT     = 43_200   # 12 h — full result cached after success
 _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
 _AV_TIMEOUT_SECS            = 8        # Alpha Vantage request timeout
@@ -888,8 +889,6 @@ def _generate_earnings_preview(sym: str, row: dict) -> dict:
 
     import datetime as _dt
     import requests as _req
-    import json as _json
-
     av_key = os.environ.get("ALPHAVANTAGE_API_KEY", "")
     fh_key = os.environ.get("FINNHUB_API_KEY", "")
 
@@ -1013,7 +1012,7 @@ def _generate_earnings_preview(sym: str, row: dict) -> dict:
         client = _get_anthropic_client()
         msg = client.messages.create(
             model=_EARNINGS_AI_MODEL,
-            max_tokens=350,
+            max_tokens=_EARNINGS_PREVIEW_AI_MAX_TOKENS,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = msg.content[0].text.strip()
@@ -1023,7 +1022,7 @@ def _generate_earnings_preview(sym: str, row: dict) -> dict:
             if raw.startswith("json"):
                 raw = raw[4:]
             raw = raw.strip()
-        parsed = _json.loads(raw)
+        parsed = json.loads(raw)
         preview_text    = str(parsed.get("preview", "")).strip()
         preview_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:3]]
     except Exception as _e:
