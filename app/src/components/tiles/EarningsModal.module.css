@@ -277,3 +277,43 @@
   cursor: pointer;
 }
 .btnFinviz:hover { background: var(--border); }
+
+/* ── Earnings Preview (Pending entries) ────────────────────────────────────── */
+
+.previewBox {
+  border-left: 2px solid #c9a84c;
+  background: rgba(201, 168, 76, 0.06);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+
+.watchLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin: 8px 0 4px;
+}
+
+.watchList {
+  list-style: disc;
+  padding-left: 16px;
+  margin: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.watchList li {
+  margin-bottom: 3px;
+}
+
+.previewUnavailable {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 8px 0;
+}
