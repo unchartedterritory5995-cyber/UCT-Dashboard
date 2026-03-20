@@ -5,9 +5,8 @@ import styles from './ThemeTrackerPage.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
+const PERIODS = ['1d', '1w', '1m', '3m', '1y', 'ytd']
 const PERIOD_LABELS = { '1d': '1D', '1w': '1W', '1m': '1M', '3m': '3M', '1y': '1Y', 'ytd': 'YTD' }
-const RANK_TABS = ['Today', '1W', '1M', '3M', '1Y', 'YTD']
-const RANK_TO_KEY = { 'Today': '1d', '1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd' }
 
 function fmtRet(val) {
   if (val === null || val === undefined) return '—'
@@ -28,12 +27,22 @@ function avgReturn(holdings, periodKey) {
   return vals.reduce((a, b) => a + b, 0) / vals.length
 }
 
-function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, open, onToggle, rowRefs }) {
-  // Use portfolio NAV return if available (UCT20), otherwise avg of current holdings
-  // Use portfolio NAV return if available, fall back to avg of current holdings
-  const groupAvg = (theme.group_return?.[activeKey] != null)
-    ? theme.group_return[activeKey]
-    : avgReturn(theme.holdings, activeKey)
+function groupReturn(theme, periodKey) {
+  return (theme.group_return?.[periodKey] != null)
+    ? theme.group_return[periodKey]
+    : avgReturn(theme.holdings, periodKey)
+}
+
+function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs }) {
+  const isPortfolio = theme.ticker === 'UCT20'
+
+  const sortedHoldings = useMemo(() => {
+    return [...theme.holdings].sort((a, b) => {
+      const av = a.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
+      const bv = b.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
+      return sortDir === 'desc' ? bv - av : av - bv
+    })
+  }, [theme.holdings, activeKey, sortDir])
 
   return (
     <>
@@ -41,15 +50,23 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, open, onToggle
         <span className={styles.groupName}>
           <span className={styles.groupCaret}>{open ? '▾' : '▸'}</span>
           {theme.name}
+          {isPortfolio && <span className={styles.portfolioBadge}>MANAGED</span>}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
         </span>
-        <span className={`${styles.ret} ${styles.retActive} ${retClass(groupAvg, styles)}`}>
-          {fmtRet(groupAvg)}
-        </span>
+        {PERIODS.map(p => {
+          const val = groupReturn(theme, p)
+          return (
+            <span
+              key={p}
+              className={`${styles.ret} ${p === activeKey ? styles.retActive : ''} ${retClass(val, styles)}`}
+            >
+              {fmtRet(val)}
+            </span>
+          )
+        })}
       </div>
 
-      {open && theme.holdings.map(h => {
-        const retVal = h.returns?.[activeKey]
+      {open && sortedHoldings.map(h => {
         const isSelected = h.sym === selectedSym
         return (
           <div
@@ -59,9 +76,17 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, open, onToggle
             onClick={() => onSelectSym(h.sym, h.name)}
           >
             <span className={styles.sym}>{h.sym}</span>
-            <span className={`${styles.ret} ${retClass(retVal, styles)}`}>
-              {fmtRet(retVal)}
-            </span>
+            {PERIODS.map(p => {
+              const val = h.returns?.[p]
+              return (
+                <span
+                  key={p}
+                  className={`${styles.ret} ${p === activeKey ? styles.retActive : ''} ${retClass(val, styles)}`}
+                >
+                  {fmtRet(val)}
+                </span>
+              )
+            })}
           </div>
         )
       })}
@@ -79,18 +104,18 @@ export default function ThemeTrackerPage() {
 
   const [selectedSym, setSelectedSym] = useState(null)
   const [selectedName, setSelectedName] = useState('')
-  const [activeTab, setActiveTab] = useState('1W')
+  const [activeKey, setActiveKey] = useState('1w')
   const [sortDir, setSortDir] = useState('desc')
   const [openThemes, setOpenThemes] = useState(new Set())
+  const [search, setSearch] = useState('')
 
   const rowRefs = useRef({})
-  const activeKey = RANK_TO_KEY[activeTab]
 
-  function handleTabClick(tab) {
-    if (tab === activeTab) {
+  function handleColClick(key) {
+    if (key === activeKey) {
       setSortDir(d => d === 'desc' ? 'asc' : 'desc')
     } else {
-      setActiveTab(tab)
+      setActiveKey(key)
       setSortDir('desc')
     }
   }
@@ -112,43 +137,62 @@ export default function ThemeTrackerPage() {
   const sortedThemes = useMemo(() => {
     if (!data?.themes) return []
     return [...data.themes].sort((a, b) => {
-      const aAvg = avgReturn(a.holdings, activeKey) ?? (sortDir === 'desc' ? -Infinity : Infinity)
-      const bAvg = avgReturn(b.holdings, activeKey) ?? (sortDir === 'desc' ? -Infinity : Infinity)
-      return sortDir === 'desc' ? bAvg - aAvg : aAvg - bAvg
+      const av = groupReturn(a, activeKey) ?? (sortDir === 'desc' ? -Infinity : Infinity)
+      const bv = groupReturn(b, activeKey) ?? (sortDir === 'desc' ? -Infinity : Infinity)
+      return sortDir === 'desc' ? bv - av : av - bv
     })
   }, [data, activeKey, sortDir])
 
-  // Flat list of all stocks across all themes (for keyboard nav)
-  const allStocks = useMemo(() =>
-    sortedThemes.flatMap(theme =>
-      theme.holdings.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker }))
-    ), [sortedThemes])
+  const filteredThemes = useMemo(() => {
+    if (!search.trim()) return sortedThemes
+    const q = search.trim().toLowerCase()
+    return sortedThemes.filter(theme =>
+      theme.name.toLowerCase().includes(q) ||
+      theme.ticker.toLowerCase().includes(q) ||
+      theme.holdings.some(h => h.sym.toLowerCase().includes(q))
+    )
+  }, [sortedThemes, search])
 
-  // Arrow key navigation
+  // Auto-expand themes that contain a matching holding
+  useEffect(() => {
+    if (!search.trim() || !sortedThemes.length) return
+    const q = search.trim().toLowerCase()
+    setOpenThemes(prev => {
+      const next = new Set(prev)
+      let changed = false
+      sortedThemes.forEach(theme => {
+        if (!next.has(theme.ticker) && theme.holdings.some(h => h.sym.toLowerCase().includes(q))) {
+          next.add(theme.ticker)
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [search, sortedThemes])
+
+  // Flat list for keyboard navigation
+  const allStocks = useMemo(() =>
+    filteredThemes.flatMap(theme =>
+      theme.holdings.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker }))
+    ), [filteredThemes])
+
   const handleKeyDown = useCallback((e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
     e.preventDefault()
-
     const idx = allStocks.findIndex(s => s.sym === selectedSym)
     const nextIdx = e.key === 'ArrowDown'
       ? Math.min(idx + 1, allStocks.length - 1)
       : Math.max(idx - 1, 0)
-
     if (nextIdx < 0 || nextIdx === idx) return
     const stock = allStocks[nextIdx]
-
-    // Auto-open the group containing the next stock
     setOpenThemes(prev => {
       if (prev.has(stock.themeTicker)) return prev
       const next = new Set(prev)
       next.add(stock.themeTicker)
       return next
     })
-
     setSelectedSym(stock.sym)
     setSelectedName(stock.name || stock.sym)
-
-    // Scroll the row into view after render
     setTimeout(() => {
       rowRefs.current[stock.sym]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }, 30)
@@ -167,23 +211,32 @@ export default function ThemeTrackerPage() {
     <div className={styles.page}>
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
-        <div className={styles.periodBar}>
-          {RANK_TABS.map(tab => (
-            <button
-              key={tab}
-              className={`${styles.periodTab} ${activeTab === tab ? styles.periodTabActive : ''}`}
-              onClick={() => handleTabClick(tab)}
-            >
-              {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
-            </button>
-          ))}
+
+        {/* Search */}
+        <div className={styles.searchBar}>
+          <input
+            className={styles.searchInput}
+            placeholder="Search themes or tickers…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className={styles.searchClear} onClick={() => setSearch('')}>×</button>
+          )}
         </div>
 
+        {/* Column headers — click to sort */}
         <div className={styles.tableHeader}>
-          <span className={styles.colLabel}>Theme</span>
-          <span className={`${styles.colLabel} ${styles.colLabelActive}`}>
-            {PERIOD_LABELS[activeKey]}
-          </span>
+          <span className={`${styles.colLabel} ${styles.colTheme}`}>Theme</span>
+          {PERIODS.map(p => (
+            <button
+              key={p}
+              className={`${styles.colLabel} ${styles.colSort} ${activeKey === p ? styles.colSortActive : ''}`}
+              onClick={() => handleColClick(p)}
+            >
+              {PERIOD_LABELS[p]}{activeKey === p ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
+            </button>
+          ))}
         </div>
 
         <div className={styles.tableBody}>
@@ -195,13 +248,14 @@ export default function ThemeTrackerPage() {
           {!isLoading && !isComputing && (!data || data.themes?.length === 0) && (
             <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
           )}
-          {sortedThemes.map(theme => (
+          {filteredThemes.map(theme => (
             <ThemeGroup
               key={theme.ticker}
               theme={theme}
               selectedSym={selectedSym}
               onSelectSym={handleSelect}
               activeKey={activeKey}
+              sortDir={sortDir}
               open={openThemes.has(theme.ticker)}
               onToggle={toggleTheme}
               rowRefs={rowRefs}
