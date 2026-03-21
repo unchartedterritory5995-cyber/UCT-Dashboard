@@ -41,11 +41,17 @@
   font-size: 11px;
 }
 .row:last-child { border-bottom: none; }
+.nameGroup {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  max-width: 110px;
+  min-width: 0;
+}
 .name {
   font-family: 'Instrument Sans', sans-serif;
   color: var(--text-bright);
-  flex: 1;
-  max-width: 110px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

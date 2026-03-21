@@ -43,8 +43,10 @@ function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, posi
         className={`${styles.row} ${styles.rowClickable}`}
         onClick={() => setExpanded(e => !e)}
       >
-        <span className={styles.name}>{name}</span>
-        {isPortfolio && <span className={styles.portfolioBadge}>★</span>}
+        <span className={styles.nameGroup}>
+          <span className={styles.name}>{name}</span>
+          {isPortfolio && <span className={styles.portfolioBadge}>★</span>}
+        </span>
         <div className={styles.barWrap}>
           <div
             className={`${styles.bar} ${positive ? styles.barGain : styles.barLoss}`}
