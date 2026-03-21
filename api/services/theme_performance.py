@@ -205,12 +205,6 @@ def _run_computation() -> None:
                     returns_map[sym] = null_returns.copy()
                     refs_map[sym] = null_returns.copy()
 
-        # Compute UCT20 portfolio NAV returns (composition-history based)
-        try:
-            from api.services.uct20_nav import compute_portfolio_returns
-            uct20_nav_returns = compute_portfolio_returns()
-        except Exception:
-            uct20_nav_returns = None
 
         # Build response
         themes_out = []
@@ -233,10 +227,6 @@ def _run_computation() -> None:
                     for sym in syms
                 ],
             }
-            # UCT20: attach portfolio NAV returns as group_return so the UI
-            # shows proper portfolio accounting instead of simple avg of holdings
-            if etf_ticker == "UCT20" and uct20_nav_returns:
-                theme_obj["group_return"] = uct20_nav_returns
             themes_out.append(theme_obj)
 
         result = {
@@ -299,7 +289,6 @@ def _apply_live_returns(result: dict) -> dict:
 
     themes_out = []
     for theme in themes:
-        is_uct20 = theme.get("ticker") == "UCT20"
         holdings_out = []
         live_by_period: dict[str, list[float]] = {p: [] for p in _ALL_PERIODS}
 
@@ -337,14 +326,9 @@ def _apply_live_returns(result: dict) -> dict:
 
         new_theme = {**theme, "holdings": holdings_out}
         gr = dict(theme.get("group_return") or {})
-        if is_uct20:
-            # UCT20: only update 1d — 1w/1m/etc. use portfolio NAV (composition-aware)
-            if live_by_period["1d"]:
-                gr["1d"] = round(sum(live_by_period["1d"]) / len(live_by_period["1d"]), 2)
-        else:
-            for period, vals in live_by_period.items():
-                if vals:
-                    gr[period] = round(sum(vals) / len(vals), 2)
+        for period, vals in live_by_period.items():
+            if vals:
+                gr[period] = round(sum(vals) / len(vals), 2)
         if gr:
             new_theme["group_return"] = gr
 
