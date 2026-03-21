@@ -903,7 +903,7 @@ function BreadthHeatmap({ rows }) {
         value:      group.weight,
         labelText:  group.label,
         labelColor: group.labelColor,
-        itemStyle:  { color: group.bgColor, borderColor: group.borderColor, borderWidth: 2 },
+        itemStyle:  { color: group.bgColor, borderColor: '#0a0f1a', borderWidth: 0 },
         children,
       }
     })
