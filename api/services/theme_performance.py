@@ -97,10 +97,16 @@ def _resolve_holdings(etf_key: str, theme_data: dict, wire: dict) -> list[str]:
     return [h["sym"] for h in theme_data.get("holdings", []) if isinstance(h, dict) and h.get("sym")]
 
 
-def _compute_returns(bars: list[dict]) -> dict[str, Optional[float]]:
+def _compute_returns_with_refs(bars: list[dict]) -> tuple[dict, dict]:
+    """Return (returns, ref_prices) for all periods.
+
+    ref_prices stores the reference close price for each period so the live
+    overlay can recompute returns using a fresh intraday price without
+    re-fetching bar history.
+    """
     null = {k: None for k in ("1d", "1w", "1m", "3m", "1y", "ytd")}
     if not bars:
-        return null
+        return null.copy(), null.copy()
     closes = [b["c"] for b in bars]
     cur = closes[-1]
 
@@ -119,15 +125,32 @@ def _compute_returns(bars: list[dict]) -> dict[str, Optional[float]]:
          if datetime.fromtimestamp(b["t"] / 1000, tz=timezone.utc).year == current_year),
         closes[0]
     )
-    return {
-        "1d": pct(close_at(2)), "1w": pct(close_at(6)),
-        "1m": pct(close_at(23)), "3m": pct(close_at(67)),
-        "1y": pct(close_at(253)), "ytd": pct(ytd_close),
+    ref_1d  = close_at(2)
+    ref_1w  = close_at(6)
+    ref_1m  = close_at(23)
+    ref_3m  = close_at(67)
+    ref_1y  = close_at(253)
+
+    returns = {
+        "1d": pct(ref_1d), "1w": pct(ref_1w),
+        "1m": pct(ref_1m), "3m": pct(ref_3m),
+        "1y": pct(ref_1y), "ytd": pct(ytd_close),
     }
+    ref_prices = {
+        "1d": ref_1d, "1w": ref_1w,
+        "1m": ref_1m, "3m": ref_3m,
+        "1y": ref_1y, "ytd": ytd_close,
+    }
+    return returns, ref_prices
 
 
-def _fetch_returns_for(ticker: str, from_date: str, to_date: str) -> dict:
-    return _compute_returns(get_agg_bars(ticker, from_date, to_date))
+def _compute_returns(bars: list[dict]) -> dict[str, Optional[float]]:
+    returns, _ = _compute_returns_with_refs(bars)
+    return returns
+
+
+def _fetch_returns_for(ticker: str, from_date: str, to_date: str) -> tuple[dict, dict]:
+    return _compute_returns_with_refs(get_agg_bars(ticker, from_date, to_date))
 
 
 def _run_computation() -> None:
@@ -167,6 +190,7 @@ def _run_computation() -> None:
 
         # Fetch in parallel with conservative worker count
         returns_map: dict[str, dict] = {}
+        refs_map: dict[str, dict] = {}
         null_returns = {k: None for k in ("1d", "1w", "1m", "3m", "1y", "ytd")}
         with concurrent.futures.ThreadPoolExecutor(max_workers=_MAX_WORKERS) as executor:
             futures = {
@@ -176,9 +200,10 @@ def _run_computation() -> None:
             for future in concurrent.futures.as_completed(futures):
                 sym = futures[future]
                 try:
-                    returns_map[sym] = future.result()
+                    returns_map[sym], refs_map[sym] = future.result()
                 except Exception:
                     returns_map[sym] = null_returns.copy()
+                    refs_map[sym] = null_returns.copy()
 
         # Compute UCT20 portfolio NAV returns (composition-history based)
         try:
@@ -203,6 +228,7 @@ def _run_computation() -> None:
                         "name": theme_data.get("name", sym),
                         "weight_pct": 0.0,
                         "returns": returns_map.get(sym, null_returns.copy()),
+                        "ref_prices": refs_map.get(sym, null_returns.copy()),
                     }
                     for sym in syms
                 ],
@@ -244,12 +270,23 @@ def _fetch_live_1d_map(syms: list[str]) -> dict[str, float]:
     return live_map
 
 
-def _apply_live_1d(result: dict) -> dict:
-    """Overlay real-time todaysChangePerc onto returns['1d'] for all holdings.
+_ALL_PERIODS = ("1d", "1w", "1m", "3m", "1y", "ytd")
 
-    Returns a new dict (does not mutate the cached base). The live_map is
-    cached separately at 30s so intraday prices refresh independently from the
-    15-min base computation cache.
+
+def _apply_live_returns(result: dict) -> dict:
+    """Recompute all period returns using real-time price + stored ref prices.
+
+    For each holding with a live snapshot price, computes:
+        return = (live_price - ref_price) / ref_price * 100
+    for every period (1d/1w/1m/3m/1y/ytd) using the ref_prices stored at
+    computation time.  Falls back to the stored return when ref_price is
+    missing (e.g. persisted data from before this change).
+
+    For UCT20 only 1d is updated from the live average — other periods use
+    the portfolio NAV computed at daily computation time (which accounts for
+    composition changes the simple average cannot).
+
+    Returns a new dict — does not mutate the cached base.
     """
     themes = result.get("themes")
     if not themes:
@@ -262,25 +299,45 @@ def _apply_live_1d(result: dict) -> dict:
 
     themes_out = []
     for theme in themes:
+        is_uct20 = theme.get("ticker") == "UCT20"
         holdings_out = []
-        live_vals: list[float] = []
+        live_by_period: dict[str, list[float]] = {p: [] for p in _ALL_PERIODS}
+
         for h in theme.get("holdings", []):
             live = live_map.get(h["sym"])
             if live is not None:
-                new_returns = {**h.get("returns", {}), "1d": round(float(live), 2)}
+                refs = h.get("ref_prices", {})
+                old_returns = h.get("returns", {})
+                new_returns = {}
+                for period in _ALL_PERIODS:
+                    ref = refs.get(period)
+                    if ref and ref != 0:
+                        val = round((float(live) - float(ref)) / float(ref) * 100, 2)
+                    else:
+                        # ref_prices not stored yet (old persisted data) — keep original
+                        val = old_returns.get(period)
+                    new_returns[period] = val
+                    if val is not None:
+                        live_by_period[period].append(float(val))
                 holdings_out.append({**h, "returns": new_returns})
-                live_vals.append(float(live))
             else:
                 holdings_out.append(h)
-                v = h.get("returns", {}).get("1d")
-                if v is not None:
-                    live_vals.append(float(v))
+                for period in _ALL_PERIODS:
+                    v = h.get("returns", {}).get(period)
+                    if v is not None:
+                        live_by_period[period].append(float(v))
 
         new_theme = {**theme, "holdings": holdings_out}
-        # Recompute group_return['1d'] from live holding averages (all themes including UCT20)
-        if live_vals:
-            gr = dict(theme.get("group_return") or {})
-            gr["1d"] = round(sum(live_vals) / len(live_vals), 2)
+        gr = dict(theme.get("group_return") or {})
+        if is_uct20:
+            # UCT20: only update 1d — 1w/1m/etc. use portfolio NAV (composition-aware)
+            if live_by_period["1d"]:
+                gr["1d"] = round(sum(live_by_period["1d"]) / len(live_by_period["1d"]), 2)
+        else:
+            for period, vals in live_by_period.items():
+                if vals:
+                    gr[period] = round(sum(vals) / len(vals), 2)
+        if gr:
             new_theme["group_return"] = gr
 
         themes_out.append(new_theme)
@@ -300,13 +357,13 @@ def get_theme_performance() -> dict:
     # 1. In-memory cache hit (fast path) — overlay live 1d before returning
     cached = cache.get(_CACHE_KEY)
     if cached is not None:
-        return _apply_live_1d(cached)
+        return _apply_live_returns(cached)
 
     # 2. Disk hit — load into memory cache and return with live 1d overlay
     disk_data = _load_from_disk()
     if disk_data:
         cache.set(_CACHE_KEY, disk_data, ttl=_CACHE_TTL)
-        return _apply_live_1d(disk_data)
+        return _apply_live_returns(disk_data)
 
     # 3. Cache cold — trigger background computation if not already running
     with _compute_lock:

@@ -80,7 +80,7 @@ export default function ThemeTracker({ data: propData }) {
   const { data: fetched } = useSWR(
     propData !== undefined ? null : '/api/theme-performance',
     fetcher,
-    { refreshInterval: period === 'Today' ? 30_000 : 900_000, revalidateOnFocus: false }
+    { refreshInterval: 30_000, revalidateOnFocus: false }
   )
 
   const data = useMemo(() => {
