@@ -957,24 +957,14 @@ function BreadthHeatmap({ rows }) {
         visibleMin: 200,
         levels: [
           {
-            // depth-1: group containers
-            itemStyle: { borderWidth: 4, gapWidth: 1, borderColor: '#0a0f1a' },
-            upperLabel: {
-              show:            true,
-              height:          20,
-              formatter:       params => params.data.labelText ?? params.name,
-              fontFamily:      'IBM Plex Mono, monospace',
-              fontSize:        10,
-              fontWeight:      700,
-              color:           '#e2e8f0',
-              backgroundColor: '#0a0f1a',
-              padding:         [3, 8],
-            },
+            // depth-1: group containers — no visible border
+            itemStyle: { borderWidth: 0, gapWidth: 1, borderColor: '#0a0f1a' },
+            upperLabel: { show: false },
             label: { show: false },
           },
           {
-            // depth-2: metric tiles
-            itemStyle: { borderWidth: 1, gapWidth: 1, borderColor: '#0a0f1a' },
+            // depth-2: metric tiles — 1px dark hairline only
+            itemStyle: { borderWidth: 1, gapWidth: 0, borderColor: '#0a0f1a' },
             label: {
               show:      true,
               formatter: params =>
