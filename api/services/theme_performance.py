@@ -206,6 +206,13 @@ def _run_computation() -> None:
                     refs_map[sym] = null_returns.copy()
 
 
+        # UCT20: composition-aware NAV returns (tracks stocks that rotated in/out)
+        try:
+            from api.services.uct20_nav import compute_portfolio_returns
+            uct20_nav_returns = compute_portfolio_returns()
+        except Exception:
+            uct20_nav_returns = None
+
         # Build response
         themes_out = []
         for etf_ticker, theme_data in raw_themes.items():
@@ -227,6 +234,10 @@ def _run_computation() -> None:
                     for sym in syms
                 ],
             }
+            # UCT20: override group return with NAV-based values so past
+            # holdings that rotated out still contribute their return
+            if etf_ticker == "UCT20" and uct20_nav_returns:
+                theme_obj["group_return"] = uct20_nav_returns
             themes_out.append(theme_obj)
 
         result = {
@@ -326,9 +337,16 @@ def _apply_live_returns(result: dict) -> dict:
 
         new_theme = {**theme, "holdings": holdings_out}
         gr = dict(theme.get("group_return") or {})
-        for period, vals in live_by_period.items():
-            if vals:
-                gr[period] = round(sum(vals) / len(vals), 2)
+        if theme.get("ticker") == "UCT20":
+            # 1d: live average of current holdings (best intraday approximation)
+            # 1w/1m/3m/1y/ytd: keep NAV values — composition-aware, includes
+            # stocks that have already rotated out of the list
+            if live_by_period["1d"]:
+                gr["1d"] = round(sum(live_by_period["1d"]) / len(live_by_period["1d"]), 2)
+        else:
+            for period, vals in live_by_period.items():
+                if vals:
+                    gr[period] = round(sum(vals) / len(vals), 2)
         if gr:
             new_theme["group_return"] = gr
 
