@@ -1011,56 +1011,22 @@ function BreadthHeatmap({ rows }) {
 
   return (
     <div className={styles.tmOuter} style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* ── Score strip + date navigation ───────────────────────────────── */}
-      <div className={styles.hmScoreStrip}>
-        <div className={styles.hmScorePair}>
-          <span className={styles.hmScoreLbl}>HEALTH</span>
-          <span className={styles.hmScoreVal} style={{ color: TIER_TIP_COLORS[TIER_SCORES[healthTier]] ?? '#888' }}>
-            {currentRow.breadth_score != null ? Math.round(currentRow.breadth_score) : '—'}
-          </span>
-          {healthTier && (
-            <span className={styles.hmScoreTier} style={{ color: TIER_TIP_COLORS[TIER_SCORES[healthTier]] ?? '#888' }}>
-              {TIER_LABELS[TIER_SCORES[healthTier]]}
-            </span>
-          )}
-        </div>
-        <div className={styles.hmScoreDivider} />
-        <div className={styles.hmScorePair}>
-          <span className={styles.hmScoreLbl}>UCT EXP</span>
-          <span className={styles.hmScoreVal} style={{ color: TIER_TIP_COLORS[TIER_SCORES[expTier]] ?? '#888' }}>
-            {currentRow.uct_exposure != null ? `${Math.round(currentRow.uct_exposure)}%` : '—'}
-          </span>
-          {expTier && (
-            <span className={styles.hmScoreTier} style={{ color: TIER_TIP_COLORS[TIER_SCORES[expTier]] ?? '#888' }}>
-              {TIER_LABELS[TIER_SCORES[expTier]]}
-            </span>
-          )}
-        </div>
-        {(currentRow.webster_phase || currentRow.market_phase) && (
-          <>
-            <div className={styles.hmScoreDivider} />
-            <span className={styles.hmScorePhase}>
-              {currentRow.webster_phase ?? currentRow.market_phase}
-            </span>
-          </>
+      {/* ── Date navigation ─────────────────────────────────────────────── */}
+      <div className={styles.tmDateNav}>
+        <button
+          className={styles.tmNavBtn}
+          onClick={() => setRowIdx(p => Math.min(p + 1, rows.length - 1))}
+          disabled={rowIdx >= rows.length - 1}
+        >←</button>
+        <span className={styles.tmNavDate}>{currentRow.date}</span>
+        <button
+          className={styles.tmNavBtn}
+          onClick={() => setRowIdx(p => Math.max(p - 1, 0))}
+          disabled={rowIdx === 0}
+        >→</button>
+        {rowIdx > 0 && (
+          <button className={styles.tmNavLatest} onClick={() => setRowIdx(0)}>LATEST</button>
         )}
-        {/* Date navigation — right-aligned */}
-        <div className={styles.tmDateNav}>
-          <button
-            className={styles.tmNavBtn}
-            onClick={() => setRowIdx(p => Math.min(p + 1, rows.length - 1))}
-            disabled={rowIdx >= rows.length - 1}
-          >←</button>
-          <span className={styles.tmNavDate}>{currentRow.date}</span>
-          <button
-            className={styles.tmNavBtn}
-            onClick={() => setRowIdx(p => Math.max(p - 1, 0))}
-            disabled={rowIdx === 0}
-          >→</button>
-          {rowIdx > 0 && (
-            <button className={styles.tmNavLatest} onClick={() => setRowIdx(0)}>LATEST</button>
-          )}
-        </div>
       </div>
       {/* ── ECharts treemap ─────────────────────────────────────────────── */}
       <div style={{ flex: 1, minHeight: 0 }}>
