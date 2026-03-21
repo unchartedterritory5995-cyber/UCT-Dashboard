@@ -440,12 +440,14 @@ CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
 
 ---
 
-## Theme Tracker Page — Built 2026-03-20
+## Theme Tracker Page — Built 2026-03-20, Live Returns 2026-03-21
 
 ### Files
 - `app/src/pages/ThemeTrackerPage.jsx` — full-page theme tracker
 - `app/src/pages/ThemeTrackerPage.module.css` — styles
-- `api/services/theme_performance.py` — background compute, volume persistence
+- `app/src/components/tiles/ThemeTracker.jsx` — dashboard tile (same data source)
+- `app/src/components/tiles/ThemeTracker.module.css` — tile styles
+- `api/services/theme_performance.py` — background compute, volume persistence, live overlay
 - `api/services/uct20_nav.py` — UCT20 portfolio NAV tracking
 - `api/routers/theme_performance.py` — GET /api/theme-performance, POST /api/theme-performance/refresh
 
@@ -456,20 +458,30 @@ CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
 - **Workers**: `_MAX_WORKERS = 6` (conservative for Railway 512MB)
 - **Excluded ETFs**: TLT, HYG, URA, IBB, FXI, MSOS
 - **UCT20**: injected into raw_themes (not a real ETF — holdings from leadership list)
+- **Both surfaces unified**: dashboard tile and full page both use `/api/theme-performance`
+
+### Live Returns Overlay (`_apply_live_returns` in theme_performance.py)
+Runs on every request (30s SWR polling). Updates all 6 periods using intraday price:
+- `live_map` = `get_etf_snapshots()` → `todaysChangePerc` (a %, e.g. 1.5 = +1.5%) — cached 30s
+- **1d**: uses `live_pct` directly (it IS the 1d return)
+- **1w/1m/3m/1y/ytd**: derives `current_price = prev_close * (1 + live_pct/100)` where `prev_close = ref_prices["1d"]` (yesterday's official close), then `(current_price - ref) / ref * 100`
+- `ref_prices` stored per holding per period during daily bar computation — no re-fetch needed
+- **CRITICAL**: `live_map` values are percentages, NOT dollar prices. Computing `(live - ref_price)/ref_price` directly = -99% bug. Always derive current_price first.
 
 ### UCT20 Portfolio NAV (`api/services/uct20_nav.py`)
 - Each wire push records current UCT20 holdings to `/data/uct20_compositions.json` (persists forever)
-- `compute_portfolio_returns()` — loads composition history, fetches bars for all ever-held symbols, builds equal-weight NAV time series, returns 1d/1w/1m/3m/1y/ytd
-- Returns `None` for periods without enough history (shows "—" until data accumulates)
-- Falls back to avg of current holdings while NAV history is building
-- `group_return` field attached to UCT20 theme object — frontend uses it over simple avg
+- `compute_portfolio_returns()` — loads composition history, fetches bars for ALL ever-held symbols, builds equal-weight NAV time series by chaining daily returns using PREVIOUS day's composition, returns 1d/1w/1m/3m/1y/ytd
+- **Composition-aware**: stocks that rotated out still contribute their return during holding period
+- Returns `None` for periods without enough history (shows "—" — fills in over ~3 weeks for 1M, ~63 days for 3M)
+- `group_return` on UCT20 theme object — frontend uses it over simple avg for 1w/1m/3m/1y/ytd
+- **Live 1d**: average of CURRENT holdings' `todaysChangePerc` (intraday approximation only — NAV not recomputed intraday)
 
 ### UI Features
-- Period tabs (Today/1W/1M/3M/1Y/YTD) — click active tab to toggle ↑/↓ sort
+- Period tabs: **Today/1W/1M/3M/1Y/YTD** on full page; same 6 on dashboard tile — click active tab to toggle ↑/↓ sort
 - Search bar — filters by theme name, ETF ticker, or individual holding symbol; auto-expands matching groups
 - Holdings sorted within each group by active period in same direction as theme list
 - Arrow key navigation — moves in visual sort order, auto-expands groups, auto-scrolls
-- UCT 20 shows gold ★ badge (managed portfolio, not ETF-tracked)
+- UCT 20 shows gold ★ badge on both dashboard tile and full page (managed portfolio, not ETF-tracked)
 - Right panel: TradingView chart for selected ticker
 
 ## Known Issues / Gotchas
