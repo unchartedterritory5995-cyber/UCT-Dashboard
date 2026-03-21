@@ -196,32 +196,25 @@ export default function ThemeTrackerPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  // Double-buffer crossfade — old chart stays visible while new one loads
-  const [frameSlots, setFrameSlots] = useState([null, null])
-  const [visibleSlot, setVisibleSlot] = useState(0)
-  const pendingSlotRef = useRef(null)
+  const [chartPeriod, setChartPeriod] = useState('d')
 
-  function tvUrlFor(sym) {
-    return `https://s.tradingview.com/widgetembed/?frameElementId=tv_theme&symbol=${sym}&interval=D&theme=dark&style=1&locale=en&toolbar_bg=161b22&enable_publishing=false&hide_top_toolbar=false&save_image=false&hide_legend=false&hide_volume=false`
+  function finvizUrl(sym, period) {
+    return `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}`
   }
 
+  // Preload neighbors so clicking adjacent stocks is instant
   useEffect(() => {
-    if (!selectedSym) return
-    const nextSlot = visibleSlot === 0 ? 1 : 0
-    pendingSlotRef.current = nextSlot
-    setFrameSlots(prev => {
-      const updated = [...prev]
-      updated[nextSlot] = tvUrlFor(selectedSym)
-      return updated
-    })
-  }, [selectedSym])
-
-  function handleFrameLoad(slotIdx) {
-    if (slotIdx === pendingSlotRef.current) {
-      setVisibleSlot(slotIdx)
-      pendingSlotRef.current = null
+    if (!selectedSym || !allStocks.length) return
+    const idx = allStocks.findIndex(s => s.sym === selectedSym)
+    if (idx < 0) return
+    for (let offset = -5; offset <= 5; offset++) {
+      if (offset === 0) continue
+      const neighbor = allStocks[idx + offset]
+      if (!neighbor) continue
+      const img = new window.Image()
+      img.src = finvizUrl(neighbor.sym, chartPeriod)
     }
-  }
+  }, [selectedSym, allStocks, chartPeriod])
 
   return (
     <div className={styles.page}>
@@ -293,22 +286,24 @@ export default function ThemeTrackerPage() {
             <div className={styles.chartHeader}>
               <span className={styles.chartSym}>{selectedSym}</span>
               <span className={styles.chartName}>{selectedName}</span>
+              <div className={styles.chartPeriodTabs}>
+                {[['d', 'Daily'], ['w', 'Weekly']].map(([p, label]) => (
+                  <button
+                    key={p}
+                    className={`${styles.chartPeriodBtn} ${chartPeriod === p ? styles.chartPeriodBtnActive : ''}`}
+                    onClick={() => setChartPeriod(p)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className={styles.chartFrameWrap}>
-              {[0, 1].map(i => frameSlots[i] && (
-                <iframe
-                  key={i}
-                  src={frameSlots[i]}
-                  className={styles.chartFrame}
-                  title="chart"
-                  allowFullScreen
-                  onLoad={() => handleFrameLoad(i)}
-                  style={{
-                    opacity: visibleSlot === i ? 1 : 0,
-                    zIndex: visibleSlot === i ? 1 : 0,
-                  }}
-                />
-              ))}
+            <div className={styles.chartImgWrap}>
+              <img
+                src={finvizUrl(selectedSym, chartPeriod)}
+                className={styles.chartImg}
+                alt={`${selectedSym} chart`}
+              />
             </div>
             <div className={styles.newsLabel}>News — {selectedSym}</div>
           </>
