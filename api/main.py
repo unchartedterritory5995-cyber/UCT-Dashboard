@@ -136,30 +136,34 @@ app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)
 app.include_router(top_flow_router)
 
+# ─── CSV routes: serve from app/public/ directly (bypasses Vite build cache) ──
+PUBLIC = os.path.join(os.path.dirname(__file__), "..", "app", "public")
+
+@app.get("/flow-data.csv")
+def serve_csv():
+    csv_path = os.path.join(PUBLIC, "flow-data.csv")
+    if os.path.exists(csv_path):
+        return FileResponse(csv_path, media_type="text/csv")
+    return JSONResponse(status_code=404, content={"error": "flow-data.csv not found"})
+
+@app.get("/Darkpool-data.csv")
+def serve_darkpool_csv():
+    csv_path = os.path.join(PUBLIC, "Darkpool-data.csv")
+    if os.path.exists(csv_path):
+        return FileResponse(csv_path, media_type="text/csv")
+    return JSONResponse(status_code=404, content={"error": "Darkpool-data.csv not found"})
+
+@app.get("/Indexes-data.csv")
+def serve_indexes_csv():
+    csv_path = os.path.join(PUBLIC, "Indexes-data.csv")
+    if os.path.exists(csv_path):
+        return FileResponse(csv_path, media_type="text/csv")
+    return JSONResponse(status_code=404, content={"error": "Indexes-data.csv not found"})
+
+# ─── Serve React build (JS/CSS assets + SPA fallback) ────────────────────────
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 if os.path.exists(DIST):
     app.mount("/assets", StaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
-
-    @app.get("/flow-data.csv")
-    def serve_csv():
-        csv_path = os.path.join(DIST, "flow-data.csv")
-        if os.path.exists(csv_path):
-            return FileResponse(csv_path, media_type="text/csv")
-        return JSONResponse(status_code=404, content={"error": "flow-data.csv not found"})
-
-    @app.get("/Darkpool-data.csv")
-    def serve_darkpool_csv():
-        csv_path = os.path.join(DIST, "Darkpool-data.csv")
-        if os.path.exists(csv_path):
-            return FileResponse(csv_path, media_type="text/csv")
-        return JSONResponse(status_code=404, content={"error": "Darkpool-data.csv not found"})
-
-    @app.get("/Indexes-data.csv")
-    def serve_indexes_csv():
-        csv_path = os.path.join(DIST, "Indexes-data.csv")
-        if os.path.exists(csv_path):
-            return FileResponse(csv_path, media_type="text/csv")
-        return JSONResponse(status_code=404, content={"error": "Indexes-data.csv not found"})
 
     @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
