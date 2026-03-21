@@ -286,7 +286,7 @@ export default function BreadthCharts() {
         {!isLoading && rows.length > 0 && selected.length > 0 && (
           <ReactECharts
             option={option}
-            style={{ height: 480, width: '100%' }}
+            style={{ height: 680, width: '100%' }}
             notMerge
             lazyUpdate
           />
