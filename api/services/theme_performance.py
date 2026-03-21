@@ -304,17 +304,25 @@ def _apply_live_returns(result: dict) -> dict:
         live_by_period: dict[str, list[float]] = {p: [] for p in _ALL_PERIODS}
 
         for h in theme.get("holdings", []):
-            live = live_map.get(h["sym"])
-            if live is not None:
+            # live is todaysChangePerc (a %, e.g. 1.5 means +1.5%) — NOT a dollar price
+            live_pct = live_map.get(h["sym"])
+            if live_pct is not None:
                 refs = h.get("ref_prices", {})
                 old_returns = h.get("returns", {})
+                # Derive current dollar price: prev_close * (1 + today_pct/100)
+                prev_close = refs.get("1d")  # close[-2] = yesterday's official close
+                current_price = (float(prev_close) * (1 + float(live_pct) / 100)
+                                 if prev_close and prev_close != 0 else None)
                 new_returns = {}
                 for period in _ALL_PERIODS:
                     ref = refs.get(period)
-                    if ref and ref != 0:
-                        val = round((float(live) - float(ref)) / float(ref) * 100, 2)
+                    if period == "1d":
+                        # live_pct IS the 1d return — use directly
+                        val = round(float(live_pct), 2)
+                    elif current_price is not None and ref and ref != 0:
+                        val = round((current_price - float(ref)) / float(ref) * 100, 2)
                     else:
-                        # ref_prices not stored yet (old persisted data) — keep original
+                        # ref_prices missing (old persisted data) — keep original
                         val = old_returns.get(period)
                     new_returns[period] = val
                     if val is not None:
