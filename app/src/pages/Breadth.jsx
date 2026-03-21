@@ -958,23 +958,23 @@ function BreadthHeatmap({ rows }) {
         levels: [
           {
             // depth-1: group containers
-            itemStyle: { borderWidth: 3, gapWidth: 5 },
+            itemStyle: { borderWidth: 4, gapWidth: 1, borderColor: '#0a0f1a' },
             upperLabel: {
               show:            true,
-              height:          22,
+              height:          20,
               formatter:       params => params.data.labelText ?? params.name,
               fontFamily:      'IBM Plex Mono, monospace',
               fontSize:        10,
               fontWeight:      700,
-              color:           '#ffffff',
-              backgroundColor: 'rgba(0,0,0,0.6)',
-              padding:         [4, 8],
+              color:           '#e2e8f0',
+              backgroundColor: '#0a0f1a',
+              padding:         [3, 8],
             },
             label: { show: false },
           },
           {
             // depth-2: metric tiles
-            itemStyle: { borderWidth: 1, gapWidth: 2 },
+            itemStyle: { borderWidth: 1, gapWidth: 1, borderColor: '#0a0f1a' },
             label: {
               show:      true,
               formatter: params =>
