@@ -19,7 +19,6 @@ from api.services import cot_service as _cot_service
 from api.top_flow_router import router as top_flow_router
 from api import top_flow_tracker as _top_flow_tracker
 from api.schwab_router import router as schwab_router
-from api.uw_router import router as uw_router
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 if _SENTRY_DSN:
@@ -138,7 +137,6 @@ app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)
 app.include_router(top_flow_router)
 app.include_router(schwab_router)
-app.include_router(uw_router)
 
 # ─── CSV routes: serve from app/public/ directly (bypasses Vite build cache) ──
 PUBLIC = os.path.join(os.path.dirname(__file__), "..", "app", "public")
