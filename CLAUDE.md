@@ -395,6 +395,7 @@ COT Data lives as the second tab on the Breadth page (`/breadth`). There is NO s
 - **Source:** CFTC public zips — `https://www.cftc.gov/files/dea/history/deacot{YEAR}.zip`
 - **Seed:** 10 years of history downloaded on first startup (background thread, daemon=True)
 - **Refresh:** APScheduler CronTrigger — every Friday 3:45 PM ET (`refresh_from_current()`)
+- **Startup catch-up:** On boot, if today is Friday past 4 PM ET and no refresh has run today, fires `refresh_from_current()` in a background thread — handles Railway redeploys that land after the scheduled window
 - **Manual reseed:** `POST /api/cot/reseed` — triggers full 10-year re-download in background
 - **Force reseed via curl:** `curl -X POST https://web-production-05cb6.up.railway.app/api/cot/reseed`
 
