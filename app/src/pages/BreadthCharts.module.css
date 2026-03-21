@@ -134,6 +134,13 @@
   border-color: #d97706;
 }
 
+.extremesBtnActive {
+  background: rgba(120, 53, 15, 0.45);
+  border-color: #f59e0b;
+  color: #fde68a;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.25);
+}
+
 /* ── Date row ──────────────────────────────────────────────────────────────── */
 .dateRow {
   display: flex;

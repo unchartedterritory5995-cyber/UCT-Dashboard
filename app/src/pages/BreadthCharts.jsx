@@ -88,6 +88,17 @@ const PALETTE = [
   '#e879f9', '#fbbf24',
 ]
 
+// MA Breadth reference lines — red overbought (70/80/90), green oversold (20/15/10/5)
+const MA_EXTREME_LINES = [
+  { yAxis: 90, color: '#b91c1c', opacity: 0.90 },
+  { yAxis: 80, color: '#ef4444', opacity: 0.72 },
+  { yAxis: 70, color: '#fca5a5', opacity: 0.55 },
+  { yAxis: 20, color: '#bbf7d0', opacity: 0.55 },
+  { yAxis: 15, color: '#4ade80', opacity: 0.70 },
+  { yAxis: 10, color: '#22c55e', opacity: 0.85 },
+  { yAxis: 5,  color: '#15803d', opacity: 0.95 },
+]
+
 function offsetDate(days) {
   const d = new Date()
   d.setDate(d.getDate() + days)
@@ -99,6 +110,7 @@ export default function BreadthCharts() {
 
   const [selected, setSelected] = useState(['breadth_score', 'pct_above_50sma'])
   const [expanded, setExpanded] = useState({})
+  const [notableExtremes, setNotableExtremes] = useState({})
   const [fromDate, setFromDate] = useState(() => offsetDate(-90))
   const [toDate, setToDate]     = useState(() => offsetDate(0))
 
@@ -119,6 +131,10 @@ export default function BreadthCharts() {
     setExpanded(prev => ({ ...prev, [group]: !prev[group] }))
   }
 
+  function toggleExtremes(group) {
+    setNotableExtremes(prev => ({ ...prev, [group]: !prev[group] }))
+  }
+
   const option = useMemo(() => {
     const series = selected.map((key, i) => ({
       name: LABEL_MAP[key] ?? key,
@@ -131,11 +147,40 @@ export default function BreadthCharts() {
       connectNulls: false,
     }))
 
+    if (notableExtremes['MA Breadth']) {
+      series.push({
+        name: '__ma_extremes__',
+        type: 'line',
+        data: [],
+        yAxisIndex: 0,
+        silent: true,
+        markLine: {
+          silent: true,
+          symbol: ['none', 'none'],
+          animation: false,
+          data: MA_EXTREME_LINES.map(l => ({
+            yAxis: l.yAxis,
+            lineStyle: { color: l.color, width: 1, type: 'dashed', opacity: l.opacity },
+            label: {
+              show: true,
+              position: 'end',
+              formatter: String(l.yAxis),
+              color: l.color,
+              fontSize: 10,
+              fontWeight: 600,
+              backgroundColor: 'transparent',
+            },
+          })),
+        },
+      })
+    }
+
     return {
       backgroundColor: 'transparent',
       textStyle: { color: '#e2e8f0' },
       legend: {
         top: 8,
+        data: selected.map(key => LABEL_MAP[key] ?? key),
         textStyle: { color: '#cbd5e1', fontSize: 12 },
         icon: 'circle',
         itemWidth: 8,
@@ -205,7 +250,7 @@ export default function BreadthCharts() {
       ],
       series,
     }
-  }, [selected, rows])
+  }, [selected, rows, notableExtremes])
 
   return (
     <div className={styles.container}>
@@ -234,7 +279,10 @@ export default function BreadthCharts() {
           {CHART_GROUPS.map(g => expanded[g.group] && (
             <div key={g.group} className={styles.metricList}>
               <div className={styles.extremesRow}>
-                <button className={styles.extremesBtn}>
+                <button
+                  className={`${styles.extremesBtn} ${notableExtremes[g.group] ? styles.extremesBtnActive : ''}`}
+                  onClick={() => toggleExtremes(g.group)}
+                >
                   ⚡ Notable Extremes
                 </button>
               </div>
