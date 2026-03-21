@@ -1,6 +1,9 @@
 import os
 import json
+import threading
 from contextlib import asynccontextmanager
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -34,6 +37,15 @@ def _cot_seed_background():
         print(f"[startup] COT seed failed: {e}")
 
 
+def _cot_catchup_background():
+    """Run if we missed the Friday 3:45 PM scheduled refresh (e.g. Railway redeployed after it)."""
+    try:
+        n = _cot_service.refresh_from_current()
+        print(f"[startup] COT catch-up refresh complete — {n} records upserted")
+    except Exception as e:
+        print(f"[startup] COT catch-up refresh failed: {e}")
+
+
 def _seed_cache_from_volume():
     if not os.path.exists(PERSISTENT_WIRE_DATA_FILE):
         return
@@ -61,17 +73,31 @@ async def lifespan(app: FastAPI):
     try:
         _cot_service.init_db()
         if _cot_service.is_empty():
-            import threading
             print("[startup] COT table empty — seeding from CFTC historical archive (background)...")
             threading.Thread(target=_cot_seed_background, daemon=True, name="cot-seed").start()
         else:
-            print("[startup] COT database ready.")
+            # Catch-up: if today is Friday and we haven't refreshed yet today, do it now.
+            # This handles Railway redeploys that happen after the 3:45 PM scheduled window.
+            now_et = datetime.now(ZoneInfo("America/New_York"))
+            if now_et.weekday() == 4 and now_et.hour >= 16:  # Friday, past 4 PM ET
+                status = _cot_service.get_status()
+                last_updated = status.get("last_updated")
+                already_ran_today = (
+                    last_updated is not None
+                    and last_updated[:10] == now_et.date().isoformat()
+                )
+                if not already_ran_today:
+                    print("[startup] COT catch-up: Friday refresh missed — running now...")
+                    threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
+                else:
+                    print("[startup] COT database ready.")
+            else:
+                print("[startup] COT database ready.")
     except Exception as e:
         print(f"[startup] COT init error (non-fatal): {e}")
 
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
-    from zoneinfo import ZoneInfo
     _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
     _scheduler.add_job(
         _cot_service.refresh_from_current,
