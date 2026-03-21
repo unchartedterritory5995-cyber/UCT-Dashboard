@@ -52,6 +52,13 @@
   white-space: nowrap;
   font-size: 11px;
 }
+.portfolioBadge {
+  font-size: 10px;
+  color: var(--ut-gold);
+  flex-shrink: 0;
+  line-height: 1;
+  margin-right: 2px;
+}
 .barWrap {
   width: 60px;
   height: 4px;

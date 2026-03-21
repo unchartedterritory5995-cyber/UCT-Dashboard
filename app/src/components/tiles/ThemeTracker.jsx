@@ -34,6 +34,7 @@ function buildLeadersLaggards(themes, periodKey) {
 }
 
 function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, positive }) {
+  const isPortfolio = ticker === 'UCT20'
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -43,6 +44,7 @@ function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, posi
         onClick={() => setExpanded(e => !e)}
       >
         <span className={styles.name}>{name}</span>
+        {isPortfolio && <span className={styles.portfolioBadge}>★</span>}
         <div className={styles.barWrap}>
           <div
             className={`${styles.bar} ${positive ? styles.barGain : styles.barLoss}`}
