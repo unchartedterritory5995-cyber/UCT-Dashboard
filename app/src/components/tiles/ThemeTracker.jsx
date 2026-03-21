@@ -7,8 +7,8 @@ import { useTileCapture } from '../../hooks/useTileCapture'
 import styles from './ThemeTracker.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
-const PERIODS = ['Today', '1W', '1M', '3M']
-const PERIOD_KEY = { Today: '1d', '1W': '1w', '1M': '1m', '3M': '3m' }
+const PERIODS = ['Today', '1W', '1M', '3M', '1Y', 'YTD']
+const PERIOD_KEY = { Today: '1d', '1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd' }
 
 function groupReturn(theme, key) {
   const gr = theme.group_return?.[key]

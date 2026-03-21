@@ -226,7 +226,7 @@ def _run_computation() -> None:
                 "holdings": [
                     {
                         "sym": sym,
-                        "name": theme_data.get("name", sym),
+                        "name": sym,
                         "weight_pct": 0.0,
                         "returns": returns_map.get(sym, null_returns.copy()),
                         "ref_prices": refs_map.get(sym, null_returns.copy()),
