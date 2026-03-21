@@ -1,5 +1,5 @@
 // app/src/components/tiles/ThemeTracker.jsx
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
@@ -8,6 +8,30 @@ import styles from './ThemeTracker.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 const PERIODS = ['Today', '1W', '1M', '3M']
+const PERIOD_KEY = { Today: '1d', '1W': '1w', '1M': '1m', '3M': '3m' }
+
+function groupReturn(theme, key) {
+  const gr = theme.group_return?.[key]
+  if (gr != null) return gr
+  const vals = (theme.holdings || []).map(h => h.returns?.[key]).filter(v => v != null)
+  if (!vals.length) return null
+  return vals.reduce((a, b) => a + b, 0) / vals.length
+}
+
+function buildLeadersLaggards(themes, periodKey) {
+  const items = themes.map(theme => {
+    const val = groupReturn(theme, periodKey)
+    const pct = val == null ? '0.00%' : `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`
+    const bar = val == null ? 0 : Math.min(100, Math.round(Math.abs(val) * 8))
+    const holdings = (theme.holdings || []).map(h => h.sym)
+    return { name: theme.name, ticker: theme.ticker, etf_name: theme.etf_name || '', pct, bar, holdings, intl_count: 0, val: val ?? 0 }
+  })
+  items.sort((a, b) => b.val - a.val)
+  return {
+    leaders:  items.filter(i => i.val >= 0),
+    laggards: items.filter(i => i.val < 0).reverse(),
+  }
+}
 
 function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, positive }) {
   const [expanded, setExpanded] = useState(false)
@@ -54,11 +78,16 @@ function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, posi
 export default function ThemeTracker({ data: propData }) {
   const [period, setPeriod] = useState('Today')
   const { data: fetched } = useSWR(
-    propData !== undefined ? null : `/api/themes?period=${period}`,
+    propData !== undefined ? null : '/api/theme-performance',
     fetcher,
-    { refreshInterval: period === 'Today' ? 30000 : 0 }
+    { refreshInterval: period === 'Today' ? 30_000 : 900_000, revalidateOnFocus: false }
   )
-  const data = propData !== undefined ? propData : fetched
+
+  const data = useMemo(() => {
+    const raw = propData !== undefined ? propData : fetched
+    if (!raw?.themes) return null
+    return buildLeadersLaggards(raw.themes, PERIOD_KEY[period])
+  }, [propData, fetched, period])
   const { tileRef, capturing, capture } = useTileCapture('themetracker')
 
   const captureBtn = (

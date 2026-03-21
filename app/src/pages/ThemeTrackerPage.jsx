@@ -82,8 +82,9 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
 }
 
 export default function ThemeTrackerPage() {
+  const [activeTab, setActiveTab] = useState('1W')
   const { data, isLoading } = useSWR('/api/theme-performance', fetcher, {
-    refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 900_000,
+    refreshInterval: (d) => d?.status === 'computing' ? 15_000 : (activeTab === 'Today' ? 30_000 : 900_000),
     dedupingInterval: 10_000,
     revalidateOnFocus: false,
   })
@@ -91,7 +92,6 @@ export default function ThemeTrackerPage() {
 
   const [selectedSym, setSelectedSym] = useState(null)
   const [selectedName, setSelectedName] = useState('')
-  const [activeTab, setActiveTab] = useState('1W')
   const [sortDir, setSortDir] = useState('desc')
   const [openThemes, setOpenThemes] = useState(new Set())
   const [search, setSearch] = useState('')

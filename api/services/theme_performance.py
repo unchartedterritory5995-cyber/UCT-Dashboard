@@ -28,6 +28,8 @@ from api.services.massive import get_agg_bars
 
 _CACHE_KEY = "theme_performance"
 _CACHE_TTL = 900          # 15 min in-memory cache
+_LIVE_1D_KEY = "theme_live_1d_map"
+_LIVE_1D_TTL = 30         # 30s live intraday overlay
 _MAX_WORKERS = 6          # conservative — keeps Railway memory safe
 _BAR_DAYS = 420           # ~14 months → ≥252 trading days for 1Y
 _EXCLUDED = {"TLT", "HYG", "URA", "IBB", "FXI", "MSOS"}
@@ -229,6 +231,63 @@ def _run_computation() -> None:
             _computing = False
 
 
+# ── Live 1d overlay ───────────────────────────────────────────────────────────
+
+def _fetch_live_1d_map(syms: list[str]) -> dict[str, float]:
+    """Return todaysChangePerc for all holdings via batch snapshot. Cached 30s."""
+    cached = cache.get(_LIVE_1D_KEY)
+    if cached is not None:
+        return cached
+    from api.services.massive import get_etf_snapshots
+    live_map = get_etf_snapshots(syms)
+    cache.set(_LIVE_1D_KEY, live_map, ttl=_LIVE_1D_TTL)
+    return live_map
+
+
+def _apply_live_1d(result: dict) -> dict:
+    """Overlay real-time todaysChangePerc onto returns['1d'] for all holdings.
+
+    Returns a new dict (does not mutate the cached base). The live_map is
+    cached separately at 30s so intraday prices refresh independently from the
+    15-min base computation cache.
+    """
+    themes = result.get("themes")
+    if not themes:
+        return result
+
+    all_syms = [h["sym"] for theme in themes for h in theme.get("holdings", []) if h.get("sym")]
+    live_map = _fetch_live_1d_map(all_syms)
+    if not live_map:
+        return result
+
+    themes_out = []
+    for theme in themes:
+        holdings_out = []
+        live_vals: list[float] = []
+        for h in theme.get("holdings", []):
+            live = live_map.get(h["sym"])
+            if live is not None:
+                new_returns = {**h.get("returns", {}), "1d": round(float(live), 2)}
+                holdings_out.append({**h, "returns": new_returns})
+                live_vals.append(float(live))
+            else:
+                holdings_out.append(h)
+                v = h.get("returns", {}).get("1d")
+                if v is not None:
+                    live_vals.append(float(v))
+
+        new_theme = {**theme, "holdings": holdings_out}
+        # Recompute group_return['1d'] from live holding averages (all themes including UCT20)
+        if live_vals:
+            gr = dict(theme.get("group_return") or {})
+            gr["1d"] = round(sum(live_vals) / len(live_vals), 2)
+            new_theme["group_return"] = gr
+
+        themes_out.append(new_theme)
+
+    return {**result, "themes": themes_out}
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def get_theme_performance() -> dict:
@@ -238,16 +297,16 @@ def get_theme_performance() -> dict:
     """
     global _computing
 
-    # 1. In-memory cache hit (fast path)
+    # 1. In-memory cache hit (fast path) — overlay live 1d before returning
     cached = cache.get(_CACHE_KEY)
     if cached is not None:
-        return cached
+        return _apply_live_1d(cached)
 
-    # 2. Disk hit — load into memory cache and return
+    # 2. Disk hit — load into memory cache and return with live 1d overlay
     disk_data = _load_from_disk()
     if disk_data:
         cache.set(_CACHE_KEY, disk_data, ttl=_CACHE_TTL)
-        return disk_data
+        return _apply_live_1d(disk_data)
 
     # 3. Cache cold — trigger background computation if not already running
     with _compute_lock:
