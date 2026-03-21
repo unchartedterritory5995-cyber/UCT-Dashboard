@@ -104,6 +104,36 @@
   cursor: pointer;
 }
 
+/* ── Notable Extremes ──────────────────────────────────────────────────────── */
+.extremesRow {
+  width: 100%;
+  padding-bottom: 8px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.extremesBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid #78350f;
+  background: rgba(120, 53, 15, 0.20);
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.extremesBtn:hover {
+  background: rgba(120, 53, 15, 0.35);
+  border-color: #d97706;
+}
+
 /* ── Date row ──────────────────────────────────────────────────────────────── */
 .dateRow {
   display: flex;

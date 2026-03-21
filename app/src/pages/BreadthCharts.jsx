@@ -233,6 +233,11 @@ export default function BreadthCharts() {
 
           {CHART_GROUPS.map(g => expanded[g.group] && (
             <div key={g.group} className={styles.metricList}>
+              <div className={styles.extremesRow}>
+                <button className={styles.extremesBtn}>
+                  ⚡ Notable Extremes
+                </button>
+              </div>
               {g.metrics.map(m => (
                 <label key={m.key} className={styles.metricItem}>
                   <input
