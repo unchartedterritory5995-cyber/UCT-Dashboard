@@ -1003,7 +1003,7 @@ export default function OptionsFlowDashboard() {
     setTab("Market Read");
     const t0 = performance.now();
 
-    fetch(csvFile)
+    fetch(csvFile + "?" + Date.now())
         .then(res => {
           console.log(`[perf] CSV fetch: ${(performance.now()-t0).toFixed(0)}ms`);
           if (!res.ok) throw new Error(`Server returned ${res.status} for ${csvFile}`);
