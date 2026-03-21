@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import useSWR from 'swr'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
+import BreadthCharts from './BreadthCharts'
 import { useTileCapture } from '../hooks/useTileCapture'
 import TickerPopup from '../components/TickerPopup'
 
@@ -939,9 +940,27 @@ export default function Breadth() {
             <button className={styles.tab} onClick={() => setActiveTab('breadth')}>Monitor</button>
             <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
             <button className={`${styles.tab} ${styles.tabActive}`}>COT Data</button>
+            <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
           </div>
         </div>
         <CotData />
+      </div>
+    )
+  }
+
+  if (activeTab === 'charts') {
+    return (
+      <div className={styles.page}>
+        <div className={styles.header}>
+          <h1 className={styles.heading}>Breadth</h1>
+          <div className={styles.tabs}>
+            <button className={styles.tab} onClick={() => setActiveTab('breadth')}>Monitor</button>
+            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
+            <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
+            <button className={`${styles.tab} ${styles.tabActive}`}>Data Charts</button>
+          </div>
+        </div>
+        <BreadthCharts />
       </div>
     )
   }
@@ -954,6 +973,7 @@ export default function Breadth() {
           <button className={`${styles.tab} ${activeTab === 'breadth' ? styles.tabActive : ''}`} onClick={() => setActiveTab('breadth')}>Monitor</button>
           <button className={`${styles.tab} ${activeTab === 'heatmap' ? styles.tabActive : ''}`} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
           <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
+          <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
         </div>
         <span className={styles.meta}>
           {rows.length > 0
