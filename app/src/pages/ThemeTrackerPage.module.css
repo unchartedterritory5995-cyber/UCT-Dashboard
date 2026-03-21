@@ -274,6 +274,12 @@
   color: var(--text-muted);
 }
 
+.chartFrame {
+  flex: 1;
+  border: none;
+  min-height: 0;
+}
+
 .chartImgWrap {
   flex: 1;
   min-height: 0;

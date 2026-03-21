@@ -202,9 +202,13 @@ export default function ThemeTrackerPage() {
     return `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}`
   }
 
-  // Preload neighbors so clicking adjacent stocks is instant
+  function tvUrl(sym) {
+    return `https://s.tradingview.com/widgetembed/?frameElementId=tv_theme&symbol=${sym}&interval=D&theme=dark&style=1&locale=en&toolbar_bg=161b22&enable_publishing=false&hide_top_toolbar=false&save_image=false&hide_legend=false&hide_volume=false`
+  }
+
+  // Preload Finviz neighbors so clicking adjacent stocks is instant
   useEffect(() => {
-    if (!selectedSym || !allStocks.length) return
+    if (!selectedSym || !allStocks.length || chartPeriod === 'tv') return
     const idx = allStocks.findIndex(s => s.sym === selectedSym)
     if (idx < 0) return
     for (let offset = -5; offset <= 5; offset++) {
@@ -287,7 +291,7 @@ export default function ThemeTrackerPage() {
               <span className={styles.chartSym}>{selectedSym}</span>
               <span className={styles.chartName}>{selectedName}</span>
               <div className={styles.chartPeriodTabs}>
-                {[['d', 'Daily'], ['w', 'Weekly']].map(([p, label]) => (
+                {[['d', 'Daily'], ['w', 'Weekly'], ['tv', 'TradingView']].map(([p, label]) => (
                   <button
                     key={p}
                     className={`${styles.chartPeriodBtn} ${chartPeriod === p ? styles.chartPeriodBtnActive : ''}`}
@@ -298,13 +302,22 @@ export default function ThemeTrackerPage() {
                 ))}
               </div>
             </div>
-            <div className={styles.chartImgWrap}>
-              <img
-                src={finvizUrl(selectedSym, chartPeriod)}
-                className={styles.chartImg}
-                alt={`${selectedSym} chart`}
+            {chartPeriod === 'tv' ? (
+              <iframe
+                src={tvUrl(selectedSym)}
+                className={styles.chartFrame}
+                title={`${selectedSym} TradingView`}
+                allowFullScreen
               />
-            </div>
+            ) : (
+              <div className={styles.chartImgWrap}>
+                <img
+                  src={finvizUrl(selectedSym, chartPeriod)}
+                  className={styles.chartImg}
+                  alt={`${selectedSym} chart`}
+                />
+              </div>
+            )}
             <div className={styles.newsLabel}>News — {selectedSym}</div>
           </>
         ) : (
