@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import useSWR from 'swr'
+import ReactECharts from 'echarts-for-react'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
 import BreadthCharts from './BreadthCharts'
@@ -591,251 +592,389 @@ function DrillModal({ drill, onClose }) {
 // ── COLS lookup map ────────────────────────────────────────────────────────
 const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
 
-// ── Squarify treemap layout algorithm ─────────────────────────────────────
-function _tmWorst(row, short) {
-  const s = row.reduce((sum, i) => sum + i._n, 0)
-  const mx = Math.max(...row.map(i => i._n))
-  const mn = Math.min(...row.map(i => i._n))
-  return Math.max((short * short * mx) / (s * s), (s * s) / (short * short * mn))
+// ── ECharts matrix heatmap ─────────────────────────────────────────────────
+// Maps tier string → numeric score for visualMap
+const TIER_SCORES = { g3: 6, g2: 5, g1: 4, a: 3, r1: 2, r2: 1, r3: 0 }
+
+// Human-readable tier labels (shown in tooltip)
+const TIER_LABELS = {
+  6: 'Extreme Bullish', 5: 'Bullish', 4: 'Mild Bullish',
+  3: 'Caution', 2: 'Mild Bearish', 1: 'Bearish', 0: 'Extreme Bearish',
 }
 
-function _tmLayoutRow(row, x, y, w, h, out) {
-  const rowSum = row.reduce((s, i) => s + i._n, 0)
-  if (w >= h) {
-    const rw = rowSum / h; let cy = y
-    for (const item of row) { const ih = item._n / rw; out.push({ ...item, x, y: cy, w: rw, h: ih }); cy += ih }
-    return { nx: x + rw, ny: y, nw: w - rw, nh: h }
-  } else {
-    const rh = rowSum / w; let cx = x
-    for (const item of row) { const iw = item._n / rh; out.push({ ...item, x: cx, y, w: iw, h: rh }); cx += iw }
-    return { nx: x, ny: y + rh, nw: w, nh: h - rh }
-  }
+// Bright colors for tooltip text readability
+const TIER_TIP_COLORS = {
+  6: '#4ade80', 5: '#22c55e', 4: '#86efac',
+  3: '#f59e0b', 2: '#fca5a5', 1: '#f87171', 0: '#ef4444',
 }
 
-function squarify(items, x, y, w, h) {
-  if (!items.length || w <= 0 || h <= 0) return []
-  const total = items.reduce((s, i) => s + (i.weight || 1), 0)
-  const normed = items.map(i => ({ ...i, _n: (i.weight || 1) / total * w * h }))
-  const out = []
-  let remaining = normed
-  let cx = x, cy = y, cw = w, ch = h
-  while (remaining.length > 0) {
-    let row = [remaining[0]]
-    let ri = 1
-    while (ri < remaining.length) {
-      const cand = [...row, remaining[ri]]
-      if (_tmWorst(cand, Math.min(cw, ch)) <= _tmWorst(row, Math.min(cw, ch))) { row = cand; ri++ } else break
-    }
-    const next = _tmLayoutRow(row, cx, cy, cw, ch, out)
-    cx = next.nx; cy = next.ny; cw = next.nw; ch = next.nh
-    remaining = remaining.slice(row.length)
-  }
-  return out
+// Y-axis label colors per group
+const HM_GROUP_COLORS = {
+  Score: '#c9a84c', Primary: '#b8c94a', MA: '#4ac97d',
+  Regime: '#7b9fc7', 'Highs/Lows': '#c9944a', Sentiment: '#b44ac9',
 }
 
-// ── Treemap group + item definitions (weight = relative tile size) ──────────
-// type:'paired' merges up/down pairs into one tile using ratio coloring
-const TREEMAP_GROUPS = [
-  { key: 'score', label: 'Score', ghKey: G.SCORE, weight: 18, items: [
-    { key: 'breadth_score', label: 'Health',  weight: 12 },
-    { key: 'uct_exposure',  label: 'UCT Exp', weight: 6 },
-  ]},
-  { key: 'primary', label: 'Primary Breadth', ghKey: G.PRIMARY, weight: 38, items: [
-    { key: 'ad_4pct',    label: 'A/D 4%+',   weight: 12, type: 'paired', upKey: 'up_4pct_today', dnKey: 'down_4pct_today' },
-    { key: 'ratio_5day', label: '5D Ratio',  weight: 7 },
-    { key: 'ratio_10day',label: '10D Ratio', weight: 7 },
-    { key: 'magna',      label: 'MAGNA',     weight: 8,  type: 'paired', upKey: 'magna_up',       dnKey: 'magna_down' },
-    { key: 'is_ftd',     label: 'FTD',       weight: 4 },
-  ]},
-  { key: 'ma', label: 'MA Breadth', ghKey: G.MA, weight: 31, items: [
-    { key: 'pct_above_50sma',  label: '>50SMA',  weight: 10 },
-    { key: 'pct_above_200sma', label: '>200SMA', weight: 9 },
-    { key: 'pct_above_20ema',  label: '>20EMA',  weight: 7 },
-    { key: 'spy_ma_stack', label: 'SPY MA', weight: 5, type: 'ma_stack',
-      keys: ['spy_above_10sma','spy_above_20sma','spy_above_50sma','spy_above_200sma'], maLabels: ['10','20','50','200'] },
-    { key: 'qqq_ma_stack', label: 'QQQ MA', weight: 5, type: 'ma_stack',
-      keys: ['qqq_above_10sma','qqq_above_20sma','qqq_above_50sma','qqq_above_200sma'], maLabels: ['10','20','50','200'] },
-  ]},
-  { key: 'regime', label: 'Regime', ghKey: G.REGIME, weight: 32, items: [
-    { key: 'vix',           label: 'VIX',       weight: 9 },
-    { key: 'mcclellan_osc', label: 'McClellan', weight: 8 },
-    { key: 'stage_ratio',   label: 'Stage 2/4', weight: 11, type: 'paired', upKey: 'stage2_count', dnKey: 'stage4_count' },
-    { key: 'sp500_close',   label: 'S&P 500',   weight: 4 },
-  ]},
-  { key: 'highs', label: 'Highs / Lows', ghKey: G.HIGHS, weight: 30, items: [
-    { key: 'hi_lo_52w', label: '52W Hi/Lo', weight: 18, type: 'paired', upKey: 'new_52w_highs', dnKey: 'new_52w_lows' },
-    { key: 'hi_lo_20d', label: '20D Hi/Lo', weight: 9,  type: 'paired', upKey: 'new_20d_highs', dnKey: 'new_20d_lows' },
-    { key: 'new_ath',   label: 'ATH',       weight: 3 },
-  ]},
-  { key: 'sentiment', label: 'Sentiment', ghKey: G.SENTIMENT, weight: 27, items: [
-    { key: 'cnn_fear_greed', label: 'CNN F/G',  weight: 7 },
-    { key: 'aaii_spread',    label: 'B-B Sprd', weight: 7 },
-    { key: 'aaii_bulls',     label: 'Bulls',    weight: 4 },
-    { key: 'aaii_bears',     label: 'Bears',    weight: 4 },
-    { key: 'cboe_putcall',   label: 'P/C Ratio',weight: 5 },
-  ]},
+// Flat metric list with group-header separators
+// Each real metric has getTier(row)→tier and getFmt(row)→string
+const HM_METRICS = [
+  { key: '__h_score',   label: 'SCORE',           isHeader: true, group: 'Score' },
+  { key: 'breadth_score', label: 'Health',         group: 'Score',
+    getTier: r => { const v = r.breadth_score; return v == null ? '' : v >= 80 ? 'g3' : v >= 65 ? 'g2' : v >= 52 ? 'g1' : v >= 45 ? 'a' : v >= 35 ? 'r1' : v >= 20 ? 'r2' : 'r3' },
+    getFmt:  r => r.breadth_score == null ? '—' : Math.round(r.breadth_score).toString() },
+  { key: 'uct_exposure', label: 'UCT Exp',         group: 'Score',
+    getTier: r => { const v = r.uct_exposure; return v == null ? '' : v >= 80 ? 'g3' : v >= 65 ? 'g2' : v >= 50 ? 'g1' : v >= 35 ? 'a' : v >= 20 ? 'r1' : v >= 10 ? 'r2' : 'r3' },
+    getFmt:  r => r.uct_exposure == null ? '—' : Math.round(r.uct_exposure).toString() },
+
+  { key: '__h_primary', label: 'PRIMARY BREADTH',  isHeader: true, group: 'Primary' },
+  { key: 'up_4pct_today',   label: 'Up 4%+',       group: 'Primary',
+    getTier: r => pairedUpColor(r.up_4pct_today, r.down_4pct_today),
+    getFmt:  r => r.up_4pct_today ?? '—' },
+  { key: 'down_4pct_today', label: 'Dn 4%+',       group: 'Primary',
+    getTier: r => pairedDnColor(r.up_4pct_today, r.down_4pct_today),
+    getFmt:  r => r.down_4pct_today ?? '—' },
+  { key: 'ratio_5day',      label: '5D Ratio',      group: 'Primary',
+    getTier: r => { const v = r.ratio_5day; return v == null ? '' : v >= 2.0 ? 'g3' : v >= 1.5 ? 'g2' : v > 0.6 ? '' : v > 0.5 ? 'r1' : v > 0.4 ? 'r2' : 'r3' },
+    getFmt:  r => r.ratio_5day == null ? '—' : Number(r.ratio_5day).toFixed(2) },
+  { key: 'ratio_10day',     label: '10D Ratio',     group: 'Primary',
+    getTier: r => { const v = r.ratio_10day; return v == null ? '' : v >= 2.0 ? 'g3' : v >= 1.5 ? 'g2' : v > 0.6 ? '' : v > 0.5 ? 'r1' : v > 0.4 ? 'r2' : 'r3' },
+    getFmt:  r => r.ratio_10day == null ? '—' : Number(r.ratio_10day).toFixed(2) },
+  { key: 'magna_up',        label: 'MAGNA Up',      group: 'Primary',
+    getTier: r => pairedUpColor(r.magna_up, r.magna_down),
+    getFmt:  r => r.magna_up ?? '—' },
+  { key: 'magna_down',      label: 'MAGNA Dn',      group: 'Primary',
+    getTier: r => pairedDnColor(r.magna_up, r.magna_down),
+    getFmt:  r => r.magna_down ?? '—' },
+  { key: 'is_ftd',          label: 'FTD',           group: 'Primary',
+    getTier: r => r.is_ftd ? 'g2' : '',
+    getFmt:  r => r.is_ftd ? 'FTD ✓' : '—' },
+
+  { key: '__h_ma',     label: 'MA BREADTH',         isHeader: true, group: 'MA' },
+  { key: 'spy_ma_stack', label: 'SPY MA',           group: 'MA',
+    getTier: r => getMaStackTier({ keys: ['spy_above_10sma','spy_above_20sma','spy_above_50sma','spy_above_200sma'] }, r),
+    getFmt:  r => ['spy_above_10sma','spy_above_20sma','spy_above_50sma','spy_above_200sma']
+      .map((k, i) => `${['10','20','50','200'][i]}:${r[k]===1?'✓':r[k]===0?'✗':'—'}`).join(' ') },
+  { key: 'qqq_ma_stack', label: 'QQQ MA',          group: 'MA',
+    getTier: r => getMaStackTier({ keys: ['qqq_above_10sma','qqq_above_20sma','qqq_above_50sma','qqq_above_200sma'] }, r),
+    getFmt:  r => ['qqq_above_10sma','qqq_above_20sma','qqq_above_50sma','qqq_above_200sma']
+      .map((k, i) => `${['10','20','50','200'][i]}:${r[k]===1?'✓':r[k]===0?'✗':'—'}`).join(' ') },
+  { key: 'pct_above_20ema',  label: '>20 EMA',     group: 'MA',
+    getTier: r => pctColor(35, 50, 65)(r.pct_above_20ema),
+    getFmt:  r => r.pct_above_20ema  == null ? '—' : `${Number(r.pct_above_20ema).toFixed(1)}%` },
+  { key: 'pct_above_50sma',  label: '>50 SMA',     group: 'MA',
+    getTier: r => pctColor(35, 50, 65)(r.pct_above_50sma),
+    getFmt:  r => r.pct_above_50sma  == null ? '—' : `${Number(r.pct_above_50sma).toFixed(1)}%` },
+  { key: 'pct_above_200sma', label: '>200 SMA',    group: 'MA',
+    getTier: r => pctColor(30, 45, 60)(r.pct_above_200sma),
+    getFmt:  r => r.pct_above_200sma == null ? '—' : `${Number(r.pct_above_200sma).toFixed(1)}%` },
+
+  { key: '__h_regime', label: 'REGIME',             isHeader: true, group: 'Regime' },
+  { key: 'sp500_close',  label: 'S&P 500',          group: 'Regime',
+    getTier: r => { const p = r.spy_day_pct; return p == null ? '' : p >= 1.5 ? 'g3' : p >= 0.5 ? 'g2' : p > 0 ? 'g1' : p <= -1.5 ? 'r3' : p <= -0.5 ? 'r2' : 'r1' },
+    getFmt:  r => r.sp500_close == null ? '—' : Number(r.sp500_close).toLocaleString('en-US', { maximumFractionDigits: 0 }) },
+  { key: 'qqq_close',    label: 'QQQ',              group: 'Regime',
+    getTier: r => { const p = r.qqq_day_pct; return p == null ? '' : p >= 1.5 ? 'g3' : p >= 0.5 ? 'g2' : p > 0 ? 'g1' : p <= -1.5 ? 'r3' : p <= -0.5 ? 'r2' : 'r1' },
+    getFmt:  r => r.qqq_close == null ? '—' : Number(r.qqq_close).toFixed(2) },
+  { key: 'vix',          label: 'VIX',              group: 'Regime',
+    getTier: r => { const v = r.vix; return v == null ? '' : v < 14 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 25 ? 'r1' : v < 30 ? 'r2' : 'r3' },
+    getFmt:  r => r.vix == null ? '—' : Number(r.vix).toFixed(2) },
+  { key: 'mcclellan_osc', label: 'McClellan',       group: 'Regime',
+    getTier: r => { const v = r.mcclellan_osc; return v == null ? '' : v > 200 ? 'a' : v > 80 ? 'g3' : v > 20 ? 'g2' : v > 0 ? 'g1' : v > -20 ? 'r1' : v > -80 ? 'r2' : v > -200 ? 'r3' : 'a' },
+    getFmt:  r => r.mcclellan_osc == null ? '—' : Number(r.mcclellan_osc).toFixed(1) },
+  { key: 'stage2_count', label: 'Stage 2',          group: 'Regime',
+    getTier: r => pairedUpColor(r.stage2_count, r.stage4_count),
+    getFmt:  r => r.stage2_count ?? '—' },
+  { key: 'stage4_count', label: 'Stage 4',          group: 'Regime',
+    getTier: r => pairedDnColor(r.stage2_count, r.stage4_count),
+    getFmt:  r => r.stage4_count ?? '—' },
+
+  { key: '__h_highs', label: 'HIGHS / LOWS',        isHeader: true, group: 'Highs/Lows' },
+  { key: 'new_52w_highs', label: '52W Highs',       group: 'Highs/Lows',
+    getTier: r => pairedUpColor(r.new_52w_highs, r.new_52w_lows),
+    getFmt:  r => r.new_52w_highs ?? '—' },
+  { key: 'new_52w_lows',  label: '52W Lows',        group: 'Highs/Lows',
+    getTier: r => pairedDnColor(r.new_52w_highs, r.new_52w_lows),
+    getFmt:  r => r.new_52w_lows ?? '—' },
+  { key: 'new_20d_highs', label: '20D Highs',       group: 'Highs/Lows',
+    getTier: r => pairedUpColor(r.new_20d_highs, r.new_20d_lows),
+    getFmt:  r => r.new_20d_highs ?? '—' },
+  { key: 'new_20d_lows',  label: '20D Lows',        group: 'Highs/Lows',
+    getTier: r => pairedDnColor(r.new_20d_highs, r.new_20d_lows),
+    getFmt:  r => r.new_20d_lows ?? '—' },
+  { key: 'new_ath',       label: 'ATH Count',       group: 'Highs/Lows',
+    getTier: r => { const v = r.new_ath; return v == null ? '' : v > 200 ? 'g3' : v > 100 ? 'g2' : v > 40 ? 'g1' : '' },
+    getFmt:  r => r.new_ath ?? '—' },
+
+  { key: '__h_sentiment', label: 'SENTIMENT',       isHeader: true, group: 'Sentiment' },
+  { key: 'cnn_fear_greed', label: 'CNN F/G',        group: 'Sentiment',
+    getTier: r => { const v = r.cnn_fear_greed; return v == null ? '' : v <= 15 ? 'g3' : v <= 25 ? 'g2' : v <= 40 ? 'g1' : v <= 60 ? 'a' : v <= 70 ? 'r1' : v <= 80 ? 'r2' : 'r3' },
+    getFmt:  r => r.cnn_fear_greed == null ? '—' : Math.round(r.cnn_fear_greed).toString() },
+  { key: 'aaii_spread',   label: 'B-B Spread',      group: 'Sentiment',
+    getTier: () => '',
+    getFmt:  r => r.aaii_spread == null ? '—' : Number(r.aaii_spread).toFixed(1) },
+  { key: 'cboe_putcall',  label: 'CBOE P/C',        group: 'Sentiment',
+    getTier: () => '',
+    getFmt:  r => r.cboe_putcall == null ? '—' : Number(r.cboe_putcall).toFixed(2) },
 ]
 
-function getTmTier(item, row) {
-  if (item.type === 'paired') return pairedUpColor(row[item.upKey], row[item.dnKey])
-  if (item.type === 'ma_stack') return getMaStackTier(item, row)
-  return getCellTier(COLS_BY_KEY[item.key] ?? item, row)
-}
+// Keys that are weekly/sparse and should be forward-filled so rows don't show
+// black "no data" cells on off-survey days
+const FFILL_KEYS = ['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread', 'naaim', 'cboe_putcall']
 
-function getTmDisplay(item, row) {
-  if (item.type === 'paired') {
-    const u = row[item.upKey], d = row[item.dnKey]
-    if (u == null && d == null) return '—'
-    return `${u ?? '—'}↑  ${d ?? '—'}↓`
-  }
-  if (item.type === 'ma_stack') return null  // rendered as grid
-  return fmtCell(COLS_BY_KEY[item.key] ?? {}, row[item.key])
-}
+// Keys that have a single numeric field we can compute percentile rank on
+const PCTILE_KEYS = new Set([
+  'breadth_score', 'uct_exposure',
+  'up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day', 'magna_up', 'magna_down',
+  'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma',
+  'sp500_close', 'qqq_close', 'vix', 'mcclellan_osc', 'stage2_count', 'stage4_count',
+  'new_52w_highs', 'new_52w_lows', 'new_20d_highs', 'new_20d_lows', 'new_ath',
+  'cnn_fear_greed', 'aaii_spread', 'cboe_putcall',
+])
 
-// ── BreadthHeatmap (treemap view) ──────────────────────────────────────────
+// ── BreadthHeatmap (ECharts matrix view) ───────────────────────────────────
+// Rows (Y) = metrics grouped by category. Columns (X) = dates oldest→newest.
+// Color = 8-tier bull/bear system. Tooltip = exact value + tier + percentile rank.
+// Score summary strip shows today's headline numbers. Last column marked gold.
 function BreadthHeatmap({ rows }) {
-  const [size, setSize]       = useState({ w: 0, h: 0 })
-  const [tooltip, setTooltip] = useState(null)
-  const [rowIdx, setRowIdx]   = useState(0)   // 0 = newest
-  const containerRef          = useRef(null)
+  // rows is newest-first; X-axis needs oldest-first
+  const dates = useMemo(() => [...rows].reverse().map(r => r.date), [rows])
 
-  useEffect(() => { setRowIdx(0) }, [rows])
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const obs = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect
-      setSize({ w: Math.floor(width), h: Math.floor(height) })
-    })
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
-
-  // Arrow keys to step through dates
-  useEffect(() => {
-    const handler = e => {
-      if (e.key === 'ArrowLeft')  setRowIdx(i => Math.min(i + 1, rows.length - 1))
-      if (e.key === 'ArrowRight') setRowIdx(i => Math.max(i - 1, 0))
+  // Forward-fill weekly/sparse fields (AAII, NAAIM, CBOE) so those rows
+  // don't show blank cells on non-survey days
+  const rowByDate = useMemo(() => {
+    const asc = [...rows].reverse()
+    const result = {}
+    const carry  = {}
+    for (const row of asc) {
+      const filled = { ...row }
+      for (const k of FFILL_KEYS) {
+        if (filled[k] == null && carry[k] != null) filled[k] = carry[k]
+        else if (filled[k] != null) carry[k] = filled[k]
+      }
+      result[row.date] = filled
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [rows.length])
+    return result
+  }, [rows])
 
-  const row = rows[rowIdx]
+  // Sorted value arrays per key for percentile rank computation in tooltip
+  const pctileByKey = useMemo(() => {
+    const out = {}
+    for (const k of PCTILE_KEYS) {
+      const vals = rows.map(r => r[k]).filter(v => v != null && !isNaN(Number(v)))
+      if (vals.length > 1) out[k] = vals.map(Number).sort((a, b) => a - b)
+    }
+    return out
+  }, [rows])
 
-  const layout = useMemo(() => {
-    if (!size.w || !size.h || !row) return null
-    const OUTER = 4   // gap between groups (shows page bg)
-    const HDR   = 20  // group header height
-    const INNER = 1   // gap between tiles within group
+  const latestRow = rows[0]
 
-    const groupRects = squarify(TREEMAP_GROUPS, 0, 0, size.w, size.h)
+  // Tier helpers for score strip
+  const healthTier = latestRow?.breadth_score == null ? '' :
+    latestRow.breadth_score >= 80 ? 'g3' : latestRow.breadth_score >= 65 ? 'g2' :
+    latestRow.breadth_score >= 52 ? 'g1' : latestRow.breadth_score >= 45 ? 'a'  :
+    latestRow.breadth_score >= 35 ? 'r1' : latestRow.breadth_score >= 20 ? 'r2' : 'r3'
+  const expTier = latestRow?.uct_exposure == null ? '' :
+    latestRow.uct_exposure >= 80 ? 'g3' : latestRow.uct_exposure >= 65 ? 'g2' :
+    latestRow.uct_exposure >= 50 ? 'g1' : latestRow.uct_exposure >= 35 ? 'a'  :
+    latestRow.uct_exposure >= 20 ? 'r1' : latestRow.uct_exposure >= 10 ? 'r2' : 'r3'
 
-    return groupRects.map(gr => {
-      // Shrink by outer padding so groups have clear separation
-      const gx = gr.x + OUTER, gy = gr.y + OUTER
-      const gw = Math.max(0, gr.w - OUTER * 2), gh = Math.max(0, gr.h - OUTER * 2)
-      const bx = gx + INNER, by = gy + HDR + INNER
-      const bw = Math.max(0, gw - INNER * 2), bh = Math.max(0, gh - HDR - INNER * 2)
+  const option = useMemo(() => {
+    if (!dates.length) return {}
 
-      const enriched = gr.items.map(item => ({
-        ...item,
-        tier:       getTmTier(item, row),
-        displayVal: getTmDisplay(item, row),
-      }))
+    const lastDateIdx = dates.length - 1
 
-      return { ...gr, gx, gy, gw, gh, itemRects: squarify(enriched, bx, by, bw, bh) }
+    // Y-axis labels: group headers get their group color; metrics get muted white
+    const yLabels = HM_METRICS.map(m => ({
+      value: m.label,
+      textStyle: m.isHeader
+        ? { color: HM_GROUP_COLORS[m.group] ?? '#888', fontWeight: 700, fontSize: 9, fontFamily: 'IBM Plex Mono, monospace' }
+        : { color: '#aaa', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' },
+    }))
+
+    // X-axis labels: last (most recent) date is gold
+    const xData = dates.map((d, i) => ({
+      value: d,
+      textStyle: i === lastDateIdx ? { color: '#c9a84c', fontWeight: 700 } : {},
+    }))
+
+    // Series data: [xIdx, yIdx, tierScore]
+    // -2 = group header row (dim background, no tooltip)
+    // -1 = no data
+    const seriesData = []
+    HM_METRICS.forEach((metric, yi) => {
+      dates.forEach((date, xi) => {
+        if (metric.isHeader) { seriesData.push([xi, yi, -2]); return }
+        const row  = rowByDate[date]
+        const tier = row ? metric.getTier(row) : ''
+        seriesData.push([xi, yi, TIER_SCORES[tier] ?? -1])
+      })
     })
-  }, [size, row])
 
-  const tiles = []
-  layout?.forEach(gr => {
-    // Colored group background — bleeds through inter-tile gaps
-    tiles.push(
-      <div
-        key={`bg-${gr.key}`}
-        className={`${styles.tmGroupBg} ${GROUP_HEADER_CLASS[gr.ghKey] ?? ''}`}
-        style={{ left: Math.round(gr.gx), top: Math.round(gr.gy), width: Math.round(gr.gw), height: Math.round(gr.gh) }}
-      />
-    )
-    // Group header label
-    tiles.push(
-      <div
-        key={`hdr-${gr.key}`}
-        className={`${styles.tmGroupHdr} ${GROUP_HEADER_CLASS[gr.ghKey] ?? ''}`}
-        style={{ left: Math.round(gr.gx), top: Math.round(gr.gy), width: Math.round(gr.gw), height: 20 }}
-      >
-        {gr.label}
-      </div>
-    )
-    // Metric tiles
-    gr.itemRects.forEach(item => {
-      const w = Math.round(item.w), h = Math.round(item.h)
-      const showLabel = w >= 44 && h >= 20
-      const showValue = w >= 44 && h >= 44
-      tiles.push(
-        <div
-          key={item.key}
-          className={`${styles.tmTile} ${tierToClass(item.tier, styles)}`}
-          style={{ left: Math.round(item.x), top: Math.round(item.y), width: w, height: h }}
-          onMouseEnter={e => setTooltip({
-            x: e.clientX, y: e.clientY,
-            label: item.label,
-            value: item.type === 'ma_stack'
-              ? item.keys.map((k, i) => `${item.maLabels[i]}:${row[k] === 1 ? '✓' : row[k] === 0 ? '✗' : '—'}`).join('  ')
-              : (item.displayVal ?? '—'),
-          })}
-          onMouseLeave={() => setTooltip(null)}
-        >
-          {showLabel && <span className={styles.tmLabel}>{item.label}</span>}
-          {showValue && item.type === 'ma_stack' && (
-            <div className={styles.tmMaGrid}>
-              {item.keys.map((k, i) => (
-                <span key={k} className={row[k] === 1 ? styles.tmMaCheck : row[k] === 0 ? styles.tmMaCross : styles.tmMaDash}>
-                  {item.maLabels[i]}{row[k] === 1 ? '✓' : row[k] === 0 ? '✗' : '—'}
-                </span>
-              ))}
-            </div>
-          )}
-          {showValue && item.type !== 'ma_stack' && item.displayVal != null && (
-            <span className={styles.tmValue}>{item.displayVal}</span>
-          )}
-        </div>
-      )
-    })
-  })
+    const labelInterval = dates.length > 60 ? 9 : dates.length > 30 ? 4 : 2
+
+    return {
+      backgroundColor: 'transparent',
+      animation: false,
+      grid: { left: 108, right: 20, top: 10, bottom: 52, containLabel: false },
+      xAxis: {
+        type: 'category',
+        data: xData,
+        position: 'bottom',
+        splitLine: { show: false },
+        axisLine: { lineStyle: { color: '#2a2a2a' } },
+        axisTick: { show: false },
+        axisLabel: {
+          rotate: -45,
+          fontSize: 10,
+          color: '#555',
+          fontFamily: 'IBM Plex Mono, monospace',
+          interval: labelInterval,
+        },
+      },
+      yAxis: {
+        type: 'category',
+        data: yLabels,
+        inverse: true,
+        splitLine: { show: false },
+        axisLine: { lineStyle: { color: '#2a2a2a' } },
+        axisTick: { show: false },
+        axisLabel: {
+          fontSize: 11,
+          fontFamily: 'IBM Plex Mono, monospace',
+          width: 100,
+          overflow: 'truncate',
+        },
+      },
+      visualMap: {
+        type: 'piecewise',
+        show: false,
+        pieces: [
+          { min: 6, max: 6, color: '#0a3216' },   // g3 — extreme bullish
+          { min: 5, max: 5, color: '#166030' },   // g2 — bullish
+          { min: 4, max: 4, color: '#1e4d2a' },   // g1 — mild bullish
+          { min: 3, max: 3, color: '#5a4510' },   // a  — caution
+          { min: 2, max: 2, color: '#4d2222' },   // r1 — mild bearish
+          { min: 1, max: 1, color: '#a01919' },   // r2 — bearish
+          { min: 0, max: 0, color: '#370606' },   // r3 — extreme bearish
+          { min: -1, max: -1, color: '#111' },    // no data
+          { min: -2, max: -2, color: '#0a0a0a' }, // header separator
+        ],
+        seriesIndex: 0,
+      },
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: 'rgba(8,8,8,0.96)',
+        borderColor: '#c9a84c',
+        borderWidth: 1,
+        padding: [8, 12],
+        textStyle: { color: '#e0e0e0', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11 },
+        formatter: params => {
+          const d = params.data
+          if (!d) return ''
+          const [xi, yi, score] = d
+          const metric = HM_METRICS[yi]
+          if (!metric || metric.isHeader || score === -2) return ''
+          const date = dates[xi]
+          const row  = rowByDate[date]
+          const val  = row ? metric.getFmt(row) : '—'
+          const tierLabel = score >= 0 ? (TIER_LABELS[score] ?? '') : 'No signal'
+          const tierColor = TIER_TIP_COLORS[score] ?? '#666'
+          const isToday = xi === lastDateIdx
+
+          // Percentile rank: where does this value sit in the historical distribution?
+          let pctileStr = ''
+          if (row) {
+            const rawVal = row[metric.key]
+            const sorted = pctileByKey[metric.key]
+            if (sorted && rawVal != null && !isNaN(Number(rawVal))) {
+              const v   = Number(rawVal)
+              const pct = Math.round(sorted.filter(x => x <= v).length / sorted.length * 100)
+              pctileStr = `p${pct} of ${sorted.length}d`
+            }
+          }
+
+          return (
+            `<div style="min-width:145px">` +
+            `<div style="color:#c9a84c;font-weight:700;margin-bottom:3px">${metric.label}</div>` +
+            `<div style="color:#444;font-size:10px;margin-bottom:6px">${date}${isToday ? ' <span style="color:#c9a84c;font-size:9px">● TODAY</span>' : ''}</div>` +
+            `<div style="font-size:16px;font-weight:700;margin-bottom:4px">${val}</div>` +
+            `<div style="color:${tierColor};font-size:10px;letter-spacing:0.5px;margin-bottom:${pctileStr ? 3 : 0}px">${tierLabel}</div>` +
+            (pctileStr ? `<div style="color:#555;font-size:10px">${pctileStr}</div>` : '') +
+            `</div>`
+          )
+        },
+      },
+      series: [
+        {
+          type: 'heatmap',
+          data: seriesData,
+          emphasis: { itemStyle: { borderColor: '#c9a84c', borderWidth: 1.5 } },
+          itemStyle: { borderColor: 'rgba(0,0,0,0.3)', borderWidth: 0.5 },
+        },
+        // Invisible scatter used only for the gold markLine on the latest date column
+        {
+          type: 'scatter',
+          data: [],
+          silent: true,
+          markLine: {
+            silent: true,
+            symbol: 'none',
+            lineStyle: { color: 'rgba(201,168,76,0.55)', width: 1.5, type: 'solid' },
+            label: { show: false },
+            data: [{ xAxis: dates[lastDateIdx] }],
+          },
+        },
+      ],
+    }
+  }, [dates, rowByDate, pctileByKey])
 
   return (
-    <div className={styles.tmOuter} ref={containerRef}>
-      {tiles}
-      {/* Date navigation bar */}
-      {row && (
-        <div className={styles.tmDateNav}>
-          <button
-            className={styles.tmNavBtn}
-            onClick={() => setRowIdx(i => Math.min(i + 1, rows.length - 1))}
-            disabled={rowIdx >= rows.length - 1}
-            title="Older (←)"
-          >←</button>
-          <span className={styles.tmNavDate}>
-            {row.date}
-            {rowIdx === 0 && <span className={styles.tmNavLatest}>LATEST</span>}
-          </span>
-          <button
-            className={styles.tmNavBtn}
-            onClick={() => setRowIdx(i => Math.max(i - 1, 0))}
-            disabled={rowIdx === 0}
-            title="Newer (→)"
-          >→</button>
+    <div className={styles.tmOuter} style={{ display: 'flex', flexDirection: 'column' }}>
+      {/* ── Score summary strip ─────────────────────────────────────────── */}
+      {latestRow && (
+        <div className={styles.hmScoreStrip}>
+          <div className={styles.hmScorePair}>
+            <span className={styles.hmScoreLbl}>HEALTH</span>
+            <span className={styles.hmScoreVal} style={{ color: TIER_TIP_COLORS[TIER_SCORES[healthTier]] ?? '#888' }}>
+              {latestRow.breadth_score != null ? Math.round(latestRow.breadth_score) : '—'}
+            </span>
+            {healthTier && (
+              <span className={styles.hmScoreTier} style={{ color: TIER_TIP_COLORS[TIER_SCORES[healthTier]] ?? '#888' }}>
+                {TIER_LABELS[TIER_SCORES[healthTier]]}
+              </span>
+            )}
+          </div>
+          <div className={styles.hmScoreDivider} />
+          <div className={styles.hmScorePair}>
+            <span className={styles.hmScoreLbl}>UCT EXP</span>
+            <span className={styles.hmScoreVal} style={{ color: TIER_TIP_COLORS[TIER_SCORES[expTier]] ?? '#888' }}>
+              {latestRow.uct_exposure != null ? `${Math.round(latestRow.uct_exposure)}%` : '—'}
+            </span>
+            {expTier && (
+              <span className={styles.hmScoreTier} style={{ color: TIER_TIP_COLORS[TIER_SCORES[expTier]] ?? '#888' }}>
+                {TIER_LABELS[TIER_SCORES[expTier]]}
+              </span>
+            )}
+          </div>
+          {(latestRow.webster_phase || latestRow.market_phase) && (
+            <>
+              <div className={styles.hmScoreDivider} />
+              <span className={styles.hmScorePhase}>
+                {latestRow.webster_phase ?? latestRow.market_phase}
+              </span>
+            </>
+          )}
+          <span className={styles.hmScoreDate}>{latestRow.date}</span>
         </div>
       )}
-      {tooltip && (
-        <div className={styles.hmTooltip} style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}>
-          <span className={styles.hmTipLabel}>{tooltip.label}</span>
-          <span className={styles.hmTipValue}>{tooltip.value}</span>
-        </div>
-      )}
+      {/* ── ECharts matrix ──────────────────────────────────────────────── */}
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <ReactECharts
+          option={option}
+          style={{ width: '100%', height: '100%' }}
+          opts={{ renderer: 'canvas' }}
+          notMerge
+        />
+      </div>
     </div>
   )
 }

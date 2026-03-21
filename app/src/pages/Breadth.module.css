@@ -898,6 +898,68 @@ tbody tr { cursor: pointer; }
   padding: 1px 5px;
 }
 
+/* ── Heatmap score summary strip ─────────────────────────────────────────── */
+.hmScoreStrip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 7px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+.hmScorePair {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.hmScoreLbl {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.hmScoreVal {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+.hmScoreTier {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.hmScoreDivider {
+  width: 1px;
+  height: 26px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.hmScoreDate {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.hmScorePhase {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ut-gold, #c9a84c);
+  background: rgba(201, 168, 76, 0.1);
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 3px;
+  padding: 2px 8px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 /* ── Heatmap tooltip ──────────────────────────────────────────────────────── */
 .hmTooltip {
   position: fixed;
