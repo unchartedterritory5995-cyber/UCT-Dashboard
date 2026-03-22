@@ -7,11 +7,30 @@ const fetcher = url => fetch(url).then(r => r.json())
 
 const YEARS = Array.from({ length: 12 }, (_, i) => 2026 - i)
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const SETUPS = [
-  'VCP', 'EP', 'HTF', 'PEG', 'Base Breakout',
-  'Pullback/Flag', 'Remount', 'IPO Base',
-  'Parabolic Short', 'Red to Green', 'Wedge Pop', 'Kicker Candle'
+const SETUP_GROUPS = [
+  {
+    label: 'Swing',
+    setups: [
+      'High Tight Flag (Powerplay)', 'Classic Flag/Pullback', 'VCP',
+      'Flat Base Breakout', 'IPO Base', 'Parabolic Short', 'Parabolic Long',
+      'Wedge Pop', 'Wedge Drop', 'Episodic Pivot', '2B Reversal',
+      'Kicker Candle', 'Power Earnings Gap', 'News Gappers',
+      '4B Setup (Stan Weinstein)', 'Failed H&S/Rounded Top',
+      'Classic U&R', 'Launchpad', 'Go Signal', 'HVC',
+      'Wick Play', 'Slingshot', 'Oops Reversal', 'News Failure',
+      'Remount', 'Red to Green',
+    ],
+  },
+  {
+    label: 'Intraday',
+    setups: [
+      'Opening Range Breakout', 'Opening Range Breakdown',
+      'Red to Green (Intraday)', 'Green to Red',
+      '30min Pivot', 'Mean Reversion L/S',
+    ],
+  },
 ]
+const SETUPS = SETUP_GROUPS.flatMap(g => g.setups)
 
 const EMPTY_FORM = { sym: '', entry: '', stop: '', target: '', size_pct: '', notes: '', setup: '', date: '' }
 
@@ -109,7 +128,11 @@ export default function ModelBook() {
               <input className={styles.input} placeholder="Date" type="date" value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} />
               <select className={styles.input} value={form.setup} onChange={e => setForm(f => ({...f, setup: e.target.value}))}>
                 <option value="">Setup…</option>
-                {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
+                {SETUP_GROUPS.map(group => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.setups.map(s => <option key={s} value={s}>{s}</option>)}
+                  </optgroup>
+                ))}
               </select>
             </div>
             <input className={`${styles.input} ${styles.notesInput}`} placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} />
@@ -155,14 +178,19 @@ export default function ModelBook() {
           {/* Column 2: Setups */}
           <div className={styles.navCol}>
             <div className={styles.navColHeader}>Setups</div>
-            {SETUPS.map(s => (
-              <button
-                key={s}
-                className={`${styles.treeItem} ${selected?.type === 'setup' && selected.setup === s ? styles.treeActive : ''}`}
-                onClick={() => setSelected({ type: 'setup', setup: s })}
-              >
-                {s}
-              </button>
+            {SETUP_GROUPS.map(group => (
+              <div key={group.label}>
+                <div className={styles.navGroupLabel}>{group.label}</div>
+                {group.setups.map(s => (
+                  <button
+                    key={s}
+                    className={`${styles.treeItem} ${selected?.type === 'setup' && selected.setup === s ? styles.treeActive : ''}`}
+                    onClick={() => setSelected({ type: 'setup', setup: s })}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         </nav>

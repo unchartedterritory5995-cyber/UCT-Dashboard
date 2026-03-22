@@ -52,6 +52,17 @@ select.input { cursor: pointer; }
   flex-shrink: 0;
 }
 
+.navGroupLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 8px 12px 4px;
+  opacity: 0.6;
+}
+
 .treeGroup { display: flex; flex-direction: column; }
 
 .treeItem {
