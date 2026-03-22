@@ -196,7 +196,7 @@ export default function ThemeTrackerPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  const [chartPeriod, setChartPeriod] = useState('d')
+  const [chartPeriod, setChartPeriod] = useState('tv')
 
   function finvizUrl(sym, period) {
     return `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}`
