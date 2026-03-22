@@ -1336,79 +1336,86 @@ export default function Breadth() {
               {rows.map((row, ri) => (
                 <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>{row.date}</td>
-                  {visibleCols.map(col => {
-                    if (collapsedCols.has(col.key)) {
-                      return <td key={col.key} className={`${styles.td} ${styles.colCollapsedCell}`} />
+                  {GROUP_SPANS.flatMap(gs => {
+                    if (collapsed.has(gs.group)) {
+                      // Placeholder cell to match the colSpan=1 rowSpan=2 header cell
+                      return [<td key={`grp-${gs.group}`} className={styles.td} />]
                     }
-                    if (col.type === 'sparkline') {
-                      const val = row[col.key]
-                      const last10 = sparkData[col.key]?.[row.date] ?? []
-                      // Determine line color from cell color class
-                      const colorResult = col.colorFn ? col.colorFn(val) : ''
-                      const lineColor = colorResult === 'green' ? 'var(--ut-green-bright)'
-                        : colorResult === 'red' ? 'var(--loss)' : 'var(--text-muted)'
-                      return (
-                        <td key={col.key} className={`${styles.td} ${styles.sparklineCell}`} title={val != null ? String(val) : '—'}>
-                          <Sparkline values={last10} color={lineColor} />
-                        </td>
-                      )
-                    }
-                    if (col.type === 'ma_stack') {
-                      // keys order: [10sma, 20sma, 50sma, 200sma]
-                      const above10  = row[col.keys[0]] === 1
-                      const above20  = row[col.keys[1]] === 1
-                      const above50  = row[col.keys[2]] === 1
-                      const above200 = row[col.keys[3]] === 1
-                      const hasData  = col.keys.some(k => row[k] != null)
-                      let stackBg = ''
-                      if (hasData) {
-                        if (above50) {
-                          // Green side — above 50SMA
-                          if (above10 && above20 && above200) stackBg = styles.bgG3  // all 4
-                          else if (above200 && (above10 || above20)) stackBg = styles.bgG2  // 50+200+1 short
-                          else if (above200)                         stackBg = styles.bgG1  // 50+200 only
-                          else                                       stackBg = styles.bgA   // above 50, not 200
-                        } else {
-                          // Red side — below 50SMA
-                          if (above200)              stackBg = styles.bgR1  // below 50, still above 200
-                          else if (above10 || above20) stackBg = styles.bgR2  // below 50+200, short-term bounce
-                          else                         stackBg = styles.bgR3  // below all
-                        }
+                    const groupCols = COLS.filter(c => c.group === gs.group)
+                    return groupCols.map(col => {
+                      if (collapsedCols.has(col.key)) {
+                        return <td key={col.key} className={`${styles.td} ${styles.colCollapsedCell}`} />
                       }
+                      if (col.type === 'sparkline') {
+                        const val = row[col.key]
+                        const last10 = sparkData[col.key]?.[row.date] ?? []
+                        // Determine line color from cell color class
+                        const colorResult = col.colorFn ? col.colorFn(val) : ''
+                        const lineColor = colorResult === 'green' ? 'var(--ut-green-bright)'
+                          : colorResult === 'red' ? 'var(--loss)' : 'var(--text-muted)'
+                        return (
+                          <td key={col.key} className={`${styles.td} ${styles.sparklineCell}`} title={val != null ? String(val) : '—'}>
+                            <Sparkline values={last10} color={lineColor} />
+                          </td>
+                        )
+                      }
+                      if (col.type === 'ma_stack') {
+                        // keys order: [10sma, 20sma, 50sma, 200sma]
+                        const above10  = row[col.keys[0]] === 1
+                        const above20  = row[col.keys[1]] === 1
+                        const above50  = row[col.keys[2]] === 1
+                        const above200 = row[col.keys[3]] === 1
+                        const hasData  = col.keys.some(k => row[k] != null)
+                        let stackBg = ''
+                        if (hasData) {
+                          if (above50) {
+                            // Green side — above 50SMA
+                            if (above10 && above20 && above200) stackBg = styles.bgG3  // all 4
+                            else if (above200 && (above10 || above20)) stackBg = styles.bgG2  // 50+200+1 short
+                            else if (above200)                         stackBg = styles.bgG1  // 50+200 only
+                            else                                       stackBg = styles.bgA   // above 50, not 200
+                          } else {
+                            // Red side — below 50SMA
+                            if (above200)              stackBg = styles.bgR1  // below 50, still above 200
+                            else if (above10 || above20) stackBg = styles.bgR2  // below 50+200, short-term bounce
+                            else                         stackBg = styles.bgR3  // below all
+                          }
+                        }
+                        return (
+                          <td key={col.key} className={`${styles.td} ${styles.maStackCell} ${stackBg}`}>
+                            <div className={styles.maStack}>
+                              {col.keys.map((k, i) => {
+                                const v = row[k]
+                                const isCheck = v === 1
+                                const isCross = v === 0
+                                return (
+                                  <div key={k} className={styles.maItem}>
+                                    <span className={isCheck ? styles.maCheck : isCross ? styles.maCross : styles.maDash}>
+                                      {v === null || v === undefined ? '—' : isCheck ? '✓' : '✗'}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </td>
+                        )
+                      }
+                      const val = row[col.key]
+                      const isStaleAaii = AAII_KEYS.has(col.key) &&
+                        row.aaii_survey_date &&
+                        row.aaii_survey_date !== row.date
+                      const isDrillable = !!col.drillKey
                       return (
-                        <td key={col.key} className={`${styles.td} ${styles.maStackCell} ${stackBg}`}>
-                          <div className={styles.maStack}>
-                            {col.keys.map((k, i) => {
-                              const v = row[k]
-                              const isCheck = v === 1
-                              const isCross = v === 0
-                              return (
-                                <div key={k} className={styles.maItem}>
-                                  <span className={isCheck ? styles.maCheck : isCross ? styles.maCross : styles.maDash}>
-                                    {v === null || v === undefined ? '—' : isCheck ? '✓' : '✗'}
-                                  </span>
-                                </div>
-                              )
-                            })}
-                          </div>
+                        <td
+                          key={col.key}
+                          className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''} ${isDrillable ? styles.drillable : ''}`}
+                          title={isStaleAaii ? `Survey: ${row.aaii_survey_date}` : isDrillable ? `Click to see stocks` : undefined}
+                          onClick={isDrillable ? () => openDrill(row.date, col) : undefined}
+                        >
+                          {fmtCell(col, val)}
                         </td>
                       )
-                    }
-                    const val = row[col.key]
-                    const isStaleAaii = AAII_KEYS.has(col.key) &&
-                      row.aaii_survey_date &&
-                      row.aaii_survey_date !== row.date
-                    const isDrillable = !!col.drillKey
-                    return (
-                      <td
-                        key={col.key}
-                        className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''} ${isDrillable ? styles.drillable : ''}`}
-                        title={isStaleAaii ? `Survey: ${row.aaii_survey_date}` : isDrillable ? `Click to see stocks` : undefined}
-                        onClick={isDrillable ? () => openDrill(row.date, col) : undefined}
-                      >
-                        {fmtCell(col, val)}
-                      </td>
-                    )
+                    })
                   })}
                 </tr>
               ))}
