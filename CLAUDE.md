@@ -482,7 +482,27 @@ Runs on every request (30s SWR polling). Updates all 6 periods using intraday pr
 - Holdings sorted within each group by active period in same direction as theme list
 - Arrow key navigation — moves in visual sort order, auto-expands groups, auto-scrolls
 - UCT 20 shows gold ★ badge on both dashboard tile and full page (managed portfolio, not ETF-tracked)
-- Right panel: TradingView chart for selected ticker
+- Right panel chart header: Daily/Weekly/TradingView tabs centered in header bar (`position: absolute; left: 50%`)
+
+### Right Panel Chart System (2026-03-21)
+Three chart modes toggled via tabs centered in the chart header:
+- **Daily / Weekly** — Finviz static PNG images (`chart.ashx?t={sym}&ty=c&ta=1&p=d|w`)
+  - Instant switching: preloads ±5 neighbors on every selection change via `new window.Image()`
+  - CSS zoom: image scaled to `width: 200%`, right-aligned (`right: 0`), vertically centered — shows rightmost ~half of bars, no black bars
+  - `chartImgWrap`: `position: relative; overflow: hidden` | `chartImg`: `position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 200%; height: auto`
+- **TradingView** — full interactive iframe, no `key` prop (avoids destroy/recreate flash), src updates in place
+  - `chartFrame`: `flex: 1; border: none; min-height: 0`
+
+### BreadthCharts Notable Extremes (2026-03-21)
+`app/src/pages/BreadthCharts.jsx` + `BreadthCharts.module.css`
+- Every expanded group panel has a **⚡ Notable Extremes** button (amber, toggleable)
+- `notableExtremes` state object keyed by group name; `toggleExtremes(group)` handler
+- **MA Breadth only** (so far): when active, injects a markLine series into ECharts with 7 dashed reference lines:
+  - Red overbought: 70 (`#fca5a5`), 80 (`#ef4444`), 90 (`#b91c1c`) — ascending intensity
+  - Green oversold: 20 (`#bbf7d0`), 15 (`#4ade80`), 10 (`#22c55e`), 5 (`#15803d`) — ascending intensity
+  - Series name `__ma_extremes__` excluded from legend via explicit `legend.data` array
+- Other groups (Score, Primary Breadth, Regime, Highs/Lows, Sentiment): buttons are no-op placeholders pending readings to be defined later
+- Active button style: amber glow (`.extremesBtnActive`)
 
 ## Known Issues / Gotchas
 
