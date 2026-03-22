@@ -547,6 +547,7 @@
   padding: 8px 16px;
   border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
   flex-shrink: 0;
+  position: relative;
 }
 .drillChartSym {
   font-family: 'IBM Plex Mono', monospace;
@@ -566,14 +567,59 @@
   color: var(--text-muted, #444);
   margin-left: auto;
 }
+.drillChartTabs {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+}
+.drillChartTab {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #555;
+  cursor: pointer;
+  transition: color 0.1s, background 0.1s;
+}
+.drillChartTab:hover {
+  color: #e2e8f0;
+  background: rgba(255,255,255,0.06);
+}
+.drillChartTabActive {
+  color: #c9a84c;
+  background: rgba(201,168,76,0.12);
+  border-color: rgba(201,168,76,0.3);
+}
 .drillChartFrame {
   flex: 1;
   width: 100%;
   height: 100%;
   min-height: 0;
   border: none;
-  display: block;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+}
+.drillChartImgWrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #0a0a0a;
+}
+.drillChartImg {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 200%;
+  height: auto;
 }
 /* Selected row — gold ring, overrides heat map */
 .drillRowSelected {

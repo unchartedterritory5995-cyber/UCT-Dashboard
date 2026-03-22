@@ -470,7 +470,25 @@ function TvChart({ sym }) {
 function DrillModal({ drill, onClose }) {
   const items = drill.items ?? []
   const [selectedIdx, setSelectedIdx] = useState(0)
+  const [chartPeriod, setChartPeriod] = useState('d')
   const rowRefs = useRef([])
+
+  function finvizUrl(sym, period) {
+    return `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}`
+  }
+
+  // Preload ±5 neighbors on selection or period change
+  useEffect(() => {
+    const selected = items[selectedIdx]
+    if (!selected || chartPeriod === 'tv') return
+    for (let offset = -5; offset <= 5; offset++) {
+      if (offset === 0) continue
+      const neighbor = items[selectedIdx + offset]
+      if (!neighbor) continue
+      const img = new window.Image()
+      img.src = finvizUrl(neighbor.t, chartPeriod)
+    }
+  }, [selectedIdx, items, chartPeriod])
 
   // Keyboard: Escape closes, arrows navigate
   useEffect(() => {
@@ -570,16 +588,35 @@ function DrillModal({ drill, onClose }) {
             )}
           </div>
 
-          {/* ── Right: TradingView chart ── */}
+          {/* ── Right: chart panel ── */}
           {selected && (
             <div className={styles.drillChartPanel}>
               <div className={styles.drillChartBar}>
                 <span className={styles.drillChartSym}>{selected.t}</span>
                 {selected.n && <span className={styles.drillChartName}>{selected.n}</span>}
+                <div className={styles.drillChartTabs}>
+                  {[['d', 'Daily'], ['w', 'Weekly'], ['tv', 'TradingView']].map(([p, label]) => (
+                    <button
+                      key={p}
+                      className={`${styles.drillChartTab} ${chartPeriod === p ? styles.drillChartTabActive : ''}`}
+                      onClick={() => setChartPeriod(p)}
+                    >{label}</button>
+                  ))}
+                </div>
                 <span className={styles.drillChartHint}>↑ ↓ to navigate</span>
               </div>
               <div className={styles.drillChartFrame}>
-                <TvChart sym={selected.t} />
+                {chartPeriod === 'tv' ? (
+                  <TvChart sym={selected.t} />
+                ) : (
+                  <div className={styles.drillChartImgWrap}>
+                    <img
+                      src={finvizUrl(selected.t, chartPeriod)}
+                      className={styles.drillChartImg}
+                      alt={`${selected.t} ${chartPeriod === 'd' ? 'daily' : 'weekly'} chart`}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
