@@ -210,6 +210,9 @@ const COLS = [
   { key: 'new_ath', label: 'ATH', group: G.HIGHS,
     colorFn: v => v == null ? '' : v > 200 ? 'g3' : v > 100 ? 'g2' : v > 40 ? 'g1' : '',
     drillKey: 'new_ath_list' },
+  { key: 'hvc_52w', label: 'HVC', group: G.HIGHS,
+    colorFn: v => v == null ? '' : v > 100 ? 'g3' : v > 40 ? 'g2' : v > 15 ? 'g1' : '',
+    drillKey: 'hvc_52w_list' },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
   { key: 'cnn_fear_greed', label: 'CNN F/G', group: G.SENTIMENT, fmt: v => fmtDec(v, 0),
@@ -247,7 +250,7 @@ const HEATMAP_COL_KEYS = new Set([
   'spy_ma_stack', 'qqq_ma_stack',
   'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma',
   'sp500_close', 'qqq_close', 'vix', 'mcclellan_osc', 'stage2_count', 'stage4_count',
-  'new_52w_highs', 'new_52w_lows', 'new_20d_highs', 'new_20d_lows', 'new_ath',
+  'new_52w_highs', 'new_52w_lows', 'new_20d_highs', 'new_20d_lows', 'new_ath', 'hvc_52w',
   'cnn_fear_greed', 'aaii_spread', 'cboe_putcall',
 ])
 const HEATMAP_COLS = COLS.filter(c => HEATMAP_COL_KEYS.has(c.key))
@@ -770,6 +773,9 @@ const HM_METRICS = [
   { key: 'new_ath',       label: 'ATH Count',       group: 'Highs/Lows',
     getTier: r => { const v = r.new_ath; return v == null ? '' : v > 200 ? 'g3' : v > 100 ? 'g2' : v > 40 ? 'g1' : '' },
     getFmt:  r => r.new_ath ?? '—' },
+  { key: 'hvc_52w',      label: 'HVC (52W Vol Hi)', group: 'Highs/Lows', drillKey: 'hvc_52w_list',
+    getTier: r => { const v = r.hvc_52w; return v == null ? '' : v > 100 ? 'g3' : v > 40 ? 'g2' : v > 15 ? 'g1' : '' },
+    getFmt:  r => r.hvc_52w ?? '—' },
 
   { key: '__h_sentiment', label: 'SENTIMENT',       isHeader: true, group: 'Sentiment' },
   { key: 'cnn_fear_greed', label: 'CNN F/G',        group: 'Sentiment',
@@ -793,7 +799,7 @@ const PCTILE_KEYS = new Set([
   'up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day', 'magna_up', 'magna_down',
   'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma',
   'sp500_close', 'qqq_close', 'vix', 'mcclellan_osc', 'stage2_count', 'stage4_count',
-  'new_52w_highs', 'new_52w_lows', 'new_20d_highs', 'new_20d_lows', 'new_ath',
+  'new_52w_highs', 'new_52w_lows', 'new_20d_highs', 'new_20d_lows', 'new_ath', 'hvc_52w',
   'cnn_fear_greed', 'aaii_spread', 'cboe_putcall',
 ])
 

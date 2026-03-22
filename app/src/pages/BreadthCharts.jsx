@@ -62,6 +62,7 @@ const CHART_GROUPS = [
       { key: 'new_20d_highs', label: '20D Highs' },
       { key: 'new_20d_lows',  label: '20D Lows' },
       { key: 'new_ath',       label: 'ATH Count' },
+      { key: 'hvc_52w',       label: 'HVC (52W Vol Hi)' },
     ],
   },
   {
