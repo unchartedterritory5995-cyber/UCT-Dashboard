@@ -802,6 +802,8 @@ const TREEMAP_DEF = [
       { metricKey: 'pct_above_50sma',   weight: 7 },
       { metricKey: 'pct_above_100sma',  weight: 7 },
       { metricKey: 'pct_above_200sma',  weight: 7 },
+      { metricKey: 'sp500_close',       weight: 9 },
+      { metricKey: 'qqq_close',         weight: 8 },
     ],
   },
 ]
