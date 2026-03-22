@@ -470,7 +470,7 @@ function TvChart({ sym }) {
 function DrillModal({ drill, onClose }) {
   const items = drill.items ?? []
   const [selectedIdx, setSelectedIdx] = useState(0)
-  const [chartPeriod, setChartPeriod] = useState('d')
+  const [chartPeriod, setChartPeriod] = useState('tv')
   const rowRefs = useRef([])
 
   function finvizUrl(sym, period) {
