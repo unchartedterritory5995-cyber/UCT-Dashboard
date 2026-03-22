@@ -922,20 +922,22 @@ function BreadthHeatmap({ rows }) {
             label: {
               show:      true,
               formatter: params =>
-                `{lbl|${params.data.labelText ?? ''}}\n{val|${params.data.valText ?? '—'}}`,
+                `{lbl|${(params.data.labelText ?? '').toUpperCase()}}\n{val|${params.data.valText ?? '—'}}`,
               rich: {
                 lbl: {
-                  fontSize:   9,
-                  fontFamily: 'IBM Plex Mono, monospace',
-                  color:      'rgba(255,255,255,0.6)',
-                  lineHeight: 14,
+                  fontSize:      11,
+                  fontFamily:    'IBM Plex Mono, monospace',
+                  fontWeight:    700,
+                  color:         'rgba(255,255,255,0.55)',
+                  lineHeight:    18,
+                  letterSpacing: 1.5,
                 },
                 val: {
-                  fontSize:   13,
+                  fontSize:   28,
                   fontFamily: 'IBM Plex Mono, monospace',
                   fontWeight: 700,
                   color:      '#ffffff',
-                  lineHeight: 18,
+                  lineHeight: 36,
                 },
               },
               align:         'center',
