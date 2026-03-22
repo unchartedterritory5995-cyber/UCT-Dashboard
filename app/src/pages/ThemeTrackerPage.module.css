@@ -284,18 +284,18 @@
 .chartImgWrap {
   flex: 1;
   min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #0a0a0a;
+  position: relative;
   overflow: hidden;
+  background: #0a0a0a;
 }
 
 .chartImg {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 200%;
+  height: auto;
 }
 
 .chartPeriodTabs {
