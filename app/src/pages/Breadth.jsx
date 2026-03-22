@@ -899,6 +899,33 @@ function BreadthHeatmap({ rows }) {
           )
         },
       },
+      label: {
+        show:      true,
+        formatter: params => {
+          if (!params.data.labelText) return ''
+          return `{lbl|${params.data.labelText.toUpperCase()}}\n{val|${params.data.valText ?? '—'}}`
+        },
+        rich: {
+          lbl: {
+            fontSize:   11,
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontWeight: 700,
+            color:      'rgba(255,255,255,0.60)',
+            lineHeight: 18,
+          },
+          val: {
+            fontSize:   30,
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontWeight: 700,
+            color:      '#ffffff',
+            lineHeight: 40,
+          },
+        },
+        align:         'center',
+        verticalAlign: 'middle',
+        overflow:      'truncate',
+      },
+      upperLabel: { show: false },
       series: [{
         type:      'treemap',
         data:      treeData,
@@ -911,43 +938,15 @@ function BreadthHeatmap({ rows }) {
         visibleMin: 200,
         levels: [
           {
-            // depth-1: group containers — no visible border
+            // single group container — no border, no label
             itemStyle: { borderWidth: 0, gapWidth: 1, borderColor: '#0a0f1a' },
             upperLabel: { show: false },
-            label: { show: false },
+            label:      { show: false },
           },
           {
-            // depth-2: metric tiles — 1px dark hairline only
+            // metric tiles — hairline border
             itemStyle: { borderWidth: 1, gapWidth: 0, borderColor: '#0a0f1a' },
-            label: {
-              show:      true,
-              formatter: params =>
-                `{lbl|${(params.data.labelText ?? '').toUpperCase()}}\n{val|${params.data.valText ?? '—'}}`,
-              rich: {
-                lbl: {
-                  fontSize:      11,
-                  fontFamily:    'IBM Plex Mono, monospace',
-                  fontWeight:    700,
-                  color:         'rgba(255,255,255,0.55)',
-                  lineHeight:    18,
-                  letterSpacing: 1.5,
-                },
-                val: {
-                  fontSize:   28,
-                  fontFamily: 'IBM Plex Mono, monospace',
-                  fontWeight: 700,
-                  color:      '#ffffff',
-                  lineHeight: 36,
-                },
-              },
-              align:         'center',
-              verticalAlign: 'middle',
-              overflow:      'truncate',
-            },
-            emphasis: {
-              label:     { show: true },
-              itemStyle: { borderColor: '#c9a84c', borderWidth: 2 },
-            },
+            emphasis:  { itemStyle: { borderColor: '#c9a84c', borderWidth: 2 } },
           },
         ],
       }],
