@@ -651,12 +651,18 @@ const HM_METRICS = [
   { key: '__h_ma',     label: 'MA BREADTH',         isHeader: true, group: 'MA' },
   { key: 'spy_ma_stack', label: 'SPY MA',           group: 'MA',
     getTier: r => getMaStackTier({ keys: ['spy_above_10sma','spy_above_20sma','spy_above_50sma','spy_above_200sma'] }, r),
-    getFmt:  r => ['spy_above_10sma','spy_above_20sma','spy_above_50sma','spy_above_200sma']
-      .map((k, i) => `${['10','20','50','200'][i]}:${r[k]===1?'✓':r[k]===0?'✗':'—'}`).join(' ') },
+    getFmt:  r => {
+      const keys = ['spy_above_10sma','spy_above_20sma','spy_above_50sma','spy_above_200sma']
+      const n = keys.filter(k => r[k] === 1).length
+      return `${n} / 4`
+    }},
   { key: 'qqq_ma_stack', label: 'QQQ MA',          group: 'MA',
     getTier: r => getMaStackTier({ keys: ['qqq_above_10sma','qqq_above_20sma','qqq_above_50sma','qqq_above_200sma'] }, r),
-    getFmt:  r => ['qqq_above_10sma','qqq_above_20sma','qqq_above_50sma','qqq_above_200sma']
-      .map((k, i) => `${['10','20','50','200'][i]}:${r[k]===1?'✓':r[k]===0?'✗':'—'}`).join(' ') },
+    getFmt:  r => {
+      const keys = ['qqq_above_10sma','qqq_above_20sma','qqq_above_50sma','qqq_above_200sma']
+      const n = keys.filter(k => r[k] === 1).length
+      return `${n} / 4`
+    }},
   { key: 'pct_above_20ema',  label: '>20 EMA',     group: 'MA',
     getTier: r => pctColor(35, 50, 65)(r.pct_above_20ema),
     getFmt:  r => r.pct_above_20ema  == null ? '—' : `${Number(r.pct_above_20ema).toFixed(1)}%` },
@@ -921,6 +927,7 @@ function BreadthHeatmap({ rows }) {
             lineHeight: 40,
           },
         },
+        position:      'inside',
         align:         'center',
         verticalAlign: 'middle',
         overflow:      'truncate',
