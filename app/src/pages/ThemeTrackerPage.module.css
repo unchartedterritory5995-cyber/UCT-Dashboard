@@ -252,6 +252,7 @@
 }
 
 .chartHeader {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -298,9 +299,11 @@
 }
 
 .chartPeriodTabs {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   gap: 4px;
-  margin-left: auto;
 }
 
 .chartPeriodBtn {
