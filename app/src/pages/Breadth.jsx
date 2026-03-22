@@ -817,7 +817,7 @@ const TREEMAP_DEF = [
 // Tile color = 8-tier bull/bear system. Navigate by date with ←/→ or arrow keys.
 // Tooltip shows value + tier label + percentile rank.
 // Trend arrows (▲/▼) compare current day vs 3 days prior.
-function BreadthHeatmap({ rows }) {
+function BreadthHeatmap({ rows, onDrill }) {
   const [rowIdx, setRowIdx] = useState(0)  // 0 = latest row (rows[0])
 
   // Arrow-key date navigation
@@ -1031,6 +1031,13 @@ function BreadthHeatmap({ rows }) {
           style={{ width: '100%', height: '100%' }}
           opts={{ renderer: 'canvas' }}
           notMerge
+          onEvents={{
+            click: params => {
+              if (!onDrill || !currentRow) return
+              const metric = HM_METRICS_BY_KEY[params.data?.name]
+              if (metric?.drillKey) onDrill(currentRow.date, metric)
+            },
+          }}
         />
       </div>
     </div>
@@ -1223,7 +1230,7 @@ export default function Breadth() {
 
 
       {rows.length > 0 && activeTab === 'heatmap' && (
-        <BreadthHeatmap rows={rows} />
+        <BreadthHeatmap rows={rows} onDrill={openDrill} />
       )}
 
       {rows.length > 0 && activeTab === 'breadth' && (
