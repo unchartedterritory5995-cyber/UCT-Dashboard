@@ -107,7 +107,7 @@ export default function UCT20() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.heading}>UCT 20</h1>
-        <button className={styles.refreshBtn} onClick={() => mutate()}>Refresh</button>
+
       </div>
       <TileCard title="UCT Leadership 20 — Current Top Stocks">
         {!rows ? (
