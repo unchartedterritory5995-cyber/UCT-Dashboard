@@ -145,6 +145,7 @@ export default function UCT20() {
         ) : stocks.length === 0 ? (
           <p className={styles.loading}>No leadership data yet. Run the Morning Wire engine to populate.</p>
         ) : (
+          <>
           <div className={styles.listHeader}>
             <div className={styles.listHeaderRight}>
               <span>DAYS</span>
@@ -170,6 +171,7 @@ export default function UCT20() {
               )
             })}
           </div>
+          </>
         )}
         <UCT20Performance />
       </TileCard>
