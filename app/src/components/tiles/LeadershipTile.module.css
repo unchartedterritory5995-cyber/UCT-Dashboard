@@ -63,13 +63,18 @@
   margin-left: auto;
 }
 
+.caret {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .thesis {
   font-family: 'Instrument Sans', sans-serif;
   font-size: 10px;
   color: var(--text-muted);
   line-height: 1.4;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin: 3px 0 0;
+  white-space: normal;
 }
