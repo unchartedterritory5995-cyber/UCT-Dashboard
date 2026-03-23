@@ -180,6 +180,27 @@ Dark ink = extreme signal. Light tint = mild signal. Text stays uniform white.
 ```
 `cellClass(col, val, row)` maps colorFn/rowColorFn return values ('g3'–'r3') to these classes.
 
+### UCT Exposure Rating — 0-150 Scale (updated 2026-03-22)
+Exposure lives in `wire_data["exposure"]` dict. Two fields:
+- `score` — full 0-150 value (IS the recommended exposure %). Use this everywhere.
+- `exposure` — legacy capped field (`min(score, 100)`). Do NOT write to DB or use in new code.
+
+**Thresholds (colorFn in Breadth.jsx, getTier/expTier in Heatmap, scoreColor in MarketBreadth):**
+`>=110 → g3 | >=90 → g2 | >=70 → g1 | >=50 → amber | >=30 → r1 | >=15 → r2 | else → r3`
+
+**Bonus tiers** (added to base score): 5/7 conditions met → +10, 6/7 → +25, 7/7 → +50. Ceiling: 150.
+
+**Leveraged display** (score > 100): MarketBreadth tile shows gold bar + glow + "UCT EXPOSURE — LEVERAGED" label + ★ star.
+
+**Daily rotating phrases**: `_exposure_note()` in `morning_wire_engine.py` — 8 tiers × 10 phrases, date-seeded via `hashlib.md5(date_str)` for stable-all-day but daily rotation.
+
+**DB write**: `market_regimes.exposure_pct` ← `exposure.get("score")` — NOT `"exposure"` (the capped legacy key).
+
+### Breadth Monitor — tbody Column Alignment (fixed 2026-03-22)
+**Root cause**: `rowSpan` in `<thead>` does NOT reserve column positions in `<tbody>` — tbody rows start fresh at column 1 regardless.
+
+**Fix**: tbody rows use `GROUP_SPANS.flatMap(gs => ...)` instead of `visibleCols.map(col => ...)`. For collapsed groups, emit one placeholder `<td>` to hold the column position. For expanded groups, emit normal cells. Without this, collapsing any group shifts all subsequent columns left by 1.
+
 ### Column Group Order
 Score → Primary Breadth → MA Breadth → Regime → Highs/Lows → Sentiment
 
