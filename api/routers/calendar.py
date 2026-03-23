@@ -4,10 +4,15 @@ Data priority:
   1. wire_data['weekly_calendar'] — AI-curated econ events + multi-source earnings (rich)
   2. EarningsWhispers live fetch for each weekday — earnings only, no econ events
   3. Empty structure — graceful fallback
+
+POST /api/calendar/refresh — rebuild cache immediately (earnings + Claude econ events)
 """
 
 from __future__ import annotations
+import json
 import logging
+import os
+import re
 import threading
 from datetime import date, timedelta
 from fastapi import APIRouter
@@ -179,3 +184,83 @@ def get_calendar():
         "days":       days,
         "source":     "empty",
     }
+
+
+# ── Refresh endpoint ──────────────────────────────────────────────────────────
+
+def _curate_econ_events(week_start: str, week_end: str, days: dict) -> None:
+    """Call Claude Haiku to generate economic events and inject them into days in-place."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        system = (
+            "You are a senior market strategist. Return a JSON object (no markdown, no extra text) "
+            "mapping each trading day YYYY-MM-DD to its curated events. "
+            "INCLUDE only high-impact events: FOMC decisions/minutes/speeches by voting members, "
+            "CPI, PPI, PCE, NFP/payrolls, retail sales, GDP, ISM Manufacturing/Services, "
+            "consumer confidence, durable goods, major Treasury auctions ($10B+), ECB/BOE/BOJ decisions. "
+            "EXCLUDE: MBA apps, Redbook, Challenger, import/export prices, minor housing data. "
+            "Mark is_key:true for FOMC/CPI/NFP/PCE/GDP only. "
+            "Also include Fed speaker events and any major company conferences. "
+            'JSON schema: {"2026-03-24": {"econ": [{"time": "08:30", "event": "CPI Jan", '
+            '"estimate": "+0.3%", "prior": "+0.4%", "is_key": true}], '
+            '"fed": [{"time": "10:00", "event": "Waller speaks", "note": "voting member"}]}}'
+        )
+        user = (
+            f"Build the weekly calendar for {week_start} through {week_end} (US trading days only). "
+            "Times must be ET. Use your knowledge of the actual scheduled events for this specific week. "
+            "Return only the JSON object."
+        )
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": f"{system}\n\n{user}"}],
+        )
+        raw = msg.content[0].text.strip()
+        cleaned = re.sub(r"```[a-z]*\n?", "", raw).replace("```", "").strip()
+        try:
+            curated = json.loads(cleaned)
+        except Exception:
+            m = re.search(r'\{.*\}', cleaned, re.DOTALL)
+            curated = json.loads(m.group()) if m else {}
+
+        for ds, day_events in curated.items():
+            if ds in days:
+                days[ds]["econ"] = day_events.get("econ", [])
+                days[ds]["fed"]  = day_events.get("fed",  [])
+    except Exception as exc:
+        _logger.warning("Calendar: econ curation failed: %s", exc)
+
+
+@router.post("/api/calendar/refresh")
+def refresh_calendar():
+    """Rebuild the calendar cache immediately — earnings from EW + econ from Claude."""
+    cache.invalidate("calendar_weekly")
+
+    week_dates = _week_dates()
+    today      = date.today()
+    week_start = week_dates[0].isoformat()
+    week_end   = week_dates[-1].isoformat()
+
+    # Fetch earnings in parallel from EarningsWhispers
+    days = _build_live(week_dates, today)
+    for d in week_dates:
+        ds = d.strftime("%Y-%m-%d")
+        if ds not in days:
+            days[ds] = _empty_day(d, today)
+
+    # Curate econ events via Claude Haiku
+    _curate_econ_events(week_start, week_end, days)
+
+    result = {
+        "week_start": week_start,
+        "week_end":   week_end,
+        "days":       days,
+        "source":     "refresh",
+    }
+    cache.set("calendar_weekly", result, ttl=_CACHE_TTL)
+    totals = {ds: {"bmo": len(d["bmo"]), "amc": len(d["amc"]), "econ": len(d["econ"])} for ds, d in days.items()}
+    return {"ok": True, "totals": totals}
