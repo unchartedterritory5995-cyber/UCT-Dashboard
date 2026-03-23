@@ -170,13 +170,14 @@ def get_calendar():
     except Exception as exc:
         _logger.warning("Calendar: wire_data path error: %s", exc)
 
-    # ── 2. Live EarningsWhispers (earnings only) ───────────────────────────────
+    # ── 2. Live EarningsWhispers + econ curation ──────────────────────────────
     try:
         days = _build_live(week_dates, today)
         for d in week_dates:
             ds = d.strftime("%Y-%m-%d")
             if ds not in days:
                 days[ds] = _empty_day(d, today)
+        _curate_econ_events(week_start, week_end, days)
         result = {
             "week_start": week_start,
             "week_end":   week_end,
