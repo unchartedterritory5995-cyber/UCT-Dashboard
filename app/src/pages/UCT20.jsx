@@ -1,5 +1,5 @@
 // app/src/pages/UCT20.jsx
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
@@ -11,6 +11,11 @@ const fetcher = url => fetch(url).then(r => r.json())
 function SetupBadge({ type }) {
   if (!type) return null
   return <span className={styles.setupBadge}>{type}</span>
+}
+
+function fmtPct(v) {
+  if (v == null) return null
+  return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
 }
 
 function TradeBar({ entry, stop, target1, target2 }) {
@@ -31,7 +36,7 @@ function TradeBar({ entry, stop, target1, target2 }) {
   )
 }
 
-function StockCard({ item, rank, expanded, onToggle }) {
+function StockCard({ item, rank, expanded, onToggle, posData, isNew }) {
   const sym           = item.ticker ?? item.sym ?? item.symbol ?? '—'
   const score         = item.score ?? item.rs_score ?? null
   const company       = item.company ?? ''
@@ -39,17 +44,27 @@ function StockCard({ item, rank, expanded, onToggle }) {
   const hasStructured = !!(item.company_desc || item.catalyst_text || item.price_action)
   const legacyThesis  = item.thesis ?? ''
 
+  const pctStr  = fmtPct(posData?.pct_return ?? null)
+  const daysStr = posData?.days_held != null ? `${posData.days_held}d` : null
+
   return (
     <div className={styles.card}>
       {/* Collapsed row — always visible */}
       <div className={styles.cardRow} onClick={onToggle}>
         <span className={styles.rank}>#{rank}</span>
+        {isNew && <span className={styles.newBadge}>NEW</span>}
         <SetupBadge type={setupType} />
         <TickerPopup sym={sym}>
           <span className={styles.sym}>{sym}</span>
         </TickerPopup>
         {company && <span className={styles.companyName}>{company}</span>}
         <div className={styles.cardRowRight}>
+          {daysStr && <span className={styles.daysOnList}>{daysStr}</span>}
+          {pctStr && (
+            <span className={`${styles.posReturn} ${(posData?.pct_return ?? 0) >= 0 ? styles.gain : styles.loss}`}>
+              {pctStr}
+            </span>
+          )}
           {score != null && (
             <span className={styles.score}>UCT Rating {score.toFixed ? score.toFixed(1) : score}</span>
           )}
@@ -94,10 +109,26 @@ function StockCard({ item, rank, expanded, onToggle }) {
 }
 
 export default function UCT20() {
-  const { data: rows, mutate } = useSWR('/api/leadership', fetcher, { refreshInterval: 3600000 })
+  const { data: rows }    = useSWR('/api/leadership',      fetcher, { refreshInterval: 3600000 })
+  const { data: portData } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
   const [expandedIdx, setExpandedIdx] = useState(null)
 
   const stocks = Array.isArray(rows) ? rows.slice(0, 20) : []
+
+  // Build symbol → position data map from portfolio open positions
+  const posMap = useMemo(() => {
+    const map = {}
+    for (const pos of portData?.open_positions ?? []) {
+      map[pos.symbol] = pos
+    }
+    return map
+  }, [portData])
+
+  // Most recent entry date = "new" threshold
+  const latestEntry = useMemo(() => {
+    const dates = Object.values(posMap).map(p => p.entry_date).filter(Boolean)
+    return dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : null
+  }, [posMap])
 
   function toggle(i) {
     setExpandedIdx(prev => prev === i ? null : i)
@@ -107,7 +138,6 @@ export default function UCT20() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.heading}>UCT 20</h1>
-
       </div>
       <TileCard title="UCT Leadership 20 — Current Top Stocks">
         {!rows ? (
@@ -116,15 +146,22 @@ export default function UCT20() {
           <p className={styles.loading}>No leadership data yet. Run the Morning Wire engine to populate.</p>
         ) : (
           <div className={styles.list}>
-            {stocks.map((item, i) => (
-              <StockCard
-                key={item.ticker ?? item.sym ?? i}
-                item={item}
-                rank={i + 1}
-                expanded={expandedIdx === i}
-                onToggle={() => toggle(i)}
-              />
-            ))}
+            {stocks.map((item, i) => {
+              const sym = item.ticker ?? item.sym ?? item.symbol
+              const posData = posMap[sym] ?? null
+              const isNew = posData?.entry_date != null && posData.entry_date === latestEntry
+              return (
+                <StockCard
+                  key={sym ?? i}
+                  item={item}
+                  rank={i + 1}
+                  expanded={expandedIdx === i}
+                  onToggle={() => toggle(i)}
+                  posData={posData}
+                  isNew={isNew}
+                />
+              )
+            })}
           </div>
         )}
         <UCT20Performance />

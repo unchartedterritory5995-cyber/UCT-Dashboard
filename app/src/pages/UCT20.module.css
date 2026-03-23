@@ -45,6 +45,27 @@
 .score { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--ut-green-bright); }
 .caret { font-size: 11px; color: var(--text-muted); }
 
+.newBadge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px; font-weight: 700; letter-spacing: 1px;
+  color: #fff; background: var(--ut-green);
+  border-radius: 3px; padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.daysOnList {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; color: var(--text-muted);
+}
+
+.posReturn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; font-weight: 700;
+}
+
+.gain { color: var(--gain); }
+.loss { color: var(--loss); }
+
 /* ── Expanded section ── */
 .expanded {
   padding: 0 4px 14px 36px;

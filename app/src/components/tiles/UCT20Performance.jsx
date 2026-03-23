@@ -227,6 +227,9 @@ export default function UCT20Performance() {
                   <div key={pos.symbol} className={styles.openRow}>
                     <span className={styles.openSym}>{pos.symbol}</span>
                     <span className={styles.openEntry}>${pos.entry_price}</span>
+                    {pos.stop_price != null && (
+                      <span className={styles.openStop}>stop ${pos.stop_price}</span>
+                    )}
                     <span className={`${styles.openPct} ${pos.pct_return >= 0 ? styles.gain : styles.loss}`}>
                       {fmtPct(pos.pct_return)}
                     </span>
