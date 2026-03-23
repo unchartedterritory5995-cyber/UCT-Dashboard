@@ -1,18 +1,16 @@
 """Weekly earnings + economic events calendar endpoint.
 
 Data priority:
-  1. wire_data['weekly_calendar'] — AI-curated econ events + multi-source earnings (rich)
-  2. EarningsWhispers live fetch for each weekday — earnings only, no econ events
+  1. wire_data['weekly_calendar'] — multi-source earnings (rich)
+  2. EarningsWhispers live fetch for each weekday — earnings only
   3. Empty structure — graceful fallback
 
-POST /api/calendar/refresh — rebuild cache immediately (earnings + Claude econ events)
+Economic events: always fetched live from ForexFactory (real data, no AI hallucination).
+POST /api/calendar/refresh — rebuild cache immediately
 """
 
 from __future__ import annotations
-import json
 import logging
-import os
-import re
 import threading
 from datetime import date, timedelta, datetime
 from zoneinfo import ZoneInfo
@@ -199,53 +197,125 @@ def get_calendar():
     }
 
 
-# ── Refresh endpoint ──────────────────────────────────────────────────────────
+# ── Real economic calendar from ForexFactory ──────────────────────────────────
+
+_FF_URLS = [
+    "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
+    "https://nfs.faireconomy.media/ff_calendar_nextweek.json",
+]
+
+_KEY_TERMS = {
+    "fomc", "fed funds", "cpi", "ppi", "pce", "nonfarm", "payroll",
+    "gdp", "retail sales", "unemployment rate", "ism manufacturing",
+    "ism services", "ism non-manufacturing",
+}
+
+_FED_TERMS = (
+    "fomc member", "fed chair", "powell speaks", "fed governor",
+    "waller", "jefferson", "williams", "barkin", "logan",
+    "kashkari", "daly", "bowman", "kugler", "miran", "barr",
+    "fed's ", "federal reserve",
+)
+
+
+def _is_key_event(title: str) -> bool:
+    t = title.lower()
+    return any(k in t for k in _KEY_TERMS)
+
+
+def _is_fed_speaker(title: str) -> bool:
+    t = title.lower()
+    return any(x in t for x in _FED_TERMS)
+
+
+def _fmt_time(dt: datetime) -> str:
+    h  = dt.hour % 12 or 12
+    m  = dt.minute
+    ap = "AM" if dt.hour < 12 else "PM"
+    return f"{h}:{m:02d} {ap}"
+
+
+def _fetch_ff_events(week_start: str, week_end: str) -> dict:
+    """Fetch USD economic events from ForexFactory for the given week range.
+    Returns {YYYY-MM-DD: {econ: [...], fed: [...]}}
+    """
+    import requests
+
+    result: dict[str, dict] = {}
+
+    for url in _FF_URLS:
+        try:
+            r = requests.get(url, timeout=12, headers={"User-Agent": "Mozilla/5.0"})
+            if not r.ok or not r.text.strip():
+                continue
+            events = r.json()
+        except Exception as exc:
+            _logger.warning("FF fetch %s: %s", url, exc)
+            continue
+
+        for ev in events:
+            if ev.get("country") != "USD":
+                continue
+
+            impact = ev.get("impact", "Low")
+            title  = (ev.get("title") or "").strip()
+            if not title:
+                continue
+
+            # Keep: High/Medium impact + all Fed speakers
+            is_fed = _is_fed_speaker(title)
+            if impact == "Low" and not is_fed:
+                continue
+
+            date_raw = ev.get("date", "")
+            if not date_raw:
+                continue
+            try:
+                dt = datetime.fromisoformat(date_raw).astimezone(_ET)
+                ds = dt.strftime("%Y-%m-%d")
+            except Exception:
+                continue
+
+            if ds < week_start or ds > week_end:
+                continue
+
+            if ds not in result:
+                result[ds] = {"econ": [], "fed": []}
+
+            time_str = _fmt_time(dt)
+            forecast = ev.get("forecast") or None
+            previous = ev.get("previous") or None
+
+            if is_fed:
+                result[ds]["fed"].append({
+                    "time":  time_str,
+                    "event": title,
+                    "note":  impact,
+                })
+            else:
+                result[ds]["econ"].append({
+                    "time":     time_str,
+                    "event":    title,
+                    "estimate": forecast,
+                    "prior":    previous,
+                    "is_key":   _is_key_event(title),
+                })
+
+    return result
+
 
 def _curate_econ_events(week_start: str, week_end: str, days: dict) -> None:
-    """Call Claude Haiku to generate economic events and inject them into days in-place."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        return
+    """Fetch real economic events from ForexFactory and inject into days in-place."""
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
-        system = (
-            "You are a senior market strategist. Return a JSON object (no markdown, no extra text) "
-            "mapping each trading day YYYY-MM-DD to its curated events. "
-            "INCLUDE only high-impact events: FOMC decisions/minutes/speeches by voting members, "
-            "CPI, PPI, PCE, NFP/payrolls, retail sales, GDP, ISM Manufacturing/Services, "
-            "consumer confidence, durable goods, major Treasury auctions ($10B+), ECB/BOE/BOJ decisions. "
-            "EXCLUDE: MBA apps, Redbook, Challenger, import/export prices, minor housing data. "
-            "Mark is_key:true for FOMC/CPI/NFP/PCE/GDP only. "
-            "Also include Fed speaker events and any major company conferences. "
-            'JSON schema: {"2026-03-24": {"econ": [{"time": "08:30", "event": "CPI Jan", '
-            '"estimate": "+0.3%", "prior": "+0.4%", "is_key": true}], '
-            '"fed": [{"time": "10:00", "event": "Waller speaks", "note": "voting member"}]}}'
-        )
-        user = (
-            f"Build the weekly calendar for {week_start} through {week_end} (US trading days only). "
-            "Times must be ET. Use your knowledge of the actual scheduled events for this specific week. "
-            "Return only the JSON object."
-        )
-        msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1500,
-            messages=[{"role": "user", "content": f"{system}\n\n{user}"}],
-        )
-        raw = msg.content[0].text.strip()
-        cleaned = re.sub(r"```[a-z]*\n?", "", raw).replace("```", "").strip()
-        try:
-            curated = json.loads(cleaned)
-        except Exception:
-            m = re.search(r'\{.*\}', cleaned, re.DOTALL)
-            curated = json.loads(m.group()) if m else {}
-
-        for ds, day_events in curated.items():
+        ff = _fetch_ff_events(week_start, week_end)
+        for ds, buckets in ff.items():
             if ds in days:
-                days[ds]["econ"] = day_events.get("econ", [])
-                days[ds]["fed"]  = day_events.get("fed",  [])
+                days[ds]["econ"] = buckets["econ"]
+                days[ds]["fed"]  = buckets["fed"]
+        total = sum(len(b["econ"]) + len(b["fed"]) for b in ff.values())
+        _logger.info("Calendar: FF econ loaded %d events across %d days", total, len(ff))
     except Exception as exc:
-        _logger.warning("Calendar: econ curation failed: %s", exc)
+        _logger.warning("Calendar: FF econ fetch failed: %s", exc)
 
 
 @router.post("/api/calendar/refresh")
