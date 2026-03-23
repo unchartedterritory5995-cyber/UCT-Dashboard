@@ -13,7 +13,7 @@ The **Morning Wire** is one tab within this dashboard. Its engine (`morning_wire
 
 ## Nav Tabs (left sidebar)
 
-Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | COT Data) · Traders · Screener · Options Flow · Post Market · Model Book
+Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | Heatmap | COT Data | Data Charts) · Traders · Screener · Options Flow · Post Market · Model Book
 Settings + Website buttons pinned to bottom of sidebar.
 
 ## Worktree Directory
@@ -160,8 +160,10 @@ CSS: `MorningWire.module.css` lines ~192–280
 ## Breadth Monitor — Visual System (2026-03-15)
 
 ### Files
-- `app/src/pages/Breadth.jsx` — full breadth monitor + COT Data tab
+- `app/src/pages/Breadth.jsx` — full breadth monitor + Heatmap + COT Data + Data Charts tabs
 - `app/src/pages/Breadth.module.css` — all styles
+- `app/src/pages/BreadthCharts.jsx` — Data Charts tab (ECharts line chart, metric selector, date range)
+- `app/src/pages/BreadthCharts.module.css` — Data Charts styles
 - `api/services/breadth_monitor.py` — SQLite service (get_history, store_snapshot, patch_field, delete_snapshot)
 - `api/routers/breadth_monitor.py` — REST endpoints
 
@@ -189,6 +191,31 @@ S&P 500 · QQQ · VIX · 10d VIX · McClellan · Phase · Stage 2 · Stage 4
 - Above 50: all 4=g3, 50+200+1short=g2, 50+200=g1, 50 only=amber
 - Below 50: above 200=r1, below 200+short bounce=r2, below all=r3
 Header shows two lines: label + "10  20  50  200". Cells show ✓/✗ only, spread full width.
+
+### Heatmap Tab — `BreadthHeatmap` component inside `Breadth.jsx`
+
+ECharts treemap rendering curated breadth metrics as color-coded tiles. Clicking a tile opens the DrillModal (same as monitor table row clicks).
+
+**Key structures in Breadth.jsx:**
+- `HM_METRICS` — array of `{ key, label, getTier(val), getFmt(val), drillKey? }` entries. `drillKey` is required for drill-down to work (maps to `_list` field in API response, e.g. `"up_4pct_today_list"`). Entries without `drillKey` are display-only.
+- `HM_METRICS_BY_KEY` — `Object.fromEntries(HM_METRICS.map(m => [m.key, m]))` — lookup map used in the ECharts click handler.
+- `TREEMAP_DEF` — flat array of `{ key, weight }` objects that drive which tiles render and their relative sizes.
+- ECharts click handler: `onEvents={{ click: params => { const metric = HM_METRICS_BY_KEY[params.data?.name]; if (metric?.drillKey) onDrill(currentRow.date, metric) } }}`
+- Tile label vertical centering requires `position: 'inside'` on the series-level label config (not just `verticalAlign: 'middle'`).
+
+**Current tiles (20+):** breadth_score, uct_exposure, up_4pct_today, down_4pct_today, up_25pct_quarter, down_25pct_quarter, up_50pct_month, down_50pct_month, magna_up ("Up 13%/34d"), magna_down ("Dn 13%/34d"), pct_above_5sma, pct_above_10sma, pct_above_20ema, pct_above_40sma, pct_above_50sma, pct_above_100sma, pct_above_200sma, sp500_close, qqq_close, new_52w_highs, new_52w_lows, new_20d_highs, new_20d_lows.
+
+**Color functions:** `pairedUpColor(val, max)` / `pairedDnColor(val, max)` for paired bull/bear metrics; `pctColor(low, mid, high)` for percentage metrics.
+
+### DrillModal — Chart Tabs (updated 2026-03-21)
+
+`DrillModal` is rendered once at `Breadth` component level, used for both monitor table clicks and heatmap tile clicks. Three chart tabs: **Daily** / **Weekly** (Finviz static PNG) / **TradingView** (iframe). Default: `'tv'`.
+
+- `chartPeriod` state initialized to `'tv'`
+- Finviz URL: `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}` (period = `d` or `w`)
+- Finviz images use `object-fit: contain` (full chart visible, no zoom crop)
+- Preloads ±5 neighbor Finviz images on selection change via `new window.Image()`
+- CSS classes in `Breadth.module.css`: `.drillChartTabs`, `.drillChartTab`, `.drillChartTabActive`, `.drillChartImgWrap`, `.drillChartImg`
 
 ### API Endpoints
 - `GET  /api/breadth-monitor?days=N` — history with rolling metrics computed server-side
@@ -356,7 +383,20 @@ Header shows two lines: label + "10  20  50  200". Cells show ✓/✗ only, spre
 
 ### UCT 20 (`app/src/pages/UCT20.jsx`)
 - Ranked list of Leadership 20 stocks from `/api/leadership`
-- Shows: rank, ticker, cap badge, RS score, thesis
+- Also fetches `/api/uct20/portfolio` to cross-reference open position data per card
+- Card row shows: rank · NEW badge · setup badge · ticker · company · days held · current return % · UCT Rating
+- **NEW badge** (green) — appears when `pos.entry_date === latestEntry` (most recent wire run date)
+- **Days held / current return** — pulled from `open_positions` in portfolio data, keyed by symbol
+- Expanded row: company desc · catalyst · price action · trade bar (entry/stop/target); constrained to `max-width: 50%`
+- **No Refresh button** (removed 2026-03-21)
+
+### UCT20 Portfolio Tracker (`app/src/components/tiles/UCT20Performance.jsx`)
+- Fetches `/api/uct20/portfolio` (1hr refresh); shows equity curve vs QQQ, stats grid, open positions, trade history
+- **Open positions row**: symbol · entry price · `stop $XX.XX` (muted red) · return % · days held
+- `stop_price = entry_price * 0.94` — computed in `get_uct20_portfolio()` in `uct_intelligence/api.py`
+- Subtitle: "buys/sells at market open" — all transaction prices use open price on event date
+- Entry/exit events are set-difference only — stocks staying on list never re-trigger buy/sell
+- Data only updates when morning wire pushes fresh `wire_data["uct20_portfolio"]`; UI gracefully hides `stop_price` if absent (null guard)
 
 ### API: _normalize_themes() (`api/services/engine.py`)
 - Returns `holdings` (list of US-listed ticker strings), `intl_count` (int), `etf_name` (str)
@@ -485,13 +525,29 @@ Runs on every request (30s SWR polling). Updates all 6 periods using intraday pr
 - Right panel chart header: Daily/Weekly/TradingView tabs centered in header bar (`position: absolute; left: 50%`)
 
 ### Right Panel Chart System (2026-03-21)
-Three chart modes toggled via tabs centered in the chart header:
-- **Daily / Weekly** — Finviz static PNG images (`chart.ashx?t={sym}&ty=c&ta=1&p=d|w`)
-  - Instant switching: preloads ±5 neighbors on every selection change via `new window.Image()`
-  - CSS zoom: image scaled to `width: 200%`, right-aligned (`right: 0`), vertically centered — shows rightmost ~half of bars, no black bars
-  - `chartImgWrap`: `position: relative; overflow: hidden` | `chartImg`: `position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 200%; height: auto`
+Three chart modes toggled via tabs centered in the chart header. **Default: TradingView.**
+
 - **TradingView** — full interactive iframe, no `key` prop (avoids destroy/recreate flash), src updates in place
   - `chartFrame`: `flex: 1; border: none; min-height: 0`
+- **Daily / Weekly** — Finviz static PNG images (`chart.ashx?t={sym}&ty=c&ta=1&p=d|w`)
+  - Instant switching: preloads ±5 neighbors on every selection change via `new window.Image()`
+  - CSS: `object-fit: contain` — shows full chart image without zoom crop
+  - `chartImgWrap`: `flex: 1; overflow: hidden; display: flex; align-items: center; justify-content: center`
+  - `chartImg`: `width: 100%; height: 100%; object-fit: contain`
+
+### Data Charts Tab — `BreadthCharts.jsx` (built 2026-03-21)
+
+`app/src/pages/BreadthCharts.jsx` + `BreadthCharts.module.css`. Fetches `/api/breadth-monitor?days=365`.
+
+**Metric picker:** `CHART_GROUPS` array — groups with `{ group, metrics: [{ key, label }] }`. Users click category buttons to expand/collapse groups and check/uncheck individual metrics. Multiple metrics overlay as line series on a shared ECharts chart.
+
+**State:** `selected` (array of keys, default `['breadth_score', 'pct_above_50sma']`), `fromDate`/`toDate` (date range inputs), `expanded` (per-group open state).
+
+**Dual Y-axis:** `sp500_close` and `qqq_close` → `yAxisIndex: 1` (right axis, auto-scale). All other metrics → `yAxisIndex: 0` (left axis). Color palette: 8-color array cycling via `palette[i % 8]`.
+
+**ECharts features:** `dataZoom` (inside + slider), `tooltip` with crosshair, `connectNulls: false`, `symbol: 'none'` (no dots on line).
+
+**Groups:** Score · Primary Breadth · MA Breadth · Regime · Highs/Lows · Sentiment
 
 ### BreadthCharts Notable Extremes (2026-03-21)
 `app/src/pages/BreadthCharts.jsx` + `BreadthCharts.module.css`
@@ -503,6 +559,32 @@ Three chart modes toggled via tabs centered in the chart header:
   - Series name `__ma_extremes__` excluded from legend via explicit `legend.data` array
 - Other groups (Score, Primary Breadth, Regime, Highs/Lows, Sentiment): buttons are no-op placeholders pending readings to be defined later
 - Active button style: amber glow (`.extremesBtnActive`)
+
+## Model Book — Setup Taxonomy (2026-03-21)
+
+### Files
+- `app/src/pages/ModelBook.jsx` — full-page trade log
+- `app/src/pages/ModelBook.module.css` — styles
+- `api/routers/trades.py` — GET/POST /api/trades (JSON file storage)
+- `data/trades.json` — Railway persistent volume
+
+### Setup Groups
+Setups are organized into two groups (`SETUP_GROUPS` in `ModelBook.jsx`):
+
+**Swing:**
+High Tight Flag (Powerplay), Classic Flag/Pullback, VCP, Flat Base Breakout, IPO Base, Parabolic Short, Parabolic Long, Wedge Pop, Wedge Drop, Episodic Pivot, 2B Reversal, Kicker Candle, Power Earnings Gap, News Gappers, 4B Setup (Stan Weinstein), Failed H&S/Rounded Top, Classic U&R, Launchpad, Go Signal, HVC, Wick Play, Slingshot, Oops Reversal, News Failure, Remount, Red to Green
+
+**Intraday:**
+Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green to Red, 30min Pivot, Mean Reversion L/S
+
+### Architecture Notes
+- `SETUP_GROUPS` array drives both the nav sidebar (group headers + buttons) and the form select (`<optgroup>`)
+- `SETUPS` flat array derived via `SETUP_GROUPS.flatMap(g => g.setups)` — used for filtering logic
+- Nav renders `.navGroupLabel` header (muted caps) before each group's buttons
+- Trade data shape: `{ sym, entry, stop, target, size_pct, notes, setup, date, id, status }`
+- Status: "open" only (close/exit tracking not yet implemented)
+
+---
 
 ## Known Issues / Gotchas
 
