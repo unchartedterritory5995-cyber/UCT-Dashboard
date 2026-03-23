@@ -19,15 +19,16 @@ function scoreColor(s) {
 
 // ─── Horizontal Exposure Bar ─────────────────────────────────────────────────
 function ExposureBar({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus = false }) {
-  const pct   = value == null ? null : Math.min(100, Math.max(0, value))
-  const color = scoreColor(value)
+  const isLeveraged = value != null && value > 100
+  const barPct = value == null ? null : Math.min(100, Math.max(0, value))
+  const color  = scoreColor(Math.min(value ?? 0, 100))
 
   return (
     <div className={styles.expWrap}>
       <div className={styles.expScoreRow}>
-        <span className={styles.expScore} style={{ color: pct == null ? 'var(--text-muted)' : color }}>
-          {pct == null ? '—' : Math.round(pct)}
-          {bonus && pct != null && <span className={styles.expBonus}>★</span>}
+        <span className={styles.expScore} style={{ color: value == null ? 'var(--text-muted)' : color }}>
+          {value == null ? '—' : Math.round(value)}
+          {(bonus || isLeveraged) && value != null && <span className={styles.expBonus}>★</span>}
         </span>
         {delta != null && (
           <span className={styles.expDelta} style={{ color: delta >= 0 ? 'var(--gain)' : 'var(--loss)' }}>
@@ -35,12 +36,14 @@ function ExposureBar({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus
           </span>
         )}
       </div>
-      <div className={styles.expLabel}>{label}</div>
-      <div className={styles.expTrack}>
-        {pct != null && pct > 0 && (
+      <div className={styles.expLabel}>
+        {isLeveraged ? 'UCT EXPOSURE — LEVERAGED' : label}
+      </div>
+      <div className={styles.expTrack} style={isLeveraged ? { boxShadow: '0 0 8px 2px gold' } : undefined}>
+        {barPct != null && barPct > 0 && (
           <>
-            <div className={styles.expGlow} style={{ width: `${pct}%`, background: color }} />
-            <div className={styles.expFill} style={{ width: `${pct}%`, background: color }} />
+            <div className={styles.expGlow} style={{ width: `${barPct}%`, background: color }} />
+            <div className={styles.expFill} style={{ width: `${barPct}%`, background: isLeveraged ? 'gold' : color }} />
           </>
         )}
       </div>
@@ -82,7 +85,7 @@ export default function MarketBreadth({ data: propData }) {
   return (
     <TileCard ref={tileRef} title="UCT Exposure Rating" actions={captureBtn}>
       <ExposureBar
-        value={expScore != null ? Math.min(expScore, 100) : null}
+        value={expScore}
         label="UCT EXPOSURE RATING"
         delta={expDelta}
         bonus={expBonus > 0}
