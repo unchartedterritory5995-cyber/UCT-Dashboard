@@ -5,6 +5,7 @@ import MorningWire from './pages/MorningWire'
 import UCT20 from './pages/UCT20'
 import Breadth from './pages/Breadth'
 import ThemeTrackerPage from './pages/ThemeTrackerPage'
+import Calendar from './pages/Calendar'
 import Traders from './pages/Traders'
 import Screener from './pages/Screener'
 import OptionsFlow from './pages/OptionsFlow'
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/uct-20" element={<UCT20 />} />
           <Route path="/breadth" element={<Breadth />} />
           <Route path="/theme-tracker" element={<ThemeTrackerPage />} />
+          <Route path="/calendar" element={<Calendar />} />
           <Route path="/traders" element={<Traders />} />
           <Route path="/screener" element={<Screener />} />
           <Route path="/options-flow" element={<OptionsFlow />} />
