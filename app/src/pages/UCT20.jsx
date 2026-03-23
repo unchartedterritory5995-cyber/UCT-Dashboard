@@ -52,12 +52,12 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew }) {
       {/* Collapsed row — always visible */}
       <div className={styles.cardRow} onClick={onToggle}>
         <span className={styles.rank}>#{rank}</span>
-        {isNew && <span className={styles.newBadge}>NEW</span>}
         <SetupBadge type={setupType} />
         <TickerPopup sym={sym}>
           <span className={styles.sym}>{sym}</span>
         </TickerPopup>
         {company && <span className={styles.companyName}>{company}</span>}
+        {isNew && <span className={styles.newBadge}>NEW</span>}
         <div className={styles.cardRowRight}>
           {daysStr && <span className={styles.daysOnList}>{daysStr}</span>}
           {pctStr && (
@@ -145,6 +145,13 @@ export default function UCT20() {
         ) : stocks.length === 0 ? (
           <p className={styles.loading}>No leadership data yet. Run the Morning Wire engine to populate.</p>
         ) : (
+          <div className={styles.listHeader}>
+            <div className={styles.listHeaderRight}>
+              <span>DAYS</span>
+              <span>SINCE ADDED</span>
+              <span>RATING</span>
+            </div>
+          </div>
           <div className={styles.list}>
             {stocks.map((item, i) => {
               const sym = item.ticker ?? item.sym ?? item.symbol
