@@ -41,20 +41,12 @@
 
 .companyName { font-family: 'Instrument Sans', sans-serif; font-size: 11px; color: var(--text-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ── Column header ── */
-.listHeader {
-  display: flex;
-  align-items: center;
-  padding: 0 4px 6px;
-  border-bottom: 1px solid var(--border-accent);
-  margin-bottom: 2px;
-}
-.listHeaderRight {
+/* ── TileCard title-bar column headers ── */
+.colHeaders {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-left: auto;
-  flex-shrink: 0;
+  padding-right: 4px; /* matches cardRow's 4px right padding */
   font-family: 'IBM Plex Mono', monospace;
   font-size: 8px;
   font-weight: 700;
@@ -62,15 +54,12 @@
   color: var(--text-muted);
   text-transform: uppercase;
 }
-/* Shared column widths — header + data rows use same values */
-.listHeaderRight span:nth-child(1) { flex: 0 0 36px; } /* NEW slot */
-.listHeaderRight span:nth-child(2) { flex: 0 0 28px; text-align: right; } /* DAYS */
-.listHeaderRight span:nth-child(3) { flex: 0 0 64px; text-align: right; } /* SINCE ADDED */
-.listHeaderRight span:nth-child(4) { flex: 0 0 96px; text-align: right; } /* RATING */
-.listHeaderRight span:nth-child(5) { flex: 0 0 12px; } /* caret spacer */
+.colDay    { flex: 0 0 28px; text-align: right; }
+.colSince  { flex: 0 0 64px; text-align: right; }
+.colRating { flex: 0 0 112px; text-align: right; }
 
 .cardRowRight { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
-.score { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--ut-green-bright); flex: 0 0 96px; text-align: right; }
+.score { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--ut-green-bright); flex: 0 0 112px; text-align: right; }
 .caret { font-size: 11px; color: var(--text-muted); flex: 0 0 12px; text-align: center; }
 
 .newSlot {

@@ -137,22 +137,23 @@ export default function UCT20() {
       <div className={styles.header}>
         <h1 className={styles.heading}>UCT 20</h1>
       </div>
-      <TileCard title="UCT Leadership 20 — Current Top Stocks">
+      <TileCard
+        title="UCT Leadership 20 — Current Top Stocks"
+        actions={
+          <div className={styles.colHeaders}>
+            <span className={styles.newSlot} />
+            <span className={styles.colDay}>DAYS</span>
+            <span className={styles.colSince}>SINCE ADDED</span>
+            <span className={styles.colRating}>RATING</span>
+            <span className={styles.caretSpacer} />
+          </div>
+        }
+      >
         {!rows ? (
           <p className={styles.loading}>Loading…</p>
         ) : stocks.length === 0 ? (
           <p className={styles.loading}>No leadership data yet. Run the Morning Wire engine to populate.</p>
         ) : (
-          <>
-          <div className={styles.listHeader}>
-            <div className={styles.listHeaderRight}>
-              <span className={styles.newSlot}></span>
-              <span>DAYS</span>
-              <span>SINCE ADDED</span>
-              <span>RATING</span>
-              <span className={styles.caretSpacer}></span>
-            </div>
-          </div>
           <div className={styles.list}>
             {stocks.map((item, i) => {
               const sym = item.ticker ?? item.sym ?? item.symbol
@@ -171,7 +172,6 @@ export default function UCT20() {
               )
             })}
           </div>
-          </>
         )}
         <UCT20Performance />
       </TileCard>
