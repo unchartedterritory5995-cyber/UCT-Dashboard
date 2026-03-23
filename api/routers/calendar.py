@@ -14,7 +14,10 @@ import logging
 import os
 import re
 import threading
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
+from zoneinfo import ZoneInfo
+
+_ET = ZoneInfo("America/New_York")
 from fastapi import APIRouter
 from api.services.cache import cache
 
@@ -26,8 +29,12 @@ _CACHE_TTL = 1800  # 30 min
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _today_et() -> date:
+    return datetime.now(_ET).date()
+
+
 def _week_dates() -> list[date]:
-    today = date.today()
+    today = _today_et()
     monday = today - timedelta(days=today.weekday())
     return [monday + timedelta(days=i) for i in range(5)]
 
@@ -137,7 +144,7 @@ def get_calendar():
         return cached
 
     week_dates = _week_dates()
-    today      = date.today()
+    today      = _today_et()
     week_start = week_dates[0].isoformat()
     week_end   = week_dates[-1].isoformat()
 
@@ -241,7 +248,7 @@ def refresh_calendar():
     cache.invalidate("calendar_weekly")
 
     week_dates = _week_dates()
-    today      = date.today()
+    today      = _today_et()
     week_start = week_dates[0].isoformat()
     week_end   = week_dates[-1].isoformat()
 
