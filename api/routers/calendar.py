@@ -35,7 +35,12 @@ def _today_et() -> date:
 
 def _week_dates() -> list[date]:
     today = _today_et()
-    monday = today - timedelta(days=today.weekday())
+    dow = today.weekday()  # Mon=0 … Sun=6
+    # On weekends jump forward to next Monday; on weekdays anchor to this Monday
+    if dow >= 5:
+        monday = today + timedelta(days=7 - dow)
+    else:
+        monday = today - timedelta(days=dow)
     return [monday + timedelta(days=i) for i in range(5)]
 
 
