@@ -113,7 +113,7 @@ const COLS = [
     fmt: v => fmtDec(v, 0),
     colorFn: v => v == null ? '' : v >= 80 ? 'g3' : v >= 65 ? 'g2' : v >= 52 ? 'g1' : v >= 45 ? 'a' : v >= 35 ? 'r1' : v >= 20 ? 'r2' : 'r3' },
   { key: 'uct_exposure', label: 'UCT Exp', group: G.SCORE, fmt: v => fmtDec(v, 0),
-    colorFn: v => v == null ? '' : v >= 80 ? 'g3' : v >= 65 ? 'g2' : v >= 50 ? 'g1' : v >= 35 ? 'a' : v >= 20 ? 'r1' : v >= 10 ? 'r2' : 'r3' },
+    colorFn: v => v == null ? '' : v >= 110 ? 'g3' : v >= 90 ? 'g2' : v >= 70 ? 'g1' : v >= 50 ? 'a' : v >= 30 ? 'r1' : v >= 15 ? 'r2' : 'r3' },
 
   // ── Primary Breadth ───────────────────────────────────────────────────────
   { key: 'up_4pct_today', label: 'Up 4%+', group: G.PRIMARY,
@@ -662,7 +662,7 @@ const HM_METRICS = [
     getTier: r => { const v = r.breadth_score; return v == null ? '' : v >= 80 ? 'g3' : v >= 65 ? 'g2' : v >= 52 ? 'g1' : v >= 45 ? 'a' : v >= 35 ? 'r1' : v >= 20 ? 'r2' : 'r3' },
     getFmt:  r => r.breadth_score == null ? '—' : Math.round(r.breadth_score).toString() },
   { key: 'uct_exposure', label: 'UCT Exp',         group: 'Score',
-    getTier: r => { const v = r.uct_exposure; return v == null ? '' : v >= 80 ? 'g3' : v >= 65 ? 'g2' : v >= 50 ? 'g1' : v >= 35 ? 'a' : v >= 20 ? 'r1' : v >= 10 ? 'r2' : 'r3' },
+    getTier: r => { const v = r.uct_exposure; return v == null ? '' : v >= 110 ? 'g3' : v >= 90 ? 'g2' : v >= 70 ? 'g1' : v >= 50 ? 'a' : v >= 30 ? 'r1' : v >= 15 ? 'r2' : 'r3' },
     getFmt:  r => r.uct_exposure == null ? '—' : Math.round(r.uct_exposure).toString() },
 
   { key: '__h_primary', label: 'PRIMARY BREADTH',  isHeader: true, group: 'Primary' },
@@ -908,9 +908,9 @@ function BreadthHeatmap({ rows, onDrill }) {
     currentRow.breadth_score >= 52 ? 'g1' : currentRow.breadth_score >= 45 ? 'a'  :
     currentRow.breadth_score >= 35 ? 'r1' : currentRow.breadth_score >= 20 ? 'r2' : 'r3'
   const expTier = currentRow?.uct_exposure == null ? '' :
-    currentRow.uct_exposure >= 80 ? 'g3' : currentRow.uct_exposure >= 65 ? 'g2' :
-    currentRow.uct_exposure >= 50 ? 'g1' : currentRow.uct_exposure >= 35 ? 'a'  :
-    currentRow.uct_exposure >= 20 ? 'r1' : currentRow.uct_exposure >= 10 ? 'r2' : 'r3'
+    currentRow.uct_exposure >= 110 ? 'g3' : currentRow.uct_exposure >= 90 ? 'g2' :
+    currentRow.uct_exposure >= 70 ? 'g1' : currentRow.uct_exposure >= 50 ? 'a'  :
+    currentRow.uct_exposure >= 30 ? 'r1' : currentRow.uct_exposure >= 15 ? 'r2' : 'r3'
 
   const option = useMemo(() => {
     if (!currentRow) return {}
