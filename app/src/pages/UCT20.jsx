@@ -142,8 +142,8 @@ export default function UCT20() {
         actions={
           <div className={styles.colHeaders}>
             <span className={styles.newSlot} />
-            <span className={styles.colDay}>DAYS</span>
-            <span className={styles.colSince}>SINCE ADDED</span>
+            <span className={styles.colDay}>DAYS SINCE ADDED</span>
+            <span className={styles.colSince}>CHANGE SINCE ADDED</span>
             <span className={styles.colRating}>RATING</span>
             <span className={styles.caretSpacer} />
           </div>
