@@ -122,7 +122,7 @@ export default function UCT20Performance() {
     <div className={styles.wrap}>
       <div className={styles.sectionHeader}>
         <span className={styles.sectionTitle}>UCT 20 PORTFOLIO TRACKER</span>
-        <span className={styles.sectionSub}>$50K equal-weight · -6% hard stop · enters/exits with list</span>
+        <span className={styles.sectionSub}>$50K equal-weight · -6% hard stop · buys/sells at market open</span>
       </div>
 
       {isLoading && <p className={styles.loading}>Loading portfolio data…</p>}
