@@ -57,17 +57,15 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew }) {
           <span className={styles.sym}>{sym}</span>
         </TickerPopup>
         {company && <span className={styles.companyName}>{company}</span>}
-        {isNew && <span className={styles.newBadge}>NEW</span>}
         <div className={styles.cardRowRight}>
-          {daysStr && <span className={styles.daysOnList}>{daysStr}</span>}
-          {pctStr && (
-            <span className={`${styles.posReturn} ${(posData?.pct_return ?? 0) >= 0 ? styles.gain : styles.loss}`}>
-              {pctStr}
-            </span>
-          )}
-          {score != null && (
-            <span className={styles.score}>UCT Rating {score.toFixed ? score.toFixed(1) : score}</span>
-          )}
+          <span className={styles.newSlot}>{isNew && <span className={styles.newBadge}>NEW</span>}</span>
+          <span className={styles.daysOnList}>{daysStr ?? ''}</span>
+          <span className={`${styles.posReturn} ${(posData?.pct_return ?? 0) >= 0 ? styles.gain : styles.loss}`}>
+            {pctStr ?? ''}
+          </span>
+          <span className={styles.score}>
+            {score != null ? `UCT Rating ${score.toFixed ? score.toFixed(1) : score}` : ''}
+          </span>
           <span className={styles.caret}>{expanded ? '▾' : '▸'}</span>
         </div>
       </div>
@@ -148,9 +146,11 @@ export default function UCT20() {
           <>
           <div className={styles.listHeader}>
             <div className={styles.listHeaderRight}>
+              <span className={styles.newSlot}></span>
               <span>DAYS</span>
               <span>SINCE ADDED</span>
               <span>RATING</span>
+              <span className={styles.caretSpacer}></span>
             </div>
           </div>
           <div className={styles.list}>
