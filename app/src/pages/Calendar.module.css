@@ -33,6 +33,28 @@
   letter-spacing: 0.5px;
 }
 
+.sourceBadge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.sourceWire {
+  background: rgba(201, 168, 76, 0.12);
+  color: var(--ut-gold);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+}
+
+.sourceLive {
+  background: rgba(74, 222, 128, 0.08);
+  color: var(--gain);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+}
+
 /* ── Two-panel body ──────────────────────────────────────────────────────── */
 .body {
   flex: 1;
@@ -179,6 +201,43 @@
   color: var(--text-muted);
 }
 
+.reactionPos {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gain);
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+}
+
+.reactionNeg {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--loss);
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+}
+
+.revSep {
+  font-size: 10px;
+  color: var(--border);
+  flex-shrink: 0;
+}
+
+.revEst {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.65;
+}
+
+.revAct {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 .epsAct {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
@@ -200,9 +259,10 @@
   flex-shrink: 0;
 }
 
-.pillBeat  { background: var(--gain-bg);  color: var(--gain);  border: 1px solid var(--gain-border); }
-.pillMiss  { background: var(--loss-bg);  color: var(--loss);  border: 1px solid var(--loss-border); }
-.pillMixed { background: var(--warn-bg);  color: var(--warn);  border: 1px solid var(--warn-border); }
+.pillBeat    { background: var(--gain-bg);  color: var(--gain);  border: 1px solid var(--gain-border); }
+.pillMiss    { background: var(--loss-bg);  color: var(--loss);  border: 1px solid var(--loss-border); }
+.pillMixed   { background: var(--warn-bg);  color: var(--warn);  border: 1px solid var(--warn-border); }
+.pillPending { background: transparent; color: transparent; border: none; }
 
 /* ── Econ panel ──────────────────────────────────────────────────────────── */
 .econHeader {
@@ -305,6 +365,14 @@
   flex-shrink: 0;
   padding-top: 1px;
   text-align: right;
+}
+
+.econActual {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ut-gold);
+  letter-spacing: 0.3px;
 }
 
 /* ── Fed speaker rows ────────────────────────────────────────────────────── */

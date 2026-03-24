@@ -14,6 +14,12 @@ function fmtEps(v) {
   return `${sign}$${Math.abs(v).toFixed(2)}`
 }
 
+function fmtRev(v) {
+  if (v == null) return null
+  if (v >= 1000) return `$${(v / 1000).toFixed(1)}B`
+  return `$${Math.round(v)}M`
+}
+
 function verdict(eps_act, eps_est) {
   if (eps_act == null) return 'pending'
   if (eps_est == null) return 'reported'
@@ -47,29 +53,52 @@ function epsActClass(v, eps_est, styles) {
 
 // ── Earnings ticker row ────────────────────────────────────────────────────────
 
-function TickerRow({ entry }) {
+function TickerRow({ entry, reaction }) {
   const v = verdict(entry.eps_act, entry.eps_est)
   const pill = pillLabel(v)
   const actFmt = fmtEps(entry.eps_act)
   const estFmt = fmtEps(entry.eps_est)
+  const revActFmt = fmtRev(entry.rev_act)
+  const revEstFmt = fmtRev(entry.rev_est)
+
+  const reactionPct = reaction != null ? reaction : null
+  const reactionFmt = reactionPct != null
+    ? `${reactionPct >= 0 ? '+' : ''}${reactionPct.toFixed(1)}%`
+    : null
 
   return (
     <div className={styles.tickerRow}>
       <TickerPopup sym={entry.sym} />
       <div className={styles.epsMeta}>
+        {/* EPS */}
         {entry.eps_act != null ? (
           <>
             <span className={epsActClass(entry.eps_act, entry.eps_est, styles)}>
               {actFmt}
             </span>
             {entry.eps_est != null && (
-              <span className={styles.epsEst}>vs {estFmt} est</span>
+              <span className={styles.epsEst}>vs {estFmt}</span>
             )}
           </>
         ) : estFmt ? (
           <span className={styles.epsEst}>{estFmt} est</span>
         ) : null}
+        {/* Revenue */}
+        {(revActFmt || revEstFmt) && (
+          <span className={styles.revSep}>·</span>
+        )}
+        {revActFmt ? (
+          <span className={styles.revAct}>{revActFmt} rev</span>
+        ) : revEstFmt ? (
+          <span className={styles.revEst}>{revEstFmt} rev</span>
+        ) : null}
       </div>
+      {/* Live price reaction (Massive, 30s) — only for reported tickers */}
+      {reactionFmt && (
+        <span className={reactionPct >= 0 ? styles.reactionPos : styles.reactionNeg}>
+          {reactionFmt}
+        </span>
+      )}
       {pill && (
         <span className={pillClass(v, styles)}>{pill}</span>
       )}
@@ -85,6 +114,13 @@ function EarningsPanel({ days, weekDates }) {
     const today = new Date().toISOString().slice(0, 10)
     return weekDates.includes(today) ? today : weekDates[0]
   })
+
+  // Live price reactions for reported tickers on the active date (Massive, 30s)
+  const { data: reactions } = useSWR(
+    `/api/calendar/reactions?date=${activeDate}`,
+    fetcher,
+    { refreshInterval: 30_000, revalidateOnFocus: false }
+  )
 
   const dayData = days[activeDate] || {}
   const bmo = dayData.bmo || []
@@ -127,7 +163,7 @@ function EarningsPanel({ days, weekDates }) {
           {bmo.length === 0 ? (
             <div className={styles.emptyBucket}>No reporters</div>
           ) : (
-            bmo.map(e => <TickerRow key={e.sym} entry={e} />)
+            bmo.map(e => <TickerRow key={e.sym} entry={e} reaction={reactions?.[e.sym]} />)
           )}
         </div>
 
@@ -139,7 +175,7 @@ function EarningsPanel({ days, weekDates }) {
           {amc.length === 0 ? (
             <div className={styles.emptyBucket}>No reporters</div>
           ) : (
-            amc.map(e => <TickerRow key={e.sym} entry={e} />)
+            amc.map(e => <TickerRow key={e.sym} entry={e} reaction={reactions?.[e.sym]} />)
           )}
         </div>
       </div>
@@ -191,11 +227,17 @@ function EconPanel({ days, weekDates }) {
                   ].filter(Boolean).join(' ')}>
                     {ev.event}
                   </span>
-                  {(ev.estimate || ev.prior) && (
+                  {(ev.actual || ev.estimate || ev.prior) && (
                     <span className={styles.econMeta}>
-                      {ev.estimate ? `est ${ev.estimate}` : ''}
-                      {ev.estimate && ev.prior ? ' · ' : ''}
-                      {ev.prior ? `prev ${ev.prior}` : ''}
+                      {ev.actual && (
+                        <span className={styles.econActual}>A: {ev.actual}</span>
+                      )}
+                      {ev.estimate && (
+                        <span>{ev.actual ? ' · ' : ''}est {ev.estimate}</span>
+                      )}
+                      {ev.prior && (
+                        <span> · prev {ev.prior}</span>
+                      )}
                     </span>
                   )}
                 </div>
@@ -258,11 +300,21 @@ export default function Calendar() {
     ? `Week of ${fmtWeekRange(data.week_start, data.week_end)}`
     : ''
 
+  const sourceLabel = data.source === 'wire' ? 'WIRE' : data.source === 'live' ? 'LIVE' : null
+
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <span className={styles.pageTitle}>Calendar</span>
         {weekLabel && <span className={styles.weekRange}>{weekLabel}</span>}
+        {sourceLabel && (
+          <span className={[
+            styles.sourceBadge,
+            data.source === 'wire' ? styles.sourceWire : styles.sourceLive,
+          ].join(' ')}>
+            {sourceLabel}
+          </span>
+        )}
       </div>
       <div className={styles.body}>
         <EarningsPanel days={data.days} weekDates={weekDates} />
