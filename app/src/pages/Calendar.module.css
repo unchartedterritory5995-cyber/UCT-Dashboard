@@ -249,78 +249,95 @@
   padding: 4px 2px;
 }
 
-/* ── Ticker rows ─────────────────────────────────────────────────────────── */
-.tickerRow {
-  display: flex;
+/* ── Earnings grid — 7 fixed columns ─────────────────────────────────────── */
+/*  TICKER | EPS EST | EPS ACT | SURP% | REVENUE | GAP% | VERDICT           */
+.gridCols {
+  display: grid;
+  grid-template-columns: 76px 66px 66px 54px 1fr 62px 50px;
   align-items: center;
-  gap: 8px;
+  gap: 0 6px;
+}
+
+.gridHeader {
+  composes: gridCols;
+  padding: 3px 4px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 2px;
+}
+
+.colHead {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  opacity: 0.5;
+  text-align: right;
+}
+.colHead:first-child { text-align: left; }
+
+.tickerRow {
+  composes: gridCols;
   padding: 3px 4px;
   border-radius: 3px;
   cursor: pointer;
+  transition: background 0.08s;
 }
 .tickerRow:hover { background: var(--bg-hover); }
 
-.epsMeta {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
+/* grid cells — all right-aligned except ticker */
+.colTicker { /* left-align handled by TickerPopup */ }
 
-.epsEst {
+.colVal {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
   color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+.colValDim {
+  composes: colVal;
+  opacity: 0.55;
+}
+.colValBright {
+  composes: colVal;
+  color: var(--text);
+}
+.colDash {
+  composes: colVal;
+  opacity: 0.2;
 }
 
+/* EPS / revenue coloring */
+.epsPos  { color: var(--gain) !important; }
+.epsNeg  { color: var(--loss) !important; }
+.epsMixed{ color: var(--warn) !important; }
+
+/* Gap % */
 .reactionPos {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
   font-weight: 600;
   color: var(--gain);
-  flex-shrink: 0;
-  letter-spacing: 0.3px;
+  text-align: right;
 }
-
 .reactionNeg {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
   font-weight: 600;
   color: var(--loss);
-  flex-shrink: 0;
-  letter-spacing: 0.3px;
+  text-align: right;
 }
-
-.revSep {
-  font-size: 10px;
-  color: var(--border);
-  flex-shrink: 0;
-}
-
-.revEst {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  color: var(--text-muted);
-  opacity: 0.65;
-}
-
-.revAct {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  color: var(--text-muted);
-}
-
-.epsAct {
+.reactionNeutral {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
-  color: var(--text);
+  color: var(--text-muted);
+  opacity: 0.3;
+  text-align: right;
 }
 
-.epsPos { color: var(--gain); }
-.epsNeg { color: var(--loss); }
-.epsMixed { color: var(--warn); }
-
+/* Verdict pill */
 .verdictPill {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
@@ -329,13 +346,21 @@
   text-transform: uppercase;
   padding: 1px 5px;
   border-radius: 3px;
-  flex-shrink: 0;
+  text-align: center;
+  justify-self: end;
 }
-
 .pillBeat    { background: var(--gain-bg);  color: var(--gain);  border: 1px solid var(--gain-border); }
 .pillMiss    { background: var(--loss-bg);  color: var(--loss);  border: 1px solid var(--loss-border); }
 .pillMixed   { background: var(--warn-bg);  color: var(--warn);  border: 1px solid var(--warn-border); }
-.pillPending { background: transparent; color: transparent; border: none; }
+.pillPending { visibility: hidden; }
+
+/* keep legacy names so nothing else breaks */
+.epsMeta { display: none; }
+.epsEst  { display: none; }
+.epsAct  { display: none; }
+.revSep  { display: none; }
+.revEst  { display: none; }
+.revAct  { display: none; }
 
 /* ── Econ panel ──────────────────────────────────────────────────────────── */
 .econHeader {
