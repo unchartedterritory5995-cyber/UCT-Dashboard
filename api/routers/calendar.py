@@ -66,15 +66,31 @@ def _from_wire(wire_calendar: dict, week_dates: list[date], today: date) -> dict
         ds = d.strftime("%Y-%m-%d")
         wd = wire_calendar.get(ds, {})
 
+        _EPS_SENTINELS = frozenset({999.0, -999.0, 9999.0, -9999.0, 999.99, -999.99})
+
+        def _clean_eps(v, sym="?"):
+            """Null out sentinel / unrealistically large EPS values before serving."""
+            if v is None:
+                return None
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                return None
+            if fv in _EPS_SENTINELS or abs(fv) == 999 or abs(fv) == 9999 or abs(fv) > 200:
+                _logger.warning("Calendar: bad eps value %.2f for %s — nulled", fv, sym)
+                return None
+            return fv
+
         def _chip(c: dict) -> dict:
             # Wire chips store rev as raw dollars (millions × 1_000_000); convert back to millions.
             def _to_m(v):
                 if v is None: return None
                 return v / 1_000_000 if v > 1_000_000 else v
+            sym = c.get("sym", "")
             return {
-                "sym":     c.get("sym", ""),
-                "eps_est": c.get("eps_est"),
-                "eps_act": c.get("eps_act"),
+                "sym":     sym,
+                "eps_est": _clean_eps(c.get("eps_est"), sym),
+                "eps_act": _clean_eps(c.get("eps_act"), sym),
                 "rev_est": _to_m(c.get("rev_est")),
                 "rev_act": _to_m(c.get("rev_act")),
                 "ew":      int(c.get("ew", c.get("ew_total", 0)) or 0),
@@ -230,6 +246,18 @@ def _build_live(week_dates: list[date], today: date) -> dict:
             _logger.warning("EW fetch failed for %s: %s", ds, exc)
             raw = []
 
+        _EPS_SENTINELS_LIVE = frozenset({999.0, -999.0, 9999.0, -9999.0, 999.99, -999.99})
+
+        def _clean_eps_live(v):
+            if v is None: return None
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                return None
+            if fv in _EPS_SENTINELS_LIVE or abs(fv) == 999 or abs(fv) > 200:
+                return None
+            return fv
+
         bmo: list[dict] = []
         amc: list[dict] = []
         seen: set[str] = set()
@@ -238,8 +266,8 @@ def _build_live(week_dates: list[date], today: date) -> dict:
             seen.add(sym)
             entry = {
                 "sym":     sym,
-                "eps_est": item.get("eps_estimate"),
-                "eps_act": item.get("eps_actual"),
+                "eps_est": _clean_eps_live(item.get("eps_estimate")),
+                "eps_act": _clean_eps_live(item.get("eps_actual")),
                 "rev_est": item.get("rev_estimate"),  # already in millions from _fetch_ew_live
                 "rev_act": item.get("rev_actual"),    # already in millions from _fetch_ew_live
                 "ew":      int(item.get("ew_total", 0) or 0),
