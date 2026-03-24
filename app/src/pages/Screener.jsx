@@ -51,9 +51,9 @@ export default function Screener() {
   ]
 
   return (
-    <div className={styles.container}>
+    <div className={pageTab === 'custom' ? styles.containerFull : styles.container}>
 
-      <div className={styles.header}>
+      <div className={pageTab === 'custom' ? styles.headerFull : styles.header}>
         <h1 className={styles.heading}>Scanner Hub</h1>
 
         <div className={styles.pageTabs}>
