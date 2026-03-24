@@ -1,8 +1,15 @@
+import { useState } from 'react'
 import useSWR from 'swr'
 import TickerPopup from '../components/TickerPopup'
+import CustomScan from './CustomScan'
 import styles from './Screener.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
+
+const PAGE_TABS = [
+  { key: 'scanner', label: 'Scanner' },
+  { key: 'custom',  label: 'Custom Scan' },
+]
 
 function TickerList({ rows }) {
   if (!rows || rows.length === 0) {
@@ -24,6 +31,8 @@ function TickerList({ rows }) {
 }
 
 export default function Screener() {
+  const [pageTab, setPageTab] = useState('scanner')
+
   const { data, error } = useSWR('/api/candidates', fetcher, {
     refreshInterval: 30 * 60 * 1000,
   })
@@ -34,17 +43,38 @@ export default function Screener() {
   const gapperRows   = candidates.gapper_news  ?? []
   const generatedAt  = data?.generated_at      ?? null
 
+  // All candidates pooled for Custom Scan
+  const allCandidates = [
+    ...pullbackRows,
+    ...remountRows,
+    ...gapperRows,
+  ]
+
   return (
     <div className={styles.container}>
 
       <div className={styles.header}>
         <h1 className={styles.heading}>Scanner Hub</h1>
+
+        <div className={styles.pageTabs}>
+          {PAGE_TABS.map(t => (
+            <button
+              key={t.key}
+              className={`${styles.pageTab} ${pageTab === t.key ? styles.pageTabActive : ''}`}
+              onClick={() => setPageTab(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {error ? (
         <div className={styles.emptyState}>Scanner data unavailable</div>
       ) : !data ? (
         <div className={styles.emptyState}>Loading scanner data...</div>
+      ) : pageTab === 'custom' ? (
+        <CustomScan allCandidates={allCandidates} />
       ) : (
         <>
           <div className={styles.columnsGrid}>
@@ -84,7 +114,6 @@ export default function Screener() {
                 <TickerList rows={gapperRows} />
               </div>
             </div>
-
 
             <div className={`${styles.column} ${styles.columnDim}`}>
               <div className={styles.columnHeader}>
