@@ -285,6 +285,96 @@ def get_latest() -> Optional[dict]:
     return history[0] if history else None
 
 
+# ── Scanner universe ──────────────────────────────────────────────────────────
+
+# Maps DB list key → short tag shown in the Custom Scan filter/table
+_UNIVERSE_LIST_TAGS = {
+    "new_52w_highs_list":    "52wh",
+    "new_ath_list":          "ath",
+    "new_20d_highs_list":    "20dh",
+    "hvc_52w_list":          "hvc",
+    "stage2_list":           "s2",
+    "stage4_list":           "s4",
+    "up_50pct_month_list":   "up50m",
+    "up_25pct_month_list":   "up25m",
+    "up_25pct_quarter_list": "up25q",
+    "magna_up_list":         "magna",
+    "up_4pct_today_list":    "up4d",
+    "down_4pct_today_list":  "dn4d",
+    "new_52w_lows_list":     "52wl",
+}
+
+
+def get_universe_stocks(date_str: str = None) -> dict:
+    """Pool all named *_list fields from the latest (or given) breadth snapshot.
+
+    Returns a dict with:
+      date          -- snapshot date (YYYY-MM-DD)
+      universe_count-- total universe size tracked by breadth collector
+      stocks        -- list of {ticker, name, close, vr, a50, atr, pct_1d, tags[]}
+                       only stocks appearing in at least one named list are included
+    """
+    try:
+        with _conn() as c:
+            if date_str:
+                row = c.execute(
+                    "SELECT date, metrics FROM breadth_snapshots WHERE date = ?", (date_str,)
+                ).fetchone()
+            else:
+                row = c.execute(
+                    "SELECT date, metrics FROM breadth_snapshots ORDER BY date DESC LIMIT 1"
+                ).fetchone()
+        if not row:
+            return {"date": None, "universe_count": 0, "stocks": []}
+
+        snap_date = row["date"]
+        m = json.loads(row["metrics"])
+
+        # Build 1d-pct lookup from universe_list (contains ALL stocks)
+        pct_map: dict = {}
+        for item in (m.get("universe_list") or []):
+            t = item.get("t")
+            if t:
+                pct_map[t] = item.get("pct", 0.0)
+
+        # Pool all named lists → merge by ticker
+        stocks: dict = {}
+        for list_key, tag in _UNIVERSE_LIST_TAGS.items():
+            for item in (m.get(list_key) or []):
+                t = item.get("t")
+                if not t:
+                    continue
+                if t not in stocks:
+                    stocks[t] = {
+                        "ticker": t,
+                        "name":   item.get("n") or "",
+                        "close":  item.get("c"),
+                        "vr":     item.get("vr"),
+                        "a50":    item.get("a50"),
+                        "atr":    item.get("atr"),
+                        "pct_1d": pct_map.get(t, item.get("pct", 0.0)),
+                        "tags":   [],
+                    }
+                stocks[t]["tags"].append(tag)
+                # Fill missing enrichment fields from whichever list has them
+                s = stocks[t]
+                if not s["name"]  and item.get("n"):  s["name"]  = item["n"]
+                if s["close"] is None and item.get("c"):   s["close"] = item["c"]
+                if s["vr"]    is None and item.get("vr"):  s["vr"]   = item["vr"]
+                if s["a50"]   is None and item.get("a50") is not None: s["a50"] = item["a50"]
+                if s["atr"]   is None and item.get("atr"): s["atr"]  = item["atr"]
+
+        stock_list = sorted(stocks.values(), key=lambda x: x["ticker"])
+        return {
+            "date":            snap_date,
+            "universe_count":  m.get("universe_count", 0),
+            "stocks":          stock_list,
+        }
+    except Exception as e:
+        print(f"[breadth_monitor] get_universe_stocks error: {e}")
+        return {"date": None, "universe_count": 0, "stocks": []}
+
+
 def get_drill_list(date_str: str, metric_key: str) -> Optional[list]:
     """Return a single *_list metric for a given date, or None if not found."""
     try:

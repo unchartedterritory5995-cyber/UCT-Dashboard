@@ -1,32 +1,108 @@
-import { useState, useMemo } from 'react'
-import TickerPopup from '../components/TickerPopup'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import useSWR from 'swr'
 import styles from './CustomScan.module.css'
 
-// ─── Filter definitions ────────────────────────────────────────────────────
+const fetcher = url => fetch(url).then(r => r.json())
+
+// ─── Chart helpers (mirrors ThemeTrackerPage) ─────────────────────────────
+
+const finvizUrl = (sym, period) =>
+  `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}&s=l`
+
+const tvUrl = sym =>
+  `https://www.tradingview.com/widgetembed/?symbol=${sym}&interval=D` +
+  `&theme=dark&style=1&locale=en&hide_side_toolbar=0&allow_symbol_change=1`
+
+// ─── Tag metadata ────────────────────────────────────────────────────────
+
+const TAG_META = {
+  '52wh':  { label: '52W High',     color: 'green' },
+  'ath':   { label: 'ATH',          color: 'green' },
+  '20dh':  { label: '20D High',     color: 'teal'  },
+  'hvc':   { label: 'Vol High',     color: 'blue'  },
+  's2':    { label: 'Stage 2',      color: 'amber' },
+  's4':    { label: 'Stage 4',      color: 'red'   },
+  'up50m': { label: '+50%/Mo',      color: 'green' },
+  'up25m': { label: '+25%/Mo',      color: 'green' },
+  'up25q': { label: '+25%/Qtr',     color: 'teal'  },
+  'magna': { label: 'Magna',        color: 'amber' },
+  'up4d':  { label: '+4% Today',    color: 'green' },
+  'dn4d':  { label: '-4% Today',    color: 'red'   },
+  '52wl':  { label: '52W Low',      color: 'red'   },
+}
+
+// ─── Filter definitions ──────────────────────────────────────────────────
 
 const FILTERS = {
-  // Technical
+  // Breadth signals
+  breadth_tag: {
+    label: 'Breadth Signal',
+    tab: 'technical',
+    options: [
+      { label: 'Any',            test: () => true },
+      { label: '52-Week High',   test: c => c.tags?.includes('52wh') },
+      { label: 'All-Time High',  test: c => c.tags?.includes('ath') },
+      { label: 'Stage 2',        test: c => c.tags?.includes('s2') },
+      { label: 'HVC (Vol High)', test: c => c.tags?.includes('hvc') },
+      { label: 'Magna (+13%/34d)', test: c => c.tags?.includes('magna') },
+      { label: '+25%/Quarter',   test: c => c.tags?.includes('up25q') },
+      { label: '+25%/Month',     test: c => c.tags?.includes('up25m') },
+      { label: '+50%/Month',     test: c => c.tags?.includes('up50m') },
+      { label: '+4% Today',      test: c => c.tags?.includes('up4d') },
+    ],
+  },
+  above_50: {
+    label: 'Above 50 SMA',
+    tab: 'technical',
+    options: [
+      { label: 'Any', test: () => true },
+      { label: 'Yes', test: c => c.a50 === true },
+      { label: 'No',  test: c => c.a50 === false },
+    ],
+  },
+  vol_ratio: {
+    label: 'Volume Ratio',
+    tab: 'technical',
+    options: [
+      { label: 'Any',           test: () => true },
+      { label: 'High >2×',      test: c => c.vr != null && c.vr > 2 },
+      { label: 'Elevated 1.5×', test: c => c.vr != null && c.vr >= 1.5 && c.vr <= 2 },
+      { label: 'Normal 0.8–1.5×', test: c => c.vr != null && c.vr >= 0.8 && c.vr < 1.5 },
+      { label: 'Low <0.8×',     test: c => c.vr != null && c.vr < 0.8 },
+    ],
+  },
+  pct_1d: {
+    label: '1D Change',
+    tab: 'technical',
+    options: [
+      { label: 'Any',         test: () => true },
+      { label: 'Up >4%',      test: c => c.pct_1d != null && c.pct_1d > 4 },
+      { label: 'Up 1–4%',     test: c => c.pct_1d != null && c.pct_1d >= 1 && c.pct_1d <= 4 },
+      { label: 'Flat ±1%',    test: c => c.pct_1d != null && Math.abs(c.pct_1d) < 1 },
+      { label: 'Down >1%',    test: c => c.pct_1d != null && c.pct_1d < -1 },
+    ],
+  },
+  // Scanner-enriched filters (only apply to scanner candidates)
   setup_type: {
     label: 'Setup Type',
     tab: 'technical',
     options: [
-      { label: 'Any', test: () => true },
-      { label: 'Pullback MA', test: c => c.setup_type === 'PULLBACK_MA' },
-      { label: 'Remount',     test: c => c.setup_type === 'REMOUNT' },
-      { label: 'Gapper',      test: c => c.setup_type === 'GAPPER_NEWS' },
+      { label: 'Any',        test: () => true },
+      { label: 'Pullback MA',test: c => c.setup_type === 'PULLBACK_MA' },
+      { label: 'Remount',    test: c => c.setup_type === 'REMOUNT' },
+      { label: 'Gapper',     test: c => c.setup_type === 'GAPPER_NEWS' },
     ],
   },
   alert_state: {
     label: 'Alert State',
     tab: 'technical',
     options: [
-      { label: 'Any',      test: () => true },
-      { label: 'Breaking', test: c => c.alert_state === 'BREAKING' },
-      { label: 'Ready',    test: c => c.alert_state === 'READY' },
-      { label: 'Watch',    test: c => c.alert_state === 'WATCH' || c.alert_state === 'WATCH+' },
-      { label: 'Pattern',  test: c => c.alert_state === 'PATTERN' },
-      { label: 'Extended', test: c => c.alert_state === 'EXTENDED' },
+      { label: 'Any',        test: () => true },
       { label: 'Actionable', test: c => ['BREAKING','READY','WATCH','WATCH+','PATTERN'].includes(c.alert_state) },
+      { label: 'Breaking',   test: c => c.alert_state === 'BREAKING' },
+      { label: 'Ready',      test: c => c.alert_state === 'READY' },
+      { label: 'Watch',      test: c => c.alert_state === 'WATCH' || c.alert_state === 'WATCH+' },
+      { label: 'Pattern',    test: c => c.alert_state === 'PATTERN' },
     ],
   },
   rsi: {
@@ -37,40 +113,17 @@ const FILTERS = {
       { label: 'Overbought >70',test: c => c.rsi != null && c.rsi > 70 },
       { label: 'High 60–70',    test: c => c.rsi != null && c.rsi >= 60 && c.rsi <= 70 },
       { label: 'Mid 40–60',     test: c => c.rsi != null && c.rsi >= 40 && c.rsi < 60 },
-      { label: 'Low 30–40',     test: c => c.rsi != null && c.rsi >= 30 && c.rsi < 40 },
-      { label: 'Oversold <30',  test: c => c.rsi != null && c.rsi < 30 },
-    ],
-  },
-  volatility: {
-    label: 'Volatility (ADR%)',
-    tab: 'technical',
-    options: [
-      { label: 'Any',       test: () => true },
-      { label: 'High >8%',  test: c => c.adr_pct != null && c.adr_pct > 8 },
-      { label: 'Med 5–8%',  test: c => c.adr_pct != null && c.adr_pct >= 5 && c.adr_pct <= 8 },
-      { label: 'Low 4–5%',  test: c => c.adr_pct != null && c.adr_pct >= 4 && c.adr_pct < 5 },
+      { label: 'Low <40',       test: c => c.rsi != null && c.rsi < 40 },
     ],
   },
   ema_dist: {
     label: 'EMA20 Distance',
     tab: 'technical',
     options: [
-      { label: 'Any',         test: () => true },
-      { label: 'Kiss ≤2%',    test: c => c.ema_distance_pct != null && c.ema_distance_pct <= 2 },
-      { label: 'Near 2–5%',   test: c => c.ema_distance_pct != null && c.ema_distance_pct > 2 && c.ema_distance_pct <= 5 },
-      { label: 'Moderate 5–8%', test: c => c.ema_distance_pct != null && c.ema_distance_pct > 5 && c.ema_distance_pct <= 8 },
+      { label: 'Any',          test: () => true },
+      { label: 'Kiss ≤2%',     test: c => c.ema_distance_pct != null && c.ema_distance_pct <= 2 },
+      { label: 'Near 2–5%',    test: c => c.ema_distance_pct != null && c.ema_distance_pct > 2 && c.ema_distance_pct <= 5 },
       { label: 'Extended >8%', test: c => c.ema_distance_pct != null && c.ema_distance_pct > 8 },
-    ],
-  },
-  sma20_dist: {
-    label: '20-Day SMA',
-    tab: 'technical',
-    options: [
-      { label: 'Any',              test: () => true },
-      { label: 'Above SMA20',      test: c => c.sma20_dist_pct != null && c.sma20_dist_pct > 0 },
-      { label: 'Below SMA20',      test: c => c.sma20_dist_pct != null && c.sma20_dist_pct < 0 },
-      { label: 'Within 5%',        test: c => c.sma20_dist_pct != null && Math.abs(c.sma20_dist_pct) <= 5 },
-      { label: 'More than 10% above', test: c => c.sma20_dist_pct != null && c.sma20_dist_pct > 10 },
     ],
   },
   ma_stack: {
@@ -86,22 +139,10 @@ const FILTERS = {
     label: 'RS Trend',
     tab: 'technical',
     options: [
-      { label: 'Any',     test: () => true },
-      { label: 'Rising',  test: c => c.rs_trend === 'up' },
-      { label: 'Flat',    test: c => c.rs_trend === 'flat' },
-      { label: 'Falling', test: c => c.rs_trend === 'down' },
-    ],
-  },
-  pattern: {
-    label: 'Pattern',
-    tab: 'technical',
-    options: [
-      { label: 'Any',        test: () => true },
-      { label: 'Has Pattern',test: c => !!c.pattern_type },
-      { label: 'Flag',       test: c => c.pattern_type === 'flag' },
-      { label: 'Wedge',      test: c => c.pattern_type === 'wedge' },
-      { label: 'Pennant',    test: c => c.pattern_type === 'pennant' },
-      { label: 'No Pattern', test: c => !c.pattern_type },
+      { label: 'Any',    test: () => true },
+      { label: 'Rising', test: c => c.rs_trend === 'up' },
+      { label: 'Flat',   test: c => c.rs_trend === 'flat' },
+      { label: 'Falling',test: c => c.rs_trend === 'down' },
     ],
   },
   candle_score: {
@@ -111,92 +152,69 @@ const FILTERS = {
       { label: 'Any',       test: () => true },
       { label: 'High >70',  test: c => c.candle_score != null && c.candle_score > 70 },
       { label: 'Med 50–70', test: c => c.candle_score != null && c.candle_score >= 50 && c.candle_score <= 70 },
-      { label: 'Low <50',   test: c => c.candle_score != null && c.candle_score < 50 },
     ],
   },
-  volume: {
-    label: 'Volume Flow',
+  pattern: {
+    label: 'Pattern',
     tab: 'technical',
     options: [
-      { label: 'Any',           test: () => true },
-      { label: 'Accumulation',  test: c => c.vol_acc_ratio != null && c.vol_acc_ratio > 1.1 },
-      { label: 'Distribution',  test: c => c.vol_acc_ratio != null && c.vol_acc_ratio < 0.85 },
-      { label: 'Neutral',       test: c => c.vol_acc_ratio != null && c.vol_acc_ratio >= 0.85 && c.vol_acc_ratio <= 1.1 },
+      { label: 'Any',         test: () => true },
+      { label: 'Has Pattern', test: c => !!c.pattern_type },
+      { label: 'Flag',        test: c => c.pattern_type === 'flag' },
+      { label: 'Wedge',       test: c => c.pattern_type === 'wedge' },
+      { label: 'No Pattern',  test: c => !c.pattern_type },
     ],
   },
-  prior_run: {
-    label: 'Prior Run %',
+  adr: {
+    label: 'ADR %',
     tab: 'technical',
     options: [
-      { label: 'Any',            test: () => true },
-      { label: 'Strong >40%',    test: c => c.pole_pct != null && c.pole_pct > 40 },
-      { label: 'Moderate 20–40%',test: c => c.pole_pct != null && c.pole_pct >= 20 && c.pole_pct <= 40 },
-      { label: 'Weak <20%',      test: c => c.pole_pct != null && c.pole_pct < 20 },
-    ],
-  },
-  tightness: {
-    label: 'Bar Tightness',
-    tab: 'technical',
-    options: [
-      { label: 'Any',              test: () => true },
-      { label: 'Tight <2.5%',      test: c => c.close_cv_pct != null && c.close_cv_pct < 2.5 },
-      { label: 'Moderate 2.5–4%',  test: c => c.close_cv_pct != null && c.close_cv_pct >= 2.5 && c.close_cv_pct < 4 },
-      { label: 'Loose >4%',        test: c => c.close_cv_pct != null && c.close_cv_pct >= 4 },
-    ],
-  },
-  earnings: {
-    label: 'Earnings Risk',
-    tab: 'technical',
-    options: [
-      { label: 'Any',                test: () => true },
-      { label: 'Upcoming (<10 days)',test: c => !!c.earnings_date },
-      { label: 'No Near Earnings',   test: c => !c.earnings_date },
+      { label: 'Any',      test: () => true },
+      { label: '>8%',      test: c => c.adr_pct != null && c.adr_pct > 8 },
+      { label: '5–8%',     test: c => c.adr_pct != null && c.adr_pct >= 5 && c.adr_pct <= 8 },
+      { label: '4–5%',     test: c => c.adr_pct != null && c.adr_pct >= 4 && c.adr_pct < 5 },
     ],
   },
   // Descriptive
   sector: {
     label: 'Sector',
     tab: 'descriptive',
-    dynamic: true, // options built from data
+    dynamic: true,
+  },
+  data_source: {
+    label: 'Data Source',
+    tab: 'descriptive',
+    options: [
+      { label: 'Any',             test: () => true },
+      { label: 'Scanner (rich)',  test: c => c.source === 'scanner' || c.source === 'both' },
+      { label: 'Breadth only',    test: c => c.source === 'breadth' },
+    ],
   },
 }
 
 const SORT_FIELDS = [
   { key: 'ticker',           label: 'Ticker' },
+  { key: 'pct_1d',           label: '1D %' },
+  { key: 'vr',               label: 'Vol Ratio' },
   { key: 'candle_score',     label: 'Candle Score' },
   { key: 'rsi',              label: 'RSI' },
-  { key: 'adr_pct',          label: 'ADR %' },
   { key: 'ema_distance_pct', label: 'EMA Dist %' },
+  { key: 'adr_pct',          label: 'ADR %' },
   { key: 'pole_pct',         label: 'Prior Run %' },
-  { key: 'close_cv_pct',     label: 'Tightness' },
-  { key: 'vol_acc_ratio',    label: 'Vol Acc' },
   { key: 'alert_state',      label: 'Alert State' },
+  { key: 'close',            label: 'Price' },
 ]
 
 const ALERT_ORDER = { BREAKING:0, READY:1, 'WATCH+':2, WATCH:3, PATTERN:4, NO_PATTERN:5, EXTENDED:6, NO_DATA:7 }
 
 const PRESETS = [
   { label: 'My Presets', filters: {} },
-  {
-    label: 'High Quality Setup',
-    filters: { alert_state: 'Actionable', candle_score: 'High >70', ma_stack: 'Intact', rs_trend: 'Rising' },
-  },
-  {
-    label: 'EMA Kiss',
-    filters: { ema_dist: 'Kiss ≤2%', ma_stack: 'Intact', volume: 'Accumulation' },
-  },
-  {
-    label: 'Pattern + RS',
-    filters: { pattern: 'Has Pattern', rs_trend: 'Rising', alert_state: 'Actionable' },
-  },
-  {
-    label: 'Tight Pullback',
-    filters: { setup_type: 'Pullback MA', tightness: 'Tight <2.5%', ma_stack: 'Intact' },
-  },
-  {
-    label: 'No Earnings Risk',
-    filters: { earnings: 'No Near Earnings', alert_state: 'Actionable' },
-  },
+  { label: 'Stage 2 + Vol',    filters: { breadth_tag: 'Stage 2', above_50: 'Yes', vol_ratio: 'Elevated 1.5×' } },
+  { label: '52W High Breakout',filters: { breadth_tag: '52-Week High', above_50: 'Yes' } },
+  { label: 'HVC Momentum',     filters: { breadth_tag: 'HVC (Vol High)', pct_1d: 'Up >4%' } },
+  { label: 'Scanner — Actionable', filters: { alert_state: 'Actionable', ma_stack: 'Intact', rs_trend: 'Rising' } },
+  { label: 'EMA Kiss',         filters: { ema_dist: 'Kiss ≤2%', ma_stack: 'Intact' } },
+  { label: 'Magna Stocks',     filters: { breadth_tag: 'Magna (+13%/34d)', above_50: 'Yes' } },
 ]
 
 const TABS = [
@@ -205,94 +223,157 @@ const TABS = [
   { key: 'all',         label: 'All' },
 ]
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────
 
 function alertBadgeClass(state) {
-  if (state === 'BREAKING')              return styles.alertBreaking
-  if (state === 'READY')                 return styles.alertReady
+  if (state === 'BREAKING')                    return styles.alertBreaking
+  if (state === 'READY')                       return styles.alertReady
   if (state === 'WATCH' || state === 'WATCH+') return styles.alertWatch
-  if (state === 'PATTERN')               return styles.alertPattern
-  if (state === 'EXTENDED')              return styles.alertExtended
-  return styles.alertNone
-}
-
-function setupLabel(t) {
-  if (t === 'PULLBACK_MA')  return 'PULLBACK'
-  if (t === 'REMOUNT')      return 'REMOUNT'
-  if (t === 'GAPPER_NEWS')  return 'GAPPER'
-  return t
+  if (state === 'PATTERN')                     return styles.alertPattern
+  return null
 }
 
 function setupClass(t) {
   if (t === 'PULLBACK_MA')  return styles.badgePullback
   if (t === 'REMOUNT')      return styles.badgeRemount
   if (t === 'GAPPER_NEWS')  return styles.badgeGapper
-  return styles.badgeDefault
+  return null
+}
+function setupShort(t) {
+  if (t === 'PULLBACK_MA')  return 'PULL'
+  if (t === 'REMOUNT')      return 'RMT'
+  if (t === 'GAPPER_NEWS')  return 'GAP'
+  return t
 }
 
-function fmt1(v) { return v != null ? v.toFixed(1) : '—' }
-function fmt0(v) { return v != null ? Math.round(v) : '—' }
-function fmtPct(v, plus = false) {
-  if (v == null) return '—'
-  const s = v.toFixed(1) + '%'
-  return plus && v > 0 ? '+' + s : s
-}
+const fmt1    = v => v != null ? v.toFixed(1) : '—'
+const fmtPct  = (v, plus) => v != null ? (plus && v > 0 ? '+' : '') + v.toFixed(1) + '%' : '—'
+const fmtP    = v => v != null ? '$' + v.toFixed(2) : '—'
 
-// ─── Main component ────────────────────────────────────────────────────────
+// ─── Main component ───────────────────────────────────────────────────────
 
 export default function CustomScan({ allCandidates }) {
-  const [activeTab, setActiveTab]       = useState('technical')
+  // ── Data fetching ──
+  const { data: universeData } = useSWR('/api/scanner/universe', fetcher, {
+    refreshInterval: 4 * 3600 * 1000,  // 4h — breadth updates daily
+  })
+
+  // ── Merge scanner candidates into breadth universe ──
+  const mergedUniverse = useMemo(() => {
+    const byTicker = {}
+
+    // 1. Seed with breadth universe stocks
+    for (const s of (universeData?.stocks ?? [])) {
+      byTicker[s.ticker] = { ...s, source: 'breadth' }
+    }
+
+    // 2. Merge / overlay scanner candidates (richer data)
+    for (const c of (allCandidates ?? [])) {
+      const t = c.ticker
+      if (!t) continue
+      if (byTicker[t]) {
+        // Already in breadth — enrich with scanner fields
+        byTicker[t] = {
+          ...byTicker[t],
+          ...c,
+          ticker: t,
+          name:   byTicker[t].name || c.company || '',
+          tags:   byTicker[t].tags || [],
+          source: 'both',
+        }
+      } else {
+        // Scanner-only stock (not in breadth universe)
+        byTicker[t] = {
+          ticker: t,
+          name:   c.company || '',
+          close:  null,
+          vr:     null,
+          a50:    null,
+          pct_1d: c.change_pct ?? c.gap_pct ?? null,
+          tags:   [],
+          source: 'scanner',
+          ...c,
+        }
+      }
+    }
+
+    return Object.values(byTicker)
+  }, [universeData, allCandidates])
+
+  // ── Filter state ──
+  const [activeTab, setActiveTab]        = useState('technical')
   const [activeFilters, setActiveFilters] = useState({})
-  const [sortKey, setSortKey]           = useState('candle_score')
-  const [sortDir, setSortDir]           = useState('desc')
+  const [sortKey, setSortKey]            = useState('pct_1d')
+  const [sortDir, setSortDir]            = useState('desc')
   const [tickerSearch, setTickerSearch]  = useState('')
-  const [showFilters, setShowFilters]   = useState(true)
+  const [showFilters, setShowFilters]    = useState(true)
   const [preset, setPreset]             = useState('My Presets')
 
-  // Build dynamic sector options from data
+  // ── Chart state ──
+  const [selectedSym, setSelectedSym]   = useState(null)
+  const [selectedName, setSelectedName] = useState('')
+  const [chartPeriod, setChartPeriod]   = useState('tv')
+
+  // Dynamic sector options
   const sectorOptions = useMemo(() => {
-    const sectors = new Set(allCandidates.map(c => c.sector).filter(Boolean))
+    const sectors = new Set(mergedUniverse.map(c => c.sector).filter(Boolean))
     return [
       { label: 'Any', test: () => true },
       ...[...sectors].sort().map(s => ({ label: s, test: c => c.sector === s })),
     ]
-  }, [allCandidates])
+  }, [mergedUniverse])
 
-  // Merge dynamic options into FILTERS
   const resolvedFilters = useMemo(() => ({
     ...FILTERS,
     sector: { ...FILTERS.sector, options: sectorOptions },
   }), [sectorOptions])
 
-  // Apply preset
-  function applyPreset(label) {
+  // ── Presets ──
+  const applyPreset = useCallback(label => {
     const p = PRESETS.find(x => x.label === label)
     if (p) { setActiveFilters(p.filters); setPreset(label) }
-  }
+  }, [])
 
-  // Toggle a filter value
-  function setFilter(key, label) {
+  const setFilter = useCallback((key, label) => {
     setActiveFilters(prev => ({ ...prev, [key]: label === 'Any' ? undefined : label }))
     setPreset('My Presets')
-  }
+  }, [])
 
-  function resetFilters() {
+  const resetFilters = useCallback(() => {
     setActiveFilters({})
     setTickerSearch('')
     setPreset('My Presets')
-  }
+  }, [])
 
-  // Filter + sort
+  // ── Finviz preload ──
+  useEffect(() => {
+    if (!selectedSym || chartPeriod === 'tv') return
+    const results_arr = results  // captured below, use the memo result
+    const idx = results_arr.findIndex(r => r.ticker === selectedSym)
+    for (let d = -3; d <= 3; d++) {
+      if (d === 0) continue
+      const neighbor = results_arr[idx + d]
+      if (neighbor?.ticker) {
+        const img = new window.Image()
+        img.src = finvizUrl(neighbor.ticker, chartPeriod)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSym, chartPeriod])
+
+  // ── Filter + sort ──
   const results = useMemo(() => {
-    let rows = [...allCandidates]
+    let rows = [...mergedUniverse]
 
-    // Ticker search
     if (tickerSearch.trim()) {
       const q = tickerSearch.trim().toUpperCase()
-      rows = rows.filter(c => c.ticker?.toUpperCase().includes(q) || c.company?.toUpperCase().includes(q))
+      rows = rows.filter(c =>
+        c.ticker?.toUpperCase().includes(q) ||
+        c.name?.toUpperCase().includes(q) ||
+        c.company?.toUpperCase().includes(q)
+      )
     }
 
-    // Apply each active filter
     Object.entries(activeFilters).forEach(([key, selectedLabel]) => {
       if (!selectedLabel) return
       const fDef = resolvedFilters[key]
@@ -301,7 +382,6 @@ export default function CustomScan({ allCandidates }) {
       if (opt) rows = rows.filter(opt.test)
     })
 
-    // Sort
     rows.sort((a, b) => {
       let av = a[sortKey], bv = b[sortKey]
       if (sortKey === 'ticker')      { av = a.ticker || ''; bv = b.ticker || '' }
@@ -314,55 +394,57 @@ export default function CustomScan({ allCandidates }) {
     })
 
     return rows
-  }, [allCandidates, activeFilters, tickerSearch, sortKey, sortDir, resolvedFilters])
+  }, [mergedUniverse, activeFilters, tickerSearch, sortKey, sortDir, resolvedFilters])
 
-  // Which filter keys to show in active tab
+  // Keyboard navigation
+  useEffect(() => {
+    function onKey(e) {
+      if (!selectedSym) return
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const idx = results.findIndex(r => r.ticker === selectedSym)
+      if (idx === -1) return
+      const next = e.key === 'ArrowDown' ? results[idx + 1] : results[idx - 1]
+      if (next) { setSelectedSym(next.ticker); setSelectedName(next.name || '') }
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedSym, results])
+
+  // Sort toggle helper
+  const toggleSort = key => {
+    if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+    else { setSortKey(key); setSortDir('desc') }
+  }
+  const sortArrow = key => sortKey === key ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''
+
   const visibleKeys = useMemo(() => {
     if (activeTab === 'all') return Object.keys(resolvedFilters)
-    return Object.entries(resolvedFilters)
-      .filter(([, f]) => f.tab === activeTab)
-      .map(([k]) => k)
+    return Object.entries(resolvedFilters).filter(([, f]) => f.tab === activeTab).map(([k]) => k)
   }, [activeTab, resolvedFilters])
 
   const activeFilterCount = Object.values(activeFilters).filter(Boolean).length
+  const universeDate      = universeData?.date
+  const universeCount     = universeData?.universe_count ?? 0
 
   // ── Render ──
-
   return (
     <div className={styles.wrap}>
 
-      {/* ── Top control bar ── */}
+      {/* ── Control bar ── */}
       <div className={styles.controlBar}>
         <div className={styles.controlLeft}>
-          <select
-            className={styles.presetSelect}
-            value={preset}
-            onChange={e => applyPreset(e.target.value)}
-          >
-            {PRESETS.map(p => (
-              <option key={p.label}>{p.label}</option>
-            ))}
+          <select className={styles.presetSelect} value={preset} onChange={e => applyPreset(e.target.value)}>
+            {PRESETS.map(p => <option key={p.label}>{p.label}</option>)}
           </select>
-
           <span className={styles.controlLabel}>Order by</span>
-          <select
-            className={styles.select}
-            value={sortKey}
-            onChange={e => setSortKey(e.target.value)}
-          >
-            {SORT_FIELDS.map(f => (
-              <option key={f.key} value={f.key}>{f.label}</option>
-            ))}
+          <select className={styles.select} value={sortKey} onChange={e => setSortKey(e.target.value)}>
+            {SORT_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
           </select>
-          <select
-            className={styles.selectSmall}
-            value={sortDir}
-            onChange={e => setSortDir(e.target.value)}
-          >
+          <select className={styles.selectSmall} value={sortDir} onChange={e => setSortDir(e.target.value)}>
             <option value="desc">Desc</option>
             <option value="asc">Asc</option>
           </select>
-
           <span className={styles.controlLabel}>Tickers</span>
           <input
             className={styles.tickerInput}
@@ -371,19 +453,24 @@ export default function CustomScan({ allCandidates }) {
             onChange={e => setTickerSearch(e.target.value)}
           />
         </div>
-
-        <button
-          className={`${styles.filterToggle} ${showFilters ? styles.filterToggleActive : ''}`}
-          onClick={() => setShowFilters(v => !v)}
-        >
-          Filters {activeFilterCount > 0 ? `▲ ${activeFilterCount}` : showFilters ? '▲' : '▼'}
-        </button>
+        <div className={styles.controlRight}>
+          {universeDate && (
+            <span className={styles.universeInfo}>
+              {results.length} / {mergedUniverse.length} · universe {universeCount.toLocaleString()} · {universeDate}
+            </span>
+          )}
+          <button
+            className={`${styles.filterToggle} ${showFilters ? styles.filterToggleActive : ''}`}
+            onClick={() => setShowFilters(v => !v)}
+          >
+            Filters {activeFilterCount > 0 ? `▲ ${activeFilterCount}` : showFilters ? '▲' : '▼'}
+          </button>
+        </div>
       </div>
 
       {/* ── Filter panel ── */}
       {showFilters && (
         <div className={styles.filterPanel}>
-          {/* Tab row */}
           <div className={styles.filterTabRow}>
             <button className={styles.resetBtn} onClick={resetFilters}>Reset Filters</button>
             {TABS.map(t => {
@@ -403,24 +490,19 @@ export default function CustomScan({ allCandidates }) {
             })}
             <span className={styles.resultCount}>{results.length} result{results.length !== 1 ? 's' : ''}</span>
           </div>
-
-          {/* Filter grid */}
           <div className={styles.filterGrid}>
             {visibleKeys.map(key => {
               const fDef = resolvedFilters[key]
               const current = activeFilters[key] || 'Any'
-              const isDirty = !!activeFilters[key]
               return (
                 <div key={key} className={styles.filterCell}>
                   <label className={styles.filterLabel}>{fDef.label}</label>
                   <select
-                    className={`${styles.filterSelect} ${isDirty ? styles.filterSelectActive : ''}`}
+                    className={`${styles.filterSelect} ${activeFilters[key] ? styles.filterSelectActive : ''}`}
                     value={current}
                     onChange={e => setFilter(key, e.target.value)}
                   >
-                    {fDef.options?.map(o => (
-                      <option key={o.label}>{o.label}</option>
-                    ))}
+                    {fDef.options?.map(o => <option key={o.label}>{o.label}</option>)}
                   </select>
                 </div>
               )
@@ -429,128 +511,162 @@ export default function CustomScan({ allCandidates }) {
         </div>
       )}
 
-      {/* ── Results table ── */}
-      <div className={styles.tableWrap}>
-        {results.length === 0 ? (
-          <div className={styles.empty}>No candidates match the current filters</div>
-        ) : (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Alert</th>
-                <th>Setup</th>
-                <th>Ticker</th>
-                <th>Company / Sector</th>
-                <th onClick={() => { setSortKey('candle_score'); setSortDir(d => d==='desc'?'asc':'desc') }}
-                    className={styles.sortable}>
-                  Score {sortKey==='candle_score' ? (sortDir==='desc'?'↓':'↑') : ''}
-                </th>
-                <th onClick={() => { setSortKey('rsi'); setSortDir(d => d==='desc'?'asc':'desc') }}
-                    className={styles.sortable}>
-                  RSI {sortKey==='rsi' ? (sortDir==='desc'?'↓':'↑') : ''}
-                </th>
-                <th onClick={() => { setSortKey('ema_distance_pct'); setSortDir(d => d==='desc'?'asc':'desc') }}
-                    className={styles.sortable}>
-                  EMA Dist {sortKey==='ema_distance_pct' ? (sortDir==='desc'?'↓':'↑') : ''}
-                </th>
-                <th onClick={() => { setSortKey('adr_pct'); setSortDir(d => d==='desc'?'asc':'desc') }}
-                    className={styles.sortable}>
-                  ADR% {sortKey==='adr_pct' ? (sortDir==='desc'?'↓':'↑') : ''}
-                </th>
-                <th onClick={() => { setSortKey('pole_pct'); setSortDir(d => d==='desc'?'asc':'desc') }}
-                    className={styles.sortable}>
-                  Prior Run {sortKey==='pole_pct' ? (sortDir==='desc'?'↓':'↑') : ''}
-                </th>
-                <th>Pattern</th>
-                <th>RS</th>
-                <th>Vol</th>
-                <th onClick={() => { setSortKey('close_cv_pct'); setSortDir(d => d==='desc'?'asc':'desc') }}
-                    className={styles.sortable}>
-                  Tight {sortKey==='close_cv_pct' ? (sortDir==='desc'?'↓':'↑') : ''}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map(c => {
-                const isExtended = c.alert_state === 'EXTENDED'
-                return (
-                  <tr key={c.ticker} className={`${styles.row} ${isExtended ? styles.rowDim : ''}`}>
-                    <td>
-                      <span className={`${styles.alertBadge} ${alertBadgeClass(c.alert_state)}`}>
-                        {c.alert_state || '—'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`${styles.setupBadge} ${setupClass(c.setup_type)}`}>
-                        {setupLabel(c.setup_type)}
-                      </span>
-                    </td>
-                    <td>
-                      <TickerPopup sym={c.ticker}>
-                        <span className={styles.sym}>{c.ticker}</span>
-                      </TickerPopup>
-                    </td>
-                    <td>
-                      <div className={styles.companyCell}>
-                        {c.company && <span className={styles.company}>{c.company}</span>}
-                        {c.sector  && <span className={styles.sectorTag}>{c.sector}</span>}
-                      </div>
-                    </td>
-                    <td className={styles.scoreCell}>
-                      <span className={
-                        c.candle_score > 70 ? styles.numGreen :
-                        c.candle_score > 50 ? styles.numAmber : styles.numMuted
-                      }>
-                        {fmt0(c.candle_score)}
-                      </span>
-                    </td>
-                    <td className={
-                      c.rsi > 70 ? styles.numRed :
-                      c.rsi < 30 ? styles.numGreen : styles.numNeutral
-                    }>{fmt1(c.rsi)}</td>
-                    <td className={c.ema_distance_pct > 8 ? styles.numRed : c.ema_distance_pct <= 2 ? styles.numGreen : styles.numNeutral}>
-                      {fmtPct(c.ema_distance_pct, true)}
-                    </td>
-                    <td className={styles.numNeutral}>{fmtPct(c.adr_pct)}</td>
-                    <td className={c.pole_pct > 20 ? styles.numGreen : styles.numNeutral}>
-                      {fmtPct(c.pole_pct, true)}
-                    </td>
-                    <td className={styles.patternCell}>
-                      {c.pattern_type
-                        ? <><span className={styles.patternType}>{c.pattern_type}</span>
-                            {c.apex_days_remaining != null && c.apex_days_remaining <= 10 &&
-                              <span className={styles.apexTag}>{c.apex_days_remaining}d</span>}
-                          </>
-                        : <span className={styles.numMuted}>—</span>
-                      }
-                    </td>
-                    <td>
-                      <span className={
-                        c.rs_trend === 'up' ? styles.rsUp :
-                        c.rs_trend === 'down' ? styles.rsDown : styles.rsMuted
-                      }>
-                        {c.rs_trend === 'up' ? 'RS↑' : c.rs_trend === 'down' ? 'RS↓' : 'flat'}
-                      </span>
-                    </td>
-                    <td>
-                      {c.vol_acc_ratio != null && (
-                        <span className={
-                          c.vol_acc_ratio > 1.1 ? styles.volAcc :
-                          c.vol_acc_ratio < 0.85 ? styles.volDist : styles.numMuted
-                        }>
-                          {c.vol_acc_ratio > 1.1 ? 'ACC' : c.vol_acc_ratio < 0.85 ? 'DIST' : 'NEUT'}
-                        </span>
-                      )}
-                    </td>
-                    <td className={c.close_cv_pct < 2.5 ? styles.numGreen : c.close_cv_pct > 4 ? styles.numMuted : styles.numNeutral}>
-                      {fmtPct(c.close_cv_pct)}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
+      {/* ── Body: results table + chart panel ── */}
+      <div className={styles.body}>
+
+        {/* Left — results table */}
+        <div className={styles.leftPanel}>
+          {results.length === 0 ? (
+            <div className={styles.empty}>No stocks match the current filters</div>
+          ) : (
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th className={styles.sortable} onClick={() => toggleSort('ticker')}>Ticker{sortArrow('ticker')}</th>
+                  <th>Signal</th>
+                  <th>Tags</th>
+                  <th className={styles.sortable} onClick={() => toggleSort('pct_1d')}>1D%{sortArrow('pct_1d')}</th>
+                  <th className={styles.sortable} onClick={() => toggleSort('close')}>Price{sortArrow('close')}</th>
+                  <th className={styles.sortable} onClick={() => toggleSort('vr')}>VolR{sortArrow('vr')}</th>
+                  <th>A50</th>
+                  <th className={styles.sortable} onClick={() => toggleSort('candle_score')}>Score{sortArrow('candle_score')}</th>
+                  <th className={styles.sortable} onClick={() => toggleSort('rsi')}>RSI{sortArrow('rsi')}</th>
+                  <th className={styles.sortable} onClick={() => toggleSort('ema_distance_pct')}>EMA%{sortArrow('ema_distance_pct')}</th>
+                  <th>RS</th>
+                  <th>Pat</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map(c => {
+                  const isSelected = c.ticker === selectedSym
+                  const alertCls   = alertBadgeClass(c.alert_state)
+                  const setupCls   = setupClass(c.setup_type)
+                  return (
+                    <tr
+                      key={c.ticker}
+                      className={`${styles.row} ${isSelected ? styles.rowSelected : ''}`}
+                      onClick={() => { setSelectedSym(c.ticker); setSelectedName(c.name || c.company || '') }}
+                    >
+                      <td>
+                        <div className={styles.tickerCell}>
+                          <span className={styles.sym}>{c.ticker}</span>
+                          {c.name || c.company
+                            ? <span className={styles.co}>{(c.name || c.company || '').slice(0, 22)}</span>
+                            : null}
+                        </div>
+                      </td>
+                      <td>
+                        <div className={styles.signalCell}>
+                          {alertCls && (
+                            <span className={`${styles.alertBadge} ${alertCls}`}>{c.alert_state}</span>
+                          )}
+                          {setupCls && (
+                            <span className={`${styles.setupBadge} ${setupCls}`}>{setupShort(c.setup_type)}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className={styles.tagRow}>
+                          {(c.tags || []).slice(0, 3).map(tag => {
+                            const meta = TAG_META[tag]
+                            return meta ? (
+                              <span key={tag} className={`${styles.tag} ${styles['tag_' + meta.color]}`}>
+                                {meta.label}
+                              </span>
+                            ) : null
+                          })}
+                        </div>
+                      </td>
+                      <td className={
+                        c.pct_1d > 2 ? styles.numGreen :
+                        c.pct_1d < -2 ? styles.numRed : styles.numNeutral
+                      }>{fmtPct(c.pct_1d, true)}</td>
+                      <td className={styles.numNeutral}>{fmtP(c.close)}</td>
+                      <td className={c.vr > 1.5 ? styles.numGreen : styles.numNeutral}>
+                        {c.vr != null ? c.vr.toFixed(1) + '×' : '—'}
+                      </td>
+                      <td className={c.a50 === true ? styles.numGreen : c.a50 === false ? styles.numMuted : ''}>
+                        {c.a50 === true ? '✓' : c.a50 === false ? '✗' : '—'}
+                      </td>
+                      <td className={styles.scoreCell}>
+                        {c.candle_score != null
+                          ? <span className={c.candle_score > 70 ? styles.numGreen : c.candle_score > 50 ? styles.numAmber : styles.numMuted}>
+                              {Math.round(c.candle_score)}
+                            </span>
+                          : <span className={styles.numMuted}>—</span>}
+                      </td>
+                      <td className={
+                        c.rsi > 70 ? styles.numRed :
+                        c.rsi < 30 ? styles.numGreen : styles.numNeutral
+                      }>{fmt1(c.rsi)}</td>
+                      <td className={
+                        c.ema_distance_pct > 8 ? styles.numRed :
+                        c.ema_distance_pct <= 2 ? styles.numGreen : styles.numNeutral
+                      }>{fmtPct(c.ema_distance_pct, true)}</td>
+                      <td>
+                        {c.rs_trend === 'up'   && <span className={styles.rsUp}>RS↑</span>}
+                        {c.rs_trend === 'down' && <span className={styles.rsDown}>RS↓</span>}
+                        {c.rs_trend === 'flat' && <span className={styles.numMuted}>—</span>}
+                        {!c.rs_trend           && <span className={styles.numMuted}>—</span>}
+                      </td>
+                      <td className={styles.numNeutral}>
+                        {c.pattern_type
+                          ? <span className={styles.patType}>{c.pattern_type}</span>
+                          : <span className={styles.numMuted}>—</span>}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Right — chart panel */}
+        <div className={styles.rightPanel}>
+          {selectedSym ? (
+            <>
+              <div className={styles.chartHeader}>
+                <span className={styles.chartSym}>{selectedSym}</span>
+                <span className={styles.chartName}>{selectedName}</span>
+                <div className={styles.chartPeriodTabs}>
+                  {[['d', 'Daily'], ['w', 'Weekly'], ['tv', 'TradingView']].map(([p, label]) => (
+                    <button
+                      key={p}
+                      className={`${styles.chartPeriodBtn} ${chartPeriod === p ? styles.chartPeriodBtnActive : ''}`}
+                      onClick={() => setChartPeriod(p)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {chartPeriod === 'tv' ? (
+                <iframe
+                  src={tvUrl(selectedSym)}
+                  className={styles.chartFrame}
+                  title={`${selectedSym} TradingView`}
+                  allowFullScreen
+                />
+              ) : (
+                <div className={styles.chartImgWrap}>
+                  <img
+                    src={finvizUrl(selectedSym, chartPeriod)}
+                    className={styles.chartImg}
+                    alt={`${selectedSym} chart`}
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            <div className={styles.chartEmpty}>
+              <span className={styles.chartEmptyIcon}>↖</span>
+              <span>Select a ticker to view chart</span>
+              <span className={styles.chartEmptyHint}>↑ ↓ arrow keys to navigate</span>
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   )
