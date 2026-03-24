@@ -101,12 +101,17 @@ def _from_wire(wire_calendar: dict, week_dates: list[date], today: date) -> dict
                 "mc_b":    c.get("mc_b"),   # market cap in billions (for client-side filtering)
             }
 
+        def _keep(c: dict) -> bool:
+            """Hard backend floor: drop micro-caps (< $100M) that aren't worth trading."""
+            mc = c.get("mc_b")
+            return mc is None or mc >= 0.1  # None = unknown, let through; < 0.1B = drop
+
         days[ds] = {
             "label":    wd.get("label", d.strftime("%a %b ") + str(d.day)),
             "day":      wd.get("day",   d.strftime("%A")),
             "is_today": d == today,
-            "bmo":      [_chip(c) for c in wd.get("bmo", [])],
-            "amc":      [_chip(c) for c in wd.get("amc", [])],
+            "bmo":      [_chip(c) for c in wd.get("bmo", []) if _keep(c)],
+            "amc":      [_chip(c) for c in wd.get("amc", []) if _keep(c)],
             "econ":     [],   # placeholder — always overwritten by ForexFactory below
             "fed":      [],
         }

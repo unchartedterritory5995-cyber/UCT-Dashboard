@@ -91,6 +91,7 @@ const PRICE_PRESETS = [
 ]
 const VOL_PRESETS = [
   { id: 'all',  label: 'Any Vol' },
+  { id: '300k', label: '300K+' },
   { id: '500k', label: '500K+' },
   { id: '1m',   label: '1M+' },
   { id: '5m',   label: '5M+' },
@@ -112,6 +113,7 @@ function applyFilters(entries, metrics, mcFilter, priceFilter, volFilter) {
     if (priceFilter === '25'  && (price == null || price < 25))  return false
     if (priceFilter === '50'  && (price == null || price < 50))  return false
 
+    if (volFilter === '300k' && (vol == null || vol < 300_000))   return false
     if (volFilter === '500k' && (vol == null || vol < 500_000))   return false
     if (volFilter === '1m'   && (vol == null || vol < 1_000_000)) return false
     if (volFilter === '5m'   && (vol == null || vol < 5_000_000)) return false
@@ -236,7 +238,7 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
 
   const [mcFilter,    setMcFilter]    = useState('all')
   const [priceFilter, setPriceFilter] = useState('all')
-  const [volFilter,   setVolFilter]   = useState('all')
+  const [volFilter,   setVolFilter]   = useState('300k')
 
   // Live price reactions for reported tickers (30s)
   const { data: reactions } = useSWR(
