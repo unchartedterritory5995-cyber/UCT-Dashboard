@@ -225,7 +225,8 @@
 
 /* ── Left panel — results table ──────────────────────────────────────────── */
 .leftPanel {
-  flex: 0 0 56%;
+  flex: 0 0 37%;
+  width: 37%;          /* belt + suspenders so overflow-x fires */
   min-width: 0;
   overflow-y: auto;
   overflow-x: auto;
