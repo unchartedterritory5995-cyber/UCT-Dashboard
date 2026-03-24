@@ -115,6 +115,42 @@ class _MassiveRestClient:
                 result[ticker] = round(float(t.get("todaysChangePerc", 0.0)), 4)
         return result
 
+    def get_batch_rich_snapshots(self, tickers: list[str]) -> dict[str, dict]:
+        """Return price + prev-day volume + change_pct for a batch of tickers.
+
+        Uses the same batch endpoint as get_batch_snapshots but extracts richer fields.
+        price   — today's close (falls back to lastTrade → prevDay close)
+        vol     — yesterday's full-day volume (prevDay.v) — stable proxy for liquidity
+        change_pct — today's % change
+        """
+        if not tickers:
+            return {}
+        tickers_param = ",".join(t.upper() for t in tickers)
+        url = (
+            f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
+            f"?tickers={tickers_param}&apiKey={self._api_key}"
+        )
+        try:
+            data = self._get(url)
+        except Exception:
+            return {}
+        result = {}
+        for t in data.get("tickers", []):
+            ticker = t.get("ticker", "")
+            if not ticker:
+                continue
+            day      = t.get("day", {})
+            prev_day = t.get("prevDay", {})
+            last     = t.get("lastTrade", {})
+            close    = day.get("c") or last.get("p") or prev_day.get("c") or 0.0
+            vol      = int(prev_day.get("v") or day.get("v") or 0)
+            result[ticker] = {
+                "price":      round(float(close), 2),
+                "vol":        vol,
+                "change_pct": round(float(t.get("todaysChangePerc", 0.0)), 4),
+            }
+        return result
+
 
 def _get_client() -> _MassiveRestClient:
     """Return a shared _MassiveRestClient instance, initializing on first call."""

@@ -2,6 +2,8 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import TickerPopup from '../components/TickerPopup'
+import EarningsModal from '../components/tiles/EarningsModal'
+import ErrorBoundary from '../components/ErrorBoundary'
 import styles from './Calendar.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
@@ -28,19 +30,41 @@ function verdict(eps_act, eps_est) {
   return 'meet'
 }
 
+function calcSurprise(act, est) {
+  if (act == null || est == null || est === 0) return null
+  const pct = ((act - est) / Math.abs(est)) * 100
+  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`
+}
+
+// Normalize calendar entry → EarningsModal row format
+function toModalRow(entry) {
+  const v = verdict(entry.eps_act, entry.eps_est)
+  return {
+    sym:              entry.sym,
+    verdict:          v === 'meet' ? 'mixed' : v,
+    reported_eps:     entry.eps_act,
+    eps_estimate:     entry.eps_est,
+    surprise_pct:     calcSurprise(entry.eps_act, entry.eps_est),
+    rev_actual:       entry.rev_act,
+    rev_estimate:     entry.rev_est,
+    rev_surprise_pct: calcSurprise(entry.rev_act, entry.rev_est),
+  }
+}
+
 function pillClass(v, styles) {
-  if (v === 'beat') return `${styles.verdictPill} ${styles.pillBeat}`
-  if (v === 'miss') return `${styles.verdictPill} ${styles.pillMiss}`
-  if (v === 'meet') return `${styles.verdictPill} ${styles.pillMixed}`
+  if (v === 'beat')     return `${styles.verdictPill} ${styles.pillBeat}`
+  if (v === 'miss')     return `${styles.verdictPill} ${styles.pillMiss}`
+  if (v === 'meet')     return `${styles.verdictPill} ${styles.pillMixed}`
   if (v === 'reported') return `${styles.verdictPill} ${styles.pillMixed}`
+  if (v === 'pending')  return `${styles.verdictPill} ${styles.pillPending}`
   return `${styles.verdictPill} ${styles.pillPending}`
 }
 
 function pillLabel(v) {
-  if (v === 'beat') return 'Beat'
-  if (v === 'miss') return 'Miss'
-  if (v === 'meet') return '≈'
-  if (v === 'reported') return 'Rptd'
+  if (v === 'beat')     return 'BEAT'
+  if (v === 'miss')     return 'MISS'
+  if (v === 'meet')     return 'MIXED'
+  if (v === 'reported') return 'RPTD'
   return null
 }
 
@@ -51,23 +75,68 @@ function epsActClass(v, eps_est, styles) {
   return `${styles.epsAct} ${styles.epsMixed}`
 }
 
+// ── Filter helpers ────────────────────────────────────────────────────────────
+
+const MC_PRESETS = [
+  { id: 'all',   label: 'All Cap' },
+  { id: 'large', label: 'Large 10B+' },
+  { id: 'mid',   label: 'Mid 2-10B' },
+  { id: 'small', label: 'Small <2B' },
+]
+const PRICE_PRESETS = [
+  { id: 'all', label: 'Any Price' },
+  { id: '10',  label: '$10+' },
+  { id: '25',  label: '$25+' },
+  { id: '50',  label: '$50+' },
+]
+const VOL_PRESETS = [
+  { id: 'all',  label: 'Any Vol' },
+  { id: '500k', label: '500K+' },
+  { id: '1m',   label: '1M+' },
+  { id: '5m',   label: '5M+' },
+]
+
+function applyFilters(entries, metrics, mcFilter, priceFilter, volFilter) {
+  if (mcFilter === 'all' && priceFilter === 'all' && volFilter === 'all') return entries
+  return entries.filter(e => {
+    const m = metrics?.[e.sym]
+    const mc    = m?.mc_b  ?? e.mc_b  ?? null
+    const price = m?.price ?? null
+    const vol   = m?.avg_vol ?? null
+
+    if (mcFilter === 'large' && (mc == null || mc < 10))               return false
+    if (mcFilter === 'mid'   && (mc == null || mc < 2 || mc >= 10))    return false
+    if (mcFilter === 'small' && (mc == null || mc >= 2))               return false
+
+    if (priceFilter === '10'  && (price == null || price < 10))  return false
+    if (priceFilter === '25'  && (price == null || price < 25))  return false
+    if (priceFilter === '50'  && (price == null || price < 50))  return false
+
+    if (volFilter === '500k' && (vol == null || vol < 500_000))   return false
+    if (volFilter === '1m'   && (vol == null || vol < 1_000_000)) return false
+    if (volFilter === '5m'   && (vol == null || vol < 5_000_000)) return false
+
+    return true
+  })
+}
+
 // ── Earnings ticker row ────────────────────────────────────────────────────────
 
-function TickerRow({ entry, reaction }) {
-  const v = verdict(entry.eps_act, entry.eps_est)
-  const pill = pillLabel(v)
+function TickerRow({ entry, reaction, onClick }) {
+  const v      = verdict(entry.eps_act, entry.eps_est)
+  const pill   = pillLabel(v)
   const actFmt = fmtEps(entry.eps_act)
   const estFmt = fmtEps(entry.eps_est)
   const revActFmt = fmtRev(entry.rev_act)
   const revEstFmt = fmtRev(entry.rev_est)
 
-  const reactionPct = reaction != null ? reaction : null
-  const reactionFmt = reactionPct != null
-    ? `${reactionPct >= 0 ? '+' : ''}${reactionPct.toFixed(1)}%`
+  const reactionFmt = reaction != null
+    ? `${reaction >= 0 ? '+' : ''}${reaction.toFixed(1)}%`
     : null
 
   return (
-    <div className={styles.tickerRow}>
+    <div className={styles.tickerRow} onClick={onClick} role="button" tabIndex={0}
+         onKeyDown={e => e.key === 'Enter' && onClick()}>
       <TickerPopup sym={entry.sym} />
       <div className={styles.epsMeta}>
         {/* EPS */}
@@ -93,9 +162,9 @@ function TickerRow({ entry, reaction }) {
           <span className={styles.revEst}>{revEstFmt} rev</span>
         ) : null}
       </div>
-      {/* Live price reaction (Massive, 30s) — only for reported tickers */}
+      {/* Live price reaction — only for reported tickers */}
       {reactionFmt && (
-        <span className={reactionPct >= 0 ? styles.reactionPos : styles.reactionNeg}>
+        <span className={reaction >= 0 ? styles.reactionPos : styles.reactionNeg}>
           {reactionFmt}
         </span>
       )}
@@ -106,43 +175,80 @@ function TickerRow({ entry, reaction }) {
   )
 }
 
+// ── Filter chip strip ─────────────────────────────────────────────────────────
+
+function FilterChips({ presets, value, onChange, label }) {
+  return (
+    <div className={styles.filterGroup}>
+      <span className={styles.filterLabel}>{label}</span>
+      <div className={styles.filterChips}>
+        {presets.map(p => (
+          <button
+            key={p.id}
+            className={[styles.filterChip, value === p.id ? styles.filterChipActive : ''].filter(Boolean).join(' ')}
+            onClick={() => onChange(p.id)}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Earnings panel ─────────────────────────────────────────────────────────────
 
-function EarningsPanel({ days, weekDates }) {
+function EarningsPanel({ days, weekDates, onSelectEntry }) {
   const [activeDate, setActiveDate] = useState(() => {
-    // Default to today if in week, else Monday
     const today = new Date().toISOString().slice(0, 10)
     return weekDates.includes(today) ? today : weekDates[0]
   })
 
-  // Live price reactions for reported tickers on the active date (Massive, 30s)
+  const [mcFilter,    setMcFilter]    = useState('all')
+  const [priceFilter, setPriceFilter] = useState('all')
+  const [volFilter,   setVolFilter]   = useState('all')
+
+  // Live price reactions for reported tickers (30s)
   const { data: reactions } = useSWR(
     `/api/calendar/reactions?date=${activeDate}`,
     fetcher,
     { refreshInterval: 30_000, revalidateOnFocus: false }
   )
 
+  // Price / avg-vol / mc metrics for filter bar (2 min)
+  const { data: metrics } = useSWR(
+    `/api/calendar/day-metrics?date=${activeDate}`,
+    fetcher,
+    { refreshInterval: 2 * 60_000, revalidateOnFocus: false }
+  )
+
   const dayData = days[activeDate] || {}
-  const bmo = dayData.bmo || []
-  const amc = dayData.amc || []
+  const rawBmo = dayData.bmo || []
+  const rawAmc = dayData.amc || []
+
+  const bmo = applyFilters(rawBmo, metrics, mcFilter, priceFilter, volFilter)
+  const amc = applyFilters(rawAmc, metrics, mcFilter, priceFilter, volFilter)
+
+  const filtersActive = mcFilter !== 'all' || priceFilter !== 'all' || volFilter !== 'all'
 
   return (
     <div className={styles.earningsPanel}>
       <div className={styles.panelHeader}>
         <div className={styles.panelLabel}>Earnings Calendar</div>
+
+        {/* Day tabs */}
         <div className={styles.dayTabs}>
           {weekDates.map(ds => {
             const d = days[ds]
             if (!d) return null
             const isActive = ds === activeDate
-            const isToday = d.is_today
+            const isToday  = d.is_today
             return (
               <button
                 key={ds}
                 className={[
                   styles.dayTab,
                   isActive ? styles.dayTabActive : '',
-                  isToday ? styles.dayTabToday : '',
                 ].filter(Boolean).join(' ')}
                 onClick={() => setActiveDate(ds)}
               >
@@ -152,30 +258,62 @@ function EarningsPanel({ days, weekDates }) {
             )
           })}
         </div>
+
+        {/* Filter bar */}
+        <div className={styles.filterBar}>
+          <FilterChips presets={MC_PRESETS}    value={mcFilter}    onChange={setMcFilter}    label="MCap" />
+          <FilterChips presets={PRICE_PRESETS} value={priceFilter} onChange={setPriceFilter} label="Price" />
+          <FilterChips presets={VOL_PRESETS}   value={volFilter}   onChange={setVolFilter}   label="Avg Vol" />
+          {filtersActive && (
+            <button className={styles.filterReset} onClick={() => {
+              setMcFilter('all'); setPriceFilter('all'); setVolFilter('all')
+            }}>
+              ✕ Clear
+            </button>
+          )}
+        </div>
       </div>
 
       <div className={styles.earningsList}>
         {/* BMO */}
         <div className={styles.timingSection}>
           <div className={`${styles.sectionLabel} ${styles.bmoLabel}`}>
-            ▲ Before Market Open — {bmo.length} reporters
+            ▲ Before Market Open — {bmo.length}{filtersActive && rawBmo.length !== bmo.length ? `/${rawBmo.length}` : ''} reporters
           </div>
           {bmo.length === 0 ? (
-            <div className={styles.emptyBucket}>No reporters</div>
+            <div className={styles.emptyBucket}>
+              {filtersActive && rawBmo.length > 0 ? 'No reporters match filters' : 'No reporters'}
+            </div>
           ) : (
-            bmo.map(e => <TickerRow key={e.sym} entry={e} reaction={reactions?.[e.sym]} />)
+            bmo.map(e => (
+              <TickerRow
+                key={e.sym}
+                entry={e}
+                reaction={reactions?.[e.sym]}
+                onClick={() => onSelectEntry(e, 'BEFORE MARKET OPEN')}
+              />
+            ))
           )}
         </div>
 
         {/* AMC */}
         <div className={styles.timingSection}>
           <div className={`${styles.sectionLabel} ${styles.amcLabel}`}>
-            ▼ After Market Close — {amc.length} reporters
+            ▼ After Market Close — {amc.length}{filtersActive && rawAmc.length !== amc.length ? `/${rawAmc.length}` : ''} reporters
           </div>
           {amc.length === 0 ? (
-            <div className={styles.emptyBucket}>No reporters</div>
+            <div className={styles.emptyBucket}>
+              {filtersActive && rawAmc.length > 0 ? 'No reporters match filters' : 'No reporters'}
+            </div>
           ) : (
-            amc.map(e => <TickerRow key={e.sym} entry={e} reaction={reactions?.[e.sym]} />)
+            amc.map(e => (
+              <TickerRow
+                key={e.sym}
+                entry={e}
+                reaction={reactions?.[e.sym]}
+                onClick={() => onSelectEntry(e, 'AFTER MARKET CLOSE')}
+              />
+            ))
           )}
         </div>
       </div>
@@ -267,6 +405,8 @@ export default function Calendar() {
     revalidateOnFocus: false,
   })
 
+  const [selected, setSelected] = useState(null)   // { row, label }
+
   if (error) {
     return (
       <div className={styles.page}>
@@ -303,24 +443,45 @@ export default function Calendar() {
   const sourceLabel = data.source === 'wire' ? 'WIRE' : data.source === 'live' ? 'LIVE' : null
 
   return (
-    <div className={styles.page}>
-      <div className={styles.pageHeader}>
-        <span className={styles.pageTitle}>Calendar</span>
-        {weekLabel && <span className={styles.weekRange}>{weekLabel}</span>}
-        {sourceLabel && (
-          <span className={[
-            styles.sourceBadge,
-            data.source === 'wire' ? styles.sourceWire : styles.sourceLive,
-          ].join(' ')}>
-            {sourceLabel}
-          </span>
-        )}
+    <>
+      <div className={styles.page}>
+        <div className={styles.pageHeader}>
+          <span className={styles.pageTitle}>Calendar</span>
+          {weekLabel && <span className={styles.weekRange}>{weekLabel}</span>}
+          {sourceLabel && (
+            <span className={[
+              styles.sourceBadge,
+              data.source === 'wire' ? styles.sourceWire : styles.sourceLive,
+            ].join(' ')}>
+              {sourceLabel}
+            </span>
+          )}
+        </div>
+        <div className={styles.body}>
+          <EarningsPanel
+            days={data.days}
+            weekDates={weekDates}
+            onSelectEntry={(entry, timingLabel) =>
+              setSelected({ row: toModalRow(entry), label: timingLabel })
+            }
+          />
+          <EconPanel days={data.days} weekDates={weekDates} />
+        </div>
       </div>
-      <div className={styles.body}>
-        <EarningsPanel days={data.days} weekDates={weekDates} />
-        <EconPanel     days={data.days} weekDates={weekDates} />
-      </div>
-    </div>
+
+      {selected && (
+        <ErrorBoundary
+          fallback={<div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'monospace', padding: '12px' }}>Unable to load — click a ticker to retry.</div>}
+          key={selected.row.sym}
+        >
+          <EarningsModal
+            row={selected.row}
+            label={selected.label}
+            onClose={() => setSelected(null)}
+          />
+        </ErrorBoundary>
+      )}
+    </>
   )
 }
 

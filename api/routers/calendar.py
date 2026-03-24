@@ -78,6 +78,7 @@ def _from_wire(wire_calendar: dict, week_dates: list[date], today: date) -> dict
                 "rev_est": _to_m(c.get("rev_est")),
                 "rev_act": _to_m(c.get("rev_act")),
                 "ew":      int(c.get("ew", c.get("ew_total", 0)) or 0),
+                "mc_b":    c.get("mc_b"),   # market cap in billions (for client-side filtering)
             }
 
         days[ds] = {
@@ -609,3 +610,122 @@ def get_reactions(date: str | None = None):
 
     cache.set(cache_key, reactions, ttl=_REACTIONS_TTL)
     return reactions
+
+
+# ── Day metrics: price + avg volume + market cap for filter bar ────────────────
+
+_METRICS_TTL = 120  # 2 min — stable enough for filtering purposes
+
+
+@router.get("/api/calendar/day-metrics")
+def get_day_metrics(date: str | None = None):
+    """Return price, avg_vol, mc_b for every ticker on a given date.
+
+    Primary: Finviz Elite v=152 screener (price, 30d avg vol, market cap in one call).
+    Fallback: Massive batch rich snapshots (price + prev-day vol).
+    mc_b also sourced from the calendar chip data (wire-computed, most accurate).
+
+    TTL: 2 min — these fields don't need to update frequently.
+    """
+    import re as _re
+    if date and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+        return {}
+
+    target = date or _today_et().isoformat()
+    cache_key = f"calendar_metrics_{target}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    # Pull all tickers for the target date from calendar cache
+    cal = cache.get("calendar_weekly")
+    if not cal:
+        return {}
+
+    day = cal.get("days", {}).get(target, {})
+    all_entries = day.get("bmo", []) + day.get("amc", [])
+    if not all_entries:
+        cache.set(cache_key, {}, ttl=_METRICS_TTL)
+        return {}
+
+    # Seed mc_b from chip data (wire-computed, already in billions)
+    result: dict[str, dict] = {}
+    for e in all_entries:
+        sym = e.get("sym")
+        if sym:
+            result[sym] = {"price": None, "avg_vol": None, "mc_b": e.get("mc_b")}
+
+    syms = list(result.keys())
+
+    # ── 1. Finviz Elite v=152 (price, avg vol, market cap) ────────────────────
+    fv_token = os.environ.get("FINVIZ_API_KEY") or os.environ.get("FINVIZ_TOKEN")
+    fv_ok = False
+    if fv_token and syms:
+        try:
+            import requests, csv, io
+            tickers_param = ",".join(syms)
+            url = (
+                f"https://elite.finviz.com/export.ashx"
+                f"?v=152&t={tickers_param}&auth={fv_token}"
+            )
+            r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15, allow_redirects=True)
+            if r.ok and r.text.strip():
+                rows = list(csv.DictReader(io.StringIO(r.text)))
+                def _gcol(row, *names):
+                    for n in names:
+                        for k in row:
+                            if k.strip().lower() == n.lower():
+                                v = row[k]
+                                return v.strip() if v else None
+                    return None
+
+                def _parse_vol(s):
+                    if not s or s == "-": return None
+                    s = s.replace(",", "")
+                    try: return int(float(s))
+                    except ValueError: return None
+
+                def _parse_mc(s):
+                    if not s or s == "-": return None
+                    s = s.strip()
+                    try:
+                        if s.endswith("T"): return float(s[:-1]) * 1000
+                        if s.endswith("B"): return float(s[:-1])
+                        if s.endswith("M"): return float(s[:-1]) / 1000
+                        return float(s) / 1e9
+                    except ValueError: return None
+
+                for row in rows:
+                    sym = _gcol(row, "Ticker")
+                    if not sym or sym not in result:
+                        continue
+                    price_s = _gcol(row, "Price")
+                    avg_vol_s = _gcol(row, "Avg Volume")
+                    mc_s = _gcol(row, "Market Cap")
+                    try:
+                        price = float(price_s) if price_s and price_s != "-" else None
+                    except ValueError:
+                        price = None
+                    result[sym]["price"]   = price
+                    result[sym]["avg_vol"] = _parse_vol(avg_vol_s)
+                    if result[sym]["mc_b"] is None:
+                        result[sym]["mc_b"] = _parse_mc(mc_s)
+                fv_ok = True
+                _logger.info("Calendar metrics: Finviz returned data for %d/%d tickers", len(rows), len(syms))
+        except Exception as exc:
+            _logger.warning("Calendar metrics: Finviz fetch failed: %s", exc)
+
+    # ── 2. Massive fallback for price (if Finviz failed) ──────────────────────
+    if not fv_ok:
+        try:
+            from api.services.massive import _get_client
+            rich = _get_client().get_batch_rich_snapshots(syms)
+            for sym, snap in rich.items():
+                if sym in result:
+                    result[sym]["price"]   = snap.get("price")
+                    result[sym]["avg_vol"] = snap.get("vol")   # prev-day vol proxy
+        except Exception as exc:
+            _logger.warning("Calendar metrics: Massive fallback failed: %s", exc)
+
+    cache.set(cache_key, result, ttl=_METRICS_TTL)
+    return result
