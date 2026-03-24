@@ -87,9 +87,13 @@ def _from_wire(wire_calendar: dict, week_dates: list[date], today: date) -> dict
                 if v is None: return None
                 return v / 1_000_000 if v > 1_000_000 else v
             sym = c.get("sym", "")
+            # Use backup eps_est if primary was a sentinel and got nulled
+            eps_est = _clean_eps(c.get("eps_est"), sym)
+            if eps_est is None and c.get("eps_est_backup") is not None:
+                eps_est = _clean_eps(c.get("eps_est_backup"), sym)
             return {
                 "sym":     sym,
-                "eps_est": _clean_eps(c.get("eps_est"), sym),
+                "eps_est": eps_est,
                 "eps_act": _clean_eps(c.get("eps_act"), sym),
                 "rev_est": _to_m(c.get("rev_est")),
                 "rev_act": _to_m(c.get("rev_act")),
