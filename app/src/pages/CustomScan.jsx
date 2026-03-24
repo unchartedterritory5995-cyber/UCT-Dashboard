@@ -10,8 +10,7 @@ const finvizUrl = (sym, period) =>
   `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}&s=l`
 
 const tvUrl = sym =>
-  `https://www.tradingview.com/widgetembed/?symbol=${sym}&interval=D` +
-  `&theme=dark&style=1&locale=en&hide_side_toolbar=0&allow_symbol_change=1`
+  `https://s.tradingview.com/widgetembed/?frameElementId=tv_theme&symbol=${sym}&interval=D&theme=dark&style=1&locale=en&toolbar_bg=161b22&enable_publishing=false&hide_top_toolbar=false&save_image=false&hide_legend=false&hide_volume=false`
 
 // ─── Tag metadata ────────────────────────────────────────────────────────
 
