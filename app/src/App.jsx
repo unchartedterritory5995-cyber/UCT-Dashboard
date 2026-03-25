@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import Landing from './pages/Landing'
@@ -22,14 +22,23 @@ import Journal from './pages/Journal'
 import Watchlists from './pages/Watchlists'
 import Community from './pages/Community'
 import Settings from './pages/Settings'
+
+/** Show Landing only if NOT logged in; otherwise redirect to dashboard */
+function PublicOnly({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (user) return <Navigate to="/dashboard" replace />
+  return children
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Public routes — no auth required */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
+          {/* Public routes — redirect to dashboard if already logged in */}
+          <Route path="/" element={<PublicOnly><Landing /></PublicOnly>} />
+          <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
           <Route path="/signup" element={<Signup />} />
 
           {/* Protected routes — require authentication */}
