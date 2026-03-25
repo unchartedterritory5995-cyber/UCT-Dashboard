@@ -98,16 +98,31 @@ def _handle_checkout_completed(session_data: dict):
     # Fetch subscription details from Stripe
     if subscription_id:
         sub = stripe.Subscription.retrieve(subscription_id)
-        period_end = datetime.fromtimestamp(sub.current_period_end, tz=timezone.utc).isoformat()
+        period_end = None
+        # Handle different Stripe API versions for period_end field
+        raw_end = getattr(sub, "current_period_end", None)
+        if raw_end:
+            period_end = datetime.fromtimestamp(raw_end, tz=timezone.utc).isoformat()
         upsert_subscription(
             user_id=user_id,
             stripe_customer_id=customer_id,
             stripe_subscription_id=subscription_id,
             plan="pro",
-            status="active",
+            status=getattr(sub, "status", "active"),
             current_period_end=period_end,
         )
-        print(f"[stripe] User {user_id} subscribed (pro, active)")
+        print(f"[stripe] User {user_id} subscribed (pro, {getattr(sub, 'status', 'active')})")
+    else:
+        # No subscription (one-time payment?) — still grant pro
+        upsert_subscription(
+            user_id=user_id,
+            stripe_customer_id=customer_id,
+            stripe_subscription_id="",
+            plan="pro",
+            status="active",
+            current_period_end=None,
+        )
+        print(f"[stripe] User {user_id} subscribed (pro, active, no sub_id)")
 
 
 def _handle_subscription_change(sub_data: dict):
