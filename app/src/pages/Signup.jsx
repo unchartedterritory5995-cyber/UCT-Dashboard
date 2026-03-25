@@ -24,7 +24,14 @@ export default function Signup() {
       await signup(email, password, displayName || undefined)
       if (wantsPro) {
         // After signup, redirect to Stripe Checkout
-        await startCheckout()
+        try {
+          await startCheckout()
+          // startCheckout does window.location.href — won't reach here
+        } catch (checkoutErr) {
+          setError('Payment setup failed: ' + checkoutErr.message + '. Go to Settings to subscribe.')
+          // Don't navigate to dashboard — they need to pay
+          return
+        }
       } else {
         navigate('/dashboard', { replace: true })
       }
