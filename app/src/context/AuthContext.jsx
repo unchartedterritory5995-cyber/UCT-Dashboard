@@ -68,7 +68,10 @@ export function AuthProvider({ children }) {
 
   const startCheckout = async () => {
     const res = await fetch('/api/auth/checkout', { method: 'POST' })
-    if (!res.ok) throw new Error('Failed to create checkout session')
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Failed to create checkout session')
+    }
     const data = await res.json()
     window.location.href = data.checkout_url
   }
