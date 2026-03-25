@@ -117,13 +117,19 @@ def change_pw(req: ChangePasswordRequest, user: dict = Depends(get_current_user)
     return {"ok": True}
 
 
+def _require_admin(user: dict):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
 class AdminResetRequest(BaseModel):
     email: EmailStr
     new_password: str
 
 @router.post("/admin/reset-password")
-def admin_reset_password(req: AdminResetRequest):
-    """Temporary endpoint — reset any user's password by email."""
+def admin_reset_password(req: AdminResetRequest, user: dict = Depends(get_current_user)):
+    """Admin-only: reset any user's password by email."""
+    _require_admin(user)
     import bcrypt as _bcrypt
     from api.services.auth_db import get_connection
     conn = get_connection()
@@ -140,15 +146,15 @@ def admin_reset_password(req: AdminResetRequest):
 
 @router.get("/admin/users")
 def admin_users(user: dict = Depends(get_current_user)):
-    """Admin-only: list all users with subscription info. Only role=admin can access."""
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    """Admin-only: list all users with subscription info."""
+    _require_admin(user)
     return list_all_users()
 
 
 @router.get("/admin/stripe-check")
-def stripe_check():
-    """Temporary public debug endpoint — check Stripe env vars are set."""
+def stripe_check(user: dict = Depends(get_current_user)):
+    """Admin-only: check Stripe env vars are set."""
+    _require_admin(user)
     from api.services.stripe_service import STRIPE_PRICE_ID_PRO, STRIPE_WEBHOOK_SECRET
     import stripe as _stripe
     return {
@@ -161,8 +167,9 @@ def stripe_check():
 
 
 @router.post("/admin/sync-subscriptions")
-def sync_subscriptions():
-    """Temporary public endpoint — sync all completed Stripe checkouts to DB."""
+def sync_subscriptions(user: dict = Depends(get_current_user)):
+    """Admin-only: sync all completed Stripe checkouts to DB."""
+    _require_admin(user)
     import stripe as _stripe
     from api.services.auth_service import upsert_subscription
     from datetime import datetime, timezone
