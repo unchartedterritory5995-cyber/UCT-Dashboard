@@ -185,3 +185,35 @@ def get_user_plan(user_id: str) -> str:
     if sub["status"] in ("active", "trialing"):
         return sub["plan"]
     return "free"
+
+
+def change_password(user_id: str, current_password: str, new_password: str) -> bool:
+    """Change a user's password. Returns True on success, False if current password is wrong."""
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not row:
+            return False
+        if not bcrypt.checkpw(current_password.encode("utf-8"), row["password_hash"].encode("utf-8")):
+            return False
+        new_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def list_all_users() -> list[dict]:
+    """Admin function: return all users with their subscription status."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT u.id, u.email, u.display_name, u.role, u.created_at, "
+            "s.plan, s.status as sub_status, s.current_period_end "
+            "FROM users u LEFT JOIN subscriptions s ON u.id = s.user_id "
+            "ORDER BY u.created_at DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()

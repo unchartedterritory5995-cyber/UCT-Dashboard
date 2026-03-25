@@ -15,6 +15,8 @@ from api.services.auth_service import (
     delete_session,
     get_user_plan,
     get_subscription,
+    change_password,
+    list_all_users,
 )
 from api.services.stripe_service import create_checkout_session, create_portal_session
 from api.middleware.auth_middleware import get_current_user, get_session_token
@@ -39,6 +41,9 @@ class LoginRequest(BaseModel):
 
 # ── Auth endpoints ───────────────────────────────────────────────────────────
 
+ADMIN_EMAILS = set(filter(None, os.environ.get("ADMIN_EMAILS", "").split(",")))
+
+
 @router.post("/signup")
 def signup(req: SignupRequest, response: Response):
     if len(req.password) < 8:
@@ -47,6 +52,17 @@ def signup(req: SignupRequest, response: Response):
         user = create_user(req.email, req.password, req.display_name)
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=409, detail="Email already registered")
+
+    # Auto-promote admin emails
+    if user["email"] in ADMIN_EMAILS:
+        from api.services.auth_db import get_connection
+        conn = get_connection()
+        try:
+            conn.execute("UPDATE users SET role = 'admin' WHERE id = ?", (user["id"],))
+            conn.commit()
+            user["role"] = "admin"
+        finally:
+            conn.close()
 
     token = create_session(user["id"])
     _set_session_cookie(response, token)
@@ -85,6 +101,28 @@ def me(user: dict = Depends(get_current_user)):
             "current_period_end": sub["current_period_end"] if sub else None,
         } if sub else None,
     }
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+def change_pw(req: ChangePasswordRequest, user: dict = Depends(get_current_user)):
+    if len(req.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if not change_password(user["id"], req.current_password, req.new_password):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    return {"ok": True}
+
+
+@router.get("/admin/users")
+def admin_users(user: dict = Depends(get_current_user)):
+    """Admin-only: list all users with subscription info. Only role=admin can access."""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return list_all_users()
 
 
 # ── Stripe endpoints ────────────────────────────────────────────────────────

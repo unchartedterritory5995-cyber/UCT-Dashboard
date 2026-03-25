@@ -26,7 +26,7 @@ export default function Landing() {
             — distilled from the methodologies of the world's greatest traders.
           </p>
           <div className={styles.ctas}>
-            <Link to="/signup" className={styles.ctaPrimary}>Get Started</Link>
+            <Link to="/signup?plan=pro" className={styles.ctaPrimary}>Get Started</Link>
             <Link to="/login" className={styles.ctaSecondary}>Log In</Link>
           </div>
         </div>
@@ -50,30 +50,23 @@ export default function Landing() {
       <section className={styles.pricing}>
         <h2 className={styles.sectionTitle}>Simple Pricing</h2>
         <div className={styles.pricingGrid}>
-          <div className={styles.pricingCard}>
-            <h3 className={styles.planName}>Free</h3>
-            <div className={styles.planPrice}>$0</div>
-            <ul className={styles.planFeatures}>
-              <li>Morning Wire (delayed)</li>
-              <li>Breadth Monitor (daily snapshot)</li>
-              <li>Theme Tracker (end of day)</li>
-            </ul>
-            <Link to="/signup" className={styles.planCta}>Sign Up Free</Link>
-          </div>
           <div className={`${styles.pricingCard} ${styles.pricingCardPro}`}>
-            <div className={styles.proBadge}>PRO</div>
-            <h3 className={styles.planName}>Pro</h3>
-            <div className={styles.planPrice}>$49<span className={styles.planPeriod}>/mo</span></div>
+            <div className={styles.proBadge}>FULL ACCESS</div>
+            <h3 className={styles.planName}>UCT Intelligence</h3>
+            <div className={styles.planPrice}>$20<span className={styles.planPeriod}>/mo</span></div>
             <ul className={styles.planFeatures}>
-              <li>Everything in Free</li>
+              <li>AI Morning Wire (daily 7:35 AM ET)</li>
               <li>Real-time data (15s refresh)</li>
-              <li>UCT 20 Portfolio Tracker</li>
+              <li>UCT 20 Portfolio Tracker + Backtest</li>
               <li>Scanner (Pullback MA, Remount, Gappers)</li>
+              <li>Breadth Monitor + Heatmap + COT</li>
+              <li>63 Theme Tracker with live returns</li>
+              <li>Trade Journal + Watchlists</li>
               <li>Options Flow + Dark Pool</li>
-              <li>AI-powered earnings previews</li>
-              <li>Full historical breadth data</li>
+              <li>AI earnings previews</li>
+              <li>Intraday regime alerts</li>
             </ul>
-            <Link to="/signup?plan=pro" className={styles.planCtaPro}>Start Pro</Link>
+            <Link to="/signup?plan=pro" className={styles.planCtaPro}>Get Started</Link>
           </div>
         </div>
       </section>
