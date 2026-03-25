@@ -117,6 +117,27 @@ def change_pw(req: ChangePasswordRequest, user: dict = Depends(get_current_user)
     return {"ok": True}
 
 
+class AdminResetRequest(BaseModel):
+    email: EmailStr
+    new_password: str
+
+@router.post("/admin/reset-password")
+def admin_reset_password(req: AdminResetRequest):
+    """Temporary endpoint — reset any user's password by email."""
+    import bcrypt as _bcrypt
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM users WHERE email = ?", (req.email,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        new_hash = _bcrypt.hashpw(req.new_password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+        conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, row["id"]))
+        conn.commit()
+        return {"ok": True, "email": req.email}
+    finally:
+        conn.close()
+
 @router.get("/admin/users")
 def admin_users(user: dict = Depends(get_current_user)):
     """Admin-only: list all users with subscription info. Only role=admin can access."""
