@@ -125,18 +125,38 @@ def admin_users(user: dict = Depends(get_current_user)):
     return list_all_users()
 
 
+@router.get("/admin/stripe-check")
+def stripe_check(user: dict = Depends(get_current_user)):
+    """Admin-only: check Stripe env vars are set."""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from api.services.stripe_service import STRIPE_PRICE_ID_PRO, STRIPE_WEBHOOK_SECRET
+    import stripe as _stripe
+    return {
+        "api_key_set": bool(_stripe.api_key),
+        "api_key_prefix": (_stripe.api_key or "")[:12] + "..." if _stripe.api_key else None,
+        "price_id": STRIPE_PRICE_ID_PRO or "(empty)",
+        "webhook_secret_set": bool(STRIPE_WEBHOOK_SECRET),
+        "dashboard_url": DASHBOARD_URL,
+    }
+
+
 # ── Stripe endpoints ────────────────────────────────────────────────────────
 
 @router.post("/checkout")
 def checkout(user: dict = Depends(get_current_user)):
     """Redirect user to Stripe Checkout to subscribe."""
-    url = create_checkout_session(
-        user_id=user["id"],
-        user_email=user["email"],
-        success_url=f"{DASHBOARD_URL}/dashboard?checkout=success",
-        cancel_url=f"{DASHBOARD_URL}/signup?checkout=canceled",
-    )
-    return {"checkout_url": url}
+    try:
+        url = create_checkout_session(
+            user_id=user["id"],
+            user_email=user["email"],
+            success_url=f"{DASHBOARD_URL}/dashboard?checkout=success",
+            cancel_url=f"{DASHBOARD_URL}/signup?checkout=canceled",
+        )
+        return {"checkout_url": url}
+    except Exception as e:
+        print(f"[checkout] Stripe error for user {user['id']}: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to create checkout session: {str(e)}")
 
 
 @router.post("/portal")
