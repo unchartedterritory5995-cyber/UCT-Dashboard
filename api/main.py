@@ -189,4 +189,7 @@ if os.path.exists(DIST):
 
     @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
-        return FileResponse(os.path.join(DIST, "index.html"))
+        return FileResponse(
+            os.path.join(DIST, "index.html"),
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
