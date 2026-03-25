@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
-from api.services.engine import get_breadth, get_themes, get_leadership, get_rundown, get_uct20_portfolio_data, get_analyst_actions
+from api.services.engine import get_breadth, get_themes, get_leadership, get_rundown, get_uct20_portfolio_data, get_uct20_backtest_data, get_analyst_actions
+from api.services.cache import cache as _cache
 
 router = APIRouter()
 
@@ -45,6 +46,21 @@ def uct20_portfolio():
         return get_uct20_portfolio_data()
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get("/api/uct20/backtest")
+def uct20_backtest():
+    try:
+        return get_uct20_backtest_data()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get("/api/intraday-update")
+def intraday_update():
+    """Return the latest intraday update from autonomous_brain, if any."""
+    data = _cache.get("intraday_update")
+    return data or {}
 
 
 @router.get("/api/analyst-actions")

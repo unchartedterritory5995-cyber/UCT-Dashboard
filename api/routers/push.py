@@ -61,3 +61,62 @@ def push_wire_data(
         pass
 
     return {"ok": True, "date": payload.get("date", "")}
+
+
+@router.post("/api/push/intraday")
+def push_intraday(
+    payload: dict,
+    authorization: Optional[str] = Header(None),
+):
+    """Receive lightweight intraday updates from autonomous_brain.
+
+    Expected payload:
+        mode: str ("open", "midday", "preclose")
+        timestamp: str (ISO)
+        regime: { phase, trend_score, distribution_days, exposure_pct, risk_score, notes }
+        ep_updates: [ { symbol, status, current_price, pct_from_entry, note } ]
+        session_notes: str (Claude's session commentary)
+    """
+    secret = os.environ.get("PUSH_SECRET", "")
+    if not secret or authorization != f"Bearer {secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Store as separate cache key — never overwrites wire_data
+    cache.set("intraday_update", payload, ttl=14400)  # 4 hours
+
+    # If regime has exposure update, patch the wire_data exposure in cache
+    regime = payload.get("regime")
+    if regime and "exposure_pct" in regime:
+        wire = cache.get("wire_data")
+        if wire and isinstance(wire, dict):
+            exposure = wire.get("exposure", {})
+            if isinstance(exposure, dict):
+                exposure["score"] = regime["exposure_pct"]
+                exposure["exposure"] = min(regime["exposure_pct"], 100)
+                wire["exposure"] = exposure
+                cache.set("wire_data", wire, ttl=82800)
+                # Invalidate breadth cache so next request picks up new exposure
+                cache.invalidate("breadth")
+
+    # Fire alerts for regime changes and exposure shifts
+    try:
+        from api.services.alerts import alert_regime_change, alert_exposure_shift
+        prev_update = cache.get("intraday_update_prev")
+        if prev_update and regime:
+            old_phase = (prev_update.get("regime") or {}).get("phase", "")
+            new_phase = regime.get("phase", "")
+            if old_phase and new_phase and old_phase != new_phase:
+                alert_regime_change(old_phase, new_phase, regime.get("exposure_pct"))
+
+            old_exp = (prev_update.get("regime") or {}).get("exposure_pct")
+            new_exp = regime.get("exposure_pct")
+            if old_exp is not None and new_exp is not None and abs(new_exp - old_exp) >= 20:
+                direction = "UP" if new_exp > old_exp else "DOWN"
+                alert_exposure_shift(old_exp, new_exp, direction)
+
+        # Store current as prev for next comparison
+        cache.set("intraday_update_prev", payload, ttl=14400)
+    except Exception:
+        pass  # Alert logic is non-fatal
+
+    return {"ok": True, "mode": payload.get("mode", ""), "timestamp": payload.get("timestamp", "")}

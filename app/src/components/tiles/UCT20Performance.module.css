@@ -194,3 +194,18 @@
   color: var(--text-muted); font-size: 12px; padding: 8px 0;
   font-family: 'Instrument Sans', sans-serif;
 }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .statsGrid { grid-template-columns: repeat(2, 1fr); }
+  .perfHeader { gap: 10px; }
+  .perfPeriods { margin-left: 0; flex-basis: 100%; }
+  .tradesHead, .tradesRow {
+    grid-template-columns: 44px 44px 44px 54px 54px 50px 30px 38px;
+    gap: 0 3px; font-size: 9px;
+  }
+}
+@media (max-width: 480px) {
+  .wrap { padding: 14px 8px 8px; }
+  .perfPct { font-size: 13px; }
+}

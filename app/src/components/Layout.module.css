@@ -9,3 +9,12 @@
   overflow-y: auto;
   background: var(--bg);
 }
+
+@media (max-width: 640px) {
+  .shell {
+    flex-direction: column;
+  }
+  .main {
+    padding-bottom: 56px; /* space for bottom nav */
+  }
+}

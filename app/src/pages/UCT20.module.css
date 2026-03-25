@@ -149,3 +149,14 @@
 
 /* ── Legacy fallback ── */
 .legacyThesis { font-family: 'Instrument Sans', sans-serif; font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .page { padding: 14px 12px; }
+  .heading { font-size: 18px; letter-spacing: 2px; }
+  .colHeaders { display: none; }
+  .setupBadge { display: none; }
+  .companyName { display: none; }
+  .expanded { max-width: 100%; padding-left: 8px; }
+  .score { flex: 0 0 auto; font-size: 10px; }
+}

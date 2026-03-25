@@ -1,0 +1,146 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(45, 140, 78, 0.05) 0%, transparent 50%),
+    var(--bg);
+  padding: 20px;
+}
+
+.card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 36px 32px;
+}
+
+.brand {
+  display: block;
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ut-gold);
+  letter-spacing: 4px;
+  text-decoration: none;
+  margin-bottom: 28px;
+}
+
+.title {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-heading);
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.error {
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  color: var(--loss);
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.warning {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  color: var(--warn);
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  border-color: var(--ut-green);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.submit {
+  width: 100%;
+  padding: 11px 0;
+  background: var(--ut-green);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 4px;
+}
+.submit:hover:not(:disabled) { background: var(--ut-green-bright); }
+.submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.submitPro {
+  composes: submit;
+  background: var(--ut-gold);
+}
+.submitPro:hover:not(:disabled) { opacity: 0.9; background: var(--ut-gold); }
+
+.switchText {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 20px;
+}
+
+.switchLink {
+  color: var(--ut-green);
+  text-decoration: none;
+  font-weight: 500;
+}
+.switchLink:hover { text-decoration: underline; }

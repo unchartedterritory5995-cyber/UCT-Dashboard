@@ -1,0 +1,113 @@
+/* Journal.module.css */
+.page { padding: 20px 24px; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+.heading { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; }
+.headerRight { display: flex; gap: 8px; align-items: center; }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.tab { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 1px; padding: 6px 14px; background: none; border: none; color: var(--text-muted); cursor: pointer; transition: all 0.12s; }
+.tab:hover { color: var(--text-bright); background: var(--bg-hover); }
+.tabActive { color: var(--ut-gold) !important; background: rgba(201,168,76,0.1) !important; }
+
+/* Add button */
+.addBtn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 1px; background: var(--ut-green-dim); color: var(--ut-green-bright); border: 1px solid var(--ut-green); border-radius: 6px; padding: 6px 14px; cursor: pointer; transition: background 0.15s; }
+.addBtn:hover { background: var(--bg-hover); }
+
+/* Stats strip */
+.statsStrip { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.stat { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; min-width: 100px; }
+.statLabel { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+.statValue { font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 700; color: var(--text-bright); }
+.statGain { color: var(--gain) !important; }
+.statLoss { color: var(--loss) !important; }
+
+/* Form */
+.formCard { margin-bottom: 16px; }
+.form { display: flex; flex-direction: column; gap: 10px; }
+.formRow { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.formGroup { display: flex; flex-direction: column; gap: 3px; }
+.formLabel { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; }
+.input { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text-bright); font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 8px 10px; width: 110px; }
+.input:focus { outline: none; border-color: var(--ut-green); }
+.inputWide { width: 100%; }
+select.input { cursor: pointer; }
+.dirToggle { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.dirBtn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 8px 12px; background: var(--bg); border: none; color: var(--text-muted); cursor: pointer; transition: all 0.12s; }
+.dirBtnActive { background: var(--ut-green-dim); color: var(--ut-green-bright); }
+.dirBtnShort { }
+.dirBtnShort.dirBtnActive { background: rgba(248,113,113,0.15); color: var(--loss); }
+.notesInput { width: 100%; min-height: 48px; resize: vertical; }
+.formActions { display: flex; gap: 10px; }
+.submitBtn { background: var(--ut-green-dim); color: var(--ut-green-bright); border: 1px solid var(--ut-green); border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 1px; padding: 8px 20px; cursor: pointer; transition: background 0.15s; }
+.submitBtn:hover { background: var(--bg-hover); }
+.cancelBtn { background: none; color: var(--text-muted); border: 1px solid var(--border); border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 8px 20px; cursor: pointer; }
+
+/* Table */
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th { text-align: left; padding: 8px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.tradeRow td { padding: 8px 10px; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.tradeRow:hover { background: var(--bg-hover); }
+.tradeRow { cursor: pointer; }
+.sym { font-family: 'IBM Plex Mono', monospace; font-weight: 700; color: var(--ut-cream); }
+.num { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-bright); }
+.dateCell { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.setupChip { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ut-gold); opacity: 0.8; }
+
+/* Direction badge */
+.longBadge { font-size: 9px; font-weight: 700; letter-spacing: 1px; padding: 2px 6px; border-radius: 4px; background: rgba(74,222,128,0.12); color: var(--gain); }
+.shortBadge { font-size: 9px; font-weight: 700; letter-spacing: 1px; padding: 2px 6px; border-radius: 4px; background: rgba(248,113,113,0.12); color: var(--loss); }
+
+/* Status badges */
+.statusOpen { font-size: 10px; font-weight: 600; letter-spacing: 1px; padding: 2px 8px; border-radius: 8px; background: var(--gain-bg); color: var(--gain); border: 1px solid var(--gain-border); }
+.statusClosed { font-size: 10px; font-weight: 600; letter-spacing: 1px; padding: 2px 8px; border-radius: 8px; background: rgba(148,163,184,0.1); color: var(--text-muted); border: 1px solid var(--border); }
+.statusStopped { font-size: 10px; font-weight: 600; letter-spacing: 1px; padding: 2px 8px; border-radius: 8px; background: rgba(248,113,113,0.1); color: var(--loss); border: 1px solid rgba(248,113,113,0.3); }
+
+/* P&L cell */
+.pnlGain { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--gain); }
+.pnlLoss { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--loss); }
+
+/* Rating stars */
+.stars { display: flex; gap: 1px; }
+.star { font-size: 12px; cursor: pointer; color: var(--text-muted); transition: color 0.1s; }
+.starFilled { color: var(--ut-gold); }
+
+/* Close trade modal */
+.modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; display: flex; align-items: center; justify-content: center; }
+.modal { background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: 10px; padding: 20px; width: 360px; max-width: 90vw; }
+.modalTitle { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700; color: var(--text-bright); margin-bottom: 16px; letter-spacing: 1px; }
+.modalRow { display: flex; gap: 10px; margin-bottom: 10px; }
+.modalActions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.deleteBtn { background: rgba(248,113,113,0.1); color: var(--loss); border: 1px solid rgba(248,113,113,0.3); border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 6px 14px; cursor: pointer; }
+.deleteBtn:hover { background: rgba(248,113,113,0.2); }
+
+/* Empty state */
+.empty { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+.emptyIcon { font-size: 36px; margin-bottom: 12px; }
+.emptyText { font-family: 'IBM Plex Mono', monospace; font-size: 13px; margin-bottom: 16px; }
+
+/* Top setups */
+.setupsGrid { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.setupCard { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; min-width: 120px; }
+.setupName { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--ut-gold); margin-bottom: 4px; }
+.setupStat { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-muted); }
+
+.loading { color: var(--text-muted); font-size: 13px; padding: 16px 0; text-align: center; }
+.tableWrap { overflow-x: auto; }
+
+/* ─── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .statsStrip { gap: 8px; }
+  .stat { min-width: 80px; padding: 8px 10px; }
+  .statValue { font-size: 14px; }
+  .formRow { flex-direction: column; }
+  .input { width: 100%; }
+}
+
+@media (max-width: 640px) {
+  .page { padding: 12px 10px 70px; }
+  .heading { font-size: 16px; letter-spacing: 2px; }
+  .table { font-size: 11px; }
+  .table th { padding: 6px 6px; font-size: 9px; }
+  .tradeRow td { padding: 6px 6px; }
+}

@@ -697,3 +697,12 @@
 }
 .aeUpsidePos { color: var(--gain); }
 .aeUpsideNeg { color: var(--loss); }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .page { padding: 14px 12px 30px; max-width: 100%; }
+  .titleRow { flex-wrap: wrap; gap: 8px; }
+}
+@media (max-width: 640px) {
+  .page { padding: 10px 8px 24px; }
+}

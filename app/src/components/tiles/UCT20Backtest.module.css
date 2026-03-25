@@ -1,0 +1,118 @@
+/* UCT20Backtest.module.css */
+.wrap {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding: 0 16px;
+}
+
+.toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; background: transparent; border: none; cursor: pointer;
+  padding: 12px 0 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; font-weight: 700; letter-spacing: 2px;
+  color: var(--ut-gold); text-transform: uppercase;
+  transition: color 0.1s;
+}
+.toggle:hover { color: var(--ut-cream); }
+.chevron { font-size: 12px; }
+
+.content { padding-bottom: 16px; }
+
+/* ── Key stats row ── */
+.keyStats {
+  display: flex; flex-wrap: wrap; gap: 16px 24px;
+  margin-bottom: 16px;
+}
+.keyStat { display: flex; flex-direction: column; gap: 3px; }
+.keyLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
+  color: var(--text-muted); text-transform: uppercase;
+}
+.keyVal {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; font-weight: 700; color: var(--text-bright);
+}
+
+/* ── Best / worst trade cards ── */
+.extremes {
+  display: flex; gap: 12px; margin-bottom: 16px;
+}
+.extremeCard {
+  flex: 1; display: flex; flex-direction: column; gap: 2px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 10px 12px;
+}
+.extremeLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
+  color: var(--text-muted);
+}
+.extremeSym {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px; font-weight: 700; color: var(--ut-cream);
+}
+.extremePct {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; font-weight: 700;
+}
+.extremeMeta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; color: var(--text-muted);
+}
+
+/* ── Sections ── */
+.section { margin-bottom: 16px; }
+.sectionLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+  color: var(--text-muted); margin-bottom: 8px;
+}
+
+/* ── Monthly returns heatmap ── */
+.monthGrid {
+  display: flex; flex-wrap: wrap; gap: 4px;
+}
+.monthCell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 58px; padding: 6px 8px;
+  border-radius: 4px; border: 1px solid var(--border);
+}
+.monthName {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; font-weight: 600; color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.monthPct {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px; font-weight: 700;
+}
+
+/* ── Charts ── */
+.chartWrap { padding: 4px 0; }
+
+/* ── Tooltip ── */
+.tooltip {
+  background: var(--bg-elevated); border: 1px solid var(--border-accent);
+  border-radius: 6px; padding: 8px 10px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+}
+.tooltipDate { color: var(--text-muted); font-size: 10px; margin-bottom: 4px; }
+.tooltipRow {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--text); justify-content: space-between; min-width: 130px;
+}
+
+/* ── Utilities ── */
+.gain { color: var(--gain); }
+.loss { color: var(--loss); }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .keyStats { gap: 10px 16px; }
+  .extremes { flex-direction: column; }
+  .monthGrid { gap: 3px; }
+  .monthCell { min-width: 50px; padding: 5px 6px; }
+  .monthPct { font-size: 11px; }
+}

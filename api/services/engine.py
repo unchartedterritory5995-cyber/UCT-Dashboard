@@ -1551,6 +1551,132 @@ def get_uct20_portfolio_data() -> dict:
     return {}
 
 
+def get_uct20_backtest_data() -> dict:
+    """Compute extended backtest analytics from portfolio data.
+
+    Adds: monthly_returns, drawdown_series, trade_distribution,
+    streak stats, best/worst trades, rolling alpha.
+    """
+    cached = cache.get("uct20_backtest")
+    if cached is not None:
+        return cached
+
+    portfolio = get_uct20_portfolio_data()
+    if not portfolio or not portfolio.get("equity_curve"):
+        return {}
+
+    from datetime import datetime as _dt
+    from collections import defaultdict
+
+    equity_curve = portfolio["equity_curve"]
+    trades = portfolio.get("trades", [])
+    account_size = portfolio.get("account_size", 50000)
+    qqq_curve = portfolio.get("qqq_curve", [])
+
+    # ── Monthly returns ────────────────────────────────────────────────
+    # Group equity curve by month, compute month-over-month return
+    monthly_returns = []
+    if len(equity_curve) >= 2:
+        month_vals = {}  # "YYYY-MM" -> last value in that month
+        for pt in equity_curve:
+            ym = pt["date"][:7]
+            month_vals[ym] = pt["value"]
+
+        months = sorted(month_vals.keys())
+        prev_val = account_size
+        for ym in months:
+            val = month_vals[ym]
+            pct = round((val / prev_val - 1) * 100, 2) if prev_val > 0 else 0
+            monthly_returns.append({
+                "month": ym,
+                "return_pct": pct,
+                "end_value": round(val, 2),
+            })
+            prev_val = val
+
+    # ── Drawdown series ────────────────────────────────────────────────
+    drawdown_series = []
+    if equity_curve:
+        peak = equity_curve[0]["value"]
+        for pt in equity_curve:
+            if pt["value"] > peak:
+                peak = pt["value"]
+            dd = round((pt["value"] / peak - 1) * 100, 2) if peak > 0 else 0
+            drawdown_series.append({"date": pt["date"], "drawdown": dd})
+
+    # ── Trade distribution (bucket returns into ranges) ────────────────
+    buckets = {"< -5%": 0, "-5% to -2%": 0, "-2% to 0%": 0,
+               "0% to 2%": 0, "2% to 5%": 0, "5% to 10%": 0,
+               "10% to 20%": 0, "> 20%": 0}
+    for t in trades:
+        r = t.get("pct_return", 0)
+        if r < -5:
+            buckets["< -5%"] += 1
+        elif r < -2:
+            buckets["-5% to -2%"] += 1
+        elif r < 0:
+            buckets["-2% to 0%"] += 1
+        elif r < 2:
+            buckets["0% to 2%"] += 1
+        elif r < 5:
+            buckets["2% to 5%"] += 1
+        elif r < 10:
+            buckets["5% to 10%"] += 1
+        elif r < 20:
+            buckets["10% to 20%"] += 1
+        else:
+            buckets["> 20%"] += 1
+    trade_distribution = [{"bucket": k, "count": v} for k, v in buckets.items()]
+
+    # ── Win/loss streaks ───────────────────────────────────────────────
+    sorted_trades = sorted(trades, key=lambda t: t.get("exit_date", ""))
+    max_win_streak = 0
+    max_loss_streak = 0
+    cur_win = 0
+    cur_loss = 0
+    for t in sorted_trades:
+        if t.get("win"):
+            cur_win += 1
+            cur_loss = 0
+            max_win_streak = max(max_win_streak, cur_win)
+        else:
+            cur_loss += 1
+            cur_win = 0
+            max_loss_streak = max(max_loss_streak, cur_loss)
+
+    # ── Best / worst trades ────────────────────────────────────────────
+    best_trade = max(trades, key=lambda t: t.get("pct_return", 0)) if trades else None
+    worst_trade = min(trades, key=lambda t: t.get("pct_return", 0)) if trades else None
+
+    # ── Rolling alpha vs QQQ (per equity curve point) ──────────────────
+    rolling_alpha = []
+    if qqq_curve and equity_curve:
+        qqq_map = {pt["date"]: pt.get("pct", 0) for pt in qqq_curve}
+        base_val = equity_curve[0]["value"]
+        qqq_base = qqq_map.get(equity_curve[0]["date"], 0)
+        for pt in equity_curve:
+            uct_pct = (pt["value"] / base_val - 1) * 100 if base_val > 0 else 0
+            qqq_pct = qqq_map.get(pt["date"], qqq_base) - qqq_base
+            rolling_alpha.append({
+                "date": pt["date"],
+                "alpha": round(uct_pct - qqq_pct, 2),
+            })
+
+    result = {
+        **portfolio,
+        "monthly_returns": monthly_returns,
+        "drawdown_series": drawdown_series,
+        "trade_distribution": trade_distribution,
+        "max_win_streak": max_win_streak,
+        "max_loss_streak": max_loss_streak,
+        "best_trade": best_trade,
+        "worst_trade": worst_trade,
+        "rolling_alpha": rolling_alpha,
+    }
+    cache.set("uct20_backtest", result, ttl=3600)
+    return result
+
+
 def get_analyst_actions() -> dict:
     """Return analyst upgrades and downgrades from wire_data.
 

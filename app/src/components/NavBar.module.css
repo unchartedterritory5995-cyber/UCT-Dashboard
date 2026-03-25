@@ -65,6 +65,12 @@
   border-top: 1px solid var(--border);
   padding-top: 8px;
 }
+.alertSlot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+}
 .icon {
   font-size: 16px;
   flex-shrink: 0;
@@ -80,7 +86,7 @@
   opacity: 1;
 }
 
-/* ─── Mobile: lock to icon-only, no hover expand ────────────────────────────── */
+/* ─── Tablet: lock to icon-only, no hover expand ─────────────────────────────── */
 @media (hover: none), (max-width: 900px) {
   .nav {
     width: 60px !important;
@@ -92,5 +98,68 @@
   }
   .label {
     display: none;
+  }
+}
+
+/* ─── Phone: bottom tab bar ──────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100% !important;
+    height: 56px;
+    flex-direction: row;
+    align-items: center !important;
+    justify-content: center;
+    padding: 0;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+    overflow-y: hidden;
+    z-index: 200;
+  }
+  .nav:hover {
+    width: 100%;
+    align-items: center;
+  }
+  .brand { display: none; }
+  .mainItems {
+    flex-direction: row;
+    flex: 1;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .mainItems::-webkit-scrollbar { display: none; }
+  .bottomItems {
+    flex-direction: row;
+    border-top: none;
+    border-left: 1px solid var(--border);
+    padding-top: 0;
+    padding-left: 4px;
+  }
+  .item {
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    min-width: 48px;
+    justify-content: center;
+    align-items: center;
+    font-size: 9px;
+  }
+  .icon { font-size: 18px; }
+  .label {
+    display: block;
+    opacity: 1;
+    font-size: 8px;
+    letter-spacing: 0;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 48px;
   }
 }

@@ -58,6 +58,20 @@ def earnings_analysis(request: Request, sym: str):
         if row:
             break
 
-    if row and row.get("verdict", "").lower() == "pending":
-        return _generate_earnings_preview(sym, row)
-    return _generate_earnings_analysis(sym, row)
+    try:
+        if row and row.get("verdict", "").lower() == "pending":
+            return _generate_earnings_preview(sym, row)
+        return _generate_earnings_analysis(sym, row)
+    except Exception as e:
+        # Anthropic API or other transient failure — return graceful fallback
+        return {
+            "sym": sym,
+            "analysis": None,
+            "preview_text": "",
+            "preview_bullets": [],
+            "beat_history": [],
+            "yoy_eps_growth": None,
+            "beat_streak": None,
+            "news": [],
+            "error": str(e),
+        }

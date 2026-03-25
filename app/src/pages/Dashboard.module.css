@@ -54,7 +54,18 @@
 }
 
 @media (max-width: 1100px) {
-  .row2 { grid-template-columns: 1fr; }
-  .row3 { grid-template-columns: 1fr; }
+  .row2 { grid-template-columns: 1fr 1fr; }
+  .row3 { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
   .row4 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .content { padding: 10px; gap: 10px; }
+  .row2 { grid-template-columns: 1fr; }
+  .row3 { grid-template-columns: 1fr; grid-template-rows: auto; }
+}
+
+@media (max-width: 640px) {
+  .page { height: auto; overflow: visible; }
+  .content { padding: 8px; gap: 8px; }
 }

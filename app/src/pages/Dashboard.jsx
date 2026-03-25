@@ -1,4 +1,5 @@
 import FuturesStrip from '../components/tiles/FuturesStrip'
+import IntradayPulse from '../components/tiles/IntradayPulse'
 import MarketBreadth from '../components/tiles/MarketBreadth'
 import ThemeTracker from '../components/tiles/ThemeTracker'
 import CatalystFlow from '../components/tiles/CatalystFlow'
@@ -16,6 +17,9 @@ export default function Dashboard() {
         <div className={styles.row1}>
           <FuturesStrip />
         </div>
+
+        {/* Intraday pulse — only renders when brain has pushed an update */}
+        <IntradayPulse />
 
         {/* Row 2: Movers at the Open + UCT Exposure Rating + Theme Tracker */}
         <div className={styles.row2}>

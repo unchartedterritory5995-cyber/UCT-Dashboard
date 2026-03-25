@@ -528,3 +528,15 @@
   font-family: 'Instrument Sans', sans-serif;
   font-size: 13px;
 }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .body { flex-direction: column; overflow: visible; }
+  .earningsPanel, .econPanel { min-height: 300px; overflow: visible; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 10px 16px; overflow: visible; height: auto; }
+  .pageTitle { font-size: 18px; letter-spacing: 2px; }
+  .pageHeader { flex-wrap: wrap; gap: 6px; }
+  .gridCols { grid-template-columns: 76px 1fr 54px 50px; font-size: 10px; }
+}

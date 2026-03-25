@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
 import UCT20Performance from '../components/tiles/UCT20Performance'
+import UCT20Backtest from '../components/tiles/UCT20Backtest'
 import styles from './UCT20.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -174,6 +175,7 @@ export default function UCT20() {
           </div>
         )}
         <UCT20Performance />
+        <UCT20Backtest />
       </TileCard>
     </div>
   )

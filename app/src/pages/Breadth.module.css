@@ -1035,3 +1035,14 @@ tbody tr { cursor: pointer; }
   font-size: 12px;
   color: #fff;
 }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .page { padding: 14px 10px; overflow: visible; height: auto; }
+  .tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+@media (max-width: 640px) {
+  .page { padding: 10px 6px; }
+  .header { flex-wrap: wrap; gap: 6px; }
+  .heading { font-size: 18px; letter-spacing: 2px; }
+}

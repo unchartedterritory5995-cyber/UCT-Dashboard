@@ -10,3 +10,4 @@ app/node_modules/
 .pytest_cache/
 data/
 *.json.bak
+backups/

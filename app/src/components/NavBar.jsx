@@ -1,5 +1,6 @@
 // app/src/components/NavBar.jsx
 import { NavLink } from 'react-router-dom'
+import AlertBell from './AlertBell'
 import styles from './NavBar.module.css'
 
 const NAV_ITEMS = [
@@ -15,6 +16,9 @@ const NAV_ITEMS = [
   { to: '/dark-pool',    label: 'Dark Pool',     icon: '🌊' },
   { to: '/post-market',  label: 'Post Market',   icon: '🌙' },
   { to: '/model-book',   label: 'Model Book',    icon: '📖' },
+  { to: '/journal',      label: 'Journal',       icon: '📓' },
+  { to: '/watchlists',   label: 'Watchlists',    icon: '📋' },
+  { to: '/community',    label: 'Community',     icon: '📊' },
 ]
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
@@ -40,6 +44,9 @@ export default function NavBar() {
         ))}
       </div>
       <div className={styles.bottomItems}>
+        <div className={styles.alertSlot}>
+          <AlertBell />
+        </div>
         <NavLink
           to="/settings"
           className={({ isActive }) =>

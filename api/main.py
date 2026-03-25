@@ -19,6 +19,13 @@ from api.services import cot_service as _cot_service
 from api.top_flow_router import router as top_flow_router
 from api import top_flow_tracker as _top_flow_tracker
 from api.schwab_router import router as schwab_router
+from api.routers import auth as auth_router
+from api.routers import webhooks as webhooks_router
+from api.routers import alerts as alerts_router
+from api.routers import journal as journal_router
+from api.routers import watchlists as watchlists_router
+from api.routers import community as community_router
+from api.services.auth_db import init_db as _init_auth_db
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 if _SENTRY_DSN:
@@ -61,6 +68,12 @@ def _seed_cache_from_volume():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Auth DB — separate from all other databases, safe to init
+    try:
+        _init_auth_db()
+    except Exception as e:
+        print(f"[startup] Auth DB init error (non-fatal): {e}")
+
     _seed_cache_from_volume()
     from api.services.theme_performance import load_persisted_on_startup
     load_persisted_on_startup()
@@ -138,6 +151,12 @@ app.include_router(theme_performance_router.router)
 app.include_router(top_flow_router)
 app.include_router(schwab_router)
 app.include_router(calendar_router.router)
+app.include_router(auth_router.router)
+app.include_router(webhooks_router.router)
+app.include_router(alerts_router.router)
+app.include_router(journal_router.router)
+app.include_router(watchlists_router.router)
+app.include_router(community_router.router)
 
 # ─── CSV routes: serve from app/public/ directly (bypasses Vite build cache) ──
 PUBLIC = os.path.join(os.path.dirname(__file__), "..", "app", "public")
