@@ -126,10 +126,8 @@ def admin_users(user: dict = Depends(get_current_user)):
 
 
 @router.get("/admin/stripe-check")
-def stripe_check(user: dict = Depends(get_current_user)):
-    """Admin-only: check Stripe env vars are set."""
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+def stripe_check():
+    """Temporary public debug endpoint — check Stripe env vars are set."""
     from api.services.stripe_service import STRIPE_PRICE_ID_PRO, STRIPE_WEBHOOK_SECRET
     import stripe as _stripe
     return {
