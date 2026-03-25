@@ -139,6 +139,35 @@ def stripe_check():
     }
 
 
+@router.post("/admin/sync-subscriptions")
+def sync_subscriptions():
+    """Temporary public endpoint — sync all completed Stripe checkouts to DB."""
+    import stripe as _stripe
+    from api.services.auth_service import upsert_subscription
+    from datetime import datetime, timezone
+    synced = []
+    sessions = _stripe.checkout.Session.list(limit=20)
+    for sess in sessions.data:
+        if sess.status == "complete" and sess.metadata.get("user_id"):
+            sub_id = sess.subscription
+            cust_id = sess.customer
+            if sub_id and cust_id:
+                sub = _stripe.Subscription.retrieve(sub_id)
+                period_end = None
+                if hasattr(sub, 'current_period_end') and sub.current_period_end:
+                    period_end = datetime.fromtimestamp(sub.current_period_end, tz=timezone.utc).isoformat()
+                upsert_subscription(
+                    user_id=sess.metadata["user_id"],
+                    stripe_customer_id=cust_id,
+                    stripe_subscription_id=sub_id,
+                    plan="pro",
+                    status=sub.status,
+                    current_period_end=period_end,
+                )
+                synced.append({"user_id": sess.metadata["user_id"], "status": sub.status})
+    return {"synced": synced}
+
+
 # ── Stripe endpoints ────────────────────────────────────────────────────────
 
 @router.post("/checkout")
