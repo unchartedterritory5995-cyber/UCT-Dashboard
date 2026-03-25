@@ -22,6 +22,7 @@ import Journal from './pages/Journal'
 import Watchlists from './pages/Watchlists'
 import Community from './pages/Community'
 import Settings from './pages/Settings'
+import Subscribe from './pages/Subscribe'
 
 /** Show Landing only if NOT logged in; otherwise redirect to dashboard */
 function PublicOnly({ children }) {
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/" element={<PublicOnly><Landing /></PublicOnly>} />
           <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/subscribe" element={<Subscribe />} />
 
           {/* Protected routes — require authentication */}
           <Route element={<AuthGuard />}>

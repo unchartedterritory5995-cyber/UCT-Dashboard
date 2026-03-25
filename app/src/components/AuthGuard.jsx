@@ -1,8 +1,9 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function AuthGuard() {
-  const { user, loading } = useAuth()
+  const { user, plan, loading } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -18,6 +19,16 @@ export default function AuthGuard() {
 
   if (!user) {
     return <Navigate to="/login" replace />
+  }
+
+  // Allow settings page always (so they can manage billing / subscribe)
+  if (location.pathname === '/settings') {
+    return <Outlet />
+  }
+
+  // Require paid plan for all other pages
+  if (plan !== 'pro' && user.role !== 'admin') {
+    return <Navigate to="/subscribe" replace />
   }
 
   return <Outlet />
