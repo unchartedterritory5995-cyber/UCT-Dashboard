@@ -10,7 +10,7 @@
   justify-content: center;
   overflow: hidden;
   color: var(--text-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.5px;
   transition: height 0.2s ease;

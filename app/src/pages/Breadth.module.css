@@ -18,16 +18,16 @@
   gap: 2px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 3px;
 }
 .tab {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.5px;
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -42,7 +42,7 @@
 }
 .tabActive:hover { color: #000; }
 .heading {
-  font-family: 'Cinzel', serif;
+  font-family: var(--font-display);
   font-size: 22px;
   font-weight: 800;
   color: var(--ut-gold);
@@ -50,19 +50,19 @@
   text-transform: uppercase;
 }
 .meta {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
 }
 
 .empty {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   color: var(--text-muted);
   padding: 24px 0;
 }
 .empty code {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   background: var(--bg-elevated);
   padding: 2px 6px;
@@ -76,14 +76,14 @@
   flex: 1;
   min-height: 0;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 /* ── Table ─────────────────────────────────────────────────────────────────── */
 .table {
   border-collapse: separate;
   border-spacing: 0;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   white-space: nowrap;
   width: max-content;
@@ -309,10 +309,10 @@
   margin-left: auto;
 }
 .daysPill {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   padding: 3px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-muted);
@@ -330,10 +330,10 @@
 .sortIndicator { font-size: 9px; opacity: 0.8; }
 
 .exportBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   padding: 3px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-muted);
@@ -357,7 +357,7 @@
   padding: 10px 16px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 10px;
   flex-shrink: 0;
 }
@@ -367,14 +367,14 @@
   gap: 10px;
 }
 .scoreLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 2px;
   color: var(--text-muted);
   text-transform: uppercase;
 }
 .scoreValue {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 28px;
   font-weight: 700;
   line-height: 1;
@@ -402,7 +402,7 @@
   padding-left: 20px;
 }
 .scoreMetaItem {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
 }
@@ -443,7 +443,7 @@
 .drillDialog {
   background: var(--bg-elevated, #141414);
   border: 1px solid var(--border, rgba(255,255,255,0.1));
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   width: 100%;
   max-width: 1600px;
   height: 96vh;
@@ -460,7 +460,7 @@
   flex-shrink: 0;
 }
 .drillTitle {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 15px;
   font-weight: 700;
   color: var(--ut-gold, #c9a84c);
@@ -468,20 +468,20 @@
   text-transform: uppercase;
 }
 .drillSub {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted, #666);
   margin-top: 3px;
 }
 .drillClose {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 14px;
   background: transparent;
   border: none;
   color: var(--text-muted, #666);
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: color 0.15s;
   flex-shrink: 0;
 }
@@ -499,13 +499,13 @@
   flex-shrink: 0;
 }
 .copyBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   background: transparent;
   border: 1px solid rgba(201,168,76,0.4);
   color: var(--ut-gold, #c9a84c);
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   white-space: nowrap;
@@ -550,19 +550,19 @@
   position: relative;
 }
 .drillChartSym {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 14px;
   font-weight: 700;
   color: var(--ut-gold, #c9a84c);
   letter-spacing: 1px;
 }
 .drillChartName {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   color: var(--text-muted, #777);
 }
 .drillChartHint {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted, #444);
   margin-left: auto;
@@ -575,7 +575,7 @@
   gap: 4px;
 }
 .drillChartTab {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.6px;
@@ -630,7 +630,7 @@
 tbody tr { cursor: pointer; }
 .drillLoading,
 .drillEmpty {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-muted, #666);
   padding: 20px 0;
@@ -645,7 +645,7 @@ tbody tr { cursor: pointer; }
 .drillTable {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 .drillTh {
@@ -689,7 +689,7 @@ tbody tr { cursor: pointer; }
 .drillTdName {
   padding: 4px 8px;
   color: var(--text-muted, #999);
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   max-width: 130px;
   overflow: hidden;
@@ -771,12 +771,12 @@ tbody tr { cursor: pointer; }
 .drillHeatR3 { background: rgba(160,25,25,0.22) !important; }
 
 .errorBanner {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   color: var(--loss, #f87171);
   background: rgba(248, 113, 113, 0.08);
   border: 1px solid rgba(248, 113, 113, 0.25);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px 14px;
   margin-bottom: 12px;
   flex-shrink: 0;
@@ -795,7 +795,7 @@ tbody tr { cursor: pointer; }
 /* Group header bar */
 .tmGroupHdr {
   position: absolute;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -834,7 +834,7 @@ tbody tr { cursor: pointer; }
 
 /* Metric label inside tile */
 .tmLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.85);
@@ -848,7 +848,7 @@ tbody tr { cursor: pointer; }
 
 /* Metric value inside tile */
 .tmValue {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 14px;
   font-weight: 700;
   color: #fff;
@@ -860,7 +860,7 @@ tbody tr { cursor: pointer; }
 /* Group background — subtle colored wash behind each group's tiles */
 .tmGroupBg {
   position: absolute;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   opacity: 0.18;
   pointer-events: none;
   z-index: 0;
@@ -871,7 +871,7 @@ tbody tr { cursor: pointer; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2px 6px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   text-align: center;
@@ -903,11 +903,11 @@ tbody tr { cursor: pointer; }
   border-top: 1px solid rgba(255,255,255,0.06);
 }
 .tmNavBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text, #e0e0e0);
   cursor: pointer;
   padding: 2px 10px;
@@ -923,7 +923,7 @@ tbody tr { cursor: pointer; }
   cursor: default;
 }
 .tmNavDate {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-muted, #999);
   display: flex;
@@ -951,7 +951,7 @@ tbody tr { cursor: pointer; }
   padding: 7px 14px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 8px;
   flex-shrink: 0;
 }
@@ -961,20 +961,20 @@ tbody tr { cursor: pointer; }
   gap: 7px;
 }
 .hmScoreLbl {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 1.5px;
   color: var(--text-muted);
   text-transform: uppercase;
 }
 .hmScoreVal {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 22px;
   font-weight: 700;
   line-height: 1;
 }
 .hmScoreTier {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -987,13 +987,13 @@ tbody tr { cursor: pointer; }
   flex-shrink: 0;
 }
 .hmScoreDate {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
   margin-left: auto;
 }
 .hmScorePhase {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--ut-gold, #c9a84c);
   background: rgba(201, 168, 76, 0.1);
@@ -1012,7 +1012,7 @@ tbody tr { cursor: pointer; }
   pointer-events: none;
   background: rgba(10, 10, 10, 0.96);
   border: 1px solid var(--ut-gold, #c9a84c);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 8px 12px;
   display: flex;
   flex-direction: column;
@@ -1020,18 +1020,18 @@ tbody tr { cursor: pointer; }
   transform: translateY(-100%);
 }
 .hmTipDate {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted, #888);
 }
 .hmTipLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   color: var(--ut-gold, #c9a84c);
 }
 .hmTipValue {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: #fff;
 }
@@ -1063,7 +1063,7 @@ tbody tr { cursor: pointer; }
   }
   /* Table improvements — tighter cells for mobile */
   .tableWrap {
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     margin: 0 -8px;
     padding: 0 8px;
     position: relative;

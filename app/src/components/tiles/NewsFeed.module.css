@@ -39,7 +39,7 @@
 
 /* Category badge */
 .badge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.6px;
@@ -59,7 +59,7 @@
 
 /* Ticker chip */
 .ticker {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
   color: var(--ut-gold);
@@ -73,18 +73,18 @@
 .ticker:hover { background: rgba(212,175,55,0.22); }
 
 /* Inline price change */
-.chgPos { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #27ae60; }
-.chgNeg { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #e74c3c; }
-.chgFlat{ font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--text-muted); }
+.chgPos { font-family: var(--font-mono); font-size: 9px; color: #27ae60; }
+.chgNeg { font-family: var(--font-mono); font-size: 9px; color: #e74c3c; }
+.chgFlat{ font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); }
 
 .source {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text-muted);
   letter-spacing: 0.3px;
 }
 .time {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text-muted);
   margin-left: auto;

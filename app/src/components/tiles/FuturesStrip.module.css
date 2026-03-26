@@ -1,7 +1,7 @@
 .strip {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 12px 16px;
   display: flex;
   gap: 12px;
@@ -46,7 +46,7 @@
 .cellPos { background: var(--gain-bg); border-color: var(--gain-border) !important; }
 .cellNeg { background: var(--loss-bg); border-color: var(--loss-border) !important; }
 .sym {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
@@ -54,7 +54,7 @@
   margin-bottom: 3px;
 }
 .price {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 15px;
   font-weight: 700;
   color: var(--text-heading);
@@ -62,7 +62,7 @@
   white-space: nowrap;
 }
 .chg {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
 }
@@ -83,7 +83,7 @@
   padding: 12px 24px;
 }
 .quoteLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 3px;
@@ -92,7 +92,7 @@
   opacity: 0.7;
 }
 .quoteText {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 16px;
   font-style: italic;
   color: var(--text-bright);
@@ -100,7 +100,7 @@
   opacity: 0.92;
 }
 .quoteAuthor {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ut-gold);
   letter-spacing: 0.5px;
@@ -147,7 +147,7 @@
   }
   .cellInner {
     padding: 8px 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
   }
   .sym {
     font-size: 9px;

@@ -3,13 +3,14 @@ import { useState } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
+import ErrorState from '../ErrorState'
 import { SkeletonTable } from '../Skeleton'
 import styles from './LeadershipTile.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
 export default function LeadershipTile() {
-  const { data: rows } = useMobileSWR('/api/leadership', fetcher, { refreshInterval: 3600000 })
+  const { data: rows, error, mutate } = useMobileSWR('/api/leadership', fetcher, { refreshInterval: 3600000 })
   const [expandedIdx, setExpandedIdx] = useState(null)
   const stocks = Array.isArray(rows) ? rows.slice(0, 20) : []
 
@@ -19,7 +20,9 @@ export default function LeadershipTile() {
 
   return (
     <TileCard title="UCT 20">
-      {!rows ? (
+      {error ? (
+        <ErrorState compact message="Failed to load leadership" onRetry={() => mutate()} />
+      ) : !rows ? (
         <SkeletonTable rows={5} cols={3} />
       ) : stocks.length === 0 ? (
         <p className={styles.loading}>No data — run Morning Wire engine</p>

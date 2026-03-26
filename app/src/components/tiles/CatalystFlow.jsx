@@ -4,6 +4,7 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import TileCard from '../TileCard'
 import EarningsModal from './EarningsModal'
 import ErrorBoundary from '../ErrorBoundary'
+import ErrorState from '../ErrorState'
 import { useTileCapture } from '../../hooks/useTileCapture'
 import { SkeletonTable } from '../Skeleton'
 import styles from './CatalystFlow.module.css'
@@ -70,7 +71,7 @@ function EarningsTable({ rows, label, onSelect, liveGaps }) {
 }
 
 export default function CatalystFlow({ data: propData }) {
-  const { data: fetched } = useMobileSWR(
+  const { data: fetched, error, mutate } = useMobileSWR(
     propData !== undefined ? null : '/api/earnings',
     fetcher,
     { refreshInterval: 300000 }
@@ -97,6 +98,7 @@ export default function CatalystFlow({ data: propData }) {
     </button>
   )
 
+  if (error) return <TileCard title="Earnings"><ErrorState compact message="Failed to load earnings" onRetry={() => mutate()} /></TileCard>
   if (!data) return <TileCard title="Catalyst Flow"><SkeletonTable rows={5} cols={3} /></TileCard>
 
   return (

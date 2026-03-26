@@ -30,7 +30,7 @@
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: color 0.15s;
   margin-left: auto;
 }
@@ -38,7 +38,7 @@
 .captureBtn:disabled { opacity: 0.4; cursor: default; }
 
 .wireName {
-  font-family: 'Cinzel', serif;
+  font-family: var(--font-display);
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 3px;
@@ -47,7 +47,7 @@
 }
 
 .wireDate {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
   letter-spacing: 0.5px;
@@ -71,7 +71,7 @@
 }
 
 .pillLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
@@ -80,7 +80,7 @@
 }
 
 .pillValue {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
 }
@@ -112,7 +112,7 @@
   max-width: 78ch;
   line-height: 1.75;
   font-size: 15px;
-  font-family: 'Instrument Sans', -apple-system, sans-serif;
+  font-family: var(--font-sans);
   color: var(--text-bright);
 }
 
@@ -121,14 +121,14 @@
   background: rgba(201, 168, 76, 0.06) !important;
   border: 1px solid rgba(201, 168, 76, 0.2);
   border-left: 3px solid #c9a84c;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 12px 16px;
   margin-bottom: 24px;
 }
 .rundownWrap :global(.rd-agenda-label) {
   display: block;
   font-size: 10px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   letter-spacing: 2px;
   color: #c9a84c;
   text-transform: uppercase;
@@ -167,7 +167,7 @@
 .rundownWrap h4,
 .rundownWrap h5 {
   color: var(--text-heading) !important;
-  font-family: 'Instrument Sans', -apple-system, sans-serif !important;
+  font-family: var(--font-sans) !important;
   font-weight: 600 !important;
   margin: 1.4em 0 0.5em !important;
 }
@@ -224,7 +224,7 @@
 }
 
 .rundownWrap :global(.rd-subsection-label) {
-  font-family: 'Cinzel', serif !important;
+  font-family: var(--font-display) !important;
   font-size: 15px !important;
   font-weight: 700 !important;
   letter-spacing: 4px !important;
@@ -269,7 +269,7 @@
 }
 
 .rundownWrap :global(.rd-pick-sym) {
-  font-family: 'IBM Plex Mono', monospace !important;
+  font-family: var(--font-mono) !important;
   font-size: 16px !important;
   font-weight: 700 !important;
   color: #c9a84c !important;
@@ -306,7 +306,7 @@
 }
 
 .rundownWrap :global(.rd-pick-flabel) {
-  font-family: 'IBM Plex Mono', monospace !important;
+  font-family: var(--font-mono) !important;
   font-size: 8px !important;
   font-weight: 700 !important;
   letter-spacing: 0.12em !important;
@@ -317,7 +317,7 @@
 }
 
 .rundownWrap :global(.rd-pick-fval) {
-  font-family: 'IBM Plex Mono', monospace !important;
+  font-family: var(--font-mono) !important;
   font-size: 10.5px !important;
   color: var(--text-bright, #f0f0f0) !important;
   line-height: 1.4;
@@ -337,7 +337,7 @@
 }
 
 .sectionLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 2px;
@@ -364,7 +364,7 @@
 }
 
 .bucketLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
@@ -380,7 +380,7 @@
 }
 
 .earningsTicker {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
   color: var(--text-bright);
@@ -389,7 +389,7 @@
 }
 
 .beat {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -401,7 +401,7 @@
 }
 
 .miss {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -413,7 +413,7 @@
 }
 
 .surprise {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
 }
@@ -442,7 +442,7 @@
 }
 
 .moverDir {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
   width: 14px;
@@ -465,7 +465,7 @@
   padding: 3px 9px;
   border-radius: 20px;
   border: 1px solid;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -494,7 +494,7 @@
 .analystBlock {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   position: relative;
 }
@@ -525,7 +525,7 @@
 }
 
 .analystTitle {
-  font-family: 'Cinzel', serif;
+  font-family: var(--font-display);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 2.5px;
@@ -535,7 +535,7 @@
 }
 
 .analystSummary {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.3px;
 }
@@ -554,7 +554,7 @@
   align-items: center;
   gap: 5px;
   padding: 3px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.8px;
@@ -573,11 +573,11 @@
 }
 
 .analystTabCount {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 8px;
   font-weight: 600;
   padding: 1px 5px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: rgba(255,255,255,0.08);
   color: var(--text-muted);
   min-width: 14px;
@@ -627,7 +627,7 @@
 .aePtDn { border-left-color: rgba(200,60,60,0.7); }
 
 .aeTicker {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
 }
@@ -679,7 +679,7 @@
 .aeRatingTo    { color: var(--text-primary); font-weight: 600; }
 
 .aePt {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   color: #c9a84c;
@@ -688,7 +688,7 @@
 }
 
 .aeUpside {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;

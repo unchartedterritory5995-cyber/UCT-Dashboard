@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal);
 }
 
 .modal {
@@ -30,7 +30,7 @@
 }
 
 .sym {
-  font-family: 'Cinzel', serif;
+  font-family: var(--font-display);
   font-size: 22px;
   color: var(--ut-cream);
   font-weight: 700;
@@ -56,7 +56,7 @@
 }
 
 .badge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -65,7 +65,7 @@
 }
 
 .badgeTime {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
@@ -73,7 +73,7 @@
   border: 1px solid var(--gain-border);
   background: var(--gain-bg);
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   text-transform: uppercase;
 }
 
@@ -85,7 +85,7 @@
 
 .table th {
   text-align: left;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text-muted);
   padding: 6px 8px;
@@ -96,7 +96,7 @@
 .table td {
   padding: 10px 8px;
   border-bottom: 1px solid var(--border);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text);
 }
 
@@ -108,10 +108,10 @@
 }
 
 .summary {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   padding: 10px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-weight: 600;
 }
 
@@ -134,7 +134,7 @@
 }
 
 .gap {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
   text-align: center;
@@ -148,7 +148,7 @@
 .trend {
   display: flex;
   gap: 16px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
@@ -164,12 +164,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   padding: 10px 14px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgba(255,255,255,0.02);
 }
 
@@ -195,11 +195,11 @@
   padding: 12px 14px;
   background: rgba(255,255,255,0.03);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .aiText {
-  font-family: 'Instrument Sans', -apple-system, sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   line-height: 1.65;
   color: var(--text);
@@ -226,7 +226,7 @@
 .newsItem:hover .newsItemHeadline { text-decoration: underline; }
 
 .newsItemSource {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 8px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -234,7 +234,7 @@
 }
 
 .newsItemHeadline {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--info, #5ba3f5);
   line-height: 1.4;
@@ -250,8 +250,8 @@
   flex: 1;
   text-align: center;
   padding: 9px;
-  border-radius: 6px;
-  font-family: 'IBM Plex Mono', monospace;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   color: var(--gain);
@@ -266,8 +266,8 @@
   flex: 1;
   text-align: center;
   padding: 9px;
-  border-radius: 6px;
-  font-family: 'IBM Plex Mono', monospace;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   color: var(--text);
@@ -283,13 +283,13 @@
 .previewBox {
   border-left: 2px solid #c9a84c;
   background: rgba(201, 168, 76, 0.06);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 10px 12px;
   margin: 10px 0;
 }
 
 .watchLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 1px;
   color: var(--text-muted);
@@ -301,7 +301,7 @@
   list-style: disc;
   padding-left: 16px;
   margin: 0;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.6;
   color: var(--text-muted);

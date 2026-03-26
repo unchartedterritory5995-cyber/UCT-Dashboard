@@ -22,7 +22,7 @@
 .brand {
   display: block;
   text-align: center;
-  font-family: 'Cinzel', serif;
+  font-family: var(--font-display);
   font-size: 18px;
   font-weight: 800;
   color: var(--ut-gold);
@@ -32,7 +32,7 @@
 }
 
 .title {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 20px;
   font-weight: 600;
   color: var(--text-heading);
@@ -53,7 +53,7 @@
   color: var(--loss);
   font-size: 13px;
   padding: 10px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 16px;
 }
 
@@ -63,7 +63,7 @@
   color: var(--warn);
   font-size: 13px;
   padding: 10px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 16px;
 }
 
@@ -92,9 +92,9 @@
   padding: 10px 12px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright);
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   outline: none;
   transition: border-color 0.2s;
@@ -115,8 +115,8 @@
   background: var(--ut-green);
   color: #fff;
   border: none;
-  border-radius: 6px;
-  font-family: 'Instrument Sans', sans-serif;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;

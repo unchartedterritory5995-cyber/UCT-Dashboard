@@ -2,6 +2,7 @@
 import useMobileSWR from '../../hooks/useMobileSWR'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
+import ErrorState from '../ErrorState'
 import { SkeletonTileContent } from '../Skeleton'
 import styles from './NewsFeed.module.css'
 
@@ -54,7 +55,7 @@ function fmtChg(pct) {
 }
 
 export default function NewsFeed({ data: propData }) {
-  const { data: fetched, error } = useMobileSWR(
+  const { data: fetched, error, mutate } = useMobileSWR(
     propData !== undefined ? null : '/api/news',
     fetcher,
     { refreshInterval: 300000 }
@@ -64,7 +65,7 @@ export default function NewsFeed({ data: propData }) {
   return (
     <TileCard title="News">
       {error ? (
-        <p className={styles.empty}>News unavailable</p>
+        <ErrorState compact message="Failed to load news" onRetry={() => mutate()} />
       ) : !data ? (
         <SkeletonTileContent lines={5} />
       ) : data.length === 0 ? (

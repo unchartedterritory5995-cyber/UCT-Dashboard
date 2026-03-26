@@ -18,7 +18,7 @@
 }
 
 .pageTitle {
-  font-family: 'Cinzel', serif;
+  font-family: var(--font-display);
   font-size: 22px;
   font-weight: 800;
   color: var(--ut-gold);
@@ -27,14 +27,14 @@
 }
 
 .weekRange {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
   letter-spacing: 0.5px;
 }
 
 .sourceBadge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
@@ -71,7 +71,7 @@
   flex-direction: column;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -84,7 +84,7 @@
 }
 
 .panelLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 2px;
@@ -105,7 +105,7 @@
 }
 
 .dayTab {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.4px;
@@ -157,7 +157,7 @@
 }
 
 .filterLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 8px;
   font-weight: 600;
   letter-spacing: 1.5px;
@@ -174,7 +174,7 @@
 }
 
 .filterChip {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 500;
   letter-spacing: 0.3px;
@@ -196,7 +196,7 @@
 }
 
 .filterReset {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -230,7 +230,7 @@
 .timingSection:last-child { margin-bottom: 0; }
 
 .sectionLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 2px;
@@ -242,7 +242,7 @@
 }
 
 .emptyBucket {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: var(--text-muted);
   font-style: italic;
@@ -266,7 +266,7 @@
 }
 
 .colHead {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 8px;
   font-weight: 600;
   letter-spacing: 1.5px;
@@ -290,7 +290,7 @@
 .colTicker { /* left-align handled by TickerPopup */ }
 
 .colVal {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
   text-align: right;
@@ -316,21 +316,21 @@
 
 /* Gap % */
 .reactionPos {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   color: var(--gain);
   text-align: right;
 }
 .reactionNeg {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   color: var(--loss);
   text-align: right;
 }
 .reactionNeutral {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
   opacity: 0.3;
@@ -339,7 +339,7 @@
 
 /* Verdict pill */
 .verdictPill {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -382,7 +382,7 @@
 .econDay:last-child { margin-bottom: 0; }
 
 .econDayHeader {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 2px;
@@ -409,7 +409,7 @@
 }
 
 .econEmpty {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: var(--text-muted);
   font-style: italic;
@@ -428,7 +428,7 @@
 .econEvent:hover { background: var(--bg-hover); }
 
 .econTime {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   flex-shrink: 0;
@@ -445,7 +445,7 @@
 }
 
 .econEventName {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: var(--text);
   flex: 1;
@@ -457,7 +457,7 @@
 }
 
 .econMeta {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   flex-shrink: 0;
@@ -466,7 +466,7 @@
 }
 
 .econActual {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   color: var(--ut-gold);
@@ -482,7 +482,7 @@
 }
 
 .fedTime {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   flex-shrink: 0;
@@ -491,7 +491,7 @@
 }
 
 .fedEventName {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: var(--text-muted);
   font-style: italic;
@@ -500,7 +500,7 @@
 }
 
 .fedNote {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   opacity: 0.7;
@@ -514,7 +514,7 @@
   justify-content: center;
   height: 100%;
   color: var(--text-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 1px;
 }
@@ -525,7 +525,7 @@
   justify-content: center;
   height: 100%;
   color: var(--loss);
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
 }
 

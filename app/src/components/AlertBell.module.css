@@ -22,9 +22,9 @@
   min-width: 16px; height: 16px;
   background: var(--loss);
   color: #fff;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px; font-weight: 700;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   display: flex; align-items: center; justify-content: center;
   padding: 0 4px;
   line-height: 1;
@@ -38,7 +38,7 @@
   max-height: 400px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   z-index: 500;
   overflow: hidden;
@@ -55,7 +55,7 @@
 }
 
 .headerTitle {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -64,7 +64,7 @@
 }
 
 .markAll {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--ut-green-bright);
   background: transparent;
@@ -119,7 +119,7 @@
 }
 
 .itemTitle {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
   color: var(--text-bright);
@@ -127,7 +127,7 @@
 }
 
 .itemMsg {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.4;
@@ -139,7 +139,7 @@
 }
 
 .itemTime {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text-muted);
   flex-shrink: 0;

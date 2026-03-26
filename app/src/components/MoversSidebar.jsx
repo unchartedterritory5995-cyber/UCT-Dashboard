@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
 import TickerPopup from './TickerPopup'
+import ErrorState from './ErrorState'
 import { SkeletonTable } from './Skeleton'
 import styles from './MoversSidebar.module.css'
 
@@ -32,7 +33,7 @@ function MoverSection({ label, items, positive }) {
 export default function MoversSidebar({ data: propData }) {
   const [open, setOpen] = useState(true)
 
-  const { data: fetched } = useMobileSWR(
+  const { data: fetched, error, mutate } = useMobileSWR(
     propData !== undefined ? null : '/api/movers',
     fetcher,
     { refreshInterval: 30000 }
@@ -47,7 +48,9 @@ export default function MoversSidebar({ data: propData }) {
       </button>
       {open && (
         <div className={styles.body}>
-          {!data ? (
+          {error ? (
+            <ErrorState compact message="Failed to load movers" onRetry={() => mutate()} />
+          ) : !data ? (
             <SkeletonTable rows={6} cols={2} />
           ) : (
             <div className={styles.scroll}>

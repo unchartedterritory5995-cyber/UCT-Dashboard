@@ -1,0 +1,73 @@
+/* ErrorState — compact (tile) and full (page) error recovery UI */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+}
+
+.wrapperFull {
+  composes: wrapper;
+  min-height: 60vh;
+  gap: var(--space-md);
+}
+
+.icon {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.message {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+.wrapperFull .message {
+  font-size: var(--text-base);
+  max-width: 360px;
+}
+
+.retryBtn {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-lg);
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+  animation: subtlePulse 2.5s ease-in-out infinite;
+}
+
+.retryBtn:hover {
+  background: var(--ut-gold-glow);
+  border-color: var(--ut-gold);
+}
+
+.retryBtn:active {
+  transform: scale(0.97);
+}
+
+@keyframes subtlePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .retryBtn {
+    animation: none;
+  }
+}

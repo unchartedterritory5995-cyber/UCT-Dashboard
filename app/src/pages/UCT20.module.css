@@ -1,7 +1,7 @@
 .page { padding: 20px 24px; }
 .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.heading { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; }
-.refreshBtn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 1px; background: var(--bg-elevated); color: var(--ut-green-bright); border: 1px solid var(--ut-green); border-radius: 6px; padding: 6px 14px; cursor: pointer; transition: background 0.15s; }
+.heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; }
+.refreshBtn { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 1px; background: var(--bg-elevated); color: var(--ut-green-bright); border: 1px solid var(--ut-green); border-radius: var(--radius-md); padding: 6px 14px; cursor: pointer; transition: background 0.15s; }
 .refreshBtn:hover { background: var(--ut-green-dim); }
 .loading { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
 .list { display: flex; flex-direction: column; }
@@ -22,10 +22,10 @@
 }
 .cardRow:hover { background: rgba(255,255,255,0.02); }
 
-.rank { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text-muted); min-width: 26px; }
+.rank { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text-muted); min-width: 26px; }
 
 .setupBadge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -36,10 +36,10 @@
   white-space: nowrap;
 }
 
-.sym { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 800; color: var(--ut-cream); cursor: pointer; }
+.sym { font-family: var(--font-mono); font-size: 15px; font-weight: 800; color: var(--ut-cream); cursor: pointer; }
 .sym:hover { color: var(--ut-green-bright); }
 
-.companyName { font-family: 'Instrument Sans', sans-serif; font-size: 11px; color: var(--text-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.companyName { font-family: var(--font-sans); font-size: 11px; color: var(--text-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── TileCard title-bar column headers ── */
 .colHeaders {
@@ -47,7 +47,7 @@
   align-items: center;
   gap: 10px;
   padding-right: 4px; /* matches cardRow's 4px right padding */
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -59,7 +59,7 @@
 .colRating { flex: 0 0 112px; text-align: right; }
 
 .cardRowRight { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
-.score { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--ut-green-bright); flex: 0 0 112px; text-align: right; }
+.score { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--ut-green-bright); flex: 0 0 112px; text-align: right; }
 .caret { font-size: 11px; color: var(--text-muted); flex: 0 0 12px; text-align: center; }
 
 .newSlot {
@@ -74,7 +74,7 @@
 }
 
 .newBadge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 8px; font-weight: 700; letter-spacing: 1px;
   color: #fff; background: var(--ut-green);
   border-radius: 3px; padding: 1px 5px;
@@ -82,13 +82,13 @@
 }
 
 .daysOnList {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px; color: var(--text-muted);
   flex: 0 0 28px; text-align: right;
 }
 
 .posReturn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px; font-weight: 700;
   flex: 0 0 64px; text-align: right;
 }
@@ -106,7 +106,7 @@
 }
 
 .companyDesc {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   color: var(--text);
   line-height: 1.6;
@@ -116,7 +116,7 @@
 .section { display: flex; flex-direction: column; gap: 4px; }
 
 .sectionLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -124,7 +124,7 @@
 }
 
 .sectionText {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   color: var(--text-muted);
   line-height: 1.6;
@@ -142,13 +142,13 @@
 }
 
 .tradeItem { display: flex; flex-direction: column; gap: 2px; }
-.tradeLabel { font-family: 'IBM Plex Mono', monospace; font-size: 8px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); }
-.tradeVal { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text); }
+.tradeLabel { font-family: var(--font-mono); font-size: 8px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); }
+.tradeVal { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text); }
 .tradeStop { color: var(--loss); }
 .tradeTarget { color: var(--ut-green-bright); }
 
 /* ── Legacy fallback ── */
-.legacyThesis { font-family: 'Instrument Sans', sans-serif; font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0; }
+.legacyThesis { font-family: var(--font-sans); font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0; }
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
