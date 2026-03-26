@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import useSWR from 'swr'
 import TileCard from '../components/TileCard'
+import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './Journal.module.css'
 
 const fetcher = url => fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
@@ -312,7 +313,7 @@ export default function Journal() {
       {/* Trade list */}
       <TileCard title={`${tab === 'all' ? 'All' : tab.charAt(0).toUpperCase() + tab.slice(1)} Trades`}>
         {!entries ? (
-          <p className={styles.loading}>Loading…</p>
+          <SkeletonTileContent lines={5} />
         ) : entries.length === 0 ? (
           <div className={styles.empty}>
             <div className={styles.emptyIcon}>📓</div>

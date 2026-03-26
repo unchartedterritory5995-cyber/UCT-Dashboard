@@ -6,6 +6,7 @@ import CotData from './CotData'
 import BreadthCharts from './BreadthCharts'
 import { useTileCapture } from '../hooks/useTileCapture'
 import TickerPopup from '../components/TickerPopup'
+import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -422,7 +423,7 @@ function DrillModal({ drill, onClose }) {
           {/* ── Left: table ── */}
           <div className={styles.drillTablePanel}>
             {!drill.items ? (
-              <div className={styles.drillLoading}>Loading…</div>
+              <SkeletonTable rows={5} cols={3} />
             ) : items.length === 0 ? (
               <div className={styles.drillEmpty}>No stocks matched this filter on {drill.date}.</div>
             ) : (

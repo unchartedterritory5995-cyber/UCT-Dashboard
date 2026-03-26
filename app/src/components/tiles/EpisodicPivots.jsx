@@ -1,6 +1,7 @@
 // app/src/components/tiles/EpisodicPivots.jsx
 import useSWR from 'swr'
 import TileCard from '../TileCard'
+import { SkeletonTileContent } from '../Skeleton'
 import styles from './EpisodicPivots.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -10,7 +11,7 @@ export default function EpisodicPivots({ data: propData }) {
   const raw = propData !== undefined ? propData : fetched
   const data = Array.isArray(raw) ? raw.slice(0, 6) : []
 
-  if (raw === null) return <TileCard title="Episodic Pivots"><p className={styles.loading}>Loading…</p></TileCard>
+  if (raw === null) return <TileCard title="Episodic Pivots"><SkeletonTileContent lines={3} /></TileCard>
 
   return (
     <TileCard title="Episodic Pivots">

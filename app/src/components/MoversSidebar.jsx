@@ -1,7 +1,8 @@
 // app/src/components/MoversSidebar.jsx
 import { useState } from 'react'
-import useSWR from 'swr'
+import useMobileSWR from '../hooks/useMobileSWR'
 import TickerPopup from './TickerPopup'
+import { SkeletonTable } from './Skeleton'
 import styles from './MoversSidebar.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -31,7 +32,7 @@ function MoverSection({ label, items, positive }) {
 export default function MoversSidebar({ data: propData }) {
   const [open, setOpen] = useState(true)
 
-  const { data: fetched } = useSWR(
+  const { data: fetched } = useMobileSWR(
     propData !== undefined ? null : '/api/movers',
     fetcher,
     { refreshInterval: 30000 }
@@ -47,7 +48,7 @@ export default function MoversSidebar({ data: propData }) {
       {open && (
         <div className={styles.body}>
           {!data ? (
-            <p className={styles.loading}>Loading…</p>
+            <SkeletonTable rows={6} cols={2} />
           ) : (
             <div className={styles.scroll}>
               <div className={styles.moversGrid}>

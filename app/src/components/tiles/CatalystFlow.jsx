@@ -1,10 +1,11 @@
 // app/src/components/tiles/CatalystFlow.jsx
 import { useState, useRef } from 'react'
-import useSWR from 'swr'
+import useMobileSWR from '../../hooks/useMobileSWR'
 import TileCard from '../TileCard'
 import EarningsModal from './EarningsModal'
 import ErrorBoundary from '../ErrorBoundary'
 import { useTileCapture } from '../../hooks/useTileCapture'
+import { SkeletonTable } from '../Skeleton'
 import styles from './CatalystFlow.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -69,12 +70,12 @@ function EarningsTable({ rows, label, onSelect, liveGaps }) {
 }
 
 export default function CatalystFlow({ data: propData }) {
-  const { data: fetched } = useSWR(
+  const { data: fetched } = useMobileSWR(
     propData !== undefined ? null : '/api/earnings',
     fetcher,
     { refreshInterval: 300000 }
   )
-  const { data: liveGaps } = useSWR(
+  const { data: liveGaps } = useMobileSWR(
     '/api/earnings-gaps',
     fetcher,
     { refreshInterval: 30000 }
@@ -96,7 +97,7 @@ export default function CatalystFlow({ data: propData }) {
     </button>
   )
 
-  if (!data) return <TileCard title="Catalyst Flow"><p className={styles.loading}>Loading…</p></TileCard>
+  if (!data) return <TileCard title="Catalyst Flow"><SkeletonTable rows={5} cols={3} /></TileCard>
 
   return (
     <>

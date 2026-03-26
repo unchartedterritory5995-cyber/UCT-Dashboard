@@ -1,7 +1,8 @@
 // app/src/components/tiles/NewsFeed.jsx
-import useSWR from 'swr'
+import useMobileSWR from '../../hooks/useMobileSWR'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
+import { SkeletonTileContent } from '../Skeleton'
 import styles from './NewsFeed.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -53,7 +54,7 @@ function fmtChg(pct) {
 }
 
 export default function NewsFeed({ data: propData }) {
-  const { data: fetched, error } = useSWR(
+  const { data: fetched, error } = useMobileSWR(
     propData !== undefined ? null : '/api/news',
     fetcher,
     { refreshInterval: 300000 }
@@ -65,7 +66,7 @@ export default function NewsFeed({ data: propData }) {
       {error ? (
         <p className={styles.empty}>News unavailable</p>
       ) : !data ? (
-        <p className={styles.loading}>Loading…</p>
+        <SkeletonTileContent lines={5} />
       ) : data.length === 0 ? (
         <p className={styles.empty}>No stock news at this time</p>
       ) : (

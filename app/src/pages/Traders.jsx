@@ -1,11 +1,11 @@
-import useSWR from 'swr'
+import useMobileSWR from '../hooks/useMobileSWR'
 import TileCard from '../components/TileCard'
 import styles from './Traders.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
 export default function Traders() {
-  const { data: traders } = useSWR('/api/traders', fetcher, { refreshInterval: 60000 })
+  const { data: traders } = useMobileSWR('/api/traders', fetcher, { refreshInterval: 60000 })
 
   return (
     <div className={styles.page}>

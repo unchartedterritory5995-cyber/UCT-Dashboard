@@ -3,6 +3,7 @@ import useSWR from 'swr'
 import TileCard from '../TileCard'
 import MARelationship from './MARelationship'
 import { useTileCapture } from '../../hooks/useTileCapture'
+import { SkeletonTileContent } from '../Skeleton'
 import styles from './MarketBreadth.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -69,7 +70,7 @@ export default function MarketBreadth({ data: propData }) {
   )
 
   if (!data) {
-    return <TileCard title="UCT Exposure Rating"><p className={styles.loading}>Loading…</p></TileCard>
+    return <TileCard title="UCT Exposure Rating"><SkeletonTileContent lines={3} /></TileCard>
   }
 
   const phase = data.webster_phase ?? data.market_phase ?? ''

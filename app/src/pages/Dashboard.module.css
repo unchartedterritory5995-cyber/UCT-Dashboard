@@ -7,17 +7,17 @@
 .content {
   flex: 1;
   min-width: 0;
-  padding: 16px;
+  padding: var(--space-lg);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-md);
 }
 .row1 { width: 100%; }
 .row2 {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
+  gap: var(--space-md);
   align-items: stretch;
 }
 
@@ -35,7 +35,7 @@
   opacity: 0.3;
 }
 .comingSoonLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 3px;
@@ -46,12 +46,12 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   grid-template-rows: 390px;
-  gap: 12px;
+  gap: var(--space-md);
 }
 .row4 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: var(--space-md);
 }
 
 /* ── Hide mobile layout on desktop ────────────────────────────────────────── */
@@ -86,7 +86,7 @@
   .mSection {
     background: var(--bg-surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     overflow: hidden;
     transition: border-color 0.2s;
   }
@@ -126,7 +126,7 @@
   }
 
   .mSectionTitle {
-    font-family: 'Instrument Sans', sans-serif;
+    font-family: var(--font-sans);
     font-size: 14px;
     font-weight: 600;
     color: var(--text-bright);
@@ -139,7 +139,7 @@
   }
 
   .mSectionSub {
-    font-family: 'Instrument Sans', sans-serif;
+    font-family: var(--font-sans);
     font-size: 11px;
     color: var(--text-muted);
     white-space: nowrap;
@@ -148,7 +148,7 @@
   }
 
   .mChevron {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 18px;
     font-weight: 300;
     color: var(--text-muted);

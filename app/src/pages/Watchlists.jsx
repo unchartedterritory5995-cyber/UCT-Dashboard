@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import TileCard from '../components/TileCard'
+import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './Watchlists.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -163,7 +164,7 @@ export default function Watchlists() {
       </div>
 
       {!lists ? (
-        <p className={styles.loading}>Loading…</p>
+        <SkeletonTileContent lines={4} />
       ) : lists.length === 0 ? (
         <div className={styles.empty}>
           <div className={styles.emptyIcon}>{tab === 'mine' ? '📋' : '🌐'}</div>

@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import useSWR from 'swr'
+import useMobileSWR from '../hooks/useMobileSWR'
 import TickerPopup from '../components/TickerPopup'
 import CustomScan from './CustomScan'
+import { SkeletonTable } from '../components/Skeleton'
 import styles from './Screener.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -33,7 +34,7 @@ function TickerList({ rows }) {
 export default function Screener() {
   const [pageTab, setPageTab] = useState('scanner')
 
-  const { data, error } = useSWR('/api/candidates', fetcher, {
+  const { data, error } = useMobileSWR('/api/candidates', fetcher, {
     refreshInterval: 30 * 60 * 1000,
   })
 
@@ -72,7 +73,7 @@ export default function Screener() {
       {error ? (
         <div className={styles.emptyState}>Scanner data unavailable</div>
       ) : !data ? (
-        <div className={styles.emptyState}>Loading scanner data...</div>
+        <SkeletonTable rows={8} cols={3} />
       ) : pageTab === 'custom' ? (
         <CustomScan allCandidates={allCandidates} />
       ) : (

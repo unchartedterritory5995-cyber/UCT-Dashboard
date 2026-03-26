@@ -23,7 +23,7 @@
   align-items: center;
   padding-left: 12px;
   padding-right: 12px;
-  z-index: 300;
+  z-index: var(--z-nav);
   gap: 12px;
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -32,7 +32,7 @@
 
 .pageTitle {
   flex: 1;
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 15px;
   font-weight: 600;
   color: var(--text-bright);
@@ -54,8 +54,8 @@
   justify-content: center;
   align-items: center;
   gap: 5px;
-  width: 44px;
-  height: 44px;
+  width: var(--tap-min);
+  height: var(--tap-min);
   background: none;
   border: none;
   cursor: pointer;
@@ -93,7 +93,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  z-index: 399;
+  z-index: var(--z-backdrop);
   -webkit-tap-highlight-color: transparent;
   animation: fadeIn 0.2s ease;
 }
@@ -113,7 +113,7 @@
   max-width: 85vw;
   background: var(--bg-surface);
   border-right: 1px solid var(--border);
-  z-index: 400;
+  z-index: var(--z-drawer);
   transform: translateX(-100%);
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
@@ -136,7 +136,7 @@
 }
 
 .brand {
-  font-family: 'Cinzel', serif;
+  font-family: var(--font-display);
   font-size: 22px;
   font-weight: 700;
   color: var(--ut-green-bright);
@@ -144,7 +144,7 @@
 }
 
 .brandSub {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 500;
   color: var(--text-muted);
@@ -169,7 +169,7 @@
 
 .sectionLabel {
   padding: 10px 20px 4px;
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
@@ -185,7 +185,7 @@
   padding: 12px 20px;
   color: var(--text);
   text-decoration: none;
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 500;
   transition: background 0.15s, color 0.15s;

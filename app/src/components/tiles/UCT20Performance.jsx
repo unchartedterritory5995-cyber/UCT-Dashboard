@@ -1,10 +1,11 @@
 // app/src/components/tiles/UCT20Performance.jsx
 import { useState, useMemo } from 'react'
-import useSWR from 'swr'
+import useMobileSWR from '../../hooks/useMobileSWR'
 import {
   ResponsiveContainer, LineChart, Line,
   XAxis, YAxis, Tooltip, ReferenceLine,
 } from 'recharts'
+import { SkeletonChart } from '../Skeleton'
 import styles from './UCT20Performance.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -100,7 +101,7 @@ function StatBox({ label, value, className }) {
 }
 
 export default function UCT20Performance() {
-  const { data, isLoading } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
+  const { data, isLoading } = useMobileSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
   const [period, setPeriod]       = useState('ALL')
   const [tradesOpen, setTradesOpen] = useState(false)
 
@@ -125,7 +126,7 @@ export default function UCT20Performance() {
         <span className={styles.sectionSub}>$50K equal-weight · -6% hard stop · buys/sells at market open</span>
       </div>
 
-      {isLoading && <p className={styles.loading}>Loading portfolio data…</p>}
+      {isLoading && <SkeletonChart height={200} />}
       {!isLoading && !hasData && (
         <p className={styles.loading}>No portfolio data yet — run the Morning Wire engine to populate.</p>
       )}

@@ -1,8 +1,10 @@
-import { useState } from 'react'
-import useSWR from 'swr'
+import { useState, useCallback } from 'react'
+import useSWR, { useSWRConfig } from 'swr'
+import PullToRefresh from '../components/PullToRefresh'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
 import { useTileCapture } from '../hooks/useTileCapture'
+import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './MorningWire.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -160,7 +162,7 @@ function AnalystActivity({ analysts }) {
               {entries.map((a, i) => <AnalystEntry key={i} item={a} />)}
             </>
           : <span className={styles.noData}>
-              {analysts ? `No ${tab.replace('_', ' ')} today` : 'Loading…'}
+              {analysts ? `No ${tab.replace('_', ' ')} today` : <SkeletonTileContent lines={3} />}
             </span>
         }
       </div>
@@ -169,11 +171,18 @@ function AnalystActivity({ analysts }) {
 }
 
 export default function MorningWire() {
+  const { mutate } = useSWRConfig()
   const { data: rundown }  = useSWR('/api/rundown',         fetcher, { refreshInterval: 300000 })
   const { data: analysts } = useSWR('/api/analyst-actions', fetcher, { refreshInterval: 300000 })
   const { tileRef, capturing, capture } = useTileCapture('morning-wire')
 
+  const handleRefresh = useCallback(() => Promise.all([
+    mutate('/api/rundown'),
+    mutate('/api/analyst-actions'),
+  ]), [mutate])
+
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className={styles.page}>
 
       {/* ── Page header ─────────────────────────────────────────── */}
@@ -209,5 +218,6 @@ export default function MorningWire() {
       <AnalystActivity analysts={analysts} />
 
     </div>
+    </PullToRefresh>
   )
 }

@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react'
+import { useSWRConfig } from 'swr'
+import PullToRefresh from '../components/PullToRefresh'
 import FuturesStrip from '../components/tiles/FuturesStrip'
 import IntradayPulse from '../components/tiles/IntradayPulse'
 import MarketBreadth from '../components/tiles/MarketBreadth'
@@ -34,12 +36,15 @@ function MobileSection({ icon, title, subtitle, children, expanded, onToggle }) 
 }
 
 export default function Dashboard() {
+  const { mutate } = useSWRConfig()
   // Mobile accordion state — exposure expanded by default (most important)
   const [openSection, setOpenSection] = useState('exposure')
 
   const toggle = useCallback((key) => {
     setOpenSection(prev => prev === key ? null : key)
   }, [])
+
+  const handleRefresh = useCallback(() => mutate(() => true, undefined, { revalidate: true }), [mutate])
 
   return (
     <div className={styles.page}>
@@ -82,6 +87,7 @@ export default function Dashboard() {
 
         {/* ── Mobile layout (hidden on desktop) ──────────────────────────── */}
         <div className={styles.mobileOnly}>
+          <PullToRefresh onRefresh={handleRefresh}>
           <MobileSection
             icon="📊"
             title="UCT Exposure Rating"
@@ -141,6 +147,7 @@ export default function Dashboard() {
           >
             <NewsFeed />
           </MobileSection>
+          </PullToRefresh>
         </div>
 
       </div>

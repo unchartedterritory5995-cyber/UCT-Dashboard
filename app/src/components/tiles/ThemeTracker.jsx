@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
 import { useTileCapture } from '../../hooks/useTileCapture'
+import { SkeletonTileContent } from '../Skeleton'
 import styles from './ThemeTracker.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
@@ -139,7 +140,7 @@ export default function ThemeTracker({ data: propData }) {
       </div>
 
       {!data ? (
-        <p className={styles.loading}>Loading…</p>
+        <SkeletonTileContent lines={6} />
       ) : (
         <div className={styles.cols}>
           <div className={styles.col}>

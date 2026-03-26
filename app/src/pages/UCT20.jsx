@@ -1,10 +1,12 @@
 // app/src/pages/UCT20.jsx
-import { useState, useMemo } from 'react'
-import useSWR from 'swr'
+import { useState, useMemo, useCallback } from 'react'
+import useSWR, { useSWRConfig } from 'swr'
+import PullToRefresh from '../components/PullToRefresh'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
 import UCT20Performance from '../components/tiles/UCT20Performance'
 import UCT20Backtest from '../components/tiles/UCT20Backtest'
+import { SkeletonTable } from '../components/Skeleton'
 import styles from './UCT20.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -150,9 +152,15 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew }) {
 }
 
 export default function UCT20() {
+  const { mutate } = useSWRConfig()
   const { data: rows }    = useSWR('/api/leadership',      fetcher, { refreshInterval: 3600000 })
   const { data: portData } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
   const [expandedIdx, setExpandedIdx] = useState(null)
+
+  const handleRefresh = useCallback(() => Promise.all([
+    mutate('/api/leadership'),
+    mutate('/api/uct20/portfolio'),
+  ]), [mutate])
 
   const stocks = Array.isArray(rows) ? rows.slice(0, 20) : []
 
@@ -176,6 +184,7 @@ export default function UCT20() {
   }
 
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.heading}>UCT 20</h1>
@@ -193,7 +202,7 @@ export default function UCT20() {
         }
       >
         {!rows ? (
-          <p className={styles.loading}>Loading…</p>
+          <SkeletonTable rows={8} cols={3} />
         ) : stocks.length === 0 ? (
           <p className={styles.loading}>No leadership data yet. Run the Morning Wire engine to populate.</p>
         ) : (
@@ -220,5 +229,6 @@ export default function UCT20() {
         <UCT20Backtest />
       </TileCard>
     </div>
+    </PullToRefresh>
   )
 }

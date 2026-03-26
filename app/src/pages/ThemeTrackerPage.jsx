@@ -1,6 +1,7 @@
 // app/src/pages/ThemeTrackerPage.jsx
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import useSWR from 'swr'
+import useMobileSWR from '../hooks/useMobileSWR'
+import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './ThemeTrackerPage.module.css'
 import StockChart from '../components/StockChart'
 
@@ -84,7 +85,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
 
 export default function ThemeTrackerPage() {
   const [activeTab, setActiveTab] = useState('1W')
-  const { data, isLoading } = useSWR('/api/theme-performance', fetcher, {
+  const { data, isLoading } = useMobileSWR('/api/theme-performance', fetcher, {
     refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 30_000,
     dedupingInterval: 10_000,
     revalidateOnFocus: false,
@@ -247,9 +248,9 @@ export default function ThemeTrackerPage() {
 
         <div className={styles.tableBody}>
           {(isLoading || isComputing) && (
-            <p className={styles.loading}>
-              {isComputing ? 'Computing returns… ready in ~30s' : 'Loading theme data…'}
-            </p>
+            isComputing
+              ? <p className={styles.loading}>Computing returns… ready in ~30s</p>
+              : <SkeletonTileContent lines={6} />
           )}
           {!isLoading && !isComputing && (!data || data.themes?.length === 0) && (
             <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>

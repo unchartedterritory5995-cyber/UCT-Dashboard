@@ -1,6 +1,6 @@
 // app/src/components/tiles/MARelationship.jsx
 // SPY + QQQ price relationship to 9EMA, 20EMA, 50SMA, 200SMA
-import useSWR from 'swr'
+import useMobileSWR from '../../hooks/useMobileSWR'
 import styles from './MARelationship.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -59,7 +59,7 @@ function TickerCol({ ticker, data, livePrice, chg, chgCss }) {
 export default function MARelationship({ maData }) {
   if (!maData || (!maData.spy && !maData.qqq)) return null
 
-  const { data: snapData } = useSWR('/api/snapshot', fetcher, { refreshInterval: 15000 })
+  const { data: snapData } = useMobileSWR('/api/snapshot', fetcher, { refreshInterval: 15000 })
 
   return (
     <div className={styles.wrap}>
