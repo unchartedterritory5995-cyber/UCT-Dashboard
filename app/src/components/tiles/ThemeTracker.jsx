@@ -79,8 +79,27 @@ function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, posi
   )
 }
 
+const MOBILE_LIMIT = 12
+
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth <= 640
+  )
+  useState(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(max-width: 640px)')
+    const handler = (e) => setMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  })
+  return mobile
+}
+
 export default function ThemeTracker({ data: propData }) {
   const [period, setPeriod] = useState('Today')
+  const [showAllLeaders, setShowAllLeaders] = useState(false)
+  const [showAllLaggards, setShowAllLaggards] = useState(false)
+  const isMobile = useIsMobile()
   const { data: fetched } = useSWR(
     propData !== undefined ? null : '/api/theme-performance',
     fetcher,
@@ -112,7 +131,7 @@ export default function ThemeTracker({ data: propData }) {
           <button
             key={p}
             className={`${styles.tab} ${period === p ? styles.tabActive : ''}`}
-            onClick={() => setPeriod(p)}
+            onClick={() => { setPeriod(p); setShowAllLeaders(false); setShowAllLaggards(false) }}
           >
             {p}
           </button>
@@ -128,9 +147,34 @@ export default function ThemeTracker({ data: propData }) {
               ▲ LEADERS ({(data.leaders ?? []).length})
             </div>
             <div className={styles.scroll}>
-              {(data.leaders ?? []).map(item => (
-                <ThemeRow key={item.ticker} {...item} positive />
-              ))}
+              {(() => {
+                const all = data.leaders ?? []
+                const limited = isMobile && !showAllLeaders && all.length > MOBILE_LIMIT
+                const visible = limited ? all.slice(0, MOBILE_LIMIT) : all
+                return (
+                  <>
+                    {visible.map(item => (
+                      <ThemeRow key={item.ticker} {...item} positive />
+                    ))}
+                    {limited && (
+                      <button
+                        className={styles.showAllBtn}
+                        onClick={() => setShowAllLeaders(true)}
+                      >
+                        Show all {all.length} themes ▾
+                      </button>
+                    )}
+                    {isMobile && showAllLeaders && all.length > MOBILE_LIMIT && (
+                      <button
+                        className={styles.showAllBtn}
+                        onClick={() => setShowAllLeaders(false)}
+                      >
+                        Show less ▴
+                      </button>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           </div>
           <div className={styles.col}>
@@ -138,9 +182,34 @@ export default function ThemeTracker({ data: propData }) {
               ▼ LAGGARDS ({(data.laggards ?? []).length})
             </div>
             <div className={styles.scroll}>
-              {(data.laggards ?? []).map(item => (
-                <ThemeRow key={item.ticker} {...item} positive={false} />
-              ))}
+              {(() => {
+                const all = data.laggards ?? []
+                const limited = isMobile && !showAllLaggards && all.length > MOBILE_LIMIT
+                const visible = limited ? all.slice(0, MOBILE_LIMIT) : all
+                return (
+                  <>
+                    {visible.map(item => (
+                      <ThemeRow key={item.ticker} {...item} positive={false} />
+                    ))}
+                    {limited && (
+                      <button
+                        className={styles.showAllBtn}
+                        onClick={() => setShowAllLaggards(true)}
+                      >
+                        Show all {all.length} themes ▾
+                      </button>
+                    )}
+                    {isMobile && showAllLaggards && all.length > MOBILE_LIMIT && (
+                      <button
+                        className={styles.showAllBtn}
+                        onClick={() => setShowAllLaggards(false)}
+                      >
+                        Show less ▴
+                      </button>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           </div>
         </div>
