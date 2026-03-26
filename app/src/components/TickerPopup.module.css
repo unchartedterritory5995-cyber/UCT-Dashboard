@@ -60,6 +60,26 @@
   color: var(--ut-cream);
   letter-spacing: 2px;
 }
+.modalPrice {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ut-cream);
+  margin-left: 12px;
+}
+.modalChange {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: 8px;
+  margin-right: auto;
+}
+.modalChangeUp {
+  color: var(--ut-green-bright);
+}
+.modalChangeDown {
+  color: var(--ut-red, #ef4444);
+}
 .closeBtn {
   background: none;
   border: none;

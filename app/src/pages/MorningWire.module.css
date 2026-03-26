@@ -626,10 +626,38 @@
 .aePtUp { border-left-color: rgba(201,168,76,0.7); }
 .aePtDn { border-left-color: rgba(200,60,60,0.7); }
 
+.aeTickerCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
 .aeTicker {
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
+}
+
+.aeLive {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.aeLivePrice {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.aeLiveChg {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .aeBadge {
@@ -724,6 +752,12 @@
     padding: 8px 0 8px 2px;
     border-bottom: 1px solid var(--border);
     align-items: center;
+  }
+
+  .aeTickerCol {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
   }
 
   .aeTicker {

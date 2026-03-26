@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import useSWR from 'swr'
+import useLivePrices from '../hooks/useLivePrices'
 import TileCard from '../components/TileCard'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './Watchlists.module.css'
@@ -22,6 +23,14 @@ export default function Watchlists() {
   )
 
   const lists = tab === 'mine' ? myLists : publicLists
+
+  // Extract all tickers from current detail view for live pricing
+  const allTickers = useMemo(() => {
+    if (!detail?.items) return []
+    return detail.items.map(item => item.sym).filter(Boolean)
+  }, [detail])
+
+  const { prices } = useLivePrices(allTickers)
 
   async function handleCreate(e) {
     e.preventDefault()
@@ -123,22 +132,35 @@ export default function Watchlists() {
               <thead>
                 <tr>
                   <th>Symbol</th>
+                  <th className={styles.thPrice}>Price</th>
+                  <th className={styles.thChange}>Chg%</th>
                   <th>Notes</th>
                   <th>Added</th>
                   {isOwner && <th></th>}
                 </tr>
               </thead>
               <tbody>
-                {detail.items.map(item => (
-                  <tr key={item.id}>
-                    <td className={styles.itemSym}>{item.sym}</td>
-                    <td className={styles.itemNotes}>{item.notes || '—'}</td>
-                    <td className={styles.itemDate}>{item.added_at ? new Date(item.added_at).toLocaleDateString() : '—'}</td>
-                    {isOwner && (
-                      <td><button className={styles.removeBtn} onClick={() => handleRemoveItem(item.id)}>✕</button></td>
-                    )}
-                  </tr>
-                ))}
+                {detail.items.map(item => {
+                  const q = prices[item.sym]
+                  const price = q?.price ?? null
+                  const changePct = q?.change_pct ?? null
+                  return (
+                    <tr key={item.id}>
+                      <td className={styles.itemSym}>{item.sym}</td>
+                      <td className={styles.itemPrice}>
+                        {price != null ? `$${price.toFixed(2)}` : '—'}
+                      </td>
+                      <td className={`${styles.itemChange} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}>
+                        {changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(1)}%` : '—'}
+                      </td>
+                      <td className={styles.itemNotes}>{item.notes || '—'}</td>
+                      <td className={styles.itemDate}>{item.added_at ? new Date(item.added_at).toLocaleDateString() : '—'}</td>
+                      {isOwner && (
+                        <td><button className={styles.removeBtn} onClick={() => handleRemoveItem(item.id)}>✕</button></td>
+                      )}
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           )}

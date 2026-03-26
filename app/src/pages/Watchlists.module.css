@@ -61,6 +61,13 @@
 .removeBtn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 2px 6px; }
 .removeBtn:hover { color: var(--loss); }
 
+/* Live price columns */
+.thPrice, .thChange { text-align: right; }
+.itemPrice { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); text-align: right; white-space: nowrap; }
+.itemChange { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; text-align: right; white-space: nowrap; }
+.gain { color: var(--gain); }
+.loss { color: var(--loss); }
+
 /* Create modal */
 .modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; display: flex; align-items: center; justify-content: center; }
 .modal { background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: 10px; padding: 20px; width: 380px; max-width: 90vw; }

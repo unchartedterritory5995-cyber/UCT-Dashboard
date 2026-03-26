@@ -1,5 +1,6 @@
 // app/src/components/TickerPopup.jsx
 import { useState, useEffect, lazy, Suspense } from 'react'
+import useLivePrices from '../hooks/useLivePrices'
 import styles from './TickerPopup.module.css'
 
 const StockChart = lazy(() => import('./StockChart'))
@@ -15,6 +16,10 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
   const [modalOpen, setModalOpen] = useState(false)
 
   const [tab, setTab] = useState('Daily')
+
+  // Fetch live price only when modal is open
+  const { prices } = useLivePrices(modalOpen && sym ? [sym] : [])
+  const liveData = prices[sym]
 
   // Disable hover preview on touch devices (gets stuck on mobile)
   const isTouchDevice = typeof window !== 'undefined' &&
@@ -65,6 +70,14 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
           >
             <div className={styles.modalHeader}>
               <span className={styles.modalSym}>{sym}</span>
+              {liveData && (
+                <>
+                  <span className={styles.modalPrice}>${liveData.price?.toFixed(2)}</span>
+                  <span className={`${styles.modalChange} ${liveData.change_pct >= 0 ? styles.modalChangeUp : styles.modalChangeDown}`}>
+                    {liveData.change_pct >= 0 ? '+' : ''}{liveData.change_pct?.toFixed(2)}%
+                  </span>
+                </>
+              )}
               <button
                 className={styles.closeBtn}
                 onClick={() => setModalOpen(false)}

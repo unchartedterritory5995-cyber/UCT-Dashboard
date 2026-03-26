@@ -249,11 +249,11 @@
   padding: 4px 2px;
 }
 
-/* ── Earnings grid — 7 fixed columns ─────────────────────────────────────── */
-/*  TICKER | EPS EST | EPS ACT | SURP% | REVENUE | GAP% | VERDICT           */
+/* ── Earnings grid — 8 fixed columns ─────────────────────────────────────── */
+/*  TICKER | PRICE | EPS EST | EPS ACT | SURP% | REVENUE | GAP% | VERDICT   */
 .gridCols {
   display: grid;
-  grid-template-columns: 76px 66px 66px 54px 1fr 62px 50px;
+  grid-template-columns: 76px 62px 66px 66px 54px 1fr 62px 50px;
   align-items: center;
   gap: 0 6px;
 }
@@ -288,6 +288,16 @@
 
 /* grid cells — all right-aligned except ticker */
 .colTicker { /* left-align handled by TickerPopup */ }
+
+.colLivePrice {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: right;
+  white-space: nowrap;
+  opacity: 0.8;
+}
 
 .colVal {
   font-family: var(--font-mono);

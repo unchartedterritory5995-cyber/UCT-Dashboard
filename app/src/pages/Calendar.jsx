@@ -1,6 +1,7 @@
 // app/src/pages/Calendar.jsx
-import { useState } from 'react'
-import useSWR from 'swr'
+import { useState, useMemo } from 'react'
+import useMobileSWR from '../hooks/useMobileSWR'
+import useLivePrices from '../hooks/useLivePrices'
 import TickerPopup from '../components/TickerPopup'
 import EarningsModal from '../components/tiles/EarningsModal'
 import ErrorBoundary from '../components/ErrorBoundary'
@@ -128,6 +129,7 @@ function GridHeader() {
   return (
     <div className={styles.gridHeader}>
       <span className={styles.colHead}>Ticker</span>
+      <span className={`${styles.colHead} ${styles.hideOnMobile}`}>Price</span>
       <span className={`${styles.colHead} ${styles.hideOnMobile}`}>EPS Est</span>
       <span className={`${styles.colHead} ${styles.hideOnMobile}`}>EPS Act</span>
       <span className={styles.colHead}>Surp %</span>
@@ -140,7 +142,7 @@ function GridHeader() {
 
 // ── Earnings ticker row ────────────────────────────────────────────────────────
 
-function TickerRow({ entry, reaction, onClick }) {
+function TickerRow({ entry, reaction, livePrice, onClick }) {
   const v         = verdict(entry.eps_act, entry.eps_est)
   const pill      = pillLabel(v)
   const reported  = entry.eps_act != null
@@ -165,6 +167,11 @@ function TickerRow({ entry, reaction, onClick }) {
     ? styles.reactionNeutral
     : surprFmt.startsWith('+') ? styles.reactionPos : styles.reactionNeg
 
+  // Format live price
+  const priceFmt = livePrice != null
+    ? `$${livePrice.toFixed(2)}`
+    : '—'
+
   return (
     <div className={styles.tickerRow} onClick={onClick} role="button" tabIndex={0}
          onKeyDown={e => e.key === 'Enter' && onClick()}>
@@ -172,23 +179,26 @@ function TickerRow({ entry, reaction, onClick }) {
       {/* Col 1 — Ticker */}
       <span className={styles.colTicker}><TickerPopup sym={entry.sym} /></span>
 
-      {/* Col 2 — EPS Est */}
+      {/* Col 2 — Live Price */}
+      <span className={`${styles.colLivePrice} ${styles.hideOnMobile}`}>{priceFmt}</span>
+
+      {/* Col 3 — EPS Est */}
       <span className={`${styles.colValDim} ${styles.hideOnMobile}`}>{reported ? estFmt : (estFmt !== '—' ? estFmt : '—')}</span>
 
-      {/* Col 3 — EPS Act */}
+      {/* Col 4 — EPS Act */}
       <span className={`${styles.colValBright} ${reported ? epsActClass(entry.eps_act, entry.eps_est, styles) : styles.colValDim} ${styles.hideOnMobile}`}>
         {reported ? actFmt : '—'}
       </span>
 
-      {/* Col 4 — Surprise % */}
+      {/* Col 5 — Surprise % */}
       <span className={surprFmt != null ? surprClass : styles.reactionNeutral}>
         {surprFmt ?? '—'}
       </span>
 
-      {/* Col 5 — Revenue */}
+      {/* Col 6 — Revenue */}
       <span className={`${styles.colValDim} ${styles.hideOnMobile}`}>{revFmt}</span>
 
-      {/* Col 6 — Gap % */}
+      {/* Col 7 — Gap % */}
       {reactionFmt ? (
         <span className={reaction >= 0 ? styles.reactionPos : styles.reactionNeg}>
           {reactionFmt}
@@ -197,7 +207,7 @@ function TickerRow({ entry, reaction, onClick }) {
         <span className={styles.reactionNeutral}>—</span>
       )}
 
-      {/* Col 7 — Verdict pill */}
+      {/* Col 8 — Verdict pill */}
       {pill ? (
         <span className={pillClass(v, styles)}>{pill}</span>
       ) : (
@@ -241,22 +251,29 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
   const [volFilter,   setVolFilter]   = useState('300k')
 
   // Live price reactions for reported tickers (30s)
-  const { data: reactions } = useSWR(
+  const { data: reactions } = useMobileSWR(
     `/api/calendar/reactions?date=${activeDate}`,
     fetcher,
-    { refreshInterval: 30_000, revalidateOnFocus: false }
+    { refreshInterval: 30_000, revalidateOnFocus: false, marketHoursOnly: true }
   )
 
   // Price / avg-vol / mc metrics for filter bar (2 min)
-  const { data: metrics } = useSWR(
+  const { data: metrics } = useMobileSWR(
     `/api/calendar/day-metrics?date=${activeDate}`,
     fetcher,
-    { refreshInterval: 2 * 60_000, revalidateOnFocus: false }
+    { refreshInterval: 2 * 60_000, revalidateOnFocus: false, marketHoursOnly: true }
   )
 
   const dayData = days[activeDate] || {}
   const rawBmo = dayData.bmo || []
   const rawAmc = dayData.amc || []
+
+  // Extract tickers for the active day and fetch live prices
+  const todayTickers = useMemo(
+    () => [...rawBmo, ...rawAmc].map(e => e.sym),
+    [rawBmo, rawAmc]
+  )
+  const { prices: livePrices } = useLivePrices(todayTickers)
 
   const bmo = applyFilters(rawBmo, metrics, mcFilter, priceFilter, volFilter)
   const amc = applyFilters(rawAmc, metrics, mcFilter, priceFilter, volFilter)
@@ -324,6 +341,7 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
                   key={e.sym}
                   entry={e}
                   reaction={reactions?.[e.sym]}
+                  livePrice={livePrices[e.sym]?.price}
                   onClick={() => onSelectEntry(e, 'BEFORE MARKET OPEN')}
                 />
               ))}
@@ -348,6 +366,7 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
                   key={e.sym}
                   entry={e}
                   reaction={reactions?.[e.sym]}
+                  livePrice={livePrices[e.sym]?.price}
                   onClick={() => onSelectEntry(e, 'AFTER MARKET CLOSE')}
                 />
               ))}
@@ -438,9 +457,10 @@ function EconPanel({ days, weekDates }) {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function Calendar() {
-  const { data, error } = useSWR('/api/calendar', fetcher, {
+  const { data, error } = useMobileSWR('/api/calendar', fetcher, {
     refreshInterval: 5 * 60 * 1000,
     revalidateOnFocus: false,
+    marketHoursOnly: true,
   })
 
   const [selected, setSelected] = useState(null)   // { row, label }

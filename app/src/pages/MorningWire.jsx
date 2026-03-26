@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
+import useLivePrices from '../hooks/useLivePrices'
 import { useTileCapture } from '../hooks/useTileCapture'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './MorningWire.module.css'
@@ -79,14 +80,28 @@ function _borderClass(action) {
   return ''
 }
 
-function AnalystEntry({ item }) {
+function AnalystEntry({ item, liveData }) {
   const { ticker, action, firm, from_rating, to_rating, price_target, implied_upside } = item
   const hasChange = from_rating && to_rating && from_rating !== to_rating
   const isPos = implied_upside ? implied_upside.startsWith('+') : null
+  const livePrice = liveData?.price ?? null
+  const liveChg = liveData?.change_pct ?? null
 
   return (
     <div className={`${styles.aeEntry} ${_borderClass(action)}`}>
-      <TickerPopup sym={ticker} className={styles.aeTicker} />
+      <span className={styles.aeTickerCol}>
+        <TickerPopup sym={ticker} className={styles.aeTicker} />
+        {livePrice != null && (
+          <span className={styles.aeLive}>
+            <span className={styles.aeLivePrice}>${livePrice.toFixed(2)}</span>
+            {liveChg != null && (
+              <span className={`${styles.aeLiveChg} ${liveChg >= 0 ? styles.gainText : styles.lossText}`}>
+                {liveChg >= 0 ? '+' : ''}{liveChg.toFixed(1)}%
+              </span>
+            )}
+          </span>
+        )}
+      </span>
       <span className={`${styles.aeBadge} ${_badgeClass(action)}`}>{action}</span>
       <span className={styles.aeMid}>
         {firm && <span className={styles.aeFirm}>{firm}</span>}
@@ -118,6 +133,21 @@ function AnalystActivity({ analysts }) {
   const [tab, setTab] = useState('upgrades')
   const summary = analysts?.summary || {}
   const entries = analysts?.[tab] || []
+
+  // Collect all unique tickers across all tabs for live pricing
+  const allTickers = useMemo(() => {
+    if (!analysts) return []
+    const tickers = []
+    for (const key of ['upgrades', 'downgrades', 'pt_changes']) {
+      const items = analysts[key] || []
+      for (const item of items) {
+        if (item.ticker) tickers.push(item.ticker)
+      }
+    }
+    return [...new Set(tickers)]
+  }, [analysts])
+
+  const { prices } = useLivePrices(allTickers)
 
   return (
     <div className={styles.analystBlock}>
@@ -159,7 +189,9 @@ function AnalystActivity({ analysts }) {
                 <span style={{textAlign:'right'}}>Price Target</span>
                 <span style={{textAlign:'right'}}>vs Current</span>
               </div>
-              {entries.map((a, i) => <AnalystEntry key={i} item={a} />)}
+              {entries.map((a, i) => (
+                <AnalystEntry key={i} item={a} liveData={prices[a.ticker] ?? null} />
+              ))}
             </>
           : <span className={styles.noData}>
               {analysts ? `No ${tab.replace('_', ' ')} today` : <SkeletonTileContent lines={3} />}
