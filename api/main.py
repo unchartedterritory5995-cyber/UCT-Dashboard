@@ -13,6 +13,7 @@ import sentry_sdk
 from api.limiter import limiter
 from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts, calendar as calendar_router, bars as bars_router
 from api.routers import cot as cot_router
+from api.routers import live_prices as live_prices_router
 from api.routers import breadth_monitor as breadth_monitor_router
 from api.routers import theme_performance as theme_performance_router
 from api.services import cot_service as _cot_service
@@ -158,6 +159,7 @@ app.include_router(alerts_router.router)
 app.include_router(journal_router.router)
 app.include_router(watchlists_router.router)
 app.include_router(community_router.router)
+app.include_router(live_prices_router.router)
 
 # ─── CSV routes: serve from app/public/ directly (bypasses Vite build cache) ──
 PUBLIC = os.path.join(os.path.dirname(__file__), "..", "app", "public")

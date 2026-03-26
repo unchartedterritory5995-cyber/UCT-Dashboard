@@ -1,5 +1,5 @@
 // app/src/components/tiles/MarketBreadth.jsx
-import useSWR from 'swr'
+import useMobileSWR from '../../hooks/useMobileSWR'
 import TileCard from '../TileCard'
 import MARelationship from './MARelationship'
 import { useTileCapture } from '../../hooks/useTileCapture'
@@ -54,7 +54,7 @@ function ExposureBar({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function MarketBreadth({ data: propData }) {
-  const { data: fetched } = useSWR(propData !== undefined ? null : '/api/breadth', fetcher)
+  const { data: fetched } = useMobileSWR(propData !== undefined ? null : '/api/breadth', fetcher, { refreshInterval: 60000, marketHoursOnly: true })
   const data = propData !== undefined ? propData : fetched
   const { tileRef, capturing, capture } = useTileCapture('breadth')
 

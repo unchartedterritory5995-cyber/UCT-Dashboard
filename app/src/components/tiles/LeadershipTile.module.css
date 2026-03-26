@@ -55,6 +55,24 @@
   text-transform: uppercase;
 }
 
+.livePrice {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.liveChange {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.gain { color: var(--gain); }
+.loss { color: var(--loss); }
+
 .score {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;

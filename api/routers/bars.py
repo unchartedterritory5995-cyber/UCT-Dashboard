@@ -1,12 +1,13 @@
 """OHLCV bar data endpoint — serves JSON bars for client-side charting (Lightweight Charts v5).
 
 Daily/Weekly: Massive API (Polygon-compatible) via get_agg_bars()
-Intraday (5/30/60 min): yfinance
+Intraday (5/30/60 min): Massive API agg endpoint (yfinance fallback)
 """
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from api.services.cache import cache
+from api.services.massive import _get_client, _REST_BASE
 
 router = APIRouter()
 
@@ -53,8 +54,46 @@ def _resample_weekly(daily_bars: list[dict]) -> list[dict]:
     return result
 
 
-def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
-    """Fetch intraday bars from yfinance."""
+def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
+    """Fetch intraday bars from Massive API agg endpoint.
+
+    tf='5':  5-min bars, last 5 trading days
+    tf='30': 30-min bars, last 30 trading days
+    tf='60': 60-min bars, last 30 trading days
+    """
+    multiplier = int(tf)  # 5, 30, or 60
+    lookback_days = 5 if tf == '5' else 30
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+    from_date = (datetime.utcnow() - timedelta(days=lookback_days + 3)).strftime("%Y-%m-%d")
+
+    try:
+        client = _get_client()
+        url = (
+            f"{_REST_BASE}/v2/aggs/ticker/{ticker.upper()}/range/{multiplier}/minute"
+            f"/{from_date}/{to_date}"
+            f"?adjusted=true&sort=asc&limit=5000&apiKey={client._api_key}"
+        )
+        data = client._get(url)
+        results = data.get("results") or []
+        if not results:
+            return []
+        bars = []
+        for bar in results:
+            bars.append({
+                "t": int(bar["t"] / 1000),  # ms → unix seconds for LW Charts UTCTimestamp
+                "o": round(bar["o"], 2),
+                "h": round(bar["h"], 2),
+                "l": round(bar["l"], 2),
+                "c": round(bar["c"], 2),
+                "v": int(bar.get("v", 0)),
+            })
+        return bars[-max_bars:]
+    except Exception:
+        return []
+
+
+def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
+    """Fetch intraday bars from yfinance (fallback)."""
     import yfinance as yf
     config = _YF_CONFIG.get(tf)
     if not config:
@@ -80,6 +119,14 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         return bars[-max_bars:]
     except Exception:
         return []
+
+
+def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
+    """Fetch intraday bars — Massive API primary, yfinance fallback."""
+    bars = _fetch_intraday_massive(ticker, tf, max_bars)
+    if bars:
+        return bars
+    return _fetch_intraday_yfinance(ticker, tf, max_bars)
 
 
 def _fetch_daily(ticker: str, max_bars: int) -> list[dict]:

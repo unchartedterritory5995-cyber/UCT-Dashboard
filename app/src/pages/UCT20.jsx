@@ -7,6 +7,7 @@ import TickerPopup from '../components/TickerPopup'
 import UCT20Performance from '../components/tiles/UCT20Performance'
 import UCT20Backtest from '../components/tiles/UCT20Backtest'
 import { SkeletonTable } from '../components/Skeleton'
+import useLivePrices from '../hooks/useLivePrices'
 import styles from './UCT20.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -39,7 +40,7 @@ function TradeBar({ entry, stop, target1, target2 }) {
   )
 }
 
-function StockCard({ item, rank, expanded, onToggle, posData, isNew }) {
+function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData }) {
   const sym           = item.ticker ?? item.sym ?? item.symbol ?? '—'
   const score         = item.score ?? item.rs_score ?? null
   const company       = item.company ?? ''
@@ -47,7 +48,15 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew }) {
   const hasStructured = !!(item.company_desc || item.catalyst_text || item.price_action)
   const legacyThesis  = item.thesis ?? ''
 
-  const pctStr  = fmtPct(posData?.pct_return ?? null)
+  // Live return overrides stale wire return when portfolio + live price available
+  const livePrice = liveData?.price ?? null
+  const liveChangePct = liveData?.change_pct ?? null
+  const liveReturn = (livePrice && posData?.entry_price)
+    ? (livePrice - posData.entry_price) / posData.entry_price * 100
+    : null
+  const displayReturn = liveReturn ?? posData?.pct_return ?? null
+
+  const pctStr  = fmtPct(displayReturn)
   const daysStr = posData?.days_held != null ? `${posData.days_held}d` : null
 
   // Build chart markers from portfolio data
@@ -96,11 +105,19 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew }) {
         <TickerPopup sym={sym} markers={chartMarkers} priceLines={chartPriceLines}>
           <span className={styles.sym}>{sym}</span>
         </TickerPopup>
+        {livePrice != null && (
+          <span className={styles.livePrice}>${livePrice.toFixed(2)}</span>
+        )}
+        {liveChangePct != null && (
+          <span className={`${styles.liveChange} ${liveChangePct >= 0 ? styles.gain : styles.loss}`}>
+            {liveChangePct >= 0 ? '+' : ''}{liveChangePct.toFixed(1)}%
+          </span>
+        )}
         {company && <span className={styles.companyName}>{company}</span>}
         <div className={styles.cardRowRight}>
           <span className={styles.newSlot}>{isNew && <span className={styles.newBadge}>NEW</span>}</span>
           <span className={styles.daysOnList}>{daysStr ?? ''}</span>
-          <span className={`${styles.posReturn} ${(posData?.pct_return ?? 0) >= 0 ? styles.gain : styles.loss}`}>
+          <span className={`${styles.posReturn} ${(displayReturn ?? 0) >= 0 ? styles.gain : styles.loss}`}>
             {pctStr ?? ''}
           </span>
           <span className={styles.score}>
@@ -164,6 +181,13 @@ export default function UCT20() {
 
   const stocks = Array.isArray(rows) ? rows.slice(0, 20) : []
 
+  // Extract all tickers for live pricing
+  const allTickers = useMemo(() =>
+    stocks.map(item => item.ticker ?? item.sym ?? item.symbol).filter(Boolean),
+    [stocks]
+  )
+  const { prices } = useLivePrices(allTickers)
+
   // Build symbol → position data map from portfolio open positions
   const posMap = useMemo(() => {
     const map = {}
@@ -220,6 +244,7 @@ export default function UCT20() {
                   onToggle={() => toggle(i)}
                   posData={posData}
                   isNew={isNew}
+                  liveData={prices[sym] ?? null}
                 />
               )
             })}

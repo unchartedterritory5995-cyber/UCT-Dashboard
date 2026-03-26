@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
+import useLivePrices from '../hooks/useLivePrices'
 import TickerPopup from '../components/TickerPopup'
 import CustomScan from './CustomScan'
 import { SkeletonTable } from '../components/Skeleton'
@@ -12,7 +13,21 @@ const PAGE_TABS = [
   { key: 'custom',  label: 'Custom Scan' },
 ]
 
-function TickerList({ rows }) {
+function LivePrice({ ticker, prices }) {
+  const d = prices[ticker]
+  if (!d) return null
+  const pct = d.change_pct
+  const color = pct >= 0 ? 'var(--gain)' : 'var(--loss)'
+  const sign = pct >= 0 ? '+' : ''
+  return (
+    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+      <span style={{ color: 'var(--text-muted)' }}>${d.price?.toFixed(2)}</span>
+      <span style={{ color, minWidth: 48, textAlign: 'right' }}>{sign}{pct?.toFixed(2)}%</span>
+    </span>
+  )
+}
+
+function TickerList({ rows, prices }) {
   if (!rows || rows.length === 0) {
     return (
       <div className={styles.emptyState}>
@@ -23,8 +38,9 @@ function TickerList({ rows }) {
   return (
     <ul className={styles.tickerList}>
       {rows.map((row, i) => (
-        <li key={row.ticker || i} className={styles.tickerItem}>
+        <li key={row.ticker || i} className={styles.tickerItem} style={{ display: 'flex', alignItems: 'center' }}>
           <TickerPopup sym={row.ticker} />
+          <LivePrice ticker={row.ticker} prices={prices} />
         </li>
       ))}
     </ul>
@@ -50,6 +66,13 @@ export default function Screener() {
     ...remountRows,
     ...gapperRows,
   ]
+
+  // Live prices for all visible scanner tickers
+  const allTickers = useMemo(() =>
+    allCandidates.map(r => r.ticker).filter(Boolean),
+    [pullbackRows, remountRows, gapperRows]
+  )
+  const { prices } = useLivePrices(pageTab === 'scanner' ? allTickers : [])
 
   return (
     <div className={pageTab === 'custom' ? styles.containerFull : styles.container}>
@@ -88,7 +111,7 @@ export default function Screener() {
                 )}
               </div>
               <div className={styles.columnBody}>
-                <TickerList rows={pullbackRows} />
+                <TickerList rows={pullbackRows} prices={prices} />
               </div>
             </div>
 
@@ -100,7 +123,7 @@ export default function Screener() {
                 )}
               </div>
               <div className={styles.columnBody}>
-                <TickerList rows={remountRows} />
+                <TickerList rows={remountRows} prices={prices} />
               </div>
             </div>
 
@@ -112,7 +135,7 @@ export default function Screener() {
                 )}
               </div>
               <div className={styles.columnBody}>
-                <TickerList rows={gapperRows} />
+                <TickerList rows={gapperRows} prices={prices} />
               </div>
             </div>
 

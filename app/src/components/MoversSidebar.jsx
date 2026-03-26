@@ -36,7 +36,7 @@ export default function MoversSidebar({ data: propData }) {
   const { data: fetched, error, mutate } = useMobileSWR(
     propData !== undefined ? null : '/api/movers',
     fetcher,
-    { refreshInterval: 30000 }
+    { refreshInterval: 30000, marketHoursOnly: true }
   )
   const data = propData !== undefined ? propData : fetched
 

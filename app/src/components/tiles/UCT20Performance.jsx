@@ -101,7 +101,7 @@ function StatBox({ label, value, className }) {
 }
 
 export default function UCT20Performance() {
-  const { data, isLoading } = useMobileSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
+  const { data, isLoading } = useMobileSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 60000, marketHoursOnly: true })
   const [period, setPeriod]       = useState('ALL')
   const [tradesOpen, setTradesOpen] = useState(false)
 

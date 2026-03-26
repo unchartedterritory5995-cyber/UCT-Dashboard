@@ -1,6 +1,7 @@
 // app/src/components/tiles/LeadershipTile.jsx
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
+import useLivePrices from '../../hooks/useLivePrices'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
 import ErrorState from '../ErrorState'
@@ -10,9 +11,15 @@ import styles from './LeadershipTile.module.css'
 const fetcher = url => fetch(url).then(r => r.json())
 
 export default function LeadershipTile() {
-  const { data: rows, error, mutate } = useMobileSWR('/api/leadership', fetcher, { refreshInterval: 3600000 })
+  const { data: rows, error, mutate } = useMobileSWR('/api/leadership', fetcher, { refreshInterval: 30000, marketHoursOnly: true })
   const [expandedIdx, setExpandedIdx] = useState(null)
   const stocks = Array.isArray(rows) ? rows.slice(0, 20) : []
+
+  const allTickers = useMemo(() =>
+    stocks.map(item => item.ticker ?? item.sym ?? item.symbol).filter(Boolean),
+    [stocks]
+  )
+  const { prices } = useLivePrices(allTickers)
 
   function toggle(i) {
     setExpandedIdx(prev => prev === i ? null : i)
@@ -34,6 +41,7 @@ export default function LeadershipTile() {
             const thesis   = item.thesis ?? ''
             const cap      = item.cap_tier ?? ''
             const expanded = expandedIdx === i
+            const live     = prices[sym]
             return (
               <div key={sym} className={styles.row}>
                 <span className={styles.rank}>#{i + 1}</span>
@@ -42,6 +50,14 @@ export default function LeadershipTile() {
                     <TickerPopup sym={sym}>
                       <span className={styles.sym}>{sym}</span>
                     </TickerPopup>
+                    {live?.price != null && (
+                      <span className={styles.livePrice}>${live.price.toFixed(2)}</span>
+                    )}
+                    {live?.change_pct != null && (
+                      <span className={`${styles.liveChange} ${live.change_pct >= 0 ? styles.gain : styles.loss}`}>
+                        {live.change_pct >= 0 ? '+' : ''}{live.change_pct.toFixed(1)}%
+                      </span>
+                    )}
                     {cap && <span className={styles.cap}>{cap}</span>}
                     {score != null && (
                       <span className={styles.score}>RS {score.toFixed ? score.toFixed(1) : score}</span>

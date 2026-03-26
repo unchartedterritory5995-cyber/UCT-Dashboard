@@ -1,6 +1,7 @@
 // app/src/components/tiles/CatalystFlow.jsx
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
+import useLivePrices from '../../hooks/useLivePrices'
 import TileCard from '../TileCard'
 import EarningsModal from './EarningsModal'
 import ErrorBoundary from '../ErrorBoundary'
@@ -39,7 +40,7 @@ function GapCell({ value }) {
   return <span className={n >= 0 ? styles.pos : styles.neg}>{fmt}</span>
 }
 
-function EarningsTable({ rows, label, onSelect, liveGaps }) {
+function EarningsTable({ rows, label, onSelect, liveGaps, livePrices }) {
   if (!rows?.length) return null
   return (
     <div className={styles.tableWrap}>
@@ -48,6 +49,7 @@ function EarningsTable({ rows, label, onSelect, liveGaps }) {
         <thead>
           <tr>
             <th>Ticker</th>
+            <th className={styles.hideOnMobile}>Price</th>
             <th>Verdict</th>
             <th>Gap</th>
             <th className={styles.hideOnMobile}>EPS Act</th>
@@ -55,15 +57,25 @@ function EarningsTable({ rows, label, onSelect, liveGaps }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(row => (
-            <tr key={row.sym} className={styles.clickRow} onClick={() => onSelect(row, label)}>
-              <td><span className={styles.sym}>{row.sym}</span></td>
-              <td><VerdictPill verdict={row.verdict} /></td>
-              <td><GapCell value={liveGaps?.[row.sym] ?? row.change_pct} /></td>
-              <td className={styles.hideOnMobile}>{fmtEps(row.reported_eps)}</td>
-              <td className={styles.hideOnMobile}>{fmtRev(row.rev_actual)}</td>
-            </tr>
-          ))}
+          {rows.map(row => {
+            const lp = livePrices?.[row.sym]
+            return (
+              <tr key={row.sym} className={styles.clickRow} onClick={() => onSelect(row, label)}>
+                <td><span className={styles.sym}>{row.sym}</span></td>
+                <td className={styles.hideOnMobile}>
+                  {lp ? (
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+                      ${lp.price?.toFixed(2)}
+                    </span>
+                  ) : <span className={styles.muted}>—</span>}
+                </td>
+                <td><VerdictPill verdict={row.verdict} /></td>
+                <td><GapCell value={liveGaps?.[row.sym] ?? row.change_pct} /></td>
+                <td className={styles.hideOnMobile}>{fmtEps(row.reported_eps)}</td>
+                <td className={styles.hideOnMobile}>{fmtRev(row.rev_actual)}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -86,6 +98,17 @@ export default function CatalystFlow({ data: propData }) {
   const [selected, setSelected] = useState(null)
   const scrollBodyRef = useRef(null)
   const { tileRef, capturing, capture } = useTileCapture('earnings')
+
+  // Live prices for all earnings tickers
+  const earningsTickers = useMemo(() => {
+    if (!data) return []
+    return [
+      ...(data.bmo || []),
+      ...(data.amc_tonight || []),
+      ...(data.amc || []),
+    ].map(r => r.sym).filter(Boolean)
+  }, [data])
+  const { prices: livePrices } = useLivePrices(earningsTickers)
 
   const exportBtn = (
     <button
@@ -110,18 +133,21 @@ export default function CatalystFlow({ data: propData }) {
             label="BEFORE MARKET OPEN"
             onSelect={(row, label) => setSelected({ row, label })}
             liveGaps={liveGaps}
+            livePrices={livePrices}
           />
           <EarningsTable
             rows={data.amc_tonight}
             label="AFTER CLOSE · TONIGHT"
             onSelect={(row, label) => setSelected({ row, label })}
             liveGaps={liveGaps}
+            livePrices={livePrices}
           />
           <EarningsTable
             rows={data.amc}
             label="AFTER CLOSE · YESTERDAY"
             onSelect={(row, label) => setSelected({ row, label })}
             liveGaps={liveGaps}
+            livePrices={livePrices}
           />
           {!data.bmo?.length && !data.amc_tonight?.length && !data.amc?.length && (
             <p className={styles.loading}>No earnings today</p>

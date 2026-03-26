@@ -1,6 +1,7 @@
 // app/src/components/tiles/ThemeTracker.jsx
-import { useState, useMemo } from 'react'
-import useSWR from 'swr'
+import { useState, useMemo, useCallback } from 'react'
+import useMobileSWR from '../../hooks/useMobileSWR'
+import useLivePrices from '../../hooks/useLivePrices'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
 import { useTileCapture } from '../../hooks/useTileCapture'
@@ -34,15 +35,14 @@ function buildLeadersLaggards(themes, periodKey) {
   }
 }
 
-function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, positive }) {
+function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, positive, expanded, onToggle, livePrices }) {
   const isPortfolio = ticker === 'UCT20'
-  const [expanded, setExpanded] = useState(false)
 
   return (
     <div className={styles.themeBlock}>
       <div
         className={`${styles.row} ${styles.rowClickable}`}
-        onClick={() => setExpanded(e => !e)}
+        onClick={onToggle}
       >
         <span className={styles.nameGroup}>
           <span className={styles.name}>{name}</span>
@@ -65,11 +65,26 @@ function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, posi
             <span className={styles.etfName}>{etf_name}</span>
           </div>
           <div className={styles.chips}>
-            {(holdings ?? []).map(sym => (
-              <TickerPopup key={`${ticker}-${sym}`} sym={sym}>
-                <span className={styles.chip}>{sym}</span>
-              </TickerPopup>
-            ))}
+            {(holdings ?? []).map(sym => {
+              const lp = livePrices?.[sym]
+              const chgPct = lp?.change_pct
+              const chgStr = chgPct != null
+                ? `${chgPct >= 0 ? '+' : ''}${chgPct.toFixed(1)}%`
+                : null
+              const chgColor = chgPct != null
+                ? (chgPct >= 0 ? 'var(--gain)' : 'var(--loss)')
+                : undefined
+              return (
+                <TickerPopup key={`${ticker}-${sym}`} sym={sym}>
+                  <span className={styles.chip}>
+                    {sym}
+                    {chgStr && (
+                      <span style={{ fontSize: 9, fontWeight: 600, marginLeft: 3, color: chgColor }}>{chgStr}</span>
+                    )}
+                  </span>
+                </TickerPopup>
+              )
+            })}
             {intl_count > 0 && (
               <span className={styles.intlBadge}>+{intl_count} intl</span>
             )}
@@ -100,11 +115,12 @@ export default function ThemeTracker({ data: propData }) {
   const [period, setPeriod] = useState('Today')
   const [showAllLeaders, setShowAllLeaders] = useState(false)
   const [showAllLaggards, setShowAllLaggards] = useState(false)
+  const [expandedTickers, setExpandedTickers] = useState({})
   const isMobile = useIsMobile()
-  const { data: fetched } = useSWR(
+  const { data: fetched } = useMobileSWR(
     propData !== undefined ? null : '/api/theme-performance',
     fetcher,
-    { refreshInterval: 30_000, revalidateOnFocus: false }
+    { refreshInterval: 30_000, marketHoursOnly: true, revalidateOnFocus: false }
   )
 
   const data = useMemo(() => {
@@ -113,6 +129,27 @@ export default function ThemeTracker({ data: propData }) {
     return buildLeadersLaggards(raw.themes, PERIOD_KEY[period])
   }, [propData, fetched, period])
   const { tileRef, capturing, capture } = useTileCapture('themetracker')
+
+  const toggleExpanded = useCallback((ticker) => {
+    setExpandedTickers(prev => ({ ...prev, [ticker]: !prev[ticker] }))
+  }, [])
+
+  // Collect holdings tickers only from expanded themes
+  const expandedHoldings = useMemo(() => {
+    if (!data) return []
+    const all = [...(data.leaders ?? []), ...(data.laggards ?? [])]
+    const tickers = []
+    for (const item of all) {
+      if (expandedTickers[item.ticker]) {
+        for (const sym of (item.holdings ?? [])) {
+          tickers.push(sym)
+        }
+      }
+    }
+    return tickers
+  }, [data, expandedTickers])
+
+  const { prices: livePrices } = useLivePrices(expandedHoldings)
 
   const captureBtn = (
     <button
@@ -155,7 +192,11 @@ export default function ThemeTracker({ data: propData }) {
                 return (
                   <>
                     {visible.map(item => (
-                      <ThemeRow key={item.ticker} {...item} positive />
+                      <ThemeRow key={item.ticker} {...item} positive
+                        expanded={!!expandedTickers[item.ticker]}
+                        onToggle={() => toggleExpanded(item.ticker)}
+                        livePrices={livePrices}
+                      />
                     ))}
                     {limited && (
                       <button
@@ -190,7 +231,11 @@ export default function ThemeTracker({ data: propData }) {
                 return (
                   <>
                     {visible.map(item => (
-                      <ThemeRow key={item.ticker} {...item} positive={false} />
+                      <ThemeRow key={item.ticker} {...item} positive={false}
+                        expanded={!!expandedTickers[item.ticker]}
+                        onToggle={() => toggleExpanded(item.ticker)}
+                        livePrices={livePrices}
+                      />
                     ))}
                     {limited && (
                       <button
