@@ -53,6 +53,9 @@
   gap: 12px;
 }
 
+/* ── Hide mobile layout on desktop ────────────────────────────────────────── */
+.mobileOnly { display: none; }
+
 @media (max-width: 1100px) {
   .row2 { grid-template-columns: 1fr 1fr; }
   .row3 { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
@@ -65,7 +68,111 @@
   .row3 { grid-template-columns: 1fr; grid-template-rows: auto; }
 }
 
+/* ── Mobile: swap to accordion layout ─────────────────────────────────────── */
 @media (max-width: 640px) {
   .page { height: auto; overflow: visible; }
-  .content { padding: 8px; gap: 8px; }
+  .content { padding: 8px; gap: 6px; }
+
+  /* Hide desktop grid, show mobile accordion */
+  .desktopOnly { display: none; }
+  .mobileOnly {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* ── Accordion section ──────────────────────────────────────────────────── */
+  .mSection {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .mSectionOpen {
+    border-color: var(--border-accent);
+  }
+
+  .mSectionHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 14px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    text-align: left;
+  }
+  .mSectionHeader:active {
+    background: var(--bg-hover);
+  }
+
+  .mSectionIcon {
+    font-size: 20px;
+    flex-shrink: 0;
+    width: 28px;
+    text-align: center;
+  }
+
+  .mSectionText {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .mSectionTitle {
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-bright);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mSectionOpen .mSectionTitle {
+    color: var(--ut-green-bright);
+  }
+
+  .mSectionSub {
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mChevron {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
+    line-height: 1;
+  }
+  .mSectionOpen .mChevron {
+    color: var(--ut-green-bright);
+  }
+
+  .mSectionBody {
+    padding: 0 4px 8px;
+    animation: mSlideIn 0.2s ease;
+  }
+
+  @keyframes mSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }

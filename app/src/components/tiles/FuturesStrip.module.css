@@ -107,7 +107,7 @@
   opacity: 0.7;
 }
 
-/* ─── Mobile: stack index grid above quote ──────────────────────────────────── */
+/* ─── Tablet: stack index grid above quote ─────────────────────────────────── */
 @media (max-width: 900px) {
   .strip {
     flex-direction: column;
@@ -128,5 +128,40 @@
   }
   .quoteText {
     font-size: 14px;
+  }
+}
+
+/* ─── Phone: compact strip — hide quote, tighten grid ──────────────────────── */
+@media (max-width: 640px) {
+  .strip {
+    padding: 8px;
+    gap: 0;
+    border-radius: 10px;
+  }
+  .indexSide {
+    flex: none;
+    width: 100%;
+  }
+  .grid {
+    gap: 5px;
+  }
+  .cellInner {
+    padding: 8px 10px;
+    border-radius: 8px;
+  }
+  .sym {
+    font-size: 9px;
+    margin-bottom: 2px;
+  }
+  .price {
+    font-size: 13px;
+    margin-bottom: 1px;
+  }
+  .chg {
+    font-size: 10px;
+  }
+  /* Hide the quote panel on phone — save vertical space */
+  .quoteSide {
+    display: none;
   }
 }
