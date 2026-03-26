@@ -1,4 +1,4 @@
-/* app/src/components/NavBar.module.css */
+/* app/src/components/NavBar.module.css — Desktop sidebar only */
 .nav {
   width: 60px;
   flex-shrink: 0;
@@ -101,71 +101,9 @@
   }
 }
 
-/* ─── Phone: bottom tab bar ──────────────────────────────────────────────────── */
+/* ─── Phone: hide desktop sidebar entirely (MobileNav takes over) ────────── */
 @media (max-width: 640px) {
   .nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    width: 100% !important;
-    height: calc(56px + env(safe-area-inset-bottom, 0px));
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 0;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    border-right: none;
-    border-top: 1px solid var(--border);
-    overflow-x: auto;
-    overflow-y: hidden;
-    z-index: 200;
-    background: var(--bg-surface);
-  }
-  .nav:hover {
-    width: 100%;
-    align-items: flex-start;
-  }
-  .brand { display: none; }
-  .mainItems {
-    flex-direction: row;
-    flex: 1;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    align-items: center;
-    height: 56px;
-  }
-  .mainItems::-webkit-scrollbar { display: none; }
-  .bottomItems {
-    flex-direction: row;
-    border-top: none;
-    border-left: 1px solid var(--border);
-    padding-top: 0;
-    padding-left: 4px;
-    align-items: center;
-    height: 56px;
-  }
-  .item {
-    flex-direction: column;
-    gap: 2px;
-    padding: 6px 8px;
-    min-width: 48px;
-    justify-content: center;
-    align-items: center;
-    font-size: 9px;
-  }
-  .icon { font-size: 18px; }
-  .label {
-    display: block;
-    opacity: 1;
-    font-size: 8px;
-    letter-spacing: 0;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 48px;
+    display: none;
   }
 }

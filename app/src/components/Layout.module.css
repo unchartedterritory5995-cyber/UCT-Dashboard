@@ -15,6 +15,8 @@
     flex-direction: column;
   }
   .main {
-    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); /* space for bottom nav + iPhone safe area */
+    /* Space for fixed top header bar */
+    padding-top: calc(48px + env(safe-area-inset-top, 0px));
+    padding-bottom: 0;
   }
 }

@@ -1,0 +1,226 @@
+/* app/src/components/MobileNav.module.css — Mobile-only navigation */
+
+/* ── Hide everything on desktop ───────────────────────────────────────────── */
+@media (min-width: 641px) {
+  .topBar,
+  .backdrop,
+  .drawer {
+    display: none !important;
+  }
+}
+
+/* ── Top header bar ───────────────────────────────────────────────────────── */
+.topBar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(48px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  padding-right: 12px;
+  z-index: 300;
+  gap: 12px;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  background: rgba(26, 28, 23, 0.92);
+}
+
+.pageTitle {
+  flex: 1;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topBarRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Hamburger button ─────────────────────────────────────────────────────── */
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.hamburger:active {
+  background: var(--bg-hover);
+}
+
+.hamburgerLine {
+  width: 20px;
+  height: 2px;
+  background: var(--text-bright);
+  border-radius: 2px;
+  transition: transform 0.25s ease, opacity 0.2s ease;
+  transform-origin: center;
+}
+
+/* Animated X when open */
+.hamburgerOpen1 {
+  transform: translateY(7px) rotate(45deg);
+}
+.hamburgerOpen2 {
+  opacity: 0;
+  transform: scaleX(0);
+}
+.hamburgerOpen3 {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* ── Backdrop ─────────────────────────────────────────────────────────────── */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 399;
+  -webkit-tap-highlight-color: transparent;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Drawer ───────────────────────────────────────────────────────────────── */
+.drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 85vw;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  z-index: 400;
+  transform: translateX(-100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px);
+  overflow: hidden;
+}
+
+.drawerOpen {
+  transform: translateX(0);
+}
+
+/* ── Drawer header ────────────────────────────────────────────────────────── */
+.drawerHeader {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand {
+  font-family: 'Cinzel', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ut-green-bright);
+  letter-spacing: 4px;
+}
+
+.brandSub {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* ── Scrollable nav content ───────────────────────────────────────────────── */
+.drawerScroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Section groups ───────────────────────────────────────────────────────── */
+.section {
+  padding: 4px 0;
+}
+
+.sectionLabel {
+  padding: 10px 20px 4px;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* ── Nav items ────────────────────────────────────────────────────────────── */
+.drawerItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  color: var(--text);
+  text-decoration: none;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.drawerItem:active {
+  background: var(--bg-hover);
+}
+
+.drawerItemActive {
+  color: var(--ut-green-bright);
+  background: var(--ut-green-dim);
+  border-right: 3px solid var(--ut-green-bright);
+}
+
+.drawerIcon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.drawerLabel {
+  flex: 1;
+}
+
+.externalArrow {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Footer section ───────────────────────────────────────────────────────── */
+.drawerFooter {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding: 8px 0 12px;
+}
