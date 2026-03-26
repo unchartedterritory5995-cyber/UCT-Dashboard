@@ -65,7 +65,12 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew }) {
             {pctStr ?? ''}
           </span>
           <span className={styles.score}>
-            {score != null ? `UCT Rating ${score.toFixed ? score.toFixed(1) : score}` : ''}
+            {score != null ? (
+              <>
+                <span className={styles.mobileLabel}></span>
+                {score.toFixed ? score.toFixed(1) : score}
+              </>
+            ) : ''}
           </span>
           <span className={styles.caret}>{expanded ? '▾' : '▸'}</span>
         </div>

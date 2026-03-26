@@ -1654,7 +1654,19 @@ export default function LiveFlowDashboard() {
 
 
   return (
-    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", padding:"16px 20px", zoom:1.18 }}>
+    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", minHeight:"100dvh", padding:"16px 20px", zoom:1.18 }}>
+      {/* Mobile back button — LiveFlow has no nav wrapper */}
+      <a href="/dashboard" style={{
+        position:"fixed", top:12, left:12, zIndex:500,
+        display:"none", alignItems:"center", justifyContent:"center",
+        width:40, height:40, borderRadius:10,
+        background:"rgba(13,19,33,0.92)", border:"1px solid "+P.bd,
+        color:P.tx, textDecoration:"none", fontSize:18,
+        backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
+      }}
+        className="liveflow-back-btn"
+      >←</a>
+      <style>{`@media(max-width:640px){.liveflow-back-btn{display:flex!important;}}`}</style>
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
 
         {/* Live Flow Header */}

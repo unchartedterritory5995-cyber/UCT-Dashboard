@@ -193,3 +193,16 @@
   text-align: center;
 }
 
+@media (max-width: 640px) {
+  .expScore {
+    font-size: 36px;
+  }
+  .expDelta {
+    font-size: 13px;
+  }
+  .expLabel {
+    font-size: 10px;
+    margin-bottom: 10px;
+  }
+}
+

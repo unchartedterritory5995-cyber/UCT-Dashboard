@@ -48,8 +48,8 @@ function EarningsTable({ rows, label, onSelect, liveGaps }) {
             <th>Ticker</th>
             <th>Verdict</th>
             <th>Gap</th>
-            <th>EPS Act</th>
-            <th>Rev Act</th>
+            <th className={styles.hideOnMobile}>EPS Act</th>
+            <th className={styles.hideOnMobile}>Rev Act</th>
           </tr>
         </thead>
         <tbody>
@@ -58,8 +58,8 @@ function EarningsTable({ rows, label, onSelect, liveGaps }) {
               <td><span className={styles.sym}>{row.sym}</span></td>
               <td><VerdictPill verdict={row.verdict} /></td>
               <td><GapCell value={liveGaps?.[row.sym] ?? row.change_pct} /></td>
-              <td>{fmtEps(row.reported_eps)}</td>
-              <td>{fmtRev(row.rev_actual)}</td>
+              <td className={styles.hideOnMobile}>{fmtEps(row.reported_eps)}</td>
+              <td className={styles.hideOnMobile}>{fmtRev(row.rev_actual)}</td>
             </tr>
           ))}
         </tbody>

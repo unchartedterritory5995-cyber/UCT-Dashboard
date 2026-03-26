@@ -128,10 +128,10 @@ function GridHeader() {
   return (
     <div className={styles.gridHeader}>
       <span className={styles.colHead}>Ticker</span>
-      <span className={styles.colHead}>EPS Est</span>
-      <span className={styles.colHead}>EPS Act</span>
+      <span className={`${styles.colHead} ${styles.hideOnMobile}`}>EPS Est</span>
+      <span className={`${styles.colHead} ${styles.hideOnMobile}`}>EPS Act</span>
       <span className={styles.colHead}>Surp %</span>
-      <span className={styles.colHead}>Revenue</span>
+      <span className={`${styles.colHead} ${styles.hideOnMobile}`}>Revenue</span>
       <span className={styles.colHead}>Gap %</span>
       <span className={styles.colHead}></span>
     </div>
@@ -173,10 +173,10 @@ function TickerRow({ entry, reaction, onClick }) {
       <span className={styles.colTicker}><TickerPopup sym={entry.sym} /></span>
 
       {/* Col 2 — EPS Est */}
-      <span className={`${styles.colValDim}`}>{reported ? estFmt : (estFmt !== '—' ? estFmt : '—')}</span>
+      <span className={`${styles.colValDim} ${styles.hideOnMobile}`}>{reported ? estFmt : (estFmt !== '—' ? estFmt : '—')}</span>
 
       {/* Col 3 — EPS Act */}
-      <span className={`${styles.colValBright} ${reported ? epsActClass(entry.eps_act, entry.eps_est, styles) : styles.colValDim}`}>
+      <span className={`${styles.colValBright} ${reported ? epsActClass(entry.eps_act, entry.eps_est, styles) : styles.colValDim} ${styles.hideOnMobile}`}>
         {reported ? actFmt : '—'}
       </span>
 
@@ -186,7 +186,7 @@ function TickerRow({ entry, reaction, onClick }) {
       </span>
 
       {/* Col 5 — Revenue */}
-      <span className={styles.colValDim}>{revFmt}</span>
+      <span className={`${styles.colValDim} ${styles.hideOnMobile}`}>{revFmt}</span>
 
       {/* Col 6 — Gap % */}
       {reactionFmt ? (

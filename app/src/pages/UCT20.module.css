@@ -160,3 +160,28 @@
   .expanded { max-width: 100%; padding-left: 8px; }
   .score { flex: 0 0 auto; font-size: 10px; }
 }
+
+/* ─── Phone: inline labels, tighter layout ────────────────────────────────── */
+@media (max-width: 640px) {
+  .page { padding: 10px 8px; }
+  .heading { font-size: 16px; }
+  .cardRow { gap: 6px; padding: 10px 2px; }
+  .rank { font-size: 10px; min-width: 22px; }
+  .sym { font-size: 13px; }
+  .cardRowRight { gap: 6px; }
+  .newSlot { flex: 0 0 30px; }
+  .newBadge { font-size: 7px; padding: 1px 4px; }
+  .daysOnList { flex: 0 0 auto; font-size: 9px; }
+  .posReturn { flex: 0 0 auto; font-size: 10px; }
+  .score { flex: 0 0 auto; font-size: 10px; }
+  /* Show inline label before rating on mobile */
+  .mobileLabel {
+    font-size: 8px;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+  }
+  .expanded { padding: 0 2px 14px 4px; }
+  .tradeBar { gap: 6px; }
+  .tradeLabel { font-size: 8px; }
+  .tradeVal { font-size: 10px; }
+}

@@ -538,5 +538,10 @@
   .page { padding: 12px 10px 16px; overflow: visible; height: auto; }
   .pageTitle { font-size: 18px; letter-spacing: 2px; }
   .pageHeader { flex-wrap: wrap; gap: 6px; }
-  .gridCols { grid-template-columns: 76px 1fr 54px 50px; font-size: 10px; }
+  .body { flex-direction: column; overflow: visible; }
+  .earningsPanel, .econPanel { min-height: 300px; overflow: visible; }
+  .gridCols { grid-template-columns: 1fr 50px 54px 50px; font-size: 10px; }
+  .hideOnMobile { display: none; }
+  .colHead { font-size: 9px; }
+  .filterLabel { font-size: 9px; }
 }

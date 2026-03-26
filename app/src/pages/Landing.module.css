@@ -1,5 +1,6 @@
 .page {
   min-height: 100vh;
+  min-height: 100dvh;  /* iOS Safari dynamic viewport */
   background: var(--bg);
   color: var(--text);
 }

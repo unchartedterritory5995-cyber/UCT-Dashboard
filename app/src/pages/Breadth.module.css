@@ -1042,7 +1042,113 @@ tbody tr { cursor: pointer; }
   .tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 @media (max-width: 640px) {
-  .page { padding: 10px 6px; }
-  .header { flex-wrap: wrap; gap: 6px; }
+  .page { padding: 8px; }
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
   .heading { font-size: 18px; letter-spacing: 2px; }
+  .tabs {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .tab {
+    flex: 1;
+    text-align: center;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* Table improvements — tighter cells for mobile */
+  .tableWrap {
+    border-radius: 8px;
+    margin: 0 -8px;
+    padding: 0 8px;
+    position: relative;
+  }
+  /* Scroll shadow hint on right edge */
+  .tableWrap::after {
+    content: '';
+    position: sticky;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 24px;
+    background: linear-gradient(to left, var(--bg-surface, #111), transparent);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .th {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+  .td {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+  .dateCol {
+    min-width: 72px;
+    font-size: 10px;
+  }
+  .dateCell {
+    font-size: 10px;
+  }
+  .colCollapsedLabel {
+    font-size: 6px;
+  }
+  .colLabel {
+    font-size: 9px;
+  }
+  .groupHeader {
+    font-size: 9px;
+    padding: 4px 6px;
+  }
+  /* Score summary bar */
+  .scoreSummary {
+    gap: 12px;
+    padding: 8px 10px;
+    flex-wrap: wrap;
+  }
+  .scoreValue {
+    font-size: 22px;
+  }
+  .scoreMeta {
+    gap: 10px;
+    padding-left: 10px;
+  }
+  /* Days pills */
+  .daysPills { gap: 2px; }
+  .daysPill { font-size: 9px; padding: 2px 7px; }
+  /* Drill modal responsive */
+  .drillDialog {
+    width: min(600px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    height: 90vh;
+  }
+  .drillOverlay {
+    padding: 12px;
+  }
+  .drillSplit {
+    flex-direction: column;
+  }
+  .drillTablePanel {
+    width: 100%;
+    max-height: 40vh;
+    border-right: none;
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
+  }
+  .drillChartBar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 10px;
+  }
+  .drillChartTabs {
+    position: static;
+    transform: none;
+  }
+  .drillChartHint {
+    display: none;
+  }
 }

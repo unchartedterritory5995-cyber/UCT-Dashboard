@@ -1,5 +1,6 @@
 .page {
   min-height: 100vh;
+  min-height: 100dvh;  /* iOS Safari dynamic viewport */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -144,3 +145,9 @@
   font-weight: 500;
 }
 .switchLink:hover { text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .card {
+    padding: 24px 20px;
+  }
+}

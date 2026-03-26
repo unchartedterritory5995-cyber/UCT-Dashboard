@@ -1,6 +1,7 @@
 .shell {
   display: flex;
   height: 100vh;
+  height: 100dvh;  /* iOS Safari dynamic viewport */
   overflow: hidden;
 }
 .main {

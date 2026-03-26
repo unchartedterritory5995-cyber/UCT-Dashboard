@@ -705,4 +705,65 @@
 }
 @media (max-width: 640px) {
   .page { padding: 10px 8px 24px; }
+
+  /* ── Analyst Activity mobile ─────────────────────────────── */
+  .analystHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .aeHeaderRow {
+    display: none;
+  }
+
+  .aeEntry {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    padding: 8px 0 8px 2px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+
+  .aeTicker {
+    font-size: 13px;
+    min-width: 0;
+  }
+
+  .aeBadge {
+    font-size: 10px;
+  }
+
+  .aeMid {
+    width: 100%;
+    flex-direction: row;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .aeFirm {
+    font-size: 11px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .aeRating {
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  .aePt {
+    margin-left: auto;
+    font-size: 11px;
+  }
+
+  .aeUpside {
+    font-size: 11px;
+    min-width: 0;
+  }
+
+  .analystTabCount {
+    font-size: 10px;
+  }
 }

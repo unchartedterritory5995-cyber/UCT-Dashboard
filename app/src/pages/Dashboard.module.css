@@ -1,6 +1,7 @@
 .page {
   display: flex;
   height: 100vh;
+  height: 100dvh;  /* iOS Safari dynamic viewport */
   overflow: hidden;
 }
 .content {
@@ -161,7 +162,7 @@
   }
 
   .mSectionBody {
-    padding: 0 4px 8px;
+    padding: 0 8px 12px;
     animation: mSlideIn 0.2s ease;
   }
 

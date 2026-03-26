@@ -93,3 +93,25 @@
 }
 .exportBtn:hover { color: var(--text-bright); }
 .exportBtn:disabled { opacity: 0.4; cursor: default; }
+
+/* ─── Mobile: reduce columns, increase readability ────────────────────────── */
+@media (max-width: 640px) {
+  .table th {
+    font-size: 10px;
+  }
+  .table td {
+    padding: 6px 4px;
+    font-size: 11px;
+  }
+  .pill {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+  .tableLabel {
+    font-size: 10px;
+  }
+  /* Hide less-essential columns on mobile */
+  .hideOnMobile {
+    display: none;
+  }
+}
