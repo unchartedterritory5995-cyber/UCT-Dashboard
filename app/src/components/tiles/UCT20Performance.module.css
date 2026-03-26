@@ -205,6 +205,33 @@
     gap: 0 3px; font-size: 9px;
   }
 }
+@media (max-width: 640px) {
+  .wrap { padding: 14px 10px 8px; }
+  .sectionSub { font-size: 8px; }
+  .perfPct { font-size: 13px; }
+  .perfAlpha { font-size: 11px; }
+  .perfHeader { gap: 8px; }
+  .perfPeriods { margin-left: 0; flex-basis: 100%; }
+  .periodBtn { padding: 3px 6px; font-size: 9px; }
+  .statsGrid { grid-template-columns: repeat(2, 1fr); gap: 8px 10px; }
+  .statLabel { font-size: 7px; letter-spacing: 1px; }
+  .statVal { font-size: 11px; }
+  .openRow { gap: 6px; }
+  .openSym { font-size: 11px; min-width: 42px; }
+  .openEntry { font-size: 10px; }
+  .openPct { font-size: 10px; min-width: 48px; }
+  .openStop { font-size: 9px; }
+  .openDays { font-size: 9px; }
+  .tradesTableScroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tradesHead, .tradesRow {
+    grid-template-columns: 40px 40px 40px 50px 50px 48px 30px 38px;
+    gap: 0 2px; font-size: 8px;
+  }
+  .tradesHead { font-size: 7px; }
+}
 @media (max-width: 480px) {
   .wrap { padding: 14px 8px 8px; }
   .perfPct { font-size: 13px; }

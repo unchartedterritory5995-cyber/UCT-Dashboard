@@ -52,4 +52,6 @@
 @media (max-width: 640px) {
   .page { padding: 16px 12px 80px; }
   .row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .input { font-size: 16px; }
+  .btn, .btnDanger, .btnPro { padding: 12px 20px; }
 }

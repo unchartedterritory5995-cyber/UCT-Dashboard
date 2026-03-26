@@ -149,6 +149,15 @@
   }
 }
 
+/* ─── Small mobile: bigger tap targets ─────────────────────────────────────── */
+@media (max-width: 640px) {
+  .tab { padding: 8px 10px; font-size: 10px; }
+  .row { padding: 8px 0; }
+  .chip { padding: 5px 8px; font-size: 10px; }
+  .colHd { font-size: 9px; }
+  .nameGroup { max-width: none; }
+}
+
 .captureBtn {
   background: none;
   border: none;

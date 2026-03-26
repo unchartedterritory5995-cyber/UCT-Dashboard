@@ -1,0 +1,9 @@
+/* LiveFlow mobile-only overrides */
+@media (max-width: 640px) {
+  .page { zoom: 1 !important; padding: 10px 8px !important; }
+  .headerRow { flex-wrap: wrap !important; gap: 8px !important; }
+  .filterRow { flex-wrap: wrap !important; gap: 6px !important; }
+  .tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .statsGrid { grid-template-columns: 1fr !important; }
+  .chartGrid { grid-template-columns: 1fr !important; }
+}

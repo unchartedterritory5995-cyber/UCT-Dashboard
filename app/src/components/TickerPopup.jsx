@@ -15,6 +15,11 @@ const tvUrl = (sym, interval) =>
 export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', customChartFn, className, children }) {
   const [hovered, setHovered] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+
+  // On mobile, prefer TradingView (interactive: pinch-zoom, crosshair, pan)
+  // On desktop, Finviz static images are fine (hover preview already shows them)
+  const isMobile = typeof window !== 'undefined' &&
+    ('ontouchstart' in window || navigator.maxTouchPoints > 0)
   const [tab, setTab] = useState('Daily')
 
   // Disable hover preview on touch devices (gets stuck on mobile)
@@ -94,7 +99,7 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
                   alt={`${sym} ${tab} chart`}
                   className={styles.modalChart}
                 />
-              ) : showFinviz && FV_PERIODS[tab] ? (
+              ) : showFinviz && FV_PERIODS[tab] && !isMobile ? (
                 <img
                   src={finvizChart(sym, FV_PERIODS[tab])}
                   alt={`${sym} ${tab} chart`}

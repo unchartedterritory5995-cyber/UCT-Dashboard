@@ -252,33 +252,35 @@ export default function UCT20Performance() {
               </button>
 
               {tradesOpen && (
-                <div className={styles.tradesTable}>
-                  <div className={styles.tradesHead}>
-                    <span>SYM</span>
-                    <span>ENTRY</span>
-                    <span>EXIT</span>
-                    <span className={styles.alignRight}>ENTRY $</span>
-                    <span className={styles.alignRight}>EXIT $</span>
-                    <span className={styles.alignRight}>RETURN</span>
-                    <span className={styles.alignRight}>DAYS</span>
-                    <span className={styles.alignRight}>REASON</span>
-                  </div>
-                  {trades.map((t, i) => (
-                    <div key={i} className={`${styles.tradesRow} ${t.win ? styles.tradeWin : styles.tradeLoss}`}>
-                      <span className={styles.tradeSym}>{t.symbol}</span>
-                      <span>{t.entry_date?.slice(5)}</span>
-                      <span>{t.exit_date?.slice(5)}</span>
-                      <span className={styles.alignRight}>${t.entry_price}</span>
-                      <span className={styles.alignRight}>${t.exit_price}</span>
-                      <span className={`${styles.alignRight} ${t.win ? styles.gain : styles.loss}`}>
-                        {fmtPct(t.pct_return)}
-                      </span>
-                      <span className={styles.alignRight}>{t.days_held}d</span>
-                      <span className={`${styles.alignRight} ${t.exit_reason === 'stop_loss' ? styles.stopTag : styles.listTag}`}>
-                        {t.exit_reason === 'stop_loss' ? 'STOP' : 'LIST'}
-                      </span>
+                <div className={styles.tradesTableScroll}>
+                  <div className={styles.tradesTable}>
+                    <div className={styles.tradesHead}>
+                      <span>SYM</span>
+                      <span>ENTRY</span>
+                      <span>EXIT</span>
+                      <span className={styles.alignRight}>ENTRY $</span>
+                      <span className={styles.alignRight}>EXIT $</span>
+                      <span className={styles.alignRight}>RETURN</span>
+                      <span className={styles.alignRight}>DAYS</span>
+                      <span className={styles.alignRight}>REASON</span>
                     </div>
-                  ))}
+                    {trades.map((t, i) => (
+                      <div key={i} className={`${styles.tradesRow} ${t.win ? styles.tradeWin : styles.tradeLoss}`}>
+                        <span className={styles.tradeSym}>{t.symbol}</span>
+                        <span>{t.entry_date?.slice(5)}</span>
+                        <span>{t.exit_date?.slice(5)}</span>
+                        <span className={styles.alignRight}>${t.entry_price}</span>
+                        <span className={styles.alignRight}>${t.exit_price}</span>
+                        <span className={`${styles.alignRight} ${t.win ? styles.gain : styles.loss}`}>
+                          {fmtPct(t.pct_return)}
+                        </span>
+                        <span className={styles.alignRight}>{t.days_held}d</span>
+                        <span className={`${styles.alignRight} ${t.exit_reason === 'stop_loss' ? styles.stopTag : styles.listTag}`}>
+                          {t.exit_reason === 'stop_loss' ? 'STOP' : 'LIST'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

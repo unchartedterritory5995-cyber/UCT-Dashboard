@@ -106,3 +106,17 @@
 
 .loading { color: var(--text-muted); font-size: 12px; }
 .empty   { color: var(--text-muted); font-size: 12px; }
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .badge { font-size: 9px; }
+  .ticker { font-size: 10px; }
+  .source { font-size: 10px; }
+  .time   { font-size: 10px; }
+  .chgPos, .chgNeg, .chgFlat { font-size: 10px; }
+  .item:hover {
+    margin: 0;
+    padding-left: 10px;
+    padding-right: 0;
+  }
+}

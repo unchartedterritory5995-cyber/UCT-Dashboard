@@ -116,3 +116,19 @@
   .monthCell { min-width: 50px; padding: 5px 6px; }
   .monthPct { font-size: 11px; }
 }
+@media (max-width: 640px) {
+  .wrap { padding: 0 10px; }
+  .content { padding-bottom: 12px; }
+  .keyStats { gap: 8px 12px; }
+  .keyLabel { font-size: 9px; letter-spacing: 1px; }
+  .keyVal { font-size: 12px; }
+  .extremeCard { padding: 8px 10px; }
+  .extremeLabel { font-size: 9px; }
+  .extremeSym { font-size: 13px; }
+  .extremePct { font-size: 12px; }
+  .extremeMeta { font-size: 8px; }
+  .sectionLabel { font-size: 8px; letter-spacing: 1px; }
+  .monthCell { min-width: 46px; padding: 4px 5px; }
+  .monthName { font-size: 8px; }
+  .monthPct { font-size: 10px; }
+}

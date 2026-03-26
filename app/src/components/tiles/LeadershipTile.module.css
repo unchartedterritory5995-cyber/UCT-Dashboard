@@ -78,3 +78,13 @@
   margin: 3px 0 0;
   white-space: normal;
 }
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .row    { padding: 10px 0; }
+  .rank   { font-size: 11px; }
+  .sym    { font-size: 13px; }
+  .cap    { font-size: 9px; }
+  .score  { font-size: 11px; }
+  .thesis { font-size: 11px; line-height: 1.5; }
+}

@@ -52,13 +52,21 @@ const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 // Flat lookup for page title
 const ALL_ITEMS = NAV_SECTIONS.flatMap(s => s.items)
 
+// Routes outside NAV_SECTIONS (footer links, etc.)
+const EXTRA_ROUTES = {
+  '/settings': 'Settings',
+  '/website': 'Website',
+}
+
 export default function MobileNav() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
 
   // Get current page title for header
   const currentItem = ALL_ITEMS.find(i => location.pathname.startsWith(i.to))
-  const pageTitle = currentItem?.label || 'UCT'
+  const pageTitle = currentItem?.label
+    || EXTRA_ROUTES[location.pathname]
+    || 'UCT'
 
   // Close drawer on route change
   useEffect(() => {

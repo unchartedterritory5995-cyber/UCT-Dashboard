@@ -187,6 +187,34 @@
   }
 }
 
+@media (max-width: 640px) {
+  .container {
+    padding: 14px 10px;
+  }
+  .heading {
+    font-size: 18px;
+    letter-spacing: 2px;
+  }
+  .tickerItem {
+    padding: 12px 12px;
+  }
+  .header {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .columnHeader {
+    padding: 6px 10px;
+  }
+  .premarketBar {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  .regimeBar {
+    padding: 5px 10px;
+    gap: 6px;
+  }
+}
+
 /* ── Table ── */
 .table {
   width: 100%;

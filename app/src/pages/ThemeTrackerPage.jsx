@@ -117,9 +117,17 @@ export default function ThemeTrackerPage() {
     })
   }
 
+  const chartRef = useRef(null)
+
   function handleSelect(sym, name) {
     setSelectedSym(sym)
     setSelectedName(name || sym)
+    // On mobile (stacked layout), scroll chart into view after selection
+    if (window.innerWidth <= 900) {
+      setTimeout(() => {
+        chartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 50)
+    }
   }
 
   const sortedThemes = useMemo(() => {
@@ -284,7 +292,7 @@ export default function ThemeTrackerPage() {
       </div>
 
       {/* ── Right panel ── */}
-      <div className={styles.rightPanel}>
+      <div className={styles.rightPanel} ref={chartRef}>
         {selectedSym ? (
           <>
             <div className={styles.chartHeader}>

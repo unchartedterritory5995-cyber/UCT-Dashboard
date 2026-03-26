@@ -78,3 +78,15 @@
   font-weight: 700;
   line-height: 1;
 }
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .ticker   { font-size: 16px; }
+  .price    { font-size: 11px; }
+  .dayChg   { font-size: 11px; }
+  .cols     { gap: 8px; }
+  .maGrid   { gap: 4px; }
+  .chip     { padding: 7px 4px; }
+  .chipLabel{ font-size: 9px; }
+  .chipPct  { font-size: 11px; }
+}

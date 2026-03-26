@@ -133,3 +133,44 @@
   transition: color 0.15s;
 }
 .footerLink:hover { color: var(--ut-green-bright); }
+
+/* Mobile */
+@media (max-width: 640px) {
+  .modal {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modalTabs {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px 12px 0;
+  }
+  .modalTab {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  .chartArea {
+    min-height: 250px;
+    padding: 8px 10px;
+  }
+  .tvFrame {
+    height: min(350px, 45vh);
+  }
+  .modalFooter {
+    gap: 16px;
+    padding: 8px 12px 12px;
+  }
+  .closeBtn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 18px;
+  }
+  .footerLink {
+    padding: 10px 0;
+    font-size: 12px;
+  }
+}

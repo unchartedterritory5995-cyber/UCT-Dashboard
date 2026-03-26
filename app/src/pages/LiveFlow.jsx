@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import styles from './LiveFlow.module.css';
 
 
 import { useFlowWebSocket } from "../useFlowWebSocket";
@@ -96,6 +97,7 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
   const [expandedKey, setExpandedKey] = useState(null);
   const colCount = ["Ticker","Day","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow","Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).length;
   return (
+    <div className={styles.tableWrap}>
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
@@ -151,6 +153,7 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
         })}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -158,6 +161,7 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
   const [expandedKey, setExpandedKey] = useState(null);
   const colCount = ["Ticker","Strike","C/P","Exp","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade","OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).length;
   return (
+    <div className={styles.tableWrap}>
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
@@ -209,6 +213,7 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
         })}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -1243,7 +1248,7 @@ export default function LiveFlowDashboard() {
           </div>
           <button onClick={onClose} style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
+        <div className={styles.chartGrid} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
           <div style={{ borderRight:"1px solid "+P.bd, position:"relative" }}>
             <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(sym)}&range=${chartRange}&v=${Math.floor(Date.now()/900000)}`}
               alt={sym+" chart"} style={{ width:"100%", height:200, objectFit:"fill", display:"block", opacity:0.92 }}
@@ -1654,7 +1659,7 @@ export default function LiveFlowDashboard() {
 
 
   return (
-    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", minHeight:"100dvh", padding:"16px 20px", zoom:1.18 }}>
+    <div className={styles.page} style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", minHeight:"100dvh", padding:"16px 20px", zoom:1.18 }}>
       {/* Mobile back button — LiveFlow has no nav wrapper */}
       <a href="/dashboard" style={{
         position:"fixed", top:12, left:12, zIndex:500,
@@ -1670,7 +1675,7 @@ export default function LiveFlowDashboard() {
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
 
         {/* Live Flow Header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4, padding:"10px 16px", background:P.cd, borderRadius:10, border:"1px solid "+P.bd }}>
+        <div className={styles.headerRow} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4, padding:"10px 16px", background:P.cd, borderRadius:10, border:"1px solid "+P.bd }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ width:8, height:8, borderRadius:"50%", background:"#00e676", boxShadow:"0 0 12px #00e676" }} />
             <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>⚡ LIVE FLOW</h1>
@@ -1697,7 +1702,7 @@ export default function LiveFlowDashboard() {
           </div>
         </div>
         {/* Filter Controls */}
-        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12, padding:"6px 16px", fontSize:10 }}>
+        <div className={styles.filterRow} style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12, padding:"6px 16px", fontSize:10 }}>
           <span style={{ color:P.mt, fontWeight:700 }}>Alerts:</span>
           {[200, 500, 1000].map(n => (
             <button key={n} onClick={()=>{ setLiveLimit(n); setRefreshKey(k=>k+1); }}
@@ -1733,7 +1738,7 @@ export default function LiveFlowDashboard() {
               )}
             </div>
             {/* Index Cards */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:8, marginBottom:marketNarrative||narrativeLoading?12:0 }}>
+            <div className={styles.statsGrid} style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:8, marginBottom:marketNarrative||narrativeLoading?12:0 }}>
               {marketIndices ? marketIndices.map((idx,i) => {
                 const isVix = idx.name.includes("VIX");
                 const up = isVix ? idx.pct < 0 : idx.pct >= 0;
@@ -1778,7 +1783,7 @@ export default function LiveFlowDashboard() {
         )}
 
         {/* Short/Long Banners */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
+        <div className={styles.chartGrid} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
           {(() => {
             const shortTop3 = (shortDir==="BULL" ? FD.SBLC : FD.SBRC).slice(0,3);
             return (
@@ -1972,7 +1977,7 @@ export default function LiveFlowDashboard() {
               </div>
 
               {/* Two column layout: chart left, OI chart right */}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
+              <div className={styles.chartGrid} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
 
                 {/* Left: Stock price chart */}
                 <div style={{ borderRight:"1px solid "+P.bd, position:"relative" }}>
@@ -2413,7 +2418,7 @@ export default function LiveFlowDashboard() {
                 </div>
               </Card>
             )}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div className={styles.chartGrid} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Card title="Short-Term Bullish" sub="0–59 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
               <Card title="Short-Term Bearish" sub="0–59 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
               <Card title="Long-Term Bullish" sub="60+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
@@ -2466,6 +2471,7 @@ export default function LiveFlowDashboard() {
               }).length;
               return (
                 <Card key={cat} title={cat} sub={items.length+" contracts"}>
+                  <div className={styles.tableWrap}>
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                     <thead>
                       <tr style={{ borderBottom:"1px solid "+P.bd }}>
@@ -2500,6 +2506,7 @@ export default function LiveFlowDashboard() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                   {filled.length>0 && (
                     <div style={{ display:"flex", gap:16, fontSize:10, marginTop:4, color:P.dm }}>
                       <span>Win rate: <strong style={{ color:winners/filled.length>=0.5?P.bu:P.be }}>{winners}/{filled.length}</strong></span>
@@ -2541,7 +2548,7 @@ export default function LiveFlowDashboard() {
               const dirC = dir==="BULL"?P.bu:dir==="BEAR"?P.be:P.dm;
               return (
                 <>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+                  <div className={styles.statsGrid} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16, borderTop:"3px solid "+dirC }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Net Direction</div>
                       <div style={{ fontSize:28, fontWeight:900, color:dirC }}>{dir}</div>
@@ -2573,7 +2580,7 @@ export default function LiveFlowDashboard() {
         {/* Short Term */}
         {tab==="Short Term" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div className={styles.chartGrid} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Card title="Bullish Bets" sub="0–59 DTE"><NC data={FD.SB_SYM} fill={P.bu} dir="bull" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
               <Card title="Bearish Bets" sub="0–59 DTE"><NC data={FD.SR_SYM} fill={P.be} dir="bear" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
             </div>
@@ -2588,7 +2595,7 @@ export default function LiveFlowDashboard() {
             </div>
             <Card title="Short-Term Bullish Trades" sub={fmt(FD.shortBullTotal)}><TT rows={FD.SBL} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
             <Card title="Short-Term Bearish Trades" sub={fmt(FD.shortBearTotal)}><TT rows={FD.SBR} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div className={styles.chartGrid} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Card title="Bullish Consistency" sub="2+ hits"><CT rows={FD.SBLC} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
               <Card title="Bearish Consistency" sub="2+ hits"><CT rows={FD.SBRC} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
             </div>
@@ -2598,7 +2605,7 @@ export default function LiveFlowDashboard() {
         {/* Long Term */}
         {tab==="Long Term" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div className={styles.chartGrid} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Card title="Bullish Bets" sub="60+ DTE"><NC data={FD.LB_SYM} fill={P.bu} dir="bull" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
               <Card title="Bearish Bets" sub="60+ DTE"><NC data={FD.LR_SYM} fill={P.be} dir="bear" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
             </div>
@@ -2612,7 +2619,7 @@ export default function LiveFlowDashboard() {
             </div>
             <Card title="Long-Term Bullish Trades" sub={fmt(FD.longBullTotal)}><TT rows={FD.LBL} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
             <Card title="Long-Term Bearish Trades" sub={fmt(FD.longBearTotal)}><TT rows={FD.LBR_T} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div className={styles.chartGrid} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Card title="Bullish Consistency" sub="2+ hits"><CT rows={FD.LBLC} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
               <Card title="Bearish Consistency" sub="2+ hits"><CT rows={FD.LBRC} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
             </div>
@@ -2636,7 +2643,7 @@ export default function LiveFlowDashboard() {
             </div>
             {FD.LEAPS_EXPS.length>0 && (
               <Card title="LEAPS by Expiration" sub="180+ DTE">
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 }}>
+                <div className={styles.statsGrid} style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 }}>
                   {FD.LEAPS_EXPS.map((e,i)=>(
                     <div key={i} style={{ background:P.al, borderRadius:8, padding:"10px 12px", border:"1px solid "+P.bd }}>
                       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:4 }}>
@@ -2650,7 +2657,7 @@ export default function LiveFlowDashboard() {
                 </div>
               </Card>
             )}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div className={styles.chartGrid} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Card title="Bullish Bets" sub="180+ DTE"><NC data={FD.LEAPS_B} fill={P.bu} dir="bull" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
               <Card title="Bearish Bets" sub="180+ DTE"><NC data={FD.LEAPS_R} fill={P.be} dir="bear" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
             </div>
@@ -2665,7 +2672,7 @@ export default function LiveFlowDashboard() {
             </div>
             <Card title="LEAPS Bullish Trades"><TT rows={FD.LEAPS_BL_T} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
             <Card title="LEAPS Bearish Trades"><TT rows={FD.LEAPS_BR_T} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div className={styles.chartGrid} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Card title="Bull Consistency" sub="2+ hits"><CT rows={FD.LEAPS_BLC} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
               <Card title="Bear Consistency" sub="2+ hits"><CT rows={FD.LEAPS_BRC} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
             </div>
@@ -2706,6 +2713,7 @@ export default function LiveFlowDashboard() {
               const watchFiltered = oiSearch ? D.WATCH.filter(w=>w.S.includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,10) : D.WATCH.slice(0,20);
               return (
             <Card title="OI Check" sub={watchFiltered.length+" contracts · sorted by Vol/OI"}>
+              <div className={styles.tableWrap}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
@@ -2745,6 +2753,7 @@ export default function LiveFlowDashboard() {
                   })}
                 </tbody>
               </table>
+              </div>
             </Card>
               );
             })()}
@@ -2778,6 +2787,7 @@ export default function LiveFlowDashboard() {
                   </button>
                   {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
                 </div>
+                <div className={styles.tableWrap}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                     {["Ticker","Strike","C/P","Exp","Grade","Dir","Entry","Now","P&L","Days","Trend","Added"].map(h=>(
@@ -2817,6 +2827,7 @@ export default function LiveFlowDashboard() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </Card>
             ) : (
               <Card><div style={{ textAlign:"center", padding:"20px 0", color:P.dm, fontSize:12 }}>No active picks yet. Upload flow data — Top Flow picks will be tracked automatically.</div></Card>
@@ -2824,6 +2835,7 @@ export default function LiveFlowDashboard() {
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
             {topFlowPicks.archived.length > 0 && (
               <Card title="Archived Picks" sub={topFlowPicks.archived.length+" expired"}>
+                <div className={styles.tableWrap}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                     {["Ticker","Strike","C/P","Exp","Grade","Dir","Entry","Final","P&L","Saved"].map(h=>(
@@ -2851,6 +2863,7 @@ export default function LiveFlowDashboard() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </Card>
             )}
           </div>
