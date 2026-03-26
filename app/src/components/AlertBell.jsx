@@ -57,9 +57,9 @@ export default function AlertBell() {
 
   return (
     <div className={styles.wrap} ref={ref}>
-      <button className={styles.bell} onClick={() => setOpen(o => !o)} title="Alerts">
+      <button className={styles.bell} onClick={() => setOpen(o => !o)} title="Alerts" aria-label="Notifications">
         <span className={styles.bellIcon}>🔔</span>
-        {unreadCount > 0 && <span className={styles.badge}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
+        {unreadCount > 0 && <span className={styles.badge} aria-live="polite">{unreadCount > 9 ? '9+' : unreadCount}</span>}
       </button>
 
       {open && (

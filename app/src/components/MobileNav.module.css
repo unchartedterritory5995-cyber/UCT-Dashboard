@@ -224,3 +224,18 @@
   border-top: 1px solid var(--border);
   padding: 8px 0 12px;
 }
+
+/* Landscape: compact header */
+@media (max-width: 900px) and (orientation: landscape) {
+  .topBar {
+    height: calc(36px + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+  }
+  .hamburger {
+    width: 36px;
+    height: 36px;
+  }
+  .pageTitle {
+    font-size: 12px;
+  }
+}

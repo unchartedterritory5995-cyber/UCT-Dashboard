@@ -86,3 +86,10 @@
   z-index: 1;
   pointer-events: none;
 }
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .container {
+    min-height: 200px;
+    max-height: 50vh;
+  }
+}

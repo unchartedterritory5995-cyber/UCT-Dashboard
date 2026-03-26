@@ -21,3 +21,9 @@
     padding-bottom: 0;
   }
 }
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .main {
+    padding-top: calc(36px + env(safe-area-inset-top));
+  }
+}

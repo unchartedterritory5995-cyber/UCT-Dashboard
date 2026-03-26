@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import AlertBell from './AlertBell'
+import useKeyboardVisible from '../hooks/useKeyboardVisible'
 import styles from './MobileNav.module.css'
 
 const NAV_SECTIONS = [
@@ -61,6 +62,7 @@ const EXTRA_ROUTES = {
 export default function MobileNav() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
+  const keyboardOpen = useKeyboardVisible()
 
   // Get current page title for header
   const currentItem = ALL_ITEMS.find(i => location.pathname.startsWith(i.to))
@@ -96,7 +98,7 @@ export default function MobileNav() {
   return (
     <>
       {/* ── Fixed top header bar ── */}
-      <header className={styles.topBar}>
+      <header className={styles.topBar} style={{ transform: keyboardOpen ? 'translateY(-100%)' : 'none', transition: 'transform 0.2s ease' }}>
         <button
           className={styles.hamburger}
           onClick={() => setOpen(o => !o)}
@@ -114,11 +116,11 @@ export default function MobileNav() {
 
       {/* ── Backdrop ── */}
       {open && (
-        <div className={styles.backdrop} onClick={() => setOpen(false)} />
+        <div className={styles.backdrop} onClick={() => setOpen(false)} aria-hidden="true" />
       )}
 
       {/* ── Slide-out drawer ── */}
-      <nav className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`}>
+      <nav className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`} role="navigation" aria-label="Main navigation">
         <div className={styles.drawerHeader}>
           <span className={styles.brand}>UCT</span>
           <span className={styles.brandSub}>Intelligence Engine</span>

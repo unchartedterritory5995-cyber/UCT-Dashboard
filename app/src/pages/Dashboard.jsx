@@ -14,9 +14,21 @@ import styles from './Dashboard.module.css'
 
 /* ── Mobile accordion section ────────────────────────────────────────────── */
 function MobileSection({ icon, title, subtitle, children, expanded, onToggle }) {
+  const sectionId = `mobile-section-${title.toLowerCase().replace(/\s+/g, '-')}`
   return (
     <div className={`${styles.mSection} ${expanded ? styles.mSectionOpen : ''}`}>
-      <button className={styles.mSectionHeader} onClick={onToggle}>
+      <button
+        className={styles.mSectionHeader}
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls={sectionId}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onToggle()
+          }
+        }}
+      >
         <span className={styles.mSectionIcon}>{icon}</span>
         <div className={styles.mSectionText}>
           <span className={styles.mSectionTitle}>{title}</span>
@@ -27,7 +39,7 @@ function MobileSection({ icon, title, subtitle, children, expanded, onToggle }) 
         <span className={styles.mChevron}>{expanded ? '−' : '+'}</span>
       </button>
       {expanded && (
-        <div className={styles.mSectionBody}>
+        <div className={styles.mSectionBody} id={sectionId}>
           {children}
         </div>
       )}

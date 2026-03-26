@@ -4,7 +4,7 @@ import styles from './TileCard.module.css'
 
 const TileCard = forwardRef(function TileCard({ title, badge, actions, children, className = '' }, ref) {
   return (
-    <div ref={ref} className={`${styles.tile} ${className}`}>
+    <div ref={ref} className={`${styles.tile} ${className}`} role="region" aria-label={title || undefined}>
       {title && (
         <div className={styles.header}>
           <span className={styles.title}>{title}</span>
