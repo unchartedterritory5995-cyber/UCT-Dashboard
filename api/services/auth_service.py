@@ -42,6 +42,7 @@ def verify_password(email: str, password: str) -> dict | None:
             "email": row["email"],
             "display_name": row["display_name"],
             "role": row["role"],
+            "email_verified": bool(row["email_verified"]) if "email_verified" in row.keys() else False,
         }
     finally:
         conn.close()
@@ -50,7 +51,7 @@ def verify_password(email: str, password: str) -> dict | None:
 def get_user_by_id(user_id: str) -> dict | None:
     conn = get_connection()
     try:
-        row = conn.execute("SELECT id, email, display_name, role, created_at FROM users WHERE id = ?", (user_id,)).fetchone()
+        row = conn.execute("SELECT id, email, display_name, role, email_verified, created_at FROM users WHERE id = ?", (user_id,)).fetchone()
         return dict(row) if row else None
     finally:
         conn.close()
@@ -91,7 +92,7 @@ def validate_session(token: str) -> dict | None:
     conn = get_connection()
     try:
         row = conn.execute(
-            "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role "
+            "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.email_verified "
             "FROM sessions s JOIN users u ON s.user_id = u.id "
             "WHERE s.token = ?",
             (token,),
@@ -110,6 +111,7 @@ def validate_session(token: str) -> dict | None:
             "email": row["email"],
             "display_name": row["display_name"],
             "role": row["role"],
+            "email_verified": bool(row["email_verified"]),
         }
     finally:
         conn.close()
@@ -215,5 +217,231 @@ def list_all_users() -> list[dict]:
             "ORDER BY u.created_at DESC"
         ).fetchall()
         return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def list_users_filtered(search: str = None, plan_filter: str = None, sort_by: str = "created_at") -> list[dict]:
+    """Admin function: return users with optional search, plan filter, and sorting."""
+    conn = get_connection()
+    try:
+        query = (
+            "SELECT u.id, u.email, u.display_name, u.role, u.created_at, "
+            "s.plan, s.status as sub_status, s.current_period_end "
+            "FROM users u LEFT JOIN subscriptions s ON u.id = s.user_id "
+        )
+        params = []
+        conditions = []
+
+        if search:
+            conditions.append("u.email LIKE ?")
+            params.append(f"%{search}%")
+
+        if plan_filter == "pro":
+            conditions.append("s.status IN ('active', 'trialing') AND s.plan = 'pro'")
+        elif plan_filter == "comped":
+            conditions.append("s.status = 'comped'")
+        elif plan_filter == "free":
+            conditions.append("(s.id IS NULL OR s.status NOT IN ('active', 'trialing', 'comped'))")
+
+        if conditions:
+            query += "WHERE " + " AND ".join(conditions) + " "
+
+        if sort_by == "email":
+            query += "ORDER BY u.email ASC"
+        else:
+            query += "ORDER BY u.created_at DESC"
+
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_admin_stats() -> dict:
+    """Admin function: return dashboard stats."""
+    conn = get_connection()
+    try:
+        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+
+        pro_subscribers = conn.execute(
+            "SELECT COUNT(*) FROM subscriptions WHERE status IN ('active', 'trialing', 'comped')"
+        ).fetchone()[0]
+
+        mrr = pro_subscribers * 20
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+
+        new_signups_7d = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE created_at > ?", (seven_days_ago,)
+        ).fetchone()[0]
+
+        new_signups_30d = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE created_at > ?", (thirty_days_ago,)
+        ).fetchone()[0]
+
+        # Signups by day for last 30 days
+        rows = conn.execute(
+            "SELECT DATE(created_at) as date, COUNT(*) as count "
+            "FROM users WHERE created_at > ? "
+            "GROUP BY DATE(created_at) ORDER BY date ASC",
+            (thirty_days_ago,),
+        ).fetchall()
+        signups_by_day = [{"date": r["date"], "count": r["count"]} for r in rows]
+
+        return {
+            "total_users": total_users,
+            "pro_subscribers": pro_subscribers,
+            "mrr": mrr,
+            "new_signups_7d": new_signups_7d,
+            "new_signups_30d": new_signups_30d,
+            "signups_by_day": signups_by_day,
+        }
+    finally:
+        conn.close()
+
+
+def comp_user_access(email: str, grant: bool = True) -> dict:
+    """Admin function: grant or revoke comped Pro access for a user."""
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM users WHERE email = ?", (email.lower().strip(),)).fetchone()
+        if not row:
+            raise ValueError(f"User not found: {email}")
+        user_id = row["id"]
+
+        if grant:
+            existing = conn.execute("SELECT id FROM subscriptions WHERE user_id = ?", (user_id,)).fetchone()
+            if existing:
+                conn.execute(
+                    "UPDATE subscriptions SET plan='pro', status='comped', "
+                    "stripe_customer_id=NULL, stripe_subscription_id=NULL, current_period_end=NULL "
+                    "WHERE user_id=?",
+                    (user_id,),
+                )
+            else:
+                sub_id = str(uuid.uuid4())
+                conn.execute(
+                    "INSERT INTO subscriptions (id, user_id, plan, status) VALUES (?, ?, 'pro', 'comped')",
+                    (sub_id, user_id),
+                )
+            conn.commit()
+            return {"ok": True, "email": email, "action": "granted"}
+        else:
+            conn.execute(
+                "UPDATE subscriptions SET status='canceled' WHERE user_id=? AND status='comped'",
+                (user_id,),
+            )
+            conn.commit()
+            return {"ok": True, "email": email, "action": "revoked"}
+    finally:
+        conn.close()
+
+
+# ── Email verification ──────────────────────────────────────────────────────
+
+def create_email_verification(user_id: str) -> str:
+    """Generate a verification token (24hr TTL). Returns the token string."""
+    token = secrets.token_urlsafe(32)
+    ver_id = str(uuid.uuid4())
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    conn = get_connection()
+    try:
+        # Remove any existing verifications for this user
+        conn.execute("DELETE FROM email_verifications WHERE user_id = ?", (user_id,))
+        conn.execute(
+            "INSERT INTO email_verifications (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)",
+            (ver_id, user_id, token, expires_at.isoformat()),
+        )
+        conn.commit()
+        return token
+    finally:
+        conn.close()
+
+
+def verify_email_token(token: str) -> str | None:
+    """Validate a verification token. Returns user_id on success, None on failure."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT user_id, expires_at FROM email_verifications WHERE token = ?", (token,)
+        ).fetchone()
+        if not row:
+            return None
+        expires = datetime.fromisoformat(row["expires_at"])
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires < datetime.now(timezone.utc):
+            conn.execute("DELETE FROM email_verifications WHERE token = ?", (token,))
+            conn.commit()
+            return None
+        # Mark user verified and clean up
+        conn.execute("UPDATE users SET email_verified = 1 WHERE id = ?", (row["user_id"],))
+        conn.execute("DELETE FROM email_verifications WHERE token = ?", (token,))
+        conn.commit()
+        return row["user_id"]
+    finally:
+        conn.close()
+
+
+# ── Password reset ──────────────────────────────────────────────────────────
+
+def create_password_reset(email: str) -> str | None:
+    """Generate a password reset token (1hr TTL). Returns token or None if user not found."""
+    user = get_user_by_email(email)
+    if not user:
+        return None
+    token = secrets.token_urlsafe(32)
+    reset_id = str(uuid.uuid4())
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    conn = get_connection()
+    try:
+        # Remove any existing unused resets for this user
+        conn.execute("DELETE FROM password_resets WHERE user_id = ? AND used = 0", (user["id"],))
+        conn.execute(
+            "INSERT INTO password_resets (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)",
+            (reset_id, user["id"], token, expires_at.isoformat()),
+        )
+        conn.commit()
+        return token
+    finally:
+        conn.close()
+
+
+def execute_password_reset(token: str, new_password: str) -> bool:
+    """Validate reset token and update password. Returns True on success."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id, user_id, expires_at, used FROM password_resets WHERE token = ?", (token,)
+        ).fetchone()
+        if not row or row["used"]:
+            return False
+        expires = datetime.fromisoformat(row["expires_at"])
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires < datetime.now(timezone.utc):
+            return False
+        # Update password
+        new_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, row["user_id"]))
+        conn.execute("UPDATE password_resets SET used = 1 WHERE id = ?", (row["id"],))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def cleanup_expired_tokens():
+    """Delete expired verification and reset tokens."""
+    conn = get_connection()
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        v = conn.execute("DELETE FROM email_verifications WHERE expires_at < ?", (now,))
+        r = conn.execute("DELETE FROM password_resets WHERE expires_at < ?", (now,))
+        conn.commit()
+        return v.rowcount + r.rowcount
     finally:
         conn.close()

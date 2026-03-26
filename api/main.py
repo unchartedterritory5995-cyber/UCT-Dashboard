@@ -113,6 +113,7 @@ async def lifespan(app: FastAPI):
 
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
+    from api.services.auth_service import cleanup_expired_sessions
     _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
     _scheduler.add_job(
         _cot_service.refresh_from_current,
@@ -121,8 +122,16 @@ async def lifespan(app: FastAPI):
         max_instances=1,
         replace_existing=True,
     )
+    _scheduler.add_job(
+        cleanup_expired_sessions,
+        trigger=CronTrigger(hour=3, minute=0),
+        id="session_cleanup",
+        max_instances=1,
+        replace_existing=True,
+    )
     _scheduler.start()
     print("[startup] COT scheduler running — refreshes every Friday at 3:45 PM ET")
+    print("[startup] Session cleanup scheduled — daily at 3:00 AM ET")
 
     yield
     _scheduler.shutdown(wait=False)

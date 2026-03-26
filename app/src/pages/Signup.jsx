@@ -1,13 +1,11 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import styles from './AuthForm.module.css'
 
 export default function Signup() {
   const { signup, startCheckout } = useAuth()
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const wantsPro = searchParams.get('plan') === 'pro'
   const checkoutCanceled = searchParams.get('checkout') === 'canceled'
 
   const [email, setEmail] = useState('')
@@ -22,18 +20,13 @@ export default function Signup() {
     setLoading(true)
     try {
       await signup(email, password, displayName || undefined)
-      if (wantsPro) {
-        // After signup, redirect to Stripe Checkout
-        try {
-          await startCheckout()
-          // startCheckout does window.location.href — won't reach here
-        } catch (checkoutErr) {
-          setError('Payment setup failed: ' + checkoutErr.message + '. Go to Settings to subscribe.')
-          // Don't navigate to dashboard — they need to pay
-          return
-        }
-      } else {
-        navigate('/dashboard', { replace: true })
+      // After signup, always redirect to Stripe Checkout
+      try {
+        await startCheckout()
+        // startCheckout does window.location.href — won't reach here
+      } catch (checkoutErr) {
+        setError('Payment setup failed: ' + checkoutErr.message + '. Go to Settings to subscribe.')
+        return
       }
     } catch (err) {
       setError(err.message)
@@ -47,9 +40,7 @@ export default function Signup() {
       <div className={styles.card}>
         <Link to="/" className={styles.brand}>UCT</Link>
         <h1 className={styles.title}>Create your account</h1>
-        <p className={styles.subtitle}>
-          {wantsPro ? 'Sign up and subscribe to Pro' : 'Start with a free account'}
-        </p>
+        <p className={styles.subtitle}>Sign up and subscribe to get full access</p>
 
         {checkoutCanceled && (
           <div className={styles.warning}>Checkout was canceled. You can subscribe later from Settings.</div>
@@ -92,8 +83,8 @@ export default function Signup() {
               autoComplete="new-password"
             />
           </label>
-          <button type="submit" className={wantsPro ? styles.submitPro : styles.submit} disabled={loading}>
-            {loading ? 'Creating account...' : wantsPro ? 'Sign Up & Subscribe' : 'Sign Up Free'}
+          <button type="submit" className={styles.submitPro} disabled={loading}>
+            {loading ? 'Creating account...' : 'Create Account & Subscribe \u2014 $20/mo'}
           </button>
         </form>
 

@@ -89,6 +89,26 @@ CREATE INDEX IF NOT EXISTS idx_journal_status ON journal_entries(status);
 CREATE INDEX IF NOT EXISTS idx_watchlists_user ON watchlists(user_id);
 CREATE INDEX IF NOT EXISTS idx_watchlists_public ON watchlists(is_public);
 CREATE INDEX IF NOT EXISTS idx_watchlist_items_list ON watchlist_items(watchlist_id);
+
+CREATE TABLE IF NOT EXISTS email_verifications (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id),
+    token       TEXT UNIQUE NOT NULL,
+    expires_at  TIMESTAMP NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS password_resets (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id),
+    token       TEXT UNIQUE NOT NULL,
+    expires_at  TIMESTAMP NOT NULL,
+    used        INTEGER DEFAULT 0,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_verifications_token ON email_verifications(token);
+CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token);
 """
 
 
@@ -105,6 +125,14 @@ def init_db():
     try:
         conn.executescript(_SCHEMA)
         conn.commit()
+
+        # Migration: add email_verified column if missing
+        cols = [row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if "email_verified" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0")
+            conn.commit()
+            print("[auth] Migrated: added email_verified column to users")
+
         print(f"[auth] Database ready at {_DB_PATH}")
     finally:
         conn.close()

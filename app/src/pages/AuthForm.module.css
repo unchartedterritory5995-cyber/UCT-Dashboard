@@ -67,6 +67,37 @@
   margin-bottom: 16px;
 }
 
+.success {
+  background: rgba(34,197,94,0.08);
+  border: 1px solid rgba(34,197,94,0.25);
+  color: #4ade80;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.info {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.forgotLink {
+  display: block;
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-decoration: none;
+  margin-top: -8px;
+}
+.forgotLink:hover {
+  color: var(--ut-green);
+}
+
 .form {
   display: flex;
   flex-direction: column;

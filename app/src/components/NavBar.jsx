@@ -1,5 +1,6 @@
 // app/src/components/NavBar.jsx
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import AlertBell from './AlertBell'
 import styles from './NavBar.module.css'
 
@@ -24,6 +25,9 @@ const NAV_ITEMS = [
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
 export default function NavBar() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
   return (
     <nav data-testid="nav-sidebar" className={styles.nav}>
       <div className={styles.brand}>UCT</div>
@@ -47,6 +51,19 @@ export default function NavBar() {
         <div className={styles.alertSlot}>
           <AlertBell />
         </div>
+        {isAdmin && (
+          <NavLink
+            to="/admin"
+            className={({ isActive }) =>
+              [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
+            }
+            title="Admin"
+            aria-label="Admin"
+          >
+            <span className={styles.icon} aria-hidden="true">{'\uD83D\uDD12'}</span>
+            <span className={styles.label}>Admin</span>
+          </NavLink>
+        )}
         <NavLink
           to="/settings"
           className={({ isActive }) =>

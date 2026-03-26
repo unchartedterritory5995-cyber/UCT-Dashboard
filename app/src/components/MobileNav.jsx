@@ -1,6 +1,7 @@
 // app/src/components/MobileNav.jsx — Full-screen drawer nav for mobile
 import { useState, useEffect, useCallback } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import AlertBell from './AlertBell'
 import useKeyboardVisible from '../hooks/useKeyboardVisible'
 import styles from './MobileNav.module.css'
@@ -57,12 +58,15 @@ const ALL_ITEMS = NAV_SECTIONS.flatMap(s => s.items)
 const EXTRA_ROUTES = {
   '/settings': 'Settings',
   '/website': 'Website',
+  '/admin': 'Admin',
 }
 
 export default function MobileNav() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
   const keyboardOpen = useKeyboardVisible()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
 
   // Get current page title for header
   const currentItem = ALL_ITEMS.find(i => location.pathname.startsWith(i.to))
@@ -147,6 +151,17 @@ export default function MobileNav() {
 
           {/* Bottom section */}
           <div className={styles.drawerFooter}>
+            {isAdmin && (
+              <NavLink
+                to="/admin"
+                className={({ isActive }) =>
+                  [styles.drawerItem, isActive ? styles.drawerItemActive : ''].filter(Boolean).join(' ')
+                }
+              >
+                <span className={styles.drawerIcon}>{'\uD83D\uDD12'}</span>
+                <span className={styles.drawerLabel}>Admin</span>
+              </NavLink>
+            )}
             <NavLink
               to="/settings"
               className={({ isActive }) =>

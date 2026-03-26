@@ -25,6 +25,14 @@ const Journal = lazy(() => import('./pages/Journal'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const Community = lazy(() => import('./pages/Community'))
 const Settings = lazy(() => import('./pages/Settings'))
+const Admin = lazy(() => import('./pages/Admin'))
+const Terms = lazy(() => import('./pages/Terms'))
+const Privacy = lazy(() => import('./pages/Privacy'))
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
+const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
+const VerifyPending = lazy(() => import('./pages/VerifyPending'))
+const NotFound = lazy(() => import('./pages/NotFound'))
 
 /** Show Landing only if NOT logged in; otherwise redirect to dashboard */
 function PublicOnly({ children }) {
@@ -59,6 +67,12 @@ export default function App() {
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/subscribe" element={<Subscribe />} />
+            <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/verify-pending" element={<VerifyPending />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
 
             {/* Protected routes — require authentication */}
             <Route element={<AuthGuard />}>
@@ -81,8 +95,12 @@ export default function App() {
                 <Route path="/watchlists" element={<Watchlists />} />
                 <Route path="/community" element={<Community />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/admin" element={<Admin />} />
               </Route>
             </Route>
+
+            {/* Catch-all — 404 */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </AuthProvider>

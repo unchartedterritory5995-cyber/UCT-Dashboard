@@ -112,6 +112,14 @@ def _handle_checkout_completed(session_data: dict):
             current_period_end=period_end,
         )
         print(f"[stripe] User {user_id} subscribed (pro, {getattr(sub, 'status', 'active')})")
+        # Send subscription confirmation email
+        try:
+            from api.services.email_service import send_subscription_confirmation
+            user = get_user_by_id(user_id)
+            if user:
+                send_subscription_confirmation(user["email"], user.get("display_name"))
+        except Exception as e:
+            print(f"[stripe] Failed to send subscription confirmation email: {e}")
     else:
         # No subscription (one-time payment?) — still grant pro
         upsert_subscription(

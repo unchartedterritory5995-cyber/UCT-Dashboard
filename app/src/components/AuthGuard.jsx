@@ -21,6 +21,16 @@ export default function AuthGuard() {
     return <Navigate to="/login" replace />
   }
 
+  // Require email verification (admins exempt)
+  if (!user.email_verified && user.role !== 'admin') {
+    return <Navigate to="/verify-pending" replace />
+  }
+
+  // Admin-only pages
+  if (location.pathname.startsWith('/admin') && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />
+  }
+
   // Allow settings page always (so they can manage billing / subscribe)
   if (location.pathname === '/settings') {
     return <Outlet />

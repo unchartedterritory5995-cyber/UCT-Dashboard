@@ -58,6 +58,7 @@ export default function Login() {
               autoComplete="current-password"
             />
           </label>
+          <Link to="/forgot-password" className={styles.forgotLink}>Forgot password?</Link>
           <button type="submit" className={styles.submit} disabled={loading}>
             {loading ? 'Logging in...' : 'Log In'}
           </button>

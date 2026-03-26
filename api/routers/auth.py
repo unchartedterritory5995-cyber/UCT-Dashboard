@@ -5,9 +5,10 @@ All NEW endpoints under /api/auth/*. Does not touch any existing routes.
 
 import os
 import sqlite3
-from fastapi import APIRouter, HTTPException, Response, Depends
+from fastapi import APIRouter, HTTPException, Request, Response, Depends
 from pydantic import BaseModel, EmailStr
 
+from api.limiter import limiter
 from api.services.auth_service import (
     create_user,
     verify_password,
@@ -17,6 +18,18 @@ from api.services.auth_service import (
     get_subscription,
     change_password,
     list_all_users,
+    list_users_filtered,
+    get_admin_stats,
+    comp_user_access,
+    create_email_verification,
+    verify_email_token,
+    create_password_reset,
+    execute_password_reset,
+)
+from api.services.email_service import (
+    send_verification_email,
+    send_password_reset_email,
+    send_welcome_email,
 )
 from api.services.stripe_service import create_checkout_session, create_portal_session
 from api.middleware.auth_middleware import get_current_user, get_session_token
@@ -45,7 +58,8 @@ ADMIN_EMAILS = set(filter(None, os.environ.get("ADMIN_EMAILS", "").split(",")))
 
 
 @router.post("/signup")
-def signup(req: SignupRequest, response: Response):
+@limiter.limit("3/minute")
+def signup(request: Request, req: SignupRequest, response: Response):
     if len(req.password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     try:
@@ -64,13 +78,22 @@ def signup(req: SignupRequest, response: Response):
         finally:
             conn.close()
 
+    # Send verification email (non-blocking — don't fail signup if email fails)
+    try:
+        ver_token = create_email_verification(user["id"])
+        send_verification_email(user["email"], ver_token, DASHBOARD_URL)
+    except Exception as e:
+        print(f"[signup] Failed to send verification email: {e}")
+
     token = create_session(user["id"])
     _set_session_cookie(response, token)
+    user["email_verified"] = False
     return {"user": user, "plan": "free"}
 
 
 @router.post("/login")
-def login(req: LoginRequest, response: Response):
+@limiter.limit("5/minute")
+def login(request: Request, req: LoginRequest, response: Response):
     user = verify_password(req.email, req.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -117,6 +140,75 @@ def change_pw(req: ChangePasswordRequest, user: dict = Depends(get_current_user)
     return {"ok": True}
 
 
+# ── Email verification & password reset ──────────────────────────────────────
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+@router.post("/forgot-password")
+@limiter.limit("3/minute")
+def forgot_password(request: Request, req: ForgotPasswordRequest):
+    """Send password reset email. Always returns ok to prevent email enumeration."""
+    token = create_password_reset(req.email)
+    if token:
+        try:
+            send_password_reset_email(req.email, token, DASHBOARD_URL)
+        except Exception as e:
+            print(f"[auth] Failed to send reset email: {e}")
+    return {"ok": True}
+
+
+@router.post("/reset-password")
+@limiter.limit("5/minute")
+def reset_password(request: Request, req: ResetPasswordRequest):
+    """Validate reset token and set new password."""
+    if len(req.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if not execute_password_reset(req.token, req.new_password):
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+    return {"ok": True}
+
+
+@router.post("/verify-email")
+def verify_email(req: VerifyEmailRequest):
+    """Validate email verification token."""
+    user_id = verify_email_token(req.token)
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link")
+    # Send welcome email
+    from api.services.auth_service import get_user_by_id
+    user = get_user_by_id(user_id)
+    if user:
+        try:
+            send_welcome_email(user["email"], user.get("display_name"))
+        except Exception as e:
+            print(f"[auth] Failed to send welcome email: {e}")
+    return {"ok": True, "user_id": user_id}
+
+
+@router.post("/resend-verification")
+@limiter.limit("3/minute")
+def resend_verification(request: Request, user: dict = Depends(get_current_user)):
+    """Resend email verification link. Requires auth."""
+    if user.get("email_verified"):
+        return {"ok": True, "message": "Email already verified"}
+    try:
+        token = create_email_verification(user["id"])
+        send_verification_email(user["email"], token, DASHBOARD_URL)
+    except Exception as e:
+        print(f"[auth] Failed to resend verification email: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send verification email")
+    return {"ok": True}
+
+
 def _require_admin(user: dict):
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
@@ -145,10 +237,38 @@ def admin_reset_password(req: AdminResetRequest, user: dict = Depends(get_curren
         conn.close()
 
 @router.get("/admin/users")
-def admin_users(user: dict = Depends(get_current_user)):
-    """Admin-only: list all users with subscription info."""
+def admin_users(
+    user: dict = Depends(get_current_user),
+    search: str = None,
+    plan: str = None,
+    sort: str = "created_at",
+):
+    """Admin-only: list all users with subscription info. Supports search, plan filter, sort."""
     _require_admin(user)
-    return list_all_users()
+    return list_users_filtered(search=search, plan_filter=plan, sort_by=sort)
+
+
+@router.get("/admin/stats")
+def admin_stats(user: dict = Depends(get_current_user)):
+    """Admin-only: return dashboard stats (total users, subscribers, MRR, signups)."""
+    _require_admin(user)
+    return get_admin_stats()
+
+
+class CompAccessRequest(BaseModel):
+    email: EmailStr
+    action: str  # "grant" or "revoke"
+
+
+@router.post("/admin/comp-access")
+def admin_comp_access(req: CompAccessRequest, user: dict = Depends(get_current_user)):
+    """Admin-only: grant or revoke comped Pro access for a user."""
+    _require_admin(user)
+    try:
+        result = comp_user_access(req.email, grant=(req.action == "grant"))
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/admin/stripe-check")
