@@ -17,6 +17,10 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
   const [modalOpen, setModalOpen] = useState(false)
   const [tab, setTab] = useState('Daily')
 
+  // Disable hover preview on touch devices (gets stuck on mobile)
+  const isTouchDevice = typeof window !== 'undefined' &&
+    ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+
   useEffect(() => {
     if (!modalOpen) return
     const handleKey = (e) => { if (e.key === 'Escape') setModalOpen(false) }
@@ -28,15 +32,15 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
     <>
       <Tag
         className={`${styles.trigger}${className ? ` ${className}` : ''}`}
-        onMouseEnter={() => showFinviz && setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={() => { setModalOpen(true); setTab('Daily') }}
+        onMouseEnter={() => !isTouchDevice && showFinviz && setHovered(true)}
+        onMouseLeave={() => !isTouchDevice && setHovered(false)}
+        onClick={() => { setHovered(false); setModalOpen(true); setTab('Daily') }}
         role="button"
         aria-label={`View chart for ${sym}`}
         data-testid={`ticker-${sym}`}
       >
         {children ?? sym}
-        {showFinviz && hovered && (
+        {showFinviz && hovered && !isTouchDevice && (
           <div className={styles.popup}>
             <img
               src={finvizChart(sym, 'd')}
