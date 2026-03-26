@@ -22,7 +22,7 @@ _YF_CONFIG = {
 _YF_TICKERS = {'VIX': '^VIX', 'BTC': 'BTC-USD'}
 
 # Cache TTLs by timeframe (seconds)
-_CACHE_TTL = {'5': 60, '30': 60, '60': 60, 'D': 300, 'W': 900}
+_CACHE_TTL = {'5': 15, '30': 15, '60': 15, 'D': 300, 'W': 900}
 
 
 def _resample_weekly(daily_bars: list[dict]) -> list[dict]:
