@@ -11,7 +11,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 import sentry_sdk
 from api.limiter import limiter
-from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts, calendar as calendar_router
+from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts, calendar as calendar_router, bars as bars_router
 from api.routers import cot as cot_router
 from api.routers import breadth_monitor as breadth_monitor_router
 from api.routers import theme_performance as theme_performance_router
@@ -145,6 +145,7 @@ app.include_router(trades.router)
 app.include_router(traders.router)
 app.include_router(push.router)
 app.include_router(charts.router)
+app.include_router(bars_router.router)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)

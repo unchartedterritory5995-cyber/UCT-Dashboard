@@ -116,6 +116,15 @@
   border: none;
   border-radius: 4px;
 }
+.chartLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: min(400px, 50vh);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
 
 /* Footer links */
 .modalFooter {

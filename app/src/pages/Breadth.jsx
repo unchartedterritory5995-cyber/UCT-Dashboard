@@ -6,6 +6,7 @@ import CotData from './CotData'
 import BreadthCharts from './BreadthCharts'
 import { useTileCapture } from '../hooks/useTileCapture'
 import TickerPopup from '../components/TickerPopup'
+import StockChart from '../components/StockChart'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -375,123 +376,12 @@ function CopyTickersButton({ items }) {
   )
 }
 
-// ── TvChart ── TradingView tv.js widget with 9/20 EMA + 50/200 SMA ────────
-let tvScriptLoaded = false
-
-// Suppress async errors thrown by TradingView's internals when its iframe is
-// removed from the DOM mid-load (e.g. rapid arrow-key navigation).
-function suppressTvError(e) {
-  const src = (e.filename || '') + (e.message || '')
-  if (src.includes('tradingview') || src.includes('tv.js')) { e.preventDefault(); return true }
-}
-function suppressTvRejection(e) {
-  const msg = String(e.reason || e.message || '')
-  if (msg.includes('tradingview') || msg.includes('Cannot read')) e.preventDefault()
-}
-
-function TvChart({ sym }) {
-  const containerRef = useRef(null)
-
-  useEffect(() => {
-    if (!sym || !containerRef.current) return
-    const container = containerRef.current
-    let cancelled = false
-
-    window.addEventListener('error', suppressTvError)
-    window.addEventListener('unhandledrejection', suppressTvRejection)
-
-    function initWidget() {
-      if (cancelled || !container) return
-      try {
-        container.innerHTML = ''
-        const divId = `tv_${Math.random().toString(36).slice(2)}`
-        const div = document.createElement('div')
-        div.id = divId
-        div.style.cssText = 'width:100%;height:100%'
-        container.appendChild(div)
-
-        const w = new window.TradingView.widget({
-          autosize: true,
-          symbol: sym,
-          interval: 'D',
-          timezone: 'America/New_York',
-          theme: 'dark',
-          style: '1',
-          locale: 'en',
-          toolbar_bg: '#0e0e0e',
-          enable_publishing: false,
-          hide_side_toolbar: true,
-          allow_symbol_change: true,
-          container_id: divId,
-        })
-
-        w.onChartReady(() => {
-          if (cancelled) return
-          try {
-            const chart = w.chart()
-            chart.createStudy('Moving Average Exponential', false, false, [9],   { 'Plot.color': '#4ade80', 'Plot.linewidth': 1 })
-            chart.createStudy('Moving Average Exponential', false, false, [20],  { 'Plot.color': '#f472b6', 'Plot.linewidth': 1 })
-            chart.createStudy('Moving Average',             false, false, [50],  { 'Plot.color': '#60a5fa', 'Plot.linewidth': 1 })
-            chart.createStudy('Moving Average',             false, false, [200], { 'Plot.color': '#fb923c', 'Plot.linewidth': 1 })
-          } catch (_) {}
-        })
-      } catch (_) {}
-    }
-
-    if (window.TradingView) {
-      initWidget()
-    } else if (!tvScriptLoaded) {
-      tvScriptLoaded = true
-      const script = document.createElement('script')
-      script.src = 'https://s3.tradingview.com/tv.js'
-      script.async = true
-      script.onload = () => { if (!cancelled) initWidget() }
-      document.head.appendChild(script)
-    } else {
-      const poll = setInterval(() => {
-        if (window.TradingView) { clearInterval(poll); if (!cancelled) initWidget() }
-      }, 100)
-      return () => {
-        cancelled = true
-        clearInterval(poll)
-        window.removeEventListener('error', suppressTvError)
-        window.removeEventListener('unhandledrejection', suppressTvRejection)
-      }
-    }
-
-    return () => {
-      cancelled = true
-      window.removeEventListener('error', suppressTvError)
-      window.removeEventListener('unhandledrejection', suppressTvRejection)
-    }
-  }, [sym])
-
-  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-}
-
 // ── DrillModal ────────────────────────────────────────────────────────────
 function DrillModal({ drill, onClose }) {
   const items = drill.items ?? []
   const [selectedIdx, setSelectedIdx] = useState(0)
-  const [chartPeriod, setChartPeriod] = useState('tv')
+  const [chartPeriod, setChartPeriod] = useState('D')
   const rowRefs = useRef([])
-
-  function finvizUrl(sym, period) {
-    return `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}`
-  }
-
-  // Preload ±5 neighbors on selection or period change
-  useEffect(() => {
-    const selected = items[selectedIdx]
-    if (!selected || chartPeriod === 'tv') return
-    for (let offset = -5; offset <= 5; offset++) {
-      if (offset === 0) continue
-      const neighbor = items[selectedIdx + offset]
-      if (!neighbor) continue
-      const img = new window.Image()
-      img.src = finvizUrl(neighbor.t, chartPeriod)
-    }
-  }, [selectedIdx, items, chartPeriod])
 
   // Keyboard: Escape closes, arrows navigate
   useEffect(() => {
@@ -598,7 +488,7 @@ function DrillModal({ drill, onClose }) {
                 <span className={styles.drillChartSym}>{selected.t}</span>
                 {selected.n && <span className={styles.drillChartName}>{selected.n}</span>}
                 <div className={styles.drillChartTabs}>
-                  {[['d', 'Daily'], ['w', 'Weekly'], ['tv', 'TradingView']].map(([p, label]) => (
+                  {[['5', '5min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly']].map(([p, label]) => (
                     <button
                       key={p}
                       className={`${styles.drillChartTab} ${chartPeriod === p ? styles.drillChartTabActive : ''}`}
@@ -609,17 +499,7 @@ function DrillModal({ drill, onClose }) {
                 <span className={styles.drillChartHint}>↑ ↓ to navigate</span>
               </div>
               <div className={styles.drillChartFrame}>
-                {chartPeriod === 'tv' ? (
-                  <TvChart sym={selected.t} />
-                ) : (
-                  <div className={styles.drillChartImgWrap}>
-                    <img
-                      src={finvizUrl(selected.t, chartPeriod)}
-                      className={styles.drillChartImg}
-                      alt={`${selected.t} ${chartPeriod === 'd' ? 'daily' : 'weekly'} chart`}
-                    />
-                  </div>
-                )}
+                <StockChart sym={selected.t} tf={chartPeriod} />
               </div>
             </div>
           )}

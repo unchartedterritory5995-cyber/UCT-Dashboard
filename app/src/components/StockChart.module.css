@@ -1,0 +1,88 @@
+/* app/src/components/StockChart.module.css */
+.wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 200px;
+  background: #1a1c17;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.chart {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Loading state ── */
+.loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  z-index: 2;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--ut-green-bright);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error state ── */
+.error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  z-index: 2;
+}
+
+.retryBtn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border: 1px solid var(--border-accent);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--ut-green-bright);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.retryBtn:hover {
+  background: var(--bg-hover);
+}
+
+/* ── Attribution (Apache 2.0 requirement) ── */
+.attribution {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  color: var(--text-muted);
+  opacity: 0.4;
+  z-index: 1;
+  pointer-events: none;
+}

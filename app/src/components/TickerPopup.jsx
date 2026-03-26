@@ -1,25 +1,19 @@
 // app/src/components/TickerPopup.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import styles from './TickerPopup.module.css'
 
+const StockChart = lazy(() => import('./StockChart'))
+
 const TABS = ['5min', '30min', '1hr', 'Daily', 'Weekly']
-const TV_ALL_INTERVALS = { '5min': '5', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W' }
-const FV_PERIODS       = { 'Daily': 'd', 'Weekly': 'w' }
+const TAB_TO_TF = { '5min': '5', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W' }
 
 const finvizChart = (sym, period) =>
   `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}&s=l`
 
-const tvUrl = (sym, interval) =>
-  `https://www.tradingview.com/widgetembed/?symbol=${sym}&interval=${interval}&theme=dark&style=1&locale=en&hide_top_toolbar=0&hideideas=1`
-
-export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', customChartFn, className, children }) {
+export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null }) {
   const [hovered, setHovered] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
 
-  // On mobile, prefer TradingView (interactive: pinch-zoom, crosshair, pan)
-  // On desktop, Finviz static images are fine (hover preview already shows them)
-  const isMobile = typeof window !== 'undefined' &&
-    ('ontouchstart' in window || navigator.maxTouchPoints > 0)
   const [tab, setTab] = useState('Daily')
 
   // Disable hover preview on touch devices (gets stuck on mobile)
@@ -93,25 +87,15 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
             </div>
 
             <div className={styles.chartArea}>
-              {customChartFn ? (
-                <img
-                  src={customChartFn(tab)}
-                  alt={`${sym} ${tab} chart`}
-                  className={styles.modalChart}
+              <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
+                <StockChart
+                  sym={sym}
+                  tf={TAB_TO_TF[tab]}
+                  height="min(400px, 50vh)"
+                  markers={markers}
+                  priceLines={priceLines}
                 />
-              ) : showFinviz && FV_PERIODS[tab] && !isMobile ? (
-                <img
-                  src={finvizChart(sym, FV_PERIODS[tab])}
-                  alt={`${sym} ${tab} chart`}
-                  className={styles.modalChart}
-                />
-              ) : (
-                <iframe
-                  src={tvUrl(tvSym ?? sym, TV_ALL_INTERVALS[tab])}
-                  title={`${sym} ${tab}`}
-                  className={styles.tvFrame}
-                />
-              )}
+              </Suspense>
             </div>
 
             <div className={styles.modalFooter}>

@@ -48,13 +48,50 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew }) {
   const pctStr  = fmtPct(posData?.pct_return ?? null)
   const daysStr = posData?.days_held != null ? `${posData.days_held}d` : null
 
+  // Build chart markers from portfolio data
+  const chartMarkers = useMemo(() => {
+    const m = []
+    if (posData?.entry_date) {
+      m.push({
+        time: posData.entry_date,
+        position: 'belowBar',
+        color: '#3cb868',
+        shape: 'arrowUp',
+        text: 'BUY',
+      })
+    }
+    return m
+  }, [posData])
+
+  // Build price lines from portfolio data
+  const chartPriceLines = useMemo(() => {
+    const lines = []
+    if (posData?.entry_price) {
+      lines.push({
+        price: posData.entry_price,
+        color: '#3cb868',
+        lineStyle: 2,
+        title: `Entry $${posData.entry_price.toFixed(2)}`,
+      })
+    }
+    if (posData?.stop_price) {
+      lines.push({
+        price: posData.stop_price,
+        color: '#e74c3c',
+        lineStyle: 2,
+        title: `Stop $${posData.stop_price.toFixed(2)}`,
+      })
+    }
+    return lines
+  }, [posData])
+
   return (
     <div className={styles.card}>
       {/* Collapsed row — always visible */}
       <div className={styles.cardRow} onClick={onToggle}>
         <span className={styles.rank}>#{rank}</span>
         <SetupBadge type={setupType} />
-        <TickerPopup sym={sym}>
+        <TickerPopup sym={sym} markers={chartMarkers} priceLines={chartPriceLines}>
           <span className={styles.sym}>{sym}</span>
         </TickerPopup>
         {company && <span className={styles.companyName}>{company}</span>}
