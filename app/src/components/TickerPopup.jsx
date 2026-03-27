@@ -104,7 +104,7 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
                 <StockChart
                   sym={sym}
                   tf={TAB_TO_TF[tab]}
-                  height="min(400px, 50vh)"
+                  height="min(650px, 70vh)"
                   markers={markers}
                   priceLines={priceLines}
                 />
