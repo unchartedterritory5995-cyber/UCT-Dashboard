@@ -638,8 +638,11 @@ export default function Admin() {
         setError(err.detail || 'Verify failed')
         return
       }
+      // Small delay to let DB commit propagate before re-fetching
+      await new Promise(r => setTimeout(r, 300))
       fetchUsers()
       fetchStats()
+      fetchActivity()
     } catch {
       setError('Network error')
     }
