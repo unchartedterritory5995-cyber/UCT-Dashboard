@@ -1580,17 +1580,7 @@ export default function Admin() {
       {/* ── Section 2b: Revenue Chart (MRR over time) ── */}
       <RevenueChart data={mrrHistory} />
 
-      {/* ── Section 3: Activity Feed ── */}
-      <ActivityFeed
-        items={activity}
-        loading={activityLoading}
-        onRefresh={fetchActivity}
-      />
-
-      {/* ── Section 3b: Admin Audit Log ── */}
-      <AuditLogSection activity={activity} />
-
-      {/* ── Section 3c: Page Analytics ── */}
+      {/* ── Section 3: Page Analytics ── */}
       <PageAnalytics />
 
       {/* ── Section 4: User Management Table ── */}
@@ -1976,6 +1966,16 @@ export default function Admin() {
           onRefresh={() => { fetchTicketStats(); fetchAdminTickets() }}
         />
       )}
+
+      {/* ── Section 10: Activity Feed (least priority — bottom) ── */}
+      <ActivityFeed
+        items={activity}
+        loading={activityLoading}
+        onRefresh={fetchActivity}
+      />
+
+      {/* ── Section 11: Admin Audit Log ── */}
+      <AuditLogSection activity={activity} />
 
       {/* ── Bulk Action Bar ── */}
       {selectedUsers.size > 0 && (
