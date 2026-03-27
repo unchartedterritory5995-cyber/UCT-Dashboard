@@ -135,10 +135,25 @@ async def lifespan(app: FastAPI):
     from apscheduler.triggers.cron import CronTrigger
     from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens, record_mrr_snapshot
     _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
+    # COT refresh: primary at 3:50 PM ET, retries at 4:15 PM and 4:45 PM if stale
     _scheduler.add_job(
         _cot_service.refresh_from_current,
-        trigger=CronTrigger(day_of_week="fri", hour=16, minute=30),
+        trigger=CronTrigger(day_of_week="fri", hour=15, minute=50),
         id="cot_weekly_refresh",
+        max_instances=1,
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        _cot_service.refresh_if_stale,
+        trigger=CronTrigger(day_of_week="fri", hour=16, minute=15),
+        id="cot_weekly_retry_1",
+        max_instances=1,
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        _cot_service.refresh_if_stale,
+        trigger=CronTrigger(day_of_week="fri", hour=16, minute=45),
+        id="cot_weekly_retry_2",
         max_instances=1,
         replace_existing=True,
     )
@@ -195,7 +210,7 @@ async def lifespan(app: FastAPI):
         print(f"[startup] MRR snapshot error (non-fatal): {e}")
 
     _scheduler.start()
-    print("[startup] COT scheduler running — refreshes every Friday at 4:30 PM ET")
+    print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45 if stale)")
     print("[startup] Session cleanup scheduled — daily at 3:00 AM ET")
     print("[startup] Churn risk check scheduled — daily at 9:00 AM ET")
     print("[startup] MRR snapshot scheduled — daily at 11:59 PM ET")

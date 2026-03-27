@@ -403,10 +403,21 @@ def seed_from_historical() -> int:
     return n
 
 
+def _latest_record_date() -> str | None:
+    """Return the most recent report date in the DB, or None if empty."""
+    try:
+        with _get_conn() as conn:
+            row = conn.execute("SELECT MAX(date) AS d FROM cot_records").fetchone()
+            return row["d"] if row else None
+    except Exception:
+        return None
+
+
 def refresh_from_current() -> int:
     """Download current-year CFTC zip and upsert into DB.
 
-    Called by APScheduler every Friday at 3:45 PM ET.
+    Called by APScheduler every Friday at 3:50 PM ET (primary),
+    with retries at 4:15 PM and 4:45 PM if no new data arrived.
     Safe to call manually via POST /api/cot/refresh.
     Returns records inserted/updated.
     """
@@ -424,6 +435,30 @@ def refresh_from_current() -> int:
         logger.error("COT: refresh failed: %s", exc)
         _log_refresh(0, f"error: {exc}")
         raise
+
+
+def refresh_if_stale() -> int:
+    """Retry refresh only if the latest record date is older than last Friday.
+
+    Called by APScheduler at 4:15 PM and 4:45 PM ET as retry windows.
+    Skips the download entirely if fresh data already arrived from the
+    3:50 PM primary run.
+    """
+    from zoneinfo import ZoneInfo
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+    # Expected latest report: most recent Monday (CFTC reports are dated the Tuesday,
+    # but our data uses the prior Tuesday — just check if record_count grew today)
+    latest = _latest_record_date()
+    # If latest record is within the last 7 days, data is fresh — skip
+    if latest:
+        from datetime import date as _date
+        latest_date = _date.fromisoformat(latest)
+        days_old = (now_et.date() - latest_date).days
+        if days_old <= 6:
+            logger.info("COT: retry skipped — latest record %s is only %dd old", latest, days_old)
+            return 0
+    logger.info("COT: retry — latest record %s is stale, re-downloading...", latest)
+    return refresh_from_current()
 
 
 # ── Query functions ────────────────────────────────────────────────────────────
@@ -452,12 +487,12 @@ def get_status() -> dict:
         ).fetchone()
         count = conn.execute("SELECT COUNT(*) FROM cot_records").fetchone()[0]
 
-    # Next Friday at 4:30 PM ET (UTC-4 in summer, UTC-5 in winter — approximate)
+    # Next Friday at 3:50 PM ET (retries at 4:15, 4:45 if stale)
     now = datetime.now(timezone.utc)
     days_until_fri = (4 - now.weekday()) % 7
-    if days_until_fri == 0 and now.hour >= 21:   # past 4:30 PM ET (≈21:30 UTC)
+    if days_until_fri == 0 and now.hour >= 21:   # past 4:45 PM ET (≈20:45 UTC)
         days_until_fri = 7
-    next_fri = (now + timedelta(days=days_until_fri)).strftime("%Y-%m-%d") + " 16:30 ET"
+    next_fri = (now + timedelta(days=days_until_fri)).strftime("%Y-%m-%d") + " 15:50 ET (retries 16:15, 16:45)"
 
     return {
         "last_updated":           last["run_at"] if last else None,
