@@ -97,7 +97,7 @@ export default function StockChart({
   const candleSeriesRef = useRef(null)
 
   const { data, error, mutate } = useSWR(
-    sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=200` : null,
+    sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=300` : null,
     fetcher,
     { dedupingInterval: 30000, revalidateOnFocus: false }
   )
@@ -188,9 +188,10 @@ export default function StockChart({
     // ── 52-week volume high stars ──
     const volStars = []
     if (bars.length > 20) {
-      const lookback = Math.min(252, bars.length)
-      for (let i = lookback; i < bars.length; i++) {
-        const priorMax = Math.max(...bars.slice(i - lookback, i).map(b => b.v || 0))
+      const lookback = Math.min(252, bars.length - 1)
+      for (let i = Math.max(20, lookback); i < bars.length; i++) {
+        const start = Math.max(0, i - lookback)
+        const priorMax = Math.max(...bars.slice(start, i).map(b => b.v || 0))
         if (bars[i].v > priorMax && bars[i].c > 0) {
           volStars.push({
             time: bars[i].t,
