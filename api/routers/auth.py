@@ -94,6 +94,13 @@ def signup(request: Request, req: SignupRequest, response: Response):
 
     log_activity(user["id"], "signup")
 
+    # Discord notification
+    try:
+        from api.services.discord_notify import notify_signup
+        notify_signup(user["email"], req.display_name)
+    except Exception:
+        pass
+
     token = create_session(user["id"])
     _set_session_cookie(response, token)
     user["email_verified"] = False

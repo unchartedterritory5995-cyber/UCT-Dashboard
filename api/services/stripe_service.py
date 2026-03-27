@@ -166,6 +166,14 @@ def _handle_checkout_completed(session_data):
                 send_subscription_confirmation(user["email"], user.get("display_name"))
         except Exception as e:
             print(f"[stripe] Failed to send subscription confirmation email: {e}")
+        # Discord notification
+        try:
+            from api.services.discord_notify import notify_subscription
+            user = get_user_by_id(user_id)
+            if user:
+                notify_subscription(user["email"], "checkout_completed")
+        except Exception:
+            pass
     else:
         # No subscription (one-time payment?) — still grant pro
         upsert_subscription(
@@ -202,6 +210,15 @@ def _handle_subscription_change(sub_data):
         current_period_end=period_end,
     )
     print(f"[stripe] Subscription updated: user={sub_record['user_id']} status={status}")
+    # Discord notification for cancellations
+    if status == "canceled":
+        try:
+            from api.services.discord_notify import notify_subscription
+            user = get_user_by_id(sub_record["user_id"])
+            if user:
+                notify_subscription(user["email"], "canceled")
+        except Exception:
+            pass
 
 
 def _handle_payment_failed(invoice_data):
@@ -219,3 +236,11 @@ def _handle_payment_failed(invoice_data):
         current_period_end=sub_record.get("current_period_end"),
     )
     print(f"[stripe] Payment failed for user {sub_record['user_id']} — marked past_due")
+    # Discord notification
+    try:
+        from api.services.discord_notify import notify_subscription
+        user = get_user_by_id(sub_record["user_id"])
+        if user:
+            notify_subscription(user["email"], "payment_failed")
+    except Exception:
+        pass

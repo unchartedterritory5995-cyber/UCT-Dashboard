@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
 
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
-    from api.services.auth_service import cleanup_expired_sessions
+    from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens
     _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
     _scheduler.add_job(
         _cot_service.refresh_from_current,
@@ -133,9 +133,41 @@ async def lifespan(app: FastAPI):
         max_instances=1,
         replace_existing=True,
     )
+    # Churn risk check — daily at 9 AM ET, alerts on users inactive 7+ days
+    def _check_churn_risk():
+        try:
+            from api.services.auth_db import get_connection
+            from api.services.discord_notify import notify_churn_risk
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT u.email, u.last_login_at FROM users u "
+                "JOIN subscriptions s ON u.id = s.user_id "
+                "WHERE s.status IN ('active', 'trialing') "
+                "AND u.last_login_at IS NOT NULL "
+                "AND u.last_login_at < datetime('now', '-7 days')"
+            ).fetchall()
+            conn.close()
+            for r in rows:
+                from datetime import datetime, timezone
+                last = datetime.fromisoformat(r["last_login_at"].replace("Z", "+00:00"))
+                days = (datetime.now(timezone.utc) - last).days
+                notify_churn_risk(r["email"], days)
+            if rows:
+                print(f"[churn] Alerted {len(rows)} churn risk users")
+        except Exception as e:
+            print(f"[churn] Error checking churn risk: {e}")
+
+    _scheduler.add_job(
+        _check_churn_risk,
+        trigger=CronTrigger(hour=9, minute=0),
+        id="churn_risk_check",
+        max_instances=1,
+        replace_existing=True,
+    )
     _scheduler.start()
     print("[startup] COT scheduler running — refreshes every Friday at 3:45 PM ET")
     print("[startup] Session cleanup scheduled — daily at 3:00 AM ET")
+    print("[startup] Churn risk check scheduled — daily at 9:00 AM ET")
 
     yield
     _scheduler.shutdown(wait=False)
