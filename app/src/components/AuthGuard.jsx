@@ -21,8 +21,9 @@ export default function AuthGuard() {
     return <Navigate to="/login" replace />
   }
 
-  // Require email verification (admins exempt)
-  if (!user.email_verified && user.role !== 'admin') {
+  // Require email verification (admins and paid subscribers exempt —
+  // completing Stripe checkout proves email ownership)
+  if (!user.email_verified && user.role !== 'admin' && plan !== 'pro') {
     return <Navigate to="/verify-pending" replace />
   }
 
