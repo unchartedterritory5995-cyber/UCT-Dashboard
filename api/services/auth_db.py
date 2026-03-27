@@ -121,6 +121,68 @@ CREATE TABLE IF NOT EXISTS activity_log (
 CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_activity_action ON activity_log(action);
 CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_log(created_at);
+
+CREATE TABLE IF NOT EXISTS mrr_snapshots (
+    id              TEXT PRIMARY KEY,
+    date            TEXT UNIQUE NOT NULL,
+    total_users     INTEGER,
+    pro_subscribers INTEGER,
+    comped_count    INTEGER,
+    mrr             INTEGER,
+    churn_count     INTEGER,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS admin_notes (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id),
+    note        TEXT NOT NULL,
+    admin_email TEXT NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_admin_notes_user ON admin_notes(user_id);
+
+CREATE TABLE IF NOT EXISTS page_views (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    page        TEXT NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_page_views_user ON page_views(user_id);
+CREATE INDEX IF NOT EXISTS idx_page_views_page ON page_views(page);
+CREATE INDEX IF NOT EXISTS idx_page_views_created ON page_views(created_at);
+
+CREATE TABLE IF NOT EXISTS feedback (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    email TEXT,
+    page TEXT,
+    message TEXT NOT NULL,
+    rating INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback(created_at);
+
+CREATE TABLE IF NOT EXISTS user_tags (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    tag TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, tag)
+);
+CREATE INDEX IF NOT EXISTS idx_user_tags_user ON user_tags(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_tags_tag ON user_tags(tag);
+
+CREATE TABLE IF NOT EXISTS referrals (
+    id                TEXT PRIMARY KEY,
+    referrer_user_id  TEXT NOT NULL REFERENCES users(id),
+    referred_user_id  TEXT REFERENCES users(id),
+    referral_code     TEXT UNIQUE NOT NULL,
+    status            TEXT DEFAULT 'pending',
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_referrals_code ON referrals(referral_code);
+CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_user_id);
 """
 
 
@@ -150,6 +212,12 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP")
             conn.commit()
             print("[auth] Migrated: added last_login_at column to users")
+
+        # Migration: add referral_code column if missing
+        if "referral_code" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN referral_code TEXT")
+            conn.commit()
+            print("[auth] Migrated: added referral_code column to users")
 
         print(f"[auth] Database ready at {_DB_PATH}")
     finally:

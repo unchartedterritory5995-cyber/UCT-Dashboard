@@ -47,11 +47,13 @@ export function AuthProvider({ children }) {
     return data
   }
 
-  const signup = async (email, password, displayName) => {
+  const signup = async (email, password, displayName, referralCode) => {
+    const body = { email, password, display_name: displayName }
+    if (referralCode) body.referral_code = referralCode
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, display_name: displayName }),
+      body: JSON.stringify(body),
     })
     if (!res.ok) {
       const err = await res.json()

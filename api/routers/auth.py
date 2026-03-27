@@ -31,6 +31,21 @@ from api.services.auth_service import (
     log_activity,
     get_recent_activity,
     get_user_detail,
+    get_mrr_history,
+    add_admin_note,
+    get_admin_notes,
+    log_page_view,
+    get_page_analytics,
+    submit_feedback,
+    get_recent_feedback,
+    add_user_tag,
+    remove_user_tag,
+    get_user_tags,
+    get_referral_code,
+    get_referral_stats,
+    apply_referral,
+    get_admin_referral_stats,
+    get_active_now,
 )
 from api.services.email_service import (
     send_verification_email,
@@ -52,6 +67,7 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str
     display_name: str = None
+    referral_code: str = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -93,6 +109,13 @@ def signup(request: Request, req: SignupRequest, response: Response):
         print(f"[signup] Failed to send verification email: {e}")
 
     log_activity(user["id"], "signup")
+
+    # Apply referral code if provided
+    if req.referral_code:
+        try:
+            apply_referral(user["id"], req.referral_code.strip().upper())
+        except Exception as e:
+            print(f"[signup] Failed to apply referral code: {e}")
 
     # Discord notification
     try:
@@ -257,6 +280,50 @@ def _require_admin(user: dict):
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
+# ── Feedback endpoints ────────────────────────────────────────────────────────
+
+class FeedbackRequest(BaseModel):
+    message: str
+    page: str = ""
+    rating: int = None
+
+
+@router.post("/feedback")
+def post_feedback(req: FeedbackRequest, user: dict = Depends(get_current_user)):
+    """Authenticated: submit user feedback."""
+    if not req.message.strip():
+        raise HTTPException(400, "Message is required")
+    result = submit_feedback(user["id"], user["email"], req.page, req.message.strip(), req.rating)
+    return result
+
+
+@router.get("/admin/feedback")
+def admin_feedback(user: dict = Depends(get_current_user), limit: int = 50):
+    """Admin-only: return recent feedback."""
+    _require_admin(user)
+    return get_recent_feedback(limit=limit)
+
+
+# ── User tag endpoints ────────────────────────────────────────────────────────
+
+class AddTagRequest(BaseModel):
+    tag: str
+
+
+@router.post("/admin/users/{user_id}/tags")
+def admin_add_tag(user_id: str, req: AddTagRequest, user: dict = Depends(get_current_user)):
+    """Admin-only: add a tag to a user."""
+    _require_admin(user)
+    return add_user_tag(user_id, req.tag.strip())
+
+
+@router.delete("/admin/users/{user_id}/tags/{tag}")
+def admin_remove_tag(user_id: str, tag: str, user: dict = Depends(get_current_user)):
+    """Admin-only: remove a tag from a user."""
+    _require_admin(user)
+    return remove_user_tag(user_id, tag)
+
+
 class AdminResetRequest(BaseModel):
     email: EmailStr
     new_password: str
@@ -346,6 +413,47 @@ def admin_activity(user: dict = Depends(get_current_user), limit: int = 50):
     return get_recent_activity(limit=limit)
 
 
+@router.get("/admin/mrr-history")
+def admin_mrr_history(user: dict = Depends(get_current_user), days: int = 90):
+    """Admin-only: return MRR snapshot history."""
+    _require_admin(user)
+    return get_mrr_history(days=days)
+
+
+@router.get("/admin/users/{user_id}/notes")
+def admin_get_notes(user_id: str, user: dict = Depends(get_current_user)):
+    """Admin-only: return all admin notes for a user."""
+    _require_admin(user)
+    return get_admin_notes(user_id)
+
+
+@router.post("/admin/users/{user_id}/notes")
+def admin_add_note(user_id: str, req: dict, user: dict = Depends(get_current_user)):
+    """Admin-only: add admin note for a user."""
+    _require_admin(user)
+    note_text = req.get("note", "").strip()
+    if not note_text:
+        raise HTTPException(status_code=400, detail="Note text required")
+    return add_admin_note(user_id, note_text, user["email"])
+
+
+@router.get("/admin/analytics")
+def admin_page_analytics(user: dict = Depends(get_current_user), days: int = 7):
+    """Admin-only: return page view analytics."""
+    _require_admin(user)
+    return get_page_analytics(days=days)
+
+
+@router.post("/track")
+def track_page_view(req: dict, user: dict = Depends(get_current_user)):
+    """Log a page view for the authenticated user (fire-and-forget from frontend)."""
+    page = req.get("page", "").strip()
+    if not page:
+        return {"ok": True}
+    log_page_view(user["id"], page)
+    return {"ok": True}
+
+
 @router.get("/admin/users/{user_id}")
 def admin_user_detail(user_id: str, user: dict = Depends(get_current_user)):
     """Admin-only: return full user detail (info + subscription + counts + activity)."""
@@ -413,6 +521,9 @@ def admin_delete_user_by_id(user_id: str, user: dict = Depends(get_current_user)
         conn.execute("DELETE FROM email_verifications WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM password_resets WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM journal_entries WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM admin_notes WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM page_views WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM referrals WHERE referrer_user_id = ?", (user_id,))
         wl_ids = [r["id"] for r in conn.execute("SELECT id FROM watchlists WHERE user_id = ?", (user_id,)).fetchall()]
         for wl_id in wl_ids:
             conn.execute("DELETE FROM watchlist_items WHERE watchlist_id = ?", (wl_id,))
@@ -471,6 +582,9 @@ def admin_delete_user(req: DeleteUserRequest, user: dict = Depends(get_current_u
         conn.execute("DELETE FROM email_verifications WHERE user_id = ?", (target_id,))
         conn.execute("DELETE FROM password_resets WHERE user_id = ?", (target_id,))
         conn.execute("DELETE FROM journal_entries WHERE user_id = ?", (target_id,))
+        conn.execute("DELETE FROM admin_notes WHERE user_id = ?", (target_id,))
+        conn.execute("DELETE FROM page_views WHERE user_id = ?", (target_id,))
+        conn.execute("DELETE FROM referrals WHERE referrer_user_id = ?", (target_id,))
         # Watchlist items via watchlist IDs
         wl_ids = [r["id"] for r in conn.execute("SELECT id FROM watchlists WHERE user_id = ?", (target_id,)).fetchall()]
         for wl_id in wl_ids:
@@ -527,6 +641,20 @@ def stripe_check(user: dict = Depends(get_current_user)):
         "webhook_secret_set": bool(STRIPE_WEBHOOK_SECRET),
         "dashboard_url": DASHBOARD_URL,
     }
+
+
+class MaintenanceRequest(BaseModel):
+    enabled: bool
+
+
+@router.post("/admin/maintenance")
+def admin_toggle_maintenance(req: MaintenanceRequest, user: dict = Depends(get_current_user)):
+    """Admin-only: toggle maintenance mode."""
+    _require_admin(user)
+    import api.main as _main_module
+    _main_module._MAINTENANCE_MODE = req.enabled
+    log_activity(user["id"], "maintenance_toggled", details=f"enabled={req.enabled}")
+    return {"ok": True, "maintenance": req.enabled}
 
 
 @router.post("/admin/send-announcement")
@@ -627,6 +755,44 @@ def sync_subscriptions(user: dict = Depends(get_current_user)):
             print(f"[sync] Error syncing session: {e}")
             continue
     return {"synced": synced}
+
+
+# ── Referral endpoints ──────────────────────────────────────────────────────
+
+@router.get("/my-referral")
+def my_referral(user: dict = Depends(get_current_user)):
+    """Return the current user's referral code + stats."""
+    stats = get_referral_stats(user["id"])
+    return stats
+
+
+class ApplyReferralRequest(BaseModel):
+    code: str
+
+
+@router.post("/apply-referral")
+def apply_referral_endpoint(req: ApplyReferralRequest, user: dict = Depends(get_current_user)):
+    """Apply a referral code for the current user."""
+    ok = apply_referral(user["id"], req.code.strip().upper())
+    if not ok:
+        raise HTTPException(status_code=400, detail="Invalid referral code")
+    return {"ok": True}
+
+
+@router.get("/admin/referrals")
+def admin_referrals(user: dict = Depends(get_current_user)):
+    """Admin-only: referral program stats."""
+    _require_admin(user)
+    return get_admin_referral_stats()
+
+
+# ── Active now endpoint ────────────────────────────────────────────────────
+
+@router.get("/admin/active-now")
+def admin_active_now(user: dict = Depends(get_current_user)):
+    """Admin-only: users active in the last 5 minutes."""
+    _require_admin(user)
+    return get_active_now(minutes=5)
 
 
 # ── Stripe endpoints ────────────────────────────────────────────────────────

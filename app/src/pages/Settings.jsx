@@ -1,8 +1,51 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import TileCard from '../components/TileCard'
 import styles from './Settings.module.css'
+
+function ReferralSection() {
+  const [referral, setReferral] = useState(null)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/auth/my-referral')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setReferral(d) })
+      .catch(() => {})
+  }, [])
+
+  function handleCopy() {
+    if (!referral?.code) return
+    navigator.clipboard.writeText(`https://uctintelligence.com/signup?ref=${referral.code}`).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  if (!referral) return null
+
+  return (
+    <TileCard title="Referral Program">
+      <div className={styles.section}>
+        <div className={styles.row}>
+          <span className={styles.rowLabel}>Your Referral Link</span>
+          <span className={styles.rowValue} style={{ fontSize: 11 }}>
+            uctintelligence.com/signup?ref={referral.code}
+          </span>
+        </div>
+        <button className={styles.btn} onClick={handleCopy} style={{ marginTop: 8 }}>
+          {copied ? 'Copied!' : 'Copy Link'}
+        </button>
+        <div className={styles.row} style={{ marginTop: 8 }}>
+          <span className={styles.rowLabel}>Referrals</span>
+          <span className={styles.rowValue}>
+            {referral.successful_referrals} user{referral.successful_referrals !== 1 ? 's' : ''} referred
+          </span>
+        </div>
+      </div>
+    </TileCard>
+  )
+}
 
 export default function Settings() {
   const { user, plan, logout, startCheckout, openPortal } = useAuth()
@@ -163,6 +206,9 @@ export default function Settings() {
             )}
           </div>
         </TileCard>
+
+        {/* Referral Program */}
+        <ReferralSection />
 
         {/* Logout */}
         <TileCard title="Session">

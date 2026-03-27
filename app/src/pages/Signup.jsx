@@ -7,6 +7,7 @@ export default function Signup() {
   const { signup, startCheckout } = useAuth()
   const [searchParams] = useSearchParams()
   const checkoutCanceled = searchParams.get('checkout') === 'canceled'
+  const referralCode = searchParams.get('ref') || ''
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,7 +20,7 @@ export default function Signup() {
     setError('')
     setLoading(true)
     try {
-      await signup(email, password, displayName || undefined)
+      await signup(email, password, displayName || undefined, referralCode || undefined)
       // After signup, always redirect to Stripe Checkout
       try {
         await startCheckout()

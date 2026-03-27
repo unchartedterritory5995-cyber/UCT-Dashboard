@@ -231,14 +231,16 @@ def list_all_users() -> list[dict]:
 
 
 def list_users_filtered(search: str = None, plan_filter: str = None, sort_by: str = "created_at") -> list[dict]:
-    """Admin function: return users with optional search, plan filter, and sorting."""
+    """Admin function: return users with optional search, plan filter, and sorting. Includes tags."""
     conn = get_connection()
     try:
         query = (
             "SELECT u.id, u.email, u.display_name, u.role, u.created_at, "
             "u.last_login_at, u.email_verified, "
-            "s.plan, s.status as sub_status, s.current_period_end, s.stripe_customer_id "
+            "s.plan, s.status as sub_status, s.current_period_end, s.stripe_customer_id, "
+            "GROUP_CONCAT(ut.tag, ',') as tags "
             "FROM users u LEFT JOIN subscriptions s ON u.id = s.user_id "
+            "LEFT JOIN user_tags ut ON u.id = ut.user_id "
         )
         params = []
         conditions = []
@@ -257,13 +259,20 @@ def list_users_filtered(search: str = None, plan_filter: str = None, sort_by: st
         if conditions:
             query += "WHERE " + " AND ".join(conditions) + " "
 
+        query += "GROUP BY u.id "
+
         if sort_by == "email":
             query += "ORDER BY u.email ASC"
         else:
             query += "ORDER BY u.created_at DESC"
 
         rows = conn.execute(query, params).fetchall()
-        return [dict(r) for r in rows]
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["tags"] = [t for t in d["tags"].split(",") if t] if d.get("tags") else []
+            result.append(d)
+        return result
     finally:
         conn.close()
 
@@ -536,6 +545,218 @@ def get_user_activity(user_id: str, limit: int = 20) -> list[dict]:
         conn.close()
 
 
+def submit_feedback(user_id: str, email: str, page: str, message: str, rating: int = None) -> dict:
+    """Insert a feedback entry."""
+    fb_id = str(uuid.uuid4())
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO feedback (id, user_id, email, page, message, rating) VALUES (?, ?, ?, ?, ?, ?)",
+            (fb_id, user_id, email, page, message, rating),
+        )
+        conn.commit()
+        return {"id": fb_id, "ok": True}
+    finally:
+        conn.close()
+
+
+def get_recent_feedback(limit: int = 50) -> list[dict]:
+    """Return feedback newest first."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, user_id, email, page, message, rating, created_at "
+            "FROM feedback ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def add_user_tag(user_id: str, tag: str) -> dict:
+    """Add a tag to a user (ignore duplicate)."""
+    tag_id = str(uuid.uuid4())
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO user_tags (id, user_id, tag) VALUES (?, ?, ?)",
+            (tag_id, user_id, tag),
+        )
+        conn.commit()
+        return {"ok": True, "user_id": user_id, "tag": tag}
+    finally:
+        conn.close()
+
+
+def remove_user_tag(user_id: str, tag: str) -> dict:
+    """Remove a tag from a user."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "DELETE FROM user_tags WHERE user_id = ? AND tag = ?",
+            (user_id, tag),
+        )
+        conn.commit()
+        return {"ok": True, "user_id": user_id, "tag": tag}
+    finally:
+        conn.close()
+
+
+def get_user_tags(user_id: str) -> list[str]:
+    """Return list of tag strings for a user."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT tag FROM user_tags WHERE user_id = ? ORDER BY created_at ASC",
+            (user_id,),
+        ).fetchall()
+        return [r["tag"] for r in rows]
+    finally:
+        conn.close()
+
+
+def record_mrr_snapshot():
+    """Record a daily MRR snapshot — upsert on date."""
+    conn = get_connection()
+    try:
+        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        pro_subscribers = conn.execute(
+            "SELECT COUNT(*) FROM subscriptions WHERE status IN ('active', 'trialing', 'comped')"
+        ).fetchone()[0]
+        comped_count = conn.execute(
+            "SELECT COUNT(*) FROM subscriptions WHERE status = 'comped'"
+        ).fetchone()[0]
+        paying = pro_subscribers - comped_count
+        mrr = paying * 20
+        churn_count = conn.execute(
+            "SELECT COUNT(*) FROM subscriptions WHERE status = 'canceled'"
+        ).fetchone()[0]
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        snap_id = str(uuid.uuid4())
+        conn.execute(
+            "INSERT INTO mrr_snapshots (id, date, total_users, pro_subscribers, comped_count, mrr, churn_count) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(date) DO UPDATE SET total_users=excluded.total_users, "
+            "pro_subscribers=excluded.pro_subscribers, comped_count=excluded.comped_count, "
+            "mrr=excluded.mrr, churn_count=excluded.churn_count",
+            (snap_id, today, total_users, pro_subscribers, comped_count, mrr, churn_count),
+        )
+        conn.commit()
+        print(f"[mrr] Snapshot recorded for {today}: MRR=${mrr}, subs={pro_subscribers}")
+    except Exception as e:
+        print(f"[mrr] Failed to record snapshot: {e}")
+    finally:
+        conn.close()
+
+
+def get_mrr_history(days: int = 90) -> list[dict]:
+    """Return last N days of MRR snapshots."""
+    conn = get_connection()
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+        rows = conn.execute(
+            "SELECT date, total_users, pro_subscribers, comped_count, mrr, churn_count "
+            "FROM mrr_snapshots WHERE date >= ? ORDER BY date ASC",
+            (cutoff,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def add_admin_note(user_id: str, note: str, admin_email: str) -> dict:
+    """Insert an admin note for a user."""
+    note_id = str(uuid.uuid4())
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO admin_notes (id, user_id, note, admin_email) VALUES (?, ?, ?, ?)",
+            (note_id, user_id, note, admin_email),
+        )
+        conn.commit()
+        return {"id": note_id, "user_id": user_id, "note": note, "admin_email": admin_email}
+    finally:
+        conn.close()
+
+
+def get_admin_notes(user_id: str) -> list[dict]:
+    """Return all admin notes for a user, newest first."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, user_id, note, admin_email, created_at "
+            "FROM admin_notes WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def log_page_view(user_id: str, page: str):
+    """Insert a page view with 60-second dedup per user+page."""
+    conn = get_connection()
+    try:
+        # Check if same page was logged within last 60 seconds
+        cutoff = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
+        existing = conn.execute(
+            "SELECT id FROM page_views WHERE user_id = ? AND page = ? AND created_at > ?",
+            (user_id, page, cutoff),
+        ).fetchone()
+        if existing:
+            return
+        view_id = str(uuid.uuid4())
+        conn.execute(
+            "INSERT INTO page_views (id, user_id, page) VALUES (?, ?, ?)",
+            (view_id, user_id, page),
+        )
+        conn.commit()
+    except Exception as e:
+        print(f"[pageview] Failed to log: {e}")
+    finally:
+        conn.close()
+
+
+def get_page_analytics(days: int = 7) -> list[dict]:
+    """Return top pages by view count with unique user counts."""
+    conn = get_connection()
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        rows = conn.execute(
+            "SELECT page, COUNT(*) as views, COUNT(DISTINCT user_id) as unique_users "
+            "FROM page_views WHERE created_at > ? "
+            "GROUP BY page ORDER BY views DESC LIMIT 20",
+            (cutoff,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_user_engagement(user_id: str) -> dict:
+    """Return page view stats for a user."""
+    conn = get_connection()
+    try:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM page_views WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        unique = conn.execute(
+            "SELECT COUNT(DISTINCT page) FROM page_views WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        last_row = conn.execute(
+            "SELECT page FROM page_views WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
+            (user_id,),
+        ).fetchone()
+        return {
+            "total_page_views": total,
+            "unique_pages": unique,
+            "last_active_page": last_row["page"] if last_row else None,
+        }
+    finally:
+        conn.close()
+
+
 def get_user_detail(user_id: str) -> dict | None:
     """Return full user detail: user info + subscription + journal/watchlist counts + recent activity."""
     conn = get_connection()
@@ -580,6 +801,227 @@ def get_user_detail(user_id: str) -> dict | None:
         ).fetchall()
         user["recent_activity"] = [dict(r) for r in activity_rows]
 
+        # Admin notes
+        note_rows = conn.execute(
+            "SELECT id, note, admin_email, created_at "
+            "FROM admin_notes WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
+        user["notes"] = [dict(r) for r in note_rows]
+
+        # Engagement stats
+        total_pv = conn.execute(
+            "SELECT COUNT(*) FROM page_views WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        unique_pv = conn.execute(
+            "SELECT COUNT(DISTINCT page) FROM page_views WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        last_pv = conn.execute(
+            "SELECT page FROM page_views WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
+            (user_id,),
+        ).fetchone()
+        user["engagement"] = {
+            "total_page_views": total_pv,
+            "unique_pages": unique_pv,
+            "last_active_page": last_pv["page"] if last_pv else None,
+        }
+
+        # Tags
+        tag_rows = conn.execute(
+            "SELECT tag FROM user_tags WHERE user_id = ? ORDER BY created_at ASC",
+            (user_id,),
+        ).fetchall()
+        user["tags"] = [r["tag"] for r in tag_rows]
+
+        # Login history (last 10 logins with IP)
+        login_rows = conn.execute(
+            "SELECT ip_address, created_at "
+            "FROM activity_log WHERE user_id = ? AND action = 'login' "
+            "ORDER BY created_at DESC LIMIT 10",
+            (user_id,),
+        ).fetchall()
+        user["login_history"] = [dict(r) for r in login_rows]
+
         return user
+    finally:
+        conn.close()
+
+
+# ── Referral tracking ──────────────────────────────────────────────────────
+
+def generate_referral_code(user_id: str) -> str:
+    """Create a unique 8-char alphanumeric referral code for a user."""
+    import string
+    import random
+    conn = get_connection()
+    try:
+        # Check if user already has a code
+        user_row = conn.execute("SELECT referral_code FROM users WHERE id = ?", (user_id,)).fetchone()
+        if user_row and user_row["referral_code"]:
+            return user_row["referral_code"]
+
+        # Generate unique code
+        chars = string.ascii_uppercase + string.digits
+        for _ in range(20):  # retry up to 20 times
+            code = ''.join(random.choices(chars, k=8))
+            try:
+                ref_id = str(uuid.uuid4())
+                conn.execute(
+                    "INSERT INTO referrals (id, referrer_user_id, referral_code) VALUES (?, ?, ?)",
+                    (ref_id, user_id, code),
+                )
+                conn.execute("UPDATE users SET referral_code = ? WHERE id = ?", (code, user_id))
+                conn.commit()
+                return code
+            except Exception:
+                conn.rollback()
+                continue
+        raise RuntimeError("Failed to generate unique referral code")
+    finally:
+        conn.close()
+
+
+def get_referral_code(user_id: str) -> str:
+    """Return existing referral code or generate a new one."""
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT referral_code FROM users WHERE id = ?", (user_id,)).fetchone()
+        if row and row["referral_code"]:
+            return row["referral_code"]
+    finally:
+        conn.close()
+    return generate_referral_code(user_id)
+
+
+def apply_referral(referred_user_id: str, code: str) -> bool:
+    """Mark a referral as completed, linking the referred user."""
+    conn = get_connection()
+    try:
+        # Find the referral row for this code that hasn't been used yet
+        row = conn.execute(
+            "SELECT id, referrer_user_id FROM referrals WHERE referral_code = ? AND status = 'pending' LIMIT 1",
+            (code,),
+        ).fetchone()
+        if not row:
+            # Code might exist but all slots used — create a new completed entry
+            referrer_row = conn.execute(
+                "SELECT referrer_user_id FROM referrals WHERE referral_code = ? LIMIT 1",
+                (code,),
+            ).fetchone()
+            if not referrer_row:
+                return False
+            ref_id = str(uuid.uuid4())
+            conn.execute(
+                "INSERT INTO referrals (id, referrer_user_id, referred_user_id, referral_code, status) "
+                "VALUES (?, ?, ?, ?, 'completed')",
+                (ref_id, referrer_row["referrer_user_id"], referred_user_id, code),
+            )
+            conn.commit()
+            return True
+        # Update the existing pending row
+        conn.execute(
+            "UPDATE referrals SET referred_user_id = ?, status = 'completed' WHERE id = ?",
+            (referred_user_id, row["id"]),
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def get_referral_stats(user_id: str) -> dict:
+    """Return referral stats for a user."""
+    code = get_referral_code(user_id)
+    conn = get_connection()
+    try:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM referrals WHERE referrer_user_id = ?", (user_id,)
+        ).fetchone()[0]
+        successful = conn.execute(
+            "SELECT COUNT(*) FROM referrals WHERE referrer_user_id = ? AND status = 'completed'",
+            (user_id,),
+        ).fetchone()[0]
+        return {
+            "code": code,
+            "total_referrals": total,
+            "successful_referrals": successful,
+        }
+    finally:
+        conn.close()
+
+
+def get_admin_referral_stats() -> dict:
+    """Return admin-level referral program statistics."""
+    conn = get_connection()
+    try:
+        total_referrals = conn.execute("SELECT COUNT(*) FROM referrals").fetchone()[0]
+        completed = conn.execute(
+            "SELECT COUNT(*) FROM referrals WHERE status = 'completed'"
+        ).fetchone()[0]
+        conversion_rate = round(completed / total_referrals * 100, 1) if total_referrals > 0 else 0.0
+
+        # Top referrers
+        rows = conn.execute(
+            "SELECT r.referrer_user_id, u.email, r.referral_code, "
+            "COUNT(*) as total, "
+            "SUM(CASE WHEN r.status = 'completed' THEN 1 ELSE 0 END) as successful "
+            "FROM referrals r JOIN users u ON r.referrer_user_id = u.id "
+            "GROUP BY r.referrer_user_id "
+            "ORDER BY successful DESC, total DESC LIMIT 20"
+        ).fetchall()
+        top_referrers = [
+            {
+                "email": r["email"],
+                "code": r["referral_code"],
+                "total": r["total"],
+                "successful": r["successful"],
+            }
+            for r in rows
+        ]
+
+        return {
+            "total_referrals": total_referrals,
+            "completed_referrals": completed,
+            "conversion_rate": conversion_rate,
+            "top_referrers": top_referrers,
+        }
+    finally:
+        conn.close()
+
+
+# ── Login history ──────────────────────────────────────────────────────────
+
+def get_login_history(user_id: str, limit: int = 10) -> list[dict]:
+    """Return last N login entries with IP + timestamp."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT ip_address, created_at "
+            "FROM activity_log WHERE user_id = ? AND action = 'login' "
+            "ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+# ── Active users ───────────────────────────────────────────────────────────
+
+def get_active_now(minutes: int = 5) -> dict:
+    """Return users active in the last N minutes based on page_views."""
+    conn = get_connection()
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+        rows = conn.execute(
+            "SELECT pv.user_id, u.email, pv.page, MAX(pv.created_at) as last_seen "
+            "FROM page_views pv JOIN users u ON pv.user_id = u.id "
+            "WHERE pv.created_at > ? "
+            "GROUP BY pv.user_id "
+            "ORDER BY last_seen DESC",
+            (cutoff,),
+        ).fetchall()
+        users = [{"email": r["email"], "page": r["page"], "last_seen": r["last_seen"]} for r in rows]
+        return {"count": len(users), "users": users}
     finally:
         conn.close()
