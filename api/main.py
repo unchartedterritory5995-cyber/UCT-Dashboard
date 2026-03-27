@@ -31,8 +31,24 @@ from api.routers import community as community_router
 from api.routers import rs_ranking as rs_ranking_router
 from api.routers import sector_flow as sector_flow_router
 from api.services.auth_db import init_db as _init_auth_db
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse as StarletteJSONResponse
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
+
+# ── Maintenance mode ────────────────────────────────────────────────────────
+_MAINTENANCE_MODE = False
+
+
+class MaintenanceMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        global _MAINTENANCE_MODE
+        if _MAINTENANCE_MODE and not request.url.path.startswith("/api/auth") and request.url.path != "/api/maintenance":
+            return StarletteJSONResponse(
+                status_code=503,
+                content={"detail": "Under maintenance", "maintenance": True},
+            )
+        return await call_next(request)
 if _SENTRY_DSN:
     sentry_sdk.init(
         dsn=_SENTRY_DSN,
@@ -96,9 +112,9 @@ async def lifespan(app: FastAPI):
             threading.Thread(target=_cot_seed_background, daemon=True, name="cot-seed").start()
         else:
             # Catch-up: if today is Friday and we haven't refreshed yet today, do it now.
-            # This handles Railway redeploys that happen after the 3:45 PM scheduled window.
+            # This handles Railway redeploys that happen after the 4:30 PM scheduled window.
             now_et = datetime.now(ZoneInfo("America/New_York"))
-            if now_et.weekday() == 4 and now_et.hour >= 16:  # Friday, past 4 PM ET
+            if now_et.weekday() == 4 and now_et.hour >= 17:  # Friday, past 5 PM ET
                 status = _cot_service.get_status()
                 last_updated = status.get("last_updated")
                 already_ran_today = (
@@ -117,11 +133,11 @@ async def lifespan(app: FastAPI):
 
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
-    from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens
+    from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens, record_mrr_snapshot
     _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
     _scheduler.add_job(
         _cot_service.refresh_from_current,
-        trigger=CronTrigger(day_of_week="fri", hour=15, minute=45),
+        trigger=CronTrigger(day_of_week="fri", hour=16, minute=30),
         id="cot_weekly_refresh",
         max_instances=1,
         replace_existing=True,
@@ -164,18 +180,39 @@ async def lifespan(app: FastAPI):
         max_instances=1,
         replace_existing=True,
     )
+    # MRR snapshot — daily at 11:59 PM ET
+    _scheduler.add_job(
+        record_mrr_snapshot,
+        trigger=CronTrigger(hour=23, minute=59),
+        id="mrr_snapshot",
+        max_instances=1,
+        replace_existing=True,
+    )
+    # Record first snapshot on startup
+    try:
+        record_mrr_snapshot()
+    except Exception as e:
+        print(f"[startup] MRR snapshot error (non-fatal): {e}")
+
     _scheduler.start()
-    print("[startup] COT scheduler running — refreshes every Friday at 3:45 PM ET")
+    print("[startup] COT scheduler running — refreshes every Friday at 4:30 PM ET")
     print("[startup] Session cleanup scheduled — daily at 3:00 AM ET")
     print("[startup] Churn risk check scheduled — daily at 9:00 AM ET")
+    print("[startup] MRR snapshot scheduled — daily at 11:59 PM ET")
 
     yield
     _scheduler.shutdown(wait=False)
     stop_snapshot_scheduler()
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
+app.add_middleware(MaintenanceMiddleware)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.get("/api/maintenance")
+def get_maintenance():
+    return {"maintenance": _MAINTENANCE_MODE}
 
 @app.get("/api/health")
 def health():

@@ -452,12 +452,12 @@ def get_status() -> dict:
         ).fetchone()
         count = conn.execute("SELECT COUNT(*) FROM cot_records").fetchone()[0]
 
-    # Next Friday at 3:45 PM ET (UTC-4 in summer, UTC-5 in winter — approximate)
+    # Next Friday at 4:30 PM ET (UTC-4 in summer, UTC-5 in winter — approximate)
     now = datetime.now(timezone.utc)
     days_until_fri = (4 - now.weekday()) % 7
-    if days_until_fri == 0 and now.hour >= 20:   # past 3:45 PM ET (≈20:45 UTC)
+    if days_until_fri == 0 and now.hour >= 21:   # past 4:30 PM ET (≈21:30 UTC)
         days_until_fri = 7
-    next_fri = (now + timedelta(days=days_until_fri)).strftime("%Y-%m-%d") + " 15:45 ET"
+    next_fri = (now + timedelta(days=days_until_fri)).strftime("%Y-%m-%d") + " 16:30 ET"
 
     return {
         "last_updated":           last["run_at"] if last else None,
