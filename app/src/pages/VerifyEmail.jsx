@@ -34,8 +34,10 @@ export default function VerifyEmail() {
         }
         setStatus('success')
         // Refresh auth state so emailVerified updates
-        await refetch()
-        setTimeout(() => navigate('/dashboard', { replace: true }), 2000)
+        const updated = await refetch()
+        // If user has no active subscription, send to subscribe page (not dashboard)
+        const dest = (updated?.plan === 'pro' || updated?.role === 'admin') ? '/dashboard' : '/subscribe'
+        setTimeout(() => navigate(dest, { replace: true }), 2000)
       } catch (err) {
         if (!cancelled) {
           setStatus('error')
@@ -62,7 +64,7 @@ export default function VerifyEmail() {
         {status === 'success' && (
           <>
             <h1 className={styles.title}>Email verified</h1>
-            <div className={styles.success}>Your email has been verified. Redirecting to dashboard...</div>
+            <div className={styles.success}>Your email has been verified. Redirecting...</div>
           </>
         )}
 

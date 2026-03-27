@@ -14,13 +14,16 @@ export function AuthProvider({ children }) {
         const data = await res.json()
         setUser(data.user)
         setPlan(data.plan)
+        return { plan: data.plan, role: data.user?.role }
       } else {
         setUser(null)
         setPlan('free')
+        return { plan: 'free', role: null }
       }
     } catch {
       setUser(null)
       setPlan('free')
+      return { plan: 'free', role: null }
     } finally {
       setLoading(false)
     }

@@ -46,7 +46,7 @@ export default function VerifyPending() {
         <div className={styles.form}>
           <button
             type="button"
-            className={styles.submit}
+            className={styles.submitPro}
             onClick={handleResend}
             disabled={loading}
           >
