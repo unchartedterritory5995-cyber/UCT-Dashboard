@@ -593,25 +593,39 @@ def sync_subscriptions(user: dict = Depends(get_current_user)):
     from api.services.auth_service import upsert_subscription
     from datetime import datetime, timezone
     synced = []
-    sessions = _stripe.checkout.Session.list(limit=20)
+    try:
+        sessions = _stripe.checkout.Session.list(limit=20)
+    except Exception as e:
+        raise HTTPException(500, f"Stripe API error: {e}")
     for sess in sessions.data:
-        if sess.status == "complete" and sess.metadata.get("user_id"):
-            sub_id = sess.subscription
-            cust_id = sess.customer
-            if sub_id and cust_id:
-                sub = _stripe.Subscription.retrieve(sub_id)
-                period_end = None
-                if hasattr(sub, 'current_period_end') and sub.current_period_end:
-                    period_end = datetime.fromtimestamp(sub.current_period_end, tz=timezone.utc).isoformat()
-                upsert_subscription(
-                    user_id=sess.metadata["user_id"],
-                    stripe_customer_id=cust_id,
-                    stripe_subscription_id=sub_id,
-                    plan="pro",
-                    status=sub.status,
-                    current_period_end=period_end,
-                )
-                synced.append({"user_id": sess.metadata["user_id"], "status": sub.status})
+        try:
+            status = getattr(sess, "status", None)
+            metadata = getattr(sess, "metadata", {})
+            if isinstance(metadata, dict):
+                uid = metadata.get("user_id")
+            else:
+                uid = getattr(metadata, "user_id", None) or (dict(metadata).get("user_id") if metadata else None)
+            if status in ("complete", "completed") and uid:
+                sub_id = getattr(sess, "subscription", None)
+                cust_id = getattr(sess, "customer", None)
+                if sub_id and cust_id:
+                    sub = _stripe.Subscription.retrieve(sub_id)
+                    period_end = None
+                    raw_end = getattr(sub, "current_period_end", None)
+                    if raw_end:
+                        period_end = datetime.fromtimestamp(raw_end, tz=timezone.utc).isoformat()
+                    upsert_subscription(
+                        user_id=uid,
+                        stripe_customer_id=cust_id,
+                        stripe_subscription_id=sub_id,
+                        plan="pro",
+                        status=getattr(sub, "status", "active"),
+                        current_period_end=period_end,
+                    )
+                    synced.append({"user_id": uid, "status": getattr(sub, "status", "active")})
+        except Exception as e:
+            print(f"[sync] Error syncing session: {e}")
+            continue
     return {"synced": synced}
 
 
