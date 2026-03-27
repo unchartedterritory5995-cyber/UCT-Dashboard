@@ -33,6 +33,6 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=400, detail=f"Invalid payload: {e}")
     except Exception as e:
         import traceback
-        print(f"[stripe-webhook] FAILED: {e}")
+        print(f"[stripe-webhook] FAILED ({type(e).__name__}): {e}")
         traceback.print_exc()
-        raise HTTPException(status_code=400, detail=f"Webhook processing failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Webhook processing failed: {type(e).__name__}: {e}")

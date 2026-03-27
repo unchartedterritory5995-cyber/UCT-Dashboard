@@ -63,10 +63,35 @@ def handle_webhook_event(payload: bytes, sig_header: str) -> dict:
     This is the ONLY function that writes subscription data.
     """
     event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-    # Convert entire event to plain dict for reliable access
-    event_dict = event.to_dict() if hasattr(event, 'to_dict') else dict(event)
-    event_type = event_dict.get("type", "")
-    data = event_dict.get("data", {}).get("object", {})
+
+    # Access event attributes directly — stripe v8+ objects don't reliably
+    # convert to plain dicts (calling .get() on nested objects raises AttributeError).
+    event_type = event.type if hasattr(event, "type") else event.get("type", "")
+    print(f"[stripe] Webhook event: {event_type}")
+
+    # Extract the inner object: event.data.object (stripe obj) → convert to dict
+    try:
+        data_obj = event.data.object
+        # stripe v8+ objects have to_dict_recursive or similar; fall back to vars/dict
+        if hasattr(data_obj, "to_dict_recursive"):
+            data = data_obj.to_dict_recursive()
+        elif hasattr(data_obj, "to_dict"):
+            data = data_obj.to_dict()
+        elif isinstance(data_obj, dict):
+            data = data_obj
+        else:
+            # Last resort: use __dict__ or convert via JSON round-trip
+            import json
+            data = json.loads(str(data_obj))
+    except Exception as e:
+        print(f"[stripe] Failed to extract event data object: {e} — falling back to dict conversion")
+        # Fallback: try the old dict conversion path
+        try:
+            event_dict = event.to_dict() if hasattr(event, "to_dict") else {}
+            data = event_dict.get("data", {}).get("object", {})
+        except Exception as e2:
+            print(f"[stripe] Dict fallback also failed: {e2}")
+            data = {}
 
     result = {"event_type": event_type, "handled": False}
 
@@ -88,18 +113,33 @@ def handle_webhook_event(payload: bytes, sig_header: str) -> dict:
     return result
 
 
-def _handle_checkout_completed(session_data: dict):
-    print(f"[stripe] checkout.session.completed — keys: {list(session_data.keys()) if isinstance(session_data, dict) else type(session_data)}")
-    metadata = session_data.get("metadata") or {}
+def _safe_get(obj, key, default=None):
+    """Get a value from a dict or Stripe object, handling both cases."""
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
+def _handle_checkout_completed(session_data):
+    print(f"[stripe] checkout.session.completed — type={type(session_data).__name__}, "
+          f"keys={list(session_data.keys()) if isinstance(session_data, dict) else 'N/A'}")
+
+    # Extract metadata — could be dict, Stripe object, or None
+    metadata = _safe_get(session_data, "metadata") or {}
     if not isinstance(metadata, dict):
-        metadata = dict(metadata)
-    user_id = metadata.get("user_id")
+        try:
+            metadata = dict(metadata)
+        except Exception:
+            print(f"[stripe] metadata is not dict-like: {type(metadata)} — {metadata}")
+            metadata = {}
+
+    user_id = _safe_get(metadata, "user_id")
     if not user_id:
         print(f"[stripe] checkout.session.completed missing user_id in metadata: {metadata}")
         return
 
-    customer_id = session_data.get("customer")
-    subscription_id = session_data.get("subscription")
+    customer_id = _safe_get(session_data, "customer")
+    subscription_id = _safe_get(session_data, "subscription")
 
     # Fetch subscription details from Stripe
     if subscription_id:
@@ -139,23 +179,24 @@ def _handle_checkout_completed(session_data: dict):
         print(f"[stripe] User {user_id} subscribed (pro, active, no sub_id)")
 
 
-def _handle_subscription_change(sub_data: dict):
-    customer_id = sub_data.get("customer")
+def _handle_subscription_change(sub_data):
+    customer_id = _safe_get(sub_data, "customer")
     sub_record = get_subscription_by_stripe_customer(customer_id)
     if not sub_record:
         print(f"[stripe] subscription change for unknown customer {customer_id}")
         return
 
-    status = sub_data.get("status", "active")
+    status = _safe_get(sub_data, "status", "active")
     period_end = None
-    if sub_data.get("current_period_end"):
-        period_end = datetime.fromtimestamp(sub_data["current_period_end"], tz=timezone.utc).isoformat()
+    raw_end = _safe_get(sub_data, "current_period_end")
+    if raw_end:
+        period_end = datetime.fromtimestamp(raw_end, tz=timezone.utc).isoformat()
 
     plan = "pro" if status in ("active", "trialing") else "free"
     upsert_subscription(
         user_id=sub_record["user_id"],
         stripe_customer_id=customer_id,
-        stripe_subscription_id=sub_data.get("id"),
+        stripe_subscription_id=_safe_get(sub_data, "id"),
         plan=plan,
         status=status,
         current_period_end=period_end,
@@ -163,8 +204,8 @@ def _handle_subscription_change(sub_data: dict):
     print(f"[stripe] Subscription updated: user={sub_record['user_id']} status={status}")
 
 
-def _handle_payment_failed(invoice_data: dict):
-    customer_id = invoice_data.get("customer")
+def _handle_payment_failed(invoice_data):
+    customer_id = _safe_get(invoice_data, "customer")
     sub_record = get_subscription_by_stripe_customer(customer_id)
     if not sub_record:
         return
