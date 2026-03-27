@@ -287,7 +287,7 @@ def get_agg_bars(ticker: str, from_date: str, to_date: str) -> list[dict]:
         url = (
             f"{_REST_BASE}/v2/aggs/ticker/{ticker.upper()}/range/1/day"
             f"/{from_date}/{to_date}"
-            f"?adjusted=true&sort=asc&limit=400&apiKey={client._api_key}"
+            f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
         )
         data = client._get(url)
         return data.get("results") or []
