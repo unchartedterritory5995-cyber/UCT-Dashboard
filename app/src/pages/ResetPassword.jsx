@@ -98,7 +98,7 @@ export default function ResetPassword() {
                   autoComplete="new-password"
                 />
               </label>
-              <button type="submit" className={styles.submit} disabled={loading}>
+              <button type="submit" className={styles.submitPro} disabled={loading}>
                 {loading ? 'Resetting...' : 'Reset Password'}
               </button>
             </form>
