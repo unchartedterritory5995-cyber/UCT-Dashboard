@@ -64,7 +64,9 @@ def handle_webhook_event(payload: bytes, sig_header: str) -> dict:
     """
     event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
     event_type = event["type"]
-    data = event["data"]["object"]
+    # Convert Stripe object to plain dict for reliable .get() access
+    raw = event["data"]["object"]
+    data = dict(raw) if not isinstance(raw, dict) else raw
 
     result = {"event_type": event_type, "handled": False}
 
@@ -87,9 +89,13 @@ def handle_webhook_event(payload: bytes, sig_header: str) -> dict:
 
 
 def _handle_checkout_completed(session_data: dict):
-    user_id = session_data.get("metadata", {}).get("user_id")
+    print(f"[stripe] checkout.session.completed — keys: {list(session_data.keys()) if isinstance(session_data, dict) else type(session_data)}")
+    metadata = session_data.get("metadata") or {}
+    if not isinstance(metadata, dict):
+        metadata = dict(metadata)
+    user_id = metadata.get("user_id")
     if not user_id:
-        print(f"[stripe] checkout.session.completed missing user_id in metadata")
+        print(f"[stripe] checkout.session.completed missing user_id in metadata: {metadata}")
         return
 
     customer_id = session_data.get("customer")
