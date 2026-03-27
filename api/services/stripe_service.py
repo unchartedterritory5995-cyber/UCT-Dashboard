@@ -63,10 +63,10 @@ def handle_webhook_event(payload: bytes, sig_header: str) -> dict:
     This is the ONLY function that writes subscription data.
     """
     event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-    event_type = event["type"]
-    # Convert Stripe object to plain dict for reliable .get() access
-    raw = event["data"]["object"]
-    data = dict(raw) if not isinstance(raw, dict) else raw
+    # Convert entire event to plain dict for reliable access
+    event_dict = event.to_dict() if hasattr(event, 'to_dict') else dict(event)
+    event_type = event_dict.get("type", "")
+    data = event_dict.get("data", {}).get("object", {})
 
     result = {"event_type": event_type, "handled": False}
 
