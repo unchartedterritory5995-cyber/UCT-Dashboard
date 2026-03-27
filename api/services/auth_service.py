@@ -106,8 +106,17 @@ def validate_session(token: str) -> dict | None:
             conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
             conn.commit()
             return None
+        user_id = row["user_id"]
+
+        # Update last login timestamp (fire-and-forget, don't block)
+        try:
+            conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+            conn.commit()
+        except:
+            pass
+
         return {
-            "id": row["user_id"],
+            "id": user_id,
             "email": row["email"],
             "display_name": row["display_name"],
             "role": row["role"],
@@ -227,6 +236,7 @@ def list_users_filtered(search: str = None, plan_filter: str = None, sort_by: st
     try:
         query = (
             "SELECT u.id, u.email, u.display_name, u.role, u.created_at, "
+            "u.last_login_at, u.email_verified, "
             "s.plan, s.status as sub_status, s.current_period_end "
             "FROM users u LEFT JOIN subscriptions s ON u.id = s.user_id "
         )
@@ -291,6 +301,25 @@ def get_admin_stats() -> dict:
         ).fetchall()
         signups_by_day = [{"date": r["date"], "count": r["count"]} for r in rows]
 
+        # Churn: canceled subscriptions in last 30 days
+        churn_30d = conn.execute(
+            "SELECT COUNT(*) FROM subscriptions WHERE status = 'canceled' AND created_at > ?",
+            (thirty_days_ago,),
+        ).fetchone()[0]
+
+        # Unverified users
+        unverified_count = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE email_verified = 0"
+        ).fetchone()[0]
+
+        # Active (non-expired) sessions
+        active_sessions = conn.execute(
+            "SELECT COUNT(*) FROM sessions WHERE expires_at > ?", (now_iso,)
+        ).fetchone()[0]
+
+        # Conversion rate
+        conversion_rate = round(pro_subscribers / total_users * 100, 1) if total_users > 0 else 0.0
+
         return {
             "total_users": total_users,
             "pro_subscribers": pro_subscribers,
@@ -298,6 +327,10 @@ def get_admin_stats() -> dict:
             "new_signups_7d": new_signups_7d,
             "new_signups_30d": new_signups_30d,
             "signups_by_day": signups_by_day,
+            "churn_30d": churn_30d,
+            "unverified_count": unverified_count,
+            "active_sessions": active_sessions,
+            "conversion_rate": conversion_rate,
         }
     finally:
         conn.close()
@@ -443,5 +476,99 @@ def cleanup_expired_tokens():
         r = conn.execute("DELETE FROM password_resets WHERE expires_at < ?", (now,))
         conn.commit()
         return v.rowcount + r.rowcount
+    finally:
+        conn.close()
+
+
+# ── Activity logging ──────────────────────────────────────────────────────
+
+def log_activity(user_id: str, action: str, details: str = "", ip_address: str = ""):
+    """Insert an activity log entry."""
+    entry_id = str(uuid.uuid4())
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO activity_log (id, user_id, action, details, ip_address) VALUES (?, ?, ?, ?, ?)",
+            (entry_id, user_id, action, details, ip_address),
+        )
+        conn.commit()
+    except Exception as e:
+        print(f"[activity] Failed to log {action} for {user_id}: {e}")
+    finally:
+        conn.close()
+
+
+def get_recent_activity(limit: int = 50) -> list[dict]:
+    """Return the most recent activity entries joined with user info."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT a.id, a.user_id, a.action, a.details, a.ip_address, a.created_at, "
+            "u.email, u.display_name "
+            "FROM activity_log a JOIN users u ON a.user_id = u.id "
+            "ORDER BY a.created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_user_activity(user_id: str, limit: int = 20) -> list[dict]:
+    """Return activity entries for a specific user."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, action, details, ip_address, created_at "
+            "FROM activity_log WHERE user_id = ? "
+            "ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_user_detail(user_id: str) -> dict | None:
+    """Return full user detail: user info + subscription + journal/watchlist counts + recent activity."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id, email, display_name, role, email_verified, created_at, last_login_at "
+            "FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        if not row:
+            return None
+        user = dict(row)
+
+        # Subscription info
+        sub_row = conn.execute(
+            "SELECT plan, status, stripe_customer_id, stripe_subscription_id, current_period_end, created_at "
+            "FROM subscriptions WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        user["subscription"] = dict(sub_row) if sub_row else None
+
+        # Journal entry count
+        user["journal_count"] = conn.execute(
+            "SELECT COUNT(*) FROM journal_entries WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+
+        # Watchlist count
+        user["watchlist_count"] = conn.execute(
+            "SELECT COUNT(*) FROM watchlists WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+
+        # Last 10 activity entries
+        activity_rows = conn.execute(
+            "SELECT id, action, details, ip_address, created_at "
+            "FROM activity_log WHERE user_id = ? "
+            "ORDER BY created_at DESC LIMIT 10",
+            (user_id,),
+        ).fetchall()
+        user["recent_activity"] = [dict(r) for r in activity_rows]
+
+        return user
     finally:
         conn.close()

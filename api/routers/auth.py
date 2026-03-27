@@ -4,8 +4,11 @@ All NEW endpoints under /api/auth/*. Does not touch any existing routes.
 """
 
 import os
+import csv
+import io
 import sqlite3
 from fastapi import APIRouter, HTTPException, Request, Response, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr
 
 from api.limiter import limiter
@@ -25,6 +28,9 @@ from api.services.auth_service import (
     verify_email_token,
     create_password_reset,
     execute_password_reset,
+    log_activity,
+    get_recent_activity,
+    get_user_detail,
 )
 from api.services.email_service import (
     send_verification_email,
@@ -55,6 +61,7 @@ class LoginRequest(BaseModel):
 # ── Auth endpoints ───────────────────────────────────────────────────────────
 
 ADMIN_EMAILS = set(filter(None, os.environ.get("ADMIN_EMAILS", "").split(",")))
+ADMIN_EMAILS.add("unchartedterritory5995@gmail.com")  # Owner always admin
 
 
 @router.post("/signup")
@@ -85,6 +92,8 @@ def signup(request: Request, req: SignupRequest, response: Response):
     except Exception as e:
         print(f"[signup] Failed to send verification email: {e}")
 
+    log_activity(user["id"], "signup")
+
     token = create_session(user["id"])
     _set_session_cookie(response, token)
     user["email_verified"] = False
@@ -97,6 +106,19 @@ def login(request: Request, req: LoginRequest, response: Response):
     user = verify_password(req.email, req.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # Auto-promote admin emails on login (in case role wasn't set at signup)
+    if user["email"] in ADMIN_EMAILS and user.get("role") != "admin":
+        from api.services.auth_db import get_connection as _gc
+        _conn = _gc()
+        try:
+            _conn.execute("UPDATE users SET role = 'admin' WHERE id = ?", (user["id"],))
+            _conn.commit()
+            user["role"] = "admin"
+        finally:
+            _conn.close()
+
+    log_activity(user["id"], "login", ip_address=request.client.host)
 
     token = create_session(user["id"])
     _set_session_cookie(response, token)
@@ -172,8 +194,21 @@ def reset_password(request: Request, req: ResetPasswordRequest):
     """Validate reset token and set new password."""
     if len(req.new_password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    # Look up user_id from token before executing reset (for activity log)
+    from api.services.auth_db import get_connection as _get_conn
+    _conn = _get_conn()
+    try:
+        _reset_row = _conn.execute("SELECT user_id FROM password_resets WHERE token = ? AND used = 0", (req.token,)).fetchone()
+        _reset_user_id = _reset_row["user_id"] if _reset_row else None
+    finally:
+        _conn.close()
+
     if not execute_password_reset(req.token, req.new_password):
         raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+
+    if _reset_user_id:
+        log_activity(_reset_user_id, "password_reset")
+
     return {"ok": True}
 
 
@@ -183,6 +218,7 @@ def verify_email(req: VerifyEmailRequest):
     user_id = verify_email_token(req.token)
     if not user_id:
         raise HTTPException(status_code=400, detail="Invalid or expired verification link")
+    log_activity(user_id, "email_verified")
     # Send welcome email
     from api.services.auth_service import get_user_by_id
     user = get_user_by_id(user_id)
@@ -285,9 +321,122 @@ def admin_comp_access(req: CompAccessRequest, user: dict = Depends(get_current_u
     _require_admin(user)
     try:
         result = comp_user_access(req.email, grant=(req.action == "grant"))
+        # Log comp/revoke with admin attribution
+        from api.services.auth_service import get_user_by_email
+        target = get_user_by_email(req.email)
+        if target:
+            action_label = "comp_granted" if req.action == "grant" else "comp_revoked"
+            log_activity(target["id"], action_label, details=f"by admin {user['email']}")
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/admin/activity")
+def admin_activity(user: dict = Depends(get_current_user), limit: int = 50):
+    """Admin-only: return recent activity log."""
+    _require_admin(user)
+    return get_recent_activity(limit=limit)
+
+
+@router.get("/admin/users/{user_id}")
+def admin_user_detail(user_id: str, user: dict = Depends(get_current_user)):
+    """Admin-only: return full user detail (info + subscription + counts + activity)."""
+    _require_admin(user)
+    detail = get_user_detail(user_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="User not found")
+    return detail
+
+
+class ForceVerifyRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/admin/force-verify")
+def admin_force_verify(req: ForceVerifyRequest, user: dict = Depends(get_current_user)):
+    """Admin-only: force-verify a user's email."""
+    _require_admin(user)
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM users WHERE email = ?", (req.email.lower().strip(),)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        conn.execute("UPDATE users SET email_verified = 1 WHERE id = ?", (row["id"],))
+        conn.commit()
+        log_activity(row["id"], "force_verified", details=f"by admin {user['email']}")
+        return {"ok": True, "email": req.email, "verified": True}
+    finally:
+        conn.close()
+
+
+class DeleteUserRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/admin/delete-user")
+def admin_delete_user(req: DeleteUserRequest, user: dict = Depends(get_current_user)):
+    """Admin-only: delete a user and all their data (cascade)."""
+    _require_admin(user)
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM users WHERE email = ?", (req.email.lower().strip(),)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        target_id = row["id"]
+        # Prevent self-deletion
+        if target_id == user["id"]:
+            raise HTTPException(status_code=400, detail="Cannot delete your own account")
+        # Cascade delete all related data
+        conn.execute("DELETE FROM activity_log WHERE user_id = ?", (target_id,))
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (target_id,))
+        conn.execute("DELETE FROM subscriptions WHERE user_id = ?", (target_id,))
+        conn.execute("DELETE FROM email_verifications WHERE user_id = ?", (target_id,))
+        conn.execute("DELETE FROM password_resets WHERE user_id = ?", (target_id,))
+        conn.execute("DELETE FROM journal_entries WHERE user_id = ?", (target_id,))
+        # Watchlist items via watchlist IDs
+        wl_ids = [r["id"] for r in conn.execute("SELECT id FROM watchlists WHERE user_id = ?", (target_id,)).fetchall()]
+        for wl_id in wl_ids:
+            conn.execute("DELETE FROM watchlist_items WHERE watchlist_id = ?", (wl_id,))
+        conn.execute("DELETE FROM watchlists WHERE user_id = ?", (target_id,))
+        conn.execute("DELETE FROM users WHERE id = ?", (target_id,))
+        conn.commit()
+        return {"ok": True, "email": req.email, "deleted": True}
+    finally:
+        conn.close()
+
+
+@router.get("/admin/export-csv")
+def admin_export_csv(user: dict = Depends(get_current_user)):
+    """Admin-only: export all users as CSV."""
+    _require_admin(user)
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT u.email, u.display_name, "
+            "COALESCE(s.plan, 'free') as plan, COALESCE(s.status, 'none') as status, "
+            "u.email_verified, u.created_at, u.last_login_at "
+            "FROM users u LEFT JOIN subscriptions s ON u.id = s.user_id "
+            "ORDER BY u.created_at DESC"
+        ).fetchall()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["email", "display_name", "plan", "status", "email_verified", "created_at", "last_login_at"])
+        for r in rows:
+            writer.writerow([r["email"], r["display_name"], r["plan"], r["status"],
+                             r["email_verified"], r["created_at"], r["last_login_at"]])
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=users_export.csv"},
+        )
+    finally:
+        conn.close()
 
 
 @router.get("/admin/stripe-check")

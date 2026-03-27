@@ -109,6 +109,18 @@ CREATE TABLE IF NOT EXISTS password_resets (
 
 CREATE INDEX IF NOT EXISTS idx_email_verifications_token ON email_verifications(token);
 CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token);
+
+CREATE TABLE IF NOT EXISTS activity_log (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id),
+    action      TEXT NOT NULL,
+    details     TEXT DEFAULT '',
+    ip_address  TEXT DEFAULT '',
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_action ON activity_log(action);
+CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_log(created_at);
 """
 
 
@@ -132,6 +144,12 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0")
             conn.commit()
             print("[auth] Migrated: added email_verified column to users")
+
+        # Migration: add last_login_at column if missing
+        if "last_login_at" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP")
+            conn.commit()
+            print("[auth] Migrated: added last_login_at column to users")
 
         print(f"[auth] Database ready at {_DB_PATH}")
     finally:
