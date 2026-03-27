@@ -223,7 +223,14 @@ export default function StockChart({
       }
     }
 
-    chart.timeScale().fitContent()
+    // Zoom to last ~200 bars on load (full history still scrollable)
+    if (bars.length > 200) {
+      const from = bars[bars.length - 200].t
+      const to = bars[bars.length - 1].t
+      chart.timeScale().setVisibleRange({ from, to })
+    } else {
+      chart.timeScale().fitContent()
+    }
   }, [bars, sym, tf, showVolume, overlays, markers, priceLines, watermark])
 
   // Effect: build chart when data changes
