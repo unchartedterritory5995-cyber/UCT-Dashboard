@@ -102,6 +102,26 @@
   font-family: var(--font-mono);
   font-size: 8px; font-weight: 700; letter-spacing: 0.5px;
   color: #fff; background: #16a34a;
+}
+.siBadge {
+  font-family: var(--font-mono);
+  font-size: 8px; font-weight: 700; letter-spacing: 0.5px;
+  color: var(--ut-cream); background: rgba(201,168,76,0.25);
+  border: 1px solid rgba(201,168,76,0.4);
+  padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+}
+.siHigh {
+  color: #fca5a5; background: rgba(239,68,68,0.15);
+  border-color: rgba(239,68,68,0.3);
+}
+.instBadge {
+  font-family: var(--font-mono);
+  font-size: 8px; font-weight: 600; letter-spacing: 0.5px;
+  color: var(--text-muted);
+  padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+}
+.instUp { color: var(--ut-green-bright); }
+.instDown { color: var(--ut-red, #ef4444);
   border-radius: 3px; padding: 1px 5px;
   flex-shrink: 0;
 }

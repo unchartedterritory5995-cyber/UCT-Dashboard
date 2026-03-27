@@ -118,6 +118,18 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
           <span className={styles.newSlot}>
             {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}
             {isNew && <span className={styles.newBadge}>NEW</span>}
+            {item.short_flt != null && item.short_flt > 10 && (
+              <span className={`${styles.siBadge} ${item.short_flt > 20 ? styles.siHigh : ''}`}>
+                SI {item.short_flt.toFixed(0)}%
+              </span>
+            )}
+            {item.inst_own != null && (
+              <span className={styles.instBadge}>
+                Inst {item.inst_own.toFixed(0)}%
+                {item.inst_trans != null && item.inst_trans > 0 && <span className={styles.instUp}> ▲</span>}
+                {item.inst_trans != null && item.inst_trans < 0 && <span className={styles.instDown}> ▼</span>}
+              </span>
+            )}
           </span>
           <span className={styles.daysOnList}>{daysStr ?? ''}</span>
           <span className={`${styles.posReturn} ${(displayReturn ?? 0) >= 0 ? styles.gain : styles.loss}`}>
