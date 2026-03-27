@@ -236,6 +236,25 @@ def admin_reset_password(req: AdminResetRequest, user: dict = Depends(get_curren
     finally:
         conn.close()
 
+@router.post("/admin/verify-email")
+def admin_verify_email(req: dict, user: dict = Depends(get_current_user)):
+    """Admin-only: manually verify a user's email."""
+    _require_admin(user)
+    email = req.get("email", "").lower().strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        conn.execute("UPDATE users SET email_verified = 1 WHERE id = ?", (row["id"],))
+        conn.commit()
+        return {"ok": True, "email": email, "verified": True}
+    finally:
+        conn.close()
+
 @router.get("/admin/users")
 def admin_users(
     user: dict = Depends(get_current_user),
