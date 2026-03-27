@@ -1,16 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import useSWR from 'swr'
+import StockChart from '../components/StockChart'
 import styles from './CustomScan.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
-// ─── Chart helpers (mirrors ThemeTrackerPage) ─────────────────────────────
-
-const finvizUrl = (sym, period) =>
-  `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}&s=l`
-
-const tvUrl = sym =>
-  `https://s.tradingview.com/widgetembed/?frameElementId=tv_theme&symbol=${sym}&interval=D&theme=dark&style=1&locale=en&toolbar_bg=161b22&enable_publishing=false&hide_top_toolbar=false&save_image=false&hide_legend=false&hide_volume=false`
+// Chart helpers removed — using StockChart component
 
 // ─── Tag metadata ────────────────────────────────────────────────────────
 
@@ -311,7 +306,7 @@ export default function CustomScan({ allCandidates }) {
   // ── Chart state ──
   const [selectedSym, setSelectedSym]   = useState(null)
   const [selectedName, setSelectedName] = useState('')
-  const [chartPeriod, setChartPeriod]   = useState('tv')
+  const [chartPeriod, setChartPeriod]   = useState('D')
 
   // Dynamic sector options
   const sectorOptions = useMemo(() => {
@@ -345,21 +340,6 @@ export default function CustomScan({ allCandidates }) {
   }, [])
 
   // ── Finviz preload ──
-  useEffect(() => {
-    if (!selectedSym || chartPeriod === 'tv') return
-    const results_arr = results  // captured below, use the memo result
-    const idx = results_arr.findIndex(r => r.ticker === selectedSym)
-    for (let d = -3; d <= 3; d++) {
-      if (d === 0) continue
-      const neighbor = results_arr[idx + d]
-      if (neighbor?.ticker) {
-        const img = new window.Image()
-        img.src = finvizUrl(neighbor.ticker, chartPeriod)
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSym, chartPeriod])
-
   // ── Filter + sort ──
   const results = useMemo(() => {
     let rows = [...mergedUniverse]
@@ -629,7 +609,7 @@ export default function CustomScan({ allCandidates }) {
                 <span className={styles.chartSym}>{selectedSym}</span>
                 <span className={styles.chartName}>{selectedName}</span>
                 <div className={styles.chartPeriodTabs}>
-                  {[['d', 'Daily'], ['w', 'Weekly'], ['tv', 'TradingView']].map(([p, label]) => (
+                  {[['5', '5min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly']].map(([p, label]) => (
                     <button
                       key={p}
                       className={`${styles.chartPeriodBtn} ${chartPeriod === p ? styles.chartPeriodBtnActive : ''}`}
@@ -640,22 +620,7 @@ export default function CustomScan({ allCandidates }) {
                   ))}
                 </div>
               </div>
-              {chartPeriod === 'tv' ? (
-                <iframe
-                  src={tvUrl(selectedSym)}
-                  className={styles.chartFrame}
-                  title={`${selectedSym} TradingView`}
-                  allowFullScreen
-                />
-              ) : (
-                <div className={styles.chartImgWrap}>
-                  <img
-                    src={finvizUrl(selectedSym, chartPeriod)}
-                    className={styles.chartImg}
-                    alt={`${selectedSym} chart`}
-                  />
-                </div>
-              )}
+              <StockChart sym={selectedSym} tf={chartPeriod} />
             </>
           ) : (
             <div className={styles.chartEmpty}>
