@@ -20,6 +20,7 @@ from api.services import cot_service as _cot_service
 from api.top_flow_router import router as top_flow_router
 from api import top_flow_tracker as _top_flow_tracker
 from api.schwab_router import router as schwab_router
+from api.routers import insider as insider_router
 from api.routers import auth as auth_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
@@ -162,6 +163,7 @@ app.include_router(theme_performance_router.router)
 app.include_router(top_flow_router)
 app.include_router(schwab_router)
 app.include_router(calendar_router.router)
+app.include_router(insider_router.router)
 app.include_router(auth_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)

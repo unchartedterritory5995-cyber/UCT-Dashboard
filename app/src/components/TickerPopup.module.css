@@ -147,6 +147,136 @@
   color: var(--text-muted);
 }
 
+/* Insider activity section */
+.insiderSection {
+  padding: 8px 16px 4px;
+  border-top: 1px solid var(--border);
+}
+.insiderHeader {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.insiderList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.insiderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
+}
+.insiderName {
+  flex: 0 0 160px;
+  font-weight: 600;
+  color: var(--ut-cream);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.insiderTitle {
+  flex: 0 0 110px;
+  font-size: 10px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.insiderBadge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.insiderBuy {
+  color: #fff;
+  background: var(--ut-green);
+}
+.insiderSell {
+  color: #fff;
+  background: var(--ut-red, #ef4444);
+}
+.insiderShares {
+  flex: 0 0 80px;
+  text-align: right;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.insiderAmt {
+  flex: 0 0 70px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text);
+}
+.insiderDate {
+  flex: 0 0 80px;
+  text-align: right;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Earnings Intelligence strip */
+.earningsIntel {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 6px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
+.eiBlock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.eiLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+.eiBeats {
+  display: flex;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.eiBeat { color: var(--ut-green-bright); }
+.eiMiss { color: var(--ut-red, #ef4444); }
+.eiNA { color: var(--text-muted); opacity: 0.5; }
+.eiConsensus {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+}
+.eiBuyCount { color: var(--ut-green-bright); font-weight: 600; }
+.eiHoldCount { color: var(--text-muted); font-weight: 600; }
+.eiSellCount { color: var(--ut-red, #ef4444); font-weight: 600; }
+.eiTarget {
+  font-weight: 600;
+  color: var(--ut-cream);
+}
+.eiTargetRange {
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 4px;
+  font-size: 10px;
+}
+
 /* Footer links */
 .modalFooter {
   display: flex;
@@ -203,4 +333,13 @@
     padding: 10px 0;
     font-size: 12px;
   }
+  .earningsIntel { flex-wrap: wrap; gap: 8px 14px; padding: 6px 10px; font-size: 10px; }
+  .eiBeats { font-size: 12px; }
+  .insiderSection { padding: 8px 10px 4px; }
+  .insiderRow { gap: 6px; flex-wrap: wrap; }
+  .insiderName { flex: 0 0 120px; font-size: 10px; }
+  .insiderTitle { display: none; }
+  .insiderShares { flex: 0 0 auto; }
+  .insiderAmt { flex: 0 0 auto; }
+  .insiderDate { flex: 0 0 auto; }
 }

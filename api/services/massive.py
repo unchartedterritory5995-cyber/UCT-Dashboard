@@ -250,6 +250,69 @@ def _yfinance_snapshot(ticker: str) -> dict:
         return {}
 
 
+def _detect_session() -> str:
+    """Detect current market session based on ET time.
+
+    Returns 'pre_market', 'post_market', or 'regular'.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    now = datetime.now(ZoneInfo("America/New_York"))
+    # Weekends → post_market (last session that ran)
+    if now.weekday() >= 5:
+        return "post_market"
+    hour_min = now.hour * 100 + now.minute
+    if hour_min < 930:
+        return "pre_market"
+    if hour_min >= 1600:
+        return "post_market"
+    return "regular"
+
+
+def get_extended_movers() -> dict:
+    """Return gainers/losers for the extended-hours movers page.
+
+    Uses the same Massive gainers/losers snapshot endpoints.
+    Filters: price > $5. Auto-detects session (pre/post/regular).
+
+    Returns {"gainers": [...], "losers": [...], "session": str}
+    Each entry: {ticker, price, change_pct, volume}
+    """
+    cached = cache.get("extended_movers")
+    if cached is not None:
+        return cached
+
+    session = _detect_session()
+    client = _get_client()
+
+    def _fetch_side(direction: str) -> list:
+        try:
+            raw = client.get_top_movers(direction=direction, limit=40)
+        except Exception:
+            return []
+        result = []
+        for m in raw:
+            price = float(m.get("close") or 0)
+            if price <= 5.0:
+                continue
+            result.append({
+                "ticker":     m["ticker"],
+                "price":      round(price, 2),
+                "change_pct": m["change_pct"],
+                "volume":     m["volume"],
+            })
+            if len(result) >= 20:
+                break
+        return result
+
+    gainers = _fetch_side("gainers")
+    losers = _fetch_side("losers")
+
+    data = {"gainers": gainers, "losers": losers, "session": session}
+    cache.set("extended_movers", data, ttl=60)
+    return data
+
+
 def get_ticker_snapshot(ticker: str) -> dict:
     """Return change_pct for a single equity ticker (for earnings gap display)."""
     try:

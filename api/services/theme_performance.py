@@ -28,6 +28,8 @@ from api.services.massive import get_agg_bars
 
 _CACHE_KEY = "theme_performance"
 _CACHE_TTL = 900          # 15 min in-memory cache
+_ROTATION_CACHE_KEY = "theme_rotation"
+_ROTATION_CACHE_TTL = 900  # 15 min rotation signals cache
 _LIVE_1D_KEY = "theme_live_1d_map"
 _LIVE_1D_TTL = 30         # 30s live intraday overlay
 _MAX_WORKERS = 6          # conservative — keeps Railway memory safe
@@ -385,6 +387,99 @@ def get_theme_performance() -> dict:
     threading.Thread(target=_run_computation, daemon=True, name="theme-perf-compute").start()
     return {"themes": [], "status": "computing",
             "generated_at": datetime.now(timezone.utc).isoformat()}
+
+
+def compute_rotation_signals() -> dict:
+    """Compute sector rotation signals from theme performance data.
+
+    For each theme, ranks its 1W and 1M returns as percentiles (0-100) among
+    all themes.  Themes where the 1W rank exceeds the 1M rank by 20+
+    percentile points are "rotating in"; the reverse means "rotating out".
+
+    Cached for 15 minutes to avoid redundant computation.
+    """
+    cached = cache.get(_ROTATION_CACHE_KEY)
+    if cached is not None:
+        return cached
+
+    perf = get_theme_performance()
+    themes = perf.get("themes", [])
+    if not themes:
+        return {"rotating_in": [], "rotating_out": [], "rankings": {},
+                "generated_at": datetime.now(timezone.utc).isoformat()}
+
+    # Gather group-level returns for ranking periods
+    RANK_PERIODS = ("1w", "1m", "3m")
+    theme_returns: dict[str, dict] = {}
+    for t in themes:
+        gr = t.get("group_return") or {}
+        avg_fallback = {}
+        for p in RANK_PERIODS:
+            if gr.get(p) is not None:
+                avg_fallback[p] = gr[p]
+            else:
+                vals = [h["returns"][p] for h in t.get("holdings", [])
+                        if h.get("returns", {}).get(p) is not None]
+                avg_fallback[p] = (sum(vals) / len(vals)) if vals else None
+        theme_returns[t["ticker"]] = avg_fallback
+
+    # Percentile rank per period (0 = worst, 100 = best)
+    def percentile_ranks(period: str) -> dict[str, float | None]:
+        vals = [(tk, theme_returns[tk].get(period))
+                for tk in theme_returns if theme_returns[tk].get(period) is not None]
+        if not vals:
+            return {tk: None for tk in theme_returns}
+        sorted_tks = sorted(vals, key=lambda x: x[1])
+        n = len(sorted_tks)
+        ranks = {}
+        for i, (tk, _) in enumerate(sorted_tks):
+            ranks[tk] = round(i / max(n - 1, 1) * 100, 1)
+        # Tickers with None stay None
+        for tk in theme_returns:
+            if tk not in ranks:
+                ranks[tk] = None
+        return ranks
+
+    pctile = {p: percentile_ranks(p) for p in RANK_PERIODS}
+
+    # Build rankings dict and detect rotation
+    rankings: dict[str, dict] = {}
+    rotating_in = []
+    rotating_out = []
+
+    for t in themes:
+        tk = t["ticker"]
+        entry = {
+            "name": t.get("name", tk),
+            "ticker": tk,
+        }
+        for p in RANK_PERIODS:
+            entry[f"{p}_return"] = theme_returns[tk].get(p)
+            entry[f"{p}_rank"] = pctile[p].get(tk)
+        rankings[tk] = entry
+
+        rank_1w = pctile["1w"].get(tk)
+        rank_1m = pctile["1m"].get(tk)
+        if rank_1w is not None and rank_1m is not None:
+            delta = rank_1w - rank_1m
+            entry["momentum_delta"] = round(delta, 1)
+            if delta >= 20:
+                rotating_in.append({**entry})
+            elif delta <= -20:
+                rotating_out.append({**entry})
+
+    # Sort by magnitude of delta
+    rotating_in.sort(key=lambda x: x.get("momentum_delta", 0), reverse=True)
+    rotating_out.sort(key=lambda x: x.get("momentum_delta", 0))
+
+    result = {
+        "rotating_in": rotating_in,
+        "rotating_out": rotating_out,
+        "rankings": rankings,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    cache.set(_ROTATION_CACHE_KEY, result, ttl=_ROTATION_CACHE_TTL)
+    return result
 
 
 def trigger_recompute() -> None:

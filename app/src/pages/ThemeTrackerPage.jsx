@@ -7,6 +7,13 @@ import StockChart from '../components/StockChart'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
+function RotationBadge({ delta }) {
+  if (delta == null) return null
+  if (delta >= 20) return <span className={styles.rotBadgeIn}>IN {delta > 0 ? '+' : ''}{delta.toFixed(0)}</span>
+  if (delta <= -20) return <span className={styles.rotBadgeOut}>OUT {delta.toFixed(0)}</span>
+  return null
+}
+
 const PERIOD_LABELS = { '1d': '1D', '1w': '1W', '1m': '1M', '3m': '3M', '1y': '1Y', 'ytd': 'YTD' }
 const RANK_TABS = ['Today', '1W', '1M', '3M', '1Y', 'YTD']
 const RANK_TO_KEY = { 'Today': '1d', '1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd' }
@@ -36,9 +43,10 @@ function groupReturn(theme, periodKey) {
     : avgReturn(theme.holdings, periodKey)
 }
 
-function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs }) {
+function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking }) {
   const isPortfolio = theme.ticker === 'UCT20'
   const groupAvg = groupReturn(theme, activeKey)
+  const momentumDelta = rotationRanking?.momentum_delta
 
   const sortedHoldings = useMemo(() => {
     return [...theme.holdings].sort((a, b) => {
@@ -56,6 +64,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
           {theme.name}
           {isPortfolio && <span className={styles.portfolioBadge}>★</span>}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
+          <RotationBadge delta={momentumDelta} />
         </span>
         <span className={`${styles.ret} ${styles.retActive} ${retClass(groupAvg, styles)}`}>
           {fmtRet(groupAvg)}
@@ -91,6 +100,13 @@ export default function ThemeTrackerPage() {
     revalidateOnFocus: false,
   })
   const isComputing = data?.status === 'computing'
+
+  const { data: rotationData } = useMobileSWR('/api/theme-rotation', fetcher, {
+    refreshInterval: 900_000,   // 15 min — matches backend cache
+    dedupingInterval: 60_000,
+    revalidateOnFocus: false,
+  })
+  const rotationRankings = rotationData?.rankings || {}
 
   const [selectedSym, setSelectedSym] = useState(null)
   const [selectedName, setSelectedName] = useState('')
@@ -266,6 +282,7 @@ export default function ThemeTrackerPage() {
               open={openThemes.has(theme.ticker)}
               onToggle={toggleTheme}
               rowRefs={rowRefs}
+              rotationRanking={rotationRankings[theme.ticker]}
             />
           ))}
         </div>

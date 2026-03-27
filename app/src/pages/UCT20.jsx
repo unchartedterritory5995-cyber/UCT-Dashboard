@@ -40,7 +40,7 @@ function TradeBar({ entry, stop, target1, target2 }) {
   )
 }
 
-function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData }) {
+function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, hasInsiderBuy }) {
   const sym           = item.ticker ?? item.sym ?? item.symbol ?? '—'
   const score         = item.score ?? item.rs_score ?? null
   const company       = item.company ?? ''
@@ -115,7 +115,10 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData })
         )}
         {company && <span className={styles.companyName}>{company}</span>}
         <div className={styles.cardRowRight}>
-          <span className={styles.newSlot}>{isNew && <span className={styles.newBadge}>NEW</span>}</span>
+          <span className={styles.newSlot}>
+            {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}
+            {isNew && <span className={styles.newBadge}>NEW</span>}
+          </span>
           <span className={styles.daysOnList}>{daysStr ?? ''}</span>
           <span className={`${styles.posReturn} ${(displayReturn ?? 0) >= 0 ? styles.gain : styles.loss}`}>
             {pctStr ?? ''}
@@ -172,6 +175,7 @@ export default function UCT20() {
   const { mutate } = useSWRConfig()
   const { data: rows }    = useSWR('/api/leadership',      fetcher, { refreshInterval: 3600000 })
   const { data: portData } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
+  const { data: insiderFeed } = useSWR('/api/insider/feed', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
   const [expandedIdx, setExpandedIdx] = useState(null)
 
   const handleRefresh = useCallback(() => Promise.all([
@@ -196,6 +200,19 @@ export default function UCT20() {
     }
     return map
   }, [portData])
+
+  // Build set of tickers with recent insider buys (from feed, last 30 days)
+  const insiderBuySyms = useMemo(() => {
+    if (!Array.isArray(insiderFeed)) return new Set()
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - 30)
+    const cutoffStr = cutoff.toISOString().slice(0, 10)
+    const syms = new Set()
+    for (const b of insiderFeed) {
+      if (b.date >= cutoffStr) syms.add(b.symbol)
+    }
+    return syms
+  }, [insiderFeed])
 
   // Most recent entry date = "new" threshold
   const latestEntry = useMemo(() => {
@@ -245,6 +262,7 @@ export default function UCT20() {
                   posData={posData}
                   isNew={isNew}
                   liveData={prices[sym] ?? null}
+                  hasInsiderBuy={insiderBuySyms.has(sym)}
                 />
               )
             })}

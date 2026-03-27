@@ -78,10 +78,12 @@
 .caret { font-size: 11px; color: var(--text-muted); flex: 0 0 12px; text-align: center; }
 
 .newSlot {
-  flex: 0 0 36px;
+  flex: 0 0 auto;
+  min-width: 36px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 4px;
 }
 
 .caretSpacer {
@@ -92,6 +94,14 @@
   font-family: var(--font-mono);
   font-size: 8px; font-weight: 700; letter-spacing: 1px;
   color: #fff; background: var(--ut-green);
+  border-radius: 3px; padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.insiderBadge {
+  font-family: var(--font-mono);
+  font-size: 8px; font-weight: 700; letter-spacing: 0.5px;
+  color: #fff; background: #16a34a;
   border-radius: 3px; padding: 1px 5px;
   flex-shrink: 0;
 }

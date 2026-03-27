@@ -1,6 +1,7 @@
 import os
 from fastapi import APIRouter, HTTPException, Request
 from api.services.engine import get_earnings, _generate_earnings_analysis, _generate_earnings_preview
+from api.services.earnings_estimates import get_earnings_intel
 from api.services.cache import cache
 from api.limiter import limiter
 
@@ -36,6 +37,21 @@ def earnings_gaps():
 
     cache.set("earnings_gaps_live", result, ttl=30)
     return result
+
+
+@router.get("/api/earnings/intel/{ticker}")
+def earnings_intel(ticker: str):
+    """Analyst consensus, EPS beat history, and price targets for a ticker."""
+    ticker = ticker.upper()
+    try:
+        result = get_earnings_intel(ticker)
+        if result is None:
+            raise HTTPException(status_code=404, detail=f"No earnings intel available for {ticker}")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
 
 @router.get("/api/earnings-analysis/{sym}")

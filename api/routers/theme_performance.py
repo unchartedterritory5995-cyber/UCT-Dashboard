@@ -17,6 +17,15 @@ def get_theme_performance():
         raise HTTPException(status_code=503, detail=str(e))
 
 
+@router.get("/api/theme-rotation")
+def get_theme_rotation():
+    """Return sector rotation signals — 1W vs 1M momentum rank delta."""
+    try:
+        return svc.compute_rotation_signals()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
 @router.post("/api/theme-performance/refresh")
 def refresh_theme_performance():
     """Invalidate cache and trigger fresh background recomputation."""
