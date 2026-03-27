@@ -8,6 +8,7 @@ import ThemeTracker from '../components/tiles/ThemeTracker'
 import CatalystFlow from '../components/tiles/CatalystFlow'
 import LeadershipTile from '../components/tiles/LeadershipTile'
 import NewsFeed from '../components/tiles/NewsFeed'
+import SectorFlows from '../components/tiles/SectorFlows'
 import MoversSidebar from '../components/MoversSidebar'
 import TileCard from '../components/TileCard'
 import styles from './Dashboard.module.css'
@@ -82,13 +83,8 @@ export default function Dashboard() {
             <NewsFeed />
           </div>
           <div className={styles.row4}>
+            <SectorFlows />
             <TileCard title="Options Flow">
-              <div className={styles.comingSoon}>
-                <span className={styles.comingSoonIcon}>🔧</span>
-                <span className={styles.comingSoonLabel}>Coming Soon</span>
-              </div>
-            </TileCard>
-            <TileCard title="Dark Pool">
               <div className={styles.comingSoon}>
                 <span className={styles.comingSoonIcon}>🔧</span>
                 <span className={styles.comingSoonLabel}>Coming Soon</span>
@@ -148,6 +144,16 @@ export default function Dashboard() {
             onToggle={() => toggle('leadership')}
           >
             <LeadershipTile />
+          </MobileSection>
+
+          <MobileSection
+            icon="💧"
+            title="Sector Flows"
+            subtitle="ETF money flow analysis"
+            expanded={openSection === 'sectorflows'}
+            onToggle={() => toggle('sectorflows')}
+          >
+            <SectorFlows />
           </MobileSection>
 
           <MobileSection

@@ -6,8 +6,10 @@ import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
 import UCT20Performance from '../components/tiles/UCT20Performance'
 import UCT20Backtest from '../components/tiles/UCT20Backtest'
+import CorrelationMatrix from '../components/tiles/CorrelationMatrix'
 import { SkeletonTable } from '../components/Skeleton'
 import useLivePrices from '../hooks/useLivePrices'
+import useMobileSWR from '../hooks/useMobileSWR'
 import styles from './UCT20.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -40,7 +42,13 @@ function TradeBar({ entry, stop, target1, target2 }) {
   )
 }
 
-function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, hasInsiderBuy }) {
+function RsBadge({ rsRank }) {
+  if (rsRank == null) return null
+  const cls = rsRank >= 80 ? styles.rsHigh : rsRank >= 50 ? styles.rsMid : styles.rsLow
+  return <span className={`${styles.rsBadge} ${cls}`}>RS {rsRank}</span>
+}
+
+function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, hasInsiderBuy, rsData }) {
   const sym           = item.ticker ?? item.sym ?? item.symbol ?? '—'
   const score         = item.score ?? item.rs_score ?? null
   const company       = item.company ?? ''
@@ -102,7 +110,7 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
       <div className={styles.cardRow} onClick={onToggle}>
         <span className={styles.rank}>#{rank}</span>
         <SetupBadge type={setupType} />
-        <TickerPopup sym={sym} markers={chartMarkers} priceLines={chartPriceLines}>
+        <TickerPopup sym={sym} markers={chartMarkers} priceLines={chartPriceLines} stopPrice={posData?.stop_price ?? null}>
           <span className={styles.sym}>{sym}</span>
         </TickerPopup>
         {livePrice != null && (
@@ -115,6 +123,7 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
         )}
         {company && <span className={styles.companyName}>{company}</span>}
         <div className={styles.cardRowRight}>
+          <RsBadge rsRank={rsData?.rs_rank} />
           <span className={styles.newSlot}>
             {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}
             {isNew && <span className={styles.newBadge}>NEW</span>}
@@ -188,11 +197,14 @@ export default function UCT20() {
   const { data: rows }    = useSWR('/api/leadership',      fetcher, { refreshInterval: 3600000 })
   const { data: portData } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
   const { data: insiderFeed } = useSWR('/api/insider/feed', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
+  const { data: rsRankings } = useMobileSWR('/api/rs-rankings', fetcher, { refreshInterval: 3600000, marketHoursOnly: true })
   const [expandedIdx, setExpandedIdx] = useState(null)
+  const [showCorrelation, setShowCorrelation] = useState(false)
 
   const handleRefresh = useCallback(() => Promise.all([
     mutate('/api/leadership'),
     mutate('/api/uct20/portfolio'),
+    mutate('/api/rs-rankings'),
   ]), [mutate])
 
   const stocks = Array.isArray(rows) ? rows.slice(0, 20) : []
@@ -203,6 +215,17 @@ export default function UCT20() {
     [stocks]
   )
   const { prices } = useLivePrices(allTickers)
+
+  // Build symbol → RS data map from rankings
+  const rsMap = useMemo(() => {
+    const map = {}
+    if (Array.isArray(rsRankings)) {
+      for (const r of rsRankings) {
+        map[r.ticker] = r
+      }
+    }
+    return map
+  }, [rsRankings])
 
   // Build symbol → position data map from portfolio open positions
   const posMap = useMemo(() => {
@@ -246,6 +269,7 @@ export default function UCT20() {
         title="UCT Leadership 20 — Current Top Stocks"
         actions={
           <div className={styles.colHeaders}>
+            <span className={styles.colRs}>RS</span>
             <span className={styles.newSlot} />
             <span className={styles.colDay}>DAYS SINCE ADDED</span>
             <span className={styles.colSince}>CHANGE SINCE ADDED</span>
@@ -275,6 +299,7 @@ export default function UCT20() {
                   isNew={isNew}
                   liveData={prices[sym] ?? null}
                   hasInsiderBuy={insiderBuySyms.has(sym)}
+                  rsData={rsMap[sym] ?? null}
                 />
               )
             })}
@@ -282,6 +307,17 @@ export default function UCT20() {
         )}
         <UCT20Performance />
         <UCT20Backtest />
+
+        {/* Correlation Matrix toggle */}
+        <div className={styles.corrToggle}>
+          <button
+            className={`${styles.corrBtn} ${showCorrelation ? styles.corrBtnActive : ''}`}
+            onClick={() => setShowCorrelation(prev => !prev)}
+          >
+            {showCorrelation ? '▾ Hide Correlation Matrix' : '▸ Correlation Matrix'}
+          </button>
+        </div>
+        {showCorrelation && <CorrelationMatrix />}
       </TileCard>
     </div>
     </PullToRefresh>

@@ -1152,3 +1152,202 @@ tbody tr { cursor: pointer; }
     display: none;
   }
 }
+
+/* ── Historical Analogues ──────────────────────────────────────────────────── */
+
+.analoguesWrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0 40px;
+}
+
+.analoguesHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.analoguesTitle {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ut-gold);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.analoguesSub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.analoguesNarrative {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-secondary, #b0b0b0);
+  background: rgba(201, 168, 76, 0.08);
+  border-left: 3px solid var(--ut-gold);
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  line-height: 1.5;
+}
+
+.analoguesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.analogueCard {
+  background: var(--bg-elevated, #141414);
+  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.15s;
+}
+.analogueCard:hover {
+  border-color: rgba(201, 168, 76, 0.35);
+}
+
+.analogueCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.analogueDate {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: #e0e0e0;
+  letter-spacing: 0.5px;
+}
+
+.analogueSim {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ut-gold);
+  background: rgba(201, 168, 76, 0.12);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+/* Forward returns row */
+.analogueFwd {
+  display: flex;
+  gap: 4px;
+}
+
+.analogueFwdItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255,255,255,0.03);
+  border-radius: var(--radius-sm);
+  padding: 6px 4px;
+}
+
+.analogueFwdLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.analogueFwdVal {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.analogueGreen {
+  color: var(--ut-green-bright, #4ade80);
+}
+
+.analogueRed {
+  color: var(--loss, #f87171);
+}
+
+/* Metrics comparison grid */
+.analogueMetrics {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: rgba(255,255,255,0.03);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.analogueMetricRow {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--bg-elevated, #141414);
+}
+.analogueMetricRow:nth-child(even) {
+  background: rgba(255,255,255,0.02);
+}
+
+.analogueMetricLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  flex: 1;
+  letter-spacing: 0.3px;
+}
+
+.analogueMetricVal {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: #e0e0e0;
+  min-width: 52px;
+  text-align: right;
+}
+
+.analogueMetricNow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 64px;
+  text-align: right;
+  opacity: 0.6;
+}
+
+.analoguesEmpty {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 40px 0;
+  text-align: center;
+}
+
+.analoguesFooter {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  margin-top: 20px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .analoguesGrid {
+    grid-template-columns: 1fr;
+  }
+}

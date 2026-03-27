@@ -1,0 +1,172 @@
+/* SectorFlows tile — sector ETF money flow analysis */
+
+.empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(46, 49, 39, 0.4);
+}
+.row:last-child {
+  border-bottom: none;
+}
+
+/* Column sizing */
+.colSector {
+  flex: 0 0 110px;
+  min-width: 0;
+}
+.colFlow {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.colReturn {
+  flex: 0 0 58px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.colBadge {
+  flex: 0 0 64px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 2px 0;
+  border-radius: 4px;
+}
+
+/* Sector name + ETF ticker stacked */
+.sectorName {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.etfTicker {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* Flow bar */
+.flowBarTrack {
+  flex: 1;
+  height: 10px;
+  background: rgba(46, 49, 39, 0.5);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  min-width: 60px;
+}
+.flowBarCenter {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--text-muted);
+  opacity: 0.4;
+}
+.flowBarFill {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.flowBarGreen {
+  background: linear-gradient(90deg, var(--ut-green), var(--ut-green-bright));
+  box-shadow: 0 0 6px var(--ut-green-glow);
+}
+.flowBarRed {
+  background: linear-gradient(270deg, var(--loss), #c0392b);
+  box-shadow: 0 0 6px rgba(231, 76, 60, 0.3);
+}
+
+.ratioLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 34px;
+  text-align: right;
+}
+
+/* Return coloring */
+.gain { color: var(--gain); }
+.loss { color: var(--loss); }
+
+/* Badge variants */
+.badgeInflow {
+  background: var(--gain-bg);
+  color: var(--gain);
+  border: 1px solid var(--gain-border);
+}
+.badgeOutflow {
+  background: rgba(231, 76, 60, 0.12);
+  color: var(--loss);
+  border: 1px solid rgba(231, 76, 60, 0.25);
+}
+.badgeNeutral {
+  background: rgba(112, 107, 94, 0.12);
+  color: var(--text-muted);
+  border: 1px solid rgba(112, 107, 94, 0.25);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .colSector { flex: 0 0 90px; }
+  .colReturn { flex: 0 0 50px; font-size: 10px; }
+  .colBadge { flex: 0 0 56px; font-size: 7px; }
+  .ratioLabel { display: none; }
+}

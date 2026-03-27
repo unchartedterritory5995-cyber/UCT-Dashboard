@@ -1,0 +1,206 @@
+/* PositionCalc — compact position size calculator inside TickerPopup modal */
+
+.wrapper {
+  border-top: 1px solid var(--border);
+  padding: 0 16px;
+}
+
+/* Toggle button */
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: color var(--duration-fast);
+}
+.toggle:hover {
+  color: var(--text-bright);
+}
+.toggleArrow {
+  font-size: 9px;
+  transition: transform var(--duration-fast);
+}
+.toggleArrowOpen {
+  transform: rotate(90deg);
+}
+
+/* Body — collapsible */
+.body {
+  padding-bottom: 12px;
+}
+
+/* Input grid */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+.input {
+  font-family: var(--font-mono);
+  font-size: 16px; /* prevent iOS zoom */
+  font-weight: 500;
+  color: var(--ut-cream);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  width: 100%;
+  outline: none;
+  transition: border-color var(--duration-fast);
+}
+.input:focus {
+  border-color: var(--ut-gold);
+}
+.input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* Risk % slider row */
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.sliderLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ut-gold);
+  cursor: pointer;
+  border: none;
+}
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ut-gold);
+  cursor: pointer;
+  border: none;
+}
+.sliderVal {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ut-gold);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Output stats row */
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-bottom: 10px;
+}
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.statLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+.statVal {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ut-cream);
+}
+.statGain {
+  color: var(--gain);
+}
+.statLoss {
+  color: var(--loss);
+}
+.statWarn {
+  color: var(--warn);
+}
+
+/* R:R visual bar */
+.rrBar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+.rrRisk {
+  background: var(--loss);
+  transition: width var(--duration-normal);
+}
+.rrReward {
+  background: var(--gain);
+  transition: width var(--duration-normal);
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .wrapper {
+    padding: 0 10px;
+  }
+  .grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .stats {
+    gap: 4px 12px;
+  }
+  .input {
+    font-size: 16px; /* must stay 16px on mobile — iOS zoom prevention */
+  }
+}

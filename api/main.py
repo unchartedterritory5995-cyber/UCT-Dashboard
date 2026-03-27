@@ -20,6 +20,7 @@ from api.services import cot_service as _cot_service
 from api.top_flow_router import router as top_flow_router
 from api import top_flow_tracker as _top_flow_tracker
 from api.schwab_router import router as schwab_router
+from api.routers import correlation as correlation_router
 from api.routers import insider as insider_router
 from api.routers import auth as auth_router
 from api.routers import webhooks as webhooks_router
@@ -27,6 +28,8 @@ from api.routers import alerts as alerts_router
 from api.routers import journal as journal_router
 from api.routers import watchlists as watchlists_router
 from api.routers import community as community_router
+from api.routers import rs_ranking as rs_ranking_router
+from api.routers import sector_flow as sector_flow_router
 from api.services.auth_db import init_db as _init_auth_db
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
@@ -171,6 +174,9 @@ app.include_router(journal_router.router)
 app.include_router(watchlists_router.router)
 app.include_router(community_router.router)
 app.include_router(live_prices_router.router)
+app.include_router(rs_ranking_router.router)
+app.include_router(sector_flow_router.router)
+app.include_router(correlation_router.router)
 
 # ─── CSV routes: serve from app/public/ directly (bypasses Vite build cache) ──
 PUBLIC = os.path.join(os.path.dirname(__file__), "..", "app", "public")

@@ -8,6 +8,7 @@ POST /api/breadth-monitor/push    — store new snapshot (auth required)
 import os
 from fastapi import APIRouter, HTTPException, Request
 from api.services import breadth_monitor as svc
+from api.services.breadth_analogues import find_analogues, invalidate_cache as invalidate_analogues_cache
 
 router = APIRouter()
 
@@ -39,6 +40,16 @@ def get_breadth_history(days: int = 90):
         raise HTTPException(status_code=503, detail=str(e))
 
 
+@router.get("/api/breadth-monitor/analogues")
+def get_breadth_analogues():
+    """Return top 5 historical dates most similar to current breadth regime."""
+    try:
+        result = find_analogues()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
 @router.get("/api/breadth-monitor/latest")
 def get_breadth_latest():
     row = svc.get_latest()
@@ -65,6 +76,7 @@ async def push_breadth_snapshot(request: Request):
     if not ok:
         raise HTTPException(status_code=500, detail="Failed to store snapshot")
 
+    invalidate_analogues_cache()
     return {"status": "ok", "date": date_str, "keys": len(metrics)}
 
 

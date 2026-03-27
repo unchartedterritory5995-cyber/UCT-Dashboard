@@ -968,6 +968,148 @@ function BreadthHeatmap({ rows, onDrill }) {
   )
 }
 
+// ── Analogues labels ──────────────────────────────────────────────────────
+const ANALOGUE_METRIC_LABELS = {
+  breadth_score: 'Health Score',
+  uct_exposure: 'UCT Exposure',
+  pct_above_50sma: '% > 50 SMA',
+  pct_above_200sma: '% > 200 SMA',
+  vix: 'VIX',
+  mcclellan_osc: 'McClellan',
+  ratio_5day: '5D Ratio',
+  new_52w_highs: '52W Highs',
+  new_52w_lows: '52W Lows',
+  cnn_fear_greed: 'CNN F/G',
+  aaii_spread: 'AAII B-B',
+  sp500_close: 'S&P 500',
+}
+
+const FWD_LABELS = { fwd_5d: '5D', fwd_10d: '10D', fwd_20d: '20D', fwd_60d: '60D' }
+
+function AnalogueCard({ analogue, refMetrics }) {
+  const { date, similarity, metrics_then, forward_returns } = analogue
+  return (
+    <div className={styles.analogueCard}>
+      <div className={styles.analogueCardHeader}>
+        <span className={styles.analogueDate}>{date}</span>
+        <span className={styles.analogueSim}>{similarity}% match</span>
+      </div>
+
+      {/* Forward SPY returns */}
+      <div className={styles.analogueFwd}>
+        {Object.entries(FWD_LABELS).map(([k, label]) => {
+          const val = forward_returns[k]
+          if (val == null) return (
+            <div key={k} className={styles.analogueFwdItem}>
+              <span className={styles.analogueFwdLabel}>{label}</span>
+              <span className={styles.analogueFwdVal}>--</span>
+            </div>
+          )
+          return (
+            <div key={k} className={styles.analogueFwdItem}>
+              <span className={styles.analogueFwdLabel}>{label}</span>
+              <span className={`${styles.analogueFwdVal} ${val >= 0 ? styles.analogueGreen : styles.analogueRed}`}>
+                {val > 0 ? '+' : ''}{val}%
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Key metrics comparison */}
+      <div className={styles.analogueMetrics}>
+        {Object.entries(ANALOGUE_METRIC_LABELS).map(([key, label]) => {
+          const then = metrics_then[key]
+          const now = refMetrics[key]
+          if (then == null) return null
+          const fmtV = v => {
+            if (v == null) return '--'
+            if (key === 'sp500_close') return Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })
+            return Number(v).toFixed(key === 'ratio_5day' ? 2 : key === 'vix' ? 1 : 0)
+          }
+          return (
+            <div key={key} className={styles.analogueMetricRow}>
+              <span className={styles.analogueMetricLabel}>{label}</span>
+              <span className={styles.analogueMetricVal}>{fmtV(then)}</span>
+              <span className={styles.analogueMetricNow}>now {fmtV(now)}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function BreadthAnalogues() {
+  const { data, isLoading, error } = useSWR(
+    '/api/breadth-monitor/analogues',
+    fetcher,
+    { refreshInterval: 6 * 60 * 60 * 1000 }  // 6 hours
+  )
+
+  const analogues = data?.analogues ?? []
+  const refDate = data?.reference_date
+  const refMetrics = data?.reference_metrics ?? {}
+
+  // Find the best forward narrative
+  const bestNarrative = useMemo(() => {
+    if (!analogues.length) return null
+    const top = analogues[0]
+    const fwd20 = top.forward_returns?.fwd_20d
+    if (fwd20 == null) return null
+    const dir = fwd20 >= 0 ? 'gained' : 'lost'
+    return `Last time breadth looked like this was ${top.date} — SPY ${dir} ${Math.abs(fwd20)}% over the next month`
+  }, [analogues])
+
+  if (isLoading) {
+    return <div className={styles.analoguesWrap}><SkeletonTileContent lines={4} /></div>
+  }
+
+  if (error) {
+    return (
+      <div className={styles.analoguesWrap}>
+        <div className={styles.analoguesEmpty}>Could not load analogues — {error.message ?? 'network error'}</div>
+      </div>
+    )
+  }
+
+  if (!analogues.length) {
+    return (
+      <div className={styles.analoguesWrap}>
+        <div className={styles.analoguesEmpty}>
+          Not enough historical breadth data to compute analogues. Need at least 20 trading days.
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.analoguesWrap}>
+      <div className={styles.analoguesHeader}>
+        <h2 className={styles.analoguesTitle}>Historical Analogues</h2>
+        <span className={styles.analoguesSub}>
+          Matching against {refDate}
+        </span>
+      </div>
+
+      {bestNarrative && (
+        <div className={styles.analoguesNarrative}>{bestNarrative}</div>
+      )}
+
+      <div className={styles.analoguesGrid}>
+        {analogues.map(a => (
+          <AnalogueCard key={a.date} analogue={a} refMetrics={refMetrics} />
+        ))}
+      </div>
+
+      <div className={styles.analoguesFooter}>
+        Similarity computed via weighted normalized Euclidean distance on {Object.keys(ANALOGUE_METRIC_LABELS).length}+ breadth metrics.
+        Forward returns show SPY performance after each historical match date. Past performance does not predict future results.
+      </div>
+    </div>
+  )
+}
+
 // ── Component ─────────────────────────────────────────────────────────────
 const phaseClass = (phase, styles) => {
   if (!phase) return ''
@@ -1069,6 +1211,7 @@ export default function Breadth() {
             <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
             <button className={`${styles.tab} ${styles.tabActive}`}>COT Data</button>
             <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
+            <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
           </div>
         </div>
         <CotData />
@@ -1086,9 +1229,28 @@ export default function Breadth() {
             <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
             <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
             <button className={`${styles.tab} ${styles.tabActive}`}>Data Charts</button>
+            <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
           </div>
         </div>
         <BreadthCharts />
+      </div>
+    )
+  }
+
+  if (activeTab === 'analogues') {
+    return (
+      <div className={styles.page}>
+        <div className={styles.header}>
+          <h1 className={styles.heading}>Breadth</h1>
+          <div className={styles.tabs}>
+            <button className={styles.tab} onClick={() => setActiveTab('breadth')}>Monitor</button>
+            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
+            <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
+            <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
+            <button className={`${styles.tab} ${styles.tabActive}`}>Analogues</button>
+          </div>
+        </div>
+        <BreadthAnalogues />
       </div>
     )
   }
@@ -1102,6 +1264,7 @@ export default function Breadth() {
           <button className={`${styles.tab} ${activeTab === 'heatmap' ? styles.tabActive : ''}`} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
           <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
           <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
+          <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
         </div>
         <span className={styles.meta}>
           {rows.length > 0

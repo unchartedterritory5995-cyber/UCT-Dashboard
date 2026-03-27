@@ -2,6 +2,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import useSWR from 'swr'
 import useLivePrices from '../hooks/useLivePrices'
+import PositionCalc from './PositionCalc'
 import styles from './TickerPopup.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -88,7 +89,7 @@ function InsiderSection({ txns }) {
   )
 }
 
-export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null }) {
+export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null }) {
   const [hovered, setHovered] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
 
@@ -201,6 +202,8 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
                 />
               </Suspense>
             </div>
+
+            <PositionCalc currentPrice={liveData?.price} stopPrice={stopPrice} />
 
             <EarningsIntelSection data={earningsIntel} />
             <InsiderSection txns={insiderTxns} />
