@@ -152,10 +152,23 @@ export default function StockChart({
         scaleMargins: { top: 0.1, bottom: 0 },
       })
 
+      // Pre-compute HVC set for gold volume bars
+      const hvcSet = new Set()
+      if (bars.length > 20) {
+        const lb = Math.min(252, bars.length - 1)
+        for (let i = Math.max(20, lb); i < bars.length; i++) {
+          const start = Math.max(0, i - lb)
+          const priorMax = Math.max(...bars.slice(start, i).map(b => b.v || 0))
+          if (bars[i].v > priorMax) hvcSet.add(bars[i].t)
+        }
+      }
+
       const volData = bars.map(b => ({
         time: b.t,
         value: b.v,
-        color: b.c >= b.o ? 'rgba(60,184,104,0.35)' : 'rgba(231,76,60,0.35)',
+        color: hvcSet.has(b.t)
+          ? 'rgba(201,168,76,0.9)'  // Gold for HVC days
+          : b.c >= b.o ? 'rgba(60,184,104,0.35)' : 'rgba(231,76,60,0.35)',
       }))
       volumeSeries.setData(volData)
 
@@ -185,28 +198,8 @@ export default function StockChart({
       }
     }
 
-    // ── 52-week volume high stars ──
-    const volStars = []
-    if (bars.length > 20) {
-      const lookback = Math.min(252, bars.length - 1)
-      for (let i = Math.max(20, lookback); i < bars.length; i++) {
-        const start = Math.max(0, i - lookback)
-        const priorMax = Math.max(...bars.slice(start, i).map(b => b.v || 0))
-        if (bars[i].v > priorMax && bars[i].c > 0) {
-          volStars.push({
-            time: bars[i].t,
-            position: 'aboveBar',
-            color: '#c9a84c',
-            shape: 'circle',
-            text: '★ HVC',
-            size: 0.5,
-          })
-        }
-      }
-    }
-
-    // ── Markers (BUY/SELL arrows + volume stars) ──
-    const allMarkers = [...volStars, ...(markers || [])]
+    // ── Markers (BUY/SELL arrows) ──
+    const allMarkers = [...(markers || [])]
       .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
     if (allMarkers.length && candleSeries) {
       import('lightweight-charts').then(({ createSeriesMarkers }) => {
