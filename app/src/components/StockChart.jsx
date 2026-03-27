@@ -97,7 +97,7 @@ export default function StockChart({
   const candleSeriesRef = useRef(null)
 
   const { data, error, mutate } = useSWR(
-    sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=300` : null,
+    sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${tf === 'D' ? 5000 : tf === 'W' ? 2000 : 300}` : null,
     fetcher,
     { dedupingInterval: 30000, revalidateOnFocus: false }
   )
