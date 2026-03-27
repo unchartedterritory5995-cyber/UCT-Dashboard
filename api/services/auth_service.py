@@ -1025,3 +1025,140 @@ def get_active_now(minutes: int = 5) -> dict:
         return {"count": len(users), "users": users}
     finally:
         conn.close()
+
+
+# ── Support tickets ───────────────────────────────────────────────────────
+
+def create_ticket(user_id: str, subject: str, message: str, category: str = "general") -> dict:
+    """Create a new support ticket with initial message."""
+    ticket_id = str(uuid.uuid4())
+    msg_id = str(uuid.uuid4())
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO support_tickets (id, user_id, subject, category) VALUES (?, ?, ?, ?)",
+            (ticket_id, user_id, subject, category),
+        )
+        conn.execute(
+            "INSERT INTO ticket_messages (id, ticket_id, sender_id, sender_role, message) VALUES (?, ?, ?, 'user', ?)",
+            (msg_id, ticket_id, user_id, message),
+        )
+        conn.commit()
+        return {"id": ticket_id, "subject": subject, "category": category, "status": "open"}
+    finally:
+        conn.close()
+
+
+def get_user_tickets(user_id: str) -> list[dict]:
+    """Get all tickets for a user with last message preview and unread admin reply indicator."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT t.*, "
+            "(SELECT COUNT(*) FROM ticket_messages WHERE ticket_id = t.id) as message_count, "
+            "(SELECT message FROM ticket_messages WHERE ticket_id = t.id ORDER BY created_at DESC LIMIT 1) as last_message, "
+            "(SELECT sender_role FROM ticket_messages WHERE ticket_id = t.id ORDER BY created_at DESC LIMIT 1) as last_sender "
+            "FROM support_tickets t WHERE t.user_id = ? ORDER BY t.updated_at DESC",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_ticket_thread(ticket_id: str, user_id: str = None) -> dict | None:
+    """Get a ticket with all messages. If user_id provided, verify ownership."""
+    conn = get_connection()
+    try:
+        ticket = conn.execute(
+            "SELECT t.*, u.email, u.display_name as user_display_name "
+            "FROM support_tickets t LEFT JOIN users u ON t.user_id = u.id WHERE t.id = ?",
+            (ticket_id,),
+        ).fetchone()
+        if not ticket:
+            return None
+        if user_id and ticket["user_id"] != user_id:
+            return None
+        messages = conn.execute(
+            "SELECT tm.*, u.email, u.display_name FROM ticket_messages tm "
+            "LEFT JOIN users u ON tm.sender_id = u.id "
+            "WHERE tm.ticket_id = ? ORDER BY tm.created_at ASC",
+            (ticket_id,),
+        ).fetchall()
+        return {"ticket": dict(ticket), "messages": [dict(m) for m in messages]}
+    finally:
+        conn.close()
+
+
+def add_ticket_message(ticket_id: str, sender_id: str, message: str, sender_role: str = "user") -> dict:
+    """Add a message to a ticket thread and update ticket timestamp."""
+    msg_id = str(uuid.uuid4())
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO ticket_messages (id, ticket_id, sender_id, sender_role, message) VALUES (?, ?, ?, ?, ?)",
+            (msg_id, ticket_id, sender_id, sender_role, message),
+        )
+        conn.execute(
+            "UPDATE support_tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (ticket_id,),
+        )
+        conn.commit()
+        return {"id": msg_id, "message": message, "sender_role": sender_role}
+    finally:
+        conn.close()
+
+
+def update_ticket_status(ticket_id: str, status: str, priority: str = None) -> dict:
+    """Admin: update ticket status and optionally priority."""
+    conn = get_connection()
+    try:
+        if priority:
+            conn.execute(
+                "UPDATE support_tickets SET status = ?, priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (status, priority, ticket_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE support_tickets SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (status, ticket_id),
+            )
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+def get_all_tickets(status_filter: str = None, limit: int = 50) -> list[dict]:
+    """Admin: get all tickets with user info."""
+    conn = get_connection()
+    try:
+        query = (
+            "SELECT t.*, u.email, u.display_name, "
+            "(SELECT COUNT(*) FROM ticket_messages WHERE ticket_id = t.id) as message_count, "
+            "(SELECT sender_role FROM ticket_messages WHERE ticket_id = t.id ORDER BY created_at DESC LIMIT 1) as last_sender "
+            "FROM support_tickets t JOIN users u ON t.user_id = u.id "
+        )
+        params = []
+        if status_filter:
+            query += " WHERE t.status = ? "
+            params.append(status_filter)
+        query += " ORDER BY t.updated_at DESC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_ticket_stats() -> dict:
+    """Admin: ticket overview stats."""
+    conn = get_connection()
+    try:
+        total = conn.execute("SELECT COUNT(*) FROM support_tickets").fetchone()[0]
+        open_count = conn.execute("SELECT COUNT(*) FROM support_tickets WHERE status = 'open'").fetchone()[0]
+        in_progress = conn.execute("SELECT COUNT(*) FROM support_tickets WHERE status = 'in_progress'").fetchone()[0]
+        resolved = conn.execute("SELECT COUNT(*) FROM support_tickets WHERE status = 'resolved'").fetchone()[0]
+        return {"total": total, "open": open_count, "in_progress": in_progress, "resolved": resolved}
+    finally:
+        conn.close()

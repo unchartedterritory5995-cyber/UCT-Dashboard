@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { to: '/journal',      label: 'Journal',       icon: '📓' },
   { to: '/watchlists',   label: 'Watchlists',    icon: '📋' },
   { to: '/community',    label: 'Community',     icon: '📊' },
+  { to: '/support',      label: 'Support',       icon: '💬' },
 ]
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'

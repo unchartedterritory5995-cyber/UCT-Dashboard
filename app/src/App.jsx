@@ -24,6 +24,7 @@ const ModelBook = lazy(() => import('./pages/ModelBook'))
 const Journal = lazy(() => import('./pages/Journal'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const Community = lazy(() => import('./pages/Community'))
+const Support = lazy(() => import('./pages/Support'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Admin = lazy(() => import('./pages/Admin'))
 const Terms = lazy(() => import('./pages/Terms'))
@@ -94,6 +95,7 @@ export default function App() {
                 <Route path="/journal" element={<Journal />} />
                 <Route path="/watchlists" element={<Watchlists />} />
                 <Route path="/community" element={<Community />} />
+                <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />
               </Route>

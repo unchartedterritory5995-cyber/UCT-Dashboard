@@ -45,6 +45,7 @@ const NAV_SECTIONS = [
     label: 'Social',
     items: [
       { to: '/community', label: 'Community', icon: '\uD83D\uDCCA' },
+      { to: '/support', label: 'Support', icon: '\uD83D\uDCAC' },
     ],
   },
 ]
@@ -59,6 +60,7 @@ const EXTRA_ROUTES = {
   '/settings': 'Settings',
   '/website': 'Website',
   '/admin': 'Admin',
+  '/support': 'Support',
 }
 
 export default function MobileNav() {

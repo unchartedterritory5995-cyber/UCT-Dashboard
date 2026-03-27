@@ -183,6 +183,30 @@ CREATE TABLE IF NOT EXISTS referrals (
 );
 CREATE INDEX IF NOT EXISTS idx_referrals_code ON referrals(referral_code);
 CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_user_id);
+
+CREATE TABLE IF NOT EXISTS support_tickets (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    subject TEXT NOT NULL,
+    category TEXT DEFAULT 'general',
+    status TEXT DEFAULT 'open',
+    priority TEXT DEFAULT 'normal',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ticket_messages (
+    id TEXT PRIMARY KEY,
+    ticket_id TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+    sender_id TEXT NOT NULL,
+    sender_role TEXT DEFAULT 'user',
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tickets_user ON support_tickets(user_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_status ON support_tickets(status);
+CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages(ticket_id);
 """
 
 

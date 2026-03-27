@@ -930,6 +930,200 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
   )
 }
 
+// ── Ticket Drawer ──
+const TICKET_STATUSES = ['open', 'in_progress', 'resolved']
+const TICKET_PRIORITIES = ['low', 'normal', 'high', 'urgent']
+const PRIORITY_COLORS = { low: '#706b5e', normal: 'var(--text-bright)', high: '#fbbf24', urgent: '#f87171' }
+
+function TicketDrawer({ ticketId, onClose, onRefresh }) {
+  const [thread, setThread] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [replyText, setReplyText] = useState('')
+  const [replying, setReplying] = useState(false)
+  const [statusVal, setStatusVal] = useState('')
+  const [priorityVal, setPriorityVal] = useState('')
+  const messagesEndRef = useRef(null)
+
+  const fetchThread = useCallback(() => {
+    if (!ticketId) return
+    setLoading(true)
+    fetch(`/api/auth/admin/tickets/${ticketId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        setThread(d)
+        if (d?.ticket) {
+          setStatusVal(d.ticket.status)
+          setPriorityVal(d.ticket.priority || 'normal')
+        }
+      })
+      .catch(() => setThread(null))
+      .finally(() => setLoading(false))
+  }, [ticketId])
+
+  useEffect(() => { fetchThread() }, [fetchThread])
+
+  useEffect(() => {
+    if (thread && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [thread])
+
+  useEffect(() => {
+    if (!ticketId) return
+    function handleKey(e) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [ticketId, onClose])
+
+  async function handleReply() {
+    if (!replyText.trim()) return
+    setReplying(true)
+    try {
+      const res = await fetch(`/api/auth/admin/tickets/${ticketId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: replyText.trim() }),
+      })
+      if (res.ok) {
+        setReplyText('')
+        fetchThread()
+        if (onRefresh) onRefresh()
+      }
+    } catch { /* silent */ }
+    finally { setReplying(false) }
+  }
+
+  async function handleStatusChange(newStatus) {
+    setStatusVal(newStatus)
+    try {
+      await fetch(`/api/auth/admin/tickets/${ticketId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (onRefresh) onRefresh()
+    } catch { /* silent */ }
+  }
+
+  async function handlePriorityChange(newPriority) {
+    setPriorityVal(newPriority)
+    try {
+      await fetch(`/api/auth/admin/tickets/${ticketId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: statusVal, priority: newPriority }),
+      })
+      if (onRefresh) onRefresh()
+    } catch { /* silent */ }
+  }
+
+  if (!ticketId) return null
+
+  return (
+    <>
+      <div className={styles.drawerBackdrop} onClick={onClose} />
+      <div className={styles.drawer}>
+        <div className={styles.drawerHeader}>
+          <h2 className={styles.drawerTitle}>Ticket Details</h2>
+          <button className={styles.drawerClose} onClick={onClose}>&times;</button>
+        </div>
+
+        {loading ? (
+          <div className={styles.loading}>Loading...</div>
+        ) : !thread ? (
+          <div className={styles.loading}>Ticket not found</div>
+        ) : (
+          <div className={styles.drawerBody}>
+            {/* Ticket header */}
+            <div className={styles.ticketDrawerSubject}>{thread.ticket.subject}</div>
+            <div className={styles.ticketDrawerMeta}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                {thread.ticket.email || thread.ticket.user_id}
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                {timeAgo(thread.ticket.created_at)}
+              </span>
+            </div>
+
+            {/* Status & Priority selectors */}
+            <div className={styles.ticketDrawerControls}>
+              <div className={styles.ticketDrawerControl}>
+                <label className={styles.ticketDrawerLabel}>Status</label>
+                <select
+                  className={styles.ticketDrawerSelect}
+                  value={statusVal}
+                  onChange={e => handleStatusChange(e.target.value)}
+                >
+                  {TICKET_STATUSES.map(s => (
+                    <option key={s} value={s}>
+                      {s === 'in_progress' ? 'In Progress' : s.charAt(0).toUpperCase() + s.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.ticketDrawerControl}>
+                <label className={styles.ticketDrawerLabel}>Priority</label>
+                <select
+                  className={styles.ticketDrawerSelect}
+                  value={priorityVal}
+                  onChange={e => handlePriorityChange(e.target.value)}
+                  style={{ color: PRIORITY_COLORS[priorityVal] || 'inherit' }}
+                >
+                  {TICKET_PRIORITIES.map(p => (
+                    <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Message thread */}
+            <div className={styles.ticketDrawerMessages}>
+              {thread.messages.map(m => (
+                <div
+                  key={m.id}
+                  className={`${styles.ticketDrawerMsg} ${m.sender_role === 'admin' ? styles.ticketMsgAdmin : styles.ticketMsgUser}`}
+                >
+                  <div className={styles.ticketMsgMeta}>
+                    <span className={styles.ticketMsgSender}>
+                      {m.sender_role === 'admin' ? (m.display_name || 'Admin') : (m.display_name || m.email || 'User')}
+                    </span>
+                    <span className={styles.ticketMsgTime}>{timeAgo(m.created_at)}</span>
+                  </div>
+                  <div className={styles.ticketMsgText}>{m.message}</div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Admin reply */}
+            <div className={styles.ticketDrawerReply}>
+              <textarea
+                className={styles.ticketDrawerReplyInput}
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                placeholder="Type admin reply..."
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault()
+                    handleReply()
+                  }
+                }}
+              />
+              <button
+                className={styles.ticketDrawerReplyBtn}
+                onClick={handleReply}
+                disabled={replying || !replyText.trim()}
+              >
+                {replying ? 'Sending...' : 'Send Reply'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
 // ── Main Admin Page ──
 export default function Admin() {
   // Stats
@@ -982,6 +1176,13 @@ export default function Admin() {
   // Feedback
   const [feedback, setFeedback] = useState([])
   const [feedbackLoading, setFeedbackLoading] = useState(true)
+
+  // Support Tickets
+  const [ticketStats, setTicketStats] = useState(null)
+  const [adminTickets, setAdminTickets] = useState([])
+  const [ticketsLoading, setTicketsLoading] = useState(true)
+  const [ticketFilter, setTicketFilter] = useState(null)
+  const [ticketDrawerId, setTicketDrawerId] = useState(null)
 
   // Bulk selection
   const [selectedUsers, setSelectedUsers] = useState(new Set())
@@ -1116,6 +1317,28 @@ export default function Admin() {
   }, [])
 
   useEffect(() => { fetchFeedback() }, [fetchFeedback])
+
+  // ── Fetch Support Tickets ──
+  const fetchTicketStats = useCallback(() => {
+    fetch('/api/auth/admin/tickets/stats')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setTicketStats(d) })
+      .catch(() => {})
+  }, [])
+
+  const fetchAdminTickets = useCallback(() => {
+    setTicketsLoading(true)
+    const params = new URLSearchParams()
+    if (ticketFilter) params.set('status', ticketFilter)
+    fetch(`/api/auth/admin/tickets?${params}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setAdminTickets(Array.isArray(d) ? d : []))
+      .catch(() => setAdminTickets([]))
+      .finally(() => setTicketsLoading(false))
+  }, [ticketFilter])
+
+  useEffect(() => { fetchTicketStats() }, [fetchTicketStats])
+  useEffect(() => { fetchAdminTickets() }, [fetchAdminTickets])
 
   // ── Bulk Actions ──
   function toggleSelectUser(userId) {
@@ -1649,6 +1872,110 @@ export default function Admin() {
           )}
         </div>
       </div>
+
+      {/* ── Section 9: Support Tickets ── */}
+      <div className={styles.healthSection}>
+        <div className={styles.sectionHeader}>
+          <span className={styles.sectionTitle}>Support Tickets</span>
+          <button className={styles.refreshBtn} onClick={() => { fetchTicketStats(); fetchAdminTickets() }} disabled={ticketsLoading}>
+            {ticketsLoading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+
+        {/* Stats row */}
+        {ticketStats && (
+          <div className={styles.ticketStatsRow}>
+            {[
+              { label: 'Open', value: ticketStats.open, cls: styles.ticketStatOpen },
+              { label: 'In Progress', value: ticketStats.in_progress, cls: styles.ticketStatProgress },
+              { label: 'Resolved', value: ticketStats.resolved, cls: styles.ticketStatResolved },
+            ].map(s => (
+              <div key={s.label} className={`${styles.ticketStatMini} ${s.cls}`}>
+                <span className={styles.ticketStatMiniVal}>{s.value}</span>
+                <span className={styles.ticketStatMiniLabel}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Filter pills */}
+        <div className={styles.ticketFilters}>
+          {[
+            { key: null, label: 'All' },
+            { key: 'open', label: 'Open' },
+            { key: 'in_progress', label: 'In Progress' },
+            { key: 'resolved', label: 'Resolved' },
+          ].map(f => (
+            <button
+              key={f.label}
+              className={`${styles.ticketFilterPill} ${ticketFilter === f.key ? styles.ticketFilterActive : ''}`}
+              onClick={() => setTicketFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Ticket table */}
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Subject</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Msgs</th>
+                <th>Priority</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ticketsLoading && adminTickets.length === 0 ? (
+                <tr><td colSpan={7} className={styles.loading}>Loading tickets...</td></tr>
+              ) : adminTickets.length === 0 ? (
+                <tr><td colSpan={7} className={styles.emptyActivity}>No tickets</td></tr>
+              ) : (
+                adminTickets.map(t => (
+                  <tr
+                    key={t.id}
+                    className={styles.ticketRow}
+                    onClick={() => setTicketDrawerId(t.id)}
+                  >
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{t.email}</td>
+                    <td>
+                      {t.subject}
+                      {t.last_sender === 'admin' && <span className={styles.ticketAdminDot} />}
+                    </td>
+                    <td><span className={`${styles.ticketCatPill} ${styles[`tCat_${t.category}`] || ''}`}>{t.category}</span></td>
+                    <td>
+                      <span className={`${styles.ticketStatusPill} ${styles[`tStatus_${t.status}`] || ''}`}>
+                        {t.status === 'in_progress' ? 'In Progress' : t.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>{t.message_count}</td>
+                    <td>
+                      <span style={{ color: t.priority === 'urgent' ? '#f87171' : t.priority === 'high' ? '#fbbf24' : 'var(--text-muted)', fontSize: 11, textTransform: 'capitalize' }}>
+                        {t.priority || 'normal'}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{timeAgo(t.updated_at)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Ticket Drawer ── */}
+      {ticketDrawerId && (
+        <TicketDrawer
+          ticketId={ticketDrawerId}
+          onClose={() => setTicketDrawerId(null)}
+          onRefresh={() => { fetchTicketStats(); fetchAdminTickets() }}
+        />
+      )}
 
       {/* ── Bulk Action Bar ── */}
       {selectedUsers.size > 0 && (

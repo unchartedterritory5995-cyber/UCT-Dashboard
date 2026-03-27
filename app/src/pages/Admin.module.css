@@ -1285,6 +1285,220 @@
   font-weight: 600;
 }
 
+/* ── Support Tickets Section ── */
+.ticketStatsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ticketStatMini {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  text-align: center;
+}
+.ticketStatMiniVal {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  display: block;
+  line-height: 1.2;
+}
+.ticketStatOpen .ticketStatMiniVal { color: #4ade80; }
+.ticketStatProgress .ticketStatMiniVal { color: #fbbf24; }
+.ticketStatResolved .ticketStatMiniVal { color: var(--text-muted); }
+.ticketStatMiniLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ticketFilters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.ticketFilterPill {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 14px;
+  padding: 4px 14px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ticketFilterPill:hover { border-color: rgba(201,168,76,0.3); color: var(--text-bright); }
+.ticketFilterActive {
+  background: rgba(201,168,76,0.12);
+  border-color: rgba(201,168,76,0.35);
+  color: #c9a84c;
+}
+
+.ticketRow { cursor: pointer; transition: background 0.1s; }
+.ticketRow:hover { background: rgba(201,168,76,0.04); }
+.ticketAdminDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c9a84c;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.ticketCatPill {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.tCat_bug { background: rgba(239,68,68,0.12); color: #f87171; }
+.tCat_feature { background: rgba(59,130,246,0.12); color: #60a5fa; }
+.tCat_account { background: rgba(168,130,76,0.12); color: #c9a84c; }
+.tCat_question { background: rgba(74,222,128,0.12); color: #4ade80; }
+.tCat_other { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+.tCat_general { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+
+.ticketStatusPill {
+  font-size: 10px;
+  text-transform: capitalize;
+  letter-spacing: 0.4px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.tStatus_open { background: rgba(74,222,128,0.12); color: #4ade80; }
+.tStatus_in_progress { background: rgba(251,191,36,0.12); color: #fbbf24; }
+.tStatus_resolved { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+
+/* ── Ticket Drawer ── */
+.ticketDrawerSubject {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-heading);
+  margin-bottom: 6px;
+}
+.ticketDrawerMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.ticketDrawerControls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.ticketDrawerControl {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ticketDrawerLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.ticketDrawerSelect {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-bright);
+  font-size: 12px;
+  padding: 6px 8px;
+  cursor: pointer;
+  outline: none;
+}
+.ticketDrawerSelect option { background: #1a1c17; }
+.ticketDrawerMessages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+  margin-bottom: 14px;
+  padding-right: 4px;
+}
+.ticketDrawerMessages::-webkit-scrollbar { width: 4px; }
+.ticketDrawerMessages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+.ticketDrawerMsg {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.ticketMsgUser {
+  background: rgba(255,255,255,0.04);
+  border-left: 3px solid #c9a84c;
+}
+.ticketMsgAdmin {
+  background: rgba(74,222,128,0.04);
+  border-left: 3px solid #4ade80;
+}
+.ticketMsgMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3px;
+}
+.ticketMsgSender {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.ticketMsgTime {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.ticketMsgText {
+  color: var(--text-bright);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ticketDrawerReply {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.ticketDrawerReplyInput {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-size: 13px;
+  padding: 8px 10px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 50px;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.ticketDrawerReplyInput:focus { border-color: rgba(201,168,76,0.4); }
+.ticketDrawerReplyBtn {
+  background: rgba(201,168,76,0.15);
+  color: #c9a84c;
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.ticketDrawerReplyBtn:hover { background: rgba(201,168,76,0.25); }
+.ticketDrawerReplyBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* ── Hide on mobile helper ── */
 .hideOnMobile {}
 

@@ -46,6 +46,13 @@ from api.services.auth_service import (
     apply_referral,
     get_admin_referral_stats,
     get_active_now,
+    create_ticket,
+    get_user_tickets,
+    get_ticket_thread,
+    add_ticket_message,
+    update_ticket_status,
+    get_all_tickets,
+    get_ticket_stats,
 )
 from api.services.email_service import (
     send_verification_email,
@@ -524,6 +531,11 @@ def admin_delete_user_by_id(user_id: str, user: dict = Depends(get_current_user)
         conn.execute("DELETE FROM admin_notes WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM page_views WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM referrals WHERE referrer_user_id = ?", (user_id,))
+        # Support tickets + messages (cascade via FK, but explicit for safety)
+        tk_ids = [r["id"] for r in conn.execute("SELECT id FROM support_tickets WHERE user_id = ?", (user_id,)).fetchall()]
+        for tk_id in tk_ids:
+            conn.execute("DELETE FROM ticket_messages WHERE ticket_id = ?", (tk_id,))
+        conn.execute("DELETE FROM support_tickets WHERE user_id = ?", (user_id,))
         wl_ids = [r["id"] for r in conn.execute("SELECT id FROM watchlists WHERE user_id = ?", (user_id,)).fetchall()]
         for wl_id in wl_ids:
             conn.execute("DELETE FROM watchlist_items WHERE watchlist_id = ?", (wl_id,))
@@ -585,6 +597,11 @@ def admin_delete_user(req: DeleteUserRequest, user: dict = Depends(get_current_u
         conn.execute("DELETE FROM admin_notes WHERE user_id = ?", (target_id,))
         conn.execute("DELETE FROM page_views WHERE user_id = ?", (target_id,))
         conn.execute("DELETE FROM referrals WHERE referrer_user_id = ?", (target_id,))
+        # Support tickets + messages
+        tk_ids = [r["id"] for r in conn.execute("SELECT id FROM support_tickets WHERE user_id = ?", (target_id,)).fetchall()]
+        for tk_id in tk_ids:
+            conn.execute("DELETE FROM ticket_messages WHERE ticket_id = ?", (tk_id,))
+        conn.execute("DELETE FROM support_tickets WHERE user_id = ?", (target_id,))
         # Watchlist items via watchlist IDs
         wl_ids = [r["id"] for r in conn.execute("SELECT id FROM watchlists WHERE user_id = ?", (target_id,)).fetchall()]
         for wl_id in wl_ids:
@@ -793,6 +810,128 @@ def admin_active_now(user: dict = Depends(get_current_user)):
     """Admin-only: users active in the last 5 minutes."""
     _require_admin(user)
     return get_active_now(minutes=5)
+
+
+# ── Support ticket endpoints (user) ─────────────────────────────────────────
+
+class CreateTicketRequest(BaseModel):
+    subject: str
+    message: str
+    category: str = "general"
+
+
+@router.post("/tickets")
+def post_create_ticket(req: CreateTicketRequest, user: dict = Depends(get_current_user)):
+    """Create a new support ticket."""
+    if not req.subject.strip() or not req.message.strip():
+        raise HTTPException(400, "Subject and message are required")
+    result = create_ticket(user["id"], req.subject.strip(), req.message.strip(), req.category)
+
+    # Discord notification
+    try:
+        from api.services.discord_notify import _send_webhook
+        _send_webhook({
+            "title": "\U0001F3AB New Support Ticket",
+            "description": f"**{user['email']}** submitted: {req.subject.strip()}",
+            "fields": [{"name": "Category", "value": req.category, "inline": True}],
+            "color": 0xC9A84C,
+        })
+    except Exception:
+        pass
+
+    return result
+
+
+@router.get("/tickets")
+def get_my_tickets(user: dict = Depends(get_current_user)):
+    """Return all tickets for the current user."""
+    return get_user_tickets(user["id"])
+
+
+@router.get("/tickets/{ticket_id}")
+def get_my_ticket_thread(ticket_id: str, user: dict = Depends(get_current_user)):
+    """Return a ticket thread, verifying ownership."""
+    thread = get_ticket_thread(ticket_id, user_id=user["id"])
+    if not thread:
+        raise HTTPException(404, "Ticket not found")
+    return thread
+
+
+class TicketMessageRequest(BaseModel):
+    message: str
+
+
+@router.post("/tickets/{ticket_id}/messages")
+def post_ticket_message(ticket_id: str, req: TicketMessageRequest, user: dict = Depends(get_current_user)):
+    """Add a user message to a ticket thread."""
+    if not req.message.strip():
+        raise HTTPException(400, "Message is required")
+    # Verify ownership
+    thread = get_ticket_thread(ticket_id, user_id=user["id"])
+    if not thread:
+        raise HTTPException(404, "Ticket not found")
+    return add_ticket_message(ticket_id, user["id"], req.message.strip(), sender_role="user")
+
+
+# ── Support ticket endpoints (admin) ───────────────────────────────────────
+
+@router.get("/admin/tickets/stats")
+def admin_ticket_stats(user: dict = Depends(get_current_user)):
+    """Admin-only: ticket overview stats."""
+    _require_admin(user)
+    return get_ticket_stats()
+
+
+@router.get("/admin/tickets")
+def admin_tickets(user: dict = Depends(get_current_user), status: str = None, limit: int = 50):
+    """Admin-only: list all tickets with optional status filter."""
+    _require_admin(user)
+    return get_all_tickets(status_filter=status, limit=limit)
+
+
+@router.get("/admin/tickets/{ticket_id}")
+def admin_ticket_thread(ticket_id: str, user: dict = Depends(get_current_user)):
+    """Admin-only: get ticket thread (no ownership check)."""
+    _require_admin(user)
+    thread = get_ticket_thread(ticket_id)
+    if not thread:
+        raise HTTPException(404, "Ticket not found")
+    return thread
+
+
+class AdminReplyRequest(BaseModel):
+    message: str
+
+
+@router.post("/admin/tickets/{ticket_id}/reply")
+def admin_ticket_reply(ticket_id: str, req: AdminReplyRequest, user: dict = Depends(get_current_user)):
+    """Admin-only: add an admin reply to a ticket."""
+    _require_admin(user)
+    if not req.message.strip():
+        raise HTTPException(400, "Message is required")
+    # Auto-set status to in_progress if currently open
+    thread = get_ticket_thread(ticket_id)
+    if not thread:
+        raise HTTPException(404, "Ticket not found")
+    if thread["ticket"]["status"] == "open":
+        update_ticket_status(ticket_id, "in_progress")
+    return add_ticket_message(ticket_id, user["id"], req.message.strip(), sender_role="admin")
+
+
+class TicketStatusRequest(BaseModel):
+    status: str
+    priority: str = None
+
+
+@router.post("/admin/tickets/{ticket_id}/status")
+def admin_ticket_status(ticket_id: str, req: TicketStatusRequest, user: dict = Depends(get_current_user)):
+    """Admin-only: update ticket status and optionally priority."""
+    _require_admin(user)
+    if req.status not in ("open", "in_progress", "resolved"):
+        raise HTTPException(400, "Invalid status")
+    if req.priority and req.priority not in ("low", "normal", "high", "urgent"):
+        raise HTTPException(400, "Invalid priority")
+    return update_ticket_status(ticket_id, req.status, req.priority)
 
 
 # ── Stripe endpoints ────────────────────────────────────────────────────────
