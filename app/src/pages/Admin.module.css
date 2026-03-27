@@ -33,6 +33,13 @@
   flex-direction: column;
   gap: 4px;
 }
+.statCardClickable {
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.statCardClickable:hover {
+  border-color: rgba(201,168,76,0.4);
+}
 .statNumber {
   font-family: var(--font-mono);
   font-size: 28px;
@@ -45,6 +52,44 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.8px;
+}
+
+/* ── MRR Popover ── */
+.mrrPopover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1c17;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  z-index: 30;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  animation: fadeIn 0.12s ease-out;
+}
+.mrrPopoverRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  padding: 3px 0;
+}
+.mrrPopoverLabel {
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.mrrPopoverDivider {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  margin: 6px 0;
+}
+.mrrPopoverTotal {
+  color: var(--ut-gold);
+  font-weight: 600;
 }
 
 /* ── Signups Chart ── */
@@ -311,6 +356,27 @@
 .verifiedYes { color: #4ade80; font-size: 14px; }
 .verifiedNo { color: #f87171; font-size: 14px; }
 
+/* Stripe Quick Link */
+.stripeLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(99,91,255,0.15);
+  color: #a78bfa;
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.stripeLink:hover {
+  background: rgba(99,91,255,0.3);
+  color: #c4b5fd;
+}
+
 /* Plan Badges */
 .badge {
   display: inline-block;
@@ -410,6 +476,76 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.8px;
+}
+
+/* ── Announcement Section ── */
+.announcementSection {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  margin-bottom: 24px;
+}
+.announcementForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.announcementInput {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-bright);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-family: inherit;
+}
+.announcementInput::placeholder { color: var(--text-muted); }
+.announcementInput:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+.announcementTextarea {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-bright);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+}
+.announcementTextarea::placeholder { color: var(--text-muted); }
+.announcementTextarea:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+.announcementControls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.audiencePills {
+  display: flex;
+  gap: 6px;
+}
+.sendBtn {
+  background: rgba(201,168,76,0.2);
+  color: var(--ut-gold);
+  border: 1px solid rgba(201,168,76,0.4);
+  padding: 8px 20px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.sendBtn:hover { background: rgba(201,168,76,0.35); }
+.sendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.successMsg {
+  color: #4ade80;
+  font-size: 12px;
+  padding: 8px 12px;
+  background: rgba(74,222,128,0.08);
+  border-radius: var(--radius-sm);
 }
 
 /* ── System Health ── */
@@ -605,6 +741,25 @@
   color: var(--text-bright);
   font-family: var(--font-mono);
   font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Copy button (inline) */
+.copyBtn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.copyBtn:hover {
+  background: rgba(255,255,255,0.12);
+  color: var(--text-bright);
 }
 
 .drawerActivityList {
@@ -655,12 +810,17 @@
   .statNumber { font-size: 22px; }
   .controls { flex-direction: column; align-items: stretch; }
   .searchInput { min-width: unset; max-width: unset; }
-  .table { font-size: 11px; }
+  .tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table { font-size: 11px; min-width: 600px; }
   .table th, .table td { padding: 6px 6px; }
   .chartDateLabel { display: none; }
   .hideOnMobile { display: none; }
+  .activityList { max-height: 300px; }
   .drawer { width: 100vw; }
   .drawerStats { grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .drawerStatVal { font-size: 16px; }
   .actionsCell { flex-wrap: wrap; }
+  .announcementControls { flex-direction: column; align-items: stretch; }
+  .audiencePills { justify-content: center; }
+  .sendBtn { width: 100%; text-align: center; }
 }

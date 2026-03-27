@@ -349,6 +349,74 @@ def admin_user_detail(user_id: str, user: dict = Depends(get_current_user)):
     return detail
 
 
+@router.post("/admin/users/{user_id}/verify")
+def admin_verify_user_by_id(user_id: str, user: dict = Depends(get_current_user)):
+    """Admin-only: force-verify a user's email by user ID."""
+    _require_admin(user)
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id, email FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        conn.execute("UPDATE users SET email_verified = 1 WHERE id = ?", (user_id,))
+        conn.commit()
+        log_activity(user_id, "force_verified", details=f"by admin {user['email']}")
+        return {"ok": True, "user_id": user_id, "verified": True}
+    finally:
+        conn.close()
+
+
+@router.post("/admin/users/{user_id}/reset-password")
+def admin_reset_password_by_id(user_id: str, user: dict = Depends(get_current_user)):
+    """Admin-only: send password reset email to user by ID."""
+    _require_admin(user)
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id, email FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        token = create_password_reset(row["email"])
+        if token:
+            try:
+                send_password_reset_email(row["email"], token, DASHBOARD_URL)
+            except Exception as e:
+                print(f"[admin] Failed to send reset email: {e}")
+        return {"ok": True, "user_id": user_id}
+    finally:
+        conn.close()
+
+
+@router.delete("/admin/users/{user_id}")
+def admin_delete_user_by_id(user_id: str, user: dict = Depends(get_current_user)):
+    """Admin-only: delete a user by ID."""
+    _require_admin(user)
+    if user_id == user["id"]:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id, email FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        conn.execute("DELETE FROM activity_log WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM subscriptions WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM email_verifications WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM password_resets WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM journal_entries WHERE user_id = ?", (user_id,))
+        wl_ids = [r["id"] for r in conn.execute("SELECT id FROM watchlists WHERE user_id = ?", (user_id,)).fetchall()]
+        for wl_id in wl_ids:
+            conn.execute("DELETE FROM watchlist_items WHERE watchlist_id = ?", (wl_id,))
+        conn.execute("DELETE FROM watchlists WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        return {"ok": True, "user_id": user_id, "deleted": True}
+    finally:
+        conn.close()
+
+
 class ForceVerifyRequest(BaseModel):
     email: EmailStr
 
@@ -452,6 +520,62 @@ def stripe_check(user: dict = Depends(get_current_user)):
         "webhook_secret_set": bool(STRIPE_WEBHOOK_SECRET),
         "dashboard_url": DASHBOARD_URL,
     }
+
+
+@router.post("/admin/send-announcement")
+def admin_send_announcement(req: dict, user: dict = Depends(get_current_user)):
+    """Admin-only: send an email announcement to users by audience segment."""
+    _require_admin(user)
+    subject = req.get("subject", "").strip()
+    message = req.get("message", "").strip()
+    audience = req.get("audience", "all")  # "all", "pro", "free"
+
+    if not subject or not message:
+        raise HTTPException(400, "Subject and message required")
+
+    from api.services.email_service import send_email
+    from api.services.auth_db import get_connection
+
+    conn = get_connection()
+    try:
+        if audience == "pro":
+            rows = conn.execute(
+                "SELECT u.email FROM users u JOIN subscriptions s ON u.id = s.user_id "
+                "WHERE s.status IN ('active', 'trialing', 'comped')"
+            ).fetchall()
+        elif audience == "free":
+            rows = conn.execute(
+                "SELECT u.email FROM users u LEFT JOIN subscriptions s ON u.id = s.user_id "
+                "WHERE s.id IS NULL OR s.status NOT IN ('active', 'trialing', 'comped')"
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT email FROM users").fetchall()
+
+        emails = [r["email"] for r in rows]
+        sent = 0
+        for email in emails:
+            html = f'''
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#0e0f0d;padding:40px 20px;">
+              <tr><td align="center">
+                <table width="480" cellpadding="0" cellspacing="0" style="background:#1a1c17;border:1px solid #2e3127;border-radius:8px;padding:32px;">
+                  <tr><td style="font-family:'Cinzel',serif;color:#c9a84c;font-size:18px;text-align:center;padding-bottom:16px;">U C T</td></tr>
+                  <tr><td style="font-family:Arial,sans-serif;color:#e8e3d6;font-size:15px;line-height:1.6;padding:0 8px;">{message}</td></tr>
+                  <tr><td style="border-top:1px solid #2e3127;margin-top:24px;padding-top:16px;font-family:Arial,sans-serif;color:#706b5e;font-size:11px;text-align:center;">
+                    UCT Intelligence — <a href="https://uctintelligence.com" style="color:#c9a84c;">uctintelligence.com</a>
+                  </td></tr>
+                </table>
+              </td></tr>
+            </table>
+            '''
+            try:
+                send_email(email, subject, html)
+                sent += 1
+            except:
+                pass
+
+        return {"ok": True, "sent": sent, "total": len(emails)}
+    finally:
+        conn.close()
 
 
 @router.post("/admin/sync-subscriptions")

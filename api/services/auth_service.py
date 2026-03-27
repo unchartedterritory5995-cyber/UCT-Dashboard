@@ -237,7 +237,7 @@ def list_users_filtered(search: str = None, plan_filter: str = None, sort_by: st
         query = (
             "SELECT u.id, u.email, u.display_name, u.role, u.created_at, "
             "u.last_login_at, u.email_verified, "
-            "s.plan, s.status as sub_status, s.current_period_end "
+            "s.plan, s.status as sub_status, s.current_period_end, s.stripe_customer_id "
             "FROM users u LEFT JOIN subscriptions s ON u.id = s.user_id "
         )
         params = []
@@ -278,7 +278,12 @@ def get_admin_stats() -> dict:
             "SELECT COUNT(*) FROM subscriptions WHERE status IN ('active', 'trialing', 'comped')"
         ).fetchone()[0]
 
-        mrr = pro_subscribers * 20
+        comped_count = conn.execute(
+            "SELECT COUNT(*) FROM subscriptions WHERE status = 'comped'"
+        ).fetchone()[0]
+
+        paying_subscribers = pro_subscribers - comped_count
+        mrr = paying_subscribers * 20
 
         now_iso = datetime.now(timezone.utc).isoformat()
         seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
@@ -323,6 +328,8 @@ def get_admin_stats() -> dict:
         return {
             "total_users": total_users,
             "pro_subscribers": pro_subscribers,
+            "paying_subscribers": paying_subscribers,
+            "comped_count": comped_count,
             "mrr": mrr,
             "new_signups_7d": new_signups_7d,
             "new_signups_30d": new_signups_30d,
@@ -549,6 +556,10 @@ def get_user_detail(user_id: str) -> dict | None:
             (user_id,),
         ).fetchone()
         user["subscription"] = dict(sub_row) if sub_row else None
+        # Flatten sub_status for frontend getUserPlan compatibility
+        user["sub_status"] = sub_row["status"] if sub_row else None
+        user["stripe_customer_id"] = sub_row["stripe_customer_id"] if sub_row else None
+        user["current_period_end"] = sub_row["current_period_end"] if sub_row else None
 
         # Journal entry count
         user["journal_count"] = conn.execute(

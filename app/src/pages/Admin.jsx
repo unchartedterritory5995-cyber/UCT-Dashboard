@@ -23,6 +23,7 @@ function timeAgo(dateString) {
   if (!dateString) return '\u2014'
   const now = Date.now()
   const then = new Date(dateString).getTime()
+  if (isNaN(then)) return '\u2014'
   const diff = Math.max(0, now - then)
   const seconds = Math.floor(diff / 1000)
   if (seconds < 60) return 'just now'
@@ -72,6 +73,10 @@ function exportUsersCSV(users) {
   a.download = `uct-users-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).catch(() => {})
 }
 
 // ── Sub-components ──
@@ -146,12 +151,137 @@ function ActivityFeed({ items, loading, onRefresh }) {
         ) : (
           items.map((a, i) => (
             <div key={i} className={styles.activityRow}>
-              <span className={styles.activityTime}>{timeAgo(a.timestamp)}</span>
-              <span className={styles.activityEmail}>{a.email || a.user_email || '\u2014'}</span>
+              <span className={styles.activityTime}>{timeAgo(a.created_at)}</span>
+              <span className={styles.activityEmail}>{a.email || a.display_name || '\u2014'}</span>
               <ActionBadge action={a.action} />
             </div>
           ))
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── MRR Popover ──
+function MRRPopover({ stats, visible, onClose }) {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!visible) return
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose()
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [visible, onClose])
+
+  if (!visible || !stats) return null
+
+  return (
+    <div className={styles.mrrPopover} ref={ref}>
+      <div className={styles.mrrPopoverRow}>
+        <span>{stats.paying_subscribers ?? (stats.pro_subscribers - (stats.comped_count ?? 0))}</span>
+        <span className={styles.mrrPopoverLabel}>&times; $20/mo subscribers</span>
+      </div>
+      <div className={styles.mrrPopoverRow}>
+        <span>{stats.comped_count ?? 0}</span>
+        <span className={styles.mrrPopoverLabel}>comped (free)</span>
+      </div>
+      <div className={styles.mrrPopoverDivider} />
+      <div className={styles.mrrPopoverRow}>
+        <span className={styles.mrrPopoverTotal}>${(stats.mrr ?? 0).toLocaleString()}</span>
+        <span className={styles.mrrPopoverLabel}>monthly recurring</span>
+      </div>
+    </div>
+  )
+}
+
+// ── Announcement Section ──
+function AnnouncementSection() {
+  const [subject, setSubject] = useState('')
+  const [message, setMessage] = useState('')
+  const [audience, setAudience] = useState('all')
+  const [sending, setSending] = useState(false)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
+
+  async function handleSend() {
+    if (!subject.trim() || !message.trim()) {
+      setError('Subject and message are required')
+      return
+    }
+    if (!window.confirm(`Send this announcement to ${audience === 'all' ? 'ALL users' : audience === 'pro' ? 'Pro users only' : 'Free users only'}?`)) {
+      return
+    }
+    setSending(true)
+    setError('')
+    setResult(null)
+    try {
+      const res = await fetch('/api/auth/admin/send-announcement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: subject.trim(), message: message.trim(), audience }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setError(err.detail || 'Failed to send')
+        return
+      }
+      const data = await res.json()
+      setResult(`Sent to ${data.sent} of ${data.total} recipients`)
+      setSubject('')
+      setMessage('')
+    } catch {
+      setError('Network error')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className={styles.announcementSection}>
+      <div className={styles.sectionTitle}>Send Announcement</div>
+      <div className={styles.announcementForm}>
+        <input
+          type="text"
+          className={styles.announcementInput}
+          placeholder="Subject line..."
+          value={subject}
+          onChange={e => setSubject(e.target.value)}
+        />
+        <textarea
+          className={styles.announcementTextarea}
+          placeholder="Message body (plain text)..."
+          rows={5}
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+        />
+        <div className={styles.announcementControls}>
+          <div className={styles.audiencePills}>
+            {[
+              { key: 'all', label: 'All Users' },
+              { key: 'pro', label: 'Pro Only' },
+              { key: 'free', label: 'Free Only' },
+            ].map(a => (
+              <button
+                key={a.key}
+                className={audience === a.key ? styles.pillActive : styles.pill}
+                onClick={() => setAudience(a.key)}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+          <button
+            className={styles.sendBtn}
+            onClick={handleSend}
+            disabled={sending || !subject.trim() || !message.trim()}
+          >
+            {sending ? 'Sending...' : 'Send Announcement'}
+          </button>
+        </div>
+        {error && <div className={styles.error}>{error}</div>}
+        {result && <div className={styles.successMsg}>{result}</div>}
       </div>
     </div>
   )
@@ -163,6 +293,7 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!userId) return
@@ -174,6 +305,16 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
       .catch(() => setError('Failed to load user details'))
       .finally(() => setLoading(false))
   }, [userId])
+
+  // Escape key closes drawer
+  useEffect(() => {
+    if (!userId) return
+    function handleKey(e) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [userId, onClose])
 
   async function handleAction(action, payload = {}) {
     setActionLoading(action)
@@ -213,6 +354,15 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
     }
   }
 
+  function handleCopyStripeId() {
+    const stripeId = user?.subscription?.stripe_customer_id || user?.stripe_customer_id
+    if (stripeId) {
+      copyToClipboard(stripeId)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
   if (!userId) return null
 
   const plan = user ? getUserPlan(user) : 'free'
@@ -220,6 +370,7 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
   const daysSinceSignup = user?.created_at
     ? Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000)
     : null
+  const stripeId = user?.subscription?.stripe_customer_id || user?.stripe_customer_id
 
   return (
     <>
@@ -271,12 +422,23 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
               <div className={styles.drawerFieldGrid}>
                 <span className={styles.drawerFieldLabel}>Stripe ID</span>
                 <span className={styles.drawerFieldValue}>
-                  {user.stripe_customer_id
-                    ? `${user.stripe_customer_id.slice(0, 14)}...`
-                    : '\u2014'}
+                  {stripeId ? (
+                    <>
+                      {stripeId.slice(0, 14)}...
+                      <button
+                        className={styles.copyBtn}
+                        onClick={handleCopyStripeId}
+                        title="Copy full Stripe ID"
+                      >
+                        {copied ? 'Copied' : 'Copy'}
+                      </button>
+                    </>
+                  ) : '\u2014'}
                 </span>
                 <span className={styles.drawerFieldLabel}>Period End</span>
-                <span className={styles.drawerFieldValue}>{formatDate(user.current_period_end)}</span>
+                <span className={styles.drawerFieldValue}>
+                  {formatDate(user.subscription?.current_period_end || user.current_period_end)}
+                </span>
                 <span className={styles.drawerFieldLabel}>Plan</span>
                 <span className={styles.drawerFieldValue}>{plan}</span>
                 <span className={styles.drawerFieldLabel}>Email Verified</span>
@@ -295,7 +457,7 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
                 <div className={styles.drawerActivityList}>
                   {user.recent_activity.slice(0, 10).map((a, i) => (
                     <div key={i} className={styles.drawerActivityRow}>
-                      <span className={styles.activityTime}>{timeAgo(a.timestamp)}</span>
+                      <span className={styles.activityTime}>{timeAgo(a.created_at)}</span>
                       <ActionBadge action={a.action} />
                     </div>
                   ))}
@@ -361,6 +523,7 @@ export default function Admin() {
   // Stats
   const [stats, setStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(true)
+  const [mrrOpen, setMrrOpen] = useState(false)
 
   // Users
   const [users, setUsers] = useState([])
@@ -546,11 +709,16 @@ export default function Admin() {
           <span className={styles.statNumber}>{statsLoading ? '\u2014' : stats?.pro_subscribers ?? 0}</span>
           <span className={styles.statLabel}>Active Subscribers</span>
         </div>
-        <div className={styles.statCard}>
+        <div
+          className={`${styles.statCard} ${styles.statCardClickable}`}
+          onClick={() => setMrrOpen(v => !v)}
+          style={{ position: 'relative' }}
+        >
           <span className={styles.statNumber}>
             {statsLoading ? '\u2014' : `$${(stats?.mrr ?? 0).toLocaleString()}`}
           </span>
           <span className={styles.statLabel}>MRR</span>
+          <MRRPopover stats={stats} visible={mrrOpen} onClose={() => setMrrOpen(false)} />
         </div>
         <div className={styles.statCard}>
           <span className={styles.statNumber}>{statsLoading ? '\u2014' : stats?.new_signups_7d ?? 0}</span>
@@ -565,7 +733,7 @@ export default function Admin() {
           <span className={styles.statLabel}>Conversion Rate</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statNumber}>{statsLoading ? '\u2014' : stats?.unverified_users ?? 0}</span>
+          <span className={styles.statNumber}>{statsLoading ? '\u2014' : stats?.unverified_count ?? 0}</span>
           <span className={styles.statLabel}>Unverified Users</span>
         </div>
         <div className={styles.statCard}>
@@ -677,6 +845,18 @@ export default function Admin() {
                       </td>
                       <td className={styles.dateCell}>{formatDate(u.created_at)}</td>
                       <td className={styles.actionsCell}>
+                        {u.stripe_customer_id && (
+                          <a
+                            href={`https://dashboard.stripe.com/customers/${u.stripe_customer_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.stripeLink}
+                            title="Open in Stripe"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            $
+                          </a>
+                        )}
                         {isComped ? (
                           <button
                             className={styles.revokeBtn}
@@ -719,6 +899,9 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      {/* ── Section 5: Send Announcement ── */}
+      <AnnouncementSection />
 
       {/* ── Section 6: System Health ── */}
       <div className={styles.healthSection}>

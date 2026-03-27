@@ -147,7 +147,10 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    from api.services.cache import cache
+    wire = cache.get("wire_data")
+    wire_date = wire.get("date") if wire else None
+    return {"status": "ok", "wire_date": wire_date}
 
 app.include_router(snapshot.router)
 app.include_router(movers.router)
