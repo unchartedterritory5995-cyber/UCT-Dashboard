@@ -56,6 +56,7 @@ const CHART_OPTIONS = {
     borderColor: '#2e3127',
     timeVisible: true,
     secondsVisible: false,
+    rightOffset: 8,
   },
   autoSize: true,
 }
