@@ -224,12 +224,19 @@ export default function StockChart({
     }
 
     // Zoom to last ~200 bars on load (full history still scrollable)
+    chart.timeScale().fitContent()
     if (bars.length > 200) {
-      const from = bars[bars.length - 200].t
-      const to = bars[bars.length - 1].t
-      chart.timeScale().setVisibleRange({ from, to })
-    } else {
-      chart.timeScale().fitContent()
+      // Use requestAnimationFrame to ensure chart has rendered before zooming
+      requestAnimationFrame(() => {
+        try {
+          const from = bars[bars.length - 200].t
+          const to = bars[bars.length - 1].t
+          chart.timeScale().setVisibleRange({ from, to })
+        } catch (_) {
+          // Fallback: scroll to show rightOffset space
+          chart.timeScale().scrollToPosition(8, false)
+        }
+      })
     }
   }, [bars, sym, tf, showVolume, overlays, markers, priceLines, watermark])
 
