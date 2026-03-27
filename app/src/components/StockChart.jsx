@@ -185,12 +185,32 @@ export default function StockChart({
       }
     }
 
-    // ── Markers (BUY/SELL arrows) ──
-    if (markers?.length && candleSeries) {
-      // LW Charts v5: createSeriesMarkers
+    // ── 52-week volume high stars ──
+    const volStars = []
+    if (bars.length > 20) {
+      const lookback = Math.min(252, bars.length)
+      for (let i = lookback; i < bars.length; i++) {
+        const priorMax = Math.max(...bars.slice(i - lookback, i).map(b => b.v || 0))
+        if (bars[i].v > priorMax && bars[i].c > 0) {
+          volStars.push({
+            time: bars[i].t,
+            position: 'aboveBar',
+            color: '#c9a84c',
+            shape: 'circle',
+            text: '★ HVC',
+            size: 0.5,
+          })
+        }
+      }
+    }
+
+    // ── Markers (BUY/SELL arrows + volume stars) ──
+    const allMarkers = [...volStars, ...(markers || [])]
+      .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
+    if (allMarkers.length && candleSeries) {
       import('lightweight-charts').then(({ createSeriesMarkers }) => {
         if (createSeriesMarkers) {
-          createSeriesMarkers(candleSeries, markers)
+          createSeriesMarkers(candleSeries, allMarkers)
         }
       }).catch(() => {})
     }
