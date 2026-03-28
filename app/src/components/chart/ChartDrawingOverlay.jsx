@@ -359,12 +359,12 @@ export default function ChartDrawingOverlay({
   selectedId, setSelectedId,
 }) {
   const canvasRef = useRef(null)
-  const wrapperRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
   const [mouseCoords, setMouseCoords] = useState(null)
   const [textInput, setTextInput] = useState(null)
   const rafRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
+  const redrawRef = useRef(null)
 
   // ── Time → bar index lookup ──
   const timeToIndex = useMemo(() => {
@@ -374,13 +374,14 @@ export default function ChartDrawingOverlay({
   }, [bars])
 
   // ── Coordinate conversion: chart → pixel ──
+  // Uses refs at call-time so always gets latest chart/series
   const toPixel = useCallback((time, price) => {
     const chart = chartRef?.current
     const series = seriesRef?.current
     if (!chart || !series) return null
     let x = null
     if (time != null) {
-      x = chart.timeScale().timeToCoordinate(time)
+      try { x = chart.timeScale().timeToCoordinate(time) } catch {}
       // Fallback: extrapolate from logical index
       if (x == null && bars?.length) {
         const idx = timeToIndex.get(time)
@@ -391,7 +392,7 @@ export default function ChartDrawingOverlay({
     }
     let y = null
     if (price != null) {
-      y = series.priceToCoordinate(price)
+      try { y = series.priceToCoordinate(price) } catch {}
     }
     return { x, y }
   }, [chartRef, seriesRef, bars, timeToIndex])
@@ -405,11 +406,14 @@ export default function ChartDrawingOverlay({
   }, [toPixel])
 
   // ── Coordinate conversion: pixel → chart ──
+  // Robust: uses visible range + linear interpolation if coordinateToLogical fails
   const toChart = useCallback((pixelX, pixelY) => {
     const chart = chartRef?.current
     const series = seriesRef?.current
     if (!chart || !series || !bars?.length) return null
+
     let time = null
+    // Method 1: try coordinateToLogical (LWC v5)
     try {
       const logical = chart.timeScale().coordinateToLogical(pixelX)
       if (logical != null) {
@@ -417,8 +421,28 @@ export default function ChartDrawingOverlay({
         time = bars[idx].t
       }
     } catch {}
+
+    // Method 2: fallback — interpolate from visible range
+    if (!time) {
+      try {
+        const range = chart.timeScale().getVisibleLogicalRange()
+        if (range) {
+          const startX = chart.timeScale().logicalToCoordinate(Math.ceil(range.from))
+          const endX = chart.timeScale().logicalToCoordinate(Math.floor(range.to))
+          if (startX != null && endX != null && endX !== startX) {
+            const pxPerBar = (endX - startX) / (Math.floor(range.to) - Math.ceil(range.from))
+            const logical = Math.ceil(range.from) + (pixelX - startX) / pxPerBar
+            const idx = Math.max(0, Math.min(bars.length - 1, Math.round(logical)))
+            time = bars[idx].t
+          }
+        }
+      } catch {}
+    }
+
     let price = null
     try { price = series.coordinateToPrice(pixelY) } catch {}
+
+    // Allow partial coords: horizontal only needs price, vertical only needs time
     if (!time && !price) return null
     return { time, price }
   }, [chartRef, seriesRef, bars])
@@ -429,37 +453,50 @@ export default function ChartDrawingOverlay({
     const wrapper = canvas?.parentElement
     if (!canvas || !wrapper) return
 
-    const ro = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect
+    const setSize = (width, height) => {
       const dpr = window.devicePixelRatio || 1
       canvas.width = width * dpr
       canvas.height = height * dpr
       canvas.style.width = width + 'px'
       canvas.style.height = height + 'px'
       sizeRef.current = { w: width, h: height }
-      requestRedraw()
+    }
+
+    // Set initial size immediately
+    const rect = wrapper.getBoundingClientRect()
+    setSize(rect.width, rect.height)
+
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      setSize(width, height)
+      redrawRef.current?.()
     })
     ro.observe(wrapper)
     return () => ro.disconnect()
   }, [])
 
-  // ── Subscribe to chart scroll/zoom ──
+  // ── Poll for chart scroll/zoom changes (robust, avoids subscription timing) ──
   useEffect(() => {
-    const chart = chartRef?.current
-    if (!chart) return
-    const handler = () => requestRedraw()
-    try {
-      chart.timeScale().subscribeVisibleLogicalRangeChange(handler)
-    } catch { return }
-    return () => {
-      try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler) } catch {}
-    }
-  }, [chartRef?.current, bars])
+    let lastRangeKey = null
+    const interval = setInterval(() => {
+      const chart = chartRef?.current
+      if (!chart) return
+      try {
+        const range = chart.timeScale().getVisibleLogicalRange()
+        const key = range ? `${range.from.toFixed(2)}-${range.to.toFixed(2)}` : null
+        if (key !== lastRangeKey) {
+          lastRangeKey = key
+          redrawRef.current?.()
+        }
+      } catch {}
+    }, 60) // ~16fps polling for scroll
+    return () => clearInterval(interval)
+  }, [chartRef])
 
-  // ── Request redraw (debounced via rAF) ──
+  // ── Request redraw (debounced via rAF, uses ref for latest redraw) ──
   const requestRedraw = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    rafRef.current = requestAnimationFrame(() => redraw())
+    rafRef.current = requestAnimationFrame(() => redrawRef.current?.())
   }, [])
 
   // ── Redraw all ──
@@ -469,6 +506,7 @@ export default function ChartDrawingOverlay({
     const ctx = canvas.getContext('2d')
     const dpr = window.devicePixelRatio || 1
     const { w, h } = sizeRef.current
+    if (w === 0 || h === 0) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
 
@@ -527,12 +565,12 @@ export default function ChartDrawingOverlay({
           case 'fib': renderFib(ctx, previewPts, w, toPixelY); break
           case 'channel': renderChannel(ctx, previewPts, w, h); break
           case 'measure': {
-            const d = {
+            const md = {
               barCount: pendingPoints[0] && mouseCoords
                 ? Math.abs((timeToIndex.get(mouseCoords.time) || 0) - (timeToIndex.get(pendingPoints[0].time) || 0))
                 : 0
             }
-            renderMeasure(ctx, previewPts, d)
+            renderMeasure(ctx, previewPts, md)
             break
           }
         }
@@ -549,8 +587,11 @@ export default function ChartDrawingOverlay({
     }
   }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, selectedId, toPixel, resolvePixels, timeToIndex])
 
-  // Trigger redraw when dependencies change
-  useEffect(() => { requestRedraw() }, [redraw])
+  // Keep redrawRef in sync — always points to latest redraw
+  redrawRef.current = redraw
+
+  // Trigger redraw when any drawing state changes
+  useEffect(() => { redrawRef.current?.() }, [redraw])
 
   // ── Mouse handlers ──
   const getCanvasPos = (e) => {
@@ -599,7 +640,6 @@ export default function ChartDrawingOverlay({
       }
       addDrawing(drawingData)
       setPendingPoints([])
-      // Don't deactivate tool — allow rapid consecutive drawings
     } else {
       setPendingPoints(newPending)
     }
@@ -627,7 +667,6 @@ export default function ChartDrawingOverlay({
   // ── Keyboard shortcuts ──
   useEffect(() => {
     const handler = (e) => {
-      // Only handle if the chart area is in focus context
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
 
       if (e.key === 'Escape') {
