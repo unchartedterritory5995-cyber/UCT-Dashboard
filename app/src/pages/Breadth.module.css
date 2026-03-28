@@ -1351,3 +1351,47 @@ tbody tr { cursor: pointer; }
     grid-template-columns: 1fr;
   }
 }
+
+/* ── DrillModal flag button ── */
+.drillFlagBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: 4px;
+  color: var(--text-muted, #777);
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  opacity: 0.55;
+}
+.drillFlagBtn:hover { opacity: 1; background: var(--bg-hover, rgba(255,255,255,0.05)); }
+.drillFlagBtnActive {
+  color: var(--ut-gold, #c9a84c);
+  border-color: rgba(212, 170, 80, 0.4);
+  background: rgba(212, 170, 80, 0.1);
+  opacity: 1;
+}
+.flagToast {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  animation: flagFade 1.5s ease-in-out forwards;
+}
+.flagToastAdded { color: var(--ut-gold, #c9a84c); background: rgba(212,170,80,0.15); border: 1px solid rgba(212,170,80,0.35); }
+.flagToastRemoved { color: var(--text-muted, #777); background: var(--bg-elevated, #1a1a1a); border: 1px solid var(--border, rgba(255,255,255,0.08)); }
+@keyframes flagFade {
+  0%   { opacity: 0; transform: translateY(-3px); }
+  15%  { opacity: 1; transform: translateY(0); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}

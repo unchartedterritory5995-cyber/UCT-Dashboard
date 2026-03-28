@@ -4,6 +4,7 @@ import useMobileSWR from '../hooks/useMobileSWR'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './ThemeTrackerPage.module.css'
 import StockChart from '../components/StockChart'
+import { useFlagged } from '../hooks/useFlagged'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
@@ -223,6 +224,29 @@ export default function ThemeTrackerPage() {
   }, [handleKeyDown])
 
   const [chartPeriod, setChartPeriod] = useState('D')
+  const [flagToast, setFlagToast] = useState(null)
+  const { isFlagged, toggle: toggleFlag } = useFlagged()
+
+  // Clear flag toast after 1.5s
+  useEffect(() => {
+    if (!flagToast) return
+    const t = setTimeout(() => setFlagToast(null), 1500)
+    return () => clearTimeout(t)
+  }, [flagToast])
+
+  // Shift+F to flag selected ticker
+  useEffect(() => {
+    if (!selectedSym) return
+    const handler = (e) => {
+      if (e.shiftKey && e.key === 'F') {
+        const willFlag = !isFlagged(selectedSym)
+        toggleFlag(selectedSym)
+        setFlagToast(willFlag ? 'added' : 'removed')
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [selectedSym, isFlagged, toggleFlag])
 
   return (
     <div className={styles.page}>
@@ -295,6 +319,16 @@ export default function ThemeTrackerPage() {
             <div className={styles.chartHeader}>
               <span className={styles.chartSym}>{selectedSym}</span>
               <span className={styles.chartName}>{selectedName}</span>
+              {flagToast && (
+                <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
+                  {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
+                </span>
+              )}
+              <button
+                className={`${styles.flagBtn}${isFlagged(selectedSym) ? ' ' + styles.flagBtnActive : ''}`}
+                onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
+                title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
+              >⚑ {isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
               <div className={styles.chartPeriodTabs}>
                 {[['5', '5min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly']].map(([p, label]) => (
                   <button

@@ -8,6 +8,7 @@ import { useTileCapture } from '../hooks/useTileCapture'
 import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
+import { useFlagged } from '../hooks/useFlagged'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -382,18 +383,38 @@ function DrillModal({ drill, onClose }) {
   const items = drill.items ?? []
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [chartPeriod, setChartPeriod] = useState('D')
+  const [flagToast, setFlagToast] = useState(null)
+  const { isFlagged, toggle: toggleFlag } = useFlagged()
   const rowRefs = useRef([])
 
-  // Keyboard: Escape closes, arrows navigate
+  // Clear flag toast after 1.5s
+  useEffect(() => {
+    if (!flagToast) return
+    const t = setTimeout(() => setFlagToast(null), 1500)
+    return () => clearTimeout(t)
+  }, [flagToast])
+
+  // Keyboard: Escape closes, arrows navigate, Shift+F flags selected ticker
   useEffect(() => {
     const handler = e => {
       if (e.key === 'Escape') { onClose(); return }
       if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, items.length - 1)) }
       if (e.key === 'ArrowUp')   { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, 0)) }
+      if (e.shiftKey && e.key === 'F') {
+        setSelectedIdx(cur => {
+          const sym = items[cur]?.t
+          if (sym) {
+            const willFlag = !isFlagged(sym)
+            toggleFlag(sym)
+            setFlagToast(willFlag ? 'added' : 'removed')
+          }
+          return cur
+        })
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onClose, items.length])
+  }, [onClose, items, isFlagged, toggleFlag])
 
   // Scroll selected row into view
   useEffect(() => {
@@ -488,6 +509,16 @@ function DrillModal({ drill, onClose }) {
               <div className={styles.drillChartBar}>
                 <span className={styles.drillChartSym}>{selected.t}</span>
                 {selected.n && <span className={styles.drillChartName}>{selected.n}</span>}
+                {flagToast && (
+                  <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
+                    {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
+                  </span>
+                )}
+                <button
+                  className={`${styles.drillFlagBtn}${isFlagged(selected.t) ? ' ' + styles.drillFlagBtnActive : ''}`}
+                  onClick={() => { const willFlag = !isFlagged(selected.t); toggleFlag(selected.t); setFlagToast(willFlag ? 'added' : 'removed') }}
+                  title={isFlagged(selected.t) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
+                >⚑ {isFlagged(selected.t) ? 'Flagged' : 'Flag'}</button>
                 <div className={styles.drillChartTabs}>
                   {[['5', '5min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly']].map(([p, label]) => (
                     <button

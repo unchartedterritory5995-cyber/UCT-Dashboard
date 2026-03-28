@@ -378,6 +378,51 @@
   color: var(--text-muted);
 }
 
+/* ── Flag button ── */
+.flagBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  opacity: 0.55;
+  margin-left: auto;
+}
+.flagBtn:hover { opacity: 1; background: var(--bg-hover); }
+.flagBtnActive {
+  color: var(--ut-gold);
+  border-color: rgba(212, 170, 80, 0.4);
+  background: rgba(212, 170, 80, 0.1);
+  opacity: 1;
+}
+.flagToast {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  animation: flagFade 1.5s ease-in-out forwards;
+}
+.flagToastAdded { color: var(--ut-gold); background: rgba(212,170,80,0.15); border: 1px solid rgba(212,170,80,0.35); }
+.flagToastRemoved { color: var(--text-muted); background: var(--bg-elevated); border: 1px solid var(--border); }
+@keyframes flagFade {
+  0%   { opacity: 0; transform: translateY(-3px); }
+  15%  { opacity: 1; transform: translateY(0); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .page { flex-direction: column; overflow: visible; }
