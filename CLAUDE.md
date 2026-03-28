@@ -5,16 +5,48 @@ This file provides guidance to Claude Code when working in this repository.
 ## Project Overview
 
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
-- **Frontend:** React + Vite SPA with React Router
+- **Frontend:** React + Vite SPA with React Router (NOT Next.js — ignore all "use client" suggestions)
 - **Backend:** FastAPI (Python) — serves the React build and all `/api/*` data endpoints
-- **Deployment:** Railway (single service) at `https://web-production-05cb6.up.railway.app`
+- **Deployment:** Railway (single service) at `https://uctintelligence.com` (Cloudflare DNS)
+- **Domain:** `uctintelligence.com` — Cloudflare registrar + DNS, Railway custom domain
+- **Email:** Resend (verified domain), sends from `UCT Intelligence <noreply@uctintelligence.com>`
+- **Payments:** Stripe (sandbox + live), webhook at `/api/webhooks/stripe`
+- **Auth:** Custom SQLite-based auth with sessions, email verification, password reset
 
 The **Morning Wire** is one tab within this dashboard. Its engine (`morning_wire_engine.py`) lives in `C:\Users\Patrick\morning-wire\` and is imported by the backend.
 
 ## Nav Tabs (left sidebar)
 
-Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | Heatmap | COT Data | Data Charts) · Traders · Screener · Options Flow · Post Market · Model Book
-Settings + Website buttons pinned to bottom of sidebar.
+Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | Heatmap | COT Data | Data Charts | Analogues) · Theme Tracker · Calendar · Traders · Screener · Options Flow · Post Market · Model Book · Journal · Watchlists · Community · Support
+Settings + Admin (admin only) pinned to bottom of sidebar.
+
+## Mobile Navigation
+
+Hamburger + slide-out drawer (hidden on desktop). Fixed header with page title + AlertBell. Body scroll locked when drawer open. User avatar + name in drawer header.
+
+## Charts — Lightweight Charts v5
+
+All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key component: `app/src/components/StockChart.jsx`.
+- Candlestick + volume (separate panes), 9/20/50/200 MA overlays
+- HVC gold volume bars (52W volume high detection)
+- BUY/SELL markers, entry/stop price lines
+- 200-bar default zoom via `setVisibleLogicalRange`, 8-bar right padding
+- Full history: 5000 daily, 2000 weekly, 300 intraday bars
+- Backend: `/api/bars/{ticker}?tf=D&bars=5000` (Massive API daily/weekly, yfinance intraday fallback)
+- **COT charts are Chart.js** — do NOT replace those
+
+## Live Pricing
+
+15s polling via `/api/live-prices?tickers=X,Y,Z` (Massive batch snapshot). `useLivePrices` hook + `useMobileSWR` (doubles interval on mobile, pauses on background tab). `useMarketOpen` detects session state and 10x slows polling when market closed.
+
+## Auth & User System
+
+- SQLite DB at `/data/auth.db` (Railway persistent volume)
+- Tables: users, sessions, subscriptions, email_verifications, password_resets, activity_log, page_views, feedback, support_tickets, ticket_messages, user_tags, admin_notes, user_preferences, referrals, mrr_snapshots
+- `AuthGuard` component: checks auth + email verification + plan + admin role
+- Admin role check: `user.role === 'admin'`; set via `ADMIN_EMAILS` env var
+- Verification tokens reuse existing valid token on resend (>1hr remaining)
+- Stripe webhook uses `_safe_get()` for stripe>=8.0 compatibility
 
 ## Worktree Directory
 
@@ -117,6 +149,8 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 
 | Tile | Source | Refresh |
 |------|--------|---------|
+| Live Prices | Massive API batch snapshot (`/api/live-prices`) | 15s (30s mobile) |
+| Chart Bars | Massive API daily/weekly, yfinance intraday (`/api/bars`) | 60s/300s/900s cache |
 | Market Snapshot | Massive API (Railway fetches live) | 15s |
 | Top Movers | Massive API (Railway fetches live) | 30s |
 | News | AlphaVantage (primary) + RSS fallback (live) | 30 min (AV) / 10 min (RSS) |
@@ -128,7 +162,14 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 | MA Relationship Panel | Massive API live prices (SPY/QQQ) + engine push (MA %s) | 15s / Daily |
 | Earnings | wire_data push from engine | Daily (7:35 AM ET) |
 | Scanner Candidates | scanner_candidates.py → wire_data push | Daily (7:00 AM CT scanner + 7:35 AM ET engine push) |
-| COT Data | CFTC public zips (cftc.gov) | Weekly (Friday 3:45 PM ET auto-refresh) |
+| Breadth Monitor (40+ metrics) | breadth_collector.py → push to Railway | Daily (4:30 PM ET weekdays via Task Scheduler) |
+| COT Data | CFTC public zips (cftc.gov) | Weekly (Friday 3:50 PM ET + retries 4:15, 4:45 if stale) |
+| Sector Flow | Massive API 20-day bars for 11 SPDR ETFs | 15min cache |
+| RS Rankings | Massive API 6-month bars for cap universe | 1hr cache |
+| Correlation Matrix | Massive API 60-day bars (numpy corrcoef) | 1hr cache |
+| Breadth Analogues | SQLite breadth_monitor history (pattern match) | 6hr cache |
+| Insider Activity | Finnhub insider transactions API | 4hr per-ticker cache |
+| Earnings Intel | Finnhub earnings/recommendation/price-target | 6hr per-ticker cache |
 
 ## Morning Wire CSS Architecture — CRITICAL
 
@@ -455,7 +496,7 @@ COT Data lives as the second tab on the Breadth page (`/breadth`). There is NO s
 - **Database:** SQLite at `/data/cot.db` (Railway persistent volume — survives redeploys)
 - **Source:** CFTC public zips — `https://www.cftc.gov/files/dea/history/deacot{YEAR}.zip`
 - **Seed:** 10 years of history downloaded on first startup (background thread, daemon=True)
-- **Refresh:** APScheduler CronTrigger — every Friday 3:45 PM ET (`refresh_from_current()`)
+- **Refresh:** APScheduler CronTrigger — Friday 3:50 PM ET (`refresh_from_current()`), retries at 4:15 and 4:45 PM via `refresh_if_stale()` (skips if latest record <7 days old)
 - **Startup catch-up:** On boot, if today is Friday past 4 PM ET and no refresh has run today, fires `refresh_from_current()` in a background thread — handles Railway redeploys that land after the scheduled window
 - **Manual reseed:** `POST /api/cot/reseed` — triggers full 10-year re-download in background
 - **Force reseed via curl:** `curl -X POST https://web-production-05cb6.up.railway.app/api/cot/reseed`
@@ -497,7 +538,7 @@ FINANCIALS: ZB, UD, ZN, ZF, ZT, ZQ, SR3
 CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
 
 ### Data Sources Table Addition
-| COT Data | CFTC public zips (cftc.gov) | Weekly (Friday 3:45 PM ET auto-refresh) |
+| COT Data | CFTC public zips (cftc.gov) | Weekly (Friday 3:50 PM ET + retries 4:15, 4:45 if stale) |
 
 ---
 
@@ -607,6 +648,55 @@ Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green 
 
 ---
 
+## Watchlists Page — Three-Tab Design (2026-03-27)
+
+### Files
+- `app/src/pages/Watchlists.jsx` — full-page watchlists
+- `app/src/pages/Watchlists.module.css` — all styles
+- `api/routers/watchlists.py` — REST endpoints (all require auth)
+- `api/services/watchlist_service.py` — SQLite service
+
+### Architecture
+- **Split panel**: left 260px list panel + right StockChart panel (same pattern as ThemeTrackerPage)
+- **Three tabs**: Flagged | My Lists | Community
+- **Flagged tab**: direct list from `useFlagged` hook (localStorage), live prices, arrow key nav, Shift+F remove, `×` button per row
+- **My Lists tab**: user-owned watchlists (accordion), expandable with items, add ticker form, toggle public/private (🔒/🔓), delete list
+- **Community tab**: all public watchlists (read-only), shows `owner_name`, expandable
+- **Live prices**: `useLivePrices` fed by `allTickers` useMemo — only tickers in expanded lists on active tab
+- **Create modal**: name + description + is_public checkbox
+- **Chart header**: flag button (⚑ Flagged) only shown when `activeTab === 'flagged'`
+- **Period tabs**: 5min / 30min / 1hr / Daily / Weekly — centered in chart header
+
+### API Endpoints
+- `GET  /api/watchlists` — user's own lists (with items array)
+- `GET  /api/watchlists/public` — all public lists (with items + owner_name)
+- `POST /api/watchlists` — create `{ name, description, is_public }`
+- `PUT  /api/watchlists/{id}` — update `{ is_public }`
+- `DELETE /api/watchlists/{id}` — delete list
+- `POST /api/watchlists/{id}/items` — add item `{ sym, notes }`
+- `DELETE /api/watchlists/{id}/items/{item_id}` — remove item
+
+### Flag Support — Coverage (2026-03-27)
+Flag button + Shift+F shortcut added everywhere a chart appears:
+- **TickerPopup** — already had it (covers all chip/ticker contexts)
+- **ThemeTrackerPage** right panel — `useFlagged` + Shift+F + toast
+- **Breadth DrillModal** right panel — `useFlagged` + Shift+F via functional `setSelectedIdx` updater
+- **Watchlists** flagged tab — Shift+F remove, `×` button, flag button in chart header
+
+## FeedbackWidget — Top-Right ? Button (2026-03-27)
+
+- **Location**: `app/src/components/FeedbackWidget.jsx`
+- **Position**: fixed top-right (top: 10, right: 14), 24×24px (was 48×48 bottom-right)
+- **Click → dropdown menu** with two options:
+  - 💬 Send Feedback → opens existing star-rating + message form (posts to `/api/auth/feedback`)
+  - 🎫 Support Ticket → navigates to `/support`
+- Backdrop click closes menu/form; Escape not wired (backdrop handles it)
+
+## Support Chat — UX (2026-03-27)
+- **Enter** sends reply in the reply textarea
+- **Shift+Enter** inserts newline
+- File: `app/src/pages/Support.jsx` line ~340
+
 ## Known Issues / Gotchas
 
 - **Cache resets on redeploy** — FIXED (2026-02-23). Railway volume at `/data` persists wire_data.json. Startup event seeds cache automatically. First boot after volume creation still requires one engine run.
@@ -614,3 +704,6 @@ Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green 
 - **`config` vs `CONFIG`** — morning_wire_engine.py push code uses `CONFIG` (uppercase). Bug was fixed 2026-02-22.
 - **Railway env vars are case-sensitive** — `PUSH_SECRET` must be all-caps (not `Push_Secret`).
 - **Movers wire_data fallback** — if Massive API fails at open, movers fall back to engine push (engine captures pre-market Finviz movers at 7:35 AM ET).
+- **Railway healthcheck timeout** — set to 600s in `railway.json` (default 300s was too tight for startup with COT seed + DB migrations + scheduler init).
+- **Breadth collector Task Scheduler** — runs 4:30 PM ET weekdays (`UCT Breadth Collector`). Battery settings disabled (was killing the job on unplug). Logs: `uct-intelligence/data/breadth_collector.log` (Python) + `breadth_collector_stdout.log` (OS-level stdout/stderr capture).
+- **COT refresh timing** — CFTC publishes after 3:30 PM ET on Fridays but timing varies. Primary refresh at 3:50 PM with smart retries at 4:15 and 4:45 PM. Check Railway logs to see which attempt succeeds.
