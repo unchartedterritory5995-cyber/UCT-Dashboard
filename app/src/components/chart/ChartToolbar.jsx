@@ -87,7 +87,7 @@ export default function ChartToolbar({
 
   const selectTool = (id) => {
     if (id === 'cursor') {
-      setActiveTool(null)
+      setActiveTool(activeTool === 'cursor' ? null : 'cursor')
     } else {
       setActiveTool(activeTool === id ? null : id)
     }
@@ -101,7 +101,7 @@ export default function ChartToolbar({
           t === 'sep' ? <div key={`sep-${i}`} className={styles.sep} /> : (
             <button
               key={t.id}
-              className={`${styles.btn} ${(t.id === 'cursor' ? !activeTool : activeTool === t.id) ? styles.active : ''}`}
+              className={`${styles.btn} ${activeTool === t.id ? styles.active : ''}`}
               onClick={() => selectTool(t.id)}
               title={t.label}
             >

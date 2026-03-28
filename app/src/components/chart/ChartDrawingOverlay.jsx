@@ -355,7 +355,7 @@ export default function ChartDrawingOverlay({
   chartRef, seriesRef, bars,
   activeTool, setActiveTool,
   color, lineWidth,
-  drawings, addDrawing,
+  drawings, addDrawing, updateDrawing,
   selectedId, setSelectedId,
 }) {
   const canvasRef = useRef(null)
@@ -365,6 +365,12 @@ export default function ChartDrawingOverlay({
   const rafRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
   const redrawRef = useRef(null)
+
+  // ── Drag state ──
+  // { drawingId, handleIdx (null=whole, 0/1/2=specific point), startPixel, originalPoints }
+  const dragRef = useRef(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [hoverDrawingId, setHoverDrawingId] = useState(null)
 
   // ── Time → bar index lookup ──
   const timeToIndex = useMemo(() => {
@@ -593,65 +599,12 @@ export default function ChartDrawingOverlay({
   // Trigger redraw when any drawing state changes
   useEffect(() => { redrawRef.current?.() }, [redraw])
 
-  // ── Mouse handlers ──
+  // ── Mouse helpers ──
   const getCanvasPos = (e) => {
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) return null
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }
-
-  const handleMouseDown = useCallback((e) => {
-    if (e.button !== 0) return // left click only
-    const pos = getCanvasPos(e)
-    if (!pos) return
-    const coords = toChart(pos.x, pos.y)
-    if (!coords) return
-
-    // If no tool active (cursor mode), try selection
-    if (!activeTool) {
-      const hitId = hitTestAll(pos.x, pos.y)
-      setSelectedId(hitId)
-      return
-    }
-
-    // Text tool: place text input
-    if (activeTool === 'text') {
-      setTextInput({ x: pos.x, y: pos.y, time: coords.time, price: coords.price })
-      return
-    }
-
-    // Add point
-    const newPending = [...pendingPoints, coords]
-    const needed = POINT_COUNT[activeTool] || 2
-
-    if (newPending.length >= needed) {
-      // Complete the drawing
-      const drawingData = {
-        type: activeTool,
-        points: newPending,
-        color,
-        lineWidth,
-      }
-      // Add bar count for measure tool
-      if (activeTool === 'measure' && newPending.length >= 2) {
-        const idx0 = timeToIndex.get(newPending[0].time) || 0
-        const idx1 = timeToIndex.get(newPending[newPending.length - 1].time) || 0
-        drawingData.barCount = Math.abs(idx1 - idx0)
-      }
-      addDrawing(drawingData)
-      setPendingPoints([])
-    } else {
-      setPendingPoints(newPending)
-    }
-  }, [activeTool, pendingPoints, color, lineWidth, toChart, addDrawing, setSelectedId, timeToIndex])
-
-  const handleMouseMove = useCallback((e) => {
-    const pos = getCanvasPos(e)
-    if (!pos) return
-    const coords = toChart(pos.x, pos.y)
-    setMouseCoords(coords)
-    requestRedraw()
-  }, [toChart, requestRedraw])
 
   // ── Hit test all drawings ──
   const hitTestAll = useCallback((mx, my) => {
@@ -664,13 +617,188 @@ export default function ChartDrawingOverlay({
     return null
   }, [drawings, resolvePixels])
 
+  // ── Hit test handles (control points) — returns { drawingId, handleIdx } or null ──
+  const hitTestHandle = useCallback((mx, my) => {
+    if (!selectedId) return null
+    const d = drawings.find(d => d.id === selectedId)
+    if (!d) return null
+    const pts = resolvePixels(d.points || [])
+    for (let i = 0; i < pts.length; i++) {
+      if (Math.hypot(mx - pts[i].x, my - pts[i].y) < HIT_THRESHOLD + 2) {
+        return { drawingId: d.id, handleIdx: i }
+      }
+    }
+    return null
+  }, [selectedId, drawings, resolvePixels])
+
+  // ── Mouse handlers ──
+  const handleMouseDown = useCallback((e) => {
+    if (e.button !== 0) return
+
+    const pos = getCanvasPos(e)
+    if (!pos) return
+    const coords = toChart(pos.x, pos.y)
+
+    // ── CURSOR MODE: select + drag ──
+    if (activeTool === 'cursor') {
+      // Check handle drag first (move individual control point)
+      const handle = hitTestHandle(pos.x, pos.y)
+      if (handle) {
+        const d = drawings.find(d => d.id === handle.drawingId)
+        if (d) {
+          dragRef.current = {
+            drawingId: handle.drawingId,
+            handleIdx: handle.handleIdx,
+            startPixel: pos,
+            startCoords: coords,
+            originalPoints: d.points.map(p => ({ ...p })),
+          }
+          setIsDragging(true)
+          e.preventDefault()
+          return
+        }
+      }
+
+      // Check body drag (move entire drawing)
+      const hitId = hitTestAll(pos.x, pos.y)
+      if (hitId) {
+        setSelectedId(hitId)
+        const d = drawings.find(d => d.id === hitId)
+        if (d) {
+          dragRef.current = {
+            drawingId: hitId,
+            handleIdx: null, // null = whole body
+            startPixel: pos,
+            startCoords: coords,
+            originalPoints: d.points.map(p => ({ ...p })),
+          }
+          setIsDragging(true)
+          e.preventDefault()
+          return
+        }
+      }
+
+      // Clicked empty space — deselect
+      setSelectedId(null)
+      return
+    }
+
+    // ── DRAWING MODES ──
+    if (!coords) return
+
+    // Text tool: place text input
+    if (activeTool === 'text') {
+      setTextInput({ x: pos.x, y: pos.y, time: coords.time, price: coords.price })
+      return
+    }
+
+    // Add point for drawing tools
+    if (activeTool && activeTool !== 'cursor') {
+      const newPending = [...pendingPoints, coords]
+      const needed = POINT_COUNT[activeTool] || 2
+
+      if (newPending.length >= needed) {
+        const drawingData = {
+          type: activeTool,
+          points: newPending,
+          color,
+          lineWidth,
+        }
+        if (activeTool === 'measure' && newPending.length >= 2) {
+          const idx0 = timeToIndex.get(newPending[0].time) || 0
+          const idx1 = timeToIndex.get(newPending[newPending.length - 1].time) || 0
+          drawingData.barCount = Math.abs(idx1 - idx0)
+        }
+        addDrawing(drawingData)
+        setPendingPoints([])
+      } else {
+        setPendingPoints(newPending)
+      }
+    }
+  }, [activeTool, pendingPoints, color, lineWidth, toChart, addDrawing, setSelectedId, timeToIndex, drawings, hitTestAll, hitTestHandle])
+
+  const handleMouseMove = useCallback((e) => {
+    const pos = getCanvasPos(e)
+    if (!pos) return
+    const coords = toChart(pos.x, pos.y)
+
+    // ── DRAGGING ──
+    if (isDragging && dragRef.current && coords) {
+      const drag = dragRef.current
+      const d = drawings.find(d => d.id === drag.drawingId)
+      if (!d || !drag.startCoords) return
+
+      // Compute delta in chart coordinates
+      const timeDelta = coords.time && drag.startCoords.time
+        ? (timeToIndex.get(coords.time) || 0) - (timeToIndex.get(drag.startCoords.time) || 0)
+        : 0
+      const priceDelta = (coords.price || 0) - (drag.startCoords.price || 0)
+
+      let newPoints
+      if (drag.handleIdx != null) {
+        // Move single control point
+        newPoints = drag.originalPoints.map((p, i) => {
+          if (i !== drag.handleIdx) return p
+          const origIdx = timeToIndex.get(p.time) ?? 0
+          const newIdx = Math.max(0, Math.min(bars.length - 1, origIdx + timeDelta))
+          return {
+            time: bars[newIdx]?.t || p.time,
+            price: p.price + priceDelta,
+          }
+        })
+      } else {
+        // Move entire drawing
+        newPoints = drag.originalPoints.map(p => {
+          const origIdx = timeToIndex.get(p.time) ?? 0
+          const newIdx = Math.max(0, Math.min(bars.length - 1, origIdx + timeDelta))
+          return {
+            time: bars[newIdx]?.t || p.time,
+            price: p.price + priceDelta,
+          }
+        })
+      }
+
+      // Live update — write to state for immediate visual feedback
+      updateDrawing(drag.drawingId, { points: newPoints })
+      requestRedraw()
+      return
+    }
+
+    // ── CURSOR MODE: hover detection for cursor change ──
+    if (activeTool === 'cursor') {
+      const handle = hitTestHandle(pos.x, pos.y)
+      if (handle) {
+        setHoverDrawingId('__handle__')
+      } else {
+        const hitId = hitTestAll(pos.x, pos.y)
+        setHoverDrawingId(hitId)
+      }
+    }
+
+    // Standard preview for drawing tools
+    setMouseCoords(coords)
+    requestRedraw()
+  }, [activeTool, isDragging, toChart, requestRedraw, drawings, timeToIndex, bars, updateDrawing, hitTestAll, hitTestHandle])
+
+  const handleMouseUp = useCallback(() => {
+    if (isDragging) {
+      dragRef.current = null
+      setIsDragging(false)
+    }
+  }, [isDragging])
+
+  // ── Hit test all drawings ── (already defined above)
+
   // ── Keyboard shortcuts ──
   useEffect(() => {
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
 
       if (e.key === 'Escape') {
-        if (pendingPoints.length > 0) {
+        if (isDragging) {
+          dragRef.current = null
+          setIsDragging(false)
+        } else if (pendingPoints.length > 0) {
           setPendingPoints([])
         } else if (activeTool) {
           setActiveTool(null)
@@ -681,14 +809,14 @@ export default function ChartDrawingOverlay({
         e.preventDefault()
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedId && !activeTool) {
+        if (selectedId && (activeTool === 'cursor' || !activeTool)) {
           e.preventDefault()
         }
       }
       // Tool shortcuts
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
         switch (e.key.toLowerCase()) {
-          case 'v': setActiveTool(null); break
+          case 'v': setActiveTool('cursor'); break
           case 't': setActiveTool('trendline'); break
           case 'h': setActiveTool('horizontal'); break
           case 'r': setActiveTool('rect'); break
@@ -700,13 +828,16 @@ export default function ChartDrawingOverlay({
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTool, pendingPoints, selectedId, setActiveTool, setSelectedId])
+  }, [activeTool, pendingPoints, selectedId, isDragging, setActiveTool, setSelectedId])
 
   // Reset pending on tool change
   useEffect(() => {
     setPendingPoints([])
     setMouseCoords(null)
     setTextInput(null)
+    dragRef.current = null
+    setIsDragging(false)
+    setHoverDrawingId(null)
   }, [activeTool])
 
   // ── Text input submit ──
@@ -723,6 +854,16 @@ export default function ChartDrawingOverlay({
     setTextInput(null)
   }
 
+  // ── Determine cursor ──
+  const isDrawingTool = activeTool && activeTool !== 'cursor'
+  const canvasPointerEvents = activeTool ? 'auto' : 'none'
+  let canvasCursor = 'default'
+  if (isDrawingTool) canvasCursor = 'crosshair'
+  else if (isDragging) canvasCursor = 'grabbing'
+  else if (hoverDrawingId === '__handle__') canvasCursor = 'grab'
+  else if (hoverDrawingId) canvasCursor = 'move'
+  else if (activeTool === 'cursor') canvasCursor = 'default'
+
   return (
     <>
       <canvas
@@ -730,13 +871,17 @@ export default function ChartDrawingOverlay({
         style={{
           position: 'absolute',
           inset: 0,
-          pointerEvents: activeTool ? 'auto' : 'none',
-          cursor: activeTool ? 'crosshair' : 'default',
+          pointerEvents: canvasPointerEvents,
+          cursor: canvasCursor,
           zIndex: 4,
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => { setMouseCoords(null); requestRedraw() }}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={() => {
+          if (!isDragging) { setMouseCoords(null); setHoverDrawingId(null) }
+          requestRedraw()
+        }}
       />
       {textInput && (
         <TextInputOverlay

@@ -110,7 +110,7 @@ export default function StockChart({
   const [drawColor, setDrawColor] = useState('#c9a84c')
   const [drawWidth, setDrawWidth] = useState(1)
   const [selectedId, setSelectedId] = useState(null)
-  const { drawings, addDrawing, removeDrawing, clearAll } = useChartDrawings(sym)
+  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
 
   const { data, error, mutate } = useSWR(
     sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${resolvedTf === 'D' ? 5000 : resolvedTf === 'W' ? 2000 : 300}` : null,
@@ -303,6 +303,7 @@ export default function StockChart({
             lineWidth={drawWidth}
             drawings={drawings}
             addDrawing={addDrawing}
+            updateDrawing={updateDrawing}
             selectedId={selectedId}
             setSelectedId={setSelectedId}
           />
