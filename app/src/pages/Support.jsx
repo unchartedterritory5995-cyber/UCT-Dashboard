@@ -338,7 +338,7 @@ export default function Support() {
               onChange={e => setReply(e.target.value)}
               placeholder="Type your reply..."
               onKeyDown={e => {
-                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
                   handleReply()
                 }
