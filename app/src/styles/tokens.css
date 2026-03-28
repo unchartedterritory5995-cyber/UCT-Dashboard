@@ -91,6 +91,26 @@
   --tap-min: 44px;
 }
 
+/* ── OLED Black theme ── */
+[data-theme="oled"] {
+  --bg: #000000;
+  --bg-surface: #0a0a0a;
+  --bg-elevated: #111111;
+  --bg-hover: #1a1a1a;
+  --border: #1e1e1e;
+  --border-accent: #2a2a2a;
+}
+
+/* ── Dim theme ── */
+[data-theme="dim"] {
+  --bg: #1a1d1a;
+  --bg-surface: #22251f;
+  --bg-elevated: #2a2d27;
+  --bg-hover: #32352e;
+  --border: #383b33;
+  --border-accent: #44473d;
+}
+
 * {
   margin: 0;
   padding: 0;

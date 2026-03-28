@@ -23,3 +23,4 @@ stripe>=8.0.0
 email-validator>=2.1.0
 resend>=2.0.0
 numpy>=1.26.0
+Pillow>=10.0.0

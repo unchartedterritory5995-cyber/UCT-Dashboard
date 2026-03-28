@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MobileNav from './MobileNav'
 import FeedbackWidget from './FeedbackWidget'
+import usePreferences from '../hooks/usePreferences'
 import styles from './Layout.module.css'
 
 function usePageTracking() {
@@ -28,6 +29,39 @@ function usePageTracking() {
 
 export default function Layout({ children }) {
   usePageTracking()
+  const { prefs } = usePreferences()
+
+  // Apply theme to <html> element with system preference detection
+  useEffect(() => {
+    const applyTheme = (theme) => {
+      if (theme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        // System: use oled for dark preference, dim for light
+        document.documentElement.dataset.theme = prefersDark ? '' : 'dim'
+        if (prefersDark) delete document.documentElement.dataset.theme
+      } else if (theme && theme !== 'midnight') {
+        document.documentElement.dataset.theme = theme
+      } else {
+        delete document.documentElement.dataset.theme
+      }
+    }
+
+    applyTheme(prefs.theme)
+
+    // Listen for OS theme changes when set to "system"
+    if (prefs.theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      const handler = () => applyTheme('system')
+      mq.addEventListener('change', handler)
+      return () => mq.removeEventListener('change', handler)
+    }
+  }, [prefs.theme])
+
+  // Smooth theme transitions
+  useEffect(() => {
+    document.documentElement.style.transition = 'background-color 0.3s ease, color 0.3s ease'
+    return () => { document.documentElement.style.transition = '' }
+  }, [])
 
   return (
     <div className={styles.shell}>

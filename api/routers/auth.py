@@ -53,6 +53,9 @@ from api.services.auth_service import (
     update_ticket_status,
     get_all_tickets,
     get_ticket_stats,
+    get_user_preferences,
+    set_user_preference,
+    delete_user_preference,
 )
 from api.services.email_service import (
     send_verification_email,
@@ -202,6 +205,63 @@ def update_profile(req: UpdateProfileRequest, user: dict = Depends(get_current_u
     finally:
         conn.close()
     return {"ok": True, "display_name": name}
+
+
+@router.get("/export-data")
+def export_user_data(user: dict = Depends(get_current_user)):
+    """Export all user data as JSON (GDPR-friendly)."""
+    import json as _json
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        # Gather all user-associated data
+        sub = conn.execute("SELECT plan, status, current_period_end FROM subscriptions WHERE user_id = ?", (user["id"],)).fetchone()
+        prefs = conn.execute("SELECT pref_key, pref_value FROM user_preferences WHERE user_id = ?", (user["id"],)).fetchall()
+        activity = conn.execute("SELECT action, details, created_at FROM activity_log WHERE user_id = ? ORDER BY created_at DESC LIMIT 100", (user["id"],)).fetchall()
+        feedback_rows = conn.execute("SELECT message, rating, page, created_at FROM feedback WHERE user_id = ? ORDER BY created_at DESC", (user["id"],)).fetchall()
+        tickets = conn.execute("SELECT subject, category, status, created_at FROM support_tickets WHERE user_id = ? ORDER BY created_at DESC", (user["id"],)).fetchall()
+    finally:
+        conn.close()
+
+    # Load trades/watchlists from JSON files if they exist
+    trades = []
+    watchlists = []
+    try:
+        import pathlib
+        trades_file = pathlib.Path("/data/trades.json")
+        if trades_file.exists():
+            all_trades = _json.loads(trades_file.read_text())
+            trades = [t for t in all_trades if t.get("user_id") == user["id"]]
+        wl_file = pathlib.Path("/data/watchlists.json")
+        if wl_file.exists():
+            all_wl = _json.loads(wl_file.read_text())
+            watchlists = [w for w in all_wl if w.get("user_id") == user["id"]]
+    except Exception:
+        pass
+
+    export = {
+        "exported_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+        "profile": {
+            "email": user.get("email"),
+            "display_name": user.get("display_name"),
+            "created_at": user.get("created_at"),
+            "email_verified": bool(user.get("email_verified")),
+        },
+        "subscription": dict(sub) if sub else None,
+        "preferences": {r["pref_key"]: r["pref_value"] for r in prefs} if prefs else {},
+        "activity": [dict(r) for r in activity] if activity else [],
+        "feedback": [dict(r) for r in feedback_rows] if feedback_rows else [],
+        "support_tickets": [dict(r) for r in tickets] if tickets else [],
+        "trades": trades,
+        "watchlists": watchlists,
+    }
+
+    from fastapi.responses import Response
+    return Response(
+        content=_json.dumps(export, indent=2, default=str),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="uct-export-{user["id"][:8]}.json"'}
+    )
 
 
 class ChangePasswordRequest(BaseModel):
@@ -982,6 +1042,24 @@ def portal(user: dict = Depends(get_current_user)):
         return {"portal_url": url}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── User preferences ─────────────────────────────────────────────────────────
+
+class SetPreferenceRequest(BaseModel):
+    key: str
+    value: str
+
+
+@router.get("/preferences")
+def get_preferences(user: dict = Depends(get_current_user)):
+    return get_user_preferences(user["id"])
+
+
+@router.post("/preferences")
+def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_current_user)):
+    set_user_preference(user["id"], req.key, req.value)
+    return {"ok": True}
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

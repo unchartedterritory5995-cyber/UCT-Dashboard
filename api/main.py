@@ -23,6 +23,7 @@ from api.schwab_router import router as schwab_router
 from api.routers import correlation as correlation_router
 from api.routers import insider as insider_router
 from api.routers import auth as auth_router
+from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal as journal_router
@@ -255,6 +256,7 @@ app.include_router(schwab_router)
 app.include_router(calendar_router.router)
 app.include_router(insider_router.router)
 app.include_router(auth_router.router)
+app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_router.router)

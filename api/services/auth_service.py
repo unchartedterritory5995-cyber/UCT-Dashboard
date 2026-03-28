@@ -1162,3 +1162,47 @@ def get_ticket_stats() -> dict:
         return {"total": total, "open": open_count, "in_progress": in_progress, "resolved": resolved}
     finally:
         conn.close()
+
+
+# ── User preferences ─────────────────────────────────────────────────────────
+
+def get_user_preferences(user_id: str) -> dict:
+    """Return all preferences for a user as a flat dict."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT pref_key, pref_value FROM user_preferences WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+        return {row["pref_key"]: row["pref_value"] for row in rows}
+    finally:
+        conn.close()
+
+
+def set_user_preference(user_id: str, key: str, value: str) -> None:
+    """Upsert a single preference."""
+    pref_id = str(uuid.uuid4())
+    conn = get_connection()
+    try:
+        conn.execute(
+            """INSERT INTO user_preferences (id, user_id, pref_key, pref_value)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(user_id, pref_key) DO UPDATE SET pref_value = excluded.pref_value""",
+            (pref_id, user_id, key, value),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def delete_user_preference(user_id: str, key: str) -> None:
+    """Remove a single preference."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "DELETE FROM user_preferences WHERE user_id = ? AND pref_key = ?",
+            (user_id, key),
+        )
+        conn.commit()
+    finally:
+        conn.close()

@@ -207,6 +207,15 @@ CREATE TABLE IF NOT EXISTS ticket_messages (
 CREATE INDEX IF NOT EXISTS idx_tickets_user ON support_tickets(user_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_status ON support_tickets(status);
 CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages(ticket_id);
+
+CREATE TABLE IF NOT EXISTS user_preferences (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    pref_key    TEXT NOT NULL,
+    pref_value  TEXT,
+    UNIQUE(user_id, pref_key)
+);
+CREATE INDEX IF NOT EXISTS idx_user_preferences_user ON user_preferences(user_id);
 """
 
 

@@ -1,8 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import usePreferences from '../hooks/usePreferences'
 import TileCard from '../components/TileCard'
 import styles from './Settings.module.css'
+
+const TF_OPTIONS = [
+  { value: '5', label: '5 min' },
+  { value: '30', label: '30 min' },
+  { value: '60', label: '1 hr' },
+  { value: 'D', label: 'Daily' },
+  { value: 'W', label: 'Weekly' },
+]
+
+const THEME_OPTIONS = [
+  { value: 'midnight', label: 'Midnight', desc: 'Deep dark green', swatch: '#0e0f0d' },
+  { value: 'oled', label: 'OLED Black', desc: 'Pure black for AMOLED', swatch: '#000000' },
+  { value: 'dim', label: 'Dim', desc: 'Softer for daytime', swatch: '#1a1d1a' },
+  { value: 'system', label: 'System', desc: 'Match your OS', swatch: null },
+]
 
 // ── Helpers ──
 function formatDate(dateStr) {
@@ -34,6 +50,82 @@ function memberDuration(dateStr) {
   const years = Math.floor(months / 12)
   const rem = months % 12
   return rem > 0 ? `${years}y ${rem}mo` : `${years} year${years !== 1 ? 's' : ''}`
+}
+
+// ── Avatar Upload ──
+function AvatarUpload({ user }) {
+  const fileRef = useRef(null)
+  const [avatarUrl, setAvatarUrl] = useState(null)
+  const [uploading, setUploading] = useState(false)
+
+  const userId = user?.id
+  const initial = (user?.display_name || user?.email || '?')[0].toUpperCase()
+
+  useEffect(() => {
+    if (!userId) return
+    // Check if avatar exists (non-transparent response)
+    fetch(`/api/auth/avatar/${userId}`)
+      .then(r => {
+        if (r.ok && r.headers.get('content-type')?.includes('webp')) {
+          setAvatarUrl(`/api/auth/avatar/${userId}?t=${Date.now()}`)
+        }
+      })
+      .catch(() => {})
+  }, [userId])
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/auth/avatar', { method: 'POST', body: fd })
+      if (res.ok) {
+        setAvatarUrl(`/api/auth/avatar/${userId}?t=${Date.now()}`)
+      }
+    } catch { /* ignore */ }
+    finally { setUploading(false) }
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  async function handleRemove() {
+    await fetch('/api/auth/avatar', { method: 'DELETE' }).catch(() => {})
+    setAvatarUrl(null)
+  }
+
+  return (
+    <div className={styles.avatarSection}>
+      <div className={styles.avatarCircle}>
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="Avatar" className={styles.avatarImg} />
+        ) : (
+          <span className={styles.avatarInitials}>{initial}</span>
+        )}
+      </div>
+      <div className={styles.avatarActions}>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          style={{ display: 'none' }}
+          onChange={handleUpload}
+        />
+        <button
+          className={styles.avatarChangeBtn}
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+        >
+          {uploading ? 'Uploading...' : 'Change Photo'}
+        </button>
+        {avatarUrl && (
+          <button className={styles.avatarRemoveBtn} onClick={handleRemove}>
+            Remove
+          </button>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // ── Referral Section ──
@@ -85,6 +177,7 @@ function ReferralSection() {
 // ── Main Settings Page ──
 export default function Settings() {
   const { user, plan, subscription, logout, startCheckout, openPortal } = useAuth()
+  const { prefs, setPref } = usePreferences()
   const navigate = useNavigate()
   const [changingPw, setChangingPw] = useState(false)
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' })
@@ -175,6 +268,7 @@ export default function Settings() {
         {/* ── Profile ── */}
         <TileCard title="Profile">
           <div className={styles.section}>
+            <AvatarUpload user={user} />
             <div className={styles.row}>
               <span className={styles.rowLabel}>Email</span>
               <span className={styles.rowValue}>{user?.email || '—'}</span>
@@ -352,6 +446,84 @@ export default function Settings() {
           </div>
         </TileCard>
 
+        {/* ── Preferences ── */}
+        <TileCard title="Preferences">
+          <div className={styles.section}>
+            <div className={styles.prefRow}>
+              <div className={styles.prefLabelGroup}>
+                <span className={styles.prefLabel}>Default Chart Timeframe</span>
+                <span className={styles.prefDesc}>Opens charts in this view by default</span>
+              </div>
+              <select
+                className={styles.prefSelect}
+                value={prefs.default_chart_tf}
+                onChange={e => setPref('default_chart_tf', e.target.value)}
+              >
+                {TF_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.prefRow}>
+              <div className={styles.prefLabelGroup}>
+                <span className={styles.prefLabel}>App Theme</span>
+                <span className={styles.prefDesc}>Customize your visual experience</span>
+              </div>
+              <div className={styles.themeGrid}>
+                {THEME_OPTIONS.map(o => (
+                  <button
+                    key={o.value}
+                    className={`${styles.themeCard} ${prefs.theme === o.value ? styles.themeCardActive : ''}`}
+                    onClick={() => setPref('theme', o.value)}
+                  >
+                    <span className={styles.themeSwatch}>
+                      {o.swatch ? (
+                        <span className={styles.themeSwatchColor} style={{ background: o.swatch }} />
+                      ) : (
+                        <span className={styles.themeSwatchSystem}>⊘</span>
+                      )}
+                    </span>
+                    <span className={styles.themeCardLabel}>{o.label}</span>
+                    <span className={styles.themeCardDesc}>{o.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </TileCard>
+
+        {/* ── Data & Privacy ── */}
+        <TileCard title="Data & Privacy">
+          <div className={styles.section}>
+            <div className={styles.prefRow}>
+              <div className={styles.prefLabelGroup}>
+                <span className={styles.prefLabel}>Export My Data</span>
+                <span className={styles.prefDesc}>Download your watchlists, journal, trades, and settings as JSON</span>
+              </div>
+              <button className={styles.btn} onClick={async () => {
+                try {
+                  const res = await fetch('/api/auth/export-data')
+                  if (!res.ok) return
+                  const blob = await res.blob()
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `uct-data-${new Date().toISOString().slice(0, 10)}.json`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                } catch { /* ignore */ }
+              }}>
+                Download
+              </button>
+            </div>
+            <div className={styles.linksRow} style={{ marginTop: 8 }}>
+              <a href="/terms" className={styles.footerLink}>Terms of Service</a>
+              <span className={styles.linkDivider}>·</span>
+              <a href="/privacy" className={styles.footerLink}>Privacy Policy</a>
+            </div>
+          </div>
+        </TileCard>
+
         {/* ── Referral Program ── */}
         <ReferralSection />
 
@@ -362,11 +534,6 @@ export default function Settings() {
               Open Support
             </button>
             <p className={styles.hint}>Submit a ticket, report a bug, or request a feature</p>
-            <div className={styles.linksRow}>
-              <a href="/terms" className={styles.footerLink}>Terms of Service</a>
-              <span className={styles.linkDivider}>·</span>
-              <a href="/privacy" className={styles.footerLink}>Privacy Policy</a>
-            </div>
           </div>
         </TileCard>
 

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import useSWR from 'swr'
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries, ColorType } from 'lightweight-charts'
+import usePreferences from '../hooks/usePreferences'
 import styles from './StockChart.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -83,7 +84,7 @@ const DEFAULT_OVERLAYS = [
 
 export default function StockChart({
   sym,
-  tf = 'D',
+  tf,
   height = '100%',
   markers = null,
   priceLines = null,
@@ -92,12 +93,16 @@ export default function StockChart({
   watermark = null,
   className = '',
 }) {
+  const { prefs } = usePreferences()
+  // Use user's preferred default timeframe when caller doesn't pass an explicit tf
+  const resolvedTf = tf || prefs.default_chart_tf || 'D'
+
   const containerRef = useRef(null)
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
 
   const { data, error, mutate } = useSWR(
-    sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${tf === 'D' ? 5000 : tf === 'W' ? 2000 : 300}` : null,
+    sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${resolvedTf === 'D' ? 5000 : resolvedTf === 'W' ? 2000 : 300}` : null,
     fetcher,
     { dedupingInterval: 30000, revalidateOnFocus: false }
   )
@@ -235,7 +240,7 @@ export default function StockChart({
         to: bars.length + 8,
       })
     }
-  }, [bars, sym, tf, showVolume, overlays, markers, priceLines, watermark])
+  }, [bars, sym, resolvedTf, showVolume, overlays, markers, priceLines, watermark])
 
   // Effect: build chart when data changes
   useEffect(() => {

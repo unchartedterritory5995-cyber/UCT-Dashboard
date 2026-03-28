@@ -128,6 +128,27 @@ export default function MobileNav() {
       {/* ── Slide-out drawer ── */}
       <nav className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`} role="navigation" aria-label="Main navigation">
         <div className={styles.drawerHeader}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <div className={styles.drawerAvatar}>
+              {user?.id ? (
+                <img
+                  src={`/api/auth/avatar/${user.id}`}
+                  alt=""
+                  className={styles.drawerAvatarImg}
+                  onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
+                />
+              ) : null}
+              <span
+                className={styles.drawerAvatarInitials}
+                style={user?.id ? { display: 'none' } : undefined}
+              >
+                {(user?.display_name || user?.email || '?')[0].toUpperCase()}
+              </span>
+            </div>
+            <span className={styles.drawerUserName}>
+              {user?.display_name || user?.email || ''}
+            </span>
+          </div>
           <span className={styles.brand}>UCT</span>
           <span className={styles.brandSub}>Intelligence Engine</span>
         </div>
