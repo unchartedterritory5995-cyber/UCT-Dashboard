@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
-  trendline: 2, ray: 2, extended: 2, horizontal: 1, vertical: 1,
+  trendline: 2, ray: 2, extended: 2, horizontal: 1, hray: 1, vertical: 1,
   rect: 2, circle: 2, arrow: 2, text: 1, fib: 2, channel: 3, measure: 2,
 }
 
@@ -107,6 +107,27 @@ function renderHorizontal(ctx, pts, w) {
     ctx.fillStyle = ctx.strokeStyle
     ctx.fillText(label, w - ctx.measureText(label).width - 4, pts[0].y - 4)
   }
+}
+
+function renderHRay(ctx, pts, w) {
+  if (!pts.length) return
+  const x = pts[0].x ?? 0
+  ctx.beginPath()
+  ctx.moveTo(x, pts[0].y)
+  ctx.lineTo(w, pts[0].y)
+  ctx.stroke()
+  // Price label
+  if (pts[0].price != null) {
+    const label = pts[0].price.toFixed(2)
+    ctx.font = '10px "IBM Plex Mono", monospace'
+    ctx.fillStyle = ctx.strokeStyle
+    ctx.fillText(label, w - ctx.measureText(label).width - 4, pts[0].y - 4)
+  }
+  // Small anchor dot at origin
+  ctx.beginPath()
+  ctx.arc(x, pts[0].y, 3, 0, Math.PI * 2)
+  ctx.fillStyle = ctx.strokeStyle
+  ctx.fill()
 }
 
 function renderVertical(ctx, pts, h) {
@@ -314,6 +335,8 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
     }
     case 'horizontal':
       return Math.abs(my - pts[0].y) < HIT_THRESHOLD
+    case 'hray':
+      return Math.abs(my - pts[0].y) < HIT_THRESHOLD && mx >= (pts[0].x || 0) - HIT_THRESHOLD
     case 'vertical':
       return Math.abs(mx - pts[0].x) < HIT_THRESHOLD
     case 'rect':
@@ -535,6 +558,7 @@ export default function ChartDrawingOverlay({
         case 'ray': renderRay(ctx, pts, w, h); break
         case 'extended': renderExtended(ctx, pts, w, h); break
         case 'horizontal': renderHorizontal(ctx, pts, w); break
+        case 'hray': renderHRay(ctx, pts, w); break
         case 'vertical': renderVertical(ctx, pts, h); break
         case 'rect': renderRect(ctx, pts); break
         case 'circle': renderCircle(ctx, pts); break
