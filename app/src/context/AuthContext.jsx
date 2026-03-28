@@ -5,6 +5,7 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [plan, setPlan] = useState('free')
+  const [subscription, setSubscription] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const fetchUser = useCallback(async () => {
@@ -14,15 +15,18 @@ export function AuthProvider({ children }) {
         const data = await res.json()
         setUser(data.user)
         setPlan(data.plan)
+        setSubscription(data.subscription || null)
         return { plan: data.plan, role: data.user?.role }
       } else {
         setUser(null)
         setPlan('free')
+        setSubscription(null)
         return { plan: 'free', role: null }
       }
     } catch {
       setUser(null)
       setPlan('free')
+      setSubscription(null)
       return { plan: 'free', role: null }
     } finally {
       setLoading(false)
@@ -89,7 +93,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, plan, loading, login, signup, logout, startCheckout, openPortal, refetch: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, subscription, loading, login, signup, logout, startCheckout, openPortal, refetch: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

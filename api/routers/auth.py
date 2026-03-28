@@ -185,6 +185,25 @@ def me(user: dict = Depends(get_current_user)):
     }
 
 
+class UpdateProfileRequest(BaseModel):
+    display_name: str
+
+
+@router.post("/update-profile")
+def update_profile(req: UpdateProfileRequest, user: dict = Depends(get_current_user)):
+    name = req.display_name.strip()
+    if not name or len(name) > 100:
+        raise HTTPException(400, "Display name must be 1-100 characters")
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE users SET display_name = ? WHERE id = ?", (name, user["id"]))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "display_name": name}
+
+
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str

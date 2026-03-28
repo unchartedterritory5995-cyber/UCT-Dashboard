@@ -1,35 +1,89 @@
 .page { padding: 24px 28px 40px; max-width: 800px; }
 .header { margin-bottom: 20px; }
-.heading { font-size: 20px; font-weight: 700; color: #e5e5e5; letter-spacing: 1px; }
+.heading { font-size: 20px; font-weight: 700; color: #e5e5e5; letter-spacing: 1px; font-family: var(--font-display); }
 .grid { display: flex; flex-direction: column; gap: 16px; }
 
 .section { padding: 4px 0; }
 .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .row:last-child { border-bottom: none; }
-.rowLabel { font-size: 13px; color: #888; }
-.rowValue { font-size: 13px; color: #e5e5e5; font-family: var(--font-mono); }
-.planBadge { background: rgba(201,168,76,0.15); color: #c9a84c; padding: 2px 10px; border-radius: var(--radius-sm); font-weight: 700; font-size: 11px; letter-spacing: 1px; }
+.rowLabel { font-size: 13px; color: #888; min-width: 120px; }
+.rowValue { font-size: 13px; color: #e5e5e5; font-family: var(--font-mono); display: flex; align-items: center; gap: 8px; }
 
-.statusText { font-size: 13px; color: #ccc; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-.activeDot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; display: inline-block; }
+/* Plan header */
+.planHeader { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.planTitle { font-size: 15px; font-weight: 700; color: #e5e5e5; letter-spacing: 0.5px; }
+.activeDot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; display: inline-block; flex-shrink: 0; }
+.freeDot { width: 8px; height: 8px; border-radius: 50%; background: #666; display: inline-block; flex-shrink: 0; }
+
+/* Subscription details */
+.subDetails { margin-bottom: 16px; }
+.statusPill { font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 2px 10px; border-radius: 10px; text-transform: uppercase; }
+.statusActive { background: rgba(74,222,128,0.15); color: #4ade80; }
+.statusComped { background: rgba(201,168,76,0.15); color: #c9a84c; }
+.statusCanceling { background: rgba(248,113,113,0.15); color: #f87171; }
+
+.daysTag {
+  font-size: 10px; color: #888; background: rgba(255,255,255,0.06);
+  padding: 1px 8px; border-radius: 8px; margin-left: 4px;
+}
+
+/* Verified badges */
+.verifiedBadge { color: #4ade80; font-size: 12px; }
+.unverifiedBadge { color: #f87171; font-size: 12px; }
+
+/* Inline edit */
+.inlineBtn {
+  font-size: 11px; color: #c9a84c; background: none; border: none; cursor: pointer;
+  padding: 2px 6px; text-decoration: underline; text-underline-offset: 2px;
+}
+.inlineBtn:hover { color: #e5c76b; }
+.inlineBtnMuted { font-size: 11px; color: #666; background: none; border: none; cursor: pointer; padding: 2px 6px; }
+.inlineBtnMuted:hover { color: #999; }
+.inlineInput {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(201,168,76,0.4); color: #e5e5e5;
+  padding: 4px 8px; border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font-mono);
+  width: 160px;
+}
+
+/* Referral */
+.referralLinkBox {
+  display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md);
+  padding: 10px 12px; margin-bottom: 4px;
+}
+.referralLink { font-size: 11px; color: #a8a290; font-family: var(--font-mono); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copyBtn {
+  font-size: 11px; color: #c9a84c; background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.25);
+  padding: 4px 12px; border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap;
+}
+.copyBtn:hover { background: rgba(201,168,76,0.22); }
+
+/* Support links */
+.linksRow { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.footerLink { font-size: 11px; color: #666; text-decoration: none; }
+.footerLink:hover { color: #999; text-decoration: underline; }
+.linkDivider { color: #444; font-size: 11px; }
+
 .hint { font-size: 11px; color: #666; margin-top: 8px; }
 
+/* Buttons */
 .btn {
   background: rgba(255,255,255,0.08); color: #e5e5e5; border: 1px solid rgba(255,255,255,0.12);
-  padding: 8px 20px; border-radius: var(--radius-md); font-size: 13px; cursor: pointer; transition: background 0.15s;
+  padding: 10px 20px; border-radius: var(--radius-md); font-size: 13px; cursor: pointer; transition: background 0.15s;
 }
 .btn:hover { background: rgba(255,255,255,0.14); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btnPro {
   background: linear-gradient(135deg, #c9a84c, #a08030); color: #111; border: none;
-  padding: 10px 24px; border-radius: var(--radius-md); font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.15s;
+  padding: 12px 24px; border-radius: var(--radius-md); font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.15s;
+  width: 100%;
 }
 .btnPro:hover { opacity: 0.9; }
 
 .btnDanger {
   background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25);
-  padding: 8px 20px; border-radius: var(--radius-md); font-size: 13px; cursor: pointer; transition: background 0.15s;
+  padding: 10px 20px; border-radius: var(--radius-md); font-size: 13px; cursor: pointer; transition: background 0.15s;
 }
 .btnDanger:hover { background: rgba(239,68,68,0.22); }
 
@@ -38,10 +92,11 @@
 }
 .btnMuted:hover { color: #ccc; }
 
+/* Password form */
 .pwForm { display: flex; flex-direction: column; gap: 10px; max-width: 320px; }
 .input {
   background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #e5e5e5;
-  padding: 8px 12px; border-radius: var(--radius-md); font-size: 13px; font-family: inherit;
+  padding: 10px 12px; border-radius: var(--radius-md); font-size: 13px; font-family: inherit;
 }
 .input:focus { outline: none; border-color: rgba(201,168,76,0.5); }
 .pwActions { display: flex; gap: 8px; margin-top: 4px; }
@@ -52,6 +107,10 @@
 @media (max-width: 640px) {
   .page { padding: 16px 12px 80px; }
   .row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .rowLabel { min-width: unset; }
   .input { font-size: 16px; }
+  .inlineInput { font-size: 16px; width: 100%; }
   .btn, .btnDanger, .btnPro { padding: 12px 20px; }
+  .referralLinkBox { flex-direction: column; align-items: stretch; }
+  .referralLink { font-size: 10px; }
 }
