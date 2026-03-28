@@ -489,6 +489,14 @@ def get_ai_digest(
     return journal_ai.generate_weekly_digest(user["id"], week)
 
 
+# ── Portfolio (open positions view) ──────────────────────────────────────────
+
+@router.get("/api/journal/portfolio")
+def get_portfolio(user: dict = Depends(get_current_user)):
+    from api.services.portfolio_service import get_portfolio
+    return get_portfolio(user["id"])
+
+
 # ── Single Trade Fetch (MUST be after all /api/journal/{specific} routes) ────
 
 @router.get("/api/journal/{entry_id}")

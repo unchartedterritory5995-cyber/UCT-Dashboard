@@ -6,6 +6,7 @@ import TradeLog from './tabs/TradeLog'
 import DailyNotes from './tabs/DailyNotes'
 import CalendarReview from './tabs/CalendarReview'
 import Overview from './tabs/Overview'
+import Portfolio from './tabs/Portfolio'
 import ReviewQueue from './tabs/ReviewQueue'
 import Analytics from './tabs/Analytics'
 import Playbooks from './tabs/Playbooks'
@@ -18,6 +19,7 @@ const fetcher = url => fetch(url).then(r => { if (!r.ok) throw new Error(r.statu
 const JOURNAL_TABS = [
   { key: 'log', label: 'Trade Log' },
   { key: 'overview', label: 'Overview' },
+  { key: 'portfolio', label: 'Positions' },
   { key: 'daily', label: 'Daily Notes' },
   { key: 'calendar', label: 'Calendar' },
   { key: 'analytics', label: 'Analytics' },
@@ -156,6 +158,12 @@ export default function JournalPage() {
             onSwitchTab={handleSwitchTab}
             stats={stats}
             onOpenTrade={handleOpenTrade}
+          />
+        )}
+        {activeTab === 'portfolio' && (
+          <Portfolio
+            onOpenTrade={handleOpenTrade}
+            stats={stats}
           />
         )}
         {activeTab === 'daily' && (
