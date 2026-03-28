@@ -1,0 +1,156 @@
+/* app/src/components/chart/ChartToolbar.module.css — vertical drawing toolbar */
+
+.toolbar {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  bottom: 4px;
+  width: 28px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: auto;
+  opacity: 0.35;
+  transition: opacity 0.2s;
+}
+.toolbar:hover {
+  opacity: 1;
+}
+
+.tools {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.tools::-webkit-scrollbar { display: none; }
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+/* ── Button ── */
+.btn {
+  width: 26px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 3px;
+  background: rgba(26, 28, 23, 0.85);
+  color: #a8a290;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+.btn:hover {
+  background: rgba(46, 49, 39, 0.95);
+  color: #e2dfd6;
+}
+.btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+  pointer-events: none;
+}
+.btn.active {
+  background: rgba(201, 168, 76, 0.25);
+  color: #c9a84c;
+  box-shadow: inset 0 0 0 1px rgba(201, 168, 76, 0.4);
+}
+.btn.danger:not(:disabled):hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+}
+
+/* ── Separator ── */
+.sep {
+  height: 1px;
+  margin: 3px 3px;
+  background: rgba(112, 107, 94, 0.2);
+  flex-shrink: 0;
+}
+
+/* ── Color swatch (in button) ── */
+.colorSwatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* ── Popup (color picker / line width) ── */
+.pickerWrap {
+  position: relative;
+}
+
+.popup {
+  position: absolute;
+  left: 30px;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 6px;
+  background: #1a1c17;
+  border: 1px solid #2e3127;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  width: 72px;
+}
+
+/* ── Color option ── */
+.colorOption {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.1s, transform 0.1s;
+}
+.colorOption:hover {
+  transform: scale(1.2);
+}
+.colorOption.colorActive {
+  border-color: #fff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
+}
+
+/* ── Width option ── */
+.widthOption {
+  width: 100%;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #a8a290;
+  cursor: pointer;
+  padding: 0;
+}
+.widthOption:hover {
+  background: rgba(46, 49, 39, 0.8);
+  color: #e2dfd6;
+}
+.widthOption.widthActive {
+  border-color: #c9a84c;
+  color: #c9a84c;
+}
+
+/* ── Mobile: hide toolbar on very small screens ── */
+@media (max-width: 640px) {
+  .toolbar {
+    display: none;
+  }
+}

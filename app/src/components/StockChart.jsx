@@ -1,8 +1,11 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import useSWR from 'swr'
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries, ColorType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
+import useChartDrawings from './chart/useChartDrawings'
+import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
+import ChartToolbar from './chart/ChartToolbar'
 import styles from './StockChart.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -92,6 +95,7 @@ export default function StockChart({
   overlays = DEFAULT_OVERLAYS,
   watermark = null,
   className = '',
+  showDrawingTools = true,
 }) {
   const { prefs } = usePreferences()
   // Use user's preferred default timeframe when caller doesn't pass an explicit tf
@@ -100,6 +104,13 @@ export default function StockChart({
   const containerRef = useRef(null)
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
+
+  // ── Drawing tools state ──
+  const [activeTool, setActiveTool] = useState(null)
+  const [drawColor, setDrawColor] = useState('#c9a84c')
+  const [drawWidth, setDrawWidth] = useState(1)
+  const [selectedId, setSelectedId] = useState(null)
+  const { drawings, addDrawing, removeDrawing, clearAll } = useChartDrawings(sym)
 
   const { data, error, mutate } = useSWR(
     sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${resolvedTf === 'D' ? 5000 : resolvedTf === 'W' ? 2000 : 300}` : null,
@@ -254,6 +265,12 @@ export default function StockChart({
     }
   }, [buildChart])
 
+  // ── Clear drawing selection on symbol/tf change ──
+  useEffect(() => {
+    setActiveTool(null)
+    setSelectedId(null)
+  }, [sym, resolvedTf])
+
   // ── Render ──
   return (
     <div className={`${styles.wrapper} ${className}`} style={{ height }}>
@@ -274,6 +291,35 @@ export default function StockChart({
         className={styles.chart}
         style={{ display: loading || error ? 'none' : 'block' }}
       />
+      {showDrawingTools && bars?.length > 0 && (
+        <>
+          <ChartDrawingOverlay
+            chartRef={chartRef}
+            seriesRef={candleSeriesRef}
+            bars={bars}
+            activeTool={activeTool}
+            setActiveTool={setActiveTool}
+            color={drawColor}
+            lineWidth={drawWidth}
+            drawings={drawings}
+            addDrawing={addDrawing}
+            selectedId={selectedId}
+            setSelectedId={setSelectedId}
+          />
+          <ChartToolbar
+            activeTool={activeTool}
+            setActiveTool={setActiveTool}
+            color={drawColor}
+            setColor={setDrawColor}
+            lineWidth={drawWidth}
+            setLineWidth={setDrawWidth}
+            hasSelection={!!selectedId}
+            onDelete={() => { removeDrawing(selectedId); setSelectedId(null) }}
+            onClearAll={clearAll}
+            drawingCount={drawings.length}
+          />
+        </>
+      )}
     </div>
   )
 }
