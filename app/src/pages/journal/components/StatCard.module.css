@@ -1,36 +1,36 @@
 /* StatCard.module.css */
 .card {
   background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 10px 14px;
-  min-width: 100px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
+  padding: 8px 12px;
+  min-width: 90px;
   flex: 1;
 }
 
 .label {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.35);
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   white-space: nowrap;
 }
 
 .value {
-  font-family: var(--font-mono);
-  font-size: 18px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 22px;
   font-weight: 700;
   color: var(--text-bright);
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .suffix {
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.35);
   margin-left: 2px;
 }
 
@@ -44,11 +44,11 @@
 
 @media (max-width: 640px) {
   .card {
-    min-width: 80px;
-    padding: 8px 10px;
+    min-width: 70px;
+    padding: 6px 8px;
   }
 
   .value {
-    font-size: 14px;
+    font-size: 16px;
   }
 }

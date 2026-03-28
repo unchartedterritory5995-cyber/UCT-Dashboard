@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding-top: 16px;
+  padding-top: 12px;
 }
 
 /* ── Calendar header ── */
@@ -12,19 +12,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 12px;
 }
 
 .calNav {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text-muted);
-  width: 32px;
-  height: 32px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 3px;
+  color: rgba(255,255,255,0.4);
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -34,18 +34,17 @@
 
 .calNav:hover {
   color: var(--text);
-  border-color: var(--border-accent);
-  background: var(--bg-hover);
+  border-color: rgba(255,255,255,0.1);
 }
 
 .calMonth {
-  font-family: var(--font-display);
-  font-size: 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
   font-weight: 700;
-  color: var(--ut-gold);
+  color: var(--text-bright);
   letter-spacing: 2px;
   text-transform: uppercase;
-  min-width: 180px;
+  min-width: 160px;
   text-align: center;
 }
 
@@ -53,48 +52,48 @@
 .dayHeaders {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: 3px;
+  margin-bottom: 3px;
 }
 
 .dayHeader {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.3);
   text-align: center;
-  padding: 4px 0;
+  padding: 3px 0;
 }
 
 /* ── Calendar grid ── */
 .calGrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  margin-bottom: 16px;
+  gap: 3px;
+  margin-bottom: 12px;
 }
 
 /* ── Calendar cells ── */
 .cell {
   background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 6px;
-  min-height: 80px;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 3px;
+  padding: 5px;
+  min-height: 74px;
   cursor: pointer;
   transition: all var(--duration-fast);
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   position: relative;
   border-left: 3px solid transparent;
 }
 
 .cell:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-accent);
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.08);
   border-left-color: inherit;
 }
 
@@ -112,29 +111,28 @@
 
 .cellToday {
   border-color: var(--ut-gold-glow);
-  box-shadow: 0 0 8px var(--ut-gold-dim);
 }
 
 .cellSelected {
   border-color: var(--ut-gold);
-  background: var(--bg-elevated);
+  background: rgba(255,255,255,0.03);
 }
 
 .cellGain {
   border-left-color: var(--gain);
-  background: rgba(60, 184, 104, 0.04);
+  background: rgba(60, 184, 104, 0.03);
 }
 
 .cellLoss {
   border-left-color: var(--loss);
-  background: rgba(231, 76, 60, 0.04);
+  background: rgba(231, 76, 60, 0.03);
 }
 
 .cellDay {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.4);
 }
 
 .cellToday .cellDay {
@@ -142,29 +140,29 @@
 }
 
 .cellPnlGain {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
   font-weight: 700;
   color: var(--gain);
 }
 
 .cellPnlLoss {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
   font-weight: 700;
   color: var(--loss);
 }
 
 .cellCount {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.3);
 }
 
 /* ── Win rate bar ── */
 .winBar {
   height: 2px;
-  background: var(--bg-elevated);
+  background: rgba(255,255,255,0.04);
   border-radius: 1px;
   overflow: hidden;
   margin-top: 2px;
@@ -180,14 +178,14 @@
 /* ── Review dots ── */
 .cellDots {
   display: flex;
-  gap: 3px;
+  gap: 2px;
   flex-wrap: wrap;
   margin-top: 2px;
 }
 
 .dot {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -224,11 +222,11 @@
 
 /* ── Day detail panel ── */
 .dayDetail {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
   background: var(--bg-surface);
-  padding: 16px 20px;
-  max-height: 360px;
+  padding: 14px 16px;
+  max-height: 340px;
   overflow-y: auto;
 }
 
@@ -236,12 +234,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .dayDetailDate {
-  font-family: var(--font-display);
-  font-size: 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
   font-weight: 700;
   color: var(--ut-gold);
   letter-spacing: 1.5px;
@@ -249,13 +247,13 @@
 }
 
 .dayDetailClose {
-  font-family: var(--font-mono);
-  font-size: 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.35);
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 2px 4px;
   transition: color var(--duration-fast);
 }
 
@@ -265,28 +263,28 @@
 
 .dayMetrics {
   display: flex;
-  gap: 16px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 
 .dayMetric {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .dayMetricLabel {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.35);
 }
 
 .dayMetricValue {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 14px;
   font-weight: 700;
   color: var(--text-bright);
@@ -302,56 +300,54 @@
 
 /* ── Day detail trades ── */
 .dayTradesHeader {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
 .dayTradeRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 5px 0;
+  gap: 8px;
+  padding: 4px 3px;
   border-bottom: 1px solid rgba(255,255,255,0.02);
   cursor: pointer;
   transition: background var(--duration-fast);
-  border-radius: var(--radius-sm);
-  padding-left: 4px;
-  padding-right: 4px;
+  border-radius: 2px;
 }
 
 .dayTradeRow:hover {
-  background: var(--bg-hover);
+  background: rgba(255,255,255,0.025);
 }
 
 .dtSym {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ut-cream);
-  min-width: 50px;
+  min-width: 48px;
 }
 
 .dtDir {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--text-muted);
-  min-width: 40px;
+  color: rgba(255,255,255,0.4);
+  min-width: 36px;
 }
 
 .dtSetup {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
   color: var(--ut-gold);
-  opacity: 0.8;
+  opacity: 0.7;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -359,57 +355,57 @@
 }
 
 .dtPnlGain {
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
   font-weight: 600;
   color: var(--gain);
-  min-width: 60px;
+  min-width: 56px;
   text-align: right;
 }
 
 .dtPnlLoss {
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
   font-weight: 600;
   color: var(--loss);
-  min-width: 60px;
+  min-width: 56px;
   text-align: right;
 }
 
 .dtReview {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  padding: 2px 6px;
-  border-radius: 6px;
+  padding: 1px 5px;
+  border-radius: 3px;
   border: 1px solid;
   white-space: nowrap;
 }
 
 /* ── Journal excerpt ── */
 .journalExcerpt {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.06);
 }
 
 .excerptLabel {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 6px;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 4px;
 }
 
 .excerptText {
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text);
   line-height: 1.6;
-  max-height: 80px;
+  max-height: 72px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -417,11 +413,10 @@
 /* ── Empty detail ── */
 .dayDetailEmpty {
   font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--text-muted);
-  opacity: 0.7;
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
   text-align: center;
-  padding: 20px;
+  padding: 16px;
 }
 
 /* ── Loading / Error ── */
@@ -432,8 +427,8 @@
   gap: 12px;
   padding: 60px 20px;
   color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
 }
 
 .loadingBar {
@@ -466,40 +461,40 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 20px;
+  padding: 16px;
   background: var(--loss-bg);
   border: 1px solid var(--loss-border);
-  border-radius: var(--radius-md);
+  border-radius: 3px;
   color: var(--loss);
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
 }
 
 /* ── Mobile ── */
 @media (max-width: 640px) {
   .wrap {
-    padding-top: 12px;
+    padding-top: 10px;
   }
 
   .calMonth {
-    font-size: 14px;
+    font-size: 11px;
     letter-spacing: 1px;
-    min-width: 140px;
+    min-width: 130px;
   }
 
   .cell {
-    min-height: 56px;
-    padding: 4px;
-    gap: 2px;
+    min-height: 52px;
+    padding: 3px;
+    gap: 1px;
   }
 
   .cellDay {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .cellPnlGain,
   .cellPnlLoss {
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .cellCount {
@@ -515,20 +510,20 @@
   }
 
   .dot {
-    width: 4px;
-    height: 4px;
+    width: 3px;
+    height: 3px;
   }
 
   .dayDetail {
-    padding: 12px;
+    padding: 10px;
   }
 
   .dayMetrics {
-    gap: 10px;
+    gap: 8px;
   }
 
   .dayTradeRow {
-    font-size: 11px;
+    font-size: 10px;
     gap: 6px;
   }
 }

@@ -1,40 +1,40 @@
 /* FilterBar.module.css */
 .bar {
   background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  margin-bottom: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
+  margin-bottom: 8px;
 }
 
 .toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   width: 100%;
-  padding: 8px 14px;
+  padding: 6px 12px;
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.4);
   transition: color var(--duration-fast);
 }
 
 .toggle:hover {
-  color: var(--text);
+  color: rgba(255,255,255,0.6);
 }
 
 .toggleExpanded {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
 .toggleIcon {
-  font-size: 10px;
-  color: var(--text-muted);
-  width: 10px;
+  font-size: 9px;
+  color: rgba(255,255,255,0.35);
+  width: 9px;
 }
 
 .toggleLabel {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 1.2px;
@@ -42,15 +42,15 @@
 }
 
 .activeCount {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 700;
   background: var(--ut-gold-dim);
   color: var(--ut-gold);
   border: 1px solid var(--ut-gold-glow);
-  border-radius: 8px;
-  padding: 1px 6px;
-  min-width: 16px;
+  border-radius: 3px;
+  padding: 0 5px;
+  min-width: 14px;
   text-align: center;
 }
 
@@ -58,34 +58,34 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 8px 12px;
   align-items: end;
 }
 
 .group {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .label {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1px;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.35);
   text-transform: uppercase;
 }
 
 .input {
   background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 3px;
   color: var(--text-bright);
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
-  padding: 6px 8px;
+  padding: 4px 7px;
   width: 100%;
   min-width: 0;
 }
@@ -104,24 +104,24 @@ select.input {
 .checkGroup {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   justify-content: flex-end;
 }
 
 .checkLabel {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-family: var(--font-mono);
+  gap: 5px;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.4);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .checkLabel input[type="checkbox"] {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   accent-color: var(--ut-gold);
   cursor: pointer;
 }
@@ -134,30 +134,30 @@ select.input {
 }
 
 .clearBtn {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  background: rgba(248,113,113,0.08);
+  background: rgba(248,113,113,0.06);
   color: var(--loss);
-  border: 1px solid rgba(248,113,113,0.2);
-  border-radius: var(--radius-sm);
-  padding: 5px 12px;
+  border: 1px solid rgba(248,113,113,0.15);
+  border-radius: 3px;
+  padding: 4px 10px;
   cursor: pointer;
   transition: background var(--duration-fast);
   white-space: nowrap;
 }
 
 .clearBtn:hover {
-  background: rgba(248,113,113,0.15);
+  background: rgba(248,113,113,0.12);
 }
 
 /* ── Mobile ── */
 @media (max-width: 640px) {
   .grid {
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    padding: 10px;
+    gap: 6px;
+    padding: 8px;
   }
 
   .clearWrap {

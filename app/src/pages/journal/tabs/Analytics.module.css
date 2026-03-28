@@ -4,36 +4,35 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding-top: 16px;
+  padding-top: 12px;
 }
 
 /* ── Dimension chip bar ── */
 .dimBar {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 4px;
+  margin-bottom: 10px;
 }
 
 .dimChip {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  padding: 5px 12px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  color: var(--text-muted);
+  padding: 3px 9px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 3px;
+  color: rgba(255,255,255,0.4);
   cursor: pointer;
   transition: all var(--duration-fast);
   white-space: nowrap;
 }
 
 .dimChip:hover {
-  color: var(--text);
-  border-color: var(--border-accent);
-  background: var(--bg-hover);
+  color: rgba(255,255,255,0.6);
+  border-color: rgba(255,255,255,0.1);
 }
 
 .dimActive {
@@ -45,28 +44,27 @@
 /* ── Period selector ── */
 .periodBar {
   display: flex;
-  gap: 4px;
-  margin-bottom: 16px;
+  gap: 3px;
+  margin-bottom: 12px;
 }
 
 .periodBtn {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.8px;
-  padding: 5px 12px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text-muted);
+  padding: 3px 9px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 3px;
+  color: rgba(255,255,255,0.4);
   cursor: pointer;
   transition: all var(--duration-fast);
 }
 
 .periodBtn:hover {
-  color: var(--text);
-  border-color: var(--border-accent);
-  background: var(--bg-hover);
+  color: rgba(255,255,255,0.6);
+  border-color: rgba(255,255,255,0.1);
 }
 
 .periodActive {
@@ -78,18 +76,18 @@
 /* ── Totals strip ── */
 .totalsStrip {
   display: flex;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
 /* ── Analytics table ── */
 .tableWrap {
   overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
   background: var(--bg-surface);
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .table {
@@ -101,14 +99,14 @@
 
 .th {
   text-align: left;
-  padding: 8px 10px;
-  font-family: var(--font-mono);
+  padding: 7px 10px;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
+  color: rgba(255,255,255,0.35);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
   white-space: nowrap;
   position: sticky;
   top: 0;
@@ -124,12 +122,16 @@
   transition: background var(--duration-fast);
 }
 
+.row:nth-child(even) {
+  background: rgba(255,255,255,0.015);
+}
+
 .row:hover {
-  background: var(--bg-hover);
+  background: rgba(255,255,255,0.03);
 }
 
 .row td {
-  padding: 7px 10px;
+  padding: 6px 10px;
   border-bottom: 1px solid rgba(255,255,255,0.03);
   vertical-align: middle;
 }
@@ -139,13 +141,13 @@
 }
 
 .rowTotals td {
-  border-top: 2px solid var(--border);
+  border-top: 2px solid rgba(255,255,255,0.08);
   font-weight: 700;
-  padding-top: 10px;
+  padding-top: 8px;
 }
 
 .bucketKey {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-weight: 600;
   color: var(--ut-cream);
   max-width: 180px;
@@ -155,13 +157,13 @@
 }
 
 .numCell {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   text-align: right;
   white-space: nowrap;
 }
 
 .pnlGain {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-weight: 600;
   color: var(--gain);
   text-align: right;
@@ -169,7 +171,7 @@
 }
 
 .pnlLoss {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-weight: 600;
   color: var(--loss);
   text-align: right;
@@ -177,24 +179,24 @@
 }
 
 .muted {
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.35);
   text-align: right;
   white-space: nowrap;
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 /* ── Win rate bar (inline) ── */
 .wrBarWrap {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   justify-content: flex-end;
 }
 
 .wrBar {
-  width: 40px;
-  height: 4px;
-  background: var(--bg-elevated);
+  width: 36px;
+  height: 3px;
+  background: rgba(255,255,255,0.04);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -219,20 +221,21 @@
 
 /* ── Equity curve ── */
 .chartSection {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
   background: var(--bg-surface);
-  padding: 16px;
+  padding: 12px;
+  min-height: 280px;
 }
 
 .chartHeader {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 12px;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 10px;
 }
 
 /* ── Loading / Empty / Error ── */
@@ -243,8 +246,8 @@
   gap: 12px;
   padding: 60px 20px;
   color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
 }
 
 .loadingBar {
@@ -278,31 +281,31 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 50px 20px;
   text-align: center;
 }
 
 .emptyIcon {
-  font-size: 32px;
+  font-size: 28px;
   color: var(--text-muted);
-  opacity: 0.25;
-  margin-bottom: 12px;
+  opacity: 0.2;
+  margin-bottom: 10px;
 }
 
 .emptyTitle {
-  font-family: var(--font-mono);
-  font-size: 13px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
   letter-spacing: 1px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .emptyText {
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
-  opacity: 0.7;
+  opacity: 0.6;
   max-width: 320px;
   line-height: 1.5;
 }
@@ -311,33 +314,33 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 20px;
+  padding: 16px;
   background: var(--loss-bg);
   border: 1px solid var(--loss-border);
-  border-radius: var(--radius-md);
+  border-radius: 3px;
   color: var(--loss);
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
 }
 
 /* ── Mobile ── */
 @media (max-width: 640px) {
   .wrap {
-    padding-top: 12px;
+    padding-top: 10px;
   }
 
   .dimBar {
-    gap: 4px;
+    gap: 3px;
   }
 
   .dimChip {
     font-size: 9px;
-    padding: 4px 8px;
+    padding: 3px 7px;
   }
 
   .periodBtn {
     font-size: 9px;
-    padding: 4px 8px;
+    padding: 3px 7px;
   }
 
   .table {
@@ -346,12 +349,12 @@
   }
 
   .th {
-    padding: 6px 6px;
+    padding: 5px 6px;
     font-size: 8px;
   }
 
   .row td {
-    padding: 6px 6px;
+    padding: 5px 6px;
   }
 
   .totalsStrip {

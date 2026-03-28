@@ -1,14 +1,14 @@
 /* ReviewProgress.module.css */
 .strip {
-  width: 40px;
+  width: 36px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 4px;
-  border-left: 1px solid var(--border);
+  padding: 10px 3px;
+  border-left: 1px solid rgba(255,255,255,0.06);
   background: var(--bg-surface);
-  gap: 8px;
+  gap: 6px;
 }
 
 .header {
@@ -18,10 +18,10 @@
 }
 
 .count {
-  font-family: var(--font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 8px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.35);
   letter-spacing: 0.5px;
 }
 
@@ -29,45 +29,44 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
 }
 
 .step {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   cursor: default;
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   transition: all var(--duration-fast);
 }
 
 .dotDone {
   background: var(--gain);
-  box-shadow: 0 0 6px rgba(60,184,104,0.3);
+  box-shadow: 0 0 4px rgba(60,184,104,0.25);
 }
 
 .dotPending {
-  background: var(--border);
+  background: rgba(255,255,255,0.08);
 }
 
 .stepLabel {
-  font-family: var(--font-mono);
-  font-size: 7px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 6px;
   font-weight: 600;
-  color: var(--text-muted);
-  opacity: 0.5;
+  color: rgba(255,255,255,0.3);
   text-transform: uppercase;
 }
 
 .stepLabelDone {
   color: var(--gain);
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
 /* ── Mobile: hide on small screens ── */
