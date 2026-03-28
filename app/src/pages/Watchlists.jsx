@@ -144,7 +144,21 @@ export default function Watchlists() {
     mutatePublic()
   }
 
-  // Detail view
+  // Flagged detail view
+  if (selectedId === '__flagged__') {
+    return (
+      <div className={styles.page}>
+        <button className={styles.backBtn} onClick={() => setSelectedId(null)}>← Back to Watchlists</button>
+        <div className={styles.detailHeader}>
+          <span className={styles.detailName}>⚑ Flagged</span>
+          <span className={styles.privateBadge}>PRIVATE</span>
+        </div>
+        <FlaggedView flagged={flagged} remove={removeFlagged} />
+      </div>
+    )
+  }
+
+  // Regular detail view
   if (selectedId && detail) {
     const isOwner = myLists?.some(w => w.id === selectedId)
     return (
@@ -235,31 +249,41 @@ export default function Watchlists() {
               onClick={() => setTab('mine')}>My Lists</button>
             <button className={`${styles.tab} ${tab === 'community' ? styles.tabActive : ''}`}
               onClick={() => setTab('community')}>Community</button>
-            <button className={`${styles.tab} ${tab === 'flagged' ? styles.tabActive : ''}`}
-              onClick={() => setTab('flagged')}>
-              ⚑ Flagged{flagged.length > 0 ? ` (${flagged.length})` : ''}
-            </button>
           </div>
           <button className={styles.addBtn} onClick={() => setShowCreate(true)}>+ New List</button>
         </div>
       </div>
 
-      {tab === 'flagged' ? (
-        <FlaggedView flagged={flagged} remove={removeFlagged} />
-      ) : !lists ? (
+      {!lists ? (
         <SkeletonTileContent lines={4} />
-      ) : lists.length === 0 ? (
+      ) : lists.length === 0 && tab !== 'mine' ? (
         <div className={styles.empty}>
-          <div className={styles.emptyIcon}>{tab === 'mine' ? '📋' : '🌐'}</div>
-          <div className={styles.emptyText}>
-            {tab === 'mine' ? 'No watchlists yet. Create one to start tracking symbols.' : 'No public watchlists shared yet.'}
-          </div>
-          {tab === 'mine' && (
-            <button className={styles.addBtn} onClick={() => setShowCreate(true)}>+ New List</button>
-          )}
+          <div className={styles.emptyIcon}>🌐</div>
+          <div className={styles.emptyText}>No public watchlists shared yet.</div>
         </div>
       ) : (
         <div className={styles.grid}>
+          {/* Pinned Flagged card — always first in My Lists */}
+          {tab === 'mine' && (
+            <div className={`${styles.card} ${styles.flaggedCard}`} onClick={() => setSelectedId('__flagged__')}>
+              <div className={styles.cardHeader}>
+                <span className={styles.cardName}>⚑ Flagged</span>
+                <div className={styles.cardMeta}>
+                  <span className={styles.cardCount}>{flagged.length} symbols</span>
+                  <span className={styles.privateBadge}>PRIVATE</span>
+                </div>
+              </div>
+              <div className={styles.cardDesc}>Your personally flagged tickers. Press Shift+F on any chart.</div>
+              {flagged.length > 0 && (
+                <div className={styles.cardSymbols}>
+                  {flagged.slice(0, 8).map(sym => (
+                    <span key={sym} className={styles.symChip}>{sym}</span>
+                  ))}
+                  {flagged.length > 8 && <span className={styles.symChip}>+{flagged.length - 8}</span>}
+                </div>
+              )}
+            </div>
+          )}
           {lists.map(wl => (
             <div key={wl.id} className={styles.card} onClick={() => setSelectedId(wl.id)}>
               <div className={styles.cardHeader}>

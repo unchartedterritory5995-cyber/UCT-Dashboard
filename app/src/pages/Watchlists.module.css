@@ -18,6 +18,8 @@
 
 .card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; transition: border-color 0.15s, box-shadow 0.15s; cursor: pointer; }
 .card:hover { border-color: var(--ut-green); box-shadow: 0 0 12px rgba(74,222,128,0.08); }
+.flaggedCard { border-color: rgba(212, 170, 80, 0.25); background: rgba(212, 170, 80, 0.04); }
+.flaggedCard:hover { border-color: rgba(212, 170, 80, 0.5); box-shadow: 0 0 12px rgba(212,170,80,0.1); }
 .cardHeader { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
 .cardName { font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 700; color: var(--text-bright); }
 .cardMeta { display: flex; gap: 8px; align-items: center; }
