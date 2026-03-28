@@ -161,7 +161,7 @@ export default function TradeLog({ onOpenTrade, stats, onStatsChange, initialFil
           className={styles.importBtn}
           onClick={() => setShowImport(true)}
         >
-          Import CSV
+          Import Trades from Broker
         </button>
       </div>
 
