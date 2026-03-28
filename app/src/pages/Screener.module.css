@@ -117,7 +117,7 @@
 /* ── 3-Column layout ── */
 .columnsGrid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   align-items: start;
 }
@@ -172,13 +172,13 @@
   min-height: 60px;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
   .columnsGrid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 600px) {
   .columnsGrid {
     grid-template-columns: 1fr;
   }
@@ -426,13 +426,12 @@
 }
 
 /* ── Row highlight states ── */
-.rowBreaking td {
-  background: rgba(212, 170, 80, 0.05);
-}
+.rowBreaking td { background: rgba(212, 170, 80, 0.05); }
+.rowReady    td { background: rgba(0, 200, 120, 0.04); }
 
-.rowReady td {
-  background: rgba(0, 200, 120, 0.04);
-}
+/* Non-table (candidate items) */
+.rowBreaking { background: rgba(212, 170, 80, 0.05); }
+.rowReady    { background: rgba(0, 200, 120, 0.04); }
 
 /* ── Pullback-specific columns ── */
 .tickerCell {
@@ -591,9 +590,8 @@
 }
 
 /* ── Extended row ── */
-.rowExtended td {
-  opacity: 0.5;
-}
+.rowExtended td { opacity: 0.5; }
+.rowExtended    { opacity: 0.5; }
 
 /* ── Also chips ── */
 .alsoChip {
@@ -639,6 +637,67 @@
 
 .tickerItem:hover {
   background: var(--bg-hover);
+}
+
+/* ── Candidate item (rich scanner row) ── */
+.candidateItem {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  list-style: none;
+  transition: background 0.1s;
+}
+.candidateItem:last-child { border-bottom: none; }
+.candidateItem:hover { background: var(--bg-hover); }
+
+.candidateTop {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.candidateScore {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.candidateCompany {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  margin-top: 1px;
+}
+
+.candidatePattern {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.7;
+  margin-top: 1px;
+}
+
+.candidatePrice {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.candidatePriceAmt {
+  color: var(--text-muted);
 }
 
 /* ── Meta footer ── */
