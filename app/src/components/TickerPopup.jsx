@@ -2,6 +2,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import useSWR from 'swr'
 import useLivePrices from '../hooks/useLivePrices'
+import { useFlagged } from '../hooks/useFlagged'
 import PositionCalc from './PositionCalc'
 import styles from './TickerPopup.module.css'
 
@@ -92,8 +93,10 @@ function InsiderSection({ txns }) {
 export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null }) {
   const [hovered, setHovered] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
-
   const [tab, setTab] = useState('Daily')
+  const [flagToast, setFlagToast] = useState(null) // 'added' | 'removed'
+
+  const { isFlagged, toggle: toggleFlag } = useFlagged()
 
   // Fetch live price only when modal is open
   const { prices } = useLivePrices(modalOpen && sym ? [sym] : [])
@@ -117,12 +120,26 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
   const isTouchDevice = typeof window !== 'undefined' &&
     ('ontouchstart' in window || navigator.maxTouchPoints > 0)
 
+  // Clear flag toast after 1.5s
+  useEffect(() => {
+    if (!flagToast) return
+    const t = setTimeout(() => setFlagToast(null), 1500)
+    return () => clearTimeout(t)
+  }, [flagToast])
+
   useEffect(() => {
     if (!modalOpen) return
-    const handleKey = (e) => { if (e.key === 'Escape') setModalOpen(false) }
+    const handleKey = (e) => {
+      if (e.key === 'Escape') { setModalOpen(false); return }
+      if (e.shiftKey && e.key === 'F') {
+        const willFlag = !isFlagged(sym)
+        toggleFlag(sym)
+        setFlagToast(willFlag ? 'added' : 'removed')
+      }
+    }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [modalOpen])
+  }, [modalOpen, sym, isFlagged, toggleFlag])
 
   return (
     <>
@@ -170,6 +187,19 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
                   </span>
                 </>
               )}
+              {flagToast && (
+                <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
+                  {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
+                </span>
+              )}
+              <button
+                className={`${styles.flagBtn}${isFlagged(sym) ? ' ' + styles.flagBtnActive : ''}`}
+                onClick={() => { const willFlag = !isFlagged(sym); toggleFlag(sym); setFlagToast(willFlag ? 'added' : 'removed') }}
+                title={isFlagged(sym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
+                aria-label={isFlagged(sym) ? 'Remove from flagged list' : 'Add to flagged list'}
+              >
+                ⚑ {isFlagged(sym) ? 'Flagged' : 'Flag'}
+              </button>
               <button
                 className={styles.closeBtn}
                 onClick={() => setModalOpen(false)}

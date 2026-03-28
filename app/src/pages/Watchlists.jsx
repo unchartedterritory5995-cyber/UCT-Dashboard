@@ -1,14 +1,69 @@
 import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import useLivePrices from '../hooks/useLivePrices'
+import { useFlagged } from '../hooks/useFlagged'
 import TileCard from '../components/TileCard'
+import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './Watchlists.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
+function FlaggedView({ flagged, remove }) {
+  const { prices } = useLivePrices(flagged)
+
+  if (!flagged.length) {
+    return (
+      <div className={styles.empty}>
+        <div className={styles.emptyIcon}>⚑</div>
+        <div className={styles.emptyText}>
+          Nothing flagged yet.<br />
+          Open any ticker chart and press <strong>Shift+F</strong> to flag it.
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <TileCard title={`${flagged.length} Flagged`}>
+      <table className={styles.itemsTable}>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th className={styles.thPrice}>Price</th>
+            <th className={styles.thChange}>Chg%</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {flagged.map(sym => {
+            const q = prices[sym]
+            const price = q?.price ?? null
+            const changePct = q?.change_pct ?? null
+            return (
+              <tr key={sym}>
+                <td className={styles.itemSym}><TickerPopup sym={sym} /></td>
+                <td className={styles.itemPrice}>
+                  {price != null ? `$${price.toFixed(2)}` : '—'}
+                </td>
+                <td className={`${styles.itemChange} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}>
+                  {changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(1)}%` : '—'}
+                </td>
+                <td>
+                  <button className={styles.removeBtn} onClick={() => remove(sym)} title="Remove from Flagged">✕</button>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </TileCard>
+  )
+}
+
 export default function Watchlists() {
   const [tab, setTab] = useState('mine')
+  const { flagged, remove: removeFlagged } = useFlagged()
   const [showCreate, setShowCreate] = useState(false)
   const [createForm, setCreateForm] = useState({ name: '', description: '', is_public: false })
   const [selectedId, setSelectedId] = useState(null)
@@ -146,7 +201,7 @@ export default function Watchlists() {
                   const changePct = q?.change_pct ?? null
                   return (
                     <tr key={item.id}>
-                      <td className={styles.itemSym}>{item.sym}</td>
+                      <td className={styles.itemSym}><TickerPopup sym={item.sym} /></td>
                       <td className={styles.itemPrice}>
                         {price != null ? `$${price.toFixed(2)}` : '—'}
                       </td>
@@ -180,12 +235,18 @@ export default function Watchlists() {
               onClick={() => setTab('mine')}>My Lists</button>
             <button className={`${styles.tab} ${tab === 'community' ? styles.tabActive : ''}`}
               onClick={() => setTab('community')}>Community</button>
+            <button className={`${styles.tab} ${tab === 'flagged' ? styles.tabActive : ''}`}
+              onClick={() => setTab('flagged')}>
+              ⚑ Flagged{flagged.length > 0 ? ` (${flagged.length})` : ''}
+            </button>
           </div>
           <button className={styles.addBtn} onClick={() => setShowCreate(true)}>+ New List</button>
         </div>
       </div>
 
-      {!lists ? (
+      {tab === 'flagged' ? (
+        <FlaggedView flagged={flagged} remove={removeFlagged} />
+      ) : !lists ? (
         <SkeletonTileContent lines={4} />
       ) : lists.length === 0 ? (
         <div className={styles.empty}>
