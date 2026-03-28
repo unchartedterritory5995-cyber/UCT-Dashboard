@@ -101,7 +101,23 @@ export default function Support() {
     if (thread && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [thread])
+  }, [thread?.messages?.length])
+
+  // Live polling: refresh thread every 3s when viewing a conversation
+  useEffect(() => {
+    if (view !== 'thread' || !activeTicketId) return
+    const interval = setInterval(() => {
+      fetch(`/api/auth/tickets/${activeTicketId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setThread(prev => {
+          // Only update if message count changed (avoids unnecessary re-renders)
+          if (!prev || d.messages?.length !== prev.messages?.length) return d
+          return prev
+        })})
+        .catch(() => {})
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [view, activeTicketId])
 
   function openThread(ticketId) {
     setActiveTicketId(ticketId)
