@@ -189,22 +189,34 @@ def me(user: dict = Depends(get_current_user)):
 
 
 class UpdateProfileRequest(BaseModel):
-    display_name: str
+    display_name: str | None = None
+    full_name: str | None = None
 
 
 @router.post("/update-profile")
 def update_profile(req: UpdateProfileRequest, user: dict = Depends(get_current_user)):
-    name = req.display_name.strip()
-    if not name or len(name) > 100:
-        raise HTTPException(400, "Display name must be 1-100 characters")
     from api.services.auth_db import get_connection
+    updates = {}
+    if req.display_name is not None:
+        name = req.display_name.strip()
+        if not name or len(name) > 100:
+            raise HTTPException(400, "Display name must be 1-100 characters")
+        updates["display_name"] = name
+    if req.full_name is not None:
+        fn = req.full_name.strip()
+        if not fn or len(fn) > 200:
+            raise HTTPException(400, "Full name must be 1-200 characters")
+        updates["full_name"] = fn
+    if not updates:
+        raise HTTPException(400, "No fields to update")
     conn = get_connection()
     try:
-        conn.execute("UPDATE users SET display_name = ? WHERE id = ?", (name, user["id"]))
+        for col, val in updates.items():
+            conn.execute(f"UPDATE users SET {col} = ? WHERE id = ?", (val, user["id"]))
         conn.commit()
     finally:
         conn.close()
-    return {"ok": True, "display_name": name}
+    return {"ok": True, **updates}
 
 
 @router.get("/export-data")

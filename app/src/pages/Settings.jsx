@@ -186,6 +186,8 @@ export default function Settings() {
   const [billingLoading, setBillingLoading] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [newName, setNewName] = useState('')
+  const [editingFullName, setEditingFullName] = useState(false)
+  const [newFullName, setNewFullName] = useState('')
   const [nameMsg, setNameMsg] = useState('')
 
   const renewalDays = daysUntil(subscription?.current_period_end)
@@ -239,19 +241,18 @@ export default function Settings() {
     }
   }
 
-  async function handleUpdateName() {
-    if (!newName.trim()) return
+  async function handleUpdateField(field, value, setEditing) {
+    if (!value.trim()) return
     setNameMsg('')
     try {
       const res = await fetch('/api/auth/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ display_name: newName.trim() }),
+        body: JSON.stringify({ [field]: value.trim() }),
       })
       if (res.ok) {
         setNameMsg('Updated')
-        setEditingName(false)
-        // Refresh user data
+        setEditing(false)
         window.location.reload()
       }
     } catch { /* ignore */ }
@@ -274,6 +275,34 @@ export default function Settings() {
               <span className={styles.rowValue}>{user?.email || '—'}</span>
             </div>
             <div className={styles.row}>
+              <span className={styles.rowLabel}>Full Name</span>
+              {!editingFullName ? (
+                <span className={styles.rowValue}>
+                  {user?.full_name || '—'}
+                  <button
+                    className={styles.inlineBtn}
+                    onClick={() => { setNewFullName(user?.full_name || ''); setEditingFullName(true) }}
+                  >
+                    Edit
+                  </button>
+                </span>
+              ) : (
+                <span className={styles.rowValue}>
+                  <input
+                    type="text"
+                    value={newFullName}
+                    onChange={e => setNewFullName(e.target.value)}
+                    className={styles.inlineInput}
+                    autoFocus
+                    placeholder="First Last"
+                    onKeyDown={e => { if (e.key === 'Enter') handleUpdateField('full_name', newFullName, setEditingFullName); if (e.key === 'Escape') setEditingFullName(false) }}
+                  />
+                  <button className={styles.inlineBtn} onClick={() => handleUpdateField('full_name', newFullName, setEditingFullName)}>Save</button>
+                  <button className={styles.inlineBtnMuted} onClick={() => setEditingFullName(false)}>Cancel</button>
+                </span>
+              )}
+            </div>
+            <div className={styles.row}>
               <span className={styles.rowLabel}>Display Name</span>
               {!editingName ? (
                 <span className={styles.rowValue}>
@@ -293,9 +322,10 @@ export default function Settings() {
                     onChange={e => setNewName(e.target.value)}
                     className={styles.inlineInput}
                     autoFocus
-                    onKeyDown={e => { if (e.key === 'Enter') handleUpdateName(); if (e.key === 'Escape') setEditingName(false) }}
+                    placeholder="Your public name"
+                    onKeyDown={e => { if (e.key === 'Enter') handleUpdateField('display_name', newName, setEditingName); if (e.key === 'Escape') setEditingName(false) }}
                   />
-                  <button className={styles.inlineBtn} onClick={handleUpdateName}>Save</button>
+                  <button className={styles.inlineBtn} onClick={() => handleUpdateField('display_name', newName, setEditingName)}>Save</button>
                   <button className={styles.inlineBtnMuted} onClick={() => setEditingName(false)}>Cancel</button>
                 </span>
               )}

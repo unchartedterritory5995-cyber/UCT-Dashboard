@@ -252,6 +252,12 @@ def init_db():
             conn.commit()
             print("[auth] Migrated: added referral_code column to users")
 
+        # Migration: add full_name column if missing
+        if "full_name" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN full_name TEXT")
+            conn.commit()
+            print("[auth] Migrated: added full_name column to users")
+
         print(f"[auth] Database ready at {_DB_PATH}")
     finally:
         conn.close()

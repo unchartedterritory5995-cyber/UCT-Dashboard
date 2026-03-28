@@ -51,7 +51,7 @@ def verify_password(email: str, password: str) -> dict | None:
 def get_user_by_id(user_id: str) -> dict | None:
     conn = get_connection()
     try:
-        row = conn.execute("SELECT id, email, display_name, role, email_verified, created_at FROM users WHERE id = ?", (user_id,)).fetchone()
+        row = conn.execute("SELECT id, email, display_name, full_name, role, email_verified, created_at FROM users WHERE id = ?", (user_id,)).fetchone()
         return dict(row) if row else None
     finally:
         conn.close()
