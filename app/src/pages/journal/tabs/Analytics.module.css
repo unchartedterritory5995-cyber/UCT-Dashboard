@@ -1,0 +1,362 @@
+/* Analytics.module.css */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-top: 16px;
+}
+
+/* ── Dimension chip bar ── */
+.dimBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.dimChip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 5px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  white-space: nowrap;
+}
+
+.dimChip:hover {
+  color: var(--text);
+  border-color: var(--border-accent);
+  background: var(--bg-hover);
+}
+
+.dimActive {
+  color: var(--ut-gold);
+  border-color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+}
+
+/* ── Period selector ── */
+.periodBar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.periodBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  padding: 5px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.periodBtn:hover {
+  color: var(--text);
+  border-color: var(--border-accent);
+  background: var(--bg-hover);
+}
+
+.periodActive {
+  color: var(--ut-gold);
+  border-color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+}
+
+/* ── Totals strip ── */
+.totalsStrip {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+/* ── Analytics table ── */
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  margin-bottom: 20px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 700px;
+}
+
+.th {
+  text-align: left;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  z-index: 2;
+}
+
+.thRight {
+  text-align: right;
+}
+
+.row {
+  transition: background var(--duration-fast);
+}
+
+.row:hover {
+  background: var(--bg-hover);
+}
+
+.row td {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  vertical-align: middle;
+}
+
+.row:last-child td {
+  border-bottom: none;
+}
+
+.rowTotals td {
+  border-top: 2px solid var(--border);
+  font-weight: 700;
+  padding-top: 10px;
+}
+
+.bucketKey {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--ut-cream);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.numCell {
+  font-family: var(--font-mono);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pnlGain {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--gain);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pnlLoss {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--loss);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+/* ── Win rate bar (inline) ── */
+.wrBarWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.wrBar {
+  width: 40px;
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.wrBarFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width var(--duration-normal);
+}
+
+.wrBarGood {
+  background: var(--gain);
+}
+
+.wrBarOk {
+  background: var(--warn);
+}
+
+.wrBarBad {
+  background: var(--loss);
+}
+
+/* ── Equity curve ── */
+.chartSection {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  padding: 16px;
+}
+
+.chartHeader {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* ── Loading / Empty / Error ── */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.loadingBar {
+  width: 120px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  position: relative;
+  overflow: hidden;
+}
+
+.loadingBar::after {
+  content: '';
+  position: absolute;
+  left: -40px;
+  top: 0;
+  width: 40px;
+  height: 100%;
+  background: var(--ut-gold);
+  border-radius: 1px;
+  animation: loadSlide 1.2s ease-in-out infinite;
+}
+
+@keyframes loadSlide {
+  0% { left: -40px; }
+  100% { left: 120px; }
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 32px;
+  color: var(--text-muted);
+  opacity: 0.25;
+  margin-bottom: 12px;
+}
+
+.emptyTitle {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.emptyText {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.7;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  border-radius: var(--radius-md);
+  color: var(--loss);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .wrap {
+    padding-top: 12px;
+  }
+
+  .dimBar {
+    gap: 4px;
+  }
+
+  .dimChip {
+    font-size: 9px;
+    padding: 4px 8px;
+  }
+
+  .periodBtn {
+    font-size: 9px;
+    padding: 4px 8px;
+  }
+
+  .table {
+    font-size: 11px;
+    min-width: 600px;
+  }
+
+  .th {
+    padding: 6px 6px;
+    font-size: 8px;
+  }
+
+  .row td {
+    padding: 6px 6px;
+  }
+
+  .totalsStrip {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+}

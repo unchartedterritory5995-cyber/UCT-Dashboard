@@ -1,0 +1,206 @@
+/* JournalPage.module.css */
+
+/* ── Page shell ── */
+.page {
+  padding: 20px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.heading {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ut-gold);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.newTradeBtn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  background: var(--ut-green-dim);
+  color: var(--ut-green-bright);
+  border: 1px solid var(--ut-green);
+  border-radius: var(--radius-md);
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+  white-space: nowrap;
+}
+
+.newTradeBtn:hover {
+  background: var(--bg-hover);
+}
+
+.newTradeBtnActive {
+  background: rgba(248,113,113,0.1);
+  color: var(--loss);
+  border-color: rgba(248,113,113,0.3);
+}
+
+.newTradeBtnActive:hover {
+  background: rgba(248,113,113,0.18);
+}
+
+/* ── Tab bar ── */
+.tabBar {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.tabScroll {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tabScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 10px 16px 9px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--duration-fast), border-color var(--duration-fast);
+  white-space: nowrap;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tabActive {
+  color: var(--ut-gold);
+  border-bottom-color: var(--ut-gold);
+}
+
+.tabBadge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(248,113,113,0.2);
+  color: var(--loss);
+  border-radius: 8px;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ── New trade form wrap ── */
+.newFormWrap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  margin: 16px 0 0;
+}
+
+/* ── Content area ── */
+.content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Placeholder tabs ── */
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  text-align: center;
+  flex: 1;
+}
+
+.placeholderIcon {
+  font-size: 36px;
+  color: var(--text-muted);
+  opacity: 0.3;
+  margin-bottom: 16px;
+}
+
+.placeholderLabel {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.placeholderText {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .page {
+    padding: 12px 10px 70px;
+  }
+
+  .heading {
+    font-size: 16px;
+    letter-spacing: 2px;
+  }
+
+  .newTradeBtn {
+    font-size: 10px;
+    padding: 5px 10px;
+  }
+
+  .tab {
+    font-size: 9px;
+    padding: 8px 10px 7px;
+    letter-spacing: 0.8px;
+  }
+
+  .newFormWrap {
+    padding: 12px;
+    margin: 12px 0 0;
+  }
+
+  .placeholder {
+    padding: 40px 16px;
+  }
+}

@@ -1,0 +1,234 @@
+/* ProcessScoreCard.module.css */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Sliders ── */
+.sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sliderRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sliderHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sliderLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: var(--text);
+}
+
+.sliderValue {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-bright);
+  min-width: 36px;
+  text-align: right;
+}
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-bright);
+  border: 2px solid var(--bg-elevated);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-bright);
+  border: 2px solid var(--bg-elevated);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+.sliderDesc {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  line-height: 1.4;
+}
+
+/* ── Total process score ── */
+.totalRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.totalLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+}
+
+.totalValue {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.totalMax {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+/* ── Comparison bars ── */
+.barWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.barLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  min-width: 56px;
+  text-align: right;
+}
+
+.barTrack {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width var(--duration-normal) var(--ease-out);
+}
+
+/* ── Outcome section ── */
+.outcomeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.outcomeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.outcomeLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+}
+
+.outcomeValue {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ── Not scored state ── */
+.notScored {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 16px;
+  gap: 10px;
+}
+
+.notScoredLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+}
+
+.notScoredText {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  max-width: 280px;
+  line-height: 1.6;
+}
+
+.scoreBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  padding: 6px 16px;
+  border: 1px solid var(--ut-gold);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ut-gold);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  margin-top: 4px;
+}
+
+.scoreBtn:hover {
+  background: rgba(201,168,76,0.12);
+}
+
+/* ── Divergence callout ── */
+.divergence {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--warn);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+}

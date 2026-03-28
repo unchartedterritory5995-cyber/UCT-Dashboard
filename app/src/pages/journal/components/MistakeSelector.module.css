@@ -1,0 +1,161 @@
+/* MistakeSelector.module.css */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Selected chips ── */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 10px;
+  border-radius: 12px;
+  background: rgba(248,113,113,0.12);
+  border: 1px solid rgba(248,113,113,0.25);
+}
+
+.chipLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--loss);
+  letter-spacing: 0.3px;
+}
+
+.chipRemove {
+  background: none;
+  border: none;
+  color: var(--loss);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.6;
+  transition: opacity var(--duration-fast);
+  line-height: 1;
+}
+
+.chipRemove:hover {
+  opacity: 1;
+}
+
+/* ── Category groups ── */
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.groupLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.groupItems {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── Checkbox rows ── */
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.checkRow:hover {
+  background: var(--bg-hover);
+}
+
+.checkbox {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--loss);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.checkLabel {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text);
+  transition: color var(--duration-fast);
+}
+
+.checkLabelActive {
+  color: var(--loss);
+  font-weight: 600;
+}
+
+/* ── Custom mistake input ── */
+.customRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.customInput {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.customInput:focus {
+  outline: none;
+  border-color: var(--ut-gold);
+}
+
+.customBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  white-space: nowrap;
+}
+
+.customBtn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border-accent);
+}
+
+.customBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}

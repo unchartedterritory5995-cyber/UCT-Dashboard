@@ -1,0 +1,226 @@
+/* AISummary.module.css */
+
+.wrap {
+  margin-top: 16px;
+}
+
+/* ── Generate button (no summary yet) ── */
+.generateWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.generateBtn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--ut-gold-dim);
+  color: var(--ut-gold);
+  border: 1px solid var(--ut-gold);
+  border-radius: var(--radius-md);
+  padding: 8px 20px;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.generateBtn:hover {
+  background: var(--ut-gold-glow);
+}
+
+.generateBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.generateHint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  max-width: 280px;
+}
+
+/* ── Loading state ── */
+.loadingWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-accent);
+  border-top-color: var(--ut-gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loadingText {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Error state ── */
+.errorBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--loss);
+}
+
+.retryBtn {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  background: none;
+  color: var(--loss);
+  border: 1px solid var(--loss-border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.retryBtn:hover {
+  background: rgba(231,76,60,0.15);
+}
+
+/* ── Summary card ── */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cardTitle {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.regenBtn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.regenBtn:hover {
+  color: var(--ut-gold);
+  border-color: var(--ut-gold-glow);
+  background: var(--ut-gold-dim);
+}
+
+.regenBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── Sections ── */
+.section {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.sectionTakeaway {
+  border-left: 3px solid var(--gain);
+}
+
+.sectionImprovement {
+  border-left: 3px solid var(--warn);
+}
+
+.sectionLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.sectionText {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-bright);
+}
+
+/* ── Raw text fallback ── */
+.rawText {
+  padding: 12px 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .generateWrap {
+    padding: 16px;
+  }
+
+  .generateBtn {
+    font-size: 12px;
+    padding: 10px 24px;
+  }
+
+  .section {
+    padding: 8px 12px;
+  }
+
+  .sectionText {
+    font-size: 13px;
+  }
+}

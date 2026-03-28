@@ -1,0 +1,274 @@
+/* ScreenshotUploader.module.css */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Error ── */
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--loss);
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+
+.errorClose {
+  background: none;
+  border: none;
+  color: var(--loss);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.6;
+}
+
+.errorClose:hover {
+  opacity: 1;
+}
+
+/* ── Slot grid ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.slotLabel {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ── Drop zone ── */
+.dropZone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 80px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.dropZone:hover {
+  border-color: var(--ut-gold-glow);
+  background: var(--ut-gold-dim);
+}
+
+.dropZoneUploading {
+  border-color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+  cursor: wait;
+}
+
+.dropIcon {
+  font-size: 18px;
+  color: var(--text-muted);
+  opacity: 0.4;
+  line-height: 1;
+}
+
+.dropText {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.fileInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+/* ── Uploading indicator ── */
+.uploadingIndicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--ut-gold);
+}
+
+.uploadingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ut-gold);
+  animation: uploadPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes uploadPulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* ── Thumbnail ── */
+.thumbnailWrap {
+  position: relative;
+  height: 80px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: opacity var(--duration-fast);
+}
+
+.thumbnail:hover {
+  opacity: 0.85;
+}
+
+.deleteBtn {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.7);
+  color: var(--loss);
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--duration-fast);
+  line-height: 1;
+}
+
+.thumbnailWrap:hover .deleteBtn {
+  opacity: 1;
+}
+
+.deleteBtn:hover {
+  background: rgba(231,76,60,0.8);
+  color: white;
+}
+
+/* ── Lightbox ── */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: calc(var(--z-modal) + 10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.lightboxInner {
+  display: flex;
+  flex-direction: column;
+  max-width: 90vw;
+  max-height: 90vh;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.lightboxImg {
+  max-width: 100%;
+  max-height: calc(90vh - 48px);
+  object-fit: contain;
+}
+
+.lightboxFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.lightboxLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+}
+
+.lightboxClose {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.lightboxClose:hover {
+  color: var(--text);
+  border-color: var(--border-accent);
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .dropZone {
+    height: 70px;
+  }
+
+  .thumbnailWrap {
+    height: 70px;
+  }
+
+  .lightbox {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 400px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

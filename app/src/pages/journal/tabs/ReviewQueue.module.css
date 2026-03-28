@@ -1,0 +1,291 @@
+/* ReviewQueue.module.css */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-top: 16px;
+}
+
+/* ── Queue header ─�� */
+.queueHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.queueTitle {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.queueCount {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Queue items ── */
+.queueList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.queueItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  transition: background var(--duration-fast);
+}
+
+.queueItem:hover {
+  background: var(--bg-hover);
+}
+
+.queueItem:last-child {
+  border-bottom: none;
+}
+
+/* ── Type badge ── */
+.typeBadge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  white-space: nowrap;
+  min-width: 90px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.badgeToday {
+  background: var(--gain);
+}
+
+.badgeFollowUp {
+  background: #a78bfa;
+}
+
+.badgeMissingProcess {
+  background: var(--warn);
+}
+
+.badgeFlagged {
+  background: var(--loss);
+}
+
+.badgeMissingScreenshots {
+  background: var(--info);
+}
+
+.badgeMissingNotes {
+  background: var(--border-accent);
+}
+
+/* ── Item details ── */
+.itemSym {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--ut-cream);
+  min-width: 50px;
+}
+
+.itemDate {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 80px;
+}
+
+.itemPnlGain {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gain);
+  min-width: 60px;
+  text-align: right;
+}
+
+.itemPnlLoss {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--loss);
+  min-width: 60px;
+  text-align: right;
+}
+
+.itemMissing {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Review button ── */
+.reviewBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--ut-gold);
+  background: none;
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: var(--radius-md);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  white-space: nowrap;
+}
+
+.reviewBtn:hover {
+  background: var(--ut-gold-dim);
+  border-color: var(--ut-gold);
+}
+
+/* ── Empty state ── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 36px;
+  color: var(--gain);
+  opacity: 0.4;
+  margin-bottom: 12px;
+}
+
+.emptyTitle {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.emptyText {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.7;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* ── Loading / Error ── */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.loadingBar {
+  width: 120px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  position: relative;
+  overflow: hidden;
+}
+
+.loadingBar::after {
+  content: '';
+  position: absolute;
+  left: -40px;
+  top: 0;
+  width: 40px;
+  height: 100%;
+  background: var(--ut-gold);
+  border-radius: 1px;
+  animation: loadSlide 1.2s ease-in-out infinite;
+}
+
+@keyframes loadSlide {
+  0% { left: -40px; }
+  100% { left: 120px; }
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  border-radius: var(--radius-md);
+  color: var(--loss);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .wrap {
+    padding-top: 12px;
+  }
+
+  .queueItem {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .typeBadge {
+    font-size: 8px;
+    padding: 2px 6px;
+    min-width: 70px;
+  }
+
+  .itemSym {
+    font-size: 11px;
+  }
+
+  .itemDate {
+    font-size: 10px;
+    min-width: 70px;
+  }
+
+  .itemMissing {
+    width: 100%;
+    order: 10;
+  }
+
+  .reviewBtn {
+    font-size: 9px;
+    padding: 3px 8px;
+  }
+}

@@ -1,0 +1,78 @@
+/* ReviewProgress.module.css */
+.strip {
+  width: 40px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 4px;
+  border-left: 1px solid var(--border);
+  background: var(--bg-surface);
+  gap: 8px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.count {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: default;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transition: all var(--duration-fast);
+}
+
+.dotDone {
+  background: var(--gain);
+  box-shadow: 0 0 6px rgba(60,184,104,0.3);
+}
+
+.dotPending {
+  background: var(--border);
+}
+
+.stepLabel {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 600;
+  color: var(--text-muted);
+  opacity: 0.5;
+  text-transform: uppercase;
+}
+
+.stepLabelDone {
+  color: var(--gain);
+  opacity: 0.8;
+}
+
+/* ── Mobile: hide on small screens ── */
+@media (max-width: 640px) {
+  .strip {
+    display: none;
+  }
+}

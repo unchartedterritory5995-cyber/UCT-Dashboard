@@ -1,0 +1,76 @@
+/* InsightCard.module.css */
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ut-gold);
+  border-radius: var(--radius-md);
+  transition: background var(--duration-fast);
+}
+
+.card:hover {
+  background: var(--bg-hover);
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.statement {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
+
+.evidence {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.actionBtn {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ut-gold);
+  background: none;
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--duration-fast);
+}
+
+.actionBtn:hover {
+  background: var(--ut-gold-dim);
+  border-color: var(--ut-gold);
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .statement {
+    font-size: 12px;
+  }
+
+  .actionBtn {
+    align-self: flex-end;
+  }
+}

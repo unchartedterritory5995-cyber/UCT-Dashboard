@@ -1,0 +1,166 @@
+/* FilterBar.module.css */
+.bar {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 12px;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color var(--duration-fast);
+}
+
+.toggle:hover {
+  color: var(--text);
+}
+
+.toggleExpanded {
+  border-bottom: 1px solid var(--border);
+}
+
+.toggleIcon {
+  font-size: 10px;
+  color: var(--text-muted);
+  width: 10px;
+}
+
+.toggleLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.activeCount {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--ut-gold-dim);
+  color: var(--ut-gold);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: 8px;
+  padding: 1px 6px;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* ── Filter grid ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 12px 14px;
+  align-items: end;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 6px 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--ut-gold);
+}
+
+select.input {
+  cursor: pointer;
+  appearance: auto;
+}
+
+/* ── Checkbox group ── */
+.checkGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.checkLabel input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--ut-gold);
+  cursor: pointer;
+}
+
+/* ── Clear button ── */
+.clearWrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.clearBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  background: rgba(248,113,113,0.08);
+  color: var(--loss);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+  white-space: nowrap;
+}
+
+.clearBtn:hover {
+  background: rgba(248,113,113,0.15);
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .clearWrap {
+    grid-column: 1 / -1;
+  }
+}

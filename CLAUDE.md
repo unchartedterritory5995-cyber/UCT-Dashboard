@@ -683,6 +683,76 @@ Flag button + Shift+F shortcut added everywhere a chart appears:
 - **Breadth DrillModal** right panel — `useFlagged` + Shift+F via functional `setSelectedIdx` updater
 - **Watchlists** flagged tab — Shift+F remove, `×` button, flag button in chart header
 
+## Trade Journal — Elite Review System (2026-03-28)
+
+### Files
+- `app/src/pages/journal/Journal.jsx` — main page with 7-tab interior navigation
+- `app/src/pages/journal/Journal.module.css` — all journal styles
+- `app/src/pages/journal/TradeDrawer.jsx` — 480px right-side trade detail drawer (6 tabs)
+- `app/src/pages/journal/OverviewTab.jsx` — KPI dashboard + review shortcuts
+- `app/src/pages/journal/TradeLogTab.jsx` — filterable trade table
+- `app/src/pages/journal/DailyNotesTab.jsx` — per-day structured journal entries
+- `app/src/pages/journal/CalendarTab.jsx` — visual calendar with daily P&L heatmap
+- `app/src/pages/journal/AnalyticsTab.jsx` — breakdowns by setup, symbol, day, session, etc.
+- `app/src/pages/journal/PlaybooksTab.jsx` — setup definitions + linked performance
+- `app/src/pages/journal/ReviewQueueTab.jsx` — guided incomplete-work surface
+- `api/services/journal_service.py` — SQLite service (CRUD, stats, analytics, insights)
+- `api/services/journal_screenshots.py` — WebP upload/serve (Pillow, same as avatar system)
+- `api/routers/journal.py` — REST endpoints (all require auth)
+
+### Architecture
+- **7-tab interior navigation** (horizontal tab bar inside `/journal` page): Overview | Trade Log | Daily Notes | Calendar | Analytics | Playbooks | Review Queue
+- **Trade detail drawer**: 480px right-side slide-over (full height), preserves log context. 6 interior tabs: Summary+Chart | Executions | Process | Notes+Screenshots | Mistakes | Related
+- **Review status state machine**: `draft → logged → partial → reviewed → flagged/follow_up`. Auto-computed on save based on field completeness. Users can manually flag/unflag.
+- **Screenshots**: stored at `/data/journal_screenshots/` on Railway volume. Named `{user_id}_{trade_id}_{slot}_{uuid}.webp`. Pillow converts to WebP. Max 5 per trade, max 2MB per upload. Slots: pre_entry, in_trade, exit, higher_tf, lower_tf.
+- **Guided review**: progress indicators + smart prompts (not modal wizards). Review queue surfaces incomplete trades/days. Trade drawer shows completion checklist. Daily notes use structured template.
+
+### Data Model
+- **Expanded `journal_entries`** (25+ new columns): account, asset_class, strategy, playbook_id, tags, mistake_tags, emotion_tags, entry_time, exit_time, fees, shares, risk_dollars, planned_r, realized_r, thesis, market_context, confidence (1-5), process_score (0-100), outcome_score, ps_setup/ps_entry/ps_exit/ps_sizing/ps_stop (each 0-20), lesson, follow_up, review_status, review_date, session, day_of_week, holding_minutes
+- **`trade_executions`**: scale-in/out events per trade. Types: entry, add, trim, exit, stop. Parent entry_price/exit_price computed as VWAP when executions exist.
+- **`journal_screenshots`**: per-trade image uploads with slot labels and sort order
+- **`daily_journals`**: per-day structured entries — premarket_thesis, focus_list, a_plus_setups, risk_plan, market_regime, emotional_state, midday_notes, eod_recap, did_well, did_poorly, learned, tomorrow_focus, energy_rating (1-5), discipline_score (0-100)
+- **`weekly_reviews`**: per-week summaries — best/worst trade, top setup, worst mistake, wins/losses, net P&L, avg process score, reflection, key lessons, next week focus
+- **`playbooks`**: setup definitions with trigger criteria, entry/exit models, sizing rules, common mistakes, best practices. Denormalized trade_count, win_rate, avg_r.
+- **`journal_resources`**: checklists, rules, templates, psychology notes, plans. Categories: checklist, rule, template, psychology, plan.
+- **Process scoring**: 5 dimensions × 0-20 = 0-100 composite (setup quality, entry quality, exit quality, sizing discipline, stop discipline)
+- **Mistake taxonomy**: 17 default mistakes (overtrading, FOMO, chasing, early_exit, late_entry, no_stop, oversized, countertrend, revenge, ignored_thesis, added_to_loser, cut_winner, broke_loss_rule, broke_size_rule, broke_checklist, boredom, hesitation) + custom tags via comma-separated field
+- **Emotion tags**: 15 options (confident, anxious, greedy, fearful, calm, frustrated, euphoric, bored, disciplined, impulsive, patient, rushed, focused, distracted, revenge-driven)
+
+### API Endpoints
+- `GET /api/journal` — list trades with expanded filtering (status, review_status, symbol, setup, playbook_id, direction, asset_class, date range, tags, mistake_tags, session, day_of_week, has_screenshots, has_notes, has_process_score, min/max R, min/max P&L, sort, pagination)
+- `GET /api/journal/stats` — aggregate stats (enhanced)
+- `GET /api/journal/calendar?month=YYYY-MM` — per-day trade_count, wins, losses, net P&L, avg process score, review statuses, mistake/screenshot counts
+- `GET /api/journal/review-queue` — trades/days needing review
+- `GET /api/journal/analytics?group_by={dimension}` — breakdowns by setup, playbook, symbol, direction, asset_class, day_of_week, session, mistake_tag, emotion_tag, holding_period_bucket, process_score_bucket, month, week. Returns per-bucket: trade_count, win_rate, avg_pnl_pct, total_pnl_pct, avg_r, profit_factor, avg_process_score
+- `GET /api/journal/insights` — up to 8 pattern-derived coaching statements (no AI, server-side logic)
+- `GET /api/journal/taxonomy` — mistake + emotion tag libraries
+- `POST/PUT/DELETE /api/journal/{id}` — trade CRUD
+- `POST/GET/DELETE /api/journal/{id}/screenshots` — screenshot management
+- `GET/PUT /api/journal/daily/{date}` — daily journal (auto-creates on first access)
+- `GET/PUT /api/journal/weekly/{week_start}` — weekly review (auto-populates computed fields)
+- `GET/POST/PUT/DELETE /api/journal/playbooks` — playbook CRUD
+- `GET /api/journal/playbooks/{id}/trades` — trades linked to playbook
+- `GET/POST/PUT/DELETE /api/journal/resources` — resource CRUD (by category)
+
+### StockChart Integration
+- Trade detail Summary tab embeds `StockChart` component (Lightweight Charts v5)
+- **Entry marker** (green BUY arrow) at entry price/date
+- **Exit marker** (red SELL arrow) at exit price/date (if closed)
+- **Stop price line** (dashed red horizontal) + **target price line** (dashed green horizontal)
+- **Scale-in/out markers** (smaller arrows at execution prices) for all `trade_executions` events
+- Default zoom: centers on holding period with 20 bars context each side
+- Reuses existing `StockChart` component + `/api/bars/{ticker}` endpoint + same `markers`/`priceLines` props as UCT20
+
+### Design Tokens
+- Follows existing CSS variable token system
+- **Review status pills**: draft=`--color-text-muted`, logged=`--color-info` (blue), partial=`--color-warning` (amber), reviewed=`--color-success` (green), flagged=`--color-danger` (red), follow_up=purple
+- **Process score gradient**: red (0-30) → amber (31-60) → green (61-100)
+- **Mistake tags**: red-tinted chips
+- **Emotion tags**: blue-tinted chips
+
+---
+
 ## FeedbackWidget — Top-Right ? Button (2026-03-27)
 
 - **Location**: `app/src/components/FeedbackWidget.jsx`

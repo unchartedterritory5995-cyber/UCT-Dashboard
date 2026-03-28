@@ -258,6 +258,204 @@ def init_db():
             conn.commit()
             print("[auth] Migrated: added full_name column to users")
 
+        # Journal v2 migration
+        _migrate_journal_v2(conn)
+
         print(f"[auth] Database ready at {_DB_PATH}")
     finally:
         conn.close()
+
+
+def _migrate_journal_v2(conn):
+    """Add Trade Journal v2 columns and tables."""
+    new_cols = [
+        ("journal_entries", "account", "TEXT DEFAULT 'default'"),
+        ("journal_entries", "asset_class", "TEXT DEFAULT 'equity'"),
+        ("journal_entries", "strategy", "TEXT DEFAULT ''"),
+        ("journal_entries", "playbook_id", "TEXT"),
+        ("journal_entries", "tags", "TEXT DEFAULT ''"),
+        ("journal_entries", "mistake_tags", "TEXT DEFAULT ''"),
+        ("journal_entries", "emotion_tags", "TEXT DEFAULT ''"),
+        ("journal_entries", "entry_time", "TEXT"),
+        ("journal_entries", "exit_time", "TEXT"),
+        ("journal_entries", "fees", "REAL DEFAULT 0"),
+        ("journal_entries", "shares", "REAL"),
+        ("journal_entries", "risk_dollars", "REAL"),
+        ("journal_entries", "planned_r", "REAL"),
+        ("journal_entries", "realized_r", "REAL"),
+        ("journal_entries", "thesis", "TEXT DEFAULT ''"),
+        ("journal_entries", "market_context", "TEXT DEFAULT ''"),
+        ("journal_entries", "confidence", "INTEGER"),
+        ("journal_entries", "process_score", "INTEGER"),
+        ("journal_entries", "outcome_score", "INTEGER"),
+        ("journal_entries", "ps_setup", "INTEGER"),
+        ("journal_entries", "ps_entry", "INTEGER"),
+        ("journal_entries", "ps_exit", "INTEGER"),
+        ("journal_entries", "ps_sizing", "INTEGER"),
+        ("journal_entries", "ps_stop", "INTEGER"),
+        ("journal_entries", "lesson", "TEXT DEFAULT ''"),
+        ("journal_entries", "follow_up", "TEXT DEFAULT ''"),
+        ("journal_entries", "review_status", "TEXT DEFAULT 'draft'"),
+        ("journal_entries", "review_date", "TEXT"),
+        ("journal_entries", "session", "TEXT DEFAULT ''"),
+        ("journal_entries", "day_of_week", "TEXT"),
+        ("journal_entries", "holding_minutes", "INTEGER"),
+    ]
+    for table, col, typedef in new_cols:
+        try:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typedef}")
+        except Exception:
+            pass  # column already exists
+
+    # Trade executions (scale-in/out)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS trade_executions (
+            id          TEXT PRIMARY KEY,
+            user_id     TEXT NOT NULL REFERENCES users(id),
+            trade_id    TEXT NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE,
+            exec_type   TEXT NOT NULL,
+            exec_date   TEXT NOT NULL,
+            exec_time   TEXT,
+            price       REAL NOT NULL,
+            shares      REAL NOT NULL,
+            fees        REAL DEFAULT 0,
+            notes       TEXT DEFAULT '',
+            sort_order  INTEGER DEFAULT 0,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_executions_trade ON trade_executions(trade_id)")
+
+    # Screenshots
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS journal_screenshots (
+            id          TEXT PRIMARY KEY,
+            user_id     TEXT NOT NULL REFERENCES users(id),
+            trade_id    TEXT NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE,
+            slot        TEXT NOT NULL,
+            filename    TEXT NOT NULL,
+            label       TEXT DEFAULT '',
+            sort_order  INTEGER DEFAULT 0,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_screenshots_trade ON journal_screenshots(trade_id)")
+
+    # Daily journals
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS daily_journals (
+            id              TEXT PRIMARY KEY,
+            user_id         TEXT NOT NULL REFERENCES users(id),
+            date            TEXT NOT NULL,
+            premarket_thesis TEXT DEFAULT '',
+            focus_list      TEXT DEFAULT '',
+            a_plus_setups   TEXT DEFAULT '',
+            risk_plan       TEXT DEFAULT '',
+            market_regime   TEXT DEFAULT '',
+            emotional_state TEXT DEFAULT '',
+            midday_notes    TEXT DEFAULT '',
+            eod_recap       TEXT DEFAULT '',
+            did_well        TEXT DEFAULT '',
+            did_poorly      TEXT DEFAULT '',
+            learned         TEXT DEFAULT '',
+            tomorrow_focus  TEXT DEFAULT '',
+            energy_rating   INTEGER,
+            discipline_score INTEGER,
+            review_complete INTEGER DEFAULT 0,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, date)
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_journals_user_date ON daily_journals(user_id, date)")
+
+    # Weekly reviews
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS weekly_reviews (
+            id              TEXT PRIMARY KEY,
+            user_id         TEXT NOT NULL REFERENCES users(id),
+            week_start      TEXT NOT NULL,
+            best_trade_id   TEXT,
+            worst_trade_id  TEXT,
+            top_setup       TEXT DEFAULT '',
+            worst_mistake   TEXT DEFAULT '',
+            wins            INTEGER DEFAULT 0,
+            losses          INTEGER DEFAULT 0,
+            net_pnl_pct     REAL,
+            avg_process_score REAL,
+            reflection      TEXT DEFAULT '',
+            key_lessons     TEXT DEFAULT '',
+            next_week_focus TEXT DEFAULT '',
+            rules_to_add    TEXT DEFAULT '',
+            review_complete INTEGER DEFAULT 0,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, week_start)
+        )
+    """)
+
+    # Playbooks
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS playbooks (
+            id              TEXT PRIMARY KEY,
+            user_id         TEXT NOT NULL REFERENCES users(id),
+            name            TEXT NOT NULL,
+            description     TEXT DEFAULT '',
+            market_condition TEXT DEFAULT '',
+            trigger_criteria TEXT DEFAULT '',
+            invalidations   TEXT DEFAULT '',
+            entry_model     TEXT DEFAULT '',
+            exit_model      TEXT DEFAULT '',
+            sizing_rules    TEXT DEFAULT '',
+            common_mistakes TEXT DEFAULT '',
+            best_practices  TEXT DEFAULT '',
+            ideal_time      TEXT DEFAULT '',
+            ideal_volatility TEXT DEFAULT '',
+            is_active       INTEGER DEFAULT 1,
+            trade_count     INTEGER DEFAULT 0,
+            win_rate        REAL,
+            avg_r           REAL,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_playbooks_user ON playbooks(user_id)")
+
+    # Resources
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS journal_resources (
+            id          TEXT PRIMARY KEY,
+            user_id     TEXT NOT NULL REFERENCES users(id),
+            category    TEXT NOT NULL,
+            title       TEXT NOT NULL,
+            content     TEXT DEFAULT '',
+            sort_order  INTEGER DEFAULT 0,
+            is_pinned   INTEGER DEFAULT 0,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_resources_user ON journal_resources(user_id)")
+
+    # Import sessions (CSV import tracking)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS import_sessions (
+            id              TEXT PRIMARY KEY,
+            user_id         TEXT NOT NULL,
+            filename        TEXT,
+            format          TEXT,
+            imported_count  INTEGER,
+            duplicate_count INTEGER,
+            error_count     INTEGER,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_import_sessions_user ON import_sessions(user_id)")
+
+    # AI summary column on journal_entries
+    try:
+        conn.execute("ALTER TABLE journal_entries ADD COLUMN ai_summary TEXT")
+    except Exception:
+        pass  # column already exists
+
+    conn.commit()

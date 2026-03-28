@@ -1,0 +1,292 @@
+/* TradeForm.module.css */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+/* ── Rows ── */
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.contextRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.textareaRow {
+  display: flex;
+  gap: 10px;
+}
+
+/* ── Groups ── */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.textareaGroup {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* ── Inputs ── */
+.input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 7px 9px;
+  width: 120px;
+  min-width: 0;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--ut-gold);
+}
+
+.inputNarrow {
+  width: 90px;
+}
+
+select.input {
+  cursor: pointer;
+  appearance: auto;
+  min-width: 140px;
+}
+
+.textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  min-height: 50px;
+  resize: vertical;
+  width: 100%;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--ut-gold);
+}
+
+/* ── Direction toggle ── */
+.dirToggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.dirBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 7px 12px;
+  background: var(--bg);
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.dirBtnLongActive {
+  background: rgba(74,222,128,0.12);
+  color: var(--gain);
+}
+
+.dirBtnShortActive {
+  background: rgba(248,113,113,0.12);
+  color: var(--loss);
+}
+
+/* ── Confidence pills ── */
+.confidencePills {
+  display: flex;
+  gap: 3px;
+}
+
+.confPill {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confPill:hover {
+  border-color: var(--border-accent);
+  color: var(--text);
+}
+
+.confPillActive {
+  background: var(--ut-gold-dim);
+  color: var(--ut-gold);
+  border-color: var(--ut-gold-glow);
+}
+
+/* ── R:R preview ── */
+.rrPreview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+}
+
+.rrLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.rrValue {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ut-gold);
+}
+
+/* ── Error ── */
+.error {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--loss);
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+
+/* ── Actions ── */
+.actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.submitBtn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  background: var(--ut-green-dim);
+  color: var(--ut-green-bright);
+  border: 1px solid var(--ut-green);
+  border-radius: var(--radius-md);
+  padding: 8px 20px;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.submitBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cancelBtn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  background: none;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 20px;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.cancelBtn:hover {
+  color: var(--text);
+  border-color: var(--border-accent);
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .row,
+  .contextRow {
+    flex-direction: column;
+  }
+
+  .textareaRow {
+    flex-direction: column;
+  }
+
+  .input {
+    width: 100%;
+  }
+
+  .inputNarrow {
+    width: 100%;
+  }
+
+  select.input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .group {
+    width: 100%;
+  }
+
+  .textareaGroup {
+    width: 100%;
+  }
+}

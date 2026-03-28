@@ -1,0 +1,322 @@
+/* ExecutionsList.module.css */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Empty state ── */
+.emptyWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 16px;
+  text-align: center;
+  gap: 8px;
+}
+
+.emptyIcon {
+  font-size: 28px;
+  color: var(--text-muted);
+  opacity: 0.25;
+}
+
+.emptyTitle {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.emptyText {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  max-width: 300px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+/* ── Table ── */
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.th {
+  text-align: left;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.row td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  vertical-align: middle;
+}
+
+.row:last-child td {
+  border-bottom: none;
+}
+
+/* ── Cell types ── */
+.typeBadge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.dateCell {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.timeCell {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.numCell {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+
+.feeCell {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.notesCell {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-muted);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deleteBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all var(--duration-fast);
+  opacity: 0.5;
+}
+
+.deleteBtn:hover {
+  opacity: 1;
+  color: var(--loss);
+  background: rgba(248,113,113,0.1);
+}
+
+/* ── VWAP bar ── */
+.vwapBar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 0;
+}
+
+.vwapItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
+}
+
+.vwapDivider {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.vwapLabel {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.vwapValue {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+/* ── Add button ── */
+.addBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  align-self: flex-start;
+}
+
+.addBtn:hover {
+  color: var(--ut-gold);
+  border-color: var(--ut-gold-glow);
+  background: var(--ut-gold-dim);
+}
+
+/* ── Add form ── */
+.addForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.addRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.addInput {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 7px;
+  width: 100px;
+  min-width: 0;
+}
+
+.addInput:focus {
+  outline: none;
+  border-color: var(--ut-gold);
+}
+
+.addInputNarrow {
+  width: 70px;
+}
+
+.addInputWide {
+  flex: 1;
+  min-width: 120px;
+}
+
+select.addInput {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.addSubmit {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--ut-green-dim);
+  color: var(--ut-green-bright);
+  border: 1px solid var(--ut-green);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.addSubmit:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.addSubmit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.addCancel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  background: none;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .addRow {
+    flex-direction: column;
+  }
+
+  .addInput {
+    width: 100%;
+  }
+
+  .addInputNarrow {
+    width: 100%;
+  }
+
+  .vwapBar {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .vwapDivider {
+    display: none;
+  }
+
+  .vwapItem {
+    min-width: 45%;
+    padding: 4px 8px;
+  }
+}

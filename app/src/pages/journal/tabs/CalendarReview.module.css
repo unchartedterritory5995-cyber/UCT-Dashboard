@@ -1,0 +1,534 @@
+/* CalendarReview.module.css */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-top: 16px;
+}
+
+/* ── Calendar header ── */
+.calHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.calNav {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.calNav:hover {
+  color: var(--text);
+  border-color: var(--border-accent);
+  background: var(--bg-hover);
+}
+
+.calMonth {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ut-gold);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  min-width: 180px;
+  text-align: center;
+}
+
+/* ── Day headers ── */
+.dayHeaders {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.dayHeader {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* ── Calendar grid ── */
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+/* ── Calendar cells ── */
+.cell {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  min-height: 80px;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  position: relative;
+  border-left: 3px solid transparent;
+}
+
+.cell:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-accent);
+  border-left-color: inherit;
+}
+
+.cellEmpty {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+  min-height: 0;
+}
+
+.cellEmpty:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+.cellToday {
+  border-color: var(--ut-gold-glow);
+  box-shadow: 0 0 8px var(--ut-gold-dim);
+}
+
+.cellSelected {
+  border-color: var(--ut-gold);
+  background: var(--bg-elevated);
+}
+
+.cellGain {
+  border-left-color: var(--gain);
+  background: rgba(60, 184, 104, 0.04);
+}
+
+.cellLoss {
+  border-left-color: var(--loss);
+  background: rgba(231, 76, 60, 0.04);
+}
+
+.cellDay {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.cellToday .cellDay {
+  color: var(--ut-gold);
+}
+
+.cellPnlGain {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gain);
+}
+
+.cellPnlLoss {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--loss);
+}
+
+.cellCount {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+/* ── Win rate bar ── */
+.winBar {
+  height: 2px;
+  background: var(--bg-elevated);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.winBarFill {
+  height: 100%;
+  background: var(--gain);
+  border-radius: 1px;
+  transition: width var(--duration-normal);
+}
+
+/* ── Review dots ── */
+.cellDots {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dotReviewed {
+  background: var(--gain);
+}
+
+.dotPartial {
+  background: var(--warn);
+}
+
+.dotLogged {
+  background: var(--info);
+}
+
+.dotDraft {
+  background: var(--border-accent);
+}
+
+.dotFlagged {
+  background: var(--loss);
+}
+
+.dotFollowUp {
+  background: #a78bfa;
+}
+
+.dotJournal {
+  background: var(--info);
+  outline: 1px solid var(--info);
+  outline-offset: 1px;
+}
+
+/* ── Day detail panel ── */
+.dayDetail {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  padding: 16px 20px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.dayDetailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.dayDetailDate {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ut-gold);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.dayDetailClose {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  transition: color var(--duration-fast);
+}
+
+.dayDetailClose:hover {
+  color: var(--text);
+}
+
+.dayMetrics {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.dayMetric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dayMetricLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dayMetricValue {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.dayMetricGain {
+  color: var(--gain);
+}
+
+.dayMetricLoss {
+  color: var(--loss);
+}
+
+/* ── Day detail trades ── */
+.dayTradesHeader {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dayTradeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+  border-radius: var(--radius-sm);
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.dayTradeRow:hover {
+  background: var(--bg-hover);
+}
+
+.dtSym {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--ut-cream);
+  min-width: 50px;
+}
+
+.dtDir {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  min-width: 40px;
+}
+
+.dtSetup {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ut-gold);
+  opacity: 0.8;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dtPnlGain {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gain);
+  min-width: 60px;
+  text-align: right;
+}
+
+.dtPnlLoss {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--loss);
+  min-width: 60px;
+  text-align: right;
+}
+
+.dtReview {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+/* ── Journal excerpt ── */
+.journalExcerpt {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.excerptLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.excerptText {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.6;
+  max-height: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Empty detail ── */
+.dayDetailEmpty {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.7;
+  text-align: center;
+  padding: 20px;
+}
+
+/* ── Loading / Error ── */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.loadingBar {
+  width: 120px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  position: relative;
+  overflow: hidden;
+}
+
+.loadingBar::after {
+  content: '';
+  position: absolute;
+  left: -40px;
+  top: 0;
+  width: 40px;
+  height: 100%;
+  background: var(--ut-gold);
+  border-radius: 1px;
+  animation: loadSlide 1.2s ease-in-out infinite;
+}
+
+@keyframes loadSlide {
+  0% { left: -40px; }
+  100% { left: 120px; }
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  border-radius: var(--radius-md);
+  color: var(--loss);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .wrap {
+    padding-top: 12px;
+  }
+
+  .calMonth {
+    font-size: 14px;
+    letter-spacing: 1px;
+    min-width: 140px;
+  }
+
+  .cell {
+    min-height: 56px;
+    padding: 4px;
+    gap: 2px;
+  }
+
+  .cellDay {
+    font-size: 10px;
+  }
+
+  .cellPnlGain,
+  .cellPnlLoss {
+    font-size: 9px;
+  }
+
+  .cellCount {
+    display: none;
+  }
+
+  .winBar {
+    display: none;
+  }
+
+  .cellDots {
+    gap: 2px;
+  }
+
+  .dot {
+    width: 4px;
+    height: 4px;
+  }
+
+  .dayDetail {
+    padding: 12px;
+  }
+
+  .dayMetrics {
+    gap: 10px;
+  }
+
+  .dayTradeRow {
+    font-size: 11px;
+    gap: 6px;
+  }
+}
