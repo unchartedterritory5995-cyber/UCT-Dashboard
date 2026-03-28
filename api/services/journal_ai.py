@@ -16,7 +16,7 @@ _logger = logging.getLogger(__name__)
 _client = None
 _client_lock = threading.Lock()
 
-_AI_MODEL = "claude-3-5-haiku-20241022"
+_AI_MODEL = "claude-haiku-4-5-20251001"
 
 
 def _get_client():
