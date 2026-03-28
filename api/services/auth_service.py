@@ -392,14 +392,27 @@ def comp_user_access(email: str, grant: bool = True) -> dict:
 # ── Email verification ──────────────────────────────────────────────────────
 
 def create_email_verification(user_id: str) -> str:
-    """Generate a verification token (24hr TTL). Returns the token string."""
-    token = secrets.token_urlsafe(32)
-    ver_id = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    """Generate a verification token (24hr TTL). Returns the token string.
+    Reuses existing valid token if one exists (prevents invalidating links already sent)."""
     conn = get_connection()
     try:
-        # Remove any existing verifications for this user
-        conn.execute("DELETE FROM email_verifications WHERE user_id = ?", (user_id,))
+        # Check for existing valid token
+        existing = conn.execute(
+            "SELECT token, expires_at FROM email_verifications WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if existing:
+            expires = datetime.fromisoformat(existing["expires_at"])
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            # If existing token still has >1hr of life, reuse it
+            if expires > datetime.now(timezone.utc) + timedelta(hours=1):
+                return existing["token"]
+            # Otherwise delete and create fresh
+            conn.execute("DELETE FROM email_verifications WHERE user_id = ?", (user_id,))
+
+        token = secrets.token_urlsafe(32)
+        ver_id = str(uuid.uuid4())
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
         conn.execute(
             "INSERT INTO email_verifications (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)",
             (ver_id, user_id, token, expires_at.isoformat()),
