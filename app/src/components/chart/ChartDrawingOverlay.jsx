@@ -378,13 +378,14 @@ export default function ChartDrawingOverlay({
   chartRef, seriesRef, bars,
   activeTool, setActiveTool,
   color, lineWidth,
-  drawings, addDrawing, updateDrawing,
+  drawings, addDrawing, updateDrawing, removeDrawing,
   selectedId, setSelectedId,
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
   const [mouseCoords, setMouseCoords] = useState(null)
   const [textInput, setTextInput] = useState(null)
+  const [ctxMenu, setCtxMenu] = useState(null) // { x, y, drawingId }
   const rafRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
   const redrawRef = useRef(null)
@@ -888,6 +889,27 @@ export default function ChartDrawingOverlay({
   else if (hoverDrawingId) canvasCursor = 'move'
   else if (activeTool === 'cursor') canvasCursor = 'default'
 
+  // ── Right-click context menu ──
+  const handleContextMenu = useCallback((e) => {
+    const pos = getCanvasPos(e)
+    if (!pos) return
+    const hitId = hitTestAll(pos.x, pos.y)
+    if (hitId) {
+      e.preventDefault()
+      e.stopPropagation()
+      setSelectedId(hitId)
+      setCtxMenu({ x: e.clientX, y: e.clientY, drawingId: hitId })
+    }
+  }, [hitTestAll, setSelectedId])
+
+  // Close context menu on any click
+  useEffect(() => {
+    if (!ctxMenu) return
+    const close = () => setCtxMenu(null)
+    window.addEventListener('mousedown', close)
+    return () => window.removeEventListener('mousedown', close)
+  }, [ctxMenu])
+
   return (
     <>
       <canvas
@@ -899,9 +921,10 @@ export default function ChartDrawingOverlay({
           cursor: canvasCursor,
           zIndex: 4,
         }}
-        onMouseDown={handleMouseDown}
+        onMouseDown={(e) => { setCtxMenu(null); handleMouseDown(e) }}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onContextMenu={handleContextMenu}
         onMouseLeave={() => {
           if (!isDragging) { setMouseCoords(null); setHoverDrawingId(null) }
           requestRedraw()
@@ -914,6 +937,14 @@ export default function ChartDrawingOverlay({
           color={color}
           onSubmit={handleTextSubmit}
           onCancel={() => setTextInput(null)}
+        />
+      )}
+      {ctxMenu && (
+        <DrawingContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onDelete={() => { removeDrawing(ctxMenu.drawingId); setSelectedId(null); setCtxMenu(null) }}
+          onClose={() => setCtxMenu(null)}
         />
       )}
     </>
@@ -960,5 +991,63 @@ function TextInputOverlay({ x, y, color, onSubmit, onCancel }) {
         outline: 'none',
       }}
     />
+  )
+}
+
+// ─── Right-click context menu ───────────────────────────────────────────────
+
+function DrawingContextMenu({ x, y, onDelete, onClose }) {
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  return (
+    <div
+      ref={menuRef}
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{
+        position: 'fixed',
+        left: x,
+        top: y,
+        zIndex: 20,
+        minWidth: 140,
+        background: '#1a1c17',
+        border: '1px solid #2e3127',
+        borderRadius: 4,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+        padding: '3px 0',
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 11,
+      }}
+    >
+      <button
+        onClick={onDelete}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          width: '100%',
+          padding: '6px 12px',
+          background: 'none',
+          border: 'none',
+          color: '#ef4444',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          fontSize: 'inherit',
+          textAlign: 'left',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+      >
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" />
+        </svg>
+        Delete Drawing
+      </button>
+    </div>
   )
 }

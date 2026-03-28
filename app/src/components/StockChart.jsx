@@ -304,6 +304,7 @@ export default function StockChart({
             drawings={drawings}
             addDrawing={addDrawing}
             updateDrawing={updateDrawing}
+            removeDrawing={removeDrawing}
             selectedId={selectedId}
             setSelectedId={setSelectedId}
           />
