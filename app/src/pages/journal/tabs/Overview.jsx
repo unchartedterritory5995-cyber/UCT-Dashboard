@@ -192,8 +192,12 @@ export default function Overview({ onSwitchTab, stats: parentStats, onOpenTrade 
                 key={insight.id}
                 insight={insight}
                 onAction={(ins) => {
-                  if (ins.action_type === 'filter' || ins.action_type === 'analytics') {
-                    handleSwitchToLog('setup', '')
+                  if (ins.action_type === 'filter') {
+                    // Navigate to Trade Log for exploration
+                    if (onSwitchTab) onSwitchTab('log')
+                  } else if (ins.action_type === 'analytics') {
+                    // Navigate to Analytics tab
+                    if (onSwitchTab) onSwitchTab('analytics')
                   } else if (ins.action_type === 'playbooks') {
                     if (onSwitchTab) onSwitchTab('playbooks')
                   } else if (ins.action_type === 'review') {

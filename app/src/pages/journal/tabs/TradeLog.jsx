@@ -1,7 +1,6 @@
 // app/src/pages/journal/tabs/TradeLog.jsx
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import useSWR from 'swr'
-import StatCard from '../components/StatCard'
 import FilterBar from '../components/FilterBar'
 import ImportWizard from '../components/ImportWizard'
 import styles from './TradeLog.module.css'
@@ -22,13 +21,13 @@ const SORTABLE_COLS = {
   direction: 'Dir',
   setup: 'Setup',
   entry_price: 'Entry',
-  exit_price: 'Exit',
   stop_price: 'Stop',
+  exit_price: 'Exit',
   realized_r: 'R',
   pnl_pct: 'P&L%',
   pnl_dollar: 'P&L$',
   process_score: 'Process',
-  review_status: 'Review',
+  status: 'Status',
 }
 
 const REVIEW_COLORS = {
@@ -53,6 +52,15 @@ function ReviewPill({ status }) {
   )
 }
 
+function StatusCell({ trade }) {
+  // Open trades get a blue OPEN badge
+  if (trade.status === 'open') {
+    return <span className={styles.openBadge}>OPEN</span>
+  }
+  // Closed/stopped trades show review status
+  return <ReviewPill status={trade.review_status} />
+}
+
 export default function TradeLog({ onOpenTrade, stats, onStatsChange, initialFilter }) {
   const [filters, setFilters] = useState(() => initialFilter ? { ...EMPTY_FILTERS, ...initialFilter } : EMPTY_FILTERS)
   const [page, setPage] = useState(0)
@@ -67,6 +75,21 @@ export default function TradeLog({ onOpenTrade, stats, onStatsChange, initialFil
       setPage(0)
     }
   }, [initialFilter])
+
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.date_from) count++
+    if (filters.date_to) count++
+    if (filters.symbol) count++
+    if (filters.direction) count++
+    if (filters.setup) count++
+    if (filters.status) count++
+    if (filters.review_status) count++
+    if (filters.has_screenshots) count++
+    if (filters.has_notes) count++
+    return count
+  }, [filters])
 
   // Build query string from filters
   const queryString = useMemo(() => {
@@ -142,18 +165,6 @@ export default function TradeLog({ onOpenTrade, stats, onStatsChange, initialFil
 
   return (
     <div className={styles.wrap}>
-      {/* Stats strip */}
-      {stats && (
-        <div className={styles.statsStrip}>
-          <StatCard label="Net P&L" value={stats.total_pnl_pct} format="pct" accent="auto" />
-          <StatCard label="Win Rate" value={stats.win_rate} format="pct" accent="neutral" />
-          <StatCard label="Avg R" value={stats.avg_r} format="r" accent="auto" />
-          <StatCard label="Profit Factor" value={stats.profit_factor} format="ratio" accent="neutral" />
-          <StatCard label="Expectancy" value={stats.expectancy} format="pct" accent="auto" />
-          <StatCard label="Process" value={stats.avg_process_score} format="score" accent="neutral" suffix="/100" />
-        </div>
-      )}
-
       {/* Filter bar + Import button */}
       <div className={styles.filterRow}>
         <FilterBar filters={filters} onChange={handleFiltersChange} />
@@ -214,58 +225,75 @@ export default function TradeLog({ onOpenTrade, stats, onStatsChange, initialFil
                 </tr>
               </thead>
               <tbody>
-                {trades.map(trade => (
-                  <tr
-                    key={trade.id}
-                    className={styles.row}
-                    onClick={() => onOpenTrade(trade.id)}
-                  >
-                    <td className={styles.dateCell}>{trade.entry_date || '--'}</td>
-                    <td className={styles.symCell}>{trade.sym || '--'}</td>
-                    <td>
-                      <span className={trade.direction === 'short' ? styles.shortBadge : styles.longBadge}>
-                        {(trade.direction || 'long').toUpperCase()}
-                      </span>
-                    </td>
-                    <td className={styles.setupCell}>{trade.setup || '--'}</td>
-                    <td className={styles.numCell}>{fmtPrice(trade.entry_price)}</td>
-                    <td className={styles.numCell}>{fmtPrice(trade.exit_price)}</td>
-                    <td className={styles.stopCell}>{fmtPrice(trade.stop_price)}</td>
-                    <td className={styles.rCell}>
-                      {trade.realized_r != null ? (
-                        <span className={trade.realized_r >= 0 ? styles.pnlGain : styles.pnlLoss}>
-                          {fmtR(trade.realized_r)}
+                {trades.map(trade => {
+                  const isOpen = trade.status === 'open'
+                  return (
+                    <tr
+                      key={trade.id}
+                      className={styles.row}
+                      onClick={() => onOpenTrade(trade.id)}
+                    >
+                      <td className={styles.dateCell}>{trade.entry_date || '--'}</td>
+                      <td className={styles.symCell}>{trade.sym || '--'}</td>
+                      <td>
+                        <span className={trade.direction === 'short' ? styles.shortBadge : styles.longBadge}>
+                          {(trade.direction || 'long').toUpperCase()}
                         </span>
-                      ) : '--'}
-                    </td>
-                    <td>
-                      {trade.pnl_pct != null ? (
-                        <span className={trade.pnl_pct >= 0 ? styles.pnlGain : styles.pnlLoss}>
-                          {fmtPnl(trade.pnl_pct)}
-                        </span>
-                      ) : '--'}
-                    </td>
-                    <td>
-                      {trade.pnl_dollar != null ? (
-                        <span className={trade.pnl_dollar >= 0 ? styles.pnlGain : styles.pnlLoss}>
-                          {fmtDollar(trade.pnl_dollar)}
-                        </span>
-                      ) : '--'}
-                    </td>
-                    <td className={styles.processCell}>
-                      {trade.process_score != null ? (
-                        <span className={
-                          trade.process_score >= 61 ? styles.processGood :
-                          trade.process_score >= 31 ? styles.processOk :
-                          styles.processBad
-                        }>
-                          {trade.process_score}
-                        </span>
-                      ) : '--'}
-                    </td>
-                    <td><ReviewPill status={trade.review_status} /></td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className={styles.setupCell}>{trade.setup || '--'}</td>
+                      <td className={styles.numCell}>{fmtPrice(trade.entry_price)}</td>
+                      <td className={styles.stopCell}>
+                        {trade.stop_price != null ? (
+                          <span className={styles.stopText}>{fmtPrice(trade.stop_price)}</span>
+                        ) : '--'}
+                      </td>
+                      <td className={styles.numCell}>
+                        {isOpen ? (
+                          <span className={styles.dashMuted}>--</span>
+                        ) : fmtPrice(trade.exit_price)}
+                      </td>
+                      <td className={styles.rCell}>
+                        {isOpen ? (
+                          <span className={styles.dashMuted}>--</span>
+                        ) : trade.realized_r != null ? (
+                          <span className={trade.realized_r >= 0 ? styles.pnlGain : styles.pnlLoss}>
+                            {fmtR(trade.realized_r)}
+                          </span>
+                        ) : '--'}
+                      </td>
+                      <td>
+                        {isOpen ? (
+                          <span className={styles.openBadge}>OPEN</span>
+                        ) : trade.pnl_pct != null ? (
+                          <span className={trade.pnl_pct >= 0 ? styles.pnlGain : styles.pnlLoss}>
+                            {fmtPnl(trade.pnl_pct)}
+                          </span>
+                        ) : '--'}
+                      </td>
+                      <td>
+                        {isOpen ? (
+                          <span className={styles.dashMuted}>--</span>
+                        ) : trade.pnl_dollar != null ? (
+                          <span className={trade.pnl_dollar >= 0 ? styles.pnlGain : styles.pnlLoss}>
+                            {fmtDollar(trade.pnl_dollar)}
+                          </span>
+                        ) : '--'}
+                      </td>
+                      <td className={styles.processCell}>
+                        {trade.process_score != null ? (
+                          <span className={
+                            trade.process_score >= 61 ? styles.processGood :
+                            trade.process_score >= 31 ? styles.processOk :
+                            styles.processBad
+                          }>
+                            {trade.process_score}
+                          </span>
+                        ) : '--'}
+                      </td>
+                      <td><StatusCell trade={trade} /></td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

@@ -39,10 +39,22 @@ const BY_CATEGORY = CATEGORIES.map(cat => ({
 export default function MistakeSelector({ selected, onChange }) {
   const [customInput, setCustomInput] = useState('')
 
+  // selected === '' means "reviewed, no mistakes found" (distinct from null = not yet reviewed)
+  const isNoMistakes = selected === ''
   const selectedSet = useMemo(() => {
     if (!selected) return new Set()
     return new Set(selected.split(',').map(s => s.trim()).filter(Boolean))
   }, [selected])
+
+  function handleNoMistakes() {
+    // Toggle: if already marked as no mistakes, set to null (unreviewed)
+    // If has mistakes or null, set to empty string (no mistakes)
+    if (isNoMistakes) {
+      onChange(null)
+    } else {
+      onChange('')
+    }
+  }
 
   function toggle(id) {
     const next = new Set(selectedSet)
@@ -77,6 +89,15 @@ export default function MistakeSelector({ selected, onChange }) {
 
   return (
     <div className={styles.wrap}>
+      {/* No mistakes button */}
+      <button
+        type="button"
+        className={`${styles.noMistakesBtn} ${isNoMistakes ? styles.noMistakesBtnActive : ''}`}
+        onClick={handleNoMistakes}
+      >
+        {isNoMistakes ? '\u2713 ' : ''}No mistakes on this trade
+      </button>
+
       {/* Selected chips */}
       {selectedSet.size > 0 && (
         <div className={styles.chips}>

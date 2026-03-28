@@ -258,6 +258,28 @@ def init_db():
             conn.commit()
             print("[auth] Migrated: added full_name column to users")
 
+        # Trading accounts table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS trading_accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                broker TEXT,
+                account_number TEXT,
+                balance REAL NOT NULL DEFAULT 50000,
+                initial_balance REAL NOT NULL DEFAULT 50000,
+                max_risk_pct REAL DEFAULT 1.0,
+                max_position_pct REAL DEFAULT 10.0,
+                is_default INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_trading_accounts_user ON trading_accounts(user_id)")
+        conn.commit()
+
         # Journal v2 migration
         _migrate_journal_v2(conn)
 

@@ -23,6 +23,7 @@ from api.services.daily_journal_service import (
 from api.services.journal_analytics import get_analytics, VALID_GROUP_BY
 from api.services import playbook_service, resource_service
 from api.services import journal_insights, journal_import, journal_ai
+from api.services import trading_accounts
 
 router = APIRouter()
 
@@ -487,6 +488,66 @@ def get_ai_digest(
 ):
     """Generate weekly AI digest for the given week."""
     return journal_ai.generate_weekly_digest(user["id"], week)
+
+
+# ── Trading Accounts ─────────────────────────────────────────────────────────
+
+class AccountCreate(BaseModel):
+    name: str
+    broker: Optional[str] = None
+    account_number: Optional[str] = None
+    balance: Optional[float] = 50000
+    initial_balance: Optional[float] = None
+    max_risk_pct: Optional[float] = 1.0
+    max_position_pct: Optional[float] = 10.0
+    is_default: Optional[bool] = False
+
+
+class AccountUpdate(BaseModel):
+    name: Optional[str] = None
+    broker: Optional[str] = None
+    account_number: Optional[str] = None
+    balance: Optional[float] = None
+    initial_balance: Optional[float] = None
+    max_risk_pct: Optional[float] = None
+    max_position_pct: Optional[float] = None
+
+
+@router.get("/api/journal/accounts")
+def list_accounts(user: dict = Depends(get_current_user)):
+    return trading_accounts.list_accounts(user["id"])
+
+
+@router.post("/api/journal/accounts")
+def create_account(body: AccountCreate, user: dict = Depends(get_current_user)):
+    data = body.model_dump()
+    if data.get("initial_balance") is None:
+        data["initial_balance"] = data.get("balance", 50000)
+    return trading_accounts.create_account(user["id"], data)
+
+
+@router.put("/api/journal/accounts/{account_id}")
+def update_account(account_id: int, body: AccountUpdate, user: dict = Depends(get_current_user)):
+    data = {k: v for k, v in body.model_dump().items() if v is not None}
+    result = trading_accounts.update_account(user["id"], account_id, data)
+    if not result:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return result
+
+
+@router.delete("/api/journal/accounts/{account_id}")
+def delete_account(account_id: int, user: dict = Depends(get_current_user)):
+    if not trading_accounts.delete_account(user["id"], account_id):
+        raise HTTPException(status_code=404, detail="Account not found")
+    return {"ok": True}
+
+
+@router.put("/api/journal/accounts/{account_id}/default")
+def set_default_account(account_id: int, user: dict = Depends(get_current_user)):
+    result = trading_accounts.set_default(user["id"], account_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return result
 
 
 # ── Portfolio (open positions view) ──────────────────────────────────────────

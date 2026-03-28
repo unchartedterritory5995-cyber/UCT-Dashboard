@@ -17,7 +17,7 @@
   border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 
-/* ── Rows ── */
+/* -- Rows -- */
 .row {
   display: flex;
   gap: 10px;
@@ -37,7 +37,7 @@
   gap: 10px;
 }
 
-/* ── Groups ── */
+/* -- Groups -- */
 .group {
   display: flex;
   flex-direction: column;
@@ -62,7 +62,7 @@
   text-transform: uppercase;
 }
 
-/* ── Inputs ── */
+/* -- Inputs -- */
 .input {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -82,6 +82,10 @@
 
 .inputNarrow {
   width: 90px;
+}
+
+.inputWide {
+  width: 180px;
 }
 
 select.input {
@@ -109,7 +113,7 @@ select.input {
   border-color: var(--ut-gold);
 }
 
-/* ── Direction toggle ── */
+/* -- Direction toggle -- */
 .dirToggle {
   display: flex;
   border: 1px solid var(--border);
@@ -140,7 +144,7 @@ select.input {
   color: var(--loss);
 }
 
-/* ── Confidence pills ── */
+/* -- Confidence pills -- */
 .confidencePills {
   display: flex;
   gap: 3px;
@@ -174,32 +178,144 @@ select.input {
   border-color: var(--ut-gold-glow);
 }
 
-/* ── R:R preview ── */
-.rrPreview {
+/* -- Risk/Reward Panel -- */
+.rrPanel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+
+.rrStats {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.rrStat {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 0 4px;
+  flex: 1;
+  min-width: 0;
 }
 
-.rrLabel {
+.rrStatLabel {
   font-family: var(--font-mono);
   font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.rrStatValue {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.rrStatRisk {
+  color: var(--loss);
+}
+
+.rrStatReward {
+  color: var(--gain);
+}
+
+.rrStatRR {
+  color: var(--ut-gold);
+}
+
+.rrDivider {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.rrBarWrap {
+  margin-top: 8px;
+}
+
+.rrBar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.rrBarRisk {
+  background: rgba(248,113,113,0.5);
+  transition: width 0.2s ease;
+}
+
+.rrBarReward {
+  background: rgba(74,222,128,0.5);
+  transition: width 0.2s ease;
+}
+
+/* -- Calculated readouts (inline) -- */
+.calcReadout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 0 6px;
+}
+
+.calcLabel {
+  font-family: var(--font-mono);
+  font-size: 8px;
   font-weight: 600;
   letter-spacing: 1px;
   color: var(--text-muted);
   text-transform: uppercase;
 }
 
-.rrValue {
+.calcValue {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
-  color: var(--ut-gold);
+  color: var(--text-bright);
 }
 
-/* ── Error ── */
+.calcRisk {
+  color: var(--loss);
+}
+
+/* -- Exit toggle -- */
+.exitToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.exitToggleIcon {
+  font-size: 10px;
+  color: var(--text-muted);
+  width: 12px;
+}
+
+.exitBadge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(107,163,190,0.12);
+  color: var(--info);
+  margin-left: auto;
+}
+
+/* -- Error -- */
 .error {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -210,7 +326,7 @@ select.input {
   padding: 6px 10px;
 }
 
-/* ── Actions ── */
+/* -- Actions -- */
 .actions {
   display: flex;
   gap: 10px;
@@ -258,7 +374,7 @@ select.input {
   border-color: var(--border-accent);
 }
 
-/* ── Mobile ── */
+/* -- Mobile -- */
 @media (max-width: 640px) {
   .row,
   .contextRow {
@@ -277,6 +393,10 @@ select.input {
     width: 100%;
   }
 
+  .inputWide {
+    width: 100%;
+  }
+
   select.input {
     min-width: 0;
     width: 100%;
@@ -288,5 +408,18 @@ select.input {
 
   .textareaGroup {
     width: 100%;
+  }
+
+  .rrStats {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .rrStat {
+    min-width: 60px;
+  }
+
+  .rrDivider {
+    display: none;
   }
 }

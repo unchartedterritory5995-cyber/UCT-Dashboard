@@ -7,20 +7,17 @@
   padding-top: 16px;
 }
 
-/* ── Stats strip ── */
-.statsStrip {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-/* ── Filter row + Import button ── */
+/* -- Filter row + Import button -- */
 .filterRow {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   margin-bottom: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  padding: 4px 0 8px;
 }
 
 .filterRow > :first-child {
@@ -50,7 +47,7 @@
   color: var(--ut-gold);
 }
 
-/* ── Loading / Error / Empty ── */
+/* -- Loading / Error / Empty -- */
 .loading {
   display: flex;
   flex-direction: column;
@@ -148,7 +145,7 @@
   line-height: 1.5;
 }
 
-/* ── Table ── */
+/* -- Table -- */
 .tableWrap {
   overflow-x: auto;
   border: 1px solid var(--border);
@@ -191,7 +188,7 @@
   color: var(--ut-gold);
 }
 
-/* ── Table rows ── */
+/* -- Table rows -- */
 .row {
   cursor: pointer;
   transition: background var(--duration-fast);
@@ -211,7 +208,7 @@
   border-bottom: none;
 }
 
-/* ── Cell types ── */
+/* -- Cell types -- */
 .dateCell {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -247,9 +244,12 @@
 .stopCell {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--loss);
-  opacity: 0.7;
   white-space: nowrap;
+}
+
+.stopText {
+  color: var(--loss);
+  opacity: 0.8;
 }
 
 .rCell {
@@ -264,7 +264,12 @@
   white-space: nowrap;
 }
 
-/* ── P&L coloring ── */
+.dashMuted {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+/* -- P&L coloring -- */
 .pnlGain {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -279,7 +284,7 @@
   color: var(--loss);
 }
 
-/* ── Process score colors ── */
+/* -- Process score colors -- */
 .processGood {
   color: var(--gain);
   font-weight: 600;
@@ -295,7 +300,7 @@
   font-weight: 600;
 }
 
-/* ── Direction badges ── */
+/* -- Direction badges -- */
 .longBadge {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -320,7 +325,21 @@
   white-space: nowrap;
 }
 
-/* ── Review pill ── */
+/* -- OPEN badge -- */
+.openBadge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: rgba(107,163,190,0.15);
+  color: var(--info);
+  border: 1px solid rgba(107,163,190,0.3);
+  white-space: nowrap;
+}
+
+/* -- Review pill -- */
 .reviewPill {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -332,7 +351,7 @@
   white-space: nowrap;
 }
 
-/* ── Pagination ── */
+/* -- Pagination -- */
 .pagination {
   display: flex;
   align-items: center;
@@ -386,21 +405,14 @@
   text-align: center;
 }
 
-/* ── Mobile ── */
-@media (max-width: 900px) {
-  .statsStrip {
-    gap: 6px;
-  }
-}
-
+/* -- Mobile -- */
 @media (max-width: 640px) {
   .wrap {
     padding-top: 12px;
   }
 
-  .statsStrip {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+  .filterRow {
+    flex-direction: column;
     gap: 6px;
   }
 

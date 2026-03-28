@@ -60,13 +60,14 @@ def _safe_int(val):
         return None
 
 
-def _compute_derived(data: dict, existing: dict = None) -> dict:
-    """Compute P&L, R-multiple, day_of_week, holding_minutes from fields."""
+def _compute_derived(data: dict, existing: dict = None, user_id: str = None) -> dict:
+    """Compute P&L, R-multiple, risk_dollars, size_pct, day_of_week, holding_minutes from fields."""
     merged = {**(existing or {}), **data}
 
     entry_price = _safe_float(merged.get("entry_price"))
     exit_price = _safe_float(merged.get("exit_price"))
     stop_price = _safe_float(merged.get("stop_price"))
+    shares = _safe_float(merged.get("shares"))
     direction = (merged.get("direction") or "long").lower()
 
     # P&L
@@ -77,14 +78,17 @@ def _compute_derived(data: dict, existing: dict = None) -> dict:
             pnl_pct = ((exit_price - entry_price) / entry_price) * 100
         data["pnl_pct"] = round(pnl_pct, 2)
 
-        shares = _safe_float(merged.get("shares"))
         if shares:
             if direction == "short":
                 data["pnl_dollar"] = round((entry_price - exit_price) * abs(shares), 2)
             else:
                 data["pnl_dollar"] = round((exit_price - entry_price) * abs(shares), 2)
 
-    # R-multiple
+    # Risk dollars: abs(entry - stop) * abs(shares)
+    if entry_price and stop_price and shares:
+        data["risk_dollars"] = round(abs(entry_price - stop_price) * abs(shares), 2)
+
+    # Realized R-multiple
     if entry_price and stop_price and exit_price and entry_price != stop_price:
         risk_per_share = abs(entry_price - stop_price)
         if direction == "short":
@@ -102,6 +106,17 @@ def _compute_derived(data: dict, existing: dict = None) -> dict:
         else:
             reward = target_price - entry_price
         data["planned_r"] = round(reward / risk, 2)
+
+    # Size % relative to account balance
+    if entry_price and shares and user_id:
+        try:
+            from api.services.trading_accounts import get_account_balance
+            account_name = merged.get("account")
+            balance = get_account_balance(user_id, account_name)
+            if balance and balance > 0:
+                data["size_pct"] = round((abs(shares) * entry_price) / balance * 100, 2)
+        except Exception:
+            pass
 
     # Day of week
     entry_date = merged.get("entry_date")
@@ -198,7 +213,7 @@ def create_entry(user_id: str, data: dict) -> dict:
     }
 
     # Compute derived fields
-    clean = _compute_derived(clean)
+    clean = _compute_derived(clean, user_id=user_id)
 
     cols = list(clean.keys()) + ["id", "user_id", "created_at", "updated_at"]
     vals = list(clean.values()) + [entry_id, user_id, now, now]
@@ -377,7 +392,7 @@ def update_entry(user_id: str, entry_id: str, data: dict) -> dict | None:
         updates["rating"] = min(max(_safe_int(updates["rating"]) or 0, 0), 5)
 
     # Compute derived fields
-    updates = _compute_derived(updates, existing)
+    updates = _compute_derived(updates, existing, user_id=user_id)
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     set_clause = ", ".join(f"{k} = ?" for k in updates)
