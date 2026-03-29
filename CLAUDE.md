@@ -13,7 +13,20 @@ This file provides guidance to Claude Code when working in this repository.
 - **Payments:** Stripe (sandbox + live), webhook at `/api/webhooks/stripe`
 - **Auth:** Custom SQLite-based auth with sessions, email verification, password reset
 
-The **Morning Wire** is one tab within this dashboard. Its engine (`morning_wire_engine.py`) lives in `C:\Users\Patrick\morning-wire\` and is imported by the backend.
+The **Morning Wire** is one tab within this dashboard. Its engine (`morning_wire_engine.py`) lives in `C:\Users\Patrick\morning-wire\` locally and is mirrored as a git submodule at `external/morning-wire`.
+
+## Git Submodules (sister repos)
+
+Both sibling repos are available as submodules under `external/` for Claude Code visibility:
+
+| Path | Repo | Description |
+|------|------|-------------|
+| `external/morning-wire` | unchartedterritory5995-cyber/morning-wire | Morning wire engine, runs locally on Windows |
+| `external/uct-intelligence` | unchartedterritory5995-cyber/uct-intelligence | Python/SQLite trading engine, knowledge base |
+
+**Path gotcha:** `api/services/engine.py` resolves morning-wire as `../../../morning-wire` (three levels up = outside the repo, finds the local `C:\Users\Patrick\morning-wire\`). On Railway, data flows via `/api/push` — the direct import is a local-dev fallback only. The submodule path (`external/morning-wire`) is NOT used by the backend at runtime.
+
+**Hardcoded local paths in engine.py:** Lines 1508 and 1540 reference `C:\Users\Patrick\uct-intelligence` — local fallbacks that fail silently on Railway (primary path is wire_data from push).
 
 ## Nav Tabs (left sidebar)
 
