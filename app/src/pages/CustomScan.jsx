@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import useSWR from 'swr'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
+import { useFlagged } from '../hooks/useFlagged'
 import styles from './CustomScan.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -308,6 +309,14 @@ export default function CustomScan({ allCandidates }) {
   const [selectedSym, setSelectedSym]   = useState(null)
   const [selectedName, setSelectedName] = useState('')
   const [chartPeriod, setChartPeriod]   = useState('D')
+  const [flagToast, setFlagToast]      = useState(null)
+  const { toggle: toggleFlag, isFlagged } = useFlagged()
+
+  useEffect(() => {
+    if (!flagToast) return
+    const t = setTimeout(() => setFlagToast(null), 1500)
+    return () => clearTimeout(t)
+  }, [flagToast])
 
   // Dynamic sector options
   const sectorOptions = useMemo(() => {
@@ -609,6 +618,16 @@ export default function CustomScan({ allCandidates }) {
               <div className={styles.chartHeader}>
                 <SymbolSearch sym={selectedSym} onSymbolChange={setSelectedSym} />
                 <span className={styles.chartName}>{selectedName}</span>
+                {flagToast && (
+                  <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
+                    {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
+                  </span>
+                )}
+                <button
+                  className={`${styles.flagBtn}${isFlagged(selectedSym) ? ' ' + styles.flagBtnActive : ''}`}
+                  onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
+                  title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
+                >⚑ {isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
                 <div className={styles.chartPeriodTabs}>
                   {[['5', '5min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly']].map(([p, label]) => (
                     <button

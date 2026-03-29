@@ -39,7 +39,7 @@ export default function Watchlists() {
   const [createForm, setCreateForm] = useState({ name: '', description: '', is_public: false })
   const [saving, setSaving] = useState(false)
 
-  const { flagged, remove: removeFlagged } = useFlagged()
+  const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
 
@@ -335,8 +335,15 @@ export default function Watchlists() {
             <div className={styles.chartHeader}>
               <SymbolSearch sym={selectedSym} onSymbolChange={setSelectedSym} />
               {flagToast && (
-                <span className={`${styles.flagToast} ${styles.flagToastRemoved}`}>⚑ Removed</span>
+                <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
+                  {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
+                </span>
               )}
+              <button
+                className={`${styles.flagBtn}${isFlagged(selectedSym) ? ' ' + styles.flagBtnActive : ''}`}
+                onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
+                title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
+              >⚑ {isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
               <div className={styles.chartPeriodTabs}>
                 {PERIODS.map(([p, label]) => (
                   <button

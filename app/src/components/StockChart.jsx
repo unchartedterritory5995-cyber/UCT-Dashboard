@@ -128,6 +128,7 @@ export default function StockChart({
         timeVisible: true,
         secondsVisible: false,
         rightOffset: 8,
+        rightBarStaysOnScroll: true,
       },
       autoSize: true,
       watermark: cs.watermark.visible && (watermark || sym) ? {
