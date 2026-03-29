@@ -1,0 +1,6 @@
+[submodule "external/morning-wire"]
+	path = external/morning-wire
+	url = https://github.com/unchartedterritory5995-cyber/morning-wire.git
+[submodule "external/uct-intelligence"]
+	path = external/uct-intelligence
+	url = https://github.com/unchartedterritory5995-cyber/uct-intelligence.git
