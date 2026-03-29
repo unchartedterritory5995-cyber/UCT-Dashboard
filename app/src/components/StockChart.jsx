@@ -110,6 +110,13 @@ export default function StockChart({
   const [drawColor, setDrawColor] = useState('#c9a84c')
   const [drawWidth, setDrawWidth] = useState(1)
   const [selectedId, setSelectedId] = useState(null)
+  const [repeatMode, setRepeatMode] = useState(() => {
+    try { return localStorage.getItem('uct-draw-repeat') !== 'false' } catch { return true }
+  })
+  const handleSetRepeatMode = useCallback((val) => {
+    setRepeatMode(val)
+    try { localStorage.setItem('uct-draw-repeat', val ? 'true' : 'false') } catch {}
+  }, [])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
 
   const { data, error, mutate } = useSWR(
@@ -307,6 +314,7 @@ export default function StockChart({
             removeDrawing={removeDrawing}
             selectedId={selectedId}
             setSelectedId={setSelectedId}
+            repeatMode={repeatMode}
           />
           <ChartToolbar
             activeTool={activeTool}
@@ -319,6 +327,8 @@ export default function StockChart({
             onDelete={() => { removeDrawing(selectedId); setSelectedId(null) }}
             onClearAll={clearAll}
             drawingCount={drawings.length}
+            repeatMode={repeatMode}
+            setRepeatMode={handleSetRepeatMode}
           />
         </>
       )}

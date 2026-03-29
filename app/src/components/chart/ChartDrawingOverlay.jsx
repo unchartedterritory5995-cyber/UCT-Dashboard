@@ -432,6 +432,7 @@ export default function ChartDrawingOverlay({
   color, lineWidth,
   drawings, addDrawing, updateDrawing, removeDrawing,
   selectedId, setSelectedId,
+  repeatMode = true,
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
@@ -790,11 +791,12 @@ export default function ChartDrawingOverlay({
         }
         addDrawing(drawingData)
         setPendingPoints([])
+        if (!repeatMode) setActiveTool(null)
       } else {
         setPendingPoints(newPending)
       }
     }
-  }, [activeTool, pendingPoints, color, lineWidth, toChart, addDrawing, setSelectedId, timeToIndex, drawings, hitTestAll, hitTestHandle])
+  }, [activeTool, pendingPoints, color, lineWidth, toChart, addDrawing, setSelectedId, timeToIndex, drawings, hitTestAll, hitTestHandle, repeatMode])
 
   const handleMouseMove = useCallback((e) => {
     const pos = getCanvasPos(e)
@@ -931,6 +933,7 @@ export default function ChartDrawingOverlay({
       fontSize: 13,
     })
     setTextInput(null)
+    if (!repeatMode) setActiveTool(null)
   }
 
   // ── Determine cursor ──

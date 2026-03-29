@@ -11,6 +11,7 @@ const I = (children) => (
 )
 
 const ICONS = {
+  repeat:     I(<><path d="M11.5 2.5L14 5l-2.5 2.5" fill="none" /><path d="M2 8V7a3 3 0 013-3h9" fill="none" /><path d="M4.5 13.5L2 11l2.5-2.5" fill="none" /><path d="M14 8v1a3 3 0 01-3 3H2" fill="none" /></>),
   cursor:     I(<path d="M4 2v11l2.5-2.5L9 14l1.5-1-2.5-3.5H12z" fill="currentColor" stroke="none" />),
   trendline:  I(<line x1="3" y1="13" x2="13" y2="3" />),
   ray:        I(<><line x1="3" y1="13" x2="13" y2="3" /><polyline points="13,3 9,3 13,7" fill="none" /></>),
@@ -72,6 +73,7 @@ export default function ChartToolbar({
   lineWidth, setLineWidth,
   hasSelection, onDelete, onClearAll,
   drawingCount,
+  repeatMode, setRepeatMode,
 }) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -116,6 +118,17 @@ export default function ChartToolbar({
 
       {/* ── Bottom actions ── */}
       <div className={styles.actions}>
+        <div className={styles.sep} />
+
+        {/* Repeat mode toggle */}
+        <button
+          className={`${styles.btn} ${repeatMode ? styles.active : ''}`}
+          onClick={() => setRepeatMode(!repeatMode)}
+          title={repeatMode ? 'Repeat drawing: ON — click to disable' : 'Repeat drawing: OFF — click to enable'}
+        >
+          {ICONS.repeat}
+        </button>
+
         <div className={styles.sep} />
 
         {/* Color picker */}
