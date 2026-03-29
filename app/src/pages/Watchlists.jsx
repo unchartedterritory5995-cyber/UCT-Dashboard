@@ -346,7 +346,7 @@ export default function Watchlists() {
                 ))}
               </div>
             </div>
-            <StockChart sym={selectedSym} tf={chartPeriod} />
+            <StockChart sym={selectedSym} tf={chartPeriod} onSymbolChange={setSelectedSym} />
           </>
         ) : (
           <div className={styles.chartEmpty}>

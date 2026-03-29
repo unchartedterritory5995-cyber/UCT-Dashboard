@@ -620,7 +620,7 @@ export default function CustomScan({ allCandidates }) {
                   ))}
                 </div>
               </div>
-              <StockChart sym={selectedSym} tf={chartPeriod} />
+              <StockChart sym={selectedSym} tf={chartPeriod} onSymbolChange={setSelectedSym} />
             </>
           ) : (
             <div className={styles.chartEmpty}>

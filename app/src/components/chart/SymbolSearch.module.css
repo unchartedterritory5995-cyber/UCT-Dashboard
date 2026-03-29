@@ -1,0 +1,116 @@
+/* app/src/components/chart/SymbolSearch.module.css */
+
+.wrap {
+  position: absolute;
+  top: 32px;
+  left: 6px;
+  z-index: 6;
+  pointer-events: auto;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.5px;
+  color: #c9a84c;
+  background: rgba(26, 28, 23, 0.9);
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.badge:hover {
+  background: rgba(201, 168, 76, 0.12);
+  border-color: rgba(201, 168, 76, 0.4);
+}
+.badge svg {
+  opacity: 0.5;
+}
+.badge:hover svg {
+  opacity: 1;
+}
+
+.dropdown {
+  position: absolute;
+  left: 0;
+  top: 28px;
+  width: 220px;
+  background: #1a1c17;
+  border: 1px solid #2e3127;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  z-index: 20;
+}
+
+.inputRow {
+  padding: 6px;
+  border-bottom: 1px solid #2e3127;
+}
+
+.input {
+  width: 100%;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #e2dfd6;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 0 8px;
+  outline: none;
+  box-sizing: border-box;
+}
+.input:focus {
+  border-color: rgba(201, 168, 76, 0.5);
+}
+.input::placeholder {
+  color: #555;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.list {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: #2e3127 transparent;
+}
+.list::-webkit-scrollbar { width: 4px; }
+.list::-webkit-scrollbar-track { background: transparent; }
+.list::-webkit-scrollbar-thumb { background: #2e3127; border-radius: 2px; }
+
+.item {
+  padding: 4px 8px;
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: #a8a290;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2dfd6;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.item.itemActive {
+  background: rgba(201, 168, 76, 0.15);
+  border-color: rgba(201, 168, 76, 0.4);
+  color: #c9a84c;
+}

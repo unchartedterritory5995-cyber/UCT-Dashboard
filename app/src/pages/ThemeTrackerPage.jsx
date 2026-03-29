@@ -341,7 +341,7 @@ export default function ThemeTrackerPage() {
                 ))}
               </div>
             </div>
-            <StockChart sym={selectedSym} tf={chartPeriod} />
+            <StockChart sym={selectedSym} tf={chartPeriod} onSymbolChange={(s) => { setSelectedSym(s); setSelectedName('') }} />
             <div className={styles.newsLabel}>News — {selectedSym}</div>
           </>
         ) : (
