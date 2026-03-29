@@ -51,7 +51,7 @@ export default function StockChart({
   className = '',
   showDrawingTools = true,
 }) {
-  const { prefs } = usePreferences()
+  const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
 
   // ── Chart settings from user preferences ──
@@ -79,6 +79,9 @@ export default function StockChart({
     setRepeatMode(val)
     try { localStorage.setItem('uct-draw-repeat', val ? 'true' : 'false') } catch {}
   }, [])
+  const handleUpdateChartSettings = useCallback((newSettings) => {
+    setPref('chart_settings', JSON.stringify(newSettings))
+  }, [setPref])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
 
   const { data, error, mutate } = useSWR(
@@ -364,6 +367,8 @@ export default function StockChart({
             drawingCount={drawings.length}
             repeatMode={repeatMode}
             setRepeatMode={handleSetRepeatMode}
+            chartSettings={cs}
+            onUpdateSettings={handleUpdateChartSettings}
           />
         </>
       )}

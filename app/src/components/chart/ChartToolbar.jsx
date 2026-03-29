@@ -1,5 +1,7 @@
-// app/src/components/chart/ChartToolbar.jsx — TradingView-style vertical drawing toolbar
-import { useState, useRef, useEffect } from 'react'
+// app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
+import ColorPicker from './ColorPicker'
 import styles from './ChartToolbar.module.css'
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
@@ -12,6 +14,7 @@ const I = (children) => (
 
 const ICONS = {
   repeat:     I(<><path d="M11.5 2.5L14 5l-2.5 2.5" fill="none" /><path d="M2 8V7a3 3 0 013-3h9" fill="none" /><path d="M4.5 13.5L2 11l2.5-2.5" fill="none" /><path d="M14 8v1a3 3 0 01-3 3H2" fill="none" /></>),
+  settings:   I(<><circle cx="8" cy="8" r="2.5" /><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4" /></>),
   cursor:     I(<path d="M4 2v11l2.5-2.5L9 14l1.5-1-2.5-3.5H12z" fill="currentColor" stroke="none" />),
   trendline:  I(<line x1="3" y1="13" x2="13" y2="3" />),
   ray:        I(<><line x1="3" y1="13" x2="13" y2="3" /><polyline points="13,3 9,3 13,7" fill="none" /></>),
@@ -54,19 +57,189 @@ const TOOLS = [
 ]
 
 const COLORS = [
-  '#c9a84c', // gold
-  '#4ade80', // green
-  '#ef4444', // red
-  '#60a5fa', // blue
-  '#f472b6', // pink
-  '#fb923c', // orange
-  '#a78bfa', // purple
-  '#e2e8f0', // light gray
+  '#c9a84c', '#4ade80', '#ef4444', '#60a5fa',
+  '#f472b6', '#fb923c', '#a78bfa', '#e2e8f0',
 ]
 
 const WIDTHS = [1, 2, 3]
 
-// ─── Component ───────────────────────────────────────────────────────────────
+const CHART_TYPES = [
+  { value: 'candles', label: 'Candles' },
+  { value: 'hollow',  label: 'Hollow' },
+  { value: 'bars',    label: 'Bars' },
+  { value: 'line',    label: 'Line' },
+  { value: 'area',    label: 'Area' },
+]
+
+const CROSSHAIR_STYLES = [
+  { value: 0, label: 'Solid' },
+  { value: 2, label: 'Dashed' },
+  { value: 3, label: 'Dotted' },
+]
+
+// ─── Settings Panel (inline in chart) ────────────────────────────────────────
+
+function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
+  const cs = chartSettings
+
+  const update = useCallback((path, value) => {
+    const next = { ...cs }
+    if (path.includes('.')) {
+      const [section, key] = path.split('.')
+      next[section] = { ...next[section], [key]: value }
+    } else {
+      next[path] = value
+    }
+    next.preset = 'custom'
+    onUpdateSettings(next)
+  }, [cs, onUpdateSettings])
+
+  const updateOverlay = useCallback((idx, field, value) => {
+    const next = { ...cs }
+    next.overlays = next.overlays.map((o, i) =>
+      i === idx ? { ...o, [field]: field === 'period' ? (parseInt(value) || o.period) : value } : o
+    )
+    next.preset = 'custom'
+    onUpdateSettings(next)
+  }, [cs, onUpdateSettings])
+
+  const applyPreset = useCallback((key) => {
+    const preset = PRESETS[key]
+    if (preset) onUpdateSettings(preset.settings)
+  }, [onUpdateSettings])
+
+  return (
+    <div className={styles.settingsPanel}>
+      {/* Presets */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Preset</span>
+        <div className={styles.presetRow}>
+          {Object.entries(PRESETS).map(([key, p]) => (
+            <button
+              key={key}
+              className={`${styles.presetBtn} ${cs.preset === key ? styles.presetActive : ''}`}
+              onClick={() => applyPreset(key)}
+            >
+              <span className={styles.presetDot} style={{ background: p.swatch }} />
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Chart Type */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Type</span>
+        <div className={styles.sPills}>
+          {CHART_TYPES.map(ct => (
+            <button
+              key={ct.value}
+              className={`${styles.sPill} ${cs.chartType === ct.value ? styles.sPillActive : ''}`}
+              onClick={() => update('chartType', ct.value)}
+            >
+              {ct.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Candle Colors */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Candles</span>
+        <div className={styles.sRow}>
+          <ColorPicker label="Up" value={cs.candles.upColor} onChange={v => {
+            const next = { ...cs, candles: { ...cs.candles, upColor: v, upBorder: v, upWick: v }, preset: 'custom' }
+            onUpdateSettings(next)
+          }} />
+          <ColorPicker label="Down" value={cs.candles.downColor} onChange={v => {
+            const next = { ...cs, candles: { ...cs.candles, downColor: v, downBorder: v, downWick: v }, preset: 'custom' }
+            onUpdateSettings(next)
+          }} />
+        </div>
+      </div>
+
+      {/* Background & Grid */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Background</span>
+        <div className={styles.sRow}>
+          <ColorPicker label="BG" value={cs.background} onChange={v => update('background', v)} />
+          <ColorPicker label="Text" value={cs.textColor} onChange={v => update('textColor', v)} />
+          <ColorPicker label="Grid" value={cs.grid.color} onChange={v => update('grid.color', v)} />
+        </div>
+        <div className={styles.sRow} style={{ marginTop: 6 }}>
+          <label className={styles.sCheck}>
+            <input type="checkbox" checked={cs.grid.visible} onChange={e => update('grid.visible', e.target.checked)} />
+            Grid
+          </label>
+          <label className={styles.sCheck}>
+            <input type="checkbox" checked={cs.watermark.visible} onChange={e => update('watermark.visible', e.target.checked)} />
+            Watermark
+          </label>
+        </div>
+      </div>
+
+      {/* Indicators */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Indicators</span>
+        {cs.overlays.map((ov, i) => (
+          <div key={i} className={styles.sOverlayRow}>
+            <input type="checkbox" checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
+            <select className={styles.sMiniSelect} value={ov.type} onChange={e => updateOverlay(i, 'type', e.target.value)}>
+              <option value="SMA">SMA</option>
+              <option value="EMA">EMA</option>
+            </select>
+            <input
+              type="number"
+              className={styles.sPeriodInput}
+              value={ov.period}
+              min={1} max={500}
+              onChange={e => updateOverlay(i, 'period', e.target.value)}
+            />
+            <ColorPicker value={ov.color} onChange={v => updateOverlay(i, 'color', v)} />
+          </div>
+        ))}
+      </div>
+
+      {/* Volume */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Volume</span>
+        <div className={styles.sRow}>
+          <label className={styles.sCheck}>
+            <input type="checkbox" checked={cs.volume.visible} onChange={e => update('volume.visible', e.target.checked)} />
+            Show
+          </label>
+          <label className={styles.sCheck}>
+            <input type="checkbox" checked={cs.volume.hvcEnabled} onChange={e => update('volume.hvcEnabled', e.target.checked)} />
+            HVC
+          </label>
+          <ColorPicker label="Up" value={cs.volume.upColor} onChange={v => update('volume.upColor', v)} />
+          <ColorPicker label="Dn" value={cs.volume.downColor} onChange={v => update('volume.downColor', v)} />
+        </div>
+      </div>
+
+      {/* Crosshair */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Crosshair</span>
+        <div className={styles.sRow}>
+          <ColorPicker value={cs.crosshair.color} onChange={v => update('crosshair.color', v)} />
+          <select className={styles.sMiniSelect} value={cs.crosshair.style} onChange={e => update('crosshair.style', parseInt(e.target.value))}>
+            {CROSSHAIR_STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Reset */}
+      <div className={styles.sGroup} style={{ borderBottom: 'none', paddingBottom: 0 }}>
+        <button className={styles.sResetBtn} onClick={() => { if (confirm('Reset chart settings?')) onUpdateSettings(CHART_DEFAULTS) }}>
+          Reset to Defaults
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Toolbar Component ──────────────────────────────────────────────────
+
 export default function ChartToolbar({
   activeTool, setActiveTool,
   color, setColor,
@@ -74,21 +247,25 @@ export default function ChartToolbar({
   hasSelection, onDelete, onClearAll,
   drawingCount,
   repeatMode, setRepeatMode,
+  chartSettings, onUpdateSettings,
 }) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const colorRef = useRef(null)
   const widthRef = useRef(null)
+  const settingsRef = useRef(null)
 
   // Close popups on outside click
   useEffect(() => {
     const handler = (e) => {
       if (showColors && colorRef.current && !colorRef.current.contains(e.target)) setShowColors(false)
       if (showWidths && widthRef.current && !widthRef.current.contains(e.target)) setShowWidths(false)
+      if (showSettings && settingsRef.current && !settingsRef.current.contains(e.target)) setShowSettings(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [showColors, showWidths])
+  }, [showColors, showWidths, showSettings])
 
   const selectTool = (id) => {
     if (id === 'cursor') {
@@ -96,6 +273,12 @@ export default function ChartToolbar({
     } else {
       setActiveTool(activeTool === id ? null : id)
     }
+  }
+
+  const closeOthers = (keep) => {
+    if (keep !== 'colors') setShowColors(false)
+    if (keep !== 'widths') setShowWidths(false)
+    if (keep !== 'settings') setShowSettings(false)
   }
 
   return (
@@ -124,10 +307,26 @@ export default function ChartToolbar({
         <button
           className={`${styles.btn} ${repeatMode ? styles.active : ''}`}
           onClick={() => setRepeatMode(!repeatMode)}
-          title={repeatMode ? 'Repeat drawing: ON — click to disable' : 'Repeat drawing: OFF — click to enable'}
+          title={repeatMode ? 'Repeat drawing: ON' : 'Repeat drawing: OFF'}
         >
           {ICONS.repeat}
         </button>
+
+        {/* Chart settings */}
+        {chartSettings && onUpdateSettings && (
+          <div ref={settingsRef} className={styles.pickerWrap}>
+            <button
+              className={`${styles.btn} ${showSettings ? styles.active : ''}`}
+              onClick={() => { setShowSettings(!showSettings); closeOthers('settings') }}
+              title="Chart Settings"
+            >
+              {ICONS.settings}
+            </button>
+            {showSettings && (
+              <ChartSettingsPanel chartSettings={chartSettings} onUpdateSettings={onUpdateSettings} />
+            )}
+          </div>
+        )}
 
         <div className={styles.sep} />
 
@@ -135,7 +334,7 @@ export default function ChartToolbar({
         <div ref={colorRef} className={styles.pickerWrap}>
           <button
             className={styles.btn}
-            onClick={() => { setShowColors(!showColors); setShowWidths(false) }}
+            onClick={() => { setShowColors(!showColors); closeOthers('colors') }}
             title="Color"
           >
             <div className={styles.colorSwatch} style={{ background: color }} />
@@ -158,7 +357,7 @@ export default function ChartToolbar({
         <div ref={widthRef} className={styles.pickerWrap}>
           <button
             className={styles.btn}
-            onClick={() => { setShowWidths(!showWidths); setShowColors(false) }}
+            onClick={() => { setShowWidths(!showWidths); closeOthers('widths') }}
             title={`Line width: ${lineWidth}px`}
           >
             <svg viewBox="0 0 14 14" width="14" height="14">
