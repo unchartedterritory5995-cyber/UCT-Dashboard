@@ -27,13 +27,40 @@ Hamburger + slide-out drawer (hidden on desktop). Fixed header with page title +
 ## Charts — Lightweight Charts v5
 
 All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key component: `app/src/components/StockChart.jsx`.
-- Candlestick + volume (separate panes), 9/20/50/200 MA overlays
+- 5 chart types: candles, hollow, bars (OHLC), line, area — user-selectable
+- Candlestick + volume (separate panes), configurable MA overlays (4 slots)
 - HVC gold volume bars (52W volume high detection)
 - BUY/SELL markers, entry/stop price lines
 - 200-bar default zoom via `setVisibleLogicalRange`, 8-bar right padding
+- `rightBarStaysOnScroll: true` — latest candle stays pinned when zooming
 - Full history: 5000 daily, 2000 weekly, 300 intraday bars
 - Backend: `/api/bars/{ticker}?tf=D&bars=5000` (Massive API daily/weekly, yfinance intraday fallback)
 - **COT charts are Chart.js** — do NOT replace those
+
+### Chart Settings System
+- `app/src/components/chart/chartDefaults.js` — schema, defaults, 3 presets (Classic Dark / OLED Black / TradingView)
+- `chart_settings` JSON blob stored server-side via `usePreferences` (`POST /api/auth/preferences`)
+- `mergeChartSettings(userSettings)` deep-merges user prefs over defaults
+- **Gear icon** in chart toolbar opens inline settings panel (chart type, colors, indicators, volume, crosshair, watermark, drawing defaults, presets, reset)
+- Settings page also has a Chart Settings TileCard (mirror of toolbar panel)
+- `ColorPicker` component: `app/src/components/chart/ColorPicker.jsx` — reusable swatches + hex input
+
+### Chart Drawing Tools
+- `ChartDrawingOverlay.jsx` — canvas overlay for all annotations
+- `ChartToolbar.jsx` — horizontal toolbar with tool buttons + settings gear
+- Tools: cursor, trendline, extended, horizontal, hray, vertical, rect, circle, arrow, fib, channel, AVWAP, text, measure
+- **AVWAP**: anchored VWAP from click point forward, time-based lookup (not pixel), survives scroll/zoom
+- **Repeat toggle**: keeps tool selected (repeat ON) or reverts to cursor after one drawing (repeat OFF), persisted in localStorage
+- `useChartDrawings.js` — localStorage persistence per symbol
+- Drawing defaults (color, width) configurable in chart settings
+
+### Chart Header — Consistent UI Across All Surfaces
+- **SymbolSearch** (`app/src/components/chart/SymbolSearch.jsx`): clickable ticker title that opens search dropdown with popular tickers + type-any-ticker
+- Wired on: ThemeTrackerPage, Watchlists, CustomScan (via `onSymbolChange` prop)
+- Read-only on: Breadth DrillModal, Journal TradeDrawer (contextual, symbol locked)
+- **Flag button** (⚑ Flag/Flagged) on: ThemeTrackerPage, Watchlists, CustomScan, Breadth DrillModal, TickerPopup
+- **Period tabs**: 5min / 30min / 1hr / Daily / Weekly (Journal: Daily/Weekly only)
+- **TickerPopup**: click-to-open modal with StockChart, live price, flag, earnings intel, insider activity, position calculator. NO Finviz hover preview, NO external links
 
 ## Live Pricing
 
@@ -648,7 +675,7 @@ Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green 
 
 ---
 
-## Watchlists Page — Three-Tab Design (2026-03-27)
+## Watchlists Page — Two-Tab Design (updated 2026-03-28)
 
 ### Files
 - `app/src/pages/Watchlists.jsx` — full-page watchlists
@@ -658,13 +685,13 @@ Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green 
 
 ### Architecture
 - **Split panel**: left 260px list panel + right StockChart panel (same pattern as ThemeTrackerPage)
-- **Three tabs**: Flagged | My Lists | Community
-- **Flagged tab**: direct list from `useFlagged` hook (localStorage), live prices, arrow key nav, Shift+F remove, `×` button per row
-- **My Lists tab**: user-owned watchlists (accordion), expandable with items, add ticker form, toggle public/private (🔒/🔓), delete list
+- **Two tabs**: My Lists | Community
+- **My Lists tab**: "⚑ Flagged" pinned as first accordion group (expanded by default, localStorage via `useFlagged`), followed by user-created watchlists. Arrow key nav + Shift+F remove within flagged group.
+- **User watchlists**: accordion groups, expandable with items, add ticker form, toggle public/private (🔒/🔓), delete list
 - **Community tab**: all public watchlists (read-only), shows `owner_name`, expandable
 - **Live prices**: `useLivePrices` fed by `allTickers` useMemo — only tickers in expanded lists on active tab
 - **Create modal**: name + description + is_public checkbox
-- **Chart header**: flag button (⚑ Flagged) only shown when `activeTab === 'flagged'`
+- **Chart header**: SymbolSearch (clickable ticker title) + flag button + period tabs
 - **Period tabs**: 5min / 30min / 1hr / Daily / Weekly — centered in chart header
 
 ### API Endpoints
