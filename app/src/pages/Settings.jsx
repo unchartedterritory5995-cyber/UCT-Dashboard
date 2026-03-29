@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import usePreferences from '../hooks/usePreferences'
 import TileCard from '../components/TileCard'
+import ColorPicker from '../components/chart/ColorPicker'
+import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
 import styles from './Settings.module.css'
 
 const TF_OPTIONS = [
@@ -129,6 +131,265 @@ function AvatarUpload({ user }) {
 }
 
 // ── Referral Section ──
+// ─── Chart Settings Section ──────────────────────────────────────────────────
+
+const CHART_TYPES = [
+  { value: 'candles', label: 'Candles' },
+  { value: 'hollow',  label: 'Hollow' },
+  { value: 'bars',    label: 'Bars' },
+  { value: 'line',    label: 'Line' },
+  { value: 'area',    label: 'Area' },
+]
+
+const CROSSHAIR_STYLES = [
+  { value: 0, label: 'Solid' },
+  { value: 2, label: 'Dashed' },
+  { value: 3, label: 'Dotted' },
+]
+
+const DRAWING_WIDTHS = [1, 2, 3]
+
+function ChartSettingsSection({ prefs, setPref }) {
+  const cs = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
+
+  const update = useCallback((path, value) => {
+    const next = { ...cs }
+    if (path.includes('.')) {
+      const [section, key] = path.split('.')
+      if (section === 'overlays') {
+        // overlays.0.color etc
+        const [, idx, field] = path.split('.')
+        next.overlays = next.overlays.map((o, i) =>
+          i === parseInt(idx) ? { ...o, [field]: field === 'period' ? parseInt(value) || o.period : value } : o
+        )
+      } else {
+        next[section] = { ...next[section], [key]: value }
+      }
+    } else {
+      next[path] = value
+    }
+    next.preset = 'custom'
+    setPref('chart_settings', JSON.stringify(next))
+  }, [cs, setPref])
+
+  const updateOverlay = useCallback((idx, field, value) => {
+    const next = { ...cs }
+    next.overlays = next.overlays.map((o, i) =>
+      i === idx ? { ...o, [field]: field === 'period' ? (parseInt(value) || o.period) : value } : o
+    )
+    next.preset = 'custom'
+    setPref('chart_settings', JSON.stringify(next))
+  }, [cs, setPref])
+
+  const applyPreset = useCallback((key) => {
+    const preset = PRESETS[key]
+    if (preset) setPref('chart_settings', JSON.stringify(preset.settings))
+  }, [setPref])
+
+  const resetToDefaults = useCallback(() => {
+    if (confirm('Reset all chart settings to defaults?')) {
+      setPref('chart_settings', JSON.stringify(CHART_DEFAULTS))
+    }
+  }, [setPref])
+
+  return (
+    <TileCard title="Chart Settings">
+      <div className={styles.section}>
+
+        {/* ── Preset Picker ── */}
+        <div className={styles.chartSubsection}>
+          <span className={styles.chartSubLabel}>Preset Theme</span>
+          <div className={styles.themeGrid}>
+            {Object.entries(PRESETS).map(([key, p]) => (
+              <button
+                key={key}
+                className={`${styles.themeCard} ${cs.preset === key ? styles.themeCardActive : ''}`}
+                onClick={() => applyPreset(key)}
+              >
+                <span className={styles.themeSwatch}>
+                  <span className={styles.themeSwatchColor} style={{ background: p.swatch }} />
+                </span>
+                <span className={styles.themeCardLabel}>{p.label}</span>
+                <span className={styles.themeCardDesc}>{p.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Chart Type ── */}
+        <div className={styles.chartSubsection}>
+          <span className={styles.chartSubLabel}>Chart Type</span>
+          <div className={styles.chartPills}>
+            {CHART_TYPES.map(ct => (
+              <button
+                key={ct.value}
+                className={`${styles.chartPill} ${cs.chartType === ct.value ? styles.chartPillActive : ''}`}
+                onClick={() => update('chartType', ct.value)}
+              >
+                {ct.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Candle Colors ── */}
+        <div className={styles.chartSubsection}>
+          <span className={styles.chartSubLabel}>Candle Colors</span>
+          <div className={styles.chartRow}>
+            <ColorPicker label="Up" value={cs.candles.upColor} onChange={v => {
+              const next = { ...cs, candles: { ...cs.candles, upColor: v, upBorder: v, upWick: v }, preset: 'custom' }
+              setPref('chart_settings', JSON.stringify(next))
+            }} />
+            <ColorPicker label="Down" value={cs.candles.downColor} onChange={v => {
+              const next = { ...cs, candles: { ...cs.candles, downColor: v, downBorder: v, downWick: v }, preset: 'custom' }
+              setPref('chart_settings', JSON.stringify(next))
+            }} />
+          </div>
+        </div>
+
+        {/* ── Background & Grid ── */}
+        <div className={styles.chartSubsection}>
+          <span className={styles.chartSubLabel}>Background & Grid</span>
+          <div className={styles.chartRow}>
+            <ColorPicker label="Background" value={cs.background} onChange={v => update('background', v)} />
+            <ColorPicker label="Text" value={cs.textColor} onChange={v => update('textColor', v)} />
+          </div>
+          <div className={styles.chartRow} style={{ marginTop: 8 }}>
+            <ColorPicker label="Grid" value={cs.grid.color} onChange={v => update('grid.color', v)} />
+            <label className={styles.chartToggle}>
+              <input type="checkbox" checked={cs.grid.visible} onChange={e => update('grid.visible', e.target.checked)} />
+              <span>Show grid</span>
+            </label>
+          </div>
+        </div>
+
+        {/* ── Indicators ── */}
+        <div className={styles.chartSubsection}>
+          <span className={styles.chartSubLabel}>Indicators</span>
+          {cs.overlays.map((ov, i) => (
+            <div key={i} className={styles.overlayRow}>
+              <label className={styles.chartToggle}>
+                <input type="checkbox" checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
+              </label>
+              <select
+                className={styles.overlaySelect}
+                value={ov.type}
+                onChange={e => updateOverlay(i, 'type', e.target.value)}
+              >
+                <option value="SMA">SMA</option>
+                <option value="EMA">EMA</option>
+              </select>
+              <input
+                type="number"
+                className={styles.overlayPeriod}
+                value={ov.period}
+                min={1}
+                max={500}
+                onChange={e => updateOverlay(i, 'period', e.target.value)}
+              />
+              <ColorPicker value={ov.color} onChange={v => updateOverlay(i, 'color', v)} />
+            </div>
+          ))}
+        </div>
+
+        {/* ── Volume ── */}
+        <div className={styles.chartSubsection}>
+          <span className={styles.chartSubLabel}>Volume</span>
+          <div className={styles.chartRow}>
+            <label className={styles.chartToggle}>
+              <input type="checkbox" checked={cs.volume.visible} onChange={e => update('volume.visible', e.target.checked)} />
+              <span>Show volume</span>
+            </label>
+            <label className={styles.chartToggle}>
+              <input type="checkbox" checked={cs.volume.hvcEnabled} onChange={e => update('volume.hvcEnabled', e.target.checked)} />
+              <span>HVC highlight</span>
+            </label>
+          </div>
+          <div className={styles.chartRow} style={{ marginTop: 8 }}>
+            <ColorPicker label="Up vol" value={cs.volume.upColor} onChange={v => update('volume.upColor', v)} />
+            <ColorPicker label="Down vol" value={cs.volume.downColor} onChange={v => update('volume.downColor', v)} />
+          </div>
+        </div>
+
+        {/* ── Crosshair ── */}
+        <div className={styles.chartSubsection}>
+          <span className={styles.chartSubLabel}>Crosshair</span>
+          <div className={styles.chartRow}>
+            <ColorPicker label="Color" value={cs.crosshair.color} onChange={v => update('crosshair.color', v)} />
+            <div className={styles.chartRow} style={{ gap: 6 }}>
+              <span className={styles.chartMiniLabel}>Style</span>
+              <select
+                className={styles.overlaySelect}
+                value={cs.crosshair.style}
+                onChange={e => update('crosshair.style', parseInt(e.target.value))}
+              >
+                {CROSSHAIR_STYLES.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Watermark ── */}
+        <div className={styles.chartSubsection}>
+          <span className={styles.chartSubLabel}>Watermark</span>
+          <div className={styles.chartRow}>
+            <label className={styles.chartToggle}>
+              <input type="checkbox" checked={cs.watermark.visible} onChange={e => update('watermark.visible', e.target.checked)} />
+              <span>Show ticker watermark</span>
+            </label>
+          </div>
+          <div className={styles.chartRow} style={{ marginTop: 8, alignItems: 'center' }}>
+            <span className={styles.chartMiniLabel}>Opacity</span>
+            <input
+              type="range"
+              className={styles.opacitySlider}
+              min={0.02}
+              max={0.2}
+              step={0.01}
+              value={cs.watermark.opacity}
+              onChange={e => update('watermark.opacity', parseFloat(e.target.value))}
+            />
+            <span className={styles.chartMiniLabel}>{Math.round(cs.watermark.opacity * 100)}%</span>
+          </div>
+        </div>
+
+        {/* ── Drawing Defaults ── */}
+        <div className={styles.chartSubsection}>
+          <span className={styles.chartSubLabel}>Drawing Defaults</span>
+          <div className={styles.chartRow}>
+            <ColorPicker label="Color" value={cs.drawingDefaults.color} onChange={v => update('drawingDefaults.color', v)} />
+            <div className={styles.chartRow} style={{ gap: 6 }}>
+              <span className={styles.chartMiniLabel}>Width</span>
+              <div className={styles.chartPills}>
+                {DRAWING_WIDTHS.map(w => (
+                  <button
+                    key={w}
+                    className={`${styles.chartPill} ${cs.drawingDefaults.width === w ? styles.chartPillActive : ''}`}
+                    onClick={() => update('drawingDefaults.width', w)}
+                    style={{ minWidth: 32 }}
+                  >
+                    {w}px
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Reset ── */}
+        <div className={styles.chartSubsection} style={{ borderTop: '1px solid #2e3127', paddingTop: 12 }}>
+          <button className={styles.btnDanger} onClick={resetToDefaults} style={{ fontSize: 11 }}>
+            Reset All Chart Settings
+          </button>
+        </div>
+
+      </div>
+    </TileCard>
+  )
+}
+
 function ReferralSection() {
   const [referral, setReferral] = useState(null)
   const [copied, setCopied] = useState(false)
@@ -521,6 +782,9 @@ export default function Settings() {
             </div>
           </div>
         </TileCard>
+
+        {/* ── Chart Settings ── */}
+        <ChartSettingsSection prefs={prefs} setPref={setPref} />
 
         {/* ── Data & Privacy ── */}
         <TileCard title="Data & Privacy">

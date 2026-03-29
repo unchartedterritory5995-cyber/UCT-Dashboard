@@ -179,6 +179,111 @@
 .themeCardLabel { font-size: 11px; color: #ccc; font-weight: 600; letter-spacing: 0.3px; }
 .themeCardDesc { font-size: 9px; color: #555; text-align: center; line-height: 1.3; }
 
+/* ── Chart Settings ── */
+.chartSubsection {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.chartSubsection:last-child { border-bottom: none; }
+.chartSubLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #a8a290;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.chartRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.chartPills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.chartPill {
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  color: #a8a290;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chartPill:hover {
+  background: rgba(255,255,255,0.08);
+  color: #e2dfd6;
+}
+.chartPillActive {
+  background: rgba(201,168,76,0.18);
+  border-color: rgba(201,168,76,0.5);
+  color: #c9a84c;
+}
+.chartToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #a8a290;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chartToggle input[type="checkbox"] {
+  accent-color: #c9a84c;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+.chartMiniLabel {
+  font-size: 11px;
+  color: #706b5e;
+  white-space: nowrap;
+}
+.overlayRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.overlayRow:last-child { border-bottom: none; }
+.overlaySelect {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #e5e5e5;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+.overlaySelect:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+.overlayPeriod {
+  width: 52px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #e5e5e5;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  text-align: center;
+}
+.overlayPeriod:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+.opacitySlider {
+  flex: 1;
+  accent-color: #c9a84c;
+  height: 4px;
+  max-width: 160px;
+  cursor: pointer;
+}
+
 @media (max-width: 640px) {
   .page { padding: 16px 12px 80px; }
   .row { flex-direction: column; align-items: flex-start; gap: 4px; }
@@ -192,4 +297,10 @@
   .prefLabelGroup { min-width: unset; }
   .prefSelect { font-size: 16px; width: 100%; }
   .themeGrid { grid-template-columns: repeat(2, 1fr); }
+  .chartRow { gap: 10px; }
+  .chartPills { flex-wrap: wrap; }
+  .overlayRow { flex-wrap: wrap; gap: 8px; }
+  .overlayPeriod { font-size: 16px; }
+  .overlaySelect { font-size: 16px; }
+  .opacitySlider { max-width: unset; }
 }

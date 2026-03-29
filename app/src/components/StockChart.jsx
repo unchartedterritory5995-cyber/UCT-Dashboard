@@ -1,8 +1,9 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import useSWR from 'swr'
-import { createChart, CandlestickSeries, HistogramSeries, LineSeries, ColorType } from 'lightweight-charts'
+import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
+import { mergeChartSettings } from './chart/chartDefaults'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
@@ -25,7 +26,6 @@ function computeSMA(bars, period) {
 function computeEMA(bars, period) {
   if (bars.length < period) return []
   const k = 2 / (period + 1)
-  // Seed with SMA of first `period` bars
   let sum = 0
   for (let i = 0; i < period; i++) sum += bars[i].c
   let ema = sum / period
@@ -37,52 +37,6 @@ function computeEMA(bars, period) {
   return result
 }
 
-// ─── Chart theme (matches UCT design tokens) ────────────────────────────────
-
-const CHART_OPTIONS = {
-  layout: {
-    background: { type: ColorType.Solid, color: '#1a1c17' },
-    textColor: '#706b5e',
-    fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: 10,
-  },
-  grid: {
-    vertLines: { color: 'rgba(46,49,39,0.25)' },
-    horzLines: { color: 'rgba(46,49,39,0.25)' },
-  },
-  crosshair: {
-    mode: 0, // Normal
-    vertLine: { color: '#706b5e', width: 1, style: 3, labelBackgroundColor: '#22251e' },
-    horzLine: { color: '#706b5e', width: 1, style: 3, labelBackgroundColor: '#22251e' },
-  },
-  rightPriceScale: { borderColor: '#2e3127' },
-  timeScale: {
-    borderColor: '#2e3127',
-    timeVisible: true,
-    secondsVisible: false,
-    rightOffset: 8,
-  },
-  autoSize: true,
-}
-
-const CANDLE_OPTIONS = {
-  upColor: '#3cb868',
-  downColor: '#e74c3c',
-  borderUpColor: '#3cb868',
-  borderDownColor: '#e74c3c',
-  wickUpColor: '#3cb868',
-  wickDownColor: '#e74c3c',
-}
-
-// ─── Default overlays ────────────────────────────────────────────────────────
-
-const DEFAULT_OVERLAYS = [
-  { type: 'EMA', period: 9,   color: '#4ade80' },  // bright green
-  { type: 'EMA', period: 20,  color: '#f472b6' },  // pink
-  { type: 'SMA', period: 50,  color: '#60a5fa' },  // blue
-  { type: 'SMA', period: 200, color: '#fb923c' },  // orange
-]
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function StockChart({
@@ -91,15 +45,23 @@ export default function StockChart({
   height = '100%',
   markers = null,
   priceLines = null,
-  showVolume = true,
-  overlays = DEFAULT_OVERLAYS,
+  showVolume: showVolumeProp,
+  overlays: overlaysProp,
   watermark = null,
   className = '',
   showDrawingTools = true,
 }) {
   const { prefs } = usePreferences()
-  // Use user's preferred default timeframe when caller doesn't pass an explicit tf
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
+
+  // ── Chart settings from user preferences ──
+  const cs = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
+
+  // Prop overrides take precedence (e.g. Journal trade drawer passes showVolume=false)
+  const showVolume = showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible
+  const resolvedOverlays = overlaysProp !== undefined
+    ? overlaysProp
+    : cs.overlays.filter(o => o.enabled)
 
   const containerRef = useRef(null)
   const chartRef = useRef(null)
@@ -107,8 +69,8 @@ export default function StockChart({
 
   // ── Drawing tools state ──
   const [activeTool, setActiveTool] = useState(null)
-  const [drawColor, setDrawColor] = useState('#c9a84c')
-  const [drawWidth, setDrawWidth] = useState(1)
+  const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color)
+  const [drawWidth, setDrawWidth] = useState(cs.drawingDefaults.width)
   const [selectedId, setSelectedId] = useState(null)
   const [repeatMode, setRepeatMode] = useState(() => {
     try { return localStorage.getItem('uct-draw-repeat') !== 'false' } catch { return true }
@@ -128,7 +90,7 @@ export default function StockChart({
   const bars = data?.bars
   const loading = !data && !error
 
-  // Build chart when data arrives
+  // Build chart when data arrives or settings change
   const buildChart = useCallback(() => {
     if (!containerRef.current || !bars?.length) return
 
@@ -139,31 +101,105 @@ export default function StockChart({
       candleSeriesRef.current = null
     }
 
-    const chart = createChart(containerRef.current, {
-      ...CHART_OPTIONS,
-      watermark: watermark || sym ? {
+    // ── Build chart options from settings ──
+    const chartOptions = {
+      layout: {
+        background: { type: ColorType.Solid, color: cs.background },
+        textColor: cs.textColor,
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 10,
+      },
+      grid: {
+        vertLines: { color: cs.grid.visible ? cs.grid.color : 'transparent' },
+        horzLines: { color: cs.grid.visible ? cs.grid.color : 'transparent' },
+      },
+      crosshair: {
+        mode: 0,
+        vertLine: { color: cs.crosshair.color, width: 1, style: cs.crosshair.style, labelBackgroundColor: cs.background },
+        horzLine: { color: cs.crosshair.color, width: 1, style: cs.crosshair.style, labelBackgroundColor: cs.background },
+      },
+      rightPriceScale: { borderColor: cs.grid.color },
+      timeScale: {
+        borderColor: cs.grid.color,
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 8,
+      },
+      autoSize: true,
+      watermark: cs.watermark.visible && (watermark || sym) ? {
         visible: true,
         text: watermark ?? sym,
-        color: 'rgba(168,162,144,0.07)',
+        color: `rgba(168,162,144,${cs.watermark.opacity})`,
         fontSize: 48,
         fontFamily: "'IBM Plex Mono', monospace",
         fontWeight: '700',
       } : undefined,
-    })
+    }
+
+    const chart = createChart(containerRef.current, chartOptions)
     chartRef.current = chart
 
-    // ── Candlestick series (pane 0) ──
-    const candleSeries = chart.addSeries(CandlestickSeries, CANDLE_OPTIONS)
-    candleSeriesRef.current = candleSeries
+    // ── Price data series (pane 0) — based on chart type ──
+    let priceSeries
 
-    const candleData = bars.map(b => ({
-      time: b.t,
-      open: b.o,
-      high: b.h,
-      low: b.l,
-      close: b.c,
+    const ohlcData = bars.map(b => ({
+      time: b.t, open: b.o, high: b.h, low: b.l, close: b.c,
     }))
-    candleSeries.setData(candleData)
+    const closeData = bars.map(b => ({ time: b.t, value: b.c }))
+
+    switch (cs.chartType) {
+      case 'hollow': {
+        priceSeries = chart.addSeries(CandlestickSeries, {
+          upColor: 'transparent',
+          downColor: cs.candles.downColor,
+          borderUpColor: cs.candles.upColor,
+          borderDownColor: cs.candles.downColor,
+          wickUpColor: cs.candles.upWick,
+          wickDownColor: cs.candles.downWick,
+        })
+        priceSeries.setData(ohlcData)
+        break
+      }
+      case 'bars': {
+        priceSeries = chart.addSeries(BarSeries, {
+          upColor: cs.candles.upColor,
+          downColor: cs.candles.downColor,
+        })
+        priceSeries.setData(ohlcData)
+        break
+      }
+      case 'line': {
+        priceSeries = chart.addSeries(LineSeries, {
+          color: cs.candles.upColor,
+          lineWidth: 2,
+        })
+        priceSeries.setData(closeData)
+        break
+      }
+      case 'area': {
+        priceSeries = chart.addSeries(AreaSeries, {
+          lineColor: cs.candles.upColor,
+          topColor: cs.candles.upColor + '66',
+          bottomColor: cs.candles.upColor + '08',
+          lineWidth: 2,
+        })
+        priceSeries.setData(closeData)
+        break
+      }
+      default: { // 'candles'
+        priceSeries = chart.addSeries(CandlestickSeries, {
+          upColor: cs.candles.upColor,
+          downColor: cs.candles.downColor,
+          borderUpColor: cs.candles.upBorder,
+          borderDownColor: cs.candles.downBorder,
+          wickUpColor: cs.candles.upWick,
+          wickDownColor: cs.candles.downWick,
+        })
+        priceSeries.setData(ohlcData)
+        break
+      }
+    }
+    candleSeriesRef.current = priceSeries
 
     // ── Volume series (pane 1) ──
     if (showVolume) {
@@ -177,7 +213,7 @@ export default function StockChart({
 
       // Pre-compute HVC set for gold volume bars
       const hvcSet = new Set()
-      if (bars.length > 20) {
+      if (cs.volume.hvcEnabled && bars.length > 20) {
         const lb = Math.min(252, bars.length - 1)
         for (let i = Math.max(20, lb); i < bars.length; i++) {
           const start = Math.max(0, i - lb)
@@ -190,21 +226,20 @@ export default function StockChart({
         time: b.t,
         value: b.v,
         color: hvcSet.has(b.t)
-          ? 'rgba(201,168,76,0.9)'  // Gold for HVC days
-          : b.c >= b.o ? 'rgba(60,184,104,0.35)' : 'rgba(231,76,60,0.35)',
+          ? 'rgba(201,168,76,0.9)'
+          : b.c >= b.o ? cs.volume.upColor : cs.volume.downColor,
       }))
       volumeSeries.setData(volData)
 
-      // Make volume pane shorter
       try {
         const panes = chart.panes()
         if (panes.length > 1) panes[1].setHeight(80)
-      } catch (_) { /* pane API may vary */ }
+      } catch (_) {}
     }
 
     // ── Overlay lines (SMA/EMA on pane 0) ──
-    if (overlays?.length) {
-      for (const ov of overlays) {
+    if (resolvedOverlays?.length) {
+      for (const ov of resolvedOverlays) {
         const computed = ov.type === 'EMA'
           ? computeEMA(bars, ov.period)
           : computeSMA(bars, ov.period)
@@ -224,33 +259,33 @@ export default function StockChart({
     // ── Markers (BUY/SELL arrows) ──
     const allMarkers = [...(markers || [])]
       .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
-    if (allMarkers.length && candleSeries) {
+    if (allMarkers.length && priceSeries) {
       import('lightweight-charts').then(({ createSeriesMarkers }) => {
         if (createSeriesMarkers) {
-          createSeriesMarkers(candleSeries, allMarkers)
+          createSeriesMarkers(priceSeries, allMarkers)
         }
       }).catch(() => {})
     }
 
     // ── Price lines (stop/target) ──
-    if (priceLines?.length && candleSeries) {
+    if (priceLines?.length && priceSeries) {
       for (const pl of priceLines) {
-        candleSeries.createPriceLine({
+        priceSeries.createPriceLine({
           price: pl.price,
-          color: pl.color || '#706b5e',
+          color: pl.color || cs.textColor,
           lineWidth: pl.lineWidth || 1,
-          lineStyle: pl.lineStyle ?? 2, // Dashed
+          lineStyle: pl.lineStyle ?? 2,
           axisLabelVisible: true,
           title: pl.title || '',
         })
       }
     }
 
-    // Zoom to last ~200 bars on load with right padding (full history still scrollable)
+    // Zoom to last ~200 bars
     if (bars.length > 200) {
       chart.timeScale().setVisibleLogicalRange({
         from: bars.length - 200,
-        to: bars.length + 8,  // +8 bars of right padding
+        to: bars.length + 8,
       })
     } else {
       chart.timeScale().setVisibleLogicalRange({
@@ -258,9 +293,9 @@ export default function StockChart({
         to: bars.length + 8,
       })
     }
-  }, [bars, sym, resolvedTf, showVolume, overlays, markers, priceLines, watermark])
+  }, [bars, sym, resolvedTf, showVolume, resolvedOverlays, markers, priceLines, watermark, cs])
 
-  // Effect: build chart when data changes
+  // Effect: build chart when data or settings change
   useEffect(() => {
     buildChart()
     return () => {

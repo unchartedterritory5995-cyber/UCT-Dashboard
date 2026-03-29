@@ -1,0 +1,104 @@
+/* app/src/components/chart/ColorPicker.module.css */
+
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-size: 11px;
+  color: #a8a290;
+  white-space: nowrap;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.swatch:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: scale(1.1);
+}
+
+.popup {
+  position: absolute;
+  left: 0;
+  top: 30px;
+  z-index: 20;
+  background: #1a1c17;
+  border: 1px solid #2e3127;
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+  padding: 8px;
+  width: 160px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.cell {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 3px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.1s, transform 0.1s;
+}
+.cell:hover {
+  transform: scale(1.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.cell.cellActive {
+  border-color: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
+}
+
+.hexRow {
+  display: flex;
+  gap: 4px;
+}
+
+.hexInput {
+  flex: 1;
+  height: 24px;
+  background: rgba(30, 32, 26, 0.9);
+  border: 1px solid #2e3127;
+  border-radius: 3px;
+  color: #e2dfd6;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 0 6px;
+  outline: none;
+}
+.hexInput:focus {
+  border-color: #c9a84c;
+}
+
+.hexOk {
+  height: 24px;
+  padding: 0 8px;
+  background: rgba(201, 168, 76, 0.2);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 3px;
+  color: #c9a84c;
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.hexOk:hover {
+  background: rgba(201, 168, 76, 0.35);
+}
