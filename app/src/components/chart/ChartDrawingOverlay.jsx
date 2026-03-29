@@ -483,7 +483,7 @@ export default function ChartDrawingOverlay({
   const resolvePixels = useCallback((points) => {
     return points.map(p => {
       const px = toPixel(p.time, p.price)
-      return { x: px?.x, y: px?.y, rawPrice: p.price, price: p.price }
+      return { x: px?.x, y: px?.y, rawPrice: p.price, price: p.price, time: p.time }
     }).filter(p => p.x != null || p.y != null)
   }, [toPixel])
 
