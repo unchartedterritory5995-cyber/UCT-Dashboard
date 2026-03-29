@@ -428,6 +428,15 @@
   flex-shrink: 0;
 }
 
+.flaggedHint {
+  font-size: 8px;
+  color: #706b5e;
+  opacity: 0.6;
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.3px;
+}
+
 .ownerTag {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;

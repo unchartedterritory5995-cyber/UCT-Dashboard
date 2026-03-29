@@ -29,11 +29,11 @@ function AddItemRow({ onAdd }) {
 }
 
 export default function Watchlists() {
-  const [activeTab, setActiveTab] = useState('flagged')
+  const [activeTab, setActiveTab] = useState('mine')
   const [selectedSym, setSelectedSym] = useState(null)
   const [chartPeriod, setChartPeriod] = useState('D')
   const [flagToast, setFlagToast] = useState(null)
-  const [expandedLists, setExpandedLists] = useState(new Set())
+  const [expandedLists, setExpandedLists] = useState(new Set(['flagged']))
   const [showCreate, setShowCreate] = useState(false)
   const [createForm, setCreateForm] = useState({ name: '', description: '', is_public: false })
   const [saving, setSaving] = useState(false)
@@ -44,23 +44,21 @@ export default function Watchlists() {
 
   // Collect all visible tickers for live prices
   const allTickers = useMemo(() => {
-    if (activeTab === 'flagged') return flagged
+    const tickers = []
+    // Flagged (always in My Lists tab)
+    if (activeTab === 'mine' && expandedLists.has('flagged')) {
+      tickers.push(...flagged)
+    }
     const lists = activeTab === 'mine' ? myLists : communityLists
-    if (!lists) return []
-    return lists
-      .filter(wl => expandedLists.has(wl.id))
-      .flatMap(wl => (wl.items || []).map(i => i.sym))
-      .filter(Boolean)
+    if (lists) {
+      lists
+        .filter(wl => expandedLists.has(wl.id))
+        .forEach(wl => (wl.items || []).forEach(i => { if (i.sym) tickers.push(i.sym) }))
+    }
+    return tickers
   }, [activeTab, flagged, myLists, communityLists, expandedLists])
 
   const { prices } = useLivePrices(allTickers)
-
-  // Auto-select first flagged when flagged list changes and ticker removed
-  useEffect(() => {
-    if (activeTab !== 'flagged') return
-    if (selectedSym && flagged.includes(selectedSym)) return
-    setSelectedSym(flagged[0] ?? null)
-  }, [flagged, activeTab])
 
   // Clear toast
   useEffect(() => {
@@ -69,22 +67,23 @@ export default function Watchlists() {
     return () => clearTimeout(t)
   }, [flagToast])
 
-  // Keyboard nav (flagged tab)
+  // Keyboard nav within flagged group
   const handleKeyDown = useCallback((e) => {
-    if (activeTab !== 'flagged') return
+    if (!expandedLists.has('flagged') || activeTab !== 'mine') return
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault()
       const idx = flagged.indexOf(selectedSym)
+      if (idx < 0) return
+      e.preventDefault()
       const next = e.key === 'ArrowDown'
         ? Math.min(idx + 1, flagged.length - 1)
         : Math.max(idx - 1, 0)
       if (next >= 0) setSelectedSym(flagged[next])
     }
-    if (e.shiftKey && e.key === 'F' && selectedSym) {
+    if (e.shiftKey && e.key === 'F' && selectedSym && flagged.includes(selectedSym)) {
       removeFlagged(selectedSym)
       setFlagToast('removed')
     }
-  }, [activeTab, flagged, selectedSym, removeFlagged])
+  }, [activeTab, flagged, selectedSym, removeFlagged, expandedLists])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -152,58 +151,92 @@ export default function Watchlists() {
 
   const currentLists = activeTab === 'mine' ? myLists : communityLists
 
-  return (
-    <div className={styles.page}>
-
-      {/* ── Left panel ── */}
-      <div className={styles.leftPanel}>
-
-        {/* Tab bar */}
-        <div className={styles.tabBar}>
-          <button
-            className={`${styles.tabBtn}${activeTab === 'flagged' ? ' ' + styles.tabBtnActive : ''}`}
-            onClick={() => setActiveTab('flagged')}
-          >⚑ Flagged</button>
-          <button
-            className={`${styles.tabBtn}${activeTab === 'mine' ? ' ' + styles.tabBtnActive : ''}`}
-            onClick={() => setActiveTab('mine')}
-          >My Lists</button>
-          <button
-            className={`${styles.tabBtn}${activeTab === 'community' ? ' ' + styles.tabBtnActive : ''}`}
-            onClick={() => setActiveTab('community')}
-          >Community</button>
-        </div>
-
-        {/* Sub-header */}
-        <div className={styles.listHeader}>
-          {activeTab === 'flagged' && (
-            <>
-              <span className={styles.listMeta}>{flagged.length} symbols</span>
-              <span className={styles.listHint}>↑↓ · Shift+F remove</span>
-            </>
+  // ── Render a watchlist accordion group ──
+  function renderWatchlistGroup(wl, isOwner) {
+    const open = expandedLists.has(wl.id)
+    const items = wl.items || []
+    return (
+      <div key={wl.id} className={styles.wlGroup}>
+        <div className={styles.wlHeader} onClick={() => toggleList(wl.id)}>
+          <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
+          <span className={styles.wlName}>{wl.name}</span>
+          <span className={styles.wlCount}>{items.length}</span>
+          {wl.is_public && <span className={styles.pubBadge}>PUB</span>}
+          {!isOwner && wl.owner_name && (
+            <span className={styles.ownerTag}>{wl.owner_name}</span>
           )}
-          {activeTab === 'mine' && (
-            <>
-              <span className={styles.listMeta}>{myLists?.length ?? 0} lists</span>
-              <button className={styles.newListBtn} onClick={() => setShowCreate(true)}>+ New List</button>
-            </>
-          )}
-          {activeTab === 'community' && (
-            <span className={styles.listMeta}>{communityLists?.length ?? 0} shared lists</span>
+          {isOwner && (
+            <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+              <button
+                className={`${styles.wlActionBtn}${wl.is_public ? ' ' + styles.wlActionBtnActive : ''}`}
+                onClick={() => handleTogglePublic(wl)}
+                title={wl.is_public ? 'Make Private' : 'Share with community'}
+              >{wl.is_public ? '🔓' : '🔒'}</button>
+              <button
+                className={`${styles.wlActionBtn} ${styles.wlDeleteBtn}`}
+                onClick={() => handleDeleteList(wl.id)}
+                title="Delete watchlist"
+              >×</button>
+            </div>
           )}
         </div>
 
-        {/* Body */}
-        <div className={styles.listBody}>
+        {open && (
+          <div className={styles.wlItems}>
+            {wl.description && <div className={styles.wlDesc}>{wl.description}</div>}
+            {items.length === 0 && <div className={styles.wlEmpty}>No symbols yet.</div>}
+            {items.map(item => {
+              const q = prices[item.sym]
+              const price = q?.price ?? null
+              const changePct = q?.change_pct ?? null
+              return (
+                <div
+                  key={item.id}
+                  className={`${styles.listRow} ${styles.wlRow}${selectedSym === item.sym ? ' ' + styles.listRowSelected : ''}`}
+                  onClick={() => setSelectedSym(item.sym)}
+                >
+                  <span className={styles.rowSym}>{item.sym}</span>
+                  <div className={styles.rowRight}>
+                    {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
+                    {changePct != null && (
+                      <span className={`${styles.rowChange} ${changePct >= 0 ? styles.gain : styles.loss}`}>
+                        {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
+                      </span>
+                    )}
+                    {isOwner && (
+                      <button
+                        className={styles.removeBtn}
+                        onClick={e => { e.stopPropagation(); handleRemoveItem(wl.id, item.id) }}
+                        title="Remove"
+                      >×</button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {isOwner && <AddItemRow onAdd={sym => handleAddItem(wl.id, sym)} />}
+          </div>
+        )}
+      </div>
+    )
+  }
 
-          {/* ── Flagged tab ── */}
-          {activeTab === 'flagged' && (
-            flagged.length === 0 ? (
-              <div className={styles.emptyList}>
-                <div className={styles.emptyIcon}>⚑</div>
-                <div className={styles.emptyText}>No flagged tickers yet.</div>
-                <div className={styles.emptyHint}>Open any chart and press <strong>Shift+F</strong></div>
-              </div>
+  // ── Flagged as a pseudo-watchlist group ──
+  function renderFlaggedGroup() {
+    const open = expandedLists.has('flagged')
+    return (
+      <div className={styles.wlGroup}>
+        <div className={styles.wlHeader} onClick={() => toggleList('flagged')}>
+          <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
+          <span className={styles.wlName}>⚑ Flagged</span>
+          <span className={styles.wlCount}>{flagged.length}</span>
+          <span className={styles.flaggedHint}>Shift+F</span>
+        </div>
+
+        {open && (
+          <div className={styles.wlItems}>
+            {flagged.length === 0 ? (
+              <div className={styles.wlEmpty}>No flagged tickers. Press <strong>Shift+F</strong> on any chart.</div>
             ) : flagged.map(sym => {
               const q = prices[sym]
               const price = q?.price ?? null
@@ -211,7 +244,7 @@ export default function Watchlists() {
               return (
                 <div
                   key={sym}
-                  className={`${styles.listRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`}
+                  className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`}
                   onClick={() => setSelectedSym(sym)}
                 >
                   <span className={styles.rowSym}>{sym}</span>
@@ -226,96 +259,70 @@ export default function Watchlists() {
                   </div>
                 </div>
               )
-            })
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.page}>
+
+      {/* ── Left panel ── */}
+      <div className={styles.leftPanel}>
+
+        {/* Tab bar — 2 tabs */}
+        <div className={styles.tabBar}>
+          <button
+            className={`${styles.tabBtn}${activeTab === 'mine' ? ' ' + styles.tabBtnActive : ''}`}
+            onClick={() => setActiveTab('mine')}
+          >My Lists</button>
+          <button
+            className={`${styles.tabBtn}${activeTab === 'community' ? ' ' + styles.tabBtnActive : ''}`}
+            onClick={() => setActiveTab('community')}
+          >Community</button>
+        </div>
+
+        {/* Sub-header */}
+        <div className={styles.listHeader}>
+          {activeTab === 'mine' && (
+            <>
+              <span className={styles.listMeta}>{(myLists?.length ?? 0) + 1} lists</span>
+              <button className={styles.newListBtn} onClick={() => setShowCreate(true)}>+ New List</button>
+            </>
+          )}
+          {activeTab === 'community' && (
+            <span className={styles.listMeta}>{communityLists?.length ?? 0} shared lists</span>
+          )}
+        </div>
+
+        {/* Body */}
+        <div className={styles.listBody}>
+
+          {/* ── My Lists tab — Flagged pinned at top + user lists ── */}
+          {activeTab === 'mine' && (
+            <>
+              {renderFlaggedGroup()}
+              {!myLists ? (
+                <div className={styles.loading}>Loading…</div>
+              ) : myLists.length === 0 ? (
+                <div className={styles.wlEmpty} style={{ padding: '12px 8px', opacity: 0.5 }}>
+                  No custom lists yet. Create one above.
+                </div>
+              ) : myLists.map(wl => renderWatchlistGroup(wl, true))}
+            </>
           )}
 
-          {/* ── My Lists + Community tabs ── */}
-          {(activeTab === 'mine' || activeTab === 'community') && (
-            !currentLists ? (
+          {/* ── Community tab ── */}
+          {activeTab === 'community' && (
+            !communityLists ? (
               <div className={styles.loading}>Loading…</div>
-            ) : currentLists.length === 0 ? (
+            ) : communityLists.length === 0 ? (
               <div className={styles.emptyList}>
-                <div className={styles.emptyText}>
-                  {activeTab === 'mine'
-                    ? 'No watchlists yet. Create one above.'
-                    : 'No community lists shared yet.'}
-                </div>
+                <div className={styles.emptyText}>No community lists shared yet.</div>
               </div>
-            ) : currentLists.map(wl => {
-              const isOwner = activeTab === 'mine'
-              const open = expandedLists.has(wl.id)
-              const items = wl.items || []
-              return (
-                <div key={wl.id} className={styles.wlGroup}>
-                  {/* Watchlist header row */}
-                  <div className={styles.wlHeader} onClick={() => toggleList(wl.id)}>
-                    <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
-                    <span className={styles.wlName}>{wl.name}</span>
-                    <span className={styles.wlCount}>{items.length}</span>
-                    {wl.is_public && <span className={styles.pubBadge}>PUB</span>}
-                    {!isOwner && wl.owner_name && (
-                      <span className={styles.ownerTag}>{wl.owner_name}</span>
-                    )}
-                    {isOwner && (
-                      <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
-                        <button
-                          className={`${styles.wlActionBtn}${wl.is_public ? ' ' + styles.wlActionBtnActive : ''}`}
-                          onClick={() => handleTogglePublic(wl)}
-                          title={wl.is_public ? 'Make Private' : 'Share with community'}
-                        >{wl.is_public ? '🔓' : '🔒'}</button>
-                        <button
-                          className={`${styles.wlActionBtn} ${styles.wlDeleteBtn}`}
-                          onClick={() => handleDeleteList(wl.id)}
-                          title="Delete watchlist"
-                        >×</button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Expanded items */}
-                  {open && (
-                    <div className={styles.wlItems}>
-                      {wl.description && (
-                        <div className={styles.wlDesc}>{wl.description}</div>
-                      )}
-                      {items.length === 0 && (
-                        <div className={styles.wlEmpty}>No symbols yet.</div>
-                      )}
-                      {items.map(item => {
-                        const q = prices[item.sym]
-                        const price = q?.price ?? null
-                        const changePct = q?.change_pct ?? null
-                        return (
-                          <div
-                            key={item.id}
-                            className={`${styles.listRow} ${styles.wlRow}${selectedSym === item.sym ? ' ' + styles.listRowSelected : ''}`}
-                            onClick={() => setSelectedSym(item.sym)}
-                          >
-                            <span className={styles.rowSym}>{item.sym}</span>
-                            <div className={styles.rowRight}>
-                              {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
-                              {changePct != null && (
-                                <span className={`${styles.rowChange} ${changePct >= 0 ? styles.gain : styles.loss}`}>
-                                  {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
-                                </span>
-                              )}
-                              {isOwner && (
-                                <button
-                                  className={styles.removeBtn}
-                                  onClick={e => { e.stopPropagation(); handleRemoveItem(wl.id, item.id) }}
-                                  title="Remove"
-                                >×</button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                      {isOwner && <AddItemRow onAdd={sym => handleAddItem(wl.id, sym)} />}
-                    </div>
-                  )}
-                </div>
-              )
-            })
+            ) : communityLists.map(wl => renderWatchlistGroup(wl, false))
           )}
         </div>
       </div>
@@ -328,13 +335,6 @@ export default function Watchlists() {
               <span className={styles.chartSym}>{selectedSym}</span>
               {flagToast && (
                 <span className={`${styles.flagToast} ${styles.flagToastRemoved}`}>⚑ Removed</span>
-              )}
-              {activeTab === 'flagged' && (
-                <button
-                  className={`${styles.flagBtn} ${styles.flagBtnActive}`}
-                  onClick={() => { removeFlagged(selectedSym); setFlagToast('removed') }}
-                  title="Remove from Flagged (Shift+F)"
-                >⚑ Flagged</button>
               )}
               <div className={styles.chartPeriodTabs}>
                 {PERIODS.map(([p, label]) => (
