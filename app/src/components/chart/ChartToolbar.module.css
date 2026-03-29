@@ -1,17 +1,18 @@
-/* app/src/components/chart/ChartToolbar.module.css — vertical drawing toolbar */
+/* app/src/components/chart/ChartToolbar.module.css — horizontal drawing toolbar */
 
 .toolbar {
   position: absolute;
-  right: 64px;
+  left: 4px;
   top: 4px;
-  bottom: 4px;
-  width: 28px;
+  right: 64px;
+  height: 26px;
   z-index: 5;
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  flex-direction: row;
+  align-items: center;
+  gap: 1px;
   pointer-events: auto;
-  opacity: 0.35;
+  opacity: 0.3;
   transition: opacity 0.2s;
 }
 .toolbar:hover {
@@ -20,25 +21,26 @@
 
 .tools {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 1px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
 }
 .tools::-webkit-scrollbar { display: none; }
 
 .actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 1px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* ── Button ── */
 .btn {
-  width: 26px;
-  height: 24px;
+  width: 24px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -72,8 +74,9 @@
 
 /* ── Separator ── */
 .sep {
-  height: 1px;
-  margin: 3px 3px;
+  width: 1px;
+  height: 14px;
+  margin: 0 2px;
   background: rgba(112, 107, 94, 0.2);
   flex-shrink: 0;
 }
@@ -93,8 +96,8 @@
 
 .popup {
   position: absolute;
-  right: 30px;
-  top: 0;
+  left: 0;
+  top: 28px;
   display: flex;
   flex-wrap: wrap;
   gap: 3px;
