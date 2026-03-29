@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
   trendline: 2, ray: 2, extended: 2, horizontal: 1, hray: 1, vertical: 1,
-  rect: 2, circle: 2, arrow: 2, text: 1, fib: 2, channel: 3, measure: 2,
+  rect: 2, circle: 2, arrow: 2, text: 1, fib: 2, channel: 3, measure: 2, avwap: 1,
 }
 
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
@@ -286,6 +286,56 @@ function renderMeasure(ctx, pts, drawing) {
   }
 }
 
+function renderAnchoredVwap(ctx, anchorPt, bars, timeToIndex, toPixelFn) {
+  if (!anchorPt || anchorPt.x == null) return
+  const anchorIdx = timeToIndex.get(anchorPt.time)
+  if (anchorIdx == null || !bars?.length) return
+
+  let cumPV = 0, cumV = 0
+  const points = []
+
+  for (let i = anchorIdx; i < bars.length; i++) {
+    const b = bars[i]
+    const tp = (b.h + b.l + b.c) / 3
+    const vol = b.v || 0
+    cumPV += tp * vol
+    cumV += vol
+    if (cumV === 0) continue
+    const vwap = cumPV / cumV
+    const px = toPixelFn(b.t, vwap)
+    if (px?.x != null && px?.y != null) {
+      points.push({ x: px.x, y: px.y })
+    }
+  }
+
+  if (points.length < 2) return
+
+  // Draw VWAP line
+  ctx.beginPath()
+  ctx.moveTo(points[0].x, points[0].y)
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y)
+  }
+  ctx.stroke()
+
+  // Price label at end
+  const last = points[points.length - 1]
+  const lastVwap = cumV > 0 ? cumPV / cumV : 0
+  ctx.font = '10px "IBM Plex Mono", monospace'
+  ctx.fillStyle = ctx.strokeStyle
+  ctx.fillText(`VWAP ${lastVwap.toFixed(2)}`, last.x + 6, last.y - 4)
+
+  // Anchor dot
+  ctx.beginPath()
+  ctx.arc(anchorPt.x, anchorPt.y, 4, 0, Math.PI * 2)
+  ctx.fillStyle = ctx.strokeStyle
+  ctx.fill()
+
+  // "A" label at anchor
+  ctx.font = 'bold 9px "IBM Plex Mono", monospace'
+  ctx.fillText('A', anchorPt.x - 3, anchorPt.y - 8)
+}
+
 function renderSelectionHandles(ctx, pts) {
   ctx.fillStyle = '#c9a84c'
   for (const p of pts) {
@@ -368,6 +418,8 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
       const bx2 = Math.max(pts[0].x, pts[1].x), by2 = Math.max(pts[0].y, pts[1].y)
       return mx >= bx1 && mx <= bx2 && my >= by1 && my <= by2
     }
+    case 'avwap':
+      return pts.length >= 1 && Math.hypot(mx - pts[0].x, my - pts[0].y) < HIT_THRESHOLD * 2
     default: return false
   }
 }
@@ -568,6 +620,7 @@ export default function ChartDrawingOverlay({
         case 'fib': renderFib(ctx, pts, w, toPixelY); break
         case 'channel': renderChannel(ctx, pts, w, h); break
         case 'measure': renderMeasure(ctx, pts, d); break
+        case 'avwap': renderAnchoredVwap(ctx, pts[0], bars, timeToIndex, toPixel); break
       }
 
       if (d.id === selectedId) renderSelectionHandles(ctx, pts)
@@ -604,6 +657,7 @@ export default function ChartDrawingOverlay({
             renderMeasure(ctx, previewPts, md)
             break
           }
+          case 'avwap': renderAnchoredVwap(ctx, previewPts[0], bars, timeToIndex, toPixel); break
         }
         ctx.restore()
       }
