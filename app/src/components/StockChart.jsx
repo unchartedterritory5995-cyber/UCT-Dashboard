@@ -7,7 +7,6 @@ import { mergeChartSettings } from './chart/chartDefaults'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
-import SymbolSearch from './chart/SymbolSearch'
 import styles from './StockChart.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -338,9 +337,6 @@ export default function StockChart({
         className={styles.chart}
         style={{ display: loading || error ? 'none' : 'block' }}
       />
-      {sym && bars?.length > 0 && (
-        <SymbolSearch sym={sym} onSymbolChange={onSymbolChange} />
-      )}
       {showDrawingTools && bars?.length > 0 && (
         <>
           <ChartDrawingOverlay

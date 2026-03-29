@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import { useFlagged } from '../hooks/useFlagged'
 import useLivePrices from '../hooks/useLivePrices'
 import StockChart from '../components/StockChart'
+import SymbolSearch from '../components/chart/SymbolSearch'
 import styles from './Watchlists.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -332,7 +333,7 @@ export default function Watchlists() {
         {selectedSym ? (
           <>
             <div className={styles.chartHeader}>
-              <span className={styles.chartSym}>{selectedSym}</span>
+              <SymbolSearch sym={selectedSym} onSymbolChange={setSelectedSym} />
               {flagToast && (
                 <span className={`${styles.flagToast} ${styles.flagToastRemoved}`}>⚑ Removed</span>
               )}

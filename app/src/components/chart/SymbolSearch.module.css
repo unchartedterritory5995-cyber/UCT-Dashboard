@@ -1,38 +1,36 @@
 /* app/src/components/chart/SymbolSearch.module.css */
 
 .wrap {
-  position: absolute;
-  top: 32px;
-  left: 6px;
-  z-index: 6;
-  pointer-events: auto;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 8px;
-  font-size: 11px;
+  padding: 0;
+  font-size: 14px;
   font-weight: 700;
   font-family: 'IBM Plex Mono', monospace;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   color: #c9a84c;
-  background: rgba(26, 28, 23, 0.9);
-  border: 1px solid rgba(201, 168, 76, 0.2);
-  border-radius: 4px;
+  background: none;
+  border: none;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: opacity 0.15s;
+  line-height: 1;
 }
 .badge:hover {
-  background: rgba(201, 168, 76, 0.12);
-  border-color: rgba(201, 168, 76, 0.4);
+  opacity: 0.8;
 }
 .badge svg {
-  opacity: 0.5;
+  opacity: 0.4;
+  transition: opacity 0.15s;
 }
 .badge:hover svg {
-  opacity: 1;
+  opacity: 0.8;
 }
 
 .dropdown {

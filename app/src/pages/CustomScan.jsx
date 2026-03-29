@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import useSWR from 'swr'
 import StockChart from '../components/StockChart'
+import SymbolSearch from '../components/chart/SymbolSearch'
 import styles from './CustomScan.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -606,7 +607,7 @@ export default function CustomScan({ allCandidates }) {
           {selectedSym ? (
             <>
               <div className={styles.chartHeader}>
-                <span className={styles.chartSym}>{selectedSym}</span>
+                <SymbolSearch sym={selectedSym} onSymbolChange={setSelectedSym} />
                 <span className={styles.chartName}>{selectedName}</span>
                 <div className={styles.chartPeriodTabs}>
                   {[['5', '5min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly']].map(([p, label]) => (

@@ -4,6 +4,7 @@ import useMobileSWR from '../hooks/useMobileSWR'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './ThemeTrackerPage.module.css'
 import StockChart from '../components/StockChart'
+import SymbolSearch from '../components/chart/SymbolSearch'
 import { useFlagged } from '../hooks/useFlagged'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
@@ -317,7 +318,7 @@ export default function ThemeTrackerPage() {
         {selectedSym ? (
           <>
             <div className={styles.chartHeader}>
-              <span className={styles.chartSym}>{selectedSym}</span>
+              <SymbolSearch sym={selectedSym} onSymbolChange={(s) => { setSelectedSym(s); setSelectedName('') }} />
               <span className={styles.chartName}>{selectedName}</span>
               {flagToast && (
                 <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
