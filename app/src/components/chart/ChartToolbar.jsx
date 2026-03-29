@@ -34,7 +34,6 @@ const TOOLS = [
   { id: 'cursor',     label: 'Select (V)' },
   'sep',
   { id: 'trendline',  label: 'Trendline (T)' },
-  { id: 'ray',        label: 'Ray' },
   { id: 'extended',   label: 'Extended Line' },
   { id: 'horizontal', label: 'Horizontal Line (H)' },
   { id: 'hray',       label: 'Horizontal Ray' },
