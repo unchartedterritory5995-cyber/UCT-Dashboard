@@ -220,7 +220,7 @@ export default function EarningsModal({ row, label, onClose }) {
         )}
 
         <div className={styles.actions}>
-          <TickerPopup sym={row.sym} showFinviz={true} as="button" className={styles.btnChart}>
+          <TickerPopup sym={row.sym} as="button" className={styles.btnChart}>
             ▶ View Chart
           </TickerPopup>
           <a

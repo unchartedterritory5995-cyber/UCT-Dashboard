@@ -537,7 +537,6 @@ function Cell({ sym, price, chg, css }) {
     <TickerPopup
       sym={sym}
       tvSym={TV_SYMS[sym]}
-      showFinviz={!TV_ONLY.has(sym)}
       customChartFn={customChartFn}
       as="div"
     >

@@ -13,9 +13,6 @@ const StockChart = lazy(() => import('./StockChart'))
 const TABS = ['5min', '30min', '1hr', 'Daily', 'Weekly']
 const TAB_TO_TF = { '5min': '5', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W' }
 
-const finvizChart = (sym, period) =>
-  `https://finviz.com/chart.ashx?t=${sym}&ty=c&ta=1&p=${period}&s=l`
-
 function EarningsIntelSection({ data }) {
   if (!data) return null
   const { beat_history, consensus, price_target } = data
@@ -90,11 +87,10 @@ function InsiderSection({ txns }) {
   )
 }
 
-export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null }) {
-  const [hovered, setHovered] = useState(false)
+export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [tab, setTab] = useState('Daily')
-  const [flagToast, setFlagToast] = useState(null) // 'added' | 'removed'
+  const [flagToast, setFlagToast] = useState(null)
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
 
@@ -115,10 +111,6 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
     { revalidateOnFocus: false, dedupingInterval: 60000 }
   )
   const liveData = prices[sym]
-
-  // Disable hover preview on touch devices (gets stuck on mobile)
-  const isTouchDevice = typeof window !== 'undefined' &&
-    ('ontouchstart' in window || navigator.maxTouchPoints > 0)
 
   // Clear flag toast after 1.5s
   useEffect(() => {
@@ -145,23 +137,12 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
     <>
       <Tag
         className={`${styles.trigger}${className ? ` ${className}` : ''}`}
-        onMouseEnter={() => !isTouchDevice && showFinviz && setHovered(true)}
-        onMouseLeave={() => !isTouchDevice && setHovered(false)}
-        onClick={() => { setHovered(false); setModalOpen(true); setTab('Daily') }}
+        onClick={() => { setModalOpen(true); setTab('Daily') }}
         role="button"
         aria-label={`View chart for ${sym}`}
         data-testid={`ticker-${sym}`}
       >
         {children ?? sym}
-        {showFinviz && hovered && !isTouchDevice && (
-          <div className={styles.popup}>
-            <img
-              src={finvizChart(sym, 'd')}
-              alt={`${sym} preview`}
-              className={styles.popupChart}
-            />
-          </div>
-        )}
       </Tag>
 
       {modalOpen && (
@@ -237,27 +218,6 @@ export default function TickerPopup({ sym, tvSym, showFinviz = true, as: Tag = '
 
             <EarningsIntelSection data={earningsIntel} />
             <InsiderSection txns={insiderTxns} />
-
-            <div className={styles.modalFooter}>
-              {showFinviz && (
-                <a
-                  href={`https://finviz.com/quote.ashx?t=${sym}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.footerLink}
-                >
-                  Open in FinViz →
-                </a>
-              )}
-              <a
-                href={`https://www.tradingview.com/chart/?symbol=${tvSym ?? sym}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.footerLink}
-              >
-                Open in TradingView →
-              </a>
-            </div>
           </div>
         </div>
       )}
