@@ -31,6 +31,8 @@ const ICONS = {
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const TOOLS = [
+  { id: 'cursor',     label: 'Select (V)' },
+  'sep',
   { id: 'trendline',  label: 'Trendline (T)' },
   { id: 'ray',        label: 'Ray' },
   { id: 'extended',   label: 'Extended Line' },
