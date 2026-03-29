@@ -287,12 +287,13 @@ function renderMeasure(ctx, pts, drawing) {
 }
 
 function renderAnchoredVwap(ctx, anchorPt, bars, timeToIndex, toPixelFn) {
-  if (!anchorPt || anchorPt.x == null) return
+  if (!anchorPt || anchorPt.time == null) return
   const anchorIdx = timeToIndex.get(anchorPt.time)
   if (anchorIdx == null || !bars?.length) return
 
+  // Compute full VWAP series from anchor forward (regardless of visibility)
   let cumPV = 0, cumV = 0
-  const points = []
+  const vwapSeries = [] // { time, vwap } for every bar from anchor onward
 
   for (let i = anchorIdx; i < bars.length; i++) {
     const b = bars[i]
@@ -301,39 +302,57 @@ function renderAnchoredVwap(ctx, anchorPt, bars, timeToIndex, toPixelFn) {
     cumPV += tp * vol
     cumV += vol
     if (cumV === 0) continue
-    const vwap = cumPV / cumV
-    const px = toPixelFn(b.t, vwap)
-    if (px?.x != null && px?.y != null) {
-      points.push({ x: px.x, y: px.y })
+    vwapSeries.push({ time: b.t, vwap: cumPV / cumV })
+  }
+
+  if (vwapSeries.length < 1) return
+
+  // Convert to pixels — include all points (even off-screen) so the line
+  // clips naturally at canvas edges instead of disappearing
+  const points = []
+  for (const v of vwapSeries) {
+    const px = toPixelFn(v.time, v.vwap)
+    // Allow off-screen x (null) — interpolate from neighbors later
+    // But y must exist (price axis doesn't scroll)
+    if (px?.y != null) {
+      points.push({ x: px.x, y: px.y, vwap: v.vwap })
     }
   }
 
-  if (points.length < 2) return
+  // Filter to points with valid x for drawing
+  const drawable = points.filter(p => p.x != null)
+  if (drawable.length < 1) return
 
   // Draw VWAP line
   ctx.beginPath()
-  ctx.moveTo(points[0].x, points[0].y)
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(points[i].x, points[i].y)
+  ctx.moveTo(drawable[0].x, drawable[0].y)
+  for (let i = 1; i < drawable.length; i++) {
+    ctx.lineTo(drawable[i].x, drawable[i].y)
   }
   ctx.stroke()
 
-  // Price label at end
-  const last = points[points.length - 1]
+  // Price label at rightmost visible point
+  const last = drawable[drawable.length - 1]
   const lastVwap = cumV > 0 ? cumPV / cumV : 0
   ctx.font = '10px "IBM Plex Mono", monospace'
   ctx.fillStyle = ctx.strokeStyle
   ctx.fillText(`VWAP ${lastVwap.toFixed(2)}`, last.x + 6, last.y - 4)
 
-  // Anchor dot
-  ctx.beginPath()
-  ctx.arc(anchorPt.x, anchorPt.y, 4, 0, Math.PI * 2)
-  ctx.fillStyle = ctx.strokeStyle
-  ctx.fill()
+  // Anchor dot — place on the VWAP line at anchor bar (not at user click price)
+  const anchorVwap = vwapSeries[0]
+  if (anchorVwap) {
+    const anchorPx = toPixelFn(anchorVwap.time, anchorVwap.vwap)
+    if (anchorPx?.x != null && anchorPx?.y != null) {
+      ctx.beginPath()
+      ctx.arc(anchorPx.x, anchorPx.y, 4, 0, Math.PI * 2)
+      ctx.fillStyle = ctx.strokeStyle
+      ctx.fill()
 
-  // "A" label at anchor
-  ctx.font = 'bold 9px "IBM Plex Mono", monospace'
-  ctx.fillText('A', anchorPt.x - 3, anchorPt.y - 8)
+      // "A" label at anchor
+      ctx.font = 'bold 9px "IBM Plex Mono", monospace'
+      ctx.fillText('A', anchorPx.x - 3, anchorPx.y - 8)
+    }
+  }
 }
 
 function renderSelectionHandles(ctx, pts) {
@@ -600,6 +619,21 @@ export default function ChartDrawingOverlay({
 
     // Draw completed drawings
     for (const d of drawings) {
+      // AVWAP uses time-based lookup, doesn't need resolved pixels to render
+      if (d.type === 'avwap' && d.points?.[0]?.time != null) {
+        ctx.save()
+        ctx.strokeStyle = d.color || '#c9a84c'
+        ctx.lineWidth = d.lineWidth || 1
+        ctx.setLineDash([])
+        renderAnchoredVwap(ctx, d.points[0], bars, timeToIndex, toPixel)
+        if (d.id === selectedId) {
+          const pts = resolvePixels(d.points)
+          if (pts.length) renderSelectionHandles(ctx, pts)
+        }
+        ctx.restore()
+        continue
+      }
+
       const pts = resolvePixels(d.points || [])
       if (!pts.length) continue
       ctx.save()
@@ -621,7 +655,6 @@ export default function ChartDrawingOverlay({
         case 'fib': renderFib(ctx, pts, w, toPixelY); break
         case 'channel': renderChannel(ctx, pts, w, h); break
         case 'measure': renderMeasure(ctx, pts, d); break
-        case 'avwap': renderAnchoredVwap(ctx, pts[0], bars, timeToIndex, toPixel); break
       }
 
       if (d.id === selectedId) renderSelectionHandles(ctx, pts)
@@ -658,7 +691,7 @@ export default function ChartDrawingOverlay({
             renderMeasure(ctx, previewPts, md)
             break
           }
-          case 'avwap': renderAnchoredVwap(ctx, previewPts[0], bars, timeToIndex, toPixel); break
+          case 'avwap': renderAnchoredVwap(ctx, pendingPoints[0] || mouseCoords, bars, timeToIndex, toPixel); break
         }
         ctx.restore()
       }
