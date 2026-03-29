@@ -711,9 +711,9 @@ export default function ChartDrawingOverlay({
     // ── DRAWING MODES ──
     if (!coords) return
 
-    // Text tool: place text input
+    // Text tool: place text input (use fixed position via clientX/clientY to avoid overflow clip)
     if (activeTool === 'text') {
-      setTextInput({ x: pos.x, y: pos.y, time: coords.time, price: coords.price })
+      setTextInput({ x: e.clientX, y: e.clientY, canvasX: pos.x, canvasY: pos.y, time: coords.time, price: coords.price })
       return
     }
 
@@ -956,8 +956,21 @@ export default function ChartDrawingOverlay({
 function TextInputOverlay({ x, y, color, onSubmit, onCancel }) {
   const [value, setValue] = useState('')
   const ref = useRef(null)
+  const readyRef = useRef(false)
 
-  useEffect(() => { ref.current?.focus() }, [])
+  useEffect(() => {
+    // Focus after a tick to avoid immediate blur from the mousedown that spawned us
+    const t = setTimeout(() => {
+      ref.current?.focus()
+      readyRef.current = true
+    }, 50)
+    return () => clearTimeout(t)
+  }, [])
+
+  const submit = () => {
+    if (!readyRef.current) return // ignore blur before we're ready
+    onSubmit(value)
+  }
 
   return (
     <textarea
@@ -965,24 +978,26 @@ function TextInputOverlay({ x, y, color, onSubmit, onCancel }) {
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit(value) }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() }
         if (e.key === 'Escape') onCancel()
         e.stopPropagation()
       }}
-      onBlur={() => onSubmit(value)}
+      onMouseDown={(e) => e.stopPropagation()}
+      onBlur={submit}
       placeholder="Type note..."
       style={{
-        position: 'absolute',
+        position: 'fixed',
         left: x,
         top: y,
-        zIndex: 6,
-        minWidth: 140,
-        minHeight: 28,
-        maxWidth: 300,
-        padding: '4px 6px',
-        background: 'rgba(26, 28, 23, 0.95)',
+        zIndex: 20,
+        minWidth: 160,
+        minHeight: 32,
+        maxWidth: 320,
+        padding: '6px 8px',
+        background: 'rgba(26, 28, 23, 0.97)',
         border: `1px solid ${color}`,
-        borderRadius: 3,
+        borderRadius: 4,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
         color: '#e2dfd6',
         fontFamily: "'IBM Plex Mono', monospace",
         fontSize: 12,
