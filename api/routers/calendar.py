@@ -59,7 +59,7 @@ def _empty_day(d: date, today: date) -> dict:
 
 # ── Wire data path ─────────────────────────────────────────────────────────────
 
-def _from_wire(wire_calendar: dict, week_dates: list[date], today: date) -> dict:
+def _from_wire(wire_calendar: dict, week_dates: list[date], today: date, cap_universe: set | None = None) -> dict:
     """Normalize a wire_data['weekly_calendar'] dict into the calendar day structure."""
     days: dict[str, dict] = {}
     for d in week_dates:
@@ -102,9 +102,14 @@ def _from_wire(wire_calendar: dict, week_dates: list[date], today: date) -> dict
             }
 
         def _keep(c: dict) -> bool:
-            """Hard backend floor: drop micro-caps (< $100M) that aren't worth trading."""
+            """Filter to tradeable names: $300M+ mcap, in cap_universe if available."""
+            sym = c.get("sym", "")
+            # If we have a cap_universe (from engine), use it as the primary gate
+            if cap_universe:
+                return sym in cap_universe
+            # Fallback: use mc_b from the chip data
             mc = c.get("mc_b")
-            return mc is None or mc >= 0.1  # None = unknown, let through; < 0.1B = drop
+            return mc is None or mc >= 0.3  # None = unknown, let through; < $300M = drop
 
         days[ds] = {
             "label":    wd.get("label", d.strftime("%a %b ") + str(d.day)),
@@ -404,11 +409,14 @@ def get_calendar():
     # ── 1. Earnings: wire data (4-source aggregated, confidence-scored) ────────
     source = "empty"
     days: dict | None = None
+    wire = None
     try:
         from api.services.engine import _load_wire_data
         wire = _load_wire_data()
         if wire and wire.get("weekly_calendar"):
-            days = _from_wire(wire["weekly_calendar"], week_dates, today)
+            # Use cap_universe ($300M+ tickers) for server-side filtering — same as dashboard
+            cap_uni = set(wire.get("cap_universe", [])) if wire.get("cap_universe") else None
+            days = _from_wire(wire["weekly_calendar"], week_dates, today, cap_universe=cap_uni)
             source = "wire"
     except Exception as exc:
         _logger.warning("Calendar: wire_data path error: %s", exc)
@@ -417,6 +425,12 @@ def get_calendar():
     if days is None:
         try:
             days = _build_live(week_dates, today)
+            # Apply cap_universe filter if available (wire may have loaded even if weekly_calendar was missing)
+            cap_uni = set(wire.get("cap_universe", [])) if wire and wire.get("cap_universe") else None
+            if cap_uni:
+                for ds, day in days.items():
+                    day["bmo"] = [e for e in day["bmo"] if e["sym"] in cap_uni]
+                    day["amc"] = [e for e in day["amc"] if e["sym"] in cap_uni]
             for d in week_dates:
                 ds = d.strftime("%Y-%m-%d")
                 if ds not in days:

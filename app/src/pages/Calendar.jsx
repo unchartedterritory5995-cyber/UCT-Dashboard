@@ -80,15 +80,19 @@ function epsActClass(v, eps_est, styles) {
 // Hardcoded: mcap > $300M, price > $2, avg vol > 200K
 
 function applyFilters(entries, metrics) {
+  // If metrics haven't loaded yet, filter only on mc_b from calendar data
+  const hasMetrics = metrics && Object.keys(metrics).length > 0
   return entries.filter(e => {
-    const m = metrics?.[e.sym]
+    const m = hasMetrics ? metrics[e.sym] : null
     const mc    = m?.mc_b  ?? e.mc_b  ?? null
     const price = m?.price ?? null
     const vol   = m?.avg_vol ?? null
 
-    if (mc == null || mc < 0.3) return false
-    if (price == null || price < 2) return false
-    if (vol == null || vol < 200_000) return false
+    // Always filter on mc_b (available from calendar chip data without metrics)
+    if (mc != null && mc < 0.3) return false
+    // Only filter on price/vol when metrics are loaded
+    if (price != null && price < 2) return false
+    if (vol != null && vol < 200_000) return false
 
     return true
   })
