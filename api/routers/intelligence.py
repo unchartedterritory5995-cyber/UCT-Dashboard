@@ -383,3 +383,27 @@ def get_pre_trade_checklist(
         return {"error": "Intelligence engine not available"}
 
     return uct.generate_pre_trade_checklist(symbol, setup_type, entry_price, stop_price)
+
+
+# ── Model Examples (Phase 6 — Modelbook) ─────────────────────────────────────
+
+@router.get("/api/model-examples")
+def list_model_examples(
+    setup_type: Optional[str] = None,
+    grade: Optional[str] = None,
+    example_type: Optional[str] = None,
+    limit: int = 20,
+    _user: dict = Depends(get_current_user),
+):
+    """List model examples with optional filters."""
+    uct = _get_api()
+    if not uct:
+        return {"examples": [], "count": 0}
+
+    examples = uct.get_model_examples(
+        setup_type=setup_type,
+        grade=grade,
+        example_type=example_type,
+        limit=limit,
+    )
+    return {"examples": examples, "count": len(examples)}
