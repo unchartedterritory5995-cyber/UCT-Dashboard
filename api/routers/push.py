@@ -120,3 +120,126 @@ def push_intraday(
         pass  # Alert logic is non-fatal
 
     return {"ok": True, "mode": payload.get("mode", ""), "timestamp": payload.get("timestamp", "")}
+
+
+@router.get("/api/push/journal-export")
+def export_journal_for_brain(
+    authorization: Optional[str] = Header(None),
+    days: int = 30,
+    user_email: str = None,
+):
+    """Export journal trades for the intelligence engine (PUSH_SECRET auth).
+
+    Returns closed trades with process scores, mistake tags, and emotion data
+    for psychology detection, coaching, and setup performance feedback.
+
+    Query params:
+        days: lookback days (default 30)
+        user_email: filter by user email (default: first admin user)
+    """
+    secret = os.environ.get("PUSH_SECRET", "")
+    if not secret or authorization != f"Bearer {secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    from api.services import journal_service
+    from api.services.auth_service import get_auth_connection
+    from datetime import date, timedelta
+
+    # Resolve user_id
+    auth_conn = get_auth_connection()
+    try:
+        if user_email:
+            user = auth_conn.execute(
+                "SELECT id FROM users WHERE email = ?", (user_email,)
+            ).fetchone()
+        else:
+            # Default: first admin user
+            admin_emails = os.environ.get("ADMIN_EMAILS", "").split(",")
+            admin_emails = [e.strip() for e in admin_emails if e.strip()]
+            user = None
+            for email in admin_emails:
+                user = auth_conn.execute(
+                    "SELECT id FROM users WHERE email = ?", (email,)
+                ).fetchone()
+                if user:
+                    break
+            if not user:
+                user = auth_conn.execute(
+                    "SELECT id FROM users ORDER BY created_at LIMIT 1"
+                ).fetchone()
+    finally:
+        auth_conn.close()
+
+    if not user:
+        return {"trades": [], "record_count": 0, "error": "No user found"}
+
+    user_id = user["id"]
+    date_from = (date.today() - timedelta(days=days)).isoformat()
+
+    result = journal_service.list_entries(
+        user_id,
+        filters={"status": "closed", "date_from": date_from},
+        limit=500,
+        offset=0,
+    )
+
+    trades = result.get("entries", [])
+
+    # Flatten to essential fields for intelligence engine
+    export = []
+    for t in trades:
+        export.append({
+            "id": t.get("id"),
+            "sym": t.get("sym"),
+            "direction": t.get("direction"),
+            "setup": t.get("setup"),
+            "entry_date": t.get("entry_date"),
+            "exit_date": t.get("exit_date"),
+            "entry_price": t.get("entry_price"),
+            "exit_price": t.get("exit_price"),
+            "stop_price": t.get("stop_price"),
+            "pnl_pct": t.get("pnl_pct"),
+            "pnl_dollar": t.get("pnl_dollar"),
+            "realized_r": t.get("realized_r"),
+            "size_pct": t.get("size_pct"),
+            "shares": t.get("shares"),
+            "process_score": t.get("process_score"),
+            "ps_setup": t.get("ps_setup"),
+            "ps_entry": t.get("ps_entry"),
+            "ps_exit": t.get("ps_exit"),
+            "ps_sizing": t.get("ps_sizing"),
+            "ps_stop": t.get("ps_stop"),
+            "mistake_tags": t.get("mistake_tags"),
+            "emotion_tags": t.get("emotion_tags"),
+            "review_status": t.get("review_status"),
+            "thesis": t.get("thesis"),
+            "lesson": t.get("lesson"),
+            "confidence": t.get("confidence"),
+            "entry_time": t.get("entry_time"),
+            "exit_time": t.get("exit_time"),
+            "session": t.get("session"),
+            "day_of_week": t.get("day_of_week"),
+            "holding_minutes": t.get("holding_minutes"),
+        })
+
+    # Mistake summary
+    mistake_counts = {}
+    for t in export:
+        tags = t.get("mistake_tags") or ""
+        for tag in tags.split(","):
+            tag = tag.strip()
+            if tag:
+                mistake_counts[tag] = mistake_counts.get(tag, 0) + 1
+
+    # Avg process score
+    ps_values = [t["process_score"] for t in export if t.get("process_score") is not None]
+    avg_ps = sum(ps_values) / len(ps_values) if ps_values else 0
+
+    return {
+        "trades": export,
+        "record_count": len(export),
+        "date_from": date_from,
+        "days": days,
+        "mistake_summary": mistake_counts,
+        "avg_process_score": round(avg_ps, 1),
+    }
