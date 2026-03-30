@@ -253,9 +253,9 @@
 /*  TICKER | PRICE | EPS EST | EPS ACT | SURP% | REVENUE | GAP% | VERDICT   */
 .gridCols {
   display: grid;
-  grid-template-columns: 76px 62px 66px 66px 54px 1fr 62px 50px;
+  grid-template-columns: 76px 62px 66px 66px 64px 1fr 62px 50px;
   align-items: center;
-  gap: 0 6px;
+  gap: 0 8px;
 }
 
 .gridHeader {

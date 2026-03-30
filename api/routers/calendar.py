@@ -25,7 +25,7 @@ from api.services.cache import cache
 _logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_CACHE_TTL = 1800  # 30 min
+_CACHE_TTL = 600  # 10 min — shorter to pick up reported actuals faster
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -406,38 +406,42 @@ def get_calendar():
     week_start = week_dates[0].isoformat()
     week_end   = week_dates[-1].isoformat()
 
-    # ── 1. Earnings: wire data (4-source aggregated, confidence-scored) ────────
+    # Load wire_data for cap_universe + wire calendar fallback
     source = "empty"
     days: dict | None = None
     wire = None
+    cap_uni: set | None = None
     try:
         from api.services.engine import _load_wire_data
         wire = _load_wire_data()
-        if wire and wire.get("weekly_calendar"):
-            # Use cap_universe ($300M+ tickers) for server-side filtering — same as dashboard
-            cap_uni = set(wire.get("cap_universe", [])) if wire.get("cap_universe") else None
-            days = _from_wire(wire["weekly_calendar"], week_dates, today, cap_universe=cap_uni)
-            source = "wire"
+        if wire and wire.get("cap_universe"):
+            cap_uni = set(wire["cap_universe"])
     except Exception as exc:
-        _logger.warning("Calendar: wire_data path error: %s", exc)
+        _logger.warning("Calendar: wire_data load error: %s", exc)
 
-    # ── 2. Earnings fallback: live EarningsWhispers ───────────────────────────
+    # ── 1. Live EarningsWhispers + Finviz (richer data, more tickers) ────────
+    try:
+        days = _build_live(week_dates, today)
+        if cap_uni:
+            for ds, day in days.items():
+                day["bmo"] = [e for e in day["bmo"] if e["sym"] in cap_uni]
+                day["amc"] = [e for e in day["amc"] if e["sym"] in cap_uni]
+        for d in week_dates:
+            ds = d.strftime("%Y-%m-%d")
+            if ds not in days:
+                days[ds] = _empty_day(d, today)
+        source = "live"
+    except Exception as exc:
+        _logger.warning("Calendar: live build error: %s", exc)
+
+    # ── 2. Fallback: wire data (from morning engine push) ────────────────────
     if days is None:
         try:
-            days = _build_live(week_dates, today)
-            # Apply cap_universe filter if available (wire may have loaded even if weekly_calendar was missing)
-            cap_uni = set(wire.get("cap_universe", [])) if wire and wire.get("cap_universe") else None
-            if cap_uni:
-                for ds, day in days.items():
-                    day["bmo"] = [e for e in day["bmo"] if e["sym"] in cap_uni]
-                    day["amc"] = [e for e in day["amc"] if e["sym"] in cap_uni]
-            for d in week_dates:
-                ds = d.strftime("%Y-%m-%d")
-                if ds not in days:
-                    days[ds] = _empty_day(d, today)
-            source = "live"
+            if wire and wire.get("weekly_calendar"):
+                days = _from_wire(wire["weekly_calendar"], week_dates, today, cap_universe=cap_uni)
+                source = "wire"
         except Exception as exc:
-            _logger.warning("Calendar: live build error: %s", exc)
+            _logger.warning("Calendar: wire_data path error: %s", exc)
 
     # ── 3. Empty shell if both earnings paths failed ──────────────────────────
     if days is None:

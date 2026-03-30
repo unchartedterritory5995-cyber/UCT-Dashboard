@@ -359,7 +359,7 @@ function EconPanel({ days, weekDates }) {
 
 export default function Calendar() {
   const { data, error } = useMobileSWR('/api/calendar', fetcher, {
-    refreshInterval: 5 * 60 * 1000,
+    refreshInterval: 2 * 60 * 1000,  // 2 min — pick up reported actuals quickly
     revalidateOnFocus: false,
     marketHoursOnly: true,
   })
