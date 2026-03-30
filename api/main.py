@@ -31,6 +31,7 @@ from api.routers import watchlists as watchlists_router
 from api.routers import community as community_router
 from api.routers import rs_ranking as rs_ranking_router
 from api.routers import sector_flow as sector_flow_router
+from api.routers import intelligence as intelligence_router
 from api.services.auth_db import init_db as _init_auth_db
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse as StarletteJSONResponse
@@ -266,6 +267,7 @@ app.include_router(live_prices_router.router)
 app.include_router(rs_ranking_router.router)
 app.include_router(sector_flow_router.router)
 app.include_router(correlation_router.router)
+app.include_router(intelligence_router.router)
 
 # ─── CSV routes: serve from app/public/ directly (bypasses Vite build cache) ──
 PUBLIC = os.path.join(os.path.dirname(__file__), "..", "app", "public")

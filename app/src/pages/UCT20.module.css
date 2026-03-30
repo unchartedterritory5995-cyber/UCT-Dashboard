@@ -121,6 +121,26 @@
   color: var(--text-muted);
   padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
 }
+
+/* ── Confidence Score Badge (Phase 5) ── */
+.confidenceBadge {
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
+  padding: 1px 6px; border-radius: 3px; flex-shrink: 0;
+}
+.gradeAPlus { color: #fff; background: var(--ut-green); }
+.gradeA { color: #fff; background: rgba(74,222,128,0.6); }
+.gradeB { color: var(--ut-cream); background: rgba(201,168,76,0.4); }
+.gradeC { color: var(--text-muted); background: rgba(255,255,255,0.08); }
+
+/* ── Persistence Badge ── */
+.persistenceBadge {
+  font-family: var(--font-mono);
+  font-size: 8px; font-weight: 600; letter-spacing: 0.5px;
+  color: var(--ut-gold); background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(201,168,76,0.25);
+  padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+}
 .instUp { color: var(--ut-green-bright); }
 .instDown { color: var(--ut-red, #ef4444);
   border-radius: 3px; padding: 1px 5px;

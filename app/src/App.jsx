@@ -21,6 +21,7 @@ const LiveFlow = lazy(() => import('./pages/LiveFlow'))
 const DarkPool = lazy(() => import('./pages/DarkPool'))
 const PostMarket = lazy(() => import('./pages/PostMarket'))
 const ModelBook = lazy(() => import('./pages/ModelBook'))
+const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
 const Journal = lazy(() => import('./pages/journal/JournalPage'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const Community = lazy(() => import('./pages/Community'))
@@ -92,6 +93,7 @@ export default function App() {
                 <Route path="/dark-pool" element={<DarkPool />} />
                 <Route path="/post-market" element={<PostMarket />} />
                 <Route path="/model-book" element={<ModelBook />} />
+                <Route path="/setup-library" element={<SetupLibrary />} />
                 <Route path="/journal" element={<Journal />} />
                 <Route path="/watchlists" element={<Watchlists />} />
                 <Route path="/community" element={<Community />} />

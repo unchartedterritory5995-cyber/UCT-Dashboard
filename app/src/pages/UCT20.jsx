@@ -48,6 +48,20 @@ function RsBadge({ rsRank }) {
   return <span className={`${styles.rsBadge} ${cls}`}>RS {rsRank}</span>
 }
 
+function ConfidenceBadge({ grade }) {
+  if (!grade) return null
+  const cls = grade === 'A+' ? styles.gradeAPlus
+    : grade === 'A' ? styles.gradeA
+    : grade === 'B' ? styles.gradeB
+    : styles.gradeC
+  return <span className={`${styles.confidenceBadge} ${cls}`}>{grade}</span>
+}
+
+function PersistenceBadge({ days }) {
+  if (!days || days < 2) return null
+  return <span className={styles.persistenceBadge}>{days}d</span>
+}
+
 function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, hasInsiderBuy, rsData }) {
   const sym           = item.ticker ?? item.sym ?? item.symbol ?? '—'
   const score         = item.score ?? item.rs_score ?? null
@@ -125,6 +139,7 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
         <div className={styles.cardRowRight}>
           <RsBadge rsRank={rsData?.rs_rank} />
           <span className={styles.newSlot}>
+            <ConfidenceBadge grade={item.confidence_tier} />
             {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}
             {isNew && <span className={styles.newBadge}>NEW</span>}
             {item.short_flt != null && item.short_flt > 10 && (

@@ -1,0 +1,108 @@
+.page { padding: 20px 24px; }
+.header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; }
+.count { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+
+/* ── Layout ── */
+.layout { display: flex; gap: 0; height: calc(100vh - 120px); }
+.listPanel { width: 340px; min-width: 280px; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.detailPanel { flex: 1; overflow-y: auto; padding: 0 20px; }
+
+/* ── Filters ── */
+.filters { padding: 8px 0 12px; border-bottom: 1px solid var(--border); }
+.searchInput {
+  width: 100%; padding: 8px 12px; font-size: 13px; font-family: var(--font-mono);
+  background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border);
+  border-radius: var(--radius-md); outline: none; margin-bottom: 8px;
+}
+.searchInput:focus { border-color: var(--ut-gold); }
+.familyTabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.familyTab {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+  padding: 3px 8px; border-radius: 3px; cursor: pointer; border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted); transition: all 0.15s;
+}
+.familyTab:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); }
+.familyTabActive { background: rgba(201,168,76,0.15); color: var(--ut-gold); border-color: rgba(201,168,76,0.3); }
+
+/* ── Template list ── */
+.templateList { flex: 1; overflow-y: auto; }
+.groupHeader {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--ut-gold); padding: 12px 8px 4px; opacity: 0.7;
+}
+.templateRow {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 8px; cursor: pointer; border-left: 2px solid transparent;
+  transition: background 0.1s;
+}
+.templateRow:hover { background: rgba(255,255,255,0.03); }
+.templateRowActive { background: rgba(201,168,76,0.08); border-left-color: var(--ut-gold); }
+.templateMain { display: flex; flex-direction: column; gap: 2px; }
+.templateName { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.templateTrader { font-size: 11px; color: var(--text-muted); }
+.templateMeta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.templateTrades { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+
+/* ── Perf bar ── */
+.perfBar {
+  width: 60px; height: 10px; background: rgba(255,255,255,0.06); border-radius: 5px;
+  position: relative; overflow: hidden;
+}
+.perfFill { height: 100%; border-radius: 5px; transition: width 0.3s; }
+.perfLabel { position: absolute; top: -1px; right: 0; font-family: var(--font-mono); font-size: 9px; font-weight: 700; color: var(--text-primary); }
+.noData { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+
+/* ── Detail panel ── */
+.detail { padding: 16px 0; }
+.detailHeader { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.detailName { font-family: var(--font-display); font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0; }
+.detailFamily { font-size: 12px; color: var(--text-muted); }
+.closeBtn { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; padding: 4px 8px; }
+.closeBtn:hover { color: var(--text-primary); }
+.detailDesc { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 16px; }
+.detailRegime { margin-bottom: 16px; }
+.regimeTags { display: flex; gap: 6px; margin-top: 4px; }
+.regimeTag {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 2px 8px; border-radius: 3px; background: rgba(74,222,128,0.15); color: #4ade80;
+  border: 1px solid rgba(74,222,128,0.25);
+}
+
+/* ── Rule sections ── */
+.ruleSection { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.sectionLabel {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--ut-gold); display: block; margin-bottom: 6px;
+}
+.ruleRow { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 4px; }
+.ruleKey { font-weight: 600; color: var(--text-primary); margin-right: 4px; }
+.mistakeRow { font-size: 12px; line-height: 1.5; color: #fca5a5; margin-bottom: 2px; }
+
+/* ── Performance table ── */
+.perfTable { font-family: var(--font-mono); font-size: 11px; }
+.perfHeader { display: grid; grid-template-columns: 1fr 60px 50px 70px 60px; gap: 4px; color: var(--text-muted); font-weight: 700; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.perfRow { display: grid; grid-template-columns: 1fr 60px 50px 70px 60px; gap: 4px; color: var(--text-secondary); padding: 3px 0; }
+
+/* ── Modelbook hook ── */
+.modelBookHook { margin-top: 20px; padding: 16px; background: rgba(201,168,76,0.05); border: 1px dashed rgba(201,168,76,0.2); border-radius: var(--radius-md); }
+.comingSoon { font-size: 12px; color: var(--text-muted); font-style: italic; margin: 4px 0 0; }
+
+/* ── Empty states ── */
+.empty { padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+.emptyDetail { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
+.loading { padding: 20px; color: var(--text-muted); font-size: 13px; }
+
+/* ── Grade pills ── */
+.gradePill { font-family: var(--font-mono); font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 3px; }
+.gA { color: #fff; background: var(--ut-green); }
+.gB { color: var(--ut-cream); background: rgba(201,168,76,0.4); }
+.gC { color: var(--text-muted); background: rgba(255,255,255,0.08); }
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .layout { flex-direction: column; height: auto; }
+  .listPanel { width: 100%; border-right: none; border-bottom: 1px solid var(--border); max-height: 40vh; }
+  .detailPanel { padding: 12px 0; }
+  .heading { font-size: 18px; letter-spacing: 3px; }
+}
