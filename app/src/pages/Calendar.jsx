@@ -76,27 +76,8 @@ function epsActClass(v, eps_est, styles) {
   return `${styles.epsAct} ${styles.epsMixed}`
 }
 
-// ── Filter helpers ────────────────────────────────────────────────────────────
-// Hardcoded: mcap > $300M, price > $2, avg vol > 200K
-
-function applyFilters(entries, metrics) {
-  // If metrics haven't loaded yet, filter only on mc_b from calendar data
-  const hasMetrics = metrics && Object.keys(metrics).length > 0
-  return entries.filter(e => {
-    const m = hasMetrics ? metrics[e.sym] : null
-    const mc    = m?.mc_b  ?? e.mc_b  ?? null
-    const price = m?.price ?? null
-    const vol   = m?.avg_vol ?? null
-
-    // Always filter on mc_b (available from calendar chip data without metrics)
-    if (mc != null && mc < 0.3) return false
-    // Only filter on price/vol when metrics are loaded
-    if (price != null && price < 2) return false
-    if (vol != null && vol < 200_000) return false
-
-    return true
-  })
-}
+// Filtering is done server-side via cap_universe ($300M+ tickers).
+// No client-side filtering needed — render what the API returns.
 
 // ── Earnings grid header ──────────────────────────────────────────────────────
 
@@ -207,26 +188,16 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
     { refreshInterval: 30_000, revalidateOnFocus: false, marketHoursOnly: true }
   )
 
-  // Price / avg-vol / mc metrics for filter bar (2 min)
-  const { data: metrics } = useMobileSWR(
-    `/api/calendar/day-metrics?date=${activeDate}`,
-    fetcher,
-    { refreshInterval: 2 * 60_000, revalidateOnFocus: false, marketHoursOnly: true }
-  )
-
   const dayData = days[activeDate] || {}
-  const rawBmo = dayData.bmo || []
-  const rawAmc = dayData.amc || []
+  const bmo = dayData.bmo || []
+  const amc = dayData.amc || []
 
   // Extract tickers for the active day and fetch live prices
   const todayTickers = useMemo(
-    () => [...rawBmo, ...rawAmc].map(e => e.sym),
-    [rawBmo, rawAmc]
+    () => [...bmo, ...amc].map(e => e.sym),
+    [bmo, amc]
   )
   const { prices: livePrices } = useLivePrices(todayTickers)
-
-  const bmo = applyFilters(rawBmo, metrics)
-  const amc = applyFilters(rawAmc, metrics)
 
   return (
     <div className={styles.earningsPanel}>
