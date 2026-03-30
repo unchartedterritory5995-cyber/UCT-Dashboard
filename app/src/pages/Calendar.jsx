@@ -79,26 +79,41 @@ function epsActClass(v, eps_est, styles) {
 // Filtering is done server-side via cap_universe ($300M+ tickers).
 // No client-side filtering needed — render what the API returns.
 
-// ── Earnings grid header ──────────────────────────────────────────────────────
+// ── Earnings table ────────────────────────────────────────────────────────────
 
-function GridHeader() {
+function EarningsTable({ entries, reactions, livePrices, onSelect, label }) {
+  if (!entries.length) return null
+
   return (
-    <div className={styles.gridHeader}>
-      <span className={styles.colHead}>Ticker</span>
-      <span className={`${styles.colHead} ${styles.hideOnMobile}`}>Price</span>
-      <span className={`${styles.colHead} ${styles.hideOnMobile}`}>EPS Est</span>
-      <span className={`${styles.colHead} ${styles.hideOnMobile}`}>EPS Act</span>
-      <span className={styles.colHead}>Surp %</span>
-      <span className={`${styles.colHead} ${styles.hideOnMobile}`}>Revenue</span>
-      <span className={styles.colHead}>Gap %</span>
-      <span className={styles.colHead}></span>
-    </div>
+    <table className={styles.earningsTable}>
+      <thead>
+        <tr>
+          <th className={styles.thLeft}>Ticker</th>
+          <th className={styles.hideOnMobile}>Price</th>
+          <th className={styles.hideOnMobile}>EPS Est</th>
+          <th className={styles.hideOnMobile}>EPS Act</th>
+          <th>Surp %</th>
+          <th className={styles.hideOnMobile}>Revenue</th>
+          <th>Gap %</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {entries.map(entry => (
+          <EarningsRow
+            key={entry.sym}
+            entry={entry}
+            reaction={reactions?.[entry.sym]}
+            livePrice={livePrices[entry.sym]?.price}
+            onClick={() => onSelect(entry, label)}
+          />
+        ))}
+      </tbody>
+    </table>
   )
 }
 
-// ── Earnings ticker row ────────────────────────────────────────────────────────
-
-function TickerRow({ entry, reaction, livePrice, onClick }) {
+function EarningsRow({ entry, reaction, livePrice, onClick }) {
   const v         = verdict(entry.eps_act, entry.eps_est)
   const pill      = pillLabel(v)
   const reported  = entry.eps_act != null
@@ -107,7 +122,6 @@ function TickerRow({ entry, reaction, livePrice, onClick }) {
   const actFmt    = fmtEps(entry.eps_act)   ?? '—'
   const surprFmt  = calcSurprise(entry.eps_act, entry.eps_est)
 
-  // Revenue: prefer actual, fall back to estimate (labeled)
   const revFmt = entry.rev_act != null
     ? fmtRev(entry.rev_act)
     : entry.rev_est != null
@@ -118,58 +132,35 @@ function TickerRow({ entry, reaction, livePrice, onClick }) {
     ? `${reaction >= 0 ? '+' : ''}${reaction.toFixed(1)}%`
     : null
 
-  // Surprise color
   const surprClass = surprFmt == null
     ? styles.reactionNeutral
     : surprFmt.startsWith('+') ? styles.reactionPos : styles.reactionNeg
 
-  // Format live price
   const priceFmt = livePrice != null
     ? `$${livePrice.toFixed(2)}`
     : '—'
 
   return (
-    <div className={styles.tickerRow} onClick={onClick} role="button" tabIndex={0}
-         onKeyDown={e => e.key === 'Enter' && onClick()}>
-
-      {/* Col 1 — Ticker */}
-      <span className={styles.colTicker}><TickerPopup sym={entry.sym} /></span>
-
-      {/* Col 2 — Live Price */}
-      <span className={`${styles.colLivePrice} ${styles.hideOnMobile}`}>{priceFmt}</span>
-
-      {/* Col 3 — EPS Est */}
-      <span className={`${styles.colValDim} ${styles.hideOnMobile}`}>{reported ? estFmt : (estFmt !== '—' ? estFmt : '—')}</span>
-
-      {/* Col 4 — EPS Act */}
-      <span className={`${styles.colValBright} ${reported ? epsActClass(entry.eps_act, entry.eps_est, styles) : styles.colValDim} ${styles.hideOnMobile}`}>
+    <tr className={styles.earningsRow} onClick={onClick}>
+      <td className={styles.tdTicker}><TickerPopup sym={entry.sym} /></td>
+      <td className={`${styles.tdMono} ${styles.hideOnMobile}`}>{priceFmt}</td>
+      <td className={`${styles.tdDim} ${styles.hideOnMobile}`}>{estFmt}</td>
+      <td className={`${reported ? epsActClass(entry.eps_act, entry.eps_est, styles) : styles.tdDim} ${styles.hideOnMobile}`}>
         {reported ? actFmt : '—'}
-      </span>
-
-      {/* Col 5 — Surprise % */}
-      <span className={surprFmt != null ? surprClass : styles.reactionNeutral}>
+      </td>
+      <td className={surprFmt != null ? surprClass : styles.reactionNeutral}>
         {surprFmt ?? '—'}
-      </span>
-
-      {/* Col 6 — Revenue */}
-      <span className={`${styles.colValDim} ${styles.hideOnMobile}`}>{revFmt}</span>
-
-      {/* Col 7 — Gap % */}
-      {reactionFmt ? (
-        <span className={reaction >= 0 ? styles.reactionPos : styles.reactionNeg}>
-          {reactionFmt}
-        </span>
-      ) : (
-        <span className={styles.reactionNeutral}>—</span>
-      )}
-
-      {/* Col 8 — Verdict pill */}
-      {pill ? (
-        <span className={pillClass(v, styles)}>{pill}</span>
-      ) : (
-        <span className={styles.pillPending} />
-      )}
-    </div>
+      </td>
+      <td className={`${styles.tdDim} ${styles.hideOnMobile}`}>{revFmt}</td>
+      <td className={reactionFmt ? (reaction >= 0 ? styles.reactionPos : styles.reactionNeg) : styles.reactionNeutral}>
+        {reactionFmt ?? '—'}
+      </td>
+      <td>
+        {pill ? (
+          <span className={pillClass(v, styles)}>{pill}</span>
+        ) : null}
+      </td>
+    </tr>
   )
 }
 
@@ -237,18 +228,13 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
           {bmo.length === 0 ? (
             <div className={styles.emptyBucket}>No reporters</div>
           ) : (
-            <>
-              <GridHeader />
-              {bmo.map(e => (
-                <TickerRow
-                  key={e.sym}
-                  entry={e}
-                  reaction={reactions?.[e.sym]}
-                  livePrice={livePrices[e.sym]?.price}
-                  onClick={() => onSelectEntry(e, 'BEFORE MARKET OPEN')}
-                />
-              ))}
-            </>
+            <EarningsTable
+              entries={bmo}
+              reactions={reactions}
+              livePrices={livePrices}
+              onSelect={onSelectEntry}
+              label="BEFORE MARKET OPEN"
+            />
           )}
         </div>
 
@@ -260,18 +246,13 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
           {amc.length === 0 ? (
             <div className={styles.emptyBucket}>No reporters</div>
           ) : (
-            <>
-              <GridHeader />
-              {amc.map(e => (
-                <TickerRow
-                  key={e.sym}
-                  entry={e}
-                  reaction={reactions?.[e.sym]}
-                  livePrice={livePrices[e.sym]?.price}
-                  onClick={() => onSelectEntry(e, 'AFTER MARKET CLOSE')}
-                />
-              ))}
-            </>
+            <EarningsTable
+              entries={amc}
+              reactions={reactions}
+              livePrices={livePrices}
+              onSelect={onSelectEntry}
+              label="AFTER MARKET CLOSE"
+            />
           )}
         </div>
       </div>

@@ -249,23 +249,16 @@
   padding: 4px 2px;
 }
 
-/* ── Earnings grid — 8 fixed columns ─────────────────────────────────────── */
-/*  TICKER | PRICE | EPS EST | EPS ACT | SURP% | REVENUE | GAP% | VERDICT   */
-.gridCols {
-  display: grid;
-  grid-template-columns: 76px 62px 66px 66px 64px 1fr 62px 50px;
-  align-items: center;
-  gap: 0 8px;
+/* ── Earnings table ─────────────────────────────────────────────────────── */
+
+.earningsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
-.gridHeader {
-  composes: gridCols;
-  padding: 3px 4px 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  margin-bottom: 2px;
-}
-
-.colHead {
+.earningsTable thead th {
   font-family: var(--font-mono);
   font-size: 8px;
   font-weight: 600;
@@ -274,49 +267,43 @@
   text-transform: uppercase;
   opacity: 0.5;
   text-align: right;
+  padding: 3px 6px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  white-space: nowrap;
 }
-.colHead:first-child { text-align: left; }
 
-.tickerRow {
-  composes: gridCols;
-  padding: 3px 4px;
-  border-radius: 3px;
+.thLeft { text-align: left !important; }
+
+.earningsRow {
   cursor: pointer;
   transition: background 0.08s;
 }
-.tickerRow:hover { background: var(--bg-hover); }
+.earningsRow:hover { background: var(--bg-hover); }
 
-/* grid cells — all right-aligned except ticker */
-.colTicker { /* left-align handled by TickerPopup */ }
-
-.colLivePrice {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text);
+.earningsRow td {
+  padding: 4px 6px;
   text-align: right;
   white-space: nowrap;
+  vertical-align: middle;
+}
+
+.tdTicker {
+  text-align: left !important;
+  font-weight: 600;
+}
+
+.tdMono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
   opacity: 0.8;
 }
 
-.colVal {
+.tdDim {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
-  text-align: right;
-  white-space: nowrap;
-}
-.colValDim {
-  composes: colVal;
   opacity: 0.55;
-}
-.colValBright {
-  composes: colVal;
-  color: var(--text);
-}
-.colDash {
-  composes: colVal;
-  opacity: 0.2;
 }
 
 /* EPS / revenue coloring */
@@ -550,8 +537,7 @@
   .pageHeader { flex-wrap: wrap; gap: 6px; }
   .body { flex-direction: column; overflow: visible; }
   .earningsPanel, .econPanel { min-height: 300px; overflow: visible; }
-  .gridCols { grid-template-columns: 1fr 50px 54px 50px; font-size: 10px; }
   .hideOnMobile { display: none; }
-  .colHead { font-size: 9px; }
-  .filterLabel { font-size: 9px; }
+  .earningsTable { font-size: 10px; }
+  .earningsTable thead th { font-size: 8px; }
 }
