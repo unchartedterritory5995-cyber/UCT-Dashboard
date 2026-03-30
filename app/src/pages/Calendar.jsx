@@ -77,47 +77,18 @@ function epsActClass(v, eps_est, styles) {
 }
 
 // ── Filter helpers ────────────────────────────────────────────────────────────
+// Hardcoded: mcap > $300M, price > $2, avg vol > 200K
 
-const MC_PRESETS = [
-  { id: 'all',   label: 'All Cap' },
-  { id: 'large', label: 'Large 10B+' },
-  { id: 'mid',   label: 'Mid 2-10B' },
-  { id: 'small', label: 'Small <2B' },
-]
-const PRICE_PRESETS = [
-  { id: 'all', label: 'Any Price' },
-  { id: '10',  label: '$10+' },
-  { id: '25',  label: '$25+' },
-  { id: '50',  label: '$50+' },
-]
-const VOL_PRESETS = [
-  { id: 'all',  label: 'Any Vol' },
-  { id: '300k', label: '300K+' },
-  { id: '500k', label: '500K+' },
-  { id: '1m',   label: '1M+' },
-  { id: '5m',   label: '5M+' },
-]
-
-function applyFilters(entries, metrics, mcFilter, priceFilter, volFilter) {
-  if (mcFilter === 'all' && priceFilter === 'all' && volFilter === 'all') return entries
+function applyFilters(entries, metrics) {
   return entries.filter(e => {
     const m = metrics?.[e.sym]
     const mc    = m?.mc_b  ?? e.mc_b  ?? null
     const price = m?.price ?? null
     const vol   = m?.avg_vol ?? null
 
-    if (mcFilter === 'large' && (mc == null || mc < 10))               return false
-    if (mcFilter === 'mid'   && (mc == null || mc < 2 || mc >= 10))    return false
-    if (mcFilter === 'small' && (mc == null || mc >= 2))               return false
-
-    if (priceFilter === '10'  && (price == null || price < 10))  return false
-    if (priceFilter === '25'  && (price == null || price < 25))  return false
-    if (priceFilter === '50'  && (price == null || price < 50))  return false
-
-    if (volFilter === '300k' && (vol == null || vol < 300_000))   return false
-    if (volFilter === '500k' && (vol == null || vol < 500_000))   return false
-    if (volFilter === '1m'   && (vol == null || vol < 1_000_000)) return false
-    if (volFilter === '5m'   && (vol == null || vol < 5_000_000)) return false
+    if (mc == null || mc < 0.3) return false
+    if (price == null || price < 2) return false
+    if (vol == null || vol < 200_000) return false
 
     return true
   })
@@ -217,27 +188,6 @@ function TickerRow({ entry, reaction, livePrice, onClick }) {
   )
 }
 
-// ── Filter chip strip ─────────────────────────────────────────────────────────
-
-function FilterChips({ presets, value, onChange, label }) {
-  return (
-    <div className={styles.filterGroup}>
-      <span className={styles.filterLabel}>{label}</span>
-      <div className={styles.filterChips}>
-        {presets.map(p => (
-          <button
-            key={p.id}
-            className={[styles.filterChip, value === p.id ? styles.filterChipActive : ''].filter(Boolean).join(' ')}
-            onClick={() => onChange(p.id)}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 // ── Earnings panel ─────────────────────────────────────────────────────────────
 
 function EarningsPanel({ days, weekDates, onSelectEntry }) {
@@ -245,10 +195,6 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
     const today = new Date().toISOString().slice(0, 10)
     return weekDates.includes(today) ? today : weekDates[0]
   })
-
-  const [mcFilter,    setMcFilter]    = useState('all')
-  const [priceFilter, setPriceFilter] = useState('all')
-  const [volFilter,   setVolFilter]   = useState('300k')
 
   // Live price reactions for reported tickers (30s)
   const { data: reactions } = useMobileSWR(
@@ -275,10 +221,8 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
   )
   const { prices: livePrices } = useLivePrices(todayTickers)
 
-  const bmo = applyFilters(rawBmo, metrics, mcFilter, priceFilter, volFilter)
-  const amc = applyFilters(rawAmc, metrics, mcFilter, priceFilter, volFilter)
-
-  const filtersActive = mcFilter !== 'all' || priceFilter !== 'all' || volFilter !== 'all'
+  const bmo = applyFilters(rawBmo, metrics)
+  const amc = applyFilters(rawAmc, metrics)
 
   return (
     <div className={styles.earningsPanel}>
@@ -307,32 +251,16 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
             )
           })}
         </div>
-
-        {/* Filter bar */}
-        <div className={styles.filterBar}>
-          <FilterChips presets={MC_PRESETS}    value={mcFilter}    onChange={setMcFilter}    label="MCap" />
-          <FilterChips presets={PRICE_PRESETS} value={priceFilter} onChange={setPriceFilter} label="Price" />
-          <FilterChips presets={VOL_PRESETS}   value={volFilter}   onChange={setVolFilter}   label="Avg Vol" />
-          {filtersActive && (
-            <button className={styles.filterReset} onClick={() => {
-              setMcFilter('all'); setPriceFilter('all'); setVolFilter('all')
-            }}>
-              ✕ Clear
-            </button>
-          )}
-        </div>
       </div>
 
       <div className={styles.earningsList}>
         {/* BMO */}
         <div className={styles.timingSection}>
           <div className={`${styles.sectionLabel} ${styles.bmoLabel}`}>
-            ▲ Before Market Open — {bmo.length}{filtersActive && rawBmo.length !== bmo.length ? `/${rawBmo.length}` : ''} reporters
+            ▲ Before Market Open — {bmo.length} reporters
           </div>
           {bmo.length === 0 ? (
-            <div className={styles.emptyBucket}>
-              {filtersActive && rawBmo.length > 0 ? 'No reporters match filters' : 'No reporters'}
-            </div>
+            <div className={styles.emptyBucket}>No reporters</div>
           ) : (
             <>
               <GridHeader />
@@ -352,12 +280,10 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
         {/* AMC */}
         <div className={styles.timingSection}>
           <div className={`${styles.sectionLabel} ${styles.amcLabel}`}>
-            ▼ After Market Close — {amc.length}{filtersActive && rawAmc.length !== amc.length ? `/${rawAmc.length}` : ''} reporters
+            ▼ After Market Close — {amc.length} reporters
           </div>
           {amc.length === 0 ? (
-            <div className={styles.emptyBucket}>
-              {filtersActive && rawAmc.length > 0 ? 'No reporters match filters' : 'No reporters'}
-            </div>
+            <div className={styles.emptyBucket}>No reporters</div>
           ) : (
             <>
               <GridHeader />
