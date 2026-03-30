@@ -16,17 +16,23 @@ function fmtRev(m) {
 
 export default function EarningsModal({ row, label, onClose }) {
   const [gap, setGap]                       = useState(null)
+  const [intel, setIntel]                   = useState(null)
   const [aiState, setAiState]               = useState({ loading: true, data: null })
   const [transcriptState, setTranscriptState] = useState({ loading: false, data: null })
   const [transcriptOpen, setTranscriptOpen] = useState(false)
 
-  // Live gap %
+  // Live gap % + Earnings intel (analyst consensus + price targets)
   useEffect(() => {
     if (!row) return
     setGap(null)
+    setIntel(null)
     fetch(`/api/snapshot/${row.sym}`)
       .then(r => r.json())
       .then(d => { if (d.change_pct != null) setGap(d.change_pct) })
+      .catch(() => {})
+    fetch(`/api/earnings/intel/${row.sym}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setIntel(d))
       .catch(() => {})
   }, [row?.sym])
 
@@ -192,6 +198,30 @@ export default function EarningsModal({ row, label, onClose }) {
         {gap != null && (
           <div className={`${styles.gap} ${gap >= 0 ? styles.pos : styles.neg}`}>
             {gap >= 0 ? '↑' : '↓'} Gap {gap >= 0 ? '+' : ''}{gap.toFixed(2)}%
+          </div>
+        )}
+
+        {/* ── Analyst consensus + price target ─────────────────────────── */}
+        {intel && (intel.consensus || intel.price_target) && (
+          <div className={styles.intelStrip}>
+            {intel.consensus && (
+              <div className={styles.intelItem}>
+                <span className={styles.intelLabel}>ANALYST</span>
+                <span className={styles.pos}>{(intel.consensus.buy || 0) + (intel.consensus.strongBuy || 0)} Buy</span>
+                <span className={styles.muted}>{intel.consensus.hold || 0} Hold</span>
+                <span className={styles.neg}>{(intel.consensus.sell || 0) + (intel.consensus.strongSell || 0)} Sell</span>
+              </div>
+            )}
+            {intel.price_target && (
+              <div className={styles.intelItem}>
+                <span className={styles.intelLabel}>TARGET</span>
+                <span className={styles.muted}>${intel.price_target.targetLow?.toFixed(0)}</span>
+                <span>—</span>
+                <span className={styles.pos}>${intel.price_target.targetMean?.toFixed(0)}</span>
+                <span>—</span>
+                <span className={styles.muted}>${intel.price_target.targetHigh?.toFixed(0)}</span>
+              </div>
+            )}
           </div>
         )}
 

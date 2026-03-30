@@ -336,6 +336,33 @@
   margin: 8px 0;
 }
 
+/* ── Analyst intel strip ─────────────────────────────────── */
+.intelStrip {
+  display: flex;
+  gap: 16px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.intelItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.intelLabel {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  margin-right: 2px;
+}
+
 /* ── Transcript section (collapsible) ────────────────────── */
 .transcriptSection {
   border: 1px solid var(--border);

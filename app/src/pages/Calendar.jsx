@@ -180,8 +180,12 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
   )
 
   const dayData = days[activeDate] || {}
-  const bmo = dayData.bmo || []
-  const amc = dayData.amc || []
+  // Filter out entries with zero coverage (no estimates, no actuals = pure noise)
+  const _filterNoise = entries => entries.filter(e =>
+    e.eps_est != null || e.eps_act != null || e.rev_est != null || e.rev_act != null
+  )
+  const bmo = _filterNoise(dayData.bmo || [])
+  const amc = _filterNoise(dayData.amc || [])
 
   // Extract tickers for the active day and fetch live prices
   const todayTickers = useMemo(
