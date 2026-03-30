@@ -15,8 +15,10 @@ function fmtRev(m) {
 }
 
 export default function EarningsModal({ row, label, onClose }) {
-  const [gap, setGap]           = useState(null)
-  const [aiState, setAiState]   = useState({ loading: true, data: null })
+  const [gap, setGap]                       = useState(null)
+  const [aiState, setAiState]               = useState({ loading: true, data: null })
+  const [transcriptState, setTranscriptState] = useState({ loading: false, data: null })
+  const [transcriptOpen, setTranscriptOpen] = useState(false)
 
   // Live gap %
   useEffect(() => {
@@ -46,6 +48,27 @@ export default function EarningsModal({ row, label, onClose }) {
     return () => { controller.abort(); clearTimeout(timer) }
   }, [row?.sym])
 
+  // Transcript (only for reported entries)
+  const verdict = row?.verdict?.toLowerCase()
+  const isPending = verdict === 'pending'
+  useEffect(() => {
+    if (!row || isPending) return
+    setTranscriptState({ loading: true, data: null })
+    setTranscriptOpen(false)
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 25_000)
+    fetch(`/api/transcripts/${row.sym}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then(d => setTranscriptState({ loading: false, data: d }))
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          setTranscriptState({ loading: false, data: null })
+        }
+      })
+      .finally(() => clearTimeout(timer))
+    return () => { controller.abort(); clearTimeout(timer) }
+  }, [row?.sym, isPending])
+
   // Escape key
   useEffect(() => {
     const handleKey = e => { if (e.key === 'Escape') onClose() }
@@ -55,16 +78,15 @@ export default function EarningsModal({ row, label, onClose }) {
 
   if (!row) return null
 
-  const verdict = row.verdict?.toLowerCase()
   const isBeat = verdict === 'beat'
   const isMixed = verdict === 'mixed'
-  const isPending = verdict === 'pending'
   const verdictLabel = isBeat ? '✓ Beat' : isMixed ? '~ Mixed' : '✗ Miss'
   const summaryText = row.reported_eps != null && row.eps_estimate != null
     ? `${verdictLabel} — EPS ${fmtEps(row.reported_eps)} vs ${fmtEps(row.eps_estimate)} est (${row.surprise_pct} surprise)`
     : null
 
-  const hasAiContent = aiState.data?.analysis || aiState.data?.news?.length
+  const hasAiContent = aiState.data?.analysis || aiState.data?.analysis_bullets?.length || aiState.data?.news?.length
+  const transcript = transcriptState.data
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
@@ -76,7 +98,7 @@ export default function EarningsModal({ row, label, onClose }) {
         </div>
 
         <div className={styles.badges}>
-          <span className={styles.badge}>⬛ EARNINGS REPORT</span>
+          <span className={styles.badge}>EARNINGS REPORT</span>
           <span className={styles.badgeTime}>{label}</span>
         </div>
 
@@ -115,6 +137,7 @@ export default function EarningsModal({ row, label, onClose }) {
           </div>
         )}
 
+        {/* ── Pending: AI Preview ──────────────────────────────────────── */}
         {isPending && (
           aiState.loading ? (
             <div className={styles.aiLoading}>
@@ -123,11 +146,11 @@ export default function EarningsModal({ row, label, onClose }) {
             </div>
           ) : aiState.data?.preview_text ? (
             <div className={styles.previewBox}>
-              <span className={styles.badge}>▸ EARNINGS PREVIEW</span>
+              <span className={styles.badge}>EARNINGS PREVIEW</span>
               <p className={styles.aiText}>{aiState.data.preview_text}</p>
               {aiState.data.preview_bullets?.length > 0 && (
                 <>
-                  <div className={styles.watchLabel}>▸ THINGS TO WATCH</div>
+                  <div className={styles.watchLabel}>THINGS TO WATCH</div>
                   <ul className={styles.watchList}>
                     {aiState.data.preview_bullets.map((b, i) => (
                       <li key={i}>{b}</li>
@@ -136,23 +159,7 @@ export default function EarningsModal({ row, label, onClose }) {
                 </>
               )}
               {aiState.data.news?.length > 0 && (
-                <div className={styles.newsList}>
-                  {aiState.data.news.map((item, i) => (
-                    <a
-                      key={i}
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={styles.newsItem}
-                      aria-label={`${item.source}: ${item.headline}`}
-                    >
-                      <span className={styles.newsItemSource}>
-                        {item.source}{item.time ? ` · ${item.time}` : ''}
-                      </span>
-                      <span className={styles.newsItemHeadline}>{item.headline} ↗</span>
-                    </a>
-                  ))}
-                </div>
+                <NewsList items={aiState.data.news} />
               )}
             </div>
           ) : aiState.data && !aiState.data.preview_text ? (
@@ -160,6 +167,7 @@ export default function EarningsModal({ row, label, onClose }) {
           ) : null
         )}
 
+        {/* ── Trend block ──────────────────────────────────────────────── */}
         {(aiState.data?.yoy_eps_growth || aiState.data?.beat_streak) && (
           <div className={styles.trend}>
             {aiState.data.yoy_eps_growth && (
@@ -180,13 +188,14 @@ export default function EarningsModal({ row, label, onClose }) {
           </div>
         )}
 
+        {/* ── Gap % ────────────────────────────────────────────────────── */}
         {gap != null && (
           <div className={`${styles.gap} ${gap >= 0 ? styles.pos : styles.neg}`}>
             {gap >= 0 ? '↑' : '↓'} Gap {gap >= 0 ? '+' : ''}{gap.toFixed(2)}%
           </div>
         )}
 
-        {/* AI Analysis + Related News */}
+        {/* ── Reported: AI Analysis (structured bullets) ───────────────── */}
         {!isPending && (
           aiState.loading ? (
             <div className={styles.aiLoading}>
@@ -194,34 +203,78 @@ export default function EarningsModal({ row, label, onClose }) {
               Analyzing earnings…
             </div>
           ) : hasAiContent ? (
-            <div className={styles.aiSection}>
-              {aiState.data.analysis && (
+            <div className={styles.analysisBox}>
+              {/* New structured bullets format */}
+              {aiState.data.analysis_bullets?.length > 0 ? (
+                <>
+                  {aiState.data.analysis_headline && (
+                    <p className={styles.analysisHeadline}>{aiState.data.analysis_headline}</p>
+                  )}
+                  <div className={styles.watchLabel}>KEY TAKEAWAYS</div>
+                  <ul className={styles.watchList}>
+                    {aiState.data.analysis_bullets.map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : aiState.data.analysis ? (
+                /* Fallback: old paragraph format (cached data during transition) */
                 <p className={styles.aiText}>{aiState.data.analysis}</p>
-              )}
+              ) : null}
               {aiState.data.news?.length > 0 && (
-                <div className={styles.newsList}>
-                  {aiState.data.news.map((item, i) => (
-                    <a
-                      key={i}
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={styles.newsItem}
-                      aria-label={`${item.source}: ${item.headline}`}
-                    >
-                      <span className={styles.newsItemSource}>{item.source}{item.time ? ` · ${item.time}` : ''}</span>
-                      <span className={styles.newsItemHeadline}>{item.headline} ↗</span>
-                    </a>
-                  ))}
-                </div>
+                <NewsList items={aiState.data.news} />
               )}
             </div>
           ) : null
         )}
 
+        {/* ── Transcript section (reported only, collapsible) ──────────── */}
+        {!isPending && transcript?.available && (
+          <div className={styles.transcriptSection}>
+            <button
+              className={styles.transcriptToggle}
+              onClick={() => setTranscriptOpen(o => !o)}
+            >
+              <span className={styles.transcriptLabel}>
+                <span className={styles.transcriptChevron}>{transcriptOpen ? '▾' : '▸'}</span>
+                EARNINGS CALL TRANSCRIPT
+              </span>
+              <span className={styles.transcriptMeta}>
+                {transcript.quarter && transcript.year && (
+                  <span className={styles.transcriptQuarter}>Q{transcript.quarter} {transcript.year}</span>
+                )}
+                <span className={
+                  transcript.sentiment === 'bullish' ? styles.sentimentBull :
+                  transcript.sentiment === 'bearish' ? styles.sentimentBear :
+                  styles.sentimentNeutral
+                }>
+                  {transcript.sentiment?.toUpperCase()}
+                </span>
+              </span>
+            </button>
+            {transcriptOpen && (
+              <div className={styles.transcriptBody}>
+                {transcript.headline && (
+                  <p className={styles.analysisHeadline}>{transcript.headline}</p>
+                )}
+                {transcript.bullets?.length > 0 && (
+                  <ul className={styles.watchList}>
+                    {transcript.bullets.map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {!isPending && transcriptState.loading && (
+          <div className={styles.transcriptLoading}>Loading transcript…</div>
+        )}
+
         <div className={styles.actions}>
           <TickerPopup sym={row.sym} as="button" className={styles.btnChart}>
-            ▶ View Chart
+            View Chart
           </TickerPopup>
           <a
             href={`https://finviz.com/quote.ashx?t=${row.sym}`}
@@ -229,11 +282,33 @@ export default function EarningsModal({ row, label, onClose }) {
             rel="noopener noreferrer"
             className={styles.btnFinviz}
           >
-            FinViz ↗
+            FinViz
           </a>
         </div>
 
       </div>
+    </div>
+  )
+}
+
+function NewsList({ items }) {
+  return (
+    <div className={styles.newsList}>
+      {items.map((item, i) => (
+        <a
+          key={i}
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.newsItem}
+          aria-label={`${item.source}: ${item.headline}`}
+        >
+          <span className={styles.newsItemSource}>
+            {item.source}{item.time ? ` · ${item.time}` : ''}
+          </span>
+          <span className={styles.newsItemHeadline}>{item.headline}</span>
+        </a>
+      ))}
     </div>
   )
 }

@@ -67,7 +67,7 @@ def _get_anthropic_client():
 
 # ── Earnings analysis configuration ───────────────────────────────────────────
 _EARNINGS_NEWS_MAX_ITEMS    = 4        # max Finnhub headlines per ticker
-_EARNINGS_AI_MAX_TOKENS         = 400      # Haiku response token limit
+_EARNINGS_AI_MAX_TOKENS         = 450      # Haiku response token limit (JSON structured)
 _EARNINGS_PREVIEW_AI_MAX_TOKENS = 350  # JSON-structured output fits in fewer tokens
 _EARNINGS_CACHE_TTL_HIT     = 43_200   # 12 h — full result cached after success
 _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
@@ -804,8 +804,10 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
     except Exception as _e:
         _logger.warning("Finnhub news fetch failed for %s: %s", sym, _e)
 
-    # ── Step 3: AI analysis (non-Pending only) ────────────────────────────────
+    # ── Step 3: AI analysis (non-Pending only, JSON-structured) ────────────────
     analysis = None
+    analysis_headline = None
+    analysis_bullets = []
     is_pending = not row or row.get("verdict", "").lower() in ("pending", "")
     if not is_pending:
         try:
@@ -836,8 +838,8 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
             context_block = "\n".join(context_parts)
 
             prompt = (
-                f"Analyze this earnings report for {sym} in 4-5 concise sentences.\n"
-                f"Be specific about the business — no filler, no trade advice.\n\n"
+                f"Analyze this earnings report for {sym}.\n"
+                f"Return JSON only — no markdown, no explanation.\n\n"
                 f"Verdict: {row.get('verdict')}\n"
                 f"EPS: Expected {_fmt_eps(row.get('eps_estimate'))} → "
                 f"Reported {_fmt_eps(row.get('reported_eps'))} "
@@ -850,8 +852,16 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
             if context_block:
                 prompt += f"{context_block}\n"
             prompt += (
-                "\nCover: what the numbers say about the business, whether this is "
-                "consistent with trend, and what the market reaction implies about expectations."
+                '\nJSON format (exactly):\n'
+                '{"headline": "<1 sentence verdict summary>", '
+                '"bullets": ['
+                '"<what the numbers say about business health>", '
+                '"<whether this is consistent with historical trend>", '
+                '"<what the market reaction implies about expectations>", '
+                '"<guidance or outlook signal if any>", '
+                '"<key risk or catalyst going forward>"'
+                "]}\n\n"
+                "Be specific to this company. No trade advice."
             )
 
             client = _get_anthropic_client()
@@ -860,18 +870,33 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
                 max_tokens=_EARNINGS_AI_MAX_TOKENS,
                 messages=[{"role": "user", "content": prompt}],
             )
-            analysis = msg.content[0].text.strip()
+            raw = msg.content[0].text.strip()
+            # Strip markdown code fences if the model wraps in ```json
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+                raw = raw.strip()
+            parsed = json.loads(raw)
+            analysis_headline = str(parsed.get("headline", "")).strip()
+            analysis_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:5]]
+            # Populate legacy `analysis` field as joined text for backwards compat
+            analysis = analysis_headline
         except Exception as _e:
             _logger.warning("AI analysis failed for %s: %s", sym, _e, exc_info=True)
             analysis = None
+            analysis_headline = None
+            analysis_bullets = []
 
     result = {
-        "sym":            sym,
-        "analysis":       analysis,
-        "yoy_eps_growth": yoy_eps_growth,
-        "beat_streak":    beat_streak,
-        "beat_history":   beat_history,   # ["✗","✓","✓","✓"] oldest→newest
-        "news":           news_items,  # list of {headline, source, url, time}
+        "sym":               sym,
+        "analysis":          analysis,
+        "analysis_headline": analysis_headline,
+        "analysis_bullets":  analysis_bullets,
+        "yoy_eps_growth":    yoy_eps_growth,
+        "beat_streak":       beat_streak,
+        "beat_history":      beat_history,
+        "news":              news_items,
     }
     # Only cache for full 12h if analysis succeeded; short TTL lets it retry on failure
     ttl = _EARNINGS_CACHE_TTL_HIT if analysis is not None else _EARNINGS_CACHE_TTL_MISS

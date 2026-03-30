@@ -83,6 +83,8 @@ def earnings_analysis(request: Request, sym: str):
         return {
             "sym": sym,
             "analysis": None,
+            "analysis_headline": None,
+            "analysis_bullets": [],
             "preview_text": "",
             "preview_bullets": [],
             "beat_history": [],
