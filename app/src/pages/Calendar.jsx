@@ -70,10 +70,10 @@ function pillLabel(v) {
 }
 
 function epsActClass(v, eps_est, styles) {
-  if (v == null || eps_est == null) return styles.epsAct
-  if (v > eps_est) return `${styles.epsAct} ${styles.epsPos}`
-  if (v < eps_est) return `${styles.epsAct} ${styles.epsNeg}`
-  return `${styles.epsAct} ${styles.epsMixed}`
+  if (v == null || eps_est == null) return styles.tdDim
+  if (v > eps_est) return `${styles.tdMono} ${styles.epsPos}`
+  if (v < eps_est) return `${styles.tdMono} ${styles.epsNeg}`
+  return `${styles.tdMono} ${styles.epsMixed}`
 }
 
 // Filtering is done server-side via cap_universe ($300M+ tickers).
