@@ -427,18 +427,26 @@ ECharts treemap rendering curated breadth metrics as color-coded tiles. Clicking
 - Fetches `/api/leadership`, scrollable compact list: rank · TickerPopup · cap badge · RS score · thesis
 
 ### EarningsModal (`app/src/components/tiles/EarningsModal.jsx`)
-- Opens on ticker click in CatalystFlow tile
+- Opens on ticker click in CatalystFlow or Calendar
 - Shows: sym header, BMO/AMC badge, METRIC/EXPECTED/REPORTED/SURPRISE table
-- Live gap % fetched from `/api/snapshot/{sym}` on open
-- View Chart via TickerPopup + FinViz button; Escape closes
-- **Pending entries** (verdict = "Pending"): shows AI-generated pre-earnings preview instead of red "not yet reported" box
-  - Preview fetched from `/api/earnings-analysis/{sym}` — router branches on `verdict.lower() == "pending"`
-  - `_generate_earnings_preview(sym, row)` in `engine.py` — AV beat history + Finnhub news + Claude Haiku (350 tokens)
-  - Returns: `preview_text`, `preview_bullets` (exactly 3), `beat_history`, `yoy_eps_growth`, `beat_streak`, `news`
-  - Cache key: `earnings_preview_{sym}` (separate from `earnings_analysis_{sym}` — prevents stale data on verdict transition)
-  - Pre-warm: fires for all Pending entries across all buckets (bmo + amc + amc_tonight) on earnings rebuild
-  - `yoy_eps_growth` / `beat_streak` return `None` on AV failure (not `"N/A"` — avoids rendering red "YoY EPS N/A" in trend block)
-  - CSS: `.previewBox` (gold left border), `.watchLabel`, `.watchList`, `.previewUnavailable` in `EarningsModal.module.css`
+- Live gap % from `/api/snapshot/{sym}`, analyst consensus + price targets from `/api/earnings/intel/{sym}`
+- **Pending entries**: gold-accent preview box with `preview_text` + 3 "Things to Watch" bullets (Claude Haiku, 350 tokens)
+- **Reported entries**: gold-accent analysis box with `analysis_headline` + 5 "Key Takeaways" bullets (Claude Haiku, 450 tokens JSON)
+  - Covers: business health, trend consistency, market reaction, guidance, risk
+  - Old paragraph `analysis` field kept for backwards compat (12h cache transition)
+- **Transcript section** (reported only, collapsible): fetches `/api/transcripts/{sym}`, shows AI summary headline + sentiment pill + 5-7 bullets
+  - `api/services/transcripts.py` — Finnhub transcript fetch + Claude Haiku 800-token summarization
+  - Smart truncation: first 3K (CEO/CFO remarks) + last 4K (analyst Q&A), 24h cache
+  - Requires Finnhub premium — section hides when unavailable
+- Cache keys: `earnings_preview_{sym}` / `earnings_analysis_{sym}` / `transcript_summary_{sym}`
+
+### Calendar Page (`app/src/pages/Calendar.jsx`)
+- Two panels: Earnings (left) + Macro Events (right, ForexFactory)
+- Earnings: HTML `<table>` layout, 5 day tabs (Mon–Fri), BMO/AMC sections
+- Data: live EW+Finviz primary, wire_data fallback, cap_universe server-side filter ($300M+)
+- No-data entries filtered client-side (no estimates AND no actuals = noise)
+- 10min cache TTL, 2min SWR poll, Finnhub actuals patch on every cache rebuild
+- Click ticker → EarningsModal (same component as dashboard CatalystFlow)
 
 ### API: Breadth (`api/services/engine.py` → `_normalize_breadth()`)
 - Fields: `pct_above_5ma`, `pct_above_50ma`, `pct_above_200ma`, `advancing`, `declining`, `new_highs`, `new_lows`, `new_highs_list`, `new_lows_list`, `breadth_score`, `distribution_days`, `market_phase`
