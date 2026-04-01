@@ -1655,7 +1655,7 @@ export default function OptionsFlowDashboard() {
             {/* Index Cards */}
             <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:8, marginBottom:marketNarrative||narrativeLoading?12:0 }}>
               {marketIndices ? marketIndices.map((idx,i) => {
-                const isVix = idx.name.includes("VIX");
+                const isVix = (idx.name||"").includes("VIX");
                 const up = isVix ? idx.pct < 0 : idx.pct >= 0;
                 const c = up ? P.bu : P.be;
                 return (
@@ -2613,7 +2613,7 @@ export default function OptionsFlowDashboard() {
               />
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                 <button onClick={()=>{
-                  const visible = oiSearch ? D.WATCH.filter(w=>w.S.includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,10) : D.WATCH.slice(0,20);
+                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,10) : D.WATCH.slice(0,20);
                   fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -2624,7 +2624,7 @@ export default function OptionsFlowDashboard() {
               </div>
             </div>
             {(() => {
-              const watchFiltered = oiSearch ? D.WATCH.filter(w=>w.S.includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,10) : D.WATCH.slice(0,20);
+              const watchFiltered = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,10) : D.WATCH.slice(0,20);
               return (
             <Card title="OI Check" sub={watchFiltered.length+" contracts · sorted by Vol/OI"}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
