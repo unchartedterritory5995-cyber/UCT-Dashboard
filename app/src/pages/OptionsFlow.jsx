@@ -2555,22 +2555,61 @@ export default function OptionsFlowDashboard() {
                 <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>{FD.LEAPS_BRC.slice(0,2).map(c=>c.S+" $"+c.K+c.CP+" "+c.E+" hit "+c.H+"x").join(". ")}</div>
               </div>
             </div>
-            {FD.LEAPS_EXPS.length>0 && (
-              <Card title="LEAPS by Expiration" sub="180+ DTE">
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 }}>
-                  {FD.LEAPS_EXPS.map((e,i)=>(
-                    <div key={i} style={{ background:P.al, borderRadius:8, padding:"10px 12px", border:"1px solid "+P.bd }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:4 }}>
-                        <span style={{ fontSize:13, fontWeight:800, color:P.wh }}>{e.exp}</span>
-                        <span style={{ fontSize:9, color:P.mt }}>{e.dte}</span>
-                      </div>
-                      <div style={{ fontSize:14, fontWeight:800, color:P.ac, marginBottom:4 }}>{fmt(e.p)}</div>
-                      <div style={{ fontSize:9, color:P.dm }}>{e.n} trades · {e.names}</div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
+            {/* Top LEAPS Flow */}
+            {(()=>{
+              // Build from ALL LEAPS clean_confirmed trades (same as CONV logic but DTE >= 180)
+              const leapsTrades = (D.clean_confirmed||[]).filter(t => t.DTE >= 180);
+              const leapsCons = {};
+              leapsTrades.forEach(t => {
+                const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+                if (!leapsCons[k]) leapsCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, dir:t.D,
+                  hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true };
+                leapsCons[k].hits++; leapsCons[k].prem += t.P;
+                if (t.Si==="AA") leapsCons[k].hasAA = true;
+                if (t.Si==="BB") leapsCons[k].hasBB = true;
+                if (t.Ty==="SWP") leapsCons[k].hasSweep = true;
+                if (t.Ty==="BLK") leapsCons[k].hasBlock = true;
+                if (t.Co==="YELLOW"||t.Co==="MAGENTA") leapsCons[k].oiExceeded = true;
+                if (t.D) leapsCons[k].dirs.add(t.D);
+              });
+              const leapsTop = Object.values(leapsCons).filter(c=>c.dir).map(c => {
+                c.clean = c.dirs.size <= 1;
+                const grade = gradeCluster(c);
+                const scoreMap = {"A+":600,"A":500,"B+":400,"B":300,"C":200,"D":100};
+                return { ...c, grade, score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e4,
+                  side:c.hasAA?"AA":c.hasBB?"BB":"ASK", strike:"$"+c.K+c.cp };
+              }).filter(c => c.clean)
+                .sort((a,b)=>b.score-a.score)
+                .slice(0,10);
+              if (leapsTop.length===0) return null;
+              return (
+                <>
+                  <div style={{ fontSize:10, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase", marginBottom:2 }}>Top LEAPS Flow</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:8, marginBottom:4 }}>
+                    {leapsTop.map((t,i) => {
+                      const c = t.dir==="BULL" ? P.bu : P.be;
+                      return (
+                        <div key={i} style={{ cursor:"pointer" }}
+                          onClick={()=>{ fetchContractHistory(t.sym,t.cp,t.K,t.exp); setSelectedItem(prev=>prev&&prev.sym===t.sym&&prev.cp===t.cp&&String(prev.K)===String(t.K)&&prev.exp===t.exp?null:{sym:t.sym,cp:t.cp,K:t.K,exp:t.exp}); }}>
+                          <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+c, transition:"border-color 0.15s" }}>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                              <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span>
+                              <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
+                            </div>
+                            <div style={{ fontSize:13, fontWeight:800, color:c }}>{t.strike} <span style={{ fontSize:11, fontWeight:700, color:P.wh }}>{t.exp}</span></div>
+                            <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>
+                              <span style={{ color:P.ac, fontWeight:700 }}>{t.hits}x</span> · {fmt(t.prem)} ·{" "}
+                              {t.side==="AA"?<Tag c={P.ac}>AA</Tag>:t.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>ASK</Tag>}
+                            </div>
+                            <div style={{ marginTop:4 }}><Tag c={c}>{t.dir}</Tag></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Card title="Bullish Bets" sub="180+ DTE"><NC data={FD.LEAPS_B} fill={P.bu} dir="bull" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
               <Card title="Bearish Bets" sub="180+ DTE"><NC data={FD.LEAPS_R} fill={P.be} dir="bear" onBarClick={d=>{ const tr=d.topTrades&&d.topTrades[0]; if(tr){ fetchContractHistory(d.s,tr.CP,tr.K,tr.E); setSelectedItem(prev=>prev&&prev.sym===d.s&&prev.cp===tr.CP&&String(prev.K)===String(tr.K)&&prev.exp===tr.E?null:{sym:d.s,cp:tr.CP,K:tr.K,exp:tr.E}); } }}/></Card>
