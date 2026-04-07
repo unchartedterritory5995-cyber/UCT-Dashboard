@@ -957,7 +957,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker"];
+const TABS = ["Market Read","Top Flow","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -968,6 +968,8 @@ export default function OptionsFlowDashboard() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [oiSearch, setOiSearch] = useState("");
+  const [tfCapFilter, setTfCapFilter] = useState("All");
+  const [tfDteFilter, setTfDteFilter] = useState("All");
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
@@ -2348,6 +2350,140 @@ export default function OptionsFlowDashboard() {
             )}
           </div>
         )}
+
+        {/* Top Flow — Master List */}
+        {tab==="Top Flow" && (()=>{
+          // Build clusters from ALL clean confirmed trades
+          const tfClusters = {};
+          (D.clean_confirmed||[]).forEach(t => {
+            const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+            if (!tfClusters[k]) tfClusters[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, dir:t.D,
+              hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
+              mktcap:t.mktcap||0, sector:t.sector||"", prices:[], volumes:0, maxOI:0 };
+            const c = tfClusters[k];
+            c.hits++; c.prem += t.P; c.volumes += t.V;
+            if (t.OI > c.maxOI) c.maxOI = t.OI;
+            if (t.price > 0) c.prices.push(t.price);
+            if (t.Si==="AA") c.hasAA = true;
+            if (t.Si==="BB") c.hasBB = true;
+            if (t.Ty==="SWP") c.hasSweep = true;
+            if (t.Ty==="BLK") c.hasBlock = true;
+            if (t.Co==="YELLOW"||t.Co==="MAGENTA") c.oiExceeded = true;
+            if (t.D) c.dirs.add(t.D);
+            if (t.mktcap > c.mktcap) c.mktcap = t.mktcap;
+          });
+          const allFlow = Object.values(tfClusters).filter(c=>c.dir).map(c => {
+            c.clean = c.dirs.size <= 1;
+            const grade = gradeCluster(c);
+            const scoreMap = {"A+":600,"A":500,"B+":400,"B":300,"C":200,"D":100};
+            const sp = [...c.prices].sort((a,b)=>a-b);
+            const entry = sp.length>0 ? sp[Math.floor(sp.length/2)] : 0;
+            const cap = capBand(c.mktcap);
+            const dteBand = c.DTE < 60 ? "ST" : c.DTE < 180 ? "LT" : "LEAPS";
+            return { ...c, grade, entry, cap, dteBand,
+              score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e4,
+              side:c.hasAA?"AA":c.hasBB?"BB":"ASK" };
+          }).filter(c => c.clean && c.DTE > 7);
+
+          let filtered = allFlow;
+          if (tfCapFilter !== "All") filtered = filtered.filter(c => c.cap === tfCapFilter);
+          if (tfDteFilter !== "All") {
+            if (tfDteFilter === "ST") filtered = filtered.filter(c => c.dteBand === "ST");
+            else if (tfDteFilter === "LT") filtered = filtered.filter(c => c.dteBand === "LT");
+            else if (tfDteFilter === "LEAPS") filtered = filtered.filter(c => c.dteBand === "LEAPS");
+          }
+          const ranked = filtered.sort((a,b)=>b.score-a.score).slice(0,20);
+
+          return (
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <Card>
+              <div style={{ display:"flex", gap:14, alignItems:"center" }}>
+                <div style={{ width:3, background:P.ac, borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:P.ac, marginBottom:5 }}>Top Flow — Master List</div>
+                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>All confirmed clean flow ranked by conviction score across all timeframes. Grade + Hits + Premium weighted. Click any row for full detail.</div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <button onClick={()=>fetchPrices(ranked.map(c=>({sym:c.sym,cp:c.cp,strike:c.K,exp:c.exp})))} disabled={fetchLoading}
+                    style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                      fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                    {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
+                  </button>
+                  {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
+                </div>
+              </div>
+            </Card>
+            {/* Filters */}
+            <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                {["All","Mega","Large","Mid","Small"].map(f=>(
+                  <button key={f} onClick={()=>setTfCapFilter(f)} style={{
+                    padding:"4px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                    fontSize:10, fontWeight:600, fontFamily:"inherit",
+                    background:tfCapFilter===f?P.cd:"transparent", color:tfCapFilter===f?P.wh:P.mt
+                  }}>{f}</button>
+                ))}
+              </div>
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                {[["All","All DTE"],["ST","0–59d"],["LT","60–179d"],["LEAPS","180+d"]].map(([v,label])=>(
+                  <button key={v} onClick={()=>setTfDteFilter(v)} style={{
+                    padding:"4px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                    fontSize:10, fontWeight:600, fontFamily:"inherit",
+                    background:tfDteFilter===v?P.cd:"transparent", color:tfDteFilter===v?P.wh:P.mt
+                  }}>{label}</button>
+                ))}
+              </div>
+              <span style={{ fontSize:10, color:P.dm, alignSelf:"center" }}>{ranked.length} contracts</span>
+            </div>
+            {/* Table */}
+            <Card>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                <thead>
+                  <tr style={{ borderBottom:"1px solid "+P.bd }}>
+                    {["#","Ticker","Exp","Strike","C/P","Dir","Grade","Hits","Premium","Entry","Now","P&L","Cap","DTE","Side","OI Signal"].map(h=>(
+                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ranked.map((r,i) => {
+                    const px = getPrice(r.sym, r.cp, r.K, r.exp);
+                    const now = px ? (px.mark || px.last || 0) : 0;
+                    const pnl = now > 0 && r.entry > 0 ? (now - r.entry) / r.entry * 100 : 0;
+                    const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
+                    const dirC = r.dir==="BULL" ? P.bu : P.be;
+                    const dteBandC = r.dteBand==="ST"?"#ff6d00":r.dteBand==="LT"?"#00b0ff":"#e040fb";
+                    return (
+                      <tr key={i} onClick={()=>{ fetchContractHistory(r.sym,r.cp,r.K,r.exp); setSelectedItem(prev=>prev&&prev.sym===r.sym&&prev.cp===r.cp&&String(prev.K)===String(r.K)&&prev.exp===r.exp?null:{sym:r.sym,cp:r.cp,K:r.K,exp:r.exp}); }}
+                        style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer", background:i<3?(P.ac+"06"):"transparent" }}
+                        onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
+                        onMouseLeave={e=>e.currentTarget.style.background=i<3?(P.ac+"06"):"transparent"}>
+                        <td style={{ padding:"5px 5px", fontWeight:800, color:i<3?P.ac:P.dm, fontSize:12 }}>{i+1}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
+                        <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
+                        <td style={{ padding:"5px 5px" }}><Tag c={dirC}>{r.dir}</Tag></td>
+                        <td style={{ padding:"5px 5px" }}><Tag c={GRADE_COLORS[r.grade]||P.mt}>{r.grade}</Tag></td>
+                        <td style={{ padding:"5px 5px" }}><span style={{ fontWeight:800, fontSize:13, color:r.hits>=10?P.ac:r.hits>=5?P.ye:P.dm }}>{r.hits}x</span></td>
+                        <td style={{ padding:"5px 5px", fontWeight:700, color:premC(r.prem) }}>{fmt(r.prem)}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{r.entry>0?"$"+r.entry.toFixed(2):"—"}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
+                        <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, color:P.dm, fontWeight:600 }}>{r.cap}</span></td>
+                        <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, fontWeight:700, color:dteBandC, background:dteBandC+"15", padding:"1px 5px", borderRadius:3 }}>{r.dteBand} {r.DTE}d</span></td>
+                        <td style={{ padding:"5px 5px" }}>{r.side==="AA"?<Tag c={P.ac}>AA</Tag>:r.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>ASK</Tag>}</td>
+                        <td style={{ padding:"5px 5px" }}><span style={{ display:"flex", gap:2 }}>{r.oiExceeded && <span style={{ width:6, height:6, borderRadius:"50%", background:P.ye, display:"inline-block" }} title="OI Exceeded" />}{r.hasSweep && r.hasBlock && <span style={{ width:6, height:6, borderRadius:"50%", background:P.ma, display:"inline-block" }} title="Sweep+Block" />}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Card>
+            {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
+          </div>
+          );
+        })()}
 
         {/* Performance */}
         {tab==="Performance" && (
