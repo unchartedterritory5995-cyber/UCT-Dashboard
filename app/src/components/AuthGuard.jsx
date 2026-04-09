@@ -96,9 +96,12 @@ export default function AuthGuard() {
     return <Outlet />
   }
 
-  // Require paid plan for all other pages
-  if (plan !== 'pro' && user.role !== 'admin') {
-    return <Navigate to="/subscribe" replace />
+  // Free tier: allow access to specific pages without a paid plan
+  const FREE_PAGES = ['/dashboard', '/breadth', '/theme-tracker', '/calendar']
+  const isFreePage = FREE_PAGES.some(p => location.pathname.startsWith(p))
+
+  if (plan !== 'pro' && user.role !== 'admin' && !isFreePage) {
+    return <Navigate to="/dashboard" replace />
   }
 
   return <Outlet />

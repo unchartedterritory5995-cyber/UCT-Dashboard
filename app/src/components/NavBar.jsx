@@ -26,15 +26,18 @@ const NAV_ITEMS = [
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
+const FREE_PAGES = ['/dashboard', '/breadth', '/theme-tracker', '/calendar']
+
 export default function NavBar() {
-  const { user } = useAuth()
+  const { user, plan } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const showAll = plan === 'pro' || isAdmin
 
   return (
     <nav data-testid="nav-sidebar" className={styles.nav}>
       <div className={styles.brand}>UCT</div>
       <div className={styles.mainItems}>
-        {NAV_ITEMS.map(item => (
+        {NAV_ITEMS.filter(item => showAll || FREE_PAGES.includes(item.to)).map(item => (
           <NavLink
             key={item.to}
             to={item.to}

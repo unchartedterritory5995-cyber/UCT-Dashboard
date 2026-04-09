@@ -4,9 +4,8 @@ import { useAuth } from '../context/AuthContext'
 import styles from './AuthForm.module.css'
 
 export default function Signup() {
-  const { signup, startCheckout } = useAuth()
+  const { signup } = useAuth()
   const [searchParams] = useSearchParams()
-  const checkoutCanceled = searchParams.get('checkout') === 'canceled'
   const referralCode = searchParams.get('ref') || ''
 
   const [email, setEmail] = useState('')
@@ -21,14 +20,7 @@ export default function Signup() {
     setLoading(true)
     try {
       await signup(email, password, displayName || undefined, referralCode || undefined)
-      // After signup, always redirect to Stripe Checkout
-      try {
-        await startCheckout()
-        // startCheckout does window.location.href — won't reach here
-      } catch (checkoutErr) {
-        setError('Payment setup failed: ' + checkoutErr.message + '. Go to Settings to subscribe.')
-        return
-      }
+      // Signup complete — AuthContext will redirect to dashboard
     } catch (err) {
       setError(err.message)
     } finally {
@@ -41,11 +33,8 @@ export default function Signup() {
       <div className={styles.card}>
         <Link to="/" className={styles.brand}>UCT</Link>
         <h1 className={styles.title}>Create your account</h1>
-        <p className={styles.subtitle}>Sign up and subscribe to get full access</p>
+        <p className={styles.subtitle}>Create a free account to get started</p>
 
-        {checkoutCanceled && (
-          <div className={styles.warning}>Checkout was canceled. You can subscribe later from Settings.</div>
-        )}
         {error && <div className={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit} className={styles.form}>
@@ -84,8 +73,8 @@ export default function Signup() {
               autoComplete="new-password"
             />
           </label>
-          <button type="submit" className={styles.submitPro} disabled={loading}>
-            {loading ? 'Creating account...' : 'Create Account & Subscribe \u2014 $20/mo'}
+          <button type="submit" className={styles.submit} disabled={loading}>
+            {loading ? 'Creating account...' : 'Create Free Account'}
           </button>
         </form>
 

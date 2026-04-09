@@ -51,6 +51,8 @@ const NAV_SECTIONS = [
   },
 ]
 
+const FREE_PAGES = ['/dashboard', '/breadth', '/theme-tracker', '/calendar']
+
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
 // Flat lookup for page title
@@ -68,8 +70,9 @@ export default function MobileNav() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
   const keyboardOpen = useKeyboardVisible()
-  const { user } = useAuth()
+  const { user, plan } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const showAll = plan === 'pro' || isAdmin
 
   // Get current page title for header
   const currentItem = ALL_ITEMS.find(i => location.pathname.startsWith(i.to))
@@ -155,10 +158,13 @@ export default function MobileNav() {
         </div>
 
         <div className={styles.drawerScroll}>
-          {NAV_SECTIONS.map(section => (
+          {NAV_SECTIONS.map(section => {
+            const items = showAll ? section.items : section.items.filter(i => FREE_PAGES.includes(i.to))
+            if (items.length === 0) return null
+            return (
             <div key={section.label} className={styles.section}>
               <div className={styles.sectionLabel}>{section.label}</div>
-              {section.items.map(item => (
+              {items.map(item => (
                 <NavLink
                   key={item.to}
                   to={item.to}
@@ -171,7 +177,8 @@ export default function MobileNav() {
                 </NavLink>
               ))}
             </div>
-          ))}
+            )
+          })}
 
           {/* Bottom section */}
           <div className={styles.drawerFooter}>
