@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
-import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 
 // ─── Flow Data loaded dynamically from /flow-data.csv ─────────────────────────
 
@@ -957,7 +957,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Top Flow","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker"];
+const TABS = ["Market Read","Top Flow","Performance","Search","Short Term","Long Term","LEAPS","Gamma","OI Check","Tracker"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -970,6 +970,11 @@ export default function OptionsFlowDashboard() {
   const [oiSearch, setOiSearch] = useState("");
   const [tfCapFilter, setTfCapFilter] = useState("All");
   const [tfDteFilter, setTfDteFilter] = useState("All");
+  const [gexTicker, setGexTicker] = useState("SPY");
+  const [gexInput, setGexInput] = useState("SPY");
+  const [gexData, setGexData] = useState(null);
+  const [gexLoading, setGexLoading] = useState(false);
+  const [gexDte, setGexDte] = useState("all");
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
@@ -1114,6 +1119,7 @@ export default function OptionsFlowDashboard() {
 
   // Auto-load market data (deferred — non-critical)
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
+  useEffect(() => { if (tab === "Gamma" && gexTicker) fetchGex(gexTicker, gexDte); }, [tab, gexTicker, gexDte]);
 
   // ─── Shared detail panel renderer ─────────────────────────────────────────
   function renderDetailPanel(sym, cp, K, exp, onClose) {
@@ -1593,6 +1599,23 @@ export default function OptionsFlowDashboard() {
         }
       } catch(e) {}
     }
+  }
+
+  async function fetchGex(ticker, dte) {
+    if (!ticker) return;
+    setGexLoading(true);
+    try {
+      const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        setGexData(data);
+      } else {
+        setGexData({ error: `API error: ${resp.status}` });
+      }
+    } catch(e) {
+      setGexData({ error: e.message });
+    }
+    setGexLoading(false);
   }
 
   async function fetchMarketData() {
@@ -2767,6 +2790,191 @@ export default function OptionsFlowDashboard() {
             </div>
           </div>
         )}
+
+        {/* Gamma Exposure */}
+        {tab==="Gamma" && (()=>{
+          const fmtGex = v => {
+            if (v === null || v === undefined || isNaN(v)) return "—";
+            const abs = Math.abs(v);
+            const sign = v < 0 ? "-" : "";
+            if (abs >= 1e9) return sign + "$" + (abs/1e9).toFixed(2) + "B";
+            if (abs >= 1e6) return sign + "$" + (abs/1e6).toFixed(1) + "M";
+            if (abs >= 1e3) return sign + "$" + (abs/1e3).toFixed(0) + "K";
+            return sign + "$" + abs.toFixed(0);
+          };
+          const quickTickers = ["SPY","QQQ","IWM","SPX","NDX","DIA"];
+          // Filter strikes to within ±12% of spot for readability
+          const spot = gexData?.spot || 0;
+          const visibleStrikes = gexData?.strikes ?
+            gexData.strikes.filter(s => spot > 0 ? Math.abs(s.strike - spot) / spot <= 0.12 : true)
+              .map(s => ({ ...s, label: "$"+s.strike })) : [];
+          const hasError = gexData?.error;
+          return (
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <Card>
+              <div style={{ display:"flex", gap:14, alignItems:"center" }}>
+                <div style={{ width:3, background:"#e040fb", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#e040fb", marginBottom:5 }}>Gamma Exposure (GEX)</div>
+                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Dealer gamma positioning from OI × gamma per strike. Call Wall = resistance, Put Wall = support, Zero Gamma = flip point where dealers change hedging direction.</div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Search + Quick Tickers + DTE */}
+            <div style={{ display:"flex", gap:12, flexWrap:"wrap", alignItems:"center" }}>
+              <div style={{ display:"flex", gap:6, flex:"1 1 300px" }}>
+                <input type="text" value={gexInput}
+                  onChange={e=>setGexInput(e.target.value.toUpperCase())}
+                  onKeyDown={e=>{ if(e.key==="Enter") setGexTicker(gexInput.trim()); }}
+                  placeholder="Enter ticker (SPY, NVDA, etc)"
+                  style={{ flex:1, padding:"8px 14px", borderRadius:6, fontSize:12, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }} />
+                <button onClick={()=>setGexTicker(gexInput.trim())}
+                  style={{ padding:"8px 18px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", background:"#e040fb", color:P.bg }}>
+                  Load
+                </button>
+              </div>
+              <div style={{ display:"flex", gap:4 }}>
+                {quickTickers.map(t=>(
+                  <button key={t} onClick={()=>{ setGexInput(t); setGexTicker(t); }}
+                    style={{ padding:"6px 12px", borderRadius:4, border:"1px solid "+P.bl, background:gexTicker===t?("#e040fb22"):P.al, color:gexTicker===t?"#e040fb":P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                {[["0dte","0DTE"],["week","Week"],["month","Month"],["all","All"]].map(([v,label])=>(
+                  <button key={v} onClick={()=>setGexDte(v)} style={{
+                    padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                    fontSize:10, fontWeight:600, fontFamily:"inherit",
+                    background:gexDte===v?P.cd:"transparent", color:gexDte===v?P.wh:P.mt
+                  }}>{label}</button>
+                ))}
+              </div>
+            </div>
+
+            {gexLoading && <Card><div style={{ textAlign:"center", padding:"40px 0", color:P.dm, fontSize:12 }}>Loading gamma data for {gexTicker}…</div></Card>}
+
+            {!gexLoading && hasError && (
+              <Card>
+                <div style={{ textAlign:"center", padding:"30px 0", color:P.be, fontSize:12 }}>
+                  <div style={{ marginBottom:6, fontWeight:700 }}>Unable to load GEX data</div>
+                  <div style={{ color:P.dm, fontSize:11 }}>{gexData.error}</div>
+                </div>
+              </Card>
+            )}
+
+            {!gexLoading && !hasError && gexData && (
+              <>
+                {/* Key Level Cards */}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:8 }}>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.wh }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Spot</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:P.wh }}>${gexData.spot?.toFixed(2)}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.ticker}</div>
+                  </div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.ac }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Zero Gamma</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:P.ac }}>{gexData.zeroGamma ? "$"+gexData.zeroGamma.toFixed(2) : "—"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>
+                      {gexData.zeroGamma && gexData.spot ? ((gexData.spot - gexData.zeroGamma)/gexData.zeroGamma*100).toFixed(2)+"% above" : ""}
+                    </div>
+                  </div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.bu }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Call Wall</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:P.bu }}>{gexData.callWall ? "$"+gexData.callWall.strike : "—"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""} resistance</div>
+                  </div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.be }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Put Wall</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:P.be }}>{gexData.putWall ? "$"+gexData.putWall.strike : "—"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""} support</div>
+                  </div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #e040fb" }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.totalGex > 0 ? "Positive (stable)" : "Negative (volatile)"}</div>
+                  </div>
+                </div>
+
+                {/* GEX Bar Chart */}
+                <Card title={"GEX by Strike — "+gexData.ticker} sub={visibleStrikes.length+" strikes · ±12% of spot"}>
+                  <div style={{ height:Math.max(400, visibleStrikes.length*18) }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={visibleStrikes} layout="vertical" margin={{ top:4, right:20, left:20, bottom:4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
+                        <XAxis type="number" tick={{ fontSize:10, fill:"#7b8fa3" }}
+                          tickFormatter={v=>fmtGex(v)} />
+                        <YAxis type="category" dataKey="label" tick={{ fontSize:10, fill:"#7b8fa3" }}
+                          width={60} reversed />
+                        <Tooltip contentStyle={{ background:"#0d1525", border:"1px solid #243352", borderRadius:6, fontSize:11 }}
+                          formatter={(val, name) => [fmtGex(val), name === "callGex" ? "Call GEX" : name === "putGex" ? "Put GEX" : "Net GEX"]} />
+                        <ReferenceLine x={0} stroke="#7b8fa3" strokeWidth={1} />
+                        {gexData.zeroGamma && <ReferenceLine y={"$"+Math.round(gexData.zeroGamma)} stroke={P.ac} strokeDasharray="3 3" label={{ value:"0γ", position:"right", fill:P.ac, fontSize:10 }} />}
+                        {gexData.spot && <ReferenceLine y={"$"+Math.round(gexData.spot)} stroke={P.wh} strokeWidth={2} label={{ value:"Spot", position:"right", fill:P.wh, fontSize:10, fontWeight:700 }} />}
+                        <Bar dataKey="callGex" fill={P.bu} opacity={0.85} />
+                        <Bar dataKey="putGex" fill={P.be} opacity={0.85} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+
+                {/* Top GEX Strikes Table */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                  <Card title="Top Call GEX" sub="Resistance levels">
+                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                      <thead>
+                        <tr style={{ borderBottom:"1px solid "+P.bd }}>
+                          {["Strike","Call GEX","Call OI","Distance"].map(h=>(
+                            <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...(gexData.strikes||[])].sort((a,b)=>b.callGex-a.callGex).slice(0,8).map((s,i)=>{
+                          const dist = spot>0 ? ((s.strike-spot)/spot*100).toFixed(1)+"%" : "—";
+                          return (
+                            <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10" }}>
+                              <td style={{ padding:"4px 5px", fontWeight:800, color:P.wh }}>${s.strike}</td>
+                              <td style={{ padding:"4px 5px", fontWeight:700, color:P.bu }}>{fmtGex(s.callGex)}</td>
+                              <td style={{ padding:"4px 5px", color:P.dm }}>{s.callOI.toLocaleString()}</td>
+                              <td style={{ padding:"4px 5px", color:P.dm }}>{dist}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </Card>
+                  <Card title="Top Put GEX" sub="Support levels">
+                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                      <thead>
+                        <tr style={{ borderBottom:"1px solid "+P.bd }}>
+                          {["Strike","Put GEX","Put OI","Distance"].map(h=>(
+                            <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...(gexData.strikes||[])].sort((a,b)=>a.putGex-b.putGex).slice(0,8).map((s,i)=>{
+                          const dist = spot>0 ? ((s.strike-spot)/spot*100).toFixed(1)+"%" : "—";
+                          return (
+                            <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10" }}>
+                              <td style={{ padding:"4px 5px", fontWeight:800, color:P.wh }}>${s.strike}</td>
+                              <td style={{ padding:"4px 5px", fontWeight:700, color:P.be }}>{fmtGex(s.putGex)}</td>
+                              <td style={{ padding:"4px 5px", color:P.dm }}>{s.putOI.toLocaleString()}</td>
+                              <td style={{ padding:"4px 5px", color:P.dm }}>{dist}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </Card>
+                </div>
+              </>
+            )}
+          </div>
+          );
+        })()}
 
                 {/* OI Check */}
         {tab==="OI Check" && (
