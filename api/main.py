@@ -271,6 +271,7 @@ app.include_router(sector_flow_router.router)
 app.include_router(correlation_router.router)
 app.include_router(intelligence_router.router)
 app.include_router(transcripts_router.router)
+app.include_router(gex_router)
 
 # ─── CSV routes: serve from app/public/ directly (bypasses Vite build cache) ──
 PUBLIC = os.path.join(os.path.dirname(__file__), "..", "app", "public")
