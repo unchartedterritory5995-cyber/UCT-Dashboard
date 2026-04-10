@@ -26,6 +26,9 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
       - "all"    → next 180 days
     """
     ticker = ticker.upper().strip()
+    # Index options on Schwab use $-prefix format (e.g. $SPX, $NDX, $VIX, $RUT)
+    INDEX_TICKERS = {"SPX", "NDX", "VIX", "RUT", "DJX", "XSP", "XND"}
+    schwab_symbol = "$" + ticker if ticker in INDEX_TICKERS else ticker
     token = await schwab.get_valid_token()
     if not token:
         return {"error": "Schwab not authenticated"}
@@ -44,7 +47,7 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
     to_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
 
     params = {
-        "symbol": ticker,
+        "symbol": schwab_symbol,
         "contractType": "ALL",
         "strikeCount": 60,  # 30 above, 30 below ATM
         "includeUnderlyingQuote": "true",
