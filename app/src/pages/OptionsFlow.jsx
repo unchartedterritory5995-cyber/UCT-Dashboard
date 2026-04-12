@@ -975,6 +975,7 @@ export default function OptionsFlowDashboard() {
   const [gexData, setGexData] = useState(null);
   const [gexLoading, setGexLoading] = useState(false);
   const [gexDte, setGexDte] = useState("all");
+  const [showGexSummary, setShowGexSummary] = useState(false);
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
@@ -2971,6 +2972,216 @@ export default function OptionsFlowDashboard() {
                     </table>
                   </Card>
                 </div>
+
+                {/* Generate Summary Button */}
+                <div style={{ textAlign:"center", marginTop:4 }}>
+                  <button onClick={()=>setShowGexSummary(!showGexSummary)} style={{
+                    padding:"10px 28px", borderRadius:6, border:"1px solid #e040fb", cursor:"pointer",
+                    fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5,
+                    background:showGexSummary?"#e040fb22":"transparent", color:"#e040fb"
+                  }}>
+                    {showGexSummary ? "✕ Hide Summary" : "🔮 Generate Summary"}
+                  </button>
+                </div>
+
+                {/* GEX Summary Panel */}
+                {showGexSummary && gexData && (()=>{
+                  const sp = gexData.spot;
+                  const cw = gexData.callWall;
+                  const pw = gexData.putWall;
+                  const zg = gexData.zeroGamma;
+                  const tg = gexData.totalGex;
+                  if (!sp || !cw || !pw) return null;
+                  const cwStrike = cw.strike, pwStrike = pw.strike, cwGex = cw.gex, pwGex = Math.abs(pw.gex);
+
+                  const cwAboveSpot = cwStrike > sp;
+                  const pwBelowSpot = pwStrike < sp;
+                  const cwLabel = cwAboveSpot ? "resistance" : "magnet pulling down";
+                  const pwLabel = pwBelowSpot ? "support" : "magnet pulling up";
+                  const wallsInverted = !cwAboveSpot || !pwBelowSpot;
+                  const spotBetweenWalls = (sp >= Math.min(cwStrike,pwStrike) && sp <= Math.max(cwStrike,pwStrike));
+                  const pinSetup = spotBetweenWalls && Math.abs(cwStrike - pwStrike) <= sp * 0.01;
+
+                  const cwRatio = pwGex > 0 ? (cwGex / pwGex).toFixed(1) : "∞";
+                  const cwDominant = cwGex > pwGex * 1.5;
+                  const pwDominant = pwGex > cwGex * 1.5;
+                  const cwPct = Math.round(cwGex / (cwGex + pwGex) * 100);
+                  const pwPct = 100 - cwPct;
+
+                  const isPositive = tg > 0;
+                  const zgDist = zg ? ((sp - zg) / zg * 100).toFixed(1) : null;
+
+                  let verdictText, verdictIcon, verdictBg, verdictColor;
+                  if (pinSetup) {
+                    verdictText = "Walls inverted around spot — both magnets pulling inward. " + fmtGex(cwGex + pwGex) + " combined compresses into $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike) + ".";
+                    verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                  } else if (cwDominant) {
+                    verdictText = "Call wall >> put wall — upward drift but hard ceiling at $" + cwStrike + ". Buy dips, don't chase the top.";
+                    verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                  } else if (pwDominant) {
+                    verdictText = "Put wall >> call wall — strong support at $" + pwStrike + ", weak ceiling. Bullish breakout potential.";
+                    verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                  } else {
+                    verdictText = "Walls similar size — range trade between $" + pwStrike + "–$" + cwStrike + ". Sell premium.";
+                    verdictIcon = "↔"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                  }
+
+                  // Build key levels
+                  const allLevels = [];
+                  const sortedStrikes = [...(gexData.strikes||[])].filter(s => sp > 0 ? Math.abs(s.strike - sp) / sp <= 0.06 : true);
+                  const topCalls = sortedStrikes.filter(s => s.callGex > 0).sort((a,b) => b.callGex - a.callGex).slice(0, 5);
+                  const topPuts = sortedStrikes.filter(s => s.putGex < 0).sort((a,b) => a.putGex - b.putGex).slice(0, 3);
+
+                  topCalls.forEach(s => {
+                    const isCW = s.strike === cwStrike;
+                    const isMagnet = isCW && !cwAboveSpot;
+                    allLevels.push({ strike:s.strike, fillPct:Math.min(95, Math.round(s.callGex/(cwGex||1)*95)),
+                      dir:isMagnet?"⇡":(s.strike>sp?"▲":"●"), dirColor:isMagnet?P.be:P.bu,
+                      label:isCW ? fmtGex(cwGex)+" call wall · "+cwLabel : (s.strike>sp?"call gamma · resistance":"call support"),
+                      tag:isCW?(isMagnet?"magnet ↓":"call wall"):(s.strike>sp?"resistance":"support"),
+                      tagBg:isCW?(isMagnet?P.be+"22":"#00BCD422"):(s.strike>sp?"#00BCD422":P.bu+"22"),
+                      tagColor:isCW?(isMagnet?P.be:"#00BCD4"):(s.strike>sp?"#00BCD4":P.bu),
+                      fillColor:P.bu, fillText:"#0d1117", isCW, showMagnet:isMagnet, magnetColor:P.be,
+                      border:isCW?"1px solid "+P.bu:"none" });
+                  });
+                  topPuts.forEach(s => {
+                    const isPW = s.strike === pwStrike;
+                    const isMagnet = isPW && !pwBelowSpot;
+                    allLevels.push({ strike:s.strike, fillPct:Math.min(55, Math.round(Math.abs(s.putGex)/(pwGex||1)*55)),
+                      dir:isMagnet?"⇣":"▼", dirColor:isMagnet?P.bu:P.be,
+                      label:isPW ? fmtGex(pwGex)+" put wall · "+pwLabel : "put cluster",
+                      tag:isPW?(isMagnet?"magnet ↑":"support"):"caution",
+                      tagBg:isPW?(isMagnet?P.bu+"22":P.be+"22"):P.be+"22",
+                      tagColor:isPW?(isMagnet?P.bu:P.be):P.be,
+                      fillColor:P.be, fillText:"#fff", isPW, showMagnet:isMagnet, magnetColor:P.bu,
+                      border:isPW?"1px solid "+P.be:"none" });
+                  });
+                  if (zg) {
+                    allLevels.push({ strike:zg, fillPct:100, dir:"⚡", dirColor:P.ac,
+                      label:"", tag:"zero γ", tagBg:P.ac+"22", tagColor:P.ac,
+                      fillColor:P.ac, fillText:P.bg, isZero:true, border:"1px dashed "+P.ac });
+                  }
+                  allLevels.sort((a,b) => b.strike - a.strike);
+
+                  let setupTitle, setupText;
+                  if (pinSetup) {
+                    setupTitle = "Setup — pin at $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike);
+                    setupText = "Spot trapped between inverted walls. Call wall below pulls price down, put wall above pushes it back up. " + fmtGex(cwGex+pwGex) + " combined gamma squeezes price into a $" + Math.abs(cwStrike-pwStrike) + " range. Dealers fight every move in both directions.";
+                  } else if (cwDominant && cwAboveSpot) {
+                    setupTitle = "Setup — bullish with ceiling at $" + cwStrike;
+                    setupText = "Spot at $" + sp.toFixed(0) + " with " + fmtGex(cwGex) + " call wall at $" + cwStrike + " pulling price higher. " + fmtGex(tg) + " " + (isPositive?"positive":"negative") + " GEX means dealers " + (isPositive?"dampen pullbacks":"amplify moves") + ". " + (isPositive?"Dips are bought, rallies are orderly.":"Expect wide swings.");
+                  } else if (pwDominant) {
+                    setupTitle = "Setup — strong floor at $" + pwStrike;
+                    setupText = "Put wall " + (pwGex/cwGex).toFixed(1) + "x larger than call wall. Strong support at $" + pwStrike + ", breakout potential above $" + cwStrike + ". " + fmtGex(tg) + " total GEX.";
+                  } else {
+                    setupTitle = "Setup — range $" + Math.min(pwStrike,cwStrike) + "–$" + Math.max(pwStrike,cwStrike);
+                    setupText = "Walls roughly balanced. Fade extremes, sell premium. " + fmtGex(tg) + " total GEX " + (isPositive?"stabilizes":"amplifies") + " moves.";
+                  }
+
+                  const trades = [];
+                  if (pinSetup) {
+                    trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell iron fly at $"+cwStrike+" — pin trade. Profit zone $"+(Math.min(cwStrike,pwStrike)-5)+"–$"+(Math.max(cwStrike,pwStrike)+10)+"." });
+                    trades.push({ i:"F", bg:P.bu+"33", c:P.bu, t:"Fade rallies above $"+(Math.max(cwStrike,pwStrike)+5)+" and dips below $"+(Math.min(cwStrike,pwStrike)-5)+" back to $"+sp.toFixed(0)+"." });
+                  } else {
+                    trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips toward $"+(cwAboveSpot?(sp-(sp-pwStrike)*0.3).toFixed(0):cwStrike)+". "+(isPositive?"Safety net active.":"No safety net — size down.")+" Stop below $"+pwStrike+"." });
+                    trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Target $"+cwStrike+" ("+fmtGex(cwGex)+" call wall)." });
+                  }
+                  if (isPositive) trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell puts below $"+pwStrike+" — "+fmtGex(tg)+" positive GEX overhead." });
+                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: below $"+pwStrike+" removes support."+(zg?" $"+zg.toFixed(0)+" = regime flip.":"") });
+
+                  const gaugeMin = zg ? Math.min(zg, pwStrike) - (sp*0.005) : pwStrike - (sp*0.01);
+                  const gaugeMax = Math.max(cwStrike, sp) + (sp*0.01);
+                  const gPct = v => Math.max(0, Math.min(100, ((v-gaugeMin)/(gaugeMax-gaugeMin))*100));
+
+                  return (
+                  <div style={{ background:P.cd, borderRadius:10, padding:16, border:"1px solid "+P.bd, marginTop:4 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                      <span style={{ fontSize:13, fontWeight:700, color:"#e040fb", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
+                      <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}</span>
+                    </div>
+                    <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:isPositive?P.bu+"22":P.be+"22", color:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
+                      {isPositive?"Positive gamma — stable":"Negative gamma — volatile"}{zgDist?" · "+zgDist+"% above zero γ":""}
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"center" }}>
+                      <div style={{ display:"flex", gap:6 }}>
+                        {[["Spot","$"+sp.toFixed(0),P.wh],["Zero γ","$"+(zg?zg.toFixed(0):"—"),P.ac],["GEX",fmtGex(tg),tg>0?P.bu:P.be]].map(([l,v,c])=>(
+                          <div key={l} style={{ background:P.al, borderRadius:6, padding:"8px 12px", textAlign:"center" }}>
+                            <div style={{ fontSize:9, color:P.dm, textTransform:"uppercase" }}>{l}</div>
+                            <div style={{ fontSize:16, fontWeight:800, color:c }}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ position:"relative", padding:"0 4px" }}>
+                        <div style={{ position:"relative", height:20, borderRadius:10, background:"linear-gradient(90deg, "+P.be+"33 0%, "+P.be+"33 20%, #1a2035 20%, #1a2035 40%, "+P.bu+"33 40%)" }}>
+                          {zg&&<div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(zg)+"%",background:P.ac,opacity:0.6,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:8,color:P.dm,whiteSpace:"nowrap" }}>${zg.toFixed(0)}</span></div>}
+                          <div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(pwStrike)+"%",background:P.be,opacity:0.4,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:8,color:P.dm,whiteSpace:"nowrap" }}>${pwStrike}</span></div>
+                          <div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(cwStrike)+"%",background:P.bu,opacity:0.5,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:8,color:P.dm,whiteSpace:"nowrap" }}>${cwStrike}</span></div>
+                          <div style={{ position:"absolute",top:-2,width:4,height:24,left:gPct(sp)+"%",background:"#00BCD4",borderRadius:2,zIndex:3 }}><span style={{ position:"absolute",top:-14,transform:"translateX(-50%)",fontSize:9,fontWeight:700,color:"#00BCD4",whiteSpace:"nowrap" }}>${sp.toFixed(0)}</span></div>
+                        </div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, marginTop:14 }}><span style={{ color:P.be }}>Danger</span><span style={{ color:P.bu }}>Safe</span></div>
+                      </div>
+                    </div>
+                    <div style={{ background:P.al, borderRadius:6, padding:"10px 12px", marginBottom:10 }}>
+                      <div style={{ fontSize:10, color:P.dm, textTransform:"uppercase", letterSpacing:0.5, marginBottom:6 }}>Call wall vs put wall{wallsInverted?" — spot between both":""}</div>
+                      <div style={{ display:"flex", height:28, borderRadius:4, overflow:"hidden", marginBottom:5 }}>
+                        <div style={{ width:cwPct+"%", background:P.bu, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#0d1117" }}>Call ${cwStrike} — {fmtGex(cwGex)}</div>
+                        <div style={{ width:pwPct+"%", background:P.be, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff" }}>{fmtGex(pwGex)}</div>
+                      </div>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, marginBottom:5 }}>
+                        <span style={{ color:P.bu }}>Call {cwRatio}x · {cwLabel}</span>
+                        <span style={{ color:P.be }}>Put ${pwStrike} · {pwLabel}</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:4, fontSize:11, fontWeight:700, background:verdictBg, color:verdictColor }}><span style={{ fontSize:14 }}>{verdictIcon}</span><span>{verdictText}</span></div>
+                    </div>
+                    <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>Key levels</div>
+                    <div style={{ marginBottom:3 }}>
+                      {allLevels.map((l,li) => {
+                        const nextL = allLevels[li+1];
+                        const spotAfter = l.strike > sp && nextL && nextL.strike < sp;
+                        const spotFirst = li===0 && l.strike < sp;
+                        const SpotLine = () => (
+                          <div style={{ display:"flex", alignItems:"center", gap:6, margin:"4px 0" }}>
+                            <div style={{ width:14 }} />
+                            <span style={{ fontSize:12, fontWeight:700, width:46, textAlign:"right", fontFamily:"monospace", color:"#00BCD4" }}>${sp.toFixed(0)}</span>
+                            <div style={{ flex:1, height:0, borderTop:"3px dashed #00BCD4" }} />
+                            <span style={{ fontSize:10, fontWeight:700, padding:"2px 10px", borderRadius:3, background:"#00BCD4", color:"#0d1117" }}>SPOT</span>
+                          </div>
+                        );
+                        return (
+                          <div key={li}>
+                            {spotFirst && <SpotLine />}
+                            <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
+                              <span style={{ fontSize:11, width:14, textAlign:"center", flexShrink:0, color:l.dirColor }}>{l.dir}</span>
+                              <span style={{ fontSize:11, fontWeight:700, width:46, textAlign:"right", fontFamily:"monospace", color:l.isCW?P.bu:l.isPW?P.be:l.isZero?P.ac:P.dm }}>${l.isZero?l.strike.toFixed(0):l.strike}</span>
+                              <div style={{ flex:1, height:22, background:l.isZero?"transparent":P.al, borderRadius:3, position:"relative", overflow:"visible", border:l.border||"none" }}>
+                                <div style={{ height:"100%", width:l.fillPct+"%", borderRadius:3, display:"flex", alignItems:"center", padding:"0 8px", fontSize:10, fontWeight:600, background:l.fillColor, color:l.fillText, opacity:l.isZero?0.45:1 }}>{l.label}</div>
+                                {l.showMagnet && <svg style={{ position:"absolute", top:"50%", transform:"translateY(-50%)", left:(l.fillPct+2)+"%", width:30, height:20 }} viewBox="0 0 30 20"><circle cx="10" cy="10" r="6" fill={l.magnetColor}/><circle cx="10" cy="10" r="3" fill={l.magnetColor===P.bu?"#0F6E56":"#cc2020"}/><path d="M17 4L22 2" stroke="#ffd54f" strokeWidth="2" strokeLinecap="round"/><path d="M18 10L24 10" stroke="#ffd54f" strokeWidth="2" strokeLinecap="round"/><path d="M17 16L22 18" stroke="#ffd54f" strokeWidth="2" strokeLinecap="round"/></svg>}
+                              </div>
+                              <span style={{ fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:3, minWidth:48, textAlign:"center", background:l.tagBg, color:l.tagColor }}>{l.tag}</span>
+                            </div>
+                            {spotAfter && <SpotLine />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ height:1, background:P.bd, margin:"8px 0" }} />
+                    <div style={{ fontSize:14, fontWeight:700, color:P.wh, marginBottom:4 }}>{setupTitle}</div>
+                    <p style={{ fontSize:12, color:P.dm, lineHeight:1.5, margin:"0 0 8px" }}>{setupText}</p>
+                    <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>Trade ideas</div>
+                    {trades.map((t,ti) => (
+                      <div key={ti} style={{ display:"flex", gap:7, alignItems:"flex-start", marginBottom:5, fontSize:12, color:P.dm, lineHeight:1.45 }}>
+                        <div style={{ flexShrink:0, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, marginTop:1, background:t.bg, color:t.c }}>{t.i}</div>
+                        <div>{t.t}</div>
+                      </div>
+                    ))}
+                    <div style={{ height:1, background:P.bd, margin:"8px 0" }} />
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#555" }}>
+                      <span>Regime flip: ${zg?zg.toFixed(0):"—"}{zgDist?" ("+zgDist+"% below)":""}</span>
+                      <span>UCT Intelligence</span>
+                    </div>
+                  </div>
+                  );
+                })()}
               </>
             )}
           </div>
