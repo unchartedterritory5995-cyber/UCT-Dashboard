@@ -3028,9 +3028,9 @@ export default function OptionsFlowDashboard() {
 
                   // Build key levels
                   const allLevels = [];
-                  const sortedStrikes = [...(gexData.strikes||[])].filter(s => sp > 0 ? Math.abs(s.strike - sp) / sp <= 0.06 : true);
-                  const topCalls = sortedStrikes.filter(s => s.callGex > 0).sort((a,b) => b.callGex - a.callGex).slice(0, 5);
-                  const topPuts = sortedStrikes.filter(s => s.putGex < 0).sort((a,b) => a.putGex - b.putGex).slice(0, 3);
+                  const sortedStrikes = [...(gexData.strikes||[])].filter(s => sp > 0 ? (Math.abs(s.strike - sp) / sp <= 0.08 || s.strike === cwStrike || s.strike === pwStrike) : true);
+                  const topCalls = sortedStrikes.filter(s => s.callGex > 0).sort((a,b) => b.callGex - a.callGex).slice(0, 3);
+                  const topPuts = sortedStrikes.filter(s => s.putGex < 0 && !topCalls.find(c => c.strike === s.strike)).sort((a,b) => a.putGex - b.putGex).slice(0, 2);
 
                   topCalls.forEach(s => {
                     const isCW = s.strike === cwStrike;
