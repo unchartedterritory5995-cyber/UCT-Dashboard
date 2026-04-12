@@ -957,7 +957,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Top Flow","Performance","Search","Short Term","Long Term","LEAPS","Gamma","OI Check","Tracker"];
+const TABS = ["Market Read","GEX","Top Flow","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -1119,7 +1119,7 @@ export default function OptionsFlowDashboard() {
 
   // Auto-load market data (deferred — non-critical)
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
-  useEffect(() => { if (tab === "Gamma" && gexTicker) fetchGex(gexTicker, gexDte); }, [tab, gexTicker, gexDte]);
+  useEffect(() => { if (tab === "GEX" && gexTicker) fetchGex(gexTicker, gexDte); }, [tab, gexTicker, gexDte]);
 
   // ─── Shared detail panel renderer ─────────────────────────────────────────
   function renderDetailPanel(sym, cp, K, exp, onClose) {
@@ -2179,9 +2179,10 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:"none", cursor:"pointer",
-              fontSize:11, fontWeight:600, fontFamily:"inherit",
-              background:tab===t?P.cd:"transparent", color:tab===t?P.wh:P.mt
+              padding:"6px 14px", borderRadius:5, border:t==="GEX"?(tab===t?"1px solid #e040fb":"1px solid #e040fb55"):"none", cursor:"pointer",
+              fontSize:t==="GEX"?12:11, fontWeight:t==="GEX"?800:600, fontFamily:"inherit",
+              background:tab===t?(t==="GEX"?"#e040fb33":P.cd):"transparent",
+              color:tab===t?(t==="GEX"?"#e040fb":P.wh):(t==="GEX"?"#e040fb":P.mt)
             }}>{t}</button>
           ))}
         </div>
@@ -2791,8 +2792,8 @@ export default function OptionsFlowDashboard() {
           </div>
         )}
 
-        {/* Gamma Exposure */}
-        {tab==="Gamma" && (()=>{
+        {/* GEX — Gamma Exposure */}
+        {tab==="GEX" && (()=>{
           const fmtGex = v => {
             if (v === null || v === undefined || isNaN(v)) return "—";
             const abs = Math.abs(v);
