@@ -3030,8 +3030,8 @@ export default function OptionsFlowDashboard() {
                   // Build key levels
                   const allLevels = [];
                   const sortedStrikes = [...(gexData.strikes||[])].filter(s => sp > 0 ? (Math.abs(s.strike - sp) / sp <= 0.08 || s.strike === cwStrike || s.strike === pwStrike) : true);
-                  const topCalls = sortedStrikes.filter(s => s.callGex > 0).sort((a,b) => b.callGex - a.callGex).slice(0, 3);
-                  const topPuts = sortedStrikes.filter(s => s.putGex < 0 && !topCalls.find(c => c.strike === s.strike)).sort((a,b) => a.putGex - b.putGex).slice(0, 2);
+                  const topCalls = sortedStrikes.filter(s => s.callGex > 0 && s.strike !== cwStrike && s.strike !== pwStrike).sort((a,b) => b.callGex - a.callGex).slice(0, 3);
+                  const topPuts = sortedStrikes.filter(s => s.putGex < 0 && s.strike !== cwStrike && s.strike !== pwStrike && !topCalls.find(c => c.strike === s.strike)).sort((a,b) => a.putGex - b.putGex).slice(0, 2);
 
                   topCalls.forEach(s => {
                     const isCW = s.strike === cwStrike;
@@ -3057,6 +3057,26 @@ export default function OptionsFlowDashboard() {
                       fillColor:P.be, fillText:"#fff", isPW, showMagnet:isMagnet, magnetColor:P.bu,
                       border:isPW?"1px solid "+P.be:"none" });
                   });
+                  // Always ensure call wall appears
+                  if (!allLevels.find(l => l.strike === cwStrike)) {
+                    const isMagnet = !cwAboveSpot;
+                    allLevels.push({ strike:cwStrike, fillPct:95,
+                      dir:isMagnet?"⇡":"▲", dirColor:isMagnet?P.be:P.bu,
+                      label:fmtGex(cwGex)+" call wall · "+cwLabel,
+                      tag:isMagnet?"magnet ↓":"call wall", tagBg:isMagnet?P.be+"22":"#00BCD422", tagColor:isMagnet?P.be:"#00BCD4",
+                      fillColor:P.bu, fillText:"#0d1117", isCW:true, showMagnet:isMagnet, magnetColor:P.be,
+                      border:"1px solid "+P.bu });
+                  }
+                  // Always ensure put wall appears
+                  if (!allLevels.find(l => l.strike === pwStrike)) {
+                    const isMagnet = !pwBelowSpot;
+                    allLevels.push({ strike:pwStrike, fillPct:55,
+                      dir:isMagnet?"⇣":"▼", dirColor:isMagnet?P.bu:P.be,
+                      label:fmtGex(pwGex)+" put wall · "+pwLabel,
+                      tag:isMagnet?"magnet ↑":"support", tagBg:isMagnet?P.bu+"22":P.be+"22", tagColor:isMagnet?P.bu:P.be,
+                      fillColor:P.be, fillText:"#fff", isPW:true, showMagnet:isMagnet, magnetColor:P.bu,
+                      border:"1px solid "+P.be });
+                  }
                   if (zg) {
                     allLevels.push({ strike:zg, fillPct:100, dir:"⚡", dirColor:P.ac,
                       label:"", tag:"zero γ", tagBg:P.ac+"22", tagColor:P.ac,
