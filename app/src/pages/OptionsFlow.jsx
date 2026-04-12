@@ -2994,6 +2994,7 @@ export default function OptionsFlowDashboard() {
                   const tg = gexData.totalGex;
                   if (!sp || !cw || !pw) return null;
                   const cwStrike = cw.strike, pwStrike = pw.strike, cwGex = cw.gex, pwGex = Math.abs(pw.gex);
+                  const SG = "#0a8f55", SR = "#c43030"; // darker bar fills for summary
 
                   const cwAboveSpot = cwStrike > sp;
                   const pwBelowSpot = pwStrike < sp;
@@ -3042,7 +3043,7 @@ export default function OptionsFlowDashboard() {
                       tag:isCW?(isMagnet?"magnet ↓":"call wall"):(s.strike>sp?"resistance":"support"),
                       tagBg:isCW?(isMagnet?P.be+"22":"#00BCD422"):(s.strike>sp?"#00BCD422":P.bu+"22"),
                       tagColor:isCW?(isMagnet?P.be:"#00BCD4"):(s.strike>sp?"#00BCD4":P.bu),
-                      fillColor:P.bu, fillText:"#0d1117", isCW, showMagnet:isMagnet, magnetColor:P.be,
+                      fillColor:SG, fillText:"#0d1117", isCW, showMagnet:isMagnet, magnetColor:P.be,
                       border:isCW?"1px solid "+P.bu:"none" });
                   });
                   topPuts.forEach(s => {
@@ -3054,7 +3055,7 @@ export default function OptionsFlowDashboard() {
                       tag:isPW?(isMagnet?"magnet ↑":"support"):"caution",
                       tagBg:isPW?(isMagnet?P.bu+"22":P.be+"22"):P.be+"22",
                       tagColor:isPW?(isMagnet?P.bu:P.be):P.be,
-                      fillColor:P.be, fillText:"#fff", isPW, showMagnet:isMagnet, magnetColor:P.bu,
+                      fillColor:SR, fillText:"#fff", isPW, showMagnet:isMagnet, magnetColor:P.bu,
                       border:isPW?"1px solid "+P.be:"none" });
                   });
                   // Always ensure call wall appears
@@ -3064,7 +3065,7 @@ export default function OptionsFlowDashboard() {
                       dir:isMagnet?"⇡":"▲", dirColor:isMagnet?P.be:P.bu,
                       label:fmtGex(cwGex)+" call wall · "+cwLabel,
                       tag:isMagnet?"magnet ↓":"call wall", tagBg:isMagnet?P.be+"22":"#00BCD422", tagColor:isMagnet?P.be:"#00BCD4",
-                      fillColor:P.bu, fillText:"#0d1117", isCW:true, showMagnet:isMagnet, magnetColor:P.be,
+                      fillColor:SG, fillText:"#0d1117", isCW:true, showMagnet:isMagnet, magnetColor:P.be,
                       border:"1px solid "+P.bu });
                   }
                   // Always ensure put wall appears
@@ -3074,7 +3075,7 @@ export default function OptionsFlowDashboard() {
                       dir:isMagnet?"⇣":"▼", dirColor:isMagnet?P.bu:P.be,
                       label:fmtGex(pwGex)+" put wall · "+pwLabel,
                       tag:isMagnet?"magnet ↑":"support", tagBg:isMagnet?P.bu+"22":P.be+"22", tagColor:isMagnet?P.bu:P.be,
-                      fillColor:P.be, fillText:"#fff", isPW:true, showMagnet:isMagnet, magnetColor:P.bu,
+                      fillColor:SR, fillText:"#fff", isPW:true, showMagnet:isMagnet, magnetColor:P.bu,
                       border:"1px solid "+P.be });
                   }
                   if (zg) {
@@ -3145,8 +3146,8 @@ export default function OptionsFlowDashboard() {
                     <div style={{ background:P.al, borderRadius:6, padding:"10px 12px", marginBottom:10 }}>
                       <div style={{ fontSize:10, color:P.dm, textTransform:"uppercase", letterSpacing:0.5, marginBottom:6 }}>Call wall vs put wall{wallsInverted?" — spot between both":""}</div>
                       <div style={{ display:"flex", height:28, borderRadius:4, overflow:"hidden", marginBottom:5 }}>
-                        <div style={{ width:cwPct+"%", background:P.bu, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#0d1117" }}>Call ${cwStrike} — {fmtGex(cwGex)}</div>
-                        <div style={{ width:pwPct+"%", background:P.be, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff" }}>{fmtGex(pwGex)}</div>
+                        <div style={{ width:cwPct+"%", background:SG, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#e1f5ee" }}>Call ${cwStrike} — {fmtGex(cwGex)}</div>
+                        <div style={{ width:pwPct+"%", background:SR, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff" }}>{fmtGex(pwGex)}</div>
                       </div>
                       <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, marginBottom:5 }}>
                         <span style={{ color:P.bu }}>Call {cwRatio}x · {cwLabel}</span>
