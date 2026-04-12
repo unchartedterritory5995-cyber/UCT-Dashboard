@@ -1609,6 +1609,7 @@ export default function OptionsFlowDashboard() {
       const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}`);
       if (resp.ok) {
         const data = await resp.json();
+        data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
         setGexData(data);
       } else {
         setGexData({ error: `API error: ${resp.status}` });
@@ -3097,7 +3098,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ background:P.cd, borderRadius:10, padding:16, border:"1px solid "+P.bd, marginTop:4 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                       <span style={{ fontSize:13, fontWeight:700, color:"#e040fb", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
-                      <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}</span>
+                      <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
                     <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:isPositive?P.bu+"22":P.be+"22", color:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
                       {isPositive?"Positive gamma — stable":"Negative gamma — volatile"}{zgDist?" · "+zgDist+"% above zero γ":""}
@@ -3177,6 +3178,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ height:1, background:P.bd, margin:"8px 0" }} />
                     <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#555" }}>
                       <span>Regime flip: ${zg?zg.toFixed(0):"—"}{zgDist?" ("+zgDist+"% below)":""}</span>
+                      <span>{gexData.fetchedAt ? "Fetched: "+gexData.fetchedAt+" ET" : ""}</span>
                       <span>UCT Intelligence</span>
                     </div>
                   </div>
