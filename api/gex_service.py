@@ -21,23 +21,24 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
 
     dte_filter options:
       - "0dte"   → expirations today only
+      - "1dte"   → today + tomorrow
+      - "2dte"   → today + 2 days
+      - "3dte"   → today + 3 days
       - "week"   → next 7 days
-      - "month"  → next 45 days
       - "all"    → next 180 days
     """
     ticker = ticker.upper().strip()
-    # Index options on Schwab use $-prefix format (e.g. $SPX, $NDX, $VIX, $RUT)
-    INDEX_TICKERS = {"SPX", "NDX", "VIX", "RUT", "DJX", "XSP", "XND"}
-    schwab_symbol = "$" + ticker if ticker in INDEX_TICKERS else ticker
     token = await schwab.get_valid_token()
     if not token:
         return {"error": "Schwab not authenticated"}
 
     # Map dte filter to params
     dte_map = {
-        "0dte": 1,
+        "0dte": 0,
+        "1dte": 1,
+        "2dte": 2,
+        "3dte": 3,
         "week": 7,
-        "month": 45,
         "all": 180,
     }
     days = dte_map.get(dte_filter, 180)
@@ -46,8 +47,14 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
     from_date = datetime.now().strftime("%Y-%m-%d")
     to_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
 
+    # Handle index tickers that need $ prefix for Schwab
+    schwab_ticker = ticker
+    index_tickers = {"SPX", "NDX", "VIX", "RUT", "DJX", "XSP", "XND"}
+    if ticker in index_tickers:
+        schwab_ticker = "$" + ticker
+
     params = {
-        "symbol": schwab_symbol,
+        "symbol": schwab_ticker,
         "contractType": "ALL",
         "strikeCount": 60,  # 30 above, 30 below ATM
         "includeUnderlyingQuote": "true",
