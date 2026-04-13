@@ -3115,7 +3115,7 @@ export default function OptionsFlowDashboard() {
                     const isMagnet = isCW && !cwAboveSpot;
                     allLevels.push({ strike:s.strike, fillPct:Math.min(95, Math.round(s.callGex/(cwGex||1)*95)),
                       dir:isMagnet?"⇡":(s.strike>sp?"▲":"●"), dirColor:isMagnet?P.be:P.bu,
-                      label:isCW ? fmtGex(cwGex)+" ceiling · "+cwLabel : (s.strike>sp?"ceiling zone":"bounce zone"),
+                      label:isCW ? fmtGex(cwGex)+" · "+cwLabel : (s.strike>sp?"ceiling zone":"bounce zone"),
                       tag:isCW?(isMagnet?"gravity ↓":"ceiling"):(s.strike>sp?"ceiling":"bounce"),
                       tagBg:isCW?(isMagnet?P.be+"22":"#00BCD422"):(s.strike>sp?"#00BCD422":P.bu+"22"),
                       tagColor:isCW?(isMagnet?P.be:"#00BCD4"):(s.strike>sp?"#00BCD4":P.bu),
@@ -3127,7 +3127,7 @@ export default function OptionsFlowDashboard() {
                     const isMagnet = isPW && !pwBelowSpot;
                     allLevels.push({ strike:s.strike, fillPct:Math.min(55, Math.round(Math.abs(s.putGex)/(pwGex||1)*55)),
                       dir:isMagnet?"⇣":"▼", dirColor:isMagnet?P.bu:P.be,
-                      label:isPW ? fmtGex(pwGex)+" floor · "+pwLabel : "weak spot",
+                      label:isPW ? fmtGex(pwGex)+" · "+pwLabel : "weak spot",
                       tag:isPW?(isMagnet?"gravity ↑":"floor"):"caution",
                       tagBg:isPW?(isMagnet?P.bu+"22":P.be+"22"):P.be+"22",
                       tagColor:isPW?(isMagnet?P.bu:P.be):P.be,
@@ -3139,17 +3139,32 @@ export default function OptionsFlowDashboard() {
                     const isMagnet = !cwAboveSpot;
                     allLevels.push({ strike:cwStrike, fillPct:95,
                       dir:isMagnet?"⇡":"▲", dirColor:isMagnet?P.be:P.bu,
-                      label:fmtGex(cwGex)+" ceiling · "+cwLabel,
+                      label:fmtGex(cwGex)+" · "+cwLabel,
                       tag:isMagnet?"gravity ↓":"ceiling", tagBg:isMagnet?P.be+"22":"#00BCD422", tagColor:isMagnet?P.be:"#00BCD4",
                       fillColor:SG, fillText:"#0d1117", isCW:true, showMagnet:isMagnet, magnetColor:P.be,
                       border:"1px solid "+P.bu });
                   }
                   // Always ensure put wall appears
-                  if (!allLevels.find(l => l.strike === pwStrike)) {
+                  if (cwStrike === pwStrike) {
+                    // Same strike — add combined entry showing both roles
+                    const cwEntry = allLevels.find(l => l.strike === cwStrike);
+                    if (cwEntry) {
+                      const pwMagnetHere = !pwBelowSpot;
+                      cwEntry.label = fmtGex(cwGex+pwGex) + " ceiling + floor" + (cwEntry.showMagnet || pwMagnetHere ? " · gravity zone" : "");
+                      cwEntry.tag = cwEntry.showMagnet ? "gravity ↓" : pwMagnetHere ? "gravity ↑" : "ceiling + floor";
+                      cwEntry.tagBg = pwMagnetHere ? "#e040fb22" : "#00BCD422";
+                      cwEntry.tagColor = pwMagnetHere ? "#e040fb" : "#00BCD4";
+                      if (pwMagnetHere && !cwEntry.showMagnet) cwEntry.magnetColor = P.bu;
+                      cwEntry.showMagnet = cwEntry.showMagnet || pwMagnetHere;
+                      cwEntry.isPW = true;
+                      cwEntry.border = "1px solid #e040fb";
+                      cwEntry.fillPct = 95;
+                    }
+                  } else if (!allLevels.find(l => l.strike === pwStrike)) {
                     const isMagnet = !pwBelowSpot;
                     allLevels.push({ strike:pwStrike, fillPct:55,
                       dir:isMagnet?"⇣":"▼", dirColor:isMagnet?P.bu:P.be,
-                      label:fmtGex(pwGex)+" floor · "+pwLabel,
+                      label:fmtGex(pwGex)+" · "+pwLabel,
                       tag:isMagnet?"gravity ↑":"floor", tagBg:isMagnet?P.bu+"22":P.be+"22", tagColor:isMagnet?P.bu:P.be,
                       fillColor:SR, fillText:"#fff", isPW:true, showMagnet:isMagnet, magnetColor:P.bu,
                       border:"1px solid "+P.be });
