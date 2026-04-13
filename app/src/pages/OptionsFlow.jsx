@@ -3182,6 +3182,13 @@ export default function OptionsFlowDashboard() {
                   }
                   allLevels.sort((a,b) => b.strike - a.strike);
 
+                  // Pre-compute directional helpers (needed by setup text + trade ideas)
+                  const callsAboveSpot = topCalls.filter(s => s.strike > sp);
+                  const firstResAbove = callsAboveSpot.length > 0 ? callsAboveSpot.sort((a,b)=>a.strike-b.strike)[0] : null;
+                  const putsBelowSpot = topPuts.filter(s => s.strike < sp);
+                  const firstSupBelow = putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null;
+                  const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
+
                   let setupTitle, setupText;
                   if (pinSetup) {
                     if (cwStrike === pwStrike) {
@@ -3225,11 +3232,6 @@ export default function OptionsFlowDashboard() {
                   const zgBelowClose = zg && (zg - sp) / sp > -0.01 && zg < sp; // zg just below spot (<1%)
                   const cwMagnet = !cwAboveSpot; // call wall below spot = magnet down
                   const pwMagnet = !pwBelowSpot; // put wall above spot = magnet up
-                  const callsAboveSpot = topCalls.filter(s => s.strike > sp);
-                  const firstResAbove = callsAboveSpot.length > 0 ? callsAboveSpot.sort((a,b)=>a.strike-b.strike)[0] : null;
-                  const putsBelowSpot = topPuts.filter(s => s.strike < sp);
-                  const firstSupBelow = putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null;
-                  const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
 
                   if (pinSetup) {
                     // Pin setup trades
