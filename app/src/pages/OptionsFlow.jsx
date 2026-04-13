@@ -3269,6 +3269,68 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:isPositive?P.bu+"22":P.be+"22", color:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
                       {isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
                     </div>
+
+                    {/* Quick Read — auto-generated narrative */}
+                    {(()=>{
+                      const parts = [];
+                      const spStr = "$"+sp.toFixed(0);
+                      const cwStr = "$"+cwStrike;
+                      const pwStr = "$"+pwStrike;
+                      const dist = Math.abs(sp - cwStrike);
+                      const distPw = Math.abs(sp - (pwBelowSpot ? pwStrike : 0));
+                      const safetyStr = isPositive ? fmtGex(tg)+" safety net means dips bounce." : "No safety net — moves can snowball.";
+
+                      if (pinSetup) {
+                        if (Math.abs(sp - cwStrike) <= sp * 0.003) {
+                          parts.push("Price sitting right at the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined). Everything pulls back to this strike.");
+                          parts.push(isPositive ? "Dips bounce, rallies fade. Classic pin action." : "Pin is active but no safety net — expect sharp whipsaws around "+cwStr+".");
+                        } else if (sp > cwStrike) {
+                          parts.push("Price rallied above the massive "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) and is sitting $"+dist.toFixed(0)+" above it.");
+                          parts.push("Gravity is pulling down — "+fmtGex(cwGex)+" ceiling below spot wants price back at "+cwStr+". "+safetyStr);
+                        } else {
+                          parts.push("Price dipped below the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) and is $"+dist.toFixed(0)+" below.");
+                          parts.push("Gravity pulling up toward "+cwStr+". "+(isPositive ? "Safety net active — expect a bounce back to the pin." : "No safety net — could break further before snapping back."));
+                        }
+                      } else if (cwAboveSpot && pwBelowSpot) {
+                        // Normal: CW above, PW below
+                        const cwDist = ((cwStrike - sp) / sp * 100).toFixed(1);
+                        const pwDist = ((sp - pwStrike) / sp * 100).toFixed(1);
+                        if (cwDominant) {
+                          parts.push("Price at "+spStr+" grinding toward the "+cwStr+" ceiling ("+fmtGex(cwGex)+"), just "+cwDist+"% away.");
+                          parts.push(cwDist < 1 ? "Testing the ceiling now — either breaks through or gets rejected." : "Floor at "+pwStr+" ("+fmtGex(pwGex)+") catches any dips.");
+                          parts.push(safetyStr);
+                        } else if (pwDominant) {
+                          parts.push("Strong floor at "+pwStr+" ("+fmtGex(pwGex)+") with a weak ceiling above at "+cwStr+".");
+                          parts.push("Price has room to run. "+safetyStr);
+                        } else {
+                          parts.push("Price at "+spStr+" bouncing between the "+cwStr+" ceiling and "+pwStr+" floor.");
+                          parts.push("Both about the same strength — choppy range. "+safetyStr);
+                        }
+                      } else if (!cwAboveSpot) {
+                        // CW below = magnet pulling down
+                        parts.push("Ceiling at "+cwStr+" is below current price — acting as gravity, pulling price DOWN.");
+                        parts.push(fmtGex(cwGex)+" wants price at "+cwStr+", not at "+spStr+". "+(isPositive ? "Safety net slows the pull, but direction is down." : "No safety net — the pull could be fast."));
+                      } else if (!pwBelowSpot) {
+                        // PW above = magnet pulling up
+                        parts.push("Floor at "+pwStr+" is above current price — pulling price UP.");
+                        parts.push(fmtGex(pwGex)+" wants price at "+pwStr+". Bullish pull.");
+                      }
+
+                      // Danger line proximity add-on
+                      if (zgNearSpot) {
+                        parts.push("⚠️ Danger line at $"+(zg?.toFixed(0)||"—")+" is RIGHT HERE — one bad candle flips the safety net off.");
+                      } else if (zgBelowClose) {
+                        parts.push("Danger line at $"+(zg?.toFixed(0)||"—")+" is close — thin cushion before the safety net breaks.");
+                      }
+
+                      return parts.length > 0 ? (
+                        <div style={{ background:P.al, borderRadius:6, padding:"10px 14px", marginBottom:10, lineHeight:1.6 }}>
+                          <div style={{ fontSize:10, fontWeight:700, color:"#e040fb", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Quick Read</div>
+                          <div style={{ fontSize:12, color:P.wh }}>{parts.join(" ")}</div>
+                        </div>
+                      ) : null;
+                    })()}
+
                     <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"center" }}>
                       <div style={{ display:"flex", gap:6 }}>
                         {[["Spot","$"+sp.toFixed(0),P.wh],["Danger Line","$"+(zg?zg.toFixed(0):"—"),P.ac],["GEX",fmtGex(tg),tg>0?P.bu:P.be]].map(([l,v,c])=>(
