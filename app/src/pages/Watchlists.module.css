@@ -409,6 +409,40 @@
   white-space: nowrap;
 }
 
+.ctxBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.ctxMenu {
+  position: fixed;
+  background: #1e1e22;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 10000;
+}
+
+.ctxItem {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: var(--ut-cream, #e8e0d0);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ctxItem:hover {
+  background: rgba(255,255,255,0.08);
+}
+
 .renameInput {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;

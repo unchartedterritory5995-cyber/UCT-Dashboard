@@ -41,6 +41,18 @@ export default function Watchlists() {
   const [saving, setSaving] = useState(false)
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
+  const [ctxMenu, setCtxMenu] = useState(null) // { x, y, id, isOwner, symbols }
+
+  function handleContextMenu(e, id, isOwner, symbols) {
+    e.preventDefault()
+    e.stopPropagation()
+    setCtxMenu({ x: e.clientX, y: e.clientY, id, isOwner, symbols })
+  }
+
+  function handleCopyList(symbols) {
+    navigator.clipboard.writeText(symbols.join(', '))
+    setCtxMenu(null)
+  }
 
   const { user } = useAuth()
   const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare } = useFlagged()
@@ -194,12 +206,7 @@ export default function Watchlists() {
           ) : (
             <span
               className={styles.wlName}
-              onContextMenu={isOwner ? e => {
-                e.preventDefault()
-                e.stopPropagation()
-                setRenamingId(wl.id)
-                setRenameValue(wl.name)
-              } : undefined}
+              onContextMenu={e => handleContextMenu(e, wl.id, isOwner, items.map(i => i.sym))}
             >{wl.name}</span>
           )}
           <span className={styles.wlCount}>{items.length}</span>
@@ -270,7 +277,10 @@ export default function Watchlists() {
       <div className={styles.wlGroup}>
         <div className={styles.wlHeader} onClick={() => toggleList('flagged')}>
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
-          <span className={styles.wlName}>⚑ Flagged ({user?.display_name || 'You'})</span>
+          <span
+            className={styles.wlName}
+            onContextMenu={e => handleContextMenu(e, 'flagged', false, [...flagged])}
+          >⚑ Flagged ({user?.display_name || 'You'})</span>
           <span className={styles.wlCount}>{flagged.length}</span>
           {isShared && <span className={styles.pubBadge}>PUB</span>}
           <span className={styles.flaggedHint}>Shift+F</span>
@@ -457,6 +467,25 @@ export default function Watchlists() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Context menu ── */}
+      {ctxMenu && (
+        <div className={styles.ctxBackdrop} onClick={() => setCtxMenu(null)} onContextMenu={e => { e.preventDefault(); setCtxMenu(null) }}>
+          <div className={styles.ctxMenu} style={{ top: ctxMenu.y, left: ctxMenu.x }} onClick={e => e.stopPropagation()}>
+            {ctxMenu.isOwner && (
+              <button className={styles.ctxItem} onClick={() => {
+                const wl = myLists?.find(w => w.id === ctxMenu.id)
+                setRenamingId(ctxMenu.id)
+                setRenameValue(wl?.name || '')
+                setCtxMenu(null)
+              }}>Rename</button>
+            )}
+            <button className={styles.ctxItem} onClick={() => handleCopyList(ctxMenu.symbols)}>
+              Copy list to clipboard
+            </button>
           </div>
         </div>
       )}
