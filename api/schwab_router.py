@@ -462,3 +462,55 @@ async def chart_bounds(
         return {"high": data_high + y_pad, "low": data_low - y_pad, "sym": sym, "range": range}
     except Exception as e:
         return {"error": str(e)}
+
+
+@router.get("/chart-ohlc")
+async def chart_ohlc(
+    sym: str = Query(..., description="Ticker symbol"),
+    range: str = Query("3mo", description="5min, 10min, 15min, 30min, 65min, 1d, 5d, 1mo, 3mo, 6mo, 1y"),
+):
+    """
+    Return OHLC candlestick data as JSON for Lightweight Charts.
+    Timestamps in UTC seconds. Intraday returns minute bars, daily returns day bars.
+    """
+    import httpx
+
+    sym = sym.upper()
+    ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    is_intraday = range.endswith("min")
+
+    if is_intraday:
+        mins = int(range.replace("min", ""))
+        yf_interval_map = {5: "5m", 10: "5m", 15: "15m", 30: "30m", 65: "60m"}
+        yf_interval = yf_interval_map.get(mins, "15m")
+        yf_range = "1d" if mins <= 10 else "5d"
+    else:
+        yf_interval = "1d" if range != "1y" else "1wk"
+        yf_range = range
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
+                params={"interval": yf_interval, "range": yf_range, "includePrePost": "false"},
+                headers={"User-Agent": ua},
+            )
+        if resp.status_code != 200:
+            return {"error": f"Yahoo Finance error: {resp.status_code}"}
+        data = resp.json()
+        result = data["chart"]["result"][0]
+        timestamps = result.get("timestamp", [])
+        ohlc = result["indicators"]["quote"][0]
+        opens = ohlc.get("open", [])
+        highs = ohlc.get("high", [])
+        lows = ohlc.get("low", [])
+        closes = ohlc.get("close", [])
+
+        candles = []
+        for t, o, h, l, c in zip(timestamps, opens, highs, lows, closes):
+            if all(v is not None for v in (o, h, l, c)):
+                candles.append({"time": int(t), "open": round(o, 2), "high": round(h, 2), "low": round(l, 2), "close": round(c, 2)})
+
+        return {"sym": sym, "range": range, "intraday": is_intraday, "candles": candles}
+    except Exception as e:
+        return {"error": str(e)}
