@@ -3029,10 +3029,10 @@ export default function OptionsFlowDashboard() {
 
                   // Use real chart bounds from Yahoo Finance for accurate positioning
                   // Finviz/matplotlib chart: ~6% top padding, ~14% bottom padding
-                  const chartTopPct = 6, chartBotPct = 86;
+                  const chartTopPct = 3, chartBotPct = 88;
                   const chartPctRange = chartBotPct - chartTopPct;
-                  const pMax = chartBounds ? chartBounds.high * 1.005 : Math.max(...levels.map(l=>l.price)) + sp*0.04;
-                  const pMin = chartBounds ? chartBounds.low * 0.995 : Math.min(...levels.map(l=>l.price)) - sp*0.04;
+                  const pMax = chartBounds ? chartBounds.high : Math.max(...levels.map(l=>l.price)) + sp*0.04;
+                  const pMin = chartBounds ? chartBounds.low : Math.min(...levels.map(l=>l.price)) - sp*0.04;
                   const pRange = pMax - pMin;
                   // Map price to % from top of image
                   const yPct = p => {
