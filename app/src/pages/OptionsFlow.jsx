@@ -3056,62 +3056,33 @@ export default function OptionsFlowDashboard() {
                       <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(gexData.ticker)}&range=${gexChartRange}&v=${Math.floor(Date.now()/900000)}`}
                         alt={gexData.ticker+" chart"} style={{ width:"100%", height:"100%", objectFit:"fill", display:"block", opacity:0.92 }}
                         onError={e=>{e.target.style.opacity=0.3}} />
-                      {/* Overlay lines */}
+                      {/* Overlay lines + inline labels */}
                       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:0, pointerEvents:"none" }}>
                         {levels.map((l,i)=>{
                           const top = yPct(l.price);
                           if (top < 2 || top > 96) return null;
                           const intensity = l.isSpot || l.isZg ? 1 : Math.max(0.3, (l.gex || 0) / maxGex);
                           const lineH = l.isSpot ? 2 : l.isZg ? 1 : Math.max(1, Math.round(intensity * 3));
-                          const alpha = l.isSpot || l.isZg ? 0.9 : (0.4 + intensity * 0.5);
+                          const alpha = l.isSpot || l.isZg ? 0.7 : (0.3 + intensity * 0.4);
+                          const showLabel = l.bold || l.isSpot || l.isZg;
+                          const tag = l.isSpot ? "SPOT" : l.isZg ? "Zero γ" : l.label.includes("Call") ? "Call Wall" : l.label.includes("Put W") ? "Put Wall" : "";
                           return (
-                            <div key={i} style={{ position:"absolute", top:top+"%", left:"2%", right:"12%", transform:"translateY(-50%)", zIndex:l.bold?3:2 }}>
-                              {/* Horizontal line */}
+                            <div key={i} style={{ position:"absolute", top:top+"%", left:0, right:0, transform:"translateY(-50%)", zIndex:l.bold||l.isSpot?3:2 }}>
                               {l.dash ? (
                                 <div style={{ width:"100%", height:0, borderTop:lineH+"px dashed "+l.color, opacity:alpha }} />
                               ) : (
-                                <div style={{ width:"100%", height:lineH, background:l.color, opacity:alpha, borderRadius:1 }} />
+                                <div style={{ width:"100%", height:lineH, background:l.color, opacity:alpha }} />
+                              )}
+                              {showLabel && (
+                                <div style={{ position:"absolute", top:-8, left:8, display:"flex", alignItems:"center", gap:4 }}>
+                                  <span style={{ fontSize:9, fontWeight:700, color:l.color, background:"rgba(6,9,15,0.85)", padding:"1px 6px", borderRadius:3 }}>
+                                    ${l.price.toFixed(l.price%1===0?0:2)} {tag}
+                                  </span>
+                                </div>
                               )}
                             </div>
                           );
                         })}
-                        {/* Labels on right edge — compact, collision-avoided */}
-                        {(()=>{
-                          // Calculate raw positions, then spread if overlapping
-                          const MIN_GAP = 4; // minimum % gap between labels
-                          const rawLabels = levels.map((l,i)=>({ ...l, idx:i, rawTop:yPct(l.price) })).filter(l=>l.rawTop>=2&&l.rawTop<=96);
-                          // Sort by position (top to bottom)
-                          rawLabels.sort((a,b)=>a.rawTop-b.rawTop);
-                          // Push apart overlapping labels
-                          const spread = rawLabels.map(l=>({ ...l, top:l.rawTop }));
-                          for (let pass=0; pass<5; pass++) {
-                            for (let j=1; j<spread.length; j++) {
-                              const gap = spread[j].top - spread[j-1].top;
-                              if (gap < MIN_GAP) {
-                                const push = (MIN_GAP - gap) / 2;
-                                spread[j-1].top -= push;
-                                spread[j].top += push;
-                              }
-                            }
-                          }
-                          // Clamp
-                          spread.forEach(l=>{ l.top = Math.max(1, Math.min(97, l.top)); });
-                          return spread.map(l=>{
-                            const shortLabel = l.isSpot ? "SPOT" : l.isZg ? "0γ" : l.bold ? (l.label.includes("Call")?"CW":"PW") : (l.color===P.bu?"R":"S");
-                            return (
-                              <div key={"lbl"+l.idx} style={{ position:"absolute", top:l.top+"%", right:2, transform:"translateY(-50%)", zIndex:4,
-                                display:"flex", alignItems:"center", gap:3 }}>
-                                <div style={{ background:"rgba(6,9,15,0.88)", padding:"1px 5px", borderRadius:3, borderLeft:"2px solid "+l.color,
-                                  display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}>
-                                  <span style={{ fontSize:l.bold||l.isSpot?10:8, fontWeight:l.bold?700:600, color:l.color }}>
-                                    ${l.price.toFixed(l.price%1===0?0:1)}
-                                  </span>
-                                  <span style={{ fontSize:7, color:l.color, opacity:0.75 }}>{shortLabel}</span>
-                                </div>
-                              </div>
-                            );
-                          });
-                        })()}
                       </div>
                     </div>
                     <div style={{ fontSize:9, color:P.dm, marginTop:4, textAlign:"center" }}>Level positions are approximate — use the right-edge labels to identify key strikes on the price axis</div>
