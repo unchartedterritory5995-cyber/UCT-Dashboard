@@ -83,8 +83,10 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
     # Calls contribute positive gamma to dealers (when dealers are short calls)
     # Puts contribute negative gamma
     strikes_map = {}
+    net_delta = 0  # Net options delta: sum of (delta × OI × 100) across all contracts
 
     def process_chain(chain_map: dict, is_call: bool):
+        nonlocal net_delta
         if not chain_map:
             return
         for exp_key, strikes in chain_map.items():
@@ -96,7 +98,15 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
                 for c in contracts:
                     oi = c.get("openInterest") or 0
                     gamma = c.get("gamma") or 0
-                    if oi <= 0 or gamma == 0:
+                    delta = c.get("delta") or 0
+                    if oi <= 0:
+                        continue
+
+                    # Net delta: delta is already signed from Schwab
+                    # (positive for calls, negative for puts)
+                    net_delta += delta * oi * 100
+
+                    if gamma == 0:
                         continue
                     # GEX contribution
                     gex_contrib = gamma * oi * 100 * (spot ** 2) * 0.01
@@ -165,6 +175,7 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
         "callGex": total_call_gex,
         "putGex": total_put_gex,
         "zeroGamma": zero_gamma,
+        "netDelta": round(net_delta),
         "callWall": {"strike": call_wall["strike"], "gex": call_wall["callGex"]} if call_wall else None,
         "putWall": {"strike": put_wall["strike"], "gex": put_wall["putGex"]} if put_wall else None,
         "strikes": strikes_list,
