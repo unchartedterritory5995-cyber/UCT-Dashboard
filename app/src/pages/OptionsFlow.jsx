@@ -976,6 +976,8 @@ export default function OptionsFlowDashboard() {
   const [gexLoading, setGexLoading] = useState(false);
   const [gexDte, setGexDte] = useState("all");
   const [showGexSummary, setShowGexSummary] = useState(false);
+  const [showGexChart, setShowGexChart] = useState(false);
+  const [gexChartRange, setGexChartRange] = useState("3mo");
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
@@ -2974,8 +2976,15 @@ export default function OptionsFlowDashboard() {
                   </Card>
                 </div>
 
-                {/* Generate Summary Button */}
-                <div style={{ textAlign:"center", marginTop:4 }}>
+                {/* Action Buttons */}
+                <div style={{ display:"flex", justifyContent:"center", gap:10, marginTop:4 }}>
+                  <button onClick={()=>setShowGexChart(!showGexChart)} style={{
+                    padding:"10px 28px", borderRadius:6, border:"1px solid "+P.ac, cursor:"pointer",
+                    fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5,
+                    background:showGexChart?P.ac+"22":"transparent", color:P.ac
+                  }}>
+                    {showGexChart ? "✕ Hide Chart" : "📈 Chart with Levels"}
+                  </button>
                   <button onClick={()=>setShowGexSummary(!showGexSummary)} style={{
                     padding:"10px 28px", borderRadius:6, border:"1px solid #e040fb", cursor:"pointer",
                     fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5,
@@ -2984,6 +2993,97 @@ export default function OptionsFlowDashboard() {
                     {showGexSummary ? "✕ Hide Summary" : "🔮 Generate Summary"}
                   </button>
                 </div>
+
+                {/* GEX Chart with Levels */}
+                {showGexChart && gexData && !gexData.error && (()=>{
+                  const sp = gexData.spot || 0;
+                  const cw = gexData.callWall;
+                  const pw = gexData.putWall;
+                  const zg = gexData.zeroGamma;
+                  if (!sp || !cw || !pw) return null;
+
+                  // Build levels array
+                  const levels = [];
+                  // Top calls above spot
+                  const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp).sort((a,b)=>b.callGex-a.callGex).slice(0,2);
+                  topAbove.forEach(s => {
+                    if (s.strike !== cw.strike) levels.push({ price:s.strike, label:"Resistance", color:P.bu, dash:false });
+                  });
+                  levels.push({ price:cw.strike, label:"Call Wall "+fmtGex(cw.gex), color:P.bu, dash:false, bold:true });
+                  levels.push({ price:sp, label:"SPOT $"+sp.toFixed(2), color:"#00BCD4", dash:true, bold:true });
+                  if (zg) levels.push({ price:zg, label:"Zero Gamma", color:P.ac, dash:true });
+                  levels.push({ price:pw.strike, label:"Put Wall "+fmtGex(Math.abs(pw.gex)), color:"#ff5252", dash:false, bold:true });
+                  // Top puts below spot
+                  const topBelow = [...(gexData.strikes||[])].filter(s=>s.putGex<0&&s.strike<sp&&s.strike!==pw.strike).sort((a,b)=>a.putGex-b.putGex).slice(0,1);
+                  topBelow.forEach(s => {
+                    levels.push({ price:s.strike, label:"Put Support", color:"#ff5252", dash:false });
+                  });
+
+                  levels.sort((a,b)=>b.price-a.price);
+
+                  // Price range for ruler
+                  const allPrices = levels.map(l=>l.price);
+                  const rulerMin = Math.min(...allPrices) - (sp*0.02);
+                  const rulerMax = Math.max(...allPrices) + (sp*0.02);
+                  const rulerRange = rulerMax - rulerMin;
+                  const yPct = p => ((rulerMax - p) / rulerRange) * 100;
+
+                  const CHART_H = 320;
+
+                  return (
+                  <div style={{ background:P.cd, borderRadius:10, padding:12, border:"1px solid "+P.bd, marginTop:4 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <span style={{ fontSize:11, fontWeight:700, color:P.ac, textTransform:"uppercase", letterSpacing:1 }}>{gexData.ticker} Chart with GEX Levels</span>
+                      <div style={{ display:"flex", gap:4 }}>
+                        {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
+                          <button key={val} onClick={()=>setGexChartRange(val)}
+                            style={{ padding:"3px 8px", borderRadius:4, border:"1px solid "+(gexChartRange===val?P.ac:P.bd+"80"),
+                              background:gexChartRange===val?P.ac+"22":"transparent", color:gexChartRange===val?P.ac:P.dm,
+                              fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 140px", gap:0 }}>
+                      {/* Chart Image */}
+                      <div style={{ position:"relative", borderRight:"1px solid "+P.bd }}>
+                        <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(gexData.ticker)}&range=${gexChartRange}&v=${Math.floor(Date.now()/900000)}`}
+                          alt={gexData.ticker+" chart"} style={{ width:"100%", height:CHART_H, objectFit:"fill", display:"block", opacity:0.9, borderRadius:"6px 0 0 6px" }}
+                          onError={e=>{e.target.style.display="none"}} />
+                      </div>
+                      {/* GEX Level Ruler */}
+                      <div style={{ position:"relative", height:CHART_H, background:P.al, borderRadius:"0 6px 6px 0", overflow:"hidden" }}>
+                        {/* Grid lines */}
+                        {Array.from({length:11},(_,i)=>i).map(i=>(
+                          <div key={i} style={{ position:"absolute", top:(i*10)+"%", left:0, right:0, borderTop:"1px solid "+P.bd+"30" }} />
+                        ))}
+                        {/* Level markers */}
+                        {levels.map((l,i)=>{
+                          const top = Math.max(2, Math.min(95, yPct(l.price)));
+                          return (
+                            <div key={i} style={{ position:"absolute", top:top+"%", left:0, right:0, transform:"translateY(-50%)", zIndex:2 }}>
+                              {/* Line */}
+                              <div style={{ position:"absolute", left:0, right:0, height:l.bold?2:1, background:l.color, opacity:l.dash?0.6:0.8,
+                                borderTop:l.dash?("2px dashed "+l.color):"none" }} />
+                              {/* Label */}
+                              <div style={{ position:"relative", paddingLeft:6, paddingTop:l.bold?3:1 }}>
+                                <span style={{ fontSize:l.bold?11:9, fontWeight:l.bold?700:600, color:l.color,
+                                  background:P.al+"ee", padding:"1px 4px", borderRadius:3, whiteSpace:"nowrap" }}>
+                                  ${l.price.toFixed(l.price%1===0?0:2)}
+                                </span>
+                                <div style={{ fontSize:8, color:l.color, opacity:0.7, paddingLeft:4, marginTop:1 }}>{l.label}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {/* Ruler title */}
+                        <div style={{ position:"absolute", bottom:6, left:0, right:0, textAlign:"center", fontSize:8, color:P.dm, letterSpacing:0.5 }}>GEX LEVELS</div>
+                      </div>
+                    </div>
+                  </div>
+                  );
+                })()}
 
                 {/* GEX Summary Panel */}
                 {showGexSummary && gexData && (()=>{
