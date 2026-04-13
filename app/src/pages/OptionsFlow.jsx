@@ -3187,16 +3187,59 @@ export default function OptionsFlowDashboard() {
                     setupText = "Walls roughly balanced. Fade extremes, sell premium. " + fmtGex(tg) + " total GEX " + (isPositive?"stabilizes":"amplifies") + " moves.";
                   }
 
+                  // Pattern-based trade ideas
                   const trades = [];
+                  const zgNearSpot = zg && Math.abs(sp - zg) / sp < 0.005; // within 0.5%
+                  const zgBelowClose = zg && (zg - sp) / sp > -0.01 && zg < sp; // zg just below spot (<1%)
+                  const cwMagnet = !cwAboveSpot; // call wall below spot = magnet down
+                  const pwMagnet = !pwBelowSpot; // put wall above spot = magnet up
+                  const firstResAbove = topCalls.length > 0 ? topCalls.sort((a,b)=>a.strike-b.strike)[0] : null;
+                  const firstSupBelow = topPuts.length > 0 ? topPuts.sort((a,b)=>b.strike-a.strike)[0] : null;
+                  const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
+
                   if (pinSetup) {
-                    trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell iron fly at $"+cwStrike+" — pin trade. Profit zone $"+(Math.min(cwStrike,pwStrike)-5)+"–$"+(Math.max(cwStrike,pwStrike)+10)+"." });
-                    trades.push({ i:"F", bg:P.bu+"33", c:P.bu, t:"Fade rallies above $"+(Math.max(cwStrike,pwStrike)+5)+" and dips below $"+(Math.min(cwStrike,pwStrike)-5)+" back to $"+sp.toFixed(0)+"." });
+                    // Pin setup trades
+                    const pinStrike = cwStrike === pwStrike ? cwStrike : Math.round((cwStrike+pwStrike)/2);
+                    const pinRange = cwStrike === pwStrike ? Math.round(sp*0.005) : Math.abs(cwStrike-pwStrike);
+                    trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell iron fly at $"+pinStrike+" — "+fmtGex(cwGex+pwGex)+" combined pins price. Profit zone $"+(pinStrike-pinRange*2)+"–$"+(pinStrike+pinRange*2)+"." });
+                    if (sp > pinStrike + 10) {
+                      trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Pin magnet at $"+pinStrike+" pulling price down. If $"+(pinStrike+Math.round(pinRange*2))+" breaks, expect acceleration to $"+pinStrike+". Don't fight the magnet." });
+                    }
+                    trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Fade moves away from $"+pinStrike+". Rallies above $"+(pinStrike+pinRange*3)+" and dips below $"+(pinStrike-pinRange*3)+" snap back." });
                   } else {
-                    trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips toward $"+(cwAboveSpot?(sp-(sp-pwStrike)*0.3).toFixed(0):cwStrike)+". "+(isPositive?"Safety net active.":"No safety net — size down.")+" Stop below $"+pwStrike+"." });
-                    trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Target $"+cwStrike+" ("+fmtGex(cwGex)+" call wall)." });
+                    // Directional trades
+                    if (cwAboveSpot) {
+                      trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips toward $"+(sp-(sp-(pwBelowSpot?pwStrike:sp*0.97))*0.3).toFixed(0)+". "+(isPositive?fmtGex(tg)+" positive GEX = safety net active.":"Negative GEX — size down, wider stops.")+" Stop below $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+"." });
+                      trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Target $"+cwStrike+" ("+fmtGex(cwGex)+" call wall)."+(firstResAbove && firstResAbove.strike < cwStrike ? " First test at $"+firstResAbove.strike+"." : "") });
+                    } else {
+                      // Call wall below = magnet pulling down
+                      trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Call wall magnet at $"+cwStrike+" ("+fmtGex(cwGex)+") pulling price down. If $"+Math.round(sp-(sp-cwStrike)*0.3)+" breaks, expect acceleration to $"+cwStrike+"." });
+                    }
+                    if (pwMagnet) {
+                      trades.push({ i:"↑", bg:P.bu+"33", c:P.bu, t:"Put wall at $"+pwStrike+" above spot — magnet pulling up. "+fmtGex(pwGex)+" attracting price toward $"+pwStrike+"." });
+                    }
                   }
-                  if (isPositive) trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell puts below $"+pwStrike+" — "+fmtGex(tg)+" positive GEX overhead." });
-                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: below $"+pwStrike+" removes support."+(zg?" $"+zg.toFixed(0)+" = regime flip.":"") });
+
+                  // Zero gamma proximity warning
+                  if (zgNearSpot) {
+                    trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Regime flip zone — spot $"+sp.toFixed(0)+" with zero γ at $"+zg.toFixed(0)+". "+(sp > zg ? "Below $"+zg.toFixed(0)+" = dealers amplify selling." : "Above $"+zg.toFixed(0)+" = dealers stabilize.")+" Every tick matters. Reduce size or hedge." });
+                  } else if (zgBelowClose) {
+                    trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Zero γ at $"+zg.toFixed(0)+" is close ("+(Math.abs((sp-zg)/sp)*100).toFixed(1)+"% away). Thin cushion — a sharp drop flips regime to negative gamma." });
+                  }
+
+                  // Clear air / breakout potential
+                  if (clearAirAbove && cwAboveSpot) {
+                    trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin resistance above $"+sp.toFixed(0)+" — if bulls push through"+(firstResAbove ? " $"+firstResAbove.strike : "")+", quick move toward $"+cwStrike+"." });
+                  }
+
+                  // Premium selling on positive GEX
+                  if (isPositive && !pinSetup) {
+                    trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell puts below $"+(pwBelowSpot?pwStrike:(sp*0.96).toFixed(0))+" — "+fmtGex(tg)+" positive GEX = dealers absorb selling pressure." });
+                  }
+
+                  // Danger zone
+                  const dangerLevel = pwBelowSpot ? pwStrike : Math.round(sp * 0.97);
+                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: below $"+dangerLevel+" removes support."+(zg && !zgNearSpot ? " Zero γ at $"+zg.toFixed(0)+" = regime flip." : "")+(cwMagnet && !pinSetup ? " $"+cwStrike+" magnet accelerates the drop." : "") });
 
                   const gaugeMin = zg ? Math.min(zg, pwStrike) - (sp*0.005) : pwStrike - (sp*0.01);
                   const gaugeMax = Math.max(cwStrike, sp) + (sp*0.01);
