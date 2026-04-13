@@ -39,6 +39,8 @@ export default function Watchlists() {
   const [showCreate, setShowCreate] = useState(false)
   const [createForm, setCreateForm] = useState({ name: '', description: '', is_public: false })
   const [saving, setSaving] = useState(false)
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
 
   const { user } = useAuth()
   const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare } = useFlagged()
@@ -128,6 +130,19 @@ export default function Watchlists() {
     mutateCommunity()
   }
 
+  async function handleRename(id, newName) {
+    const trimmed = newName.trim()
+    if (!trimmed) { setRenamingId(null); return }
+    await fetch(`/api/watchlists/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed }),
+    })
+    setRenamingId(null)
+    mutateMine()
+    mutateCommunity()
+  }
+
   async function handleTogglePublic(wl) {
     await fetch(`/api/watchlists/${wl.id}`, {
       method: 'PUT',
@@ -162,7 +177,31 @@ export default function Watchlists() {
       <div key={wl.id} className={styles.wlGroup}>
         <div className={styles.wlHeader} onClick={() => toggleList(wl.id)}>
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
-          <span className={styles.wlName}>{wl.name}</span>
+          {renamingId === wl.id ? (
+            <input
+              className={styles.renameInput}
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleRename(wl.id, renameValue)
+                if (e.key === 'Escape') setRenamingId(null)
+              }}
+              onBlur={() => handleRename(wl.id, renameValue)}
+              onClick={e => e.stopPropagation()}
+              autoFocus
+              maxLength={60}
+            />
+          ) : (
+            <span
+              className={styles.wlName}
+              onContextMenu={isOwner ? e => {
+                e.preventDefault()
+                e.stopPropagation()
+                setRenamingId(wl.id)
+                setRenameValue(wl.name)
+              } : undefined}
+            >{wl.name}</span>
+          )}
           <span className={styles.wlCount}>{items.length}</span>
           {wl.is_public && <span className={styles.pubBadge}>PUB</span>}
           {!isOwner && wl.owner_name && (
