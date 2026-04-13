@@ -41,10 +41,8 @@ async def schwab_login():
 @router.get("/callback")
 async def schwab_callback(request: Request):
     """Handle Schwab OAuth callback with authorization code."""
-    # Schwab redirects here with ?code=xxx
     code = request.query_params.get("code")
     if not code:
-        # Sometimes the code is in the URL fragment — show a helper page
         return JSONResponse(
             status_code=400,
             content={
@@ -123,12 +121,11 @@ async def market_narrative():
         from datetime import datetime
         today = datetime.now()
         today_str = today.strftime("%A, %B %d, %Y")
-        # If weekend, ask for most recent trading day
         weekday = today.weekday()
         day_note = ""
-        if weekday == 5:  # Saturday
+        if weekday == 5:
             day_note = " (Saturday — markets closed, summarize Friday's action)"
-        elif weekday == 6:  # Sunday
+        elif weekday == 6:
             day_note = " (Sunday — markets closed, summarize Friday's action)"
         
         client = anthropic.Anthropic(api_key=api_key)
@@ -146,10 +143,8 @@ async def market_narrative():
             block.text for block in response.content
             if hasattr(block, "text")
         ).strip()
-        # Clean up any AI preamble that leaked through
         for noise in ["Based on", "I can see", "Let me search", "The search results", "I notice", "I need to"]:
             if text.startswith(noise):
-                # Find first sentence that looks like actual market data
                 sentences = text.split(". ")
                 text = ". ".join(s for s in sentences if any(w in s for w in ["S&P", "Nasdaq", "Dow", "market", "stock", "fell", "rose", "gained", "dropped", "declined"]))
         return {"narrative": text if text else "Market summary unavailable."}
@@ -232,11 +227,12 @@ async def backfill_all_contracts(days_back: int = 60):
 @router.get("/chart-proxy")
 async def chart_proxy(
     sym: str = Query(..., description="Ticker symbol, e.g. AAPL"),
-    range: str = Query("3mo", description="Chart range: 1mo, 3mo, 6mo, 1y"),
+    range: str = Query("3mo", description="Chart range: 5min, 10min, 15min, 30min, 65min, 1d, 5d, 1mo, 3mo, 6mo, 1y"),
 ):
     """
     Proxy Finviz chart image using FINVIZ_API_KEY env var.
     Falls back to Yahoo Finance + matplotlib rendered chart if Finviz fails.
+    Supports intraday minute intervals (5m, 10m, 15m, 30m, 65m).
     """
     import httpx
     import io
@@ -250,13 +246,35 @@ async def chart_proxy(
     transparent_gif = bytes([0x47,0x49,0x46,0x38,0x39,0x61,0x01,0x00,0x01,0x00,
         0x00,0xff,0x00,0x2c,0x00,0x00,0x00,0x00,0x01,0x00,0x01,0x00,0x00,0x02,0x00,0x3b])
 
+    # Detect intraday vs daily
+    is_intraday = range.endswith("min")
+
+    # ─── Finviz period mapping ───
+    if is_intraday:
+        mins = int(range.replace("min", ""))
+        # Finviz elite supports i5, i15, i30, i60
+        fv_freq = min([5, 15, 30, 60], key=lambda x: abs(x - mins))
+        finviz_p = f"i{fv_freq}"
+    else:
+        finviz_p = "d" if range in ("1d", "5d", "1mo", "3mo") else "w" if range == "6mo" else "m"
+
+    # ─── Yahoo Finance mapping ───
+    if is_intraday:
+        mins = int(range.replace("min", ""))
+        yf_interval_map = {5: "5m", 10: "5m", 15: "15m", 30: "30m", 65: "60m"}
+        yf_interval = yf_interval_map.get(mins, "15m")
+        yf_range = "1d" if mins <= 10 else "5d"
+    else:
+        yf_interval = "1d" if range != "1y" else "1wk"
+        yf_range = range
+
     # 1. Try Finviz with API key
     if finviz_key:
         try:
             async with httpx.AsyncClient(timeout=8.0) as client:
                 resp = await client.get(
                     f"https://elite.finviz.com/chart.ashx",
-                    params={"t": sym, "ty": "c", "ta": "0", "p": "d" if range in ("1mo","3mo") else "w" if range=="6mo" else "m", "s": "l"},
+                    params={"t": sym, "ty": "c", "ta": "0", "p": finviz_p, "s": "l"},
                     headers={
                         "User-Agent": ua,
                         "Referer": "https://elite.finviz.com/",
@@ -269,11 +287,10 @@ async def chart_proxy(
                     media_type=resp.headers.get("content-type", "image/gif"),
                     headers={"Cache-Control": "no-cache"},
                 )
-            # Try standard endpoint with key as query param
             async with httpx.AsyncClient(timeout=8.0) as client:
                 resp = await client.get(
                     f"https://finviz.com/chart.ashx",
-                    params={"t": sym, "ty": "c", "ta": "0", "p": "d", "s": "l", "apikey": finviz_key},
+                    params={"t": sym, "ty": "c", "ta": "0", "p": finviz_p, "s": "l", "apikey": finviz_key},
                     headers={"User-Agent": ua, "Referer": "https://finviz.com/"},
                 )
             if resp.status_code == 200 and len(resp.content) > 500:
@@ -290,7 +307,7 @@ async def chart_proxy(
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(
                 f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
-                params={"interval": "1d" if range != "1y" else "1wk", "range": range, "includePrePost": "false"},
+                params={"interval": yf_interval, "range": yf_range, "includePrePost": "false"},
                 headers={"User-Agent": ua},
             )
         if resp.status_code != 200:
@@ -309,6 +326,7 @@ async def chart_proxy(
         import matplotlib.pyplot as plt
         import matplotlib.patches as mpatches
         from datetime import datetime
+        from matplotlib.ticker import FixedLocator, FixedFormatter
 
         valid = [(t, o, h, l, c) for t, o, h, l, c in zip(timestamps, opens, highs, lows, closes)
                  if all(v is not None for v in (o, h, l, c))]
@@ -330,32 +348,47 @@ async def chart_proxy(
             )
             ax.add_patch(rect)
 
-        # One label per month — find the first trading day of each month
-        seen_months = set()
-        tick_indices, tick_labels = [], []
-        for i, (ts, *_) in enumerate(valid):
-            dt = datetime.utcfromtimestamp(ts)
-            key = (dt.year, dt.month)
-            if key not in seen_months:
-                seen_months.add(key)
-                tick_indices.append(i)
-                tick_labels.append(dt.strftime("%b"))
-        ax.set_xticks(tick_indices)
-        ax.set_xticklabels(tick_labels, fontsize=7, color="#4a5c73", fontweight="bold")
+        # X-axis labels: time for intraday, month for daily
+        if is_intraday:
+            seen = set()
+            tick_indices, tick_labels = [], []
+            for i, (ts, *_) in enumerate(valid):
+                dt = datetime.fromtimestamp(ts)
+                # Label every hour for 5m/10m, every 2 hours for 15m+
+                hour_key = (dt.date(), dt.hour) if mins <= 10 else (dt.date(), dt.hour // 2 * 2)
+                if hour_key not in seen:
+                    seen.add(hour_key)
+                    tick_indices.append(i)
+                    label = dt.strftime("%I%p").lstrip("0").replace("AM","a").replace("PM","p")
+                    # Show date on first candle of each day
+                    prev_date = datetime.fromtimestamp(valid[max(0,i-1)][0]).date() if i > 0 else None
+                    if prev_date != dt.date():
+                        label = dt.strftime("%m/%d") + "\n" + label
+                    tick_labels.append(label)
+        else:
+            seen_months = set()
+            tick_indices, tick_labels = [], []
+            for i, (ts, *_) in enumerate(valid):
+                dt = datetime.utcfromtimestamp(ts)
+                key = (dt.year, dt.month)
+                if key not in seen_months:
+                    seen_months.add(key)
+                    tick_indices.append(i)
+                    tick_labels.append(dt.strftime("%b"))
+
+        ax.xaxis.set_major_locator(FixedLocator(tick_indices))
+        ax.xaxis.set_major_formatter(FixedFormatter(tick_labels))
+        ax.xaxis.set_minor_locator(FixedLocator([]))
+        for lbl in ax.get_xticklabels():
+            lbl.set_fontsize(6 if is_intraday else 7)
+            lbl.set_color("#4a5c73")
+            lbl.set_fontweight("bold")
         ax.tick_params(axis="x", length=0, pad=3)
         ax.set_xlim(-1, len(valid))
         ax.yaxis.set_visible(False)
         ax.spines[:].set_visible(False)
         ax.grid(axis="x", color=grid_col, linewidth=0.4, linestyle="--")
         fig.tight_layout(pad=0.2)
-        # Force exact month labels — prevent matplotlib auto-tick override
-        from matplotlib.ticker import FixedLocator, FixedFormatter
-        ax.xaxis.set_major_locator(FixedLocator(tick_indices))
-        ax.xaxis.set_major_formatter(FixedFormatter(tick_labels))
-        ax.xaxis.set_minor_locator(FixedLocator([]))
-        for lbl in ax.get_xticklabels():
-            lbl.set_fontsize(7); lbl.set_color("#4a5c73"); lbl.set_fontweight("bold")
-        ax.tick_params(axis="x", length=0, pad=3)
 
         buf = io.BytesIO()
         plt.savefig(buf, format="png", facecolor=bg, dpi=100)
@@ -367,82 +400,4 @@ async def chart_proxy(
             headers={"Cache-Control": "no-cache"},
         )
     except Exception:
-        return Response(content=transparent_gif, media_type="image/gif", status_code=404)
-
-    # 2. Render with matplotlib — dark theme matching dashboard
-    try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-        import matplotlib.patches as mpatches
-        from datetime import datetime
-
-        # Filter out None values
-        valid = [(t, o, h, l, c) for t, o, h, l, c in zip(timestamps, opens, highs, lows, closes)
-                 if all(v is not None for v in (o, h, l, c))]
-        if not valid:
-            raise ValueError("No valid OHLC data")
-
-        xs = list(range(len(valid)))
-        bg = "#06090f"
-        up_col = "#00e676"
-        dn_col = "#ff1744"
-        grid_col = "#1a2540"
-
-        fig, ax = plt.subplots(figsize=(5.6, 1.4), dpi=100)
-        fig.patch.set_facecolor(bg)
-        ax.set_facecolor(bg)
-
-        for i, (ts, o, h, l, c) in enumerate(valid):
-            col = up_col if c >= o else dn_col
-            # Wick
-            ax.plot([i, i], [l, h], color=col, linewidth=0.6, solid_capstyle="round")
-            # Body
-            body_h = max(abs(c - o), (h - l) * 0.015)
-            rect = mpatches.FancyBboxPatch(
-                (i - 0.28, min(o, c)), 0.56, body_h,
-                boxstyle="square,pad=0", facecolor=col, edgecolor="none"
-            )
-            ax.add_patch(rect)
-
-        # One label per month — first trading day of each month
-        seen_months = set()
-        tick_indices, tick_labels = [], []
-        for i, (ts, *_) in enumerate(valid):
-            dt = datetime.utcfromtimestamp(ts)
-            key = (dt.year, dt.month)
-            if key not in seen_months:
-                seen_months.add(key)
-                tick_indices.append(i)
-                tick_labels.append(dt.strftime("%b"))
-        ax.set_xticks(tick_indices)
-        ax.set_xticklabels(tick_labels, fontsize=7, color="#4a5c73", fontweight="bold")
-        ax.tick_params(axis="x", length=0, pad=3)
-        ax.set_xlim(-1, len(valid))
-
-        ax.yaxis.set_visible(False)
-        ax.spines[:].set_visible(False)
-        ax.grid(axis="x", color=grid_col, linewidth=0.4, linestyle="--")
-        fig.tight_layout(pad=0.2)
-        # Force exact month labels — prevent matplotlib auto-tick override
-        from matplotlib.ticker import FixedLocator, FixedFormatter
-        ax.xaxis.set_major_locator(FixedLocator(tick_indices))
-        ax.xaxis.set_major_formatter(FixedFormatter(tick_labels))
-        ax.xaxis.set_minor_locator(FixedLocator([]))
-        for lbl in ax.get_xticklabels():
-            lbl.set_fontsize(7); lbl.set_color("#4a5c73"); lbl.set_fontweight("bold")
-        ax.tick_params(axis="x", length=0, pad=3)
-
-        buf = io.BytesIO()
-        plt.savefig(buf, format="png", facecolor=bg, dpi=100)
-        plt.close(fig)
-        buf.seek(0)
-        return Response(
-            content=buf.read(),
-            media_type="image/png",
-            headers={"Cache-Control": "no-cache"},
-        )
-    except Exception as e:
-        transparent_gif = bytes([0x47,0x49,0x46,0x38,0x39,0x61,0x01,0x00,0x01,0x00,
-            0x00,0xff,0x00,0x2c,0x00,0x00,0x00,0x00,0x01,0x00,0x01,0x00,0x00,0x02,0x00,0x3b])
         return Response(content=transparent_gif, media_type="image/gif", status_code=404)
