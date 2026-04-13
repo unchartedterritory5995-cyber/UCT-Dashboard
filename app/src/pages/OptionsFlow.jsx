@@ -3424,7 +3424,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>Trade ideas</div>
                     {trades.map((t,ti) => (
                       <div key={ti} style={{ display:"flex", gap:7, alignItems:"flex-start", marginBottom:5, fontSize:12, color:P.dm, lineHeight:1.45 }}>
-                        <div style={{ flexShrink:0, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, marginTop:1, background:t.bg, color:t.c }}>{t.i}</div>
+                        <div style={{ flexShrink:0, width:22, height:22, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, marginTop:1, background:t.bg, color:t.c }}>{t.i}</div>
                         <div>{t.t}</div>
                       </div>
                     ))}
