@@ -3252,7 +3252,7 @@ export default function OptionsFlowDashboard() {
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
                     <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:isPositive?P.bu+"22":P.be+"22", color:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
-                      {isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" zero γ":""}
+                      {isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
                     </div>
                     <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"center" }}>
                       <div style={{ display:"flex", gap:6 }}>
@@ -3276,7 +3276,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ background:P.al, borderRadius:6, padding:"10px 12px", marginBottom:10 }}>
                       <div style={{ fontSize:10, color:P.dm, textTransform:"uppercase", letterSpacing:0.5, marginBottom:6 }}>Ceiling vs floor{wallsInverted?" — spot between both":""}</div>
                       <div style={{ display:"flex", height:28, borderRadius:4, overflow:"hidden", marginBottom:5 }}>
-                        <div style={{ width:cwPct+"%", background:SG, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#e1f5ee" }}>Call ${cwStrike} — {fmtGex(cwGex)}</div>
+                        <div style={{ width:cwPct+"%", background:SG, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#e1f5ee" }}>Ceiling ${cwStrike} — {fmtGex(cwGex)}</div>
                         <div style={{ width:pwPct+"%", background:SR, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff" }}>{fmtGex(pwGex)}</div>
                       </div>
                       <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, marginBottom:5 }}>
