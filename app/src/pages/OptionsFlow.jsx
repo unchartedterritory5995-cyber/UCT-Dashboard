@@ -3247,7 +3247,18 @@ export default function OptionsFlowDashboard() {
                       trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Target $"+cwStrike+" ("+fmtGex(cwGex)+" ceiling)."+(firstResAbove && firstResAbove.strike < cwStrike ? " First test at $"+firstResAbove.strike+"." : "") });
                     } else {
                       // Call wall below = magnet pulling down
-                      trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+cwStrike+" ("+fmtGex(cwGex)+") pulling price down. If price drops below $"+Math.round(sp-(sp-cwStrike)*0.3)+", expect a quick slide to $"+cwStrike+"." });
+                      const triggerLevel = Math.round(sp-(sp-cwStrike)*0.3);
+                      const slideGap = Math.abs(triggerLevel - cwStrike);
+                      if (slideGap > sp * 0.005) {
+                        trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+cwStrike+" ("+fmtGex(cwGex)+") pulling price down. If price drops below $"+triggerLevel+", expect a quick slide to $"+cwStrike+"." });
+                      } else {
+                        trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+cwStrike+" ("+fmtGex(cwGex)+") pulling price down — spot is right on top of it. Any weakness and price snaps to $"+cwStrike+"." });
+                      }
+                      // Bullish reclaim — if spot just above CW, price could hold and push to next level
+                      const cwProximity = (sp - cwStrike) / sp;
+                      if (cwProximity > 0 && cwProximity < 0.02 && firstResAbove) {
+                        trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price holds above $"+cwStrike+" and consolidates, the wall gets absorbed — next target $"+firstResAbove.strike+"." });
+                      }
                     }
                     if (pwMagnet) {
                       trades.push({ i:"↑", bg:P.bu+"33", c:P.bu, t:"Floor at $"+pwStrike+" is above current price — pulling price UP. "+fmtGex(pwGex)+" wants price at $"+pwStrike+"." });
@@ -3421,7 +3432,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ height:1, background:P.bd, margin:"8px 0" }} />
                     <div style={{ fontSize:14, fontWeight:700, color:P.wh, marginBottom:4 }}>{setupTitle}</div>
                     <p style={{ fontSize:12, color:P.dm, lineHeight:1.5, margin:"0 0 8px" }}>{setupText}</p>
-                    <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>Trade ideas</div>
+                    <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>Game Plan</div>
                     {trades.map((t,ti) => (
                       <div key={ti} style={{ display:"flex", gap:7, alignItems:"flex-start", marginBottom:5, fontSize:12, color:P.dm, lineHeight:1.45 }}>
                         <div style={{ flexShrink:0, width:22, height:22, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, marginTop:1, background:t.bg, color:t.c }}>{t.i}</div>
