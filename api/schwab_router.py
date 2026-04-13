@@ -350,10 +350,12 @@ async def chart_proxy(
 
         # X-axis labels: time for intraday, month for daily
         if is_intraday:
+            from zoneinfo import ZoneInfo
+            et = ZoneInfo("America/New_York")
             seen = set()
             tick_indices, tick_labels = [], []
             for i, (ts, *_) in enumerate(valid):
-                dt = datetime.fromtimestamp(ts)
+                dt = datetime.fromtimestamp(ts, tz=et)
                 is_multiday = yf_range != "1d"
                 if is_multiday:
                     # Multi-day intraday: label once per day at market open
@@ -389,6 +391,11 @@ async def chart_proxy(
             lbl.set_fontweight("bold")
         ax.tick_params(axis="x", length=0, pad=3)
         ax.set_xlim(-1, len(valid))
+        # Set explicit Y limits matching what chart-bounds returns
+        data_high = max(h for _, _, h, _, _ in valid)
+        data_low = min(l for _, _, _, l, _ in valid)
+        y_pad = (data_high - data_low) * 0.05
+        ax.set_ylim(data_low - y_pad, data_high + y_pad)
         ax.yaxis.set_visible(False)
         ax.spines[:].set_visible(False)
         ax.grid(axis="x", color=grid_col, linewidth=0.4, linestyle="--")
@@ -447,6 +454,9 @@ async def chart_bounds(
         lows = [l for l in ohlc.get("low", []) if l is not None]
         if not highs or not lows:
             return {"error": "No price data"}
-        return {"high": max(highs), "low": min(lows), "sym": sym, "range": range}
+        data_high = max(highs)
+        data_low = min(lows)
+        y_pad = (data_high - data_low) * 0.05
+        return {"high": data_high + y_pad, "low": data_low - y_pad, "sym": sym, "range": range}
     except Exception as e:
         return {"error": str(e)}
