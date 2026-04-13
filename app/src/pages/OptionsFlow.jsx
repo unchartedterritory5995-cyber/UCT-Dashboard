@@ -978,7 +978,6 @@ export default function OptionsFlowDashboard() {
   const [showGexSummary, setShowGexSummary] = useState(false);
   const [showGexChart, setShowGexChart] = useState(false);
   const [gexChartRange, setGexChartRange] = useState("3mo");
-  const [chartBounds, setChartBounds] = useState(null);
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
@@ -991,6 +990,8 @@ export default function OptionsFlowDashboard() {
   const fetchingRef = useRef(new Set());
   const backfilledRef = useRef(new Set());
   const convPanelRef = useRef(null);
+  const gexChartRef = useRef(null);
+  const gexChartObjRef = useRef(null);
 
   // ─── Dynamic CSV Loading ─────────────────────────────────────────────
   const [csvText, setCsvText] = useState(null);
@@ -1124,14 +1125,71 @@ export default function OptionsFlowDashboard() {
   // Auto-load market data (deferred — non-critical)
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
   useEffect(() => { if (tab === "GEX" && gexTicker) fetchGex(gexTicker, gexDte); }, [tab, gexTicker, gexDte]);
+
+  // Lightweight Charts for GEX tab
   useEffect(() => {
-    if (!showGexChart || !gexTicker) return;
-    setChartBounds(null);
-    fetch(`/api/schwab/chart-bounds?sym=${encodeURIComponent(gexTicker)}&range=${gexChartRange}`)
-      .then(r=>r.ok?r.json():null).then(d=>{
-        if(d&&d.high&&d.low) setChartBounds(d);
-      }).catch(()=>{});
-  }, [showGexChart, gexTicker, gexChartRange]);
+    if (!showGexChart || !gexTicker || !gexData || gexData.error) {
+      // Cleanup if hidden
+      if (gexChartObjRef.current) { gexChartObjRef.current.remove(); gexChartObjRef.current = null; }
+      return;
+    }
+    // Load library from CDN if needed
+    const LWC_URL = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js";
+    const loadAndRender = () => {
+      if (!gexChartRef.current) return;
+      if (gexChartObjRef.current) { gexChartObjRef.current.remove(); gexChartObjRef.current = null; }
+      const LWC = window.LightweightCharts;
+      if (!LWC) return;
+      const el = gexChartRef.current;
+      el.innerHTML = "";
+      const chart = LWC.createChart(el, {
+        width: el.clientWidth, height: 400,
+        layout: { background: { color: "#0d1117" }, textColor: "#7b8fa3", fontSize: 10 },
+        grid: { vertLines: { color: "#1a254033" }, horzLines: { color: "#1a254033" } },
+        crosshair: { mode: 0 },
+        rightPriceScale: { borderColor: "#1a2540" },
+        timeScale: { borderColor: "#1a2540", timeVisible: true, secondsVisible: false },
+      });
+      gexChartObjRef.current = chart;
+      const series = chart.addCandlestickSeries({
+        upColor: "#0a8f55", downColor: "#c43030", borderUpColor: "#0a8f55", borderDownColor: "#c43030",
+        wickUpColor: "#0a8f55", wickDownColor: "#c43030",
+      });
+      // Fetch OHLC data
+      fetch(`/api/schwab/chart-ohlc?sym=${encodeURIComponent(gexTicker)}&range=${gexChartRange}`)
+        .then(r=>r.ok?r.json():null).then(d=>{
+          if (!d || !d.candles || d.candles.length === 0) return;
+          series.setData(d.candles);
+          chart.timeScale().fitContent();
+          // Draw GEX price lines
+          const cw = gexData.callWall;
+          const pw = gexData.putWall;
+          const zg = gexData.zeroGamma;
+          const fmtG = v => { const abs=Math.abs(v); if(abs>=1e9) return "$"+(abs/1e9).toFixed(1)+"B"; if(abs>=1e6) return "$"+(abs/1e6).toFixed(1)+"M"; if(abs>=1e3) return "$"+(abs/1e3).toFixed(0)+"K"; return "$"+abs.toFixed(0); };
+          if (cw) series.createPriceLine({ price:cw.strike, color:"#0a8f55", lineWidth:2, lineStyle:0, axisLabelVisible:true, title:"Call Wall "+fmtG(cw.gex) });
+          if (pw) series.createPriceLine({ price:pw.strike, color:"#c43030", lineWidth:2, lineStyle:0, axisLabelVisible:true, title:"Put Wall "+fmtG(Math.abs(pw.gex)) });
+          if (zg) series.createPriceLine({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Zero γ" });
+          // Resistance/support lines (thinner)
+          const sp = gexData.spot || 0;
+          const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp&&s.strike!==cw?.strike).sort((a,b)=>b.callGex-a.callGex).slice(0,2);
+          topAbove.forEach(s => series.createPriceLine({ price:s.strike, color:"#0a8f5580", lineWidth:1, lineStyle:2, axisLabelVisible:false, title:"" }));
+          const topBelow = [...(gexData.strikes||[])].filter(s=>s.putGex<0&&s.strike<sp&&s.strike!==pw?.strike).sort((a,b)=>a.putGex-b.putGex).slice(0,1);
+          topBelow.forEach(s => series.createPriceLine({ price:s.strike, color:"#c4303080", lineWidth:1, lineStyle:2, axisLabelVisible:false, title:"" }));
+        }).catch(()=>{});
+      // Resize observer
+      const ro = new ResizeObserver(() => { if (el.clientWidth > 0) chart.applyOptions({ width: el.clientWidth }); });
+      ro.observe(el);
+      return () => { ro.disconnect(); };
+    };
+    if (window.LightweightCharts) { loadAndRender(); }
+    else {
+      const script = document.createElement("script");
+      script.src = LWC_URL;
+      script.onload = loadAndRender;
+      document.head.appendChild(script);
+    }
+    return () => { if (gexChartObjRef.current) { gexChartObjRef.current.remove(); gexChartObjRef.current = null; } };
+  }, [showGexChart, gexTicker, gexChartRange, gexData]);
 
   // ─── Shared detail panel renderer ─────────────────────────────────────────
   function renderDetailPanel(sym, cp, K, exp, onClose) {
@@ -3004,45 +3062,7 @@ export default function OptionsFlowDashboard() {
                 </div>
 
                 {/* GEX Chart with Levels */}
-                {showGexChart && gexData && !gexData.error && (()=>{
-                  const sp = gexData.spot || 0;
-                  const cw = gexData.callWall;
-                  const pw = gexData.putWall;
-                  const zg = gexData.zeroGamma;
-                  if (!sp || !cw || !pw) return null;
-
-                  // Build levels
-                  const levels = [];
-                  const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp).sort((a,b)=>b.callGex-a.callGex).slice(0,2);
-                  topAbove.forEach(s => {
-                    if (s.strike !== cw.strike) levels.push({ price:s.strike, label:"Resistance "+fmtGex(s.callGex), color:P.bu, dash:false, gex:s.callGex });
-                  });
-                  levels.push({ price:cw.strike, label:"Call Wall "+fmtGex(cw.gex), color:P.bu, dash:false, bold:true, gex:cw.gex });
-                  if (zg) levels.push({ price:zg, label:"Zero Gamma", color:P.ac, dash:true, gex:0, isZg:true });
-                  levels.push({ price:pw.strike, label:"Put Wall "+fmtGex(Math.abs(pw.gex)), color:"#ff5252", dash:false, bold:true, gex:Math.abs(pw.gex) });
-                  const topBelow = [...(gexData.strikes||[])].filter(s=>s.putGex<0&&s.strike<sp&&s.strike!==pw.strike).sort((a,b)=>a.putGex-b.putGex).slice(0,1);
-                  topBelow.forEach(s => {
-                    levels.push({ price:s.strike, label:"Support "+fmtGex(Math.abs(s.putGex)), color:"#ff5252", dash:false, gex:Math.abs(s.putGex) });
-                  });
-                  levels.sort((a,b)=>b.price-a.price);
-                  const maxGex = Math.max(...levels.map(l=>l.gex||0), 1);
-
-                  // Use real chart bounds from Yahoo Finance for accurate positioning
-                  // Finviz/matplotlib chart: ~6% top padding, ~14% bottom padding
-                  const chartTopPct = 3, chartBotPct = 88;
-                  const chartPctRange = chartBotPct - chartTopPct;
-                  const pMax = chartBounds ? chartBounds.high : Math.max(...levels.map(l=>l.price)) + sp*0.04;
-                  const pMin = chartBounds ? chartBounds.low : Math.min(...levels.map(l=>l.price)) - sp*0.04;
-                  const pRange = pMax - pMin;
-                  // Map price to % from top of image
-                  const yPct = p => {
-                    const norm = (pMax - p) / pRange; // 0=top, 1=bottom
-                    return chartTopPct + norm * chartPctRange;
-                  };
-
-                  const CHART_H = 360;
-
-                  return (
+                {showGexChart && gexData && !gexData.error && (
                   <div style={{ background:P.cd, borderRadius:10, padding:12, border:"1px solid "+P.bd, marginTop:4 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                       <span style={{ fontSize:11, fontWeight:700, color:P.ac, textTransform:"uppercase", letterSpacing:1 }}>{gexData.ticker} Chart with GEX Levels</span>
@@ -3057,44 +3077,9 @@ export default function OptionsFlowDashboard() {
                         ))}
                       </div>
                     </div>
-                    {/* Chart with overlay */}
-                    <div style={{ position:"relative", width:"100%", height:CHART_H, borderRadius:6, overflow:"hidden" }}>
-                      <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(gexData.ticker)}&range=${gexChartRange}&v=${Math.floor(Date.now()/900000)}`}
-                        alt={gexData.ticker+" chart"} style={{ width:"100%", height:"100%", objectFit:"fill", display:"block", opacity:0.92 }}
-                        onError={e=>{e.target.style.opacity=0.3}} />
-                      {/* Overlay lines + inline labels */}
-                      <div style={{ position:"absolute", top:0, left:0, right:0, bottom:0, pointerEvents:"none" }}>
-                        {levels.map((l,i)=>{
-                          const top = yPct(l.price);
-                          if (top < 2 || top > 96) return null;
-                          const intensity = l.isZg ? 1 : Math.max(0.3, (l.gex || 0) / maxGex);
-                          const lineH = l.isZg ? 1 : Math.max(1, Math.round(intensity * 3));
-                          const alpha = l.isZg ? 0.7 : (0.3 + intensity * 0.4);
-                          const showLabel = l.bold || l.isZg;
-                          const tag = l.isZg ? "Zero γ" : l.label.includes("Call") ? "Call Wall" : l.label.includes("Put W") ? "Put Wall" : "";
-                          return (
-                            <div key={i} style={{ position:"absolute", top:top+"%", left:0, right:0, transform:"translateY(-50%)", zIndex:l.bold?3:2 }}>
-                              {l.dash ? (
-                                <div style={{ width:"100%", height:0, borderTop:lineH+"px dashed "+l.color, opacity:alpha }} />
-                              ) : (
-                                <div style={{ width:"100%", height:lineH, background:l.color, opacity:alpha }} />
-                              )}
-                              {showLabel && (
-                                <div style={{ position:"absolute", top:-8, left:8, display:"flex", alignItems:"center", gap:4 }}>
-                                  <span style={{ fontSize:9, fontWeight:700, color:l.color, background:"rgba(6,9,15,0.85)", padding:"1px 6px", borderRadius:3 }}>
-                                    ${l.price.toFixed(l.price%1===0?0:2)} {tag}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:4, textAlign:"center" }}>Level positions are approximate — use the right-edge labels to identify key strikes on the price axis</div>
+                    <div ref={gexChartRef} style={{ width:"100%", height:400, borderRadius:6, overflow:"hidden" }} />
                   </div>
-                  );
-                })()}
+                )}
 
                 {/* GEX Summary Panel */}
                 {showGexSummary && gexData && (()=>{
