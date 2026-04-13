@@ -978,6 +978,7 @@ export default function OptionsFlowDashboard() {
   const [showGexSummary, setShowGexSummary] = useState(false);
   const [showGexChart, setShowGexChart] = useState(false);
   const [gexChartRange, setGexChartRange] = useState("3mo");
+  const [chartBounds, setChartBounds] = useState(null);
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
@@ -1123,6 +1124,14 @@ export default function OptionsFlowDashboard() {
   // Auto-load market data (deferred — non-critical)
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
   useEffect(() => { if (tab === "GEX" && gexTicker) fetchGex(gexTicker, gexDte); }, [tab, gexTicker, gexDte]);
+  useEffect(() => {
+    if (!showGexChart || !gexTicker) return;
+    setChartBounds(null);
+    fetch(`/api/schwab/chart-bounds?sym=${encodeURIComponent(gexTicker)}&range=${gexChartRange}`)
+      .then(r=>r.ok?r.json():null).then(d=>{
+        if(d&&d.high&&d.low) setChartBounds(d);
+      }).catch(()=>{});
+  }, [showGexChart, gexTicker, gexChartRange]);
 
   // ─── Shared detail panel renderer ─────────────────────────────────────────
   function renderDetailPanel(sym, cp, K, exp, onClose) {
@@ -3018,14 +3027,12 @@ export default function OptionsFlowDashboard() {
                   levels.sort((a,b)=>b.price-a.price);
                   const maxGex = Math.max(...levels.map(l=>l.gex||0), 1);
 
-                  // Estimate chart Y-axis range from visible data
-                  // Schwab chart images: ~8% top padding, ~15% bottom padding (axis labels)
-                  const chartTopPct = 8, chartBotPct = 85;
+                  // Use real chart bounds from Yahoo Finance for accurate positioning
+                  // Finviz/matplotlib chart: ~6% top padding, ~14% bottom padding
+                  const chartTopPct = 6, chartBotPct = 86;
                   const chartPctRange = chartBotPct - chartTopPct;
-                  // Estimate price range visible: use all level prices with 5% padding
-                  const allP = levels.map(l=>l.price);
-                  const pMax = Math.max(...allP) + sp*0.04;
-                  const pMin = Math.min(...allP) - sp*0.04;
+                  const pMax = chartBounds ? chartBounds.high * 1.005 : Math.max(...levels.map(l=>l.price)) + sp*0.04;
+                  const pMin = chartBounds ? chartBounds.low * 0.995 : Math.min(...levels.map(l=>l.price)) - sp*0.04;
                   const pRange = pMax - pMin;
                   // Map price to % from top of image
                   const yPct = p => {
