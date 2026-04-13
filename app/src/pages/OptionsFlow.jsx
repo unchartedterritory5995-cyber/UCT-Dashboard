@@ -3061,6 +3061,8 @@ export default function OptionsFlowDashboard() {
                   if (!sp || !cw || !pw) return null;
                   const cwStrike = cw.strike, pwStrike = pw.strike, cwGex = cw.gex, pwGex = Math.abs(pw.gex);
                   const SG = "#0a8f55", SR = "#c43030"; // darker bar fills for summary
+                  const isIntraday = gexDte === "0dte" || gexDte === "1dte";
+                  const timeframe = isIntraday ? "today" : "this week";
 
                   const cwAboveSpot = cwStrike > sp;
                   const pwBelowSpot = pwStrike < sp;
@@ -3193,43 +3195,41 @@ export default function OptionsFlowDashboard() {
                   if (pinSetup) {
                     if (cwStrike === pwStrike) {
                       setupTitle = "What to expect — price stuck at $" + cwStrike;
-                      setupText = "Ceiling and floor sit at the same price ($" + cwStrike + ") with " + fmtGex(cwGex+pwGex) + " behind it. Price wants to stay here — every move away gets pulled back. " + (isPositive?"Dips bounce, rallies fade.":"Moves can be sharp but snap back to $" + cwStrike + ".");
+                      setupText = "Ceiling and floor sit at the same price ($" + cwStrike + ") with " + fmtGex(cwGex+pwGex) + " behind it. Price wants to stay here — every move away gets pulled back. " + (isPositive?(isIntraday?"Dips bounce, rallies fade.":"Expect price to orbit $"+cwStrike+" this week. Dips bounce, rallies fade."):"Moves can be sharp but snap back to $" + cwStrike + ".");
                     } else {
                       const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
                       setupTitle = "What to expect — price pinned at $" + lo + "–$" + hi;
-                      setupText = "Ceiling at $" + hi + " caps rallies, floor at $" + lo + " cushions dips. " + fmtGex(cwGex+pwGex) + " combined gamma pins price in a tight $" + wallSpread + " range. Dealers fight every move in both directions.";
+                      setupText = "Ceiling at $" + hi + " caps rallies, floor at $" + lo + " cushions dips. " + fmtGex(cwGex+pwGex) + " combined gamma pins price in a tight $" + wallSpread + " range." + (isIntraday?" Dealers fight every move in both directions.":" This range should hold for the week — trade the edges.");
                     }
                   } else if (squeezeSetup) {
                     const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
                     setupTitle = "What to expect — price stuck at $" + lo + "–$" + hi;
-                    setupText = "Price is caught between two gravity zones. The ceiling above at $" + hi + " caps rallies, the floor below at $" + lo + " cushions dips. " + fmtGex(cwGex+pwGex) + " total is squeezing price into a tight $" + wallSpread + " range.";
+                    setupText = "Price is caught between two gravity zones. The ceiling above at $" + hi + " caps rallies, the floor below at $" + lo + " cushions dips. " + fmtGex(cwGex+pwGex) + " total is squeezing price into a tight $" + wallSpread + " range." + (isIntraday?"":" Use daily closes outside this range as your signal — anything inside is noise.");
                   } else if (cwDominant && cwAboveSpot) {
                     setupTitle = "What to expect — grinding up toward $" + cwStrike;
-                    setupText = "Price at $" + sp.toFixed(0) + " heading toward the $" + cwStrike + " ceiling (" + fmtGex(cwGex) + "). " + (isPositive?"Safety net is ON — dips tend to bounce back. Orderly grind higher.":"Safety net is OFF — expect bigger swings both ways. Be careful with size.");
+                    setupText = "Price at $" + sp.toFixed(0) + " heading toward the $" + cwStrike + " ceiling (" + fmtGex(cwGex) + "). " + (isPositive?(isIntraday?"Safety net is ON — dips tend to bounce back. Orderly grind higher.":"Safety net is ON — weekly pullbacks should find buyers. Buy dips, target $"+cwStrike+"."):(isIntraday?"Safety net is OFF — expect bigger swings both ways. Be careful with size.":"Safety net is OFF — wider swings this week. Size down and use daily closes for entries."));
                   } else if (cwDominant && !cwAboveSpot) {
                     const cwProxSetup = (sp - cwStrike) / sp;
                     if (cwProxSetup < 0.02 && firstResAbove) {
                       setupTitle = "What to expect — decision point at $" + cwStrike;
-                      setupText = "Price sitting just above the $" + cwStrike + " gravity zone (" + fmtGex(cwGex) + "). Two outcomes: hold above $" + cwStrike + " and the wall gets absorbed — next target $" + firstResAbove.strike + ". Lose $" + cwStrike + " and gravity pulls price down fast.";
+                      setupText = "Price sitting just above the $" + cwStrike + " gravity zone (" + fmtGex(cwGex) + "). Two outcomes: " + (isIntraday?"hold above $"+cwStrike+" and the wall gets absorbed — next target $"+firstResAbove.strike+". Lose $"+cwStrike+" and gravity pulls price down fast.":"a daily close above $"+cwStrike+" absorbs the wall — swing target $"+firstResAbove.strike+". A close below confirms the pull down.");
                     } else {
                       setupTitle = "What to expect — gravity pulling to $" + cwStrike;
-                      setupText = "The biggest options level ($" + cwStrike + ") is below current price — it's pulling price DOWN like gravity. " + fmtGex(cwGex) + " worth of activity wants price lower, not where it is now.";
+                      setupText = "The biggest options level ($" + cwStrike + ") is below current price — it's pulling price DOWN like gravity. " + fmtGex(cwGex) + " worth of activity wants price lower, not where it is now." + (isIntraday?"":" Watch for a daily close below $"+cwStrike+" to confirm the move.");
                     }
                   } else if (pwDominant && pwBelowSpot) {
                     setupTitle = "What to expect — strong bounce zone at $" + pwStrike;
-                    setupText = "Very strong floor at $" + pwStrike + " — " + (pwGex/cwGex).toFixed(1) + "x stronger than the ceiling. Price has a big safety net below and room to run above $" + cwStrike + ".";
+                    setupText = "Very strong floor at $" + pwStrike + " — " + (pwGex/cwGex).toFixed(1) + "x stronger than the ceiling." + (isIntraday?" Price has a big safety net below and room to run above $"+cwStrike+".":" Weekly dips toward $"+pwStrike+" are buying opportunities. Swing target above $"+cwStrike+".");
                   } else if (pwDominant && !pwBelowSpot) {
                     setupTitle = "What to expect — gravity pulling up to $" + pwStrike;
-                    setupText = "The biggest support level ($" + pwStrike + ") is above current price — it's pulling price UP. " + fmtGex(pwGex) + " wants price higher than where it is now.";
+                    setupText = "The biggest support level ($" + pwStrike + ") is above current price — it's pulling price UP. " + fmtGex(pwGex) + (isIntraday?" wants price higher than where it is now.":" wants price higher. Look for swing entries on dips — bullish weekly bias.");
                   } else {
                     setupTitle = "What to expect — choppy between $" + Math.min(pwStrike,cwStrike) + "–$" + Math.max(pwStrike,cwStrike);
-                    setupText = "Floor and ceiling are about the same strength. Price will bounce between them. " + (isPositive?"Safety net is ON — moves are contained.":"Safety net is OFF — swings can be sharp.");
+                    setupText = "Floor and ceiling are about the same strength. Price will bounce between them. " + (isPositive?(isIntraday?"Safety net is ON — moves are contained.":"Safety net is ON — weekly range likely holds. Sell premium or swing the edges."):(isIntraday?"Safety net is OFF — swings can be sharp.":"Safety net is OFF — wider weekly swings. Tighter stops, smaller size."));
                   }
 
                   // Pattern-based trade ideas
                   const trades = [];
-                  const isIntraday = gexDte === "0dte" || gexDte === "1dte";
-                  const timeframe = isIntraday ? "today" : "this week";
                   const zgNearSpot = zg && Math.abs(sp - zg) / sp < 0.005; // within 0.5%
                   const zgBelowClose = zg && (zg - sp) / sp > -0.01 && zg < sp; // zg just below spot (<1%)
                   const cwMagnet = !cwAboveSpot; // call wall below spot = magnet down
@@ -3354,45 +3354,53 @@ export default function OptionsFlowDashboard() {
                       const pwStr = "$"+pwStrike;
                       const dist = Math.abs(sp - cwStrike);
                       const distPw = Math.abs(sp - (pwBelowSpot ? pwStrike : 0));
-                      const safetyStr = isPositive ? fmtGex(tg)+" safety net means dips bounce." : "No safety net — moves can snowball.";
+                      const safetyStr = isPositive ? (isIntraday ? fmtGex(tg)+" safety net means dips bounce." : fmtGex(tg)+" safety net supports weekly dips.") : (isIntraday ? "No safety net — moves can snowball." : "No safety net — expect wider weekly swings.");
 
                       if (pinSetup) {
                         if (Math.abs(sp - cwStrike) <= sp * 0.003) {
                           parts.push("Price sitting right at the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined). Everything pulls back to this strike.");
-                          parts.push(isPositive ? "Dips bounce, rallies fade. Classic pin action." : "Pin is active but no safety net — expect sharp whipsaws around "+cwStr+".");
+                          parts.push(isPositive ? (isIntraday ? "Dips bounce, rallies fade. Classic pin action." : "This week expect price to orbit "+cwStr+". Dips bounce, rallies fade.") : "Pin is active but no safety net — expect sharp whipsaws around "+cwStr+".");
                         } else if (sp > cwStrike) {
                           parts.push("Price rallied above the massive "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) and is sitting $"+dist.toFixed(0)+" above it.");
                           parts.push("Gravity is pulling down — "+fmtGex(cwGex)+" ceiling below spot wants price back at "+cwStr+". "+safetyStr);
                         } else {
                           parts.push("Price dipped below the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) and is $"+dist.toFixed(0)+" below.");
-                          parts.push("Gravity pulling up toward "+cwStr+". "+(isPositive ? "Safety net active — expect a bounce back to the pin." : "No safety net — could break further before snapping back."));
+                          parts.push("Gravity pulling up toward "+cwStr+". "+(isPositive ? (isIntraday ? "Safety net active — expect a bounce back to the pin." : "Safety net active — expect price to recover toward the pin this week.") : "No safety net — could break further before snapping back."));
                         }
                       } else if (squeezeSetup) {
                         const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
                         const midpoint = Math.round((lo + hi) / 2);
                         parts.push("Price squeezed between $"+lo+" floor and $"+hi+" ceiling — "+fmtGex(cwGex+pwGex)+" combined traps price in a $"+wallSpread+" range.");
-                        parts.push("Fade rallies near $"+hi+", buy dips near $"+lo+". "+safetyStr);
+                        parts.push(isIntraday ? "Fade rallies near $"+hi+", buy dips near $"+lo+". "+safetyStr : "This week's range: $"+lo+"–$"+hi+". Swing entries near the edges, take profits in the middle. "+safetyStr);
                       } else if (cwAboveSpot && pwBelowSpot) {
                         // Normal: CW above, PW below
                         const cwDist = ((cwStrike - sp) / sp * 100).toFixed(1);
                         const pwDist = ((sp - pwStrike) / sp * 100).toFixed(1);
                         if (cwDominant) {
                           parts.push("Price at "+spStr+" grinding toward the "+cwStr+" ceiling ("+fmtGex(cwGex)+"), just "+cwDist+"% away.");
-                          parts.push(cwDist < 1 ? "Testing the ceiling now — either breaks through or gets rejected." : "Floor at "+pwStr+" ("+fmtGex(pwGex)+") catches any dips.");
+                          if (isIntraday) {
+                            parts.push(cwDist < 1 ? "Testing the ceiling now — either breaks through or gets rejected." : "Floor at "+pwStr+" ("+fmtGex(pwGex)+") catches any dips.");
+                          } else {
+                            parts.push(cwDist < 1 ? "Testing the ceiling — a daily close above "+cwStr+" this week confirms the breakout." : "Floor at "+pwStr+" ("+fmtGex(pwGex)+") supports any weekly pullbacks.");
+                          }
                           parts.push(safetyStr);
                         } else if (pwDominant) {
                           parts.push("Strong floor at "+pwStr+" ("+fmtGex(pwGex)+") with a weak ceiling above at "+cwStr+".");
-                          parts.push("Price has room to run. "+safetyStr);
+                          parts.push(isIntraday ? "Price has room to run. "+safetyStr : "Room to run this week — buy pullbacks toward "+pwStr+". "+safetyStr);
                         } else {
                           parts.push("Price at "+spStr+" bouncing between the "+cwStr+" ceiling and "+pwStr+" floor.");
-                          parts.push("Both about the same strength — choppy range. "+safetyStr);
+                          parts.push(isIntraday ? "Both about the same strength — choppy range. "+safetyStr : "Expect a choppy week in this range. Swing the edges. "+safetyStr);
                         }
                       } else if (!cwAboveSpot) {
                         // CW below = magnet pulling down
                         const cwProxQR = (sp - cwStrike) / sp;
                         if (cwProxQR < 0.02) {
                           parts.push("Spot just above the massive "+cwStr+" level ("+fmtGex(cwGex)+") — gravity pulling down, but price is holding above it.");
-                          parts.push(firstResAbove ? "If "+cwStr+" holds as support, next target is $"+firstResAbove.strike+". If it breaks below, expect a quick slide." : "Watch if "+cwStr+" holds — break below means gravity wins.");
+                          if (isIntraday) {
+                            parts.push(firstResAbove ? "If "+cwStr+" holds as support, next target is $"+firstResAbove.strike+". If it breaks below, expect a quick slide." : "Watch if "+cwStr+" holds — break below means gravity wins.");
+                          } else {
+                            parts.push(firstResAbove ? "A daily close above "+cwStr+" this week absorbs the wall — swing target $"+firstResAbove.strike+". A close below confirms the pull." : "Watch for daily closes relative to "+cwStr+" — that's the decision point this week.");
+                          }
                         } else {
                           parts.push("Ceiling at "+cwStr+" is below current price — acting as gravity, pulling price DOWN.");
                           parts.push(fmtGex(cwGex)+" worth of activity wants price lower. "+(isPositive ? "Safety net slows the pull, but direction is down." : "No safety net — the pull could be fast."));
@@ -3400,7 +3408,7 @@ export default function OptionsFlowDashboard() {
                       } else if (!pwBelowSpot) {
                         // PW above = magnet pulling up
                         parts.push("Floor at "+pwStr+" is above current price — pulling price UP.");
-                        parts.push(fmtGex(pwGex)+" wants price at "+pwStr+". Bullish pull.");
+                        parts.push(fmtGex(pwGex)+" wants price at "+pwStr+"."+(isIntraday?" Bullish pull.":" Bullish weekly bias — look for entries on dips."));
                       }
 
                       // Danger line proximity add-on
