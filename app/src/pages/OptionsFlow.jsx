@@ -992,6 +992,7 @@ export default function OptionsFlowDashboard() {
   const convPanelRef = useRef(null);
   const gexChartRef = useRef(null);
   const gexChartObjRef = useRef(null);
+  const prevNetDeltaRef = useRef(null);
 
   // ─── Dynamic CSV Loading ─────────────────────────────────────────────
   const [csvText, setCsvText] = useState(null);
@@ -3064,6 +3065,13 @@ export default function OptionsFlowDashboard() {
                   const isIntraday = gexDte === "0dte" || gexDte === "1dte";
                   const timeframe = isIntraday ? "today" : "this week";
 
+                  // Net delta tracking
+                  const nd = gexData.netDelta;
+                  const prevNd = prevNetDeltaRef.current;
+                  const ndChange = (nd != null && prevNd != null) ? nd - prevNd : null;
+                  const ndImproving = ndChange !== null ? ndChange > 0 : null;
+                  if (nd != null) prevNetDeltaRef.current = nd;
+
                   const cwAboveSpot = cwStrike > sp;
                   const pwBelowSpot = pwStrike < sp;
                   const cwLabel = cwAboveSpot ? "ceiling" : "gravity pulling down";
@@ -3434,6 +3442,15 @@ export default function OptionsFlowDashboard() {
                             <div style={{ fontSize:16, fontWeight:800, color:c }}>{v}</div>
                           </div>
                         ))}
+                        {nd != null && (
+                          <div style={{ background:P.al, borderRadius:6, padding:"8px 12px", textAlign:"center" }}>
+                            <div style={{ fontSize:9, color:P.dm, textTransform:"uppercase" }}>Net Delta</div>
+                            <div style={{ fontSize:16, fontWeight:800, color:nd>0?P.bu:nd<0?P.be:P.dm }}>
+                              {nd > 0 ? "+" : ""}{nd > 999999 || nd < -999999 ? (nd/1e6).toFixed(1)+"M" : nd > 999 || nd < -999 ? (nd/1e3).toFixed(0)+"K" : nd.toFixed(0)}
+                              {ndChange !== null && <span style={{ fontSize:11, marginLeft:3, color:ndImproving?P.bu:P.be }}>{ndImproving?"▲":"▼"}</span>}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div style={{ position:"relative", padding:"0 4px" }}>
                         <div style={{ position:"relative", height:20, borderRadius:10, background:"linear-gradient(90deg, "+P.be+"33 0%, "+P.be+"33 20%, #1a2035 20%, #1a2035 40%, "+P.bu+"33 40%)" }}>
