@@ -354,17 +354,21 @@ async def chart_proxy(
             tick_indices, tick_labels = [], []
             for i, (ts, *_) in enumerate(valid):
                 dt = datetime.fromtimestamp(ts)
-                # Label every hour for 5m/10m, every 2 hours for 15m+
-                hour_key = (dt.date(), dt.hour) if mins <= 10 else (dt.date(), dt.hour // 2 * 2)
-                if hour_key not in seen:
-                    seen.add(hour_key)
-                    tick_indices.append(i)
-                    label = dt.strftime("%I%p").lstrip("0").replace("AM","a").replace("PM","p")
-                    # Show date on first candle of each day
-                    prev_date = datetime.fromtimestamp(valid[max(0,i-1)][0]).date() if i > 0 else None
-                    if prev_date != dt.date():
-                        label = dt.strftime("%m/%d") + "\n" + label
-                    tick_labels.append(label)
+                is_multiday = yf_range != "1d"
+                if is_multiday:
+                    # Multi-day intraday: label once per day at market open
+                    day_key = dt.date()
+                    if day_key not in seen:
+                        seen.add(day_key)
+                        tick_indices.append(i)
+                        tick_labels.append(dt.strftime("%m/%d"))
+                else:
+                    # Single-day: label every hour
+                    hour_key = (dt.date(), dt.hour)
+                    if hour_key not in seen:
+                        seen.add(hour_key)
+                        tick_indices.append(i)
+                        tick_labels.append(dt.strftime("%I%p").lstrip("0").replace("AM","a").replace("PM","p"))
         else:
             seen_months = set()
             tick_indices, tick_labels = [], []
