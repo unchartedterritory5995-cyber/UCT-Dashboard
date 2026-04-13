@@ -3200,8 +3200,14 @@ export default function OptionsFlowDashboard() {
                     setupTitle = "What to expect — grinding up toward $" + cwStrike;
                     setupText = "Price at $" + sp.toFixed(0) + " heading toward the $" + cwStrike + " ceiling (" + fmtGex(cwGex) + "). " + (isPositive?"Safety net is ON — dips tend to bounce back. Orderly grind higher.":"Safety net is OFF — expect bigger swings both ways. Be careful with size.");
                   } else if (cwDominant && !cwAboveSpot) {
-                    setupTitle = "What to expect — gravity pulling to $" + cwStrike;
-                    setupText = "The biggest options level ($" + cwStrike + ") is below current price — it's pulling price DOWN like gravity. " + fmtGex(cwGex) + " worth of activity wants price at $" + cwStrike + ", not where it is now.";
+                    const cwProxSetup = (sp - cwStrike) / sp;
+                    if (cwProxSetup < 0.02 && firstResAbove) {
+                      setupTitle = "What to expect — decision point at $" + cwStrike;
+                      setupText = "Price sitting just above the $" + cwStrike + " gravity zone (" + fmtGex(cwGex) + "). Two outcomes: hold above $" + cwStrike + " and the wall gets absorbed — next target $" + firstResAbove.strike + ". Lose $" + cwStrike + " and gravity pulls price down fast.";
+                    } else {
+                      setupTitle = "What to expect — gravity pulling to $" + cwStrike;
+                      setupText = "The biggest options level ($" + cwStrike + ") is below current price — it's pulling price DOWN like gravity. " + fmtGex(cwGex) + " worth of activity wants price lower, not where it is now.";
+                    }
                   } else if (pwDominant && pwBelowSpot) {
                     setupTitle = "What to expect — strong bounce zone at $" + pwStrike;
                     setupText = "Very strong floor at $" + pwStrike + " — " + (pwGex/cwGex).toFixed(1) + "x stronger than the ceiling. Price has a big safety net below and room to run above $" + cwStrike + ".";
@@ -3344,8 +3350,14 @@ export default function OptionsFlowDashboard() {
                         }
                       } else if (!cwAboveSpot) {
                         // CW below = magnet pulling down
-                        parts.push("Ceiling at "+cwStr+" is below current price — acting as gravity, pulling price DOWN.");
-                        parts.push(fmtGex(cwGex)+" wants price at "+cwStr+", not at "+spStr+". "+(isPositive ? "Safety net slows the pull, but direction is down." : "No safety net — the pull could be fast."));
+                        const cwProxQR = (sp - cwStrike) / sp;
+                        if (cwProxQR < 0.02) {
+                          parts.push("Spot just above the massive "+cwStr+" level ("+fmtGex(cwGex)+") — gravity pulling down, but price is holding above it.");
+                          parts.push(firstResAbove ? "If "+cwStr+" holds as support, next target is $"+firstResAbove.strike+". If it breaks below, expect a quick slide." : "Watch if "+cwStr+" holds — break below means gravity wins.");
+                        } else {
+                          parts.push("Ceiling at "+cwStr+" is below current price — acting as gravity, pulling price DOWN.");
+                          parts.push(fmtGex(cwGex)+" worth of activity wants price lower. "+(isPositive ? "Safety net slows the pull, but direction is down." : "No safety net — the pull could be fast."));
+                        }
                       } else if (!pwBelowSpot) {
                         // PW above = magnet pulling up
                         parts.push("Floor at "+pwStr+" is above current price — pulling price UP.");
@@ -3432,7 +3444,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ height:1, background:P.bd, margin:"8px 0" }} />
                     <div style={{ fontSize:14, fontWeight:700, color:P.wh, marginBottom:4 }}>{setupTitle}</div>
                     <p style={{ fontSize:12, color:P.dm, lineHeight:1.5, margin:"0 0 8px" }}>{setupText}</p>
-                    <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>Game Plan</div>
+                    <div style={{ fontSize:13, fontWeight:800, color:P.wh, textTransform:"uppercase", letterSpacing:1.5, marginBottom:5 }}>Game Plan</div>
                     {trades.map((t,ti) => (
                       <div key={ti} style={{ display:"flex", gap:7, alignItems:"flex-start", marginBottom:5, fontSize:12, color:P.dm, lineHeight:1.45 }}>
                         <div style={{ flexShrink:0, width:22, height:22, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, marginTop:1, background:t.bg, color:t.c }}>{t.i}</div>
