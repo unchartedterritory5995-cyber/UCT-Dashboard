@@ -3093,22 +3093,22 @@ export default function OptionsFlowDashboard() {
                     verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
                   } else if (squeezeSetup) {
                     const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
-                    verdictText = "Price squeezed between $" + lo + " floor and $" + hi + " ceiling. " + fmtGex(cwGex + pwGex) + " combined traps price in a $" + wallSpread + " range. Fade the edges.";
+                    verdictText = "Price squeezed between $" + lo + " floor and $" + hi + " ceiling. " + fmtGex(cwGex + pwGex) + " combined traps price in a $" + wallSpread + " range." + (isIntraday?" Fade the edges.":" Swing the edges this week.");
                     verdictIcon = "↔"; verdictBg = P.ac+"22"; verdictColor = P.ac;
                   } else if (cwDominant && cwAboveSpot) {
-                    verdictText = "Strong ceiling at $" + cwStrike + " — price drifts up but gets rejected there. Buy dips near support, don't chase into the ceiling.";
+                    verdictText = isIntraday ? "Strong ceiling at $" + cwStrike + " — price drifts up but gets rejected there. Buy dips near support, don't chase into the ceiling." : "Strong ceiling at $" + cwStrike + " this week. Buy weekly pullbacks toward support, take profits near the ceiling.";
                     verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
                   } else if (cwDominant && !cwAboveSpot) {
-                    verdictText = "Gravity pulling price DOWN toward $" + cwStrike + " — " + fmtGex(cwGex) + " worth of options activity dragging price lower. Be cautious buying here.";
+                    verdictText = isIntraday ? "Gravity pulling price DOWN toward $" + cwStrike + " — " + fmtGex(cwGex) + " dragging price lower. Be cautious buying here." : "$" + cwStrike + " gravity zone pulling price down this week. Avoid new longs unless price reclaims $" + cwStrike + " with a daily close.";
                     verdictIcon = "⇣"; verdictBg = P.be+"22"; verdictColor = P.be;
                   } else if (pwDominant && pwBelowSpot) {
-                    verdictText = "Strong floor at $" + pwStrike + " with a weak ceiling above — price wants to go up. Breakout potential.";
+                    verdictText = isIntraday ? "Strong floor at $" + pwStrike + " with a weak ceiling above — price wants to go up. Breakout potential." : "Strong weekly floor at $" + pwStrike + ". Buy dips toward it — breakout potential above $" + cwStrike + ".";
                     verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
                   } else if (pwDominant && !pwBelowSpot) {
-                    verdictText = "Gravity pulling price UP toward $" + pwStrike + " — " + fmtGex(pwGex) + " worth of options activity lifting price. Bullish pull.";
+                    verdictText = isIntraday ? "Gravity pulling price UP toward $" + pwStrike + " — " + fmtGex(pwGex) + " lifting price. Bullish pull." : "$" + pwStrike + " pulling price UP this week — " + fmtGex(pwGex) + " wants price higher. Bullish weekly bias.";
                     verdictIcon = "⇡"; verdictBg = P.bu+"22"; verdictColor = P.bu;
                   } else {
-                    verdictText = "Price bouncing between floor ($" + Math.min(pwStrike,cwStrike) + ") and ceiling ($" + Math.max(pwStrike,cwStrike) + "). Expect choppy back-and-forth.";
+                    verdictText = isIntraday ? "Price bouncing between floor ($" + Math.min(pwStrike,cwStrike) + ") and ceiling ($" + Math.max(pwStrike,cwStrike) + "). Expect choppy back-and-forth." : "Choppy week between $" + Math.min(pwStrike,cwStrike) + " and $" + Math.max(pwStrike,cwStrike) + ". Swing the range — sell premium or fade the edges.";
                     verdictIcon = "↔"; verdictBg = P.ac+"22"; verdictColor = P.ac;
                   }
 
