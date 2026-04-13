@@ -3002,24 +3002,25 @@ export default function OptionsFlowDashboard() {
                   const zg = gexData.zeroGamma;
                   if (!sp || !cw || !pw) return null;
 
-                  // Build levels array
+                  // Build levels array with GEX values for intensity
                   const levels = [];
-                  // Top calls above spot
                   const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp).sort((a,b)=>b.callGex-a.callGex).slice(0,2);
                   topAbove.forEach(s => {
-                    if (s.strike !== cw.strike) levels.push({ price:s.strike, label:"Resistance", color:P.bu, dash:false });
+                    if (s.strike !== cw.strike) levels.push({ price:s.strike, label:"Resistance "+fmtGex(s.callGex), color:P.bu, dash:false, gex:s.callGex });
                   });
-                  levels.push({ price:cw.strike, label:"Call Wall "+fmtGex(cw.gex), color:P.bu, dash:false, bold:true });
-                  levels.push({ price:sp, label:"SPOT $"+sp.toFixed(2), color:"#00BCD4", dash:true, bold:true });
-                  if (zg) levels.push({ price:zg, label:"Zero Gamma", color:P.ac, dash:true });
-                  levels.push({ price:pw.strike, label:"Put Wall "+fmtGex(Math.abs(pw.gex)), color:"#ff5252", dash:false, bold:true });
-                  // Top puts below spot
+                  levels.push({ price:cw.strike, label:"Call Wall "+fmtGex(cw.gex), color:P.bu, dash:false, bold:true, gex:cw.gex });
+                  levels.push({ price:sp, label:"SPOT $"+sp.toFixed(2), color:"#00BCD4", dash:true, bold:true, gex:0, isSpot:true });
+                  if (zg) levels.push({ price:zg, label:"Zero Gamma", color:P.ac, dash:true, gex:0, isZg:true });
+                  levels.push({ price:pw.strike, label:"Put Wall "+fmtGex(Math.abs(pw.gex)), color:"#ff5252", dash:false, bold:true, gex:Math.abs(pw.gex) });
                   const topBelow = [...(gexData.strikes||[])].filter(s=>s.putGex<0&&s.strike<sp&&s.strike!==pw.strike).sort((a,b)=>a.putGex-b.putGex).slice(0,1);
                   topBelow.forEach(s => {
-                    levels.push({ price:s.strike, label:"Put Support", color:"#ff5252", dash:false });
+                    levels.push({ price:s.strike, label:"Put Support "+fmtGex(Math.abs(s.putGex)), color:"#ff5252", dash:false, gex:Math.abs(s.putGex) });
                   });
 
                   levels.sort((a,b)=>b.price-a.price);
+
+                  // Compute intensity: bigger $ = more intense
+                  const maxGex = Math.max(...levels.map(l=>l.gex||0), 1);
 
                   // Price range for ruler
                   const allPrices = levels.map(l=>l.price);
@@ -3045,7 +3046,7 @@ export default function OptionsFlowDashboard() {
                         ))}
                       </div>
                     </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 140px", gap:0 }}>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 160px", gap:0 }}>
                       {/* Chart Image */}
                       <div style={{ position:"relative", borderRight:"1px solid "+P.bd }}>
                         <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(gexData.ticker)}&range=${gexChartRange}&v=${Math.floor(Date.now()/900000)}`}
@@ -3054,30 +3055,36 @@ export default function OptionsFlowDashboard() {
                       </div>
                       {/* GEX Level Ruler */}
                       <div style={{ position:"relative", height:CHART_H, background:P.al, borderRadius:"0 6px 6px 0", overflow:"hidden" }}>
-                        {/* Grid lines */}
                         {Array.from({length:11},(_,i)=>i).map(i=>(
                           <div key={i} style={{ position:"absolute", top:(i*10)+"%", left:0, right:0, borderTop:"1px solid "+P.bd+"30" }} />
                         ))}
-                        {/* Level markers */}
+                        {/* Level markers — thickness & opacity scale with $ value */}
                         {levels.map((l,i)=>{
                           const top = Math.max(2, Math.min(95, yPct(l.price)));
+                          const intensity = l.isSpot || l.isZg ? 1 : Math.max(0.25, (l.gex || 0) / maxGex);
+                          const lineH = l.isSpot ? 2 : l.isZg ? 1 : Math.max(1, Math.round(intensity * 4));
+                          const alpha = l.isSpot || l.isZg ? 1 : (0.35 + intensity * 0.65);
                           return (
-                            <div key={i} style={{ position:"absolute", top:top+"%", left:0, right:0, transform:"translateY(-50%)", zIndex:2 }}>
-                              {/* Line */}
-                              <div style={{ position:"absolute", left:0, right:0, height:l.bold?2:1, background:l.color, opacity:l.dash?0.6:0.8,
-                                borderTop:l.dash?("2px dashed "+l.color):"none" }} />
+                            <div key={i} style={{ position:"absolute", top:top+"%", left:0, right:0, transform:"translateY(-50%)", zIndex:l.bold?3:2 }}>
+                              {/* Line — thicker = more GEX */}
+                              <div style={{ position:"absolute", left:0, right:0, height:lineH, background:l.dash?"transparent":l.color, opacity:alpha,
+                                borderTop:l.dash?(lineH+"px dashed "+l.color):"none", borderRadius:1 }} />
+                              {/* GEX bar fill behind label */}
+                              {!l.isSpot && !l.isZg && (
+                                <div style={{ position:"absolute", left:0, width:Math.round(intensity*100)+"%", height:lineH+10, top:-5,
+                                  background:l.color, opacity:intensity*0.15, borderRadius:2 }} />
+                              )}
                               {/* Label */}
-                              <div style={{ position:"relative", paddingLeft:6, paddingTop:l.bold?3:1 }}>
-                                <span style={{ fontSize:l.bold?11:9, fontWeight:l.bold?700:600, color:l.color,
-                                  background:P.al+"ee", padding:"1px 4px", borderRadius:3, whiteSpace:"nowrap" }}>
+                              <div style={{ position:"relative", paddingLeft:6, paddingTop:lineH>2?4:2 }}>
+                                <span style={{ fontSize:l.bold?11:9, fontWeight:l.bold?700:600, color:l.color, opacity:alpha,
+                                  background:P.al+"ee", padding:"1px 5px", borderRadius:3, whiteSpace:"nowrap" }}>
                                   ${l.price.toFixed(l.price%1===0?0:2)}
                                 </span>
-                                <div style={{ fontSize:8, color:l.color, opacity:0.7, paddingLeft:4, marginTop:1 }}>{l.label}</div>
+                                <div style={{ fontSize:8, color:l.color, opacity:alpha*0.8, paddingLeft:5, marginTop:1 }}>{l.label}</div>
                               </div>
                             </div>
                           );
                         })}
-                        {/* Ruler title */}
                         <div style={{ position:"absolute", bottom:6, left:0, right:0, textAlign:"center", fontSize:8, color:P.dm, letterSpacing:0.5 }}>GEX LEVELS</div>
                       </div>
                     </div>
