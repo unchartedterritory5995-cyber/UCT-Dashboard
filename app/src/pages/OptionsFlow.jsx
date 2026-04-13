@@ -1172,19 +1172,29 @@ export default function OptionsFlowDashboard() {
           if (zg) series.createPriceLine({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Zero γ" });
           // Secondary levels — thickness/style scales with $ value
           const sp = gexData.spot || 0;
-          const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp&&s.strike!==cw?.strike).sort((a,b)=>b.callGex-a.callGex).slice(0,2);
+          const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
+          // Resistance above spot (call gamma)
+          const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp&&!usedStrikes.has(s.strike)).sort((a,b)=>b.callGex-a.callGex).slice(0,2);
           topAbove.forEach(s => {
+            usedStrikes.add(s.strike);
             const ratio = wallMax > 0 ? s.callGex / wallMax : 0;
             const lw = ratio > 0.5 ? 2 : 1;
             const ls = ratio > 0.25 ? 0 : 2;
             series.createPriceLine({ price:s.strike, color:"#0a8f55", lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:"Res "+fmtG(s.callGex) });
           });
-          const topBelow = [...(gexData.strikes||[])].filter(s=>s.putGex<0&&s.strike<sp&&s.strike!==pw?.strike).sort((a,b)=>a.putGex-b.putGex).slice(0,2);
-          topBelow.forEach(s => {
-            const ratio = wallMax > 0 ? Math.abs(s.putGex) / wallMax : 0;
+          // Support below spot — merge call support + put support, pick top by absolute GEX
+          const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
+            const callVal = s.callGex > 0 ? s.callGex : 0;
+            const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
+            const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
+            return { strike:s.strike, gex:best.val, type:best.type };
+          }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,2);
+          belowCandidates.forEach(s => {
+            const ratio = wallMax > 0 ? s.gex / wallMax : 0;
             const lw = ratio > 0.5 ? 2 : 1;
             const ls = ratio > 0.25 ? 0 : 2;
-            series.createPriceLine({ price:s.strike, color:"#c43030", lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:"Sup "+fmtG(Math.abs(s.putGex)) });
+            const color = s.type === "call" ? "#0a8f55" : "#c43030";
+            series.createPriceLine({ price:s.strike, color, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:"Sup "+fmtG(s.gex) });
           });
         }).catch(()=>{});
       // Resize observer
@@ -3057,8 +3067,8 @@ export default function OptionsFlowDashboard() {
                   const cwLabel = cwAboveSpot ? "resistance" : "magnet pulling down";
                   const pwLabel = pwBelowSpot ? "support" : "magnet pulling up";
                   const wallsInverted = !cwAboveSpot || !pwBelowSpot;
-                  const spotBetweenWalls = (sp >= Math.min(cwStrike,pwStrike) && sp <= Math.max(cwStrike,pwStrike));
-                  const pinSetup = spotBetweenWalls && Math.abs(cwStrike - pwStrike) <= sp * 0.01;
+                  const spotBetweenWalls = cwStrike === pwStrike || (sp >= Math.min(cwStrike,pwStrike) && sp <= Math.max(cwStrike,pwStrike));
+                  const pinSetup = (cwStrike === pwStrike) || (spotBetweenWalls && Math.abs(cwStrike - pwStrike) <= sp * 0.01);
 
                   const cwRatio = pwGex > 0 ? (cwGex / pwGex).toFixed(1) : "∞";
                   const cwDominant = cwGex > pwGex * 1.5;
@@ -3071,16 +3081,26 @@ export default function OptionsFlowDashboard() {
 
                   let verdictText, verdictIcon, verdictBg, verdictColor;
                   if (pinSetup) {
-                    verdictText = "Walls inverted around spot — both magnets pulling inward. " + fmtGex(cwGex + pwGex) + " combined compresses into $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike) + ".";
+                    if (cwStrike === pwStrike) {
+                      verdictText = "Call wall and put wall at same strike ($" + cwStrike + ") — " + fmtGex(cwGex + pwGex) + " combined. Massive pin magnet. Dealers fight every move.";
+                    } else {
+                      verdictText = "Walls inverted around spot — both magnets pulling inward. " + fmtGex(cwGex + pwGex) + " combined compresses into $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike) + ".";
+                    }
                     verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
-                  } else if (cwDominant) {
+                  } else if (cwDominant && cwAboveSpot) {
                     verdictText = "Call wall >> put wall — upward drift but hard ceiling at $" + cwStrike + ". Buy dips, don't chase the top.";
                     verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
-                  } else if (pwDominant) {
+                  } else if (cwDominant && !cwAboveSpot) {
+                    verdictText = "Call wall >> put wall — but call wall ($" + cwStrike + ") is below spot. " + fmtGex(cwGex) + " magnet pulling price down toward $" + cwStrike + ".";
+                    verdictIcon = "⇣"; verdictBg = P.be+"22"; verdictColor = P.be;
+                  } else if (pwDominant && pwBelowSpot) {
                     verdictText = "Put wall >> call wall — strong support at $" + pwStrike + ", weak ceiling. Bullish breakout potential.";
                     verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                  } else if (pwDominant && !pwBelowSpot) {
+                    verdictText = "Put wall >> call wall — but put wall ($" + pwStrike + ") is above spot. " + fmtGex(pwGex) + " magnet pulling price up toward $" + pwStrike + ".";
+                    verdictIcon = "⇡"; verdictBg = P.bu+"22"; verdictColor = P.bu;
                   } else {
-                    verdictText = "Walls similar size — range trade between $" + pwStrike + "–$" + cwStrike + ". Sell premium.";
+                    verdictText = "Walls similar size — range trade between $" + Math.min(pwStrike,cwStrike) + "–$" + Math.max(pwStrike,cwStrike) + ". Sell premium.";
                     verdictIcon = "↔"; verdictBg = P.ac+"22"; verdictColor = P.ac;
                   }
 
@@ -3143,14 +3163,25 @@ export default function OptionsFlowDashboard() {
 
                   let setupTitle, setupText;
                   if (pinSetup) {
-                    setupTitle = "Setup — pin at $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike);
-                    setupText = "Spot trapped between inverted walls. Call wall below pulls price down, put wall above pushes it back up. " + fmtGex(cwGex+pwGex) + " combined gamma squeezes price into a $" + Math.abs(cwStrike-pwStrike) + " range. Dealers fight every move in both directions.";
+                    if (cwStrike === pwStrike) {
+                      setupTitle = "Setup — pin at $" + cwStrike;
+                      setupText = "Call wall and put wall converge at $" + cwStrike + " with " + fmtGex(cwGex+pwGex) + " combined gamma. Dealers pin price to this strike. " + fmtGex(tg) + " " + (isPositive?"positive":"negative") + " GEX " + (isPositive?"stabilizes":"amplifies") + " moves around the pin.";
+                    } else {
+                      setupTitle = "Setup — pin at $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike);
+                      setupText = "Spot trapped between inverted walls. Call wall below pulls price down, put wall above pushes it back up. " + fmtGex(cwGex+pwGex) + " combined gamma squeezes price into a $" + Math.abs(cwStrike-pwStrike) + " range. Dealers fight every move in both directions.";
+                    }
                   } else if (cwDominant && cwAboveSpot) {
                     setupTitle = "Setup — bullish with ceiling at $" + cwStrike;
-                    setupText = "Spot at $" + sp.toFixed(0) + " with " + fmtGex(cwGex) + " call wall at $" + cwStrike + " pulling price higher. " + fmtGex(tg) + " " + (isPositive?"positive":"negative") + " GEX means dealers " + (isPositive?"dampen pullbacks":"amplify moves") + ". " + (isPositive?"Dips are bought, rallies are orderly.":"Expect wide swings.");
-                  } else if (pwDominant) {
+                    setupText = "Spot at $" + sp.toFixed(0) + " with " + fmtGex(cwGex) + " call wall at $" + cwStrike + " as resistance. " + fmtGex(tg) + " " + (isPositive?"positive":"negative") + " GEX means dealers " + (isPositive?"dampen pullbacks":"amplify moves") + ". " + (isPositive?"Dips are bought, rallies are orderly.":"Expect wide swings.");
+                  } else if (cwDominant && !cwAboveSpot) {
+                    setupTitle = "Setup — magnet pull to $" + cwStrike;
+                    setupText = "Call wall at $" + cwStrike + " is below spot ($" + sp.toFixed(0) + ") — acting as magnet, not ceiling. " + fmtGex(cwGex) + " pulling price down. " + fmtGex(tg) + " total GEX.";
+                  } else if (pwDominant && pwBelowSpot) {
                     setupTitle = "Setup — strong floor at $" + pwStrike;
                     setupText = "Put wall " + (pwGex/cwGex).toFixed(1) + "x larger than call wall. Strong support at $" + pwStrike + ", breakout potential above $" + cwStrike + ". " + fmtGex(tg) + " total GEX.";
+                  } else if (pwDominant && !pwBelowSpot) {
+                    setupTitle = "Setup — magnet pull to $" + pwStrike;
+                    setupText = "Put wall at $" + pwStrike + " is above spot ($" + sp.toFixed(0) + ") — acting as magnet pulling price up. " + fmtGex(pwGex) + " pulling upward. " + fmtGex(tg) + " total GEX.";
                   } else {
                     setupTitle = "Setup — range $" + Math.min(pwStrike,cwStrike) + "–$" + Math.max(pwStrike,cwStrike);
                     setupText = "Walls roughly balanced. Fade extremes, sell premium. " + fmtGex(tg) + " total GEX " + (isPositive?"stabilizes":"amplifies") + " moves.";
@@ -3178,7 +3209,7 @@ export default function OptionsFlowDashboard() {
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
                     <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:isPositive?P.bu+"22":P.be+"22", color:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
-                      {isPositive?"Positive gamma — stable":"Negative gamma — volatile"}{zgDist?" · "+zgDist+"% above zero γ":""}
+                      {isPositive?"Positive gamma — stable":"Negative gamma — volatile"}{zgDist?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" zero γ":""}
                     </div>
                     <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"center" }}>
                       <div style={{ display:"flex", gap:6 }}>
@@ -3254,7 +3285,7 @@ export default function OptionsFlowDashboard() {
                     ))}
                     <div style={{ height:1, background:P.bd, margin:"8px 0" }} />
                     <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#555" }}>
-                      <span>Regime flip: ${zg?zg.toFixed(0):"—"}{zgDist?" ("+zgDist+"% below)":""}</span>
+                      <span>Regime flip: ${zg?zg.toFixed(0):"—"}{zgDist?" ("+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+")":""}</span>
                       <span>{gexData.fetchedAt ? "Fetched: "+gexData.fetchedAt+" ET" : ""}</span>
                       <span>UCT Intelligence</span>
                     </div>
