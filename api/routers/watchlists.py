@@ -35,6 +35,10 @@ class FlaggedShare(BaseModel):
     is_public: bool
 
 
+class FlaggedRename(BaseModel):
+    name: str
+
+
 # ── Flagged shadow watchlist (must be before /{wl_id} routes) ──
 
 @router.get("/api/watchlists/flagged")
@@ -50,6 +54,14 @@ def sync_flagged(body: FlaggedSync, user: dict = Depends(get_current_user)):
 @router.put("/api/watchlists/flagged/share")
 def share_flagged(body: FlaggedShare, user: dict = Depends(get_current_user)):
     return watchlist_service.toggle_flagged_sharing(user["id"], body.is_public)
+
+
+@router.put("/api/watchlists/flagged/rename")
+def rename_flagged(body: FlaggedRename, user: dict = Depends(get_current_user)):
+    result = watchlist_service.rename_flagged_list(user["id"], body.name.strip())
+    if not result:
+        raise HTTPException(status_code=404, detail="Flagged list not found")
+    return result
 
 
 # ── Regular watchlist endpoints ──

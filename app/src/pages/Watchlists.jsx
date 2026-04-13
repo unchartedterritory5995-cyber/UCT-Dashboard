@@ -55,7 +55,7 @@ export default function Watchlists() {
   }
 
   const { user } = useAuth()
-  const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare } = useFlagged()
+  const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare, flaggedName, renameFlagged } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
 
@@ -277,10 +277,26 @@ export default function Watchlists() {
       <div className={styles.wlGroup}>
         <div className={styles.wlHeader} onClick={() => toggleList('flagged')}>
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
-          <span
-            className={styles.wlName}
-            onContextMenu={e => handleContextMenu(e, 'flagged', false, [...flagged])}
-          >⚑ Flagged ({user?.display_name || 'You'})</span>
+          {renamingId === 'flagged' ? (
+            <input
+              className={styles.renameInput}
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { renameFlagged(renameValue); setRenamingId(null) }
+                if (e.key === 'Escape') setRenamingId(null)
+              }}
+              onBlur={() => { renameFlagged(renameValue); setRenamingId(null) }}
+              onClick={e => e.stopPropagation()}
+              autoFocus
+              maxLength={60}
+            />
+          ) : (
+            <span
+              className={styles.wlName}
+              onContextMenu={e => handleContextMenu(e, 'flagged', true, [...flagged])}
+            >{flaggedName || `⚑ Flagged (${user?.display_name || 'You'})`}</span>
+          )}
           <span className={styles.wlCount}>{flagged.length}</span>
           {isShared && <span className={styles.pubBadge}>PUB</span>}
           <span className={styles.flaggedHint}>Shift+F</span>
@@ -477,9 +493,13 @@ export default function Watchlists() {
           <div className={styles.ctxMenu} style={{ top: ctxMenu.y, left: ctxMenu.x }} onClick={e => e.stopPropagation()}>
             {ctxMenu.isOwner && (
               <button className={styles.ctxItem} onClick={() => {
-                const wl = myLists?.find(w => w.id === ctxMenu.id)
+                if (ctxMenu.id === 'flagged') {
+                  setRenameValue(flaggedName || `⚑ Flagged (${user?.display_name || 'You'})`)
+                } else {
+                  const wl = myLists?.find(w => w.id === ctxMenu.id)
+                  setRenameValue(wl?.name || '')
+                }
                 setRenamingId(ctxMenu.id)
-                setRenameValue(wl?.name || '')
                 setCtxMenu(null)
               }}>Rename</button>
             )}

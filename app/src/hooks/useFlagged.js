@@ -18,6 +18,7 @@ function write(arr) {
 export function useFlagged() {
   const [flagged, setFlagged] = useState(read)
   const [isShared, setIsShared] = useState(false)
+  const [flaggedName, setFlaggedName] = useState(null) // null = use default
   const { user } = useAuth()
   const timerRef = useRef(null)
   const mountedRef = useRef(true)
@@ -57,6 +58,11 @@ export function useFlagged() {
       .then(data => {
         if (mountedRef.current) {
           setIsShared(!!data.is_public)
+          // Use server name if it was custom-renamed (doesn't start with "Flagged (")
+          const defaultPrefix = `Flagged (${user.display_name || 'You'})`
+          if (data.name && data.name !== defaultPrefix) {
+            setFlaggedName(data.name)
+          }
         }
       })
       .catch(() => {})
@@ -92,5 +98,17 @@ export function useFlagged() {
     })
   }, [user, isShared])
 
-  return { flagged, toggle, remove, isFlagged, isShared, toggleShare }
+  const renameFlagged = useCallback((newName) => {
+    if (!user) return
+    const trimmed = newName.trim()
+    if (!trimmed) return
+    setFlaggedName(trimmed)
+    fetch('/api/watchlists/flagged/rename', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed }),
+    }).catch(() => {})
+  }, [user])
+
+  return { flagged, toggle, remove, isFlagged, isShared, toggleShare, flaggedName, renameFlagged }
 }

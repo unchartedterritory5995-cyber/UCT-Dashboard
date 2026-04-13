@@ -227,6 +227,31 @@ def sync_flagged_items(user_id: str, symbols: list[str]) -> dict:
         conn.close()
 
 
+def rename_flagged_list(user_id: str, name: str) -> dict | None:
+    """Rename the user's flagged shadow watchlist."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM watchlists WHERE user_id = ? AND is_flagged_list = 1", (user_id,)
+        ).fetchone()
+        if not row:
+            return None
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "UPDATE watchlists SET name = ?, updated_at = ? WHERE id = ?",
+            (name, now, row["id"]),
+        )
+        conn.commit()
+        wl = dict(row)
+        wl["name"] = name
+        wl["updated_at"] = now
+        wl["items"] = _get_items(conn, row["id"])
+        wl["owner_name"] = _get_display_name(conn, user_id)
+        return wl
+    finally:
+        conn.close()
+
+
 def toggle_flagged_sharing(user_id: str, is_public: bool) -> dict | None:
     """Set the flagged shadow watchlist's public visibility."""
     conn = get_connection()
