@@ -3068,7 +3068,9 @@ export default function OptionsFlowDashboard() {
                   const pwLabel = pwBelowSpot ? "floor" : "gravity pulling up";
                   const wallsInverted = !cwAboveSpot || !pwBelowSpot;
                   const spotBetweenWalls = cwStrike === pwStrike || (sp >= Math.min(cwStrike,pwStrike) && sp <= Math.max(cwStrike,pwStrike));
-                  const pinSetup = (cwStrike === pwStrike) || (spotBetweenWalls && Math.abs(cwStrike - pwStrike) <= sp * 0.01);
+                  const wallSpread = Math.abs(cwStrike - pwStrike);
+                  const pinSetup = (cwStrike === pwStrike) || (spotBetweenWalls && wallSpread <= Math.max(sp * 0.003, 5));
+                  const squeezeSetup = !pinSetup && spotBetweenWalls && wallSpread <= sp * 0.01;
 
                   const cwRatio = pwGex > 0 ? (cwGex / pwGex).toFixed(1) : "∞";
                   const cwDominant = cwGex > pwGex * 1.5;
@@ -3087,6 +3089,10 @@ export default function OptionsFlowDashboard() {
                       verdictText = "Price squeezed between two gravity zones pulling inward. " + fmtGex(cwGex + pwGex) + " combined traps price in a tight $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike) + " range.";
                     }
                     verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                  } else if (squeezeSetup) {
+                    const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
+                    verdictText = "Price squeezed between $" + lo + " floor and $" + hi + " ceiling. " + fmtGex(cwGex + pwGex) + " combined traps price in a $" + wallSpread + " range. Fade the edges.";
+                    verdictIcon = "↔"; verdictBg = P.ac+"22"; verdictColor = P.ac;
                   } else if (cwDominant && cwAboveSpot) {
                     verdictText = "Strong ceiling at $" + cwStrike + " — price drifts up but gets rejected there. Buy dips near support, don't chase into the ceiling.";
                     verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
@@ -3182,9 +3188,14 @@ export default function OptionsFlowDashboard() {
                       setupTitle = "What to expect — price stuck at $" + cwStrike;
                       setupText = "Ceiling and floor sit at the same price ($" + cwStrike + ") with " + fmtGex(cwGex+pwGex) + " behind it. Price wants to stay here — every move away gets pulled back. " + (isPositive?"Dips bounce, rallies fade.":"Moves can be sharp but snap back to $" + cwStrike + ".");
                     } else {
-                      setupTitle = "What to expect — price stuck at $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike);
-                      setupText = "Price is caught between two gravity zones. The ceiling below pulls price down, the floor above pushes it back up. " + fmtGex(cwGex+pwGex) + " total is squeezing price into a tight $" + Math.abs(cwStrike-pwStrike) + " range.";
+                      const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
+                      setupTitle = "What to expect — price pinned at $" + lo + "–$" + hi;
+                      setupText = "Ceiling at $" + hi + " caps rallies, floor at $" + lo + " cushions dips. " + fmtGex(cwGex+pwGex) + " combined gamma pins price in a tight $" + wallSpread + " range. Dealers fight every move in both directions.";
                     }
+                  } else if (squeezeSetup) {
+                    const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
+                    setupTitle = "What to expect — price stuck at $" + lo + "–$" + hi;
+                    setupText = "Price is caught between two gravity zones. The ceiling above at $" + hi + " caps rallies, the floor below at $" + lo + " cushions dips. " + fmtGex(cwGex+pwGex) + " total is squeezing price into a tight $" + wallSpread + " range.";
                   } else if (cwDominant && cwAboveSpot) {
                     setupTitle = "What to expect — grinding up toward $" + cwStrike;
                     setupText = "Price at $" + sp.toFixed(0) + " heading toward the $" + cwStrike + " ceiling (" + fmtGex(cwGex) + "). " + (isPositive?"Safety net is ON — dips tend to bounce back. Orderly grind higher.":"Safety net is OFF — expect bigger swings both ways. Be careful with size.");
@@ -3215,12 +3226,18 @@ export default function OptionsFlowDashboard() {
                   if (pinSetup) {
                     // Pin setup trades
                     const pinStrike = cwStrike === pwStrike ? cwStrike : Math.round((cwStrike+pwStrike)/2);
-                    const pinRange = cwStrike === pwStrike ? Math.round(sp*0.005) : Math.abs(cwStrike-pwStrike);
+                    const pinRange = cwStrike === pwStrike ? Math.round(sp*0.005) : wallSpread;
                     trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+pinStrike+" — sell premium here (iron fly). Profit if price stays between $"+(pinStrike-pinRange*2)+"–$"+(pinStrike+pinRange*2)+"." });
                     if (sp > pinStrike + 10) {
                       trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+pinStrike+" is pulling down. If price drops below $"+(pinStrike+Math.round(pinRange*2))+", expect a quick slide to $"+pinStrike+". Don't try to buy the dip." });
                     }
                     trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+pinStrike+". Sell rallies above $"+(pinStrike+pinRange*3)+" and buy dips below $"+(pinStrike-pinRange*3)+"." });
+                  } else if (squeezeSetup) {
+                    // Squeeze setup trades — wider range than pin
+                    const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
+                    const mid = Math.round((lo+hi)/2);
+                    trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+mid+" — sell premium here (iron fly). Profit if price stays between $"+(lo-Math.round(wallSpread))+"–$"+(hi+Math.round(wallSpread))+"." });
+                    trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+mid+". Sell rallies above $"+(hi+Math.round(wallSpread*0.5))+" and buy dips below $"+(lo-Math.round(wallSpread*0.5))+"." });
                   } else {
                     // Directional trades
                     if (cwAboveSpot) {
@@ -3248,13 +3265,13 @@ export default function OptionsFlowDashboard() {
                   }
 
                   // Premium selling on positive GEX
-                  if (isPositive && !pinSetup) {
+                  if (isPositive && !pinSetup && !squeezeSetup) {
                     trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell puts below $"+(pwBelowSpot?pwStrike:(sp*0.96).toFixed(0))+" — the "+fmtGex(tg)+" safety net means big drops are unlikely. High probability they expire worthless." });
                   }
 
                   // Danger zone
                   const dangerLevel = pwBelowSpot ? pwStrike : Math.round(sp * 0.97);
-                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: below $"+dangerLevel+" the floor breaks."+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwMagnet && !pinSetup ? " Price gravity at $"+cwStrike+" would speed up the drop." : "") });
+                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: below $"+dangerLevel+" the floor breaks."+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwMagnet && !pinSetup && !squeezeSetup ? " Price gravity at $"+cwStrike+" would speed up the drop." : "") });
 
                   const gaugeMin = zg ? Math.min(zg, pwStrike) - (sp*0.005) : pwStrike - (sp*0.01);
                   const gaugeMax = Math.max(cwStrike, sp) + (sp*0.01);
@@ -3291,6 +3308,11 @@ export default function OptionsFlowDashboard() {
                           parts.push("Price dipped below the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) and is $"+dist.toFixed(0)+" below.");
                           parts.push("Gravity pulling up toward "+cwStr+". "+(isPositive ? "Safety net active — expect a bounce back to the pin." : "No safety net — could break further before snapping back."));
                         }
+                      } else if (squeezeSetup) {
+                        const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
+                        const midpoint = Math.round((lo + hi) / 2);
+                        parts.push("Price squeezed between $"+lo+" floor and $"+hi+" ceiling — "+fmtGex(cwGex+pwGex)+" combined traps price in a $"+wallSpread+" range.");
+                        parts.push("Fade rallies near $"+hi+", buy dips near $"+lo+". "+safetyStr);
                       } else if (cwAboveSpot && pwBelowSpot) {
                         // Normal: CW above, PW below
                         const cwDist = ((cwStrike - sp) / sp * 100).toFixed(1);
