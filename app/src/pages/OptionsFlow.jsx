@@ -3263,7 +3263,8 @@ export default function OptionsFlowDashboard() {
 
                   // Clear air / breakout potential
                   if (clearAirAbove && cwAboveSpot) {
-                    trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Not much blocking price above $"+sp.toFixed(0)+""+(firstResAbove ? " — if $"+firstResAbove.strike+" breaks" : "")+", could run quickly toward $"+cwStrike+"." });
+                    const intermediateRes = firstResAbove && firstResAbove.strike < cwStrike ? firstResAbove : null;
+                    trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Not much blocking price above $"+sp.toFixed(0)+""+(intermediateRes ? " — if $"+intermediateRes.strike+" breaks" : "")+", could run quickly toward $"+cwStrike+"." });
                   }
 
                   // Premium selling on positive GEX
