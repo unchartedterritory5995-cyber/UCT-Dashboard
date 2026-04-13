@@ -1166,16 +1166,26 @@ export default function OptionsFlowDashboard() {
           const pw = gexData.putWall;
           const zg = gexData.zeroGamma;
           const fmtG = v => { const abs=Math.abs(v); if(abs>=1e9) return "$"+(abs/1e9).toFixed(1)+"B"; if(abs>=1e6) return "$"+(abs/1e6).toFixed(1)+"M"; if(abs>=1e3) return "$"+(abs/1e3).toFixed(0)+"K"; return "$"+abs.toFixed(0); };
-          if (cw) series.createPriceLine({ price:cw.strike, color:"#0a8f55", lineWidth:2, lineStyle:0, axisLabelVisible:true, title:"Call Wall "+fmtG(cw.gex) });
-          if (pw) series.createPriceLine({ price:pw.strike, color:"#c43030", lineWidth:2, lineStyle:0, axisLabelVisible:true, title:"Put Wall "+fmtG(Math.abs(pw.gex)) });
+          const wallMax = Math.max(cw?.gex||0, Math.abs(pw?.gex||0));
+          if (cw) series.createPriceLine({ price:cw.strike, color:"#0a8f55", lineWidth:3, lineStyle:0, axisLabelVisible:true, title:"Call Wall "+fmtG(cw.gex) });
+          if (pw) series.createPriceLine({ price:pw.strike, color:"#c43030", lineWidth:3, lineStyle:0, axisLabelVisible:true, title:"Put Wall "+fmtG(Math.abs(pw.gex)) });
           if (zg) series.createPriceLine({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Zero γ" });
-          // Resistance/support lines (thinner)
+          // Secondary levels — thickness/style scales with $ value
           const sp = gexData.spot || 0;
-          // Secondary resistance/support lines — labeled with GEX value
           const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp&&s.strike!==cw?.strike).sort((a,b)=>b.callGex-a.callGex).slice(0,2);
-          topAbove.forEach(s => series.createPriceLine({ price:s.strike, color:"#0a8f55", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Res "+fmtG(s.callGex) }));
+          topAbove.forEach(s => {
+            const ratio = wallMax > 0 ? s.callGex / wallMax : 0;
+            const lw = ratio > 0.5 ? 2 : 1;
+            const ls = ratio > 0.25 ? 0 : 2;
+            series.createPriceLine({ price:s.strike, color:"#0a8f55", lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:"Res "+fmtG(s.callGex) });
+          });
           const topBelow = [...(gexData.strikes||[])].filter(s=>s.putGex<0&&s.strike<sp&&s.strike!==pw?.strike).sort((a,b)=>a.putGex-b.putGex).slice(0,2);
-          topBelow.forEach(s => series.createPriceLine({ price:s.strike, color:"#c43030", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Sup "+fmtG(Math.abs(s.putGex)) }));
+          topBelow.forEach(s => {
+            const ratio = wallMax > 0 ? Math.abs(s.putGex) / wallMax : 0;
+            const lw = ratio > 0.5 ? 2 : 1;
+            const ls = ratio > 0.25 ? 0 : 2;
+            series.createPriceLine({ price:s.strike, color:"#c43030", lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:"Sup "+fmtG(Math.abs(s.putGex)) });
+          });
         }).catch(()=>{});
       // Resize observer
       const ro = new ResizeObserver(() => { if (el.clientWidth > 0) chart.applyOptions({ width: el.clientWidth }); });
