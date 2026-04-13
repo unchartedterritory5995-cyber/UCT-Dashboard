@@ -3228,6 +3228,8 @@ export default function OptionsFlowDashboard() {
 
                   // Pattern-based trade ideas
                   const trades = [];
+                  const isIntraday = gexDte === "0dte" || gexDte === "1dte";
+                  const timeframe = isIntraday ? "today" : "this week";
                   const zgNearSpot = zg && Math.abs(sp - zg) / sp < 0.005; // within 0.5%
                   const zgBelowClose = zg && (zg - sp) / sp > -0.01 && zg < sp; // zg just below spot (<1%)
                   const cwMagnet = !cwAboveSpot; // call wall below spot = magnet down
@@ -3237,35 +3239,62 @@ export default function OptionsFlowDashboard() {
                     // Pin setup trades
                     const pinStrike = cwStrike === pwStrike ? cwStrike : Math.round((cwStrike+pwStrike)/2);
                     const pinRange = cwStrike === pwStrike ? Math.round(sp*0.005) : wallSpread;
-                    trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+pinStrike+" — sell premium here (iron fly). Profit if price stays between $"+(pinStrike-pinRange*2)+"–$"+(pinStrike+pinRange*2)+"." });
-                    if (sp > pinStrike + 10) {
-                      trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+pinStrike+" is pulling down. If price drops below $"+(pinStrike+Math.round(pinRange*2))+", expect a quick slide to $"+pinStrike+". Don't try to buy the dip." });
+                    if (isIntraday) {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+pinStrike+" — sell premium here (iron fly). Profit if price stays between $"+(pinStrike-pinRange*2)+"–$"+(pinStrike+pinRange*2)+"." });
+                      if (sp > pinStrike + 10) {
+                        trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+pinStrike+" is pulling down. If price drops below $"+(pinStrike+Math.round(pinRange*2))+", expect a quick slide to $"+pinStrike+". Don't try to buy the dip." });
+                      }
+                      trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+pinStrike+". Sell rallies above $"+(pinStrike+pinRange*3)+" and buy dips below $"+(pinStrike-pinRange*3)+"." });
+                    } else {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+pinStrike+" is the magnet strike this week — sell weekly premium around it. Iron fly or short straddle with defined risk." });
+                      trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Use $"+(pinStrike+pinRange*3)+" and $"+(pinStrike-pinRange*3)+" as swing fade levels. Enter on daily closes outside the range, target a snap back to $"+pinStrike+"." });
                     }
-                    trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+pinStrike+". Sell rallies above $"+(pinStrike+pinRange*3)+" and buy dips below $"+(pinStrike-pinRange*3)+"." });
                   } else if (squeezeSetup) {
-                    // Squeeze setup trades — wider range than pin
+                    // Squeeze setup trades
                     const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
                     const mid = Math.round((lo+hi)/2);
-                    trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+mid+" — sell premium here (iron fly). Profit if price stays between $"+(lo-Math.round(wallSpread))+"–$"+(hi+Math.round(wallSpread))+"." });
-                    trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+mid+". Sell rallies above $"+(hi+Math.round(wallSpread*0.5))+" and buy dips below $"+(lo-Math.round(wallSpread*0.5))+"." });
+                    if (isIntraday) {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+mid+" — sell premium here (iron fly). Profit if price stays between $"+(lo-Math.round(wallSpread))+"–$"+(hi+Math.round(wallSpread))+"." });
+                      trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+mid+". Sell rallies above $"+(hi+Math.round(wallSpread*0.5))+" and buy dips below $"+(lo-Math.round(wallSpread*0.5))+"." });
+                    } else {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+lo+"–$"+hi+" is the weekly range. Sell weekly premium — iron condor with wings outside $"+(lo-Math.round(wallSpread))+" and $"+(hi+Math.round(wallSpread))+"." });
+                      trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Swing entries: buy daily closes near $"+lo+", take profits near $"+hi+". Fade daily closes above $"+hi+" back toward $"+mid+"." });
+                    }
                   } else {
                     // Directional trades
                     if (cwAboveSpot) {
-                      trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips toward $"+(sp-(sp-(pwBelowSpot?pwStrike:sp*0.97))*0.3).toFixed(0)+". "+(isPositive?fmtGex(tg)+" safety net active — dips tend to bounce.":"No safety net — use smaller size and wider stops.")+" Stop below $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+"." });
-                      trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Target $"+cwStrike+" ("+fmtGex(cwGex)+" ceiling)."+(firstResAbove && firstResAbove.strike < cwStrike ? " First test at $"+firstResAbove.strike+"." : "") });
+                      if (isIntraday) {
+                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips toward $"+(sp-(sp-(pwBelowSpot?pwStrike:sp*0.97))*0.3).toFixed(0)+". "+(isPositive?fmtGex(tg)+" safety net active — dips tend to bounce.":"No safety net — use smaller size and wider stops.")+" Stop below $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+"." });
+                        trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Target $"+cwStrike+" ("+fmtGex(cwGex)+" ceiling)."+(firstResAbove && firstResAbove.strike < cwStrike ? " First test at $"+firstResAbove.strike+"." : "") });
+                      } else {
+                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Swing long entry on a daily close above $"+sp.toFixed(0)+" or a dip toward $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+". "+(isPositive?"Safety net is on — weekly dips tend to find buyers.":"No safety net — size down and use wider stops.")+" Stop on a daily close below $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+"." });
+                        trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Swing target $"+cwStrike+" ("+fmtGex(cwGex)+" ceiling)."+(firstResAbove && firstResAbove.strike < cwStrike ? " Watch for resistance at $"+firstResAbove.strike+" first." : "")+" Take partial profits there." });
+                      }
                     } else {
                       // Call wall below = magnet pulling down
                       const triggerLevel = Math.round(sp-(sp-cwStrike)*0.3);
                       const slideGap = Math.abs(triggerLevel - cwStrike);
-                      if (slideGap > sp * 0.005) {
-                        trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+cwStrike+" ("+fmtGex(cwGex)+") pulling price down. If price drops below $"+triggerLevel+", expect a quick slide to $"+cwStrike+"." });
+                      if (isIntraday) {
+                        if (slideGap > sp * 0.005) {
+                          trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+cwStrike+" ("+fmtGex(cwGex)+") pulling price down. If price drops below $"+triggerLevel+", expect a quick slide to $"+cwStrike+"." });
+                        } else {
+                          trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+cwStrike+" ("+fmtGex(cwGex)+") pulling price down — spot is right on top of it. Any weakness and price snaps to $"+cwStrike+"." });
+                        }
                       } else {
-                        trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+cwStrike+" ("+fmtGex(cwGex)+") pulling price down — spot is right on top of it. Any weakness and price snaps to $"+cwStrike+"." });
+                        if (slideGap > sp * 0.005) {
+                          trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"$"+cwStrike+" ("+fmtGex(cwGex)+") is pulling price down this week. A daily close below $"+triggerLevel+" likely leads to a move toward $"+cwStrike+". Avoid new longs above $"+triggerLevel+"." });
+                        } else {
+                          trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"$"+cwStrike+" gravity zone ("+fmtGex(cwGex)+") is right below spot. A daily close below $"+cwStrike+" confirms the pull — avoid longs until price reclaims it." });
+                        }
                       }
-                      // Bullish reclaim — if spot just above CW, price could hold and push to next level
+                      // Bullish reclaim
                       const cwProximity = (sp - cwStrike) / sp;
                       if (cwProximity > 0 && cwProximity < 0.02 && firstResAbove) {
-                        trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price holds above $"+cwStrike+" and consolidates, the wall gets absorbed — next target $"+firstResAbove.strike+"." });
+                        if (isIntraday) {
+                          trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price holds above $"+cwStrike+" and consolidates, the wall gets absorbed — next target $"+firstResAbove.strike+"." });
+                        } else {
+                          trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+cwStrike+" for 2+ days, the wall is absorbed. Swing long toward $"+firstResAbove.strike+"." });
+                        }
                       }
                     }
                     if (pwMagnet) {
@@ -3275,25 +3304,33 @@ export default function OptionsFlowDashboard() {
 
                   // Zero gamma proximity warning
                   if (zgNearSpot) {
-                    trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Danger line right here — price at $"+sp.toFixed(0)+", danger line at $"+zg.toFixed(0)+". "+(sp > zg ? "Below $"+zg.toFixed(0)+" the safety net breaks and drops get faster." : "Above $"+zg.toFixed(0)+" the safety net turns back on.")+" Be careful. Smaller positions." });
+                    trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Danger line right here — price at $"+sp.toFixed(0)+", danger line at $"+zg.toFixed(0)+". "+(sp > zg ? "Below $"+zg.toFixed(0)+" the safety net breaks and drops get faster." : "Above $"+zg.toFixed(0)+" the safety net turns back on.")+(isIntraday?"":" Watch for a daily close below — that confirms the regime flip.")+" Smaller positions." });
                   } else if (zgBelowClose) {
-                    trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Danger line at $"+zg.toFixed(0)+" is only "+(Math.abs((sp-zg)/sp)*100).toFixed(1)+"% away. One bad move and the safety net breaks — drops would get faster after that." });
+                    trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Danger line at $"+zg.toFixed(0)+" is only "+(Math.abs((sp-zg)/sp)*100).toFixed(1)+"% away. "+(isIntraday?"One bad move and the safety net breaks — drops would get faster after that.":"A daily close below $"+zg.toFixed(0)+" flips the regime — expect faster drops and wider swings after that.") });
                   }
 
                   // Clear air / breakout potential
                   if (clearAirAbove && cwAboveSpot) {
                     const intermediateRes = firstResAbove && firstResAbove.strike < cwStrike ? firstResAbove : null;
-                    trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Not much blocking price above $"+sp.toFixed(0)+""+(intermediateRes ? " — if $"+intermediateRes.strike+" breaks" : "")+", could run quickly toward $"+cwStrike+"." });
+                    if (isIntraday) {
+                      trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Not much blocking price above $"+sp.toFixed(0)+""+(intermediateRes ? " — if $"+intermediateRes.strike+" breaks" : "")+", could run quickly toward $"+cwStrike+"." });
+                    } else {
+                      trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin resistance above $"+sp.toFixed(0)+""+(intermediateRes ? " — a daily close above $"+intermediateRes.strike+" opens the path" : "")+". Swing target $"+cwStrike+" this week." });
+                    }
                   }
 
                   // Premium selling on positive GEX
                   if (isPositive && !pinSetup && !squeezeSetup) {
-                    trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell puts below $"+(pwBelowSpot?pwStrike:(sp*0.96).toFixed(0))+" — the "+fmtGex(tg)+" safety net means big drops are unlikely. High probability they expire worthless." });
+                    if (isIntraday) {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell puts below $"+(pwBelowSpot?pwStrike:(sp*0.96).toFixed(0))+" — the "+fmtGex(tg)+" safety net means big drops are unlikely. High probability they expire worthless." });
+                    } else {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell weekly puts below $"+(pwBelowSpot?pwStrike:(sp*0.96).toFixed(0))+" — "+fmtGex(tg)+" safety net makes big weekly drops unlikely. Let time decay work for you." });
+                    }
                   }
 
                   // Danger zone
                   const dangerLevel = pwBelowSpot ? pwStrike : Math.round(sp * 0.97);
-                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: below $"+dangerLevel+" the floor breaks."+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwMagnet && !pinSetup && !squeezeSetup ? " Price gravity at $"+cwStrike+" would speed up the drop." : "") });
+                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwMagnet && !pinSetup && !squeezeSetup ? " Price gravity at $"+cwStrike+" would speed up the drop." : "") });
 
                   const gaugeMin = zg ? Math.min(zg, pwStrike) - (sp*0.005) : pwStrike - (sp*0.01);
                   const gaugeMax = Math.max(cwStrike, sp) + (sp*0.01);
