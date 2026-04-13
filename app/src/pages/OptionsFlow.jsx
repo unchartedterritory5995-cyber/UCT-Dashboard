@@ -3075,22 +3075,43 @@ export default function OptionsFlowDashboard() {
                             </div>
                           );
                         })}
-                        {/* Labels on right edge */}
-                        {levels.map((l,i)=>{
-                          const top = yPct(l.price);
-                          if (top < 2 || top > 96) return null;
-                          const intensity = l.isSpot || l.isZg ? 1 : Math.max(0.3, (l.gex || 0) / maxGex);
-                          return (
-                            <div key={"lbl"+i} style={{ position:"absolute", top:top+"%", right:4, transform:"translateY(-50%)", zIndex:4,
-                              background:"rgba(6,9,15,0.85)", padding:"2px 6px", borderRadius:4, borderLeft:"3px solid "+l.color,
-                              opacity:l.isSpot||l.isZg||l.bold?1:(0.5+intensity*0.5) }}>
-                              <div style={{ fontSize:l.bold?11:9, fontWeight:l.bold?700:600, color:l.color, whiteSpace:"nowrap" }}>
-                                ${l.price.toFixed(l.price%1===0?0:2)}
+                        {/* Labels on right edge — compact, collision-avoided */}
+                        {(()=>{
+                          // Calculate raw positions, then spread if overlapping
+                          const MIN_GAP = 4; // minimum % gap between labels
+                          const rawLabels = levels.map((l,i)=>({ ...l, idx:i, rawTop:yPct(l.price) })).filter(l=>l.rawTop>=2&&l.rawTop<=96);
+                          // Sort by position (top to bottom)
+                          rawLabels.sort((a,b)=>a.rawTop-b.rawTop);
+                          // Push apart overlapping labels
+                          const spread = rawLabels.map(l=>({ ...l, top:l.rawTop }));
+                          for (let pass=0; pass<5; pass++) {
+                            for (let j=1; j<spread.length; j++) {
+                              const gap = spread[j].top - spread[j-1].top;
+                              if (gap < MIN_GAP) {
+                                const push = (MIN_GAP - gap) / 2;
+                                spread[j-1].top -= push;
+                                spread[j].top += push;
+                              }
+                            }
+                          }
+                          // Clamp
+                          spread.forEach(l=>{ l.top = Math.max(1, Math.min(97, l.top)); });
+                          return spread.map(l=>{
+                            const shortLabel = l.isSpot ? "SPOT" : l.isZg ? "0γ" : l.bold ? (l.label.includes("Call")?"CW":"PW") : (l.color===P.bu?"R":"S");
+                            return (
+                              <div key={"lbl"+l.idx} style={{ position:"absolute", top:l.top+"%", right:2, transform:"translateY(-50%)", zIndex:4,
+                                display:"flex", alignItems:"center", gap:3 }}>
+                                <div style={{ background:"rgba(6,9,15,0.88)", padding:"1px 5px", borderRadius:3, borderLeft:"2px solid "+l.color,
+                                  display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}>
+                                  <span style={{ fontSize:l.bold||l.isSpot?10:8, fontWeight:l.bold?700:600, color:l.color }}>
+                                    ${l.price.toFixed(l.price%1===0?0:1)}
+                                  </span>
+                                  <span style={{ fontSize:7, color:l.color, opacity:0.75 }}>{shortLabel}</span>
+                                </div>
                               </div>
-                              <div style={{ fontSize:7, color:l.color, opacity:0.8, whiteSpace:"nowrap" }}>{l.label}</div>
-                            </div>
-                          );
-                        })}
+                            );
+                          });
+                        })()}
                       </div>
                     </div>
                     <div style={{ fontSize:9, color:P.dm, marginTop:4, textAlign:"center" }}>Level positions are approximate — use the right-edge labels to identify key strikes on the price axis</div>
