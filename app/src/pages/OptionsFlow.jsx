@@ -3041,7 +3041,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                       <span style={{ fontSize:11, fontWeight:700, color:P.ac, textTransform:"uppercase", letterSpacing:1 }}>{gexData.ticker} Chart with GEX Levels</span>
                       <div style={{ display:"flex", gap:4 }}>
-                        {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
+                        {[["5min","5m"],["10min","10m"],["15min","15m"],["30min","30m"],["65min","65m"],["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
                           <button key={val} onClick={()=>setGexChartRange(val)}
                             style={{ padding:"3px 8px", borderRadius:4, border:"1px solid "+(gexChartRange===val?P.ac:P.bd+"80"),
                               background:gexChartRange===val?P.ac+"22":"transparent", color:gexChartRange===val?P.ac:P.dm,
