@@ -1171,10 +1171,11 @@ export default function OptionsFlowDashboard() {
           if (zg) series.createPriceLine({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Zero γ" });
           // Resistance/support lines (thinner)
           const sp = gexData.spot || 0;
+          // Secondary resistance/support lines — labeled with GEX value
           const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp&&s.strike!==cw?.strike).sort((a,b)=>b.callGex-a.callGex).slice(0,2);
-          topAbove.forEach(s => series.createPriceLine({ price:s.strike, color:"#0a8f5580", lineWidth:1, lineStyle:2, axisLabelVisible:false, title:"" }));
-          const topBelow = [...(gexData.strikes||[])].filter(s=>s.putGex<0&&s.strike<sp&&s.strike!==pw?.strike).sort((a,b)=>a.putGex-b.putGex).slice(0,1);
-          topBelow.forEach(s => series.createPriceLine({ price:s.strike, color:"#c4303080", lineWidth:1, lineStyle:2, axisLabelVisible:false, title:"" }));
+          topAbove.forEach(s => series.createPriceLine({ price:s.strike, color:"#0a8f55", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Res "+fmtG(s.callGex) }));
+          const topBelow = [...(gexData.strikes||[])].filter(s=>s.putGex<0&&s.strike<sp&&s.strike!==pw?.strike).sort((a,b)=>a.putGex-b.putGex).slice(0,2);
+          topBelow.forEach(s => series.createPriceLine({ price:s.strike, color:"#c43030", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Sup "+fmtG(Math.abs(s.putGex)) }));
         }).catch(()=>{});
       // Resize observer
       const ro = new ResizeObserver(() => { if (el.clientWidth > 0) chart.applyOptions({ width: el.clientWidth }); });
@@ -2991,57 +2992,6 @@ export default function OptionsFlowDashboard() {
                   </div>
                 </Card>
 
-                {/* Top GEX Strikes Table */}
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-                  <Card title="Top Call GEX" sub="Resistance levels">
-                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
-                      <thead>
-                        <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                          {["Strike","Call GEX","Call OI","Distance"].map(h=>(
-                            <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9 }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...(gexData.strikes||[])].sort((a,b)=>b.callGex-a.callGex).slice(0,8).map((s,i)=>{
-                          const dist = spot>0 ? ((s.strike-spot)/spot*100).toFixed(1)+"%" : "—";
-                          return (
-                            <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10" }}>
-                              <td style={{ padding:"4px 5px", fontWeight:800, color:P.wh }}>${s.strike}</td>
-                              <td style={{ padding:"4px 5px", fontWeight:700, color:P.bu }}>{fmtGex(s.callGex)}</td>
-                              <td style={{ padding:"4px 5px", color:P.dm }}>{s.callOI.toLocaleString()}</td>
-                              <td style={{ padding:"4px 5px", color:P.dm }}>{dist}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </Card>
-                  <Card title="Top Put GEX" sub="Support levels">
-                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
-                      <thead>
-                        <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                          {["Strike","Put GEX","Put OI","Distance"].map(h=>(
-                            <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9 }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...(gexData.strikes||[])].sort((a,b)=>a.putGex-b.putGex).slice(0,8).map((s,i)=>{
-                          const dist = spot>0 ? ((s.strike-spot)/spot*100).toFixed(1)+"%" : "—";
-                          return (
-                            <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10" }}>
-                              <td style={{ padding:"4px 5px", fontWeight:800, color:P.wh }}>${s.strike}</td>
-                              <td style={{ padding:"4px 5px", fontWeight:700, color:P.be }}>{fmtGex(s.putGex)}</td>
-                              <td style={{ padding:"4px 5px", color:P.dm }}>{s.putOI.toLocaleString()}</td>
-                              <td style={{ padding:"4px 5px", color:P.dm }}>{dist}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </Card>
-                </div>
 
                 {/* Action Buttons */}
                 <div style={{ display:"flex", justifyContent:"center", gap:10, marginTop:4 }}>
