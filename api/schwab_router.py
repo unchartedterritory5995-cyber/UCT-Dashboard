@@ -396,7 +396,9 @@ async def chart_proxy(
         data_low = min(l for _, _, _, l, _ in valid)
         y_pad = (data_high - data_low) * 0.05
         ax.set_ylim(data_low - y_pad, data_high + y_pad)
-        ax.yaxis.set_visible(False)
+        ax.yaxis.set_visible(True)
+        ax.yaxis.tick_right()
+        ax.tick_params(axis="y", length=0, pad=4, labelsize=6, colors="#4a5c73")
         ax.spines[:].set_visible(False)
         ax.grid(axis="x", color=grid_col, linewidth=0.4, linestyle="--")
         fig.tight_layout(pad=0.2)
