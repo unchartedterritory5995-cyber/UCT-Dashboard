@@ -401,3 +401,48 @@ async def chart_proxy(
         )
     except Exception:
         return Response(content=transparent_gif, media_type="image/gif", status_code=404)
+
+
+@router.get("/chart-bounds")
+async def chart_bounds(
+    sym: str = Query(..., description="Ticker symbol"),
+    range: str = Query("3mo", description="Same range as chart-proxy"),
+):
+    """
+    Return the actual high/low price bounds for a chart range.
+    Used by the GEX overlay to accurately position level lines.
+    """
+    import httpx
+
+    sym = sym.upper()
+    ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    is_intraday = range.endswith("min")
+
+    if is_intraday:
+        mins = int(range.replace("min", ""))
+        yf_interval_map = {5: "5m", 10: "5m", 15: "15m", 30: "30m", 65: "60m"}
+        yf_interval = yf_interval_map.get(mins, "15m")
+        yf_range = "1d" if mins <= 10 else "5d"
+    else:
+        yf_interval = "1d" if range != "1y" else "1wk"
+        yf_range = range
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
+                params={"interval": yf_interval, "range": yf_range, "includePrePost": "false"},
+                headers={"User-Agent": ua},
+            )
+        if resp.status_code != 200:
+            return {"error": "Yahoo Finance error", "status": resp.status_code}
+        data = resp.json()
+        result = data["chart"]["result"][0]
+        ohlc = result["indicators"]["quote"][0]
+        highs = [h for h in ohlc.get("high", []) if h is not None]
+        lows = [l for l in ohlc.get("low", []) if l is not None]
+        if not highs or not lows:
+            return {"error": "No price data"}
+        return {"high": max(highs), "low": min(lows), "sym": sym, "range": range}
+    except Exception as e:
+        return {"error": str(e)}
