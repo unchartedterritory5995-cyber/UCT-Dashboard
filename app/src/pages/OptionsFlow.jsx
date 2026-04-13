@@ -3009,7 +3009,6 @@ export default function OptionsFlowDashboard() {
                     if (s.strike !== cw.strike) levels.push({ price:s.strike, label:"Resistance "+fmtGex(s.callGex), color:P.bu, dash:false, gex:s.callGex });
                   });
                   levels.push({ price:cw.strike, label:"Call Wall "+fmtGex(cw.gex), color:P.bu, dash:false, bold:true, gex:cw.gex });
-                  levels.push({ price:sp, label:"SPOT", color:"#00BCD4", dash:true, bold:true, gex:0, isSpot:true });
                   if (zg) levels.push({ price:zg, label:"Zero Gamma", color:P.ac, dash:true, gex:0, isZg:true });
                   levels.push({ price:pw.strike, label:"Put Wall "+fmtGex(Math.abs(pw.gex)), color:"#ff5252", dash:false, bold:true, gex:Math.abs(pw.gex) });
                   const topBelow = [...(gexData.strikes||[])].filter(s=>s.putGex<0&&s.strike<sp&&s.strike!==pw.strike).sort((a,b)=>a.putGex-b.putGex).slice(0,1);
@@ -3061,13 +3060,13 @@ export default function OptionsFlowDashboard() {
                         {levels.map((l,i)=>{
                           const top = yPct(l.price);
                           if (top < 2 || top > 96) return null;
-                          const intensity = l.isSpot || l.isZg ? 1 : Math.max(0.3, (l.gex || 0) / maxGex);
-                          const lineH = l.isSpot ? 2 : l.isZg ? 1 : Math.max(1, Math.round(intensity * 3));
-                          const alpha = l.isSpot || l.isZg ? 0.7 : (0.3 + intensity * 0.4);
-                          const showLabel = l.bold || l.isSpot || l.isZg;
-                          const tag = l.isSpot ? "SPOT" : l.isZg ? "Zero γ" : l.label.includes("Call") ? "Call Wall" : l.label.includes("Put W") ? "Put Wall" : "";
+                          const intensity = l.isZg ? 1 : Math.max(0.3, (l.gex || 0) / maxGex);
+                          const lineH = l.isZg ? 1 : Math.max(1, Math.round(intensity * 3));
+                          const alpha = l.isZg ? 0.7 : (0.3 + intensity * 0.4);
+                          const showLabel = l.bold || l.isZg;
+                          const tag = l.isZg ? "Zero γ" : l.label.includes("Call") ? "Call Wall" : l.label.includes("Put W") ? "Put Wall" : "";
                           return (
-                            <div key={i} style={{ position:"absolute", top:top+"%", left:0, right:0, transform:"translateY(-50%)", zIndex:l.bold||l.isSpot?3:2 }}>
+                            <div key={i} style={{ position:"absolute", top:top+"%", left:0, right:0, transform:"translateY(-50%)", zIndex:l.bold?3:2 }}>
                               {l.dash ? (
                                 <div style={{ width:"100%", height:0, borderTop:lineH+"px dashed "+l.color, opacity:alpha }} />
                               ) : (
