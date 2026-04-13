@@ -9,6 +9,9 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import urlparse, parse_qs
 import api.schwab_service as schwab
 
+# Yahoo Finance uses different symbols for indices
+YF_INDEX_MAP = {"SPX":"^GSPC", "NDX":"^NDX", "DJX":"^DJI", "RUT":"^RUT", "VIX":"^VIX", "XSP":"^GSPC"}
+
 router = APIRouter(prefix="/api/schwab", tags=["schwab"])
 
 
@@ -306,7 +309,7 @@ async def chart_proxy(
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(
-                f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{YF_INDEX_MAP.get(sym, sym)}",
                 params={"interval": yf_interval, "range": yf_range, "includePrePost": "false"},
                 headers={"User-Agent": ua},
             )
@@ -443,7 +446,7 @@ async def chart_bounds(
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(
-                f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{YF_INDEX_MAP.get(sym, sym)}",
                 params={"interval": yf_interval, "range": yf_range, "includePrePost": "false"},
                 headers={"User-Agent": ua},
             )
@@ -491,7 +494,7 @@ async def chart_ohlc(
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(
-                f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{YF_INDEX_MAP.get(sym, sym)}",
                 params={"interval": yf_interval, "range": yf_range, "includePrePost": "false"},
                 headers={"User-Agent": ua},
             )
