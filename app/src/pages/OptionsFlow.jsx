@@ -3065,12 +3065,29 @@ export default function OptionsFlowDashboard() {
                   const isIntraday = gexDte === "0dte" || gexDte === "1dte";
                   const timeframe = isIntraday ? "today" : "this week";
 
-                  // Net delta tracking
+                  // Net delta tracking — store all readings for daily trend sparkline
                   const nd = gexData.netDelta;
-                  const prevNd = prevNetDeltaRef.current;
-                  const ndChange = (nd != null && prevNd != null) ? nd - prevNd : null;
-                  const ndImproving = ndChange !== null ? ndChange > 0 : null;
-                  if (nd != null) prevNetDeltaRef.current = nd;
+                  const today = new Date().toLocaleDateString("en-US");
+                  const ndRef = prevNetDeltaRef.current || {};
+                  let ndChange = null, ndImproving = null, ndReadings = [];
+                  if (nd != null) {
+                    if (ndRef.date !== today) {
+                      // New day — reset
+                      prevNetDeltaRef.current = { date: today, baseline: nd, readings: [nd] };
+                      ndReadings = [nd];
+                    } else {
+                      // Same day — append if value changed meaningfully (>0.5% shift)
+                      const prev = ndRef.readings || [];
+                      const lastVal = prev.length > 0 ? prev[prev.length - 1] : null;
+                      const threshold = Math.abs(ndRef.baseline || 1) * 0.005;
+                      if (lastVal === null || Math.abs(nd - lastVal) > threshold || prev.length === 0) {
+                        ndRef.readings = [...prev, nd];
+                      }
+                      ndReadings = ndRef.readings || prev;
+                      ndChange = nd - ndRef.baseline;
+                      ndImproving = ndChange > 0;
+                    }
+                  }
 
                   const cwAboveSpot = cwStrike > sp;
                   const pwBelowSpot = pwStrike < sp;
@@ -3443,12 +3460,27 @@ export default function OptionsFlowDashboard() {
                           </div>
                         ))}
                         {nd != null && (
-                          <div style={{ background:P.al, borderRadius:6, padding:"8px 12px", textAlign:"center" }}>
+                          <div style={{ background:P.al, borderRadius:6, padding:"8px 12px", textAlign:"center", minWidth:90 }}>
                             <div style={{ fontSize:9, color:P.dm, textTransform:"uppercase" }}>Net Delta</div>
                             <div style={{ fontSize:16, fontWeight:800, color:nd>0?P.bu:nd<0?P.be:P.dm }}>
-                              {nd > 0 ? "+" : ""}{nd > 999999 || nd < -999999 ? (nd/1e6).toFixed(1)+"M" : nd > 999 || nd < -999 ? (nd/1e3).toFixed(0)+"K" : nd.toFixed(0)}
+                              {nd > 0 ? "+" : ""}{Math.abs(nd) > 999999 ? (nd/1e6).toFixed(1)+"M" : Math.abs(nd) > 999 ? (nd/1e3).toFixed(0)+"K" : nd.toFixed(0)}
                               {ndChange !== null && <span style={{ fontSize:11, marginLeft:3, color:ndImproving?P.bu:P.be }}>{ndImproving?"▲":"▼"}</span>}
                             </div>
+                            {ndReadings.length > 1 && (()=>{
+                              const r = ndReadings;
+                              const mn = Math.min(...r), mx = Math.max(...r);
+                              const range = mx - mn || 1;
+                              const w = 70, h = 18;
+                              const pts = r.map((v,i) => [i/(r.length-1)*w, h - ((v-mn)/range)*h]);
+                              const pathD = pts.map((p,i) => (i===0?"M":"L")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+                              const trendColor = r[r.length-1] >= r[0] ? P.bu : P.be;
+                              return (
+                                <svg width={w} height={h} style={{ display:"block", margin:"3px auto 0" }}>
+                                  <path d={pathD} fill="none" stroke={trendColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                  <circle cx={pts[pts.length-1][0]} cy={pts[pts.length-1][1]} r="2" fill={trendColor} />
+                                </svg>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>
