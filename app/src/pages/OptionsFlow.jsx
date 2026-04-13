@@ -3002,34 +3002,39 @@ export default function OptionsFlowDashboard() {
                   const zg = gexData.zeroGamma;
                   if (!sp || !cw || !pw) return null;
 
-                  // Build levels array with GEX values for intensity
+                  // Build levels
                   const levels = [];
                   const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp).sort((a,b)=>b.callGex-a.callGex).slice(0,2);
                   topAbove.forEach(s => {
                     if (s.strike !== cw.strike) levels.push({ price:s.strike, label:"Resistance "+fmtGex(s.callGex), color:P.bu, dash:false, gex:s.callGex });
                   });
                   levels.push({ price:cw.strike, label:"Call Wall "+fmtGex(cw.gex), color:P.bu, dash:false, bold:true, gex:cw.gex });
-                  levels.push({ price:sp, label:"SPOT $"+sp.toFixed(2), color:"#00BCD4", dash:true, bold:true, gex:0, isSpot:true });
+                  levels.push({ price:sp, label:"SPOT", color:"#00BCD4", dash:true, bold:true, gex:0, isSpot:true });
                   if (zg) levels.push({ price:zg, label:"Zero Gamma", color:P.ac, dash:true, gex:0, isZg:true });
                   levels.push({ price:pw.strike, label:"Put Wall "+fmtGex(Math.abs(pw.gex)), color:"#ff5252", dash:false, bold:true, gex:Math.abs(pw.gex) });
                   const topBelow = [...(gexData.strikes||[])].filter(s=>s.putGex<0&&s.strike<sp&&s.strike!==pw.strike).sort((a,b)=>a.putGex-b.putGex).slice(0,1);
                   topBelow.forEach(s => {
-                    levels.push({ price:s.strike, label:"Put Support "+fmtGex(Math.abs(s.putGex)), color:"#ff5252", dash:false, gex:Math.abs(s.putGex) });
+                    levels.push({ price:s.strike, label:"Support "+fmtGex(Math.abs(s.putGex)), color:"#ff5252", dash:false, gex:Math.abs(s.putGex) });
                   });
-
                   levels.sort((a,b)=>b.price-a.price);
-
-                  // Compute intensity: bigger $ = more intense
                   const maxGex = Math.max(...levels.map(l=>l.gex||0), 1);
 
-                  // Price range for ruler
-                  const allPrices = levels.map(l=>l.price);
-                  const rulerMin = Math.min(...allPrices) - (sp*0.02);
-                  const rulerMax = Math.max(...allPrices) + (sp*0.02);
-                  const rulerRange = rulerMax - rulerMin;
-                  const yPct = p => ((rulerMax - p) / rulerRange) * 100;
+                  // Estimate chart Y-axis range from visible data
+                  // Schwab chart images: ~8% top padding, ~15% bottom padding (axis labels)
+                  const chartTopPct = 8, chartBotPct = 85;
+                  const chartPctRange = chartBotPct - chartTopPct;
+                  // Estimate price range visible: use all level prices with 5% padding
+                  const allP = levels.map(l=>l.price);
+                  const pMax = Math.max(...allP) + sp*0.04;
+                  const pMin = Math.min(...allP) - sp*0.04;
+                  const pRange = pMax - pMin;
+                  // Map price to % from top of image
+                  const yPct = p => {
+                    const norm = (pMax - p) / pRange; // 0=top, 1=bottom
+                    return chartTopPct + norm * chartPctRange;
+                  };
 
-                  const CHART_H = 320;
+                  const CHART_H = 360;
 
                   return (
                   <div style={{ background:P.cd, borderRadius:10, padding:12, border:"1px solid "+P.bd, marginTop:4 }}>
@@ -3046,48 +3051,49 @@ export default function OptionsFlowDashboard() {
                         ))}
                       </div>
                     </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 160px", gap:0 }}>
-                      {/* Chart Image */}
-                      <div style={{ position:"relative", borderRight:"1px solid "+P.bd }}>
-                        <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(gexData.ticker)}&range=${gexChartRange}&v=${Math.floor(Date.now()/900000)}`}
-                          alt={gexData.ticker+" chart"} style={{ width:"100%", height:CHART_H, objectFit:"fill", display:"block", opacity:0.9, borderRadius:"6px 0 0 6px" }}
-                          onError={e=>{e.target.style.display="none"}} />
-                      </div>
-                      {/* GEX Level Ruler */}
-                      <div style={{ position:"relative", height:CHART_H, background:P.al, borderRadius:"0 6px 6px 0", overflow:"hidden" }}>
-                        {Array.from({length:11},(_,i)=>i).map(i=>(
-                          <div key={i} style={{ position:"absolute", top:(i*10)+"%", left:0, right:0, borderTop:"1px solid "+P.bd+"30" }} />
-                        ))}
-                        {/* Level markers — thickness & opacity scale with $ value */}
+                    {/* Chart with overlay */}
+                    <div style={{ position:"relative", width:"100%", height:CHART_H, borderRadius:6, overflow:"hidden" }}>
+                      <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(gexData.ticker)}&range=${gexChartRange}&v=${Math.floor(Date.now()/900000)}`}
+                        alt={gexData.ticker+" chart"} style={{ width:"100%", height:"100%", objectFit:"fill", display:"block", opacity:0.92 }}
+                        onError={e=>{e.target.style.opacity=0.3}} />
+                      {/* Overlay lines */}
+                      <div style={{ position:"absolute", top:0, left:0, right:0, bottom:0, pointerEvents:"none" }}>
                         {levels.map((l,i)=>{
-                          const top = Math.max(2, Math.min(95, yPct(l.price)));
-                          const intensity = l.isSpot || l.isZg ? 1 : Math.max(0.25, (l.gex || 0) / maxGex);
-                          const lineH = l.isSpot ? 2 : l.isZg ? 1 : Math.max(1, Math.round(intensity * 4));
-                          const alpha = l.isSpot || l.isZg ? 1 : (0.35 + intensity * 0.65);
+                          const top = yPct(l.price);
+                          if (top < 2 || top > 96) return null;
+                          const intensity = l.isSpot || l.isZg ? 1 : Math.max(0.3, (l.gex || 0) / maxGex);
+                          const lineH = l.isSpot ? 2 : l.isZg ? 1 : Math.max(1, Math.round(intensity * 3));
+                          const alpha = l.isSpot || l.isZg ? 0.9 : (0.4 + intensity * 0.5);
                           return (
-                            <div key={i} style={{ position:"absolute", top:top+"%", left:0, right:0, transform:"translateY(-50%)", zIndex:l.bold?3:2 }}>
-                              {/* Line — thicker = more GEX */}
-                              <div style={{ position:"absolute", left:0, right:0, height:lineH, background:l.dash?"transparent":l.color, opacity:alpha,
-                                borderTop:l.dash?(lineH+"px dashed "+l.color):"none", borderRadius:1 }} />
-                              {/* GEX bar fill behind label */}
-                              {!l.isSpot && !l.isZg && (
-                                <div style={{ position:"absolute", left:0, width:Math.round(intensity*100)+"%", height:lineH+10, top:-5,
-                                  background:l.color, opacity:intensity*0.15, borderRadius:2 }} />
+                            <div key={i} style={{ position:"absolute", top:top+"%", left:"2%", right:"12%", transform:"translateY(-50%)", zIndex:l.bold?3:2 }}>
+                              {/* Horizontal line */}
+                              {l.dash ? (
+                                <div style={{ width:"100%", height:0, borderTop:lineH+"px dashed "+l.color, opacity:alpha }} />
+                              ) : (
+                                <div style={{ width:"100%", height:lineH, background:l.color, opacity:alpha, borderRadius:1 }} />
                               )}
-                              {/* Label */}
-                              <div style={{ position:"relative", paddingLeft:6, paddingTop:lineH>2?4:2 }}>
-                                <span style={{ fontSize:l.bold?11:9, fontWeight:l.bold?700:600, color:l.color, opacity:alpha,
-                                  background:P.al+"ee", padding:"1px 5px", borderRadius:3, whiteSpace:"nowrap" }}>
-                                  ${l.price.toFixed(l.price%1===0?0:2)}
-                                </span>
-                                <div style={{ fontSize:8, color:l.color, opacity:alpha*0.8, paddingLeft:5, marginTop:1 }}>{l.label}</div>
-                              </div>
                             </div>
                           );
                         })}
-                        <div style={{ position:"absolute", bottom:6, left:0, right:0, textAlign:"center", fontSize:8, color:P.dm, letterSpacing:0.5 }}>GEX LEVELS</div>
+                        {/* Labels on right edge */}
+                        {levels.map((l,i)=>{
+                          const top = yPct(l.price);
+                          if (top < 2 || top > 96) return null;
+                          const intensity = l.isSpot || l.isZg ? 1 : Math.max(0.3, (l.gex || 0) / maxGex);
+                          return (
+                            <div key={"lbl"+i} style={{ position:"absolute", top:top+"%", right:4, transform:"translateY(-50%)", zIndex:4,
+                              background:"rgba(6,9,15,0.85)", padding:"2px 6px", borderRadius:4, borderLeft:"3px solid "+l.color,
+                              opacity:l.isSpot||l.isZg||l.bold?1:(0.5+intensity*0.5) }}>
+                              <div style={{ fontSize:l.bold?11:9, fontWeight:l.bold?700:600, color:l.color, whiteSpace:"nowrap" }}>
+                                ${l.price.toFixed(l.price%1===0?0:2)}
+                              </div>
+                              <div style={{ fontSize:7, color:l.color, opacity:0.8, whiteSpace:"nowrap" }}>{l.label}</div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:4, textAlign:"center" }}>Level positions are approximate — use the right-edge labels to identify key strikes on the price axis</div>
                   </div>
                   );
                 })()}
