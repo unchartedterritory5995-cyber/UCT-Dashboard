@@ -45,7 +45,8 @@ def list_user_watchlists(user_id: str) -> list[dict]:
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT * FROM watchlists WHERE user_id = ? ORDER BY updated_at DESC", (user_id,)
+            "SELECT * FROM watchlists WHERE user_id = ? AND (is_flagged_list = 0 OR is_flagged_list IS NULL) ORDER BY updated_at DESC",
+            (user_id,),
         ).fetchall()
         results = []
         for r in rows:
@@ -101,6 +102,9 @@ def update_watchlist(user_id: str, wl_id: str, data: dict) -> dict | None:
 def delete_watchlist(user_id: str, wl_id: str) -> bool:
     conn = get_connection()
     try:
+        row = conn.execute("SELECT is_flagged_list FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)).fetchone()
+        if row and row["is_flagged_list"]:
+            return False  # Cannot delete the flagged shadow list
         result = conn.execute("DELETE FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id))
         conn.commit()
         return result.rowcount > 0
@@ -139,6 +143,117 @@ def remove_item(user_id: str, wl_id: str, item_id: str) -> bool:
         result = conn.execute("DELETE FROM watchlist_items WHERE id = ? AND watchlist_id = ?", (item_id, wl_id))
         conn.commit()
         return result.rowcount > 0
+    finally:
+        conn.close()
+
+
+def get_or_create_flagged_list(user_id: str) -> dict:
+    """Return the user's flagged shadow watchlist, creating it if needed."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM watchlists WHERE user_id = ? AND is_flagged_list = 1", (user_id,)
+        ).fetchone()
+        if row:
+            wl = dict(row)
+            wl["items"] = _get_items(conn, wl["id"])
+            wl["owner_name"] = _get_display_name(conn, user_id)
+            return wl
+        # Create shadow
+        wl_id = str(uuid.uuid4())[:12]
+        now = datetime.now(timezone.utc).isoformat()
+        display_name = _get_display_name(conn, user_id)
+        conn.execute(
+            "INSERT INTO watchlists (id, user_id, name, description, is_public, is_flagged_list, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
+            (wl_id, user_id, f"Flagged ({display_name})", "", 0, 1, now, now),
+        )
+        conn.commit()
+        return {"id": wl_id, "user_id": user_id, "name": f"Flagged ({display_name})", "description": "",
+                "is_public": 0, "is_flagged_list": 1, "created_at": now, "updated_at": now,
+                "items": [], "owner_name": display_name}
+    finally:
+        conn.close()
+
+
+def sync_flagged_items(user_id: str, symbols: list[str]) -> dict:
+    """Full-replace sync: make the shadow watchlist match the given symbols list."""
+    conn = get_connection()
+    try:
+        # Ensure shadow exists
+        row = conn.execute(
+            "SELECT * FROM watchlists WHERE user_id = ? AND is_flagged_list = 1", (user_id,)
+        ).fetchone()
+        if not row:
+            conn.close()
+            get_or_create_flagged_list(user_id)
+            conn = get_connection()
+            row = conn.execute(
+                "SELECT * FROM watchlists WHERE user_id = ? AND is_flagged_list = 1", (user_id,)
+            ).fetchone()
+        wl_id = row["id"]
+
+        # Keep name current with display_name
+        display_name = _get_display_name(conn, user_id)
+        conn.execute(
+            "UPDATE watchlists SET name = ?, updated_at = ? WHERE id = ?",
+            (f"Flagged ({display_name})", datetime.now(timezone.utc).isoformat(), wl_id),
+        )
+
+        # Diff
+        current_items = _get_items(conn, wl_id)
+        server_syms = {item["sym"] for item in current_items}
+        client_syms = {s.upper() for s in symbols}
+
+        # Remove stale
+        for item in current_items:
+            if item["sym"] not in client_syms:
+                conn.execute("DELETE FROM watchlist_items WHERE id = ?", (item["id"],))
+
+        # Add missing
+        for sym in client_syms - server_syms:
+            item_id = str(uuid.uuid4())[:12]
+            conn.execute(
+                "INSERT INTO watchlist_items (id, watchlist_id, sym, notes) VALUES (?,?,?,?)",
+                (item_id, wl_id, sym, ""),
+            )
+
+        conn.commit()
+        wl = dict(row)
+        wl["name"] = f"Flagged ({display_name})"
+        wl["items"] = _get_items(conn, wl_id)
+        wl["owner_name"] = display_name
+        return wl
+    finally:
+        conn.close()
+
+
+def toggle_flagged_sharing(user_id: str, is_public: bool) -> dict | None:
+    """Set the flagged shadow watchlist's public visibility."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM watchlists WHERE user_id = ? AND is_flagged_list = 1", (user_id,)
+        ).fetchone()
+        if not row:
+            conn.close()
+            get_or_create_flagged_list(user_id)
+            conn = get_connection()
+            row = conn.execute(
+                "SELECT * FROM watchlists WHERE user_id = ? AND is_flagged_list = 1", (user_id,)
+            ).fetchone()
+        wl_id = row["id"]
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "UPDATE watchlists SET is_public = ?, updated_at = ? WHERE id = ?",
+            (int(is_public), now, wl_id),
+        )
+        conn.commit()
+        wl = dict(row)
+        wl["is_public"] = int(is_public)
+        wl["updated_at"] = now
+        wl["items"] = _get_items(conn, wl_id)
+        wl["owner_name"] = _get_display_name(conn, user_id)
+        return wl
     finally:
         conn.close()
 

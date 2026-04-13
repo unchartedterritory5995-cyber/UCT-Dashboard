@@ -258,6 +258,13 @@ def init_db():
             conn.commit()
             print("[auth] Migrated: added full_name column to users")
 
+        # Migration: add is_flagged_list column to watchlists if missing
+        wl_cols = [row[1] for row in conn.execute("PRAGMA table_info(watchlists)").fetchall()]
+        if "is_flagged_list" not in wl_cols:
+            conn.execute("ALTER TABLE watchlists ADD COLUMN is_flagged_list INTEGER DEFAULT 0")
+            conn.commit()
+            print("[auth] Migrated: added is_flagged_list column to watchlists")
+
         # Trading accounts table
         conn.execute("""
             CREATE TABLE IF NOT EXISTS trading_accounts (

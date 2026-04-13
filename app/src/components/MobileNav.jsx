@@ -51,7 +51,7 @@ const NAV_SECTIONS = [
   },
 ]
 
-const FREE_PAGES = ['/dashboard', '/breadth', '/theme-tracker', '/calendar']
+const FREE_PAGES = ['/dashboard', '/breadth', '/theme-tracker', '/calendar', '/watchlists']
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 

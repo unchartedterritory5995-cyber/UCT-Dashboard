@@ -27,6 +27,33 @@ class WatchlistItem(BaseModel):
     notes: Optional[str] = ""
 
 
+class FlaggedSync(BaseModel):
+    symbols: list[str]
+
+
+class FlaggedShare(BaseModel):
+    is_public: bool
+
+
+# ── Flagged shadow watchlist (must be before /{wl_id} routes) ──
+
+@router.get("/api/watchlists/flagged")
+def get_flagged(user: dict = Depends(get_current_user)):
+    return watchlist_service.get_or_create_flagged_list(user["id"])
+
+
+@router.post("/api/watchlists/flagged/sync")
+def sync_flagged(body: FlaggedSync, user: dict = Depends(get_current_user)):
+    return watchlist_service.sync_flagged_items(user["id"], body.symbols)
+
+
+@router.put("/api/watchlists/flagged/share")
+def share_flagged(body: FlaggedShare, user: dict = Depends(get_current_user)):
+    return watchlist_service.toggle_flagged_sharing(user["id"], body.is_public)
+
+
+# ── Regular watchlist endpoints ──
+
 @router.get("/api/watchlists")
 def list_watchlists(user: dict = Depends(get_current_user)):
     return watchlist_service.list_user_watchlists(user["id"])

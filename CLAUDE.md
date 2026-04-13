@@ -84,6 +84,10 @@ All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key com
 - SQLite DB at `/data/auth.db` (Railway persistent volume)
 - Tables: users, sessions, subscriptions, email_verifications, password_resets, activity_log, page_views, feedback, support_tickets, ticket_messages, user_tags, admin_notes, user_preferences, referrals, mrr_snapshots
 - `AuthGuard` component: checks auth + email verification + plan + admin role
+- **Free tier**: Dashboard, Breadth, Theme Tracker, Calendar, Watchlists accessible without payment
+- `FREE_PAGES` whitelist in AuthGuard, NavBar, MobileNav — locked pages hidden from nav, redirect to `/dashboard`
+- Signup flow does NOT redirect to Stripe — users land directly on dashboard after email verification
+- Stripe integration still intact (checkout/portal/webhooks) for future monetization
 - Admin role check: `user.role === 'admin'`; set via `ADMIN_EMAILS` env var
 - Verification tokens reuse existing valid token on resend (>1hr remaining)
 - Stripe webhook uses `_safe_get()` for stripe>=8.0 compatibility
@@ -707,7 +711,7 @@ Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green 
 ### Architecture
 - **Split panel**: left 260px list panel + right StockChart panel (same pattern as ThemeTrackerPage)
 - **Two tabs**: My Lists | Community
-- **My Lists tab**: "⚑ Flagged" pinned as first accordion group (expanded by default, localStorage via `useFlagged`), followed by user-created watchlists. Arrow key nav + Shift+F remove within flagged group.
+- **My Lists tab**: "⚑ Flagged (username)" pinned as first accordion group (expanded by default, localStorage via `useFlagged` + server shadow sync). Share toggle (🔒/🔓) publishes to Community tab. Arrow key nav + Shift+F remove within flagged group.
 - **User watchlists**: accordion groups, expandable with items, add ticker form, toggle public/private (🔒/🔓), delete list
 - **Community tab**: all public watchlists (read-only), shows `owner_name`, expandable
 - **Live prices**: `useLivePrices` fed by `allTickers` useMemo — only tickers in expanded lists on active tab
@@ -716,11 +720,14 @@ Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green 
 - **Period tabs**: 5min / 30min / 1hr / Daily / Weekly — centered in chart header
 
 ### API Endpoints
-- `GET  /api/watchlists` — user's own lists (with items array)
-- `GET  /api/watchlists/public` — all public lists (with items + owner_name)
+- `GET  /api/watchlists/flagged` — get/create flagged shadow watchlist state
+- `POST /api/watchlists/flagged/sync` — full-replace sync `{ symbols: [...] }`
+- `PUT  /api/watchlists/flagged/share` — toggle community visibility `{ is_public: bool }`
+- `GET  /api/watchlists` — user's own lists (excludes flagged shadow)
+- `GET  /api/watchlists/public` — all public lists incl. shared flagged lists
 - `POST /api/watchlists` — create `{ name, description, is_public }`
 - `PUT  /api/watchlists/{id}` — update `{ is_public }`
-- `DELETE /api/watchlists/{id}` — delete list
+- `DELETE /api/watchlists/{id}` — delete list (blocked for flagged shadow)
 - `POST /api/watchlists/{id}/items` — add item `{ sym, notes }`
 - `DELETE /api/watchlists/{id}/items/{item_id}` — remove item
 

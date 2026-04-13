@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import useSWR from 'swr'
 import { useFlagged } from '../hooks/useFlagged'
+import { useAuth } from '../context/AuthContext'
 import useLivePrices from '../hooks/useLivePrices'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
@@ -39,7 +40,8 @@ export default function Watchlists() {
   const [createForm, setCreateForm] = useState({ name: '', description: '', is_public: false })
   const [saving, setSaving] = useState(false)
 
-  const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged } = useFlagged()
+  const { user } = useAuth()
+  const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
 
@@ -229,9 +231,19 @@ export default function Watchlists() {
       <div className={styles.wlGroup}>
         <div className={styles.wlHeader} onClick={() => toggleList('flagged')}>
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
-          <span className={styles.wlName}>⚑ Flagged</span>
+          <span className={styles.wlName}>⚑ Flagged ({user?.display_name || 'You'})</span>
           <span className={styles.wlCount}>{flagged.length}</span>
+          {isShared && <span className={styles.pubBadge}>PUB</span>}
           <span className={styles.flaggedHint}>Shift+F</span>
+          {user && (
+            <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+              <button
+                className={`${styles.wlActionBtn}${isShared ? ' ' + styles.wlActionBtnActive : ''}`}
+                onClick={toggleShare}
+                title={isShared ? 'Make Private' : 'Share with community'}
+              >{isShared ? '🔓' : '🔒'}</button>
+            </div>
+          )}
         </div>
 
         {open && (
