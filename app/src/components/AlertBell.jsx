@@ -39,6 +39,7 @@ export default function AlertBell() {
   const prevIdsRef = useRef(new Set())
   const initialLoadRef = useRef(true)
   const soundEnabled = prefs.alert_sound !== 'off'
+  const soundKey = prefs.alert_sound_type || 'chime'
 
   const items = Array.isArray(alerts) ? alerts : []
   const unreadCount = items.filter(a => !a.read).length
@@ -61,7 +62,7 @@ export default function AlertBell() {
 
     if (newAlerts.length > 0) {
       // Play sound (if enabled)
-      if (soundEnabled) playAlertSound()
+      if (soundEnabled) playAlertSound(soundKey)
 
       // Show browser notification for each new alert (max 3)
       newAlerts.slice(0, 3).forEach(a => {

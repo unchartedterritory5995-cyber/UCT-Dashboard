@@ -7,6 +7,7 @@ import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
 import { TAG_COLORS } from '../constants/tagColors'
 import useTickerTags from '../hooks/useTickerTags'
+import { ALERT_SOUNDS, previewSound } from '../utils/alertSound'
 import styles from './Settings.module.css'
 
 const TF_OPTIONS = [
@@ -794,7 +795,7 @@ export default function Settings() {
             <div className={styles.prefRow}>
               <div className={styles.prefLabelGroup}>
                 <span className={styles.prefLabel}>Alert Sound</span>
-                <span className={styles.prefDesc}>Play a chime when new price alerts trigger</span>
+                <span className={styles.prefDesc}>Play a sound when new price alerts trigger</span>
               </div>
               <select
                 className={styles.select}
@@ -805,6 +806,30 @@ export default function Settings() {
                 <option value="off">Off</option>
               </select>
             </div>
+            {prefs.alert_sound !== 'off' && (
+              <div className={styles.prefRow}>
+                <div className={styles.prefLabelGroup}>
+                  <span className={styles.prefLabel}>Sound Type</span>
+                  <span className={styles.prefDesc}>Choose your alert tone</span>
+                </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <select
+                    className={styles.select}
+                    value={prefs.alert_sound_type || 'chime'}
+                    onChange={e => setPref('alert_sound_type', e.target.value)}
+                  >
+                    {ALERT_SOUNDS.map(s => (
+                      <option key={s.key} value={s.key}>{s.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    className={styles.btn}
+                    onClick={() => previewSound(prefs.alert_sound_type || 'chime')}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >Preview</button>
+                </div>
+              </div>
+            )}
             <div className={styles.prefRow}>
               <div className={styles.prefLabelGroup}>
                 <span className={styles.prefLabel}>Browser Notifications</span>
