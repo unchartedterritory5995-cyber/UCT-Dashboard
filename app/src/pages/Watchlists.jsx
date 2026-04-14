@@ -214,15 +214,18 @@ export default function Watchlists() {
   const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare, flaggedName, renameFlagged } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
+  const { tags, setTag, removeTag, getTag } = useTickerTags()
+  const { createAlert, deleteAlert, getAlertsForSym, hasAlert } = useWatchlistAlerts()
+  const [alertPopover, setAlertPopover] = useState(null) // { sym, x, y }
+  const [alertPrice, setAlertPrice] = useState('')
+  const [alertDir, setAlertDir] = useState('above')
 
   // Collect all visible tickers for live prices
   const allTickers = useMemo(() => {
     const tickers = []
-    // Flagged (always in My Lists tab)
     if (activeTab === 'mine' && expandedLists.has('flagged')) {
       tickers.push(...flagged)
     }
-    // Tag groups
     if (activeTab === 'mine') {
       TAG_COLORS.forEach(tc => {
         if (expandedLists.has(`tag:${tc.key}`)) {
@@ -240,11 +243,6 @@ export default function Watchlists() {
   }, [activeTab, flagged, tags, myLists, communityLists, expandedLists])
 
   const { prices } = useLivePrices(allTickers)
-  const { tags, setTag, removeTag, getTag } = useTickerTags()
-  const { createAlert, deleteAlert, getAlertsForSym, hasAlert } = useWatchlistAlerts()
-  const [alertPopover, setAlertPopover] = useState(null) // { sym, x, y }
-  const [alertPrice, setAlertPrice] = useState('')
-  const [alertDir, setAlertDir] = useState('above')
   const { perfData } = useWatchlistPerformance(visiblePerf.size > 0 ? allTickers : [])
 
   function togglePerfCol(key) {
