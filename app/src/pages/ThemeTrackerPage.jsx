@@ -69,7 +69,6 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
           {theme.name}
           {isPortfolio && <span className={styles.portfolioBadge}>★</span>}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
-          <RotationBadge delta={momentumDelta} />
         </span>
         <span className={`${styles.ret} ${styles.retActive} ${retClass(groupAvg, styles)}`}>
           {fmtRet(groupAvg)}
