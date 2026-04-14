@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import useSWR from 'swr'
 import StockChart from '../../../components/StockChart'
+import TickerPopup from '../../../components/TickerPopup'
 import ExecutionsList from './ExecutionsList'
 import ProcessScoreCard from './ProcessScoreCard'
 import EmotionSelector from './EmotionSelector'
@@ -278,7 +279,7 @@ export default function TradeDrawer({ tradeId, onClose, onTradeUpdated }) {
         {/* ── Header ── */}
         <div className={styles.header}>
           <div className={styles.headerLeft}>
-            <span className={styles.headerSym}>{trade.sym}</span>
+            <TickerPopup sym={trade.sym}><span className={styles.headerSym}>{trade.sym}</span></TickerPopup>
             <span className={trade.direction === 'short' ? styles.dirShort : styles.dirLong}>
               {(trade.direction || 'long').toUpperCase()}
             </span>

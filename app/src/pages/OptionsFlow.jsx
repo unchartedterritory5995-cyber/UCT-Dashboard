@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
+import TickerPopup from "../components/TickerPopup";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 
 // ─── Flow Data loaded dynamically from /flow-data.csv ─────────────────────────
@@ -1363,7 +1364,7 @@ export default function OptionsFlowDashboard() {
         boxShadow:"0 8px 32px rgba(0,0,0,0.6)", borderTop:"2px solid "+c }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", borderBottom:"1px solid "+P.bd }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{sym}</span>
+            <TickerPopup sym={sym}><span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{sym}</span></TickerPopup>
             <span style={{ fontSize:14, fontWeight:800, color:c }}>${K}{cp}</span>
             <span style={{ fontSize:13, fontWeight:700, color:P.wh }}>{exp}</span>
             <Tag c={c}>{dir}</Tag>
@@ -1929,7 +1930,7 @@ export default function OptionsFlowDashboard() {
                 onClick={()=>{ const next = selectedConv===i ? null : i; setSelectedConv(next); if(next!==null) fetchContractHistory(t.sym, t.cp, t.K, t.exp); }}>
                 <div style={{ background:P.cd, border:"1px solid "+(selectedConv===i?P.ac:P.bd), borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+c, cursor:"pointer", transition:"border-color 0.15s" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
-                    <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span>
+                    <TickerPopup sym={t.sym}><span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span></TickerPopup>
                     <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
                   </div>
                   <div style={{ fontSize:13, fontWeight:800, color:c }}>{t.strike} <span style={{ fontSize:11, fontWeight:700, color:P.wh }}>{t.exp}</span></div>
@@ -2031,7 +2032,7 @@ export default function OptionsFlowDashboard() {
               {/* Panel Header */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", borderBottom:"1px solid "+P.bd }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{t.sym}</span>
+                  <TickerPopup sym={t.sym}><span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{t.sym}</span></TickerPopup>
                   <span style={{ fontSize:14, fontWeight:800, color:c }}>{t.strike}</span>
                   <span style={{ fontSize:13, fontWeight:700, color:P.wh }}>{t.exp}</span>
                   <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
@@ -2884,7 +2885,7 @@ export default function OptionsFlowDashboard() {
                           onClick={()=>{ fetchContractHistory(t.sym,t.cp,t.K,t.exp); setSelectedItem(prev=>prev&&prev.sym===t.sym&&prev.cp===t.cp&&String(prev.K)===String(t.K)&&prev.exp===t.exp?null:{sym:t.sym,cp:t.cp,K:t.K,exp:t.exp}); }}>
                           <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+c, transition:"border-color 0.15s" }}>
                             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
-                              <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span>
+                              <TickerPopup sym={t.sym}><span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span></TickerPopup>
                               <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
                             </div>
                             <div style={{ fontSize:13, fontWeight:800, color:c }}>{t.strike} <span style={{ fontSize:11, fontWeight:700, color:P.wh }}>{t.exp}</span></div>
@@ -3697,7 +3698,7 @@ export default function OptionsFlowDashboard() {
                           style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}><TickerPopup sym={p.sym}>{p.sym}</TickerPopup></td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
@@ -3733,7 +3734,7 @@ export default function OptionsFlowDashboard() {
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
                       return (
                         <tr key={p.id||i} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.7 }}>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}><TickerPopup sym={p.sym}>{p.sym}</TickerPopup></td>
                           <td style={{ padding:"5px 5px", color:P.dm }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>

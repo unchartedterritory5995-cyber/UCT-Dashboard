@@ -6,6 +6,7 @@ import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import PositionCalc from './PositionCalc'
+import TickerActionsMenu, { useTickerActions } from './TickerActions'
 import styles from './TickerPopup.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -97,6 +98,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
   const tagColor = getTag(sym)
+  const tickerActions = useTickerActions()
 
   // Fetch live price only when modal is open
   const { prices } = useLivePrices(modalOpen && sym ? [sym] : [])
@@ -142,6 +144,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
       <Tag
         className={`${styles.trigger}${className ? ` ${className}` : ''}`}
         onClick={() => { setModalOpen(true); setTab('Daily') }}
+        onContextMenu={e => tickerActions.openMenu(e, sym)}
         role="button"
         aria-label={`View chart for ${sym}`}
         data-testid={`ticker-${sym}`}
@@ -149,6 +152,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
         {tagColor && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 3, verticalAlign: 'middle' }} />}
         {children ?? sym}
       </Tag>
+      <TickerActionsMenu menu={tickerActions.menu} onClose={tickerActions.closeMenu} />
 
       {modalOpen && (
         <div

@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import TickerPopup from "../components/TickerPopup";
 
 // ── Built-in CSV parser (no external dependencies) ───────────────────────────
 function parseCSVLine(line) {
@@ -526,8 +527,8 @@ function PhantomPane(){
                 <tr key={i} style={{background:"transparent"}}
                   onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <TD><span style={{color:C.blue,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
-                    ${p.ticker}</span></TD>
+                  <TD><TickerPopup sym={p.ticker}><span style={{color:C.blue,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
+                    ${p.ticker}</span></TickerPopup></TD>
                   <TD style={{color:C.tx2,fontFamily:"JetBrains Mono, monospace"}}>{p.date}</TD>
                   <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx}}>
                     {fP(p.dpPrice)}</TD>
@@ -581,8 +582,8 @@ function OptionsPane(){
                   onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   <TD style={{color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>{o.date}</TD>
-                  <TD><span style={{color:C.pink,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
-                    ${o.ticker}</span></TD>
+                  <TD><TickerPopup sym={o.ticker}><span style={{color:C.pink,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
+                    ${o.ticker}</span></TickerPopup></TD>
                   <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2}}>{fP(o.price)}</TD>
                   <TD style={{color:C.tx,fontSize:11,maxWidth:380}}>{o.message}</TD>
                   <TD><span style={{color:dirColor,fontWeight:700,fontSize:11,

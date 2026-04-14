@@ -3,6 +3,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react'
 import useSWR from 'swr'
 import FilterBar from '../components/FilterBar'
 import ImportWizard from '../components/ImportWizard'
+import TickerPopup from '../../../components/TickerPopup'
 import styles from './TradeLog.module.css'
 
 const fetcher = url => fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
@@ -234,7 +235,7 @@ export default function TradeLog({ onOpenTrade, stats, onStatsChange, initialFil
                       onClick={() => onOpenTrade(trade.id)}
                     >
                       <td className={styles.dateCell}>{trade.entry_date || '--'}</td>
-                      <td className={styles.symCell}>{trade.sym || '--'}</td>
+                      <td className={styles.symCell}>{trade.sym ? <TickerPopup sym={trade.sym}>{trade.sym}</TickerPopup> : '--'}</td>
                       <td>
                         <span className={trade.direction === 'short' ? styles.shortBadge : styles.longBadge}>
                           {(trade.direction || 'long').toUpperCase()}
