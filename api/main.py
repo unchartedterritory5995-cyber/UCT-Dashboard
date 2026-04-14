@@ -29,6 +29,7 @@ from api.routers import alerts as alerts_router
 from api.routers import journal as journal_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
+from api.routers import watchlist_alerts as watchlist_alerts_router
 from api.routers import community as community_router
 from api.routers import rs_ranking as rs_ranking_router
 from api.routers import sector_flow as sector_flow_router
@@ -245,6 +246,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] MRR snapshot error (non-fatal): {e}")
 
+    # Watchlist digest emails
+    from api.services.watchlist_digest import run_daily_digests, run_weekly_digests
+    _scheduler.add_job(
+        run_daily_digests,
+        trigger=CronTrigger(hour=17, minute=0),
+        id="watchlist_daily_digest",
+        max_instances=1,
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        run_weekly_digests,
+        trigger=CronTrigger(day_of_week="fri", hour=17, minute=5),
+        id="watchlist_weekly_digest",
+        max_instances=1,
+        replace_existing=True,
+    )
+
     _scheduler.start()
     print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
     print("[startup] Session cleanup scheduled — daily at 3:00 AM ET")
@@ -297,6 +315,7 @@ app.include_router(alerts_router.router)
 app.include_router(journal_router.router)
 app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
+app.include_router(watchlist_alerts_router.router)
 app.include_router(community_router.router)
 app.include_router(live_prices_router.router)
 app.include_router(rs_ranking_router.router)

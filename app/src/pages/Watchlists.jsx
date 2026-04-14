@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import useLivePrices from '../hooks/useLivePrices'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import useTickerTags from '../hooks/useTickerTags'
+import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { TAG_COLORS, TAG_BY_KEY } from '../constants/tagColors'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
@@ -225,6 +226,10 @@ export default function Watchlists() {
 
   const { prices } = useLivePrices(allTickers)
   const { tags, setTag, removeTag, getTag } = useTickerTags()
+  const { createAlert, deleteAlert, getAlertsForSym, hasAlert } = useWatchlistAlerts()
+  const [alertPopover, setAlertPopover] = useState(null) // { sym, x, y }
+  const [alertPrice, setAlertPrice] = useState('')
+  const [alertDir, setAlertDir] = useState('above')
   const { perfData } = useWatchlistPerformance(visiblePerf.size > 0 ? allTickers : [])
 
   function togglePerfCol(key) {
@@ -450,6 +455,11 @@ export default function Watchlists() {
                         onClick={e => { e.stopPropagation(); toggleNote(item.id, item.notes) }}
                         title="Notes"
                       >✎</button>
+                      <button
+                        className={`${styles.alertBtn}${hasAlert(item.sym) ? ' ' + styles.alertBtnActive : ''}`}
+                        onClick={e => { e.stopPropagation(); setAlertPopover({ sym: item.sym, x: e.clientX, y: e.clientY }); setAlertPrice(''); setAlertDir('above') }}
+                        title="Set price alert"
+                      >🔔</button>
                       {isOwner && (
                         <button
                           className={styles.removeBtn}
@@ -764,6 +774,48 @@ export default function Watchlists() {
                 onClick={handleImport}
               >Import</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Alert popover ── */}
+      {alertPopover && (
+        <div className={styles.ctxBackdrop} onClick={() => setAlertPopover(null)}>
+          <div className={styles.alertPopover} style={{ top: alertPopover.y, left: alertPopover.x }} onClick={e => e.stopPropagation()}>
+            <div className={styles.alertPopTitle}>Alert for {alertPopover.sym}</div>
+            <div className={styles.alertForm}>
+              <select className={styles.alertSelect} value={alertDir} onChange={e => setAlertDir(e.target.value)}>
+                <option value="above">Above</option>
+                <option value="below">Below</option>
+              </select>
+              <input
+                className={styles.alertInput}
+                type="number"
+                step="0.01"
+                placeholder="$0.00"
+                value={alertPrice}
+                onChange={e => setAlertPrice(e.target.value)}
+                autoFocus
+              />
+              <button
+                className={styles.alertSubmit}
+                disabled={!alertPrice || parseFloat(alertPrice) <= 0}
+                onClick={() => {
+                  createAlert(alertPopover.sym, parseFloat(alertPrice), alertDir)
+                  setAlertPopover(null)
+                }}
+              >Set</button>
+            </div>
+            {getAlertsForSym(alertPopover.sym).length > 0 && (
+              <div className={styles.alertList}>
+                {getAlertsForSym(alertPopover.sym).map(a => (
+                  <div key={a.id} className={styles.alertItem}>
+                    <span>{a.direction} ${a.target_price.toFixed(2)}</span>
+                    <button className={styles.alertDeleteBtn} onClick={() => deleteAlert(a.id)}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

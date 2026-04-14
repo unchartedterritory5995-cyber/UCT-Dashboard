@@ -11,6 +11,7 @@ const TYPE_ICONS = {
   scanner_match: '⚡',
   ep_resolved: '✅',
   exposure_shift: '📊',
+  price_alert: '🔔',
 }
 
 const SEV_CLASS = {

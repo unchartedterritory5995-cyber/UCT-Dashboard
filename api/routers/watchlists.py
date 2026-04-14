@@ -7,6 +7,8 @@ from typing import Optional
 from api.middleware.auth_middleware import get_current_user
 from api.services import watchlist_service
 from api.services.watchlist_performance import get_batch_returns
+from api.services.auth_db import get_connection
+import json
 
 router = APIRouter()
 
@@ -166,3 +168,33 @@ def remove_item(wl_id: str, item_id: str, user: dict = Depends(get_current_user)
     if not watchlist_service.remove_item(user["id"], wl_id, item_id):
         raise HTTPException(status_code=404, detail="Item not found")
     return {"ok": True}
+
+
+# ── Digest settings ──
+
+class DigestSettings(BaseModel):
+    frequency: str  # 'off', 'daily', 'weekly'
+
+
+@router.get("/api/watchlists/digest-settings")
+def get_digest_settings(user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT pref_value FROM user_preferences WHERE user_id = ? AND pref_key = 'watchlist_digest'",
+            (user["id"],),
+        ).fetchone()
+        if row:
+            return json.loads(row["pref_value"])
+        return {"frequency": "off"}
+    finally:
+        conn.close()
+
+
+@router.put("/api/watchlists/digest-settings")
+def set_digest_settings(body: DigestSettings, user: dict = Depends(get_current_user)):
+    if body.frequency not in ("off", "daily", "weekly"):
+        raise HTTPException(status_code=400, detail="frequency must be 'off', 'daily', or 'weekly'")
+    from api.services.auth_service import set_user_preference
+    set_user_preference(user["id"], "watchlist_digest", json.dumps({"frequency": body.frequency}))
+    return {"frequency": body.frequency}

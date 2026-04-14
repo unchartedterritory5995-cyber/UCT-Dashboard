@@ -280,6 +280,23 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_ticker_tags_sym ON ticker_tags(sym)")
         conn.commit()
 
+        # Watchlist alerts table (per-symbol price alerts)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS watchlist_alerts (
+                id              TEXT PRIMARY KEY,
+                user_id         TEXT NOT NULL REFERENCES users(id),
+                sym             TEXT NOT NULL,
+                target_price    REAL NOT NULL,
+                direction       TEXT NOT NULL,
+                is_active       INTEGER DEFAULT 1,
+                triggered_at    TIMESTAMP,
+                created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_wl_alerts_user ON watchlist_alerts(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_wl_alerts_active ON watchlist_alerts(is_active)")
+        conn.commit()
+
         # Migration: add sort_order column to watchlist_items if missing
         wi_cols = [row[1] for row in conn.execute("PRAGMA table_info(watchlist_items)").fetchall()]
         if "sort_order" not in wi_cols:

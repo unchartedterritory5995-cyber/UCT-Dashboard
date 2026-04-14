@@ -566,6 +566,111 @@
   margin-bottom: 12px;
 }
 
+.alertBtn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.3;
+  line-height: 1;
+}
+
+.alertBtn:hover { opacity: 0.8; }
+.alertBtnActive { opacity: 1; }
+
+.alertPopover {
+  position: fixed;
+  background: #1e1e22;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 12px 14px;
+  min-width: 220px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 10000;
+}
+
+.alertPopTitle {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ut-gold, #c9a84c);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.alertForm {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.alertSelect {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ut-cream, #e8e0d0);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 4px 6px;
+  outline: none;
+}
+
+.alertInput {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ut-cream, #e8e0d0);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 4px 8px;
+  width: 80px;
+  outline: none;
+}
+
+.alertInput:focus, .alertSelect:focus { border-color: var(--ut-gold, #c9a84c); }
+
+.alertSubmit {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: #0e0f0d;
+  background: var(--ut-gold, #c9a84c);
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.alertSubmit:disabled { opacity: 0.4; cursor: default; }
+
+.alertList {
+  margin-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 6px;
+}
+
+.alertItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: rgba(255,255,255,0.6);
+  padding: 3px 0;
+}
+
+.alertDeleteBtn {
+  background: none;
+  border: none;
+  color: #f87171;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+.alertDeleteBtn:hover { opacity: 1; }
+
 .tagDot {
   display: inline-block;
   width: 8px;
