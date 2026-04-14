@@ -35,7 +35,7 @@ export default function Watchlists() {
   const [selectedSym, setSelectedSym] = useState(null)
   const [chartPeriod, setChartPeriod] = useState('D')
   const [flagToast, setFlagToast] = useState(null)
-  const [expandedLists, setExpandedLists] = useState(new Set(['flagged']))
+  const [expandedLists, setExpandedLists] = useState(new Set())
   const [showCreate, setShowCreate] = useState(false)
   const [createForm, setCreateForm] = useState({ name: '', description: '', is_public: false })
   const [saving, setSaving] = useState(false)
