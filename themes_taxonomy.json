@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "generated_at": "2026-04-14",
   "sectors": [
     {
@@ -514,12 +514,6 @@
           "tier": "relevant",
           "sub_theme_id": "cloud_platforms",
           "rationale": "Cloud-native document database platform"
-        },
-        {
-          "sym": "CFLT",
-          "tier": "relevant",
-          "sub_theme_id": "cloud_platforms",
-          "rationale": "Cloud-native data streaming (Kafka)"
         },
         {
           "sym": "ESTC",
@@ -1809,12 +1803,6 @@
           "rationale": "Chinese smart EV maker with ADAS focus"
         },
         {
-          "sym": "CHPT",
-          "tier": "relevant",
-          "sub_theme_id": "ev_charging",
-          "rationale": "Leading US EV charging network operator"
-        },
-        {
           "sym": "ON",
           "tier": "relevant",
           "sub_theme_id": "ev_supply_chain",
@@ -2005,12 +1993,6 @@
           "tier": "relevant",
           "sub_theme_id": "energy_storage",
           "rationale": "Home standby generators and energy storage"
-        },
-        {
-          "sym": "STEM",
-          "tier": "peripheral",
-          "sub_theme_id": "grid_software",
-          "rationale": "AI-driven energy storage optimization software"
         }
       ]
     },
@@ -2370,31 +2352,13 @@
     },
     {
       "id": "gold",
-      "name": "Gold",
+      "name": "Gold Royalty & Streaming",
       "sector_id": "materials",
       "etf_ticker": "GLD",
       "etf_name": "SPDR Gold Shares",
       "display_order": 1,
       "sub_themes": [],
       "holdings": [
-        {
-          "sym": "NEM",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Largest gold mining company globally"
-        },
-        {
-          "sym": "GOLD",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Second-largest gold miner (Barrick Gold)"
-        },
-        {
-          "sym": "AEM",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Major Canadian gold and silver miner"
-        },
         {
           "sym": "FNV",
           "tier": "core",
@@ -2406,24 +2370,6 @@
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "Precious metals streaming company"
-        },
-        {
-          "sym": "KGC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Mid-tier gold and silver producer"
-        },
-        {
-          "sym": "AGI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Growing mid-tier gold miner"
-        },
-        {
-          "sym": "GFI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "South African gold producer"
         },
         {
           "sym": "RGLD",
@@ -2707,6 +2653,18 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Lynas Rare Earths, largest non-China rare earth producer"
+        },
+        {
+          "sym": "USAR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "USA Rare Earth, US mine-to-magnet rare earth manufacturer"
+        },
+        {
+          "sym": "TMC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "The Metals Company, deep-sea polymetallic nodule mining"
         }
       ]
     },
@@ -5590,6 +5548,12 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "ChipMOS, semiconductor testing and packaging"
+        },
+        {
+          "sym": "CHT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Chunghwa Telecom, Taiwan largest telecom (NYSE listed)"
         }
       ]
     },
@@ -5631,6 +5595,24 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Korea Electric Power, state electric utility"
+        },
+        {
+          "sym": "CPNG",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Coupang, largest Korean e-commerce company (NYSE listed)"
+        },
+        {
+          "sym": "SKM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "SK Telecom, 2nd largest Korean wireless carrier (NYSE listed)"
+        },
+        {
+          "sym": "KT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "KT Corporation, largest Korean fixed-line telecom (NYSE listed)"
         }
       ]
     },
