@@ -788,6 +788,43 @@ export default function Settings() {
         {/* ── Chart Settings ── */}
         <ChartSettingsSection prefs={prefs} setPref={setPref} />
 
+        {/* ── Notifications ── */}
+        <TileCard title="Notifications">
+          <div className={styles.section}>
+            <div className={styles.prefRow}>
+              <div className={styles.prefLabelGroup}>
+                <span className={styles.prefLabel}>Alert Sound</span>
+                <span className={styles.prefDesc}>Play a chime when new price alerts trigger</span>
+              </div>
+              <select
+                className={styles.select}
+                value={prefs.alert_sound || 'on'}
+                onChange={e => setPref('alert_sound', e.target.value)}
+              >
+                <option value="on">On</option>
+                <option value="off">Off</option>
+              </select>
+            </div>
+            <div className={styles.prefRow}>
+              <div className={styles.prefLabelGroup}>
+                <span className={styles.prefLabel}>Browser Notifications</span>
+                <span className={styles.prefDesc}>Show desktop notifications when alerts fire (even when tab is in background)</span>
+              </div>
+              <button
+                className={styles.btn}
+                onClick={async () => {
+                  if (!('Notification' in window)) { alert('Your browser does not support notifications'); return }
+                  const perm = await Notification.requestPermission()
+                  if (perm === 'granted') alert('Notifications enabled!')
+                  else if (perm === 'denied') alert('Notifications blocked. Enable in browser settings.')
+                }}
+              >
+                {typeof Notification !== 'undefined' && Notification.permission === 'granted' ? 'Enabled' : 'Enable'}
+              </button>
+            </div>
+          </div>
+        </TileCard>
+
         {/* ── Watchlist Digest ── */}
         <TileCard title="Watchlist Digest">
           <div className={styles.section}>

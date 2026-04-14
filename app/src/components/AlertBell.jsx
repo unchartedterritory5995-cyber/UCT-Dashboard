@@ -1,9 +1,11 @@
-// app/src/components/AlertBell.jsx — Notification bell with dropdown
+// app/src/components/AlertBell.jsx — Notification bell with dropdown + sound + browser push
 import { useState, useRef, useEffect } from 'react'
 import useSWR from 'swr'
+import { playAlertSound, showBrowserNotification, requestNotificationPermission } from '../utils/alertSound'
+import usePreferences from '../hooks/usePreferences'
 import styles from './AlertBell.module.css'
 
-const fetcher = url => fetch(url).then(r => r.json())
+const fetcher = url => fetch(url).then(r => r.ok ? r.json() : [])
 
 const TYPE_ICONS = {
   regime_change: '🔄',
@@ -31,11 +33,42 @@ function timeAgo(ts) {
 
 export default function AlertBell() {
   const { data: alerts, mutate } = useSWR('/api/alerts?limit=20', fetcher, { refreshInterval: 60000 })
+  const { prefs } = usePreferences()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
+  const prevIdsRef = useRef(new Set())
+  const initialLoadRef = useRef(true)
+  const soundEnabled = prefs.alert_sound !== 'off'
 
   const items = Array.isArray(alerts) ? alerts : []
   const unreadCount = items.filter(a => !a.read).length
+
+  // Detect new alerts → play sound + browser notification
+  useEffect(() => {
+    if (!items.length) return
+    const currentIds = new Set(items.map(a => a.id))
+
+    // Skip first load (don't ding on page refresh)
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false
+      prevIdsRef.current = currentIds
+      return
+    }
+
+    // Find alerts that are new (not in previous set) AND unread
+    const newAlerts = items.filter(a => !prevIdsRef.current.has(a.id) && !a.read)
+    prevIdsRef.current = currentIds
+
+    if (newAlerts.length > 0) {
+      // Play sound (if enabled)
+      if (soundEnabled) playAlertSound()
+
+      // Show browser notification for each new alert (max 3)
+      newAlerts.slice(0, 3).forEach(a => {
+        showBrowserNotification(a.title, a.message)
+      })
+    }
+  }, [items])
 
   // Close on outside click
   useEffect(() => {
@@ -56,9 +89,17 @@ export default function AlertBell() {
     mutate()
   }
 
+  function handleBellClick() {
+    setOpen(o => !o)
+    // Request notification permission on first bell click
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      requestNotificationPermission()
+    }
+  }
+
   return (
     <div className={styles.wrap} ref={ref}>
-      <button className={styles.bell} onClick={() => setOpen(o => !o)} title="Alerts" aria-label="Notifications">
+      <button className={styles.bell} onClick={handleBellClick} title="Alerts" aria-label="Notifications">
         <span className={styles.bellIcon}>🔔</span>
         {unreadCount > 0 && <span className={styles.badge} aria-live="polite">{unreadCount > 9 ? '9+' : unreadCount}</span>}
       </button>
