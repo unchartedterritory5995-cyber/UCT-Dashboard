@@ -3265,6 +3265,10 @@ export default function OptionsFlowDashboard() {
                   // Pre-compute directional helpers (needed by setup text + trade ideas)
                   const callsAboveSpot = topCalls.filter(s => s.strike > sp);
                   const firstResAbove = callsAboveSpot.length > 0 ? callsAboveSpot.sort((a,b)=>a.strike-b.strike)[0] : null;
+                  // For pin reclaim: target must be above the PIN strike, not just above spot
+                  const pinHighStrike = Math.max(cwStrike, pwStrike);
+                  const callsAbovePin = topCalls.filter(s => s.strike > pinHighStrike);
+                  const firstResAbovePin = callsAbovePin.length > 0 ? callsAbovePin.sort((a,b)=>a.strike-b.strike)[0] : null;
                   const putsBelowSpot = topPuts.filter(s => s.strike < sp);
                   const firstSupBelow = putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null;
                   const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
@@ -3277,10 +3281,10 @@ export default function OptionsFlowDashboard() {
                     if (cwStrike === pwStrike) {
                       if (spotAbovePin) {
                         setupTitle = "What to expect — $" + cwStrike + " is support";
-                        setupText = "Price pushed above the $" + cwStrike + " pin (" + fmtGex(cwGex+pwGex) + "). It's now support below — pullbacks toward $" + cwStrike + " are buying opportunities." + (isIntraday?"":((firstResAbove ? " If it holds, swing target $" + firstResAbove.strike + "." : "") + " " + (isPositive?"Safety net active — dips are cushioned.":"No safety net — be quick on exits if $"+cwStrike+" breaks.")));
+                        setupText = "Price pushed above the $" + cwStrike + " pin (" + fmtGex(cwGex+pwGex) + "). It's now support below — pullbacks toward $" + cwStrike + " are buying opportunities." + (isIntraday?"":((firstResAbovePin ? " If it holds, swing target $" + firstResAbovePin.strike + "." : "") + " " + (isPositive?"Safety net active — dips are cushioned.":"No safety net — be quick on exits if $"+cwStrike+" breaks.")));
                       } else if (spotBelowPin) {
                         setupTitle = "What to expect — recovering toward $" + cwStrike;
-                        setupText = fmtGex(cwGex+pwGex) + " of gravity at $" + cwStrike + " is pulling price back up." + (isIntraday?" Expect a snap back to the pin.":" Expect price to recover toward $" + cwStrike + " this week.") + (isPositive?" Safety net active — dips are limited.":" No safety net — recovery may be choppy.") + (firstResAbove && !isIntraday ? " If price reclaims $" + cwStrike + ", it becomes support — swing target $" + firstResAbove.strike + "." : "");
+                        setupText = fmtGex(cwGex+pwGex) + " of gravity at $" + cwStrike + " is pulling price back up." + (isIntraday?" Expect a snap back to the pin.":" Expect price to recover toward $" + cwStrike + " this week.") + (isPositive?" Safety net active — dips are limited.":" No safety net — recovery may be choppy.") + (firstResAbovePin && !isIntraday ? " If price reclaims $" + cwStrike + ", it becomes support — swing target $" + firstResAbovePin.strike + "." : "");
                       } else {
                         setupTitle = "What to expect — price stuck at $" + cwStrike;
                         setupText = "Ceiling and floor sit at the same price ($" + cwStrike + ") with " + fmtGex(cwGex+pwGex) + " behind it. Price wants to stay here — every move away gets pulled back. " + (isPositive?(isIntraday?"Dips bounce, rallies fade.":"Expect price to orbit $"+cwStrike+" this week. Dips bounce, rallies fade."):"Moves can be sharp but snap back to $" + cwStrike + ".");
@@ -3335,8 +3339,8 @@ export default function OptionsFlowDashboard() {
                       if (pinAboveSpot) {
                         trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips near $"+sp.toFixed(0)+" — gravity at $"+pinStrike+" is pulling price up. Target $"+pinStrike+"." });
                       }
-                      if (pinBelowSpot && firstResAbove) {
-                        trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price holds above $"+pinStrike+", pin becomes support. Next target $"+firstResAbove.strike+"." });
+                      if (pinBelowSpot && firstResAbovePin) {
+                        trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price holds above $"+pinStrike+", pin becomes support. Next target $"+firstResAbovePin.strike+"." });
                       }
                       if (pinBelowSpot) {
                         trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is support below. Buy dips toward it — "+fmtGex(cwGex+pwGex)+" catches any pullback." });
@@ -3347,8 +3351,8 @@ export default function OptionsFlowDashboard() {
                       if (pinAboveSpot) {
                         trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Price below the $"+pinStrike+" pin — gravity pulls it back up. Buy dips this week targeting $"+pinStrike+". "+fmtGex(cwGex+pwGex)+" wants price there." });
                       }
-                      if (pinBelowSpot && firstResAbove) {
-                        trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+pinStrike+" for 2+ days, the pin becomes support. Swing long toward $"+firstResAbove.strike+"." });
+                      if (pinBelowSpot && firstResAbovePin) {
+                        trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+pinStrike+" for 2+ days, the pin becomes support. Swing long toward $"+firstResAbovePin.strike+"." });
                       }
                       if (pinBelowSpot) {
                         trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is weekly support below — "+fmtGex(cwGex+pwGex)+" catches pullbacks. Buy dips toward it." });
@@ -3466,13 +3470,13 @@ export default function OptionsFlowDashboard() {
                         if (Math.abs(sp - cwStrike) <= sp * 0.003) {
                           parts.push("Price sitting right at the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined). Everything pulls back to this strike.");
                           parts.push(isPositive ? (isIntraday ? "Dips bounce, rallies fade. Classic pin action." : "This week expect price to orbit "+cwStr+". Dips bounce, rallies fade.") : "Pin is active but no safety net — expect sharp whipsaws around "+cwStr+".");
-                          if (firstResAbove && !isIntraday) parts.push("If price breaks and holds above "+cwStr+", it becomes support — swing target $"+firstResAbove.strike+".");
+                          if (firstResAbovePin && !isIntraday) parts.push("If price breaks and holds above "+cwStr+", it becomes support — swing target $"+firstResAbovePin.strike+".");
                         } else if (sp > cwStrike) {
                           parts.push("Price pushed above the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) — "+cwStr+" is now support below.");
                           if (isIntraday) {
-                            parts.push(fmtGex(cwGex+pwGex)+" catches any pullback to "+cwStr+". "+safetyStr+(firstResAbove ? " Next resistance at $"+firstResAbove.strike+"." : ""));
+                            parts.push(fmtGex(cwGex+pwGex)+" catches any pullback to "+cwStr+". "+safetyStr+(firstResAbovePin ? " Next resistance at $"+firstResAbovePin.strike+"." : ""));
                           } else {
-                            parts.push("Buy dips toward "+cwStr+" this week — "+fmtGex(cwGex+pwGex)+" acts as a floor."+(firstResAbove ? " If it holds, swing target $"+firstResAbove.strike+"." : "")+" "+safetyStr);
+                            parts.push("Buy dips toward "+cwStr+" this week — "+fmtGex(cwGex+pwGex)+" acts as a floor."+(firstResAbovePin ? " If it holds, swing target $"+firstResAbovePin.strike+"." : "")+" "+safetyStr);
                           }
                         } else {
                           parts.push("Price dipped below the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) and is $"+dist.toFixed(0)+" below.");
@@ -3480,7 +3484,7 @@ export default function OptionsFlowDashboard() {
                             parts.push("Gravity pulling up toward "+cwStr+". "+(isPositive ? "Safety net active — expect a bounce back to the pin." : "No safety net — could break further before snapping back."));
                           } else {
                             parts.push("Gravity pulling up toward "+cwStr+". "+(isPositive ? "Safety net active — expect price to recover toward the pin this week." : "No safety net — could break further before snapping back."));
-                            parts.push("If price reclaims "+cwStr+", it becomes support"+(firstResAbove ? " — swing target $"+firstResAbove.strike+"." : "."));
+                            parts.push("If price reclaims "+cwStr+", it becomes support"+(firstResAbovePin ? " — swing target $"+firstResAbovePin.strike+"." : "."));
                           }
                         }
                       } else if (squeezeSetup) {
