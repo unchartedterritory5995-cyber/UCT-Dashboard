@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
-import TickerPopup from "../components/TickerPopup";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 
 // ─── Flow Data loaded dynamically from /flow-data.csv ─────────────────────────
@@ -1364,7 +1363,7 @@ export default function OptionsFlowDashboard() {
         boxShadow:"0 8px 32px rgba(0,0,0,0.6)", borderTop:"2px solid "+c }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", borderBottom:"1px solid "+P.bd }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <TickerPopup sym={sym}><span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{sym}</span></TickerPopup>
+            <span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{sym}</span>
             <span style={{ fontSize:14, fontWeight:800, color:c }}>${K}{cp}</span>
             <span style={{ fontSize:13, fontWeight:700, color:P.wh }}>{exp}</span>
             <Tag c={c}>{dir}</Tag>
@@ -1930,7 +1929,7 @@ export default function OptionsFlowDashboard() {
                 onClick={()=>{ const next = selectedConv===i ? null : i; setSelectedConv(next); if(next!==null) fetchContractHistory(t.sym, t.cp, t.K, t.exp); }}>
                 <div style={{ background:P.cd, border:"1px solid "+(selectedConv===i?P.ac:P.bd), borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+c, cursor:"pointer", transition:"border-color 0.15s" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
-                    <TickerPopup sym={t.sym}><span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span></TickerPopup>
+                    <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span>
                     <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
                   </div>
                   <div style={{ fontSize:13, fontWeight:800, color:c }}>{t.strike} <span style={{ fontSize:11, fontWeight:700, color:P.wh }}>{t.exp}</span></div>
@@ -2032,7 +2031,7 @@ export default function OptionsFlowDashboard() {
               {/* Panel Header */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", borderBottom:"1px solid "+P.bd }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <TickerPopup sym={t.sym}><span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{t.sym}</span></TickerPopup>
+                  <span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{t.sym}</span>
                   <span style={{ fontSize:14, fontWeight:800, color:c }}>{t.strike}</span>
                   <span style={{ fontSize:13, fontWeight:700, color:P.wh }}>{t.exp}</span>
                   <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
@@ -2885,7 +2884,7 @@ export default function OptionsFlowDashboard() {
                           onClick={()=>{ fetchContractHistory(t.sym,t.cp,t.K,t.exp); setSelectedItem(prev=>prev&&prev.sym===t.sym&&prev.cp===t.cp&&String(prev.K)===String(t.K)&&prev.exp===t.exp?null:{sym:t.sym,cp:t.cp,K:t.K,exp:t.exp}); }}>
                           <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+c, transition:"border-color 0.15s" }}>
                             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
-                              <TickerPopup sym={t.sym}><span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span></TickerPopup>
+                              <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span>
                               <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
                             </div>
                             <div style={{ fontSize:13, fontWeight:800, color:c }}>{t.strike} <span style={{ fontSize:11, fontWeight:700, color:P.wh }}>{t.exp}</span></div>
@@ -3150,11 +3149,20 @@ export default function OptionsFlowDashboard() {
                   let verdictText, verdictIcon, verdictBg, verdictColor;
                   if (pinSetup) {
                     if (cwStrike === pwStrike) {
-                      verdictText = "Ceiling and floor at the same price ($" + cwStrike + ") — " + fmtGex(cwGex + pwGex) + " combined. Price is stuck here. Every push up or down gets pulled back.";
+                      if (sp > cwStrike + cwStrike * 0.003) {
+                        verdictText = "Price above the $" + cwStrike + " pin — " + fmtGex(cwGex + pwGex) + " is now support below. Pullbacks toward $" + cwStrike + " are buying opportunities.";
+                        verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                      } else if (sp < cwStrike - cwStrike * 0.003) {
+                        verdictText = fmtGex(cwGex + pwGex) + " at $" + cwStrike + " pulling price back up. Expect recovery toward $" + cwStrike + (isIntraday?".":" this week.");
+                        verdictIcon = "⇡"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                      } else {
+                        verdictText = "Ceiling and floor at the same price ($" + cwStrike + ") — " + fmtGex(cwGex + pwGex) + " combined. Price is stuck here. Every push up or down gets pulled back.";
+                        verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                      }
                     } else {
                       verdictText = "Price squeezed between two gravity zones pulling inward. " + fmtGex(cwGex + pwGex) + " combined traps price in a tight $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike) + " range.";
+                      verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
                     }
-                    verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
                   } else if (squeezeSetup) {
                     const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
                     verdictText = "Price squeezed between $" + lo + " floor and $" + hi + " ceiling. " + fmtGex(cwGex + pwGex) + " combined traps price in a $" + wallSpread + " range." + (isIntraday?" Fade the edges.":" Swing the edges this week.");
@@ -3257,9 +3265,20 @@ export default function OptionsFlowDashboard() {
 
                   let setupTitle, setupText;
                   if (pinSetup) {
+                    const pinStrikeSetup = cwStrike === pwStrike ? cwStrike : Math.round((cwStrike+pwStrike)/2);
+                    const spotAbovePin = sp > pinStrikeSetup;
+                    const spotBelowPin = sp < pinStrikeSetup;
                     if (cwStrike === pwStrike) {
-                      setupTitle = "What to expect — price stuck at $" + cwStrike;
-                      setupText = "Ceiling and floor sit at the same price ($" + cwStrike + ") with " + fmtGex(cwGex+pwGex) + " behind it. Price wants to stay here — every move away gets pulled back. " + (isPositive?(isIntraday?"Dips bounce, rallies fade.":"Expect price to orbit $"+cwStrike+" this week. Dips bounce, rallies fade."):"Moves can be sharp but snap back to $" + cwStrike + ".");
+                      if (spotAbovePin) {
+                        setupTitle = "What to expect — $" + cwStrike + " is support";
+                        setupText = "Price pushed above the $" + cwStrike + " pin (" + fmtGex(cwGex+pwGex) + "). It's now support below — pullbacks toward $" + cwStrike + " are buying opportunities." + (isIntraday?"":((firstResAbove ? " If it holds, swing target $" + firstResAbove.strike + "." : "") + " " + (isPositive?"Safety net active — dips are cushioned.":"No safety net — be quick on exits if $"+cwStrike+" breaks.")));
+                      } else if (spotBelowPin) {
+                        setupTitle = "What to expect — recovering toward $" + cwStrike;
+                        setupText = fmtGex(cwGex+pwGex) + " of gravity at $" + cwStrike + " is pulling price back up." + (isIntraday?" Expect a snap back to the pin.":" Expect price to recover toward $" + cwStrike + " this week.") + (isPositive?" Safety net active — dips are limited.":" No safety net — recovery may be choppy.") + (firstResAbove && !isIntraday ? " If price reclaims $" + cwStrike + ", it becomes support — swing target $" + firstResAbove.strike + "." : "");
+                      } else {
+                        setupTitle = "What to expect — price stuck at $" + cwStrike;
+                        setupText = "Ceiling and floor sit at the same price ($" + cwStrike + ") with " + fmtGex(cwGex+pwGex) + " behind it. Price wants to stay here — every move away gets pulled back. " + (isPositive?(isIntraday?"Dips bounce, rallies fade.":"Expect price to orbit $"+cwStrike+" this week. Dips bounce, rallies fade."):"Moves can be sharp but snap back to $" + cwStrike + ".");
+                      }
                     } else {
                       const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
                       setupTitle = "What to expect — price pinned at $" + lo + "–$" + hi;
@@ -3303,14 +3322,31 @@ export default function OptionsFlowDashboard() {
                     // Pin setup trades
                     const pinStrike = cwStrike === pwStrike ? cwStrike : Math.round((cwStrike+pwStrike)/2);
                     const pinRange = cwStrike === pwStrike ? Math.round(sp*0.005) : wallSpread;
+                    const pinAboveSpot = pinStrike > sp;
+                    const pinBelowSpot = pinStrike < sp;
                     if (isIntraday) {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+pinStrike+" — sell premium here (iron fly). Profit if price stays between $"+(pinStrike-pinRange*2)+"–$"+(pinStrike+pinRange*2)+"." });
-                      if (sp > pinStrike + 10) {
-                        trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+pinStrike+" is pulling down. If price drops below $"+(pinStrike+Math.round(pinRange*2))+", expect a quick slide to $"+pinStrike+". Don't try to buy the dip." });
+                      if (pinAboveSpot) {
+                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips near $"+sp.toFixed(0)+" — gravity at $"+pinStrike+" is pulling price up. Target $"+pinStrike+"." });
+                      }
+                      if (pinBelowSpot && firstResAbove) {
+                        trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price holds above $"+pinStrike+", pin becomes support. Next target $"+firstResAbove.strike+"." });
+                      }
+                      if (pinBelowSpot) {
+                        trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is support below. Buy dips toward it — "+fmtGex(cwGex+pwGex)+" catches any pullback." });
                       }
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+pinStrike+". Sell rallies above $"+(pinStrike+pinRange*3)+" and buy dips below $"+(pinStrike-pinRange*3)+"." });
                     } else {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+pinStrike+" is the magnet strike this week — sell weekly premium around it. Iron fly or short straddle with defined risk." });
+                      if (pinAboveSpot) {
+                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Price below the $"+pinStrike+" pin — gravity pulls it back up. Buy dips this week targeting $"+pinStrike+". "+fmtGex(cwGex+pwGex)+" wants price there." });
+                      }
+                      if (pinBelowSpot && firstResAbove) {
+                        trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+pinStrike+" for 2+ days, the pin becomes support. Swing long toward $"+firstResAbove.strike+"." });
+                      }
+                      if (pinBelowSpot) {
+                        trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is weekly support below — "+fmtGex(cwGex+pwGex)+" catches pullbacks. Buy dips toward it." });
+                      }
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Use $"+(pinStrike+pinRange*3)+" and $"+(pinStrike-pinRange*3)+" as swing fade levels. Enter on daily closes outside the range, target a snap back to $"+pinStrike+"." });
                     }
                   } else if (squeezeSetup) {
@@ -3424,12 +3460,22 @@ export default function OptionsFlowDashboard() {
                         if (Math.abs(sp - cwStrike) <= sp * 0.003) {
                           parts.push("Price sitting right at the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined). Everything pulls back to this strike.");
                           parts.push(isPositive ? (isIntraday ? "Dips bounce, rallies fade. Classic pin action." : "This week expect price to orbit "+cwStr+". Dips bounce, rallies fade.") : "Pin is active but no safety net — expect sharp whipsaws around "+cwStr+".");
+                          if (firstResAbove && !isIntraday) parts.push("If price breaks and holds above "+cwStr+", it becomes support — swing target $"+firstResAbove.strike+".");
                         } else if (sp > cwStrike) {
-                          parts.push("Price rallied above the massive "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) and is sitting $"+dist.toFixed(0)+" above it.");
-                          parts.push("Gravity is pulling down — "+fmtGex(cwGex)+" ceiling below spot wants price back at "+cwStr+". "+safetyStr);
+                          parts.push("Price pushed above the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) — "+cwStr+" is now support below.");
+                          if (isIntraday) {
+                            parts.push(fmtGex(cwGex+pwGex)+" catches any pullback to "+cwStr+". "+safetyStr+(firstResAbove ? " Next resistance at $"+firstResAbove.strike+"." : ""));
+                          } else {
+                            parts.push("Buy dips toward "+cwStr+" this week — "+fmtGex(cwGex+pwGex)+" acts as a floor."+(firstResAbove ? " If it holds, swing target $"+firstResAbove.strike+"." : "")+" "+safetyStr);
+                          }
                         } else {
                           parts.push("Price dipped below the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) and is $"+dist.toFixed(0)+" below.");
-                          parts.push("Gravity pulling up toward "+cwStr+". "+(isPositive ? (isIntraday ? "Safety net active — expect a bounce back to the pin." : "Safety net active — expect price to recover toward the pin this week.") : "No safety net — could break further before snapping back."));
+                          if (isIntraday) {
+                            parts.push("Gravity pulling up toward "+cwStr+". "+(isPositive ? "Safety net active — expect a bounce back to the pin." : "No safety net — could break further before snapping back."));
+                          } else {
+                            parts.push("Gravity pulling up toward "+cwStr+". "+(isPositive ? "Safety net active — expect price to recover toward the pin this week." : "No safety net — could break further before snapping back."));
+                            parts.push("If price reclaims "+cwStr+", it becomes support"+(firstResAbove ? " — swing target $"+firstResAbove.strike+"." : "."));
+                          }
                         }
                       } else if (squeezeSetup) {
                         const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
@@ -3698,7 +3744,7 @@ export default function OptionsFlowDashboard() {
                           style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}><TickerPopup sym={p.sym}>{p.sym}</TickerPopup></td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
@@ -3734,7 +3780,7 @@ export default function OptionsFlowDashboard() {
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
                       return (
                         <tr key={p.id||i} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.7 }}>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}><TickerPopup sym={p.sym}>{p.sym}</TickerPopup></td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}</td>
                           <td style={{ padding:"5px 5px", color:P.dm }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
