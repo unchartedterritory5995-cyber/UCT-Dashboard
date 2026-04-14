@@ -221,6 +221,14 @@ export default function Watchlists() {
     if (activeTab === 'mine' && expandedLists.has('flagged')) {
       tickers.push(...flagged)
     }
+    // Tag groups
+    if (activeTab === 'mine') {
+      TAG_COLORS.forEach(tc => {
+        if (expandedLists.has(`tag:${tc.key}`)) {
+          Object.entries(tags).filter(([, c]) => c === tc.key).forEach(([s]) => tickers.push(s))
+        }
+      })
+    }
     const lists = activeTab === 'mine' ? myLists : communityLists
     if (lists) {
       lists
@@ -228,7 +236,7 @@ export default function Watchlists() {
         .forEach(wl => (wl.items || []).forEach(i => { if (i.sym) tickers.push(i.sym) }))
     }
     return tickers
-  }, [activeTab, flagged, myLists, communityLists, expandedLists])
+  }, [activeTab, flagged, tags, myLists, communityLists, expandedLists])
 
   const { prices } = useLivePrices(allTickers)
   const { tags, setTag, removeTag, getTag } = useTickerTags()
@@ -647,10 +655,60 @@ export default function Watchlists() {
         {/* Body */}
         <div className={styles.listBody}>
 
-          {/* ── My Lists tab — Flagged pinned at top + user lists ── */}
+          {/* ── My Lists tab — Flagged pinned at top + tag groups + user lists ── */}
           {activeTab === 'mine' && (
             <>
               {renderFlaggedGroup()}
+              {TAG_COLORS.map(tc => {
+                const syms = Object.entries(tags).filter(([, c]) => c === tc.key).map(([s]) => s)
+                if (!syms.length) return null
+                const open = expandedLists.has(`tag:${tc.key}`)
+                return (
+                  <div key={tc.key} className={styles.wlGroup}>
+                    <div className={styles.wlHeader} onClick={() => toggleList(`tag:${tc.key}`)}>
+                      <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
+                      <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: tc.hex, marginRight: 6 }} />
+                      <span className={styles.wlName}>{tc.label}</span>
+                      <span className={styles.wlCount}>{syms.length}</span>
+                    </div>
+                    {open && (
+                      <div className={styles.wlItems}>
+                        {syms.map(sym => {
+                          const q = prices[sym]
+                          const price = q?.price ?? null
+                          const changePct = q?.change_pct ?? null
+                          return (
+                            <div
+                              key={sym}
+                              className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`}
+                              onClick={() => setSelectedSym(sym)}
+                            >
+                              <span className={styles.rowSym}>{sym}</span>
+                              <div className={styles.rowRight}>
+                                {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
+                                {changePct != null && (
+                                  <span className={`${styles.rowChange} ${changePct >= 0 ? styles.gain : styles.loss}`}>
+                                    {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
+                                  </span>
+                                )}
+                                {PERF_COLS.filter(([k]) => visiblePerf.has(k)).map(([k, label]) => {
+                                  const val = perfData[sym]?.[k]
+                                  return (
+                                    <span key={k} className={`${styles.perfCell} ${changePctClass(val)}`} title={label}>
+                                      {val != null ? `${val > 0 ? '+' : ''}${val.toFixed(1)}%` : '—'}
+                                    </span>
+                                  )
+                                })}
+                                <button className={styles.removeBtn} onClick={e => { e.stopPropagation(); removeTag(sym) }} title="Remove tag">×</button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
               {!myLists ? (
                 <div className={styles.loading}>Loading…</div>
               ) : myLists.length === 0 ? (
