@@ -3146,6 +3146,19 @@ export default function OptionsFlowDashboard() {
                   const isPositive = tg > 0;
                   const zgDist = zg ? ((sp - zg) / zg * 100).toFixed(1) : null;
 
+                  // Pre-compute strike helpers (needed by verdict, setup text, trade ideas)
+                  const sortedStrikes = [...(gexData.strikes||[])].filter(s => sp > 0 ? (Math.abs(s.strike - sp) / sp <= 0.08 || s.strike === cwStrike || s.strike === pwStrike) : true);
+                  const topCalls = sortedStrikes.filter(s => s.callGex > 0 && s.strike !== cwStrike && s.strike !== pwStrike).sort((a,b) => b.callGex - a.callGex).slice(0, 3);
+                  const topPuts = sortedStrikes.filter(s => s.putGex < 0 && s.strike !== cwStrike && s.strike !== pwStrike && !topCalls.find(c => c.strike === s.strike)).sort((a,b) => a.putGex - b.putGex).slice(0, 2);
+                  const callsAboveSpot = topCalls.filter(s => s.strike > sp);
+                  const firstResAbove = callsAboveSpot.length > 0 ? callsAboveSpot.sort((a,b)=>a.strike-b.strike)[0] : null;
+                  const pinHighStrike = Math.max(cwStrike, pwStrike);
+                  const callsAbovePin = topCalls.filter(s => s.strike > pinHighStrike);
+                  const firstResAbovePin = callsAbovePin.length > 0 ? callsAbovePin.sort((a,b)=>a.strike-b.strike)[0] : null;
+                  const putsBelowSpot = topPuts.filter(s => s.strike < sp);
+                  const firstSupBelow = putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null;
+                  const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
+
                   let verdictText, verdictIcon, verdictBg, verdictColor;
                   if (pinSetup) {
                     if (cwStrike === pwStrike) {
@@ -3192,9 +3205,6 @@ export default function OptionsFlowDashboard() {
 
                   // Build key levels
                   const allLevels = [];
-                  const sortedStrikes = [...(gexData.strikes||[])].filter(s => sp > 0 ? (Math.abs(s.strike - sp) / sp <= 0.08 || s.strike === cwStrike || s.strike === pwStrike) : true);
-                  const topCalls = sortedStrikes.filter(s => s.callGex > 0 && s.strike !== cwStrike && s.strike !== pwStrike).sort((a,b) => b.callGex - a.callGex).slice(0, 3);
-                  const topPuts = sortedStrikes.filter(s => s.putGex < 0 && s.strike !== cwStrike && s.strike !== pwStrike && !topCalls.find(c => c.strike === s.strike)).sort((a,b) => a.putGex - b.putGex).slice(0, 2);
 
                   topCalls.forEach(s => {
                     const isCW = s.strike === cwStrike;
@@ -3261,17 +3271,6 @@ export default function OptionsFlowDashboard() {
                       fillColor:P.ac, fillText:P.bg, isZero:true, border:"1px dashed "+P.ac });
                   }
                   allLevels.sort((a,b) => b.strike - a.strike);
-
-                  // Pre-compute directional helpers (needed by setup text + trade ideas)
-                  const callsAboveSpot = topCalls.filter(s => s.strike > sp);
-                  const firstResAbove = callsAboveSpot.length > 0 ? callsAboveSpot.sort((a,b)=>a.strike-b.strike)[0] : null;
-                  // For pin reclaim: target must be above the PIN strike, not just above spot
-                  const pinHighStrike = Math.max(cwStrike, pwStrike);
-                  const callsAbovePin = topCalls.filter(s => s.strike > pinHighStrike);
-                  const firstResAbovePin = callsAbovePin.length > 0 ? callsAbovePin.sort((a,b)=>a.strike-b.strike)[0] : null;
-                  const putsBelowSpot = topPuts.filter(s => s.strike < sp);
-                  const firstSupBelow = putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null;
-                  const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
 
                   let setupTitle, setupText;
                   if (pinSetup) {
@@ -3373,12 +3372,19 @@ export default function OptionsFlowDashboard() {
                   } else {
                     // Directional trades
                     if (cwAboveSpot) {
+                      const cwDistPct = (cwStrike - sp) / sp;
                       if (isIntraday) {
                         trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips toward $"+(sp-(sp-(pwBelowSpot?pwStrike:sp*0.97))*0.3).toFixed(0)+". "+(isPositive?fmtGex(tg)+" safety net active — dips tend to bounce.":"No safety net — use smaller size and wider stops.")+" Stop below $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+"." });
                         trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Target $"+cwStrike+" ("+fmtGex(cwGex)+" ceiling)."+(firstResAbove && firstResAbove.strike < cwStrike ? " First test at $"+firstResAbove.strike+"." : "") });
+                        if (cwDistPct < 0.005 && firstResAbovePin) {
+                          trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price pushes above $"+cwStrike+" and holds, "+fmtGex(cwGex)+" becomes support. Next target $"+firstResAbovePin.strike+"." });
+                        }
                       } else {
                         trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Swing long entry on a daily close above $"+sp.toFixed(0)+" or a dip toward $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+". "+(isPositive?"Safety net is on — weekly dips tend to find buyers.":"No safety net — size down and use wider stops.")+" Stop on a daily close below $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+"." });
                         trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Swing target $"+cwStrike+" ("+fmtGex(cwGex)+" ceiling)."+(firstResAbove && firstResAbove.strike < cwStrike ? " Watch for resistance at $"+firstResAbove.strike+" first." : "")+" Take partial profits there." });
+                        if (cwDistPct < 0.01 && firstResAbovePin) {
+                          trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+cwStrike+", "+fmtGex(cwGex)+" becomes support below. Swing target $"+firstResAbovePin.strike+"." });
+                        }
                       }
                     } else {
                       // Call wall below = magnet pulling down
