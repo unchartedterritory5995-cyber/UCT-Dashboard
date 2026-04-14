@@ -1166,36 +1166,58 @@ export default function OptionsFlowDashboard() {
           const cw = gexData.callWall;
           const pw = gexData.putWall;
           const zg = gexData.zeroGamma;
+          const sp = gexData.spot || 0;
           const fmtG = v => { const abs=Math.abs(v); if(abs>=1e9) return "$"+(abs/1e9).toFixed(1)+"B"; if(abs>=1e6) return "$"+(abs/1e6).toFixed(1)+"M"; if(abs>=1e3) return "$"+(abs/1e3).toFixed(0)+"K"; return "$"+abs.toFixed(0); };
           const wallMax = Math.max(cw?.gex||0, Math.abs(pw?.gex||0));
-          if (cw) series.createPriceLine({ price:cw.strike, color:"#0a8f55", lineWidth:3, lineStyle:0, axisLabelVisible:true, title:"Ceiling "+fmtG(cw.gex) });
-          if (pw) series.createPriceLine({ price:pw.strike, color:"#c43030", lineWidth:3, lineStyle:0, axisLabelVisible:true, title:"Floor "+fmtG(Math.abs(pw.gex)) });
+          const getLineWeight = (gexVal) => {
+            const ratio = wallMax > 0 ? Math.abs(gexVal) / wallMax : 0;
+            if (ratio > 0.8) return { lw:4, ls:0 };  // wall-level
+            if (ratio > 0.5) return { lw:3, ls:0 };  // major
+            if (ratio > 0.25) return { lw:2, ls:0 }; // solid secondary
+            return { lw:1, ls:2 };                    // minor dashed
+          };
+
+          // Call wall
+          if (cw) {
+            const aboveSpot = cw.strike > sp;
+            const label = aboveSpot ? "Ceiling "+fmtG(cw.gex) : "Cleared ↑ "+fmtG(cw.gex);
+            const color = aboveSpot ? "#0a8f55" : "#00BCD4"; // cyan when cleared = bullish
+            series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
+          }
+          // Put wall
+          if (pw) {
+            const belowSpot = pw.strike < sp;
+            const label = belowSpot ? "Bounce "+fmtG(Math.abs(pw.gex)) : "Broke ↓ "+fmtG(Math.abs(pw.gex));
+            const color = belowSpot ? "#0a8f55" : "#c43030"; // green when holding = bullish, red when broke
+            series.createPriceLine({ price:pw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
+          }
+          // Danger line
           if (zg) series.createPriceLine({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Danger Line" });
+
           // Secondary levels — thickness/style scales with $ value
-          const sp = gexData.spot || 0;
           const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
+
           // Resistance above spot (call gamma)
-          const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp&&!usedStrikes.has(s.strike)).sort((a,b)=>b.callGex-a.callGex).slice(0,2);
+          const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp&&!usedStrikes.has(s.strike)).sort((a,b)=>b.callGex-a.callGex).slice(0,3);
           topAbove.forEach(s => {
             usedStrikes.add(s.strike);
-            const ratio = wallMax > 0 ? s.callGex / wallMax : 0;
-            const lw = ratio > 0.5 ? 2 : 1;
-            const ls = ratio > 0.25 ? 0 : 2;
+            const {lw,ls} = getLineWeight(s.callGex);
             series.createPriceLine({ price:s.strike, color:"#0a8f55", lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:"Ceiling "+fmtG(s.callGex) });
           });
-          // Support below spot — merge call support + put support, pick top by absolute GEX
+
+          // Support below spot — call GEX below spot = cleared (bullish), put GEX = bounce zone
           const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
             const callVal = s.callGex > 0 ? s.callGex : 0;
             const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
             const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
             return { strike:s.strike, gex:best.val, type:best.type };
-          }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,2);
+          }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
           belowCandidates.forEach(s => {
-            const ratio = wallMax > 0 ? s.gex / wallMax : 0;
-            const lw = ratio > 0.5 ? 2 : 1;
-            const ls = ratio > 0.25 ? 0 : 2;
-            const color = s.type === "call" ? "#0a8f55" : "#c43030";
-            series.createPriceLine({ price:s.strike, color, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:"Bounce "+fmtG(s.gex) });
+            const {lw,ls} = getLineWeight(s.gex);
+            // Call GEX below spot = price cleared this level (bullish support), Put GEX = bounce zone
+            const color = s.type === "call" ? "#00BCD4" : "#0a8f55";
+            const label = s.type === "call" ? "Cleared ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
+            series.createPriceLine({ price:s.strike, color, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
           });
         }).catch(()=>{});
       // Resize observer
