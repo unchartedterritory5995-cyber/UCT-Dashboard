@@ -168,7 +168,6 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
         prev_cum = cumulative
 
     # Method 2 fallback: Walk HIGH → LOW, find where cumulative goes from positive to negative
-    # This catches cases where call GEX is so dominant that low→high never goes negative
     if zero_gamma is None and spot > 0:
         cumulative = 0.0
         prev_strike = None
@@ -184,6 +183,16 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
                 break
             prev_strike = s["strike"]
             prev_cum = cumulative
+
+    # Method 3 fallback: For extreme positive GEX (e.g. SPX 0DTE) where cumulative never crosses zero,
+    # find the highest strike BELOW spot where per-strike net GEX is negative.
+    # Below this point, put gamma dominates at the individual strike level — dealers amplify moves.
+    if zero_gamma is None and spot > 0:
+        below_spot = [s for s in strikes_list if s["strike"] < spot]
+        for s in reversed(below_spot):  # walk from just below spot downward
+            if s["gex"] < 0:
+                zero_gamma = s["strike"]
+                break
 
     return {
         "ticker": ticker,
