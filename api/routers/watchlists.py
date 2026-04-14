@@ -28,6 +28,10 @@ class WatchlistItem(BaseModel):
     notes: Optional[str] = ""
 
 
+class PerfRequest(BaseModel):
+    tickers: list[str]
+
+
 class FlaggedSync(BaseModel):
     symbols: list[str]
 
@@ -132,10 +136,6 @@ class ReorderItems(BaseModel):
 
 class BulkAddItems(BaseModel):
     symbols: list[str]
-
-
-class PerfRequest(BaseModel):
-    tickers: list[str]
 
 
 @router.post("/api/watchlists/{wl_id}/items/bulk")
