@@ -49,6 +49,25 @@ function AddItemRow({ onAdd }) {
   )
 }
 
+const WatchlistRow = React.memo(function WatchlistRow({ sym, price, changePct, isSelected, onClick }) {
+  return (
+    <div
+      className={`${styles.listRow} ${styles.wlRow}${isSelected ? ' ' + styles.listRowSelected : ''}`}
+      onClick={onClick}
+    >
+      <span className={styles.rowSym}>{sym}</span>
+      <div className={styles.rowRight}>
+        {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
+        {changePct != null && (
+          <span className={`${styles.rowChange} ${changePct >= 0 ? styles.gain : styles.loss}`}>
+            {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
+          </span>
+        )}
+      </div>
+    </div>
+  )
+})
+
 function WatchlistsInner() {
   const [activeTab, setActiveTab] = useState('mine')
   const [selectedSym, setSelectedSym] = useState(null)

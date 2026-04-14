@@ -14,7 +14,7 @@ from api.services.cache import cache
 from api.services.massive import get_agg_bars
 from api.services.theme_performance import _compute_returns
 
-_MAX_WORKERS = 6
+_MAX_WORKERS = 2  # Conservative for Railway 512MB — prevents thread explosion
 _CACHE_TTL = 300  # 5 minutes
 
 

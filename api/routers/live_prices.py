@@ -80,11 +80,10 @@ def get_live_prices(
 
     cache.set(cache_key, result, ttl=_CACHE_TTL)
 
-    # Check price alerts on every fresh price fetch (background, non-blocking)
+    # Check price alerts — direct call with lock (non-blocking, skips if already checking)
     try:
         from api.services.watchlist_alert_service import run_alert_check
-        import threading
-        threading.Thread(target=run_alert_check, args=(result,), daemon=True).start()
+        run_alert_check(result)
     except Exception:
         pass
 

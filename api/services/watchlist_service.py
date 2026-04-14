@@ -245,17 +245,16 @@ def sync_flagged_items(user_id: str, symbols: list[str]) -> dict:
         server_syms = {item["sym"] for item in current_items}
         client_syms = {s.upper() for s in symbols}
 
-        # Remove stale
-        for item in current_items:
-            if item["sym"] not in client_syms:
-                conn.execute("DELETE FROM watchlist_items WHERE id = ?", (item["id"],))
+        # Batch remove stale
+        to_delete = [(item["id"],) for item in current_items if item["sym"] not in client_syms]
+        if to_delete:
+            conn.executemany("DELETE FROM watchlist_items WHERE id = ?", to_delete)
 
-        # Add missing
-        for sym in client_syms - server_syms:
-            item_id = str(uuid.uuid4())[:12]
-            conn.execute(
-                "INSERT INTO watchlist_items (id, watchlist_id, sym, notes) VALUES (?,?,?,?)",
-                (item_id, wl_id, sym, ""),
+        # Batch add missing
+        to_add = [(str(uuid.uuid4())[:12], wl_id, sym, "") for sym in client_syms - server_syms]
+        if to_add:
+            conn.executemany(
+                "INSERT INTO watchlist_items (id, watchlist_id, sym, notes) VALUES (?,?,?,?)", to_add
             )
 
         now = datetime.now(timezone.utc).isoformat()
