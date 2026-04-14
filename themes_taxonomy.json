@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "generated_at": "2026-04-14",
   "sectors": [
     {
@@ -205,6 +205,12 @@
           "tier": "relevant",
           "sub_theme_id": "analog_mixed",
           "rationale": "Power management IC specialist"
+        },
+        {
+          "sym": "CRDO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "High-speed SerDes connectivity chips for data centers"
         }
       ]
     },
@@ -778,6 +784,18 @@
           "tier": "peripheral",
           "sub_theme_id": "ai_applications",
           "rationale": "Enterprise AI and IoT analytics platform"
+        },
+        {
+          "sym": "CRDO",
+          "tier": "core",
+          "sub_theme_id": "ai_infrastructure",
+          "rationale": "AI data center connectivity leader, active electrical cables"
+        },
+        {
+          "sym": "DELL",
+          "tier": "relevant",
+          "sub_theme_id": "ai_infrastructure",
+          "rationale": "Top AI server supplier, $64B+ in AI server orders"
         }
       ]
     },
@@ -874,6 +892,12 @@
           "tier": "relevant",
           "sub_theme_id": "dc_infrastructure",
           "rationale": "Flash-based enterprise data storage"
+        },
+        {
+          "sym": "CRDO",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Critical connectivity/AEC provider for hyperscale data centers"
         }
       ]
     },
@@ -927,12 +951,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Women-first dating and social app"
-        },
-        {
-          "sym": "TTD",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Programmatic ad buying across social inventory"
         }
       ]
     },
@@ -1001,12 +1019,6 @@
           "rationale": "Unity game engine used by most mobile developers"
         },
         {
-          "sym": "APP",
-          "tier": "relevant",
-          "sub_theme_id": "game_platforms",
-          "rationale": "Mobile game monetization and marketing platform"
-        },
-        {
           "sym": "CRSR",
           "tier": "peripheral",
           "sub_theme_id": "game_hardware",
@@ -1064,12 +1076,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Quantum optimization software platform"
-        },
-        {
-          "sym": "ARQQ",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Quantum encryption and secure networking"
         }
       ]
     },
@@ -1172,12 +1178,6 @@
           "tier": "peripheral",
           "sub_theme_id": "digital_banking",
           "rationale": "SMB financial operations automation"
-        },
-        {
-          "sym": "LPRO",
-          "tier": "peripheral",
-          "sub_theme_id": "digital_banking",
-          "rationale": "AI-powered lending platform"
         }
       ]
     },
@@ -1339,18 +1339,6 @@
           "tier": "relevant",
           "sub_theme_id": "sequencing",
           "rationale": "Genomic diagnostics for thyroid and other cancers"
-        },
-        {
-          "sym": "EDIT",
-          "tier": "relevant",
-          "sub_theme_id": "gene_editing",
-          "rationale": "CRISPR-based medicines for blood disorders"
-        },
-        {
-          "sym": "VERV",
-          "tier": "peripheral",
-          "sub_theme_id": "gene_editing",
-          "rationale": "Base editing for cardiovascular diseases"
         }
       ]
     },
@@ -1413,7 +1401,7 @@
           "rationale": "Snapdragon Ride autonomous driving platform"
         },
         {
-          "sym": "MOBILEYE",
+          "sym": "MBLY",
           "tier": "core",
           "sub_theme_id": "self_driving",
           "rationale": "ADAS and self-driving chip systems leader"
@@ -1515,12 +1503,6 @@
           "rationale": "Lunar landing and navigation services"
         },
         {
-          "sym": "MNTS",
-          "tier": "peripheral",
-          "sub_theme_id": "satellites",
-          "rationale": "Satellite servicing and transportation"
-        },
-        {
           "sym": "RDW",
           "tier": "peripheral",
           "sub_theme_id": "satellites",
@@ -1597,12 +1579,6 @@
           "tier": "relevant",
           "sub_theme_id": "solar_inverters",
           "rationale": "Electrical BOS components for solar projects"
-        },
-        {
-          "sym": "MAXN",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_manufacturing",
-          "rationale": "High-efficiency solar cell technology"
         }
       ]
     },
@@ -1725,12 +1701,6 @@
           "rationale": "Major Chilean lithium and specialty chemical producer"
         },
         {
-          "sym": "LTHM",
-          "tier": "core",
-          "sub_theme_id": "lithium_mining",
-          "rationale": "Pure-play lithium hydroxide producer"
-        },
-        {
           "sym": "QS",
           "tier": "relevant",
           "sub_theme_id": "battery_tech",
@@ -1761,7 +1731,7 @@
           "rationale": "Megapack grid storage and 4680 cell production"
         },
         {
-          "sym": "FREYR",
+          "sym": "TE",
           "tier": "peripheral",
           "sub_theme_id": "battery_tech",
           "rationale": "Clean battery cell manufacturing startup"
@@ -1843,12 +1813,6 @@
           "tier": "relevant",
           "sub_theme_id": "ev_charging",
           "rationale": "Leading US EV charging network operator"
-        },
-        {
-          "sym": "BLNK",
-          "tier": "peripheral",
-          "sub_theme_id": "ev_charging",
-          "rationale": "EV charging equipment and network provider"
         },
         {
           "sym": "ON",
@@ -2367,12 +2331,6 @@
           "rationale": "Marcellus shale natural gas focused producer"
         },
         {
-          "sym": "SWN",
-          "tier": "relevant",
-          "sub_theme_id": "gas_producers",
-          "rationale": "Appalachian natural gas producer"
-        },
-        {
           "sym": "KMI",
           "tier": "relevant",
           "sub_theme_id": "gas_pipelines",
@@ -2401,6 +2359,12 @@
           "tier": "peripheral",
           "sub_theme_id": "lng",
           "rationale": "Small-scale LNG production solutions"
+        },
+        {
+          "sym": "EXE",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Largest US independent natural gas producer (CHK+SWN merger)"
         }
       ]
     },
@@ -2610,18 +2574,6 @@
           "rationale": "Hecla Mining, US silver and gold producer"
         },
         {
-          "sym": "NGD",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "New Gold, Canadian junior gold producer"
-        },
-        {
-          "sym": "SAND",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Sandstorm Gold streaming and royalties"
-        },
-        {
           "sym": "SSRM",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -2657,22 +2609,10 @@
           "rationale": "Largest US primary silver producer"
         },
         {
-          "sym": "FRES",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Fresnillo, world largest silver producer"
-        },
-        {
           "sym": "CDE",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Silver and gold producer in Americas"
-        },
-        {
-          "sym": "MAG",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "MAG Silver, high-grade silver project developer"
         },
         {
           "sym": "AG",
@@ -2691,6 +2631,12 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Silver by-product from gold-silver operations"
+        },
+        {
+          "sym": "FSM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Fortuna Mining, mid-tier precious metals producer"
         }
       ]
     },
@@ -2732,12 +2678,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Ero Copper, Brazilian copper mining operations"
-        },
-        {
-          "sym": "IVPAF",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Ivanhoe Mines, DRC copper development"
         }
       ]
     },
@@ -2763,28 +2703,10 @@
           "rationale": "US rare earth and uranium producer"
         },
         {
-          "sym": "ALB",
+          "sym": "LYSCF",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Lithium and specialty chemicals tied to critical minerals"
-        },
-        {
-          "sym": "AMR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Alpha Metallurgical, met coal for steel alloys"
-        },
-        {
-          "sym": "TECK",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Zinc, copper, and critical minerals portfolio"
-        },
-        {
-          "sym": "LAC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Lithium Americas, critical mineral developer"
+          "rationale": "Lynas Rare Earths, largest non-China rare earth producer"
         }
       ]
     },
@@ -3533,12 +3455,6 @@
           "tier": "relevant",
           "sub_theme_id": "tankers",
           "rationale": "Teekay Tankers crude oil fleet"
-        },
-        {
-          "sym": "EGLE",
-          "tier": "peripheral",
-          "sub_theme_id": "dry_bulk",
-          "rationale": "Supramax dry bulk carrier operator"
         }
       ]
     },
@@ -4032,12 +3948,6 @@
           "rationale": "Antisense RNA therapeutics pioneer"
         },
         {
-          "sym": "SGEN",
-          "tier": "relevant",
-          "sub_theme_id": "large_biotech",
-          "rationale": "Antibody-drug conjugate oncology leader"
-        },
-        {
           "sym": "PCVX",
           "tier": "peripheral",
           "sub_theme_id": "clinical_stage",
@@ -4191,18 +4101,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Oral small-molecule GLP-1 receptor agonist"
-        },
-        {
-          "sym": "TERN",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "NASH and obesity pipeline targeting liver disease"
-        },
-        {
-          "sym": "MDGL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Resmetirom for NASH, obesity-adjacent metabolic"
         }
       ]
     },
@@ -4611,22 +4509,16 @@
           "rationale": "Alaska Airlines, West Coast and Hawaiian routes"
         },
         {
-          "sym": "SAVE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Ultra-low-cost carrier (Spirit Airlines)"
-        },
-        {
-          "sym": "HA",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Hawaiian Airlines, Pacific routes carrier"
-        },
-        {
           "sym": "SKYW",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Regional airline operating for major carriers"
+        },
+        {
+          "sym": "RYAAY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Ryanair, largest European low-cost carrier ADR"
         }
       ]
     },
@@ -4900,12 +4792,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Max streaming, HBO, and Discovery content"
-        },
-        {
-          "sym": "PARA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Paramount+ streaming and CBS content"
         },
         {
           "sym": "CMCSA",
@@ -5716,12 +5602,6 @@
       "display_order": 6,
       "sub_themes": [],
       "holdings": [
-        {
-          "sym": "SSNLF",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Samsung Electronics, semis and consumer electronics"
-        },
         {
           "sym": "LPL",
           "tier": "relevant",
