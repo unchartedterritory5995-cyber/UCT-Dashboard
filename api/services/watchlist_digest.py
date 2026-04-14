@@ -25,6 +25,7 @@ def _get_digest_subscribers(frequency: str) -> list[dict]:
             try:
                 settings = json.loads(r["pref_value"])
             except (json.JSONDecodeError, TypeError):
+                _logger.warning("Malformed digest settings for user %s", r["user_id"])
                 continue
             if settings.get("frequency") == frequency:
                 user = conn.execute("SELECT id, email, display_name FROM users WHERE id = ?", (r["user_id"],)).fetchone()

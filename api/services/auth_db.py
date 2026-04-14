@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS watchlists (
     name            TEXT NOT NULL,
     description     TEXT DEFAULT '',
     is_public       INTEGER DEFAULT 0,
+    is_flagged_list INTEGER DEFAULT 0,
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -77,6 +78,7 @@ CREATE TABLE IF NOT EXISTS watchlist_items (
     watchlist_id    TEXT NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
     sym             TEXT NOT NULL,
     notes           TEXT DEFAULT '',
+    sort_order      INTEGER DEFAULT 0,
     added_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

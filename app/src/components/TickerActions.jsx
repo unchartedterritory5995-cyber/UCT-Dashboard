@@ -17,7 +17,9 @@ export function useTickerActions() {
   function openMenu(e, sym) {
     e.preventDefault()
     e.stopPropagation()
-    setMenu({ sym: sym.toUpperCase(), x: e.clientX, y: e.clientY })
+    const x = Math.min(e.clientX, window.innerWidth - 220)
+    const y = Math.min(e.clientY, window.innerHeight - 350)
+    setMenu({ sym: sym.toUpperCase(), x, y })
   }
 
   function closeMenu() { setMenu(null) }

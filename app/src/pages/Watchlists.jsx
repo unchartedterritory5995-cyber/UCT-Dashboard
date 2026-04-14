@@ -8,7 +8,6 @@ import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { TAG_COLORS, TAG_BY_KEY } from '../constants/tagColors'
-import usePreferences from '../hooks/usePreferences'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import styles from './Watchlists.module.css'
@@ -201,7 +200,9 @@ export default function Watchlists() {
   function handleContextMenu(e, id, isOwner, symbols) {
     e.preventDefault()
     e.stopPropagation()
-    setCtxMenu({ x: e.clientX, y: e.clientY, id, isOwner, symbols })
+    const x = Math.min(e.clientX, window.innerWidth - 220)
+    const y = Math.min(e.clientY, window.innerHeight - 300)
+    setCtxMenu({ x, y, id, isOwner, symbols })
   }
 
   function handleCopyList(symbols) {

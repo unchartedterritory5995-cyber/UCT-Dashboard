@@ -4,8 +4,11 @@ Reuses _compute_returns pattern from theme_performance.py.
 """
 
 import hashlib
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
+
+_logger = logging.getLogger(__name__)
 
 from api.services.cache import cache
 from api.services.massive import get_agg_bars
@@ -44,7 +47,8 @@ def get_batch_returns(tickers: list[str]) -> dict:
             ticker = futures[future]
             try:
                 results[ticker] = future.result(timeout=15)
-            except Exception:
+            except Exception as e:
+                _logger.warning("Failed to fetch returns for %s: %s", ticker, e)
                 results[ticker] = {"1d": None, "1w": None, "1m": None, "3m": None, "ytd": None}
 
     cache.set(cache_key, results, _CACHE_TTL)

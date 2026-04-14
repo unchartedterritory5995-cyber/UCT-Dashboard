@@ -229,19 +229,15 @@ def get_or_create_flagged_list(user_id: str) -> dict:
 
 def sync_flagged_items(user_id: str, symbols: list[str]) -> dict:
     """Full-replace sync: make the shadow watchlist match the given symbols list."""
+    # Ensure shadow exists first (uses its own connection)
+    get_or_create_flagged_list(user_id)
     conn = get_connection()
     try:
-        # Ensure shadow exists
         row = conn.execute(
             "SELECT * FROM watchlists WHERE user_id = ? AND is_flagged_list = 1", (user_id,)
         ).fetchone()
         if not row:
-            conn.close()
-            get_or_create_flagged_list(user_id)
-            conn = get_connection()
-            row = conn.execute(
-                "SELECT * FROM watchlists WHERE user_id = ? AND is_flagged_list = 1", (user_id,)
-            ).fetchone()
+            return {"items": []}
         wl_id = row["id"]
 
         # Diff
@@ -302,18 +298,14 @@ def rename_flagged_list(user_id: str, name: str) -> dict | None:
 
 def toggle_flagged_sharing(user_id: str, is_public: bool) -> dict | None:
     """Set the flagged shadow watchlist's public visibility."""
+    get_or_create_flagged_list(user_id)
     conn = get_connection()
     try:
         row = conn.execute(
             "SELECT * FROM watchlists WHERE user_id = ? AND is_flagged_list = 1", (user_id,)
         ).fetchone()
         if not row:
-            conn.close()
-            get_or_create_flagged_list(user_id)
-            conn = get_connection()
-            row = conn.execute(
-                "SELECT * FROM watchlists WHERE user_id = ? AND is_flagged_list = 1", (user_id,)
-            ).fetchone()
+            return None
         wl_id = row["id"]
         now = datetime.now(timezone.utc).isoformat()
         conn.execute(
