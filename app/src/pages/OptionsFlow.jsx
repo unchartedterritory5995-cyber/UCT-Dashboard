@@ -1188,19 +1188,36 @@ export default function OptionsFlowDashboard() {
             return { lw:1, ls:2 };                    // minor dashed
           };
 
-          // Call wall
-          if (cw) {
-            const aboveSpot = cw.strike > sp;
-            const label = aboveSpot ? "Ceiling "+fmtG(cw.gex) : "Magnet ↓ "+fmtG(cw.gex);
-            const color = aboveSpot ? "#c43030" : "#FF8C00"; // red ceiling above, orange magnet below
+          // Call wall + Put wall
+          if (cw && pw && cw.strike === pw.strike) {
+            // Same strike — combined pin/gravity zone
+            const combined = cw.gex + Math.abs(pw.gex);
+            const aboveSpot = cw.strike > sp * 1.003;
+            const belowSpot = cw.strike < sp * 0.997;
+            const atSpot = !aboveSpot && !belowSpot;
+            let label, color;
+            if (atSpot) {
+              label = "Pin "+fmtG(combined); color = "#e040fb"; // purple pin
+            } else if (aboveSpot) {
+              label = "Magnet ↑ "+fmtG(combined); color = "#FF8C00"; // orange magnet pulling up
+            } else {
+              label = "Magnet ↓ "+fmtG(combined); color = "#FF8C00"; // orange magnet pulling down
+            }
             series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
-          }
-          // Put wall
-          if (pw) {
-            const belowSpot = pw.strike < sp;
-            const label = belowSpot ? "Bounce "+fmtG(Math.abs(pw.gex)) : "Magnet ↑ "+fmtG(Math.abs(pw.gex));
-            const color = belowSpot ? "#0a8f55" : "#FF8C00"; // green bounce below, orange magnet above
-            series.createPriceLine({ price:pw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
+          } else {
+            // Different strikes — draw separately
+            if (cw) {
+              const aboveSpot = cw.strike > sp;
+              const label = aboveSpot ? "Ceiling "+fmtG(cw.gex) : "Magnet ↓ "+fmtG(cw.gex);
+              const color = aboveSpot ? "#c43030" : "#FF8C00";
+              series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
+            }
+            if (pw) {
+              const belowSpot = pw.strike < sp;
+              const label = belowSpot ? "Bounce "+fmtG(Math.abs(pw.gex)) : "Magnet ↑ "+fmtG(Math.abs(pw.gex));
+              const color = belowSpot ? "#0a8f55" : "#FF8C00";
+              series.createPriceLine({ price:pw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
+            }
           }
           // Danger line
           if (zg) series.createPriceLine({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Danger Line" });
