@@ -192,13 +192,6 @@ def sync_flagged_items(user_id: str, symbols: list[str]) -> dict:
             ).fetchone()
         wl_id = row["id"]
 
-        # Keep name current with display_name
-        display_name = _get_display_name(conn, user_id)
-        conn.execute(
-            "UPDATE watchlists SET name = ?, updated_at = ? WHERE id = ?",
-            (f"Flagged ({display_name})", datetime.now(timezone.utc).isoformat(), wl_id),
-        )
-
         # Diff
         current_items = _get_items(conn, wl_id)
         server_syms = {item["sym"] for item in current_items}
@@ -217,9 +210,12 @@ def sync_flagged_items(user_id: str, symbols: list[str]) -> dict:
                 (item_id, wl_id, sym, ""),
             )
 
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute("UPDATE watchlists SET updated_at = ? WHERE id = ?", (now, wl_id))
         conn.commit()
+        display_name = _get_display_name(conn, user_id)
         wl = dict(row)
-        wl["name"] = f"Flagged ({display_name})"
+        wl["updated_at"] = now
         wl["items"] = _get_items(conn, wl_id)
         wl["owner_name"] = display_name
         return wl
