@@ -186,13 +186,27 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
 
     # Method 3 fallback: For extreme positive GEX (e.g. SPX 0DTE) where cumulative never crosses zero,
     # find the highest strike BELOW spot where per-strike net GEX is negative.
-    # Below this point, put gamma dominates at the individual strike level — dealers amplify moves.
     if zero_gamma is None and spot > 0:
         below_spot = [s for s in strikes_list if s["strike"] < spot]
         for s in reversed(below_spot):  # walk from just below spot downward
             if s["gex"] < 0:
                 zero_gamma = s["strike"]
                 break
+
+    # Method 4 fallback: Walk below spot, find where per-strike GEX drops below 1% of call wall.
+    # Below this point, dealer support is negligible — effectively no safety net.
+    if zero_gamma is None and spot > 0 and call_wall:
+        threshold = call_wall["callGex"] * 0.01
+        below_spot = [s for s in strikes_list if s["strike"] < spot]
+        for s in reversed(below_spot):
+            if s["gex"] < threshold:
+                zero_gamma = s["strike"]
+                break
+
+    # Method 5 final fallback: use put wall strike as the danger line.
+    # It's the floor — below it, put support thins out significantly.
+    if zero_gamma is None and put_wall:
+        zero_gamma = put_wall["strike"]
 
     return {
         "ticker": ticker,
