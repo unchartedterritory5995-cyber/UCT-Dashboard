@@ -62,6 +62,9 @@ export default function Watchlists() {
   const [importText, setImportText] = useState('')
   const [showPerfCols, setShowPerfCols] = useState(false)
   const [visiblePerf, setVisiblePerf] = useState(new Set())
+  const [sortBy, setSortBy] = useState(null) // null | 'sym' | 'price' | 'change' | '1d' | '1w' | '1m' | '3m' | 'ytd'
+  const [sortDir, setSortDir] = useState('desc')
+  const [filterText, setFilterText] = useState('')
 
   function toggleStar(listId, sym) {
     const key = `${listId}:${sym}`
@@ -94,6 +97,34 @@ export default function Watchlists() {
       return n
     })
     setCtxMenu(null)
+  }
+
+  function handleSort(col) {
+    if (sortBy === col) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+    else { setSortBy(col); setSortDir('desc') }
+  }
+  function sortIndicator(col) { return sortBy !== col ? '' : sortDir === 'desc' ? ' ▾' : ' ▴' }
+
+  function sortAndFilterItems(items) {
+    let filtered = items
+    if (filterText) {
+      const q = filterText.toUpperCase()
+      filtered = filtered.filter(i => (i.sym || i).toString().toUpperCase().includes(q))
+    }
+    if (!sortBy) return filtered
+    return [...filtered].sort((a, b) => {
+      const symA = a.sym || a, symB = b.sym || b
+      let va, vb
+      if (sortBy === 'sym') { va = symA; vb = symB }
+      else if (sortBy === 'price') { va = prices[symA]?.price; vb = prices[symB]?.price }
+      else if (sortBy === 'change') { va = prices[symA]?.change_pct; vb = prices[symB]?.change_pct }
+      else { va = perfData[symA]?.[sortBy]; vb = perfData[symB]?.[sortBy] }
+      if (va == null && vb == null) return 0
+      if (va == null) return 1
+      if (vb == null) return -1
+      if (sortBy === 'sym') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+      return sortDir === 'asc' ? va - vb : vb - va
+    })
   }
 
   function exportCSV(wl) {
@@ -350,11 +381,26 @@ export default function Watchlists() {
           )}
         </div>
 
-        {open && (
+        {open && (() => {
+          const sortedItems = sortAndFilterItems(items)
+          const dragOk = isOwner && !sortBy
+          return (
           <div className={styles.wlItems}>
             {wl.description && <div className={styles.wlDesc}>{wl.description}</div>}
-            {items.length === 0 && <div className={styles.wlEmpty}>No symbols yet.</div>}
-            {items.map(item => {
+            {items.length > 0 && (
+              <div className={styles.colHeaderRow}>
+                <input className={styles.filterInput} placeholder="Filter..." value={filterText} onChange={e => setFilterText(e.target.value)} onClick={e => e.stopPropagation()} />
+                <span className={styles.colH} onClick={() => handleSort('sym')}>Sym{sortIndicator('sym')}</span>
+                <span className={styles.colH} onClick={() => handleSort('price')}>Price{sortIndicator('price')}</span>
+                <span className={styles.colH} onClick={() => handleSort('change')}>Chg%{sortIndicator('change')}</span>
+                {PERF_COLS.filter(([k]) => visiblePerf.has(k)).map(([k, label]) => (
+                  <span key={k} className={styles.colH} onClick={() => handleSort(k)}>{label}{sortIndicator(k)}</span>
+                ))}
+                {sortBy && <button className={styles.resetSortBtn} onClick={() => setSortBy(null)}>Reset</button>}
+              </div>
+            )}
+            {sortedItems.length === 0 && <div className={styles.wlEmpty}>{items.length === 0 ? 'No symbols yet.' : 'No matches.'}</div>}
+            {sortedItems.map(item => {
               const q = prices[item.sym]
               const price = q?.price ?? null
               const changePct = q?.change_pct ?? null
@@ -364,13 +410,13 @@ export default function Watchlists() {
                   <div
                     className={`${styles.listRow} ${styles.wlRow}${selectedSym === item.sym ? ' ' + styles.listRowSelected : ''}${dragItemId === item.id ? ' ' + styles.dragging : ''}${dragOverId === item.id ? ' ' + styles.dragOver : ''}`}
                     onClick={() => setSelectedSym(item.sym)}
-                    draggable={isOwner}
-                    onDragStart={isOwner ? e => { e.dataTransfer.effectAllowed = 'move'; setDragItemId(item.id) } : undefined}
-                    onDragOver={isOwner ? e => { e.preventDefault(); setDragOverId(item.id) } : undefined}
-                    onDrop={isOwner ? e => { e.preventDefault(); handleDrop(wl.id, items) } : undefined}
+                    draggable={dragOk}
+                    onDragStart={dragOk ? e => { e.dataTransfer.effectAllowed = 'move'; setDragItemId(item.id) } : undefined}
+                    onDragOver={dragOk ? e => { e.preventDefault(); setDragOverId(item.id) } : undefined}
+                    onDrop={dragOk ? e => { e.preventDefault(); handleDrop(wl.id, items) } : undefined}
                     onDragEnd={() => { setDragItemId(null); setDragOverId(null) }}
                   >
-                    {isOwner && <span className={styles.dragHandle}>⠿</span>}
+                    {dragOk && <span className={styles.dragHandle}>⠿</span>}
                     <button
                       className={`${styles.starBtn}${isStarred ? ' ' + styles.starBtnActive : ''}`}
                       onClick={e => { e.stopPropagation(); toggleStar(wl.id, item.sym) }}
@@ -429,7 +475,7 @@ export default function Watchlists() {
             })}
             {isOwner && <AddItemRow onAdd={sym => handleAddItem(wl.id, sym)} />}
           </div>
-        )}
+          )})()}
       </div>
     )
   }

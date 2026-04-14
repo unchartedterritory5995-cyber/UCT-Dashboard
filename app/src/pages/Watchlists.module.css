@@ -502,6 +502,57 @@
 .cellRed       { background: rgba(248,113,113,0.12); color: #f87171; }
 .cellDeepRed   { background: rgba(55,6,6,0.6); color: #f87171; }
 
+.colHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 14px 4px 42px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.colH {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+  cursor: pointer;
+  min-width: 42px;
+  text-align: right;
+  user-select: none;
+}
+
+.colH:hover { color: var(--ut-gold, #c9a84c); }
+
+.filterInput {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ut-cream, #e8e0d0);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 3px;
+  padding: 2px 6px;
+  width: 60px;
+  outline: none;
+  margin-right: auto;
+}
+
+.filterInput:focus { border-color: var(--ut-gold, #c9a84c); }
+
+.resetSortBtn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 3px;
+  padding: 1px 5px;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+.resetSortBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
+
 .importTextarea {
   min-height: 100px;
   resize: vertical;
