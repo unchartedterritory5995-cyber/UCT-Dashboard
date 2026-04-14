@@ -102,6 +102,12 @@ async def lifespan(app: FastAPI):
         print(f"[startup] Auth DB init error (non-fatal): {e}")
 
     _seed_cache_from_volume()
+
+    # Seed theme taxonomy from JSON → SQLite
+    from api.services.theme_db import init_theme_tables, seed_from_json
+    init_theme_tables()
+    seed_from_json()
+
     from api.services.theme_performance import load_persisted_on_startup
     load_persisted_on_startup()
     from api.daily_tracker import start_snapshot_scheduler, stop_snapshot_scheduler

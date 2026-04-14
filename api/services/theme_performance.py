@@ -359,6 +359,40 @@ def _apply_live_returns(result: dict) -> dict:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _enrich_with_taxonomy(result: dict) -> dict:
+    """Add sector, tier, and sub-theme metadata from the theme taxonomy DB."""
+    try:
+        from api.services.theme_db import get_all_themes
+        taxonomy = get_all_themes()
+        theme_lookup = {}
+        for t in taxonomy.get("themes", []):
+            theme_lookup[t["name"]] = t
+            if t.get("etf_ticker"):
+                theme_lookup[t["etf_ticker"]] = t
+        sector_lookup = {s["id"]: s["name"] for s in taxonomy.get("sectors", [])}
+        member_lookup = {}
+        for t in taxonomy.get("themes", []):
+            member_lookup[t["id"]] = {m["sym"]: m for m in t.get("holdings", [])}
+
+        for theme in result.get("themes", []):
+            tax = theme_lookup.get(theme.get("ticker")) or theme_lookup.get(theme.get("name"))
+            if not tax:
+                continue
+            theme["sector"] = sector_lookup.get(tax.get("sector_id"), "")
+            theme["sector_id"] = tax.get("sector_id", "")
+            theme["sub_themes"] = tax.get("sub_themes", [])
+            theme["theme_id"] = tax.get("id", "")
+            members = member_lookup.get(tax["id"], {})
+            for h in theme.get("holdings", []):
+                m = members.get(h.get("sym"))
+                if m:
+                    h["tier"] = m.get("tier", "relevant")
+                    h["sub_theme_id"] = m.get("sub_theme_id")
+    except Exception as e:
+        _logger.warning("[themes] Taxonomy enrichment failed: %s", e)
+    return result
+
+
 def get_theme_performance() -> dict:
     """Return theme performance data. Never blocks — always returns immediately.
 
@@ -369,13 +403,13 @@ def get_theme_performance() -> dict:
     # 1. In-memory cache hit (fast path) — overlay live 1d before returning
     cached = cache.get(_CACHE_KEY)
     if cached is not None:
-        return _apply_live_returns(cached)
+        return _enrich_with_taxonomy(_apply_live_returns(cached))
 
     # 2. Disk hit — load into memory cache and return with live 1d overlay
     disk_data = _load_from_disk()
     if disk_data:
         cache.set(_CACHE_KEY, disk_data, ttl=_CACHE_TTL)
-        return _apply_live_returns(disk_data)
+        return _enrich_with_taxonomy(_apply_live_returns(disk_data))
 
     # 3. Cache cold — trigger background computation if not already running
     with _compute_lock:

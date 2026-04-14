@@ -93,6 +93,59 @@
   color: var(--text);
 }
 
+/* ── Filter bar ────────────────────────────────────────────────────────── */
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.filterToggle {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 3px;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+
+.filterToggle:hover { color: var(--ut-gold); border-color: var(--ut-gold); }
+.filterToggleActive { color: var(--ut-gold); border-color: var(--ut-gold); background: rgba(201,168,76,0.08); }
+
+.tierCheck {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sectorHeader {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--ut-gold);
+  padding: 10px 12px 4px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.sectorCount {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 9px;
+  margin-left: 4px;
+}
+
 /* ── Active column highlight ────────────────────────────────────────────── */
 .colLabelActive {
   color: var(--ut-gold);

@@ -1,0 +1,1709 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-04-14",
+  "sectors": [
+    { "id": "technology", "name": "Technology", "display_order": 1 },
+    { "id": "innovation", "name": "Innovation", "display_order": 2 },
+    { "id": "clean_energy", "name": "Clean Energy", "display_order": 3 },
+    { "id": "traditional_energy", "name": "Traditional Energy", "display_order": 4 },
+    { "id": "materials", "name": "Materials", "display_order": 5 },
+    { "id": "defense_industrials", "name": "Defense & Industrials", "display_order": 6 },
+    { "id": "financials", "name": "Financials", "display_order": 7 },
+    { "id": "healthcare", "name": "Healthcare", "display_order": 8 },
+    { "id": "consumer", "name": "Consumer", "display_order": 9 },
+    { "id": "real_estate_utilities", "name": "Real Estate & Utilities", "display_order": 10 },
+    { "id": "crypto", "name": "Crypto", "display_order": 11 },
+    { "id": "global", "name": "Global", "display_order": 12 }
+  ],
+  "themes": [
+    {
+      "id": "semiconductors",
+      "name": "Semiconductors",
+      "sector_id": "technology",
+      "etf_ticker": "SMH",
+      "etf_name": "VanEck Semiconductor ETF",
+      "display_order": 1,
+      "sub_themes": [
+        { "id": "gpu_ai_chips", "name": "GPU / AI Chips" },
+        { "id": "memory", "name": "Memory" },
+        { "id": "analog_mixed", "name": "Analog / Mixed-Signal" },
+        { "id": "foundry_manufacturing", "name": "Foundry / Manufacturing" },
+        { "id": "mobile_edge", "name": "Mobile / Edge" },
+        { "id": "networking_chips", "name": "Networking Chips" }
+      ],
+      "holdings": [
+        { "sym": "NVDA", "tier": "core", "sub_theme_id": "gpu_ai_chips", "rationale": "Dominant GPU and AI accelerator supplier" },
+        { "sym": "AMD", "tier": "core", "sub_theme_id": "gpu_ai_chips", "rationale": "CPU/GPU competitor gaining AI chip share" },
+        { "sym": "AVGO", "tier": "core", "sub_theme_id": "networking_chips", "rationale": "Custom AI ASIC and networking silicon leader" },
+        { "sym": "TSM", "tier": "core", "sub_theme_id": "foundry_manufacturing", "rationale": "World largest chip foundry by revenue" },
+        { "sym": "INTC", "tier": "core", "sub_theme_id": "foundry_manufacturing", "rationale": "Legacy CPU giant rebuilding foundry business" },
+        { "sym": "QCOM", "tier": "core", "sub_theme_id": "mobile_edge", "rationale": "Dominant mobile SoC and modem supplier" },
+        { "sym": "MU", "tier": "core", "sub_theme_id": "memory", "rationale": "Top-3 DRAM and NAND memory producer" },
+        { "sym": "TXN", "tier": "core", "sub_theme_id": "analog_mixed", "rationale": "Largest analog semiconductor company globally" },
+        { "sym": "MRVL", "tier": "core", "sub_theme_id": "networking_chips", "rationale": "Custom silicon and data infrastructure chips" },
+        { "sym": "ADI", "tier": "core", "sub_theme_id": "analog_mixed", "rationale": "High-performance analog and mixed-signal leader" },
+        { "sym": "ARM", "tier": "core", "sub_theme_id": "mobile_edge", "rationale": "Licenses chip architecture used in most mobile devices" },
+        { "sym": "ON", "tier": "relevant", "sub_theme_id": "analog_mixed", "rationale": "Power and sensing semis for auto and industrial" },
+        { "sym": "NXPI", "tier": "relevant", "sub_theme_id": "mobile_edge", "rationale": "Auto and IoT semiconductor supplier" },
+        { "sym": "MCHP", "tier": "relevant", "sub_theme_id": "analog_mixed", "rationale": "Microcontroller and analog chip maker" },
+        { "sym": "SWKS", "tier": "relevant", "sub_theme_id": "mobile_edge", "rationale": "RF semiconductor solutions for mobile" },
+        { "sym": "LSCC", "tier": "relevant", "sub_theme_id": "networking_chips", "rationale": "Low-power FPGA for edge and networking" },
+        { "sym": "GFS", "tier": "relevant", "sub_theme_id": "foundry_manufacturing", "rationale": "Specialty foundry for auto and IoT chips" },
+        { "sym": "MPWR", "tier": "relevant", "sub_theme_id": "analog_mixed", "rationale": "Power management IC specialist" }
+      ]
+    },
+    {
+      "id": "semiconductor_equipment",
+      "name": "Semiconductor Equipment",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 2,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "ASML", "tier": "core", "sub_theme_id": null, "rationale": "Monopoly on EUV lithography systems" },
+        { "sym": "AMAT", "tier": "core", "sub_theme_id": null, "rationale": "Largest semiconductor equipment maker by revenue" },
+        { "sym": "LRCX", "tier": "core", "sub_theme_id": null, "rationale": "Leading etch and deposition equipment" },
+        { "sym": "KLAC", "tier": "core", "sub_theme_id": null, "rationale": "Dominant wafer inspection and metrology" },
+        { "sym": "TER", "tier": "core", "sub_theme_id": null, "rationale": "Leading chip test equipment provider" },
+        { "sym": "ONTO", "tier": "relevant", "sub_theme_id": null, "rationale": "Process control and inspection systems" },
+        { "sym": "ENTG", "tier": "relevant", "sub_theme_id": null, "rationale": "Critical materials and contamination control" },
+        { "sym": "ACLS", "tier": "relevant", "sub_theme_id": null, "rationale": "Ion implantation systems for chip fabrication" },
+        { "sym": "MKSI", "tier": "relevant", "sub_theme_id": null, "rationale": "Instruments and subsystems for chip manufacturing" },
+        { "sym": "COHR", "tier": "relevant", "sub_theme_id": null, "rationale": "Laser and photonics for semiconductor processes" },
+        { "sym": "CAMT", "tier": "relevant", "sub_theme_id": null, "rationale": "Surface inspection and metrology systems" },
+        { "sym": "FORM", "tier": "peripheral", "sub_theme_id": null, "rationale": "Probe card testing solutions for wafers" },
+        { "sym": "UCTT", "tier": "peripheral", "sub_theme_id": null, "rationale": "Precision parts and modules for fab tools" },
+        { "sym": "AMKR", "tier": "peripheral", "sub_theme_id": null, "rationale": "Outsourced semiconductor packaging and test" }
+      ]
+    },
+    {
+      "id": "software",
+      "name": "Software",
+      "sector_id": "technology",
+      "etf_ticker": "IGV",
+      "etf_name": "iShares Expanded Tech-Software Sector ETF",
+      "display_order": 3,
+      "sub_themes": [
+        { "id": "enterprise_saas", "name": "Enterprise SaaS" },
+        { "id": "infrastructure_sw", "name": "Infrastructure Software" },
+        { "id": "productivity", "name": "Productivity & Collaboration" },
+        { "id": "vertical_sw", "name": "Vertical Software" }
+      ],
+      "holdings": [
+        { "sym": "MSFT", "tier": "core", "sub_theme_id": "enterprise_saas", "rationale": "Largest enterprise software company globally" },
+        { "sym": "ORCL", "tier": "core", "sub_theme_id": "enterprise_saas", "rationale": "Enterprise database and cloud applications leader" },
+        { "sym": "CRM", "tier": "core", "sub_theme_id": "enterprise_saas", "rationale": "Dominant CRM and enterprise cloud platform" },
+        { "sym": "NOW", "tier": "core", "sub_theme_id": "enterprise_saas", "rationale": "IT workflow automation platform leader" },
+        { "sym": "ADBE", "tier": "core", "sub_theme_id": "productivity", "rationale": "Creative and document software monopoly" },
+        { "sym": "INTU", "tier": "core", "sub_theme_id": "vertical_sw", "rationale": "Dominant tax, accounting, and SMB finance software" },
+        { "sym": "PANW", "tier": "core", "sub_theme_id": "infrastructure_sw", "rationale": "Leading cybersecurity platform vendor" },
+        { "sym": "PLTR", "tier": "core", "sub_theme_id": "enterprise_saas", "rationale": "AI-powered data analytics for gov and enterprise" },
+        { "sym": "WDAY", "tier": "relevant", "sub_theme_id": "enterprise_saas", "rationale": "Cloud HR and finance enterprise applications" },
+        { "sym": "SNOW", "tier": "relevant", "sub_theme_id": "infrastructure_sw", "rationale": "Cloud data warehousing and analytics platform" },
+        { "sym": "DDOG", "tier": "relevant", "sub_theme_id": "infrastructure_sw", "rationale": "Cloud monitoring and observability platform" },
+        { "sym": "HUBS", "tier": "relevant", "sub_theme_id": "enterprise_saas", "rationale": "Inbound marketing and CRM for SMBs" },
+        { "sym": "TEAM", "tier": "relevant", "sub_theme_id": "productivity", "rationale": "Developer collaboration and project management" },
+        { "sym": "MNDY", "tier": "relevant", "sub_theme_id": "productivity", "rationale": "Work management and collaboration platform" },
+        { "sym": "ZS", "tier": "relevant", "sub_theme_id": "infrastructure_sw", "rationale": "Zero-trust cloud security platform" },
+        { "sym": "VEEV", "tier": "relevant", "sub_theme_id": "vertical_sw", "rationale": "Cloud software for life sciences industry" },
+        { "sym": "BILL", "tier": "relevant", "sub_theme_id": "vertical_sw", "rationale": "AP/AR automation for small businesses" },
+        { "sym": "FICO", "tier": "relevant", "sub_theme_id": "vertical_sw", "rationale": "Credit scoring and decisioning software" },
+        { "sym": "MDB", "tier": "relevant", "sub_theme_id": "infrastructure_sw", "rationale": "Developer database platform (MongoDB)" }
+      ]
+    },
+    {
+      "id": "cloud_computing",
+      "name": "Cloud Computing",
+      "sector_id": "technology",
+      "etf_ticker": "WCLD",
+      "etf_name": "WisdomTree Cloud Computing Fund",
+      "display_order": 4,
+      "sub_themes": [
+        { "id": "hyperscalers", "name": "Hyperscalers" },
+        { "id": "cloud_infra", "name": "Cloud Infrastructure" },
+        { "id": "cloud_platforms", "name": "Cloud Platforms" }
+      ],
+      "holdings": [
+        { "sym": "AMZN", "tier": "core", "sub_theme_id": "hyperscalers", "rationale": "AWS is the largest cloud provider globally" },
+        { "sym": "MSFT", "tier": "core", "sub_theme_id": "hyperscalers", "rationale": "Azure is the second-largest cloud platform" },
+        { "sym": "GOOGL", "tier": "core", "sub_theme_id": "hyperscalers", "rationale": "Google Cloud is third-largest cloud provider" },
+        { "sym": "SNOW", "tier": "core", "sub_theme_id": "cloud_platforms", "rationale": "Cloud-native data platform across all three clouds" },
+        { "sym": "NET", "tier": "core", "sub_theme_id": "cloud_infra", "rationale": "Edge cloud and CDN infrastructure leader" },
+        { "sym": "DDOG", "tier": "core", "sub_theme_id": "cloud_platforms", "rationale": "Cloud monitoring and observability leader" },
+        { "sym": "MDB", "tier": "relevant", "sub_theme_id": "cloud_platforms", "rationale": "Cloud-native document database platform" },
+        { "sym": "CFLT", "tier": "relevant", "sub_theme_id": "cloud_platforms", "rationale": "Cloud-native data streaming (Kafka)" },
+        { "sym": "ESTC", "tier": "relevant", "sub_theme_id": "cloud_platforms", "rationale": "Cloud search and observability platform" },
+        { "sym": "DOCN", "tier": "relevant", "sub_theme_id": "cloud_infra", "rationale": "Cloud infrastructure for developers and SMBs" },
+        { "sym": "FSLY", "tier": "relevant", "sub_theme_id": "cloud_infra", "rationale": "Edge cloud platform and CDN" },
+        { "sym": "TWLO", "tier": "relevant", "sub_theme_id": "cloud_platforms", "rationale": "Cloud communications APIs and CPaaS" },
+        { "sym": "ZS", "tier": "relevant", "sub_theme_id": "cloud_infra", "rationale": "Cloud-native security platform" },
+        { "sym": "ANET", "tier": "relevant", "sub_theme_id": "cloud_infra", "rationale": "Cloud networking switches for data centers" }
+      ]
+    },
+    {
+      "id": "cybersecurity",
+      "name": "Cybersecurity",
+      "sector_id": "technology",
+      "etf_ticker": "CIBR",
+      "etf_name": "First Trust Nasdaq Cybersecurity ETF",
+      "display_order": 5,
+      "sub_themes": [
+        { "id": "network_security", "name": "Network Security" },
+        { "id": "endpoint_cloud_sec", "name": "Endpoint & Cloud Security" },
+        { "id": "identity_access", "name": "Identity & Access" }
+      ],
+      "holdings": [
+        { "sym": "PANW", "tier": "core", "sub_theme_id": "network_security", "rationale": "Largest pure-play cybersecurity platform" },
+        { "sym": "CRWD", "tier": "core", "sub_theme_id": "endpoint_cloud_sec", "rationale": "Cloud-native endpoint protection leader" },
+        { "sym": "FTNT", "tier": "core", "sub_theme_id": "network_security", "rationale": "Leading firewall and network security vendor" },
+        { "sym": "ZS", "tier": "core", "sub_theme_id": "network_security", "rationale": "Zero-trust cloud security pioneer" },
+        { "sym": "CYBR", "tier": "core", "sub_theme_id": "identity_access", "rationale": "Privileged access management leader" },
+        { "sym": "S", "tier": "core", "sub_theme_id": "endpoint_cloud_sec", "rationale": "AI-powered autonomous endpoint security" },
+        { "sym": "OKTA", "tier": "relevant", "sub_theme_id": "identity_access", "rationale": "Cloud identity and access management" },
+        { "sym": "NET", "tier": "relevant", "sub_theme_id": "network_security", "rationale": "Edge security, DDoS, and zero-trust services" },
+        { "sym": "QLYS", "tier": "relevant", "sub_theme_id": "endpoint_cloud_sec", "rationale": "Cloud-based vulnerability management" },
+        { "sym": "TENB", "tier": "relevant", "sub_theme_id": "endpoint_cloud_sec", "rationale": "Exposure management and vulnerability scanning" },
+        { "sym": "RPD", "tier": "relevant", "sub_theme_id": "endpoint_cloud_sec", "rationale": "Managed detection and response platform" },
+        { "sym": "VRNS", "tier": "relevant", "sub_theme_id": "identity_access", "rationale": "Data security and insider threat platform" },
+        { "sym": "RDWR", "tier": "peripheral", "sub_theme_id": "network_security", "rationale": "Application delivery and DDoS protection" },
+        { "sym": "SAIC", "tier": "peripheral", "sub_theme_id": "endpoint_cloud_sec", "rationale": "Government IT and cybersecurity services" }
+      ]
+    },
+    {
+      "id": "artificial_intelligence",
+      "name": "Artificial Intelligence",
+      "sector_id": "technology",
+      "etf_ticker": "AIQ",
+      "etf_name": "Global X Artificial Intelligence & Technology ETF",
+      "display_order": 6,
+      "sub_themes": [
+        { "id": "ai_infrastructure", "name": "AI Infrastructure" },
+        { "id": "ai_platforms", "name": "AI Platforms & Models" },
+        { "id": "ai_applications", "name": "AI Applications" }
+      ],
+      "holdings": [
+        { "sym": "NVDA", "tier": "core", "sub_theme_id": "ai_infrastructure", "rationale": "Dominant AI training and inference GPU maker" },
+        { "sym": "MSFT", "tier": "core", "sub_theme_id": "ai_platforms", "rationale": "OpenAI partner, Copilot across all products" },
+        { "sym": "GOOGL", "tier": "core", "sub_theme_id": "ai_platforms", "rationale": "Gemini models, DeepMind, AI-first strategy" },
+        { "sym": "META", "tier": "core", "sub_theme_id": "ai_platforms", "rationale": "Llama open-source models, AI-driven ads and feeds" },
+        { "sym": "PLTR", "tier": "core", "sub_theme_id": "ai_applications", "rationale": "AI-powered analytics for government and enterprise" },
+        { "sym": "AMD", "tier": "core", "sub_theme_id": "ai_infrastructure", "rationale": "MI-series AI accelerators challenging NVIDIA" },
+        { "sym": "AVGO", "tier": "core", "sub_theme_id": "ai_infrastructure", "rationale": "Custom AI ASICs for hyperscaler customers" },
+        { "sym": "CRM", "tier": "relevant", "sub_theme_id": "ai_applications", "rationale": "Einstein AI agents embedded in CRM platform" },
+        { "sym": "NOW", "tier": "relevant", "sub_theme_id": "ai_applications", "rationale": "AI-powered IT workflow and agent automation" },
+        { "sym": "SNOW", "tier": "relevant", "sub_theme_id": "ai_applications", "rationale": "AI data platform with Cortex AI features" },
+        { "sym": "ADBE", "tier": "relevant", "sub_theme_id": "ai_applications", "rationale": "Generative AI in creative and document tools" },
+        { "sym": "SMCI", "tier": "relevant", "sub_theme_id": "ai_infrastructure", "rationale": "AI-optimized server systems for GPU clusters" },
+        { "sym": "MRVL", "tier": "relevant", "sub_theme_id": "ai_infrastructure", "rationale": "Custom AI silicon and data center interconnects" },
+        { "sym": "PATH", "tier": "relevant", "sub_theme_id": "ai_applications", "rationale": "AI-powered robotic process automation" },
+        { "sym": "BBAI", "tier": "peripheral", "sub_theme_id": "ai_applications", "rationale": "AI analytics for government and defense" },
+        { "sym": "AI", "tier": "peripheral", "sub_theme_id": "ai_applications", "rationale": "Enterprise AI and IoT analytics platform" }
+      ]
+    },
+    {
+      "id": "data_centers",
+      "name": "Data Centers",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 7,
+      "sub_themes": [
+        { "id": "dc_reits", "name": "Data Center REITs" },
+        { "id": "dc_infrastructure", "name": "Data Center Infrastructure" },
+        { "id": "dc_networking", "name": "Networking Equipment" }
+      ],
+      "holdings": [
+        { "sym": "EQIX", "tier": "core", "sub_theme_id": "dc_reits", "rationale": "Largest global data center REIT operator" },
+        { "sym": "DLR", "tier": "core", "sub_theme_id": "dc_reits", "rationale": "Major data center REIT with hyperscale focus" },
+        { "sym": "ANET", "tier": "core", "sub_theme_id": "dc_networking", "rationale": "High-speed data center switching leader" },
+        { "sym": "VRT", "tier": "core", "sub_theme_id": "dc_infrastructure", "rationale": "Power and thermal management for data centers" },
+        { "sym": "SMCI", "tier": "core", "sub_theme_id": "dc_infrastructure", "rationale": "AI-optimized server and rack systems" },
+        { "sym": "DELL", "tier": "relevant", "sub_theme_id": "dc_infrastructure", "rationale": "Enterprise servers and storage for data centers" },
+        { "sym": "HPE", "tier": "relevant", "sub_theme_id": "dc_infrastructure", "rationale": "Enterprise compute and data center solutions" },
+        { "sym": "AMT", "tier": "relevant", "sub_theme_id": "dc_reits", "rationale": "Tower REIT with growing data center segment" },
+        { "sym": "CSCO", "tier": "relevant", "sub_theme_id": "dc_networking", "rationale": "Enterprise and data center networking gear" },
+        { "sym": "FFIV", "tier": "peripheral", "sub_theme_id": "dc_networking", "rationale": "Application delivery and load balancing" },
+        { "sym": "NTAP", "tier": "peripheral", "sub_theme_id": "dc_infrastructure", "rationale": "Enterprise data storage and management" },
+        { "sym": "PSTG", "tier": "relevant", "sub_theme_id": "dc_infrastructure", "rationale": "Flash-based enterprise data storage" }
+      ]
+    },
+    {
+      "id": "social_media",
+      "name": "Social Media",
+      "sector_id": "technology",
+      "etf_ticker": "SOCL",
+      "etf_name": "Global X Social Media ETF",
+      "display_order": 8,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "META", "tier": "core", "sub_theme_id": null, "rationale": "Facebook, Instagram, WhatsApp, and Threads" },
+        { "sym": "SNAP", "tier": "core", "sub_theme_id": null, "rationale": "Snapchat social messaging and AR platform" },
+        { "sym": "PINS", "tier": "core", "sub_theme_id": null, "rationale": "Visual discovery and social bookmarking platform" },
+        { "sym": "RDDT", "tier": "core", "sub_theme_id": null, "rationale": "Community-driven social discussion platform" },
+        { "sym": "GOOGL", "tier": "relevant", "sub_theme_id": null, "rationale": "YouTube is second-largest social platform" },
+        { "sym": "MTCH", "tier": "relevant", "sub_theme_id": null, "rationale": "Dating and social connection apps (Tinder, Hinge)" },
+        { "sym": "BMBL", "tier": "peripheral", "sub_theme_id": null, "rationale": "Women-first dating and social app" },
+        { "sym": "TTD", "tier": "peripheral", "sub_theme_id": null, "rationale": "Programmatic ad buying across social inventory" }
+      ]
+    },
+    {
+      "id": "video_games",
+      "name": "Video Games",
+      "sector_id": "technology",
+      "etf_ticker": "ESPO",
+      "etf_name": "VanEck Video Gaming and eSports ETF",
+      "display_order": 9,
+      "sub_themes": [
+        { "id": "game_publishers", "name": "Game Publishers" },
+        { "id": "game_platforms", "name": "Gaming Platforms" },
+        { "id": "game_hardware", "name": "Gaming Hardware" }
+      ],
+      "holdings": [
+        { "sym": "MSFT", "tier": "core", "sub_theme_id": "game_platforms", "rationale": "Xbox, Activision Blizzard, Game Pass ecosystem" },
+        { "sym": "EA", "tier": "core", "sub_theme_id": "game_publishers", "rationale": "Major publisher (FIFA/EA Sports, Madden, Apex)" },
+        { "sym": "TTWO", "tier": "core", "sub_theme_id": "game_publishers", "rationale": "GTA, NBA 2K, Red Dead publisher" },
+        { "sym": "RBLX", "tier": "core", "sub_theme_id": "game_platforms", "rationale": "User-generated gaming metaverse platform" },
+        { "sym": "NVDA", "tier": "relevant", "sub_theme_id": "game_hardware", "rationale": "GeForce GPUs power PC gaming" },
+        { "sym": "AMD", "tier": "relevant", "sub_theme_id": "game_hardware", "rationale": "Radeon GPUs and console APUs (PS5, Xbox)" },
+        { "sym": "U", "tier": "relevant", "sub_theme_id": "game_platforms", "rationale": "Unity game engine used by most mobile developers" },
+        { "sym": "APP", "tier": "relevant", "sub_theme_id": "game_platforms", "rationale": "Mobile game monetization and marketing platform" },
+        { "sym": "CRSR", "tier": "peripheral", "sub_theme_id": "game_hardware", "rationale": "Gaming peripherals and streaming gear" }
+      ]
+    },
+    {
+      "id": "quantum_computing",
+      "name": "Quantum Computing",
+      "sector_id": "technology",
+      "etf_ticker": "QTUM",
+      "etf_name": "Defiance Quantum ETF",
+      "display_order": 10,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "IONQ", "tier": "core", "sub_theme_id": null, "rationale": "Pure-play trapped-ion quantum computer maker" },
+        { "sym": "RGTI", "tier": "core", "sub_theme_id": null, "rationale": "Superconducting quantum computing systems" },
+        { "sym": "QBTS", "tier": "core", "sub_theme_id": null, "rationale": "Quantum annealing computer manufacturer" },
+        { "sym": "GOOGL", "tier": "relevant", "sub_theme_id": null, "rationale": "Willow quantum chip, major quantum R&D program" },
+        { "sym": "IBM", "tier": "relevant", "sub_theme_id": null, "rationale": "Quantum System Two, 1000+ qubit roadmap" },
+        { "sym": "MSFT", "tier": "relevant", "sub_theme_id": null, "rationale": "Azure Quantum cloud platform and topological qubits" },
+        { "sym": "QUBT", "tier": "peripheral", "sub_theme_id": null, "rationale": "Quantum optimization software platform" },
+        { "sym": "ARQQ", "tier": "peripheral", "sub_theme_id": null, "rationale": "Quantum encryption and secure networking" }
+      ]
+    },
+    {
+      "id": "fintech",
+      "name": "Fintech",
+      "sector_id": "technology",
+      "etf_ticker": "FINX",
+      "etf_name": "Global X FinTech ETF",
+      "display_order": 11,
+      "sub_themes": [
+        { "id": "payments", "name": "Payments" },
+        { "id": "digital_banking", "name": "Digital Banking & Lending" },
+        { "id": "trading_platforms", "name": "Trading Platforms" }
+      ],
+      "holdings": [
+        { "sym": "V", "tier": "core", "sub_theme_id": "payments", "rationale": "Largest global payment network" },
+        { "sym": "MA", "tier": "core", "sub_theme_id": "payments", "rationale": "Second-largest global payment network" },
+        { "sym": "SQ", "tier": "core", "sub_theme_id": "digital_banking", "rationale": "Square merchant payments and Cash App banking" },
+        { "sym": "PYPL", "tier": "core", "sub_theme_id": "payments", "rationale": "Leading online payment processor" },
+        { "sym": "FI", "tier": "core", "sub_theme_id": "payments", "rationale": "Banking and payments technology infrastructure" },
+        { "sym": "AFRM", "tier": "relevant", "sub_theme_id": "digital_banking", "rationale": "Buy-now-pay-later lending platform" },
+        { "sym": "SOFI", "tier": "relevant", "sub_theme_id": "digital_banking", "rationale": "Digital banking, lending, and investing platform" },
+        { "sym": "COIN", "tier": "relevant", "sub_theme_id": "trading_platforms", "rationale": "Largest US crypto exchange" },
+        { "sym": "HOOD", "tier": "relevant", "sub_theme_id": "trading_platforms", "rationale": "Commission-free stock and crypto trading" },
+        { "sym": "TOST", "tier": "relevant", "sub_theme_id": "payments", "rationale": "Restaurant payment and management platform" },
+        { "sym": "GPN", "tier": "relevant", "sub_theme_id": "payments", "rationale": "Global payment technology and merchant services" },
+        { "sym": "NU", "tier": "relevant", "sub_theme_id": "digital_banking", "rationale": "Latin America largest digital bank" },
+        { "sym": "BILL", "tier": "peripheral", "sub_theme_id": "digital_banking", "rationale": "SMB financial operations automation" },
+        { "sym": "LPRO", "tier": "peripheral", "sub_theme_id": "digital_banking", "rationale": "AI-powered lending platform" }
+      ]
+    },
+    {
+      "id": "disruptive_innovation",
+      "name": "Disruptive Innovation",
+      "sector_id": "innovation",
+      "etf_ticker": "ARKK",
+      "etf_name": "ARK Innovation ETF",
+      "display_order": 1,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "TSLA", "tier": "core", "sub_theme_id": null, "rationale": "EV leader, energy storage, autonomous driving" },
+        { "sym": "ROKU", "tier": "core", "sub_theme_id": null, "rationale": "Connected TV platform disrupting linear television" },
+        { "sym": "COIN", "tier": "core", "sub_theme_id": null, "rationale": "Leading crypto exchange, new asset class enabler" },
+        { "sym": "SQ", "tier": "core", "sub_theme_id": null, "rationale": "Disrupting banking with Cash App ecosystem" },
+        { "sym": "SHOP", "tier": "core", "sub_theme_id": null, "rationale": "Enabling direct-to-consumer e-commerce disruption" },
+        { "sym": "PATH", "tier": "relevant", "sub_theme_id": null, "rationale": "RPA and AI automation disrupting enterprise workflows" },
+        { "sym": "RBLX", "tier": "relevant", "sub_theme_id": null, "rationale": "Virtual world platform disrupting entertainment" },
+        { "sym": "HOOD", "tier": "relevant", "sub_theme_id": null, "rationale": "Commission-free trading democratizing investing" },
+        { "sym": "TWLO", "tier": "relevant", "sub_theme_id": null, "rationale": "Cloud communications disrupting telecom" },
+        { "sym": "DKNG", "tier": "relevant", "sub_theme_id": null, "rationale": "Online sports betting disrupting gambling industry" },
+        { "sym": "U", "tier": "relevant", "sub_theme_id": null, "rationale": "Real-time 3D creation platform for new media" },
+        { "sym": "PLTR", "tier": "relevant", "sub_theme_id": null, "rationale": "AI analytics transforming decision-making" }
+      ]
+    },
+    {
+      "id": "genomics",
+      "name": "Genomics",
+      "sector_id": "innovation",
+      "etf_ticker": "ARKG",
+      "etf_name": "ARK Genomic Revolution ETF",
+      "display_order": 2,
+      "sub_themes": [
+        { "id": "gene_editing", "name": "Gene Editing / Therapy" },
+        { "id": "sequencing", "name": "Sequencing & Diagnostics" },
+        { "id": "synthetic_bio", "name": "Synthetic Biology" }
+      ],
+      "holdings": [
+        { "sym": "CRSP", "tier": "core", "sub_theme_id": "gene_editing", "rationale": "CRISPR gene editing, first approved therapy (Casgevy)" },
+        { "sym": "BEAM", "tier": "core", "sub_theme_id": "gene_editing", "rationale": "Base editing precision gene therapy pioneer" },
+        { "sym": "NTLA", "tier": "core", "sub_theme_id": "gene_editing", "rationale": "In-vivo CRISPR gene editing therapies" },
+        { "sym": "ILMN", "tier": "core", "sub_theme_id": "sequencing", "rationale": "Dominant next-gen DNA sequencing platform" },
+        { "sym": "TXG", "tier": "relevant", "sub_theme_id": "sequencing", "rationale": "Single-cell genomics analysis instruments" },
+        { "sym": "EXAS", "tier": "relevant", "sub_theme_id": "sequencing", "rationale": "Genomic cancer screening (Cologuard, Oncotype)" },
+        { "sym": "TWST", "tier": "relevant", "sub_theme_id": "synthetic_bio", "rationale": "Synthetic DNA manufacturing platform" },
+        { "sym": "PACB", "tier": "relevant", "sub_theme_id": "sequencing", "rationale": "Long-read DNA sequencing technology" },
+        { "sym": "VCYT", "tier": "relevant", "sub_theme_id": "sequencing", "rationale": "Genomic diagnostics for thyroid and other cancers" },
+        { "sym": "EDIT", "tier": "relevant", "sub_theme_id": "gene_editing", "rationale": "CRISPR-based medicines for blood disorders" },
+        { "sym": "VERV", "tier": "peripheral", "sub_theme_id": "gene_editing", "rationale": "Base editing for cardiovascular diseases" }
+      ]
+    },
+    {
+      "id": "autonomous_robotics",
+      "name": "Autonomous Tech & Robotics",
+      "sector_id": "innovation",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 3,
+      "sub_themes": [
+        { "id": "self_driving", "name": "Self-Driving / Autonomous Vehicles" },
+        { "id": "industrial_robots", "name": "Industrial Robotics" },
+        { "id": "drones_uav", "name": "Drones & UAVs" }
+      ],
+      "holdings": [
+        { "sym": "TSLA", "tier": "core", "sub_theme_id": "self_driving", "rationale": "FSD autonomous driving and Optimus robot program" },
+        { "sym": "ISRG", "tier": "core", "sub_theme_id": "industrial_robots", "rationale": "Dominant surgical robotics platform (da Vinci)" },
+        { "sym": "ROK", "tier": "core", "sub_theme_id": "industrial_robots", "rationale": "Industrial automation and robotics leader" },
+        { "sym": "TER", "tier": "relevant", "sub_theme_id": "industrial_robots", "rationale": "Collaborative and industrial robot arms (Universal)" },
+        { "sym": "NVDA", "tier": "relevant", "sub_theme_id": "self_driving", "rationale": "DRIVE platform for autonomous vehicle computing" },
+        { "sym": "QCOM", "tier": "relevant", "sub_theme_id": "self_driving", "rationale": "Snapdragon Ride autonomous driving platform" },
+        { "sym": "MOBILEYE", "tier": "core", "sub_theme_id": "self_driving", "rationale": "ADAS and self-driving chip systems leader" },
+        { "sym": "AVAV", "tier": "core", "sub_theme_id": "drones_uav", "rationale": "Leading tactical military drone manufacturer" },
+        { "sym": "JOBY", "tier": "relevant", "sub_theme_id": "drones_uav", "rationale": "Electric air taxi (eVTOL) developer" },
+        { "sym": "ACHR", "tier": "relevant", "sub_theme_id": "drones_uav", "rationale": "Electric vertical takeoff aircraft developer" },
+        { "sym": "RKLB", "tier": "peripheral", "sub_theme_id": "drones_uav", "rationale": "Rocket Lab builds autonomous spacecraft systems" }
+      ]
+    },
+    {
+      "id": "space",
+      "name": "Space",
+      "sector_id": "innovation",
+      "etf_ticker": "UFO",
+      "etf_name": "Procure Space ETF",
+      "display_order": 4,
+      "sub_themes": [
+        { "id": "launch", "name": "Launch Vehicles" },
+        { "id": "satellites", "name": "Satellites & Comms" },
+        { "id": "space_defense", "name": "Space Defense & Services" }
+      ],
+      "holdings": [
+        { "sym": "RKLB", "tier": "core", "sub_theme_id": "launch", "rationale": "Second most frequent orbital launch provider" },
+        { "sym": "LMT", "tier": "core", "sub_theme_id": "space_defense", "rationale": "Major space systems and satellite contractor" },
+        { "sym": "NOC", "tier": "core", "sub_theme_id": "space_defense", "rationale": "Space launch vehicles and satellite systems" },
+        { "sym": "BA", "tier": "relevant", "sub_theme_id": "launch", "rationale": "Starliner crew capsule and SLS rocket stages" },
+        { "sym": "RTX", "tier": "relevant", "sub_theme_id": "space_defense", "rationale": "Space sensors, satellite systems, and propulsion" },
+        { "sym": "GSAT", "tier": "relevant", "sub_theme_id": "satellites", "rationale": "Satellite communications spectrum and services" },
+        { "sym": "IRDM", "tier": "relevant", "sub_theme_id": "satellites", "rationale": "Global satellite communications constellation" },
+        { "sym": "LUNR", "tier": "relevant", "sub_theme_id": "space_defense", "rationale": "Lunar landing and navigation services" },
+        { "sym": "MNTS", "tier": "peripheral", "sub_theme_id": "satellites", "rationale": "Satellite servicing and transportation" },
+        { "sym": "RDW", "tier": "peripheral", "sub_theme_id": "satellites", "rationale": "Space structures and deployable systems" }
+      ]
+    },
+    {
+      "id": "solar",
+      "name": "Solar",
+      "sector_id": "clean_energy",
+      "etf_ticker": "TAN",
+      "etf_name": "Invesco Solar ETF",
+      "display_order": 1,
+      "sub_themes": [
+        { "id": "solar_manufacturing", "name": "Panel Manufacturing" },
+        { "id": "solar_install", "name": "Installation & Services" },
+        { "id": "solar_inverters", "name": "Inverters & Components" }
+      ],
+      "holdings": [
+        { "sym": "FSLR", "tier": "core", "sub_theme_id": "solar_manufacturing", "rationale": "Largest US thin-film solar panel manufacturer" },
+        { "sym": "ENPH", "tier": "core", "sub_theme_id": "solar_inverters", "rationale": "Dominant microinverter and battery systems maker" },
+        { "sym": "SEDG", "tier": "core", "sub_theme_id": "solar_inverters", "rationale": "String inverters and power optimizers for solar" },
+        { "sym": "RUN", "tier": "core", "sub_theme_id": "solar_install", "rationale": "Largest US residential solar installer" },
+        { "sym": "NOVA", "tier": "relevant", "sub_theme_id": "solar_install", "rationale": "Residential solar and storage installer" },
+        { "sym": "CSIQ", "tier": "relevant", "sub_theme_id": "solar_manufacturing", "rationale": "Canadian Solar panel manufacturer and developer" },
+        { "sym": "ARRY", "tier": "relevant", "sub_theme_id": "solar_inverters", "rationale": "Solar tracking systems for utility-scale projects" },
+        { "sym": "SHLS", "tier": "relevant", "sub_theme_id": "solar_inverters", "rationale": "Electrical BOS components for solar projects" },
+        { "sym": "MAXN", "tier": "peripheral", "sub_theme_id": "solar_manufacturing", "rationale": "High-efficiency solar cell technology" }
+      ]
+    },
+    {
+      "id": "clean_energy_broad",
+      "name": "Clean Energy",
+      "sector_id": "clean_energy",
+      "etf_ticker": "ICLN",
+      "etf_name": "iShares Global Clean Energy ETF",
+      "display_order": 2,
+      "sub_themes": [
+        { "id": "wind", "name": "Wind Energy" },
+        { "id": "hydrogen", "name": "Hydrogen & Fuel Cells" },
+        { "id": "clean_utilities", "name": "Clean Utilities" }
+      ],
+      "holdings": [
+        { "sym": "FSLR", "tier": "core", "sub_theme_id": null, "rationale": "US solar manufacturing champion" },
+        { "sym": "ENPH", "tier": "core", "sub_theme_id": null, "rationale": "Solar microinverter and energy storage leader" },
+        { "sym": "NEE", "tier": "core", "sub_theme_id": "clean_utilities", "rationale": "Largest wind and solar utility operator globally" },
+        { "sym": "PLUG", "tier": "relevant", "sub_theme_id": "hydrogen", "rationale": "Green hydrogen and fuel cell systems" },
+        { "sym": "BE", "tier": "relevant", "sub_theme_id": "hydrogen", "rationale": "Solid-oxide fuel cells for distributed power" },
+        { "sym": "GE", "tier": "relevant", "sub_theme_id": "wind", "rationale": "GE Vernova wind turbines and grid solutions" },
+        { "sym": "AES", "tier": "relevant", "sub_theme_id": "clean_utilities", "rationale": "Renewable energy developer and utility" },
+        { "sym": "CWEN", "tier": "relevant", "sub_theme_id": "clean_utilities", "rationale": "Clearway clean energy generation owner" },
+        { "sym": "ORA", "tier": "peripheral", "sub_theme_id": "clean_utilities", "rationale": "Geothermal and recovered energy power producer" },
+        { "sym": "BLDP", "tier": "peripheral", "sub_theme_id": "hydrogen", "rationale": "PEM fuel cell products for heavy transport" }
+      ]
+    },
+    {
+      "id": "lithium_battery",
+      "name": "Lithium & Battery",
+      "sector_id": "clean_energy",
+      "etf_ticker": "LIT",
+      "etf_name": "Global X Lithium & Battery Tech ETF",
+      "display_order": 3,
+      "sub_themes": [
+        { "id": "lithium_mining", "name": "Lithium Mining" },
+        { "id": "battery_tech", "name": "Battery Technology" },
+        { "id": "battery_materials", "name": "Battery Materials" }
+      ],
+      "holdings": [
+        { "sym": "ALB", "tier": "core", "sub_theme_id": "lithium_mining", "rationale": "Largest US lithium producer" },
+        { "sym": "SQM", "tier": "core", "sub_theme_id": "lithium_mining", "rationale": "Major Chilean lithium and specialty chemical producer" },
+        { "sym": "LTHM", "tier": "core", "sub_theme_id": "lithium_mining", "rationale": "Pure-play lithium hydroxide producer" },
+        { "sym": "QS", "tier": "relevant", "sub_theme_id": "battery_tech", "rationale": "Solid-state battery technology developer" },
+        { "sym": "ENVX", "tier": "relevant", "sub_theme_id": "battery_tech", "rationale": "Silicon anode lithium-ion battery developer" },
+        { "sym": "MP", "tier": "relevant", "sub_theme_id": "battery_materials", "rationale": "US rare earth mine supplying EV battery chain" },
+        { "sym": "LAC", "tier": "relevant", "sub_theme_id": "lithium_mining", "rationale": "Developing Thacker Pass lithium mine in Nevada" },
+        { "sym": "TSLA", "tier": "relevant", "sub_theme_id": "battery_tech", "rationale": "Megapack grid storage and 4680 cell production" },
+        { "sym": "FREYR", "tier": "peripheral", "sub_theme_id": "battery_tech", "rationale": "Clean battery cell manufacturing startup" }
+      ]
+    },
+    {
+      "id": "evs",
+      "name": "EVs",
+      "sector_id": "clean_energy",
+      "etf_ticker": "DRIV",
+      "etf_name": "Global X Autonomous & Electric Vehicles ETF",
+      "display_order": 4,
+      "sub_themes": [
+        { "id": "ev_oem", "name": "EV Manufacturers" },
+        { "id": "ev_charging", "name": "EV Charging" },
+        { "id": "ev_supply_chain", "name": "EV Supply Chain" }
+      ],
+      "holdings": [
+        { "sym": "TSLA", "tier": "core", "sub_theme_id": "ev_oem", "rationale": "Global EV sales leader and technology pioneer" },
+        { "sym": "RIVN", "tier": "core", "sub_theme_id": "ev_oem", "rationale": "Electric truck and SUV maker (R1T, R1S)" },
+        { "sym": "LCID", "tier": "relevant", "sub_theme_id": "ev_oem", "rationale": "Luxury EV sedan and SUV manufacturer" },
+        { "sym": "GM", "tier": "relevant", "sub_theme_id": "ev_oem", "rationale": "Ultium platform EVs (Hummer, Equinox EV)" },
+        { "sym": "F", "tier": "relevant", "sub_theme_id": "ev_oem", "rationale": "F-150 Lightning and Mustang Mach-E maker" },
+        { "sym": "LI", "tier": "relevant", "sub_theme_id": "ev_oem", "rationale": "Chinese extended-range EV SUV maker" },
+        { "sym": "NIO", "tier": "relevant", "sub_theme_id": "ev_oem", "rationale": "Chinese premium EV maker with battery swap" },
+        { "sym": "XPEV", "tier": "relevant", "sub_theme_id": "ev_oem", "rationale": "Chinese smart EV maker with ADAS focus" },
+        { "sym": "CHPT", "tier": "relevant", "sub_theme_id": "ev_charging", "rationale": "Leading US EV charging network operator" },
+        { "sym": "BLNK", "tier": "peripheral", "sub_theme_id": "ev_charging", "rationale": "EV charging equipment and network provider" },
+        { "sym": "ON", "tier": "relevant", "sub_theme_id": "ev_supply_chain", "rationale": "Power semiconductors for EV drivetrains" },
+        { "sym": "ALB", "tier": "relevant", "sub_theme_id": "ev_supply_chain", "rationale": "Lithium supplier critical to EV batteries" },
+        { "sym": "APTV", "tier": "relevant", "sub_theme_id": "ev_supply_chain", "rationale": "EV electrical architecture and connectors" }
+      ]
+    },
+    {
+      "id": "nuclear",
+      "name": "Nuclear",
+      "sector_id": "clean_energy",
+      "etf_ticker": "NLR",
+      "etf_name": "VanEck Uranium and Nuclear ETF",
+      "display_order": 5,
+      "sub_themes": [
+        { "id": "uranium_mining", "name": "Uranium Mining" },
+        { "id": "nuclear_tech", "name": "Nuclear Technology" },
+        { "id": "smr", "name": "Small Modular Reactors" }
+      ],
+      "holdings": [
+        { "sym": "CCJ", "tier": "core", "sub_theme_id": "uranium_mining", "rationale": "Largest publicly traded uranium miner" },
+        { "sym": "LEU", "tier": "core", "sub_theme_id": "nuclear_tech", "rationale": "Only US uranium enrichment company (HALEU)" },
+        { "sym": "VST", "tier": "core", "sub_theme_id": "nuclear_tech", "rationale": "Largest US nuclear fleet operator (Comanche Peak)" },
+        { "sym": "CEG", "tier": "core", "sub_theme_id": "nuclear_tech", "rationale": "Largest US nuclear operator, Three Mile Island restart" },
+        { "sym": "SMR", "tier": "core", "sub_theme_id": "smr", "rationale": "NuScale small modular reactor developer" },
+        { "sym": "OKLO", "tier": "relevant", "sub_theme_id": "smr", "rationale": "Advanced fission microreactor developer" },
+        { "sym": "UEC", "tier": "relevant", "sub_theme_id": "uranium_mining", "rationale": "US uranium mining and processing" },
+        { "sym": "UUUU", "tier": "relevant", "sub_theme_id": "uranium_mining", "rationale": "US uranium and rare earth producer" },
+        { "sym": "NNE", "tier": "relevant", "sub_theme_id": "smr", "rationale": "Micro nuclear reactor for data center power" },
+        { "sym": "DNN", "tier": "relevant", "sub_theme_id": "uranium_mining", "rationale": "Canadian uranium exploration and development" },
+        { "sym": "GEV", "tier": "relevant", "sub_theme_id": "nuclear_tech", "rationale": "GE Vernova nuclear services and SMR development" },
+        { "sym": "BWX", "tier": "relevant", "sub_theme_id": "nuclear_tech", "rationale": "Naval nuclear reactors and fuel components" }
+      ]
+    },
+    {
+      "id": "grid_modernization",
+      "name": "Grid Modernization",
+      "sector_id": "clean_energy",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 6,
+      "sub_themes": [
+        { "id": "grid_equipment", "name": "Grid Equipment & Transformers" },
+        { "id": "grid_software", "name": "Grid Software & Management" },
+        { "id": "energy_storage", "name": "Energy Storage" }
+      ],
+      "holdings": [
+        { "sym": "ETN", "tier": "core", "sub_theme_id": "grid_equipment", "rationale": "Electrical grid equipment and power management" },
+        { "sym": "GEV", "tier": "core", "sub_theme_id": "grid_equipment", "rationale": "Grid solutions, transformers, and electrification" },
+        { "sym": "VRT", "tier": "core", "sub_theme_id": "grid_equipment", "rationale": "Power conditioning and grid infrastructure" },
+        { "sym": "PWR", "tier": "core", "sub_theme_id": "grid_equipment", "rationale": "Utility-scale electrical infrastructure contractor" },
+        { "sym": "POWL", "tier": "relevant", "sub_theme_id": "grid_equipment", "rationale": "Switchgear and power distribution equipment" },
+        { "sym": "AME", "tier": "relevant", "sub_theme_id": "grid_equipment", "rationale": "Electronic instruments for power monitoring" },
+        { "sym": "ITRI", "tier": "relevant", "sub_theme_id": "grid_software", "rationale": "Smart grid meters and IoT solutions" },
+        { "sym": "TSLA", "tier": "relevant", "sub_theme_id": "energy_storage", "rationale": "Megapack utility-scale battery storage systems" },
+        { "sym": "GNRC", "tier": "relevant", "sub_theme_id": "energy_storage", "rationale": "Home standby generators and energy storage" },
+        { "sym": "STEM", "tier": "peripheral", "sub_theme_id": "grid_software", "rationale": "AI-driven energy storage optimization software" }
+      ]
+    },
+    {
+      "id": "energy_broad",
+      "name": "Energy Broad",
+      "sector_id": "traditional_energy",
+      "etf_ticker": "XLE",
+      "etf_name": "Energy Select Sector SPDR Fund",
+      "display_order": 1,
+      "sub_themes": [
+        { "id": "integrated_oil", "name": "Integrated Oil Majors" },
+        { "id": "midstream", "name": "Midstream / Pipelines" }
+      ],
+      "holdings": [
+        { "sym": "XOM", "tier": "core", "sub_theme_id": "integrated_oil", "rationale": "Largest US integrated oil and gas company" },
+        { "sym": "CVX", "tier": "core", "sub_theme_id": "integrated_oil", "rationale": "Second-largest US integrated oil major" },
+        { "sym": "COP", "tier": "core", "sub_theme_id": null, "rationale": "Largest independent E&P company by production" },
+        { "sym": "EOG", "tier": "core", "sub_theme_id": null, "rationale": "Premium shale oil producer with low costs" },
+        { "sym": "SLB", "tier": "core", "sub_theme_id": null, "rationale": "Largest oilfield services company globally" },
+        { "sym": "WMB", "tier": "relevant", "sub_theme_id": "midstream", "rationale": "Major natural gas pipeline operator" },
+        { "sym": "KMI", "tier": "relevant", "sub_theme_id": "midstream", "rationale": "Largest US natural gas pipeline network" },
+        { "sym": "OKE", "tier": "relevant", "sub_theme_id": "midstream", "rationale": "Natural gas gathering and processing midstream" },
+        { "sym": "PSX", "tier": "relevant", "sub_theme_id": null, "rationale": "Major refining and midstream operator" },
+        { "sym": "VLO", "tier": "relevant", "sub_theme_id": null, "rationale": "Largest independent petroleum refiner" },
+        { "sym": "MPC", "tier": "relevant", "sub_theme_id": null, "rationale": "Major US refining and MPLX midstream" },
+        { "sym": "HAL", "tier": "relevant", "sub_theme_id": null, "rationale": "Second-largest oilfield services provider" },
+        { "sym": "DVN", "tier": "relevant", "sub_theme_id": null, "rationale": "Multi-basin US shale oil producer" }
+      ]
+    },
+    {
+      "id": "oil_gas_ep",
+      "name": "Oil & Gas E&P",
+      "sector_id": "traditional_energy",
+      "etf_ticker": "XOP",
+      "etf_name": "SPDR S&P Oil & Gas Exploration & Production ETF",
+      "display_order": 2,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "COP", "tier": "core", "sub_theme_id": null, "rationale": "Largest pure-play E&P by market cap" },
+        { "sym": "EOG", "tier": "core", "sub_theme_id": null, "rationale": "Premium Permian and Eagle Ford producer" },
+        { "sym": "DVN", "tier": "core", "sub_theme_id": null, "rationale": "Multi-basin shale producer with variable dividend" },
+        { "sym": "FANG", "tier": "core", "sub_theme_id": null, "rationale": "Pure Permian Basin oil producer" },
+        { "sym": "OVV", "tier": "core", "sub_theme_id": null, "rationale": "Multi-basin producer (Permian, Montney, Uinta)" },
+        { "sym": "PR", "tier": "relevant", "sub_theme_id": null, "rationale": "Permian Basin focused E&P operator" },
+        { "sym": "CTRA", "tier": "relevant", "sub_theme_id": null, "rationale": "Appalachia and Permian natural gas and oil" },
+        { "sym": "MRO", "tier": "relevant", "sub_theme_id": null, "rationale": "Multi-basin US E&P operator" },
+        { "sym": "CHRD", "tier": "relevant", "sub_theme_id": null, "rationale": "Bakken-focused oil producer (Chord Energy)" },
+        { "sym": "APA", "tier": "relevant", "sub_theme_id": null, "rationale": "Permian and Suriname oil exploration" },
+        { "sym": "MTDR", "tier": "relevant", "sub_theme_id": null, "rationale": "Permian Basin E&P with midstream assets" },
+        { "sym": "SM", "tier": "peripheral", "sub_theme_id": null, "rationale": "Permian and South Texas E&P operator" },
+        { "sym": "CRGY", "tier": "peripheral", "sub_theme_id": null, "rationale": "Diversified minerals and royalties E&P" }
+      ]
+    },
+    {
+      "id": "oil_services",
+      "name": "Oil Services",
+      "sector_id": "traditional_energy",
+      "etf_ticker": "OIH",
+      "etf_name": "VanEck Oil Services ETF",
+      "display_order": 3,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "SLB", "tier": "core", "sub_theme_id": null, "rationale": "Largest global oilfield services company" },
+        { "sym": "HAL", "tier": "core", "sub_theme_id": null, "rationale": "Major oilfield services and completions provider" },
+        { "sym": "BKR", "tier": "core", "sub_theme_id": null, "rationale": "Oilfield services, LNG equipment, and digital" },
+        { "sym": "FTI", "tier": "core", "sub_theme_id": null, "rationale": "Subsea systems and offshore services leader" },
+        { "sym": "NOV", "tier": "relevant", "sub_theme_id": null, "rationale": "Drilling equipment and offshore rig technology" },
+        { "sym": "WFRD", "tier": "relevant", "sub_theme_id": null, "rationale": "International completions and artificial lift" },
+        { "sym": "CHX", "tier": "relevant", "sub_theme_id": null, "rationale": "Drilling fluids and pressure pumping services" },
+        { "sym": "HP", "tier": "relevant", "sub_theme_id": null, "rationale": "US onshore drilling rig fleet operator" },
+        { "sym": "WHD", "tier": "relevant", "sub_theme_id": null, "rationale": "Pressure control equipment for completions" },
+        { "sym": "LBRT", "tier": "relevant", "sub_theme_id": null, "rationale": "Hydraulic fracturing services provider" },
+        { "sym": "OII", "tier": "peripheral", "sub_theme_id": null, "rationale": "Deepwater ROV and subsea services" }
+      ]
+    },
+    {
+      "id": "natural_gas",
+      "name": "Natural Gas",
+      "sector_id": "traditional_energy",
+      "etf_ticker": "FCG",
+      "etf_name": "First Trust Natural Gas ETF",
+      "display_order": 4,
+      "sub_themes": [
+        { "id": "gas_producers", "name": "Gas Producers" },
+        { "id": "lng", "name": "LNG" },
+        { "id": "gas_pipelines", "name": "Gas Pipelines" }
+      ],
+      "holdings": [
+        { "sym": "EQT", "tier": "core", "sub_theme_id": "gas_producers", "rationale": "Largest US natural gas producer by volume" },
+        { "sym": "AR", "tier": "core", "sub_theme_id": "gas_producers", "rationale": "Major Appalachia natural gas producer" },
+        { "sym": "RRC", "tier": "core", "sub_theme_id": "gas_producers", "rationale": "Marcellus and Utica natural gas producer" },
+        { "sym": "LNG", "tier": "core", "sub_theme_id": "lng", "rationale": "Largest US LNG exporter (Cheniere Energy)" },
+        { "sym": "CTRA", "tier": "relevant", "sub_theme_id": "gas_producers", "rationale": "Marcellus shale natural gas focused producer" },
+        { "sym": "SWN", "tier": "relevant", "sub_theme_id": "gas_producers", "rationale": "Appalachian natural gas producer" },
+        { "sym": "KMI", "tier": "relevant", "sub_theme_id": "gas_pipelines", "rationale": "Largest US natural gas pipeline network" },
+        { "sym": "WMB", "tier": "relevant", "sub_theme_id": "gas_pipelines", "rationale": "Transco pipeline, largest US gas pipeline" },
+        { "sym": "OKE", "tier": "relevant", "sub_theme_id": "gas_pipelines", "rationale": "Natural gas liquids and gathering systems" },
+        { "sym": "BKR", "tier": "relevant", "sub_theme_id": "lng", "rationale": "LNG equipment and gas technology services" },
+        { "sym": "NEXT", "tier": "peripheral", "sub_theme_id": "lng", "rationale": "Small-scale LNG production solutions" }
+      ]
+    },
+    {
+      "id": "gold",
+      "name": "Gold",
+      "sector_id": "materials",
+      "etf_ticker": "GLD",
+      "etf_name": "SPDR Gold Shares",
+      "display_order": 1,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "NEM", "tier": "core", "sub_theme_id": null, "rationale": "Largest gold mining company globally" },
+        { "sym": "GOLD", "tier": "core", "sub_theme_id": null, "rationale": "Second-largest gold miner (Barrick Gold)" },
+        { "sym": "AEM", "tier": "core", "sub_theme_id": null, "rationale": "Major Canadian gold and silver miner" },
+        { "sym": "FNV", "tier": "core", "sub_theme_id": null, "rationale": "Largest gold-focused streaming and royalty company" },
+        { "sym": "WPM", "tier": "core", "sub_theme_id": null, "rationale": "Precious metals streaming company" },
+        { "sym": "KGC", "tier": "relevant", "sub_theme_id": null, "rationale": "Mid-tier gold and silver producer" },
+        { "sym": "AGI", "tier": "relevant", "sub_theme_id": null, "rationale": "Growing mid-tier gold miner" },
+        { "sym": "GFI", "tier": "relevant", "sub_theme_id": null, "rationale": "South African gold producer" },
+        { "sym": "RGLD", "tier": "relevant", "sub_theme_id": null, "rationale": "Gold royalty and streaming company" },
+        { "sym": "AU", "tier": "relevant", "sub_theme_id": null, "rationale": "AngloGold Ashanti, global gold miner" }
+      ]
+    },
+    {
+      "id": "gold_miners",
+      "name": "Gold Miners",
+      "sector_id": "materials",
+      "etf_ticker": "GDX",
+      "etf_name": "VanEck Gold Miners ETF",
+      "display_order": 2,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "NEM", "tier": "core", "sub_theme_id": null, "rationale": "World largest gold producer by output" },
+        { "sym": "GOLD", "tier": "core", "sub_theme_id": null, "rationale": "Tier-one gold assets across six countries" },
+        { "sym": "AEM", "tier": "core", "sub_theme_id": null, "rationale": "Top-5 global gold producer with pipeline" },
+        { "sym": "FNV", "tier": "core", "sub_theme_id": null, "rationale": "Premier streaming and royalty on gold mines" },
+        { "sym": "WPM", "tier": "core", "sub_theme_id": null, "rationale": "Streaming model on gold and silver production" },
+        { "sym": "KGC", "tier": "relevant", "sub_theme_id": null, "rationale": "Producing mines in Americas and West Africa" },
+        { "sym": "AGI", "tier": "relevant", "sub_theme_id": null, "rationale": "Canadian mid-cap gold miner growing production" },
+        { "sym": "GFI", "tier": "relevant", "sub_theme_id": null, "rationale": "Major South African gold operations" },
+        { "sym": "BTG", "tier": "relevant", "sub_theme_id": null, "rationale": "B2Gold mid-tier producer in Africa and Philippines" },
+        { "sym": "HMY", "tier": "relevant", "sub_theme_id": null, "rationale": "Harmony Gold, South African deep-level miner" },
+        { "sym": "EGO", "tier": "relevant", "sub_theme_id": null, "rationale": "Eldorado Gold, mines in Canada and Turkey" },
+        { "sym": "RGLD", "tier": "relevant", "sub_theme_id": null, "rationale": "Royal Gold royalties on producing mines" }
+      ]
+    },
+    {
+      "id": "jr_gold",
+      "name": "Jr Gold",
+      "sector_id": "materials",
+      "etf_ticker": "GDXJ",
+      "etf_name": "VanEck Junior Gold Miners ETF",
+      "display_order": 3,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "AGI", "tier": "core", "sub_theme_id": null, "rationale": "Mid-cap gold miner with growth pipeline" },
+        { "sym": "BTG", "tier": "core", "sub_theme_id": null, "rationale": "Low-cost junior gold producer in Africa" },
+        { "sym": "EGO", "tier": "core", "sub_theme_id": null, "rationale": "Junior producer with Skouries development project" },
+        { "sym": "CDE", "tier": "core", "sub_theme_id": null, "rationale": "Coeur Mining, US-focused silver and gold producer" },
+        { "sym": "PAAS", "tier": "relevant", "sub_theme_id": null, "rationale": "Pan American Silver with gold operations" },
+        { "sym": "OR", "tier": "relevant", "sub_theme_id": null, "rationale": "Osisko Gold Royalties on junior mines" },
+        { "sym": "HL", "tier": "relevant", "sub_theme_id": null, "rationale": "Hecla Mining, US silver and gold producer" },
+        { "sym": "NGD", "tier": "relevant", "sub_theme_id": null, "rationale": "New Gold, Canadian junior gold producer" },
+        { "sym": "SAND", "tier": "relevant", "sub_theme_id": null, "rationale": "Sandstorm Gold streaming and royalties" },
+        { "sym": "SSRM", "tier": "relevant", "sub_theme_id": null, "rationale": "SSR Mining, gold and silver producer in Americas" }
+      ]
+    },
+    {
+      "id": "silver",
+      "name": "Silver",
+      "sector_id": "materials",
+      "etf_ticker": "SIL",
+      "etf_name": "Global X Silver Miners ETF",
+      "display_order": 4,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "WPM", "tier": "core", "sub_theme_id": null, "rationale": "Largest silver streaming company" },
+        { "sym": "PAAS", "tier": "core", "sub_theme_id": null, "rationale": "Largest primary silver producer globally" },
+        { "sym": "HL", "tier": "core", "sub_theme_id": null, "rationale": "Largest US primary silver producer" },
+        { "sym": "FRES", "tier": "core", "sub_theme_id": null, "rationale": "Fresnillo, world largest silver producer" },
+        { "sym": "CDE", "tier": "relevant", "sub_theme_id": null, "rationale": "Silver and gold producer in Americas" },
+        { "sym": "MAG", "tier": "relevant", "sub_theme_id": null, "rationale": "MAG Silver, high-grade silver project developer" },
+        { "sym": "AG", "tier": "relevant", "sub_theme_id": null, "rationale": "First Majestic Silver, primary silver miner" },
+        { "sym": "EXK", "tier": "relevant", "sub_theme_id": null, "rationale": "Endeavour Silver, Mexican silver operations" },
+        { "sym": "SSRM", "tier": "peripheral", "sub_theme_id": null, "rationale": "Silver by-product from gold-silver operations" }
+      ]
+    },
+    {
+      "id": "copper",
+      "name": "Copper",
+      "sector_id": "materials",
+      "etf_ticker": "COPX",
+      "etf_name": "Global X Copper Miners ETF",
+      "display_order": 5,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "FCX", "tier": "core", "sub_theme_id": null, "rationale": "Largest publicly traded copper producer globally" },
+        { "sym": "SCCO", "tier": "core", "sub_theme_id": null, "rationale": "Major copper producer in Peru and Mexico" },
+        { "sym": "TECK", "tier": "core", "sub_theme_id": null, "rationale": "Canadian copper and zinc diversified miner" },
+        { "sym": "HBM", "tier": "relevant", "sub_theme_id": null, "rationale": "Hudbay Minerals copper-gold producer" },
+        { "sym": "ERO", "tier": "relevant", "sub_theme_id": null, "rationale": "Ero Copper, Brazilian copper mining operations" },
+        { "sym": "IVPAF", "tier": "peripheral", "sub_theme_id": null, "rationale": "Ivanhoe Mines, DRC copper development" }
+      ]
+    },
+    {
+      "id": "rare_earth",
+      "name": "Rare Earth",
+      "sector_id": "materials",
+      "etf_ticker": "REMX",
+      "etf_name": "VanEck Rare Earth/Strategic Metals ETF",
+      "display_order": 6,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "MP", "tier": "core", "sub_theme_id": null, "rationale": "Only US rare earth mine and processing facility" },
+        { "sym": "UUUU", "tier": "core", "sub_theme_id": null, "rationale": "US rare earth and uranium producer" },
+        { "sym": "ALB", "tier": "relevant", "sub_theme_id": null, "rationale": "Lithium and specialty chemicals tied to critical minerals" },
+        { "sym": "AMR", "tier": "relevant", "sub_theme_id": null, "rationale": "Alpha Metallurgical, met coal for steel alloys" },
+        { "sym": "TECK", "tier": "relevant", "sub_theme_id": null, "rationale": "Zinc, copper, and critical minerals portfolio" },
+        { "sym": "LAC", "tier": "relevant", "sub_theme_id": null, "rationale": "Lithium Americas, critical mineral developer" }
+      ]
+    },
+    {
+      "id": "steel_metals",
+      "name": "Steel & Metals",
+      "sector_id": "materials",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 7,
+      "sub_themes": [
+        { "id": "steel_producers", "name": "Steel Producers" },
+        { "id": "specialty_metals", "name": "Specialty Metals" }
+      ],
+      "holdings": [
+        { "sym": "NUE", "tier": "core", "sub_theme_id": "steel_producers", "rationale": "Largest US steel producer by capacity" },
+        { "sym": "STLD", "tier": "core", "sub_theme_id": "steel_producers", "rationale": "EAF steel producer with growing flat-roll" },
+        { "sym": "CLF", "tier": "core", "sub_theme_id": "steel_producers", "rationale": "Integrated flat-rolled steel and iron ore producer" },
+        { "sym": "X", "tier": "relevant", "sub_theme_id": "steel_producers", "rationale": "US Steel, integrated steel operations" },
+        { "sym": "RS", "tier": "relevant", "sub_theme_id": "steel_producers", "rationale": "Largest metals service center in North America" },
+        { "sym": "ATI", "tier": "relevant", "sub_theme_id": "specialty_metals", "rationale": "Specialty alloys for aerospace and defense" },
+        { "sym": "HWM", "tier": "relevant", "sub_theme_id": "specialty_metals", "rationale": "Aerospace titanium and nickel superalloys" },
+        { "sym": "CRS", "tier": "relevant", "sub_theme_id": "specialty_metals", "rationale": "Specialty alloy steel for aerospace and medical" },
+        { "sym": "CMC", "tier": "peripheral", "sub_theme_id": "steel_producers", "rationale": "Rebar and merchant steel producer" },
+        { "sym": "TMST", "tier": "peripheral", "sub_theme_id": "steel_producers", "rationale": "Steel tubular products manufacturer" }
+      ]
+    },
+    {
+      "id": "agribusiness",
+      "name": "Agribusiness",
+      "sector_id": "materials",
+      "etf_ticker": "MOO",
+      "etf_name": "VanEck Agribusiness ETF",
+      "display_order": 8,
+      "sub_themes": [
+        { "id": "crop_inputs", "name": "Crop Inputs & Chemicals" },
+        { "id": "ag_equipment", "name": "Farm Equipment" },
+        { "id": "grain_processing", "name": "Grain Processing & Trading" }
+      ],
+      "holdings": [
+        { "sym": "DE", "tier": "core", "sub_theme_id": "ag_equipment", "rationale": "Dominant farm and construction equipment maker" },
+        { "sym": "ADM", "tier": "core", "sub_theme_id": "grain_processing", "rationale": "Global grain processing and trading giant" },
+        { "sym": "MOS", "tier": "core", "sub_theme_id": "crop_inputs", "rationale": "Largest US potash and phosphate fertilizer producer" },
+        { "sym": "NTR", "tier": "core", "sub_theme_id": "crop_inputs", "rationale": "Global potash leader and crop input retailer" },
+        { "sym": "CF", "tier": "relevant", "sub_theme_id": "crop_inputs", "rationale": "Major nitrogen fertilizer manufacturer" },
+        { "sym": "CTVA", "tier": "relevant", "sub_theme_id": "crop_inputs", "rationale": "Seed and crop protection technology leader" },
+        { "sym": "FMC", "tier": "relevant", "sub_theme_id": "crop_inputs", "rationale": "Agricultural chemicals and crop protection" },
+        { "sym": "BG", "tier": "relevant", "sub_theme_id": "grain_processing", "rationale": "Global grain trading and food processing" },
+        { "sym": "AGCO", "tier": "relevant", "sub_theme_id": "ag_equipment", "rationale": "Fendt and Massey Ferguson farm equipment" },
+        { "sym": "CNHI", "tier": "relevant", "sub_theme_id": "ag_equipment", "rationale": "Case IH and New Holland farm equipment" }
+      ]
+    },
+    {
+      "id": "water",
+      "name": "Water",
+      "sector_id": "materials",
+      "etf_ticker": "PHO",
+      "etf_name": "Invesco Water Resources ETF",
+      "display_order": 9,
+      "sub_themes": [
+        { "id": "water_utilities", "name": "Water Utilities" },
+        { "id": "water_tech", "name": "Water Technology" }
+      ],
+      "holdings": [
+        { "sym": "AWK", "tier": "core", "sub_theme_id": "water_utilities", "rationale": "Largest US publicly traded water utility" },
+        { "sym": "XYL", "tier": "core", "sub_theme_id": "water_tech", "rationale": "Water technology solutions and analytics" },
+        { "sym": "WMS", "tier": "core", "sub_theme_id": "water_tech", "rationale": "Water management and drainage infrastructure" },
+        { "sym": "WTRG", "tier": "relevant", "sub_theme_id": "water_utilities", "rationale": "Essential Utilities, regulated water and gas" },
+        { "sym": "SJW", "tier": "relevant", "sub_theme_id": "water_utilities", "rationale": "Regional water utility in California and Texas" },
+        { "sym": "CWT", "tier": "relevant", "sub_theme_id": "water_utilities", "rationale": "California Water Service, regulated utility" },
+        { "sym": "A", "tier": "relevant", "sub_theme_id": "water_tech", "rationale": "Agilent water quality testing instruments" },
+        { "sym": "FBIN", "tier": "peripheral", "sub_theme_id": "water_tech", "rationale": "Fortune Brands plumbing and water products" },
+        { "sym": "PNR", "tier": "relevant", "sub_theme_id": "water_tech", "rationale": "Pentair water treatment and filtration" }
+      ]
+    },
+    {
+      "id": "defense",
+      "name": "Defense",
+      "sector_id": "defense_industrials",
+      "etf_ticker": "ITA",
+      "etf_name": "iShares U.S. Aerospace & Defense ETF",
+      "display_order": 1,
+      "sub_themes": [
+        { "id": "defense_primes", "name": "Defense Primes" },
+        { "id": "defense_subcontractors", "name": "Defense Subcontractors" }
+      ],
+      "holdings": [
+        { "sym": "LMT", "tier": "core", "sub_theme_id": "defense_primes", "rationale": "Largest US defense contractor (F-35, missiles)" },
+        { "sym": "RTX", "tier": "core", "sub_theme_id": "defense_primes", "rationale": "Pratt engines, Raytheon missiles, Collins avionics" },
+        { "sym": "NOC", "tier": "core", "sub_theme_id": "defense_primes", "rationale": "B-21 bomber, space systems, autonomous systems" },
+        { "sym": "GD", "tier": "core", "sub_theme_id": "defense_primes", "rationale": "Combat vehicles, submarines, Gulfstream jets" },
+        { "sym": "BA", "tier": "core", "sub_theme_id": "defense_primes", "rationale": "Military aircraft, tankers, space systems" },
+        { "sym": "LHX", "tier": "core", "sub_theme_id": "defense_subcontractors", "rationale": "Defense communications and electronic warfare" },
+        { "sym": "HII", "tier": "relevant", "sub_theme_id": "defense_primes", "rationale": "Sole US aircraft carrier and submarine builder" },
+        { "sym": "TDG", "tier": "relevant", "sub_theme_id": "defense_subcontractors", "rationale": "Proprietary aerospace and defense components" },
+        { "sym": "HWM", "tier": "relevant", "sub_theme_id": "defense_subcontractors", "rationale": "Precision aerospace castings and fasteners" },
+        { "sym": "LDOS", "tier": "relevant", "sub_theme_id": "defense_subcontractors", "rationale": "Defense IT services and solutions" },
+        { "sym": "SAIC", "tier": "relevant", "sub_theme_id": "defense_subcontractors", "rationale": "Government IT and defense engineering" },
+        { "sym": "TXT", "tier": "relevant", "sub_theme_id": "defense_subcontractors", "rationale": "Bell helicopters and defense systems" },
+        { "sym": "CW", "tier": "peripheral", "sub_theme_id": "defense_subcontractors", "rationale": "Valves and controls for naval defense" }
+      ]
+    },
+    {
+      "id": "defense_tech",
+      "name": "Defense Tech",
+      "sector_id": "defense_industrials",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 2,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "PLTR", "tier": "core", "sub_theme_id": null, "rationale": "AI analytics platform for defense and intelligence" },
+        { "sym": "AVAV", "tier": "core", "sub_theme_id": null, "rationale": "Switchblade loitering munitions and tactical drones" },
+        { "sym": "AXON", "tier": "core", "sub_theme_id": null, "rationale": "Law enforcement tech (Tasers, body cams, AI)" },
+        { "sym": "RKLB", "tier": "relevant", "sub_theme_id": null, "rationale": "Space launch and satellite systems for DoD" },
+        { "sym": "KTOS", "tier": "relevant", "sub_theme_id": null, "rationale": "Drone systems and satellite comms for defense" },
+        { "sym": "IRDM", "tier": "relevant", "sub_theme_id": null, "rationale": "Satellite comms used by military worldwide" },
+        { "sym": "BBAI", "tier": "relevant", "sub_theme_id": null, "rationale": "AI and analytics for defense and intel agencies" },
+        { "sym": "LHX", "tier": "relevant", "sub_theme_id": null, "rationale": "Space, C4ISR, and electronic warfare technology" },
+        { "sym": "LDOS", "tier": "relevant", "sub_theme_id": null, "rationale": "Cyber, digital modernization for defense" },
+        { "sym": "ACHR", "tier": "peripheral", "sub_theme_id": null, "rationale": "eVTOL aircraft with DoD contract potential" }
+      ]
+    },
+    {
+      "id": "industrials",
+      "name": "Industrials",
+      "sector_id": "defense_industrials",
+      "etf_ticker": "XLI",
+      "etf_name": "Industrial Select Sector SPDR Fund",
+      "display_order": 3,
+      "sub_themes": [
+        { "id": "industrial_conglomerates", "name": "Industrial Conglomerates" },
+        { "id": "industrial_machinery", "name": "Machinery & Equipment" },
+        { "id": "waste_services", "name": "Waste & Environmental" }
+      ],
+      "holdings": [
+        { "sym": "HON", "tier": "core", "sub_theme_id": "industrial_conglomerates", "rationale": "Diversified industrial tech and automation" },
+        { "sym": "UNP", "tier": "core", "sub_theme_id": null, "rationale": "Largest US railroad by revenue" },
+        { "sym": "CAT", "tier": "core", "sub_theme_id": "industrial_machinery", "rationale": "Global construction and mining equipment leader" },
+        { "sym": "GE", "tier": "core", "sub_theme_id": "industrial_conglomerates", "rationale": "GE Aerospace, jet engine market leader" },
+        { "sym": "ETN", "tier": "core", "sub_theme_id": "industrial_conglomerates", "rationale": "Power management and industrial diversified" },
+        { "sym": "MMM", "tier": "relevant", "sub_theme_id": "industrial_conglomerates", "rationale": "Diversified industrial manufacturer (3M)" },
+        { "sym": "EMR", "tier": "relevant", "sub_theme_id": "industrial_machinery", "rationale": "Industrial automation and climate technologies" },
+        { "sym": "WM", "tier": "relevant", "sub_theme_id": "waste_services", "rationale": "Largest US waste management company" },
+        { "sym": "RSG", "tier": "relevant", "sub_theme_id": "waste_services", "rationale": "Second-largest US waste services provider" },
+        { "sym": "ITW", "tier": "relevant", "sub_theme_id": "industrial_machinery", "rationale": "Diversified industrial manufacturer and tools" },
+        { "sym": "PH", "tier": "relevant", "sub_theme_id": "industrial_machinery", "rationale": "Motion and control technologies leader" },
+        { "sym": "CMI", "tier": "relevant", "sub_theme_id": "industrial_machinery", "rationale": "Diesel and alternative power engines leader" },
+        { "sym": "FDX", "tier": "relevant", "sub_theme_id": null, "rationale": "Global logistics and freight transportation" }
+      ]
+    },
+    {
+      "id": "infrastructure",
+      "name": "Infrastructure",
+      "sector_id": "defense_industrials",
+      "etf_ticker": "PAVE",
+      "etf_name": "Global X U.S. Infrastructure Development ETF",
+      "display_order": 4,
+      "sub_themes": [
+        { "id": "eng_construction", "name": "Engineering & Construction" },
+        { "id": "building_materials", "name": "Building Materials" },
+        { "id": "heavy_equipment", "name": "Heavy Equipment" }
+      ],
+      "holdings": [
+        { "sym": "CAT", "tier": "core", "sub_theme_id": "heavy_equipment", "rationale": "Construction and infrastructure equipment leader" },
+        { "sym": "VMC", "tier": "core", "sub_theme_id": "building_materials", "rationale": "Largest US producer of construction aggregates" },
+        { "sym": "MLM", "tier": "core", "sub_theme_id": "building_materials", "rationale": "Second-largest US aggregates and cement producer" },
+        { "sym": "PWR", "tier": "core", "sub_theme_id": "eng_construction", "rationale": "Electric power and infrastructure contractor" },
+        { "sym": "EME", "tier": "relevant", "sub_theme_id": "eng_construction", "rationale": "Electrical and mechanical construction services" },
+        { "sym": "URI", "tier": "relevant", "sub_theme_id": "heavy_equipment", "rationale": "Largest equipment rental company in North America" },
+        { "sym": "DE", "tier": "relevant", "sub_theme_id": "heavy_equipment", "rationale": "Construction equipment alongside farm machinery" },
+        { "sym": "NUE", "tier": "relevant", "sub_theme_id": "building_materials", "rationale": "Structural steel for infrastructure projects" },
+        { "sym": "FLR", "tier": "relevant", "sub_theme_id": "eng_construction", "rationale": "Major EPC contractor for infrastructure" },
+        { "sym": "J", "tier": "relevant", "sub_theme_id": "eng_construction", "rationale": "Jacobs engineering for government infrastructure" },
+        { "sym": "FAST", "tier": "peripheral", "sub_theme_id": null, "rationale": "Fastener and industrial supply distribution" }
+      ]
+    },
+    {
+      "id": "industrial_reshoring",
+      "name": "Industrial Reshoring",
+      "sector_id": "defense_industrials",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 5,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "NUE", "tier": "core", "sub_theme_id": null, "rationale": "US-made steel benefiting from reshoring demand" },
+        { "sym": "STLD", "tier": "core", "sub_theme_id": null, "rationale": "Domestic steel capacity expansion for reshoring" },
+        { "sym": "CAT", "tier": "core", "sub_theme_id": null, "rationale": "Equipment for new US factory construction" },
+        { "sym": "ROK", "tier": "core", "sub_theme_id": null, "rationale": "Factory automation systems for US manufacturing" },
+        { "sym": "ETN", "tier": "relevant", "sub_theme_id": null, "rationale": "Electrical infrastructure for new US facilities" },
+        { "sym": "EMR", "tier": "relevant", "sub_theme_id": null, "rationale": "Industrial automation for US manufacturing" },
+        { "sym": "VMC", "tier": "relevant", "sub_theme_id": null, "rationale": "Aggregates for new factory site construction" },
+        { "sym": "URI", "tier": "relevant", "sub_theme_id": null, "rationale": "Equipment rental for factory buildouts" },
+        { "sym": "GNRC", "tier": "relevant", "sub_theme_id": null, "rationale": "Backup power for reshored manufacturing" },
+        { "sym": "PWR", "tier": "relevant", "sub_theme_id": null, "rationale": "Electrical contractor for industrial facilities" },
+        { "sym": "MLM", "tier": "peripheral", "sub_theme_id": null, "rationale": "Cement and aggregates for factory pads" },
+        { "sym": "GFS", "tier": "relevant", "sub_theme_id": null, "rationale": "US chip foundry benefiting from CHIPS Act" }
+      ]
+    },
+    {
+      "id": "shipping",
+      "name": "Shipping",
+      "sector_id": "defense_industrials",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 6,
+      "sub_themes": [
+        { "id": "container_shipping", "name": "Container Shipping" },
+        { "id": "tankers", "name": "Tankers" },
+        { "id": "dry_bulk", "name": "Dry Bulk" }
+      ],
+      "holdings": [
+        { "sym": "ZIM", "tier": "core", "sub_theme_id": "container_shipping", "rationale": "Container shipping line with high dividend yield" },
+        { "sym": "MATX", "tier": "core", "sub_theme_id": "container_shipping", "rationale": "US Jones Act container shipping and logistics" },
+        { "sym": "FRO", "tier": "core", "sub_theme_id": "tankers", "rationale": "Large crude oil tanker fleet operator" },
+        { "sym": "STNG", "tier": "core", "sub_theme_id": "tankers", "rationale": "Product tanker fleet operator" },
+        { "sym": "GOGL", "tier": "relevant", "sub_theme_id": "dry_bulk", "rationale": "Dry bulk shipping fleet (Golden Ocean)" },
+        { "sym": "SBLK", "tier": "relevant", "sub_theme_id": "dry_bulk", "rationale": "Star Bulk dry bulk carrier fleet" },
+        { "sym": "INSW", "tier": "relevant", "sub_theme_id": "tankers", "rationale": "International Seaways crude and product tankers" },
+        { "sym": "DAC", "tier": "relevant", "sub_theme_id": "container_shipping", "rationale": "Danaos container ship owner and lessor" },
+        { "sym": "TNK", "tier": "relevant", "sub_theme_id": "tankers", "rationale": "Teekay Tankers crude oil fleet" },
+        { "sym": "EGLE", "tier": "peripheral", "sub_theme_id": "dry_bulk", "rationale": "Supramax dry bulk carrier operator" }
+      ]
+    },
+    {
+      "id": "financials_broad",
+      "name": "Financials",
+      "sector_id": "financials",
+      "etf_ticker": "XLF",
+      "etf_name": "Financial Select Sector SPDR Fund",
+      "display_order": 1,
+      "sub_themes": [
+        { "id": "big_banks", "name": "Big Banks" },
+        { "id": "asset_managers", "name": "Asset Managers" },
+        { "id": "exchanges", "name": "Exchanges & Data" }
+      ],
+      "holdings": [
+        { "sym": "JPM", "tier": "core", "sub_theme_id": "big_banks", "rationale": "Largest US bank by assets and revenue" },
+        { "sym": "BAC", "tier": "core", "sub_theme_id": "big_banks", "rationale": "Second-largest US bank by deposits" },
+        { "sym": "WFC", "tier": "core", "sub_theme_id": "big_banks", "rationale": "Major US bank focused on consumer lending" },
+        { "sym": "GS", "tier": "core", "sub_theme_id": "big_banks", "rationale": "Leading investment bank and trading firm" },
+        { "sym": "MS", "tier": "core", "sub_theme_id": "big_banks", "rationale": "Wealth management and investment banking leader" },
+        { "sym": "BLK", "tier": "core", "sub_theme_id": "asset_managers", "rationale": "Largest asset manager globally (iShares, Aladdin)" },
+        { "sym": "SCHW", "tier": "relevant", "sub_theme_id": "asset_managers", "rationale": "Largest discount brokerage and RIA custodian" },
+        { "sym": "C", "tier": "relevant", "sub_theme_id": "big_banks", "rationale": "Global bank with major trading operations" },
+        { "sym": "ICE", "tier": "relevant", "sub_theme_id": "exchanges", "rationale": "NYSE owner, data services, and mortgage tech" },
+        { "sym": "CME", "tier": "relevant", "sub_theme_id": "exchanges", "rationale": "Largest derivatives exchange operator globally" },
+        { "sym": "SPGI", "tier": "relevant", "sub_theme_id": "exchanges", "rationale": "S&P ratings, indices, and market intelligence" },
+        { "sym": "MCO", "tier": "relevant", "sub_theme_id": "exchanges", "rationale": "Moody's credit ratings and analytics" },
+        { "sym": "AXP", "tier": "relevant", "sub_theme_id": null, "rationale": "Premium credit card network and issuer" },
+        { "sym": "BX", "tier": "relevant", "sub_theme_id": "asset_managers", "rationale": "Largest alternative asset manager globally" }
+      ]
+    },
+    {
+      "id": "regional_banks",
+      "name": "Regional Banks",
+      "sector_id": "financials",
+      "etf_ticker": "KRE",
+      "etf_name": "SPDR S&P Regional Banking ETF",
+      "display_order": 2,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "HBAN", "tier": "core", "sub_theme_id": null, "rationale": "Huntington Bancshares, top-10 US regional bank" },
+        { "sym": "CFG", "tier": "core", "sub_theme_id": null, "rationale": "Citizens Financial, major Northeast regional bank" },
+        { "sym": "RF", "tier": "core", "sub_theme_id": null, "rationale": "Regions Financial, Southeast super-regional bank" },
+        { "sym": "KEY", "tier": "core", "sub_theme_id": null, "rationale": "KeyCorp, Midwest super-regional bank" },
+        { "sym": "MTB", "tier": "core", "sub_theme_id": null, "rationale": "M&T Bank, Northeast commercial bank" },
+        { "sym": "FITB", "tier": "relevant", "sub_theme_id": null, "rationale": "Fifth Third Bancorp, Midwest regional bank" },
+        { "sym": "ZION", "tier": "relevant", "sub_theme_id": null, "rationale": "Zions Bancorp, Western US community bank" },
+        { "sym": "CMA", "tier": "relevant", "sub_theme_id": null, "rationale": "Comerica, Texas and Midwest business bank" },
+        { "sym": "FHN", "tier": "relevant", "sub_theme_id": null, "rationale": "First Horizon, Southeast regional bank" },
+        { "sym": "WAL", "tier": "relevant", "sub_theme_id": null, "rationale": "Western Alliance, tech and business banking" },
+        { "sym": "EWBC", "tier": "relevant", "sub_theme_id": null, "rationale": "East West Bancorp, US-Asia banking bridge" },
+        { "sym": "SNV", "tier": "relevant", "sub_theme_id": null, "rationale": "Synovus Financial, Southeast community bank" },
+        { "sym": "PNFP", "tier": "peripheral", "sub_theme_id": null, "rationale": "Pinnacle Financial, Tennessee-based growth bank" }
+      ]
+    },
+    {
+      "id": "insurance",
+      "name": "Insurance",
+      "sector_id": "financials",
+      "etf_ticker": "KIE",
+      "etf_name": "SPDR S&P Insurance ETF",
+      "display_order": 3,
+      "sub_themes": [
+        { "id": "life_insurance", "name": "Life & Annuity" },
+        { "id": "pc_insurance", "name": "Property & Casualty" },
+        { "id": "insurance_brokers", "name": "Insurance Brokers" }
+      ],
+      "holdings": [
+        { "sym": "BRK.B", "tier": "core", "sub_theme_id": "pc_insurance", "rationale": "GEICO and reinsurance operations within Berkshire" },
+        { "sym": "PGR", "tier": "core", "sub_theme_id": "pc_insurance", "rationale": "Fastest-growing US auto insurer" },
+        { "sym": "CB", "tier": "core", "sub_theme_id": "pc_insurance", "rationale": "Largest global commercial P&C insurer" },
+        { "sym": "AON", "tier": "core", "sub_theme_id": "insurance_brokers", "rationale": "Second-largest global insurance broker" },
+        { "sym": "MMC", "tier": "core", "sub_theme_id": "insurance_brokers", "rationale": "Largest global insurance broker (Marsh McLennan)" },
+        { "sym": "MET", "tier": "relevant", "sub_theme_id": "life_insurance", "rationale": "Largest US life insurer by assets" },
+        { "sym": "AFL", "tier": "relevant", "sub_theme_id": "life_insurance", "rationale": "Supplemental health and life insurance leader" },
+        { "sym": "ALL", "tier": "relevant", "sub_theme_id": "pc_insurance", "rationale": "Major US personal auto and home insurer" },
+        { "sym": "TRV", "tier": "relevant", "sub_theme_id": "pc_insurance", "rationale": "Dow component commercial P&C insurer" },
+        { "sym": "AIG", "tier": "relevant", "sub_theme_id": "pc_insurance", "rationale": "Global commercial insurance underwriter" },
+        { "sym": "WRB", "tier": "relevant", "sub_theme_id": "pc_insurance", "rationale": "Specialty insurance and reinsurance" },
+        { "sym": "RNR", "tier": "relevant", "sub_theme_id": "pc_insurance", "rationale": "RenaissanceRe specialty reinsurer" },
+        { "sym": "AJG", "tier": "relevant", "sub_theme_id": "insurance_brokers", "rationale": "Third-largest global insurance brokerage" }
+      ]
+    },
+    {
+      "id": "healthcare_broad",
+      "name": "Healthcare",
+      "sector_id": "healthcare",
+      "etf_ticker": "XLV",
+      "etf_name": "Health Care Select Sector SPDR Fund",
+      "display_order": 1,
+      "sub_themes": [
+        { "id": "pharma", "name": "Big Pharma" },
+        { "id": "managed_care", "name": "Managed Care" },
+        { "id": "healthcare_services", "name": "Healthcare Services" }
+      ],
+      "holdings": [
+        { "sym": "UNH", "tier": "core", "sub_theme_id": "managed_care", "rationale": "Largest US health insurer and Optum services" },
+        { "sym": "LLY", "tier": "core", "sub_theme_id": "pharma", "rationale": "Mounjaro/Zepbound GLP-1 blockbusters" },
+        { "sym": "JNJ", "tier": "core", "sub_theme_id": "pharma", "rationale": "Diversified pharma and med devices giant" },
+        { "sym": "ABBV", "tier": "core", "sub_theme_id": "pharma", "rationale": "Humira successor portfolio and immunology leader" },
+        { "sym": "MRK", "tier": "core", "sub_theme_id": "pharma", "rationale": "Keytruda immuno-oncology blockbuster" },
+        { "sym": "PFE", "tier": "relevant", "sub_theme_id": "pharma", "rationale": "Major pharma with oncology and vaccine portfolio" },
+        { "sym": "TMO", "tier": "relevant", "sub_theme_id": "healthcare_services", "rationale": "Life sciences tools and lab instruments leader" },
+        { "sym": "ABT", "tier": "relevant", "sub_theme_id": null, "rationale": "Diagnostics, devices, and nutrition diversified" },
+        { "sym": "ELV", "tier": "relevant", "sub_theme_id": "managed_care", "rationale": "Major US health insurer (Elevance)" },
+        { "sym": "CI", "tier": "relevant", "sub_theme_id": "managed_care", "rationale": "Cigna health insurance and Express Scripts PBM" },
+        { "sym": "HCA", "tier": "relevant", "sub_theme_id": "healthcare_services", "rationale": "Largest US for-profit hospital operator" },
+        { "sym": "DHR", "tier": "relevant", "sub_theme_id": "healthcare_services", "rationale": "Life sciences and diagnostics platform" },
+        { "sym": "BMY", "tier": "relevant", "sub_theme_id": "pharma", "rationale": "Oncology and cardiovascular drug portfolio" },
+        { "sym": "AMGN", "tier": "relevant", "sub_theme_id": "pharma", "rationale": "Large biotech with inflammation and oncology drugs" }
+      ]
+    },
+    {
+      "id": "biotech",
+      "name": "Biotech",
+      "sector_id": "healthcare",
+      "etf_ticker": "XBI",
+      "etf_name": "SPDR S&P Biotech ETF",
+      "display_order": 2,
+      "sub_themes": [
+        { "id": "large_biotech", "name": "Large-Cap Biotech" },
+        { "id": "clinical_stage", "name": "Clinical-Stage" },
+        { "id": "gene_cell_therapy", "name": "Gene / Cell Therapy" }
+      ],
+      "holdings": [
+        { "sym": "AMGN", "tier": "core", "sub_theme_id": "large_biotech", "rationale": "Largest biotech by revenue, biosimilars leader" },
+        { "sym": "GILD", "tier": "core", "sub_theme_id": "large_biotech", "rationale": "HIV and hepatitis franchise, Trodelvy oncology" },
+        { "sym": "VRTX", "tier": "core", "sub_theme_id": "large_biotech", "rationale": "Cystic fibrosis market monopoly, pain pipeline" },
+        { "sym": "REGN", "tier": "core", "sub_theme_id": "large_biotech", "rationale": "Dupixent blockbuster, antibody discovery platform" },
+        { "sym": "MRNA", "tier": "core", "sub_theme_id": "clinical_stage", "rationale": "mRNA platform for vaccines and therapeutics" },
+        { "sym": "CRSP", "tier": "relevant", "sub_theme_id": "gene_cell_therapy", "rationale": "First FDA-approved CRISPR gene therapy" },
+        { "sym": "ALNY", "tier": "relevant", "sub_theme_id": "gene_cell_therapy", "rationale": "RNAi therapeutics leader with approved drugs" },
+        { "sym": "BMRN", "tier": "relevant", "sub_theme_id": "clinical_stage", "rationale": "Rare disease enzyme replacement therapies" },
+        { "sym": "EXAS", "tier": "relevant", "sub_theme_id": null, "rationale": "Cancer screening via liquid biopsy and genomics" },
+        { "sym": "IONS", "tier": "relevant", "sub_theme_id": "clinical_stage", "rationale": "Antisense RNA therapeutics pioneer" },
+        { "sym": "SGEN", "tier": "relevant", "sub_theme_id": "large_biotech", "rationale": "Antibody-drug conjugate oncology leader" },
+        { "sym": "PCVX", "tier": "peripheral", "sub_theme_id": "clinical_stage", "rationale": "Next-gen pneumococcal vaccine developer" },
+        { "sym": "SRPT", "tier": "relevant", "sub_theme_id": "gene_cell_therapy", "rationale": "Gene therapy for Duchenne muscular dystrophy" }
+      ]
+    },
+    {
+      "id": "med_devices",
+      "name": "Med Devices",
+      "sector_id": "healthcare",
+      "etf_ticker": "IHI",
+      "etf_name": "iShares U.S. Medical Devices ETF",
+      "display_order": 3,
+      "sub_themes": [
+        { "id": "surgical_robotics", "name": "Surgical Robotics" },
+        { "id": "cardio_devices", "name": "Cardiovascular Devices" },
+        { "id": "orthopedic_devices", "name": "Orthopedic Devices" }
+      ],
+      "holdings": [
+        { "sym": "ISRG", "tier": "core", "sub_theme_id": "surgical_robotics", "rationale": "Da Vinci surgical robot monopoly leader" },
+        { "sym": "ABT", "tier": "core", "sub_theme_id": "cardio_devices", "rationale": "FreeStyle Libre CGM and structural heart devices" },
+        { "sym": "MDT", "tier": "core", "sub_theme_id": "cardio_devices", "rationale": "Largest medical device company by revenue" },
+        { "sym": "SYK", "tier": "core", "sub_theme_id": "orthopedic_devices", "rationale": "Orthopedic implants and Mako surgical robot" },
+        { "sym": "BSX", "tier": "core", "sub_theme_id": "cardio_devices", "rationale": "Cardiac rhythm and structural heart devices" },
+        { "sym": "EW", "tier": "relevant", "sub_theme_id": "cardio_devices", "rationale": "Transcatheter heart valve replacement leader" },
+        { "sym": "ZBH", "tier": "relevant", "sub_theme_id": "orthopedic_devices", "rationale": "Knee and hip implant manufacturer (Zimmer Biomet)" },
+        { "sym": "DXCM", "tier": "relevant", "sub_theme_id": null, "rationale": "Continuous glucose monitoring for diabetes" },
+        { "sym": "HOLX", "tier": "relevant", "sub_theme_id": null, "rationale": "Women's health diagnostics and screening" },
+        { "sym": "ALGN", "tier": "relevant", "sub_theme_id": null, "rationale": "Invisalign clear aligner dental devices" },
+        { "sym": "PODD", "tier": "relevant", "sub_theme_id": null, "rationale": "Omnipod insulin delivery wearable devices" },
+        { "sym": "GMED", "tier": "peripheral", "sub_theme_id": "orthopedic_devices", "rationale": "Spine surgery implants and robotics" }
+      ]
+    },
+    {
+      "id": "glp1",
+      "name": "GLP-1",
+      "sector_id": "healthcare",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 4,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "LLY", "tier": "core", "sub_theme_id": null, "rationale": "Mounjaro and Zepbound GLP-1 blockbusters" },
+        { "sym": "NVO", "tier": "core", "sub_theme_id": null, "rationale": "Ozempic and Wegovy GLP-1 pioneer" },
+        { "sym": "AMGN", "tier": "relevant", "sub_theme_id": null, "rationale": "MariTide next-gen obesity biologic in trials" },
+        { "sym": "VKTX", "tier": "relevant", "sub_theme_id": null, "rationale": "Oral GLP-1 obesity drug candidate" },
+        { "sym": "ALT", "tier": "relevant", "sub_theme_id": null, "rationale": "Pemvidutide dual-agonist obesity candidate" },
+        { "sym": "GPCR", "tier": "relevant", "sub_theme_id": null, "rationale": "Oral small-molecule GLP-1 receptor agonist" },
+        { "sym": "TERN", "tier": "peripheral", "sub_theme_id": null, "rationale": "NASH and obesity pipeline targeting liver disease" },
+        { "sym": "MDGL", "tier": "peripheral", "sub_theme_id": null, "rationale": "Resmetirom for NASH, obesity-adjacent metabolic" }
+      ]
+    },
+    {
+      "id": "glp1_supply_chain",
+      "name": "GLP-1 Supply Chain",
+      "sector_id": "healthcare",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 5,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "TMO", "tier": "core", "sub_theme_id": null, "rationale": "Lab equipment and CDMO for GLP-1 manufacturing" },
+        { "sym": "WST", "tier": "core", "sub_theme_id": null, "rationale": "Injectable drug delivery packaging and components" },
+        { "sym": "BDX", "tier": "core", "sub_theme_id": null, "rationale": "Injection pens and prefilled syringe systems" },
+        { "sym": "HZNP", "tier": "relevant", "sub_theme_id": null, "rationale": "Drug delivery technology for injectables" },
+        { "sym": "AZTA", "tier": "relevant", "sub_theme_id": null, "rationale": "Peptide synthesis CDMO for GLP-1 production" },
+        { "sym": "CRL", "tier": "relevant", "sub_theme_id": null, "rationale": "Preclinical CRO services for GLP-1 trials" },
+        { "sym": "DHR", "tier": "relevant", "sub_theme_id": null, "rationale": "Bioprocessing equipment for biologic manufacturing" },
+        { "sym": "IQV", "tier": "relevant", "sub_theme_id": null, "rationale": "CRO running GLP-1 clinical trials" },
+        { "sym": "STE", "tier": "peripheral", "sub_theme_id": null, "rationale": "Sterilization for injectable drug containers" }
+      ]
+    },
+    {
+      "id": "staples",
+      "name": "Staples",
+      "sector_id": "consumer",
+      "etf_ticker": "XLP",
+      "etf_name": "Consumer Staples Select Sector SPDR Fund",
+      "display_order": 1,
+      "sub_themes": [
+        { "id": "food_beverage", "name": "Food & Beverage" },
+        { "id": "household_personal", "name": "Household & Personal Care" },
+        { "id": "tobacco_alcohol", "name": "Tobacco & Alcohol" }
+      ],
+      "holdings": [
+        { "sym": "PG", "tier": "core", "sub_theme_id": "household_personal", "rationale": "Largest consumer staples company globally" },
+        { "sym": "COST", "tier": "core", "sub_theme_id": "food_beverage", "rationale": "Membership warehouse club leader" },
+        { "sym": "KO", "tier": "core", "sub_theme_id": "food_beverage", "rationale": "Global non-alcoholic beverage leader" },
+        { "sym": "PEP", "tier": "core", "sub_theme_id": "food_beverage", "rationale": "Beverages and Frito-Lay snacks global leader" },
+        { "sym": "WMT", "tier": "core", "sub_theme_id": null, "rationale": "Largest US retailer with staples dominance" },
+        { "sym": "PM", "tier": "relevant", "sub_theme_id": "tobacco_alcohol", "rationale": "Global tobacco and IQOS heated products" },
+        { "sym": "MO", "tier": "relevant", "sub_theme_id": "tobacco_alcohol", "rationale": "US tobacco market leader (Marlboro)" },
+        { "sym": "CL", "tier": "relevant", "sub_theme_id": "household_personal", "rationale": "Oral care and household products global" },
+        { "sym": "MDLZ", "tier": "relevant", "sub_theme_id": "food_beverage", "rationale": "Global snack leader (Oreo, Cadbury)" },
+        { "sym": "GIS", "tier": "relevant", "sub_theme_id": "food_beverage", "rationale": "Packaged food portfolio (Cheerios, Blue Buffalo)" },
+        { "sym": "STZ", "tier": "relevant", "sub_theme_id": "tobacco_alcohol", "rationale": "Beer importer (Modelo, Corona) and spirits" },
+        { "sym": "KMB", "tier": "relevant", "sub_theme_id": "household_personal", "rationale": "Tissue and personal care (Huggies, Kleenex)" },
+        { "sym": "EL", "tier": "relevant", "sub_theme_id": "household_personal", "rationale": "Prestige beauty and skincare brands" }
+      ]
+    },
+    {
+      "id": "discretionary",
+      "name": "Discretionary",
+      "sector_id": "consumer",
+      "etf_ticker": "XLY",
+      "etf_name": "Consumer Discretionary Select Sector SPDR Fund",
+      "display_order": 2,
+      "sub_themes": [
+        { "id": "auto", "name": "Autos" },
+        { "id": "restaurants", "name": "Restaurants" },
+        { "id": "luxury_apparel", "name": "Luxury & Apparel" }
+      ],
+      "holdings": [
+        { "sym": "AMZN", "tier": "core", "sub_theme_id": null, "rationale": "Dominant e-commerce and consumer marketplace" },
+        { "sym": "TSLA", "tier": "core", "sub_theme_id": "auto", "rationale": "Leading EV maker, consumer vehicle brand" },
+        { "sym": "MCD", "tier": "core", "sub_theme_id": "restaurants", "rationale": "Largest global fast-food restaurant chain" },
+        { "sym": "NKE", "tier": "core", "sub_theme_id": "luxury_apparel", "rationale": "Dominant global athletic footwear and apparel" },
+        { "sym": "HD", "tier": "core", "sub_theme_id": null, "rationale": "Largest US home improvement retailer" },
+        { "sym": "LOW", "tier": "relevant", "sub_theme_id": null, "rationale": "Second-largest US home improvement retailer" },
+        { "sym": "SBUX", "tier": "relevant", "sub_theme_id": "restaurants", "rationale": "Global premium coffeehouse chain" },
+        { "sym": "TJX", "tier": "relevant", "sub_theme_id": null, "rationale": "Off-price retail leader (TJ Maxx, Marshalls)" },
+        { "sym": "BKNG", "tier": "relevant", "sub_theme_id": null, "rationale": "Online travel booking platform leader" },
+        { "sym": "CMG", "tier": "relevant", "sub_theme_id": "restaurants", "rationale": "Fast-casual Mexican restaurant growth leader" },
+        { "sym": "LULU", "tier": "relevant", "sub_theme_id": "luxury_apparel", "rationale": "Premium athletic apparel brand" },
+        { "sym": "GM", "tier": "relevant", "sub_theme_id": "auto", "rationale": "Major US automaker with EV transition" },
+        { "sym": "F", "tier": "relevant", "sub_theme_id": "auto", "rationale": "US automaker with truck and EV lineup" }
+      ]
+    },
+    {
+      "id": "retail",
+      "name": "Retail",
+      "sector_id": "consumer",
+      "etf_ticker": "XRT",
+      "etf_name": "SPDR S&P Retail ETF",
+      "display_order": 3,
+      "sub_themes": [
+        { "id": "general_merch", "name": "General Merchandise" },
+        { "id": "specialty_retail", "name": "Specialty Retail" },
+        { "id": "grocery", "name": "Grocery" }
+      ],
+      "holdings": [
+        { "sym": "WMT", "tier": "core", "sub_theme_id": "general_merch", "rationale": "Largest retailer in the world by revenue" },
+        { "sym": "COST", "tier": "core", "sub_theme_id": "general_merch", "rationale": "Membership warehouse club with loyal base" },
+        { "sym": "HD", "tier": "core", "sub_theme_id": "specialty_retail", "rationale": "Largest home improvement retailer" },
+        { "sym": "TGT", "tier": "core", "sub_theme_id": "general_merch", "rationale": "General merchandise and grocery retailer" },
+        { "sym": "TJX", "tier": "core", "sub_theme_id": "specialty_retail", "rationale": "Largest off-price apparel and home retailer" },
+        { "sym": "DLTR", "tier": "relevant", "sub_theme_id": "general_merch", "rationale": "Dollar Tree and Family Dollar discount stores" },
+        { "sym": "KR", "tier": "relevant", "sub_theme_id": "grocery", "rationale": "Largest US supermarket chain by revenue" },
+        { "sym": "ROST", "tier": "relevant", "sub_theme_id": "specialty_retail", "rationale": "Off-price retailer (Ross Dress for Less)" },
+        { "sym": "ORLY", "tier": "relevant", "sub_theme_id": "specialty_retail", "rationale": "Auto parts specialty retail chain" },
+        { "sym": "AZO", "tier": "relevant", "sub_theme_id": "specialty_retail", "rationale": "Auto parts retail and commercial distributor" },
+        { "sym": "ULTA", "tier": "relevant", "sub_theme_id": "specialty_retail", "rationale": "Largest US beauty specialty retailer" },
+        { "sym": "BBY", "tier": "peripheral", "sub_theme_id": "specialty_retail", "rationale": "Consumer electronics specialty retailer" }
+      ]
+    },
+    {
+      "id": "airlines",
+      "name": "Airlines",
+      "sector_id": "consumer",
+      "etf_ticker": "JETS",
+      "etf_name": "U.S. Global Jets ETF",
+      "display_order": 4,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "DAL", "tier": "core", "sub_theme_id": null, "rationale": "Largest US airline by revenue and profit" },
+        { "sym": "UAL", "tier": "core", "sub_theme_id": null, "rationale": "Major US airline with largest international network" },
+        { "sym": "LUV", "tier": "core", "sub_theme_id": null, "rationale": "Largest US low-cost carrier (Southwest)" },
+        { "sym": "AAL", "tier": "core", "sub_theme_id": null, "rationale": "Largest US airline by fleet size" },
+        { "sym": "JBLU", "tier": "relevant", "sub_theme_id": null, "rationale": "Mid-size US carrier focused on premium leisure" },
+        { "sym": "ALK", "tier": "relevant", "sub_theme_id": null, "rationale": "Alaska Airlines, West Coast and Hawaiian routes" },
+        { "sym": "SAVE", "tier": "relevant", "sub_theme_id": null, "rationale": "Ultra-low-cost carrier (Spirit Airlines)" },
+        { "sym": "HA", "tier": "peripheral", "sub_theme_id": null, "rationale": "Hawaiian Airlines, Pacific routes carrier" },
+        { "sym": "SKYW", "tier": "peripheral", "sub_theme_id": null, "rationale": "Regional airline operating for major carriers" }
+      ]
+    },
+    {
+      "id": "leisure",
+      "name": "Leisure",
+      "sector_id": "consumer",
+      "etf_ticker": "PEJ",
+      "etf_name": "Invesco Leisure and Entertainment ETF",
+      "display_order": 5,
+      "sub_themes": [
+        { "id": "casinos_gaming", "name": "Casinos & Gaming" },
+        { "id": "entertainment", "name": "Entertainment & Live Events" },
+        { "id": "travel_hotels", "name": "Travel & Hotels" }
+      ],
+      "holdings": [
+        { "sym": "DIS", "tier": "core", "sub_theme_id": "entertainment", "rationale": "Theme parks, streaming (Disney+), and studios" },
+        { "sym": "BKNG", "tier": "core", "sub_theme_id": "travel_hotels", "rationale": "Largest online travel agency globally" },
+        { "sym": "MAR", "tier": "core", "sub_theme_id": "travel_hotels", "rationale": "Largest hotel chain globally by rooms" },
+        { "sym": "LVS", "tier": "core", "sub_theme_id": "casinos_gaming", "rationale": "Macao and Singapore casino resort operator" },
+        { "sym": "DKNG", "tier": "relevant", "sub_theme_id": "casinos_gaming", "rationale": "Leading online sports betting platform" },
+        { "sym": "RCL", "tier": "relevant", "sub_theme_id": "travel_hotels", "rationale": "Second-largest cruise line operator" },
+        { "sym": "CCL", "tier": "relevant", "sub_theme_id": "travel_hotels", "rationale": "Largest cruise line operator by passengers" },
+        { "sym": "HLT", "tier": "relevant", "sub_theme_id": "travel_hotels", "rationale": "Major hotel chain (Hilton brands worldwide)" },
+        { "sym": "MGM", "tier": "relevant", "sub_theme_id": "casinos_gaming", "rationale": "Las Vegas Strip and regional casino operator" },
+        { "sym": "WYNN", "tier": "relevant", "sub_theme_id": "casinos_gaming", "rationale": "Premium Las Vegas and Macao casino resorts" },
+        { "sym": "LYV", "tier": "relevant", "sub_theme_id": "entertainment", "rationale": "Largest live entertainment and ticketing company" },
+        { "sym": "ABNB", "tier": "relevant", "sub_theme_id": "travel_hotels", "rationale": "Peer-to-peer accommodation platform" }
+      ]
+    },
+    {
+      "id": "homebuilders",
+      "name": "Homebuilders",
+      "sector_id": "consumer",
+      "etf_ticker": "XHB",
+      "etf_name": "SPDR S&P Homebuilders ETF",
+      "display_order": 6,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "DHI", "tier": "core", "sub_theme_id": null, "rationale": "Largest US homebuilder by volume" },
+        { "sym": "LEN", "tier": "core", "sub_theme_id": null, "rationale": "Second-largest US homebuilder" },
+        { "sym": "NVR", "tier": "core", "sub_theme_id": null, "rationale": "Capital-light homebuilder with option lot model" },
+        { "sym": "PHM", "tier": "core", "sub_theme_id": null, "rationale": "Major US homebuilder across price points" },
+        { "sym": "TOL", "tier": "relevant", "sub_theme_id": null, "rationale": "Luxury homebuilder at premium price points" },
+        { "sym": "KBH", "tier": "relevant", "sub_theme_id": null, "rationale": "Entry-level and first-time buyer homebuilder" },
+        { "sym": "TMHC", "tier": "relevant", "sub_theme_id": null, "rationale": "Taylor Morrison, move-up buyer homebuilder" },
+        { "sym": "MTH", "tier": "relevant", "sub_theme_id": null, "rationale": "Meritage Homes, energy-efficient builder" },
+        { "sym": "MHO", "tier": "peripheral", "sub_theme_id": null, "rationale": "M/I Homes, Midwest and Southeast builder" }
+      ]
+    },
+    {
+      "id": "ecommerce",
+      "name": "E-commerce",
+      "sector_id": "consumer",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 7,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "AMZN", "tier": "core", "sub_theme_id": null, "rationale": "Dominant global e-commerce marketplace" },
+        { "sym": "SHOP", "tier": "core", "sub_theme_id": null, "rationale": "Leading e-commerce platform for merchants" },
+        { "sym": "EBAY", "tier": "core", "sub_theme_id": null, "rationale": "Established online auction and marketplace" },
+        { "sym": "ETSY", "tier": "relevant", "sub_theme_id": null, "rationale": "Handmade and vintage goods marketplace" },
+        { "sym": "MELI", "tier": "relevant", "sub_theme_id": null, "rationale": "Latin America dominant e-commerce platform" },
+        { "sym": "BABA", "tier": "relevant", "sub_theme_id": null, "rationale": "Largest Chinese e-commerce platform" },
+        { "sym": "JD", "tier": "relevant", "sub_theme_id": null, "rationale": "Chinese direct e-commerce and logistics" },
+        { "sym": "PDD", "tier": "relevant", "sub_theme_id": null, "rationale": "Pinduoduo social commerce and Temu platform" },
+        { "sym": "W", "tier": "relevant", "sub_theme_id": null, "rationale": "Online furniture and home goods marketplace" },
+        { "sym": "CHWY", "tier": "peripheral", "sub_theme_id": null, "rationale": "Online pet products and autoship retailer" }
+      ]
+    },
+    {
+      "id": "streaming",
+      "name": "Streaming",
+      "sector_id": "consumer",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 8,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "NFLX", "tier": "core", "sub_theme_id": null, "rationale": "Largest global streaming platform by subscribers" },
+        { "sym": "DIS", "tier": "core", "sub_theme_id": null, "rationale": "Disney+, Hulu, and ESPN+ streaming bundle" },
+        { "sym": "ROKU", "tier": "core", "sub_theme_id": null, "rationale": "Connected TV platform and streaming aggregator" },
+        { "sym": "SPOT", "tier": "core", "sub_theme_id": null, "rationale": "Largest global audio streaming platform" },
+        { "sym": "WBD", "tier": "relevant", "sub_theme_id": null, "rationale": "Max streaming, HBO, and Discovery content" },
+        { "sym": "PARA", "tier": "relevant", "sub_theme_id": null, "rationale": "Paramount+ streaming and CBS content" },
+        { "sym": "CMCSA", "tier": "relevant", "sub_theme_id": null, "rationale": "Peacock streaming within NBCUniversal" },
+        { "sym": "TTD", "tier": "relevant", "sub_theme_id": null, "rationale": "Connected TV ad buying across streaming platforms" },
+        { "sym": "FUBO", "tier": "peripheral", "sub_theme_id": null, "rationale": "Live sports-focused streaming platform" }
+      ]
+    },
+    {
+      "id": "reits",
+      "name": "REITs",
+      "sector_id": "real_estate_utilities",
+      "etf_ticker": "VNQ",
+      "etf_name": "Vanguard Real Estate ETF",
+      "display_order": 1,
+      "sub_themes": [
+        { "id": "industrial_reits", "name": "Industrial REITs" },
+        { "id": "residential_reits", "name": "Residential REITs" },
+        { "id": "specialty_reits", "name": "Specialty REITs" }
+      ],
+      "holdings": [
+        { "sym": "PLD", "tier": "core", "sub_theme_id": "industrial_reits", "rationale": "Largest industrial REIT globally (Prologis)" },
+        { "sym": "AMT", "tier": "core", "sub_theme_id": "specialty_reits", "rationale": "Largest cell tower REIT" },
+        { "sym": "EQIX", "tier": "core", "sub_theme_id": "specialty_reits", "rationale": "Largest data center REIT" },
+        { "sym": "SPG", "tier": "core", "sub_theme_id": null, "rationale": "Largest US mall and retail REIT (Simon)" },
+        { "sym": "O", "tier": "core", "sub_theme_id": "specialty_reits", "rationale": "Monthly dividend net lease REIT (Realty Income)" },
+        { "sym": "CCI", "tier": "relevant", "sub_theme_id": "specialty_reits", "rationale": "Cell tower and fiber infrastructure REIT" },
+        { "sym": "DLR", "tier": "relevant", "sub_theme_id": "specialty_reits", "rationale": "Data center REIT with hyperscale focus" },
+        { "sym": "AVB", "tier": "relevant", "sub_theme_id": "residential_reits", "rationale": "Apartment REIT in high-barrier coastal markets" },
+        { "sym": "EQR", "tier": "relevant", "sub_theme_id": "residential_reits", "rationale": "Multifamily apartment REIT in major metros" },
+        { "sym": "WELL", "tier": "relevant", "sub_theme_id": "specialty_reits", "rationale": "Senior housing and healthcare facilities REIT" },
+        { "sym": "PSA", "tier": "relevant", "sub_theme_id": "specialty_reits", "rationale": "Largest self-storage REIT (Public Storage)" },
+        { "sym": "VICI", "tier": "relevant", "sub_theme_id": "specialty_reits", "rationale": "Gaming and experiential real estate REIT" },
+        { "sym": "INVH", "tier": "relevant", "sub_theme_id": "residential_reits", "rationale": "Largest single-family rental home REIT" }
+      ]
+    },
+    {
+      "id": "utilities",
+      "name": "Utilities",
+      "sector_id": "real_estate_utilities",
+      "etf_ticker": "XLU",
+      "etf_name": "Utilities Select Sector SPDR Fund",
+      "display_order": 2,
+      "sub_themes": [
+        { "id": "electric_utilities", "name": "Electric Utilities" },
+        { "id": "multi_utilities", "name": "Multi-Utilities" }
+      ],
+      "holdings": [
+        { "sym": "NEE", "tier": "core", "sub_theme_id": "electric_utilities", "rationale": "Largest US utility and renewables developer" },
+        { "sym": "SO", "tier": "core", "sub_theme_id": "electric_utilities", "rationale": "Largest US electric utility by customer count" },
+        { "sym": "DUK", "tier": "core", "sub_theme_id": "electric_utilities", "rationale": "Major Southeast US regulated electric utility" },
+        { "sym": "CEG", "tier": "core", "sub_theme_id": "electric_utilities", "rationale": "Largest US nuclear and clean power generator" },
+        { "sym": "D", "tier": "relevant", "sub_theme_id": "multi_utilities", "rationale": "Dominion Energy, regulated gas and electric" },
+        { "sym": "AEP", "tier": "relevant", "sub_theme_id": "electric_utilities", "rationale": "Large transmission and regulated electric utility" },
+        { "sym": "SRE", "tier": "relevant", "sub_theme_id": "multi_utilities", "rationale": "Sempra, SoCal Gas and Oncor electric" },
+        { "sym": "EXC", "tier": "relevant", "sub_theme_id": "electric_utilities", "rationale": "Exelon, major regulated electric and gas utility" },
+        { "sym": "XEL", "tier": "relevant", "sub_theme_id": "electric_utilities", "rationale": "Xcel Energy, wind-heavy regulated utility" },
+        { "sym": "PCG", "tier": "relevant", "sub_theme_id": "electric_utilities", "rationale": "Pacific Gas and Electric, California utility" },
+        { "sym": "VST", "tier": "relevant", "sub_theme_id": "electric_utilities", "rationale": "Vistra, competitive power gen with nuclear and gas" },
+        { "sym": "WEC", "tier": "relevant", "sub_theme_id": "multi_utilities", "rationale": "WEC Energy, Midwest regulated utility" }
+      ]
+    },
+    {
+      "id": "data_center_power",
+      "name": "Data Center Power",
+      "sector_id": "real_estate_utilities",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 3,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "VST", "tier": "core", "sub_theme_id": null, "rationale": "Nuclear and gas fleet supplying data center loads" },
+        { "sym": "CEG", "tier": "core", "sub_theme_id": null, "rationale": "Nuclear fleet with direct data center power deals" },
+        { "sym": "GEV", "tier": "core", "sub_theme_id": null, "rationale": "Gas turbines and grid equipment for DC power" },
+        { "sym": "VRT", "tier": "core", "sub_theme_id": null, "rationale": "Power and cooling infrastructure inside data centers" },
+        { "sym": "ETN", "tier": "core", "sub_theme_id": null, "rationale": "Power distribution and UPS for data centers" },
+        { "sym": "OKLO", "tier": "relevant", "sub_theme_id": null, "rationale": "Microreactors designed for data center power" },
+        { "sym": "NNE", "tier": "relevant", "sub_theme_id": null, "rationale": "Nuclear micro-reactors targeting AI data centers" },
+        { "sym": "SMR", "tier": "relevant", "sub_theme_id": null, "rationale": "Small modular reactors for grid-scale DC power" },
+        { "sym": "PWR", "tier": "relevant", "sub_theme_id": null, "rationale": "Electrical contractor building data center connections" },
+        { "sym": "GNRC", "tier": "peripheral", "sub_theme_id": null, "rationale": "Backup generators for data center facilities" },
+        { "sym": "NEE", "tier": "relevant", "sub_theme_id": null, "rationale": "Clean energy PPAs for data center operators" }
+      ]
+    },
+    {
+      "id": "bitcoin_miners",
+      "name": "Bitcoin Miners",
+      "sector_id": "crypto",
+      "etf_ticker": "WGMI",
+      "etf_name": "Valkyrie Bitcoin Miners ETF",
+      "display_order": 1,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "MARA", "tier": "core", "sub_theme_id": null, "rationale": "Largest publicly traded Bitcoin miner by hashrate" },
+        { "sym": "CLSK", "tier": "core", "sub_theme_id": null, "rationale": "Major Bitcoin miner with US clean energy focus" },
+        { "sym": "RIOT", "tier": "core", "sub_theme_id": null, "rationale": "Large-scale Bitcoin mining in Texas" },
+        { "sym": "IREN", "tier": "relevant", "sub_theme_id": null, "rationale": "Bitcoin miner pivoting to AI/HPC hosting" },
+        { "sym": "CIFR", "tier": "relevant", "sub_theme_id": null, "rationale": "Bitcoin miner with custom ASIC chip program" },
+        { "sym": "BITF", "tier": "relevant", "sub_theme_id": null, "rationale": "Canadian Bitcoin miner with hydro power" },
+        { "sym": "HUT", "tier": "relevant", "sub_theme_id": null, "rationale": "Bitcoin miner expanding into AI data centers" },
+        { "sym": "BTDR", "tier": "peripheral", "sub_theme_id": null, "rationale": "Bitdeer Bitcoin mining and ASIC hardware" },
+        { "sym": "WULF", "tier": "relevant", "sub_theme_id": null, "rationale": "Bitcoin miner with adjacent HPC business" }
+      ]
+    },
+    {
+      "id": "bitcoin",
+      "name": "Bitcoin",
+      "sector_id": "crypto",
+      "etf_ticker": "IBIT",
+      "etf_name": "iShares Bitcoin Trust ETF",
+      "display_order": 2,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "MSTR", "tier": "core", "sub_theme_id": null, "rationale": "Largest corporate Bitcoin treasury holder" },
+        { "sym": "COIN", "tier": "core", "sub_theme_id": null, "rationale": "Largest US crypto exchange, IBIT custodian" },
+        { "sym": "MARA", "tier": "core", "sub_theme_id": null, "rationale": "Largest Bitcoin miner with BTC on balance sheet" },
+        { "sym": "RIOT", "tier": "relevant", "sub_theme_id": null, "rationale": "Bitcoin miner holding BTC reserves" },
+        { "sym": "CLSK", "tier": "relevant", "sub_theme_id": null, "rationale": "Bitcoin miner with growing BTC treasury" },
+        { "sym": "SQ", "tier": "relevant", "sub_theme_id": null, "rationale": "Bitcoin buying via Cash App, BTC on balance sheet" },
+        { "sym": "HOOD", "tier": "relevant", "sub_theme_id": null, "rationale": "Retail Bitcoin and crypto trading platform" },
+        { "sym": "TSLA", "tier": "peripheral", "sub_theme_id": null, "rationale": "Holds Bitcoin on corporate balance sheet" }
+      ]
+    },
+    {
+      "id": "blockchain",
+      "name": "Blockchain",
+      "sector_id": "crypto",
+      "etf_ticker": "BLOK",
+      "etf_name": "Amplify Transformational Data Sharing ETF",
+      "display_order": 3,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "COIN", "tier": "core", "sub_theme_id": null, "rationale": "Leading crypto exchange and blockchain infrastructure" },
+        { "sym": "MSTR", "tier": "core", "sub_theme_id": null, "rationale": "Largest corporate Bitcoin holder, blockchain proxy" },
+        { "sym": "SQ", "tier": "relevant", "sub_theme_id": null, "rationale": "Bitcoin integration in Cash App and TBD web5" },
+        { "sym": "PYPL", "tier": "relevant", "sub_theme_id": null, "rationale": "Crypto buying and PYUSD stablecoin" },
+        { "sym": "V", "tier": "relevant", "sub_theme_id": null, "rationale": "Blockchain settlement and crypto-linked cards" },
+        { "sym": "MA", "tier": "relevant", "sub_theme_id": null, "rationale": "Crypto card programs and blockchain experiments" },
+        { "sym": "IBM", "tier": "peripheral", "sub_theme_id": null, "rationale": "Enterprise blockchain solutions (Hyperledger)" },
+        { "sym": "CME", "tier": "peripheral", "sub_theme_id": null, "rationale": "Bitcoin and Ethereum futures exchange" }
+      ]
+    },
+    {
+      "id": "china",
+      "name": "China",
+      "sector_id": "global",
+      "etf_ticker": "KWEB",
+      "etf_name": "KraneShares CSI China Internet ETF",
+      "display_order": 1,
+      "sub_themes": [
+        { "id": "china_tech", "name": "China Tech" },
+        { "id": "china_consumer", "name": "China Consumer" },
+        { "id": "china_ev", "name": "China EV" }
+      ],
+      "holdings": [
+        { "sym": "BABA", "tier": "core", "sub_theme_id": "china_tech", "rationale": "Largest Chinese e-commerce and cloud platform" },
+        { "sym": "TCEHY", "tier": "core", "sub_theme_id": "china_tech", "rationale": "WeChat ecosystem, gaming, and fintech giant" },
+        { "sym": "PDD", "tier": "core", "sub_theme_id": "china_consumer", "rationale": "Pinduoduo social commerce and Temu international" },
+        { "sym": "JD", "tier": "core", "sub_theme_id": "china_consumer", "rationale": "Direct e-commerce with owned logistics network" },
+        { "sym": "BIDU", "tier": "relevant", "sub_theme_id": "china_tech", "rationale": "Chinese search engine and AI platform" },
+        { "sym": "NIO", "tier": "relevant", "sub_theme_id": "china_ev", "rationale": "Premium Chinese EV maker with battery swap" },
+        { "sym": "LI", "tier": "relevant", "sub_theme_id": "china_ev", "rationale": "Extended-range EV SUV maker gaining share" },
+        { "sym": "XPEV", "tier": "relevant", "sub_theme_id": "china_ev", "rationale": "Smart EV with advanced driver assistance" },
+        { "sym": "NTES", "tier": "relevant", "sub_theme_id": "china_tech", "rationale": "Chinese gaming and cloud music platform" },
+        { "sym": "BILI", "tier": "relevant", "sub_theme_id": "china_tech", "rationale": "Chinese video platform (Bilibili, Gen Z focus)" },
+        { "sym": "TME", "tier": "peripheral", "sub_theme_id": "china_tech", "rationale": "Tencent Music, Chinese music streaming" },
+        { "sym": "MNSO", "tier": "peripheral", "sub_theme_id": "china_consumer", "rationale": "Chinese lifestyle retail brand expanding globally" }
+      ]
+    },
+    {
+      "id": "india",
+      "name": "India",
+      "sector_id": "global",
+      "etf_ticker": "INDA",
+      "etf_name": "iShares MSCI India ETF",
+      "display_order": 2,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "IBN", "tier": "core", "sub_theme_id": null, "rationale": "ICICI Bank, leading Indian private sector bank" },
+        { "sym": "HDB", "tier": "core", "sub_theme_id": null, "rationale": "HDFC Bank, India largest private bank" },
+        { "sym": "INFY", "tier": "core", "sub_theme_id": null, "rationale": "India second-largest IT services company" },
+        { "sym": "WIT", "tier": "relevant", "sub_theme_id": null, "rationale": "Wipro, Indian IT services and consulting" },
+        { "sym": "SIFY", "tier": "peripheral", "sub_theme_id": null, "rationale": "Indian data center and cloud services" },
+        { "sym": "RDY", "tier": "relevant", "sub_theme_id": null, "rationale": "Dr. Reddy's, Indian generic pharma company" },
+        { "sym": "TTM", "tier": "relevant", "sub_theme_id": null, "rationale": "Tata Motors, Indian auto with Jaguar Land Rover" },
+        { "sym": "MMYT", "tier": "relevant", "sub_theme_id": null, "rationale": "MakeMyTrip, India online travel booking leader" }
+      ]
+    },
+    {
+      "id": "brazil",
+      "name": "Brazil",
+      "sector_id": "global",
+      "etf_ticker": "EWZ",
+      "etf_name": "iShares MSCI Brazil ETF",
+      "display_order": 3,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "VALE", "tier": "core", "sub_theme_id": null, "rationale": "Largest iron ore producer, Brazilian mining giant" },
+        { "sym": "PBR", "tier": "core", "sub_theme_id": null, "rationale": "Petrobras, Brazilian state oil company" },
+        { "sym": "ITUB", "tier": "core", "sub_theme_id": null, "rationale": "Itau Unibanco, largest Latin American bank" },
+        { "sym": "NU", "tier": "core", "sub_theme_id": null, "rationale": "Nubank, Latin America largest digital bank" },
+        { "sym": "BBD", "tier": "relevant", "sub_theme_id": null, "rationale": "Bradesco, major Brazilian universal bank" },
+        { "sym": "ABEV", "tier": "relevant", "sub_theme_id": null, "rationale": "Ambev, largest Latin American brewer" },
+        { "sym": "SBS", "tier": "relevant", "sub_theme_id": null, "rationale": "Sabesp, Sao Paulo water and sewage utility" },
+        { "sym": "ERJ", "tier": "relevant", "sub_theme_id": null, "rationale": "Embraer, Brazilian regional jet manufacturer" },
+        { "sym": "STNE", "tier": "relevant", "sub_theme_id": null, "rationale": "StoneCo, Brazilian fintech payment processor" },
+        { "sym": "PAGS", "tier": "peripheral", "sub_theme_id": null, "rationale": "PagSeguro, Brazilian digital payments" }
+      ]
+    },
+    {
+      "id": "japan",
+      "name": "Japan",
+      "sector_id": "global",
+      "etf_ticker": "EWJ",
+      "etf_name": "iShares MSCI Japan ETF",
+      "display_order": 4,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "TM", "tier": "core", "sub_theme_id": null, "rationale": "Toyota, world largest automaker by volume" },
+        { "sym": "SONY", "tier": "core", "sub_theme_id": null, "rationale": "PlayStation, entertainment, and image sensors" },
+        { "sym": "MUFG", "tier": "core", "sub_theme_id": null, "rationale": "Mitsubishi UFJ, Japan largest bank" },
+        { "sym": "NMR", "tier": "relevant", "sub_theme_id": null, "rationale": "Nomura, Japan largest investment bank" },
+        { "sym": "SMFG", "tier": "relevant", "sub_theme_id": null, "rationale": "Sumitomo Mitsui, major Japanese bank" },
+        { "sym": "HMC", "tier": "relevant", "sub_theme_id": null, "rationale": "Honda Motor, autos and motorcycles" },
+        { "sym": "IX", "tier": "relevant", "sub_theme_id": null, "rationale": "ORIX, Japanese diversified financial services" },
+        { "sym": "NTDOY", "tier": "relevant", "sub_theme_id": null, "rationale": "Nintendo, Switch gaming hardware and software" }
+      ]
+    },
+    {
+      "id": "taiwan",
+      "name": "Taiwan",
+      "sector_id": "global",
+      "etf_ticker": "EWT",
+      "etf_name": "iShares MSCI Taiwan ETF",
+      "display_order": 5,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "TSM", "tier": "core", "sub_theme_id": null, "rationale": "TSMC, world largest semiconductor foundry" },
+        { "sym": "UMC", "tier": "relevant", "sub_theme_id": null, "rationale": "United Microelectronics, mature-node foundry" },
+        { "sym": "ASX", "tier": "relevant", "sub_theme_id": null, "rationale": "ASE Technology, chip packaging and testing" },
+        { "sym": "HIMX", "tier": "peripheral", "sub_theme_id": null, "rationale": "Himax, display driver IC maker" },
+        { "sym": "IMOS", "tier": "peripheral", "sub_theme_id": null, "rationale": "ChipMOS, semiconductor testing and packaging" }
+      ]
+    },
+    {
+      "id": "south_korea",
+      "name": "South Korea",
+      "sector_id": "global",
+      "etf_ticker": "EWY",
+      "etf_name": "iShares MSCI South Korea ETF",
+      "display_order": 6,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "SSNLF", "tier": "core", "sub_theme_id": null, "rationale": "Samsung Electronics, semis and consumer electronics" },
+        { "sym": "LPL", "tier": "relevant", "sub_theme_id": null, "rationale": "LG Display, OLED panel manufacturer" },
+        { "sym": "PKX", "tier": "relevant", "sub_theme_id": null, "rationale": "POSCO Holdings, Korean steelmaker and battery materials" },
+        { "sym": "KB", "tier": "relevant", "sub_theme_id": null, "rationale": "KB Financial Group, Korea largest bank" },
+        { "sym": "SHG", "tier": "relevant", "sub_theme_id": null, "rationale": "Shinhan Financial, major Korean bank" },
+        { "sym": "KEP", "tier": "peripheral", "sub_theme_id": null, "rationale": "Korea Electric Power, state electric utility" }
+      ]
+    },
+    {
+      "id": "europe",
+      "name": "Europe",
+      "sector_id": "global",
+      "etf_ticker": "EZU",
+      "etf_name": "iShares MSCI Eurozone ETF",
+      "display_order": 7,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "ASML", "tier": "core", "sub_theme_id": null, "rationale": "Dutch lithography monopoly for chip making" },
+        { "sym": "SAP", "tier": "core", "sub_theme_id": null, "rationale": "German enterprise software and ERP leader" },
+        { "sym": "NVO", "tier": "core", "sub_theme_id": null, "rationale": "Danish pharma, Ozempic and Wegovy GLP-1 leader" },
+        { "sym": "TTE", "tier": "relevant", "sub_theme_id": null, "rationale": "TotalEnergies, French integrated energy major" },
+        { "sym": "SNY", "tier": "relevant", "sub_theme_id": null, "rationale": "Sanofi, French pharma and vaccine company" },
+        { "sym": "DEO", "tier": "relevant", "sub_theme_id": null, "rationale": "Diageo, British spirits and beverage company" },
+        { "sym": "AZN", "tier": "relevant", "sub_theme_id": null, "rationale": "AstraZeneca, British-Swedish pharma company" },
+        { "sym": "RACE", "tier": "relevant", "sub_theme_id": null, "rationale": "Ferrari, Italian luxury sports car maker" },
+        { "sym": "ING", "tier": "relevant", "sub_theme_id": null, "rationale": "ING Group, Dutch banking and financial services" },
+        { "sym": "UL", "tier": "relevant", "sub_theme_id": null, "rationale": "Unilever, British-Dutch consumer staples giant" }
+      ]
+    },
+    {
+      "id": "emerging_markets",
+      "name": "Emerging Markets",
+      "sector_id": "global",
+      "etf_ticker": "EEM",
+      "etf_name": "iShares MSCI Emerging Markets ETF",
+      "display_order": 8,
+      "sub_themes": [],
+      "holdings": [
+        { "sym": "TSM", "tier": "core", "sub_theme_id": null, "rationale": "Taiwan Semiconductor, largest EM holding" },
+        { "sym": "BABA", "tier": "core", "sub_theme_id": null, "rationale": "Chinese e-commerce and cloud giant" },
+        { "sym": "VALE", "tier": "core", "sub_theme_id": null, "rationale": "Brazilian iron ore, major EM materials play" },
+        { "sym": "PBR", "tier": "relevant", "sub_theme_id": null, "rationale": "Brazilian state oil company with high dividends" },
+        { "sym": "ITUB", "tier": "relevant", "sub_theme_id": null, "rationale": "Latin America largest bank" },
+        { "sym": "HDB", "tier": "relevant", "sub_theme_id": null, "rationale": "India largest private bank" },
+        { "sym": "IBN", "tier": "relevant", "sub_theme_id": null, "rationale": "ICICI Bank, leading Indian bank" },
+        { "sym": "INFY", "tier": "relevant", "sub_theme_id": null, "rationale": "Indian IT services leader" },
+        { "sym": "JD", "tier": "relevant", "sub_theme_id": null, "rationale": "Chinese direct e-commerce platform" },
+        { "sym": "NU", "tier": "relevant", "sub_theme_id": null, "rationale": "Latin American digital bank" },
+        { "sym": "MELI", "tier": "relevant", "sub_theme_id": null, "rationale": "Latin American e-commerce and payments leader" },
+        { "sym": "TCEHY", "tier": "core", "sub_theme_id": null, "rationale": "Tencent, Chinese internet and gaming conglomerate" },
+        { "sym": "PKX", "tier": "peripheral", "sub_theme_id": null, "rationale": "POSCO Korean steel and battery materials" }
+      ]
+    }
+  ]
+}
