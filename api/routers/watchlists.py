@@ -6,6 +6,7 @@ from typing import Optional
 
 from api.middleware.auth_middleware import get_current_user
 from api.services import watchlist_service
+from api.services.watchlist_performance import get_batch_returns
 
 router = APIRouter()
 
@@ -62,6 +63,14 @@ def rename_flagged(body: FlaggedRename, user: dict = Depends(get_current_user)):
     if not result:
         raise HTTPException(status_code=404, detail="Flagged list not found")
     return result
+
+
+# ── Performance data ──
+
+@router.post("/api/watchlist-performance")
+def watchlist_performance(body: PerfRequest, user: dict = Depends(get_current_user)):
+    tickers = list(set(t.upper() for t in body.tickers[:100]))  # cap at 100
+    return get_batch_returns(tickers)
 
 
 # ── Regular watchlist endpoints ──
@@ -123,6 +132,10 @@ class ReorderItems(BaseModel):
 
 class BulkAddItems(BaseModel):
     symbols: list[str]
+
+
+class PerfRequest(BaseModel):
+    tickers: list[str]
 
 
 @router.post("/api/watchlists/{wl_id}/items/bulk")

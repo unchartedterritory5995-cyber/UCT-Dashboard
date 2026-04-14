@@ -443,6 +443,65 @@
   background: rgba(255,255,255,0.08);
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.colToggleWrap { position: relative; }
+
+.colToggleBtn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.colToggleBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
+
+.colPopover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #1e1e22;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  padding: 6px 10px;
+  z-index: 100;
+  min-width: 100px;
+}
+
+.colCheckRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ut-cream, #e8e0d0);
+  cursor: pointer;
+}
+
+.perfCell {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  min-width: 42px;
+  text-align: right;
+  padding: 1px 3px;
+  border-radius: 2px;
+}
+
+.cellDeepGreen { background: rgba(10,50,22,0.6); color: #4ade80; }
+.cellGreen     { background: rgba(74,222,128,0.12); color: #4ade80; }
+.cellRed       { background: rgba(248,113,113,0.12); color: #f87171; }
+.cellDeepRed   { background: rgba(55,6,6,0.6); color: #f87171; }
+
 .importTextarea {
   min-height: 100px;
   resize: vertical;

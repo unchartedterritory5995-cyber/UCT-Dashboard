@@ -4,12 +4,23 @@ import useSWR from 'swr'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import useLivePrices from '../hooks/useLivePrices'
+import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import styles from './Watchlists.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 const PERIODS = [['5', '5min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly']]
+const PERF_COLS = [['1d', '1D'], ['1w', '1W'], ['1m', '1M'], ['3m', '3M'], ['ytd', 'YTD']]
+
+function changePctClass(val) {
+  if (val == null) return ''
+  if (val > 5) return styles.cellDeepGreen
+  if (val > 0) return styles.cellGreen
+  if (val < -5) return styles.cellDeepRed
+  if (val < 0) return styles.cellRed
+  return ''
+}
 
 function AddItemRow({ onAdd }) {
   const [sym, setSym] = useState('')
@@ -49,6 +60,8 @@ export default function Watchlists() {
   const [dragOverId, setDragOverId] = useState(null)
   const [importListId, setImportListId] = useState(null)
   const [importText, setImportText] = useState('')
+  const [showPerfCols, setShowPerfCols] = useState(false)
+  const [visiblePerf, setVisiblePerf] = useState(new Set())
 
   function toggleStar(listId, sym) {
     const key = `${listId}:${sym}`
@@ -178,6 +191,11 @@ export default function Watchlists() {
   }, [activeTab, flagged, myLists, communityLists, expandedLists])
 
   const { prices } = useLivePrices(allTickers)
+  const { perfData } = useWatchlistPerformance(visiblePerf.size > 0 ? allTickers : [])
+
+  function togglePerfCol(key) {
+    setVisiblePerf(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n })
+  }
 
   // Clear toast
   useEffect(() => {
@@ -367,6 +385,14 @@ export default function Watchlists() {
                           {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
                         </span>
                       )}
+                      {PERF_COLS.filter(([k]) => visiblePerf.has(k)).map(([k, label]) => {
+                        const val = perfData[item.sym]?.[k]
+                        return (
+                          <span key={k} className={`${styles.perfCell} ${changePctClass(val)}`} title={label}>
+                            {val != null ? `${val > 0 ? '+' : ''}${val.toFixed(1)}%` : '—'}
+                          </span>
+                        )
+                      })}
                       <button
                         className={`${styles.noteBtn}${expandedNote === item.id ? ' ' + styles.noteBtnActive : ''}`}
                         onClick={e => { e.stopPropagation(); toggleNote(item.id, item.notes) }}
@@ -477,6 +503,14 @@ export default function Watchlists() {
                         {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
                       </span>
                     )}
+                    {PERF_COLS.filter(([k]) => visiblePerf.has(k)).map(([k, label]) => {
+                      const val = perfData[sym]?.[k]
+                      return (
+                        <span key={k} className={`${styles.perfCell} ${changePctClass(val)}`} title={label}>
+                          {val != null ? `${val > 0 ? '+' : ''}${val.toFixed(1)}%` : '—'}
+                        </span>
+                      )
+                    })}
                     <button className={styles.removeBtn} onClick={e => { e.stopPropagation(); removeFlagged(sym) }} title="Remove">×</button>
                   </div>
                 </div>
@@ -511,7 +545,22 @@ export default function Watchlists() {
           {activeTab === 'mine' && (
             <>
               <span className={styles.listMeta}>{(myLists?.length ?? 0) + 1} lists</span>
-              <button className={styles.newListBtn} onClick={() => setShowCreate(true)}>+ New List</button>
+              <div className={styles.headerActions}>
+                <div className={styles.colToggleWrap}>
+                  <button className={styles.colToggleBtn} onClick={() => setShowPerfCols(!showPerfCols)} title="Toggle columns">⚙</button>
+                  {showPerfCols && (
+                    <div className={styles.colPopover}>
+                      {PERF_COLS.map(([key, label]) => (
+                        <label key={key} className={styles.colCheckRow}>
+                          <input type="checkbox" checked={visiblePerf.has(key)} onChange={() => togglePerfCol(key)} />
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button className={styles.newListBtn} onClick={() => setShowCreate(true)}>+ New List</button>
+              </div>
             </>
           )}
           {activeTab === 'community' && (
