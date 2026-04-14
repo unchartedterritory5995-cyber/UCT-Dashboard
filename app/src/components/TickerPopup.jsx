@@ -3,6 +3,8 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import useSWR from 'swr'
 import useLivePrices from '../hooks/useLivePrices'
 import { useFlagged } from '../hooks/useFlagged'
+import useTickerTags from '../hooks/useTickerTags'
+import { TAG_BY_KEY } from '../constants/tagColors'
 import PositionCalc from './PositionCalc'
 import styles from './TickerPopup.module.css'
 
@@ -93,6 +95,8 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const [flagToast, setFlagToast] = useState(null)
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
+  const { getTag } = useTickerTags()
+  const tagColor = getTag(sym)
 
   // Fetch live price only when modal is open
   const { prices } = useLivePrices(modalOpen && sym ? [sym] : [])
@@ -142,6 +146,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
         aria-label={`View chart for ${sym}`}
         data-testid={`ticker-${sym}`}
       >
+        {tagColor && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 3, verticalAlign: 'middle' }} />}
         {children ?? sym}
       </Tag>
 
@@ -159,6 +164,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
             aria-label={`${sym} chart`}
           >
             <div className={styles.modalHeader}>
+              {tagColor && <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 5 }} />}
               <span className={styles.modalSym}>{sym}</span>
               {liveData && (
                 <>

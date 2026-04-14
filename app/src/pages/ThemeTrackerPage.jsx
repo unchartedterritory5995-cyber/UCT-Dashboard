@@ -6,6 +6,8 @@ import styles from './ThemeTrackerPage.module.css'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import { useFlagged } from '../hooks/useFlagged'
+import useTickerTags from '../hooks/useTickerTags'
+import { TAG_BY_KEY } from '../constants/tagColors'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
@@ -45,7 +47,7 @@ function groupReturn(theme, periodKey) {
     : avgReturn(theme.holdings, periodKey)
 }
 
-function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking }) {
+function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag }) {
   const isPortfolio = theme.ticker === 'UCT20'
   const groupAvg = groupReturn(theme, activeKey)
   const momentumDelta = rotationRanking?.momentum_delta
@@ -83,6 +85,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
             className={`${styles.stockRow} ${isSelected ? styles.selected : ''}`}
             onClick={() => onSelectSym(h.sym, h.name)}
           >
+            {getTag && getTag(h.sym) && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[getTag(h.sym)]?.hex, marginRight: 4 }} />}
             <span className={styles.sym}>{h.sym}</span>
             <span className={`${styles.ret} ${retClass(retVal, styles)}`}>
               {fmtRet(retVal)}
@@ -227,6 +230,7 @@ export default function ThemeTrackerPage() {
   const [chartPeriod, setChartPeriod] = useState('D')
   const [flagToast, setFlagToast] = useState(null)
   const { isFlagged, toggle: toggleFlag } = useFlagged()
+  const { getTag } = useTickerTags()
 
   // Clear flag toast after 1.5s
   useEffect(() => {
@@ -308,6 +312,7 @@ export default function ThemeTrackerPage() {
               onToggle={toggleTheme}
               rowRefs={rowRefs}
               rotationRanking={rotationRankings[theme.ticker]}
+              getTag={getTag}
             />
           ))}
         </div>

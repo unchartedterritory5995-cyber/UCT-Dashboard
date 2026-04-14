@@ -5,6 +5,8 @@ import usePreferences from '../hooks/usePreferences'
 import TileCard from '../components/TileCard'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
+import { TAG_COLORS } from '../constants/tagColors'
+import useTickerTags from '../hooks/useTickerTags'
 import styles from './Settings.module.css'
 
 const TF_OPTIONS = [
@@ -785,6 +787,50 @@ export default function Settings() {
 
         {/* ── Chart Settings ── */}
         <ChartSettingsSection prefs={prefs} setPref={setPref} />
+
+        {/* ── Watchlist Digest ── */}
+        <TileCard title="Watchlist Digest">
+          <div className={styles.section}>
+            <div className={styles.prefRow}>
+              <div className={styles.prefLabelGroup}>
+                <span className={styles.prefLabel}>Email Digest</span>
+                <span className={styles.prefDesc}>Receive a performance summary of your watchlists</span>
+              </div>
+              <select
+                className={styles.select}
+                value={prefs.watchlist_digest ? JSON.parse(prefs.watchlist_digest || '{}').frequency || 'off' : 'off'}
+                onChange={e => {
+                  const freq = e.target.value
+                  fetch('/api/watchlists/digest-settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ frequency: freq }),
+                  })
+                  setPref('watchlist_digest', JSON.stringify({ frequency: freq }))
+                }}
+              >
+                <option value="off">Off</option>
+                <option value="daily">Daily (5 PM ET)</option>
+                <option value="weekly">Weekly (Fri 5 PM ET)</option>
+              </select>
+            </div>
+          </div>
+        </TileCard>
+
+        {/* ── Color Tags ── */}
+        <TileCard title="Color Tags">
+          <div className={styles.section}>
+            <span className={styles.prefDesc} style={{ marginBottom: 12, display: 'block' }}>
+              Customize tag names. Right-click any ticker in Watchlists to assign a color.
+            </span>
+            {TAG_COLORS.map(tc => (
+              <div key={tc.key} className={styles.prefRow}>
+                <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: tc.hex, marginRight: 10, flexShrink: 0 }} />
+                <span className={styles.prefLabel} style={{ flex: 1 }}>{tc.label}</span>
+              </div>
+            ))}
+          </div>
+        </TileCard>
 
         {/* ── Data & Privacy ── */}
         <TileCard title="Data & Privacy">

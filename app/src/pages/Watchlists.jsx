@@ -8,6 +8,7 @@ import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { TAG_COLORS, TAG_BY_KEY } from '../constants/tagColors'
+import usePreferences from '../hooks/usePreferences'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import styles from './Watchlists.module.css'
@@ -15,6 +16,11 @@ import styles from './Watchlists.module.css'
 const fetcher = url => fetch(url).then(r => r.json())
 const PERIODS = [['5', '5min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly']]
 const PERF_COLS = [['1d', '1D'], ['1w', '1W'], ['1m', '1M'], ['3m', '3M'], ['ytd', 'YTD']]
+const COL_PRESETS = {
+  'Price View': new Set(),
+  'Performance': new Set(['1d', '1w', '1m', '3m', 'ytd']),
+  'Short-Term': new Set(['1d', '1w', '1m']),
+}
 
 function changePctClass(val) {
   if (val == null) return ''
@@ -615,6 +621,11 @@ export default function Watchlists() {
                   <button className={styles.colToggleBtn} onClick={() => setShowPerfCols(!showPerfCols)} title="Toggle columns">⚙</button>
                   {showPerfCols && (
                     <div className={styles.colPopover}>
+                      <div className={styles.presetRow}>
+                        {Object.entries(COL_PRESETS).map(([name, cols]) => (
+                          <button key={name} className={styles.presetBtn} onClick={() => setVisiblePerf(new Set(cols))}>{name}</button>
+                        ))}
+                      </div>
                       {PERF_COLS.map(([key, label]) => (
                         <label key={key} className={styles.colCheckRow}>
                           <input type="checkbox" checked={visiblePerf.has(key)} onChange={() => togglePerfCol(key)} />

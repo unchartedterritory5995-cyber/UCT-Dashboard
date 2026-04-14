@@ -3,6 +3,8 @@ import useSWR from 'swr'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import { useFlagged } from '../hooks/useFlagged'
+import useTickerTags from '../hooks/useTickerTags'
+import { TAG_BY_KEY } from '../constants/tagColors'
 import styles from './CustomScan.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -311,6 +313,7 @@ export default function CustomScan({ allCandidates }) {
   const [chartPeriod, setChartPeriod]   = useState('D')
   const [flagToast, setFlagToast]      = useState(null)
   const { toggle: toggleFlag, isFlagged } = useFlagged()
+  const { getTag } = useTickerTags()
 
   useEffect(() => {
     if (!flagToast) return
@@ -538,6 +541,7 @@ export default function CustomScan({ allCandidates }) {
                     >
                       <td>
                         <div className={styles.tickerCell}>
+                          {getTag(c.ticker) && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[getTag(c.ticker)]?.hex, marginRight: 3, flexShrink: 0 }} />}
                           <span className={styles.sym}>{c.ticker}</span>
                           {c.name || c.company
                             ? <span className={styles.co}>{(c.name || c.company || '').slice(0, 22)}</span>
