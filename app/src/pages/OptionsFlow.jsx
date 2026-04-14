@@ -1180,7 +1180,7 @@ export default function OptionsFlowDashboard() {
           // Call wall
           if (cw) {
             const aboveSpot = cw.strike > sp;
-            const label = aboveSpot ? "Ceiling "+fmtG(cw.gex) : "Cleared ↑ "+fmtG(cw.gex);
+            const label = aboveSpot ? "Ceiling "+fmtG(cw.gex) : "Support ↑ "+fmtG(cw.gex);
             const color = aboveSpot ? "#0a8f55" : "#00BCD4"; // cyan when cleared = bullish
             series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
           }
@@ -1216,7 +1216,7 @@ export default function OptionsFlowDashboard() {
             const {lw,ls} = getLineWeight(s.gex);
             // Call GEX below spot = price cleared this level (bullish support), Put GEX = bounce zone
             const color = s.type === "call" ? "#00BCD4" : "#0a8f55";
-            const label = s.type === "call" ? "Cleared ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
+            const label = s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
             series.createPriceLine({ price:s.strike, color, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
           });
         }).catch(()=>{});
