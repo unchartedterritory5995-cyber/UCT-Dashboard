@@ -3042,7 +3042,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #e040fb" }}>
                     <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.zeroGamma && gexData.spot < gexData.zeroGamma ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
                   </div>
                 </div>
 
@@ -3160,7 +3160,8 @@ export default function OptionsFlowDashboard() {
                   const cwPct = Math.round(cwGex / (cwGex + pwGex) * 100);
                   const pwPct = 100 - cwPct;
 
-                  const isPositive = tg > 0;
+                  const isPositive = tg > 0 && (!zg || sp >= zg); // positive GEX AND above danger line
+                  const belowDangerLine = zg && sp < zg;
                   const zgDist = zg ? ((sp - zg) / zg * 100).toFixed(1) : null;
 
                   // Pre-compute strike helpers (needed by verdict, setup text, trade ideas)
@@ -3475,8 +3476,8 @@ export default function OptionsFlowDashboard() {
                       <span style={{ fontSize:13, fontWeight:700, color:"#e040fb", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
-                    <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:isPositive?P.bu+"22":P.be+"22", color:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
-                      {isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
+                    <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:belowDangerLine?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:belowDangerLine?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
+                      {belowDangerLine?"⚠️ Below danger line — drops accelerate":isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
                     </div>
 
                     {/* Quick Read — auto-generated narrative */}
