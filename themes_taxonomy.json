@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "generated_at": "2026-04-14",
   "sectors": [
     {
@@ -5773,6 +5773,148 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "POSCO Korean steel and battery materials"
+        }
+      ]
+    },
+    {
+      "id": "transportation",
+      "name": "Transportation & Logistics",
+      "sector_id": "defense_industrials",
+      "etf_ticker": "IYT",
+      "etf_name": "iShares US Transportation ETF",
+      "display_order": 7,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "UNP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Union Pacific, largest US railroad by revenue"
+        },
+        {
+          "sym": "CSX",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "CSX Corporation, eastern US Class I railroad"
+        },
+        {
+          "sym": "NSC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Norfolk Southern, eastern US freight railroad"
+        },
+        {
+          "sym": "FDX",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "FedEx, global package delivery and logistics"
+        },
+        {
+          "sym": "UPS",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "UPS, global package delivery and supply chain"
+        },
+        {
+          "sym": "ODFL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Old Dominion Freight, premier LTL trucking carrier"
+        },
+        {
+          "sym": "XPO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "XPO Logistics, LTL freight transportation"
+        },
+        {
+          "sym": "JBHT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "J.B. Hunt, intermodal and trucking leader"
+        },
+        {
+          "sym": "SAIA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Saia Inc, LTL carrier with national expansion"
+        },
+        {
+          "sym": "KNX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Knight-Swift, largest US truckload carrier"
+        },
+        {
+          "sym": "CHRW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "C.H. Robinson, largest US freight brokerage"
+        },
+        {
+          "sym": "EXPD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Expeditors International, global freight forwarding"
+        }
+      ]
+    },
+    {
+      "id": "telecom",
+      "name": "Telecom",
+      "sector_id": "technology",
+      "etf_ticker": "VOX",
+      "etf_name": "Vanguard Communication Services ETF",
+      "display_order": 12,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "TMUS",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "T-Mobile, fastest-growing US wireless carrier"
+        },
+        {
+          "sym": "T",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "AT&T, largest US telecom by subscribers"
+        },
+        {
+          "sym": "VZ",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Verizon, premium US wireless network"
+        },
+        {
+          "sym": "LUMN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Lumen Technologies, fiber/enterprise networking"
+        },
+        {
+          "sym": "USM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "United States Cellular, regional wireless carrier"
+        },
+        {
+          "sym": "SATS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "EchoStar, satellite broadband and communications"
+        },
+        {
+          "sym": "IRDM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Iridium Communications, satellite voice/data network"
+        },
+        {
+          "sym": "GSAT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Globalstar, satellite communications provider"
         }
       ]
     }
