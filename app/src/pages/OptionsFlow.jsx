@@ -1180,15 +1180,15 @@ export default function OptionsFlowDashboard() {
           // Call wall
           if (cw) {
             const aboveSpot = cw.strike > sp;
-            const label = aboveSpot ? "Ceiling "+fmtG(cw.gex) : "Support ↑ "+fmtG(cw.gex);
-            const color = aboveSpot ? "#0a8f55" : "#00BCD4"; // cyan when cleared = bullish
+            const label = aboveSpot ? "Ceiling "+fmtG(cw.gex) : "Magnet ↓ "+fmtG(cw.gex);
+            const color = aboveSpot ? "#c43030" : "#e040fb"; // red ceiling above, purple magnet below
             series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
           }
           // Put wall
           if (pw) {
             const belowSpot = pw.strike < sp;
-            const label = belowSpot ? "Bounce "+fmtG(Math.abs(pw.gex)) : "Broke ↓ "+fmtG(Math.abs(pw.gex));
-            const color = belowSpot ? "#0a8f55" : "#c43030"; // green when holding = bullish, red when broke
+            const label = belowSpot ? "Bounce "+fmtG(Math.abs(pw.gex)) : "Magnet ↑ "+fmtG(Math.abs(pw.gex));
+            const color = belowSpot ? "#0a8f55" : "#e040fb"; // green bounce below, purple magnet above
             series.createPriceLine({ price:pw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
           }
           // Danger line
@@ -1197,15 +1197,21 @@ export default function OptionsFlowDashboard() {
           // Secondary levels — thickness/style scales with $ value
           const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
 
-          // Resistance above spot (call gamma)
-          const topAbove = [...(gexData.strikes||[])].filter(s=>s.callGex>0&&s.strike>sp&&!usedStrikes.has(s.strike)).sort((a,b)=>b.callGex-a.callGex).slice(0,3);
-          topAbove.forEach(s => {
+          // Above spot — all resistance = red
+          const aboveCandidates = [...(gexData.strikes||[])].filter(s=>s.strike>sp&&!usedStrikes.has(s.strike)).map(s=>{
+            const callVal = s.callGex > 0 ? s.callGex : 0;
+            const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
+            const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
+            return { strike:s.strike, gex:best.val, type:best.type };
+          }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
+          aboveCandidates.forEach(s => {
             usedStrikes.add(s.strike);
-            const {lw,ls} = getLineWeight(s.callGex);
-            series.createPriceLine({ price:s.strike, color:"#0a8f55", lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:"Ceiling "+fmtG(s.callGex) });
+            const {lw,ls} = getLineWeight(s.gex);
+            const label = s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex);
+            series.createPriceLine({ price:s.strike, color:"#c43030", lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
           });
 
-          // Support below spot — call GEX below spot = cleared (bullish), put GEX = bounce zone
+          // Below spot — all support = green/cyan
           const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
             const callVal = s.callGex > 0 ? s.callGex : 0;
             const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
@@ -1214,7 +1220,6 @@ export default function OptionsFlowDashboard() {
           }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
           belowCandidates.forEach(s => {
             const {lw,ls} = getLineWeight(s.gex);
-            // Call GEX below spot = price cleared this level (bullish support), Put GEX = bounce zone
             const color = s.type === "call" ? "#00BCD4" : "#0a8f55";
             const label = s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
             series.createPriceLine({ price:s.strike, color, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
