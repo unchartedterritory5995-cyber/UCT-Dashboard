@@ -3171,8 +3171,14 @@ export default function OptionsFlowDashboard() {
                     verdictText = isIntraday ? "Strong ceiling at $" + cwStrike + " — price drifts up but gets rejected there. Buy dips near support, don't chase into the ceiling." : "Strong ceiling at $" + cwStrike + " this week. Buy weekly pullbacks toward support, take profits near the ceiling.";
                     verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
                   } else if (cwDominant && !cwAboveSpot) {
-                    verdictText = isIntraday ? "Gravity pulling price DOWN toward $" + cwStrike + " — " + fmtGex(cwGex) + " dragging price lower. Be cautious buying here." : "$" + cwStrike + " gravity zone pulling price down this week. Avoid new longs unless price reclaims $" + cwStrike + " with a daily close.";
-                    verdictIcon = "⇣"; verdictBg = P.be+"22"; verdictColor = P.be;
+                    const cwProxVerdict = (sp - cwStrike) / sp;
+                    if (cwProxVerdict < 0.02) {
+                      verdictText = isIntraday ? "Decision point at $" + cwStrike + " — " + fmtGex(cwGex) + " below. Hold above = wall absorbed, next target $" + (firstResAbove ? firstResAbove.strike : cwStrike + Math.round(sp*0.005)) + ". Lose it = quick slide." : "Decision point at $" + cwStrike + " this week. A close above absorbs the wall" + (firstResAbove ? " — target $" + firstResAbove.strike : "") + ". A close below confirms the pull.";
+                      verdictIcon = "⚡"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                    } else {
+                      verdictText = isIntraday ? "Gravity pulling price DOWN toward $" + cwStrike + " — " + fmtGex(cwGex) + " dragging price lower. Be cautious buying here." : "$" + cwStrike + " gravity zone pulling price down this week. Avoid new longs unless price reclaims $" + cwStrike + " with a daily close.";
+                      verdictIcon = "⇣"; verdictBg = P.be+"22"; verdictColor = P.be;
+                    }
                   } else if (pwDominant && pwBelowSpot) {
                     verdictText = isIntraday ? "Strong floor at $" + pwStrike + " with a weak ceiling above — price wants to go up. Breakout potential." : "Strong weekly floor at $" + pwStrike + ". Buy dips toward it — breakout potential above $" + cwStrike + ".";
                     verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
