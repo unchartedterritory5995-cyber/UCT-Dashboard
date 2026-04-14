@@ -3506,37 +3506,6 @@ export default function OptionsFlowDashboard() {
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:4, fontSize:11, fontWeight:700, background:verdictBg, color:verdictColor }}><span style={{ fontSize:14 }}>{verdictIcon}</span><span>{verdictText}</span></div>
                     </div>
-                    <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>Key levels</div>
-                    <div style={{ marginBottom:3 }}>
-                      {allLevels.map((l,li) => {
-                        const nextL = allLevels[li+1];
-                        const spotAfter = l.strike > sp && nextL && nextL.strike < sp;
-                        const spotFirst = li===0 && l.strike < sp;
-                        const SpotLine = () => (
-                          <div style={{ display:"flex", alignItems:"center", gap:6, margin:"4px 0" }}>
-                            <div style={{ width:14 }} />
-                            <span style={{ fontSize:12, fontWeight:700, width:46, textAlign:"right", fontFamily:"monospace", color:"#00BCD4" }}>${sp.toFixed(0)}</span>
-                            <div style={{ flex:1, height:0, borderTop:"3px dashed #00BCD4" }} />
-                            <span style={{ fontSize:10, fontWeight:700, padding:"2px 10px", borderRadius:3, background:"#00BCD4", color:"#0d1117" }}>SPOT</span>
-                          </div>
-                        );
-                        return (
-                          <div key={li}>
-                            {spotFirst && <SpotLine />}
-                            <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
-                              <span style={{ fontSize:11, width:14, textAlign:"center", flexShrink:0, color:l.dirColor }}>{l.dir}</span>
-                              <span style={{ fontSize:11, fontWeight:700, width:46, textAlign:"right", fontFamily:"monospace", color:l.isCW?P.bu:l.isPW?P.be:l.isZero?P.ac:P.dm }}>${l.isZero?l.strike.toFixed(0):l.strike}</span>
-                              <div style={{ flex:1, height:22, background:l.isZero?"transparent":P.al, borderRadius:3, position:"relative", overflow:"visible", border:l.border||"none" }}>
-                                <div style={{ height:"100%", width:l.fillPct+"%", borderRadius:3, display:"flex", alignItems:"center", padding:"0 8px", fontSize:10, fontWeight:600, background:l.fillColor, color:l.fillText, opacity:l.isZero?0.45:1 }}>{l.label}</div>
-                                {l.showMagnet && <svg style={{ position:"absolute", top:"50%", transform:"translateY(-50%)", left:(l.fillPct+2)+"%", width:30, height:20 }} viewBox="0 0 30 20"><circle cx="10" cy="10" r="6" fill={l.magnetColor}/><circle cx="10" cy="10" r="3" fill={l.magnetColor===P.bu?"#0F6E56":"#cc2020"}/><path d="M17 4L22 2" stroke="#ffd54f" strokeWidth="2" strokeLinecap="round"/><path d="M18 10L24 10" stroke="#ffd54f" strokeWidth="2" strokeLinecap="round"/><path d="M17 16L22 18" stroke="#ffd54f" strokeWidth="2" strokeLinecap="round"/></svg>}
-                              </div>
-                              <span style={{ fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:3, minWidth:48, textAlign:"center", background:l.tagBg, color:l.tagColor }}>{l.tag}</span>
-                            </div>
-                            {spotAfter && <SpotLine />}
-                          </div>
-                        );
-                      })}
-                    </div>
                     <div style={{ height:1, background:P.bd, margin:"8px 0" }} />
                     <div style={{ fontSize:14, fontWeight:700, color:P.wh, marginBottom:4 }}>{setupTitle}</div>
                     <p style={{ fontSize:12, color:P.dm, lineHeight:1.5, margin:"0 0 8px" }}>{setupText}</p>
