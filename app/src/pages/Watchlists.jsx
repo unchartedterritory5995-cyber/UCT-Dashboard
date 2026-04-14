@@ -214,7 +214,7 @@ export default function Watchlists() {
   const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare, flaggedName, renameFlagged } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
-  const { tags, setTag, removeTag, getTag } = useTickerTags()
+  const { tags, setTag, removeTag, getTag, isColorShared, toggleShareColor, communityTags } = useTickerTags()
   const { createAlert, deleteAlert, getAlertsForSym, hasAlert } = useWatchlistAlerts()
   const [alertPopover, setAlertPopover] = useState(null) // { sym, x, y }
   const [alertPrice, setAlertPrice] = useState('')
@@ -669,6 +669,14 @@ export default function Watchlists() {
                       <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: tc.hex, marginRight: 6 }} />
                       <span className={styles.wlName}>{tc.label}</span>
                       <span className={styles.wlCount}>{syms.length}</span>
+                      {isColorShared(tc.key) && <span className={styles.pubBadge}>PUB</span>}
+                      <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+                        <button
+                          className={`${styles.wlActionBtn}${isColorShared(tc.key) ? ' ' + styles.wlActionBtnActive : ''}`}
+                          onClick={() => toggleShareColor(tc.key)}
+                          title={isColorShared(tc.key) ? 'Make Private' : 'Share with community'}
+                        >{isColorShared(tc.key) ? '🔓' : '🔒'}</button>
+                      </div>
                     </div>
                     {open && (
                       <div className={styles.wlItems}>
@@ -720,13 +728,56 @@ export default function Watchlists() {
 
           {/* ── Community tab ── */}
           {activeTab === 'community' && (
-            !communityLists ? (
-              <div className={styles.loading}>Loading…</div>
-            ) : communityLists.length === 0 ? (
-              <div className={styles.emptyList}>
-                <div className={styles.emptyText}>No community lists shared yet.</div>
-              </div>
-            ) : communityLists.map(wl => renderWatchlistGroup(wl, false))
+            <>
+              {/* Community tag lists */}
+              {communityTags.map((ct, i) => {
+                const tagKey = `pub:${ct.user_id}:${ct.color}`
+                const open = expandedLists.has(tagKey)
+                const tc = TAG_BY_KEY[ct.color]
+                if (!tc) return null
+                return (
+                  <div key={tagKey} className={styles.wlGroup}>
+                    <div className={styles.wlHeader} onClick={() => toggleList(tagKey)}>
+                      <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
+                      <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: tc.hex, marginRight: 6 }} />
+                      <span className={styles.wlName}>{tc.label}</span>
+                      <span className={styles.wlCount}>{ct.symbols.length}</span>
+                      <span className={styles.ownerTag}>{ct.owner_name}</span>
+                    </div>
+                    {open && (
+                      <div className={styles.wlItems}>
+                        {ct.symbols.map(sym => {
+                          const q = prices[sym]
+                          const price = q?.price ?? null
+                          const changePct = q?.change_pct ?? null
+                          return (
+                            <div key={sym} className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`} onClick={() => setSelectedSym(sym)}>
+                              <span className={styles.rowSym}>{sym}</span>
+                              <div className={styles.rowRight}>
+                                {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
+                                {changePct != null && (
+                                  <span className={`${styles.rowChange} ${changePct >= 0 ? styles.gain : styles.loss}`}>
+                                    {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {/* Community watchlists */}
+              {!communityLists ? (
+                <div className={styles.loading}>Loading…</div>
+              ) : communityLists.length === 0 && communityTags.length === 0 ? (
+                <div className={styles.emptyList}>
+                  <div className={styles.emptyText}>No community lists shared yet.</div>
+                </div>
+              ) : communityLists.map(wl => renderWatchlistGroup(wl, false))}
+            </>
           )}
         </div>
       </div>

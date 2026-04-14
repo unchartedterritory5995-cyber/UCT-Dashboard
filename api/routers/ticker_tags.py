@@ -37,3 +37,22 @@ def remove_tag(sym: str, user: dict = Depends(get_current_user)):
 @router.post("/api/ticker-tags/batch")
 def batch_tags(body: TagBatch, user: dict = Depends(get_current_user)):
     return ticker_tag_service.get_tags_for_symbols(user["id"], body.symbols)
+
+
+class ShareColors(BaseModel):
+    colors: list[str]
+
+
+@router.get("/api/ticker-tags/shared")
+def get_shared(user: dict = Depends(get_current_user)):
+    return ticker_tag_service.get_shared_tag_colors(user["id"])
+
+
+@router.put("/api/ticker-tags/shared")
+def set_shared(body: ShareColors, user: dict = Depends(get_current_user)):
+    return ticker_tag_service.set_shared_tag_colors(user["id"], body.colors)
+
+
+@router.get("/api/ticker-tags/public")
+def public_tags(user: dict = Depends(get_current_user)):
+    return ticker_tag_service.get_public_tag_lists()

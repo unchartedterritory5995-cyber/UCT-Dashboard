@@ -54,6 +54,70 @@ def remove_tag(user_id: str, sym: str) -> bool:
         conn.close()
 
 
+def get_shared_tag_colors(user_id: str) -> list[str]:
+    """Return list of color keys the user has shared publicly."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT pref_value FROM user_preferences WHERE user_id = ? AND pref_key = 'shared_tag_colors'",
+            (user_id,),
+        ).fetchone()
+        if row:
+            import json
+            try:
+                return json.loads(row["pref_value"])
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return []
+    finally:
+        conn.close()
+
+
+def set_shared_tag_colors(user_id: str, colors: list[str]) -> list[str]:
+    """Set which color tag lists are shared publicly."""
+    import json
+    from api.services.auth_service import set_user_preference
+    set_user_preference(user_id, "shared_tag_colors", json.dumps(colors))
+    return colors
+
+
+def get_public_tag_lists(limit: int = 50) -> list[dict]:
+    """Return all public tag lists across all users."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT user_id, pref_value FROM user_preferences WHERE pref_key = 'shared_tag_colors'"
+        ).fetchall()
+        results = []
+        for r in rows:
+            import json
+            try:
+                colors = json.loads(r["pref_value"])
+            except (json.JSONDecodeError, TypeError):
+                continue
+            if not colors:
+                continue
+            user = conn.execute("SELECT display_name, email FROM users WHERE id = ?", (r["user_id"],)).fetchone()
+            owner_name = (user["display_name"] or user["email"].split("@")[0]) if user else "Unknown"
+            # Get tags for each shared color
+            for color in colors:
+                tags = conn.execute(
+                    "SELECT sym FROM ticker_tags WHERE user_id = ? AND color = ?",
+                    (r["user_id"], color),
+                ).fetchall()
+                syms = [t["sym"] for t in tags]
+                if syms:
+                    results.append({
+                        "user_id": r["user_id"],
+                        "owner_name": owner_name,
+                        "color": color,
+                        "symbols": syms,
+                    })
+        return results[:limit]
+    finally:
+        conn.close()
+
+
 def get_tags_for_symbols(user_id: str, symbols: list[str]) -> dict:
     """Batch query: return {sym: color} for given symbols."""
     if not symbols:
