@@ -265,6 +265,13 @@ def init_db():
             conn.commit()
             print("[auth] Migrated: added is_flagged_list column to watchlists")
 
+        # Migration: add sort_order column to watchlist_items if missing
+        wi_cols = [row[1] for row in conn.execute("PRAGMA table_info(watchlist_items)").fetchall()]
+        if "sort_order" not in wi_cols:
+            conn.execute("ALTER TABLE watchlist_items ADD COLUMN sort_order INTEGER DEFAULT 0")
+            conn.commit()
+            print("[auth] Migrated: added sort_order column to watchlist_items")
+
         # Trading accounts table
         conn.execute("""
             CREATE TABLE IF NOT EXISTS trading_accounts (

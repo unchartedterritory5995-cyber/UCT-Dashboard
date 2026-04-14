@@ -119,9 +119,12 @@ def add_item(user_id: str, wl_id: str, sym: str, notes: str = "") -> dict | None
         if not row:
             return None
         item_id = str(uuid.uuid4())[:12]
+        max_order = conn.execute(
+            "SELECT COALESCE(MAX(sort_order), 0) FROM watchlist_items WHERE watchlist_id = ?", (wl_id,)
+        ).fetchone()[0]
         conn.execute(
-            "INSERT INTO watchlist_items (id, watchlist_id, sym, notes) VALUES (?,?,?,?)",
-            (item_id, wl_id, sym.upper(), notes),
+            "INSERT INTO watchlist_items (id, watchlist_id, sym, notes, sort_order) VALUES (?,?,?,?,?)",
+            (item_id, wl_id, sym.upper(), notes, max_order + 1),
         )
         conn.execute(
             "UPDATE watchlists SET updated_at = ? WHERE id = ?",
@@ -129,6 +132,55 @@ def add_item(user_id: str, wl_id: str, sym: str, notes: str = "") -> dict | None
         )
         conn.commit()
         return {"id": item_id, "watchlist_id": wl_id, "sym": sym.upper(), "notes": notes}
+    finally:
+        conn.close()
+
+
+def bulk_add_items(user_id: str, wl_id: str, symbols: list[str]) -> dict | None:
+    """Add multiple tickers to a watchlist, skipping duplicates."""
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)).fetchone()
+        if not row:
+            return None
+        existing = {r["sym"] for r in _get_items(conn, wl_id)}
+        max_order = conn.execute(
+            "SELECT COALESCE(MAX(sort_order), 0) FROM watchlist_items WHERE watchlist_id = ?", (wl_id,)
+        ).fetchone()[0]
+        added = 0
+        for sym in symbols:
+            s = sym.strip().upper()
+            if not s or s in existing:
+                continue
+            item_id = str(uuid.uuid4())[:12]
+            max_order += 1
+            conn.execute(
+                "INSERT INTO watchlist_items (id, watchlist_id, sym, notes, sort_order) VALUES (?,?,?,?,?)",
+                (item_id, wl_id, s, "", max_order),
+            )
+            existing.add(s)
+            added += 1
+        if added:
+            conn.execute(
+                "UPDATE watchlists SET updated_at = ? WHERE id = ?",
+                (datetime.now(timezone.utc).isoformat(), wl_id),
+            )
+            conn.commit()
+        return {"added": added, "watchlist": get_watchlist(wl_id, user_id)}
+    finally:
+        conn.close()
+
+
+def update_item_notes(user_id: str, wl_id: str, item_id: str, notes: str) -> dict | None:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)).fetchone()
+        if not row:
+            return None
+        conn.execute("UPDATE watchlist_items SET notes = ? WHERE id = ? AND watchlist_id = ?", (notes, item_id, wl_id))
+        conn.commit()
+        item = conn.execute("SELECT * FROM watchlist_items WHERE id = ?", (item_id,)).fetchone()
+        return dict(item) if item else None
     finally:
         conn.close()
 
@@ -279,9 +331,26 @@ def toggle_flagged_sharing(user_id: str, is_public: bool) -> dict | None:
         conn.close()
 
 
+def reorder_items(user_id: str, wl_id: str, item_ids: list[str]) -> bool:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)).fetchone()
+        if not row:
+            return False
+        for idx, item_id in enumerate(item_ids):
+            conn.execute(
+                "UPDATE watchlist_items SET sort_order = ? WHERE id = ? AND watchlist_id = ?",
+                (idx, item_id, wl_id),
+            )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 def _get_items(conn, wl_id: str) -> list[dict]:
     rows = conn.execute(
-        "SELECT * FROM watchlist_items WHERE watchlist_id = ? ORDER BY added_at DESC", (wl_id,)
+        "SELECT * FROM watchlist_items WHERE watchlist_id = ? ORDER BY sort_order ASC, added_at DESC", (wl_id,)
     ).fetchall()
     return [dict(r) for r in rows]
 

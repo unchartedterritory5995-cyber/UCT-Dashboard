@@ -113,6 +113,41 @@ def add_item(wl_id: str, body: WatchlistItem, user: dict = Depends(get_current_u
     return result
 
 
+class ItemNotesUpdate(BaseModel):
+    notes: str
+
+
+class ReorderItems(BaseModel):
+    item_ids: list[str]
+
+
+class BulkAddItems(BaseModel):
+    symbols: list[str]
+
+
+@router.post("/api/watchlists/{wl_id}/items/bulk")
+def bulk_add_items(wl_id: str, body: BulkAddItems, user: dict = Depends(get_current_user)):
+    result = watchlist_service.bulk_add_items(user["id"], wl_id, body.symbols)
+    if not result:
+        raise HTTPException(status_code=404, detail="Watchlist not found")
+    return result
+
+
+@router.put("/api/watchlists/{wl_id}/reorder")
+def reorder_items(wl_id: str, body: ReorderItems, user: dict = Depends(get_current_user)):
+    if not watchlist_service.reorder_items(user["id"], wl_id, body.item_ids):
+        raise HTTPException(status_code=404, detail="Watchlist not found")
+    return {"ok": True}
+
+
+@router.put("/api/watchlists/{wl_id}/items/{item_id}/notes")
+def update_item_notes(wl_id: str, item_id: str, body: ItemNotesUpdate, user: dict = Depends(get_current_user)):
+    result = watchlist_service.update_item_notes(user["id"], wl_id, item_id, body.notes)
+    if not result:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return result
+
+
 @router.delete("/api/watchlists/{wl_id}/items/{item_id}")
 def remove_item(wl_id: str, item_id: str, user: dict = Depends(get_current_user)):
     if not watchlist_service.remove_item(user["id"], wl_id, item_id):

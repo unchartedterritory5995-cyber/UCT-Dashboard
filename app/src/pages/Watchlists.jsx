@@ -1,5 +1,5 @@
 // app/src/pages/Watchlists.jsx
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import useSWR from 'swr'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
@@ -43,6 +43,12 @@ export default function Watchlists() {
   const [renameValue, setRenameValue] = useState('')
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, id, isOwner, symbols }
   const [starred, setStarred] = useState(new Set()) // "listId:SYM" keys
+  const [expandedNote, setExpandedNote] = useState(null) // item ID with note open
+  const [noteText, setNoteText] = useState('')
+  const [dragItemId, setDragItemId] = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
+  const [importListId, setImportListId] = useState(null)
+  const [importText, setImportText] = useState('')
 
   function toggleStar(listId, sym) {
     const key = `${listId}:${sym}`
@@ -75,6 +81,68 @@ export default function Watchlists() {
       return n
     })
     setCtxMenu(null)
+  }
+
+  function exportCSV(wl) {
+    const items = wl.items || []
+    const rows = [['Symbol', 'Notes'], ...items.map(i => [i.sym, (i.notes || '').replace(/"/g, '""')])]
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${wl.name.replace(/[^a-zA-Z0-9]/g, '_')}-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    setCtxMenu(null)
+  }
+
+  function parseImportText(text) {
+    return text.split(/[\n,]+/).map(s => s.trim().toUpperCase()).filter(s => /^[A-Z]{1,10}$/.test(s))
+  }
+
+  async function handleImport() {
+    const syms = parseImportText(importText)
+    if (!syms.length || !importListId) return
+    await fetch(`/api/watchlists/${importListId}/items/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbols: syms }),
+    })
+    setImportListId(null)
+    setImportText('')
+    mutateMine()
+  }
+
+  function handleDrop(wlId, items) {
+    if (!dragItemId || !dragOverId || dragItemId === dragOverId) { setDragItemId(null); setDragOverId(null); return }
+    const ids = items.map(i => i.id)
+    const fromIdx = ids.indexOf(dragItemId)
+    const toIdx = ids.indexOf(dragOverId)
+    if (fromIdx < 0 || toIdx < 0) { setDragItemId(null); setDragOverId(null); return }
+    ids.splice(fromIdx, 1)
+    ids.splice(toIdx, 0, dragItemId)
+    setDragItemId(null)
+    setDragOverId(null)
+    fetch(`/api/watchlists/${wlId}/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_ids: ids }),
+    }).then(() => mutateMine()).catch(() => {})
+  }
+
+  function saveNote(wlId, itemId, text) {
+    fetch(`/api/watchlists/${wlId}/items/${itemId}/notes`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: text }),
+    }).then(() => mutateMine()).catch(() => {})
+  }
+
+  function toggleNote(itemId, currentNotes) {
+    if (expandedNote === itemId) { setExpandedNote(null); return }
+    setExpandedNote(itemId)
+    setNoteText(currentNotes || '')
   }
 
   function handleContextMenu(e, id, isOwner, symbols) {
@@ -274,34 +342,64 @@ export default function Watchlists() {
               const changePct = q?.change_pct ?? null
               const isStarred = starred.has(`${wl.id}:${item.sym}`)
               return (
-                <div
-                  key={item.id}
-                  className={`${styles.listRow} ${styles.wlRow}${selectedSym === item.sym ? ' ' + styles.listRowSelected : ''}`}
-                  onClick={() => setSelectedSym(item.sym)}
-                >
-                  <button
-                    className={`${styles.starBtn}${isStarred ? ' ' + styles.starBtnActive : ''}`}
-                    onClick={e => { e.stopPropagation(); toggleStar(wl.id, item.sym) }}
-                    title={isStarred ? 'Unstar' : 'Star'}
-                  >{isStarred ? '★' : '☆'}</button>
-                  <span className={styles.rowSym}>{item.sym}</span>
-                  <div className={styles.rowRight}>
-                    {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
-                    {changePct != null && (
-                      <span className={`${styles.rowChange} ${changePct >= 0 ? styles.gain : styles.loss}`}>
-                        {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
-                      </span>
-                    )}
-                    {isOwner && (
+                <React.Fragment key={item.id}>
+                  <div
+                    className={`${styles.listRow} ${styles.wlRow}${selectedSym === item.sym ? ' ' + styles.listRowSelected : ''}${dragItemId === item.id ? ' ' + styles.dragging : ''}${dragOverId === item.id ? ' ' + styles.dragOver : ''}`}
+                    onClick={() => setSelectedSym(item.sym)}
+                    draggable={isOwner}
+                    onDragStart={isOwner ? e => { e.dataTransfer.effectAllowed = 'move'; setDragItemId(item.id) } : undefined}
+                    onDragOver={isOwner ? e => { e.preventDefault(); setDragOverId(item.id) } : undefined}
+                    onDrop={isOwner ? e => { e.preventDefault(); handleDrop(wl.id, items) } : undefined}
+                    onDragEnd={() => { setDragItemId(null); setDragOverId(null) }}
+                  >
+                    {isOwner && <span className={styles.dragHandle}>⠿</span>}
+                    <button
+                      className={`${styles.starBtn}${isStarred ? ' ' + styles.starBtnActive : ''}`}
+                      onClick={e => { e.stopPropagation(); toggleStar(wl.id, item.sym) }}
+                      title={isStarred ? 'Unstar' : 'Star'}
+                    >{isStarred ? '★' : '☆'}</button>
+                    <span className={styles.rowSym}>{item.sym}</span>
+                    {item.notes && <span className={styles.noteIndicator} title="Has notes">...</span>}
+                    <div className={styles.rowRight}>
+                      {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
+                      {changePct != null && (
+                        <span className={`${styles.rowChange} ${changePct >= 0 ? styles.gain : styles.loss}`}>
+                          {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
+                        </span>
+                      )}
                       <button
-                        className={styles.removeBtn}
-                        onClick={e => { e.stopPropagation(); handleRemoveItem(wl.id, item.id) }}
-                        title="Remove"
-                      >×</button>
-                    )}
+                        className={`${styles.noteBtn}${expandedNote === item.id ? ' ' + styles.noteBtnActive : ''}`}
+                        onClick={e => { e.stopPropagation(); toggleNote(item.id, item.notes) }}
+                        title="Notes"
+                      >✎</button>
+                      {isOwner && (
+                        <button
+                          className={styles.removeBtn}
+                          onClick={e => { e.stopPropagation(); handleRemoveItem(wl.id, item.id) }}
+                          title="Remove"
+                        >×</button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )
+                  {expandedNote === item.id && (
+                    <div className={styles.noteRow}>
+                      {isOwner ? (
+                        <textarea
+                          className={styles.noteTextarea}
+                          value={noteText}
+                          onChange={e => setNoteText(e.target.value)}
+                          onBlur={() => saveNote(wl.id, item.id, noteText)}
+                          placeholder="Add a note..."
+                          rows={2}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      ) : (
+                        <div className={styles.noteReadonly}>{item.notes || 'No notes'}</div>
+                      )}
+                    </div>
+                  )}
+                </React.Fragment>
+            )
             })}
             {isOwner && <AddItemRow onAdd={sym => handleAddItem(wl.id, sym)} />}
           </div>
@@ -533,6 +631,39 @@ export default function Watchlists() {
         </div>
       )}
 
+      {/* ── Import modal ── */}
+      {importListId && (
+        <div className={styles.modalBackdrop} onClick={() => setImportListId(null)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalTitle}>Import Tickers</div>
+            <div className={styles.formGroup}>
+              <span className={styles.formLabel}>Paste tickers (comma or newline separated)</span>
+              <textarea
+                className={`${styles.input} ${styles.importTextarea}`}
+                value={importText}
+                onChange={e => setImportText(e.target.value)}
+                placeholder={"AAPL, MSFT, NVDA\nor one per line"}
+                rows={5}
+                autoFocus
+              />
+            </div>
+            {importText && (
+              <div className={styles.importPreview}>
+                {parseImportText(importText).length} tickers found
+              </div>
+            )}
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.cancelBtn} onClick={() => setImportListId(null)}>Cancel</button>
+              <button
+                className={styles.submitBtn}
+                disabled={!parseImportText(importText).length}
+                onClick={handleImport}
+              >Import</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Context menu ── */}
       {ctxMenu && (
         <div className={styles.ctxBackdrop} onClick={() => setCtxMenu(null)} onContextMenu={e => { e.preventDefault(); setCtxMenu(null) }}>
@@ -552,6 +683,19 @@ export default function Watchlists() {
             <button className={styles.ctxItem} onClick={() => handleCopyList(ctxMenu.symbols)}>
               Copy list to clipboard
             </button>
+            {ctxMenu.isOwner && ctxMenu.id !== 'flagged' && (
+              <button className={styles.ctxItem} onClick={() => {
+                const wl = myLists?.find(w => w.id === ctxMenu.id)
+                if (wl) exportCSV(wl)
+              }}>Export CSV</button>
+            )}
+            {ctxMenu.isOwner && ctxMenu.id !== 'flagged' && (
+              <button className={styles.ctxItem} onClick={() => {
+                setImportListId(ctxMenu.id)
+                setImportText('')
+                setCtxMenu(null)
+              }}>Import tickers</button>
+            )}
             {ctxMenu.isOwner && getStarredSyms(ctxMenu.id).length > 0 && (
               <button className={`${styles.ctxItem} ${styles.ctxItemDanger}`} onClick={() => handleRemoveStarred(ctxMenu.id)}>
                 Remove starred ({getStarredSyms(ctxMenu.id).length})

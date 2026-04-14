@@ -443,6 +443,85 @@
   background: rgba(255,255,255,0.08);
 }
 
+.importTextarea {
+  min-height: 100px;
+  resize: vertical;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.importPreview {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ut-gold, #c9a84c);
+  margin-bottom: 12px;
+}
+
+.dragHandle {
+  font-size: 11px;
+  color: rgba(255,255,255,0.15);
+  cursor: grab;
+  padding-right: 4px;
+  user-select: none;
+}
+
+.dragHandle:active { cursor: grabbing; }
+
+.dragging { opacity: 0.4; }
+
+.dragOver { border-top: 2px solid var(--ut-gold, #c9a84c); }
+
+.noteIndicator {
+  font-size: 10px;
+  color: var(--ut-gold, #c9a84c);
+  opacity: 0.5;
+  margin-left: 2px;
+}
+
+.noteBtn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.25);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.noteBtn:hover { color: var(--ut-gold, #c9a84c); }
+.noteBtnActive { color: var(--ut-gold, #c9a84c); opacity: 1; }
+
+.noteRow {
+  padding: 4px 14px 8px 42px;
+  background: rgba(0,0,0,0.15);
+}
+
+.noteTextarea {
+  width: 100%;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ut-cream, #e8e0d0);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 6px 8px;
+  resize: vertical;
+  min-height: 36px;
+  max-height: 120px;
+  outline: none;
+}
+
+.noteTextarea:focus {
+  border-color: var(--ut-gold, #c9a84c);
+}
+
+.noteReadonly {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  font-style: italic;
+  line-height: 1.5;
+}
+
 .starBtn {
   background: none;
   border: none;
