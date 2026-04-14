@@ -49,7 +49,31 @@ function AddItemRow({ onAdd }) {
   )
 }
 
-export default function Watchlists() {
+class WatchlistErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(error) { return { error } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 40, color: '#e8e0d0', fontFamily: 'IBM Plex Mono, monospace' }}>
+          <h2 style={{ color: '#c9a84c' }}>Watchlists Error</h2>
+          <p style={{ opacity: 0.6 }}>{this.state.error?.message || 'Something went wrong'}</p>
+          <button onClick={() => { this.setState({ error: null }); window.location.reload() }}
+            style={{ marginTop: 12, padding: '8px 16px', background: '#c9a84c', color: '#0e0f0d', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 700 }}>
+            Reload
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+export default function WatchlistsWrapper() {
+  return <WatchlistErrorBoundary><WatchlistsInner /></WatchlistErrorBoundary>
+}
+
+function WatchlistsInner() {
   const [activeTab, setActiveTab] = useState('mine')
   const [selectedSym, setSelectedSym] = useState(null)
   const [chartPeriod, setChartPeriod] = useState('D')

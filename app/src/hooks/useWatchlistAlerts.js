@@ -1,7 +1,7 @@
 import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
 
-const fetcher = url => fetch(url).then(r => r.json())
+const fetcher = url => fetch(url).then(r => r.ok ? r.json() : [])
 
 export default function useWatchlistAlerts() {
   const { user } = useAuth()
@@ -13,17 +13,21 @@ export default function useWatchlistAlerts() {
   const alerts = Array.isArray(data) ? data : []
 
   async function createAlert(sym, targetPrice, direction) {
-    await fetch('/api/watchlist-alerts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sym, target_price: targetPrice, direction }),
-    })
-    mutate()
+    try {
+      await fetch('/api/watchlist-alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sym, target_price: targetPrice, direction }),
+      })
+      mutate()
+    } catch {}
   }
 
   async function deleteAlert(alertId) {
-    await fetch(`/api/watchlist-alerts/${alertId}`, { method: 'DELETE' })
-    mutate()
+    try {
+      await fetch(`/api/watchlist-alerts/${alertId}`, { method: 'DELETE' })
+      mutate()
+    } catch {}
   }
 
   function getAlertsForSym(sym) {

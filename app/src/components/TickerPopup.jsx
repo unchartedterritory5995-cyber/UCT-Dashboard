@@ -152,7 +152,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
         {tagColor && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 3, verticalAlign: 'middle' }} />}
         {children ?? sym}
       </Tag>
-      <TickerActionsMenu menu={tickerActions.menu} onClose={tickerActions.closeMenu} />
+      {tickerActions.menu && <TickerActionsMenu menu={tickerActions.menu} onClose={tickerActions.closeMenu} />}
 
       {modalOpen && (
         <div
