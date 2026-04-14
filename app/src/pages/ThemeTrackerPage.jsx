@@ -8,6 +8,7 @@ import SymbolSearch from '../components/chart/SymbolSearch'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
+import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
@@ -47,7 +48,7 @@ function groupReturn(theme, periodKey) {
     : avgReturn(theme.holdings, periodKey)
 }
 
-function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag }) {
+function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions }) {
   const isPortfolio = theme.ticker === 'UCT20'
   const groupAvg = groupReturn(theme, activeKey)
   const momentumDelta = rotationRanking?.momentum_delta
@@ -84,6 +85,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
             ref={el => { if (rowRefs) rowRefs.current[h.sym] = el }}
             className={`${styles.stockRow} ${isSelected ? styles.selected : ''}`}
             onClick={() => onSelectSym(h.sym, h.name)}
+            onContextMenu={tickerActions ? e => tickerActions.openMenu(e, h.sym) : undefined}
           >
             {getTag && getTag(h.sym) && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[getTag(h.sym)]?.hex, marginRight: 4 }} />}
             <span className={styles.sym}>{h.sym}</span>
@@ -231,6 +233,7 @@ export default function ThemeTrackerPage() {
   const [flagToast, setFlagToast] = useState(null)
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
+  const tickerActions = useTickerActions()
 
   // Clear flag toast after 1.5s
   useEffect(() => {
@@ -313,6 +316,7 @@ export default function ThemeTrackerPage() {
               rowRefs={rowRefs}
               rotationRanking={rotationRankings[theme.ticker]}
               getTag={getTag}
+              tickerActions={tickerActions}
             />
           ))}
         </div>
@@ -356,6 +360,7 @@ export default function ThemeTrackerPage() {
           </div>
         )}
       </div>
+      {tickerActions.menu && <TickerActionsMenu menu={tickerActions.menu} onClose={tickerActions.closeMenu} />}
     </div>
   )
 }
