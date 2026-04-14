@@ -1149,7 +1149,18 @@ export default function OptionsFlowDashboard() {
         grid: { vertLines: { color: "#1a254033" }, horzLines: { color: "#1a254033" } },
         crosshair: { mode: 0 },
         rightPriceScale: { borderColor: "#1a2540" },
-        timeScale: { borderColor: "#1a2540", timeVisible: true, secondsVisible: false },
+        timeScale: { borderColor: "#1a2540", timeVisible: true, secondsVisible: false,
+          tickMarkFormatter: (time) => {
+            const d = new Date(time * 1000);
+            return d.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+          }
+        },
+        localization: {
+          timeFormatter: (time) => {
+            const d = new Date(time * 1000);
+            return d.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+          }
+        },
       });
       gexChartObjRef.current = chart;
       const series = chart.addCandlestickSeries({
@@ -1181,14 +1192,14 @@ export default function OptionsFlowDashboard() {
           if (cw) {
             const aboveSpot = cw.strike > sp;
             const label = aboveSpot ? "Ceiling "+fmtG(cw.gex) : "Magnet ↓ "+fmtG(cw.gex);
-            const color = aboveSpot ? "#c43030" : "#e040fb"; // red ceiling above, purple magnet below
+            const color = aboveSpot ? "#c43030" : "#FF8C00"; // red ceiling above, orange magnet below
             series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
           }
           // Put wall
           if (pw) {
             const belowSpot = pw.strike < sp;
             const label = belowSpot ? "Bounce "+fmtG(Math.abs(pw.gex)) : "Magnet ↑ "+fmtG(Math.abs(pw.gex));
-            const color = belowSpot ? "#0a8f55" : "#e040fb"; // green bounce below, purple magnet above
+            const color = belowSpot ? "#0a8f55" : "#FF8C00"; // green bounce below, orange magnet above
             series.createPriceLine({ price:pw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
           }
           // Danger line
