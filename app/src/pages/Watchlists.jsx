@@ -5,6 +5,8 @@ import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import useLivePrices from '../hooks/useLivePrices'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
+import useTickerTags from '../hooks/useTickerTags'
+import { TAG_COLORS, TAG_BY_KEY } from '../constants/tagColors'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import styles from './Watchlists.module.css'
@@ -52,7 +54,7 @@ export default function Watchlists() {
   const [saving, setSaving] = useState(false)
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
-  const [ctxMenu, setCtxMenu] = useState(null) // { x, y, id, isOwner, symbols }
+  const [ctxMenu, setCtxMenu] = useState(null) // { x, y, id, isOwner, symbols, sym? }
   const [starred, setStarred] = useState(new Set()) // "listId:SYM" keys
   const [expandedNote, setExpandedNote] = useState(null) // item ID with note open
   const [noteText, setNoteText] = useState('')
@@ -222,6 +224,7 @@ export default function Watchlists() {
   }, [activeTab, flagged, myLists, communityLists, expandedLists])
 
   const { prices } = useLivePrices(allTickers)
+  const { tags, setTag, removeTag, getTag } = useTickerTags()
   const { perfData } = useWatchlistPerformance(visiblePerf.size > 0 ? allTickers : [])
 
   function togglePerfCol(key) {
@@ -422,7 +425,10 @@ export default function Watchlists() {
                       onClick={e => { e.stopPropagation(); toggleStar(wl.id, item.sym) }}
                       title={isStarred ? 'Unstar' : 'Star'}
                     >{isStarred ? '★' : '☆'}</button>
-                    <span className={styles.rowSym}>{item.sym}</span>
+                    {getTag(item.sym) && (
+                      <span className={styles.tagDot} style={{ background: TAG_BY_KEY[getTag(item.sym)]?.hex }} title={TAG_BY_KEY[getTag(item.sym)]?.label} />
+                    )}
+                    <span className={styles.rowSym} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY, id: wl.id, isOwner, symbols: items.map(i => i.sym), sym: item.sym }) }}>{item.sym}</span>
                     {item.notes && <span className={styles.noteIndicator} title="Has notes">...</span>}
                     <div className={styles.rowRight}>
                       {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
@@ -541,6 +547,9 @@ export default function Watchlists() {
                     onClick={e => { e.stopPropagation(); toggleStar('flagged', sym) }}
                     title={isStarred ? 'Unstar' : 'Star'}
                   >{isStarred ? '★' : '☆'}</button>
+                  {getTag(sym) && (
+                    <span className={styles.tagDot} style={{ background: TAG_BY_KEY[getTag(sym)]?.hex }} title={TAG_BY_KEY[getTag(sym)]?.label} />
+                  )}
                   <span className={styles.rowSym}>{sym}</span>
                   <div className={styles.rowRight}>
                     {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
@@ -795,6 +804,26 @@ export default function Watchlists() {
               <button className={`${styles.ctxItem} ${styles.ctxItemDanger}`} onClick={() => handleRemoveStarred(ctxMenu.id)}>
                 Remove starred ({getStarredSyms(ctxMenu.id).length})
               </button>
+            )}
+            {ctxMenu.sym && (
+              <div className={styles.ctxTagSection}>
+                <span className={styles.ctxTagLabel}>Tag {ctxMenu.sym}</span>
+                <div className={styles.tagSwatches}>
+                  {TAG_COLORS.map(tc => (
+                    <button
+                      key={tc.key}
+                      className={`${styles.tagSwatch}${getTag(ctxMenu.sym) === tc.key ? ' ' + styles.tagSwatchActive : ''}`}
+                      style={{ background: tc.hex }}
+                      title={tc.label}
+                      onClick={() => {
+                        if (getTag(ctxMenu.sym) === tc.key) removeTag(ctxMenu.sym)
+                        else setTag(ctxMenu.sym, tc.key)
+                        setCtxMenu(null)
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>

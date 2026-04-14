@@ -566,6 +566,50 @@
   margin-bottom: 12px;
 }
 
+.tagDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 3px;
+}
+
+.ctxTagSection {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 6px 14px 4px;
+}
+
+.ctxTagLabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.tagSwatches {
+  display: flex;
+  gap: 6px;
+}
+
+.tagSwatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.tagSwatch:hover { transform: scale(1.2); }
+
+.tagSwatchActive {
+  border-color: #fff;
+  box-shadow: 0 0 4px rgba(255,255,255,0.3);
+}
+
 .dragHandle {
   font-size: 11px;
   color: rgba(255,255,255,0.15);

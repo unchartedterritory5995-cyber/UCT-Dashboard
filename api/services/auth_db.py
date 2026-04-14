@@ -265,6 +265,21 @@ def init_db():
             conn.commit()
             print("[auth] Migrated: added is_flagged_list column to watchlists")
 
+        # Ticker tags table (color tags per user per ticker)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ticker_tags (
+                id          TEXT PRIMARY KEY,
+                user_id     TEXT NOT NULL REFERENCES users(id),
+                sym         TEXT NOT NULL,
+                color       TEXT NOT NULL,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, sym)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ticker_tags_user ON ticker_tags(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ticker_tags_sym ON ticker_tags(sym)")
+        conn.commit()
+
         # Migration: add sort_order column to watchlist_items if missing
         wi_cols = [row[1] for row in conn.execute("PRAGMA table_info(watchlist_items)").fetchall()]
         if "sort_order" not in wi_cols:

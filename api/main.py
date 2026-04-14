@@ -28,6 +28,7 @@ from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal as journal_router
 from api.routers import watchlists as watchlists_router
+from api.routers import ticker_tags as ticker_tags_router
 from api.routers import community as community_router
 from api.routers import rs_ranking as rs_ranking_router
 from api.routers import sector_flow as sector_flow_router
@@ -295,6 +296,7 @@ app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_router.router)
 app.include_router(watchlists_router.router)
+app.include_router(ticker_tags_router.router)
 app.include_router(community_router.router)
 app.include_router(live_prices_router.router)
 app.include_router(rs_ranking_router.router)
