@@ -479,6 +479,11 @@ def get_cot_data(symbol: str, weeks: int = 52) -> list[dict]:
     return [dict(r) for r in reversed(rows)]
 
 
+def get_latest_date() -> str | None:
+    """Return the most recent report date in the DB, or None if empty."""
+    return _latest_record_date()
+
+
 def get_status() -> dict:
     """Return last refresh info, next scheduled Friday, and total record count."""
     with _get_conn() as conn:

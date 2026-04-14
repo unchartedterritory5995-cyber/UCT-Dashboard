@@ -115,21 +115,27 @@ async def lifespan(app: FastAPI):
             print("[startup] COT table empty — seeding from CFTC historical archive (background)...")
             threading.Thread(target=_cot_seed_background, daemon=True, name="cot-seed").start()
         else:
-            # Catch-up: if today is Friday and we haven't refreshed yet today, do it now.
-            # This handles Railway redeploys that happen after the 4:30 PM scheduled window.
+            # Catch-up: trigger if data is stale (>=8 days old = missed at least one Friday refresh)
+            # or if today is Friday past 5 PM ET and the scheduled 3:50 PM job was missed.
+            from datetime import date as _date
             now_et = datetime.now(ZoneInfo("America/New_York"))
-            if now_et.weekday() == 4 and now_et.hour >= 17:  # Friday, past 5 PM ET
-                status = _cot_service.get_status()
-                last_updated = status.get("last_updated")
-                already_ran_today = (
-                    last_updated is not None
-                    and last_updated[:10] == now_et.date().isoformat()
-                )
-                if not already_ran_today:
+            status = _cot_service.get_status()
+            last_updated = status.get("last_updated")
+            already_ran_today = (
+                last_updated is not None
+                and last_updated[:10] == now_et.date().isoformat()
+            )
+            if not already_ran_today:
+                latest_date = _cot_service.get_latest_date()
+                days_old = (now_et.date() - _date.fromisoformat(latest_date)).days if latest_date else 999
+                if days_old >= 8:
+                    print(f"[startup] COT data is {days_old}d stale — running catch-up refresh...")
+                    threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
+                elif now_et.weekday() == 4 and now_et.hour >= 17:  # Friday past 5 PM ET
                     print("[startup] COT catch-up: Friday refresh missed — running now...")
                     threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
                 else:
-                    print("[startup] COT database ready.")
+                    print(f"[startup] COT database ready (latest: {latest_date}, {days_old}d old).")
             else:
                 print("[startup] COT database ready.")
     except Exception as e:
@@ -158,6 +164,31 @@ async def lifespan(app: FastAPI):
         _cot_service.refresh_if_stale,
         trigger=CronTrigger(day_of_week="fri", hour=16, minute=45),
         id="cot_weekly_retry_2",
+        max_instances=1,
+        replace_existing=True,
+    )
+    # Daily safety-net: catches missed Friday refreshes. Runs at 6 PM ET every day.
+    # Only downloads if latest DB record is >=8 days old (missed at least one Friday).
+    def _cot_daily_catchup():
+        try:
+            from datetime import date as _dt
+            from zoneinfo import ZoneInfo as _ZI
+            latest = _cot_service.get_latest_date()
+            if latest:
+                import datetime as _dtm
+                days_old = (_dtm.datetime.now(_ZI("America/New_York")).date() - _dt.fromisoformat(latest)).days
+                if days_old >= 8:
+                    print(f"[scheduler] COT daily catchup: data is {days_old}d stale — refreshing...")
+                    _cot_service.refresh_from_current()
+                else:
+                    print(f"[scheduler] COT daily catchup: data is {days_old}d old — fresh, skipping")
+        except Exception as e:
+            print(f"[scheduler] COT daily catchup error: {e}")
+
+    _scheduler.add_job(
+        _cot_daily_catchup,
+        trigger=CronTrigger(hour=18, minute=0),
+        id="cot_daily_catchup",
         max_instances=1,
         replace_existing=True,
     )
@@ -214,7 +245,7 @@ async def lifespan(app: FastAPI):
         print(f"[startup] MRR snapshot error (non-fatal): {e}")
 
     _scheduler.start()
-    print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45 if stale)")
+    print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
     print("[startup] Session cleanup scheduled — daily at 3:00 AM ET")
     print("[startup] Churn risk check scheduled — daily at 9:00 AM ET")
     print("[startup] MRR snapshot scheduled — daily at 11:59 PM ET")
