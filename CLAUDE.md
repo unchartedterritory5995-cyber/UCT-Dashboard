@@ -700,43 +700,85 @@ Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green 
 
 ---
 
-## Watchlists Page — Two-Tab Design (updated 2026-03-28)
+## Watchlists Page — TradingView-Tier Feature Set (updated 2026-04-13)
 
 ### Files
-- `app/src/pages/Watchlists.jsx` — full-page watchlists
-- `app/src/pages/Watchlists.module.css` — all styles
+- `app/src/pages/Watchlists.jsx` — main page (~960 lines, split-panel)
+- `app/src/pages/Watchlists.module.css` — all styles (~900 lines)
 - `api/routers/watchlists.py` — REST endpoints (all require auth)
-- `api/services/watchlist_service.py` — SQLite service
+- `api/services/watchlist_service.py` — SQLite CRUD + flagged shadow sync
+- `api/services/watchlist_performance.py` — batch multi-period returns (ThreadPool 2 workers, 5-min cache)
+- `api/services/ticker_tag_service.py` — 7-color tag CRUD + sharing
+- `api/services/watchlist_alert_service.py` — price alerts + multi-channel delivery
+- `api/services/watchlist_digest.py` — daily/weekly email digests
+- `app/src/hooks/useWatchlistPerformance.js` — SWR hook for perf columns
+- `app/src/hooks/useTickerTags.js` — SWR hook for tags + sharing
+- `app/src/hooks/useWatchlistAlerts.js` — SWR hook for alerts
+- `app/src/components/TickerActions.jsx` — universal right-click context menu
+- `app/src/utils/alertSound.js` — 10 synthesized notification tones
+- `app/src/constants/tagColors.js` — 7 color definitions
 
 ### Architecture
-- **Split panel**: left 260px list panel + right StockChart panel (same pattern as ThemeTrackerPage)
+- **Split panel**: left 260px list panel + right StockChart panel
 - **Two tabs**: My Lists | Community
-- **My Lists tab**: "⚑ Flagged (username)" pinned as first accordion group (expanded by default, localStorage via `useFlagged` + server shadow sync). Share toggle (🔒/🔓) publishes to Community tab. Arrow key nav + Shift+F remove within flagged group.
-- **User watchlists**: accordion groups, expandable with items, add ticker form, toggle public/private (🔒/🔓), delete list
-- **Community tab**: all public watchlists (read-only), shows `owner_name`, expandable
-- **Live prices**: `useLivePrices` fed by `allTickers` useMemo — only tickers in expanded lists on active tab
-- **Create modal**: name + description + is_public checkbox
-- **Chart header**: SymbolSearch (clickable ticker title) + flag button + period tabs
-- **Period tabs**: 5min / 30min / 1hr / Daily / Weekly — centered in chart header
+- **My Lists tab**: Flagged (renameable, shareable) → Color tag auto-lists (7 colors, shareable) → User watchlists
+- **Community tab**: Shared tag lists + shared watchlists + shared flagged lists
+- **All lists start collapsed** — user clicks to expand
+
+### Feature Set
+- **Per-symbol notes**: pencil icon, inline textarea, auto-save on blur, read-only in community
+- **Drag-and-drop reorder**: grip handle, native HTML5, `sort_order` column
+- **CSV import/export**: context menu export (Symbol,Notes CSV), import modal with paste textarea
+- **Performance columns**: 1D/1W/1M/3M/YTD via gear toggle, `POST /api/watchlist-performance`
+- **Conditional cell colors**: deep green >5%, green >0%, red <0%, deep red <-5%
+- **Sort by column**: click headers (Sym, Price, Chg%, perf periods), ▲/▼ indicators, reset button
+- **Filter within list**: text search input in column header row
+- **Column presets**: Price View / Performance / Short-Term one-click buttons
+- **7-color tags**: Green/Blue/Orange/Red/Purple/Gold/Teal with auto-lists, shareable to community
+- **Star selection + bulk remove**: star icon per row, right-click "Remove starred (N)"
+- **Right-click context menu**: rename, copy list, export CSV, import tickers, remove starred
+- **Per-symbol alerts**: bell icon → popover (above/below + price), multi-channel delivery
+- **Flagged list**: renameable, shareable, server shadow sync with debounced localStorage
+
+### Universal Ticker Actions (TickerActions.jsx)
+Right-click any ticker ANYWHERE in the dashboard → context menu with:
+- Flag/Unflag
+- 7-color tag swatches
+- Add to any watchlist
+- Set price alert (above/below + price)
+Covered surfaces: TickerPopup (12+ components), OptionsFlow, DarkPool, TradeDrawer, TradeLog
+
+### Alert System
+- **Multi-channel**: AlertBell (in-app) + email (Resend) + Discord webhook + browser notification + sound
+- **Alert checker**: piggybacks on 15s live price polling, non-blocking lock
+- **10 alert sounds**: Chime, Bell, Ding, Double Tap, Triple Pop, Radar, Urgent, Soft, Pulse, Major Chord
+- **Browser notifications**: Notification API, permission requested on first bell click
+- **Settings**: sound on/off, sound type selector with preview, browser notification enable
 
 ### API Endpoints
-- `GET  /api/watchlists/flagged` — get/create flagged shadow watchlist state
-- `POST /api/watchlists/flagged/sync` — full-replace sync `{ symbols: [...] }`
-- `PUT  /api/watchlists/flagged/share` — toggle community visibility `{ is_public: bool }`
-- `GET  /api/watchlists` — user's own lists (excludes flagged shadow)
-- `GET  /api/watchlists/public` — all public lists incl. shared flagged lists
-- `POST /api/watchlists` — create `{ name, description, is_public }`
-- `PUT  /api/watchlists/{id}` — update `{ is_public }`
-- `DELETE /api/watchlists/{id}` — delete list (blocked for flagged shadow)
-- `POST /api/watchlists/{id}/items` — add item `{ sym, notes }`
-- `DELETE /api/watchlists/{id}/items/{item_id}` — remove item
+- `GET/POST/PUT /api/watchlists/flagged/*` — flagged shadow CRUD + share + rename + sync
+- `GET/POST/PUT/DELETE /api/watchlists/{id}/*` — watchlist CRUD + items + notes + reorder + bulk
+- `POST /api/watchlist-performance` — batch returns `{tickers: [...]}` → `{SYM: {1d,1w,1m,3m,ytd}}`
+- `GET/POST/DELETE /api/ticker-tags` — tag CRUD + batch + shared + public
+- `GET/POST/DELETE /api/watchlist-alerts` — price alert CRUD
+- `GET/PUT /api/watchlists/digest-settings` — email digest frequency
 
-### Flag Support — Coverage (2026-03-27)
-Flag button + Shift+F shortcut added everywhere a chart appears:
-- **TickerPopup** — already had it (covers all chip/ticker contexts)
-- **ThemeTrackerPage** right panel — `useFlagged` + Shift+F + toast
-- **Breadth DrillModal** right panel — `useFlagged` + Shift+F via functional `setSelectedIdx` updater
-- **Watchlists** flagged tab — Shift+F remove, `×` button, flag button in chart header
+### DB Tables
+- `watchlists` — id, user_id, name, description, is_public, is_flagged_list, created_at, updated_at
+- `watchlist_items` — id, watchlist_id, sym, notes, sort_order, added_at
+- `ticker_tags` — id, user_id, sym, color, created_at (UNIQUE user_id+sym)
+- `watchlist_alerts` — id, user_id, sym, target_price, direction, is_active, triggered_at, created_at
+
+### Scalability (tested for 100s of concurrent users)
+- TTLCache bounded with LRU eviction (max 500 entries)
+- ThreadPoolExecutor reduced to 2 workers
+- Alert checker: direct call with non-blocking lock (no thread spawn per request)
+- Flagged sync: batch SQL via executemany()
+- Hooks: defensive fetchers (check r.ok before r.json())
+
+### Flag Support — Coverage
+Right-click context menu (TickerActions) on every ticker surface across entire dashboard.
+Tag dots visible on: TickerPopup, ThemeTracker, CustomScan, Screener, OptionsFlow, DarkPool, Journal.
 
 ## Trade Journal — Elite Review System (2026-03-28)
 
