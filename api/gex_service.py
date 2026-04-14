@@ -149,8 +149,8 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
     # Put wall = strike with highest absolute negative GEX (largest support)
     put_wall = min(strikes_list, key=lambda x: x["putGex"]) if strikes_list else None
 
-    # Zero gamma: strike where cumulative GEX crosses zero (from negative below to positive above)
-    # We compute it by walking strikes in order and finding the flip point
+    # Zero gamma: strike where cumulative GEX crosses zero
+    # Method 1: Walk LOW → HIGH, find where cumulative goes from negative to positive
     zero_gamma = None
     cumulative = 0.0
     prev_strike = None
@@ -158,7 +158,6 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
     for s in strikes_list:
         cumulative += s["gex"]
         if prev_strike is not None and prev_cum < 0 and cumulative >= 0:
-            # Linear interpolation between prev_strike and s["strike"]
             if cumulative - prev_cum != 0:
                 t = -prev_cum / (cumulative - prev_cum)
                 zero_gamma = prev_strike + t * (s["strike"] - prev_strike)
@@ -167,6 +166,24 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
             break
         prev_strike = s["strike"]
         prev_cum = cumulative
+
+    # Method 2 fallback: Walk HIGH → LOW, find where cumulative goes from positive to negative
+    # This catches cases where call GEX is so dominant that low→high never goes negative
+    if zero_gamma is None and spot > 0:
+        cumulative = 0.0
+        prev_strike = None
+        prev_cum = 0.0
+        for s in reversed(strikes_list):
+            cumulative += s["gex"]
+            if prev_strike is not None and prev_cum > 0 and cumulative <= 0:
+                if prev_cum - cumulative != 0:
+                    t = prev_cum / (prev_cum - cumulative)
+                    zero_gamma = prev_strike - t * (prev_strike - s["strike"])
+                else:
+                    zero_gamma = s["strike"]
+                break
+            prev_strike = s["strike"]
+            prev_cum = cumulative
 
     return {
         "ticker": ticker,
