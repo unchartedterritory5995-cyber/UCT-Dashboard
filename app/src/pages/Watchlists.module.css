@@ -443,6 +443,32 @@
   background: rgba(255,255,255,0.08);
 }
 
+.starBtn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.25);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 4px 0 0;
+  line-height: 1;
+}
+
+.starBtn:hover {
+  color: var(--ut-gold, #c9a84c);
+}
+
+.starBtnActive {
+  color: var(--ut-gold, #c9a84c);
+}
+
+.ctxItemDanger {
+  color: #f87171;
+}
+
+.ctxItemDanger:hover {
+  background: rgba(248,113,113,0.12);
+}
+
 .renameInput {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;

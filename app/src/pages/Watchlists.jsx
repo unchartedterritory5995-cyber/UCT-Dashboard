@@ -42,6 +42,40 @@ export default function Watchlists() {
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, id, isOwner, symbols }
+  const [starred, setStarred] = useState(new Set()) // "listId:SYM" keys
+
+  function toggleStar(listId, sym) {
+    const key = `${listId}:${sym}`
+    setStarred(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n })
+  }
+
+  function getStarredSyms(listId) {
+    const prefix = `${listId}:`
+    return [...starred].filter(k => k.startsWith(prefix)).map(k => k.slice(prefix.length))
+  }
+
+  async function handleRemoveStarred(listId) {
+    const syms = getStarredSyms(listId)
+    if (!syms.length) return
+    if (listId === 'flagged') {
+      syms.forEach(s => removeFlagged(s))
+    } else {
+      const wl = myLists?.find(w => w.id === listId)
+      if (!wl) return
+      for (const sym of syms) {
+        const item = wl.items?.find(i => i.sym === sym)
+        if (item) await fetch(`/api/watchlists/${listId}/items/${item.id}`, { method: 'DELETE' })
+      }
+      mutateMine()
+    }
+    // Clear stars for this list
+    setStarred(prev => {
+      const n = new Set(prev)
+      for (const k of prev) { if (k.startsWith(`${listId}:`)) n.delete(k) }
+      return n
+    })
+    setCtxMenu(null)
+  }
 
   function handleContextMenu(e, id, isOwner, symbols) {
     e.preventDefault()
@@ -238,12 +272,18 @@ export default function Watchlists() {
               const q = prices[item.sym]
               const price = q?.price ?? null
               const changePct = q?.change_pct ?? null
+              const isStarred = starred.has(`${wl.id}:${item.sym}`)
               return (
                 <div
                   key={item.id}
                   className={`${styles.listRow} ${styles.wlRow}${selectedSym === item.sym ? ' ' + styles.listRowSelected : ''}`}
                   onClick={() => setSelectedSym(item.sym)}
                 >
+                  <button
+                    className={`${styles.starBtn}${isStarred ? ' ' + styles.starBtnActive : ''}`}
+                    onClick={e => { e.stopPropagation(); toggleStar(wl.id, item.sym) }}
+                    title={isStarred ? 'Unstar' : 'Star'}
+                  >{isStarred ? '★' : '☆'}</button>
                   <span className={styles.rowSym}>{item.sym}</span>
                   <div className={styles.rowRight}>
                     {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
@@ -319,12 +359,18 @@ export default function Watchlists() {
               const q = prices[sym]
               const price = q?.price ?? null
               const changePct = q?.change_pct ?? null
+              const isStarred = starred.has(`flagged:${sym}`)
               return (
                 <div
                   key={sym}
                   className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`}
                   onClick={() => setSelectedSym(sym)}
                 >
+                  <button
+                    className={`${styles.starBtn}${isStarred ? ' ' + styles.starBtnActive : ''}`}
+                    onClick={e => { e.stopPropagation(); toggleStar('flagged', sym) }}
+                    title={isStarred ? 'Unstar' : 'Star'}
+                  >{isStarred ? '★' : '☆'}</button>
                   <span className={styles.rowSym}>{sym}</span>
                   <div className={styles.rowRight}>
                     {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
@@ -506,6 +552,11 @@ export default function Watchlists() {
             <button className={styles.ctxItem} onClick={() => handleCopyList(ctxMenu.symbols)}>
               Copy list to clipboard
             </button>
+            {ctxMenu.isOwner && getStarredSyms(ctxMenu.id).length > 0 && (
+              <button className={`${styles.ctxItem} ${styles.ctxItemDanger}`} onClick={() => handleRemoveStarred(ctxMenu.id)}>
+                Remove starred ({getStarredSyms(ctxMenu.id).length})
+              </button>
+            )}
           </div>
         </div>
       )}
