@@ -7,6 +7,7 @@ import { mergeChartSettings } from './chart/chartDefaults'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
+import useRealtimePrices from '../hooks/useRealtimePrices'
 import styles from './StockChart.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -67,6 +68,8 @@ export default function StockChart({
   const containerRef = useRef(null)
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
+  const volumeSeriesRef = useRef(null)
+  const lastBarRef = useRef(null)
 
   // ── Drawing tools state ──
   const [activeTool, setActiveTool] = useState(null)
@@ -93,6 +96,40 @@ export default function StockChart({
 
   const bars = data?.bars
   const loading = !data && !error
+
+  // Real-time price streaming for live candle updates
+  const { prices: livePrices } = useRealtimePrices(sym ? [sym] : [])
+
+  // Update the last candle in real-time as trades come in
+  useEffect(() => {
+    const liveData = livePrices[sym]
+    if (!liveData?.price || !candleSeriesRef.current || !lastBarRef.current) return
+    const price = liveData.price
+    const last = lastBarRef.current
+
+    // Update the last candle's close, and extend high/low if needed
+    const updated = {
+      time: last.time,
+      open: last.open,
+      high: Math.max(last.high, price),
+      low: Math.min(last.low, price),
+      close: price,
+    }
+
+    try {
+      candleSeriesRef.current.update(updated)
+      // Update volume too
+      if (volumeSeriesRef.current && liveData.volume) {
+        volumeSeriesRef.current.update({
+          time: last.time,
+          value: liveData.volume,
+          color: price >= last.open ? 'rgba(74,222,128,0.35)' : 'rgba(248,113,113,0.35)',
+        })
+      }
+      // Keep ref current
+      lastBarRef.current = { ...updated, volume: liveData.volume || last.volume }
+    } catch {}
+  }, [livePrices, sym])
 
   // Build chart when data arrives or settings change
   const buildChart = useCallback(() => {
@@ -205,6 +242,11 @@ export default function StockChart({
       }
     }
     candleSeriesRef.current = priceSeries
+    // Store the last bar for live updates
+    if (bars.length) {
+      const last = bars[bars.length - 1]
+      lastBarRef.current = { time: last.t, open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
+    }
 
     // ── Volume series (pane 1) ──
     if (showVolume) {
@@ -235,6 +277,7 @@ export default function StockChart({
           : b.c >= b.o ? cs.volume.upColor : cs.volume.downColor,
       }))
       volumeSeries.setData(volData)
+      volumeSeriesRef.current = volumeSeries
 
       try {
         const panes = chart.panes()
