@@ -1,5 +1,5 @@
 {
-  "version": "2.2.0",
+  "version": "3.0.0",
   "generated_at": "2026-04-14",
   "sectors": [
     {
@@ -13485,6 +13485,981 @@
         }
       ],
       "display_order": 40
+    },
+    {
+      "id": "hydrogen",
+      "name": "Hydrogen",
+      "sector_id": "clean_energy",
+      "etf_ticker": "HYDR",
+      "etf_name": "Global X Hydrogen ETF",
+      "display_order": 7,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "PLUG",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Plug Power, largest pure-play hydrogen fuel cell maker"
+        },
+        {
+          "sym": "BE",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Bloom Energy, solid oxide fuel cells for power generation"
+        },
+        {
+          "sym": "BLDP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Ballard Power, PEM fuel cell technology leader"
+        },
+        {
+          "sym": "FCEL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "FuelCell Energy, carbonate fuel cells and hydrogen production"
+        },
+        {
+          "sym": "APD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Air Products, world largest hydrogen producer by volume"
+        },
+        {
+          "sym": "LIN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Linde, major industrial gas and hydrogen supplier"
+        },
+        {
+          "sym": "HYLN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Hyliion, hydrogen-powered Class 8 truck powertrains"
+        },
+        {
+          "sym": "CLNE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Clean Energy Fuels, RNG and hydrogen fueling stations"
+        },
+        {
+          "sym": "PTRA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Proterra, electric and hydrogen transit buses"
+        },
+        {
+          "sym": "NEE",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "NextEra Energy, green hydrogen projects in renewables portfolio"
+        },
+        {
+          "sym": "GE",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "GE Vernova hydrogen-capable gas turbines"
+        },
+        {
+          "sym": "CMI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Cummins, electrolyzer and fuel cell technology via Accelera"
+        }
+      ]
+    },
+    {
+      "id": "aging_longevity",
+      "name": "Aging & Longevity",
+      "sector_id": "healthcare",
+      "etf_ticker": "LNGR",
+      "etf_name": "Global X Longevity Thematic ETF",
+      "display_order": 9,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "UNH",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "UnitedHealth, largest US health insurer serving Medicare/senior market"
+        },
+        {
+          "sym": "HCA",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "HCA Healthcare, largest US hospital operator"
+        },
+        {
+          "sym": "ENSG",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Ensign Group, skilled nursing and assisted living facilities"
+        },
+        {
+          "sym": "ACHC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Acadia Healthcare, behavioral health facilities"
+        },
+        {
+          "sym": "THC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Tenet Healthcare, hospitals and ambulatory surgery centers"
+        },
+        {
+          "sym": "DVA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "DaVita, largest US dialysis provider \u2014 aging kidney disease population"
+        },
+        {
+          "sym": "BKD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Brookdale Senior Living, largest US senior housing operator"
+        },
+        {
+          "sym": "ADUS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Addus HomeCare, home health and personal care services"
+        },
+        {
+          "sym": "AMED",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Amedisys, home health and hospice services"
+        },
+        {
+          "sym": "NHC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "National HealthCare, long-term care facilities"
+        },
+        {
+          "sym": "SEM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Select Medical, rehab hospitals and outpatient clinics"
+        },
+        {
+          "sym": "ABT",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Abbott Labs, glucose monitors and diagnostics for aging population"
+        },
+        {
+          "sym": "MDT",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Medtronic, cardiac devices and spinal products for seniors"
+        },
+        {
+          "sym": "ZBH",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Zimmer Biomet, knee and hip replacements for aging joints"
+        }
+      ]
+    },
+    {
+      "id": "additive_manufacturing",
+      "name": "3D Printing",
+      "sector_id": "innovation",
+      "etf_ticker": "PRNT",
+      "etf_name": "ARK 3D Printing ETF",
+      "display_order": 8,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "DDD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "3D Systems, pioneer in 3D printing hardware and materials"
+        },
+        {
+          "sym": "SSYS",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Stratasys, FDM and PolyJet 3D printing technology"
+        },
+        {
+          "sym": "DM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Desktop Metal, metal and ceramic 3D printing systems"
+        },
+        {
+          "sym": "MKFG",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Markforged, industrial composite and metal 3D printers"
+        },
+        {
+          "sym": "NNDM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Nano Dimension, PCB and electronics 3D printing"
+        },
+        {
+          "sym": "XMTR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Xometry, on-demand manufacturing marketplace including 3D printing"
+        },
+        {
+          "sym": "MTD",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Mettler-Toledo, precision instruments used in additive manufacturing QC"
+        },
+        {
+          "sym": "GE",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "GE Aerospace, jet engine parts via metal 3D printing"
+        },
+        {
+          "sym": "HON",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Honeywell, additive manufacturing for aerospace components"
+        }
+      ]
+    },
+    {
+      "id": "memory_chips",
+      "name": "Memory & HBM",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 17,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "MU",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Micron, #1 US DRAM/NAND, HBM3E leader"
+        },
+        {
+          "sym": "WDC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Western Digital, NAND flash and HDD"
+        },
+        {
+          "sym": "STX",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Seagate, mass capacity HDD leader"
+        },
+        {
+          "sym": "NTAP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "NetApp, enterprise data storage"
+        },
+        {
+          "sym": "PSTG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Pure Storage, all-flash arrays"
+        },
+        {
+          "sym": "SMCI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Supermicro, AI servers with HBM"
+        },
+        {
+          "sym": "NTNX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Nutanix, hyperconverged storage"
+        },
+        {
+          "sym": "DELL",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Dell, enterprise storage"
+        },
+        {
+          "sym": "HPE",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "HPE, storage solutions"
+        }
+      ]
+    },
+    {
+      "id": "photonics_optics",
+      "name": "Photonics & Optical",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 18,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "LITE",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Lumentum, EML lasers for transceivers"
+        },
+        {
+          "sym": "COHR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Coherent, optical transceivers"
+        },
+        {
+          "sym": "GLW",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Corning, fiber optic cable"
+        },
+        {
+          "sym": "FN",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Fabrinet, optical module manufacturing"
+        },
+        {
+          "sym": "VIAV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Viavi, optical test/monitoring"
+        },
+        {
+          "sym": "AAOI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Applied Optoelectronics, transceivers"
+        },
+        {
+          "sym": "PI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Impinj, RFID/IoT optical sensing"
+        },
+        {
+          "sym": "CIEN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Ciena, optical networking"
+        },
+        {
+          "sym": "CALX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Calix, fiber broadband optical"
+        }
+      ]
+    },
+    {
+      "id": "ai_networking",
+      "name": "AI Networking",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 19,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "ANET",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Arista, AI DC Ethernet switching"
+        },
+        {
+          "sym": "CRDO",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Credo, active electrical cables"
+        },
+        {
+          "sym": "ALAB",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Astera Labs, connectivity silicon"
+        },
+        {
+          "sym": "AVGO",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Broadcom, networking ASICs"
+        },
+        {
+          "sym": "CSCO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Cisco, DC networking"
+        },
+        {
+          "sym": "CIEN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Ciena, optical transport"
+        },
+        {
+          "sym": "FN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Fabrinet, optical assembly"
+        },
+        {
+          "sym": "APH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Amphenol, high-speed connectors"
+        },
+        {
+          "sym": "GLW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Corning, fiber optic infra"
+        },
+        {
+          "sym": "MRVL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Marvell, custom silicon/DPUs"
+        }
+      ]
+    },
+    {
+      "id": "nuclear_smr",
+      "name": "Nuclear SMR",
+      "sector_id": "clean_energy",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 8,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "SMR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "NuScale, only NRC-certified SMR"
+        },
+        {
+          "sym": "OKLO",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Oklo, fast reactor SMR"
+        },
+        {
+          "sym": "BWXT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "BWX Tech, nuclear components"
+        },
+        {
+          "sym": "GEV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "GE Vernova, building SMR Ontario"
+        },
+        {
+          "sym": "LEU",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Centrus, HALEU fuel for SMRs"
+        },
+        {
+          "sym": "NNE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Nano Nuclear, micro-reactor dev"
+        },
+        {
+          "sym": "CCJ",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Cameco, uranium supply"
+        }
+      ]
+    },
+    {
+      "id": "dc_cooling",
+      "name": "Data Center Cooling",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 20,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "VRT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Vertiv, DC thermal mgmt leader"
+        },
+        {
+          "sym": "MOD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Modine, liquid cooling +119%"
+        },
+        {
+          "sym": "NVT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "nVent, liquid cooling NVIDIA partner"
+        },
+        {
+          "sym": "TT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Trane, specialized DC HVAC"
+        },
+        {
+          "sym": "CARR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Carrier, climate control"
+        },
+        {
+          "sym": "FIX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Comfort Systems, DC HVAC"
+        },
+        {
+          "sym": "JCI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Johnson Controls, DC automation"
+        },
+        {
+          "sym": "AAON",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "AAON, DC cooling units"
+        },
+        {
+          "sym": "XYL",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Xylem, water cooling infra"
+        }
+      ]
+    },
+    {
+      "id": "defense_drones",
+      "name": "Defense Drones",
+      "sector_id": "defense_industrials",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 11,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "AVAV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "AeroVironment, tactical UAS"
+        },
+        {
+          "sym": "KTOS",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Kratos, expendable drones"
+        },
+        {
+          "sym": "RCAT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Red Cat, Army SRR program"
+        },
+        {
+          "sym": "LMT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Lockheed, autonomous programs"
+        },
+        {
+          "sym": "NOC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Northrop, Global Hawk"
+        },
+        {
+          "sym": "LHX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "L3Harris, surveillance drones"
+        },
+        {
+          "sym": "JOBY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Joby, eVTOL defense"
+        },
+        {
+          "sym": "ACHR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Archer, eVTOL defense"
+        }
+      ]
+    },
+    {
+      "id": "uranium_miners",
+      "name": "Uranium Miners",
+      "sector_id": "clean_energy",
+      "etf_ticker": "URA",
+      "etf_name": "Global X Uranium ETF",
+      "display_order": 9,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "CCJ",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Cameco, largest Western producer"
+        },
+        {
+          "sym": "UEC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Uranium Energy, now producing"
+        },
+        {
+          "sym": "UUUU",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Energy Fuels, uranium+RE"
+        },
+        {
+          "sym": "DNN",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Denison, Athabasca Basin"
+        },
+        {
+          "sym": "LEU",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Centrus, HALEU enrichment"
+        },
+        {
+          "sym": "NXE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "NexGen, Rook I deposit"
+        },
+        {
+          "sym": "URG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Ur-Energy, ISR producer WY"
+        },
+        {
+          "sym": "EU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "enCore Energy, ISR production"
+        }
+      ]
+    },
+    {
+      "id": "cro",
+      "name": "Contract Research (CRO)",
+      "sector_id": "healthcare",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 10,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "IQV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "IQVIA, largest CRO $16B rev"
+        },
+        {
+          "sym": "ICLR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "ICON, full-service trials"
+        },
+        {
+          "sym": "MEDP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Medpace, emerging biotech CRO"
+        },
+        {
+          "sym": "CRL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Charles River, preclinical CRO"
+        },
+        {
+          "sym": "TMO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Thermo Fisher, pharma services"
+        },
+        {
+          "sym": "DHR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Danaher, life science tools"
+        },
+        {
+          "sym": "A",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Agilent, analytical instruments"
+        },
+        {
+          "sym": "WST",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "West Pharma, drug delivery"
+        }
+      ]
+    },
+    {
+      "id": "medical_aesthetics",
+      "name": "Medical Aesthetics",
+      "sector_id": "healthcare",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 11,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "ABBV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "AbbVie, Botox/Juvederm"
+        },
+        {
+          "sym": "EOLS",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Evolus, Jeuveau neurotoxin"
+        },
+        {
+          "sym": "INMD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "InMode, Morpheus8 RF devices"
+        },
+        {
+          "sym": "HIMS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Hims, telehealth aesthetics"
+        },
+        {
+          "sym": "SKIN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Beauty Health, HydraFacial"
+        },
+        {
+          "sym": "EL",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Estee Lauder, premium skincare"
+        },
+        {
+          "sym": "SYK",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Stryker, surgical equipment"
+        }
+      ]
+    },
+    {
+      "id": "satellite_leo",
+      "name": "Satellite & LEO",
+      "sector_id": "defense_industrials",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 12,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "RKLB",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Rocket Lab, 190+ sats deployed"
+        },
+        {
+          "sym": "IRDM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Iridium, cross-linked LEO"
+        },
+        {
+          "sym": "GSAT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Globalstar, Amazon acquisition"
+        },
+        {
+          "sym": "PL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Planet Labs, Earth observation"
+        },
+        {
+          "sym": "BKSY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "BlackSky, geospatial intel"
+        },
+        {
+          "sym": "VSAT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Viasat, broadband satellite"
+        },
+        {
+          "sym": "SPIR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Spire, weather data sats"
+        },
+        {
+          "sym": "LUNR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Intuitive Machines, lunar"
+        },
+        {
+          "sym": "RDW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Redwire, space manufacturing"
+        }
+      ]
+    },
+    {
+      "id": "energy_storage",
+      "name": "Energy Storage",
+      "sector_id": "clean_energy",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 10,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "FLNC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Fluence, grid-scale storage"
+        },
+        {
+          "sym": "EOSE",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Eos Energy, zinc batteries"
+        },
+        {
+          "sym": "ENPH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Enphase, inverters+battery"
+        },
+        {
+          "sym": "QS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "QuantumScape, solid-state"
+        },
+        {
+          "sym": "ENVX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Enovix, silicon anode cells"
+        },
+        {
+          "sym": "ALB",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Albemarle, lithium supplier"
+        },
+        {
+          "sym": "SEDG",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "SolarEdge, storage integration"
+        }
+      ]
+    },
+    {
+      "id": "hvac_building",
+      "name": "HVAC & Building Auto",
+      "sector_id": "defense_industrials",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 13,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "TT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Trane, commercial HVAC leader"
+        },
+        {
+          "sym": "CARR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Carrier, residential HVAC"
+        },
+        {
+          "sym": "JCI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Johnson Controls, building auto"
+        },
+        {
+          "sym": "LII",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Lennox, HVAC systems"
+        },
+        {
+          "sym": "HON",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Honeywell, building mgmt"
+        },
+        {
+          "sym": "WSO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Watsco, HVAC distribution"
+        },
+        {
+          "sym": "FIX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Comfort Systems, HVAC install"
+        },
+        {
+          "sym": "AAON",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "AAON, custom commercial HVAC"
+        },
+        {
+          "sym": "AOS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "A.O. Smith, water heaters"
+        }
+      ]
     }
   ]
 }
