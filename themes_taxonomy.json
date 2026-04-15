@@ -1,5 +1,5 @@
 {
-  "version": "4.1.0",
+  "version": "4.2.0",
   "generated_at": "2026-04-14",
   "sectors": [
     {
@@ -13102,12 +13102,6 @@
       "sub_themes": [],
       "holdings": [
         {
-          "sym": "CRWV",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "CoreWeave, AI cloud infrastructure, IPO Mar 2025 at $40"
-        },
-        {
           "sym": "CRCL",
           "tier": "core",
           "sub_theme_id": null,
@@ -13124,24 +13118,6 @@
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "Klarna, buy-now-pay-later fintech leader, IPO 2025"
-        },
-        {
-          "sym": "KRMN",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Karman Holdings, defense/space components, IPO Feb 2025"
-        },
-        {
-          "sym": "SFD",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Smithfield Foods, pork producer, IPO Jan 2025"
-        },
-        {
-          "sym": "MTSR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Metsera, obesity/metabolic biotech, IPO Jan 2025"
         },
         {
           "sym": "BLLN",
@@ -13172,30 +13148,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Omada Health, digital health for chronic conditions, IPO Jun 2025"
-        },
-        {
-          "sym": "SNDK",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "SanDisk, flash storage spinoff from Western Digital, 2025"
-        },
-        {
-          "sym": "GEV",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "GE Vernova, power/energy spinoff from GE, Apr 2024, +99% in 2025"
-        },
-        {
-          "sym": "SOLV",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Solventum, healthcare spinoff from 3M, Apr 2024"
-        },
-        {
-          "sym": "KVUE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Kenvue, consumer health spinoff from J&J, 2023 IPO"
         },
         {
           "sym": "EQPT",
@@ -13250,6 +13202,12 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Aktis Oncology, targeted cancer therapy, IPO Jan 2026"
+        },
+        {
+          "sym": "CRIS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Caris Life Sciences, precision oncology, IPO Jun 2025"
         }
       ]
     }
