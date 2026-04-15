@@ -1,5 +1,5 @@
 {
-  "version": "4.0.0",
+  "version": "4.1.0",
   "generated_at": "2026-04-14",
   "sectors": [
     {
@@ -13089,6 +13089,167 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "West Pharma, drug delivery"
+        }
+      ]
+    },
+    {
+      "id": "recent_ipos",
+      "name": "Recent IPOs & Spinoffs",
+      "sector_id": "innovation",
+      "etf_ticker": "IPO",
+      "etf_name": "Renaissance IPO ETF",
+      "display_order": 9,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "CRWV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "CoreWeave, AI cloud infrastructure, IPO Mar 2025 at $40"
+        },
+        {
+          "sym": "CRCL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Circle Internet, USDC stablecoin issuer, IPO Jun 2025"
+        },
+        {
+          "sym": "MDLN",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Medline Industries, largest medical supply distributor, IPO Dec 2025"
+        },
+        {
+          "sym": "KLAR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Klarna, buy-now-pay-later fintech leader, IPO 2025"
+        },
+        {
+          "sym": "KRMN",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Karman Holdings, defense/space components, IPO Feb 2025"
+        },
+        {
+          "sym": "SFD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Smithfield Foods, pork producer, IPO Jan 2025"
+        },
+        {
+          "sym": "MTSR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Metsera, obesity/metabolic biotech, IPO Jan 2025"
+        },
+        {
+          "sym": "BLLN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "BillionToOne, prenatal diagnostics, IPO Nov 2025"
+        },
+        {
+          "sym": "CHYM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Chime Financial, digital banking neobank, IPO Jun 2025"
+        },
+        {
+          "sym": "FIG",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Figma, collaborative design platform, IPO Jul 2025"
+        },
+        {
+          "sym": "BLSH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Bullish, crypto exchange, IPO Aug 2025"
+        },
+        {
+          "sym": "OMDA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Omada Health, digital health for chronic conditions, IPO Jun 2025"
+        },
+        {
+          "sym": "SNDK",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "SanDisk, flash storage spinoff from Western Digital, 2025"
+        },
+        {
+          "sym": "GEV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "GE Vernova, power/energy spinoff from GE, Apr 2024, +99% in 2025"
+        },
+        {
+          "sym": "SOLV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Solventum, healthcare spinoff from 3M, Apr 2024"
+        },
+        {
+          "sym": "KVUE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Kenvue, consumer health spinoff from J&J, 2023 IPO"
+        },
+        {
+          "sym": "EQPT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "EquipmentShare, construction equipment rental tech, IPO Jan 2026"
+        },
+        {
+          "sym": "MWH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "SOLV Energy, solar EPC contractor, IPO Feb 2026"
+        },
+        {
+          "sym": "FPS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Forgent Power Solutions, power generation, IPO Feb 2026"
+        },
+        {
+          "sym": "YSS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "York Space Systems, satellite manufacturing, IPO Jan 2026"
+        },
+        {
+          "sym": "SWMR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Swarmer, defense/AI analytics, IPO Mar 2026"
+        },
+        {
+          "sym": "MANE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Veradermics, dermatology therapeutics, IPO Feb 2026"
+        },
+        {
+          "sym": "BTGO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "BitGo, crypto custody and infrastructure, IPO Jan 2026"
+        },
+        {
+          "sym": "SGP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "SpyGlass Pharma, ophthalmology, IPO Feb 2026"
+        },
+        {
+          "sym": "AKTS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Aktis Oncology, targeted cancer therapy, IPO Jan 2026"
         }
       ]
     }
