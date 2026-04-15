@@ -30,6 +30,7 @@ from api.routers import journal as journal_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
 from api.routers import watchlist_alerts as watchlist_alerts_router
+from api.routers import stream as stream_router
 from api.routers import community as community_router
 from api.routers import rs_ranking as rs_ranking_router
 from api.routers import sector_flow as sector_flow_router
@@ -110,6 +111,13 @@ async def lifespan(app: FastAPI):
 
     from api.services.theme_performance import load_persisted_on_startup
     load_persisted_on_startup()
+
+    # Start real-time WebSocket stream (Massive/Polygon)
+    from api.services.realtime_stream import start_stream
+    try:
+        start_stream()
+    except Exception as e:
+        print(f"[startup] WebSocket stream failed (non-fatal): {e}")
     from api.daily_tracker import start_snapshot_scheduler, stop_snapshot_scheduler
     start_snapshot_scheduler()
 
@@ -322,6 +330,7 @@ app.include_router(journal_router.router)
 app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
 app.include_router(watchlist_alerts_router.router)
+app.include_router(stream_router.router)
 app.include_router(community_router.router)
 app.include_router(live_prices_router.router)
 app.include_router(rs_ranking_router.router)
