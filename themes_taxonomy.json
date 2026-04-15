@@ -1,5 +1,5 @@
 {
-  "version": "3.0.0",
+  "version": "3.1.0",
   "generated_at": "2026-04-14",
   "sectors": [
     {
@@ -588,12 +588,6 @@
           "rationale": "Elastic search and observability software"
         },
         {
-          "sym": "CFLT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Confluent real-time data streaming software"
-        },
-        {
           "sym": "BRZE",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -778,18 +772,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "HPE GreenLake cloud services platform"
-        },
-        {
-          "sym": "CFLT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Confluent cloud data streaming platform"
-        },
-        {
-          "sym": "SPLK",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Splunk cloud observability and security data"
         },
         {
           "sym": "DT",
@@ -1326,12 +1308,6 @@
           "rationale": "Oracle Cloud Infrastructure DC buildout"
         },
         {
-          "sym": "INFA",
-          "tier": "relevant",
-          "sub_theme_id": "dc_infrastructure",
-          "rationale": "Informatica data management enterprise DC"
-        },
-        {
           "sym": "NET",
           "tier": "relevant",
           "sub_theme_id": "dc_networking",
@@ -1354,12 +1330,6 @@
           "tier": "peripheral",
           "sub_theme_id": "dc_networking",
           "rationale": "Fastly edge cloud platform data center network"
-        },
-        {
-          "sym": "QTS",
-          "tier": "relevant",
-          "sub_theme_id": "dc_reits",
-          "rationale": "QTS Realty Trust data center operator"
         }
       ]
     },
@@ -1607,22 +1577,10 @@
           "rationale": "PlayStation console and gaming software ecosystem"
         },
         {
-          "sym": "ATVI",
-          "tier": "relevant",
-          "sub_theme_id": "game_publishers",
-          "rationale": "Activision Blizzard now part of Xbox division"
-        },
-        {
           "sym": "GRVY",
           "tier": "peripheral",
           "sub_theme_id": "game_publishers",
           "rationale": "Gravity Korean MMORPG game publisher"
-        },
-        {
-          "sym": "ZNGA",
-          "tier": "peripheral",
-          "sub_theme_id": "game_publishers",
-          "rationale": "Zynga mobile gaming now part of Take-Two"
         },
         {
           "sym": "DOYU",
@@ -1647,12 +1605,6 @@
           "tier": "peripheral",
           "sub_theme_id": "game_platforms",
           "rationale": "DoubleDown Interactive social casino games"
-        },
-        {
-          "sym": "SKLZ",
-          "tier": "peripheral",
-          "sub_theme_id": "game_platforms",
-          "rationale": "Skillz mobile competitive gaming platform"
         }
       ]
     },
@@ -2193,12 +2145,6 @@
           "rationale": "Sangamo Therapeutics zinc finger gene therapy"
         },
         {
-          "sym": "VERV",
-          "tier": "relevant",
-          "sub_theme_id": "gene_editing",
-          "rationale": "Verve Therapeutics base editing for heart disease"
-        },
-        {
           "sym": "GH",
           "tier": "relevant",
           "sub_theme_id": "sequencing",
@@ -2361,12 +2307,6 @@
           "rationale": "Rocket Lab builds autonomous spacecraft systems"
         },
         {
-          "sym": "LAZR",
-          "tier": "relevant",
-          "sub_theme_id": "self_driving",
-          "rationale": "Luminar Technologies lidar for autonomous vehicles"
-        },
-        {
           "sym": "INVZ",
           "tier": "relevant",
           "sub_theme_id": "self_driving",
@@ -2377,12 +2317,6 @@
           "tier": "relevant",
           "sub_theme_id": "self_driving",
           "rationale": "Ouster digital lidar for robotics and AV"
-        },
-        {
-          "sym": "IRBT",
-          "tier": "relevant",
-          "sub_theme_id": "industrial_robots",
-          "rationale": "iRobot autonomous consumer cleaning robotics"
         },
         {
           "sym": "AEVA",
@@ -2499,12 +2433,6 @@
           "rationale": "AST SpaceMobile space-based cellular broadband"
         },
         {
-          "sym": "SPCE",
-          "tier": "relevant",
-          "sub_theme_id": "launch",
-          "rationale": "Virgin Galactic suborbital space tourism flights"
-        },
-        {
           "sym": "BKSY",
           "tier": "relevant",
           "sub_theme_id": "satellites",
@@ -2523,12 +2451,6 @@
           "rationale": "Viasat satellite broadband internet services"
         },
         {
-          "sym": "MNTS",
-          "tier": "peripheral",
-          "sub_theme_id": "satellites",
-          "rationale": "Momentus in-space transportation services"
-        },
-        {
           "sym": "GILT",
           "tier": "relevant",
           "sub_theme_id": "satellites",
@@ -2541,28 +2463,10 @@
           "rationale": "Spire Global space-based data analytics provider"
         },
         {
-          "sym": "MAXR",
-          "tier": "relevant",
-          "sub_theme_id": "satellites",
-          "rationale": "MDA Space satellite systems and imagery"
-        },
-        {
           "sym": "KTOS",
           "tier": "relevant",
           "sub_theme_id": "space_defense",
           "rationale": "Kratos drone and space launch systems"
-        },
-        {
-          "sym": "LLAP",
-          "tier": "peripheral",
-          "sub_theme_id": "space_defense",
-          "rationale": "Terran Orbital small satellite manufacturer"
-        },
-        {
-          "sym": "ASTR",
-          "tier": "peripheral",
-          "sub_theme_id": "launch",
-          "rationale": "Astra Space small satellite launch provider"
         },
         {
           "sym": "U",
@@ -2683,12 +2587,6 @@
           "tier": "relevant",
           "sub_theme_id": "solar_inverters",
           "rationale": "Fluence Energy battery storage paired with solar"
-        },
-        {
-          "sym": "SPWR",
-          "tier": "relevant",
-          "sub_theme_id": "solar_manufacturing",
-          "rationale": "SunPower residential solar panels and systems"
         },
         {
           "sym": "STEM",
@@ -3003,12 +2901,6 @@
           "rationale": "ioneer Rhyolite Ridge lithium-boron Nevada"
         },
         {
-          "sym": "LTHM",
-          "tier": "relevant",
-          "sub_theme_id": "lithium_mining",
-          "rationale": "Livent lithium hydroxide producer now Arcadium"
-        },
-        {
           "sym": "BATT",
           "tier": "peripheral",
           "sub_theme_id": "battery_materials",
@@ -3039,22 +2931,10 @@
           "rationale": "Plug Power hydrogen fuel cells and storage"
         },
         {
-          "sym": "BLNK",
-          "tier": "relevant",
-          "sub_theme_id": "battery_tech",
-          "rationale": "Blink Charging EV infrastructure battery demand"
-        },
-        {
           "sym": "GWH",
           "tier": "relevant",
           "sub_theme_id": "battery_tech",
           "rationale": "ESS Inc iron flow battery storage technology"
-        },
-        {
-          "sym": "LILM",
-          "tier": "relevant",
-          "sub_theme_id": "battery_tech",
-          "rationale": "Lilium electric jet eVTOL battery technology"
         },
         {
           "sym": "AMPX",
@@ -3153,46 +3033,10 @@
           "rationale": "EV electrical architecture and connectors"
         },
         {
-          "sym": "PSNY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Polestar Automotive Swedish premium EV maker"
-        },
-        {
-          "sym": "VFS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "VinFast Auto Vietnamese EV manufacturer NYSE"
-        },
-        {
           "sym": "JOBY",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Joby Aviation eVTOL electric air taxi developer"
-        },
-        {
-          "sym": "GOEV",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Canoo modular EV platform commercial vehicles"
-        },
-        {
-          "sym": "LEV",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Lion Electric Company electric truck manufacturer"
-        },
-        {
-          "sym": "HYZN",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Hyzon Motors hydrogen fuel cell commercial vehicles"
-        },
-        {
-          "sym": "WKHS",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Workhorse Group electric delivery van maker"
         },
         {
           "sym": "PCAR",
@@ -3205,12 +3049,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "BorgWarner EV drivetrain and motor components"
-        },
-        {
-          "sym": "LAZR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Luminar lidar sensors for autonomous EVs"
         },
         {
           "sym": "INVZ",
@@ -4125,12 +3963,6 @@
           "rationale": "Enterprise Products Partners NGL processing"
         },
         {
-          "sym": "CHK",
-          "tier": "relevant",
-          "sub_theme_id": "gas_producers",
-          "rationale": "Chesapeake Energy natural gas producer"
-        },
-        {
           "sym": "HESM",
           "tier": "relevant",
           "sub_theme_id": "gas_pipelines",
@@ -4194,12 +4026,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Triple Flag Precious Metals streaming company"
-        },
-        {
-          "sym": "SAND",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Sandstorm Gold streaming and royalty company"
         },
         {
           "sym": "OR",
@@ -4411,12 +4237,6 @@
           "rationale": "Coeur Mining US gold and silver producer"
         },
         {
-          "sym": "NGD",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "New Gold Canadian intermediate gold producer"
-        },
-        {
           "sym": "SSRM",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -4512,12 +4332,6 @@
           "rationale": "DRDGold South African surface gold miner"
         },
         {
-          "sym": "NGD",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "New Gold Canadian junior gold and copper producer"
-        },
-        {
           "sym": "SA",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -4546,12 +4360,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Harmony Gold South African deep-level mining"
-        },
-        {
-          "sym": "SAND",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Sandstorm Gold royalty on junior mine projects"
         },
         {
           "sym": "TFPM",
@@ -4697,12 +4505,6 @@
           "rationale": "Gatos Silver high-grade silver mine Mexico"
         },
         {
-          "sym": "SAND",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Sandstorm Gold with silver stream exposure"
-        },
-        {
           "sym": "FR",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -4838,12 +4640,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Glencore global copper trader and producer OTC"
-        },
-        {
-          "sym": "NEM",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Newmont gold-copper producing mines globally"
         }
       ]
     },
@@ -5726,12 +5522,6 @@
           "rationale": "Leonardo DRS defense electronics and sensors"
         },
         {
-          "sym": "EVTL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Vertical Aerospace eVTOL defense applications"
-        },
-        {
           "sym": "TDY",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -6289,12 +6079,6 @@
           "rationale": "Golden Ocean dry bulk carrier fleet operator"
         },
         {
-          "sym": "EGLE",
-          "tier": "relevant",
-          "sub_theme_id": "dry_bulk",
-          "rationale": "Eagle Bulk Shipping Supramax dry bulk fleet"
-        },
-        {
           "sym": "GNK",
           "tier": "relevant",
           "sub_theme_id": "dry_bulk",
@@ -6624,12 +6408,6 @@
           "rationale": "East West Bancorp, US-Asia banking bridge"
         },
         {
-          "sym": "SNV",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Synovus Financial, Southeast community bank"
-        },
-        {
           "sym": "PNFP",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -6682,12 +6460,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "BOK Financial Midwest regional bank"
-        },
-        {
-          "sym": "PACW",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "PacWest Bancorp California regional bank"
         },
         {
           "sym": "ONB",
@@ -7188,12 +6960,6 @@
           "rationale": "Legend Biotech CAR-T cell therapy pioneer"
         },
         {
-          "sym": "SGEN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Seagen ADC oncology acquired by Pfizer"
-        },
-        {
           "sym": "HALO",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -7598,12 +7364,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Sterilization for injectable drug containers"
-        },
-        {
-          "sym": "CTLT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Catalent CDMO injectable biologic manufacturing"
         },
         {
           "sym": "WAT",
@@ -8247,24 +8007,6 @@
           "rationale": "Gol Linhas Aereas Brazilian low-cost carrier"
         },
         {
-          "sym": "MESA",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Mesa Air Group regional airline operator"
-        },
-        {
-          "sym": "SAVE",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Spirit Airlines budget carrier restructuring"
-        },
-        {
-          "sym": "HA",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Hawaiian Airlines merged with Alaska Air Group"
-        },
-        {
           "sym": "PAC",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -8683,18 +8425,6 @@
           "rationale": "Miniso value retail with online commerce channel"
         },
         {
-          "sym": "FTCH",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Farfetch luxury e-commerce platform global"
-        },
-        {
-          "sym": "WISH",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Wish marketplace discount e-commerce platform"
-        },
-        {
           "sym": "WIX",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -8802,12 +8532,6 @@
           "rationale": "Live sports-focused streaming platform"
         },
         {
-          "sym": "PARA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Paramount Plus CBS and Showtime streaming content"
-        },
-        {
           "sym": "WMG",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -8844,12 +8568,6 @@
           "rationale": "Amazon Prime Video and Twitch streaming"
         },
         {
-          "sym": "GOOGL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "YouTube TV and YouTube Premium streaming"
-        },
-        {
           "sym": "AAPL",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -8872,12 +8590,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Match Group video-based dating and streaming"
-        },
-        {
-          "sym": "MSFT",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Microsoft Xbox Game Pass cloud streaming"
         }
       ]
     },
@@ -9515,12 +9227,6 @@
           "rationale": "Retail Bitcoin and crypto trading platform"
         },
         {
-          "sym": "TSLA",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Holds Bitcoin on corporate balance sheet"
-        },
-        {
           "sym": "CIFR",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -9969,40 +9675,10 @@
           "rationale": "Azure Power Global Indian solar energy producer"
         },
         {
-          "sym": "SAP",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "SAP with major Indian operations and engineering"
-        },
-        {
           "sym": "VEDL",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Vedanta Ltd Indian mining and metals conglomerate"
-        },
-        {
-          "sym": "GRAB",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Grab Holdings Asia super-app Indian market entry"
-        },
-        {
-          "sym": "GLOB",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Globant IT services with India delivery centers"
-        },
-        {
-          "sym": "CTSH",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Cognizant Technology major India IT workforce"
-        },
-        {
-          "sym": "VRNT",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Verint Systems customer analytics India dev center"
         },
         {
           "sym": "EXLS",
@@ -10368,24 +10044,6 @@
           "rationale": "Silicom networking hardware Taiwan R&D center"
         },
         {
-          "sym": "MU",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Micron Technology with Taiwan DRAM operations"
-        },
-        {
-          "sym": "QCOM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Qualcomm major Taiwan semiconductor customer"
-        },
-        {
-          "sym": "AVGO",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Broadcom chips manufactured at Taiwan foundries"
-        },
-        {
           "sym": "AUO",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -10410,28 +10068,10 @@
           "rationale": "EMCORE fiber optics with Taiwan manufacturing"
         },
         {
-          "sym": "CRUS",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Cirrus Logic audio chips from Taiwan fabs"
-        },
-        {
           "sym": "LEDS",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "SemiLEDs semiconductor LED chips Taiwan mfg"
-        },
-        {
-          "sym": "POWI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Power Integrations with Taiwan packaging ops"
-        },
-        {
-          "sym": "SITM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "SiTime MEMS clocks from Taiwan fab operations"
         }
       ]
     },
@@ -10511,12 +10151,6 @@
           "rationale": "Hyundai Motor Korean auto manufacturer"
         },
         {
-          "sym": "SE",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Sea Limited Korean gaming through Garena"
-        },
-        {
           "sym": "HNHPF",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -10533,36 +10167,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Hyundai Motor Korean auto manufacturer OTC"
-        },
-        {
-          "sym": "ASML",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "ASML EUV litho systems sold to Korean fabs"
-        },
-        {
-          "sym": "TSM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "TSMC competing and partnering with Korean fabs"
-        },
-        {
-          "sym": "AMAT",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Applied Materials equipment for Korean chip fabs"
-        },
-        {
-          "sym": "LRCX",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Lam Research etch tools for Samsung Hynix fabs"
-        },
-        {
-          "sym": "INTC",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Intel competing with Samsung in foundry market"
         }
       ]
     },
@@ -13156,18 +12760,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Solar tracker technology maximizing clean energy yield"
-        },
-        {
-          "sym": "PTRA",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Zero-emission electric transit bus manufacturer"
-        },
-        {
-          "sym": "HYLN",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Electrified powertrain solutions for Class 8 trucks"
         }
       ],
       "display_order": 36
@@ -13532,22 +13124,10 @@
           "rationale": "Linde, major industrial gas and hydrogen supplier"
         },
         {
-          "sym": "HYLN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Hyliion, hydrogen-powered Class 8 truck powertrains"
-        },
-        {
           "sym": "CLNE",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Clean Energy Fuels, RNG and hydrogen fueling stations"
-        },
-        {
-          "sym": "PTRA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Proterra, electric and hydrogen transit buses"
         },
         {
           "sym": "NEE",
@@ -13612,7 +13192,7 @@
           "sym": "DVA",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "DaVita, largest US dialysis provider \u2014 aging kidney disease population"
+          "rationale": "DaVita, largest US dialysis provider — aging kidney disease population"
         },
         {
           "sym": "BKD",
@@ -13714,12 +13294,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Mettler-Toledo, precision instruments used in additive manufacturing QC"
-        },
-        {
-          "sym": "GE",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "GE Aerospace, jet engine parts via metal 3D printing"
         },
         {
           "sym": "HON",
