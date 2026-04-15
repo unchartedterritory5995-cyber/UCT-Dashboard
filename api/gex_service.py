@@ -39,6 +39,7 @@ async def get_gex_data(ticker: str, dte_filter: str = "all") -> dict:
         "2dte": 2,
         "3dte": 3,
         "week": 7,
+        "month": 30,
         "all": 180,
     }
     days = dte_map.get(dte_filter, 180)
