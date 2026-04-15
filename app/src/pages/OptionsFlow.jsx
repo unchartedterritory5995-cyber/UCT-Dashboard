@@ -3177,6 +3177,18 @@ export default function OptionsFlowDashboard() {
                   const firstSupBelow = putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null;
                   const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
 
+                  // Thin zone detection — gaps where price can accelerate
+                  const allStrikesAbove = [...(gexData.strikes||[])].filter(s => s.strike > sp && (s.callGex > 0 || Math.abs(s.putGex) > 0)).sort((a,b)=>a.strike-b.strike);
+                  const allStrikesBelow = [...(gexData.strikes||[])].filter(s => s.strike < sp && (s.callGex > 0 || Math.abs(s.putGex) > 0)).sort((a,b)=>b.strike-a.strike);
+                  // Thin above: gap between ceiling (or first res) and the next level above it
+                  const ceilingStrike = cwAboveSpot ? cwStrike : (firstResAbove ? firstResAbove.strike : null);
+                  const levelAboveCeiling = ceilingStrike ? allStrikesAbove.find(s => s.strike > ceilingStrike) : null;
+                  const thinAbove = ceilingStrike && (!levelAboveCeiling || (levelAboveCeiling.strike - ceilingStrike) / sp > 0.015);
+                  // Thin below: gap between floor (or first support) and the next level below it
+                  const floorStrike = pwBelowSpot ? pwStrike : (firstSupBelow ? firstSupBelow.strike : null);
+                  const levelBelowFloor = floorStrike ? allStrikesBelow.find(s => s.strike < floorStrike) : null;
+                  const thinBelow = floorStrike && (!levelBelowFloor || (floorStrike - levelBelowFloor.strike) / sp > 0.015);
+
                   let verdictText, verdictIcon, verdictBg, verdictColor;
                   if (pinSetup) {
                     if (cwStrike === pwStrike) {
@@ -3363,6 +3375,8 @@ export default function OptionsFlowDashboard() {
                         trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is support below. Buy dips toward it — "+fmtGex(cwGex+pwGex)+" catches any pullback." });
                       }
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+pinStrike+". Sell rallies above $"+(pinStrike+pinRange*3)+" and buy dips below $"+(pinStrike-pinRange*3)+"." });
+                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin air above the pin — if price breaks above $"+(pinStrike+pinRange*3)+", it can run fast. Join the breakout, don't fade it." });
+                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin air below — if $"+(pinStrike-pinRange*3)+" breaks, price can slice through quickly. Protect downside." });
                     } else {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+pinStrike+" is the magnet strike this week — sell weekly premium around it. Iron fly or short straddle with defined risk." });
                       if (pinAboveSpot) {
@@ -3375,6 +3389,8 @@ export default function OptionsFlowDashboard() {
                         trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is weekly support below — "+fmtGex(cwGex+pwGex)+" catches pullbacks. Buy dips toward it." });
                       }
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Use $"+(pinStrike+pinRange*3)+" and $"+(pinStrike-pinRange*3)+" as swing fade levels. Enter on daily closes outside the range, target a snap back to $"+pinStrike+"." });
+                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin resistance above the pin — a daily close above $"+(pinStrike+pinRange*3)+" can run fast. Join the breakout." });
+                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin support below — a daily close below $"+(pinStrike-pinRange*3)+" means fast downside. Cut longs." });
                     }
                   } else if (squeezeSetup) {
                     // Squeeze setup trades
@@ -3383,9 +3399,13 @@ export default function OptionsFlowDashboard() {
                     if (isIntraday) {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+mid+" — sell premium here (iron fly). Profit if price stays between $"+(lo-Math.round(wallSpread))+"–$"+(hi+Math.round(wallSpread))+"." });
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+mid+". Sell rallies above $"+(hi+Math.round(wallSpread*0.5))+" and buy dips below $"+(lo-Math.round(wallSpread*0.5))+"." });
+                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin air above $"+hi+" — if price breaks the ceiling, it can run fast. Don't fade a breakout above $"+(hi+Math.round(wallSpread))+"." });
+                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin air below $"+lo+" — if the floor breaks, price can slice through quickly. Tighten stops." });
                     } else {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+lo+"–$"+hi+" is the weekly range. Sell weekly premium — iron condor with wings outside $"+(lo-Math.round(wallSpread))+" and $"+(hi+Math.round(wallSpread))+"." });
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Swing entries: buy daily closes near $"+lo+", take profits near $"+hi+". Fade daily closes above $"+hi+" back toward $"+mid+"." });
+                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin resistance above $"+hi+" — a daily close above it can run fast. Don't fade, join the move." });
+                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin support below $"+lo+" — a daily close below it means fast downside. Cut longs." });
                     }
                   } else {
                     // Directional trades
@@ -3464,6 +3484,9 @@ export default function OptionsFlowDashboard() {
 
                   // Danger zone
                   const dangerLevel = pwBelowSpot ? pwStrike : Math.round(sp * 0.97);
+                  if (thinBelow && !pinSetup && !squeezeSetup) {
+                    trades.push({ i:"⚠", bg:P.be+"33", c:P.be, t:(isIntraday?"Thin air below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — if support breaks, price can slice through fast. No cushion to slow the drop.":"Thin support below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — a break means fast downside with nothing to catch it.") });
+                  }
                   trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwMagnet && !pinSetup && !squeezeSetup ? " Price gravity at $"+cwStrike+" would speed up the drop." : "") });
 
                   const gaugeMin = zg ? Math.min(zg, pwStrike) - (sp*0.005) : pwStrike - (sp*0.01);
