@@ -1,5 +1,5 @@
 {
-  "version": "3.1.0",
+  "version": "4.0.0",
   "generated_at": "2026-04-14",
   "sectors": [
     {
@@ -652,6 +652,36 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Manhattan Associates supply chain management software"
+        },
+        {
+          "sym": "AYX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Self-service data analytics and automation platform"
+        },
+        {
+          "sym": "DT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Software intelligence and observability analytics platform"
+        },
+        {
+          "sym": "NEWR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Full-stack application performance observability"
+        },
+        {
+          "sym": "FRSH",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Customer and IT service management with analytics"
+        },
+        {
+          "sym": "GTLB",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "DevSecOps platform with code analytics and insights"
         }
       ]
     },
@@ -1330,6 +1360,54 @@
           "tier": "peripheral",
           "sub_theme_id": "dc_networking",
           "rationale": "Fastly edge cloud platform data center network"
+        },
+        {
+          "sym": "MOD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Modine, liquid cooling +119%"
+        },
+        {
+          "sym": "NVT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "nVent, liquid cooling NVIDIA partner"
+        },
+        {
+          "sym": "TT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Trane, specialized DC HVAC"
+        },
+        {
+          "sym": "CARR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Carrier, climate control"
+        },
+        {
+          "sym": "FIX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Comfort Systems, DC HVAC"
+        },
+        {
+          "sym": "JCI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Johnson Controls, DC automation"
+        },
+        {
+          "sym": "AAON",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "AAON, DC cooling units"
+        },
+        {
+          "sym": "XYL",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Xylem, water cooling infra"
         }
       ]
     },
@@ -1904,6 +1982,30 @@
           "tier": "relevant",
           "sub_theme_id": "payments",
           "rationale": "Olo restaurant digital ordering platform"
+        },
+        {
+          "sym": "FIS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Financial services technology and payment processing"
+        },
+        {
+          "sym": "FISV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Payments and financial technology infrastructure"
+        },
+        {
+          "sym": "WU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Cross-border money transfer and payments services"
+        },
+        {
+          "sym": "EVTC",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Payment technology for Latin America and Caribbean"
         }
       ]
     },
@@ -2347,6 +2449,36 @@
           "tier": "relevant",
           "sub_theme_id": "industrial_robots",
           "rationale": "Brooks Automation semiconductor robotics"
+        },
+        {
+          "sym": "NOVT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Precision motion control components for robotics"
+        },
+        {
+          "sym": "NDSN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Precision dispensing and industrial automation equipment"
+        },
+        {
+          "sym": "EMR",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Automation solutions including industrial robotics integration"
+        },
+        {
+          "sym": "PH",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Motion and control technologies powering robotic systems"
+        },
+        {
+          "sym": "AZTA",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Life science automation and genomics robotics solutions"
         }
       ]
     },
@@ -2797,6 +2929,12 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Array Technologies solar tracking systems"
+        },
+        {
+          "sym": "CLNE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Renewable natural gas for transportation decarbonization"
         }
       ]
     },
@@ -3223,6 +3361,12 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Southern Company Vogtle nuclear plant operator"
+        },
+        {
+          "sym": "URG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Ur-Energy, ISR producer WY"
         }
       ]
     },
@@ -3379,6 +3523,36 @@
           "tier": "peripheral",
           "sub_theme_id": "grid_equipment",
           "rationale": "CMS Energy grid reliability investments"
+        },
+        {
+          "sym": "EOSE",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Eos Energy, zinc batteries"
+        },
+        {
+          "sym": "ENPH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Enphase, inverters+battery"
+        },
+        {
+          "sym": "QS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "QuantumScape, solid-state"
+        },
+        {
+          "sym": "ENVX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Enovix, silicon anode cells"
+        },
+        {
+          "sym": "ALB",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Albemarle, lithium supplier"
         }
       ]
     },
@@ -3989,12 +4163,12 @@
       ]
     },
     {
-      "id": "gold",
-      "name": "Gold Royalty & Streaming",
+      "id": "gold_precious",
+      "name": "Gold & Precious Metals",
       "sector_id": "materials",
-      "etf_ticker": "GLD",
-      "etf_name": "SPDR Gold Shares",
-      "display_order": 1,
+      "etf_ticker": "GDX",
+      "etf_name": "VanEck Gold Miners ETF",
+      "display_order": 2,
       "sub_themes": [],
       "holdings": [
         {
@@ -4122,23 +4296,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Seabridge Gold KSM project streaming candidate"
-        }
-      ]
-    },
-    {
-      "id": "gold_miners",
-      "name": "Gold Miners",
-      "sector_id": "materials",
-      "etf_ticker": "GDX",
-      "etf_name": "VanEck Gold Miners ETF",
-      "display_order": 2,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "NEM",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "World largest gold producer by output"
         },
         {
           "sym": "GOLD",
@@ -4147,100 +4304,10 @@
           "rationale": "Tier-one gold assets across six countries"
         },
         {
-          "sym": "AEM",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Top-5 global gold producer with pipeline"
-        },
-        {
-          "sym": "FNV",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Premier streaming and royalty on gold mines"
-        },
-        {
-          "sym": "WPM",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Streaming model on gold and silver production"
-        },
-        {
-          "sym": "KGC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Producing mines in Americas and West Africa"
-        },
-        {
-          "sym": "AGI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Canadian mid-cap gold miner growing production"
-        },
-        {
-          "sym": "GFI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Major South African gold operations"
-        },
-        {
-          "sym": "BTG",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "B2Gold mid-tier producer in Africa and Philippines"
-        },
-        {
-          "sym": "HMY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Harmony Gold, South African deep-level miner"
-        },
-        {
-          "sym": "EGO",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Eldorado Gold, mines in Canada and Turkey"
-        },
-        {
-          "sym": "RGLD",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Royal Gold royalties on producing mines"
-        },
-        {
-          "sym": "IAG",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "IAMGOLD with Cote gold mine development project"
-        },
-        {
-          "sym": "AU",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "AngloGold Ashanti global gold mining operations"
-        },
-        {
           "sym": "PAAS",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Pan American Silver with gold production exposure"
-        },
-        {
-          "sym": "DRD",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "DRDGold South African surface gold recovery"
-        },
-        {
-          "sym": "CDE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Coeur Mining US gold and silver producer"
-        },
-        {
-          "sym": "SSRM",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "SSR Mining gold and silver Americas producer"
         },
         {
           "sym": "MUX",
@@ -4249,147 +4316,10 @@
           "rationale": "McEwen Mining gold producer Americas"
         },
         {
-          "sym": "SA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Seabridge Gold KSM gold-copper project"
-        },
-        {
           "sym": "HL",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Hecla Mining silver and gold producer"
-        }
-      ]
-    },
-    {
-      "id": "jr_gold",
-      "name": "Jr Gold",
-      "sector_id": "materials",
-      "etf_ticker": "GDXJ",
-      "etf_name": "VanEck Junior Gold Miners ETF",
-      "display_order": 3,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "AGI",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Mid-cap gold miner with growth pipeline"
-        },
-        {
-          "sym": "BTG",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Low-cost junior gold producer in Africa"
-        },
-        {
-          "sym": "EGO",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Junior producer with Skouries development project"
-        },
-        {
-          "sym": "CDE",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Coeur Mining, US-focused silver and gold producer"
-        },
-        {
-          "sym": "PAAS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Pan American Silver with gold operations"
-        },
-        {
-          "sym": "OR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Osisko Gold Royalties on junior mines"
-        },
-        {
-          "sym": "HL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Hecla Mining, US silver and gold producer"
-        },
-        {
-          "sym": "SSRM",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "SSR Mining, gold and silver producer in Americas"
-        },
-        {
-          "sym": "IAG",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "IAMGOLD junior gold producer with Cote project"
-        },
-        {
-          "sym": "DRD",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "DRDGold South African surface gold miner"
-        },
-        {
-          "sym": "SA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Seabridge Gold KSM gold-copper project"
-        },
-        {
-          "sym": "MUX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "McEwen Mining gold and silver producer Americas"
-        },
-        {
-          "sym": "KGC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Kinross Gold mid-tier producer Americas and Africa"
-        },
-        {
-          "sym": "GFI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Gold Fields South African gold mining operations"
-        },
-        {
-          "sym": "HMY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Harmony Gold South African deep-level mining"
-        },
-        {
-          "sym": "TFPM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Triple Flag streaming on junior gold mines"
-        },
-        {
-          "sym": "AU",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "AngloGold Ashanti mid-cap gold producer"
-        },
-        {
-          "sym": "NEM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Newmont major gold miner for comparison"
-        },
-        {
-          "sym": "GOLD",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Barrick Gold tier-one gold producer"
-        },
-        {
-          "sym": "AEM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Agnico Eagle top-tier gold producer benchmark"
         }
       ]
     },
@@ -5532,6 +5462,24 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Coda Octopus underwater defense imaging sonar"
+        },
+        {
+          "sym": "LMT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Lockheed, autonomous programs"
+        },
+        {
+          "sym": "NOC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Northrop, Global Hawk"
+        },
+        {
+          "sym": "JOBY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Joby, eVTOL defense"
         }
       ]
     },
@@ -5688,6 +5636,54 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Fastenal industrial distribution and fasteners"
+        },
+        {
+          "sym": "TT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Trane, commercial HVAC leader"
+        },
+        {
+          "sym": "CARR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Carrier, residential HVAC"
+        },
+        {
+          "sym": "JCI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Johnson Controls, building auto"
+        },
+        {
+          "sym": "LII",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Lennox, HVAC systems"
+        },
+        {
+          "sym": "WSO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Watsco, HVAC distribution"
+        },
+        {
+          "sym": "FIX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Comfort Systems, HVAC install"
+        },
+        {
+          "sym": "AAON",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "AAON, custom commercial HVAC"
+        },
+        {
+          "sym": "AOS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "A.O. Smith, water heaters"
         }
       ]
     },
@@ -5856,6 +5852,30 @@
           "tier": "relevant",
           "sub_theme_id": "building_materials",
           "rationale": "Builders FirstSource building products"
+        },
+        {
+          "sym": "KBR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Government and defense engineering and construction"
+        },
+        {
+          "sym": "TPC",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Industrial and power plant construction services"
+        },
+        {
+          "sym": "AGX",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Power generation and industrial construction services"
+        },
+        {
+          "sym": "MYRG",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Electrical construction for utility and commercial markets"
         }
       ]
     },
@@ -9176,8 +9196,8 @@
       ]
     },
     {
-      "id": "bitcoin",
-      "name": "Bitcoin",
+      "id": "bitcoin_crypto",
+      "name": "Bitcoin & Crypto",
       "sector_id": "crypto",
       "etf_ticker": "IBIT",
       "etf_name": "iShares Bitcoin Trust ETF",
@@ -9303,35 +9323,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "CME Group Bitcoin and crypto futures exchange"
-        }
-      ]
-    },
-    {
-      "id": "blockchain",
-      "name": "Blockchain",
-      "sector_id": "crypto",
-      "etf_ticker": "BLOK",
-      "etf_name": "Amplify Transformational Data Sharing ETF",
-      "display_order": 3,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "COIN",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Leading crypto exchange and blockchain infrastructure"
-        },
-        {
-          "sym": "MSTR",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Largest corporate Bitcoin holder, blockchain proxy"
-        },
-        {
-          "sym": "SQ",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Bitcoin integration in Cash App and TBD web5"
         },
         {
           "sym": "PYPL",
@@ -9358,30 +9349,6 @@
           "rationale": "Enterprise blockchain solutions (Hyperledger)"
         },
         {
-          "sym": "CME",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Bitcoin and Ethereum futures exchange"
-        },
-        {
-          "sym": "GLXY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Galaxy Digital crypto asset management and trading"
-        },
-        {
-          "sym": "MARA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Marathon Digital blockchain transaction processing"
-        },
-        {
-          "sym": "RIOT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Riot Platforms blockchain infrastructure mining"
-        },
-        {
           "sym": "AFRM",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -9394,52 +9361,10 @@
           "rationale": "DraftKings blockchain for sports betting NFTs"
         },
         {
-          "sym": "CIFR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Cipher Mining blockchain infrastructure provider"
-        },
-        {
-          "sym": "HUT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Hut 8 blockchain mining and hosting services"
-        },
-        {
-          "sym": "BITF",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Bitfarms blockchain transaction verification"
-        },
-        {
-          "sym": "CORZ",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Core Scientific blockchain infrastructure host"
-        },
-        {
-          "sym": "WULF",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "TeraWulf sustainable blockchain mining operations"
-        },
-        {
-          "sym": "SMLR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Semler Scientific Bitcoin and blockchain treasury"
-        },
-        {
           "sym": "GPN",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Global Payments blockchain settlement exploration"
-        },
-        {
-          "sym": "HOOD",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Robinhood crypto and blockchain trading platform"
         }
       ]
     },
@@ -10963,8 +10888,8 @@
       "display_order": 14
     },
     {
-      "id": "networking",
-      "name": "Networking",
+      "id": "networking_interconnect",
+      "name": "Networking & Interconnect",
       "sector_id": "technology",
       "etf_ticker": null,
       "etf_name": null,
@@ -11041,6 +10966,48 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Satellite-based broadband networking services"
+        },
+        {
+          "sym": "CRDO",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Credo, active electrical cables"
+        },
+        {
+          "sym": "ALAB",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Astera Labs, connectivity silicon"
+        },
+        {
+          "sym": "AVGO",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Broadcom, networking ASICs"
+        },
+        {
+          "sym": "FN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Fabrinet, optical assembly"
+        },
+        {
+          "sym": "APH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Amphenol, high-speed connectors"
+        },
+        {
+          "sym": "GLW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Corning, fiber optic infra"
+        },
+        {
+          "sym": "MRVL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Marvell, custom silicon/DPUs"
         }
       ],
       "display_order": 15
@@ -11361,107 +11328,6 @@
       "display_order": 18
     },
     {
-      "id": "payments",
-      "name": "Payments",
-      "sector_id": "financials",
-      "etf_ticker": "IPAY",
-      "etf_name": "ETFMG Prime Mobile Payments ETF",
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "V",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Global payments network processing leader"
-        },
-        {
-          "sym": "MA",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Second largest global card payment network"
-        },
-        {
-          "sym": "PYPL",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Digital payments platform with massive user base"
-        },
-        {
-          "sym": "SQ",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Merchant acquiring and consumer payments via Cash App"
-        },
-        {
-          "sym": "GPN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Payment technology and software solutions provider"
-        },
-        {
-          "sym": "FIS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Financial services technology and payment processing"
-        },
-        {
-          "sym": "FISV",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Payments and financial technology infrastructure"
-        },
-        {
-          "sym": "WU",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Cross-border money transfer and payments services"
-        },
-        {
-          "sym": "AFRM",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Buy now pay later consumer financing platform"
-        },
-        {
-          "sym": "FOUR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Integrated payments platform for SMBs"
-        },
-        {
-          "sym": "RPAY",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Integrated payment solutions for specialized verticals"
-        },
-        {
-          "sym": "PAYO",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Cross-border ecommerce payment processing platform"
-        },
-        {
-          "sym": "FLYW",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Payment acceptance and disbursement solutions"
-        },
-        {
-          "sym": "EVTC",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Payment technology for Latin America and Caribbean"
-        },
-        {
-          "sym": "TOST",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Restaurant-focused payments and management platform"
-        }
-      ],
-      "display_order": 19
-    },
-    {
       "id": "managed_care",
       "name": "Managed Care",
       "sector_id": "healthcare",
@@ -11628,89 +11494,6 @@
       "display_order": 21
     },
     {
-      "id": "data_analytics",
-      "name": "Data Analytics",
-      "sector_id": "technology",
-      "etf_ticker": null,
-      "etf_name": null,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "SNOW",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Cloud data platform for analytics and data sharing"
-        },
-        {
-          "sym": "PLTR",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Big data analytics platform for government and enterprise"
-        },
-        {
-          "sym": "DDOG",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Cloud monitoring and observability analytics platform"
-        },
-        {
-          "sym": "MDB",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "NoSQL database platform powering data-driven applications"
-        },
-        {
-          "sym": "ESTC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Search and analytics engine for observability and security"
-        },
-        {
-          "sym": "AYX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Self-service data analytics and automation platform"
-        },
-        {
-          "sym": "BRZE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Customer engagement analytics and automation platform"
-        },
-        {
-          "sym": "DT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Software intelligence and observability analytics platform"
-        },
-        {
-          "sym": "NEWR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Full-stack application performance observability"
-        },
-        {
-          "sym": "MNDY",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Work management platform with analytics and automation"
-        },
-        {
-          "sym": "FRSH",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Customer and IT service management with analytics"
-        },
-        {
-          "sym": "GTLB",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "DevSecOps platform with code analytics and insights"
-        }
-      ],
-      "display_order": 22
-    },
-    {
       "id": "waste_management",
       "name": "Waste Management",
       "sector_id": "defense_industrials",
@@ -11780,95 +11563,6 @@
         }
       ],
       "display_order": 23
-    },
-    {
-      "id": "construction",
-      "name": "Construction",
-      "sector_id": "defense_industrials",
-      "etf_ticker": null,
-      "etf_name": null,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "PWR",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Electric power and infrastructure construction leader"
-        },
-        {
-          "sym": "EME",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Electrical and mechanical construction services provider"
-        },
-        {
-          "sym": "FLR",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Global engineering and construction services company"
-        },
-        {
-          "sym": "J",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Engineering and construction consulting services firm"
-        },
-        {
-          "sym": "MTZ",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Infrastructure construction for energy and utilities"
-        },
-        {
-          "sym": "DY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Specialty contracting and infrastructure services"
-        },
-        {
-          "sym": "STRL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Heavy civil and specialty construction services"
-        },
-        {
-          "sym": "PRIM",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Infrastructure services including transportation and utilities"
-        },
-        {
-          "sym": "KBR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Government and defense engineering and construction"
-        },
-        {
-          "sym": "TPC",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Industrial and power plant construction services"
-        },
-        {
-          "sym": "AGX",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Power generation and industrial construction services"
-        },
-        {
-          "sym": "ROAD",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Infrastructure construction and maintenance services"
-        },
-        {
-          "sym": "MYRG",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Electrical construction for utility and commercial markets"
-        }
-      ],
-      "display_order": 24
     },
     {
       "id": "education",
@@ -12706,65 +12400,6 @@
       "display_order": 35
     },
     {
-      "id": "carbon_climate",
-      "name": "Carbon & Climate",
-      "sector_id": "clean_energy",
-      "etf_ticker": null,
-      "etf_name": null,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "BE",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Solid oxide fuel cell technology for clean energy generation"
-        },
-        {
-          "sym": "PLUG",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Green hydrogen fuel cell solutions provider"
-        },
-        {
-          "sym": "BLDP",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Proton exchange membrane fuel cell manufacturer"
-        },
-        {
-          "sym": "SHLS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Solar electrical balance of systems technology"
-        },
-        {
-          "sym": "CWEN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Clean energy infrastructure yieldco for carbon reduction"
-        },
-        {
-          "sym": "CLNE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Renewable natural gas for transportation decarbonization"
-        },
-        {
-          "sym": "SEDG",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Solar inverter technology supporting carbon-free electricity"
-        },
-        {
-          "sym": "ARRY",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Solar tracker technology maximizing clean energy yield"
-        }
-      ],
-      "display_order": 36
-    },
-    {
       "id": "small_cap_growth",
       "name": "Small Cap Growth",
       "sector_id": "innovation",
@@ -12846,77 +12481,6 @@
         }
       ],
       "display_order": 37
-    },
-    {
-      "id": "industrial_robotics",
-      "name": "Industrial Robotics",
-      "sector_id": "innovation",
-      "etf_ticker": null,
-      "etf_name": null,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "ISRG",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Surgical robotics leader with da Vinci platform dominance"
-        },
-        {
-          "sym": "ROK",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Industrial automation and robotics controls leader"
-        },
-        {
-          "sym": "CGNX",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Machine vision systems for robotic guidance and inspection"
-        },
-        {
-          "sym": "BRKS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Semiconductor and life science automation equipment"
-        },
-        {
-          "sym": "NOVT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Precision motion control components for robotics"
-        },
-        {
-          "sym": "TER",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Automated test and industrial robotics solutions"
-        },
-        {
-          "sym": "NDSN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Precision dispensing and industrial automation equipment"
-        },
-        {
-          "sym": "EMR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Automation solutions including industrial robotics integration"
-        },
-        {
-          "sym": "PH",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Motion and control technologies powering robotic systems"
-        },
-        {
-          "sym": "AZTA",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Life science automation and genomics robotics solutions"
-        }
-      ],
-      "display_order": 38
     },
     {
       "id": "aerospace",
@@ -13008,8 +12572,8 @@
       "display_order": 39
     },
     {
-      "id": "digital_health",
-      "name": "Digital Health",
+      "id": "digital_health_aesthetics",
+      "name": "Digital Health & Aesthetics",
       "sector_id": "healthcare",
       "etf_ticker": null,
       "etf_name": null,
@@ -13074,6 +12638,42 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Clinical trial technology and decentralized trial platform"
+        },
+        {
+          "sym": "ABBV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "AbbVie, Botox/Juvederm"
+        },
+        {
+          "sym": "EOLS",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Evolus, Jeuveau neurotoxin"
+        },
+        {
+          "sym": "INMD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "InMode, Morpheus8 RF devices"
+        },
+        {
+          "sym": "SKIN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Beauty Health, HydraFacial"
+        },
+        {
+          "sym": "EL",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Estee Lauder, premium skincare"
+        },
+        {
+          "sym": "SYK",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "Stryker, surgical equipment"
         }
       ],
       "display_order": 40
@@ -13192,7 +12792,7 @@
           "sym": "DVA",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "DaVita, largest US dialysis provider — aging kidney disease population"
+          "rationale": "DaVita, largest US dialysis provider \u00e2\u20ac\u201d aging kidney disease population"
         },
         {
           "sym": "BKD",
@@ -13434,313 +13034,6 @@
       ]
     },
     {
-      "id": "ai_networking",
-      "name": "AI Networking",
-      "sector_id": "technology",
-      "etf_ticker": null,
-      "etf_name": null,
-      "display_order": 19,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "ANET",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Arista, AI DC Ethernet switching"
-        },
-        {
-          "sym": "CRDO",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Credo, active electrical cables"
-        },
-        {
-          "sym": "ALAB",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Astera Labs, connectivity silicon"
-        },
-        {
-          "sym": "AVGO",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Broadcom, networking ASICs"
-        },
-        {
-          "sym": "CSCO",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Cisco, DC networking"
-        },
-        {
-          "sym": "CIEN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Ciena, optical transport"
-        },
-        {
-          "sym": "FN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Fabrinet, optical assembly"
-        },
-        {
-          "sym": "APH",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Amphenol, high-speed connectors"
-        },
-        {
-          "sym": "GLW",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Corning, fiber optic infra"
-        },
-        {
-          "sym": "MRVL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Marvell, custom silicon/DPUs"
-        }
-      ]
-    },
-    {
-      "id": "nuclear_smr",
-      "name": "Nuclear SMR",
-      "sector_id": "clean_energy",
-      "etf_ticker": null,
-      "etf_name": null,
-      "display_order": 8,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "SMR",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "NuScale, only NRC-certified SMR"
-        },
-        {
-          "sym": "OKLO",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Oklo, fast reactor SMR"
-        },
-        {
-          "sym": "BWXT",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "BWX Tech, nuclear components"
-        },
-        {
-          "sym": "GEV",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "GE Vernova, building SMR Ontario"
-        },
-        {
-          "sym": "LEU",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Centrus, HALEU fuel for SMRs"
-        },
-        {
-          "sym": "NNE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Nano Nuclear, micro-reactor dev"
-        },
-        {
-          "sym": "CCJ",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Cameco, uranium supply"
-        }
-      ]
-    },
-    {
-      "id": "dc_cooling",
-      "name": "Data Center Cooling",
-      "sector_id": "technology",
-      "etf_ticker": null,
-      "etf_name": null,
-      "display_order": 20,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "VRT",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Vertiv, DC thermal mgmt leader"
-        },
-        {
-          "sym": "MOD",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Modine, liquid cooling +119%"
-        },
-        {
-          "sym": "NVT",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "nVent, liquid cooling NVIDIA partner"
-        },
-        {
-          "sym": "TT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Trane, specialized DC HVAC"
-        },
-        {
-          "sym": "CARR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Carrier, climate control"
-        },
-        {
-          "sym": "FIX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Comfort Systems, DC HVAC"
-        },
-        {
-          "sym": "JCI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Johnson Controls, DC automation"
-        },
-        {
-          "sym": "AAON",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "AAON, DC cooling units"
-        },
-        {
-          "sym": "XYL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Xylem, water cooling infra"
-        }
-      ]
-    },
-    {
-      "id": "defense_drones",
-      "name": "Defense Drones",
-      "sector_id": "defense_industrials",
-      "etf_ticker": null,
-      "etf_name": null,
-      "display_order": 11,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "AVAV",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "AeroVironment, tactical UAS"
-        },
-        {
-          "sym": "KTOS",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Kratos, expendable drones"
-        },
-        {
-          "sym": "RCAT",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Red Cat, Army SRR program"
-        },
-        {
-          "sym": "LMT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Lockheed, autonomous programs"
-        },
-        {
-          "sym": "NOC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Northrop, Global Hawk"
-        },
-        {
-          "sym": "LHX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "L3Harris, surveillance drones"
-        },
-        {
-          "sym": "JOBY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Joby, eVTOL defense"
-        },
-        {
-          "sym": "ACHR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Archer, eVTOL defense"
-        }
-      ]
-    },
-    {
-      "id": "uranium_miners",
-      "name": "Uranium Miners",
-      "sector_id": "clean_energy",
-      "etf_ticker": "URA",
-      "etf_name": "Global X Uranium ETF",
-      "display_order": 9,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "CCJ",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Cameco, largest Western producer"
-        },
-        {
-          "sym": "UEC",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Uranium Energy, now producing"
-        },
-        {
-          "sym": "UUUU",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Energy Fuels, uranium+RE"
-        },
-        {
-          "sym": "DNN",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Denison, Athabasca Basin"
-        },
-        {
-          "sym": "LEU",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Centrus, HALEU enrichment"
-        },
-        {
-          "sym": "NXE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "NexGen, Rook I deposit"
-        },
-        {
-          "sym": "URG",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Ur-Energy, ISR producer WY"
-        },
-        {
-          "sym": "EU",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "enCore Energy, ISR production"
-        }
-      ]
-    },
-    {
       "id": "cro",
       "name": "Contract Research (CRO)",
       "sector_id": "healthcare",
@@ -13796,242 +13089,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "West Pharma, drug delivery"
-        }
-      ]
-    },
-    {
-      "id": "medical_aesthetics",
-      "name": "Medical Aesthetics",
-      "sector_id": "healthcare",
-      "etf_ticker": null,
-      "etf_name": null,
-      "display_order": 11,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "ABBV",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "AbbVie, Botox/Juvederm"
-        },
-        {
-          "sym": "EOLS",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Evolus, Jeuveau neurotoxin"
-        },
-        {
-          "sym": "INMD",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "InMode, Morpheus8 RF devices"
-        },
-        {
-          "sym": "HIMS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Hims, telehealth aesthetics"
-        },
-        {
-          "sym": "SKIN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Beauty Health, HydraFacial"
-        },
-        {
-          "sym": "EL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Estee Lauder, premium skincare"
-        },
-        {
-          "sym": "SYK",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Stryker, surgical equipment"
-        }
-      ]
-    },
-    {
-      "id": "satellite_leo",
-      "name": "Satellite & LEO",
-      "sector_id": "defense_industrials",
-      "etf_ticker": null,
-      "etf_name": null,
-      "display_order": 12,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "RKLB",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Rocket Lab, 190+ sats deployed"
-        },
-        {
-          "sym": "IRDM",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Iridium, cross-linked LEO"
-        },
-        {
-          "sym": "GSAT",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Globalstar, Amazon acquisition"
-        },
-        {
-          "sym": "PL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Planet Labs, Earth observation"
-        },
-        {
-          "sym": "BKSY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "BlackSky, geospatial intel"
-        },
-        {
-          "sym": "VSAT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Viasat, broadband satellite"
-        },
-        {
-          "sym": "SPIR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Spire, weather data sats"
-        },
-        {
-          "sym": "LUNR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Intuitive Machines, lunar"
-        },
-        {
-          "sym": "RDW",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Redwire, space manufacturing"
-        }
-      ]
-    },
-    {
-      "id": "energy_storage",
-      "name": "Energy Storage",
-      "sector_id": "clean_energy",
-      "etf_ticker": null,
-      "etf_name": null,
-      "display_order": 10,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "FLNC",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Fluence, grid-scale storage"
-        },
-        {
-          "sym": "EOSE",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Eos Energy, zinc batteries"
-        },
-        {
-          "sym": "ENPH",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Enphase, inverters+battery"
-        },
-        {
-          "sym": "QS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "QuantumScape, solid-state"
-        },
-        {
-          "sym": "ENVX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Enovix, silicon anode cells"
-        },
-        {
-          "sym": "ALB",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Albemarle, lithium supplier"
-        },
-        {
-          "sym": "SEDG",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "SolarEdge, storage integration"
-        }
-      ]
-    },
-    {
-      "id": "hvac_building",
-      "name": "HVAC & Building Auto",
-      "sector_id": "defense_industrials",
-      "etf_ticker": null,
-      "etf_name": null,
-      "display_order": 13,
-      "sub_themes": [],
-      "holdings": [
-        {
-          "sym": "TT",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Trane, commercial HVAC leader"
-        },
-        {
-          "sym": "CARR",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Carrier, residential HVAC"
-        },
-        {
-          "sym": "JCI",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Johnson Controls, building auto"
-        },
-        {
-          "sym": "LII",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Lennox, HVAC systems"
-        },
-        {
-          "sym": "HON",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Honeywell, building mgmt"
-        },
-        {
-          "sym": "WSO",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Watsco, HVAC distribution"
-        },
-        {
-          "sym": "FIX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Comfort Systems, HVAC install"
-        },
-        {
-          "sym": "AAON",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "AAON, custom commercial HVAC"
-        },
-        {
-          "sym": "AOS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "A.O. Smith, water heaters"
         }
       ]
     }
