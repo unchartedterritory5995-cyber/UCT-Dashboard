@@ -1397,11 +1397,30 @@ export default function OptionsFlowDashboard() {
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
           <div style={{ borderRight:"1px solid "+P.bd, position:"relative" }}>
-            <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(sym)}&range=${chartRange}&v=${Math.floor(Date.now()/900000)}`}
-              alt={sym+" chart"} style={{ width:"100%", height:200, objectFit:"fill", display:"block", opacity:0.92 }}
-              onError={e=>{e.target.parentElement.style.display="none"}} />
-            <div style={{ position:"absolute", top:8, right:8, display:"flex", gap:4 }}>
-              {[["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
+            <div ref={el=>{
+              if (!el || el._tvInit) return;
+              el._tvInit = true;
+              const LWC = window.LightweightCharts;
+              if (!LWC) { el.innerHTML="<div style='color:#555;padding:20px;font-size:11px'>Loading chart...</div>"; return; }
+              const chart = LWC.createChart(el, {
+                width:el.clientWidth, height:200,
+                layout:{background:{color:"#0d1117"},textColor:"#7b8fa3",fontSize:9},
+                grid:{vertLines:{color:"#1a254022"},horzLines:{color:"#1a254022"}},
+                crosshair:{mode:0}, rightPriceScale:{borderColor:"#1a2540"},
+                timeScale:{borderColor:"#1a2540",timeVisible:true,secondsVisible:false,
+                  tickMarkFormatter:t=>{const d=new Date(t*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});}},
+                localization:{timeFormatter:t=>{const d=new Date(t*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});}},
+              });
+              const s = chart.addCandlestickSeries({upColor:"#0a8f55",downColor:"#c43030",borderUpColor:"#0a8f55",borderDownColor:"#c43030",wickUpColor:"#0a8f55",wickDownColor:"#c43030"});
+              fetch(`/api/schwab/chart-ohlc?sym=${encodeURIComponent(sym)}&range=${chartRange}`).then(r=>r.ok?r.json():null).then(d=>{
+                if(d?.candles?.length){s.setData(d.candles);chart.timeScale().fitContent();}
+              }).catch(()=>{});
+              const ro=new ResizeObserver(()=>{if(el.clientWidth>0)chart.applyOptions({width:el.clientWidth});});
+              ro.observe(el);
+              el._tvCleanup=()=>{ro.disconnect();chart.remove();};
+            }} style={{ width:"100%", height:200 }} />
+            <div style={{ position:"absolute", top:8, right:8, display:"flex", gap:4, zIndex:2 }}>
+              {[["5m","5m"],["15m","15m"],["1D","1D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
                 <button key={val} onClick={e=>{e.stopPropagation();setChartRange(val);}}
                   style={{ padding:"2px 7px", borderRadius:4, border:"1px solid "+(chartRange===val?P.ac:P.bd+"80"),
                     background:chartRange===val?P.ac+"22":"rgba(6,9,15,0.75)", color:chartRange===val?P.ac:P.dm,
@@ -2069,12 +2088,30 @@ export default function OptionsFlowDashboard() {
 
                 {/* Left: Stock price chart */}
                 <div style={{ borderRight:"1px solid "+P.bd, position:"relative" }}>
-                  <img src={`/api/schwab/chart-proxy?sym=${encodeURIComponent(t.sym)}&range=${chartRange}&v=${Math.floor(Date.now()/900000)}`}
-                    alt={t.sym+" chart"}
-                    style={{ width:"100%", height:200, objectFit:"fill", display:"block", opacity:0.92 }}
-                    onError={e=>{e.target.parentElement.style.display="none"}} />
-                  <div style={{ position:"absolute", top:8, right:8, display:"flex", gap:4 }}>
-                    {[["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
+                  <div ref={el=>{
+                    if (!el || el._tvInit) return;
+                    el._tvInit = true;
+                    const LWC = window.LightweightCharts;
+                    if (!LWC) { el.innerHTML="<div style='color:#555;padding:20px;font-size:11px'>Loading chart...</div>"; return; }
+                    const chart = LWC.createChart(el, {
+                      width:el.clientWidth, height:200,
+                      layout:{background:{color:"#0d1117"},textColor:"#7b8fa3",fontSize:9},
+                      grid:{vertLines:{color:"#1a254022"},horzLines:{color:"#1a254022"}},
+                      crosshair:{mode:0}, rightPriceScale:{borderColor:"#1a2540"},
+                      timeScale:{borderColor:"#1a2540",timeVisible:true,secondsVisible:false,
+                        tickMarkFormatter:ti=>{const d=new Date(ti*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});}},
+                      localization:{timeFormatter:ti=>{const d=new Date(ti*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});}},
+                    });
+                    const s = chart.addCandlestickSeries({upColor:"#0a8f55",downColor:"#c43030",borderUpColor:"#0a8f55",borderDownColor:"#c43030",wickUpColor:"#0a8f55",wickDownColor:"#c43030"});
+                    fetch(`/api/schwab/chart-ohlc?sym=${encodeURIComponent(t.sym)}&range=${chartRange}`).then(r=>r.ok?r.json():null).then(d=>{
+                      if(d?.candles?.length){s.setData(d.candles);chart.timeScale().fitContent();}
+                    }).catch(()=>{});
+                    const ro=new ResizeObserver(()=>{if(el.clientWidth>0)chart.applyOptions({width:el.clientWidth});});
+                    ro.observe(el);
+                    el._tvCleanup=()=>{ro.disconnect();chart.remove();};
+                  }} style={{ width:"100%", height:200 }} />
+                  <div style={{ position:"absolute", top:8, right:8, display:"flex", gap:4, zIndex:2 }}>
+                    {[["5m","5m"],["15m","15m"],["1D","1D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
                       <button key={val} onClick={e=>{e.stopPropagation();setChartRange(val);}}
                         style={{ padding:"2px 7px", borderRadius:4, border:"1px solid "+(chartRange===val?P.ac:P.bd+"80"),
                           background:chartRange===val?P.ac+"22":"rgba(6,9,15,0.75)", color:chartRange===val?P.ac:P.dm,
