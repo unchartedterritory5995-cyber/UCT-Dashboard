@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import useSWR from 'swr'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
-import useLivePrices from '../hooks/useLivePrices'
+import useRealtimePrices from '../hooks/useRealtimePrices'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
@@ -242,7 +242,7 @@ export default function Watchlists() {
     return tickers
   }, [activeTab, flagged, tags, myLists, communityLists, expandedLists])
 
-  const { prices } = useLivePrices(allTickers)
+  const { prices } = useRealtimePrices(allTickers)
   const { perfData } = useWatchlistPerformance(visiblePerf.size > 0 ? allTickers : [])
 
   function togglePerfCol(key) {

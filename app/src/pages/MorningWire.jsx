@@ -3,7 +3,7 @@ import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
-import useLivePrices from '../hooks/useLivePrices'
+import useRealtimePrices from '../hooks/useRealtimePrices'
 import { useTileCapture } from '../hooks/useTileCapture'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './MorningWire.module.css'
@@ -147,7 +147,7 @@ function AnalystActivity({ analysts }) {
     return [...new Set(tickers)]
   }, [analysts])
 
-  const { prices } = useLivePrices(allTickers)
+  const { prices } = useRealtimePrices(allTickers)
 
   return (
     <div className={styles.analystBlock}>

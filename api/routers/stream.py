@@ -51,7 +51,7 @@ async def stream_prices(
                 yield f": heartbeat\n\n"
                 last_heartbeat = time.time()
 
-            await asyncio.sleep(1)  # Check every 1 second
+            await asyncio.sleep(0.1)  # Check every 100ms for near-instant updates
 
     return StreamingResponse(
         event_generator(),

@@ -1,7 +1,7 @@
 // app/src/pages/journal/tabs/Portfolio.jsx
 import { useState, useMemo, useCallback } from 'react'
 import useSWR from 'swr'
-import useLivePrices from '../../../hooks/useLivePrices'
+import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import styles from './Portfolio.module.css'
 
 const fetcher = url => fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
@@ -84,7 +84,7 @@ export default function Portfolio({ onOpenTrade, stats }) {
 
   // Live prices for all open position tickers
   const tickers = useMemo(() => positions.map(p => p.sym).filter(Boolean), [positions])
-  const { prices } = useLivePrices(tickers)
+  const { prices } = useRealtimePrices(tickers)
 
   // Enrich positions with live data
   const enriched = useMemo(() => {

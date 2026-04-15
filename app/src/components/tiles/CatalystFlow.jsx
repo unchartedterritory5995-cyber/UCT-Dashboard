@@ -1,7 +1,7 @@
 // app/src/components/tiles/CatalystFlow.jsx
 import { useState, useRef, useMemo } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
-import useLivePrices from '../../hooks/useLivePrices'
+import useRealtimePrices from '../../hooks/useRealtimePrices'
 import TileCard from '../TileCard'
 import EarningsModal from './EarningsModal'
 import ErrorBoundary from '../ErrorBoundary'
@@ -108,7 +108,7 @@ export default function CatalystFlow({ data: propData }) {
       ...(data.amc || []),
     ].map(r => r.sym).filter(Boolean)
   }, [data])
-  const { prices: livePrices } = useLivePrices(earningsTickers)
+  const { prices: livePrices } = useRealtimePrices(earningsTickers)
 
   const exportBtn = (
     <button

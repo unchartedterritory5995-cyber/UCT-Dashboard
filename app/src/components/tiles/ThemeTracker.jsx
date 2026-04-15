@@ -1,7 +1,7 @@
 // app/src/components/tiles/ThemeTracker.jsx
 import { useState, useMemo, useCallback } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
-import useLivePrices from '../../hooks/useLivePrices'
+import useRealtimePrices from '../../hooks/useRealtimePrices'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
 import { useTileCapture } from '../../hooks/useTileCapture'
@@ -149,7 +149,7 @@ export default function ThemeTracker({ data: propData }) {
     return tickers
   }, [data, expandedTickers])
 
-  const { prices: livePrices } = useLivePrices(expandedHoldings)
+  const { prices: livePrices } = useRealtimePrices(expandedHoldings)
 
   const captureBtn = (
     <button

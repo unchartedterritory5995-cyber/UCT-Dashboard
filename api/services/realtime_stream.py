@@ -72,7 +72,7 @@ async def _async_subscribe(tickers):
     """Send subscribe message on the existing WebSocket connection."""
     global _ws_connection
     if _ws_connection:
-        params = ",".join(f"AM.{t}" for t in tickers)
+        params = ",".join(f"T.{t},AM.{t}" for t in tickers)
         try:
             await _ws_connection.send(json.dumps({"action": "subscribe", "params": params}))
         except Exception as e:
@@ -111,11 +111,11 @@ async def _run_websocket():
                     return
                 _logger.info("[stream] Authenticated successfully")
 
-                # Subscribe to all current tickers
+                # Subscribe to trades (tick-by-tick) + per-minute aggregates (backup)
                 if _subscribed:
-                    params = ",".join(f"AM.{t}" for t in _subscribed)
+                    params = ",".join(f"T.{t},AM.{t}" for t in _subscribed)
                     await ws.send(json.dumps({"action": "subscribe", "params": params}))
-                    _logger.info("[stream] Subscribed to %d tickers", len(_subscribed))
+                    _logger.info("[stream] Subscribed to %d tickers (trades + aggregates)", len(_subscribed))
 
                 # Process messages
                 async for raw_msg in ws:
@@ -139,10 +139,36 @@ async def _run_websocket():
 
 
 def _process_message(msg):
-    """Process a single WebSocket message (per-minute aggregate)."""
+    """Process a single WebSocket message (trade or per-minute aggregate)."""
     ev = msg.get("ev")
     if ev == "status":
         return  # Status messages (connected, auth, subscribed)
+
+    if ev == "T":  # Individual trade — tick-by-tick
+        sym = msg.get("sym", "")
+        if not sym:
+            return
+        trade_price = msg.get("p", 0)  # Trade price
+        trade_size = msg.get("s", 0)   # Trade size (shares)
+        timestamp = msg.get("t", 0)    # Timestamp (nanoseconds)
+
+        with _lock:
+            prev = _prices.get(sym, {})
+            prev_close = prev.get("prev_close", trade_price)
+            if prev_close and prev_close > 0:
+                change_pct = round((trade_price - prev_close) / prev_close * 100, 4)
+            else:
+                change_pct = 0.0
+            _prices[sym] = {
+                "price": round(trade_price, 2),
+                "change_pct": change_pct,
+                "change": round(trade_price - prev_close, 4) if prev_close else 0,
+                "volume": prev.get("volume", 0) + trade_size,
+                "prev_close": prev_close,
+                "timestamp": timestamp,
+                "updated_at": time.time(),
+            }
+        return
 
     if ev == "AM":  # Per-minute aggregate
         sym = msg.get("sym", "")

@@ -1,7 +1,7 @@
 // app/src/components/tiles/NHNLModal.jsx
 import { useEffect, useMemo } from 'react'
 import TickerPopup from '../TickerPopup'
-import useLivePrices from '../../hooks/useLivePrices'
+import useRealtimePrices from '../../hooks/useRealtimePrices'
 import styles from './NHNLModal.module.css'
 
 export default function NHNLModal({ type, tickers, onClose }) {
@@ -12,7 +12,7 @@ export default function NHNLModal({ type, tickers, onClose }) {
 
   // Stable ticker list for useLivePrices (modal is only mounted when open)
   const allTickers = useMemo(() => tickers.map(t => t), [tickers])
-  const { prices } = useLivePrices(allTickers)
+  const { prices } = useRealtimePrices(allTickers)
 
   useEffect(() => {
     const onKey = e => { if (e.key === 'Escape') onClose() }

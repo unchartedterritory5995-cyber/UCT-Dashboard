@@ -1,7 +1,7 @@
 // app/src/pages/Calendar.jsx
 import { useState, useMemo } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
-import useLivePrices from '../hooks/useLivePrices'
+import useRealtimePrices from '../hooks/useRealtimePrices'
 import TickerPopup from '../components/TickerPopup'
 import EarningsModal from '../components/tiles/EarningsModal'
 import ErrorBoundary from '../components/ErrorBoundary'
@@ -192,7 +192,7 @@ function EarningsPanel({ days, weekDates, onSelectEntry }) {
     () => [...bmo, ...amc].map(e => e.sym),
     [bmo, amc]
   )
-  const { prices: livePrices } = useLivePrices(todayTickers)
+  const { prices: livePrices } = useRealtimePrices(todayTickers)
 
   return (
     <div className={styles.earningsPanel}>

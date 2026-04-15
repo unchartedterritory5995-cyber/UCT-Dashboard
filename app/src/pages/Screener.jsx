@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
-import useLivePrices from '../hooks/useLivePrices'
+import useRealtimePrices from '../hooks/useRealtimePrices'
 import TickerPopup from '../components/TickerPopup'
 import CustomScan from './CustomScan'
 import { SkeletonTable } from '../components/Skeleton'
@@ -244,7 +244,7 @@ export default function Screener() {
     allCandidates.map(r => r.ticker).filter(Boolean),
     [allCandidates]
   )
-  const { prices } = useLivePrices(pageTab === 'scanner' ? allTickers : [])
+  const { prices } = useRealtimePrices(pageTab === 'scanner' ? allTickers : [])
 
   return (
     <div className={pageTab === 'custom' ? styles.containerFull : styles.container}>

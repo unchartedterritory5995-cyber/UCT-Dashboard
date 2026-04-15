@@ -1,7 +1,7 @@
 // app/src/components/TickerPopup.jsx
 import { useState, useEffect, lazy, Suspense } from 'react'
 import useSWR from 'swr'
-import useLivePrices from '../hooks/useLivePrices'
+import useRealtimePrices from '../hooks/useRealtimePrices'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
@@ -101,7 +101,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const tickerActions = useTickerActions()
 
   // Fetch live price only when modal is open
-  const { prices } = useLivePrices(modalOpen && sym ? [sym] : [])
+  const { prices } = useRealtimePrices(modalOpen && sym ? [sym] : [])
 
   // Fetch insider transactions when modal is open
   const { data: insiderTxns } = useSWR(

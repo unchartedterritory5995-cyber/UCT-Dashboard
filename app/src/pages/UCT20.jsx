@@ -8,7 +8,7 @@ import UCT20Performance from '../components/tiles/UCT20Performance'
 import UCT20Backtest from '../components/tiles/UCT20Backtest'
 import CorrelationMatrix from '../components/tiles/CorrelationMatrix'
 import { SkeletonTable } from '../components/Skeleton'
-import useLivePrices from '../hooks/useLivePrices'
+import useRealtimePrices from '../hooks/useRealtimePrices'
 import useMobileSWR from '../hooks/useMobileSWR'
 import styles from './UCT20.module.css'
 
@@ -229,7 +229,7 @@ export default function UCT20() {
     stocks.map(item => item.ticker ?? item.sym ?? item.symbol).filter(Boolean),
     [stocks]
   )
-  const { prices } = useLivePrices(allTickers)
+  const { prices } = useRealtimePrices(allTickers)
 
   // Build symbol → RS data map from rankings
   const rsMap = useMemo(() => {

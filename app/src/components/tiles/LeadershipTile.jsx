@@ -1,7 +1,7 @@
 // app/src/components/tiles/LeadershipTile.jsx
 import { useState, useMemo } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
-import useLivePrices from '../../hooks/useLivePrices'
+import useRealtimePrices from '../../hooks/useRealtimePrices'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
 import ErrorState from '../ErrorState'
@@ -19,7 +19,7 @@ export default function LeadershipTile() {
     stocks.map(item => item.ticker ?? item.sym ?? item.symbol).filter(Boolean),
     [stocks]
   )
-  const { prices } = useLivePrices(allTickers)
+  const { prices } = useRealtimePrices(allTickers)
 
   function toggle(i) {
     setExpandedIdx(prev => prev === i ? null : i)
