@@ -594,25 +594,39 @@ CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
 
 ---
 
-## Theme Tracker Page — Built 2026-03-20, Live Returns 2026-03-21
+## Theme Tracker Page — Taxonomy Redesign (updated 2026-04-15)
 
 ### Files
-- `app/src/pages/ThemeTrackerPage.jsx` — full-page theme tracker
+- `app/src/pages/ThemeTrackerPage.jsx` — full-page with sector grouping + tier filters
 - `app/src/pages/ThemeTrackerPage.module.css` — styles
-- `app/src/components/tiles/ThemeTracker.jsx` — dashboard tile (same data source)
-- `app/src/components/tiles/ThemeTracker.module.css` — tile styles
-- `api/services/theme_performance.py` — background compute, volume persistence, live overlay
-- `api/services/uct20_nav.py` — UCT20 portfolio NAV tracking
-- `api/routers/theme_performance.py` — GET /api/theme-performance, POST /api/theme-performance/refresh
+- `app/src/components/tiles/ThemeTracker.jsx` — dashboard tile
+- `api/services/theme_performance.py` — background compute + live overlay + taxonomy enrichment
+- `api/services/theme_db.py` — SQLite schema + seed from JSON
+- `api/services/realtime_stream.py` — Massive/Polygon WebSocket tick-by-tick streaming
+- `api/routers/stream.py` — SSE endpoint for real-time price push to browser
+- `themes_taxonomy.json` — source of truth: 99 themes, 1928 holdings, 12 sectors
+- `morning-wire/morning_wire_engine.py` — reads taxonomy, fetches holdings, pushes to Railway
 
 ### Architecture
-- **Non-blocking**: always returns immediately — memory cache → disk → `{status: "computing"}`
-- **Persistence**: results written to `/data/theme_performance.json` (Railway volume); loaded on startup
-- **Recompute triggers**: wire push (`/api/push`) + manual refresh endpoint
-- **Workers**: `_MAX_WORKERS = 6` (conservative for Railway 512MB)
-- **Excluded ETFs**: TLT, HYG, URA, IBB, FXI, MSOS
-- **UCT20**: injected into raw_themes (not a real ETF — holdings from leadership list)
-- **Both surfaces unified**: dashboard tile and full page both use `/api/theme-performance`
+- **Hybrid taxonomy**: JSON seed file → SQLite DB on startup → API enrichment with sector/tier/sub_themes
+- **99 themes across 12 sectors**: Technology, Innovation, Clean Energy, Traditional Energy, Materials, Defense & Industrials, Financials, Healthcare, Consumer, Real Estate & Utilities, Crypto, Global
+- **Holdings cap**: 50 per theme (was 15), filtered by $300M market cap
+- **Non-blocking compute**: memory cache → disk → `{status: "computing"}`
+- **Workers**: `_MAX_WORKERS = 2` (reduced for Railway 512MB scalability)
+
+### Real-Time Streaming
+- **WebSocket**: `wss://socket.polygon.io/stocks` via `MASSIVE_API_KEY`
+- **Channels**: `T.*` (tick-by-tick trades) + `AM.*` (per-minute aggregates)
+- **SSE endpoint**: `GET /api/stream/prices?tickers=X,Y,Z` — pushes to browser every 100ms
+- **Frontend hook**: `useRealtimePrices` — EventSource client, falls back to REST polling
+- **Live candles**: `StockChart.jsx` calls `series.update()` on every tick — close/high/low/volume update in real-time
+- **Coverage**: ALL components except OptionsFlow and DarkPool
+
+### UI Features
+- **Sector grouping toggle** — nest themes under sector headers
+- **Tier filter** — Core / Relevant / Peripheral checkboxes
+- **Search** — by theme name, ticker, sector, or holding symbol
+- **Right-click TickerActions** on all holding rows (tag, flag, alert, add to list)
 
 ### Live Returns Overlay (`_apply_live_returns` in theme_performance.py)
 Runs on every request (30s SWR polling). Updates all 6 periods using intraday price:
