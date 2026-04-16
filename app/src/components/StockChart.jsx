@@ -138,7 +138,7 @@ export default function StockChart({
   )
 
   const bars = data?.bars
-  const loading = !quickData && !quickError
+  const loading = !data && !error
 
   // Real-time price streaming for live candle updates
   const { prices: livePrices } = useRealtimePrices(sym ? [sym] : [])

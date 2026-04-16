@@ -14,11 +14,11 @@ from api.services.massive import _get_client, _REST_BASE
 
 router = APIRouter()
 
-# yfinance period/interval config — max periods for deep intraday history
+# yfinance period/interval config — Yahoo limits: 5m=60d, 30m=60d, 60m=730d
 _YF_CONFIG = {
     '5':  {'period': '60d',  'interval': '5m'},
-    '30': {'period': '2y',   'interval': '30m'},
-    '60': {'period': '2y',   'interval': '60m'},
+    '30': {'period': '60d',  'interval': '30m'},
+    '60': {'period': '730d', 'interval': '60m'},
 }
 
 # Ticker overrides for yfinance

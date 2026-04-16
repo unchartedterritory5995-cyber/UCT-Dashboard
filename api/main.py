@@ -447,9 +447,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.add_middleware(MaintenanceMiddleware)
-# Gzip responses >1KB — cuts ~200KB bar payloads to ~30KB on the wire
-from starlette.middleware.gzip import GZipMiddleware
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# Gzip responses >1KB — cuts ~200KB bar payloads to ~30KB on the wire.
+# Excludes SSE streaming endpoints (real-time prices) to avoid buffering.
+from starlette.middleware.gzip import GZipMiddleware as _GZipBase
+from starlette.types import ASGIApp, Receive, Scope, Send
+
+class _GZipSkipSSE(_GZipBase):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope.get("type") == "http" and (scope.get("path") or "").startswith("/api/stream"):
+            await self.app(scope, receive, send)
+        else:
+            await super().__call__(scope, receive, send)
+
+app.add_middleware(_GZipSkipSSE, minimum_size=1000)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
