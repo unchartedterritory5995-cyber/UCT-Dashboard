@@ -1192,30 +1192,47 @@ export default function OptionsFlowDashboard() {
           if (cw && pw && cw.strike === pw.strike) {
             // Same strike — combined pin/gravity zone
             const combined = cw.gex + Math.abs(pw.gex);
-            const aboveSpot = cw.strike > sp * 1.003;
-            const belowSpot = cw.strike < sp * 0.997;
-            const atSpot = !aboveSpot && !belowSpot;
+            const proximity = Math.abs(cw.strike - sp) / sp;
+            const aboveSpot = cw.strike > sp;
             let label, color;
-            if (atSpot) {
-              label = "Pin "+fmtG(combined); color = "#e040fb"; // purple pin
+            if (proximity < 0.003) {
+              label = "Pin "+fmtG(combined); color = "#e040fb"; // purple — price right at pin
+            } else if (aboveSpot && proximity < 0.02) {
+              label = "Magnet ⬆ "+fmtG(combined); color = "#0a8f55"; // green — close above, genuine pull up
             } else if (aboveSpot) {
-              label = "Magnet ⬆ "+fmtG(combined); color = "#0a8f55"; // green magnet pulling up
+              label = "Resistance "+fmtG(combined); color = "#c43030"; // red — distant resistance
+            } else if (proximity < 0.02) {
+              label = "Magnet ⬇ "+fmtG(combined); color = "#c43030"; // red — close below, genuine pull down
             } else {
-              label = "Magnet ⬇ "+fmtG(combined); color = "#c43030"; // red magnet pulling down
+              label = "Support ↑ "+fmtG(combined); color = "#00BCD4"; // cyan — distant support
             }
             series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
           } else {
             // Different strikes — draw separately
             if (cw) {
               const aboveSpot = cw.strike > sp;
-              const label = aboveSpot ? "Ceiling "+fmtG(cw.gex) : "Magnet ⬇ "+fmtG(cw.gex);
-              const color = aboveSpot ? "#c43030" : "#c43030"; // red ceiling above OR red magnet pulling down
+              const cwProx = Math.abs(cw.strike - sp) / sp;
+              let label, color;
+              if (aboveSpot) {
+                label = "Ceiling "+fmtG(cw.gex); color = "#c43030"; // red ceiling
+              } else if (cwProx < 0.02) {
+                label = "Magnet ⬇ "+fmtG(cw.gex); color = "#c43030"; // red — genuine pull down
+              } else {
+                label = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; // cyan — cleared, now support
+              }
               series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
             }
             if (pw) {
               const belowSpot = pw.strike < sp;
-              const label = belowSpot ? "Bounce "+fmtG(Math.abs(pw.gex)) : "Magnet ⬆ "+fmtG(Math.abs(pw.gex));
-              const color = belowSpot ? "#0a8f55" : "#0a8f55"; // green bounce below OR green magnet pulling up
+              const pwProx = Math.abs(pw.strike - sp) / sp;
+              let label, color;
+              if (belowSpot) {
+                label = "Bounce "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; // green bounce
+              } else if (pwProx < 0.02) {
+                label = "Magnet ⬆ "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; // green — genuine pull up
+              } else {
+                label = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; // red — broken floor now resistance
+              }
               series.createPriceLine({ price:pw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
             }
           }
