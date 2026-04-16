@@ -149,6 +149,8 @@ export default function StockChart({
   const prevChartTypeRef = useRef(null)
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
+  const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
+  const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
 
   // ── Extended hours toggle (regular session only vs all hours) ──
   const [showExtended, setShowExtended] = useState(() => {
@@ -272,31 +274,40 @@ export default function StockChart({
     try {
       if (isNewBar) {
         // ── NEW CANDLE ──
-        // Daily/Weekly: use actual session OHLC from Massive snapshot
-        // Intraday: use previous bar's close (session OHLC doesn't apply to individual bars)
         const live = latestLiveRef.current || {}
         const isDailyWeekly = resolvedTf === 'D' || resolvedTf === 'W'
         const openPrice = (isDailyWeekly && live.day_open) ? live.day_open : last.close
         const highPrice = isDailyWeekly ? Math.max(live.day_high || openPrice, price) : Math.max(openPrice, price)
         const lowPrice = isDailyWeekly ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, price) : Math.min(openPrice, price)
+
+        // Initialize tick-accurate tracking for this bar
+        liveBarRef.current = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price }
+        barStartVolRef.current = liveData.volume || 0
+
         if (useOhlc) {
-          const newBar = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price }
-          candleSeriesRef.current.update(newBar)
-          lastBarRef.current = { ...newBar, volume: 0 }
+          candleSeriesRef.current.update(liveBarRef.current)
+          lastBarRef.current = { ...liveBarRef.current, volume: 0 }
         } else {
           candleSeriesRef.current.update({ time: barTime, value: price })
-          lastBarRef.current = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price, volume: 0 }
+          lastBarRef.current = { ...liveBarRef.current, volume: 0 }
         }
         if (volumeSeriesRef.current) {
           volumeSeriesRef.current.update({ time: barTime, value: 0, color: 'rgba(74,222,128,0.35)' })
         }
       } else {
-        // ── SAME CANDLE: update close, extend high/low ──
+        // ── SAME CANDLE: update close, extend high/low tick-by-tick ──
+        // Track in liveBarRef (survives setData wipes)
+        if (liveBarRef.current && liveBarRef.current.time === last.time) {
+          liveBarRef.current.high = Math.max(liveBarRef.current.high, price)
+          liveBarRef.current.low = Math.min(liveBarRef.current.low, price)
+          liveBarRef.current.close = price
+        }
+
         const updated = {
           time: last.time,
           open: last.open,
-          high: Math.max(last.high, price),
-          low: Math.min(last.low, price),
+          high: liveBarRef.current ? liveBarRef.current.high : Math.max(last.high, price),
+          low: liveBarRef.current ? liveBarRef.current.low : Math.min(last.low, price),
           close: price,
         }
         if (useOhlc) {
@@ -304,10 +315,13 @@ export default function StockChart({
         } else {
           candleSeriesRef.current.update({ time: last.time, value: price })
         }
-        if (volumeSeriesRef.current && liveData.volume) {
+
+        // Per-bar volume from cumulative delta
+        const barVol = Math.max(0, (liveData.volume || 0) - barStartVolRef.current)
+        if (volumeSeriesRef.current && barVol > 0) {
           volumeSeriesRef.current.update({
             time: last.time,
-            value: liveData.volume,
+            value: barVol,
             color: price >= last.open ? 'rgba(74,222,128,0.35)' : 'rgba(248,113,113,0.35)',
           })
         }
@@ -429,33 +443,33 @@ export default function StockChart({
       const last = lastBarRef.current
       const isNew = barTime !== last.time && barTime > last.time
 
+      // Use liveBarRef if available — it has tick-accurate high/low that survives setData()
+      const lb = liveBarRef.current
+
       if (isNew) {
-        // Daily/Weekly: use actual session OHLC. Intraday: use prev bar's close.
         const live = latestLiveRef.current
         const isDW = resolvedTf === 'D' || resolvedTf === 'W'
         const openPrice = (isDW && live.day_open) ? live.day_open : last.close
-        const highPrice = isDW ? Math.max(live.day_high || openPrice, lp) : Math.max(openPrice, lp)
-        const lowPrice = isDW ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, lp) : Math.min(openPrice, lp)
-        const newBar = {
-          time: barTime,
-          open: openPrice,
-          high: highPrice,
-          low: lowPrice,
-          close: lp,
-        }
+        const highPrice = isDW ? Math.max(live.day_high || openPrice, lp) : (lb ? Math.max(lb.high, lp) : Math.max(openPrice, lp))
+        const lowPrice = isDW ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, lp) : (lb ? Math.min(lb.low, lp) : Math.min(openPrice, lp))
+        const newBar = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: lp }
         if (isOhlcType(cs.chartType)) {
           candleSeriesRef.current.update(newBar)
         } else {
           candleSeriesRef.current.update({ time: barTime, value: lp })
         }
+        liveBarRef.current = { ...newBar }
         lastBarRef.current = { ...newBar, volume: 0 }
       } else {
-        // Same bar — update close/high/low
-        last.high = Math.max(last.high, lp)
-        last.low = Math.min(last.low, lp)
+        // Same bar — restore tick-tracked high/low from liveBarRef
+        const high = lb ? Math.max(lb.high, lp) : Math.max(last.high, lp)
+        const low = lb ? Math.min(lb.low, lp) : Math.min(last.low, lp)
+        last.high = high
+        last.low = low
         last.close = lp
+        if (lb) { lb.high = high; lb.low = low; lb.close = lp }
         if (isOhlcType(cs.chartType)) {
-          candleSeriesRef.current.update({ time: last.time, open: last.open, high: last.high, low: last.low, close: lp })
+          candleSeriesRef.current.update({ time: last.time, open: last.open, high, low, close: lp })
         } else {
           candleSeriesRef.current.update({ time: last.time, value: lp })
         }
