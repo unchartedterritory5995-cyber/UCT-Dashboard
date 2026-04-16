@@ -3205,7 +3205,7 @@ export default function OptionsFlowDashboard() {
 
                   const cwAboveSpot = cwStrike > sp;
                   const pwBelowSpot = pwStrike < sp;
-                  const cwLabel = cwAboveSpot ? "ceiling" : "gravity pulling down";
+                  const cwLabel = cwAboveSpot ? "ceiling" : ((sp - cwStrike) / sp < 0.02 ? "gravity pulling down" : "major support below");
                   const pwLabel = pwBelowSpot ? "floor" : "gravity pulling up";
                   const wallsInverted = !cwAboveSpot || !pwBelowSpot;
                   const spotBetweenWalls = cwStrike === pwStrike || (sp >= Math.min(cwStrike,pwStrike) && sp <= Math.max(cwStrike,pwStrike));
