@@ -138,8 +138,9 @@ def _fetch_daily(ticker: str, max_bars: int) -> list[dict]:
     """Fetch daily bars from Massive API."""
     from api.services.massive import get_agg_bars
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
-    # ~1.5 calendar days per trading day to cover full history
-    from_date = (datetime.utcnow() - timedelta(days=int(max_bars * 1.5) + 30)).strftime("%Y-%m-%d")
+    # ~1.5 calendar days per trading day, capped at 30 years to avoid strftime crash
+    lookback = min(int(max_bars * 1.5) + 30, 10950)
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
     raw = get_agg_bars(ticker.upper(), from_date, to_date)
     bars = []
     for bar in raw[-max_bars:]:
@@ -159,8 +160,9 @@ def _fetch_weekly(ticker: str, max_bars: int) -> list[dict]:
     """Fetch weekly bars — daily from Massive, resampled to weekly."""
     from api.services.massive import get_agg_bars
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
-    # ~7 calendar days per weekly bar to cover full history
-    from_date = (datetime.utcnow() - timedelta(days=max_bars * 8)).strftime("%Y-%m-%d")
+    # ~7 calendar days per weekly bar, capped at 30 years (~1560 weekly bars max)
+    lookback = min(max_bars * 8, 10950)
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
     raw = get_agg_bars(ticker.upper(), from_date, to_date)
     weekly = _resample_weekly(raw)
     return weekly[-max_bars:]
