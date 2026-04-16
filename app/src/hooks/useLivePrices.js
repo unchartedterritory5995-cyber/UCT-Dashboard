@@ -14,7 +14,7 @@ export default function useLivePrices(tickers = []) {
     : null  // null key = don't fetch
 
   const { data, error, isLoading, mutate } = useMobileSWR(key, fetcher, {
-    refreshInterval: 15000,  // 15s (will be 30s on mobile via useMobileSWR)
+    refreshInterval: 2000,  // 2s (4s on mobile) — fast fallback when WebSocket unavailable
   })
 
   return {

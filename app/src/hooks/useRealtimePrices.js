@@ -13,8 +13,9 @@ export default function useRealtimePrices(tickers = []) {
   const esRef = useRef(null)
   const reconnectRef = useRef(null)
 
-  // Fallback to REST polling when SSE not connected
-  const { prices: polledPrices, isLoading } = useLivePrices(connected ? [] : tickers)
+  // Massive REST polling always runs (2s) as parallel source + fallback.
+  // Finnhub WebSocket overlays tick-by-tick on top when connected.
+  const { prices: polledPrices, isLoading } = useLivePrices(tickers)
 
   const sorted = [...new Set(tickers)].sort().join(',')
 

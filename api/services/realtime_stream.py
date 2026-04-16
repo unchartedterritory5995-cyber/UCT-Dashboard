@@ -1,12 +1,10 @@
 """
-Real-time price streaming via Massive/Polygon WebSocket.
+Real-time price streaming via Finnhub WebSocket (primary) + Massive REST (fallback).
 
-Connects to wss://socket.polygon.io/stocks, subscribes to per-minute
-aggregates (AM.*), and maintains an in-memory price dict that SSE
-endpoint fans out to frontend clients.
+Connects to wss://ws.finnhub.io for tick-by-tick trade data and maintains
+an in-memory price dict that the SSE endpoint fans out to frontend clients.
 
-Falls back gracefully if WebSocket unavailable — existing REST polling
-continues to work independently.
+Falls back to Massive REST polling (2s interval) if WebSocket unavailable.
 """
 
 import asyncio
@@ -15,16 +13,14 @@ import logging
 import os
 import threading
 import time
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 _logger = logging.getLogger(__name__)
-_ET = ZoneInfo("America/New_York")
 
-# WebSocket URL (Polygon.io / Massive.com)
-_WS_URL = "wss://socket.polygon.io/stocks"
+# Finnhub WebSocket (free tier, real-time US equity trades)
+_FINNHUB_KEY = os.environ.get("FINNHUB_API_KEY", "")
+_WS_URL = f"wss://ws.finnhub.io?token={_FINNHUB_KEY}" if _FINNHUB_KEY else ""
 
-# In-memory price store: {SYM: {price, change_pct, volume, prev_close, timestamp}}
+# In-memory price store: {SYM: {price, change_pct, volume, prev_close, timestamp, updated_at}}
 _prices = {}
 _lock = threading.Lock()
 
@@ -36,9 +32,8 @@ _running = False
 
 
 def get_realtime_prices(tickers=None):
-    """Get latest prices from the WebSocket stream.
-    Returns dict of {SYM: {price, change_pct, volume, timestamp}}.
-    If tickers provided, filters to only those.
+    """Get latest prices from the stream.
+    Returns dict of {SYM: {price, change_pct, volume, timestamp, updated_at}}.
     """
     with _lock:
         if tickers:
@@ -50,6 +45,7 @@ def get_stream_status():
     """Return WebSocket connection status."""
     return {
         "connected": _running,
+        "provider": "finnhub" if _FINNHUB_KEY else "none",
         "subscribed_count": len(_subscribed),
         "prices_cached": len(_prices),
         "subscribed_tickers": sorted(_subscribed)[:50],
@@ -62,72 +58,59 @@ def subscribe_tickers(tickers):
     if not new:
         return
     _subscribed.update(new)
-    # If WebSocket is running, send subscribe message
+    # If WebSocket is running, send subscribe messages
     if _ws_loop and _running:
         asyncio.run_coroutine_threadsafe(_async_subscribe(new), _ws_loop)
     _logger.info("[stream] Subscribed %d new tickers (total: %d)", len(new), len(_subscribed))
 
 
 async def _async_subscribe(tickers):
-    """Send subscribe message on the existing WebSocket connection."""
+    """Send subscribe messages on the existing Finnhub WebSocket."""
     global _ws_connection
-    if _ws_connection:
-        params = ",".join(f"T.{t},AM.{t}" for t in tickers)
+    if not _ws_connection:
+        return
+    for sym in tickers:
         try:
-            await _ws_connection.send(json.dumps({"action": "subscribe", "params": params}))
+            await _ws_connection.send(json.dumps({"type": "subscribe", "symbol": sym}))
         except Exception as e:
-            _logger.warning("[stream] Subscribe failed: %s", e)
+            _logger.warning("[stream] Subscribe %s failed: %s", sym, e)
 
 
 async def _run_websocket():
-    """Main WebSocket loop — connect, auth, subscribe, process messages."""
+    """Main WebSocket loop — connect, subscribe, process Finnhub trade messages."""
     global _ws_connection, _running
     import websockets
 
-    api_key = os.environ.get("MASSIVE_API_KEY", "")
-    if not api_key:
-        _logger.warning("[stream] MASSIVE_API_KEY not set — WebSocket disabled")
+    if not _FINNHUB_KEY:
+        _logger.warning("[stream] FINNHUB_API_KEY not set — WebSocket disabled")
         return
 
     backoff = 1
     while True:
         try:
-            _logger.info("[stream] Connecting to %s...", _WS_URL)
+            _logger.info("[stream] Connecting to Finnhub WebSocket...")
             async with websockets.connect(_WS_URL, ping_interval=30, ping_timeout=10) as ws:
                 _ws_connection = ws
                 _running = True
-                backoff = 1  # Reset on successful connect
+                backoff = 1
+                _logger.info("[stream] Finnhub WebSocket connected")
 
-                # Authenticate
-                await ws.send(json.dumps({"action": "auth", "params": api_key}))
-                auth_resp = await asyncio.wait_for(ws.recv(), timeout=10)
-                auth_data = json.loads(auth_resp)
-                if isinstance(auth_data, list):
-                    auth_data = auth_data[0]
-                status = auth_data.get("status", "")
-                if status != "auth_success":
-                    _logger.error("[stream] Auth failed: %s — retrying in %ds", auth_data, backoff)
-                    _running = False
-                    _ws_connection = None
-                    await asyncio.sleep(backoff)
-                    backoff = min(backoff * 2, 60)
-                    continue  # Retry connection instead of dying permanently
-                _logger.info("[stream] Authenticated successfully")
-
-                # Subscribe to trades (tick-by-tick) + per-minute aggregates (backup)
+                # Subscribe all current tickers
+                for sym in _subscribed:
+                    await ws.send(json.dumps({"type": "subscribe", "symbol": sym}))
                 if _subscribed:
-                    params = ",".join(f"T.{t},AM.{t}" for t in _subscribed)
-                    await ws.send(json.dumps({"action": "subscribe", "params": params}))
-                    _logger.info("[stream] Subscribed to %d tickers (trades + aggregates)", len(_subscribed))
+                    _logger.info("[stream] Subscribed to %d tickers", len(_subscribed))
 
                 # Process messages
                 async for raw_msg in ws:
                     try:
-                        messages = json.loads(raw_msg)
-                        if not isinstance(messages, list):
-                            messages = [messages]
-                        for msg in messages:
-                            _process_message(msg)
+                        data = json.loads(raw_msg)
+                        msg_type = data.get("type", "")
+                        if msg_type == "trade":
+                            for trade in (data.get("data") or []):
+                                _process_finnhub_trade(trade)
+                        elif msg_type == "ping":
+                            await ws.send(json.dumps({"type": "pong"}))
                     except json.JSONDecodeError:
                         pass
                     except Exception as e:
@@ -141,68 +124,35 @@ async def _run_websocket():
             backoff = min(backoff * 2, 60)
 
 
-def _process_message(msg):
-    """Process a single WebSocket message (trade or per-minute aggregate)."""
-    ev = msg.get("ev")
-    if ev == "status":
-        return  # Status messages (connected, auth, subscribed)
+def _process_finnhub_trade(trade):
+    """Process a single Finnhub trade event.
 
-    if ev == "T":  # Individual trade — tick-by-tick
-        sym = msg.get("sym", "")
-        if not sym:
-            return
-        trade_price = msg.get("p", 0)  # Trade price
-        trade_size = msg.get("s", 0)   # Trade size (shares)
-        timestamp = msg.get("t", 0)    # Timestamp (nanoseconds)
-
-        with _lock:
-            prev = _prices.get(sym, {})
-            prev_close = prev.get("prev_close", trade_price)
-            if prev_close and prev_close > 0:
-                change_pct = round((trade_price - prev_close) / prev_close * 100, 4)
-            else:
-                change_pct = 0.0
-            _prices[sym] = {
-                "price": round(trade_price, 2),
-                "change_pct": change_pct,
-                "change": round(trade_price - prev_close, 4) if prev_close else 0,
-                "volume": prev.get("volume", 0) + trade_size,
-                "prev_close": prev_close,
-                "timestamp": timestamp,
-                "updated_at": time.time(),
-            }
+    trade = {"p": 150.25, "s": "AAPL", "t": 1713200000000, "v": 100, "c": [...]}
+      p = price, s = symbol, t = timestamp (ms), v = volume, c = conditions
+    """
+    sym = trade.get("s", "")
+    if not sym:
         return
+    trade_price = trade.get("p", 0)
+    trade_vol = trade.get("v", 0)
+    timestamp = trade.get("t", 0)  # milliseconds
 
-    if ev == "AM":  # Per-minute aggregate
-        sym = msg.get("sym", "")
-        if not sym:
-            return
-        close_price = msg.get("c", 0)  # Close of this minute bar
-        open_price = msg.get("o", 0)   # Open of this minute bar
-        volume = msg.get("v", 0)       # Volume this minute
-        vwap = msg.get("vw", 0)        # VWAP this minute
-        day_open = msg.get("op", 0)    # Day's opening price (if available)
-        timestamp = msg.get("e", 0)    # End timestamp (ms)
-
-        with _lock:
-            prev = _prices.get(sym, {})
-            prev_close = prev.get("prev_close", day_open or close_price)
-
-            # Calculate change %
-            if prev_close and prev_close > 0:
-                change_pct = round((close_price - prev_close) / prev_close * 100, 4)
-            else:
-                change_pct = 0.0
-
-            _prices[sym] = {
-                "price": round(close_price, 2),
-                "change_pct": change_pct,
-                "change": round(close_price - prev_close, 4) if prev_close else 0,
-                "volume": volume + prev.get("volume", 0),  # Accumulate daily volume
-                "prev_close": prev_close,
-                "timestamp": timestamp,
-                "updated_at": time.time(),
-            }
+    with _lock:
+        prev = _prices.get(sym, {})
+        prev_close = prev.get("prev_close", trade_price)
+        if prev_close and prev_close > 0:
+            change_pct = round((trade_price - prev_close) / prev_close * 100, 4)
+        else:
+            change_pct = 0.0
+        _prices[sym] = {
+            "price": round(trade_price, 2),
+            "change_pct": change_pct,
+            "change": round(trade_price - prev_close, 4) if prev_close else 0,
+            "volume": prev.get("volume", 0) + trade_vol,
+            "prev_close": prev_close,
+            "timestamp": timestamp,
+            "updated_at": time.time(),
+        }
 
 
 def start_stream():
@@ -218,13 +168,13 @@ def start_stream():
 
     t = threading.Thread(target=_thread_target, daemon=True, name="realtime-stream")
     t.start()
-    _logger.info("[stream] WebSocket stream thread started")
+    _logger.info("[stream] Finnhub WebSocket stream thread started")
 
 
 def stop_stream():
     """Stop the WebSocket stream."""
     global _running, _ws_connection
     _running = False
-    if _ws_connection:
+    if _ws_connection and _ws_loop:
         asyncio.run_coroutine_threadsafe(_ws_connection.close(), _ws_loop)
     _logger.info("[stream] WebSocket stream stopped")
