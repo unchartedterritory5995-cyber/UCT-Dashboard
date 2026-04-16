@@ -248,8 +248,12 @@ export default function StockChart({
     })
   }, [filteredBars, resolvedOverlays, adjustTime])
 
-  // Reset lastBarRef on symbol change to prevent wrong-symbol price race
-  useEffect(() => { lastBarRef.current = null }, [sym])
+  // Reset all live tracking refs on symbol or timeframe change
+  useEffect(() => {
+    lastBarRef.current = null
+    liveBarRef.current = null
+    barStartVolRef.current = 0
+  }, [sym, resolvedTf])
 
   // Real-time candle updates — tick-by-tick via WebSocket.
   // Detects bar period boundaries and creates NEW candles automatically.
