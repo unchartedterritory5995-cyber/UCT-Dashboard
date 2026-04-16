@@ -2,11 +2,14 @@
 
 Daily/Weekly: Massive API (Polygon-compatible) via get_agg_bars()
 Intraday (5/30/60 min): Massive API agg endpoint (yfinance fallback)
+
+3-layer cache: in-memory TTLCache → persistent disk → Massive API
 """
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from api.services.cache import cache
+from api.services import bars_disk_cache as disk_cache
 from api.services.massive import _get_client, _REST_BASE
 
 router = APIRouter()
@@ -21,7 +24,7 @@ _YF_CONFIG = {
 # Ticker overrides for yfinance
 _YF_TICKERS = {'VIX': '^VIX', 'BTC': 'BTC-USD'}
 
-# Cache TTLs by timeframe (seconds)
+# In-memory cache TTLs by timeframe (seconds)
 _CACHE_TTL = {'5': 15, '30': 15, '60': 15, 'D': 300, 'W': 900}
 
 
@@ -167,9 +170,14 @@ def get_bars(
     tf: str = Query(default="D", description="Timeframe: 5, 30, 60, D, W"),
     bars: int = Query(default=200, ge=1, le=10000, description="Max bars"),
 ):
-    """Return OHLCV bars for client-side charting."""
+    """Return OHLCV bars for client-side charting.
+
+    3-layer cache: memory (~5min) → disk (~4hr) → Massive API (~4-8s).
+    """
     ticker_up = ticker.upper()
     cache_key = f"bars_{ticker_up}_{tf}_{bars}"
+
+    # Layer 1: In-memory TTL cache (fastest — <1ms)
     cached = cache.get(cache_key)
     if cached is not None:
         return JSONResponse(
@@ -177,6 +185,17 @@ def get_bars(
             headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
         )
 
+    # Layer 2: Persistent disk cache (fast — ~10ms, survives restarts)
+    disk_cached = disk_cache.get(ticker_up, tf, bars)
+    if disk_cached is not None:
+        # Promote to memory cache
+        cache.set(cache_key, disk_cached, ttl=_CACHE_TTL.get(tf, 300))
+        return JSONResponse(
+            content=disk_cached,
+            headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+        )
+
+    # Layer 3: Fetch from Massive API (slow — 4-8s from Railway)
     if tf in ("5", "30", "60"):
         result_bars = _fetch_intraday(ticker_up, tf, bars)
     elif tf == "W":
@@ -185,7 +204,10 @@ def get_bars(
         result_bars = _fetch_daily(ticker_up, bars)
 
     payload = {"ticker": ticker_up, "tf": tf, "bars": result_bars}
+
+    # Persist to both cache layers
     cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
+    disk_cache.put(ticker_up, tf, bars, payload)
 
     return JSONResponse(
         content=payload,

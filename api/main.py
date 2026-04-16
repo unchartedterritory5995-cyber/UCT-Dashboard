@@ -104,6 +104,31 @@ async def lifespan(app: FastAPI):
 
     _seed_cache_from_volume()
 
+    # Pre-warm bars disk cache for common tickers (background, non-blocking)
+    def _prewarm_bars():
+        from api.services import bars_disk_cache as _disk
+        from api.routers.bars import _fetch_daily
+        import time as _t
+        _TOP = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA', 'AMZN', 'META',
+                'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM', 'COIN', 'MSTR', 'HOOD', 'ANET']
+        warmed = 0
+        for sym in _TOP:
+            if _disk.get(sym, 'D', 5000) is not None:
+                continue  # Already cached on disk
+            try:
+                bars = _fetch_daily(sym, 5000)
+                if bars:
+                    payload = {"ticker": sym, "tf": "D", "bars": bars}
+                    _disk.put(sym, 'D', 5000, payload)
+                    cache.set(f"bars_{sym}_D_5000", payload, ttl=300)
+                    warmed += 1
+            except Exception:
+                pass
+            _t.sleep(0.3)
+        if warmed:
+            print(f"[startup] Pre-warmed {warmed} bar caches")
+    threading.Thread(target=_prewarm_bars, daemon=True, name="bars-prewarm").start()
+
     # Seed theme taxonomy from JSON → SQLite
     from api.services.theme_db import init_theme_tables, seed_from_json
     init_theme_tables()
