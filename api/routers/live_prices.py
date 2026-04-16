@@ -76,6 +76,11 @@ def get_live_prices(
             "change_pct": round(float(t.get("todaysChangePerc", 0.0)), 4),
             "change": round(float(t.get("todaysChange", 0.0)), 4),
             "volume": volume,
+            # Session OHLC for developing bar on daily/weekly charts
+            "day_open": round(float(day.get("o") or 0), 2),
+            "day_high": round(float(day.get("h") or 0), 2),
+            "day_low": round(float(day.get("l") or 0), 2),
+            "prev_close": round(float(prev_day.get("c") or 0), 2),
         }
 
     cache.set(cache_key, result, ttl=_CACHE_TTL)

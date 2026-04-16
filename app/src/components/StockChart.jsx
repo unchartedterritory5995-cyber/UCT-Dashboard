@@ -255,7 +255,8 @@ export default function StockChart({
   useEffect(() => {
     const liveData = livePrices[sym]
     if (!liveData?.price) return
-    latestLiveRef.current = { sym, price: liveData.price, updated_at: liveData.updated_at }
+    latestLiveRef.current = { sym, price: liveData.price, updated_at: liveData.updated_at,
+      day_open: liveData.day_open, day_high: liveData.day_high, day_low: liveData.day_low }
     if (!candleSeriesRef.current || !lastBarRef.current) return
     const price = liveData.price
     const last = lastBarRef.current
@@ -270,15 +271,18 @@ export default function StockChart({
 
     try {
       if (isNewBar) {
-        // ── NEW CANDLE: use previous close as open for proper candle body ──
-        const openPrice = last.close
+        // ── NEW CANDLE: use actual session OHLC from REST data for proper candle ──
+        const live = latestLiveRef.current || {}
+        const openPrice = live.day_open || last.close
+        const highPrice = Math.max(live.day_high || openPrice, price)
+        const lowPrice = Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, price)
         if (useOhlc) {
-          const newBar = { time: barTime, open: openPrice, high: Math.max(openPrice, price), low: Math.min(openPrice, price), close: price }
+          const newBar = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price }
           candleSeriesRef.current.update(newBar)
           lastBarRef.current = { ...newBar, volume: 0 }
         } else {
           candleSeriesRef.current.update({ time: barTime, value: price })
-          lastBarRef.current = { time: barTime, open: openPrice, high: Math.max(openPrice, price), low: Math.min(openPrice, price), close: price, volume: 0 }
+          lastBarRef.current = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price, volume: 0 }
         }
         if (volumeSeriesRef.current) {
           volumeSeriesRef.current.update({ time: barTime, value: 0, color: 'rgba(74,222,128,0.35)' })
@@ -423,14 +427,16 @@ export default function StockChart({
       const isNew = barTime !== last.time && barTime > last.time
 
       if (isNew) {
-        // Today's developing candle — use previous bar's close as open
-        // (actual open may differ by gap, but gives proper candle body)
-        const openPrice = last.close
+        // Today's developing candle — use actual session OHLC from REST data
+        const live = latestLiveRef.current
+        const openPrice = live.day_open || last.close
+        const highPrice = Math.max(live.day_high || openPrice, lp)
+        const lowPrice = Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, lp)
         const newBar = {
           time: barTime,
           open: openPrice,
-          high: Math.max(openPrice, lp),
-          low: Math.min(openPrice, lp),
+          high: highPrice,
+          low: lowPrice,
           close: lp,
         }
         if (isOhlcType(cs.chartType)) {
