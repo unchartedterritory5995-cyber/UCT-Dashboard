@@ -248,6 +248,7 @@ export default function ChartToolbar({
   drawingCount,
   repeatMode, setRepeatMode,
   chartSettings, onUpdateSettings,
+  showExtended, onToggleExtended,
 }) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -311,6 +312,18 @@ export default function ChartToolbar({
         >
           {ICONS.repeat}
         </button>
+
+        {/* Extended hours toggle (intraday only) */}
+        {showExtended !== null && onToggleExtended && (
+          <button
+            className={`${styles.btn} ${showExtended ? styles.active : ''}`}
+            onClick={() => onToggleExtended(!showExtended)}
+            title={showExtended ? 'Extended hours: ON (click for regular session only)' : 'Regular session only (click for extended hours)'}
+            style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, padding: '2px 6px' }}
+          >
+            {showExtended ? 'EXT' : 'RTH'}
+          </button>
+        )}
 
         {/* Chart settings */}
         {chartSettings && onUpdateSettings && (

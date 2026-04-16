@@ -660,16 +660,9 @@ export default function StockChart({
             setRepeatMode={handleSetRepeatMode}
             chartSettings={cs}
             onUpdateSettings={handleUpdateChartSettings}
+            showExtended={isIntraday ? showExtended : null}
+            onToggleExtended={isIntraday ? handleToggleExtended : null}
           />
-          {isIntraday && (
-            <button
-              className={`${styles.extHoursBtn} ${showExtended ? styles.extHoursActive : ''}`}
-              onClick={() => handleToggleExtended(!showExtended)}
-              title={showExtended ? 'Hide extended hours (show regular session only)' : 'Show extended hours (pre-market + after-hours)'}
-            >
-              {showExtended ? 'EXT' : 'RTH'}
-            </button>
-          )}
         </>
       )}
     </div>
