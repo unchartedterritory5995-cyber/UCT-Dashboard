@@ -146,21 +146,31 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
-        # 2b. Watchlist tickers from auth DB
+        # 2b. Watchlist + tagged tickers from auth DB
         try:
             from api.services.auth_db import get_db_path
             import sqlite3
             db = sqlite3.connect(get_db_path())
-            rows = db.execute("SELECT DISTINCT sym FROM watchlist_items").fetchall()
-            for (sym,) in rows:
-                if sym:
-                    tickers.add(sym.upper())
-            # Flagged tickers
-            rows = db.execute("SELECT DISTINCT sym FROM ticker_tags").fetchall()
-            for (sym,) in rows:
-                if sym:
-                    tickers.add(sym.upper())
+            for tbl, col in [("watchlist_items", "sym"), ("ticker_tags", "sym")]:
+                try:
+                    rows = db.execute(f"SELECT DISTINCT {col} FROM {tbl}").fetchall()
+                    for (sym,) in rows:
+                        if sym:
+                            tickers.add(sym.upper())
+                except Exception:
+                    pass
             db.close()
+        except Exception:
+            pass
+
+        # 4. Full $300M+ cap universe — the master list (3,685 tickers)
+        try:
+            cap_path = os.path.join(os.path.dirname(__file__), "data", "cap_universe.json")
+            if os.path.exists(cap_path):
+                with open(cap_path) as f:
+                    cap_tickers = json.load(f)
+                tickers.update(t.upper() for t in cap_tickers if t)
+                print(f"[prewarm] Loaded {len(cap_tickers)} tickers from cap_universe.json")
         except Exception:
             pass
 
@@ -180,14 +190,20 @@ async def lifespan(app: FastAPI):
             pass
 
         tickers.discard('')
-        ticker_list = sorted(tickers)
-        # All timeframes — 5000 bars each to match StockChart's barCount
+        # Priority order: indices first, then UCT20, then themes, then rest
+        _PRIORITY = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
+                      'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
+                      'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER']
+        priority_set = set(_PRIORITY)
+        rest = sorted(tickers - priority_set)
+        ticker_list = _PRIORITY + rest
+        # All timeframes — 5000 bars each. Daily first (most viewed), then rest.
         _TF_CONFIGS = [
-            ('D', 5000),
-            ('W', 5000),
-            ('5', 5000),
-            ('30', 5000),
-            ('60', 5000),
+            ('D', 5000),   # Daily — highest priority, most commonly viewed
+            ('W', 5000),   # Weekly
+            ('60', 5000),  # 1hr
+            ('30', 5000),  # 30min
+            ('5', 5000),   # 5min
         ]
         total_jobs = len(ticker_list) * len(_TF_CONFIGS)
         print(f"[prewarm] Targeting {len(ticker_list)} tickers × {len(_TF_CONFIGS)} timeframes = {total_jobs} cache entries")
