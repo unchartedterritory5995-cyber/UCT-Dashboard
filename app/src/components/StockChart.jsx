@@ -377,7 +377,8 @@ export default function StockChart({
     // Store the last bar for live updates
     if (bars.length) {
       const last = bars[bars.length - 1]
-      lastBarRef.current = { time: last.t, open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
+      // Use adjustTime so lastBarRef.time matches the chart series + computeBarTime
+      lastBarRef.current = { time: adjustTime(last.t), open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
     }
 
     // ── Volume series (pane 1) — reuse if exists ──
@@ -478,7 +479,7 @@ export default function StockChart({
         to: bars.length + 8,
       })
     }
-  }, [bars, ohlcData, closeData, volData, overlayData, sym, showVolume, markers, priceLines, watermark, cs])
+  }, [bars, ohlcData, closeData, volData, overlayData, sym, showVolume, markers, priceLines, watermark, cs, adjustTime])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
