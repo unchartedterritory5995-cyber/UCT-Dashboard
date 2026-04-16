@@ -25,7 +25,8 @@ _YF_CONFIG = {
 _YF_TICKERS = {'VIX': '^VIX', 'BTC': 'BTC-USD'}
 
 # In-memory cache TTLs by timeframe (seconds)
-_CACHE_TTL = {'5': 15, '30': 15, '60': 15, 'D': 300, 'W': 900}
+# Intraday kept very short so charts stay current during market hours
+_CACHE_TTL = {'5': 10, '30': 10, '60': 10, 'D': 300, 'W': 900}
 
 
 def _resample_weekly(daily_bars: list[dict]) -> list[dict]:
@@ -223,14 +224,25 @@ def get_bars(
         )
 
     # Layer 2: Persistent disk cache (fast — ~10ms, survives restarts)
+    # For intraday, verify cached data has recent bars (not hours-old stale data)
     disk_cached = disk_cache.get(ticker_up, tf, bars)
     if disk_cached is not None:
-        # Promote to memory cache
-        cache.set(cache_key, disk_cached, ttl=_CACHE_TTL.get(tf, 300))
-        return JSONResponse(
-            content=disk_cached,
-            headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
-        )
+        if tf in ("5", "30", "60"):
+            # Intraday freshness check: last bar must be within N minutes
+            import time as _time
+            _max_age_min = {"5": 10, "30": 45, "60": 90}.get(tf, 60)
+            cached_bars = disk_cached.get("bars", [])
+            if cached_bars:
+                last_ts = cached_bars[-1].get("t", 0)
+                age_min = (_time.time() - last_ts) / 60
+                if age_min > _max_age_min:
+                    disk_cached = None  # Too stale for intraday — fetch fresh
+        if disk_cached is not None:
+            cache.set(cache_key, disk_cached, ttl=_CACHE_TTL.get(tf, 300))
+            return JSONResponse(
+                content=disk_cached,
+                headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+            )
 
     # Layer 3: Fetch from Massive API (slow — 4-8s from Railway)
     if tf in ("5", "30", "60"):

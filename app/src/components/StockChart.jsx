@@ -154,10 +154,14 @@ export default function StockChart({
 
   const barCount = 5000
 
+  // Intraday refetches more often to keep candles current during market hours
+  const isIntraday = ['5', '30', '60'].includes(resolvedTf)
+  const dedupMs = isIntraday ? 15000 : 60000  // 15s intraday, 60s daily/weekly
+
   const { data, error, mutate } = useSWR(
     sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}` : null,
     fetcher,
-    { dedupingInterval: 60000, revalidateOnFocus: false }
+    { dedupingInterval: dedupMs, revalidateOnFocus: false }
   )
 
   const bars = data?.bars
