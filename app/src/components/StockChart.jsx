@@ -270,14 +270,15 @@ export default function StockChart({
 
     try {
       if (isNewBar) {
-        // ── NEW CANDLE: first tick of a new period ──
+        // ── NEW CANDLE: use previous close as open for proper candle body ──
+        const openPrice = last.close
         if (useOhlc) {
-          const newBar = { time: barTime, open: price, high: price, low: price, close: price }
+          const newBar = { time: barTime, open: openPrice, high: Math.max(openPrice, price), low: Math.min(openPrice, price), close: price }
           candleSeriesRef.current.update(newBar)
           lastBarRef.current = { ...newBar, volume: 0 }
         } else {
           candleSeriesRef.current.update({ time: barTime, value: price })
-          lastBarRef.current = { time: barTime, open: price, high: price, low: price, close: price, volume: 0 }
+          lastBarRef.current = { time: barTime, open: openPrice, high: Math.max(openPrice, price), low: Math.min(openPrice, price), close: price, volume: 0 }
         }
         if (volumeSeriesRef.current) {
           volumeSeriesRef.current.update({ time: barTime, value: 0, color: 'rgba(74,222,128,0.35)' })
@@ -422,8 +423,16 @@ export default function StockChart({
       const isNew = barTime !== last.time && barTime > last.time
 
       if (isNew) {
-        // Today's candle — create developing bar
-        const newBar = { time: barTime, open: lp, high: lp, low: lp, close: lp }
+        // Today's developing candle — use previous bar's close as open
+        // (actual open may differ by gap, but gives proper candle body)
+        const openPrice = last.close
+        const newBar = {
+          time: barTime,
+          open: openPrice,
+          high: Math.max(openPrice, lp),
+          low: Math.min(openPrice, lp),
+          close: lp,
+        }
         if (isOhlcType(cs.chartType)) {
           candleSeriesRef.current.update(newBar)
         } else {
