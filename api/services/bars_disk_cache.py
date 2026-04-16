@@ -14,15 +14,15 @@ import time
 # Railway persistent volume mount, falls back to local ./data
 _CACHE_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
 
-# Disk TTLs — long enough that the background pre-warm thread can cycle
-# through the full 3,685-ticker universe before entries expire.
-# Daily bars only change after 4 PM ET close; weekly only on Friday.
+# Disk TTLs — sized so the background refresh loop (32hr full cycle) can
+# complete a full pass before ANY entry expires. Live WebSocket handles
+# the current bar in real-time, so cached bars only need yesterday's close.
 _DISK_TTL = {
-    '5': 3600,      # 1 hour — intraday refreshes often enough
-    '30': 7200,     # 2 hours
-    '60': 14400,    # 4 hours
-    'D': 57600,     # 16 hours — daily bars valid until next close
-    'W': 86400,     # 24 hours — weekly bars valid until Friday close
+    '5': 7200,      # 2 hours — intraday, refreshes during market hours
+    '30': 14400,    # 4 hours
+    '60': 28800,    # 8 hours
+    'D': 172800,    # 48 hours — daily bars valid (today's bar is live via WebSocket)
+    'W': 259200,    # 72 hours — weekly bars rarely change mid-week
 }
 
 
