@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
         if purged:
             print(f"[prewarm] Purged {purged} empty cache entries")
         # One-time nuke: delete entire bars cache directory (old 500-bar entries)
-        _purge_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".cache_nuked_v1")
+        _purge_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".cache_nuked_v2")
         if not os.path.exists(_purge_flag):
             import shutil
             _cache_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")

@@ -146,18 +146,12 @@ def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
 def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars — Massive API primary, yfinance fallback.
 
-    If Massive returns stale data (e.g. pre-split bars from months ago),
-    retries with a short 30-day window to get post-split data. If still
-    stale, falls back to yfinance (split-adjusted, includes premarket).
+    If Massive returns empty or stale data (timeout, split, etc.),
+    falls back to yfinance (split-adjusted, includes premarket).
     """
     bars = _fetch_intraday_massive(ticker, tf, max_bars)
     if bars and not _is_intraday_stale(bars):
         return bars
-
-    # Massive data is stale — retry with short window (post-split data only)
-    short_bars = _fetch_intraday_massive(ticker, tf, min(max_bars, 500))
-    if short_bars and not _is_intraday_stale(short_bars):
-        return short_bars
 
     # Still stale — fall back to yfinance (split-adjusted + premarket)
     yf_bars = _fetch_intraday_yfinance(ticker, tf, max_bars)
