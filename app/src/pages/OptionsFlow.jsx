@@ -957,7 +957,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","GEX","Top Flow","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker"];
+const TABS = ["Market Read","Top Flow","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -1125,7 +1125,7 @@ export default function OptionsFlowDashboard() {
 
   // Auto-load market data (deferred — non-critical)
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
-  useEffect(() => { if (tab === "GEX" && gexTicker) fetchGex(gexTicker, gexDte); }, [tab, gexTicker, gexDte]);
+  useEffect(() => { if (dataMode === "gex" && gexTicker) fetchGex(gexTicker, gexDte); }, [dataMode, gexTicker, gexDte]);
 
   // Lightweight Charts for GEX tab
   useEffect(() => {
@@ -1642,11 +1642,11 @@ export default function OptionsFlowDashboard() {
       </div>
     </div>
   );
-  if (csvError) return (
+  if (csvError && dataMode !== "gex") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center",maxWidth:400}}>
         <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
-          {[["stocks","Stocks"],["index","Indexes / ETF's"]].map(([m,label])=>(
+          {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
             <button key={m} onClick={()=>{ if(dataMode!==m) setDataMode(m); }} style={{
               padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
               fontSize:14, fontWeight:800, fontFamily:"inherit",
@@ -1662,7 +1662,7 @@ export default function OptionsFlowDashboard() {
       </div>
     </div>
   );
-  if (!D || !FD) return (
+  if ((!D || !FD) && dataMode !== "gex") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #00e676",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
@@ -1842,11 +1842,11 @@ export default function OptionsFlowDashboard() {
         {/* Data Mode Toggle */}
         <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
           <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
-            {[["stocks","Stocks"],["index","Indexes / ETF's"]].map(([m,label])=>(
+            {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
               <button key={m} onClick={()=>{ if(dataMode!==m) setDataMode(m); }} style={{
-                padding:"8px 28px", borderRadius:6, border:"none", cursor:"pointer",
+                padding:"8px 28px", borderRadius:6, border:m==="gex"?(dataMode===m?"1px solid #e040fb":"1px solid #e040fb55"):"none", cursor:"pointer",
                 fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
-                background:dataMode===m?P.cd:"transparent", color:dataMode===m?P.wh:P.mt,
+                background:dataMode===m?(m==="gex"?"#e040fb33":P.cd):"transparent", color:dataMode===m?(m==="gex"?"#e040fb":P.wh):(m==="gex"?"#e040fb":P.mt),
                 boxShadow:dataMode===m?("0 2px 8px rgba(0,0,0,0.3)"):"none",
                 transition:"all 0.15s"
               }}>{label}</button>
@@ -1854,6 +1854,7 @@ export default function OptionsFlowDashboard() {
           </div>
         </div>
 
+        {dataMode !== "gex" && D && (<>
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
           <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
@@ -2403,10 +2404,10 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:t==="GEX"?(tab===t?"1px solid #e040fb":"1px solid #e040fb55"):"none", cursor:"pointer",
-              fontSize:t==="GEX"?12:11, fontWeight:t==="GEX"?800:600, fontFamily:"inherit",
-              background:tab===t?(t==="GEX"?"#e040fb33":P.cd):"transparent",
-              color:tab===t?(t==="GEX"?"#e040fb":P.wh):(t==="GEX"?"#e040fb":P.mt)
+              padding:"6px 14px", borderRadius:5, border:"none", cursor:"pointer",
+              fontSize:11, fontWeight:600, fontFamily:"inherit",
+              background:tab===t?P.cd:"transparent",
+              color:tab===t?P.wh:P.mt
             }}>{t}</button>
           ))}
         </div>
@@ -3016,8 +3017,10 @@ export default function OptionsFlowDashboard() {
           </div>
         )}
 
+        </>)}
+
         {/* GEX — Gamma Exposure */}
-        {tab==="GEX" && (()=>{
+        {dataMode==="gex" && (()=>{
           const fmtGex = v => {
             if (v === null || v === undefined || isNaN(v)) return "—";
             const abs = Math.abs(v);
@@ -3765,6 +3768,7 @@ export default function OptionsFlowDashboard() {
           );
         })()}
 
+        {dataMode !== "gex" && D && (<>
                 {/* OI Check */}
         {tab==="OI Check" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
@@ -3953,6 +3957,7 @@ export default function OptionsFlowDashboard() {
           <span style={{ fontSize:9, color:P.mt }}>Options Flow Dashboard · {D.dateRange}</span>
           <span style={{ fontSize:9, color:P.mt }}>YELLOW/MAG = confirmed · WHITE = check OI · No ML/ · Grades: A+ to D</span>
         </div>
+        </>)}
       </div>
     </div>
   );
