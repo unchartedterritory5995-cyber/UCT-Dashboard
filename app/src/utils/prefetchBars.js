@@ -5,8 +5,8 @@ import { preload } from 'swr'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
-// Must match StockChart's barCount values
-const BAR_COUNTS = { D: 5000, W: 2000, 5: 300, 30: 300, 60: 300 }
+// Must match StockChart's barCount (5000 for all timeframes)
+const BAR_COUNTS = { D: 5000, W: 5000, 5: 5000, 30: 5000, 60: 5000 }
 const ALL_TFS = ['D', 'W', '5', '30', '60']
 
 // Prefetch a list of tickers for a specific timeframe

@@ -129,7 +129,7 @@ export default function StockChart({
   }, [setPref])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
 
-  const barCount = resolvedTf === 'D' ? 5000 : resolvedTf === 'W' ? 2000 : 300
+  const barCount = 5000
 
   const { data, error, mutate } = useSWR(
     sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}` : null,

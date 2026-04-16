@@ -120,14 +120,47 @@ async def lifespan(app: FastAPI):
                         'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
                         'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER'])
 
-        # 2. UCT20 stocks from wire_data
+        # 2. Everything from wire_data — UCT20, scanner candidates, earnings, movers
         try:
             wd = cache.get("wire_data")
             if wd:
+                # UCT20 / leadership
                 for pick in (wd.get("uct20") or wd.get("leadership") or []):
                     sym = pick.get("ticker") or pick.get("sym")
                     if sym:
                         tickers.add(sym.upper())
+                # Scanner candidates (pullback, remount, gapper)
+                cands = wd.get("candidates") or {}
+                for group in (cands.get("pullback_ma") or [], cands.get("remount") or [], cands.get("gapper_news") or []):
+                    for c in (group if isinstance(group, list) else []):
+                        sym = c.get("ticker") or c.get("sym")
+                        if sym:
+                            tickers.add(sym.upper())
+                # Earnings (BMO + AMC)
+                earn = wd.get("earnings") or {}
+                for bucket in (earn.get("bmo") or [], earn.get("amc") or []):
+                    for e in bucket:
+                        sym = e.get("sym") or e.get("ticker")
+                        if sym:
+                            tickers.add(sym.upper())
+        except Exception:
+            pass
+
+        # 2b. Watchlist tickers from auth DB
+        try:
+            from api.services.auth_db import get_db_path
+            import sqlite3
+            db = sqlite3.connect(get_db_path())
+            rows = db.execute("SELECT DISTINCT sym FROM watchlist_items").fetchall()
+            for (sym,) in rows:
+                if sym:
+                    tickers.add(sym.upper())
+            # Flagged tickers
+            rows = db.execute("SELECT DISTINCT sym FROM ticker_tags").fetchall()
+            for (sym,) in rows:
+                if sym:
+                    tickers.add(sym.upper())
+            db.close()
         except Exception:
             pass
 
@@ -148,13 +181,13 @@ async def lifespan(app: FastAPI):
 
         tickers.discard('')
         ticker_list = sorted(tickers)
-        # All timeframes to pre-cache: (tf, bars, fetch_fn_name)
+        # All timeframes — 5000 bars each to match StockChart's barCount
         _TF_CONFIGS = [
             ('D', 5000),
-            ('W', 2000),
-            ('5', 300),
-            ('30', 300),
-            ('60', 300),
+            ('W', 5000),
+            ('5', 5000),
+            ('30', 5000),
+            ('60', 5000),
         ]
         total_jobs = len(ticker_list) * len(_TF_CONFIGS)
         print(f"[prewarm] Targeting {len(ticker_list)} tickers × {len(_TF_CONFIGS)} timeframes = {total_jobs} cache entries")

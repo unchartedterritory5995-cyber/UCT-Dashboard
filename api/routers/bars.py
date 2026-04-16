@@ -14,11 +14,11 @@ from api.services.massive import _get_client, _REST_BASE
 
 router = APIRouter()
 
-# yfinance period/interval config (same as charts.py)
+# yfinance period/interval config — max periods for deep intraday history
 _YF_CONFIG = {
-    '5':  {'period': '5d',  'interval': '5m'},
-    '30': {'period': '1mo', 'interval': '30m'},
-    '60': {'period': '1mo', 'interval': '60m'},
+    '5':  {'period': '60d',  'interval': '5m'},
+    '30': {'period': '2y',   'interval': '30m'},
+    '60': {'period': '2y',   'interval': '60m'},
 }
 
 # Ticker overrides for yfinance
@@ -60,21 +60,23 @@ def _resample_weekly(daily_bars: list[dict]) -> list[dict]:
 def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars from Massive API agg endpoint.
 
-    tf='5':  5-min bars, last 5 trading days
-    tf='30': 30-min bars, last 30 trading days
-    tf='60': 60-min bars, last 30 trading days
+    Lookback scales with max_bars to support up to 5000 intraday bars.
+    5min  ~78 bars/day → 5000 bars ≈ 65 trading days → 90 calendar days
+    30min ~13 bars/day → 5000 bars ≈ 385 trading days → 540 calendar days
+    60min ~7 bars/day  → 5000 bars ≈ 715 trading days → 1000 calendar days
     """
     multiplier = int(tf)  # 5, 30, or 60
-    lookback_days = 5 if tf == '5' else 30
+    bars_per_day = 390 // multiplier  # ~78 for 5min, ~13 for 30min, ~6.5 for 60min
+    lookback_days = max(10, int(max_bars / max(bars_per_day, 1) * 1.5) + 5)
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
-    from_date = (datetime.utcnow() - timedelta(days=lookback_days + 3)).strftime("%Y-%m-%d")
+    from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
 
     try:
         client = _get_client()
         url = (
             f"{_REST_BASE}/v2/aggs/ticker/{ticker.upper()}/range/{multiplier}/minute"
             f"/{from_date}/{to_date}"
-            f"?adjusted=true&sort=asc&limit=5000&apiKey={client._api_key}"
+            f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
         )
         data = client._get(url)
         results = data.get("results") or []
