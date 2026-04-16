@@ -149,25 +149,42 @@ async def lifespan(app: FastAPI):
             pass
 
         tickers.discard('')
-        print(f"[prewarm] Targeting {len(tickers)} tickers for bars disk cache")
+        ticker_list = sorted(tickers)
+        # All timeframes to pre-cache: (tf, bars, fetch_fn_name)
+        _TF_CONFIGS = [
+            ('D', 5000),
+            ('W', 2000),
+            ('5', 300),
+            ('30', 300),
+            ('60', 300),
+        ]
+        total_jobs = len(ticker_list) * len(_TF_CONFIGS)
+        print(f"[prewarm] Targeting {len(ticker_list)} tickers × {len(_TF_CONFIGS)} timeframes = {total_jobs} cache entries")
 
+        from api.routers.bars import _fetch_daily, _fetch_weekly, _fetch_intraday
         warmed = 0
         skipped = 0
-        for sym in sorted(tickers):
-            if _disk.get(sym, 'D', 5000) is not None:
-                skipped += 1
-                continue  # Already cached on disk
-            try:
-                bars = _fetch_daily(sym, 5000)
-                if bars:
-                    payload = {"ticker": sym, "tf": "D", "bars": bars}
-                    _disk.put(sym, 'D', 5000, payload)
-                    cache.set(f"bars_{sym}_D_5000", payload, ttl=300)
-                    warmed += 1
-            except Exception:
-                pass
-            _t.sleep(0.3)  # Pace to avoid rate limits
-        print(f"[prewarm] Done: {warmed} fetched, {skipped} already cached, {len(tickers)} total")
+        for sym in ticker_list:
+            for tf, bar_count in _TF_CONFIGS:
+                if _disk.get(sym, tf, bar_count) is not None:
+                    skipped += 1
+                    continue
+                try:
+                    if tf == 'D':
+                        bars = _fetch_daily(sym, bar_count)
+                    elif tf == 'W':
+                        bars = _fetch_weekly(sym, bar_count)
+                    else:
+                        bars = _fetch_intraday(sym, tf, bar_count)
+                    if bars:
+                        payload = {"ticker": sym, "tf": tf, "bars": bars}
+                        _disk.put(sym, tf, bar_count, payload)
+                        cache.set(f"bars_{sym}_{tf}_{bar_count}", payload, ttl=300)
+                        warmed += 1
+                except Exception:
+                    pass
+                _t.sleep(0.3)
+        print(f"[prewarm] Done: {warmed} fetched, {skipped} already cached, {total_jobs} total")
     threading.Thread(target=_prewarm_bars, daemon=True, name="bars-prewarm").start()
 
     # Seed theme taxonomy from JSON → SQLite
