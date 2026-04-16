@@ -112,10 +112,14 @@ async def lifespan(app: FastAPI):
         from api.routers.bars import _fetch_daily
         import time as _t
 
-        # Purge empty cache entries from prior bugs (e.g. weekly crash)
+        # Purge stale cache entries from prior bugs
         purged = _disk.purge_empty()
         if purged:
             print(f"[prewarm] Purged {purged} empty cache entries")
+        # Purge all intraday cache so it refetches with 90s timeout (was 15s, truncated to 500 bars)
+        purged_id = _disk.purge_intraday()
+        if purged_id:
+            print(f"[prewarm] Purged {purged_id} intraday cache entries for refetch")
 
         # Gather all tickers worth pre-caching
         tickers = set()

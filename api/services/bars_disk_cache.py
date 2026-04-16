@@ -51,6 +51,29 @@ def get(ticker: str, tf: str, bars: int):
         return None
 
 
+def purge_intraday():
+    """Remove all cached intraday files so they refetch with updated settings."""
+    try:
+        if not os.path.isdir(_CACHE_DIR):
+            return 0
+        removed = 0
+        for fname in os.listdir(_CACHE_DIR):
+            if not fname.endswith('.json'):
+                continue
+            # Match intraday: *_5_*, *_30_*, *_60_*
+            for tf in ('_5_', '_30_', '_60_'):
+                if tf in fname:
+                    try:
+                        os.remove(os.path.join(_CACHE_DIR, fname))
+                        removed += 1
+                    except OSError:
+                        pass
+                    break
+        return removed
+    except Exception:
+        return 0
+
+
 def purge_empty():
     """Remove all cached files with empty bars arrays (from prior bugs)."""
     try:
