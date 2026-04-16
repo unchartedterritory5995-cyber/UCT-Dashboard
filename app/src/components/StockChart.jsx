@@ -67,6 +67,29 @@ function computeHVC(bars) {
   return hvcSet
 }
 
+// ─── Bar period computation (for real-time new candle creation) ──────────────
+
+const PERIOD_SECONDS = { '5': 300, '30': 1800, '60': 3600 }
+
+function computeBarTime(tf, tickTimeSec) {
+  if (tf === 'D') {
+    // Daily: ET date string "YYYY-MM-DD" (matches LW Charts BusinessDay format)
+    return new Date(tickTimeSec * 1000)
+      .toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+  }
+  if (tf === 'W') {
+    // Weekly: Monday of current week in ET
+    const d = new Date(tickTimeSec * 1000)
+    const et = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    const day = et.getDay()
+    et.setDate(et.getDate() - day + (day === 0 ? -6 : 1))
+    return et.toISOString().split('T')[0]
+  }
+  // Intraday: floor to period boundary (unix seconds)
+  const period = PERIOD_SECONDS[tf] || 300
+  return Math.floor(tickTimeSec / period) * period
+}
+
 // ─── Series type helpers ─────────────────────────────────────────────────────
 
 const OHLC_TYPES = new Set(['candles', 'hollow', 'bars'])
@@ -175,36 +198,62 @@ export default function StockChart({
     }))
   }, [bars, resolvedOverlays])
 
-  // Update the last candle in real-time as trades come in
+  // Real-time candle updates — tick-by-tick via WebSocket.
+  // Detects bar period boundaries and creates NEW candles automatically
+  // (e.g. every 5 minutes on a 5min chart) instead of waiting for API refetch.
   useEffect(() => {
     const liveData = livePrices[sym]
     if (!liveData?.price || !candleSeriesRef.current || !lastBarRef.current) return
     const price = liveData.price
     const last = lastBarRef.current
 
-    // Update the last candle's close, and extend high/low if needed
-    const updated = {
-      time: last.time,
-      open: last.open,
-      high: Math.max(last.high, price),
-      low: Math.min(last.low, price),
-      close: price,
-    }
+    // Compute which bar period this tick belongs to
+    const tickSec = liveData.updated_at || (Date.now() / 1000)
+    const barTime = computeBarTime(resolvedTf, tickSec)
+
+    // Detect new bar period (new candle should form)
+    const isNewBar = barTime !== last.time && barTime > last.time
 
     try {
-      candleSeriesRef.current.update(updated)
-      // Update volume too
-      if (volumeSeriesRef.current && liveData.volume) {
-        volumeSeriesRef.current.update({
+      if (isNewBar) {
+        // ── NEW CANDLE: first tick of a new period ──
+        const newBar = {
+          time: barTime,
+          open: price,
+          high: price,
+          low: price,
+          close: price,
+        }
+        candleSeriesRef.current.update(newBar) // LW Charts auto-adds new candle
+        if (volumeSeriesRef.current) {
+          volumeSeriesRef.current.update({
+            time: barTime,
+            value: 0,
+            color: 'rgba(74,222,128,0.35)',
+          })
+        }
+        lastBarRef.current = { ...newBar, volume: 0 }
+      } else {
+        // ── SAME CANDLE: update close, extend high/low ──
+        const updated = {
           time: last.time,
-          value: liveData.volume,
-          color: price >= last.open ? 'rgba(74,222,128,0.35)' : 'rgba(248,113,113,0.35)',
-        })
+          open: last.open,
+          high: Math.max(last.high, price),
+          low: Math.min(last.low, price),
+          close: price,
+        }
+        candleSeriesRef.current.update(updated)
+        if (volumeSeriesRef.current && liveData.volume) {
+          volumeSeriesRef.current.update({
+            time: last.time,
+            value: liveData.volume,
+            color: price >= last.open ? 'rgba(74,222,128,0.35)' : 'rgba(248,113,113,0.35)',
+          })
+        }
+        lastBarRef.current = { ...updated, volume: liveData.volume || last.volume }
       }
-      // Keep ref current
-      lastBarRef.current = { ...updated, volume: liveData.volume || last.volume }
     } catch {}
-  }, [livePrices, sym])
+  }, [livePrices, sym, resolvedTf])
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
