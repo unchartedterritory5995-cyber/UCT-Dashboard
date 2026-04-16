@@ -131,7 +131,7 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
-        # 3. Theme tracker ETF tickers from taxonomy
+        # 3. ALL theme tracker tickers from taxonomy — every ETF + every holding (all tiers)
         try:
             taxonomy_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "themes_taxonomy.json")
             if os.path.exists(taxonomy_path):
@@ -141,10 +141,8 @@ async def lifespan(app: FastAPI):
                     etf = theme.get("ticker")
                     if etf:
                         tickers.add(etf.upper())
-                    # Also add core holdings (tier=core only to keep it manageable)
                     for h in (theme.get("holdings") or []):
-                        if h.get("tier") == "core":
-                            tickers.add(h["sym"].upper())
+                        tickers.add(h["sym"].upper())
         except Exception:
             pass
 
@@ -184,7 +182,35 @@ async def lifespan(app: FastAPI):
                 except Exception:
                     pass
                 _t.sleep(0.3)
-        print(f"[prewarm] Done: {warmed} fetched, {skipped} already cached, {total_jobs} total")
+        print(f"[prewarm] Pass complete: {warmed} fetched, {skipped} already cached, {total_jobs} total")
+
+        # Continuous refresh — loop forever, re-fetching entries as they approach expiry.
+        # This keeps the disk cache permanently warm so charts are always instant.
+        while True:
+            _t.sleep(60)  # Check every minute
+            refreshed = 0
+            for sym in ticker_list:
+                for tf, bar_count in _TF_CONFIGS:
+                    # Only refresh if cache is expired or close to expiry
+                    if _disk.get(sym, tf, bar_count) is not None:
+                        continue
+                    try:
+                        if tf == 'D':
+                            bars = _fetch_daily(sym, bar_count)
+                        elif tf == 'W':
+                            bars = _fetch_weekly(sym, bar_count)
+                        else:
+                            bars = _fetch_intraday(sym, tf, bar_count)
+                        if bars:
+                            payload = {"ticker": sym, "tf": tf, "bars": bars}
+                            _disk.put(sym, tf, bar_count, payload)
+                            cache.set(f"bars_{sym}_{tf}_{bar_count}", payload, ttl=300)
+                            refreshed += 1
+                    except Exception:
+                        pass
+                    _t.sleep(0.3)
+            if refreshed:
+                print(f"[prewarm] Refresh pass: {refreshed} entries updated")
     threading.Thread(target=_prewarm_bars, daemon=True, name="bars-prewarm").start()
 
     # Seed theme taxonomy from JSON → SQLite
