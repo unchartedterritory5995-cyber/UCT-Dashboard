@@ -9,7 +9,7 @@ import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
-import { prefetchBars } from '../utils/prefetchBars'
+import { prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -385,9 +385,11 @@ function DrillModal({ drill, onClose }) {
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [chartPeriod, setChartPeriod] = useState('D')
 
-  // Prefetch adjacent tickers for instant chart flipping
+  // Prefetch all timeframes for current ticker + adjacent tickers for active TF
   useEffect(() => {
     if (!items.length) return
+    const current = items[selectedIdx]?.t
+    if (current) prefetchAllTimeframes(current)
     const upcoming = items.slice(selectedIdx + 1, selectedIdx + 6).map(i => i.t)
     prefetchBars(upcoming, chartPeriod)
   }, [selectedIdx, items, chartPeriod])
