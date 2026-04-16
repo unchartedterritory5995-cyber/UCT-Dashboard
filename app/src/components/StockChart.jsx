@@ -458,10 +458,18 @@ export default function StockChart({
       }).catch(() => {})
     }
 
-    // Zoom to last ~200 bars
-    if (bars.length > 200) {
+    // Default zoom per timeframe — matches professional terminal view
+    const defaultVisible = {
+      '5': 78,    // ~1 trading day of 5min bars
+      '30': 65,   // ~5 trading days of 30min bars
+      '60': 65,   // ~10 trading days of 1hr bars
+      'D': 65,    // ~3 months of daily bars
+      'W': 52,    // ~1 year of weekly bars
+    }
+    const visibleBars = defaultVisible[resolvedTf] || 65
+    if (bars.length > visibleBars) {
       chart.timeScale().setVisibleLogicalRange({
-        from: bars.length - 200,
+        from: bars.length - visibleBars,
         to: bars.length + 8,
       })
     } else {
