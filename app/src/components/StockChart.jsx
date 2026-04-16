@@ -148,6 +148,7 @@ export default function StockChart({
   const lastBarRef = useRef(null)
   const prevChartTypeRef = useRef(null)
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
+  const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
 
   // ── Extended hours toggle (regular session only vs all hours) ──
   const [showExtended, setShowExtended] = useState(() => {
@@ -253,7 +254,9 @@ export default function StockChart({
   // Handles both OHLC types (candles/bars) and close-only types (line/area).
   useEffect(() => {
     const liveData = livePrices[sym]
-    if (!liveData?.price || !candleSeriesRef.current || !lastBarRef.current) return
+    if (!liveData?.price) return
+    latestLiveRef.current = { sym, price: liveData.price, updated_at: liveData.updated_at }
+    if (!candleSeriesRef.current || !lastBarRef.current) return
     const price = liveData.price
     const last = lastBarRef.current
     const useOhlc = isOhlcType(cs.chartType)
@@ -406,6 +409,38 @@ export default function StockChart({
       const last = filteredBars[filteredBars.length - 1]
       // Use adjustTime so lastBarRef.time matches the chart series + computeBarTime
       lastBarRef.current = { time: adjustTime(last.t), open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
+    }
+
+    // Re-apply live price immediately after setData() to prevent snap-back.
+    // setData() overwrites with API data (stale by seconds/minutes), so we
+    // re-apply the latest WebSocket tick to keep the current candle accurate.
+    if (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price && lastBarRef.current) {
+      const lp = latestLiveRef.current.price
+      const tickSec = latestLiveRef.current.updated_at || (Date.now() / 1000)
+      const barTime = computeBarTime(resolvedTf, tickSec)
+      const last = lastBarRef.current
+      const isNew = barTime !== last.time && barTime > last.time
+
+      if (isNew) {
+        // Today's candle — create developing bar
+        const newBar = { time: barTime, open: lp, high: lp, low: lp, close: lp }
+        if (isOhlcType(cs.chartType)) {
+          candleSeriesRef.current.update(newBar)
+        } else {
+          candleSeriesRef.current.update({ time: barTime, value: lp })
+        }
+        lastBarRef.current = { ...newBar, volume: 0 }
+      } else {
+        // Same bar — update close/high/low
+        last.high = Math.max(last.high, lp)
+        last.low = Math.min(last.low, lp)
+        last.close = lp
+        if (isOhlcType(cs.chartType)) {
+          candleSeriesRef.current.update({ time: last.time, open: last.open, high: last.high, low: last.low, close: lp })
+        } else {
+          candleSeriesRef.current.update({ time: last.time, value: lp })
+        }
+      }
     }
 
     // ── Volume series (pane 1) — reuse if exists ──
