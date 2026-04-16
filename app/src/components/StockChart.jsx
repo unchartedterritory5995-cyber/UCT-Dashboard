@@ -276,9 +276,10 @@ export default function StockChart({
         // ── NEW CANDLE ──
         const live = latestLiveRef.current || {}
         const isDailyWeekly = resolvedTf === 'D' || resolvedTf === 'W'
-        const openPrice = (isDailyWeekly && live.day_open) ? live.day_open : last.close
-        const highPrice = isDailyWeekly ? Math.max(live.day_high || openPrice, price) : Math.max(openPrice, price)
-        const lowPrice = isDailyWeekly ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, price) : Math.min(openPrice, price)
+        // Daily/Weekly: use session OHLC. Intraday: use current tick as open (closest to actual first trade)
+        const openPrice = (isDailyWeekly && live.day_open) ? live.day_open : price
+        const highPrice = isDailyWeekly ? Math.max(live.day_high || openPrice, price) : price
+        const lowPrice = isDailyWeekly ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, price) : price
 
         // Initialize tick-accurate tracking for this bar
         liveBarRef.current = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price }
@@ -449,9 +450,9 @@ export default function StockChart({
       if (isNew) {
         const live = latestLiveRef.current
         const isDW = resolvedTf === 'D' || resolvedTf === 'W'
-        const openPrice = (isDW && live.day_open) ? live.day_open : last.close
-        const highPrice = isDW ? Math.max(live.day_high || openPrice, lp) : (lb ? Math.max(lb.high, lp) : Math.max(openPrice, lp))
-        const lowPrice = isDW ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, lp) : (lb ? Math.min(lb.low, lp) : Math.min(openPrice, lp))
+        const openPrice = (isDW && live.day_open) ? live.day_open : (lb ? lb.open : lp)
+        const highPrice = isDW ? Math.max(live.day_high || openPrice, lp) : (lb ? Math.max(lb.high, lp) : lp)
+        const lowPrice = isDW ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, lp) : (lb ? Math.min(lb.low, lp) : lp)
         const newBar = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: lp }
         if (isOhlcType(cs.chartType)) {
           candleSeriesRef.current.update(newBar)
