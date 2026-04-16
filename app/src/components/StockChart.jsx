@@ -271,11 +271,14 @@ export default function StockChart({
 
     try {
       if (isNewBar) {
-        // ── NEW CANDLE: use actual session OHLC from REST data for proper candle ──
+        // ── NEW CANDLE ──
+        // Daily/Weekly: use actual session OHLC from Massive snapshot
+        // Intraday: use previous bar's close (session OHLC doesn't apply to individual bars)
         const live = latestLiveRef.current || {}
-        const openPrice = live.day_open || last.close
-        const highPrice = Math.max(live.day_high || openPrice, price)
-        const lowPrice = Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, price)
+        const isDailyWeekly = resolvedTf === 'D' || resolvedTf === 'W'
+        const openPrice = (isDailyWeekly && live.day_open) ? live.day_open : last.close
+        const highPrice = isDailyWeekly ? Math.max(live.day_high || openPrice, price) : Math.max(openPrice, price)
+        const lowPrice = isDailyWeekly ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, price) : Math.min(openPrice, price)
         if (useOhlc) {
           const newBar = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price }
           candleSeriesRef.current.update(newBar)
@@ -427,11 +430,12 @@ export default function StockChart({
       const isNew = barTime !== last.time && barTime > last.time
 
       if (isNew) {
-        // Today's developing candle — use actual session OHLC from REST data
+        // Daily/Weekly: use actual session OHLC. Intraday: use prev bar's close.
         const live = latestLiveRef.current
-        const openPrice = live.day_open || last.close
-        const highPrice = Math.max(live.day_high || openPrice, lp)
-        const lowPrice = Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, lp)
+        const isDW = resolvedTf === 'D' || resolvedTf === 'W'
+        const openPrice = (isDW && live.day_open) ? live.day_open : last.close
+        const highPrice = isDW ? Math.max(live.day_high || openPrice, lp) : Math.max(openPrice, lp)
+        const lowPrice = isDW ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, lp) : Math.min(openPrice, lp)
         const newBar = {
           time: barTime,
           open: openPrice,
