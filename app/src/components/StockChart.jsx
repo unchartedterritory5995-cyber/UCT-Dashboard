@@ -67,6 +67,19 @@ function computeHVC(bars) {
   return hvcSet
 }
 
+// ─── ET timezone offset for intraday charts ─────────────────────────────────
+// LW Charts displays unix timestamps as UTC. We offset intraday timestamps
+// so the chart axis shows Eastern Time (handles EDT/EST automatically).
+
+function getETOffset() {
+  const now = new Date()
+  const utc = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }))
+  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  return Math.round((et - utc) / 1000) // -14400 for EDT, -18000 for EST
+}
+
+const _ET_OFFSET = getETOffset()
+
 // ─── Bar period computation (for real-time new candle creation) ──────────────
 
 const PERIOD_SECONDS = { '5': 300, '30': 1800, '60': 3600 }
@@ -85,9 +98,9 @@ function computeBarTime(tf, tickTimeSec) {
     et.setDate(et.getDate() - day + (day === 0 ? -6 : 1))
     return et.toISOString().split('T')[0]
   }
-  // Intraday: floor to period boundary (unix seconds)
+  // Intraday: floor to period boundary in UTC, then offset to ET for display
   const period = PERIOD_SECONDS[tf] || 300
-  return Math.floor(tickTimeSec / period) * period
+  return Math.floor(tickTimeSec / period) * period + _ET_OFFSET
 }
 
 // ─── Series type helpers ─────────────────────────────────────────────────────
@@ -172,13 +185,19 @@ export default function StockChart({
 
   // ── Memoized data transforms (only recompute when bars change) ─────────────
 
+  // Offset intraday timestamps from UTC → ET so chart axis shows Eastern Time
+  const adjustTime = useCallback(
+    (t) => typeof t === 'number' ? t + _ET_OFFSET : t,
+    []
+  )
+
   const ohlcData = useMemo(
-    () => bars ? bars.map(b => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c })) : [],
-    [bars]
+    () => bars ? bars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
+    [bars, adjustTime]
   )
   const closeData = useMemo(
-    () => bars ? bars.map(b => ({ time: b.t, value: b.c })) : [],
-    [bars]
+    () => bars ? bars.map(b => ({ time: adjustTime(b.t), value: b.c })) : [],
+    [bars, adjustTime]
   )
   const hvcSet = useMemo(
     () => cs.volume.hvcEnabled && bars?.length > 20 ? computeHVC(bars) : new Set(),
@@ -187,20 +206,20 @@ export default function StockChart({
   const volData = useMemo(() => {
     if (!bars?.length) return []
     return bars.map(b => ({
-      time: b.t,
+      time: adjustTime(b.t),
       value: b.v,
       color: hvcSet.has(b.t)
         ? 'rgba(201,168,76,0.9)'
         : b.c >= b.o ? cs.volume.upColor : cs.volume.downColor,
     }))
-  }, [bars, hvcSet, cs.volume.upColor, cs.volume.downColor])
+  }, [bars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime])
   const overlayData = useMemo(() => {
     if (!bars?.length || !resolvedOverlays?.length) return []
-    return resolvedOverlays.map(ov => ({
-      data: ov.type === 'EMA' ? computeEMA(bars, ov.period) : computeSMA(bars, ov.period),
-      color: ov.color,
-    }))
-  }, [bars, resolvedOverlays])
+    return resolvedOverlays.map(ov => {
+      const raw = ov.type === 'EMA' ? computeEMA(bars, ov.period) : computeSMA(bars, ov.period)
+      return { data: raw.map(p => ({ time: adjustTime(p.time), value: p.value })), color: ov.color }
+    })
+  }, [bars, resolvedOverlays, adjustTime])
 
   // Real-time candle updates — tick-by-tick via WebSocket.
   // Detects bar period boundaries and creates NEW candles automatically
