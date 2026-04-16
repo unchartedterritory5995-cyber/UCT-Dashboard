@@ -288,8 +288,8 @@ export default function Watchlists() {
     const idx = flagged.indexOf(selectedSym)
     if (idx < 0) return
     const upcoming = flagged.slice(idx + 1, idx + 6)
-    prefetchBars(upcoming)
-  }, [selectedSym, flagged])
+    prefetchBars(upcoming, chartPeriod)
+  }, [selectedSym, flagged, chartPeriod])
 
   function toggleList(id) {
     setExpandedLists(prev => {

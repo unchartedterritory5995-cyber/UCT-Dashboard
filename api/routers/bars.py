@@ -130,11 +130,11 @@ def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
         return []
 
 
-def _is_intraday_stale(bars: list[dict], max_age_days: int = 3) -> bool:
+def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
     """Check if intraday bars are stale (last bar older than max_age_days).
 
     Catches cases where Massive returns pre-split data that stops months/years ago.
-    3-day window accounts for weekends (Fri close → Mon premarket = ~2.5 days).
+    5-day window handles 3-day holiday weekends (Thu close → Mon = ~4 days).
     """
     if not bars:
         return True
@@ -228,15 +228,23 @@ def get_bars(
     disk_cached = disk_cache.get(ticker_up, tf, bars)
     if disk_cached is not None:
         if tf in ("5", "30", "60"):
-            # Intraday freshness check: last bar must be within N minutes
+            # Intraday freshness check: only during market hours (Mon-Fri 9:30-16:00 ET)
+            # Outside market hours, serve cached data (it won't change until next session)
             import time as _time
-            _max_age_min = {"5": 10, "30": 45, "60": 90}.get(tf, 60)
-            cached_bars = disk_cached.get("bars", [])
-            if cached_bars:
-                last_ts = cached_bars[-1].get("t", 0)
-                age_min = (_time.time() - last_ts) / 60
-                if age_min > _max_age_min:
-                    disk_cached = None  # Too stale for intraday — fetch fresh
+            from datetime import datetime as _dt
+            from zoneinfo import ZoneInfo as _ZI
+            _now_et = _dt.now(_ZI("America/New_York"))
+            _is_market = (_now_et.weekday() < 5
+                          and _now_et.hour >= 9 and _now_et.hour < 16
+                          and not (_now_et.hour == 9 and _now_et.minute < 30))
+            if _is_market:
+                _max_age_min = {"5": 10, "30": 45, "60": 90}.get(tf, 60)
+                cached_bars = disk_cached.get("bars", [])
+                if cached_bars:
+                    last_ts = cached_bars[-1].get("t", 0)
+                    age_min = (_time.time() - last_ts) / 60
+                    if age_min > _max_age_min:
+                        disk_cached = None  # Too stale for live market — fetch fresh
         if disk_cached is not None:
             cache.set(cache_key, disk_cached, ttl=_CACHE_TTL.get(tf, 300))
             return JSONResponse(

@@ -147,6 +147,7 @@ export default function StockChart({
   const priceLineRefs = useRef([])
   const lastBarRef = useRef(null)
   const prevChartTypeRef = useRef(null)
+  const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
 
   // ── Drawing tools state ──
   const [activeTool, setActiveTool] = useState(null)
@@ -221,14 +222,18 @@ export default function StockChart({
     })
   }, [bars, resolvedOverlays, adjustTime])
 
+  // Reset lastBarRef on symbol change to prevent wrong-symbol price race
+  useEffect(() => { lastBarRef.current = null }, [sym])
+
   // Real-time candle updates — tick-by-tick via WebSocket.
-  // Detects bar period boundaries and creates NEW candles automatically
-  // (e.g. every 5 minutes on a 5min chart) instead of waiting for API refetch.
+  // Detects bar period boundaries and creates NEW candles automatically.
+  // Handles both OHLC types (candles/bars) and close-only types (line/area).
   useEffect(() => {
     const liveData = livePrices[sym]
     if (!liveData?.price || !candleSeriesRef.current || !lastBarRef.current) return
     const price = liveData.price
     const last = lastBarRef.current
+    const useOhlc = isOhlcType(cs.chartType)
 
     // Compute which bar period this tick belongs to
     const tickSec = liveData.updated_at || (Date.now() / 1000)
@@ -240,22 +245,17 @@ export default function StockChart({
     try {
       if (isNewBar) {
         // ── NEW CANDLE: first tick of a new period ──
-        const newBar = {
-          time: barTime,
-          open: price,
-          high: price,
-          low: price,
-          close: price,
+        if (useOhlc) {
+          const newBar = { time: barTime, open: price, high: price, low: price, close: price }
+          candleSeriesRef.current.update(newBar)
+          lastBarRef.current = { ...newBar, volume: 0 }
+        } else {
+          candleSeriesRef.current.update({ time: barTime, value: price })
+          lastBarRef.current = { time: barTime, open: price, high: price, low: price, close: price, volume: 0 }
         }
-        candleSeriesRef.current.update(newBar) // LW Charts auto-adds new candle
         if (volumeSeriesRef.current) {
-          volumeSeriesRef.current.update({
-            time: barTime,
-            value: 0,
-            color: 'rgba(74,222,128,0.35)',
-          })
+          volumeSeriesRef.current.update({ time: barTime, value: 0, color: 'rgba(74,222,128,0.35)' })
         }
-        lastBarRef.current = { ...newBar, volume: 0 }
       } else {
         // ── SAME CANDLE: update close, extend high/low ──
         const updated = {
@@ -265,7 +265,11 @@ export default function StockChart({
           low: Math.min(last.low, price),
           close: price,
         }
-        candleSeriesRef.current.update(updated)
+        if (useOhlc) {
+          candleSeriesRef.current.update(updated)
+        } else {
+          candleSeriesRef.current.update({ time: last.time, value: price })
+        }
         if (volumeSeriesRef.current && liveData.volume) {
           volumeSeriesRef.current.update({
             time: last.time,
@@ -276,7 +280,7 @@ export default function StockChart({
         lastBarRef.current = { ...updated, volume: liveData.volume || last.volume }
       }
     } catch {}
-  }, [livePrices, sym, resolvedTf])
+  }, [livePrices, sym, resolvedTf, cs.chartType])
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
@@ -459,27 +463,32 @@ export default function StockChart({
       }).catch(() => {})
     }
 
-    // Default zoom per timeframe — matches professional terminal view
-    const defaultVisible = {
-      '5': 78,    // ~1 trading day of 5min bars
-      '30': 65,   // ~5 trading days of 30min bars
-      '60': 65,   // ~10 trading days of 1hr bars
-      'D': 65,    // ~3 months of daily bars
-      'W': 52,    // ~1 year of weekly bars
+    // Default zoom — only set on initial load or sym/tf change, NOT on SWR refetches
+    // (prevents losing user's scroll/zoom position every 15 seconds)
+    const zoomKey = `${sym}_${resolvedTf}`
+    if (zoomKeyRef.current !== zoomKey) {
+      zoomKeyRef.current = zoomKey
+      const defaultVisible = {
+        '5': 78,    // ~1 trading day of 5min bars
+        '30': 65,   // ~5 trading days of 30min bars
+        '60': 65,   // ~10 trading days of 1hr bars
+        'D': 65,    // ~3 months of daily bars
+        'W': 52,    // ~1 year of weekly bars
+      }
+      const visibleBars = defaultVisible[resolvedTf] || 65
+      if (bars.length > visibleBars) {
+        chart.timeScale().setVisibleLogicalRange({
+          from: bars.length - visibleBars,
+          to: bars.length + 8,
+        })
+      } else {
+        chart.timeScale().setVisibleLogicalRange({
+          from: 0,
+          to: bars.length + 8,
+        })
+      }
     }
-    const visibleBars = defaultVisible[resolvedTf] || 65
-    if (bars.length > visibleBars) {
-      chart.timeScale().setVisibleLogicalRange({
-        from: bars.length - visibleBars,
-        to: bars.length + 8,
-      })
-    } else {
-      chart.timeScale().setVisibleLogicalRange({
-        from: 0,
-        to: bars.length + 8,
-      })
-    }
-  }, [bars, ohlcData, closeData, volData, overlayData, sym, showVolume, markers, priceLines, watermark, cs, adjustTime])
+  }, [bars, ohlcData, closeData, volData, overlayData, sym, showVolume, markers, priceLines, watermark, cs, adjustTime, resolvedTf])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

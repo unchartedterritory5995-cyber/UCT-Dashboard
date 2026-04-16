@@ -42,6 +42,7 @@ export default function useRealtimePrices(tickers = []) {
 
     es.onerror = () => {
       setConnected(false)
+      setStreamPrices({})  // Clear stale stream data so fresh REST prices take over
       es.close()
       esRef.current = null
       // Reconnect after 5 seconds

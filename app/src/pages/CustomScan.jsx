@@ -411,8 +411,8 @@ export default function CustomScan({ allCandidates }) {
     const idx = results.findIndex(r => r.ticker === selectedSym)
     if (idx < 0) return
     const upcoming = results.slice(idx + 1, idx + 6).map(r => r.ticker)
-    prefetchBars(upcoming)
-  }, [selectedSym, results])
+    prefetchBars(upcoming, chartPeriod)
+  }, [selectedSym, results, chartPeriod])
 
   // Sort toggle helper
   const toggleSort = key => {
