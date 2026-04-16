@@ -116,12 +116,17 @@ async def lifespan(app: FastAPI):
         purged = _disk.purge_empty()
         if purged:
             print(f"[prewarm] Purged {purged} empty cache entries")
-        # One-time purge: clear intraday cache from old 15s timeout (truncated to 500 bars)
-        _purge_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".intraday_purged_v3")
+        # One-time nuke: delete entire bars cache directory (old 500-bar entries)
+        _purge_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".cache_nuked_v1")
         if not os.path.exists(_purge_flag):
-            purged_id = _disk.purge_intraday()
-            if purged_id:
-                print(f"[prewarm] Purged {purged_id} intraday cache entries (v3)")
+            import shutil
+            _cache_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+            try:
+                if os.path.isdir(_cache_dir):
+                    shutil.rmtree(_cache_dir)
+                    print(f"[prewarm] Nuked entire bars_cache directory")
+            except Exception as e:
+                print(f"[prewarm] Cache nuke failed: {e}")
             try:
                 with open(_purge_flag, "w") as f:
                     f.write("done")
