@@ -129,29 +129,15 @@ export default function StockChart({
   }, [setPref])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
 
-  // Two-phase loading: quick bars for instant chart, full history backfills silently
-  const quickBars = resolvedTf === 'D' ? 250 : resolvedTf === 'W' ? 100 : 300
-  const fullBars = resolvedTf === 'D' ? 5000 : resolvedTf === 'W' ? 2000 : 300
-  const needsTwoPhase = quickBars !== fullBars
+  const barCount = resolvedTf === 'D' ? 5000 : resolvedTf === 'W' ? 2000 : 300
 
-  // Phase 1: Quick load — small date range, fast response (~1-2s)
-  const { data: quickData, error: quickError, mutate } = useSWR(
-    sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${quickBars}` : null,
+  const { data, error, mutate } = useSWR(
+    sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}` : null,
     fetcher,
     { dedupingInterval: 60000, revalidateOnFocus: false }
   )
 
-  // Phase 2: Full history — loads in background, swaps in seamlessly
-  const { data: fullData } = useSWR(
-    sym && needsTwoPhase ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${fullBars}` : null,
-    fetcher,
-    { dedupingInterval: 60000, revalidateOnFocus: false }
-  )
-
-  // Use full data when available, fall back to quick data
-  const data = fullData || quickData
   const bars = data?.bars
-  const error = quickError
   const loading = !quickData && !quickError
 
   // Real-time price streaming for live candle updates

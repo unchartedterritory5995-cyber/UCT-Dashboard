@@ -1,18 +1,18 @@
 // Prefetch bar data into SWR cache for instant chart loading.
-// Prefetches the QUICK bar count (250 daily / 100 weekly) that StockChart
-// loads first for instant rendering. Full history backfills automatically.
+// Uses full bar counts matching StockChart's request so SWR cache keys align.
+// Server-side disk cache makes these fast (~10ms) for pre-warmed tickers.
 import { preload } from 'swr'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
-// Must match StockChart's quickBars values
-const QUICK_BARS = { D: 250, W: 100, 5: 300, 30: 300, 60: 300 }
+// Must match StockChart's barCount values
+const BAR_COUNTS = { D: 5000, W: 2000, 5: 300, 30: 300, 60: 300 }
 const ALL_TFS = ['D', 'W', '5', '30', '60']
 
 // Prefetch a list of tickers for a specific timeframe
 export function prefetchBars(tickers, tf = 'D') {
   if (!tickers?.length) return
-  const bars = QUICK_BARS[tf] ?? 250
+  const bars = BAR_COUNTS[tf] ?? 5000
   for (const sym of tickers) {
     if (!sym) continue
     preload(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}`, fetcher)
@@ -22,7 +22,7 @@ export function prefetchBars(tickers, tf = 'D') {
 // Prefetch a single ticker for one timeframe (hover)
 export function prefetchBar(sym, tf = 'D') {
   if (!sym) return
-  const bars = QUICK_BARS[tf] ?? 250
+  const bars = BAR_COUNTS[tf] ?? 5000
   preload(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}`, fetcher)
 }
 
@@ -31,6 +31,6 @@ export function prefetchBar(sym, tf = 'D') {
 export function prefetchAllTimeframes(sym) {
   if (!sym) return
   for (const tf of ALL_TFS) {
-    preload(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${QUICK_BARS[tf]}`, fetcher)
+    preload(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BAR_COUNTS[tf]}`, fetcher)
   }
 }

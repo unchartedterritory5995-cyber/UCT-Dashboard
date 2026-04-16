@@ -104,30 +104,70 @@ async def lifespan(app: FastAPI):
 
     _seed_cache_from_volume()
 
-    # Pre-warm bars disk cache for common tickers (background, non-blocking)
-    # Uses quick bar count (250) for fast pre-warm (~1.5s each vs 30s for 5000)
+    # Pre-warm bars disk cache — background thread fetches all commonly viewed
+    # tickers so charts load instantly from disk cache. Runs on every startup,
+    # skips tickers already cached on disk (survives Railway restarts).
     def _prewarm_bars():
         from api.services import bars_disk_cache as _disk
         from api.routers.bars import _fetch_daily
         import time as _t
-        _TOP = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA', 'AMZN', 'META',
-                'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM', 'COIN', 'MSTR', 'HOOD', 'ANET']
+
+        # Gather all tickers worth pre-caching
+        tickers = set()
+
+        # 1. Core market indices + mega caps (always needed)
+        tickers.update(['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
+                        'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
+                        'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER'])
+
+        # 2. UCT20 stocks from wire_data
+        try:
+            wd = cache.get("wire_data")
+            if wd:
+                for pick in (wd.get("uct20") or wd.get("leadership") or []):
+                    sym = pick.get("ticker") or pick.get("sym")
+                    if sym:
+                        tickers.add(sym.upper())
+        except Exception:
+            pass
+
+        # 3. Theme tracker ETF tickers from taxonomy
+        try:
+            taxonomy_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "themes_taxonomy.json")
+            if os.path.exists(taxonomy_path):
+                with open(taxonomy_path) as f:
+                    themes = json.load(f)
+                for theme in themes:
+                    etf = theme.get("ticker")
+                    if etf:
+                        tickers.add(etf.upper())
+                    # Also add core holdings (tier=core only to keep it manageable)
+                    for h in (theme.get("holdings") or []):
+                        if h.get("tier") == "core":
+                            tickers.add(h["sym"].upper())
+        except Exception:
+            pass
+
+        tickers.discard('')
+        print(f"[prewarm] Targeting {len(tickers)} tickers for bars disk cache")
+
         warmed = 0
-        for sym in _TOP:
-            # Pre-warm the quick (250-bar) cache that StockChart loads first
-            if _disk.get(sym, 'D', 250) is None:
-                try:
-                    bars = _fetch_daily(sym, 250)
-                    if bars:
-                        payload = {"ticker": sym, "tf": "D", "bars": bars}
-                        _disk.put(sym, 'D', 250, payload)
-                        cache.set(f"bars_{sym}_D_250", payload, ttl=300)
-                        warmed += 1
-                except Exception:
-                    pass
-                _t.sleep(0.2)
-        if warmed:
-            print(f"[startup] Pre-warmed {warmed} quick bar caches")
+        skipped = 0
+        for sym in sorted(tickers):
+            if _disk.get(sym, 'D', 5000) is not None:
+                skipped += 1
+                continue  # Already cached on disk
+            try:
+                bars = _fetch_daily(sym, 5000)
+                if bars:
+                    payload = {"ticker": sym, "tf": "D", "bars": bars}
+                    _disk.put(sym, 'D', 5000, payload)
+                    cache.set(f"bars_{sym}_D_5000", payload, ttl=300)
+                    warmed += 1
+            except Exception:
+                pass
+            _t.sleep(0.3)  # Pace to avoid rate limits
+        print(f"[prewarm] Done: {warmed} fetched, {skipped} already cached, {len(tickers)} total")
     threading.Thread(target=_prewarm_bars, daemon=True, name="bars-prewarm").start()
 
     # Seed theme taxonomy from JSON → SQLite
