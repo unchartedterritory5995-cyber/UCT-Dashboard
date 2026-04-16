@@ -101,6 +101,43 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
         return []
 
 
+def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
+    """Fetch intraday bars from FMP (paid tier). Reliable, no rate limits."""
+    import os, urllib.request
+    fmp_key = os.environ.get("FMP_API_KEY", "")
+    if not fmp_key:
+        return []
+    interval_map = {'5': '5min', '30': '30min', '60': '1hour'}
+    interval = interval_map.get(tf)
+    if not interval:
+        return []
+    try:
+        url = f"https://financialmodelingprep.com/stable/historical-chart/{interval}?symbol={ticker.upper()}&apikey={fmp_key}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            import json as _json
+            data = _json.loads(resp.read().decode("utf-8"))
+        if not isinstance(data, list) or not data:
+            return []
+        bars = []
+        for bar in reversed(data):  # FMP returns newest first
+            try:
+                dt = datetime.strptime(bar["date"], "%Y-%m-%d %H:%M:%S")
+                bars.append({
+                    "t": int(dt.timestamp()),
+                    "o": round(float(bar["open"]), 2),
+                    "h": round(float(bar["high"]), 2),
+                    "l": round(float(bar["low"]), 2),
+                    "c": round(float(bar["close"]), 2),
+                    "v": int(bar.get("volume", 0)),
+                })
+            except (KeyError, ValueError):
+                continue
+        return bars[-max_bars:]
+    except Exception:
+        return []
+
+
 def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars from yfinance (fallback). Includes premarket + after-hours."""
     import yfinance as yf
@@ -147,18 +184,23 @@ def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
 
 
 def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
-    """Fetch intraday bars — Massive API primary, yfinance fallback.
+    """Fetch intraday bars — Massive primary, FMP + yfinance fallbacks.
 
-    If Massive returns empty or stale data (timeout, split, etc.),
-    falls back to yfinance (split-adjusted, includes premarket).
-    30min goes straight to yfinance (Massive 401s on this timeframe).
+    5min/60min: Massive API primary, yfinance fallback.
+    30min: FMP primary (Massive 401s), yfinance secondary.
     """
     if tf != '30':
         bars = _fetch_intraday_massive(ticker, tf, max_bars)
         if bars and not _is_intraday_stale(bars):
             return bars
 
-    # Still stale — fall back to yfinance (split-adjusted + premarket)
+    # 30min: try FMP first (paid, reliable, no rate limits)
+    if tf == '30':
+        fmp_bars = _fetch_intraday_fmp(ticker, tf, max_bars)
+        if fmp_bars and not _is_intraday_stale(fmp_bars):
+            return fmp_bars
+
+    # Fallback: yfinance (split-adjusted + premarket)
     yf_bars = _fetch_intraday_yfinance(ticker, tf, max_bars)
     if yf_bars:
         return yf_bars
