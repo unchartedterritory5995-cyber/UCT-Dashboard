@@ -105,6 +105,7 @@ async def lifespan(app: FastAPI):
     _seed_cache_from_volume()
 
     # Pre-warm bars disk cache for common tickers (background, non-blocking)
+    # Uses quick bar count (250) for fast pre-warm (~1.5s each vs 30s for 5000)
     def _prewarm_bars():
         from api.services import bars_disk_cache as _disk
         from api.routers.bars import _fetch_daily
@@ -113,20 +114,20 @@ async def lifespan(app: FastAPI):
                 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM', 'COIN', 'MSTR', 'HOOD', 'ANET']
         warmed = 0
         for sym in _TOP:
-            if _disk.get(sym, 'D', 5000) is not None:
-                continue  # Already cached on disk
-            try:
-                bars = _fetch_daily(sym, 5000)
-                if bars:
-                    payload = {"ticker": sym, "tf": "D", "bars": bars}
-                    _disk.put(sym, 'D', 5000, payload)
-                    cache.set(f"bars_{sym}_D_5000", payload, ttl=300)
-                    warmed += 1
-            except Exception:
-                pass
-            _t.sleep(0.3)
+            # Pre-warm the quick (250-bar) cache that StockChart loads first
+            if _disk.get(sym, 'D', 250) is None:
+                try:
+                    bars = _fetch_daily(sym, 250)
+                    if bars:
+                        payload = {"ticker": sym, "tf": "D", "bars": bars}
+                        _disk.put(sym, 'D', 250, payload)
+                        cache.set(f"bars_{sym}_D_250", payload, ttl=300)
+                        warmed += 1
+                except Exception:
+                    pass
+                _t.sleep(0.2)
         if warmed:
-            print(f"[startup] Pre-warmed {warmed} bar caches")
+            print(f"[startup] Pre-warmed {warmed} quick bar caches")
     threading.Thread(target=_prewarm_bars, daemon=True, name="bars-prewarm").start()
 
     # Seed theme taxonomy from JSON → SQLite

@@ -1,15 +1,16 @@
 // Prefetch bar data into SWR cache for instant chart loading.
-// Call with an array of tickers — data loads in background so
-// StockChart gets a cache hit when it mounts.
+// Prefetches the QUICK bar count (250 daily / 100 weekly) that StockChart
+// loads first for instant rendering. Full history backfills automatically.
 import { preload } from 'swr'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
-const BAR_COUNTS = { D: 5000, W: 2000, 5: 300, 30: 300, 60: 300 }
+// Must match StockChart's quickBars values
+const QUICK_BARS = { D: 250, W: 100, 5: 300, 30: 300, 60: 300 }
 
 export function prefetchBars(tickers, tf = 'D') {
   if (!tickers?.length) return
-  const bars = BAR_COUNTS[tf] ?? 5000
+  const bars = QUICK_BARS[tf] ?? 250
   for (const sym of tickers) {
     if (!sym) continue
     preload(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}`, fetcher)
@@ -19,6 +20,6 @@ export function prefetchBars(tickers, tf = 'D') {
 // Prefetch a single ticker (convenience for hover)
 export function prefetchBar(sym, tf = 'D') {
   if (!sym) return
-  const bars = BAR_COUNTS[tf] ?? 5000
+  const bars = QUICK_BARS[tf] ?? 250
   preload(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}`, fetcher)
 }
