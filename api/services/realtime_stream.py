@@ -106,9 +106,12 @@ async def _run_websocket():
                     auth_data = auth_data[0]
                 status = auth_data.get("status", "")
                 if status != "auth_success":
-                    _logger.error("[stream] Auth failed: %s", auth_data)
+                    _logger.error("[stream] Auth failed: %s — retrying in %ds", auth_data, backoff)
                     _running = False
-                    return
+                    _ws_connection = None
+                    await asyncio.sleep(backoff)
+                    backoff = min(backoff * 2, 60)
+                    continue  # Retry connection instead of dying permanently
                 _logger.info("[stream] Authenticated successfully")
 
                 # Subscribe to trades (tick-by-tick) + per-minute aggregates (backup)
