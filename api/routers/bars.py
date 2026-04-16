@@ -209,6 +209,15 @@ def get_bars(
 
     3-layer cache: memory (~5min) → disk (~4hr) → Massive API (~4-8s).
     """
+    try:
+        return _get_bars_inner(ticker, tf, bars)
+    except Exception as e:
+        import logging, traceback
+        logging.getLogger(__name__).error(f"[bars] CRASH {ticker} tf={tf}: {e}\n{traceback.format_exc()}")
+        return JSONResponse(content={"ticker": ticker.upper(), "tf": tf, "bars": []})
+
+
+def _get_bars_inner(ticker: str, tf: str, bars: int):
     ticker_up = ticker.upper()
     cache_key = f"bars_{ticker_up}_{tf}_{bars}"
 
