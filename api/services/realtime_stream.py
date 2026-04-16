@@ -76,6 +76,18 @@ async def _async_subscribe(tickers):
             _logger.warning("[stream] Subscribe %s failed: %s", sym, e)
 
 
+def _load_full_universe():
+    """Load all tickers from cap_universe.json for full WebSocket subscription."""
+    import json as _json
+    try:
+        path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "cap_universe.json")
+        with open(path) as f:
+            tickers = _json.load(f)
+        return set(t.upper() for t in tickers if t)
+    except Exception:
+        return set()
+
+
 async def _run_websocket():
     """Main WebSocket loop — connect, subscribe, process Finnhub trade messages."""
     global _ws_connection, _running
@@ -95,11 +107,14 @@ async def _run_websocket():
                 backoff = 1
                 _logger.info("[stream] Finnhub WebSocket connected")
 
-                # Subscribe all current tickers
-                for sym in _subscribed:
+                # Subscribe full $300M+ universe on connect
+                universe = _load_full_universe()
+                if universe:
+                    _subscribed.update(universe)
+                all_tickers = sorted(_subscribed)
+                for sym in all_tickers:
                     await ws.send(json.dumps({"type": "subscribe", "symbol": sym}))
-                if _subscribed:
-                    _logger.info("[stream] Subscribed to %d tickers", len(_subscribed))
+                _logger.info("[stream] Subscribed to %d tickers (full universe)", len(all_tickers))
 
                 # Process messages
                 async for raw_msg in ws:
