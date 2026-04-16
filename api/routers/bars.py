@@ -67,7 +67,9 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
     60min ~7 bars/day  → 5000 bars ≈ 715 trading days → 1000 calendar days
     """
     multiplier = int(tf)  # 5, 30, or 60
-    bars_per_day = 390 // multiplier  # ~78 for 5min, ~13 for 30min, ~6.5 for 60min
+    # Account for extended hours (~16hr/day) to avoid oversized API responses
+    # that timeout from Railway. Regular session = 6.5hr, extended = 16hr.
+    bars_per_day = (16 * 60) // multiplier  # ~192 for 5min, ~32 for 30min, ~16 for 60min
     lookback_days = max(10, int(max_bars / max(bars_per_day, 1) * 1.5) + 5)
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
