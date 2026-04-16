@@ -151,10 +151,12 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
 
     If Massive returns empty or stale data (timeout, split, etc.),
     falls back to yfinance (split-adjusted, includes premarket).
+    30min goes straight to yfinance (Massive 401s on this timeframe).
     """
-    bars = _fetch_intraday_massive(ticker, tf, max_bars)
-    if bars and not _is_intraday_stale(bars):
-        return bars
+    if tf != '30':
+        bars = _fetch_intraday_massive(ticker, tf, max_bars)
+        if bars and not _is_intraday_stale(bars):
+            return bars
 
     # Still stale — fall back to yfinance (split-adjusted + premarket)
     yf_bars = _fetch_intraday_yfinance(ticker, tf, max_bars)
