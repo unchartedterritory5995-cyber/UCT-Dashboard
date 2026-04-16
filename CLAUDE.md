@@ -42,13 +42,25 @@ Hamburger + slide-out drawer (hidden on desktop). Fixed header with page title +
 All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key component: `app/src/components/StockChart.jsx`.
 - 5 chart types: candles, hollow, bars (OHLC), line, area — user-selectable
 - Candlestick + volume (separate panes), configurable MA overlays (4 slots)
-- HVC gold volume bars (52W volume high detection)
+- HVC gold volume bars (52W volume high detection, O(n) sliding window deque)
 - BUY/SELL markers, entry/stop price lines
 - 200-bar default zoom via `setVisibleLogicalRange`, 8-bar right padding
 - `rightBarStaysOnScroll: true` — latest candle stays pinned when zooming
-- Full history: 5000 daily, 2000 weekly, 300 intraday bars
-- Backend: `/api/bars/{ticker}?tf=D&bars=5000` (Massive API daily/weekly, yfinance intraday fallback)
+- **5000 bars ALL timeframes** (5min/30min/1hr/Daily/Weekly)
+- Backend: `/api/bars/{ticker}?tf=D&bars=5000` (Massive API primary, yfinance fallback for stale intraday)
 - **COT charts are Chart.js** — do NOT replace those
+
+### Chart Performance Architecture
+- **Chart instance reuse**: no DOM destroy on ticker switch — `setData()` on existing series, `applyOptions()` for settings. Only `chart.remove()` on unmount.
+- **Memoized data**: `ohlcData`, `closeData`, `volData`, `overlayData`, `resolvedOverlays` all wrapped in `useMemo`. Prevents recomputation on non-data changes.
+- **GZip compression**: `GZipMiddleware` on FastAPI (skips `/api/stream/*` SSE endpoints), ~6x smaller payloads
+- **3-layer cache**: in-memory TTLCache (~1ms, 5-15min) → persistent disk `/data/bars_cache/` (~10ms, 2-72hr) → Massive API (4-30s)
+- **Disk cache TTLs**: D=48hr, W=72hr, 60m=8hr, 30m=4hr, 5m=2hr. Empty results never cached.
+- **Full universe pre-cache**: background thread on startup fetches 3,685 tickers (`api/data/cap_universe.json`) × 5 TFs = 18,425 entries. Also pulls tickers from wire_data (UCT20, candidates, earnings), theme taxonomy (all tiers), watchlists, and tagged tickers. Continuous refresh loop cycles permanently.
+- **SWR prefetch**: `app/src/utils/prefetchBars.js` — `prefetchBars(tickers, tf)` warms adjacent tickers in list contexts, `prefetchAllTimeframes(sym)` warms all 5 TFs on selection. Wired into DrillModal, ThemeTrackerPage, Watchlists, CustomScan. `prefetchBar(sym)` on TickerPopup hover.
+- **Stale intraday detection**: `_is_intraday_stale()` checks if Massive data is >5 days old (catches pre-split bars), falls back to yfinance (split-adjusted).
+- **Lookback caps**: daily/weekly capped at 30 years (10,950 days) to avoid strftime crash on pre-1900 dates. Intraday scales dynamically: `bars_per_day = 390 / multiplier`, lookback = `max_bars / bars_per_day * 1.5`.
+- **Startup purge**: `bars_disk_cache.purge_empty()` removes empty cache files from prior bugs.
 
 ### Chart Settings System
 - `app/src/components/chart/chartDefaults.js` — schema, defaults, 3 presets (Classic Dark / OLED Black / TradingView)
@@ -194,7 +206,7 @@ UCT Intelligence KB → Morning Wire Engine → wire_data.json → POST /api/pus
 | Tile | Source | Refresh |
 |------|--------|---------|
 | Live Prices | Massive API batch snapshot (`/api/live-prices`) | 15s (30s mobile) |
-| Chart Bars | Massive API daily/weekly, yfinance intraday (`/api/bars`) | 60s/300s/900s cache |
+| Chart Bars | Massive API primary, yfinance fallback for stale intraday (`/api/bars`) | 3-layer: memory 5-15min / disk 2-72hr / API |
 | Market Snapshot | Massive API (Railway fetches live) | 15s |
 | Top Movers | Massive API (Railway fetches live) | 30s |
 | News | AlphaVantage (primary) + RSS fallback (live) | 30 min (AV) / 10 min (RSS) |
