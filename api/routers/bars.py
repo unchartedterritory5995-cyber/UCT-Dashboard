@@ -126,12 +126,33 @@ def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
         return []
 
 
+def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
+    """Check if intraday bars are stale (last bar older than max_age_days).
+
+    Catches cases where Massive returns pre-split data that stops months/years ago.
+    """
+    if not bars:
+        return True
+    last_ts = bars[-1]["t"]  # unix seconds
+    age_days = (datetime.utcnow().timestamp() - last_ts) / 86400
+    return age_days > max_age_days
+
+
 def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
-    """Fetch intraday bars — Massive API primary, yfinance fallback."""
+    """Fetch intraday bars — Massive API primary, yfinance fallback.
+
+    Falls back to yfinance if Massive returns stale data (e.g. pre-split
+    bars that stop months ago). yfinance provides split-adjusted intraday.
+    """
     bars = _fetch_intraday_massive(ticker, tf, max_bars)
-    if bars:
+    if bars and not _is_intraday_stale(bars):
         return bars
-    return _fetch_intraday_yfinance(ticker, tf, max_bars)
+    # Massive returned nothing or stale data — try yfinance (split-adjusted)
+    yf_bars = _fetch_intraday_yfinance(ticker, tf, max_bars)
+    if yf_bars:
+        return yf_bars
+    # Return whatever Massive had (stale > nothing)
+    return bars or []
 
 
 def _fetch_daily(ticker: str, max_bars: int) -> list[dict]:
