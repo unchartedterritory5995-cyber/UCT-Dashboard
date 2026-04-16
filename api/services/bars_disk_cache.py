@@ -31,16 +31,47 @@ def _path(ticker: str, tf: str, bars: int) -> str:
 
 
 def get(ticker: str, tf: str, bars: int):
-    """Return cached payload dict or None if missing/expired."""
+    """Return cached payload dict or None if missing/expired/empty."""
     try:
         p = _path(ticker, tf, bars)
         age = time.time() - os.path.getmtime(p)
         if age > _DISK_TTL.get(tf, 14400):
             return None
         with open(p, 'r') as f:
-            return json.load(f)
+            data = json.load(f)
+        # Reject empty cached results — they should retry, not serve blank charts
+        if not data.get("bars"):
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+            return None
+        return data
     except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
         return None
+
+
+def purge_empty():
+    """Remove all cached files with empty bars arrays (from prior bugs)."""
+    try:
+        if not os.path.isdir(_CACHE_DIR):
+            return 0
+        removed = 0
+        for fname in os.listdir(_CACHE_DIR):
+            if not fname.endswith('.json'):
+                continue
+            p = os.path.join(_CACHE_DIR, fname)
+            try:
+                with open(p, 'r') as f:
+                    data = json.load(f)
+                if not data.get("bars"):
+                    os.remove(p)
+                    removed += 1
+            except Exception:
+                pass
+        return removed
+    except Exception:
+        return 0
 
 
 def put(ticker: str, tf: str, bars: int, payload: dict):
