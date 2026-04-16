@@ -68,9 +68,10 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """
     multiplier = int(tf)  # 5, 30, or 60
     # Account for extended hours (~16hr/day) to avoid oversized API responses
-    # that timeout from Railway. Regular session = 6.5hr, extended = 16hr.
+    # that timeout from Railway. Cap 5m/30m at 90 days; 60m can go longer.
     bars_per_day = (16 * 60) // multiplier  # ~192 for 5min, ~32 for 30min, ~16 for 60min
-    lookback_days = max(10, int(max_bars / max(bars_per_day, 1) * 1.5) + 5)
+    max_lookback = 90 if multiplier <= 30 else 600  # 5m/30m capped, 60m uncapped
+    lookback_days = min(max_lookback, max(10, int(max_bars / max(bars_per_day, 1) * 1.5) + 5))
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
 
