@@ -250,12 +250,17 @@ def get_bars(
             )
 
     # Layer 3: Fetch from Massive API (slow — 4-8s from Railway)
-    if tf in ("5", "30", "60"):
-        result_bars = _fetch_intraday(ticker_up, tf, bars)
-    elif tf == "W":
-        result_bars = _fetch_weekly(ticker_up, bars)
-    else:
-        result_bars = _fetch_daily(ticker_up, bars)
+    try:
+        if tf in ("5", "30", "60"):
+            result_bars = _fetch_intraday(ticker_up, tf, bars)
+        elif tf == "W":
+            result_bars = _fetch_weekly(ticker_up, bars)
+        else:
+            result_bars = _fetch_daily(ticker_up, bars)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"[bars] Fetch failed {ticker_up} tf={tf}: {e}")
+        result_bars = []
 
     payload = {"ticker": ticker_up, "tf": tf, "bars": result_bars}
 
