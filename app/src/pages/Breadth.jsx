@@ -9,6 +9,7 @@ import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
+import { prefetchBars } from '../utils/prefetchBars'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -383,6 +384,13 @@ function DrillModal({ drill, onClose }) {
   const items = drill.items ?? []
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [chartPeriod, setChartPeriod] = useState('D')
+
+  // Prefetch adjacent tickers for instant chart flipping
+  useEffect(() => {
+    if (!items.length) return
+    const upcoming = items.slice(selectedIdx + 1, selectedIdx + 6).map(i => i.t)
+    prefetchBars(upcoming, chartPeriod)
+  }, [selectedIdx, items, chartPeriod])
   const [flagToast, setFlagToast] = useState(null)
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const rowRefs = useRef([])

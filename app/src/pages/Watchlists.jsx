@@ -10,6 +10,7 @@ import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { TAG_COLORS, TAG_BY_KEY } from '../constants/tagColors'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
+import { prefetchBars } from '../utils/prefetchBars'
 import styles from './Watchlists.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -278,6 +279,15 @@ export default function Watchlists() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
+
+  // Prefetch adjacent tickers for instant chart flipping
+  useEffect(() => {
+    if (!selectedSym || !flagged.length) return
+    const idx = flagged.indexOf(selectedSym)
+    if (idx < 0) return
+    const upcoming = flagged.slice(idx + 1, idx + 6)
+    prefetchBars(upcoming)
+  }, [selectedSym, flagged])
 
   function toggleList(id) {
     setExpandedLists(prev => {

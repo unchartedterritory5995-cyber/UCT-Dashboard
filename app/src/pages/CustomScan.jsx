@@ -5,6 +5,7 @@ import SymbolSearch from '../components/chart/SymbolSearch'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
+import { prefetchBars } from '../utils/prefetchBars'
 import styles from './CustomScan.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -401,6 +402,15 @@ export default function CustomScan({ allCandidates }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [selectedSym, results])
+
+  // Prefetch adjacent tickers for instant chart flipping
+  useEffect(() => {
+    if (!selectedSym || !results.length) return
+    const idx = results.findIndex(r => r.ticker === selectedSym)
+    if (idx < 0) return
+    const upcoming = results.slice(idx + 1, idx + 6).map(r => r.ticker)
+    prefetchBars(upcoming)
   }, [selectedSym, results])
 
   // Sort toggle helper

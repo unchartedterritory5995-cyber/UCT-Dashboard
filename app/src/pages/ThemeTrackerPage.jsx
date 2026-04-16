@@ -8,6 +8,7 @@ import SymbolSearch from '../components/chart/SymbolSearch'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
+import { prefetchBars } from '../utils/prefetchBars'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
@@ -237,6 +238,15 @@ export default function ThemeTrackerPage() {
 
   const [chartPeriod, setChartPeriod] = useState('D')
   const [flagToast, setFlagToast] = useState(null)
+
+  // Prefetch adjacent tickers for instant chart flipping
+  useEffect(() => {
+    if (!selectedSym || !allStocks.length) return
+    const idx = allStocks.findIndex(s => s.sym === selectedSym)
+    if (idx < 0) return
+    const upcoming = allStocks.slice(idx + 1, idx + 6).map(s => s.sym)
+    prefetchBars(upcoming, chartPeriod)
+  }, [selectedSym, allStocks, chartPeriod])
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
   const tickerActions = useTickerActions()

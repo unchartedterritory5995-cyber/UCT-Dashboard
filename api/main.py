@@ -289,6 +289,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.add_middleware(MaintenanceMiddleware)
+# Gzip responses >1KB — cuts ~200KB bar payloads to ~30KB on the wire
+from starlette.middleware.gzip import GZipMiddleware
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

@@ -7,6 +7,7 @@ import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import PositionCalc from './PositionCalc'
 import TickerActionsMenu, { useTickerActions } from './TickerActions'
+import { prefetchBar } from '../utils/prefetchBars'
 import styles from './TickerPopup.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -144,6 +145,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
       <Tag
         className={`${styles.trigger}${className ? ` ${className}` : ''}`}
         onClick={() => { setModalOpen(true); setTab('Daily') }}
+        onMouseEnter={() => prefetchBar(sym, 'D')}
         onContextMenu={e => tickerActions.openMenu(e, sym)}
         role="button"
         aria-label={`View chart for ${sym}`}
