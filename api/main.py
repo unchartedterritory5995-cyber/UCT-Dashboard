@@ -117,11 +117,11 @@ async def lifespan(app: FastAPI):
         if purged:
             print(f"[prewarm] Purged {purged} empty cache entries")
         # One-time purge: clear intraday cache from old 15s timeout (truncated to 500 bars)
-        _purge_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".intraday_purged_v2")
+        _purge_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".intraday_purged_v3")
         if not os.path.exists(_purge_flag):
             purged_id = _disk.purge_intraday()
             if purged_id:
-                print(f"[prewarm] Purged {purged_id} intraday cache entries (one-time fix)")
+                print(f"[prewarm] Purged {purged_id} intraday cache entries (v3)")
             try:
                 with open(_purge_flag, "w") as f:
                     f.write("done")
