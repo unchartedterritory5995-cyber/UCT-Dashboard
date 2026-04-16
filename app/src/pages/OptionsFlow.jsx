@@ -1199,23 +1199,23 @@ export default function OptionsFlowDashboard() {
             if (atSpot) {
               label = "Pin "+fmtG(combined); color = "#e040fb"; // purple pin
             } else if (aboveSpot) {
-              label = "Magnet ↑ "+fmtG(combined); color = "#FF8C00"; // orange magnet pulling up
+              label = "Magnet ⬆ "+fmtG(combined); color = "#0a8f55"; // green magnet pulling up
             } else {
-              label = "Magnet ↓ "+fmtG(combined); color = "#FF8C00"; // orange magnet pulling down
+              label = "Magnet ⬇ "+fmtG(combined); color = "#c43030"; // red magnet pulling down
             }
             series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
           } else {
             // Different strikes — draw separately
             if (cw) {
               const aboveSpot = cw.strike > sp;
-              const label = aboveSpot ? "Ceiling "+fmtG(cw.gex) : "Magnet ↓ "+fmtG(cw.gex);
-              const color = aboveSpot ? "#c43030" : "#FF8C00";
+              const label = aboveSpot ? "Ceiling "+fmtG(cw.gex) : "Magnet ⬇ "+fmtG(cw.gex);
+              const color = aboveSpot ? "#c43030" : "#c43030"; // red ceiling above OR red magnet pulling down
               series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
             }
             if (pw) {
               const belowSpot = pw.strike < sp;
-              const label = belowSpot ? "Bounce "+fmtG(Math.abs(pw.gex)) : "Magnet ↑ "+fmtG(Math.abs(pw.gex));
-              const color = belowSpot ? "#0a8f55" : "#FF8C00";
+              const label = belowSpot ? "Bounce "+fmtG(Math.abs(pw.gex)) : "Magnet ⬆ "+fmtG(Math.abs(pw.gex));
+              const color = belowSpot ? "#0a8f55" : "#0a8f55"; // green bounce below OR green magnet pulling up
               series.createPriceLine({ price:pw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
             }
           }
