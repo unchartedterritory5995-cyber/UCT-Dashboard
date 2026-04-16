@@ -29,7 +29,7 @@ class _MassiveRestClient:
         if not self._api_key:
             raise RuntimeError("MASSIVE_API_KEY not set in environment")
 
-    def _get(self, url: str, timeout: int = 15) -> dict:
+    def _get(self, url: str, timeout: int = 90) -> dict:
         req = urllib.request.Request(url, headers={"Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))

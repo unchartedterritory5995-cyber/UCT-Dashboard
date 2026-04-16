@@ -321,16 +321,9 @@ export default function StockChart({
           candleSeriesRef.current.update({ time: last.time, value: price })
         }
 
-        // Per-bar volume from cumulative delta
-        const barVol = Math.max(0, (liveData.volume || 0) - barStartVolRef.current)
-        if (volumeSeriesRef.current && barVol > 0) {
-          volumeSeriesRef.current.update({
-            time: last.time,
-            value: barVol,
-            color: price >= last.open ? 'rgba(74,222,128,0.35)' : 'rgba(248,113,113,0.35)',
-          })
-        }
-        lastBarRef.current = { ...updated, volume: liveData.volume || last.volume }
+        // Volume: don't override — let API-provided volume stand (refreshes every 15s)
+        // The API has accurate per-bar volume; live delta calculations are unreliable
+        lastBarRef.current = { ...updated, volume: last.volume }
       }
     } catch {}
   }, [livePrices, sym, resolvedTf, cs.chartType])
