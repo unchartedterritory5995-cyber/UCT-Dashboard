@@ -275,11 +275,14 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
 
     payload = {"ticker": ticker_up, "tf": tf, "bars": result_bars}
 
-    # Persist to both cache layers — but NEVER cache empty results to disk
+    # Persist to both cache layers — but NEVER cache empty results
     # (empty = API error or missing data, should retry on next request)
-    cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
     if result_bars:
+        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
         disk_cache.put(ticker_up, tf, bars, payload)
+    else:
+        # Cache empty for only 5 seconds so retries happen quickly
+        cache.set(cache_key, payload, ttl=5)
 
     return JSONResponse(
         content=payload,

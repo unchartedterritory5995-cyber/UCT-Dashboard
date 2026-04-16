@@ -219,11 +219,12 @@ async def lifespan(app: FastAPI):
         rest = sorted(tickers - priority_set)
         ticker_list = _PRIORITY + rest
         # All timeframes — 5000 bars each. Daily first (most viewed), then rest.
+        # Skip 30min — Massive API 401s on it, and yfinance serves it on-demand (~2s).
+        # Pre-warming 30min via yfinance would hammer Yahoo and cause rate limits.
         _TF_CONFIGS = [
             ('D', 5000),   # Daily — highest priority, most commonly viewed
             ('W', 5000),   # Weekly
             ('60', 5000),  # 1hr
-            ('30', 5000),  # 30min
             ('5', 5000),   # 5min
         ]
         total_jobs = len(ticker_list) * len(_TF_CONFIGS)
@@ -251,7 +252,7 @@ async def lifespan(app: FastAPI):
                         warmed += 1
                 except Exception:
                     pass
-                _t.sleep(0.3)
+                _t.sleep(0.5)
         print(f"[prewarm] Pass complete: {warmed} fetched, {skipped} already cached, {total_jobs} total")
 
         # Continuous refresh — loop forever, re-fetching entries as they approach expiry.
@@ -278,7 +279,7 @@ async def lifespan(app: FastAPI):
                             refreshed += 1
                     except Exception:
                         pass
-                    _t.sleep(0.3)
+                    _t.sleep(0.5)
             if refreshed:
                 print(f"[prewarm] Refresh pass: {refreshed} entries updated")
     threading.Thread(target=_prewarm_bars, daemon=True, name="bars-prewarm").start()
