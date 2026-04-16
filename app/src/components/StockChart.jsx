@@ -149,6 +149,15 @@ export default function StockChart({
   const prevChartTypeRef = useRef(null)
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
 
+  // ── Extended hours toggle (regular session only vs all hours) ──
+  const [showExtended, setShowExtended] = useState(() => {
+    try { return localStorage.getItem('uct-chart-extended') !== 'false' } catch { return true }
+  })
+  const handleToggleExtended = useCallback((val) => {
+    setShowExtended(val)
+    try { localStorage.setItem('uct-chart-extended', val ? 'true' : 'false') } catch {}
+  }, [])
+
   // ── Drawing tools state ──
   const [activeTool, setActiveTool] = useState(null)
   const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color)
@@ -192,35 +201,49 @@ export default function StockChart({
     []
   )
 
+  // Filter bars to regular session only (9:30 AM - 4:00 PM ET) when extended hours hidden
+  const filteredBars = useMemo(() => {
+    if (!bars || !isIntraday || showExtended) return bars
+    return bars.filter(b => {
+      if (typeof b.t !== 'number') return true
+      // Convert UTC timestamp to ET hour/minute
+      const d = new Date(b.t * 1000)
+      const etStr = d.toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
+      const [h, m] = etStr.split(':').map(Number)
+      const mins = h * 60 + m
+      return mins >= 570 && mins < 960 // 9:30 AM (570min) to 4:00 PM (960min) ET
+    })
+  }, [bars, isIntraday, showExtended])
+
   const ohlcData = useMemo(
-    () => bars ? bars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
-    [bars, adjustTime]
+    () => filteredBars ? filteredBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
+    [filteredBars, adjustTime]
   )
   const closeData = useMemo(
-    () => bars ? bars.map(b => ({ time: adjustTime(b.t), value: b.c })) : [],
-    [bars, adjustTime]
+    () => filteredBars ? filteredBars.map(b => ({ time: adjustTime(b.t), value: b.c })) : [],
+    [filteredBars, adjustTime]
   )
   const hvcSet = useMemo(
-    () => cs.volume.hvcEnabled && bars?.length > 20 ? computeHVC(bars) : new Set(),
-    [bars, cs.volume.hvcEnabled]
+    () => cs.volume.hvcEnabled && filteredBars?.length > 20 ? computeHVC(filteredBars) : new Set(),
+    [filteredBars, cs.volume.hvcEnabled]
   )
   const volData = useMemo(() => {
-    if (!bars?.length) return []
-    return bars.map(b => ({
+    if (!filteredBars?.length) return []
+    return filteredBars.map(b => ({
       time: adjustTime(b.t),
       value: b.v,
       color: hvcSet.has(b.t)
         ? 'rgba(201,168,76,0.9)'
         : b.c >= b.o ? cs.volume.upColor : cs.volume.downColor,
     }))
-  }, [bars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime])
+  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime])
   const overlayData = useMemo(() => {
-    if (!bars?.length || !resolvedOverlays?.length) return []
+    if (!filteredBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
-      const raw = ov.type === 'EMA' ? computeEMA(bars, ov.period) : computeSMA(bars, ov.period)
+      const raw = ov.type === 'EMA' ? computeEMA(filteredBars, ov.period) : computeSMA(filteredBars, ov.period)
       return { data: raw.map(p => ({ time: adjustTime(p.time), value: p.value })), color: ov.color }
     })
-  }, [bars, resolvedOverlays, adjustTime])
+  }, [filteredBars, resolvedOverlays, adjustTime])
 
   // Reset lastBarRef on symbol change to prevent wrong-symbol price race
   useEffect(() => { lastBarRef.current = null }, [sym])
@@ -284,7 +307,7 @@ export default function StockChart({
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
-    if (!containerRef.current || !bars?.length) return
+    if (!containerRef.current || !filteredBars?.length) return
 
     let chart = chartRef.current
 
@@ -379,8 +402,8 @@ export default function StockChart({
     candleSeriesRef.current.setData(isOhlcType(cs.chartType) ? ohlcData : closeData)
 
     // Store the last bar for live updates
-    if (bars.length) {
-      const last = bars[bars.length - 1]
+    if (filteredBars.length) {
+      const last = filteredBars[filteredBars.length - 1]
       // Use adjustTime so lastBarRef.time matches the chart series + computeBarTime
       lastBarRef.current = { time: adjustTime(last.t), open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
     }
@@ -476,19 +499,19 @@ export default function StockChart({
         'W': 52,    // ~1 year of weekly bars
       }
       const visibleBars = defaultVisible[resolvedTf] || 65
-      if (bars.length > visibleBars) {
+      if (filteredBars.length > visibleBars) {
         chart.timeScale().setVisibleLogicalRange({
-          from: bars.length - visibleBars,
-          to: bars.length + 8,
+          from: filteredBars.length - visibleBars,
+          to: filteredBars.length + 8,
         })
       } else {
         chart.timeScale().setVisibleLogicalRange({
           from: 0,
-          to: bars.length + 8,
+          to: filteredBars.length + 8,
         })
       }
     }
-  }, [bars, ohlcData, closeData, volData, overlayData, sym, showVolume, markers, priceLines, watermark, cs, adjustTime, resolvedTf])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, sym, showVolume, markers, priceLines, watermark, cs, adjustTime, resolvedTf])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -569,6 +592,15 @@ export default function StockChart({
             chartSettings={cs}
             onUpdateSettings={handleUpdateChartSettings}
           />
+          {isIntraday && (
+            <button
+              className={`${styles.extHoursBtn} ${showExtended ? styles.extHoursActive : ''}`}
+              onClick={() => handleToggleExtended(!showExtended)}
+              title={showExtended ? 'Hide extended hours (show regular session only)' : 'Show extended hours (pre-market + after-hours)'}
+            >
+              {showExtended ? 'EXT' : 'RTH'}
+            </button>
+          )}
         </>
       )}
     </div>
