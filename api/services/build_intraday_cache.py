@@ -88,7 +88,19 @@ def download_and_resample(client, s3_key, timeframes, tickers_filter):
             current = None
             current_key = None
             for bar in bars:
-                key = (bar['t'] // period) * period
+                if tf_mult == 60:
+                    # TC2000 hourly: 9:30-10:00, then 10-11, 11-12...
+                    # Use 30-min boundaries so 9:30 stands alone
+                    from datetime import datetime as _dt2
+                    from zoneinfo import ZoneInfo as _ZI2
+                    _bar_et = _dt2.fromtimestamp(bar['t'], tz=_ZI2("UTC")).astimezone(_ZI2("America/New_York"))
+                    _mins = _bar_et.hour * 60 + _bar_et.minute
+                    if _mins < 600:  # Before 10:00 → each 30-min bar own bucket
+                        key = (bar['t'] // 1800) * 1800
+                    else:  # 10:00+ → floor to hour
+                        key = (bar['t'] // 3600) * 3600
+                else:
+                    key = (bar['t'] // period) * period
                 if key != current_key:
                     if current:
                         resampled.append(current)

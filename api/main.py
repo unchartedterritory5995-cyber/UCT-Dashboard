@@ -294,7 +294,7 @@ async def lifespan(app: FastAPI):
     # Saves incrementally so partial progress survives restarts.
     def _build_deep_cache():
         deep_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache_deep")
-        flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".deep_cache_built_v3")
+        flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".deep_cache_built_v4")
         if os.path.exists(flag):
             count = len([f for f in os.listdir(deep_dir) if f.endswith('.json')]) if os.path.isdir(deep_dir) else 0
             print(f"[deep-cache] Already built ({count} files)")

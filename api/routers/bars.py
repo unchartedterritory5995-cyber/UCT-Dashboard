@@ -270,6 +270,76 @@ def _resample_monthly(daily_bars: list[dict]) -> list[dict]:
     return result
 
 
+def _fetch_hourly_from_30min(ticker: str, max_bars: int) -> list[dict]:
+    """Fetch 30-min bars and resample to TC2000-style hourly bars.
+
+    TC2000 hourly: 9:30-10:00 (first bar), then 10-11, 11-12, ..., 15-16.
+    We fetch 30-min bars so the 9:30 bar stands alone and two 30-min bars
+    (e.g. 10:00 + 10:30) combine into one hourly bar.
+    """
+    from zoneinfo import ZoneInfo
+    _ET = ZoneInfo("America/New_York")
+
+    # Fetch 30-min bars (2x more than needed for hourly)
+    raw_30 = _fetch_intraday(ticker, '30', max_bars * 2)
+    if not raw_30:
+        # Fallback to regular 60-min bars
+        return _fetch_intraday(ticker, '60', max_bars)
+
+    # Resample: group 30-min bars into TC2000 hourly buckets
+    resampled = []
+    current = None
+    current_key = None
+
+    for bar in raw_30:
+        ts = bar['t']
+        dt = datetime.fromtimestamp(ts, tz=ZoneInfo("UTC")).astimezone(_ET)
+        mins = dt.hour * 60 + dt.minute
+        date_str = dt.strftime("%Y-%m-%d")
+
+        # Determine bucket:
+        # 9:30 → bucket 0 (stands alone: 9:30-10:00)
+        # 10:00, 10:30 → bucket 1 (combined: 10:00-11:00)
+        # 11:00, 11:30 → bucket 2, etc.
+        if mins < 570:
+            # Pre-market: each 30-min bar is its own bucket
+            bucket = f"pre_{mins}"
+            bucket_ts = ts
+        elif mins < 600:
+            # 9:30-10:00: bucket 0
+            bucket = 0
+            bucket_ts = ts  # Use 9:30 timestamp
+        else:
+            # 10:00+ : floor to hour
+            bucket = (mins - 600) // 60 + 1
+            hour_start = 600 + (bucket - 1) * 60
+            # Compute timestamp for the hour start
+            bucket_dt = dt.replace(hour=hour_start // 60, minute=hour_start % 60, second=0)
+            bucket_ts = int(bucket_dt.timestamp())
+
+        key = f"{date_str}_{bucket}"
+
+        if key != current_key:
+            if current:
+                resampled.append(current)
+            current = {
+                't': bucket_ts,
+                'o': bar['o'], 'h': bar['h'], 'l': bar['l'], 'c': bar['c'],
+                'v': bar.get('v', 0),
+            }
+            current_key = key
+        else:
+            current['h'] = max(current['h'], bar['h'])
+            current['l'] = min(current['l'], bar['l'])
+            current['c'] = bar['c']
+            current['v'] = current.get('v', 0) + bar.get('v', 0)
+
+    if current:
+        resampled.append(current)
+
+    return resampled[-max_bars:]
+
+
 def _fetch_monthly(ticker: str, max_bars: int) -> list[dict]:
     """Fetch monthly bars — daily from Massive, resampled to monthly."""
     from api.services.massive import get_agg_bars
@@ -372,7 +442,11 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
 
     # Layer 3: Fetch from Massive API (slow — 4-8s from Railway)
     try:
-        if tf in ("1", "5", "15", "30", "60"):
+        if tf == "60":
+            # Fetch 30-min bars and resample to TC2000-style hourly:
+            # 9:30-10:00 (first bar), then 10-11, 11-12, ..., 15-16
+            result_bars = _fetch_hourly_from_30min(ticker_up, bars)
+        elif tf in ("1", "5", "15", "30"):
             result_bars = _fetch_intraday(ticker_up, tf, bars)
         elif tf == "W":
             result_bars = _fetch_weekly(ticker_up, bars)
