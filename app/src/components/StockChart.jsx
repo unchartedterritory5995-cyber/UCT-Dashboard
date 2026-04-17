@@ -338,7 +338,9 @@ export default function StockChart({
         // The API has accurate per-bar volume; live delta calculations are unreliable
         lastBarRef.current = { ...updated, volume: last.volume }
       }
-    } catch {}
+    } catch (e) {
+      if (e?.message) console.warn('[StockChart] live update error:', e.message)
+    }
   }, [livePrices, sym, resolvedTf, cs.chartType])
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────

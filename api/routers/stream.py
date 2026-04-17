@@ -33,7 +33,7 @@ async def stream_prices(
     subscribe_tickers(ticker_list)
 
     async def event_generator():
-        last_data = {}
+        last_prices = {}  # {sym: price} — only compare price field to avoid unnecessary pushes
         heartbeat_interval = 15  # seconds
         last_heartbeat = time.time()
 
@@ -41,9 +41,10 @@ async def stream_prices(
             # Get latest prices for requested tickers
             current = get_realtime_prices(ticker_list)
 
-            # Only send if data changed
-            if current != last_data and current:
-                last_data = dict(current)
+            # Only send if any ticker's price actually changed (not just updated_at)
+            prices_now = {s: d.get("price") for s, d in current.items()} if current else {}
+            if prices_now != last_prices and current:
+                last_prices = prices_now
                 yield f"data: {json.dumps(current)}\n\n"
 
             # Heartbeat to keep connection alive

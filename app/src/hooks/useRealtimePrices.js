@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import useLivePrices from './useLivePrices'
 
 /**
  * Real-time price streaming via Server-Sent Events.
- * Falls back to REST polling (useLivePrices) if SSE unavailable.
+ * Merges Finnhub WebSocket (tick-by-tick) with Massive REST (2s polling).
  *
- * Returns same shape as useLivePrices: { prices: {SYM: {price, change_pct}}, isLoading }
+ * Per-field merge: stream provides {price, change_pct, updated_at},
+ * REST provides {day_open, day_high, day_low, prev_close, volume}.
+ * Both combined give the chart everything it needs.
  */
 export default function useRealtimePrices(tickers = []) {
   const [streamPrices, setStreamPrices] = useState({})
@@ -13,8 +15,7 @@ export default function useRealtimePrices(tickers = []) {
   const esRef = useRef(null)
   const reconnectRef = useRef(null)
 
-  // Massive REST polling always runs (2s) as parallel source + fallback.
-  // Finnhub WebSocket overlays tick-by-tick on top when connected.
+  // Massive REST polling always runs (2s) — provides session OHLC + volume
   const { prices: polledPrices, isLoading } = useLivePrices(tickers)
 
   const sorted = [...new Set(tickers)].sort().join(',')
@@ -42,17 +43,15 @@ export default function useRealtimePrices(tickers = []) {
 
     es.onerror = () => {
       setConnected(false)
-      setStreamPrices({})  // Clear stale stream data so fresh REST prices take over
+      setStreamPrices({})
       es.close()
       esRef.current = null
-      // Reconnect after 5 seconds
       reconnectRef.current = setTimeout(() => connect(), 5000)
     }
   }, [sorted])
 
   useEffect(() => {
     if (sorted) connect()
-
     return () => {
       if (esRef.current) {
         esRef.current.close()
@@ -65,8 +64,17 @@ export default function useRealtimePrices(tickers = []) {
     }
   }, [sorted, connect])
 
-  // Merge: stream prices take priority over polled prices
-  const mergedPrices = { ...polledPrices, ...streamPrices }
+  // Per-field merge: REST fields (day_open, day_high, day_low, volume, prev_close)
+  // are preserved, stream fields (price, change_pct, updated_at, timestamp) overlay.
+  // This ensures developing candles get session OHLC from REST + live price from stream.
+  const mergedPrices = useMemo(() => {
+    const allSyms = new Set([...Object.keys(polledPrices), ...Object.keys(streamPrices)])
+    const result = {}
+    for (const sym of allSyms) {
+      result[sym] = { ...polledPrices[sym], ...streamPrices[sym] }
+    }
+    return result
+  }, [polledPrices, streamPrices])
 
   return { prices: mergedPrices, isLoading: !connected && isLoading, isStreaming: connected }
 }
