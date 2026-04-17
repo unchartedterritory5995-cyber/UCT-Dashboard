@@ -290,26 +290,36 @@ async def lifespan(app: FastAPI):
                 print(f"[prewarm] Refresh pass: {refreshed} entries updated")
     threading.Thread(target=_prewarm_bars, daemon=True, name="bars-prewarm").start()
 
-    # Build deep intraday cache from S3 minute files (one-time, ~15 min)
-    # Gives 3,400-5,000 bars on 15/30/60min instead of ~2,000 from REST API
-    def _build_deep_cache():
-        import time as _t2
+    # Download pre-built deep intraday cache from S3 (one-time, ~2 min)
+    # 11,103 files with 3,400-5,000 bars on 15/30/60min for all tickers
+    def _download_deep_cache():
         deep_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache_deep")
-        flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".deep_cache_built_v1")
+        flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".deep_cache_downloaded_v1")
         if os.path.exists(flag):
             count = len([f for f in os.listdir(deep_dir) if f.endswith('.json')]) if os.path.isdir(deep_dir) else 0
-            print(f"[deep-cache] Already built ({count} files)")
+            print(f"[deep-cache] Already downloaded ({count} files)")
             return
-        print("[deep-cache] Building from S3 minute files (first time, ~15 min)...")
+        print("[deep-cache] Downloading pre-built cache from S3...")
         try:
-            from api.services.build_intraday_cache import build_cache
-            build_cache(days=160, timeframes=[15, 30, 60], output_dir=deep_dir)
+            import boto3, tarfile, io
+            s3 = boto3.client(
+                's3', region_name='us-east-1',
+                aws_access_key_id=os.environ.get('MASSIVE_ACCESS_KEY', ''),
+                aws_secret_access_key=os.environ.get('MASSIVE_SECRET_KEY', ''),
+                endpoint_url='https://files.massive.com',
+            )
+            obj = s3.get_object(Bucket='flatfiles', Key='uct_cache/bars_cache_deep.tar.gz')
+            print("[deep-cache] Extracting tarball...")
+            data_dir = os.environ.get("DATA_DIR", "/data")
+            with tarfile.open(fileobj=io.BytesIO(obj['Body'].read()), mode='r:gz') as tar:
+                tar.extractall(path=data_dir)
+            count = len([f for f in os.listdir(deep_dir) if f.endswith('.json')]) if os.path.isdir(deep_dir) else 0
             with open(flag, 'w') as f:
                 f.write("done")
-            print("[deep-cache] Build complete")
+            print(f"[deep-cache] Downloaded and extracted {count} files")
         except Exception as e:
-            print(f"[deep-cache] Build failed: {e}")
-    threading.Thread(target=_build_deep_cache, daemon=True, name="deep-cache-builder").start()
+            print(f"[deep-cache] Download failed: {e} — falling back to REST API")
+    threading.Thread(target=_download_deep_cache, daemon=True, name="deep-cache-dl").start()
 
     # Seed theme taxonomy from JSON → SQLite
     from api.services.theme_db import init_theme_tables, seed_from_json
