@@ -26,8 +26,28 @@ _DISK_TTL = {
 }
 
 
+_DEEP_CACHE_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache_deep")
+
+
 def _path(ticker: str, tf: str, bars: int) -> str:
     return os.path.join(_CACHE_DIR, f"{ticker}_{tf}_{bars}.json")
+
+
+def get_deep(ticker: str, tf: str, bars: int):
+    """Return deep cache payload (from S3 minute resampling) or None.
+
+    Deep cache has no TTL — the data is historical and doesn't expire.
+    Built by build_intraday_cache.py from S3 minute flat files.
+    """
+    try:
+        p = os.path.join(_DEEP_CACHE_DIR, f"{ticker}_{tf}_{bars}.json")
+        with open(p, 'r') as f:
+            data = json.load(f)
+        if not data.get("bars"):
+            return None
+        return data
+    except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
+        return None
 
 
 def get(ticker: str, tf: str, bars: int):

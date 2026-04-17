@@ -340,6 +340,16 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
                 headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
             )
 
+    # Layer 2.5: Deep cache (S3 minute data resampled — 5000+ intraday bars)
+    if tf in ("15", "30", "60"):
+        deep = disk_cache.get_deep(ticker_up, tf, bars)
+        if deep is not None:
+            cache.set(cache_key, deep, ttl=_CACHE_TTL.get(tf, 300))
+            return JSONResponse(
+                content=deep,
+                headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+            )
+
     # Layer 3: Fetch from Massive API (slow — 4-8s from Railway)
     try:
         if tf in ("1", "5", "15", "30", "60"):
