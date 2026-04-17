@@ -1144,7 +1144,7 @@ export default function OptionsFlowDashboard() {
       const el = gexChartRef.current;
       el.innerHTML = "";
       const chart = LWC.createChart(el, {
-        width: el.clientWidth, height: 400,
+        width: el.clientWidth, height: 500,
         layout: { background: { color: "#0d1117" }, textColor: "#7b8fa3", fontSize: 10 },
         grid: { vertLines: { color: "#1a254033" }, horzLines: { color: "#1a254033" } },
         crosshair: { mode: 0 },
@@ -3182,7 +3182,7 @@ export default function OptionsFlowDashboard() {
                         ))}
                       </div>
                     </div>
-                    <div ref={gexChartRef} style={{ width:"100%", height:400, borderRadius:6, overflow:"hidden" }} />
+                    <div ref={gexChartRef} style={{ width:"100%", height:500, borderRadius:6, overflow:"hidden" }} />
                   </div>
                 )}
 
