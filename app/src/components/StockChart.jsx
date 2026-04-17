@@ -210,9 +210,9 @@ export default function StockChart({
     []
   )
 
-  // Filter bars to regular session only (9:30 AM - 4:00 PM ET) when extended hours hidden
+  // Filter bars to regular session only when extended hours hidden.
   // For 60min RTH: resample clock-hour bars into market-open-aligned bars
-  // (9:30-10:00 first bar, then 10:00-11:00, 11:00-12:00, etc.)
+  // (9:30-10:30, 10:30-11:30, ... like TradingView/TC2000)
   const filteredBars = useMemo(() => {
     if (!bars || !isIntraday || showExtended) return bars
 
@@ -223,25 +223,60 @@ export default function StockChart({
       return h * 60 + m
     }
 
-    if (resolvedTf === '60') {
-      // Resample: group underlying data into 9:30-10, 10-11, 11-12, ... 15-16
-      // We need sub-hour bars to resample. Use the raw bars (clock-hour) and
-      // split the 9:00 bar: first 30 min goes to prev day's last bar, last 30 min starts new day
-      // Simpler approach: just shift the filter so 9:00 bar becomes the 9:30 bar
-      // (accepts that the 9:00-9:30 premarket portion is included in the first bar)
-      return bars.filter(b => {
-        if (typeof b.t !== 'number') return true
-        const mins = getETMins(b.t)
-        return mins >= 540 && mins < 960 // 9:00 AM to 4:00 PM (include 9:00 bar as the opening bar)
-      })
-    }
-
-    // Other intraday TFs: standard RTH filter
-    return bars.filter(b => {
+    // Filter to RTH: 9:30 AM - 4:00 PM ET
+    const rthBars = bars.filter(b => {
       if (typeof b.t !== 'number') return true
       const mins = getETMins(b.t)
-      return mins >= 570 && mins < 960 // 9:30 AM (570min) to 4:00 PM (960min) ET
+      return mins >= 570 && mins < 960
     })
+
+    if (resolvedTf === '60' && rthBars.length > 0) {
+      // Resample clock-hour bars into 9:30-aligned hourly bars.
+      // Group by: floor((mins - 570) / 60) where 570 = 9:30 AM
+      // This gives: 9:30-10:30 (group 0), 10:30-11:30 (group 1), etc.
+      const getETDate = (t) => {
+        const d = new Date(t * 1000)
+        return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      }
+
+      const resampled = []
+      let current = null
+      let currentKey = null
+
+      for (const b of rthBars) {
+        if (typeof b.t !== 'number') continue
+        const mins = getETMins(b.t)
+        const date = getETDate(b.t)
+        // Which 60-min bucket from 9:30: 0 = 9:30-10:30, 1 = 10:30-11:30, etc.
+        const bucket = Math.floor((mins - 570) / 60)
+        const key = `${date}_${bucket}`
+
+        // Compute the bucket's start timestamp: 9:30 + bucket*60min in UTC
+        const bucketStartMins = 570 + bucket * 60
+        const bucketH = Math.floor(bucketStartMins / 60)
+        const bucketM = bucketStartMins % 60
+        // Build UTC timestamp for this bucket start on this date
+        const [y, mo, dy] = date.split('-').map(Number)
+        const etDate = new Date(`${date}T${String(bucketH).padStart(2,'0')}:${String(bucketM).padStart(2,'0')}:00`)
+        // Convert ET to UTC by subtracting offset
+        const bucketTs = Math.floor(etDate.getTime() / 1000) - _ET_OFFSET
+
+        if (key !== currentKey) {
+          if (current) resampled.push(current)
+          current = { t: bucketTs, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 }
+          currentKey = key
+        } else {
+          current.h = Math.max(current.h, b.h)
+          current.l = Math.min(current.l, b.l)
+          current.c = b.c
+          current.v = (current.v || 0) + (b.v || 0)
+        }
+      }
+      if (current) resampled.push(current)
+      return resampled
+    }
+
+    return rthBars
   }, [bars, isIntraday, showExtended, resolvedTf])
 
   const ohlcData = useMemo(
