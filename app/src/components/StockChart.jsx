@@ -224,10 +224,8 @@ export default function StockChart({
     return bars.filter(b => {
       if (typeof b.t !== 'number') return true
       const mins = getETMins(b.t)
-      // Hourly: start at 9:00 (the bar covering 9:00-10:00 includes the 9:30 open)
-      // Other intraday: start at 9:30
-      const start = resolvedTf === '60' ? 540 : 570
-      return mins >= start && mins < 960
+      // All intraday RTH: 9:30 AM (570 min) to 4:00 PM (960 min) ET
+      return mins >= 570 && mins < 960
     })
   }, [bars, isIntraday, showExtended, resolvedTf])
 
