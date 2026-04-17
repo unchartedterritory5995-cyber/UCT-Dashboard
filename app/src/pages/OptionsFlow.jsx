@@ -1182,10 +1182,10 @@ export default function OptionsFlowDashboard() {
           const wallMax = Math.max(cw?.gex||0, Math.abs(pw?.gex||0));
           const getLineWeight = (gexVal) => {
             const ratio = wallMax > 0 ? Math.abs(gexVal) / wallMax : 0;
-            if (ratio > 0.8) return { lw:4, ls:0 };  // wall-level
-            if (ratio > 0.5) return { lw:3, ls:0 };  // major
-            if (ratio > 0.25) return { lw:2, ls:0 }; // solid secondary
-            return { lw:1, ls:2 };                    // minor dashed
+            if (ratio > 0.8) return { lw:4, ls:0, op:"" };       // wall-level — full opacity
+            if (ratio > 0.5) return { lw:3, ls:0, op:"CC" };     // major — 80% opacity
+            if (ratio > 0.25) return { lw:2, ls:0, op:"80" };    // secondary — 50% opacity
+            return { lw:1, ls:2, op:"59" };                       // minor dashed — 35% opacity
           };
 
           // Call wall + Put wall
@@ -1239,10 +1239,10 @@ export default function OptionsFlowDashboard() {
           // Danger line
           if (zg) series.createPriceLine({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Danger Line" });
 
-          // Secondary levels — thickness/style scales with $ value
+          // Secondary levels — thickness/style/opacity scales with $ value
           const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
 
-          // Above spot — all resistance = red
+          // Above spot — all resistance = red with opacity
           const aboveCandidates = [...(gexData.strikes||[])].filter(s=>s.strike>sp&&!usedStrikes.has(s.strike)).map(s=>{
             const callVal = s.callGex > 0 ? s.callGex : 0;
             const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
@@ -1251,12 +1251,12 @@ export default function OptionsFlowDashboard() {
           }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
           aboveCandidates.forEach(s => {
             usedStrikes.add(s.strike);
-            const {lw,ls} = getLineWeight(s.gex);
+            const {lw,ls,op} = getLineWeight(s.gex);
             const label = s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex);
-            series.createPriceLine({ price:s.strike, color:"#c43030", lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
+            series.createPriceLine({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
           });
 
-          // Below spot — all support = green/cyan
+          // Below spot — all support = green/cyan with opacity
           const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
             const callVal = s.callGex > 0 ? s.callGex : 0;
             const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
@@ -1264,10 +1264,10 @@ export default function OptionsFlowDashboard() {
             return { strike:s.strike, gex:best.val, type:best.type };
           }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
           belowCandidates.forEach(s => {
-            const {lw,ls} = getLineWeight(s.gex);
-            const color = s.type === "call" ? "#00BCD4" : "#0a8f55";
+            const {lw,ls,op} = getLineWeight(s.gex);
+            const baseColor = s.type === "call" ? "#00BCD4" : "#0a8f55";
             const label = s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
-            series.createPriceLine({ price:s.strike, color, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
+            series.createPriceLine({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
           });
         }).catch(()=>{});
       // Resize observer
