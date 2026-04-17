@@ -294,6 +294,27 @@ async def lifespan(app: FastAPI):
     # Saves incrementally so partial progress survives restarts.
     def _build_deep_cache():
         deep_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache_deep")
+        # Purge old clock-hour 60min cache files (now using TC2000-style resample)
+        _60_purge_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".60min_purged_v1")
+        if not os.path.exists(_60_purge_flag):
+            _cache_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+            if os.path.isdir(_cache_dir):
+                purged_60 = 0
+                for f in os.listdir(_cache_dir):
+                    if '_60_' in f and f.endswith('.json'):
+                        try:
+                            os.remove(os.path.join(_cache_dir, f))
+                            purged_60 += 1
+                        except OSError:
+                            pass
+                if purged_60:
+                    print(f"[prewarm] Purged {purged_60} old 60min cache files")
+            try:
+                with open(_60_purge_flag, 'w') as f:
+                    f.write("done")
+            except Exception:
+                pass
+
         flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".deep_cache_built_v4")
         if os.path.exists(flag):
             count = len([f for f in os.listdir(deep_dir) if f.endswith('.json')]) if os.path.isdir(deep_dir) else 0
