@@ -311,13 +311,21 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
             headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
         )
 
-    # Layer 2: Persistent disk cache (fast — ~10ms, survives restarts)
-    # For intraday, verify cached data has recent bars (not hours-old stale data)
+    # Layer 2: Deep cache FIRST for 15/30/60min (S3 minute data, 3,400-5,000 bars)
+    # Checked before regular disk cache because deep cache has more depth
+    if tf in ("15", "30", "60"):
+        deep = disk_cache.get_deep(ticker_up, tf, bars)
+        if deep is not None:
+            cache.set(cache_key, deep, ttl=_CACHE_TTL.get(tf, 300))
+            return JSONResponse(
+                content=deep,
+                headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+            )
+
+    # Layer 2b: Regular disk cache (for TFs without deep cache: 1min, 5min, D, W, M)
     disk_cached = disk_cache.get(ticker_up, tf, bars)
     if disk_cached is not None:
         if tf in ("1", "5", "15", "30", "60"):
-            # Intraday freshness check: only during market hours (Mon-Fri 9:30-16:00 ET)
-            # Outside market hours, serve cached data (it won't change until next session)
             import time as _time
             from datetime import datetime as _dt
             from zoneinfo import ZoneInfo as _ZI
@@ -326,27 +334,17 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
                           and _now_et.hour >= 9 and _now_et.hour < 16
                           and not (_now_et.hour == 9 and _now_et.minute < 30))
             if _is_market:
-                _max_age_min = {"5": 10, "30": 45, "60": 90}.get(tf, 60)
+                _max_age_min = {"1": 5, "5": 10, "15": 30, "30": 45, "60": 90}.get(tf, 60)
                 cached_bars = disk_cached.get("bars", [])
                 if cached_bars:
                     last_ts = cached_bars[-1].get("t", 0)
                     age_min = (_time.time() - last_ts) / 60
                     if age_min > _max_age_min:
-                        disk_cached = None  # Too stale for live market — fetch fresh
+                        disk_cached = None
         if disk_cached is not None:
             cache.set(cache_key, disk_cached, ttl=_CACHE_TTL.get(tf, 300))
             return JSONResponse(
                 content=disk_cached,
-                headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
-            )
-
-    # Layer 2.5: Deep cache (S3 minute data resampled — 5000+ intraday bars)
-    if tf in ("15", "30", "60"):
-        deep = disk_cache.get_deep(ticker_up, tf, bars)
-        if deep is not None:
-            cache.set(cache_key, deep, ttl=_CACHE_TTL.get(tf, 300))
-            return JSONResponse(
-                content=deep,
                 headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
             )
 
