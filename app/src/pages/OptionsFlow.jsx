@@ -3248,12 +3248,17 @@ export default function OptionsFlowDashboard() {
                   const topCalls = sortedStrikes.filter(s => s.callGex > 0 && s.strike !== cwStrike && s.strike !== pwStrike).sort((a,b) => b.callGex - a.callGex).slice(0, 3);
                   const topPuts = sortedStrikes.filter(s => s.putGex < 0 && s.strike !== cwStrike && s.strike !== pwStrike && !topCalls.find(c => c.strike === s.strike)).sort((a,b) => a.putGex - b.putGex).slice(0, 2);
                   const callsAboveSpot = topCalls.filter(s => s.strike > sp);
-                  const firstResAbove = callsAboveSpot.length > 0 ? callsAboveSpot.sort((a,b)=>a.strike-b.strike)[0] : null;
+                  // For swing targets, skip levels within 1.5% of spot — too close to be a real target
+                  const minTargetDist = isIntraday ? 0 : sp * 0.015;
+                  const swingCallsAbove = callsAboveSpot.filter(s => s.strike - sp >= minTargetDist);
+                  const firstResAbove = swingCallsAbove.length > 0 ? swingCallsAbove.sort((a,b)=>a.strike-b.strike)[0] : (callsAboveSpot.length > 0 ? callsAboveSpot.sort((a,b)=>a.strike-b.strike)[0] : null);
                   const pinHighStrike = Math.max(cwStrike, pwStrike);
                   const callsAbovePin = topCalls.filter(s => s.strike > pinHighStrike);
-                  const firstResAbovePin = callsAbovePin.length > 0 ? callsAbovePin.sort((a,b)=>a.strike-b.strike)[0] : null;
+                  const swingCallsAbovePin = callsAbovePin.filter(s => s.strike - pinHighStrike >= minTargetDist);
+                  const firstResAbovePin = swingCallsAbovePin.length > 0 ? swingCallsAbovePin.sort((a,b)=>a.strike-b.strike)[0] : (callsAbovePin.length > 0 ? callsAbovePin.sort((a,b)=>a.strike-b.strike)[0] : null);
                   const putsBelowSpot = topPuts.filter(s => s.strike < sp);
-                  const firstSupBelow = putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null;
+                  const swingPutsBelow = putsBelowSpot.filter(s => sp - s.strike >= minTargetDist);
+                  const firstSupBelow = swingPutsBelow.length > 0 ? swingPutsBelow.sort((a,b)=>b.strike-a.strike)[0] : (putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null);
                   const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
 
                   // Thin zone detection — gaps where price can accelerate
