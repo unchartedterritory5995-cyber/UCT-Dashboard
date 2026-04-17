@@ -530,7 +530,7 @@ function DrillModal({ drill, onClose }) {
                   title={isFlagged(selected.t) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
                 >⚑ {isFlagged(selected.t) ? 'Flagged' : 'Flag'}</button>
                 <div className={styles.drillChartTabs}>
-                  {[['5', '5min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly']].map(([p, label]) => (
+                  {[['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']].map(([p, label]) => (
                     <button
                       key={p}
                       className={`${styles.drillChartTab} ${chartPeriod === p ? styles.drillChartTabActive : ''}`}

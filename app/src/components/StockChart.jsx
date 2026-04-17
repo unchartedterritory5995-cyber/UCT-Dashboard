@@ -82,7 +82,7 @@ const _ET_OFFSET = getETOffset()
 
 // ─── Bar period computation (for real-time new candle creation) ──────────────
 
-const PERIOD_SECONDS = { '5': 300, '30': 1800, '60': 3600 }
+const PERIOD_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
 
 function computeBarTime(tf, tickTimeSec) {
   if (tf === 'D') {
@@ -97,6 +97,12 @@ function computeBarTime(tf, tickTimeSec) {
     const day = et.getDay()
     et.setDate(et.getDate() - day + (day === 0 ? -6 : 1))
     return et.toISOString().split('T')[0]
+  }
+  if (tf === 'M') {
+    // Monthly: first of current month in ET
+    const d = new Date(tickTimeSec * 1000)
+    const et = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    return `${et.getFullYear()}-${String(et.getMonth() + 1).padStart(2, '0')}-01`
   }
   // Intraday: floor to period boundary in UTC, then offset to ET for display
   const period = PERIOD_SECONDS[tf] || 300
@@ -181,7 +187,7 @@ export default function StockChart({
   const barCount = 5000
 
   // Intraday refetches more often to keep candles current during market hours
-  const isIntraday = ['5', '30', '60'].includes(resolvedTf)
+  const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
   const dedupMs = isIntraday ? 15000 : 60000  // 15s intraday, 60s daily/weekly
 
   const { data, error, mutate } = useSWR(
@@ -279,7 +285,7 @@ export default function StockChart({
       if (isNewBar) {
         // ── NEW CANDLE ──
         const live = latestLiveRef.current || {}
-        const isDailyWeekly = resolvedTf === 'D' || resolvedTf === 'W'
+        const isDailyWeekly = resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M'
         // Daily/Weekly: use session OHLC. Intraday: use current tick as open (closest to actual first trade)
         const openPrice = (isDailyWeekly && live.day_open) ? live.day_open : price
         const highPrice = isDailyWeekly ? Math.max(live.day_high || openPrice, price) : price
@@ -446,7 +452,7 @@ export default function StockChart({
 
       if (isNew) {
         const live = latestLiveRef.current
-        const isDW = resolvedTf === 'D' || resolvedTf === 'W'
+        const isDW = resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M'
         const openPrice = (isDW && live.day_open) ? live.day_open : (lb ? lb.open : lp)
         const highPrice = isDW ? Math.max(live.day_high || openPrice, lp) : (lb ? Math.max(lb.high, lp) : lp)
         const lowPrice = isDW ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, lp) : (lb ? Math.min(lb.low, lp) : lp)
@@ -558,11 +564,14 @@ export default function StockChart({
     if (zoomKeyRef.current !== zoomKey) {
       zoomKeyRef.current = zoomKey
       const defaultVisible = {
+        '1': 390,   // ~1 trading day of 1min bars
         '5': 78,    // ~1 trading day of 5min bars
+        '15': 78,   // ~3 trading days of 15min bars
         '30': 65,   // ~5 trading days of 30min bars
         '60': 65,   // ~10 trading days of 1hr bars
         'D': 65,    // ~3 months of daily bars
         'W': 52,    // ~1 year of weekly bars
+        'M': 36,    // ~3 years of monthly bars
       }
       const visibleBars = defaultVisible[resolvedTf] || 65
       if (filteredBars.length > visibleBars) {

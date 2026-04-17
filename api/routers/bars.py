@@ -14,9 +14,11 @@ from api.services.massive import _get_client, _REST_BASE
 
 router = APIRouter()
 
-# yfinance period/interval config — Yahoo limits: 5m=60d, 30m=60d, 60m=730d
+# yfinance period/interval config — Yahoo limits: 1m=7d, 5m=60d, 15m=60d, 30m=60d, 60m=730d
 _YF_CONFIG = {
+    '1':  {'period': '7d',   'interval': '1m'},
     '5':  {'period': '60d',  'interval': '5m'},
+    '15': {'period': '60d',  'interval': '15m'},
     '30': {'period': '60d',  'interval': '30m'},
     '60': {'period': '730d', 'interval': '60m'},
 }
@@ -26,7 +28,7 @@ _YF_TICKERS = {'VIX': '^VIX', 'BTC': 'BTC-USD'}
 
 # In-memory cache TTLs by timeframe (seconds)
 # Intraday kept very short so charts stay current during market hours
-_CACHE_TTL = {'5': 10, '30': 10, '60': 10, 'D': 300, 'W': 900}
+_CACHE_TTL = {'1': 5, '5': 10, '15': 10, '30': 10, '60': 10, 'D': 300, 'W': 900, 'M': 900}
 
 
 def _resample_weekly(daily_bars: list[dict]) -> list[dict]:
@@ -68,10 +70,10 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """
     multiplier = int(tf)  # 5, 30, or 60
     # Account for extended hours (~16hr/day) to avoid oversized API responses.
-    # 5min capped at 90 days (high-volume ETFs produce huge responses).
-    # 30min/60min can go longer (responses are smaller per day).
-    bars_per_day = (16 * 60) // multiplier  # ~192 for 5min, ~32 for 30min, ~16 for 60min
-    max_lookback = 90 if multiplier == 5 else 730  # 5m capped at 90d, 30m/60m up to 2 years
+    # Cap lookback to prevent oversized responses from Railway.
+    # 1min: 10 days (960 bars/day), 5min: 44 days, 15min/30min/60min: up to 2 years
+    bars_per_day = (16 * 60) // multiplier
+    max_lookback = {1: 10, 5: 90, 15: 90}.get(multiplier, 730)
     lookback_days = min(max_lookback, max(10, int(max_bars / max(bars_per_day, 1) * 1.5) + 5))
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
@@ -108,7 +110,7 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
     fmp_key = os.environ.get("FMP_API_KEY", "")
     if not fmp_key:
         return []
-    interval_map = {'5': '5min', '30': '30min', '60': '1hour'}
+    interval_map = {'1': '1min', '5': '5min', '15': '15min', '30': '30min', '60': '1hour'}
     interval = interval_map.get(tf)
     if not interval:
         return []
@@ -233,12 +235,50 @@ def _fetch_weekly(ticker: str, max_bars: int) -> list[dict]:
     """Fetch weekly bars — daily from Massive, resampled to weekly."""
     from api.services.massive import get_agg_bars
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
-    # ~7 calendar days per weekly bar, capped at 30 years (~1560 weekly bars max)
     lookback = min(max_bars * 8, 10950)
     from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
     raw = get_agg_bars(ticker.upper(), from_date, to_date)
     weekly = _resample_weekly(raw)
     return weekly[-max_bars:]
+
+
+def _resample_monthly(daily_bars: list[dict]) -> list[dict]:
+    """Resample daily bars to monthly (year-month grouping)."""
+    if not daily_bars:
+        return []
+    months = {}
+    for bar in daily_bars:
+        dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+        key = (dt.year, dt.month)
+        if key not in months:
+            months[key] = {
+                "dt": dt.replace(day=1), "o": bar["o"], "h": bar["h"],
+                "l": bar["l"], "c": bar["c"], "v": bar.get("v", 0),
+            }
+        else:
+            m = months[key]
+            m["h"] = max(m["h"], bar["h"])
+            m["l"] = min(m["l"], bar["l"])
+            m["c"] = bar["c"]
+            m["v"] = m["v"] + bar.get("v", 0)
+    result = []
+    for m in sorted(months.values(), key=lambda x: x["dt"]):
+        result.append({
+            "t": m["dt"].strftime("%Y-%m-%d"),
+            "o": m["o"], "h": m["h"], "l": m["l"], "c": m["c"], "v": m["v"],
+        })
+    return result
+
+
+def _fetch_monthly(ticker: str, max_bars: int) -> list[dict]:
+    """Fetch monthly bars — daily from Massive, resampled to monthly."""
+    from api.services.massive import get_agg_bars
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+    lookback = min(max_bars * 35, 10950)  # ~35 calendar days per month
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+    raw = get_agg_bars(ticker.upper(), from_date, to_date)
+    monthly = _resample_monthly(raw)
+    return monthly[-max_bars:]
 
 
 @router.get("/api/bars/{ticker}")
@@ -275,7 +315,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
     # For intraday, verify cached data has recent bars (not hours-old stale data)
     disk_cached = disk_cache.get(ticker_up, tf, bars)
     if disk_cached is not None:
-        if tf in ("5", "30", "60"):
+        if tf in ("1", "5", "15", "30", "60"):
             # Intraday freshness check: only during market hours (Mon-Fri 9:30-16:00 ET)
             # Outside market hours, serve cached data (it won't change until next session)
             import time as _time
@@ -302,10 +342,12 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
 
     # Layer 3: Fetch from Massive API (slow — 4-8s from Railway)
     try:
-        if tf in ("5", "30", "60"):
+        if tf in ("1", "5", "15", "30", "60"):
             result_bars = _fetch_intraday(ticker_up, tf, bars)
         elif tf == "W":
             result_bars = _fetch_weekly(ticker_up, bars)
+        elif tf == "M":
+            result_bars = _fetch_monthly(ticker_up, bars)
         else:
             result_bars = _fetch_daily(ticker_up, bars)
     except Exception as e:

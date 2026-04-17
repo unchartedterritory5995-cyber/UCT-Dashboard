@@ -14,8 +14,8 @@ const fetcher = url => fetch(url).then(r => r.json())
 
 const StockChart = lazy(() => import('./StockChart'))
 
-const TABS = ['5min', '30min', '1hr', 'Daily', 'Weekly']
-const TAB_TO_TF = { '5min': '5', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W' }
+const TABS = ['1min', '5min', '15min', '30min', '1hr', 'Daily', 'Weekly', 'Monthly']
+const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
 
 function EarningsIntelSection({ data }) {
   if (!data) return null

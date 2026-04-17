@@ -381,7 +381,7 @@ export default function ThemeTrackerPage() {
                 title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
               >⚑ {isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
               <div className={styles.chartPeriodTabs}>
-                {[['5', '5min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly']].map(([p, label]) => (
+                {[['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']].map(([p, label]) => (
                   <button
                     key={p}
                     className={`${styles.chartPeriodBtn} ${chartPeriod === p ? styles.chartPeriodBtnActive : ''}`}

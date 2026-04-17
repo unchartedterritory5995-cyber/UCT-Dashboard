@@ -219,19 +219,22 @@ async def lifespan(app: FastAPI):
         rest = sorted(tickers - priority_set)
         ticker_list = _PRIORITY + rest
         # All timeframes — 5000 bars each. Daily first (most viewed), then rest.
-        # All timeframes — Massive supports all (30min 401 was transient).
-        # FMP fallback for any Massive failures, yfinance as last resort.
+        # All timeframes — Massive → FMP → yfinance fallback chain.
+        # Priority: daily/weekly/monthly first, then descending intraday.
         _TF_CONFIGS = [
-            ('D', 5000),   # Daily — highest priority
+            ('D', 5000),   # Daily
             ('W', 5000),   # Weekly
+            ('M', 5000),   # Monthly
             ('60', 5000),  # 1hr
             ('30', 5000),  # 30min
+            ('15', 5000),  # 15min
             ('5', 5000),   # 5min
+            ('1', 5000),   # 1min
         ]
         total_jobs = len(ticker_list) * len(_TF_CONFIGS)
         print(f"[prewarm] Targeting {len(ticker_list)} tickers × {len(_TF_CONFIGS)} timeframes = {total_jobs} cache entries")
 
-        from api.routers.bars import _fetch_daily, _fetch_weekly, _fetch_intraday
+        from api.routers.bars import _fetch_daily, _fetch_weekly, _fetch_monthly, _fetch_intraday
         warmed = 0
         skipped = 0
         for sym in ticker_list:
@@ -244,6 +247,8 @@ async def lifespan(app: FastAPI):
                         bars = _fetch_daily(sym, bar_count)
                     elif tf == 'W':
                         bars = _fetch_weekly(sym, bar_count)
+                    elif tf == 'M':
+                        bars = _fetch_monthly(sym, bar_count)
                     else:
                         bars = _fetch_intraday(sym, tf, bar_count)
                     if bars:
