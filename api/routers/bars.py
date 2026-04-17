@@ -186,21 +186,18 @@ def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
 def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars — Massive primary, FMP + yfinance fallbacks.
 
-    5min/60min: Massive API primary, yfinance fallback.
-    30min: FMP primary (Massive 401s), yfinance secondary.
+    All intraday TFs: Massive API → FMP → yfinance → empty.
     """
-    if tf != '30':
-        bars = _fetch_intraday_massive(ticker, tf, max_bars)
-        if bars and not _is_intraday_stale(bars):
-            return bars
+    bars = _fetch_intraday_massive(ticker, tf, max_bars)
+    if bars and not _is_intraday_stale(bars):
+        return bars
 
-    # 30min: try FMP first (paid, reliable, no rate limits)
-    if tf == '30':
-        fmp_bars = _fetch_intraday_fmp(ticker, tf, max_bars)
-        if fmp_bars and not _is_intraday_stale(fmp_bars):
-            return fmp_bars
+    # Massive failed or stale — try FMP (paid, reliable)
+    fmp_bars = _fetch_intraday_fmp(ticker, tf, max_bars)
+    if fmp_bars and not _is_intraday_stale(fmp_bars):
+        return fmp_bars
 
-    # Fallback: yfinance (split-adjusted + premarket)
+    # FMP failed — try yfinance (split-adjusted + premarket)
     yf_bars = _fetch_intraday_yfinance(ticker, tf, max_bars)
     if yf_bars:
         return yf_bars
