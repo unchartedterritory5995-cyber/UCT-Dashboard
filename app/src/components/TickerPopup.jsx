@@ -226,7 +226,6 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
               </Suspense>
             </div>
 
-            <EarningsIntelSection data={earningsIntel} />
           </div>
         </div>
       )}
