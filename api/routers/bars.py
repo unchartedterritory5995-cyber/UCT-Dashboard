@@ -1,9 +1,11 @@
 """OHLCV bar data endpoint — serves JSON bars for client-side charting (Lightweight Charts v5).
 
-Daily/Weekly: Massive API (Polygon-compatible) via get_agg_bars()
-Intraday (5/30/60 min): Massive API agg endpoint (yfinance fallback)
+8 timeframes: 1min, 5min, 15min, 30min, 60min, Daily, Weekly, Monthly
+Intraday: Massive API primary → FMP fallback → yfinance fallback
+Daily/Weekly: Massive API via get_agg_bars()
+Monthly: Massive daily bars resampled to monthly
 
-3-layer cache: in-memory TTLCache → persistent disk → Massive API
+Cache hierarchy: in-memory TTLCache → deep cache (S3 minute resampled) → disk cache → API
 """
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Query
@@ -270,76 +272,6 @@ def _resample_monthly(daily_bars: list[dict]) -> list[dict]:
     return result
 
 
-def _fetch_hourly_from_30min(ticker: str, max_bars: int) -> list[dict]:
-    """Fetch 30-min bars and resample to TC2000-style hourly bars.
-
-    TC2000 hourly: 9:30-10:00 (first bar), then 10-11, 11-12, ..., 15-16.
-    We fetch 30-min bars so the 9:30 bar stands alone and two 30-min bars
-    (e.g. 10:00 + 10:30) combine into one hourly bar.
-    """
-    from zoneinfo import ZoneInfo
-    _ET = ZoneInfo("America/New_York")
-
-    # Fetch 30-min bars (2x more than needed for hourly)
-    raw_30 = _fetch_intraday(ticker, '30', max_bars * 2)
-    if not raw_30:
-        # Fallback to regular 60-min bars
-        return _fetch_intraday(ticker, '60', max_bars)
-
-    # Resample: group 30-min bars into TC2000 hourly buckets
-    resampled = []
-    current = None
-    current_key = None
-
-    for bar in raw_30:
-        ts = bar['t']
-        dt = datetime.fromtimestamp(ts, tz=ZoneInfo("UTC")).astimezone(_ET)
-        mins = dt.hour * 60 + dt.minute
-        date_str = dt.strftime("%Y-%m-%d")
-
-        # Determine bucket:
-        # 9:30 → bucket 0 (stands alone: 9:30-10:00)
-        # 10:00, 10:30 → bucket 1 (combined: 10:00-11:00)
-        # 11:00, 11:30 → bucket 2, etc.
-        if mins < 570:
-            # Pre-market: combine into full hours (4:00+4:30→4:00, 5:00+5:30→5:00, etc.)
-            bucket = f"pre_{mins // 60}"
-            bucket_dt = dt.replace(minute=0, second=0)
-            bucket_ts = int(bucket_dt.timestamp())
-        elif mins < 600:
-            # 9:30-10:00: bucket 0
-            bucket = 0
-            bucket_ts = ts  # Use 9:30 timestamp
-        else:
-            # 10:00+ : floor to hour
-            bucket = (mins - 600) // 60 + 1
-            hour_start = 600 + (bucket - 1) * 60
-            # Compute timestamp for the hour start
-            bucket_dt = dt.replace(hour=hour_start // 60, minute=hour_start % 60, second=0)
-            bucket_ts = int(bucket_dt.timestamp())
-
-        key = f"{date_str}_{bucket}"
-
-        if key != current_key:
-            if current:
-                resampled.append(current)
-            current = {
-                't': bucket_ts,
-                'o': bar['o'], 'h': bar['h'], 'l': bar['l'], 'c': bar['c'],
-                'v': bar.get('v', 0),
-            }
-            current_key = key
-        else:
-            current['h'] = max(current['h'], bar['h'])
-            current['l'] = min(current['l'], bar['l'])
-            current['c'] = bar['c']
-            current['v'] = current.get('v', 0) + bar.get('v', 0)
-
-    if current:
-        resampled.append(current)
-
-    return resampled[-max_bars:]
-
 
 def _fetch_monthly(ticker: str, max_bars: int) -> list[dict]:
     """Fetch monthly bars — daily from Massive, resampled to monthly."""
@@ -385,8 +317,8 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
     # Layer 2: Deep cache + fresh merge for 15/30/60min
     # Deep cache has 3,400-5,000 historical bars from S3, but may be missing today.
     # Merge with fresh REST data to get full history + current session candles.
-    # Deep cache only for 15/30min — 60min uses server-side TC2000 resample
-    if tf in ("15", "30"):
+    # Layer 2: Deep cache for 15/30/60min (S3 minute data, 3,400-5,000 bars)
+    if tf in ("15", "30", "60"):
         deep = disk_cache.get_deep(ticker_up, tf, bars)
         if deep is not None:
             deep_bars = deep.get("bars", [])
