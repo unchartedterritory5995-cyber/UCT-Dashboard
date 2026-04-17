@@ -226,10 +226,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
               </Suspense>
             </div>
 
-            <PositionCalc currentPrice={liveData?.price} stopPrice={stopPrice} />
-
             <EarningsIntelSection data={earningsIntel} />
-            <InsiderSection txns={insiderTxns} />
           </div>
         </div>
       )}
