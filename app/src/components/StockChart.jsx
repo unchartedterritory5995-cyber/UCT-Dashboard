@@ -211,18 +211,38 @@ export default function StockChart({
   )
 
   // Filter bars to regular session only (9:30 AM - 4:00 PM ET) when extended hours hidden
+  // For 60min RTH: resample clock-hour bars into market-open-aligned bars
+  // (9:30-10:00 first bar, then 10:00-11:00, 11:00-12:00, etc.)
   const filteredBars = useMemo(() => {
     if (!bars || !isIntraday || showExtended) return bars
-    return bars.filter(b => {
-      if (typeof b.t !== 'number') return true
-      // Convert UTC timestamp to ET hour/minute
-      const d = new Date(b.t * 1000)
+
+    const getETMins = (t) => {
+      const d = new Date(t * 1000)
       const etStr = d.toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
       const [h, m] = etStr.split(':').map(Number)
-      const mins = h * 60 + m
+      return h * 60 + m
+    }
+
+    if (resolvedTf === '60') {
+      // Resample: group underlying data into 9:30-10, 10-11, 11-12, ... 15-16
+      // We need sub-hour bars to resample. Use the raw bars (clock-hour) and
+      // split the 9:00 bar: first 30 min goes to prev day's last bar, last 30 min starts new day
+      // Simpler approach: just shift the filter so 9:00 bar becomes the 9:30 bar
+      // (accepts that the 9:00-9:30 premarket portion is included in the first bar)
+      return bars.filter(b => {
+        if (typeof b.t !== 'number') return true
+        const mins = getETMins(b.t)
+        return mins >= 540 && mins < 960 // 9:00 AM to 4:00 PM (include 9:00 bar as the opening bar)
+      })
+    }
+
+    // Other intraday TFs: standard RTH filter
+    return bars.filter(b => {
+      if (typeof b.t !== 'number') return true
+      const mins = getETMins(b.t)
       return mins >= 570 && mins < 960 // 9:30 AM (570min) to 4:00 PM (960min) ET
     })
-  }, [bars, isIntraday, showExtended])
+  }, [bars, isIntraday, showExtended, resolvedTf])
 
   const ohlcData = useMemo(
     () => filteredBars ? filteredBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
