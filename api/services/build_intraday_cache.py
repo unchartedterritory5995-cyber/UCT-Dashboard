@@ -154,28 +154,37 @@ def build_cache(days=160, timeframes=None, output_dir=None, tickers_filter=None)
         processed += 1
         total_syms = len(day_result[timeframes[0]])
         print(f"{total_syms} tickers, {time.time()-t0:.1f}s")
+
+        # Save incrementally every 10 days so partial progress survives restarts
+        if processed % 10 == 0:
+            _save_accumulated(accumulated, timeframes, output_dir, final=False)
+
         current += timedelta(days=1)
 
     print(f"\nDownloaded {processed} trading days")
+    _save_accumulated(accumulated, timeframes, output_dir, final=True)
 
-    # Save per-ticker files
+
+def _save_accumulated(accumulated, timeframes, output_dir, final=False):
+    """Save accumulated bars to per-ticker JSON files."""
     for tf_mult in timeframes:
         tf_str = str(tf_mult)
         saved = 0
         for sym, bars in accumulated[tf_mult].items():
             bars.sort(key=lambda b: b['t'])
-            bars = bars[-5000:]
-            for b in bars:
+            trimmed = bars[-5000:]
+            for b in trimmed:
                 b['o'] = round(b['o'], 2)
                 b['h'] = round(b['h'], 2)
                 b['l'] = round(b['l'], 2)
                 b['c'] = round(b['c'], 2)
-            payload = {"ticker": sym, "tf": tf_str, "bars": bars}
+            payload = {"ticker": sym, "tf": tf_str, "bars": trimmed}
             out_path = os.path.join(output_dir, f"{sym}_{tf_str}_5000.json")
             with open(out_path, 'w') as f:
                 json.dump(payload, f, separators=(',', ':'))
             saved += 1
-        print(f"  {tf_str}min: {saved} tickers saved")
+        if final:
+            print(f"  {tf_str}min: {saved} tickers saved")
 
     total_files = len([f for f in os.listdir(output_dir) if f.endswith('.json')])
     print(f"\nDone! {total_files} files in {output_dir}")
