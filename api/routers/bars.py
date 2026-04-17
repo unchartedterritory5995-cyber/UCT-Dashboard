@@ -384,7 +384,8 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
     # Layer 2: Deep cache + fresh merge for 15/30/60min
     # Deep cache has 3,400-5,000 historical bars from S3, but may be missing today.
     # Merge with fresh REST data to get full history + current session candles.
-    if tf in ("15", "30", "60"):
+    # Deep cache only for 15/30min — 60min uses server-side TC2000 resample
+    if tf in ("15", "30"):
         deep = disk_cache.get_deep(ticker_up, tf, bars)
         if deep is not None:
             deep_bars = deep.get("bars", [])
