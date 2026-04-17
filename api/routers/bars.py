@@ -302,9 +302,10 @@ def _fetch_hourly_from_30min(ticker: str, max_bars: int) -> list[dict]:
         # 10:00, 10:30 → bucket 1 (combined: 10:00-11:00)
         # 11:00, 11:30 → bucket 2, etc.
         if mins < 570:
-            # Pre-market: each 30-min bar is its own bucket
-            bucket = f"pre_{mins}"
-            bucket_ts = ts
+            # Pre-market: combine into full hours (4:00+4:30→4:00, 5:00+5:30→5:00, etc.)
+            bucket = f"pre_{mins // 60}"
+            bucket_dt = dt.replace(minute=0, second=0)
+            bucket_ts = int(bucket_dt.timestamp())
         elif mins < 600:
             # 9:30-10:00: bucket 0
             bucket = 0
