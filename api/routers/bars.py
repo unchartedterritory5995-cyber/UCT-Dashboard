@@ -444,11 +444,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
 
     # Layer 3: Fetch from Massive API (slow — 4-8s from Railway)
     try:
-        if tf == "60":
-            # Fetch 30-min bars and resample to TC2000-style hourly:
-            # 9:30-10:00 (first bar), then 10-11, 11-12, ..., 15-16
-            result_bars = _fetch_hourly_from_30min(ticker_up, bars)
-        elif tf in ("1", "5", "15", "30"):
+        if tf in ("1", "5", "15", "30", "60"):
             result_bars = _fetch_intraday(ticker_up, tf, bars)
         elif tf == "W":
             result_bars = _fetch_weekly(ticker_up, bars)

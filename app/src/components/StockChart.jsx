@@ -210,9 +210,7 @@ export default function StockChart({
     []
   )
 
-  // Filter bars to regular session only when extended hours hidden.
-  // For 60min RTH: resample clock-hour bars into market-open-aligned bars
-  // (9:30-10:30, 10:30-11:30, ... like TradingView/TC2000)
+  // Filter bars to regular session only when extended hours hidden
   const filteredBars = useMemo(() => {
     if (!bars || !isIntraday || showExtended) return bars
 
@@ -223,66 +221,14 @@ export default function StockChart({
       return h * 60 + m
     }
 
-    // Filter to RTH: 9:30 AM - 4:00 PM ET
-    const rthBars = bars.filter(b => {
+    return bars.filter(b => {
       if (typeof b.t !== 'number') return true
       const mins = getETMins(b.t)
-      return mins >= 570 && mins < 960
+      // Hourly: start at 9:00 (the bar covering 9:00-10:00 includes the 9:30 open)
+      // Other intraday: start at 9:30
+      const start = resolvedTf === '60' ? 540 : 570
+      return mins >= start && mins < 960
     })
-
-    if (resolvedTf === '60' && rthBars.length > 0) {
-      // Resample clock-hour bars into 9:30-aligned hourly bars.
-      // Group by: floor((mins - 570) / 60) where 570 = 9:30 AM
-      // This gives: 9:30-10:30 (group 0), 10:30-11:30 (group 1), etc.
-      const getETDate = (t) => {
-        const d = new Date(t * 1000)
-        return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-      }
-
-      // TC2000 style: first bar 9:30-10:00 (30min), then 10-11, 11-12, ... 15-16
-      // Bucket 0 = 9:30-10:00, Bucket 1 = 10:00-11:00, Bucket 2 = 11:00-12:00, etc.
-      const resampled = []
-      let current = null
-      let currentKey = null
-
-      for (const b of rthBars) {
-        if (typeof b.t !== 'number') continue
-        const mins = getETMins(b.t)
-        const date = getETDate(b.t)
-
-        let bucket, bucketStartMins
-        if (mins < 600) {
-          // 9:30-10:00 → bucket 0 (the short opening bar)
-          bucket = 0
-          bucketStartMins = 570 // 9:30
-        } else {
-          // 10:00-11:00 → bucket 1, 11:00-12:00 → bucket 2, etc.
-          bucket = Math.floor((mins - 600) / 60) + 1
-          bucketStartMins = 600 + (bucket - 1) * 60
-        }
-        const key = `${date}_${bucket}`
-
-        const bucketH = Math.floor(bucketStartMins / 60)
-        const bucketM = bucketStartMins % 60
-        const etDate = new Date(`${date}T${String(bucketH).padStart(2,'0')}:${String(bucketM).padStart(2,'0')}:00`)
-        const bucketTs = Math.floor(etDate.getTime() / 1000) - _ET_OFFSET
-
-        if (key !== currentKey) {
-          if (current) resampled.push(current)
-          current = { t: bucketTs, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 }
-          currentKey = key
-        } else {
-          current.h = Math.max(current.h, b.h)
-          current.l = Math.min(current.l, b.l)
-          current.c = b.c
-          current.v = (current.v || 0) + (b.v || 0)
-        }
-      }
-      if (current) resampled.push(current)
-      return resampled
-    }
-
-    return rthBars
   }, [bars, isIntraday, showExtended, resolvedTf])
 
   const ohlcData = useMemo(
