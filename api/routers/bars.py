@@ -311,11 +311,33 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
             headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
         )
 
-    # Layer 2: Deep cache FIRST for 15/30/60min (S3 minute data, 3,400-5,000 bars)
-    # Checked before regular disk cache because deep cache has more depth
+    # Layer 2: Deep cache + fresh merge for 15/30/60min
+    # Deep cache has 3,400-5,000 historical bars from S3, but may be missing today.
+    # Merge with fresh REST data to get full history + current session candles.
     if tf in ("15", "30", "60"):
         deep = disk_cache.get_deep(ticker_up, tf, bars)
         if deep is not None:
+            deep_bars = deep.get("bars", [])
+            last_deep_ts = deep_bars[-1]["t"] if deep_bars else 0
+            # Check if deep cache is missing recent data (>4 hours old)
+            import time as _time
+            if (_time.time() - last_deep_ts) > 14400:
+                # Fetch fresh bars from REST to cover the gap
+                try:
+                    fresh = _fetch_intraday(ticker_up, tf, 500)
+                    if fresh:
+                        # Merge: keep deep history, append fresh bars newer than deep's last
+                        merged = deep_bars + [b for b in fresh if b["t"] > last_deep_ts]
+                        merged = merged[-bars:]  # Trim to requested count
+                        payload = {"ticker": ticker_up, "tf": tf, "bars": merged}
+                        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
+                        return JSONResponse(
+                            content=payload,
+                            headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+                        )
+                except Exception:
+                    pass
+            # Deep cache is fresh enough or merge failed — serve as-is
             cache.set(cache_key, deep, ttl=_CACHE_TTL.get(tf, 300))
             return JSONResponse(
                 content=deep,
