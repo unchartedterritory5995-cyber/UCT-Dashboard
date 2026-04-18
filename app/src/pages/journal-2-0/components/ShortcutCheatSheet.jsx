@@ -7,6 +7,7 @@ import styles from './ShortcutCheatSheet.module.css'
 const GLOBAL_SHORTCUTS = [
   { keys: ['g', 'p'], label: 'Go to Open Positions' },
   { keys: ['g', 'j'], label: 'Go to Trade Journal' },
+  { keys: ['g', 'c'], label: 'Go to Community' },
   { keys: ['?'], label: 'Show this cheat sheet' },
   { keys: ['Esc'], label: 'Close any open modal or panel' },
 ]

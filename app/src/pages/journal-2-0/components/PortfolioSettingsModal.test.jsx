@@ -60,6 +60,21 @@ describe('PortfolioSettingsModal', () => {
     })
   })
 
+  it('shareJournalData toggle ships in the save payload', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
+    )
+    // Default off
+    const toggle = screen.getByRole('checkbox', { name: /Share my closed trades with the community/i })
+    expect(toggle).not.toBeChecked()
+    await user.click(toggle)
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.shareJournalData).toBe(true)
+  })
+
   it('calls onClose without onSave on Cancel', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn()

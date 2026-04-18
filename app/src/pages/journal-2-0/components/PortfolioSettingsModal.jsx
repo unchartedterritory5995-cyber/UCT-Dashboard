@@ -99,6 +99,9 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
   const [breadthMetric, setBreadthMetric] = useState(
     settings?.journalColumns?.breadthMetric ?? 'NASI RSI',
   )
+  const [shareJournalData, setShareJournalData] = useState(
+    !!settings?.shareJournalData,
+  )
 
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -152,6 +155,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
         marketNavIndex,
         breadthMetric,
       },
+      shareJournalData,
     }
     setSaving(true)
     try {
@@ -175,6 +179,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
     setups,
     marketNavIndex,
     breadthMetric,
+    shareJournalData,
     onSave,
     onClose,
   ])
@@ -476,6 +481,43 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
               Changing these changes the snapshot name for future positions only.
               Existing Positions/Trades keep their captured snapshot.
             </p>
+          </section>
+
+          {/* COMMUNITY SHARING */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeader}>COMMUNITY SHARING</h3>
+            <label
+              className={styles.field}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: 10,
+                padding: '10px 12px',
+                background: '#0d0f13',
+                border: '1px solid #242730',
+                borderRadius: 8,
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={shareJournalData}
+                onChange={(e) => setShareJournalData(e.target.checked)}
+                style={{ accentColor: '#3b82f6', marginTop: 3 }}
+              />
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ color: '#e6e8eb', fontWeight: 500 }}>
+                  Share my closed trades with the community
+                </span>
+                <span className={styles.helper}>
+                  When on, your closed trades appear in the <strong>Community</strong> tab
+                  next to Trade Journal so other users can learn from them.
+                  Your <strong>account size, share count, and $ P&amp;L are NEVER shared</strong> —
+                  only symbol, side, entry/exit prices, setup, R-multiple,
+                  and percent return. You can turn this off anytime.
+                </span>
+              </span>
+            </label>
           </section>
 
           {errorMsg && (
