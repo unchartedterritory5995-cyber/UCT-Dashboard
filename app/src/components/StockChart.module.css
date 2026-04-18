@@ -74,6 +74,44 @@
   background: var(--bg-hover);
 }
 
+/* ── Crosshair OHLCV legend (TradingView-style overlay) ── */
+.legend {
+  position: absolute;
+  top: 28px;
+  left: 8px;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  pointer-events: none;
+  background: rgba(26, 28, 23, 0.88);
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+.legendTime {
+  color: #a8a290;
+  font-weight: 600;
+}
+.legendLabel {
+  color: #a8a290;
+  font-weight: 500;
+}
+.legendVal {
+  color: #d4cfc0;
+  font-weight: 600;
+}
+.legendUp {
+  color: var(--ut-green-bright);
+  font-weight: 600;
+}
+.legendDown {
+  color: #f87171;
+  font-weight: 600;
+}
+
 /* ── Attribution (Apache 2.0 requirement) ── */
 .attribution {
   position: absolute;

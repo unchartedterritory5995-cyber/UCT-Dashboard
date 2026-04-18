@@ -13,6 +13,21 @@ import styles from './StockChart.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
+// ─── Legend helpers ─────────────────────────────────────────────────────────
+
+function formatLegendTime(time) {
+  if (typeof time === 'string') return time
+  const d = new Date(time * 1000)
+  return d.toLocaleString('en-US', { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function formatVolume(v) {
+  if (!v) return '0'
+  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'
+  if (v >= 1e3) return (v / 1e3).toFixed(0) + 'K'
+  return v.toLocaleString()
+}
+
 // ─── Indicator computations ──────────────────────────────────────────────────
 
 function computeSMA(bars, period) {
@@ -168,6 +183,10 @@ export default function StockChart({
   }, [])
 
   // ── Drawing tools state ──
+  // ── Crosshair legend state ──
+  const [crosshairData, setCrosshairData] = useState(null)
+  const crosshairSubRef = useRef(null)
+
   const [activeTool, setActiveTool] = useState(null)
   const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color)
   const [drawWidth, setDrawWidth] = useState(cs.drawingDefaults.width)
@@ -600,6 +619,57 @@ export default function StockChart({
     updateChart()
   }, [updateChart])
 
+  // ── Crosshair legend: subscribe to hover events ──
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+
+    // Remove previous subscriber
+    if (crosshairSubRef.current) {
+      try { chart.unsubscribeCrosshairMove(crosshairSubRef.current) } catch {}
+    }
+
+    const handler = (param) => {
+      if (!param.point || !param.time) { setCrosshairData(null); return }
+
+      const priceData = candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null
+      if (!priceData) { setCrosshairData(null); return }
+
+      const volData = volumeSeriesRef.current ? param.seriesData.get(volumeSeriesRef.current) : null
+
+      // Get overlay values (SMA/EMA)
+      const ovValues = overlaySeriesRefs.current.map((s, i) => {
+        const d = param.seriesData.get(s)
+        const ov = resolvedOverlays?.[i]
+        return d && ov ? { label: `${ov.type} ${ov.period}`, value: d.value, color: ov.color } : null
+      }).filter(Boolean)
+
+      // For OHLC types (candles/bars/hollow)
+      const o = priceData.open ?? priceData.value
+      const h = priceData.high ?? priceData.value
+      const l = priceData.low ?? priceData.value
+      const c = priceData.close ?? priceData.value
+      const change = c - o
+      const changePct = o ? ((change / o) * 100) : 0
+
+      setCrosshairData({
+        time: param.time,
+        open: o, high: h, low: l, close: c,
+        volume: volData?.value,
+        change: change.toFixed(2),
+        changePct: changePct.toFixed(2),
+        overlays: ovValues,
+      })
+    }
+
+    chart.subscribeCrosshairMove(handler)
+    crosshairSubRef.current = handler
+
+    return () => {
+      try { chart.unsubscribeCrosshairMove(handler) } catch {}
+    }
+  }, [updateChart, resolvedOverlays])
+
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
     return () => {
@@ -640,6 +710,24 @@ export default function StockChart({
         className={styles.chart}
         style={{ display: loading || error ? 'none' : 'block' }}
       />
+      {crosshairData && (
+        <div className={styles.legend}>
+          <span className={styles.legendTime}>{formatLegendTime(crosshairData.time)}</span>
+          <span className={styles.legendLabel}>O <span className={styles.legendVal}>{crosshairData.open?.toFixed(2)}</span></span>
+          <span className={styles.legendLabel}>H <span className={styles.legendVal}>{crosshairData.high?.toFixed(2)}</span></span>
+          <span className={styles.legendLabel}>L <span className={styles.legendVal}>{crosshairData.low?.toFixed(2)}</span></span>
+          <span className={styles.legendLabel}>C <span className={styles.legendVal}>{crosshairData.close?.toFixed(2)}</span></span>
+          {crosshairData.volume != null && (
+            <span className={styles.legendLabel}>V <span className={styles.legendVal}>{formatVolume(crosshairData.volume)}</span></span>
+          )}
+          <span className={parseFloat(crosshairData.change) >= 0 ? styles.legendUp : styles.legendDown}>
+            {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
+          </span>
+          {crosshairData.overlays.map((ov, i) => (
+            <span key={i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
+          ))}
+        </div>
+      )}
       {showDrawingTools && bars?.length > 0 && (
         <>
           <ChartDrawingOverlay
