@@ -25,6 +25,7 @@ import {
   shares as fmtShares,
   dateShort,
 } from '../../../lib/journal-2-0'
+import TickerPopup from '../../../components/TickerPopup'
 import styles from './PositionsTable.module.css'
 
 export const POSITIONS_COLUMNS = [
@@ -69,7 +70,7 @@ function pnlCell(value, fmt) {
   return <span className={cls}>{fmt(value)}</span>
 }
 
-function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, onDelete, onChart }) {
+function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, onDelete }) {
   const active = activeStop(position)
   const hasPrice = typeof current === 'number' && Number.isFinite(current)
   const allowFractional = isFractional(position)
@@ -130,16 +131,13 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
       case 'actions':
         return (
           <div className={styles.actionsCell}>
-            <button
-              type="button"
+            <TickerPopup
+              sym={position.symbol}
+              as="button"
               className={styles.actionBtn}
-              onClick={() => onChart?.(position)}
-              aria-label={`Chart ${position.symbol}`}
-              disabled={!onChart}
-              title="Open chart (right-click a bar to add)"
             >
-              📈
-            </button>
+              <span title="Open full chart (right-click a bar to add)">📈</span>
+            </TickerPopup>
             <button
               type="button"
               className={styles.actionBtn}
@@ -196,7 +194,6 @@ export default function PositionsTable({
   onEdit,
   onClose,
   onDelete,
-  onChart,
 }) {
   const sorted = useMemo(
     () => [...positions].sort((a, b) => a.symbol.localeCompare(b.symbol)),
@@ -242,7 +239,6 @@ export default function PositionsTable({
               onEdit={onEdit}
               onClose={onClose}
               onDelete={onDelete}
-              onChart={onChart}
             />
           ))}
         </tbody>

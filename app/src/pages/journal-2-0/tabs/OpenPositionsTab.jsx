@@ -18,7 +18,6 @@ import ColumnsPicker from '../components/ColumnsPicker'
 import AddPositionModal from '../components/AddPositionModal'
 import EditPositionModal from '../components/EditPositionModal'
 import ClosePositionModal from '../components/ClosePositionModal'
-import ChartModal from '../components/ChartModal'
 import ConfirmModal from '../components/ConfirmModal'
 import Toast from '../components/Toast'
 import {
@@ -73,7 +72,6 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const [editTarget, setEditTarget] = useState(null)
   const [closeTarget, setCloseTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const [chartSymbol, setChartSymbol] = useState(null)
   const [toast, setToast] = useState(null)  // { message, tone }
 
   // Tab-scoped shortcuts. react-hotkeys-hook skips input/textarea/
@@ -241,7 +239,6 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           onEdit={(p) => setEditTarget(p)}
           onClose={(p) => setCloseTarget(p)}
           onDelete={handleDeleteRequest}
-          onChart={(p) => setChartSymbol(p.symbol)}
         />
       )}
 
@@ -251,17 +248,6 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           prefill={addPrefill || undefined}
           onSave={handleCreate}
           onClose={() => { setAddOpen(false); setAddPrefill(null) }}
-        />
-      )}
-
-      {chartSymbol && (
-        <ChartModal
-          symbol={chartSymbol}
-          onAddFromBar={({ symbol, price, date }) => {
-            setAddPrefill({ symbol, entryPrice: price, entryDate: date })
-            setChartSymbol(null)  // close chart; AddPositionModal opens
-          }}
-          onClose={() => setChartSymbol(null)}
         />
       )}
 

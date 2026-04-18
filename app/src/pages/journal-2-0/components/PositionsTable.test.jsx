@@ -1,5 +1,17 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+
+// TickerPopup pulls in AuthContext via useFlagged; stub it to a simple
+// button for table-render tests. Integration with the real TickerPopup
+// is exercised in the browser, not unit tests.
+vi.mock('../../../components/TickerPopup', () => ({
+  default: ({ sym, as: Tag = 'span', className, children }) => (
+    <Tag className={className} data-testid={`ticker-popup-${sym}`}>
+      {children}
+    </Tag>
+  ),
+}))
+
 import PositionsTable, { POSITIONS_COLUMNS } from './PositionsTable'
 
 // §14.7 YSS verification — this test anchors the visible UI against the
