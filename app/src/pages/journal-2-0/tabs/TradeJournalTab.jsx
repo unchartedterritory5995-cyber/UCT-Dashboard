@@ -19,6 +19,7 @@ import ColumnsPicker from '../components/ColumnsPicker'
 import FiltersPanel from '../components/FiltersPanel'
 import AddTradeModal from '../components/AddTradeModal'
 import DeleteAllModal from '../components/DeleteAllModal'
+import ImportCsvModal from '../components/ImportCsvModal'
 import Toast from '../components/Toast'
 import { summaryStats } from '../../../lib/journal-2-0'
 import styles from './TradeJournalTab.module.css'
@@ -75,6 +76,7 @@ export default function TradeJournalTab({ settings }) {
   // Toolbar modals
   const [addOpen, setAddOpen] = useState(false)
   const [deleteAllOpen, setDeleteAllOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const pickerBtnRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const filtersBtnRef = useRef(null)
@@ -185,8 +187,7 @@ export default function TradeJournalTab({ settings }) {
           <button
             type="button"
             className={styles.ghostBtn}
-            disabled
-            title="Arrives in Phase 7"
+            onClick={() => setImportOpen(true)}
           >
             ⬆ Import CSV
           </button>
@@ -218,6 +219,20 @@ export default function TradeJournalTab({ settings }) {
           tradeCount={trades.length}
           onConfirm={handleDeleteAll}
           onClose={() => setDeleteAllOpen(false)}
+        />
+      )}
+      {importOpen && (
+        <ImportCsvModal
+          onConfirmed={(imported, skipped) => {
+            refresh()
+            showToast(
+              skipped > 0
+                ? `Imported ${imported} trade${imported === 1 ? '' : 's'} (${skipped} skipped)`
+                : `Imported ${imported} trade${imported === 1 ? '' : 's'}`,
+              'success',
+            )
+          }}
+          onClose={() => setImportOpen(false)}
         />
       )}
 

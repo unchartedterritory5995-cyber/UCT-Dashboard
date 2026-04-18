@@ -1,0 +1,220 @@
+/* ImportCsvModal — wider than ModalShell default because the preview
+   table needs horizontal room. */
+
+.wideModal {
+  width: min(780px, 100%);
+}
+
+.dropzone {
+  border: 2px dashed #242730;
+  background: #0d0f13;
+  border-radius: 12px;
+  padding: 40px 24px;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropzone:hover,
+.dropzoneActive {
+  border-color: #3b82f6;
+  background: #121722;
+}
+
+.dropInner {
+  text-align: center;
+  color: #c2c6cf;
+  font-size: 13px;
+}
+
+.dropInner p {
+  margin: 4px 0;
+}
+
+.dropIcon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.dropHint {
+  color: #7c8290;
+  font-size: 11px;
+}
+
+.formats {
+  background: #0d0f13;
+  border: 1px solid #242730;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.formatsTitle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #8b92a1;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.formatList {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: #c2c6cf;
+  line-height: 1.5;
+}
+
+.formatList li strong {
+  color: #e6e8eb;
+}
+
+.templateRow {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.linkBtn:hover {
+  text-decoration: underline;
+}
+
+.summary {
+  display: flex;
+  gap: 16px;
+  padding: 10px 14px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  color: #c2c6cf;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+}
+
+.warn {
+  color: #f5c858;
+}
+
+.warnings {
+  padding: 10px 14px;
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  border-radius: 8px;
+  color: #f5c858;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.previewTableWrap {
+  border: 1px solid #242730;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 280px;
+  background: #0d0f13;
+}
+
+.previewTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  color: #e6e8eb;
+  font-variant-numeric: tabular-nums;
+}
+
+.previewTable th {
+  position: sticky;
+  top: 0;
+  background: #121417;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #8b92a1;
+  border-bottom: 1px solid #242730;
+  white-space: nowrap;
+}
+
+.previewTable td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #181b22;
+  white-space: nowrap;
+}
+
+.previewMore {
+  margin: 8px 0 0;
+  padding: 0 14px 10px;
+  font-size: 11px;
+  color: #7c8290;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.badgeWin { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.badgeLoss { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.badgeBe { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+
+.errorsDetails {
+  background: #0d0f13;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.errorsDetails summary {
+  font-size: 12px;
+  color: #ef8d8d;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.errorsList {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 12px;
+  color: #c2c6cf;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.errorsMore {
+  color: #7c8290;
+  list-style: none;
+  font-style: italic;
+}
+
+.busy {
+  color: #7c8290;
+  font-size: 12px;
+  font-style: italic;
+}
