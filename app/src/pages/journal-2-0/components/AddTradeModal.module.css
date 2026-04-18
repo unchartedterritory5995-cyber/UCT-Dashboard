@@ -1,0 +1,52 @@
+/* Styles specific to AddTradeModal — the collapsible Historical Market
+   Context section. Everything else reuses ModalShell.module.css. */
+
+.ctxSection {
+  border: 1px solid #242730;
+  border-radius: 10px;
+  background: #0d0f13;
+}
+
+.ctxToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  color: #e6e8eb;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ctxToggle:hover {
+  background: #141720;
+  border-radius: 10px;
+}
+
+.ctxChevron {
+  color: #7c8290;
+  font-size: 10px;
+  width: 12px;
+  display: inline-block;
+}
+
+.ctxTitle {
+  font-weight: 500;
+}
+
+.ctxOptional {
+  color: #7c8290;
+  font-size: 12px;
+}
+
+.ctxBody {
+  padding: 4px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 1px solid #20232b;
+}
