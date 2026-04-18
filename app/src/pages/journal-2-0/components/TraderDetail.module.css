@@ -1,0 +1,258 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.header {
+  display: flex;
+}
+
+.backBtn {
+  background: #1b1e25;
+  border: 1px solid #2a2e38;
+  color: #c2c6cf;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.backBtn:hover {
+  background: #252935;
+  color: #e6e8eb;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: #0d0f13;
+  border: 1px solid #242730;
+  border-left: 3px solid #3b82f6;
+  border-radius: 12px;
+}
+
+.initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+
+.heroBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.heroTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #f0f2f5;
+  letter-spacing: 0.2px;
+}
+
+.youBadge {
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: 4px;
+}
+
+.heroMeta {
+  font-size: 12px;
+  color: #8b92a1;
+}
+
+.statsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.privacyNote {
+  margin: 0;
+  font-size: 11px;
+  color: #7c8290;
+  font-style: italic;
+  line-height: 1.5;
+  padding: 2px 4px;
+}
+
+.tradesHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.tradesTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #8b92a1;
+}
+
+.tradesCount {
+  font-size: 11px;
+  color: #c2c6cf;
+  background: #1b1e25;
+  border: 1px solid #2a2e38;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  background: #0d0f13;
+  border: 1px solid #242730;
+  border-radius: 10px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #e6e8eb;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  background: #121417;
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #8b92a1;
+  border-bottom: 1px solid #242730;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.thLeft {
+  text-align: left;
+}
+
+.thRight {
+  text-align: right;
+}
+
+.row {
+  transition: background 80ms;
+}
+
+.row:hover {
+  background: #141720;
+}
+
+.table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #181b22;
+  white-space: nowrap;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tdLeft {
+  text-align: left;
+}
+
+.tdRight {
+  text-align: right;
+}
+
+.badge,
+.sideBadge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.badgeWin {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.badgeLoss {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.badgeBe {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+}
+
+.sideLong {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.sideShort {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.pos {
+  color: #22c55e;
+}
+
+.neg {
+  color: #ef4444;
+}
+
+.dash {
+  color: #5a606c;
+}
+
+.notes {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: bottom;
+}
+
+.empty {
+  padding: 48px;
+  background: #0d0f13;
+  border: 1px dashed #242730;
+  border-radius: 12px;
+  color: #8b92a1;
+  text-align: center;
+  font-size: 13px;
+}

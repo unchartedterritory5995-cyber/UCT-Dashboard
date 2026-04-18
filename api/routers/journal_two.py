@@ -157,6 +157,19 @@ def list_trades(user: dict = Depends(get_current_user)) -> dict[str, Any]:
 
 # ── Community feed — opt-in share ───────────────────────────────────────────
 
+@router.get("/community/traders")
+def community_traders(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Per-trader aggregated summary cards for the Community grid.
+    Each entry has traderId, display name, trade count, W/L/BE,
+    win rate, avg R, avg %, profit factor, hold days, first/last
+    trade. Sorted by trade count desc. isMe flags the current user."""
+    return {
+        "traders": community_service.list_trader_summaries(
+            current_user_id=user["id"],
+        ),
+    }
+
+
 @router.get("/community/trades")
 def community_trades(
     limit: int = 500,
@@ -165,10 +178,15 @@ def community_trades(
     """Closed trades from every user who has opted in via
     settings.shareJournalData. Stripped of shares + pnlDollar (which
     would reveal portfolio size); everything else — pnlPercent, R,
-    result, setup, context — is kept. Viewing does NOT require
-    sharing your own."""
+    result, setup, context — is kept. Includes traderId + isMe so the
+    client can filter by trader and highlight the current user."""
     limit = max(1, min(int(limit or 500), 2000))
-    return {"trades": community_service.list_shared_trades(limit=limit)}
+    return {
+        "trades": community_service.list_shared_trades(
+            limit=limit,
+            current_user_id=user["id"],
+        ),
+    }
 
 
 @router.post("/trades")

@@ -200,3 +200,142 @@ def test_multiple_users_share_and_appear_together(db_conn):
     got = svc.list_shared_trades(conn=db_conn)
     traders = {t["trader"] for t in got}
     assert traders == {"Alice", "Bob"}
+
+
+def test_trades_include_trader_id_and_is_me(db_conn):
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _add_user(db_conn, "bob", "bob@x.com", display_name="Bob")
+    _set_sharing(db_conn, "alice", True)
+    _set_sharing(db_conn, "bob", True)
+    _add_trade(db_conn, "alice", symbol="NVDA")
+    _add_trade(db_conn, "bob", symbol="AAPL")
+
+    # Alice is the viewer — her rows get isMe=true, Bob's don't
+    got = svc.list_shared_trades(current_user_id="alice", conn=db_conn)
+    by_sym = {t["symbol"]: t for t in got}
+    assert by_sym["NVDA"]["isMe"] is True
+    assert by_sym["NVDA"]["traderId"] == "alice"
+    assert by_sym["AAPL"]["isMe"] is False
+    assert by_sym["AAPL"]["traderId"] == "bob"
+
+
+# ═══════════════ list_trader_summaries ═══════════════════════════════════════
+
+
+def test_trader_summaries_only_opted_in(db_conn):
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _add_user(db_conn, "bob", "bob@x.com", display_name="Bob")
+    _set_sharing(db_conn, "alice", True)
+    _set_sharing(db_conn, "bob", False)
+    _add_trade(db_conn, "alice")
+    _add_trade(db_conn, "bob")
+
+    got = svc.list_trader_summaries(conn=db_conn)
+    assert len(got) == 1
+    assert got[0]["trader"] == "Alice"
+
+
+def test_trader_summaries_aggregates_win_rate_and_pf(db_conn):
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _set_sharing(db_conn, "alice", True)
+    # 3 wins (+5%, +5%, +10%), 1 loss (-3%), 1 BE (0.5%)
+    _add_trade(db_conn, "alice", entry_price=100, exit_price=105, r_multiple=2.0, result="Win")
+    _add_trade(db_conn, "alice", entry_price=100, exit_price=105, r_multiple=2.0, result="Win")
+    _add_trade(db_conn, "alice", entry_price=100, exit_price=110, r_multiple=3.0, result="Win")
+    _add_trade(db_conn, "alice", entry_price=100, exit_price=97, r_multiple=-1.5, result="Loss")
+    _add_trade(db_conn, "alice", entry_price=100, exit_price=100.5, r_multiple=0.25, result="BE")
+
+    got = svc.list_trader_summaries(conn=db_conn)
+    assert len(got) == 1
+    a = got[0]
+    assert a["tradeCount"] == 5
+    assert a["wins"] == 3
+    assert a["losses"] == 1
+    assert a["bes"] == 1
+    # Win rate: BE excluded from denom → 3 / (3+1) = 75%
+    assert a["winRate"] == pytest.approx(75.0, abs=0.01)
+    # Profit factor on pnl_percent: wins sum = 0.05+0.05+0.10 = 0.20;
+    # loss sum = -0.03; PF = 0.20 / 0.03 ≈ 6.67
+    assert a["profitFactor"] == pytest.approx(0.20 / 0.03, rel=0.01)
+
+
+def test_trader_summaries_profit_factor_infinite_encoded_as_null(db_conn):
+    """All wins, no losses → profitFactor: null (JSON doesn't allow ∞;
+    client renders '∞' when None and wins > 0)."""
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _set_sharing(db_conn, "alice", True)
+    _add_trade(db_conn, "alice", entry_price=100, exit_price=105, r_multiple=2.0, result="Win")
+    _add_trade(db_conn, "alice", entry_price=100, exit_price=110, r_multiple=3.0, result="Win")
+
+    got = svc.list_trader_summaries(conn=db_conn)
+    assert got[0]["profitFactor"] is None
+    assert got[0]["wins"] == 2
+    assert got[0]["losses"] == 0
+
+
+def test_trader_summaries_profit_factor_zero_on_no_wins(db_conn):
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _set_sharing(db_conn, "alice", True)
+    _add_trade(db_conn, "alice", entry_price=100, exit_price=97, r_multiple=-1.5, result="Loss")
+    _add_trade(db_conn, "alice", entry_price=100, exit_price=100.5, r_multiple=0.25, result="BE")
+
+    got = svc.list_trader_summaries(conn=db_conn)
+    assert got[0]["profitFactor"] == 0
+
+
+def test_trader_summaries_isme_flag(db_conn):
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _add_user(db_conn, "bob", "bob@x.com", display_name="Bob")
+    _set_sharing(db_conn, "alice", True)
+    _set_sharing(db_conn, "bob", True)
+    _add_trade(db_conn, "alice")
+    _add_trade(db_conn, "bob")
+
+    got = svc.list_trader_summaries(current_user_id="alice", conn=db_conn)
+    by_name = {t["trader"]: t for t in got}
+    assert by_name["Alice"]["isMe"] is True
+    assert by_name["Bob"]["isMe"] is False
+
+
+def test_trader_summaries_sorted_by_trade_count_desc(db_conn):
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _add_user(db_conn, "bob", "bob@x.com", display_name="Bob")
+    _set_sharing(db_conn, "alice", True)
+    _set_sharing(db_conn, "bob", True)
+    _add_trade(db_conn, "alice", entry_date="2026-01-01T00:00:00Z")
+    _add_trade(db_conn, "bob", entry_date="2026-01-01T00:00:00Z")
+    _add_trade(db_conn, "bob", entry_date="2026-01-02T00:00:00Z")
+    _add_trade(db_conn, "bob", entry_date="2026-01-03T00:00:00Z")
+
+    got = svc.list_trader_summaries(conn=db_conn)
+    assert got[0]["trader"] == "Bob"  # 3 trades
+    assert got[1]["trader"] == "Alice"  # 1 trade
+
+
+def test_trader_summaries_omits_dollar_amounts(db_conn):
+    """No $ fields in the response — portfolio-size privacy."""
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _set_sharing(db_conn, "alice", True)
+    _add_trade(db_conn, "alice")
+
+    got = svc.list_trader_summaries(conn=db_conn)
+    t = got[0]
+    # Must NOT include anything $-denominated
+    for k in ("totalPnl", "totalPnlDollar", "avgPnlDollar", "shares"):
+        assert k not in t
