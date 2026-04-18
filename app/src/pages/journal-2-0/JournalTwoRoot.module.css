@@ -14,6 +14,40 @@
   margin-bottom: 18px;
 }
 
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shortcutsBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: #1b1e25;
+  border: 1px solid #2a2e38;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #8b92a1;
+}
+
+.shortcutsBtn:hover {
+  background: #252935;
+  color: #e6e8eb;
+}
+
+.headerKbd {
+  font-family: 'IBM Plex Mono', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  color: inherit;
+}
+
 .heading {
   margin: 0;
   font-size: 22px;

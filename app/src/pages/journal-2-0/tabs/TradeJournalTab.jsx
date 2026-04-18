@@ -9,6 +9,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useSWRConfig } from 'swr'
+import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Trades from '../hooks/useJ2Trades'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
 import useJ2Filters from '../hooks/useJ2Filters'
@@ -82,6 +83,24 @@ export default function TradeJournalTab({ settings }) {
   const filtersBtnRef = useRef(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [toast, setToast] = useState(null)
+
+  // Tab-scoped shortcuts. '/' focuses the Symbol filter input — opens
+  // the filters panel first if needed.
+  useHotkeys('t', () => setAddOpen(true))
+  useHotkeys('f', () => setFiltersOpen((x) => !x))
+  useHotkeys('c', () => setPickerOpen((x) => !x))
+  useHotkeys(
+    '/',
+    (e) => {
+      e.preventDefault()
+      setFiltersOpen(true)
+      // Defer focusing until the panel mounts
+      setTimeout(() => {
+        const el = document.querySelector('input[aria-label="Symbol starts-with filter"]')
+        if (el) el.focus()
+      }, 60)
+    },
+  )
 
   const showToast = useCallback((message, tone = 'info') => {
     setToast({ message, tone })

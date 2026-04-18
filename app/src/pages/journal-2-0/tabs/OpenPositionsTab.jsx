@@ -9,6 +9,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useSWRConfig } from 'swr'
+import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Positions from '../hooks/useJ2Positions'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
 import useLivePrices from '../../../hooks/useLivePrices'
@@ -18,6 +19,7 @@ import AddPositionModal from '../components/AddPositionModal'
 import EditPositionModal from '../components/EditPositionModal'
 import ClosePositionModal from '../components/ClosePositionModal'
 import ChartModal from '../components/ChartModal'
+import ConfirmModal from '../components/ConfirmModal'
 import Toast from '../components/Toast'
 import {
   portfolioAggregates,
@@ -70,8 +72,14 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const [addPrefill, setAddPrefill] = useState(null)  // chart-driven prefill
   const [editTarget, setEditTarget] = useState(null)
   const [closeTarget, setCloseTarget] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [chartSymbol, setChartSymbol] = useState(null)
   const [toast, setToast] = useState(null)  // { message, tone }
+
+  // Tab-scoped shortcuts. react-hotkeys-hook skips input/textarea/
+  // contenteditable by default — matches the cheat sheet's note.
+  useHotkeys('a', () => setAddOpen(true))
+  useHotkeys('c', () => setPickerOpen((x) => !x))
 
   const showToast = useCallback((message, tone = 'info') => {
     setToast({ message, tone })
@@ -89,19 +97,21 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
     showToast(`Updated ${position.symbol}`, 'success')
   }, [refreshPositions, showToast])
 
-  const handleDelete = useCallback(async (position) => {
-    // Simple confirm — proper destructive-action confirm modal can be a Phase 9
-    // polish item. For now: browser confirm is sufficient for a single-user
-    // dashboard.
-    if (!window.confirm(`Delete ${position.symbol} position? This cannot be undone.`)) return
+  // Delete flow: click → open ConfirmModal → confirm → mutation.
+  const handleDeleteRequest = useCallback((position) => {
+    setDeleteTarget(position)
+  }, [])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return
     try {
-      await jsonFetch(`/api/j2/positions/${position.id}`, 'DELETE')
+      await jsonFetch(`/api/j2/positions/${deleteTarget.id}`, 'DELETE')
       await refreshPositions()
-      showToast(`Deleted ${position.symbol}`, 'success')
+      showToast(`Deleted ${deleteTarget.symbol}`, 'success')
     } catch (e) {
       showToast(String(e.message || e), 'error')
     }
-  }, [refreshPositions, showToast])
+  }, [deleteTarget, refreshPositions, showToast])
 
   const handleClose = useCallback(async (position, payload) => {
     const res = await jsonFetch(`/api/j2/positions/${position.id}/close`, 'POST', payload)
@@ -230,7 +240,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           visibleColumns={visibleColumns}
           onEdit={(p) => setEditTarget(p)}
           onClose={(p) => setCloseTarget(p)}
-          onDelete={handleDelete}
+          onDelete={handleDeleteRequest}
           onChart={(p) => setChartSymbol(p.symbol)}
         />
       )}
@@ -252,6 +262,28 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
             setChartSymbol(null)  // close chart; AddPositionModal opens
           }}
           onClose={() => setChartSymbol(null)}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmModal
+          title={`Delete ${deleteTarget.symbol}?`}
+          body={
+            <>
+              <p>
+                Permanently delete the <strong>{deleteTarget.symbol}</strong> {deleteTarget.side.toLowerCase()} position
+                ({deleteTarget.shares} shares @ {money(deleteTarget.entryPrice)})?
+              </p>
+              <p style={{ fontSize: 12, color: '#7c8290', marginTop: 8 }}>
+                Trades written from this position stay in the Journal — only
+                the open Position row is removed.
+              </p>
+            </>
+          }
+          confirmLabel="Delete Position"
+          tone="danger"
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
         />
       )}
       {editTarget && (

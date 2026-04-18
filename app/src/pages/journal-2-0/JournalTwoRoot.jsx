@@ -7,10 +7,12 @@
  */
 
 import { useState, useCallback } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Settings from './hooks/useJ2Settings'
 import PortfolioSettingsModal from './components/PortfolioSettingsModal'
 import OpenPositionsTab from './tabs/OpenPositionsTab'
 import TradeJournalTab from './tabs/TradeJournalTab'
+import ShortcutCheatSheet from './components/ShortcutCheatSheet'
 import { money } from '../../lib/journal-2-0'
 import styles from './JournalTwoRoot.module.css'
 
@@ -22,28 +24,45 @@ const NESTED_TABS = [
 export default function JournalTwoRoot() {
   const { settings, isLoading, error, save } = useJ2Settings()
   const [showSettings, setShowSettings] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
   const [nestedTab, setNestedTab] = useState('positions')
 
   const openSettings = useCallback(() => setShowSettings(true), [])
   const closeSettings = useCallback(() => setShowSettings(false), [])
 
+  // Global shortcuts
+  useHotkeys('shift+/', () => setShowShortcuts((x) => !x), { preventDefault: true })
+  useHotkeys('g>p', () => setNestedTab('positions'))
+  useHotkeys('g>j', () => setNestedTab('journal'))
+
   return (
     <div className={styles.root}>
       <div className={styles.header}>
         <h1 className={styles.heading}>Journal 2.0</h1>
-        <button
-          type="button"
-          className={styles.settingsPill}
-          onClick={openSettings}
-          disabled={isLoading}
-          aria-label="Open Portfolio Settings"
-        >
-          <span className={styles.gearIcon} aria-hidden="true">⚙</span>
-          <span className={styles.pillLabel}>Settings</span>
-          {settings && (
-            <span className={styles.pillValue}>{money(settings.accountSize)}</span>
-          )}
-        </button>
+        <div className={styles.headerRight}>
+          <button
+            type="button"
+            className={styles.shortcutsBtn}
+            onClick={() => setShowShortcuts(true)}
+            aria-label="Show keyboard shortcuts"
+            title="Keyboard shortcuts (Shift + ?)"
+          >
+            <kbd className={styles.headerKbd}>?</kbd>
+          </button>
+          <button
+            type="button"
+            className={styles.settingsPill}
+            onClick={openSettings}
+            disabled={isLoading}
+            aria-label="Open Portfolio Settings"
+          >
+            <span className={styles.gearIcon} aria-hidden="true">⚙</span>
+            <span className={styles.pillLabel}>Settings</span>
+            {settings && (
+              <span className={styles.pillValue}>{money(settings.accountSize)}</span>
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -86,6 +105,8 @@ export default function JournalTwoRoot() {
           onClose={closeSettings}
         />
       )}
+
+      <ShortcutCheatSheet open={showShortcuts} onClose={() => setShowShortcuts(false)} />
     </div>
   )
 }
