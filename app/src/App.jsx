@@ -23,6 +23,7 @@ const PostMarket = lazy(() => import('./pages/PostMarket'))
 const ModelBook = lazy(() => import('./pages/ModelBook'))
 const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
 const Journal = lazy(() => import('./pages/journal/JournalPage'))
+const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const Community = lazy(() => import('./pages/Community'))
 const Support = lazy(() => import('./pages/Support'))
@@ -48,6 +49,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        {/* Global right-click → "+ Add to Portfolio" on every StockChart.
+            Skips silently when logged out; only mounts once at app root. */}
+        <Suspense fallback={null}>
+          <GlobalAddPositionProvider />
+        </Suspense>
         <Suspense fallback={
           <div style={{
             display: 'flex',

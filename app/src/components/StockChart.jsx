@@ -681,25 +681,29 @@ export default function StockChart({
     }
   }, [updateChart, resolvedOverlays, overlayData, livePrices, sym])
 
-  // ── onBarContextMenu: right-click → fire callback with the nearest bar ──
-  // Opt-in via prop; no effect unless a consumer passes the callback. Used by
-  // Journal 2.0 for "right-click chart → Add to Portfolio" (spec §8.2).
+  // ── Right-click on a bar → fire callback or dispatch global event ──
+  // Behavior:
+  //   • If `onBarContextMenu` prop is supplied (explicit opt-in), fire it —
+  //     the consumer owns the flow (e.g. Journal 2.0 ChartModal).
+  //   • Otherwise, dispatch a global `uct:chart-contextmenu` CustomEvent on
+  //     `window`. The GlobalAddPositionProvider mounted at the app root
+  //     catches it and shows the "+ Add to Portfolio" menu. Every StockChart
+  //     across the dashboard gets the right-click-to-add flow for free,
+  //     with zero Journal 2.0 coupling inside StockChart.
+  //   • Pass `onBarContextMenu={() => {}}` to suppress both behaviors on a
+  //     specific chart.
   useEffect(() => {
-    if (!onBarContextMenu) return
     const el = containerRef.current
     const chart = chartRef.current
     if (!el || !chart || !bars || bars.length === 0) return
 
     const handler = (e) => {
-      e.preventDefault()
       const rect = el.getBoundingClientRect()
       const x = e.clientX - rect.left
       let timeAtX = null
       try { timeAtX = chart.timeScale().coordinateToTime(x) } catch { return }
       if (timeAtX == null) return
 
-      // The chart's axis is offset for intraday TFs (+_ET_OFFSET). Undo that
-      // when matching against the raw bars array, whose `t` is UTC seconds.
       const targetT = typeof timeAtX === 'number'
         ? timeAtX - (isIntraday ? _ET_OFFSET : 0)
         : timeAtX
@@ -708,22 +712,35 @@ export default function StockChart({
       let minDelta = Infinity
       for (const b of bars) {
         const d = Math.abs(Number(b.t) - Number(targetT))
-        if (d < minDelta) {
-          minDelta = d
-          closest = b
-        }
+        if (d < minDelta) { minDelta = d; closest = b }
       }
       if (!closest) return
-      onBarContextMenu({
-        bar: closest,
-        clientX: e.clientX,
-        clientY: e.clientY,
-        event: e,
-      })
+
+      // Only block the browser default menu once we know we have a bar.
+      e.preventDefault()
+
+      if (onBarContextMenu) {
+        onBarContextMenu({
+          bar: closest,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          event: e,
+        })
+      } else {
+        window.dispatchEvent(new CustomEvent('uct:chart-contextmenu', {
+          detail: {
+            sym,
+            tf: resolvedTf,
+            bar: closest,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          },
+        }))
+      }
     }
     el.addEventListener('contextmenu', handler)
     return () => el.removeEventListener('contextmenu', handler)
-  }, [onBarContextMenu, bars, isIntraday])
+  }, [onBarContextMenu, bars, isIntraday, sym, resolvedTf])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {

@@ -80,7 +80,7 @@ export default function ChartModal({
         open={!!menu}
         x={menu?.clientX || 0}
         y={menu?.clientY || 0}
-        onReset={() => { /* shared chart owns its own reset via toolbar */ }}
+        onReset={null}
         onAddToPortfolio={() => {
           if (!menu?.bar) return
           onAddFromBar?.({

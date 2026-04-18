@@ -52,4 +52,16 @@ describe('ChartContextMenu', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('hides Reset when onReset is null (global context)', () => {
+    render(<ChartContextMenu {...baseProps} onReset={null} />)
+    expect(screen.queryByRole('menuitem', { name: 'Reset Chart View' })).not.toBeInTheDocument()
+    // Add to Portfolio is always present
+    expect(screen.getByRole('menuitem', { name: '+ Add to Portfolio' })).toBeInTheDocument()
+  })
+
+  it('hides Settings when onOpenSettings is null (global context)', () => {
+    render(<ChartContextMenu {...baseProps} onOpenSettings={null} />)
+    expect(screen.queryByRole('menuitem', { name: 'Settings…' })).not.toBeInTheDocument()
+  })
 })

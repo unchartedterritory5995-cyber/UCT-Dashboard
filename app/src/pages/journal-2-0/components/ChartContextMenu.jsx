@@ -47,6 +47,11 @@ export default function ChartContextMenu({
   const clampedX = Math.min(x, window.innerWidth - 200)
   const clampedY = Math.min(y, window.innerHeight - 140)
 
+  // Items are conditionally rendered so the global (app-wide) menu can
+  // hide Reset + Settings, while Journal 2.0's own ChartModal keeps them.
+  const showReset = typeof onReset === 'function'
+  const showSettings = typeof onOpenSettings === 'function'
+
   return (
     <div
       ref={menuRef}
@@ -54,14 +59,16 @@ export default function ChartContextMenu({
       style={{ left: clampedX, top: clampedY }}
       role="menu"
     >
-      <button
-        type="button"
-        role="menuitem"
-        className={styles.item}
-        onClick={() => select(onReset)}
-      >
-        Reset Chart View
-      </button>
+      {showReset && (
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.item}
+          onClick={() => select(onReset)}
+        >
+          Reset Chart View
+        </button>
+      )}
       <button
         type="button"
         role="menuitem"
@@ -70,15 +77,19 @@ export default function ChartContextMenu({
       >
         + Add to Portfolio
       </button>
-      <div className={styles.separator} />
-      <button
-        type="button"
-        role="menuitem"
-        className={styles.item}
-        onClick={() => select(onOpenSettings)}
-      >
-        Settings…
-      </button>
+      {showSettings && (
+        <>
+          <div className={styles.separator} />
+          <button
+            type="button"
+            role="menuitem"
+            className={styles.item}
+            onClick={() => select(onOpenSettings)}
+          >
+            Settings…
+          </button>
+        </>
+      )}
     </div>
   )
 }
