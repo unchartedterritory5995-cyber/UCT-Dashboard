@@ -36,6 +36,10 @@ import pathlib
 import threading as _threading
 import time as _time
 
+UCT_INTEL_PATH = pathlib.Path(
+    os.environ.get("UCT_INTEL_PATH", r"C:\Users\Patrick\uct-intelligence")
+)
+
 MORNING_WIRE_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "morning-wire")
 )
@@ -1530,7 +1534,7 @@ def get_candidates() -> dict:
         return result
 
     # Try local file (dev fallback)
-    local_path = pathlib.Path(r"C:\Users\Patrick\uct-intelligence\data\candidates.json")
+    local_path = UCT_INTEL_PATH / "data" / "candidates.json"
     if local_path.exists():
         try:
             result = json.loads(local_path.read_text(encoding="utf-8"))
@@ -1562,9 +1566,9 @@ def get_uct20_portfolio_data() -> dict:
 
     # Local dev fallback: call engine directly
     try:
-        _UCT_INTEL_PATH = r"C:\Users\Patrick\uct-intelligence"
-        if _UCT_INTEL_PATH not in sys.path:
-            sys.path.insert(0, _UCT_INTEL_PATH)
+        _intel_str = str(UCT_INTEL_PATH)
+        if _intel_str not in sys.path:
+            sys.path.insert(0, _intel_str)
         import uct_intelligence.api as _uct_api
         result = _uct_api.get_uct20_portfolio(account_size=50000)
         if result:

@@ -21,10 +21,10 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 # Load .env
-for env_path in [
-    os.path.join(os.path.dirname(__file__), '..', '..', '.env'),
-    r'C:\Users\Patrick\uct-intelligence\.env',
-]:
+_env_candidates = [os.path.join(os.path.dirname(__file__), '..', '..', '.env')]
+_uct_intel = os.environ.get('UCT_INTEL_PATH', r'C:\Users\Patrick\uct-intelligence')
+_env_candidates.append(os.path.join(_uct_intel, '.env'))
+for env_path in _env_candidates:
     if os.path.exists(env_path):
         with open(env_path) as f:
             for line in f:
