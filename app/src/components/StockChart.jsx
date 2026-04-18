@@ -9,6 +9,7 @@ import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
 import useRealtimePrices from '../hooks/useRealtimePrices'
+import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import styles from './StockChart.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -153,6 +154,19 @@ export default function StockChart({
 
   // ── Chart settings from user preferences ──
   const cs = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
+
+  // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
+  // Returns empty arrays for unauth'd users. Merged with prop-supplied
+  // markers/priceLines below so consumers (e.g. TradeDrawer) keep working.
+  const j2 = useJ2ChartMarkers(sym, resolvedTf)
+  const mergedMarkers = useMemo(
+    () => [...(markers || []), ...(j2.markers || [])],
+    [markers, j2.markers],
+  )
+  const mergedPriceLines = useMemo(
+    () => [...(priceLines || []), ...(j2.priceLines || [])],
+    [priceLines, j2.priceLines],
+  )
 
   // Prop overrides — memoized to prevent unstable references
   const showVolume = showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible
@@ -560,8 +574,8 @@ export default function StockChart({
       try { candleSeriesRef.current.removePriceLine(pl) } catch {}
     }
     priceLineRefs.current = []
-    if (priceLines?.length && candleSeriesRef.current) {
-      for (const pl of priceLines) {
+    if (mergedPriceLines?.length && candleSeriesRef.current) {
+      for (const pl of mergedPriceLines) {
         const ref = candleSeriesRef.current.createPriceLine({
           price: pl.price,
           color: pl.color || cs.textColor,
@@ -575,7 +589,7 @@ export default function StockChart({
     }
 
     // ── Markers (BUY/SELL arrows) ──
-    const allMarkers = [...(markers || [])]
+    const allMarkers = [...(mergedMarkers || [])]
       .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
     if (allMarkers.length && candleSeriesRef.current) {
       import('lightweight-charts').then(({ createSeriesMarkers }) => {
@@ -613,7 +627,7 @@ export default function StockChart({
         })
       }
     }
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, sym, showVolume, markers, priceLines, watermark, cs, adjustTime, resolvedTf])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
