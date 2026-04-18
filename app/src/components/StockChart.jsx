@@ -692,24 +692,75 @@ export default function StockChart({
   //     with zero Journal 2.0 coupling inside StockChart.
   //   • Pass `onBarContextMenu={() => {}}` to suppress both behaviors on a
   //     specific chart.
+  //
+  // Bar lookup strategy: track the hovered bar via the chart's crosshair
+  // subscription. On contextmenu, read the ref. The data reported by
+  // `param.seriesData.get(candleSeries)` IS the canonical bar as rendered
+  // by LW Charts (time + OHLC), which means zero time-format guessing
+  // across TFs — works uniformly on 1min through Monthly. Falls back to
+  // coordinateToLogical if the cursor hasn't moved over a bar yet.
+  const hoveredBarRef = useRef(null)
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    const sub = (param) => {
+      const priceData = candleSeriesRef.current
+        ? param?.seriesData?.get(candleSeriesRef.current)
+        : null
+      if (!priceData) {
+        hoveredBarRef.current = null
+        return
+      }
+      // priceData has { time, open, high, low, close } in LW Chart's own
+      // format. Normalize `time` into a UTC-seconds number so the rest
+      // of the pipeline (date rendering, prefill, etc.) can treat it
+      // uniformly.
+      let tUtcSec
+      if (typeof priceData.time === 'number') {
+        // Intraday: data was fed with +_ET_OFFSET; undo it.
+        tUtcSec = priceData.time - _ET_OFFSET
+      } else if (typeof priceData.time === 'string') {
+        // "YYYY-MM-DD" — midnight UTC
+        tUtcSec = Math.floor(new Date(priceData.time + 'T00:00:00Z').getTime() / 1000)
+      } else if (priceData.time && typeof priceData.time === 'object') {
+        // BusinessDay { year, month, day }
+        const { year, month, day } = priceData.time
+        tUtcSec = Math.floor(Date.UTC(year, month - 1, day) / 1000)
+      } else {
+        hoveredBarRef.current = null
+        return
+      }
+      hoveredBarRef.current = {
+        t: tUtcSec,
+        o: priceData.open,
+        h: priceData.high,
+        l: priceData.low,
+        c: priceData.close,
+      }
+    }
+    chart.subscribeCrosshairMove(sub)
+    return () => { try { chart.unsubscribeCrosshairMove(sub) } catch {} }
+  }, [bars])
+
   useEffect(() => {
     const el = containerRef.current
     const chart = chartRef.current
     if (!el || !chart || !bars || bars.length === 0) return
 
     const handler = (e) => {
-      const rect = el.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      // Use coordinateToLogical (integer index into data) instead of
-      // coordinateToTime. The latter returns different shapes per TF
-      // (number for intraday, string OR BusinessDay object for D/W/M)
-      // which broke string/number matching. Logical index is always a
-      // number and maps directly into the bars array regardless of TF.
-      let logical = null
-      try { logical = chart.timeScale().coordinateToLogical(x) } catch { return }
-      if (logical == null) return
-      const idx = Math.max(0, Math.min(bars.length - 1, Math.round(logical)))
-      const closest = bars[idx]
+      // Prefer the currently-hovered bar (from crosshair tracking). Falls
+      // back to coordinateToLogical if crosshair hasn't fired yet (edge
+      // case: user right-clicks immediately without moving the mouse).
+      let closest = hoveredBarRef.current
+      if (!closest) {
+        const rect = el.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        let logical = null
+        try { logical = chart.timeScale().coordinateToLogical(x) } catch { return }
+        if (logical == null) return
+        const idx = Math.max(0, Math.min(bars.length - 1, Math.round(logical)))
+        closest = bars[idx]
+      }
       if (!closest) return
 
       // Only block the browser default menu once we know we have a bar.
