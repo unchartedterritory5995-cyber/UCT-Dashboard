@@ -33,6 +33,18 @@ Both sibling repos are available as submodules under `external/` for Claude Code
 Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | Heatmap | COT Data | Data Charts | Analogues) · Theme Tracker · Calendar · Traders · Screener · Options Flow · Post Market · Model Book · Journal · Watchlists · Community · Support
 Settings + Admin (admin only) pinned to bottom of sidebar.
 
+## Journal 2.0 — parallel rebuild (beta)
+
+A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 2.0 beta" (last sub-tab). **Additive only** — the existing Journal's code, data, and UI are unchanged. The two Journals share no code, no components, and no database tables.
+
+- **Source:** `app/src/pages/journal-2-0/`, `api/routers/journal_two.py`, `api/services/journal_two/`
+- **Tables:** `j2_settings`, `j2_positions`, `j2_trades` (prefix-namespaced; migration runs from `auth_db.init_db()`)
+- **Spec:** `docs/plans/journal-2.0-spec.md`
+- **Architecture:** `docs/journal-2.0-architecture.md`
+- **Cherry-picking reference:** `docs/feature-blending-guide.md` — every feature mapped with merge-back notes + effort estimates
+
+Open the last tab to try it. All existing Journal tabs behave identically to before.
+
 ## Mobile Navigation
 
 Hamburger + slide-out drawer (hidden on desktop). Fixed header with page title + AlertBell. Body scroll locked when drawer open. User avatar + name in drawer header.
