@@ -8,6 +8,7 @@
 
 import { useState, useCallback } from 'react'
 import useJ2Settings from './hooks/useJ2Settings'
+import useJ2Trades from './hooks/useJ2Trades'
 import PortfolioSettingsModal from './components/PortfolioSettingsModal'
 import OpenPositionsTab from './tabs/OpenPositionsTab'
 import { money } from '../../lib/journal-2-0'
@@ -20,6 +21,7 @@ const NESTED_TABS = [
 
 export default function JournalTwoRoot() {
   const { settings, isLoading, error, save } = useJ2Settings()
+  const { trades } = useJ2Trades()
   const [showSettings, setShowSettings] = useState(false)
   const [nestedTab, setNestedTab] = useState('positions')
 
@@ -69,10 +71,26 @@ export default function JournalTwoRoot() {
       </div>
 
       <div className={styles.content}>
-        {nestedTab === 'positions' && <OpenPositionsTab settings={settings} />}
+        {nestedTab === 'positions' && (
+          <OpenPositionsTab
+            settings={settings}
+            onTradeWritten={() => setNestedTab('journal')}
+          />
+        )}
         {nestedTab === 'journal' && (
           <div className={styles.placeholder}>
-            <p>Trade Journal tab — arrives in Phase 5.</p>
+            {trades.length === 0 ? (
+              <p>No trades recorded yet. Close a position from the Open Positions tab to write the first one.</p>
+            ) : (
+              <>
+                <p>
+                  {trades.length} trade{trades.length === 1 ? '' : 's'} recorded.
+                </p>
+                <p className={styles.placeholderHint}>
+                  Full Trade Journal view with 12 stat cards and filters arrives in Phase 5.
+                </p>
+              </>
+            )}
           </div>
         )}
       </div>

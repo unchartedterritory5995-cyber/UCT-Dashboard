@@ -117,3 +117,12 @@
   text-align: center;
   font-size: 13px;
 }
+
+.placeholder p {
+  margin: 0 0 8px;
+}
+
+.placeholderHint {
+  font-size: 12px;
+  color: #5a606c;
+}
