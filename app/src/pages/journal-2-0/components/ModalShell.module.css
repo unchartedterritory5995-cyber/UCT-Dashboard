@@ -1,0 +1,312 @@
+/* Shared modal chrome for Add/Edit/Close position modals.
+   PortfolioSettingsModal has its own CSS (pre-existed); these three
+   share because they have near-identical layouts. */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 6, 10, 0.72);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  overflow-y: auto;
+}
+
+.modal {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 64px);
+  background: #121417;
+  color: #e6e8eb;
+  border: 1px solid #242730;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 13px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #20232b;
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: #f0f2f5;
+}
+
+.xBtn {
+  background: none;
+  border: none;
+  color: #7c8290;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.xBtn:hover {
+  color: #e6e8eb;
+  background: #1b1e25;
+}
+
+.body {
+  padding: 18px 22px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  color: #c2c6cf;
+}
+
+.textInput,
+.numberInput,
+.select,
+.textarea,
+.numberInputInner {
+  padding: 9px 12px;
+  background: #0d0f13;
+  border: 1px solid #242730;
+  border-radius: 8px;
+  color: #e6e8eb;
+  font-family: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.textInput:focus,
+.numberInput:focus,
+.select:focus,
+.textarea:focus,
+.numberInputInner:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.numberInputInner {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 9px 10px;
+}
+
+.prefixInput {
+  display: flex;
+  align-items: center;
+  background: #0d0f13;
+  border: 1px solid #242730;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.prefix {
+  padding: 0 10px;
+  color: #7c8290;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+
+.pillToggle {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: #0d0f13;
+  border: 1px solid #242730;
+  border-radius: 10px;
+  height: 36px;
+}
+
+.pill {
+  flex: 1;
+  padding: 0 14px;
+  background: transparent;
+  border: none;
+  color: #c2c6cf;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 7px;
+}
+
+.pill:hover {
+  background: #141720;
+}
+
+.pillActive {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.pillActive:hover {
+  background: #3b82f6;
+}
+
+.helper {
+  font-size: 11px;
+  color: #7c8290;
+  margin-top: 2px;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #0d0f13;
+  border: 1px solid #242730;
+  border-radius: 8px;
+}
+
+.checkboxRow input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: #3b82f6;
+}
+
+.checkboxBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.checkboxTitle {
+  font-weight: 500;
+  color: #e6e8eb;
+}
+
+.checkboxSub {
+  font-size: 11px;
+  color: #7c8290;
+  line-height: 1.45;
+}
+
+.subInput {
+  margin-top: 8px;
+  padding-left: 26px;
+}
+
+.errorBanner {
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  color: #ef8d8d;
+  font-size: 12px;
+}
+
+.infoBanner {
+  padding: 10px 12px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  color: #9cb7e8;
+  font-size: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid #20232b;
+  flex-shrink: 0;
+  background: #121417;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+}
+
+.ghostBtn {
+  padding: 9px 18px;
+  background: transparent;
+  border: 1px solid #2a2e38;
+  border-radius: 8px;
+  color: #c2c6cf;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ghostBtn:hover {
+  background: #1b1e25;
+}
+
+.primaryBtn {
+  padding: 9px 22px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.dangerBtn {
+  padding: 9px 22px;
+  background: #ef4444;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dangerBtn:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.primaryBtn:disabled,
+.ghostBtn:disabled,
+.dangerBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
