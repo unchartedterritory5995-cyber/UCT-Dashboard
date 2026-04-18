@@ -700,36 +700,16 @@ export default function StockChart({
     const handler = (e) => {
       const rect = el.getBoundingClientRect()
       const x = e.clientX - rect.left
-      let timeAtX = null
-      try { timeAtX = chart.timeScale().coordinateToTime(x) } catch { return }
-      if (timeAtX == null) return
-
-      // Lightweight-charts serves different time formats per timeframe:
-      //   • Intraday (1/5/15/30/60): number (UTC seconds, +_ET_OFFSET)
-      //   • Daily/Weekly/Monthly: string "YYYY-MM-DD" (BusinessDay)
-      // Compare against the same canonical form each bar uses via
-      // computeBarTime() — matches exactly what StockChart fed to setData().
-      let closest = null
-      if (typeof timeAtX === 'string') {
-        // D/W/M — string match (try exact, then nearest by date)
-        let minMs = Infinity
-        const targetMs = new Date(timeAtX).getTime()
-        for (const b of bars) {
-          const barStr = computeBarTime(resolvedTf, b.t)
-          if (barStr === timeAtX) { closest = b; break }
-          const barMs = new Date(barStr).getTime()
-          const d = Math.abs(barMs - targetMs)
-          if (d < minMs) { minMs = d; closest = b }
-        }
-      } else {
-        // Intraday — numeric seconds, undo the ET offset before matching
-        const numericTarget = Number(timeAtX) - (isIntraday ? _ET_OFFSET : 0)
-        let minDelta = Infinity
-        for (const b of bars) {
-          const d = Math.abs(Number(b.t) - numericTarget)
-          if (d < minDelta) { minDelta = d; closest = b }
-        }
-      }
+      // Use coordinateToLogical (integer index into data) instead of
+      // coordinateToTime. The latter returns different shapes per TF
+      // (number for intraday, string OR BusinessDay object for D/W/M)
+      // which broke string/number matching. Logical index is always a
+      // number and maps directly into the bars array regardless of TF.
+      let logical = null
+      try { logical = chart.timeScale().coordinateToLogical(x) } catch { return }
+      if (logical == null) return
+      const idx = Math.max(0, Math.min(bars.length - 1, Math.round(logical)))
+      const closest = bars[idx]
       if (!closest) return
 
       // Only block the browser default menu once we know we have a bar.
@@ -756,7 +736,7 @@ export default function StockChart({
     }
     el.addEventListener('contextmenu', handler)
     return () => el.removeEventListener('contextmenu', handler)
-  }, [onBarContextMenu, bars, isIntraday, sym, resolvedTf])
+  }, [onBarContextMenu, bars, sym, resolvedTf])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
