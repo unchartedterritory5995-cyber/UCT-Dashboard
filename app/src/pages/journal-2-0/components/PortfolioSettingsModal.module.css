@@ -5,7 +5,8 @@
   inset: 0;
   background: rgba(4, 6, 10, 0.72);
   backdrop-filter: blur(6px);
-  z-index: 1000;
+  /* Matches ModalShell — stacks above TickerPopup's modal (1000). */
+  z-index: 1100;
   display: flex;
   align-items: center;
   justify-content: center;

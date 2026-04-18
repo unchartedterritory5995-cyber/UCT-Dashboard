@@ -7,7 +7,10 @@
   inset: 0;
   background: rgba(4, 6, 10, 0.72);
   backdrop-filter: blur(6px);
-  z-index: 1000;
+  /* Sits above TickerPopup's modal (var(--z-modal) = 1000) so that
+     right-click → Add to Portfolio stacks on top when launched from a
+     chart inside another modal. */
+  z-index: 1100;
   display: flex;
   align-items: center;
   justify-content: center;
