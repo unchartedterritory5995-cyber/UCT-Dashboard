@@ -183,3 +183,184 @@ def test_raise_to_breakeven_roundtrip(db_conn):
     got = svc.list_open_positions("u1", conn=db_conn)
     assert got[0]["raiseToBreakeven"] is True
     assert got[0]["breakevenStop"] == 29.57
+
+
+# ── Write paths (Phase 4) ────────────────────────────────────────────────────
+
+
+_CTX = {
+    "navCount": 0,
+    "rallyDay": None,
+    "powerTrend": None,
+    "breadthValue": None,
+    "breadthMetricName": "NASI RSI",
+    "indexName": "NYA",
+    "igRank": None,
+    "rsRating": None,
+}
+
+
+def test_create_position_happy_path(db_conn):
+    from api.services.journal_two import positions as svc
+    p = svc.create_position(
+        "u1",
+        {
+            "symbol": "nvda",  # will normalize to NVDA
+            "side": "Long",
+            "entryDate": "2026-04-15",
+            "shares": 100,
+            "entryPrice": 500,
+            "stopPrice": 480,
+            "setup": "  VCP  ",  # will strip
+            "notes": "breakout test",
+        },
+        _CTX,
+        conn=db_conn,
+    )
+    assert p["symbol"] == "NVDA"
+    assert p["setup"] == "VCP"
+    assert p["shares"] == 100.0
+    assert p["originalShares"] == 100.0
+    assert p["raiseToBreakeven"] is False
+    assert p["breakevenStop"] is None
+    assert p["closedAt"] is None
+    assert p["contextAtEntry"]["indexName"] == "NYA"
+
+
+def test_create_position_rejects_stop_on_wrong_side_long(db_conn):
+    from api.services.journal_two import positions as svc
+    from api.services.journal_two.positions import PositionValidationError
+    with pytest.raises(PositionValidationError):
+        svc.create_position(
+            "u1",
+            {
+                "symbol": "X",
+                "side": "Long",
+                "entryDate": "2026-04-15",
+                "shares": 100,
+                "entryPrice": 100,
+                "stopPrice": 105,  # above entry — invalid for Long
+            },
+            _CTX,
+            conn=db_conn,
+        )
+
+
+def test_create_position_rejects_stop_on_wrong_side_short(db_conn):
+    from api.services.journal_two import positions as svc
+    from api.services.journal_two.positions import PositionValidationError
+    with pytest.raises(PositionValidationError):
+        svc.create_position(
+            "u1",
+            {
+                "symbol": "X",
+                "side": "Short",
+                "entryDate": "2026-04-15",
+                "shares": 100,
+                "entryPrice": 100,
+                "stopPrice": 95,  # below entry — invalid for Short
+            },
+            _CTX,
+            conn=db_conn,
+        )
+
+
+def test_create_position_rejects_far_future_entry_date(db_conn):
+    from api.services.journal_two import positions as svc
+    from api.services.journal_two.positions import PositionValidationError
+    with pytest.raises(PositionValidationError):
+        svc.create_position(
+            "u1",
+            {
+                "symbol": "X",
+                "side": "Long",
+                "entryDate": "2099-01-01",
+                "shares": 100,
+                "entryPrice": 100,
+                "stopPrice": 95,
+            },
+            _CTX,
+            conn=db_conn,
+        )
+
+
+def test_update_position_raise_to_be_preserves_stop_price(db_conn):
+    """CRITICAL §9/§18: raiseToBreakeven toggle must NOT touch stopPrice."""
+    from api.services.journal_two import positions as svc
+    pid = _insert_position(db_conn, "u1", stop_price=27.90)
+    before = svc.get_position("u1", pid, conn=db_conn)
+    assert before["stopPrice"] == 27.90
+
+    updated = svc.update_position(
+        "u1",
+        pid,
+        {"raiseToBreakeven": True, "breakevenStop": 29.57},
+        conn=db_conn,
+    )
+    assert updated["raiseToBreakeven"] is True
+    assert updated["breakevenStop"] == 29.57
+    assert updated["stopPrice"] == 27.90  # unchanged
+
+
+def test_update_position_raise_to_be_toggle_off_clears_breakeven_stop(db_conn):
+    from api.services.journal_two import positions as svc
+    pid = _insert_position(db_conn, "u1", raise_to_breakeven=1, breakeven_stop=29.57)
+    updated = svc.update_position(
+        "u1", pid, {"raiseToBreakeven": False}, conn=db_conn
+    )
+    assert updated["raiseToBreakeven"] is False
+    assert updated["breakevenStop"] is None
+
+
+def test_update_position_stop_price_directly_editable(db_conn):
+    """Users CAN edit the original stop deliberately via PUT."""
+    from api.services.journal_two import positions as svc
+    pid = _insert_position(db_conn, "u1", stop_price=27.90)
+    updated = svc.update_position("u1", pid, {"stopPrice": 28.50}, conn=db_conn)
+    assert updated["stopPrice"] == 28.50
+
+
+def test_update_position_ignores_unknown_fields(db_conn):
+    from api.services.journal_two import positions as svc
+    pid = _insert_position(db_conn, "u1")
+    updated = svc.update_position(
+        "u1",
+        pid,
+        {
+            "closedAt": "2099-01-01",  # server-owned
+            "originalShares": 9999,  # server-owned
+            "contextAtEntry": {"fake": True},  # server-owned
+            "notes": "legit update",
+        },
+        conn=db_conn,
+    )
+    assert updated["notes"] == "legit update"
+    assert updated["originalShares"] == 250.0
+    assert updated["closedAt"] is None
+    assert updated["contextAtEntry"]["indexName"] == "NYA"
+
+
+def test_update_position_user_isolation(db_conn):
+    from api.services.journal_two import positions as svc
+    pid = _insert_position(db_conn, "u1")
+    # u2 can't update u1's position
+    got = svc.update_position("u2", pid, {"notes": "hacked"}, conn=db_conn)
+    assert got is None
+    # u1's position still has original notes (None)
+    original = svc.get_position("u1", pid, conn=db_conn)
+    assert original["notes"] is None
+
+
+def test_delete_position(db_conn):
+    from api.services.journal_two import positions as svc
+    pid = _insert_position(db_conn, "u1")
+    assert svc.delete_position("u1", pid, conn=db_conn) is True
+    assert svc.get_position("u1", pid, conn=db_conn) is None
+
+
+def test_delete_position_user_isolation(db_conn):
+    from api.services.journal_two import positions as svc
+    pid = _insert_position(db_conn, "u1")
+    # u2 can't delete u1's position
+    assert svc.delete_position("u2", pid, conn=db_conn) is False
+    assert svc.get_position("u1", pid, conn=db_conn) is not None
