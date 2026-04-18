@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 from api.middleware.auth_middleware import get_current_user
 from api.services.journal_two import (
+    community as community_service,
     csv_import as csv_import_service,
     market_context as market_context_service,
     positions as positions_service,
@@ -152,6 +153,22 @@ def close_position(
 def list_trades(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     """All trades for the current user, newest-first."""
     return {"trades": trades_service.list_trades_for_user(user["id"])}
+
+
+# ── Community feed — opt-in share ───────────────────────────────────────────
+
+@router.get("/community/trades")
+def community_trades(
+    limit: int = 500,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Closed trades from every user who has opted in via
+    settings.shareJournalData. Stripped of shares + pnlDollar (which
+    would reveal portfolio size); everything else — pnlPercent, R,
+    result, setup, context — is kept. Viewing does NOT require
+    sharing your own."""
+    limit = max(1, min(int(limit or 500), 2000))
+    return {"trades": community_service.list_shared_trades(limit=limit)}
 
 
 @router.post("/trades")

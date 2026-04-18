@@ -39,6 +39,11 @@ def default_settings_data() -> dict[str, Any]:
             "marketNavIndex": "NYA",
             "breadthMetric": "NASI RSI",
         },
+        # Community sharing — opt-in. When true, this user's CLOSED
+        # trades (stripped of shares and pnlDollar) become visible in
+        # the Journal 2.0 Community tab alongside every other user who
+        # also opted in. Default off.
+        "shareJournalData": False,
     }
 
 
@@ -150,6 +155,7 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "breakevenRange": _validate_breakeven_range(payload.get("breakevenRange")),
         "setups": _validate_setups(payload.get("setups", [])),
         "journalColumns": _validate_journal_columns(payload.get("journalColumns")),
+        "shareJournalData": bool(payload.get("shareJournalData", False)),
     }
 
 
