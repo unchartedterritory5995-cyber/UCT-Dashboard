@@ -1,0 +1,71 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.card {
+  padding: 12px 14px;
+  background: #0d0f13;
+  border: 1px solid #242730;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #8b92a1;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #f0f2f5;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sublabel {
+  font-size: 11px;
+  color: #7c8290;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.pos {
+  color: #22c55e;
+}
+
+.neg {
+  color: #ef4444;
+}
+
+.empty {
+  padding: 32px;
+  text-align: center;
+  color: #7c8290;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 13px;
+}

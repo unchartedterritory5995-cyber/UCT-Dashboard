@@ -1,0 +1,75 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionTitle {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #8b92a1;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #0d0f13;
+  border: 1px solid #1b1e25;
+}
+
+.label {
+  font-size: 13px;
+  color: #c2c6cf;
+}
+
+.kbdGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 2px 8px;
+  background: #1b1e25;
+  border: 1px solid #2a2e38;
+  border-radius: 4px;
+  font-family: 'IBM Plex Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #e6e8eb;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.then {
+  font-size: 10px;
+  color: #7c8290;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.footNote {
+  margin: 0;
+  font-size: 11px;
+  color: #7c8290;
+  font-style: italic;
+  padding: 8px 0;
+  border-top: 1px solid #1b1e25;
+}

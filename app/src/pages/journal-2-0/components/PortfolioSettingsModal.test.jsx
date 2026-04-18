@@ -1,0 +1,147 @@
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import PortfolioSettingsModal from './PortfolioSettingsModal'
+
+const baseSettings = {
+  id: 's1',
+  userId: 'u1',
+  accountSize: 100_000,
+  defaultStop: { mode: 'custom' },
+  positionClosing: 'FIFO',
+  breakevenRange: { enabled: false, unit: '$', value: 0 },
+  setups: ['Breakout'],
+  journalColumns: { marketNavIndex: 'NYA', breadthMetric: 'NASI RSI' },
+  createdAt: '2026-04-17T00:00:00Z',
+  updatedAt: '2026-04-17T00:00:00Z',
+}
+
+describe('PortfolioSettingsModal', () => {
+  it('mounts without error', () => {
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
+    )
+    expect(screen.getByText('Portfolio Settings')).toBeInTheDocument()
+  })
+
+  it('shows the pre-populated account size', () => {
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
+    )
+    const input = screen.getByDisplayValue('100000')
+    expect(input).toBeInTheDocument()
+  })
+
+  it('shows the user\'s existing setup chips', () => {
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
+    )
+    expect(screen.getByText('Breakout')).toBeInTheDocument()
+  })
+
+  it('calls onSave with canonical payload on Save Settings click', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    const onClose = vi.fn()
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={onClose} />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+    expect(onSave).toHaveBeenCalledTimes(1)
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.accountSize).toBe(100_000)
+    expect(payload.defaultStop).toEqual({ mode: 'custom' })
+    expect(payload.positionClosing).toBe('FIFO')
+    expect(payload.breakevenRange).toEqual({ enabled: false, unit: '$', value: 0 })
+    expect(payload.setups).toEqual(['Breakout'])
+    expect(payload.journalColumns).toEqual({
+      marketNavIndex: 'NYA',
+      breadthMetric: 'NASI RSI',
+    })
+  })
+
+  it('calls onClose without onSave on Cancel', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+    const onClose = vi.fn()
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={onClose} />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('switching stop mode to fixed_dollar_risk reveals the amount input', async () => {
+    const user = userEvent.setup()
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
+    )
+    await user.click(screen.getByLabelText(/Fixed \$ Risk/i))
+    // After selecting the card, an "Amount" label appears in the sub-row
+    expect(screen.getByText(/^Amount$/)).toBeInTheDocument()
+  })
+
+  it('adds a new setup chip and includes it in the saved payload', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
+    )
+    const input = screen.getByPlaceholderText('New setup name')
+    await user.type(input, 'Pullback')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(screen.getByText('Pullback')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.setups).toEqual(['Breakout', 'Pullback'])
+  })
+
+  it('removes a setup chip when × is clicked', async () => {
+    const user = userEvent.setup()
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Remove Breakout' }))
+    expect(screen.queryByText('Breakout')).not.toBeInTheDocument()
+  })
+
+  it('BE value of 0 shows "disabled" helper text', () => {
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
+    )
+    expect(screen.getByText('disabled')).toBeInTheDocument()
+  })
+
+  it('BE value > 0 shows the range helper text', () => {
+    const withRange = {
+      ...baseSettings,
+      breakevenRange: { enabled: true, unit: '$', value: 20 },
+    }
+    render(
+      <PortfolioSettingsModal settings={withRange} onSave={vi.fn()} onClose={vi.fn()} />,
+    )
+    expect(screen.getByText(/trades within ±\$20 P&L are BE/)).toBeInTheDocument()
+  })
+
+  it('Esc closes the modal', () => {
+    const onClose = vi.fn()
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={onClose} />,
+    )
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('clicking the backdrop closes the modal', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const { container } = render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={onClose} />,
+    )
+    const backdrop = container.firstChild
+    await user.click(backdrop)
+    expect(onClose).toHaveBeenCalled()
+  })
+})

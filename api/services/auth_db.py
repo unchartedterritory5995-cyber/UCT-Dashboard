@@ -528,4 +528,9 @@ def _migrate_journal_v2(conn):
     except Exception:
         pass  # column already exists
 
+    # Journal 2.0 tables (j2_* — additive, isolated from the existing Journal).
+    # See api/services/journal_two/db.py and docs/journal-2.0-integration-audit.md.
+    from api.services.journal_two.db import ensure_schema as _ensure_j2_schema
+    _ensure_j2_schema(conn)
+
     conn.commit()

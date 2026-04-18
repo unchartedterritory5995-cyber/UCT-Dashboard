@@ -1,0 +1,100 @@
+.tableWrap {
+  overflow-x: auto;
+  background: #0d0f13;
+  border: 1px solid #242730;
+  border-radius: 10px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #e6e8eb;
+}
+
+.th {
+  position: sticky;
+  top: 0;
+  background: #121417;
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #8b92a1;
+  border-bottom: 1px solid #242730;
+  z-index: 1;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.thLeft { text-align: left; }
+.thRight { text-align: right; }
+
+.row {
+  transition: background 80ms;
+}
+
+.row:hover {
+  background: #141720;
+}
+
+.td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #181b22;
+  white-space: nowrap;
+}
+
+.tdLeft { text-align: left; }
+.tdRight { text-align: right; }
+
+.resultBadge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.badgeWin {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.badgeLoss {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.badgeBe {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+}
+
+.pos { color: #22c55e; }
+.neg { color: #ef4444; }
+.dash { color: #5a606c; }
+
+.empty {
+  padding: 48px;
+  background: #0d0f13;
+  border: 1px dashed #242730;
+  border-radius: 12px;
+  color: #8b92a1;
+  text-align: center;
+  font-size: 13px;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.empty p {
+  margin: 0 0 8px;
+}
+
+.emptyHint {
+  font-size: 12px;
+  color: #5a606c;
+}
