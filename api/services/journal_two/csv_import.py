@@ -273,6 +273,236 @@ def parse_pre_matched(headers: list[str], rows: list[list[str]]) -> ParseResult:
     return result
 
 
+# ── Broker adapters (raw fills → FIFO reconstruction) ───────────────────────
+
+def _parse_us_date(s: str) -> str | None:
+    """MM/DD/YYYY (or MM/DD/YY) → ISO. Used by Schwab + E*Trade."""
+    import re
+    s = (s or "").strip()
+    # Strip time component if present
+    s = s.split(" ")[0] if " " in s else s
+    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{2,4})$", s)
+    if not m:
+        return None
+    mm, dd, yy = m.groups()
+    yyyy = yy if len(yy) == 4 else "20" + yy
+    return f"{yyyy}-{int(mm):02d}-{int(dd):02d}T00:00:00Z"
+
+
+def _parse_iso_datetime(s: str) -> str | None:
+    """YYYY-MM-DD or YYYY-MM-DD HH:MM:SS → ISO UTC. IBKR uses this."""
+    import re
+    s = (s or "").strip().replace(",", "")
+    # Handle "YYYYMMDD;HHMMSS" variant too
+    m = re.match(r"^(\d{4})-?(\d{2})-?(\d{2})([ T;]?(\d{2}):?(\d{2}):?(\d{2}))?$", s)
+    if not m:
+        return None
+    yyyy, mm, dd = m.group(1), m.group(2), m.group(3)
+    hh = m.group(5) or "00"
+    mi = m.group(6) or "00"
+    ss = m.group(7) or "00"
+    return f"{yyyy}-{mm}-{dd}T{hh}:{mi}:{ss}Z"
+
+
+def _num_or_none(v: str) -> float | None:
+    try:
+        return float(str(v).replace("$", "").replace(",", "").strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def parse_schwab(headers: list[str], rows: list[list[str]]) -> ParseResult:
+    """Schwab web-export (Brokerage → Transactions → Download).
+    Expected columns: Date, Action, Symbol, Description, Quantity, Price,
+    Fees & Comm, Amount. Action values include: Buy, Sell, Reinvest Dividend,
+    etc. We only process Buy and Sell; others ignored silently."""
+    from api.services.journal_two.fifo import Fill, reconstruct_trades
+
+    result = ParseResult(format="schwab", headers=list(headers))
+    col = {_norm_header(h): i for i, h in enumerate(headers)}
+    fills: list[Fill] = []
+
+    def get(row: list[str], key: str) -> str:
+        idx = col.get(key)
+        return (row[idx] or "").strip() if idx is not None and idx < len(row) else ""
+
+    for i, row in enumerate(rows, start=2):
+        if all(not (c or "").strip() for c in row):
+            continue
+        action_raw = get(row, "action")
+        # Schwab uses "Buy" / "Sell" as primary actions on equity trades.
+        # Ignore non-trade actions (dividends, transfers, etc.) silently.
+        if action_raw not in ("Buy", "Sell"):
+            continue
+
+        symbol = get(row, "symbol").upper()
+        if not symbol:
+            result.errors.append(ParseError(i, "symbol missing on Buy/Sell row"))
+            continue
+        shares = _num_or_none(get(row, "quantity"))
+        price = _num_or_none(get(row, "price"))
+        date = _parse_us_date(get(row, "date"))
+        if shares is None or price is None or date is None:
+            result.errors.append(
+                ParseError(i, "Schwab row needs numeric quantity + price and MM/DD/YYYY date")
+            )
+            continue
+        fills.append(Fill(row=i, symbol=symbol, action=action_raw, shares=shares, price=price, date=date))
+
+    fifo_out = reconstruct_trades(fills)
+    result.trades = fifo_out["trades"]
+    for e in fifo_out["errors"]:
+        result.errors.append(ParseError(e["row"], e["message"]))
+    return result
+
+
+def parse_etrade(headers: list[str], rows: list[list[str]]) -> ParseResult:
+    """E*Trade Portfolio → Download export. Spec §13.2: "Bought/Sold rows
+    only." We only process rows where TransactionType is Bought or Sold.
+    Expected columns: TransactionDate, TransactionType, SecurityType,
+    Symbol, Quantity, Amount."""
+    from api.services.journal_two.fifo import Fill, reconstruct_trades
+
+    result = ParseResult(format="etrade", headers=list(headers))
+    col = {_norm_header(h): i for i, h in enumerate(headers)}
+    fills: list[Fill] = []
+
+    def get(row: list[str], key: str) -> str:
+        idx = col.get(key)
+        return (row[idx] or "").strip() if idx is not None and idx < len(row) else ""
+
+    for i, row in enumerate(rows, start=2):
+        if all(not (c or "").strip() for c in row):
+            continue
+
+        txn = get(row, "transactiontype")
+        if txn == "Bought":
+            action = "Buy"
+        elif txn == "Sold":
+            action = "Sell"
+        else:
+            continue  # ignore dividends, transfers, etc.
+
+        # Stocks only — spec §13.2 IBKR extends here. E*Trade SecurityType
+        # may say "EQ" or "STOCK"; skip options/futures.
+        sec_type = get(row, "securitytype").lower()
+        if sec_type and sec_type not in ("eq", "stock", ""):
+            continue
+
+        symbol = get(row, "symbol").upper()
+        if not symbol:
+            result.errors.append(ParseError(i, "symbol missing on Bought/Sold row"))
+            continue
+        shares = _num_or_none(get(row, "quantity"))
+        # E*Trade "Amount" is signed total; derive price from Amount/Quantity
+        # when Price column isn't present.
+        price = _num_or_none(get(row, "price"))
+        if price is None:
+            amount = _num_or_none(get(row, "amount"))
+            if amount is not None and shares and shares != 0:
+                price = abs(amount / shares)
+        date = _parse_us_date(get(row, "transactiondate"))
+        if shares is None or price is None or price <= 0 or date is None:
+            result.errors.append(
+                ParseError(i, "E*Trade row needs quantity, price (or amount/quantity), and MM/DD/YYYY transaction date")
+            )
+            continue
+        shares = abs(shares)  # E*Trade may emit negative shares for sells
+        fills.append(Fill(row=i, symbol=symbol, action=action, shares=shares, price=price, date=date))
+
+    fifo_out = reconstruct_trades(fills)
+    result.trades = fifo_out["trades"]
+    for e in fifo_out["errors"]:
+        result.errors.append(ParseError(e["row"], e["message"]))
+    return result
+
+
+def parse_ibkr(headers: list[str], rows: list[list[str]]) -> ParseResult:
+    """Interactive Brokers Trade Confirmation Report — stocks only
+    (spec §13.2). Expected columns: Symbol, DateTime, Quantity,
+    TradePrice, IBCommission. Quantity sign encodes side: positive
+    = Buy, negative = Sell (IBKR convention)."""
+    from api.services.journal_two.fifo import Fill, reconstruct_trades
+
+    result = ParseResult(format="ibkr", headers=list(headers))
+    col = {_norm_header(h): i for i, h in enumerate(headers)}
+    fills: list[Fill] = []
+
+    def get(row: list[str], key: str) -> str:
+        idx = col.get(key)
+        return (row[idx] or "").strip() if idx is not None and idx < len(row) else ""
+
+    for i, row in enumerate(rows, start=2):
+        if all(not (c or "").strip() for c in row):
+            continue
+        # IBKR may have "AssetClass" column. Filter to stocks only.
+        asset_class = get(row, "assetclass").upper() if "assetclass" in col else ""
+        if asset_class and asset_class not in ("STK", "STOCK", ""):
+            continue
+
+        symbol = get(row, "symbol").upper()
+        if not symbol:
+            result.errors.append(ParseError(i, "symbol missing on IBKR row"))
+            continue
+        qty = _num_or_none(get(row, "quantity"))
+        price = _num_or_none(get(row, "tradeprice"))
+        date = _parse_iso_datetime(get(row, "datetime"))
+        if qty is None or price is None or date is None:
+            result.errors.append(
+                ParseError(i, "IBKR row needs numeric quantity + tradePrice and YYYY-MM-DD DateTime")
+            )
+            continue
+        if qty == 0:
+            continue
+        action = "Buy" if qty > 0 else "Sell"
+        fills.append(Fill(row=i, symbol=symbol, action=action, shares=abs(qty), price=price, date=date))
+
+    fifo_out = reconstruct_trades(fills)
+    result.trades = fifo_out["trades"]
+    for e in fifo_out["errors"]:
+        result.errors.append(ParseError(e["row"], e["message"]))
+    return result
+
+
+# ── Column-mapping (unknown → pre-matched shape) ────────────────────────────
+
+def parse_with_mapping(
+    headers: list[str],
+    rows: list[list[str]],
+    mapping: dict[str, str],
+) -> ParseResult:
+    """Parse an unknown-format CSV by translating it to pre-matched via
+    a user-supplied mapping. `mapping` keys are pre-matched field names
+    (symbol, side, shares, entry_price, entry_date, exit_price, exit_date,
+    setup, notes, original_stop); values are the source CSV header names
+    (exact, case-sensitive match against `headers`).
+    """
+    REQUIRED = {"symbol", "side", "shares", "entry_price", "entry_date",
+                "exit_price", "exit_date"}
+    missing = REQUIRED - set(mapping.keys())
+    if missing:
+        res = ParseResult(format="unknown")
+        res.errors.append(ParseError(0, f"mapping missing required fields: {sorted(missing)}"))
+        return res
+
+    # Build a synthetic header row + translated rows matching pre-matched shape
+    header_to_index = {h: i for i, h in enumerate(headers)}
+    synth_headers = list(mapping.keys())
+    translated = []
+    for r in rows:
+        new_row = []
+        for field in synth_headers:
+            src_header = mapping[field]
+            idx = header_to_index.get(src_header)
+            new_row.append((r[idx] if idx is not None and idx < len(r) else "") or "")
+        translated.append(new_row)
+
+    out = parse_pre_matched(synth_headers, translated)
+    out.format = "mapped"  # hint to the client it went through the wizard
+    out.headers = list(headers)
+    return out
+
+
 # ── Main entry point ─────────────────────────────────────────────────────────
 
 MAX_BYTES = 10 * 1024 * 1024  # §15.9: reject files > 10 MB
@@ -302,15 +532,12 @@ def parse_csv(raw: bytes) -> ParseResult:
     if fmt == "pre_matched":
         return parse_pre_matched(headers, data_rows)
 
-    if fmt in ("schwab", "ibkr", "etrade"):
-        # Broker adapters + FIFO reconstruction land in commit 2 (Phase 7b).
-        # Placeholder so the detector doesn't pretend we support it.
-        result = ParseResult(format=fmt, headers=list(headers))
-        result.errors.append(
-            ParseError(0, f"{fmt} adapter ships in the next commit; use pre-matched for now")
-        )
-        result.raw_rows = [list(r) for r in data_rows[:20]]
-        return result
+    if fmt == "schwab":
+        return parse_schwab(headers, data_rows)
+    if fmt == "ibkr":
+        return parse_ibkr(headers, data_rows)
+    if fmt == "etrade":
+        return parse_etrade(headers, data_rows)
 
     # Unknown → return headers + first 20 rows so the mapping wizard can draw
     result = ParseResult(format="unknown", headers=list(headers))

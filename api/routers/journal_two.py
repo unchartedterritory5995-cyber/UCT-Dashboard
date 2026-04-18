@@ -219,6 +219,39 @@ async def import_preview(
     return result.to_dict()
 
 
+@router.post("/trades/import/preview-mapped")
+async def import_preview_mapped(
+    file: UploadFile = File(...),
+    mapping: str = "",
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Parse an unknown-format CSV using a user-supplied column mapping.
+    `mapping` is a JSON string mapping pre-matched field names to source
+    CSV header names. Returns the same shape as /import/preview."""
+    import csv as _csv
+    import io as _io
+    import json as _json
+
+    try:
+        mapping_dict = _json.loads(mapping) if mapping else {}
+    except _json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"mapping is not valid JSON: {e}")
+
+    raw = await file.read()
+    try:
+        text = csv_import_service.decode_bytes(raw)
+        reader = _csv.reader(_io.StringIO(text))
+        rows = [[csv_import_service.sanitize_cell(c) for c in r] for r in reader]
+        if not rows:
+            raise ValueError("CSV has no rows")
+        headers = rows[0]
+        data_rows = rows[1:]
+        result = csv_import_service.parse_with_mapping(headers, data_rows, mapping_dict)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return result.to_dict()
+
+
 @router.post("/trades/import/confirm")
 def import_confirm(
     payload: dict[str, Any],
