@@ -704,15 +704,31 @@ export default function StockChart({
       try { timeAtX = chart.timeScale().coordinateToTime(x) } catch { return }
       if (timeAtX == null) return
 
-      const targetT = typeof timeAtX === 'number'
-        ? timeAtX - (isIntraday ? _ET_OFFSET : 0)
-        : timeAtX
-
+      // Lightweight-charts serves different time formats per timeframe:
+      //   • Intraday (1/5/15/30/60): number (UTC seconds, +_ET_OFFSET)
+      //   • Daily/Weekly/Monthly: string "YYYY-MM-DD" (BusinessDay)
+      // Compare against the same canonical form each bar uses via
+      // computeBarTime() — matches exactly what StockChart fed to setData().
       let closest = null
-      let minDelta = Infinity
-      for (const b of bars) {
-        const d = Math.abs(Number(b.t) - Number(targetT))
-        if (d < minDelta) { minDelta = d; closest = b }
+      if (typeof timeAtX === 'string') {
+        // D/W/M — string match (try exact, then nearest by date)
+        let minMs = Infinity
+        const targetMs = new Date(timeAtX).getTime()
+        for (const b of bars) {
+          const barStr = computeBarTime(resolvedTf, b.t)
+          if (barStr === timeAtX) { closest = b; break }
+          const barMs = new Date(barStr).getTime()
+          const d = Math.abs(barMs - targetMs)
+          if (d < minMs) { minMs = d; closest = b }
+        }
+      } else {
+        // Intraday — numeric seconds, undo the ET offset before matching
+        const numericTarget = Number(timeAtX) - (isIntraday ? _ET_OFFSET : 0)
+        let minDelta = Infinity
+        for (const b of bars) {
+          const d = Math.abs(Number(b.t) - numericTarget)
+          if (d < minDelta) { minDelta = d; closest = b }
+        }
       }
       if (!closest) return
 

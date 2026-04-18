@@ -76,6 +76,10 @@ export default function GlobalAddPositionProvider() {
       symbol: menu.sym,
       entryPrice: menu.bar.c,
       entryDate: d.toISOString().slice(0, 10),
+      // Pass bar OHLC so AddPositionModal can compute chart-aware stops
+      // (bar_low_high mode uses the clicked bar's low/high directly).
+      barLow: menu.bar.l,
+      barHigh: menu.bar.h,
     })
   }, [menu])
 

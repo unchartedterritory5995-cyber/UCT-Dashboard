@@ -20,26 +20,41 @@ import styles from './ModalShell.module.css'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
-function prefillStop({ side, sharesVal, entryVal, defaultStop }) {
+function prefillStop({ side, sharesVal, entryVal, defaultStop, barLow, barHigh }) {
   const shares = Number(sharesVal)
   const entry = Number(entryVal)
   if (!defaultStop || defaultStop.mode === 'custom') return ''
-  if (defaultStop.mode === 'bar_low_high') return ''  // no bar context in manual
-  if (!Number.isFinite(shares) || shares <= 0) return ''
   if (!Number.isFinite(entry) || entry <= 0) return ''
 
-  if (defaultStop.mode === 'fixed_dollar_risk') {
-    const amt = Number(defaultStop.amount) || 0
-    if (amt <= 0) return ''
-    const raw = side === 'Long' ? entry - amt / shares : entry + amt / shares
+  // Chart-right-click path: bar low/high available → compute immediately
+  // for bar_low_high mode. No shares needed.
+  if (defaultStop.mode === 'bar_low_high') {
+    const anchor = side === 'Long' ? Number(barLow) : Number(barHigh)
+    if (!Number.isFinite(anchor)) return ''  // manual entry — no bar context
+    const buffer = Number(defaultStop.buffer) || 0
+    const offset = defaultStop.bufferUnit === '%'
+      ? anchor * (buffer / 100)
+      : buffer
+    const raw = side === 'Long' ? anchor - offset : anchor + offset
     return raw < 0 ? 0 : Math.round(raw * 100) / 100
   }
+
   if (defaultStop.mode === 'fixed_percent_distance') {
     const p = Number(defaultStop.percent) || 0
     if (p <= 0 || p >= 100) return ''
     const raw = side === 'Long' ? entry * (1 - p / 100) : entry * (1 + p / 100)
     return raw < 0 ? 0 : Math.round(raw * 100) / 100
   }
+
+  // fixed_dollar_risk needs shares to distribute the $ risk across
+  if (defaultStop.mode === 'fixed_dollar_risk') {
+    if (!Number.isFinite(shares) || shares <= 0) return ''
+    const amt = Number(defaultStop.amount) || 0
+    if (amt <= 0) return ''
+    const raw = side === 'Long' ? entry - amt / shares : entry + amt / shares
+    return raw < 0 ? 0 : Math.round(raw * 100) / 100
+  }
+
   return ''
 }
 
@@ -76,7 +91,14 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill })
   // user-typed stop.
   const handleRecomputeStop = useCallback(() => {
     if (stopUserEdited) return
-    const computed = prefillStop({ side, sharesVal: shares, entryVal: entryPrice, defaultStop })
+    const computed = prefillStop({
+      side,
+      sharesVal: shares,
+      entryVal: entryPrice,
+      defaultStop,
+      barLow: prefill?.barLow,
+      barHigh: prefill?.barHigh,
+    })
     if (computed !== '' && computed !== stopPrice) {
       setStopPrice(String(computed))
     }
@@ -85,10 +107,37 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill })
   // Also recompute on side-switch (different formula outcome).
   useEffect(() => {
     if (stopUserEdited) return
-    const computed = prefillStop({ side, sharesVal: shares, entryVal: entryPrice, defaultStop })
+    const computed = prefillStop({
+      side,
+      sharesVal: shares,
+      entryVal: entryPrice,
+      defaultStop,
+      barLow: prefill?.barLow,
+      barHigh: prefill?.barHigh,
+    })
     if (computed !== '') setStopPrice(String(computed))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [side])
+
+  // On mount, when chart-prefilled, auto-compute the stop so the user
+  // doesn't have to blur an input to trigger it. bar_low_high +
+  // fixed_percent_distance + fixed_dollar_risk (if shares default entered)
+  // all populate immediately. Runs only once — afterward behaves like
+  // manual entry (waits for blur).
+  useEffect(() => {
+    if (!prefill) return
+    if (stopUserEdited) return
+    const computed = prefillStop({
+      side,
+      sharesVal: shares,
+      entryVal: entryPrice,
+      defaultStop,
+      barLow: prefill?.barLow,
+      barHigh: prefill?.barHigh,
+    })
+    if (computed !== '') setStopPrice(String(computed))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const validate = useCallback(() => {
     if (!symbol.trim()) return 'Symbol is required'
@@ -142,13 +191,14 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill })
             ? 'Fixed %'
             : null
 
+  const hasBarContext = prefill?.barLow != null && prefill?.barHigh != null
   const stopHelperText =
     defaultStop?.mode === 'bar_low_high'
-      ? prefill
-        ? 'Bar low/high computed at entry; override by typing.'
+      ? hasBarContext
+        ? `${side === 'Long' ? 'Bar low' : 'Bar high'} ± ${defaultStop.buffer || 0}${defaultStop.bufferUnit || '$'} — override by typing.`
         : 'No bar context in manual entry — enter manually.'
       : defaultStop?.mode === 'fixed_dollar_risk'
-        ? `Auto-computed from Fixed $ Risk (${defaultStop.amount}) — override by typing.`
+        ? `Auto-computed from Fixed $ Risk (${defaultStop.amount}) — enter shares to populate, or override by typing.`
         : defaultStop?.mode === 'fixed_percent_distance'
           ? `Auto-computed from Fixed % (${defaultStop.percent}%) — override by typing.`
           : null
