@@ -1,5 +1,5 @@
 // app/src/pages/journal/JournalPage.jsx
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import useSWR from 'swr'
 import usePreferences from '../../hooks/usePreferences'
 import TradeLog from './tabs/TradeLog'
@@ -12,7 +12,10 @@ import Analytics from './tabs/Analytics'
 import Playbooks from './tabs/Playbooks'
 import TradeDrawer from './components/TradeDrawer'
 import TradeForm from './components/TradeForm'
+import BetaBadge from '../journal-2-0/components/BetaBadge'
 import styles from './JournalPage.module.css'
+
+const JournalTwoRoot = lazy(() => import('../journal-2-0/JournalTwoRoot'))
 
 const fetcher = url => fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
 
@@ -25,6 +28,7 @@ const JOURNAL_TABS = [
   { key: 'analytics', label: 'Analytics' },
   { key: 'playbooks', label: 'Playbooks' },
   { key: 'queue', label: 'Review Queue' },
+  { key: 'j2', label: 'Journal 2.0', beta: true },
 ]
 
 export default function JournalPage() {
@@ -125,6 +129,7 @@ export default function JournalPage() {
               onClick={() => handleTabChange(tab.key)}
             >
               {tab.label}
+              {tab.beta && <BetaBadge />}
               {tab.key === 'queue' && reviewCount > 0 && (
                 <span className={styles.tabBadge}>{reviewCount > 99 ? '99+' : reviewCount}</span>
               )}
@@ -188,6 +193,11 @@ export default function JournalPage() {
           <ReviewQueue
             onOpenTrade={handleOpenTrade}
           />
+        )}
+        {activeTab === 'j2' && (
+          <Suspense fallback={<div style={{ padding: 32, color: '#8b92a1' }}>Loading Journal 2.0…</div>}>
+            <JournalTwoRoot />
+          </Suspense>
         )}
       </div>
 
