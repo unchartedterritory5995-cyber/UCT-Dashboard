@@ -79,6 +79,32 @@ def _add_trade(conn, user_id, *, symbol="NVDA", shares=100, entry_price=500,
     return tid
 
 
+def _add_position(conn, user_id, *, symbol="NVDA", shares=100, entry_price=500,
+                  stop_price=490, entry_date="2026-04-01T00:00:00Z", closed_at=None):
+    """Direct insert of a j2_position for test setup."""
+    pid = str(uuid.uuid4())
+    ctx = json.dumps({
+        "navCount": 3, "rallyDay": "D7", "powerTrend": "On",
+        "breadthValue": 55, "breadthMetricName": "NASI RSI",
+        "indexName": "NYA", "igRank": None, "rsRating": None,
+    })
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        """
+        INSERT INTO j2_positions (
+            id, user_id, symbol, side, entry_date, shares, original_shares,
+            entry_price, stop_price, breakeven_stop, raise_to_breakeven,
+            setup, notes, context_at_entry, created_at, updated_at, closed_at
+        ) VALUES (?, ?, ?, 'Long', ?, ?, ?, ?, ?, NULL, 0,
+                  'VCP', 'position notes', ?, ?, ?, ?)
+        """,
+        (pid, user_id, symbol, entry_date, shares, shares, entry_price,
+         stop_price, ctx, now, now, closed_at),
+    )
+    conn.commit()
+    return pid
+
+
 def test_only_opted_in_users_appear(db_conn):
     from api.services.journal_two import community as svc
 
@@ -339,3 +365,85 @@ def test_trader_summaries_omits_dollar_amounts(db_conn):
     # Must NOT include anything $-denominated
     for k in ("totalPnl", "totalPnlDollar", "avgPnlDollar", "shares"):
         assert k not in t
+
+
+# ═══════════════ list_shared_open_positions ══════════════════════════════════
+
+
+def test_shared_positions_only_opted_in(db_conn):
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _add_user(db_conn, "bob", "bob@x.com", display_name="Bob")
+    _set_sharing(db_conn, "alice", True)
+    _set_sharing(db_conn, "bob", False)
+    _add_position(db_conn, "alice", symbol="NVDA")
+    _add_position(db_conn, "bob", symbol="AAPL")
+
+    got = svc.list_shared_open_positions(conn=db_conn)
+    assert len(got) == 1
+    assert got[0]["symbol"] == "NVDA"
+    assert got[0]["trader"] == "Alice"
+
+
+def test_shared_positions_exclude_closed(db_conn):
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _set_sharing(db_conn, "alice", True)
+    _add_position(db_conn, "alice", symbol="OPEN")
+    _add_position(
+        db_conn, "alice", symbol="CLOSED",
+        closed_at="2026-04-10T00:00:00Z",
+    )
+
+    got = svc.list_shared_open_positions(conn=db_conn)
+    symbols = {p["symbol"] for p in got}
+    assert symbols == {"OPEN"}
+
+
+def test_shared_positions_strip_shares(db_conn):
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _set_sharing(db_conn, "alice", True)
+    _add_position(db_conn, "alice", shares=1000, entry_price=500, stop_price=490)
+
+    got = svc.list_shared_open_positions(conn=db_conn)
+    assert len(got) == 1
+    p = got[0]
+    # STRIPPED — absolute size
+    assert "shares" not in p
+    assert "originalShares" not in p
+    # KEPT — price levels are public market data
+    assert p["entryPrice"] == 500
+    assert p["stopPrice"] == 490
+
+
+def test_shared_positions_trader_id_and_is_me(db_conn):
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@x.com", display_name="Alice")
+    _add_user(db_conn, "bob", "bob@x.com", display_name="Bob")
+    _set_sharing(db_conn, "alice", True)
+    _set_sharing(db_conn, "bob", True)
+    _add_position(db_conn, "alice", symbol="NVDA")
+    _add_position(db_conn, "bob", symbol="AAPL")
+
+    got = svc.list_shared_open_positions(current_user_id="alice", conn=db_conn)
+    by_sym = {p["symbol"]: p for p in got}
+    assert by_sym["NVDA"]["isMe"] is True
+    assert by_sym["NVDA"]["traderId"] == "alice"
+    assert by_sym["AAPL"]["isMe"] is False
+    assert by_sym["AAPL"]["traderId"] == "bob"
+
+
+def test_shared_positions_email_never_leaks(db_conn):
+    from api.services.journal_two import community as svc
+
+    _add_user(db_conn, "alice", "alice@example.com", display_name="Alice")
+    _set_sharing(db_conn, "alice", True)
+    _add_position(db_conn, "alice")
+
+    got = svc.list_shared_open_positions(conn=db_conn)
+    assert "alice@example.com" not in json.dumps(got)

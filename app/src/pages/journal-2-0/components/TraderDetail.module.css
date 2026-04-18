@@ -238,6 +238,10 @@
   color: #5a606c;
 }
 
+.beStop {
+  color: #eab308;
+}
+
 .notes {
   max-width: 280px;
   overflow: hidden;

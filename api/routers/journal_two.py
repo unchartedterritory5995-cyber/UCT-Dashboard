@@ -189,6 +189,18 @@ def community_trades(
     }
 
 
+@router.get("/community/positions")
+def community_positions(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Open positions from every opted-in trader. Stripped of shares +
+    originalShares (reveal absolute size); entry/stop price levels are
+    kept since those are public market data. Includes traderId + isMe."""
+    return {
+        "positions": community_service.list_shared_open_positions(
+            current_user_id=user["id"],
+        ),
+    }
+
+
 @router.post("/trades")
 def create_trade_manual(
     payload: dict[str, Any],

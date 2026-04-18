@@ -16,6 +16,7 @@
 import { useMemo, useState } from 'react'
 import useJ2CommunityTraders from '../hooks/useJ2CommunityTraders'
 import useJ2CommunityTrades from '../hooks/useJ2CommunityTrades'
+import useJ2CommunityPositions from '../hooks/useJ2CommunityPositions'
 import TraderCard from '../components/TraderCard'
 import TraderDetail from '../components/TraderDetail'
 import styles from './CommunityTab.module.css'
@@ -44,6 +45,7 @@ function sortTraders(list, key) {
 export default function CommunityTab() {
   const { traders, isLoading: tradersLoading, error: tradersError } = useJ2CommunityTraders()
   const { trades, isLoading: tradesLoading } = useJ2CommunityTrades()
+  const { positions } = useJ2CommunityPositions()
 
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState('tradeCount')
@@ -67,6 +69,11 @@ export default function CommunityTab() {
     return trades.filter((t) => t.traderId === selectedTraderId)
   }, [trades, selectedTraderId])
 
+  const selectedTraderPositions = useMemo(() => {
+    if (!selectedTraderId) return []
+    return positions.filter((p) => p.traderId === selectedTraderId)
+  }, [positions, selectedTraderId])
+
   if (tradersError) {
     return (
       <div className={styles.errorBanner} role="alert">
@@ -81,6 +88,7 @@ export default function CommunityTab() {
       <TraderDetail
         trader={selectedTrader}
         trades={selectedTraderTrades}
+        openPositions={selectedTraderPositions}
         onBack={() => setSelectedTraderId(null)}
       />
     )

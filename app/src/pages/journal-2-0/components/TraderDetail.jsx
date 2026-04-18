@@ -10,6 +10,7 @@
 import { useMemo } from 'react'
 import StatsGrid from './StatsGrid'
 import { summaryStats, dateShort, percent, rMultiple as fmtR, holdDaysDisplay } from '../../../lib/journal-2-0'
+import useLivePrices from '../../../hooks/useLivePrices'
 import styles from './TraderDetail.module.css'
 
 function resultBadge(result) {
@@ -41,7 +42,27 @@ function Initials({ name }) {
   return <span className={styles.initials} aria-hidden="true">{letters}</span>
 }
 
-export default function TraderDetail({ trader, trades, onBack }) {
+function daysHeld(entryDate) {
+  if (!entryDate) return null
+  const entry = new Date(entryDate)
+  if (Number.isNaN(entry.getTime())) return null
+  const ms = Date.now() - entry.getTime()
+  return Math.max(0, Math.floor(ms / 86_400_000))
+}
+
+function unrealizedPct(side, entryPrice, currentPrice) {
+  if (currentPrice == null || !Number.isFinite(currentPrice)) return null
+  const raw = (currentPrice - entryPrice) / entryPrice
+  return side === 'Short' ? -raw : raw
+}
+
+export default function TraderDetail({ trader, trades, openPositions = [], onBack }) {
+  const positionSymbols = useMemo(
+    () => openPositions.map((p) => p.symbol),
+    [openPositions],
+  )
+  const { prices } = useLivePrices(positionSymbols)
+
   // summaryStats consumes Trade shape with pnlDollar — shared trades don't
   // have that field (stripped for privacy). Synthesize pnlDollar = 0 since
   // it's only used for Σ in aggregate rank cards that aren't shown here
@@ -96,6 +117,84 @@ export default function TraderDetail({ trader, trades, onBack }) {
           stats by design — sharers' portfolio sizes stay private.
         </p>
       </div>
+
+      <div className={styles.tradesHeader}>
+        <h3 className={styles.tradesTitle}>Open positions</h3>
+        <span className={styles.tradesCount}>{openPositions.length}</span>
+      </div>
+
+      {openPositions.length === 0 ? (
+        <div className={styles.empty}>
+          No open positions.
+        </div>
+      ) : (
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th className={styles.thLeft}>Symbol</th>
+                <th className={styles.thLeft}>Side</th>
+                <th className={styles.thRight}>Entry $</th>
+                <th className={styles.thLeft}>Entry Date</th>
+                <th className={styles.thRight}>Active Stop</th>
+                <th className={styles.thRight}>Current $</th>
+                <th className={styles.thRight}>Unrealized %</th>
+                <th className={styles.thRight}>Days</th>
+                <th className={styles.thLeft}>Setup</th>
+                <th className={styles.thLeft}>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {openPositions.map((p) => {
+                const activeStop =
+                  p.raiseToBreakeven && p.breakevenStop != null
+                    ? p.breakevenStop
+                    : p.stopPrice
+                const current = prices[p.symbol]?.price
+                const uPct = unrealizedPct(p.side, p.entryPrice, current)
+                const held = daysHeld(p.entryDate)
+                return (
+                  <tr key={p.id} className={styles.row}>
+                    <td className={styles.tdLeft}><strong>{p.symbol}</strong></td>
+                    <td className={styles.tdLeft}>{sideBadge(p.side)}</td>
+                    <td className={styles.tdRight}>${Number(p.entryPrice).toFixed(2)}</td>
+                    <td className={styles.tdLeft}>{dateShort(p.entryDate)}</td>
+                    <td
+                      className={`${styles.tdRight} ${p.raiseToBreakeven ? styles.beStop : ''}`}
+                      title={p.raiseToBreakeven ? 'Raised to breakeven' : ''}
+                    >
+                      ${Number(activeStop).toFixed(2)}
+                    </td>
+                    <td className={styles.tdRight}>
+                      {current != null
+                        ? `$${Number(current).toFixed(2)}`
+                        : <span className={styles.dash}>—</span>}
+                    </td>
+                    <td
+                      className={`${styles.tdRight} ${
+                        uPct == null ? '' : uPct > 0 ? styles.pos : uPct < 0 ? styles.neg : ''
+                      }`}
+                    >
+                      {uPct == null
+                        ? <span className={styles.dash}>—</span>
+                        : percent(uPct, { signed: true, dp: 2 })}
+                    </td>
+                    <td className={styles.tdRight}>
+                      {held == null ? <span className={styles.dash}>—</span> : held}
+                    </td>
+                    <td className={styles.tdLeft}>{p.setup || <span className={styles.dash}>—</span>}</td>
+                    <td className={styles.tdLeft}>
+                      <span className={styles.notes} title={p.notes || ''}>
+                        {p.notes || <span className={styles.dash}>—</span>}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className={styles.tradesHeader}>
         <h3 className={styles.tradesTitle}>Trade history</h3>

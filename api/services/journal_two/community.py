@@ -107,6 +107,65 @@ def list_shared_trades(
             conn.close()
 
 
+def list_shared_open_positions(
+    current_user_id: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    """Open positions from every opted-in trader, stripped of
+    portfolio-size-revealing fields.
+
+    STRIPPED: shares, originalShares (reveal absolute size)
+    KEPT: entryPrice, stopPrice, breakevenStop, raiseToBreakeven
+    (price levels are public market data; they don't reveal position
+    sizing — only direction and price targets).
+    """
+    owned_conn = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                p.id, p.user_id, p.symbol, p.side, p.entry_date,
+                p.entry_price, p.stop_price, p.breakeven_stop,
+                p.raise_to_breakeven, p.setup, p.notes,
+                p.context_at_entry, p.created_at, p.updated_at,
+                u.display_name, u.full_name, u.email
+              FROM j2_positions p
+              JOIN j2_settings s ON s.user_id = p.user_id
+              JOIN users u        ON u.id      = p.user_id
+             WHERE json_extract(s.data, '$.shareJournalData') = 1
+               AND p.closed_at IS NULL
+             ORDER BY p.entry_date DESC, p.created_at DESC
+            """
+        ).fetchall()
+
+        out = []
+        for r in rows:
+            out.append({
+                "id": r["id"],
+                "traderId": r["user_id"],
+                "trader": _display_name(r),
+                "isMe": current_user_id is not None and r["user_id"] == current_user_id,
+                "symbol": r["symbol"],
+                "side": r["side"],
+                "entryDate": r["entry_date"],
+                "entryPrice": float(r["entry_price"]),
+                "stopPrice": float(r["stop_price"]),
+                "breakevenStop": None if r["breakeven_stop"] is None else float(r["breakeven_stop"]),
+                "raiseToBreakeven": bool(r["raise_to_breakeven"]),
+                # shares + originalShares INTENTIONALLY OMITTED
+                "setup": r["setup"],
+                "notes": r["notes"],
+                "contextAtEntry": json.loads(r["context_at_entry"]),
+                "createdAt": r["created_at"],
+                "updatedAt": r["updated_at"],
+            })
+        return out
+    finally:
+        if owned_conn:
+            conn.close()
+
+
 def list_trader_summaries(
     current_user_id: str | None = None,
     conn: sqlite3.Connection | None = None,
