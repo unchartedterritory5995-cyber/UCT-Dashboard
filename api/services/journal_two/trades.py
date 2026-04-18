@@ -519,6 +519,115 @@ def delete_trade(
             conn.close()
 
 
+def bulk_insert_trades(
+    user_id: str,
+    parsed_trades: list[dict[str, Any]],
+    settings: dict[str, Any],
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Bulk-insert pre-parsed trade dicts (as produced by csv_import).
+    All-or-nothing: wraps every insert in a single transaction, rolls
+    back on any error.
+
+    Derived fields (pnl_dollar, pnl_percent, r_multiple, hold_days,
+    result) computed via compute_trade_derived using the user's current
+    breakevenRange at import time (same rule as Close / manual Add).
+
+    Each trade gets a fresh `manual-{uuid}` positionId sentinel (A1
+    decision — imports are trades without a parent Position in j2_positions).
+
+    `contextAtEntry`: if the parsed trade carries one, it's merged with
+    the server-snapshot breadthMetricName/indexName from settings
+    (same rule as manual Add Trade in A2). If not, fully null.
+    """
+    if not parsed_trades:
+        return {"imported": 0, "errors": []}
+
+    owned_conn = conn is None
+    conn = conn or get_connection()
+    journal_cols = settings.get("journalColumns", {})
+    breadth_name = journal_cols.get("breadthMetric", "")
+    index_name = journal_cols.get("marketNavIndex", "")
+
+    try:
+        conn.execute("BEGIN")
+        inserted = 0
+        try:
+            for pt in parsed_trades:
+                original_stop = pt.get("originalStop")
+                if original_stop is None:
+                    # §14.5 edge case #3: entry == originalStop → R null
+                    original_stop = pt["entryPrice"]
+
+                derived = calc.compute_trade_derived(
+                    side=pt["side"],
+                    shares=pt["shares"],
+                    entry_price=pt["entryPrice"],
+                    entry_date=pt["entryDate"],
+                    exit_price=pt["exitPrice"],
+                    exit_date=pt["exitDate"],
+                    original_stop=original_stop,
+                    breakeven_range=settings["breakevenRange"],
+                )
+
+                user_ctx = pt.get("contextAtEntry") or {}
+                context = {
+                    "navCount": user_ctx.get("navCount"),
+                    "rallyDay": user_ctx.get("rallyDay"),
+                    "powerTrend": user_ctx.get("powerTrend"),
+                    "breadthValue": user_ctx.get("breadthValue"),
+                    "igRank": user_ctx.get("igRank"),
+                    "rsRating": user_ctx.get("rsRating"),
+                    "breadthMetricName": breadth_name,
+                    "indexName": index_name,
+                }
+
+                now = _now_iso()
+                trade_id = str(uuid.uuid4())
+                position_id = f"manual-{uuid.uuid4()}"
+                conn.execute(
+                    """
+                    INSERT INTO j2_trades (
+                        id, user_id, position_id, symbol, side, shares,
+                        entry_price, entry_date, exit_price, exit_date,
+                        original_stop, setup, notes, pnl_dollar, pnl_percent,
+                        r_multiple, hold_days, result, context_at_entry, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        trade_id,
+                        user_id,
+                        position_id,
+                        pt["symbol"],
+                        pt["side"],
+                        pt["shares"],
+                        pt["entryPrice"],
+                        pt["entryDate"],
+                        pt["exitPrice"],
+                        pt["exitDate"],
+                        original_stop,
+                        pt.get("setup"),
+                        pt.get("notes"),
+                        derived["pnl_dollar"],
+                        derived["pnl_percent"],
+                        derived["r_multiple"],
+                        derived["hold_days"],
+                        derived["result"],
+                        json.dumps(context),
+                        now,
+                    ),
+                )
+                inserted += 1
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        return {"imported": inserted}
+    finally:
+        if owned_conn:
+            conn.close()
+
+
 def delete_all_trades(
     user_id: str,
     conn: sqlite3.Connection | None = None,

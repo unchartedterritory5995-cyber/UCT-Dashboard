@@ -18,10 +18,11 @@ Spec §5, audit §4.3.
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 from api.middleware.auth_middleware import get_current_user
 from api.services.journal_two import (
+    csv_import as csv_import_service,
     market_context as market_context_service,
     positions as positions_service,
     settings as settings_service,
@@ -195,6 +196,55 @@ def delete_all_trades(
         )
     count = trades_service.delete_all_trades(user["id"])
     return {"deleted": count}
+
+
+# ── CSV Import — Phase 7 ─────────────────────────────────────────────────────
+
+@router.post("/trades/import/preview")
+async def import_preview(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Parse the uploaded CSV and return a preview. No DB writes.
+    Client renders the preview table + error list, then either
+    cancels or POSTs to /import/confirm with the parsed trades.
+
+    Spec §13 + §15.9 (10 MB cap, formula-injection sanitization,
+    UTF-8/Windows-1252 only)."""
+    raw = await file.read()
+    try:
+        result = csv_import_service.parse_csv(raw)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return result.to_dict()
+
+
+@router.post("/trades/import/confirm")
+def import_confirm(
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Insert a list of parsed trades (as produced by /import/preview)
+    in a single transaction. Either all succeed or all roll back."""
+    trades = payload.get("trades") if isinstance(payload, dict) else None
+    if not isinstance(trades, list):
+        raise HTTPException(status_code=400, detail="trades[] is required")
+
+    # Minimal re-validation defense: required fields present, shapes sane.
+    # The pre-matched parser already validated everything; this is a
+    # second gate against clients sending hand-crafted payloads.
+    for i, t in enumerate(trades):
+        if not isinstance(t, dict):
+            raise HTTPException(400, f"trades[{i}] must be an object")
+        for key in ("symbol", "side", "shares", "entryPrice", "entryDate", "exitPrice", "exitDate"):
+            if key not in t:
+                raise HTTPException(400, f"trades[{i}] missing {key}")
+        if t["side"] not in {"Long", "Short"}:
+            raise HTTPException(400, f"trades[{i}] invalid side")
+
+    settings = settings_service.get_settings(user["id"])
+    result = trades_service.bulk_insert_trades(user["id"], trades, settings)
+    return result
 
 
 # ── Market context — Phase 3 ─────────────────────────────────────────────────
