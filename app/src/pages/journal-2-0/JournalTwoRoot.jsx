@@ -9,6 +9,7 @@
 import { useState, useCallback } from 'react'
 import useJ2Settings from './hooks/useJ2Settings'
 import PortfolioSettingsModal from './components/PortfolioSettingsModal'
+import OpenPositionsTab from './tabs/OpenPositionsTab'
 import { money } from '../../lib/journal-2-0'
 import styles from './JournalTwoRoot.module.css'
 
@@ -68,11 +69,7 @@ export default function JournalTwoRoot() {
       </div>
 
       <div className={styles.content}>
-        {nestedTab === 'positions' && (
-          <div className={styles.placeholder}>
-            <p>Open Positions tab — arrives in Phase 3.</p>
-          </div>
-        )}
+        {nestedTab === 'positions' && <OpenPositionsTab settings={settings} />}
         {nestedTab === 'journal' && (
           <div className={styles.placeholder}>
             <p>Trade Journal tab — arrives in Phase 5.</p>

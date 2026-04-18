@@ -1,0 +1,123 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.statsBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.statGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: #e6e8eb;
+}
+
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #0d0f13;
+  border: 1px solid #242730;
+  border-radius: 8px;
+}
+
+.statLabel {
+  color: #7c8290;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.statValue {
+  color: #f0f2f5;
+  font-weight: 600;
+}
+
+.statSub {
+  margin-left: 4px;
+  color: #7c8290;
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.pos {
+  color: #22c55e;
+}
+
+.neg {
+  color: #ef4444;
+}
+
+.actionGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.pickerWrap {
+  position: relative;
+}
+
+.ghostBtn {
+  background: #1b1e25;
+  color: #c2c6cf;
+  border: 1px solid #2a2e38;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ghostBtn:hover {
+  background: #252935;
+  color: #e6e8eb;
+}
+
+.primaryBtn {
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: #fff;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.errorBanner {
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  color: #ef8d8d;
+  font-size: 13px;
+}
+
+.loading {
+  padding: 32px;
+  color: #8b92a1;
+  text-align: center;
+  font-size: 13px;
+  font-family: Inter, system-ui, sans-serif;
+}

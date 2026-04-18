@@ -1,0 +1,143 @@
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 260px;
+  max-height: 420px;
+  overflow-y: auto;
+  background: #121417;
+  border: 1px solid #2a2e38;
+  border-radius: 10px;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.45);
+  padding: 10px 8px;
+}
+
+.popoverHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px 8px;
+  border-bottom: 1px solid #20232b;
+  margin-bottom: 6px;
+}
+
+.popoverTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c2c6cf;
+  letter-spacing: 0.4px;
+}
+
+.resetBtn {
+  background: none;
+  border: none;
+  color: #7c8290;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.resetBtn:hover {
+  color: #e6e8eb;
+  background: #1b1e25;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #e6e8eb;
+}
+
+.row:hover {
+  background: #1b1e25;
+}
+
+.handle {
+  background: none;
+  border: none;
+  color: #5a606c;
+  cursor: grab;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.handle:hover {
+  color: #c2c6cf;
+  background: #242730;
+}
+
+.handle:active {
+  cursor: grabbing;
+}
+
+.labelWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  cursor: pointer;
+}
+
+.checkbox {
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+
+.checkbox:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.label {
+  flex: 1;
+}
+
+.lockedTag {
+  margin-left: 6px;
+  font-size: 10px;
+  color: #5a606c;
+  font-style: italic;
+}
+
+.moveBtns {
+  display: flex;
+  gap: 2px;
+}
+
+.moveBtn {
+  background: none;
+  border: 1px solid #2a2e38;
+  color: #8b92a1;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.moveBtn:hover:not(:disabled) {
+  background: #1b1e25;
+  color: #e6e8eb;
+}
+
+.moveBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
