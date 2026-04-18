@@ -1198,11 +1198,11 @@ export default function OptionsFlowDashboard() {
             if (proximity < 0.003) {
               label = "Pin "+fmtG(combined); color = "#e040fb"; // purple — price right at pin
             } else if (aboveSpot && proximity < 0.02) {
-              label = "Magnet ⬆ "+fmtG(combined); color = "#0a8f55"; // green — close above, genuine pull up
+              label = "Magnet ⬆ "+fmtG(combined); color = "#B0BEC5"; // metallic silver — contested level, pulling up
             } else if (aboveSpot) {
               label = "Resistance "+fmtG(combined); color = "#c43030"; // red — distant resistance
             } else if (proximity < 0.02) {
-              label = "Magnet ⬇ "+fmtG(combined); color = "#c43030"; // red — close below, genuine pull down
+              label = "Magnet ⬇ "+fmtG(combined); color = "#B0BEC5"; // metallic silver — contested level, pulling down
             } else {
               label = "Support ↑ "+fmtG(combined); color = "#00BCD4"; // cyan — distant support
             }
@@ -1216,7 +1216,7 @@ export default function OptionsFlowDashboard() {
               if (aboveSpot) {
                 label = "Ceiling "+fmtG(cw.gex); color = "#c43030"; // red ceiling
               } else if (cwProx < 0.02) {
-                label = "Magnet ⬇ "+fmtG(cw.gex); color = "#c43030"; // red — genuine pull down
+                label = "Magnet ⬇ "+fmtG(cw.gex); color = "#B0BEC5"; // metallic silver — contested, could be support or pull
               } else {
                 label = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; // cyan — cleared, now support
               }
@@ -1229,7 +1229,7 @@ export default function OptionsFlowDashboard() {
               if (belowSpot) {
                 label = "Bounce "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; // green bounce
               } else if (pwProx < 0.02) {
-                label = "Magnet ⬆ "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; // green — genuine pull up
+                label = "Magnet ⬆ "+fmtG(Math.abs(pw.gex)); color = "#B0BEC5"; // metallic silver — contested, could be resistance or pull
               } else {
                 label = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; // red — broken floor now resistance
               }
@@ -3225,7 +3225,7 @@ export default function OptionsFlowDashboard() {
 
                   const cwAboveSpot = cwStrike > sp;
                   const pwBelowSpot = pwStrike < sp;
-                  const cwLabel = cwAboveSpot ? "ceiling" : ((sp - cwStrike) / sp < 0.02 ? "gravity pulling down" : "major support below");
+                  const cwLabel = cwAboveSpot ? "ceiling" : ((sp - cwStrike) / sp < 0.02 ? "decision point" : "major support below");
                   const pwLabel = pwBelowSpot ? "floor" : "gravity pulling up";
                   const wallsInverted = !cwAboveSpot || !pwBelowSpot;
                   const spotBetweenWalls = cwStrike === pwStrike || (sp >= Math.min(cwStrike,pwStrike) && sp <= Math.max(cwStrike,pwStrike));
@@ -3514,21 +3514,15 @@ export default function OptionsFlowDashboard() {
                       // Call wall below — behavior depends on proximity
                       const cwProximity = (sp - cwStrike) / sp;
                       if (cwProximity < 0.02) {
-                        // Close to wall — gravity scenario
-                        const triggerLevel = Math.round(sp-(sp-cwStrike)*0.3);
-                        const slideGap = Math.abs(triggerLevel - cwStrike);
+                        // Close to wall — decision point: lead with bullish (price IS above), then risk
                         if (isIntraday) {
-                          if (slideGap > sp * 0.005) {
-                            trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+cwStrike+" ("+fmtGex(cwGex)+") pulling price down. If price drops below $"+triggerLevel+", expect a quick slide to $"+cwStrike+"." });
-                          } else {
-                            trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Price gravity at $"+cwStrike+" ("+fmtGex(cwGex)+") pulling price down — spot is right on top of it. Any weakness and price snaps to $"+cwStrike+"." });
-                          }
+                          if (firstResAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price holds above $"+cwStrike+" and consolidates, the wall gets absorbed — next target $"+firstResAbove.strike+"." });
+                          trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+cwStrike+" ("+fmtGex(cwGex)+") is support while price holds above. Buy dips toward it." });
+                          trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Risk: a break below $"+cwStrike+" flips this level to resistance. Don't hold longs below it." });
                         } else {
-                          if (slideGap > sp * 0.005) {
-                            trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"$"+cwStrike+" ("+fmtGex(cwGex)+") is pulling price down this week. A daily close below $"+triggerLevel+" likely leads to a move toward $"+cwStrike+". Avoid new longs above $"+triggerLevel+"." });
-                          } else {
-                            trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"$"+cwStrike+" gravity zone ("+fmtGex(cwGex)+") is right below spot. A daily close below $"+cwStrike+" confirms the pull — avoid longs until price reclaims it." });
-                          }
+                          if (firstResAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+cwStrike+" for 2+ days, the wall is absorbed. Swing long toward $"+firstResAbove.strike+"." });
+                          trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+cwStrike+" ("+fmtGex(cwGex)+") is support while price holds above. Buy dips toward it this week." });
+                          trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Risk: a daily close below $"+cwStrike+" confirms the break. Avoid longs below it — level flips to resistance." });
                         }
                       } else {
                         // Price cleared the wall — now acts as support
@@ -3538,14 +3532,6 @@ export default function OptionsFlowDashboard() {
                         } else {
                           trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+cwStrike+" ("+fmtGex(cwGex)+") is now weekly support — buy dips toward it. "+fmtGex(cwGex)+" catches pullbacks." });
                           if (firstResAbove) trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Swing target $"+firstResAbove.strike+". Take partial profits there. Stop on a daily close below $"+cwStrike+"." });
-                        }
-                      }
-                      // Bullish reclaim for close-to-wall case
-                      if (cwProximity > 0 && cwProximity < 0.02 && firstResAbove) {
-                        if (isIntraday) {
-                          trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price holds above $"+cwStrike+" and consolidates, the wall gets absorbed — next target $"+firstResAbove.strike+"." });
-                        } else {
-                          trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+cwStrike+" for 2+ days, the wall is absorbed. Swing long toward $"+firstResAbove.strike+"." });
                         }
                       }
                     }
