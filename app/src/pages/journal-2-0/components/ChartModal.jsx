@@ -1,11 +1,16 @@
 /**
- * Chart modal — opens a chart for a specific symbol with right-click
- * → Add Position flow.
+ * Chart modal — opens the full dashboard chart for a specific symbol
+ * with right-click → Add Position flow.
  * Spec §8.2 scoped to Journal 2.0 only (per Phase 0 audit).
+ *
+ * Uses the shared dashboard `StockChart` for visual + behavioral
+ * consistency with every other chart in the app (drawings, toolbar,
+ * indicators, real-time prices). The only change the shared chart
+ * needed was a non-breaking optional `onBarContextMenu` prop.
  */
 
 import { useCallback, useEffect, useId, useState } from 'react'
-import J2Chart from './J2Chart'
+import StockChart from '../../../components/StockChart'
 import ChartContextMenu from './ChartContextMenu'
 import shellStyles from './ModalShell.module.css'
 import styles from './ChartModal.module.css'
@@ -17,8 +22,7 @@ export default function ChartModal({
   onClose,
 }) {
   const titleId = useId()
-  const [menu, setMenu] = useState(null)  // { x, y, symbol, price, date } | null
-  const [resetKey, setResetKey] = useState(0)
+  const [menu, setMenu] = useState(null)  // { bar, clientX, clientY } | null
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape' && !menu) onClose?.() }
@@ -26,15 +30,15 @@ export default function ChartModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [menu, onClose])
 
-  const handleBarContextMenu = useCallback((bar) => {
-    setMenu({ ...bar, x: bar.clientX, y: bar.clientY })
+  const handleBarContextMenu = useCallback(({ bar, clientX, clientY }) => {
+    setMenu({ bar, clientX, clientY })
   }, [])
 
-  const handleReset = useCallback(() => {
-    // Bumping the remount key forces J2Chart to re-run fitContent after
-    // setData. Simpler than threading a ref up from the child.
-    setResetKey((k) => k + 1)
-  }, [])
+  const barDateIso = (bar) => {
+    if (!bar) return null
+    const d = new Date(Number(bar.t) * 1000)
+    return d.toISOString().slice(0, 10)
+  }
 
   return (
     <div
@@ -50,7 +54,8 @@ export default function ChartModal({
       >
         <div className={shellStyles.header}>
           <h2 id={titleId} className={shellStyles.title}>
-            {symbol} chart
+            {symbol}
+            <span className={styles.hint}> · right-click a bar to add</span>
           </h2>
           <button
             type="button"
@@ -63,9 +68,9 @@ export default function ChartModal({
         </div>
 
         <div className={styles.body}>
-          <J2Chart
-            key={`${symbol}-${resetKey}`}
-            symbol={symbol}
+          <StockChart
+            sym={symbol}
+            height="100%"
             onBarContextMenu={handleBarContextMenu}
           />
         </div>
@@ -73,15 +78,15 @@ export default function ChartModal({
 
       <ChartContextMenu
         open={!!menu}
-        x={menu?.x || 0}
-        y={menu?.y || 0}
-        onReset={handleReset}
+        x={menu?.clientX || 0}
+        y={menu?.clientY || 0}
+        onReset={() => { /* shared chart owns its own reset via toolbar */ }}
         onAddToPortfolio={() => {
-          if (!menu) return
+          if (!menu?.bar) return
           onAddFromBar?.({
-            symbol: menu.symbol,
-            price: menu.price,
-            date: menu.date,
+            symbol,
+            price: menu.bar.c,  // close of clicked bar
+            date: barDateIso(menu.bar),
           })
         }}
         onOpenSettings={onOpenSettings}

@@ -146,6 +146,7 @@ export default function StockChart({
   className = '',
   showDrawingTools = true,
   onSymbolChange = null,
+  onBarContextMenu = null,  // Journal 2.0: right-click a bar → callback({bar, clientX, clientY})
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -679,6 +680,50 @@ export default function StockChart({
       try { chart.unsubscribeCrosshairMove(handler) } catch {}
     }
   }, [updateChart, resolvedOverlays, overlayData, livePrices, sym])
+
+  // ── onBarContextMenu: right-click → fire callback with the nearest bar ──
+  // Opt-in via prop; no effect unless a consumer passes the callback. Used by
+  // Journal 2.0 for "right-click chart → Add to Portfolio" (spec §8.2).
+  useEffect(() => {
+    if (!onBarContextMenu) return
+    const el = containerRef.current
+    const chart = chartRef.current
+    if (!el || !chart || !bars || bars.length === 0) return
+
+    const handler = (e) => {
+      e.preventDefault()
+      const rect = el.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      let timeAtX = null
+      try { timeAtX = chart.timeScale().coordinateToTime(x) } catch { return }
+      if (timeAtX == null) return
+
+      // The chart's axis is offset for intraday TFs (+_ET_OFFSET). Undo that
+      // when matching against the raw bars array, whose `t` is UTC seconds.
+      const targetT = typeof timeAtX === 'number'
+        ? timeAtX - (isIntraday ? _ET_OFFSET : 0)
+        : timeAtX
+
+      let closest = null
+      let minDelta = Infinity
+      for (const b of bars) {
+        const d = Math.abs(Number(b.t) - Number(targetT))
+        if (d < minDelta) {
+          minDelta = d
+          closest = b
+        }
+      }
+      if (!closest) return
+      onBarContextMenu({
+        bar: closest,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        event: e,
+      })
+    }
+    el.addEventListener('contextmenu', handler)
+    return () => el.removeEventListener('contextmenu', handler)
+  }, [onBarContextMenu, bars, isIntraday])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
