@@ -145,12 +145,56 @@ def close_position(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# ── Trades (read) — Phase 4 surface (stats + filters in 5/6) ────────────────
+# ── Trades — Phase 4/5 surface (filters in Phase 6) ─────────────────────────
 
 @router.get("/trades")
 def list_trades(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     """All trades for the current user, newest-first."""
     return {"trades": trades_service.list_trades_for_user(user["id"])}
+
+
+@router.post("/trades")
+def create_trade_manual(
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Manual Add Trade (spec §11.4). Non-close write path. Server
+    computes derived fields via compute_trade_derived (A3). positionId
+    is a 'manual-{uuid}' sentinel (A1)."""
+    settings = settings_service.get_settings(user["id"])
+    try:
+        return trades_service.create_trade_manual(user["id"], payload, settings)
+    except trades_service.ManualTradeValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/trades/{trade_id}")
+def delete_trade(
+    trade_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Hard-delete a single trade. 404 if missing or owned by another user."""
+    ok = trades_service.delete_trade(user["id"], trade_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Trade not found")
+    return {"deleted": True}
+
+
+@router.delete("/trades")
+def delete_all_trades(
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Hard-delete every trade for the user (spec §11.4). Requires a
+    body of `{"confirm": "DELETE"}` — matches the §13.4/§15.9 pattern
+    of requiring the user type the literal string."""
+    if not isinstance(payload, dict) or payload.get("confirm") != "DELETE":
+        raise HTTPException(
+            status_code=400,
+            detail="Delete all requires body {\"confirm\": \"DELETE\"}",
+        )
+    count = trades_service.delete_all_trades(user["id"])
+    return {"deleted": count}
 
 
 # ── Market context — Phase 3 ─────────────────────────────────────────────────

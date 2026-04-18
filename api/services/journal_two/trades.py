@@ -234,6 +234,311 @@ def close_position(
             conn.close()
 
 
+# ── Manual Add Trade (spec §11.4 non-close write path) ──────────────────────
+
+class ManualTradeValidationError(ValueError):
+    """Raised when a manual Add Trade payload fails validation."""
+
+
+_VALID_POWER_TREND = {"On", "Off"}
+
+
+def _validate_optional_context(raw: Any) -> dict[str, Any]:
+    """Historical Market Context (A2 hybrid). All fields optional; blank/
+    missing → null. breadthMetricName + indexName are NOT read from the
+    client — they're always snapshotted from settings in create_trade_manual.
+    """
+    if raw is None:
+        return {
+            "navCount": None,
+            "rallyDay": None,
+            "powerTrend": None,
+            "breadthValue": None,
+            "igRank": None,
+            "rsRating": None,
+        }
+    if not isinstance(raw, dict):
+        raise ManualTradeValidationError("contextAtEntry must be an object")
+
+    def _opt_number(key, allow_zero=True):
+        v = raw.get(key)
+        if v is None or v == "":
+            return None
+        if not isinstance(v, (int, float)):
+            raise ManualTradeValidationError(f"{key} must be a number or null")
+        if not allow_zero and v == 0:
+            return None
+        return float(v) if isinstance(v, float) else int(v)
+
+    nav = raw.get("navCount")
+    if nav is not None and nav != "":
+        if not isinstance(nav, int) or nav < 0:
+            raise ManualTradeValidationError("navCount must be a non-negative integer")
+    else:
+        nav = None
+
+    rally = raw.get("rallyDay")
+    if rally is not None and rally != "":
+        if not isinstance(rally, str):
+            raise ManualTradeValidationError("rallyDay must be a string like 'D7' or null")
+        rally = rally.strip() or None
+
+    pt = raw.get("powerTrend")
+    if pt is not None and pt != "":
+        if pt not in _VALID_POWER_TREND:
+            raise ManualTradeValidationError("powerTrend must be 'On', 'Off', or null")
+    else:
+        pt = None
+
+    return {
+        "navCount": nav,
+        "rallyDay": rally,
+        "powerTrend": pt,
+        "breadthValue": _opt_number("breadthValue"),
+        "igRank": _opt_number("igRank"),
+        "rsRating": _opt_number("rsRating"),
+    }
+
+
+def _validate_manual_trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Spec §11.4 manual Add Trade. Server computes derived via
+    compute_trade_derived (A3)."""
+    if not isinstance(payload, dict):
+        raise ManualTradeValidationError("payload must be an object")
+
+    symbol = payload.get("symbol")
+    if not isinstance(symbol, str) or not symbol.strip():
+        raise ManualTradeValidationError("symbol is required")
+
+    side = payload.get("side")
+    if side not in {"Long", "Short"}:
+        raise ManualTradeValidationError("side must be 'Long' or 'Short'")
+
+    shares = payload.get("shares")
+    if not isinstance(shares, (int, float)) or shares <= 0:
+        raise ManualTradeValidationError("shares must be > 0")
+
+    entry_price = payload.get("entryPrice")
+    if not isinstance(entry_price, (int, float)) or entry_price <= 0:
+        raise ManualTradeValidationError("entryPrice must be > 0")
+
+    exit_price = payload.get("exitPrice")
+    if not isinstance(exit_price, (int, float)) or exit_price <= 0:
+        raise ManualTradeValidationError("exitPrice must be > 0")
+
+    entry_date_raw = payload.get("entryDate")
+    if not isinstance(entry_date_raw, str) or not entry_date_raw:
+        raise ManualTradeValidationError("entryDate is required")
+    try:
+        entry_dt = (
+            datetime.fromisoformat(entry_date_raw.replace("Z", "+00:00"))
+            if "T" in entry_date_raw
+            else datetime.fromisoformat(entry_date_raw + "T00:00:00+00:00")
+        )
+    except ValueError as e:
+        raise ManualTradeValidationError(f"entryDate invalid: {e}")
+
+    exit_date_raw = payload.get("exitDate")
+    if not isinstance(exit_date_raw, str) or not exit_date_raw:
+        raise ManualTradeValidationError("exitDate is required")
+    try:
+        exit_dt = (
+            datetime.fromisoformat(exit_date_raw.replace("Z", "+00:00"))
+            if "T" in exit_date_raw
+            else datetime.fromisoformat(exit_date_raw + "T00:00:00+00:00")
+        )
+    except ValueError as e:
+        raise ManualTradeValidationError(f"exitDate invalid: {e}")
+
+    if exit_dt.astimezone(timezone.utc) < entry_dt.astimezone(timezone.utc):
+        raise ManualTradeValidationError("exitDate cannot be before entryDate")
+
+    original_stop = payload.get("originalStop")
+    if original_stop is None or original_stop == "":
+        # Blank → default to entryPrice, which makes R-multiple null per
+        # §14.5 edge case #3. Honest "unknown R" rather than a fake one.
+        original_stop = float(entry_price)
+    elif not isinstance(original_stop, (int, float)) or original_stop < 0:
+        raise ManualTradeValidationError("originalStop must be a non-negative number")
+    else:
+        original_stop = float(original_stop)
+        # Stop-side check only when non-zero (0 means "no stop recorded")
+        if original_stop > 0:
+            if side == "Long" and original_stop >= entry_price:
+                raise ManualTradeValidationError(
+                    "originalStop must be below entryPrice for a Long trade"
+                )
+            if side == "Short" and original_stop <= entry_price:
+                raise ManualTradeValidationError(
+                    "originalStop must be above entryPrice for a Short trade"
+                )
+
+    setup = payload.get("setup")
+    notes = payload.get("notes")
+    context_raw = payload.get("contextAtEntry")
+
+    return {
+        "symbol": symbol.strip().upper(),
+        "side": side,
+        "shares": float(shares),
+        "entryPrice": float(entry_price),
+        "entryDate": entry_dt.astimezone(timezone.utc).isoformat(),
+        "exitPrice": float(exit_price),
+        "exitDate": exit_dt.astimezone(timezone.utc).isoformat(),
+        "originalStop": original_stop,
+        "setup": setup.strip() if isinstance(setup, str) and setup.strip() else None,
+        "notes": notes if isinstance(notes, str) else None,
+        "userContext": _validate_optional_context(context_raw),
+    }
+
+
+def create_trade_manual(
+    user_id: str,
+    payload: dict[str, Any],
+    settings: dict[str, Any],
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Manual Add Trade (spec §11.4). Server computes derived fields via
+    compute_trade_derived using the user's current breakevenRange. The
+    resulting Trade has positionId = 'manual-{uuid}' (A1 sentinel)
+    since there is no parent Position.
+
+    contextAtEntry (A2): blank/null-defaulted user fields merged with
+    breadthMetricName + indexName snapshotted from settings.journalColumns.
+    """
+    validated = _validate_manual_trade_payload(payload)
+
+    derived = calc.compute_trade_derived(
+        side=validated["side"],
+        shares=validated["shares"],
+        entry_price=validated["entryPrice"],
+        entry_date=validated["entryDate"],
+        exit_price=validated["exitPrice"],
+        exit_date=validated["exitDate"],
+        original_stop=validated["originalStop"],
+        breakeven_range=settings["breakevenRange"],
+    )
+
+    # A2: build contextAtEntry from (user-supplied optional fields) +
+    # (settings-snapshot labels). Labels are authoritative on the
+    # server side — we never read them from the client.
+    journal_cols = settings.get("journalColumns", {})
+    context = {
+        **validated["userContext"],
+        "breadthMetricName": journal_cols.get("breadthMetric", ""),
+        "indexName": journal_cols.get("marketNavIndex", ""),
+    }
+
+    owned_conn = conn is None
+    conn = conn or get_connection()
+    try:
+        now = _now_iso()
+        trade_id = str(uuid.uuid4())
+        # A1: sentinel positionId for manual trades. Never matches a real
+        # Position row (all real positions are plain UUIDs).
+        position_id = f"manual-{uuid.uuid4()}"
+
+        conn.execute(
+            """
+            INSERT INTO j2_trades (
+                id, user_id, position_id, symbol, side, shares,
+                entry_price, entry_date, exit_price, exit_date,
+                original_stop, setup, notes, pnl_dollar, pnl_percent,
+                r_multiple, hold_days, result, context_at_entry, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                trade_id,
+                user_id,
+                position_id,
+                validated["symbol"],
+                validated["side"],
+                validated["shares"],
+                validated["entryPrice"],
+                validated["entryDate"],
+                validated["exitPrice"],
+                validated["exitDate"],
+                validated["originalStop"],
+                validated["setup"],
+                validated["notes"],
+                derived["pnl_dollar"],
+                derived["pnl_percent"],
+                derived["r_multiple"],
+                derived["hold_days"],
+                derived["result"],
+                json.dumps(context),
+                now,
+            ),
+        )
+        conn.commit()
+
+        return {
+            "id": trade_id,
+            "userId": user_id,
+            "positionId": position_id,
+            "symbol": validated["symbol"],
+            "side": validated["side"],
+            "shares": validated["shares"],
+            "entryPrice": validated["entryPrice"],
+            "entryDate": validated["entryDate"],
+            "exitPrice": validated["exitPrice"],
+            "exitDate": validated["exitDate"],
+            "originalStop": validated["originalStop"],
+            "setup": validated["setup"],
+            "notes": validated["notes"],
+            "pnlDollar": derived["pnl_dollar"],
+            "pnlPercent": derived["pnl_percent"],
+            "rMultiple": derived["r_multiple"],
+            "holdDays": derived["hold_days"],
+            "result": derived["result"],
+            "contextAtEntry": context,
+            "createdAt": now,
+        }
+    finally:
+        if owned_conn:
+            conn.close()
+
+
+def delete_trade(
+    user_id: str,
+    trade_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    """Hard-delete a single Trade. Returns True if deleted."""
+    owned_conn = conn is None
+    conn = conn or get_connection()
+    try:
+        cursor = conn.execute(
+            "DELETE FROM j2_trades WHERE id = ? AND user_id = ?",
+            (trade_id, user_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        if owned_conn:
+            conn.close()
+
+
+def delete_all_trades(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    """Hard-delete every trade for the user. Returns count deleted.
+    The double-confirmation (type 'DELETE') is enforced at the router
+    layer; this function unconditionally deletes if called."""
+    owned_conn = conn is None
+    conn = conn or get_connection()
+    try:
+        cursor = conn.execute(
+            "DELETE FROM j2_trades WHERE user_id = ?", (user_id,)
+        )
+        conn.commit()
+        return cursor.rowcount
+    finally:
+        if owned_conn:
+            conn.close()
+
+
 def _row_to_trade(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "id": row["id"],
