@@ -50,6 +50,13 @@ All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key com
 - Backend: `/api/bars/{ticker}?tf=D&bars=5000` (Massive API primary, yfinance fallback for stale intraday)
 - **COT charts are Chart.js** — do NOT replace those
 
+### Crosshair OHLCV Legend
+- TradingView-style overlay at top-left of chart, appears on hover
+- Shows: date/time, O, H, L, C, V (formatted K/M), change + change%, MA overlay values with colors
+- Developing bar: falls back to REST session volume + last computed MA values
+- Uses `chart.subscribeCrosshairMove()` API, state in `crosshairData`
+- Works on all chart surfaces (TickerPopup, Breadth, ThemeTracker, Watchlists, CustomScan)
+
 ### Chart Performance Architecture
 - **Chart instance reuse**: no DOM destroy on ticker switch — `setData()` on existing series, `applyOptions()` for settings. Only `chart.remove()` on unmount.
 - **Memoized data**: `ohlcData`, `closeData`, `volData`, `overlayData`, `resolvedOverlays` all wrapped in `useMemo`. Prevents recomputation on non-data changes.
