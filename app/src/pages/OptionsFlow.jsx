@@ -1198,11 +1198,11 @@ export default function OptionsFlowDashboard() {
             if (proximity < 0.003) {
               label = "Pin "+fmtG(combined); color = "#e040fb"; // purple — price right at pin
             } else if (aboveSpot && proximity < 0.02) {
-              label = "Magnet ⬆ "+fmtG(combined); color = "#FF8C00"; // orange — contested level, pulling up
+              label = "Magnet ⬆ "+fmtG(combined); color = "#B0BEC5"; // metallic silver — contested level, pulling up
             } else if (aboveSpot) {
               label = "Resistance "+fmtG(combined); color = "#c43030"; // red — distant resistance
             } else if (proximity < 0.02) {
-              label = "Magnet ⬇ "+fmtG(combined); color = "#FF8C00"; // orange — contested level, pulling down
+              label = "Magnet ⬇ "+fmtG(combined); color = "#B0BEC5"; // metallic silver — contested level, pulling down
             } else {
               label = "Support ↑ "+fmtG(combined); color = "#00BCD4"; // cyan — distant support
             }
@@ -1216,7 +1216,7 @@ export default function OptionsFlowDashboard() {
               if (aboveSpot) {
                 label = "Ceiling "+fmtG(cw.gex); color = "#c43030"; // red ceiling
               } else if (cwProx < 0.02) {
-                label = "Magnet ⬇ "+fmtG(cw.gex); color = "#FF8C00"; // orange — contested, could be support or pull
+                label = "Magnet ⬇ "+fmtG(cw.gex); color = "#B0BEC5"; // metallic silver — contested, could be support or pull
               } else {
                 label = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; // cyan — cleared, now support
               }
@@ -1229,7 +1229,7 @@ export default function OptionsFlowDashboard() {
               if (belowSpot) {
                 label = "Bounce "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; // green bounce
               } else if (pwProx < 0.02) {
-                label = "Magnet ⬆ "+fmtG(Math.abs(pw.gex)); color = "#FF8C00"; // orange — contested, could be resistance or pull
+                label = "Magnet ⬆ "+fmtG(Math.abs(pw.gex)); color = "#B0BEC5"; // metallic silver — contested, could be resistance or pull
               } else {
                 label = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; // red — broken floor now resistance
               }
