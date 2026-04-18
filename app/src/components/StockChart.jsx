@@ -635,11 +635,21 @@ export default function StockChart({
       const priceData = candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null
       if (!priceData) { setCrosshairData(null); return }
 
-      const volData = volumeSeriesRef.current ? param.seriesData.get(volumeSeriesRef.current) : null
+      const volSeriesData = volumeSeriesRef.current ? param.seriesData.get(volumeSeriesRef.current) : null
+      // If volume is 0 or missing (developing bar), use session volume from live data
+      let vol = volSeriesData?.value
+      if ((!vol || vol === 0) && livePrices[sym]?.volume) {
+        vol = livePrices[sym].volume
+      }
 
-      // Get overlay values (SMA/EMA)
+      // Get overlay values (SMA/EMA) — if missing for current bar, use last available
       const ovValues = overlaySeriesRefs.current.map((s, i) => {
-        const d = param.seriesData.get(s)
+        let d = param.seriesData.get(s)
+        if (!d && overlayData[i]?.data?.length) {
+          // Developing bar has no MA point — use the last computed value
+          const lastOv = overlayData[i].data[overlayData[i].data.length - 1]
+          d = lastOv ? { value: lastOv.value } : null
+        }
         const ov = resolvedOverlays?.[i]
         return d && ov ? { label: `${ov.type} ${ov.period}`, value: d.value, color: ov.color } : null
       }).filter(Boolean)
@@ -655,7 +665,7 @@ export default function StockChart({
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
-        volume: volData?.value,
+        volume: vol,
         change: change.toFixed(2),
         changePct: changePct.toFixed(2),
         overlays: ovValues,
@@ -668,7 +678,7 @@ export default function StockChart({
     return () => {
       try { chart.unsubscribeCrosshairMove(handler) } catch {}
     }
-  }, [updateChart, resolvedOverlays])
+  }, [updateChart, resolvedOverlays, overlayData, livePrices, sym])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
