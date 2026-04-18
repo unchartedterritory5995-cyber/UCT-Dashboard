@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from 'react'
  * @property {string} key
  * @property {string} label
  * @property {boolean} [nonHideable]
+ * @property {boolean} [hiddenByDefault]  applies only on first visit; stored prefs take precedence
  * @property {string} [tooltip]
  */
 
@@ -27,7 +28,11 @@ import { useCallback, useEffect, useState } from 'react'
  */
 export default function useJ2ColumnPrefs(storageKey, defaultColumns) {
   const [order, setOrder] = useState(() => defaultColumns.map((c) => c.key))
-  const [hidden, setHidden] = useState(() => new Set())
+  // First-visit default: columns flagged hiddenByDefault start hidden.
+  // Storage hydration below overwrites this if the user has prior prefs.
+  const [hidden, setHidden] = useState(
+    () => new Set(defaultColumns.filter((c) => c.hiddenByDefault).map((c) => c.key)),
+  )
 
   // Hydrate from localStorage (post-mount to avoid SSR issues, though
   // this app is SPA — same shape keeps it portable).

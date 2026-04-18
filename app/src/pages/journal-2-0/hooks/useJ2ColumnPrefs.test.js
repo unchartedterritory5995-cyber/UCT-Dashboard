@@ -136,4 +136,70 @@ describe('useJ2ColumnPrefs', () => {
       'actions',
     ])
   })
+
+  describe('hiddenByDefault support', () => {
+    const WITH_DEFAULT_HIDDEN = [
+      { key: 'symbol', label: 'Symbol', nonHideable: true },
+      { key: 'a', label: 'A' },
+      { key: 'b', label: 'B', hiddenByDefault: true },
+      { key: 'c', label: 'C' },
+      { key: 'actions', label: 'Actions', nonHideable: true },
+    ]
+
+    it('hides flagged columns on first visit (no stored prefs)', () => {
+      const { result } = renderHook(() =>
+        useJ2ColumnPrefs(KEY, WITH_DEFAULT_HIDDEN),
+      )
+      expect(result.current.visibleColumns.map((c) => c.key)).toEqual([
+        'symbol',
+        'a',
+        'c',
+        'actions',
+      ])
+      expect(result.current.hiddenKeys.has('b')).toBe(true)
+    })
+
+    it('stored prefs override hiddenByDefault (user un-hid the column before)', () => {
+      // Pretend the user already un-hid column `b` in a prior session
+      localStorage.setItem(
+        KEY,
+        JSON.stringify({ order: ['symbol', 'a', 'b', 'c', 'actions'], hidden: [] }),
+      )
+      const { result } = renderHook(() =>
+        useJ2ColumnPrefs(KEY, WITH_DEFAULT_HIDDEN),
+      )
+      expect(result.current.visibleColumns.map((c) => c.key)).toEqual([
+        'symbol',
+        'a',
+        'b',
+        'c',
+        'actions',
+      ])
+    })
+
+    it('stored prefs can keep a hiddenByDefault column hidden', () => {
+      localStorage.setItem(
+        KEY,
+        JSON.stringify({
+          order: ['symbol', 'a', 'b', 'c', 'actions'],
+          hidden: ['b'],
+        }),
+      )
+      const { result } = renderHook(() =>
+        useJ2ColumnPrefs(KEY, WITH_DEFAULT_HIDDEN),
+      )
+      expect(result.current.hiddenKeys.has('b')).toBe(true)
+    })
+
+    it('toggleColumn can re-show a hiddenByDefault column and the change persists', () => {
+      const first = renderHook(() => useJ2ColumnPrefs(KEY, WITH_DEFAULT_HIDDEN))
+      expect(first.result.current.hiddenKeys.has('b')).toBe(true)
+      act(() => first.result.current.toggleColumn('b'))
+      expect(first.result.current.hiddenKeys.has('b')).toBe(false)
+      first.unmount()
+
+      const second = renderHook(() => useJ2ColumnPrefs(KEY, WITH_DEFAULT_HIDDEN))
+      expect(second.result.current.hiddenKeys.has('b')).toBe(false)
+    })
+  })
 })

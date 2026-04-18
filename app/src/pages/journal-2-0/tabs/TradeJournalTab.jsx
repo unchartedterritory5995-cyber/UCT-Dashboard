@@ -45,45 +45,19 @@ export default function TradeJournalTab({ settings }) {
   const { mutate } = useSWRConfig()
 
   // Build columns with the live breadth metric label so settings changes
-  // flow into the header immediately. Hide `originalStop` by default.
-  const defaultColumns = useMemo(() => {
-    const cols = buildTradesColumns(settings)
-    // Apply the hiddenByDefault flag by pre-seeding the column prefs hook's
-    // hidden set only on first mount — done inline below via initial filter.
-    return cols
-  }, [settings])
+  // flow into the header immediately. Columns flagged hiddenByDefault
+  // (e.g. originalStop per §11.3) are hidden on first visit — the hook
+  // itself honors the flag.
+  const defaultColumns = useMemo(() => buildTradesColumns(settings), [settings])
 
-  // One-time seed of the default-hidden columns (e.g. Stop).
-  // We pass defaultColumns to useJ2ColumnPrefs; the hook itself doesn't
-  // support per-column default-hidden, so we post-filter visibleColumns.
   const {
     columns,
-    visibleColumns: rawVisibleColumns,
+    visibleColumns,
     hiddenKeys,
     toggleColumn,
     reorderColumns,
     resetColumns,
   } = useJ2ColumnPrefs(COLUMN_STORAGE_KEY, defaultColumns)
-
-  // Apply hiddenByDefault on first visit (no stored prefs yet).
-  const [defaultHiddenApplied, setDefaultHiddenApplied] = useState(false)
-  useMemo(() => {
-    if (defaultHiddenApplied) return
-    try {
-      const stored = localStorage.getItem(COLUMN_STORAGE_KEY)
-      if (stored) { setDefaultHiddenApplied(true); return }
-    } catch { /* private mode */ }
-    // First visit: hide columns flagged hiddenByDefault
-    defaultColumns.forEach((c) => {
-      if (c.hiddenByDefault && !hiddenKeys.has(c.key)) {
-        toggleColumn(c.key)
-      }
-    })
-    setDefaultHiddenApplied(true)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultHiddenApplied])
-
-  const visibleColumns = rawVisibleColumns
 
   const summary = useMemo(() => summaryStats(trades), [trades])
 
