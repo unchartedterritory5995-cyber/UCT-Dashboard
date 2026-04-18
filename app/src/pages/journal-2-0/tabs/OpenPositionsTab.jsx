@@ -17,6 +17,7 @@ import ColumnsPicker from '../components/ColumnsPicker'
 import AddPositionModal from '../components/AddPositionModal'
 import EditPositionModal from '../components/EditPositionModal'
 import ClosePositionModal from '../components/ClosePositionModal'
+import ChartModal from '../components/ChartModal'
 import Toast from '../components/Toast'
 import {
   portfolioAggregates,
@@ -66,8 +67,10 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const accountSize = settings?.accountSize ?? 0
 
   const [addOpen, setAddOpen] = useState(false)
+  const [addPrefill, setAddPrefill] = useState(null)  // chart-driven prefill
   const [editTarget, setEditTarget] = useState(null)
   const [closeTarget, setCloseTarget] = useState(null)
+  const [chartSymbol, setChartSymbol] = useState(null)
   const [toast, setToast] = useState(null)  // { message, tone }
 
   const showToast = useCallback((message, tone = 'info') => {
@@ -228,14 +231,27 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           onEdit={(p) => setEditTarget(p)}
           onClose={(p) => setCloseTarget(p)}
           onDelete={handleDelete}
+          onChart={(p) => setChartSymbol(p.symbol)}
         />
       )}
 
-      {addOpen && (
+      {(addOpen || addPrefill) && (
         <AddPositionModal
           settings={settings}
+          prefill={addPrefill || undefined}
           onSave={handleCreate}
-          onClose={() => setAddOpen(false)}
+          onClose={() => { setAddOpen(false); setAddPrefill(null) }}
+        />
+      )}
+
+      {chartSymbol && (
+        <ChartModal
+          symbol={chartSymbol}
+          onAddFromBar={({ symbol, price, date }) => {
+            setAddPrefill({ symbol, entryPrice: price, entryDate: date })
+            setChartSymbol(null)  // close chart; AddPositionModal opens
+          }}
+          onClose={() => setChartSymbol(null)}
         />
       )}
       {editTarget && (

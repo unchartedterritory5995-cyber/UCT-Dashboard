@@ -43,13 +43,18 @@ function prefillStop({ side, sharesVal, entryVal, defaultStop }) {
   return ''
 }
 
-export default function AddPositionModal({ settings, onSave, onClose }) {
+export default function AddPositionModal({ settings, onSave, onClose, prefill }) {
   const titleId = useId()
-  const [symbol, setSymbol] = useState('')
+  // `prefill` arrives from chart right-click (§8.2) — locks Symbol,
+  // seeds Entry Price + Entry Date from the clicked bar, and stamps a
+  // stop-source badge based on settings.defaultStop.
+  const [symbol, setSymbol] = useState(prefill?.symbol || '')
   const [side, setSide] = useState('Long')
-  const [entryDate, setEntryDate] = useState(TODAY_ISO())
+  const [entryDate, setEntryDate] = useState(prefill?.entryDate || TODAY_ISO())
   const [shares, setShares] = useState('')
-  const [entryPrice, setEntryPrice] = useState('')
+  const [entryPrice, setEntryPrice] = useState(
+    prefill?.entryPrice != null ? String(prefill.entryPrice) : '',
+  )
   const [stopPrice, setStopPrice] = useState('')
   const [stopUserEdited, setStopUserEdited] = useState(false)
   const [setup, setSetup] = useState('')
@@ -59,6 +64,7 @@ export default function AddPositionModal({ settings, onSave, onClose }) {
 
   const defaultStop = settings?.defaultStop
   const setups = settings?.setups ?? []
+  const symbolLocked = !!prefill?.symbol
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -125,9 +131,22 @@ export default function AddPositionModal({ settings, onSave, onClose }) {
     }
   }, [validate, symbol, side, entryDate, shares, entryPrice, stopPrice, setup, notes, onSave, onClose])
 
+  const stopSourceBadge =
+    defaultStop?.mode === 'custom'
+      ? 'Custom'
+      : defaultStop?.mode === 'bar_low_high'
+        ? 'Bar low/high'
+        : defaultStop?.mode === 'fixed_dollar_risk'
+          ? 'Fixed $ Risk'
+          : defaultStop?.mode === 'fixed_percent_distance'
+            ? 'Fixed %'
+            : null
+
   const stopHelperText =
     defaultStop?.mode === 'bar_low_high'
-      ? 'No bar context in manual entry — enter manually.'
+      ? prefill
+        ? 'Bar low/high computed at entry; override by typing.'
+        : 'No bar context in manual entry — enter manually.'
       : defaultStop?.mode === 'fixed_dollar_risk'
         ? `Auto-computed from Fixed $ Risk (${defaultStop.amount}) — override by typing.`
         : defaultStop?.mode === 'fixed_percent_distance'
@@ -142,7 +161,9 @@ export default function AddPositionModal({ settings, onSave, onClose }) {
     >
       <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className={styles.header}>
-          <h2 id={titleId} className={styles.title}>Add Position</h2>
+          <h2 id={titleId} className={styles.title}>
+            {prefill?.symbol ? `Add ${prefill.symbol} to Portfolio` : 'Add Position'}
+          </h2>
           <button type="button" className={styles.xBtn} onClick={onClose} aria-label="Close">×</button>
         </div>
 
@@ -156,7 +177,9 @@ export default function AddPositionModal({ settings, onSave, onClose }) {
                 onChange={(e) => setSymbol(e.target.value)}
                 className={styles.textInput}
                 placeholder="e.g. NVDA"
-                autoFocus
+                autoFocus={!symbolLocked}
+                disabled={symbolLocked}
+                readOnly={symbolLocked}
               />
             </label>
             <label className={styles.field}>
@@ -219,7 +242,12 @@ export default function AddPositionModal({ settings, onSave, onClose }) {
           </label>
 
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>Stop Price</span>
+            <span className={styles.fieldLabel}>
+              Stop Price
+              {prefill && stopSourceBadge && (
+                <span className={styles.sourceBadge}> {stopSourceBadge}</span>
+              )}
+            </span>
             <div className={styles.prefixInput}>
               <span className={styles.prefix}>$</span>
               <input
