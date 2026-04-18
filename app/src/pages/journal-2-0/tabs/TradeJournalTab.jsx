@@ -11,9 +11,12 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useSWRConfig } from 'swr'
 import useJ2Trades from '../hooks/useJ2Trades'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
+import useJ2Filters from '../hooks/useJ2Filters'
+import { applyFilters } from '../hooks/useJ2Filters'
 import StatsGrid from '../components/StatsGrid'
 import TradesTable, { buildTradesColumns } from '../components/TradesTable'
 import ColumnsPicker from '../components/ColumnsPicker'
+import FiltersPanel from '../components/FiltersPanel'
 import AddTradeModal from '../components/AddTradeModal'
 import DeleteAllModal from '../components/DeleteAllModal'
 import Toast from '../components/Toast'
@@ -59,13 +62,23 @@ export default function TradeJournalTab({ settings }) {
     resetColumns,
   } = useJ2ColumnPrefs(COLUMN_STORAGE_KEY, defaultColumns)
 
-  const summary = useMemo(() => summaryStats(trades), [trades])
+  const { filters, setFilter, toggleSetMember, resetFilters, activeCount } =
+    useJ2Filters()
+
+  const filteredTrades = useMemo(
+    () => applyFilters(trades, filters),
+    [trades, filters],
+  )
+
+  const summary = useMemo(() => summaryStats(filteredTrades), [filteredTrades])
 
   // Toolbar modals
   const [addOpen, setAddOpen] = useState(false)
   const [deleteAllOpen, setDeleteAllOpen] = useState(false)
   const pickerBtnRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const filtersBtnRef = useRef(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [toast, setToast] = useState(null)
 
   const showToast = useCallback((message, tone = 'info') => {
@@ -104,14 +117,38 @@ export default function TradeJournalTab({ settings }) {
 
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          <button
-            type="button"
-            className={styles.ghostBtn}
-            disabled
-            title="Arrives in Phase 6"
-          >
-            ☰ Filters ▾
-          </button>
+          <div className={styles.filtersWrap}>
+            <button
+              ref={filtersBtnRef}
+              type="button"
+              className={styles.ghostBtn}
+              onClick={() => setFiltersOpen((x) => !x)}
+              aria-haspopup="dialog"
+              aria-expanded={filtersOpen}
+            >
+              ☰ Filters ▾
+              {activeCount > 0 && (
+                <span className={styles.activeBadge}>{activeCount}</span>
+              )}
+            </button>
+            <FiltersPanel
+              open={filtersOpen}
+              anchorRef={filtersBtnRef}
+              filters={filters}
+              setFilter={setFilter}
+              toggleSetMember={toggleSetMember}
+              resetFilters={resetFilters}
+              activeCount={activeCount}
+              settings={settings}
+              trades={trades}
+              onClose={() => setFiltersOpen(false)}
+            />
+          </div>
+          {activeCount > 0 && trades.length !== filteredTrades.length && (
+            <span className={styles.filterCount}>
+              {filteredTrades.length} of {trades.length}
+            </span>
+          )}
         </div>
         <div className={styles.toolbarRight}>
           <div className={styles.pickerWrap}>
@@ -166,7 +203,7 @@ export default function TradeJournalTab({ settings }) {
       {isLoading && trades.length === 0 ? (
         <div className={styles.loading}>Loading trades…</div>
       ) : (
-        <TradesTable trades={trades} visibleColumns={visibleColumns} />
+        <TradesTable trades={filteredTrades} visibleColumns={visibleColumns} />
       )}
 
       {addOpen && (
