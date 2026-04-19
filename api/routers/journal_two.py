@@ -61,9 +61,17 @@ def put_settings(
 # ── Positions (read) — Phase 3 ───────────────────────────────────────────────
 
 @router.get("/positions")
-def list_positions(user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    """All open positions for the current user (spec §7)."""
-    return {"positions": positions_service.list_open_positions(user["id"])}
+def list_positions(
+    account_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """All open positions for the current user (spec §7).
+    Optional ?account_id= filters to one account; omit for All Accounts."""
+    return {
+        "positions": positions_service.list_open_positions(
+            user["id"], account_id=account_id,
+        ),
+    }
 
 
 @router.get("/positions/{position_id}")
@@ -83,9 +91,17 @@ def create_position(
     payload: dict[str, Any],
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Create a new open Position (spec §8)."""
+    """Create a new open Position (spec §8). If payload.accountId is
+    omitted, defaults to the user's Default account (auto-created on
+    first call)."""
+    acc_id = payload.get("accountId")
+    if not acc_id:
+        default = accounts_service.get_or_migrate_default_account(user["id"])
+        acc_id = default["id"]
     try:
-        return positions_service.create_position(user["id"], payload, {})
+        return positions_service.create_position(
+            user["id"], payload, {}, account_id=acc_id,
+        )
     except positions_service.PositionValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -148,9 +164,17 @@ def close_position(
 # ── Trades — Phase 4/5 surface (filters in Phase 6) ─────────────────────────
 
 @router.get("/trades")
-def list_trades(user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    """All trades for the current user, newest-first."""
-    return {"trades": trades_service.list_trades_for_user(user["id"])}
+def list_trades(
+    account_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """All trades for the current user, newest-first.
+    Optional ?account_id= filters to one account."""
+    return {
+        "trades": trades_service.list_trades_for_user(
+            user["id"], account_id=account_id,
+        ),
+    }
 
 
 # ── Community feed — opt-in share ───────────────────────────────────────────
@@ -204,10 +228,13 @@ def create_trade_manual(
     payload: dict[str, Any],
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Manual Add Trade (spec §11.4). Non-close write path. Server
-    computes derived fields via compute_trade_derived (A3). positionId
-    is a 'manual-{uuid}' sentinel (A1)."""
+    """Manual Add Trade (spec §11.4). Server computes derived fields.
+    positionId is a 'manual-{uuid}' sentinel. account_id defaults to
+    the user's Default account if omitted."""
     settings = settings_service.get_settings(user["id"])
+    if not payload.get("accountId"):
+        default = accounts_service.get_or_migrate_default_account(user["id"])
+        payload = {**payload, "accountId": default["id"]}
     try:
         return trades_service.create_trade_manual(user["id"], payload, settings)
     except trades_service.ManualTradeValidationError as e:
@@ -321,7 +348,17 @@ def import_confirm(
             raise HTTPException(400, f"trades[{i}] invalid side")
 
     settings = settings_service.get_settings(user["id"])
-    result = trades_service.bulk_insert_trades(user["id"], trades, settings)
+    # Stamp account_id on every imported trade — defaults to current
+    # selected account (passed in body) or user's Default account.
+    account_id = (
+        payload.get("accountId") if isinstance(payload, dict) else None
+    )
+    if not account_id:
+        default = accounts_service.get_or_migrate_default_account(user["id"])
+        account_id = default["id"]
+    result = trades_service.bulk_insert_trades(
+        user["id"], trades, settings, account_id=account_id,
+    )
     return result
 
 

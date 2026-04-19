@@ -8,6 +8,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import useJ2Calendar from '../hooks/useJ2Calendar'
+import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import CalendarHeader from '../components/calendar/CalendarHeader'
 import MonthView from '../components/calendar/MonthView'
 import YearView from '../components/calendar/YearView'
@@ -35,8 +36,9 @@ export default function CalendarTab() {
   const month = Number(searchParams.get('m')) || defaultMonth
   const week = Number(searchParams.get('w')) || undefined
 
+  const { accountId } = useJ2SelectedAccount()
   const { days, totals, isLoading, error } = useJ2Calendar({
-    view, year, month, week,
+    view, year, month, week, accountId,
   })
 
   const setView = (newView) => {

@@ -212,16 +212,26 @@ def get_calendar(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        rows = conn.execute(
-            """
-            SELECT exit_date, pnl_dollar, r_multiple, result
-              FROM j2_trades
-             WHERE user_id = ?
-               AND exit_date >= ?
-               AND exit_date <= ?
-            """,
-            (user_id, sql_lo, sql_hi),
-        ).fetchall()
+        if account_id:
+            rows = conn.execute(
+                """
+                SELECT exit_date, pnl_dollar, r_multiple, result
+                  FROM j2_trades
+                 WHERE user_id = ? AND account_id = ?
+                   AND exit_date >= ? AND exit_date <= ?
+                """,
+                (user_id, account_id, sql_lo, sql_hi),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT exit_date, pnl_dollar, r_multiple, result
+                  FROM j2_trades
+                 WHERE user_id = ?
+                   AND exit_date >= ? AND exit_date <= ?
+                """,
+                (user_id, sql_lo, sql_hi),
+            ).fetchall()
 
         # Filter rows whose ET date falls outside the requested period.
         in_window = []
@@ -276,16 +286,26 @@ def get_day_detail(
             + timedelta(days=2)
         ).astimezone(UTC).isoformat()
 
-        rows = conn.execute(
-            """
-            SELECT * FROM j2_trades
-             WHERE user_id = ?
-               AND exit_date >= ?
-               AND exit_date <= ?
-             ORDER BY exit_date ASC
-            """,
-            (user_id, sql_lo, sql_hi),
-        ).fetchall()
+        if account_id:
+            rows = conn.execute(
+                """
+                SELECT * FROM j2_trades
+                 WHERE user_id = ? AND account_id = ?
+                   AND exit_date >= ? AND exit_date <= ?
+                 ORDER BY exit_date ASC
+                """,
+                (user_id, account_id, sql_lo, sql_hi),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT * FROM j2_trades
+                 WHERE user_id = ?
+                   AND exit_date >= ? AND exit_date <= ?
+                 ORDER BY exit_date ASC
+                """,
+                (user_id, sql_lo, sql_hi),
+            ).fetchall()
 
         same_day = [r for r in rows if to_et_date(r["exit_date"]) == date]
 

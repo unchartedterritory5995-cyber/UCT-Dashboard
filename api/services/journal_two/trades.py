@@ -102,7 +102,8 @@ def close_position(
             """
             SELECT id, user_id, symbol, side, entry_date, shares, original_shares,
                    entry_price, stop_price, breakeven_stop, raise_to_breakeven,
-                   setup, notes, context_at_entry, created_at, updated_at, closed_at
+                   setup, notes, context_at_entry, account_id,
+                   created_at, updated_at, closed_at
               FROM j2_positions
              WHERE id = ? AND user_id = ?
             """,
@@ -141,8 +142,9 @@ def close_position(
                     id, user_id, position_id, symbol, side, shares,
                     entry_price, entry_date, exit_price, exit_date,
                     original_stop, setup, notes, pnl_dollar, pnl_percent,
-                    r_multiple, hold_days, result, context_at_entry, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    r_multiple, hold_days, result, context_at_entry,
+                    account_id, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     trade_id,
@@ -164,6 +166,7 @@ def close_position(
                     derived["hold_days"],
                     derived["result"],
                     json.dumps(position["contextAtEntry"]),
+                    position.get("accountId"),  # inherit from parent position
                     now,
                 ),
             )
@@ -339,8 +342,9 @@ def create_trade_manual(
     """Manual Add Trade (spec §11.4). Server computes derived fields via
     compute_trade_derived using the user's current breakevenRange. The
     resulting Trade has positionId = 'manual-{uuid}' since there is no
-    parent Position."""
+    parent Position. account_id stamped from payload.accountId."""
     validated = _validate_manual_trade_payload(payload)
+    account_id = payload.get("accountId")
 
     derived = calc.compute_trade_derived(
         side=validated["side"],
@@ -370,8 +374,9 @@ def create_trade_manual(
                 id, user_id, position_id, symbol, side, shares,
                 entry_price, entry_date, exit_price, exit_date,
                 original_stop, setup, notes, pnl_dollar, pnl_percent,
-                r_multiple, hold_days, result, context_at_entry, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                r_multiple, hold_days, result, context_at_entry,
+                account_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 trade_id,
@@ -393,6 +398,7 @@ def create_trade_manual(
                 derived["hold_days"],
                 derived["result"],
                 json.dumps(context),
+                account_id,
                 now,
             ),
         )
@@ -450,18 +456,12 @@ def bulk_insert_trades(
     parsed_trades: list[dict[str, Any]],
     settings: dict[str, Any],
     conn: sqlite3.Connection | None = None,
+    *,
+    account_id: str | None = None,
 ) -> dict[str, Any]:
-    """Bulk-insert pre-parsed trade dicts (as produced by csv_import).
-    All-or-nothing: wraps every insert in a single transaction, rolls
-    back on any error.
-
-    Derived fields (pnl_dollar, pnl_percent, r_multiple, hold_days,
-    result) computed via compute_trade_derived using the user's current
-    breakevenRange at import time (same rule as Close / manual Add).
-
-    Each trade gets a fresh `manual-{uuid}` positionId sentinel — imports
-    are trades without a parent Position in j2_positions.
-    """
+    """Bulk-insert pre-parsed trade dicts. account_id stamped on every
+    inserted row (defaults to None if caller doesn't supply one — the
+    router resolves the user's Default account before calling)."""
     if not parsed_trades:
         return {"imported": 0, "errors": []}
 
@@ -500,8 +500,9 @@ def bulk_insert_trades(
                         id, user_id, position_id, symbol, side, shares,
                         entry_price, entry_date, exit_price, exit_date,
                         original_stop, setup, notes, pnl_dollar, pnl_percent,
-                        r_multiple, hold_days, result, context_at_entry, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        r_multiple, hold_days, result, context_at_entry,
+                        account_id, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         trade_id,
@@ -523,6 +524,7 @@ def bulk_insert_trades(
                         derived["hold_days"],
                         derived["result"],
                         json.dumps(context),
+                        account_id,
                         now,
                     ),
                 )
@@ -558,9 +560,12 @@ def delete_all_trades(
 
 
 def _row_to_trade(row: sqlite3.Row) -> dict[str, Any]:
+    keys = row.keys() if hasattr(row, "keys") else []
+    account_id = row["account_id"] if "account_id" in keys else None
     return {
         "id": row["id"],
         "userId": row["user_id"],
+        "accountId": account_id,
         "positionId": row["position_id"],
         "symbol": row["symbol"],
         "side": row["side"],
@@ -585,23 +590,41 @@ def _row_to_trade(row: sqlite3.Row) -> dict[str, Any]:
 def list_trades_for_user(
     user_id: str,
     conn: sqlite3.Connection | None = None,
+    *,
+    account_id: str | None = None,
 ) -> list[dict[str, Any]]:
-    """All trades for a user, newest-entry first. Filtering comes in Phase 6."""
+    """All trades for a user, newest-entry first. Optional account_id filter."""
     owned_conn = conn is None
     conn = conn or get_connection()
     try:
-        rows = conn.execute(
-            """
-            SELECT id, user_id, position_id, symbol, side, shares,
-                   entry_price, entry_date, exit_price, exit_date,
-                   original_stop, setup, notes, pnl_dollar, pnl_percent,
-                   r_multiple, hold_days, result, context_at_entry, created_at
-              FROM j2_trades
-             WHERE user_id = ?
-             ORDER BY entry_date DESC, created_at DESC
-            """,
-            (user_id,),
-        ).fetchall()
+        if account_id:
+            rows = conn.execute(
+                """
+                SELECT id, user_id, position_id, symbol, side, shares,
+                       entry_price, entry_date, exit_price, exit_date,
+                       original_stop, setup, notes, pnl_dollar, pnl_percent,
+                       r_multiple, hold_days, result, context_at_entry,
+                       account_id, created_at
+                  FROM j2_trades
+                 WHERE user_id = ? AND account_id = ?
+                 ORDER BY entry_date DESC, created_at DESC
+                """,
+                (user_id, account_id),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT id, user_id, position_id, symbol, side, shares,
+                       entry_price, entry_date, exit_price, exit_date,
+                       original_stop, setup, notes, pnl_dollar, pnl_percent,
+                       r_multiple, hold_days, result, context_at_entry,
+                       account_id, created_at
+                  FROM j2_trades
+                 WHERE user_id = ?
+                 ORDER BY entry_date DESC, created_at DESC
+                """,
+                (user_id,),
+            ).fetchall()
         return [_row_to_trade(r) for r in rows]
     finally:
         if owned_conn:

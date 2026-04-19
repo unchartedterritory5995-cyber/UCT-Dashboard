@@ -28,9 +28,13 @@ def _now_iso() -> str:
 
 def _row_to_position(row: sqlite3.Row) -> dict[str, Any]:
     """Map a j2_positions row → the camelCase Position shape from spec §4."""
+    # account_id may not be present on legacy rows pre-migration.
+    keys = row.keys() if hasattr(row, "keys") else []
+    account_id = row["account_id"] if "account_id" in keys else None
     return {
         "id": row["id"],
         "userId": row["user_id"],
+        "accountId": account_id,
         "symbol": row["symbol"],
         "side": row["side"],
         "entryDate": row["entry_date"],
@@ -52,22 +56,39 @@ def _row_to_position(row: sqlite3.Row) -> dict[str, Any]:
 def list_open_positions(
     user_id: str,
     conn: sqlite3.Connection | None = None,
+    *,
+    account_id: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Open positions for a user, sorted by symbol ASC (default sort per §7.2)."""
+    """Open positions for a user. Optional account_id filter (NULL=all)."""
     owned_conn = conn is None
     conn = conn or get_connection()
     try:
-        rows = conn.execute(
-            """
-            SELECT id, user_id, symbol, side, entry_date, shares, original_shares,
-                   entry_price, stop_price, breakeven_stop, raise_to_breakeven,
-                   setup, notes, context_at_entry, created_at, updated_at, closed_at
-              FROM j2_positions
-             WHERE user_id = ? AND closed_at IS NULL
-             ORDER BY symbol ASC, entry_date DESC
-            """,
-            (user_id,),
-        ).fetchall()
+        if account_id:
+            rows = conn.execute(
+                """
+                SELECT id, user_id, symbol, side, entry_date, shares, original_shares,
+                       entry_price, stop_price, breakeven_stop, raise_to_breakeven,
+                       setup, notes, context_at_entry, account_id,
+                       created_at, updated_at, closed_at
+                  FROM j2_positions
+                 WHERE user_id = ? AND closed_at IS NULL AND account_id = ?
+                 ORDER BY symbol ASC, entry_date DESC
+                """,
+                (user_id, account_id),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT id, user_id, symbol, side, entry_date, shares, original_shares,
+                       entry_price, stop_price, breakeven_stop, raise_to_breakeven,
+                       setup, notes, context_at_entry, account_id,
+                       created_at, updated_at, closed_at
+                  FROM j2_positions
+                 WHERE user_id = ? AND closed_at IS NULL
+                 ORDER BY symbol ASC, entry_date DESC
+                """,
+                (user_id,),
+            ).fetchall()
         return [_row_to_position(r) for r in rows]
     finally:
         if owned_conn:
@@ -87,7 +108,8 @@ def get_position(
             """
             SELECT id, user_id, symbol, side, entry_date, shares, original_shares,
                    entry_price, stop_price, breakeven_stop, raise_to_breakeven,
-                   setup, notes, context_at_entry, created_at, updated_at, closed_at
+                   setup, notes, context_at_entry, account_id,
+                   created_at, updated_at, closed_at
               FROM j2_positions
              WHERE id = ? AND user_id = ?
             """,
@@ -163,9 +185,15 @@ def create_position(
     payload: dict[str, Any],
     context_at_entry: dict[str, Any],
     conn: sqlite3.Connection | None = None,
+    *,
+    account_id: str | None = None,
 ) -> dict[str, Any]:
     """Insert a new open Position for a user (spec §8.4)."""
     validated = _validate_create_payload(payload)
+    # Stamp account_id: explicit param > payload.accountId > caller's
+    # responsibility to default. We do NOT auto-resolve to Default here
+    # to keep the service pure; the router resolves and passes in.
+    acc_id = account_id or payload.get("accountId")
     owned_conn = conn is None
     conn = conn or get_connection()
     try:
@@ -176,8 +204,9 @@ def create_position(
             INSERT INTO j2_positions (
                 id, user_id, symbol, side, entry_date, shares, original_shares,
                 entry_price, stop_price, breakeven_stop, raise_to_breakeven,
-                setup, notes, context_at_entry, created_at, updated_at, closed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                setup, notes, context_at_entry, account_id,
+                created_at, updated_at, closed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 pid,
@@ -194,6 +223,7 @@ def create_position(
                 validated["setup"],
                 validated["notes"],
                 json.dumps(context_at_entry),
+                acc_id,
                 now,
                 now,
                 None,

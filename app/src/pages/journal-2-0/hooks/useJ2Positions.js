@@ -1,6 +1,7 @@
-/** Journal 2.0 — open positions fetch hook (SWR). */
+/** Journal 2.0 — open positions fetch hook (SWR). Account-scoped. */
 
 import useSWR from 'swr'
+import useJ2SelectedAccount from './useJ2SelectedAccount'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -8,16 +9,12 @@ const fetcher = (url) =>
     return r.json()
   })
 
-/**
- * @returns {{
- *   positions: Array<any>,
- *   isLoading: boolean,
- *   error: any,
- *   refresh: () => Promise<any>,
- * }}
- */
 export default function useJ2Positions() {
-  const { data, error, isLoading, mutate } = useSWR('/api/j2/positions', fetcher, {
+  const { accountId } = useJ2SelectedAccount()
+  const url = accountId
+    ? `/api/j2/positions?account_id=${encodeURIComponent(accountId)}`
+    : '/api/j2/positions'
+  const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
     refreshInterval: 15_000,
     revalidateOnFocus: false,
     shouldRetryOnError: false,

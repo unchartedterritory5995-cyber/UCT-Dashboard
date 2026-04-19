@@ -7,6 +7,7 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import useJ2DayDetail from '../../hooks/useJ2DayDetail'
+import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import useJ2DayNotesMutation from '../../hooks/useJ2DayNotesMutation'
 import MiniMonthNav from './MiniMonthNav'
 import DayReflection from './DayReflection'
@@ -39,8 +40,9 @@ function formatLongDate(date) {
 
 export default function DayDetailPage() {
   const { date } = useParams()
+  const { accountId } = useJ2SelectedAccount()
   const valid = isValidDate(date || '')
-  const { metrics, trades, notes, isLoading, error } = useJ2DayDetail(valid ? date : null)
+  const { metrics, trades, notes, isLoading, error } = useJ2DayDetail(valid ? date : null, accountId)
   const { save, saving, error: saveError } = useJ2DayNotesMutation(valid ? date : null)
   const notesText = notes?.notes ?? ''
   const attachments = notes?.attachments ?? []

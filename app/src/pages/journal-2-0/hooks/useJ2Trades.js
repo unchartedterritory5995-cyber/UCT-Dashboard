@@ -1,7 +1,7 @@
-/** Journal 2.0 — trades list fetch hook. Used for mutation revalidation
-    in Phase 4; the full Trade Journal tab consumes this in Phase 5. */
+/** Journal 2.0 — trades list fetch hook. Account-scoped. */
 
 import useSWR from 'swr'
+import useJ2SelectedAccount from './useJ2SelectedAccount'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -9,16 +9,12 @@ const fetcher = (url) =>
     return r.json()
   })
 
-/**
- * @returns {{
- *   trades: Array<any>,
- *   isLoading: boolean,
- *   error: any,
- *   refresh: () => Promise<any>,
- * }}
- */
 export default function useJ2Trades() {
-  const { data, error, isLoading, mutate } = useSWR('/api/j2/trades', fetcher, {
+  const { accountId } = useJ2SelectedAccount()
+  const url = accountId
+    ? `/api/j2/trades?account_id=${encodeURIComponent(accountId)}`
+    : '/api/j2/trades'
+  const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })
