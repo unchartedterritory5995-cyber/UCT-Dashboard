@@ -45,6 +45,9 @@ export default function DayDetailPage() {
   const { metrics, trades, notes, isLoading, error } = useJ2DayDetail(valid ? date : null, accountId)
   const { save, saving, error: saveError } = useJ2DayNotesMutation(valid ? date : null)
   const notesText = notes?.notes ?? ''
+  const prepText = notes?.prepNotes ?? ''
+  const midDayText = notes?.midDayNotes ?? ''
+  const recapText = notes?.recapNotes ?? ''
   const attachments = notes?.attachments ?? []
   const rules = notes?.rules ?? []
 
@@ -85,6 +88,9 @@ export default function DayDetailPage() {
 
           <DayReflection
             initialNotes={notesText}
+            initialPrep={prepText}
+            initialMidDay={midDayText}
+            initialRecap={recapText}
             attachments={attachments}
             rules={rules}
             onSave={save}
@@ -95,6 +101,9 @@ export default function DayDetailPage() {
           <DayAttachments
             date={date}
             notes={notesText}
+            prepNotes={prepText}
+            midDayNotes={midDayText}
+            recapNotes={recapText}
             attachments={attachments}
             rules={rules}
             onSave={save}
@@ -103,6 +112,9 @@ export default function DayDetailPage() {
 
           <DayRulesChecklist
             notes={notesText}
+            prepNotes={prepText}
+            midDayNotes={midDayText}
+            recapNotes={recapText}
             attachments={attachments}
             rules={rules}
             onSave={save}

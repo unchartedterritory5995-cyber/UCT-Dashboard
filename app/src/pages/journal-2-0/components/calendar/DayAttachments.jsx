@@ -11,11 +11,15 @@ const MAX_ATTACHMENTS = 5
 export default function DayAttachments({
   date,
   notes = '',
+  prepNotes = '',
+  midDayNotes = '',
+  recapNotes = '',
   attachments = [],
   rules = [],
   onSave,
   saving,
 }) {
+  const narrativeBundle = { notes, prepNotes, midDayNotes, recapNotes }
   const fileInputRef = useRef(null)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkLabel, setLinkLabel] = useState('')
@@ -35,7 +39,7 @@ export default function DayAttachments({
       ...attachments,
       { kind: 'link', url, label: linkLabel.trim(), addedAt: new Date().toISOString() },
     ]
-    const ok = await onSave({ notes, attachments: next, rules })
+    const ok = await onSave({ ...narrativeBundle, attachments: next, rules })
     if (ok) {
       setLinkUrl('')
       setLinkLabel('')
@@ -46,7 +50,7 @@ export default function DayAttachments({
 
   const removeAttachment = async (idx) => {
     const next = attachments.filter((_, i) => i !== idx)
-    const ok = await onSave({ notes, attachments: next, rules })
+    const ok = await onSave({ ...narrativeBundle, attachments: next, rules })
     if (!ok) setError("Couldn't remove attachment.")
   }
 
@@ -85,7 +89,7 @@ export default function DayAttachments({
       }
       const uploaded = await res.json() // { kind, url, label, addedAt }
       const next = [...attachments, uploaded]
-      await onSave({ notes, attachments: next, rules })
+      await onSave({ ...narrativeBundle, attachments: next, rules })
     } catch (e) {
       setError(`Upload failed: ${e.message}`)
     }

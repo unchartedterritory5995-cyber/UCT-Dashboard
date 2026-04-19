@@ -10,11 +10,15 @@ const MAX_RULES = 25
 
 export default function DayRulesChecklist({
   notes = '',
+  prepNotes = '',
+  midDayNotes = '',
+  recapNotes = '',
   attachments = [],
   rules = [],
   onSave,
   saving,
 }) {
+  const narrativeBundle = { notes, prepNotes, midDayNotes, recapNotes }
   const [newLabel, setNewLabel] = useState('')
   const [error, setError] = useState(null)
 
@@ -30,7 +34,7 @@ export default function DayRulesChecklist({
       ...rules,
       { id: crypto.randomUUID(), label, checked: false },
     ]
-    const ok = await onSave({ notes, attachments, rules: next })
+    const ok = await onSave({ ...narrativeBundle, attachments, rules: next })
     if (ok) setNewLabel('')
     else setError("Couldn't save rule.")
   }
@@ -39,13 +43,13 @@ export default function DayRulesChecklist({
     const next = rules.map((r, i) =>
       i === idx ? { ...r, checked: !r.checked } : r
     )
-    const ok = await onSave({ notes, attachments, rules: next })
+    const ok = await onSave({ ...narrativeBundle, attachments, rules: next })
     if (!ok) setError("Couldn't update rule.")
   }
 
   const removeRule = async (idx) => {
     const next = rules.filter((_, i) => i !== idx)
-    const ok = await onSave({ notes, attachments, rules: next })
+    const ok = await onSave({ ...narrativeBundle, attachments, rules: next })
     if (!ok) setError("Couldn't remove rule.")
   }
 

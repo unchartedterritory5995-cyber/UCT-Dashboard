@@ -452,20 +452,33 @@ def get_day_notes(
     date: str,
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any] | None:
-    """Return the saved (notes, attachments, rules) for a day, or None
-    if nothing has been saved yet."""
+    """Return the saved day-notes bundle, or None if nothing saved yet.
+
+    The bundle has four narrative fields (general `notes`, `prepNotes`,
+    `midDayNotes`, `recapNotes`) plus `attachments` and `rules`. New
+    write paths (post-Phase-5) write prep/mid-day/recap; the general
+    `notes` column stays as legacy / general-purpose reflection.
+    """
     owned = conn is None
     conn = conn or get_connection()
     try:
         row = conn.execute(
-            "SELECT notes, attachments, rules FROM j2_day_notes "
-            "WHERE user_id = ? AND date = ?",
+            """
+            SELECT notes, prep_notes, mid_day_notes, recap_notes,
+                   attachments, rules
+              FROM j2_day_notes
+             WHERE user_id = ? AND date = ?
+            """,
             (user_id, date),
         ).fetchone()
         if row is None:
             return None
+        keys = row.keys()
         return {
             "notes": row["notes"] or "",
+            "prepNotes": (row["prep_notes"] if "prep_notes" in keys else None) or "",
+            "midDayNotes": (row["mid_day_notes"] if "mid_day_notes" in keys else None) or "",
+            "recapNotes": (row["recap_notes"] if "recap_notes" in keys else None) or "",
             "attachments": json.loads(row["attachments"] or "[]"),
             "rules": json.loads(row["rules"] or "[]"),
         }
@@ -560,6 +573,19 @@ def serve_attachment_path(
     return target
 
 
+def _validate_narrative(payload: dict[str, Any], key: str) -> str:
+    v = payload.get(key, "")
+    if v is None:
+        return ""
+    if not isinstance(v, str):
+        raise DayNotesValidationError(f"{key} must be a string")
+    if len(v) > MAX_NOTE_CHARS:
+        raise DayNotesValidationError(
+            f"{key} exceeds cap of {MAX_NOTE_CHARS} chars"
+        )
+    return v
+
+
 def upsert_day_notes(
     user_id: str,
     date: str,
@@ -567,13 +593,10 @@ def upsert_day_notes(
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     """Create or replace the day-notes row for (user, date)."""
-    notes = payload.get("notes", "")
-    if not isinstance(notes, str):
-        raise DayNotesValidationError("notes must be a string")
-    if len(notes) > MAX_NOTE_CHARS:
-        raise DayNotesValidationError(
-            f"notes exceeds cap of {MAX_NOTE_CHARS} chars"
-        )
+    notes = _validate_narrative(payload, "notes")
+    prep_notes = _validate_narrative(payload, "prepNotes")
+    mid_day_notes = _validate_narrative(payload, "midDayNotes")
+    recap_notes = _validate_narrative(payload, "recapNotes")
     attachments = _validate_attachments(payload.get("attachments", []))
     rules = _validate_rules(payload.get("rules", []))
 
@@ -591,12 +614,13 @@ def upsert_day_notes(
             conn.execute(
                 """
                 INSERT INTO j2_day_notes
-                  (id, user_id, date, notes, attachments, rules,
-                   created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                  (id, user_id, date, notes, prep_notes, mid_day_notes,
+                   recap_notes, attachments, rules, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     new_id, user_id, date, notes,
+                    prep_notes, mid_day_notes, recap_notes,
                     json.dumps(attachments), json.dumps(rules),
                     now, now,
                 ),
@@ -605,17 +629,23 @@ def upsert_day_notes(
             conn.execute(
                 """
                 UPDATE j2_day_notes
-                   SET notes = ?, attachments = ?, rules = ?, updated_at = ?
+                   SET notes = ?, prep_notes = ?, mid_day_notes = ?,
+                       recap_notes = ?, attachments = ?, rules = ?,
+                       updated_at = ?
                  WHERE id = ?
                 """,
                 (
-                    notes, json.dumps(attachments), json.dumps(rules),
+                    notes, prep_notes, mid_day_notes, recap_notes,
+                    json.dumps(attachments), json.dumps(rules),
                     now, existing["id"],
                 ),
             )
         conn.commit()
         return {
             "notes": notes,
+            "prepNotes": prep_notes,
+            "midDayNotes": mid_day_notes,
+            "recapNotes": recap_notes,
             "attachments": attachments,
             "rules": rules,
             "updatedAt": now,

@@ -28,6 +28,7 @@ from api.services.journal_two import (
     calendar as calendar_service,
     community as community_service,
     csv_import as csv_import_service,
+    playbook as playbook_service,
     positions as positions_service,
     settings as settings_service,
     trades as trades_service,
@@ -516,6 +517,107 @@ def put_account_settings_route(
         raise HTTPException(status_code=400, detail=str(e))
     except accounts_service.AccountValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Playbook / Stock Observation Library (Phase 5) ──────────────────────────
+
+
+@router.get("/playbook")
+def list_playbook(
+    symbol: str | None = None,
+    status: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """User's playbook entries, newest first. Optional symbol + status filters."""
+    try:
+        return {
+            "entries": playbook_service.list_entries(
+                user["id"], symbol=symbol, status=status,
+            ),
+        }
+    except playbook_service.PlaybookValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/playbook")
+def create_playbook(
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Create a new playbook entry (stock observation)."""
+    try:
+        return playbook_service.create_entry(user["id"], payload)
+    except playbook_service.PlaybookValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/playbook/{entry_id}")
+def get_playbook(
+    entry_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    got = playbook_service.get_entry(user["id"], entry_id)
+    if got is None:
+        raise HTTPException(status_code=404, detail="Playbook entry not found")
+    return got
+
+
+@router.put("/playbook/{entry_id}")
+def update_playbook(
+    entry_id: str,
+    patch: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        updated = playbook_service.update_entry(user["id"], entry_id, patch)
+    except playbook_service.PlaybookValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Playbook entry not found")
+    return updated
+
+
+@router.delete("/playbook/{entry_id}")
+def delete_playbook(
+    entry_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    ok = playbook_service.delete_entry(user["id"], entry_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Playbook entry not found")
+    return {"deleted": True}
+
+
+@router.post("/playbook/{entry_id}/screenshots")
+async def post_playbook_screenshot(
+    entry_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Upload a screenshot for a playbook entry."""
+    # Verify ownership before writing to disk
+    if playbook_service.get_entry(user["id"], entry_id) is None:
+        raise HTTPException(status_code=404, detail="Playbook entry not found")
+    try:
+        return await playbook_service.save_screenshot(user["id"], entry_id, file)
+    except playbook_service.PlaybookValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/playbook/attachments/{user_id}/{entry_id}/{filename}")
+def get_playbook_screenshot(
+    user_id: str,
+    entry_id: str,
+    filename: str,
+    user: dict = Depends(get_current_user),
+) -> Any:
+    """Serve a previously uploaded playbook screenshot. Owner-only."""
+    if user["id"] != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    path = playbook_service.serve_screenshot_path(user_id, entry_id, filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Screenshot not found")
+    return FileResponse(path)
 
 
 # ── Analytics (Phase 3) ──────────────────────────────────────────────────────

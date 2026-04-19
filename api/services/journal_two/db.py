@@ -117,6 +117,34 @@ CREATE TABLE IF NOT EXISTS j2_accounts (
 );
 CREATE INDEX IF NOT EXISTS idx_j2_accounts_user
     ON j2_accounts(user_id);
+
+-- Phase 5: Playbook / stock observation library. User-saved interesting
+-- stock snapshots w/ screenshots, thesis, levels, status. An entry may
+-- link to a real Trade (linked_position_id / linked_trade_id) once
+-- it's executed so we can track idea → outcome conversion.
+CREATE TABLE IF NOT EXISTS j2_playbook_entries (
+    id                 TEXT PRIMARY KEY,
+    user_id            TEXT NOT NULL,
+    symbol             TEXT NOT NULL,
+    observed_date      TEXT NOT NULL,
+    setup              TEXT,
+    thesis             TEXT,
+    levels             TEXT NOT NULL DEFAULT '{}',
+    status             TEXT NOT NULL DEFAULT 'watching'
+                       CHECK(status IN ('watching','triggered','traded','passed','dead')),
+    attachments        TEXT NOT NULL DEFAULT '[]',
+    notes              TEXT,
+    linked_position_id TEXT,
+    linked_trade_id    TEXT,
+    created_at         TEXT NOT NULL,
+    updated_at         TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_playbook_user
+    ON j2_playbook_entries(user_id);
+CREATE INDEX IF NOT EXISTS idx_j2_playbook_user_symbol
+    ON j2_playbook_entries(user_id, symbol);
+CREATE INDEX IF NOT EXISTS idx_j2_playbook_user_status
+    ON j2_playbook_entries(user_id, status);
 """
 
 
@@ -134,6 +162,13 @@ _PHASE_2_ALTERS = [
     # so existing trades' reported P&L stays the same (gross = net when
     # no fees recorded). New trades can specify real fees.
     "ALTER TABLE j2_trades ADD COLUMN fees REAL NOT NULL DEFAULT 0",
+    # Phase 5: three new optional TEXT columns on j2_day_notes for the
+    # Daily Notes/Review/Prep flow — pre-market plan, mid-day review,
+    # post-market recap. Existing 'notes' column remains as "general
+    # reflection" catch-all for backward compat.
+    "ALTER TABLE j2_day_notes ADD COLUMN prep_notes TEXT",
+    "ALTER TABLE j2_day_notes ADD COLUMN mid_day_notes TEXT",
+    "ALTER TABLE j2_day_notes ADD COLUMN recap_notes TEXT",
 ]
 
 
