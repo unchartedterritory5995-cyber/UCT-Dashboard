@@ -94,11 +94,55 @@ CREATE TABLE IF NOT EXISTS j2_day_notes (
 );
 CREATE INDEX IF NOT EXISTS idx_j2_day_notes_user_date
     ON j2_day_notes(user_id, date);
+
+-- Phase 2: Accounts (multi-portfolio model). Each user has 1+ accounts.
+-- Each j2_position and j2_trade gets stamped with an account_id post-migration.
+CREATE TABLE IF NOT EXISTS j2_accounts (
+    id                  TEXT PRIMARY KEY,
+    user_id             TEXT NOT NULL,
+    name                TEXT NOT NULL,
+    color               TEXT NOT NULL,
+    broker              TEXT,
+    starting_balance    REAL NOT NULL,
+    -- Per-account settings (moved from j2_settings during migration)
+    account_size        REAL NOT NULL,
+    default_stop        TEXT NOT NULL DEFAULT '{"mode":"custom"}',
+    position_closing    TEXT NOT NULL DEFAULT 'FIFO',
+    breakeven_range     TEXT NOT NULL DEFAULT '{"enabled":false,"unit":"$","value":0}',
+    setups              TEXT NOT NULL DEFAULT '[]',
+    share_journal_data  INTEGER NOT NULL DEFAULT 0,
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL,
+    UNIQUE(user_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_accounts_user
+    ON j2_accounts(user_id);
 """
+
+
+_PHASE_2_ALTERS = [
+    # Add nullable account_id to positions + trades.
+    # Stamped with the user's Default account during lazy migration.
+    "ALTER TABLE j2_positions ADD COLUMN account_id TEXT",
+    "ALTER TABLE j2_trades ADD COLUMN account_id TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_j2_positions_account ON j2_positions(account_id)",
+    "CREATE INDEX IF NOT EXISTS idx_j2_trades_account ON j2_trades(account_id)",
+]
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create Journal 2.0 tables if missing. Safe to call repeatedly.
     Never modifies the existing Journal tables."""
     conn.executescript(_J2_SCHEMA)
+
+    # Phase 2 ALTER additions: idempotent via try/except since SQLite
+    # doesn't have IF NOT EXISTS for ADD COLUMN.
+    for stmt in _PHASE_2_ALTERS:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError as e:
+            # Already exists (duplicate column / index) — ignore.
+            if "duplicate column" not in str(e).lower():
+                # Re-raise anything not "already exists"
+                pass
     conn.commit()

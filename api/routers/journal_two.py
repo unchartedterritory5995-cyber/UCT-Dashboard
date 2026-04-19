@@ -23,6 +23,7 @@ from fastapi.responses import FileResponse
 
 from api.middleware.auth_middleware import get_current_user
 from api.services.journal_two import (
+    accounts as accounts_service,
     calendar as calendar_service,
     community as community_service,
     csv_import as csv_import_service,
@@ -322,6 +323,126 @@ def import_confirm(
     settings = settings_service.get_settings(user["id"])
     result = trades_service.bulk_insert_trades(user["id"], trades, settings)
     return result
+
+
+# ── Accounts (Phase 2) ───────────────────────────────────────────────────────
+
+
+@router.get("/accounts")
+def list_accounts(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """All accounts for the current user. Triggers lazy migration of
+    legacy single-settings users into a Default account on first call."""
+    # Make sure the user's default account exists (idempotent migration)
+    accounts_service.get_or_migrate_default_account(user["id"])
+    return {"accounts": accounts_service.list_accounts(user["id"])}
+
+
+@router.post("/accounts")
+def create_account_route(
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Create a new account. `copySettingsFrom` (optional) clones an
+    existing account's settings."""
+    try:
+        return accounts_service.create_account(user["id"], payload)
+    except accounts_service.AccountConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except accounts_service.AccountValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/accounts/comparison")
+def get_account_comparison(
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Per-account aggregate metrics for the Comparison view."""
+    accounts_service.get_or_migrate_default_account(user["id"])
+    return accounts_service.comparison(user["id"])
+
+
+@router.get("/accounts/{account_id}")
+def get_account_route(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    acc = accounts_service.get_account(user["id"], account_id)
+    if acc is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return acc
+
+
+@router.put("/accounts/{account_id}")
+def update_account_route(
+    account_id: str,
+    patch: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        updated = accounts_service.update_account(user["id"], account_id, patch)
+    except accounts_service.AccountConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except accounts_service.AccountValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return updated
+
+
+@router.delete("/accounts/{account_id}")
+def delete_account_route(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        ok = accounts_service.delete_account(user["id"], account_id)
+    except accounts_service.AccountConflictError as e:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": str(e), **e.payload},
+        )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return {"deleted": True}
+
+
+@router.post("/accounts/{source_id}/move-all-to/{target_id}")
+def move_all_to_route(
+    source_id: str,
+    target_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        return accounts_service.move_all_to(user["id"], source_id, target_id)
+    except accounts_service.AccountValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/accounts/{account_id}/settings")
+def get_account_settings_route(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    settings = accounts_service.get_account_settings(user["id"], account_id)
+    if settings is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return settings
+
+
+@router.put("/accounts/{account_id}/settings")
+def put_account_settings_route(
+    account_id: str,
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        return accounts_service.upsert_account_settings(
+            user["id"], account_id, payload,
+        )
+    except settings_service.SettingsValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except accounts_service.AccountValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── Calendar (Phase 1) ───────────────────────────────────────────────────────
