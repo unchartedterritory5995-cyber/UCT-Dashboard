@@ -19,6 +19,7 @@ Spec §5, audit §4.3.
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 
 from api.middleware.auth_middleware import get_current_user
 from api.services.journal_two import (
@@ -388,5 +389,44 @@ def put_calendar_day_notes(
         return calendar_service.upsert_day_notes(user["id"], date, payload)
     except calendar_service.DayNotesValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/calendar/day/{date}/attachments")
+async def post_calendar_day_attachment(
+    date: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Upload an image attachment for a day. Stored on local disk under
+    data/j2_attachments/<user_id>/<date>/<uuid>.<ext>. Returns the
+    attachment dict the client merges into the day's attachments array."""
+    from datetime import date as Date
+    try:
+        Date.fromisoformat(date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    try:
+        return await calendar_service.save_attachment(user["id"], date, file)
+    except calendar_service.DayNotesValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/attachments/{user_id}/{date}/{filename}")
+def get_calendar_attachment(
+    user_id: str,
+    date: str,
+    filename: str,
+    user: dict = Depends(get_current_user),
+) -> Any:
+    """Serve a previously uploaded image. Only the owner can fetch."""
+    if user["id"] != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        path = calendar_service.serve_attachment_path(user_id, date, filename)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid date")
+    if path is None:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    return FileResponse(path)
 
 

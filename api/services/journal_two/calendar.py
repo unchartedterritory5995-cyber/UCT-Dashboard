@@ -12,9 +12,11 @@ per (user, date) — NOT per-account, per spec §2 + Calendar spec.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import uuid
 from datetime import date as Date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 try:
@@ -430,6 +432,92 @@ def get_day_notes(
     finally:
         if owned:
             conn.close()
+
+
+# ── Image attachments ────────────────────────────────────────────────────────
+
+
+_ATTACHMENT_ROOT = Path(
+    os.environ.get(
+        "J2_ATTACHMENT_ROOT",
+        str(Path(__file__).resolve().parents[3] / "data" / "j2_attachments"),
+    )
+)
+_ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+_ALLOWED_IMAGE_MIMES = {
+    "image/png", "image/jpeg", "image/gif", "image/webp",
+}
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+async def save_attachment(
+    user_id: str,
+    date: str,
+    upload,  # FastAPI UploadFile
+) -> dict[str, Any]:
+    """Validate + persist an uploaded image. Returns the attachment dict
+    the client merges into its day's attachments array."""
+    # Date format check (router also validates; defense in depth)
+    Date.fromisoformat(date)
+
+    if upload.content_type not in _ALLOWED_IMAGE_MIMES:
+        raise DayNotesValidationError(
+            "Only PNG, JPG, GIF, or WebP images allowed"
+        )
+
+    raw = await upload.read()
+    if len(raw) > _MAX_IMAGE_BYTES:
+        raise DayNotesValidationError("Image must be < 5 MB")
+    if len(raw) == 0:
+        raise DayNotesValidationError("Empty file")
+
+    ext = ""
+    fname = (upload.filename or "").lower()
+    for candidate in _ALLOWED_IMAGE_EXTS:
+        if fname.endswith(candidate):
+            ext = candidate
+            break
+    if not ext:
+        # Fallback by MIME
+        ext = {
+            "image/png": ".png", "image/jpeg": ".jpg",
+            "image/gif": ".gif", "image/webp": ".webp",
+        }.get(upload.content_type, ".png")
+
+    target_dir = _ATTACHMENT_ROOT / user_id / date
+    target_dir.mkdir(parents=True, exist_ok=True)
+    new_id = uuid.uuid4().hex
+    target_path = target_dir / f"{new_id}{ext}"
+    target_path.write_bytes(raw)
+
+    public_url = f"/api/j2/attachments/{user_id}/{date}/{new_id}{ext}"
+    return {
+        "kind": "image",
+        "url": public_url,
+        "label": (upload.filename or "")[:120],
+        "addedAt": _now_iso(),
+    }
+
+
+def serve_attachment_path(
+    user_id: str,
+    date: str,
+    filename: str,
+) -> Path | None:
+    """Resolve an image filename to a disk path. Returns None if missing
+    or attempting to escape the user/date directory (path traversal)."""
+    Date.fromisoformat(date)  # validates date format
+    if "/" in filename or "\\" in filename or filename.startswith("."):
+        return None
+    target = (_ATTACHMENT_ROOT / user_id / date / filename).resolve()
+    root = (_ATTACHMENT_ROOT / user_id / date).resolve()
+    try:
+        target.relative_to(root)
+    except ValueError:
+        return None
+    if not target.exists():
+        return None
+    return target
 
 
 def upsert_day_notes(

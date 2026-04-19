@@ -7,7 +7,11 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import useJ2DayDetail from '../../hooks/useJ2DayDetail'
+import useJ2DayNotesMutation from '../../hooks/useJ2DayNotesMutation'
 import MiniMonthNav from './MiniMonthNav'
+import DayReflection from './DayReflection'
+import DayAttachments from './DayAttachments'
+import DayRulesChecklist from './DayRulesChecklist'
 import {
   fmtSignedDollar,
   fmtSignedPct,
@@ -37,6 +41,10 @@ export default function DayDetailPage() {
   const { date } = useParams()
   const valid = isValidDate(date || '')
   const { metrics, trades, notes, isLoading, error } = useJ2DayDetail(valid ? date : null)
+  const { save, saving, error: saveError } = useJ2DayNotesMutation(valid ? date : null)
+  const notesText = notes?.notes ?? ''
+  const attachments = notes?.attachments ?? []
+  const rules = notes?.rules ?? []
 
   if (!valid) {
     return (
@@ -73,16 +81,31 @@ export default function DayDetailPage() {
 
           <DayTradesTable trades={trades} isLoading={isLoading} />
 
-          <div className={styles.placeholder}>
-            <p><strong>Reflection notes</strong> ship in Phase 1 / Step 4.</p>
-            <p><strong>Attachments</strong> ship in Phase 1 / Step 5.</p>
-            <p><strong>Rules checklist</strong> ships in Phase 1 / Step 6.</p>
-          </div>
-          {notes && (
-            <p className={styles.hint}>
-              (You have saved notes for this day. Editor coming in Step 4.)
-            </p>
-          )}
+          <DayReflection
+            initialNotes={notesText}
+            attachments={attachments}
+            rules={rules}
+            onSave={save}
+            saving={saving}
+            error={saveError}
+          />
+
+          <DayAttachments
+            date={date}
+            notes={notesText}
+            attachments={attachments}
+            rules={rules}
+            onSave={save}
+            saving={saving}
+          />
+
+          <DayRulesChecklist
+            notes={notesText}
+            attachments={attachments}
+            rules={rules}
+            onSave={save}
+            saving={saving}
+          />
         </main>
       </div>
     </div>
