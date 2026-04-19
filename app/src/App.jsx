@@ -24,6 +24,7 @@ const ModelBook = lazy(() => import('./pages/ModelBook'))
 const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
 const Journal = lazy(() => import('./pages/journal/JournalPage'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
+const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const Community = lazy(() => import('./pages/Community'))
@@ -103,6 +104,7 @@ export default function App() {
                 <Route path="/setup-library" element={<SetupLibrary />} />
                 <Route path="/journal" element={<Journal />} />
                 <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />
+                <Route path="/journal-2-0/report" element={<J2ReportPage />} />
                 <Route path="/watchlists" element={<Watchlists />} />
                 <Route path="/community" element={<Community />} />
                 <Route path="/support" element={<Support />} />

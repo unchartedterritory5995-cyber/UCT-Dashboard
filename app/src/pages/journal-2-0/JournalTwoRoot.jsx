@@ -19,6 +19,7 @@ import AnalyticsTab from './tabs/AnalyticsTab'
 import CommunityTab from './tabs/CommunityTab'
 import AccountSelector from './components/accounts/AccountSelector'
 import NewAccountModal from './components/accounts/NewAccountModal'
+import GenerateReportModal from './components/GenerateReportModal'
 import ShortcutCheatSheet from './components/ShortcutCheatSheet'
 import { money } from '../../lib/journal-2-0'
 import styles from './JournalTwoRoot.module.css'
@@ -74,6 +75,7 @@ export default function JournalTwoRoot() {
   useHotkeys('g>c', () => setNestedTab('community'))
 
   const [showNewAccount, setShowNewAccount] = useState(false)
+  const [showReport, setShowReport] = useState(false)
 
   return (
     <div className={styles.root}>
@@ -90,6 +92,15 @@ export default function JournalTwoRoot() {
             <kbd className={styles.headerKbd}>?</kbd>
           </button>
           <AccountSelector onNewAccount={() => setShowNewAccount(true)} />
+          <button
+            type="button"
+            className={styles.shortcutsBtn}
+            onClick={() => setShowReport(true)}
+            aria-label="Generate report"
+            title="Generate Report (Ctrl/⌘+P after)"
+          >
+            📄
+          </button>
           <button
             type="button"
             className={styles.settingsPill}
@@ -154,6 +165,10 @@ export default function JournalTwoRoot() {
 
       {showNewAccount && (
         <NewAccountModal onClose={() => setShowNewAccount(false)} />
+      )}
+
+      {showReport && (
+        <GenerateReportModal onClose={() => setShowReport(false)} />
       )}
 
       <ShortcutCheatSheet open={showShortcuts} onClose={() => setShowShortcuts(false)} />

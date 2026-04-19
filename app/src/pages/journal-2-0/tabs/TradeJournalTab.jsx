@@ -128,9 +128,71 @@ export default function TradeJournalTab({ settings }) {
     )
   }
 
+  const applyPeriod = (preset) => {
+    const now = new Date()
+    const y = now.getUTCFullYear()
+    const m = now.getUTCMonth()
+    const d = now.getUTCDate()
+    const iso = (dt) => dt.toISOString().slice(0, 10)
+    let from = ''
+    let to = iso(now)
+    switch (preset) {
+      case 'today': from = iso(now); break
+      case 'week': {
+        const dow = now.getUTCDay()
+        from = iso(new Date(Date.UTC(y, m, d - ((dow + 6) % 7))))
+        break
+      }
+      case 'month': from = `${y}-${String(m + 1).padStart(2, '0')}-01`; break
+      case 'ytd':   from = `${y}-01-01`; break
+      case 'all':   from = ''; to = ''; break
+    }
+    setFilter('dateFrom', from)
+    setFilter('dateTo', to)
+  }
+
+  const activePeriod = (() => {
+    const now = new Date()
+    const iso = (dt) => dt.toISOString().slice(0, 10)
+    const today = iso(now)
+    const f = filters.dateFrom, t = filters.dateTo
+    if (!f && !t) return 'all'
+    if (f === today && t === today) return 'today'
+    const y = now.getUTCFullYear()
+    if (f === `${y}-01-01` && t === today) return 'ytd'
+    const m = now.getUTCMonth()
+    if (f === `${y}-${String(m + 1).padStart(2, '0')}-01` && t === today) return 'month'
+    return null
+  })()
+
   return (
     <div className={styles.wrap}>
       <StatsGrid summary={summary} />
+
+      <div className={styles.periodRow}>
+        <span className={styles.periodLabel}>Period</span>
+        <div className={styles.periodPills}>
+          {[
+            ['today', 'Today'],
+            ['week', 'Week'],
+            ['month', 'Month'],
+            ['ytd', 'YTD'],
+            ['all', 'All'],
+          ].map(([k, lbl]) => (
+            <button
+              key={k}
+              type="button"
+              className={`${styles.periodPill} ${activePeriod === k ? styles.periodPillActive : ''}`}
+              onClick={() => applyPeriod(k)}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
+        <span className={styles.periodCount}>
+          {filteredTrades.length} trade{filteredTrades.length === 1 ? '' : 's'}
+        </span>
+      </div>
 
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
