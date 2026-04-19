@@ -435,4 +435,17 @@
   .grid2 {
     grid-template-columns: 1fr;
   }
+  .edgeRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .edgeBreakdown {
+    margin-left: 0;
+    overflow-x: auto;
+  }
+  .rangePills {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }

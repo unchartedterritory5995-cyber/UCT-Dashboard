@@ -54,7 +54,7 @@ function prefillStop({ side, sharesVal, entryVal, defaultStop, barLow, barHigh }
   return ''
 }
 
-export default function AddPositionModal({ settings, onSave, onClose, prefill }) {
+export default function AddPositionModal({ settings, onSave, onClose, prefill, accountName }) {
   const titleId = useId()
   // `prefill` arrives from chart right-click (§8.2) — locks Symbol,
   // seeds Entry Price + Entry Date from the clicked bar, and stamps a
@@ -212,6 +212,15 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill })
           </h2>
           <button type="button" className={styles.xBtn} onClick={onClose} aria-label="Close">×</button>
         </div>
+        {accountName && (
+          <div style={{
+            margin: '10px 20px 0', padding: '6px 12px',
+            background: 'var(--ut-gold-dim)', border: '1px solid var(--ut-gold-glow)',
+            color: 'var(--text-bright)', borderRadius: 6, fontSize: 12,
+          }}>
+            Adding to <strong style={{ color: 'var(--ut-gold)' }}>{accountName}</strong>
+          </div>
+        )}
 
         <div className={styles.body}>
           <div className={styles.grid2}>

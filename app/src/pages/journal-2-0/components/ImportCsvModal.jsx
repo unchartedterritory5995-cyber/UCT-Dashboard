@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import CsvColumnMapper from './CsvColumnMapper'
 import {
   downloadPreMatchedTemplate,
@@ -33,6 +34,7 @@ function resultBadge(result) {
 }
 
 export default function ImportCsvModal({ onConfirmed, onClose }) {
+  const { accountId, accounts } = useJ2SelectedAccount()
   const [step, setStep] = useState('drop') // drop | mapping | preview
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null) // backend response
@@ -129,11 +131,12 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
     setBusy(true)
     setErrorMsg('')
     try {
+      const importAccountId = accountId || accounts[0]?.id || null
       const res = await fetch('/api/j2/trades/import/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ trades: preview.trades }),
+        body: JSON.stringify({ trades: preview.trades, accountId: importAccountId }),
       })
       if (!res.ok) {
         const body = await res.text()

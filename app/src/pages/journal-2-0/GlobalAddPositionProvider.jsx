@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSWRConfig } from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
+import useJ2SelectedAccount from './hooks/useJ2SelectedAccount'
 import AddPositionModal from './components/AddPositionModal'
 import ChartContextMenu from './components/ChartContextMenu'
 import Toast from './components/Toast'
@@ -44,6 +45,7 @@ async function postPosition(payload) {
 export default function GlobalAddPositionProvider() {
   const { user, loading } = useAuth()
   const { settings } = useJ2Settings()
+  const { accountId, accounts } = useJ2SelectedAccount()
   const { mutate } = useSWRConfig()
 
   const [menu, setMenu] = useState(null)       // { clientX, clientY, sym, bar }
@@ -84,15 +86,15 @@ export default function GlobalAddPositionProvider() {
   }, [menu])
 
   const handleCreate = useCallback(async (payload) => {
-    await postPosition(payload)
-    // Invalidate the SWR caches the Journal 2.0 tab depends on so the
-    // row appears immediately if the user navigates to /journal.
+    const acctId = payload.accountId || accountId || accounts[0]?.id || null
+    await postPosition({ ...payload, accountId: acctId })
     await mutate('/api/j2/positions')
+    const acctName = accounts.find((a) => a.id === acctId)?.name
     setToast({
-      message: `Added ${payload.symbol} ${payload.side.toLowerCase()} — ${payload.shares} @ ${money(payload.entryPrice)}`,
+      message: `Added ${payload.symbol} ${payload.side.toLowerCase()} to ${acctName || 'account'}`,
       tone: 'success',
     })
-  }, [mutate])
+  }, [mutate, accountId, accounts])
 
   // Nothing to render when logged out or auth still resolving.
   if (loading || !user) return null
@@ -115,6 +117,7 @@ export default function GlobalAddPositionProvider() {
           prefill={prefill}
           onSave={handleCreate}
           onClose={() => setPrefill(null)}
+          accountName={accounts.find((a) => a.id === accountId)?.name || accounts[0]?.name}
         />
       )}
 

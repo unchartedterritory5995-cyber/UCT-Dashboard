@@ -81,3 +81,13 @@
 .rSum {
   color: var(--text-muted);
 }
+
+@media (max-width: 480px) {
+  .cell { padding: 4px 6px; min-height: 50px; }
+  .day { font-size: 11px; }
+  .tradeCount { display: none; }
+  .notesBadge { font-size: 9px; }
+  .pnlBig { font-size: 11px; }
+  .pnlSmall { font-size: 8px; gap: 3px; }
+  .pnlSmall .rSum { display: none; }
+}

@@ -106,6 +106,20 @@
   margin: 4px 0;
 }
 
+@media (max-width: 520px) {
+  /* Hide balance on narrow screens — the selector pill gets cramped
+     sharing space with the Report + Settings buttons. */
+  .pill .balance { display: none; }
+  .pill { padding: 6px 10px; gap: 6px; }
+  .menu {
+    position: fixed;
+    top: 72px;
+    right: 12px;
+    left: 12px;
+    min-width: 0;
+  }
+}
+
 .newBtn {
   width: 100%;
   padding: 8px 12px;

@@ -17,7 +17,7 @@ import styles from './ModalShell.module.css'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
-export default function AddTradeModal({ settings, onSave, onClose }) {
+export default function AddTradeModal({ settings, onSave, onClose, accountName }) {
   const titleId = useId()
   const setups = settings?.setups ?? []
 
@@ -125,6 +125,15 @@ export default function AddTradeModal({ settings, onSave, onClose }) {
           <h2 id={titleId} className={styles.title}>Add Trade</h2>
           <button type="button" className={styles.xBtn} onClick={onClose} aria-label="Close">×</button>
         </div>
+        {accountName && (
+          <div style={{
+            margin: '10px 20px 0', padding: '6px 12px',
+            background: 'var(--ut-gold-dim)', border: '1px solid var(--ut-gold-glow)',
+            color: 'var(--text-bright)', borderRadius: 6, fontSize: 12,
+          }}>
+            Adding to <strong style={{ color: 'var(--ut-gold)' }}>{accountName}</strong>
+          </div>
+        )}
 
         <div className={styles.body}>
           <div className={styles.grid2}>

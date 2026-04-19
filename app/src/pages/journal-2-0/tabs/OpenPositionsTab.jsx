@@ -11,6 +11,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useSWRConfig } from 'swr'
 import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Positions from '../hooks/useJ2Positions'
+import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
 import useLivePrices from '../../../hooks/useLivePrices'
 import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
@@ -52,6 +53,7 @@ async function jsonFetch(url, method, body) {
 
 export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const { positions, isLoading, error, refresh: refreshPositions } = useJ2Positions()
+  const { accountId: selectedAccountId, account: selectedAccount, accounts } = useJ2SelectedAccount()
   const {
     columns,
     visibleColumns,
@@ -84,10 +86,21 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   }, [])
 
   const handleCreate = useCallback(async (payload) => {
-    await jsonFetch('/api/j2/positions', 'POST', payload)
+    // Stamp accountId from selector. If All Accounts is selected, use the
+    // first account so the write has a valid target (user can pick a
+    // specific account first if they want precision).
+    const acctId = payload.accountId
+      || selectedAccountId
+      || accounts[0]?.id
+      || null
+    await jsonFetch('/api/j2/positions', 'POST', { ...payload, accountId: acctId })
     await refreshPositions()
-    showToast(`Added ${payload.symbol} ${payload.side.toLowerCase()} — ${payload.shares} @ ${money(payload.entryPrice)}`, 'success')
-  }, [refreshPositions, showToast])
+    const acctName = accounts.find((a) => a.id === acctId)?.name
+    showToast(
+      `Added ${payload.symbol} ${payload.side.toLowerCase()} to ${acctName || 'account'}`,
+      'success',
+    )
+  }, [refreshPositions, showToast, selectedAccountId, accounts])
 
   const handleUpdate = useCallback(async (position, patch) => {
     await jsonFetch(`/api/j2/positions/${position.id}`, 'PUT', patch)
@@ -248,6 +261,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           prefill={addPrefill || undefined}
           onSave={handleCreate}
           onClose={() => { setAddOpen(false); setAddPrefill(null) }}
+          accountName={selectedAccount?.name || accounts[0]?.name}
         />
       )}
 

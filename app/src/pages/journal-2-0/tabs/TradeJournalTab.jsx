@@ -11,6 +11,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useSWRConfig } from 'swr'
 import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Trades from '../hooks/useJ2Trades'
+import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
 import useJ2Filters from '../hooks/useJ2Filters'
 import { applyFilters } from '../hooks/useJ2Filters'
@@ -47,6 +48,7 @@ async function jsonFetch(url, method, body) {
 
 export default function TradeJournalTab({ settings }) {
   const { trades, isLoading, error, refresh } = useJ2Trades()
+  const { accountId: selectedAccountId, accounts } = useJ2SelectedAccount()
   const { mutate } = useSWRConfig()
 
   const defaultColumns = useMemo(() => buildTradesColumns(), [])
@@ -103,13 +105,18 @@ export default function TradeJournalTab({ settings }) {
   }, [])
 
   const handleAdd = useCallback(async (payload) => {
-    const res = await jsonFetch('/api/j2/trades', 'POST', payload)
+    const acctId = payload.accountId
+      || selectedAccountId
+      || accounts[0]?.id
+      || null
+    const res = await jsonFetch('/api/j2/trades', 'POST', { ...payload, accountId: acctId })
     await refresh()
+    const acctName = accounts.find((a) => a.id === acctId)?.name
     showToast(
-      `Added ${res.symbol} ${res.side.toLowerCase()} — ${res.result} (${res.shares} shares)`,
+      `Added ${res.symbol} ${res.side.toLowerCase()} — ${res.result}${acctName ? ` (${acctName})` : ''}`,
       'success',
     )
-  }, [refresh, showToast])
+  }, [refresh, showToast, selectedAccountId, accounts])
 
   const handleDeleteAll = useCallback(async () => {
     const res = await jsonFetch('/api/j2/trades', 'DELETE', { confirm: 'DELETE' })
@@ -289,6 +296,7 @@ export default function TradeJournalTab({ settings }) {
           settings={settings}
           onSave={handleAdd}
           onClose={() => setAddOpen(false)}
+          accountName={accounts.find((a) => a.id === selectedAccountId)?.name || accounts[0]?.name}
         />
       )}
       {deleteAllOpen && (
