@@ -81,15 +81,35 @@ def _year_bounds(year: int) -> tuple[Date, Date]:
 def _account_size_for_user(
     user_id: str,
     conn: sqlite3.Connection,
+    *,
+    account_id: str | None = None,
 ) -> float:
-    """Return the user's accountSize from j2_settings (Phase 1 still uses
-    single-row settings; Phase 2 will swap this for per-account lookup)."""
+    """Return the user's accountSize. If account_id is provided, returns
+    that account's account_size. Otherwise sums across all accounts
+    (sensible for "All Accounts" view), falling back to legacy
+    j2_settings if no accounts exist yet."""
+    if account_id:
+        row = conn.execute(
+            "SELECT account_size FROM j2_accounts WHERE id = ? AND user_id = ?",
+            (account_id, user_id),
+        ).fetchone()
+        if row:
+            return float(row["account_size"])
+    # All-accounts: sum of account sizes
+    row = conn.execute(
+        "SELECT COALESCE(SUM(account_size), 0) AS total FROM j2_accounts "
+        "WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+    if row and row["total"]:
+        return float(row["total"])
+    # Legacy fallback (pre-migration)
     row = conn.execute(
         "SELECT data FROM j2_settings WHERE user_id = ?",
         (user_id,),
     ).fetchone()
     if row is None:
-        return 100_000.0  # default per settings.default_settings_data
+        return 100_000.0
     try:
         data = json.loads(row["data"])
     except (TypeError, json.JSONDecodeError):
@@ -241,7 +261,7 @@ def get_calendar(
             if start_iso <= et_d <= end_iso:
                 in_window.append(r)
 
-        account_size = _account_size_for_user(user_id, conn)
+        account_size = _account_size_for_user(user_id, conn, account_id=account_id)
         days, totals = _aggregate_trades(in_window, account_size)
 
         # Mark days that have user-saved notes.
@@ -310,7 +330,7 @@ def get_day_detail(
         same_day = [r for r in rows if to_et_date(r["exit_date"]) == date]
 
         # Reuse aggregation logic for the metrics row.
-        account_size = _account_size_for_user(user_id, conn)
+        account_size = _account_size_for_user(user_id, conn, account_id=account_id)
         _, totals = _aggregate_trades(same_day, account_size)
         # Day-detail metrics include a pnlPercent (vs account size).
         pnl_pct = (

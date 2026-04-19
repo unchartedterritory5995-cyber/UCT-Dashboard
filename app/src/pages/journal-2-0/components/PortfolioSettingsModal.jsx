@@ -54,7 +54,7 @@ function buildDefaultStop(mode, barBuffer, barBufferUnit, fixedAmount, fixedPerc
   }
 }
 
-export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
+export default function PortfolioSettingsModal({ settings, onSave, onClose, accountName, isAllAccounts }) {
   // Local form state seeded from props.settings. Saving writes this
   // back through useJ2Settings.save(). Cancel discards local state.
   const [accountSize, setAccountSize] = useState(settings?.accountSize ?? 100_000)
@@ -175,7 +175,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
       >
         <div className={styles.header}>
           <h2 id={titleId} className={styles.title}>
-            Portfolio Settings
+            Settings{accountName ? ` — ${accountName}` : ''}
           </h2>
           <button
             type="button"
@@ -186,6 +186,17 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
             ×
           </button>
         </div>
+        {isAllAccounts && (
+          <div style={{
+            margin: '12px 20px 0', padding: '10px 14px',
+            background: 'var(--warn-bg)', border: '1px solid var(--warn-border)',
+            color: 'var(--warn)', borderRadius: 8, fontSize: 12,
+          }}>
+            <strong>All Accounts mode</strong> — showing the Default account's
+            settings as a fallback. Switch to a single account in the header
+            selector to edit settings.
+          </div>
+        )}
 
         <div className={styles.body}>
           {/* 5.1 ACCOUNT */}
@@ -476,7 +487,8 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
             type="button"
             className={styles.primaryBtn}
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || isAllAccounts}
+            title={isAllAccounts ? 'Select a single account to save settings' : ''}
           >
             {saving ? 'Saving…' : 'Save Settings'}
           </button>

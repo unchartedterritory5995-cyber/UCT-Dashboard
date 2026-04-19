@@ -1,14 +1,17 @@
 /**
- * Journal 2.0 — settings hook.
+ * Journal 2.0 — settings hook (per-account, post-Phase-2).
  *
- * Wraps SWR around GET /api/j2/settings and exposes a mutation for
- * PUT /api/j2/settings. The server seeds defaults on first read, so
- * the hook always returns a usable `settings` object once the user
- * is authenticated (never null after first resolve).
+ * Reads + writes settings for the currently-selected account via
+ * /api/j2/accounts/{id}/settings. When "All Accounts" is selected,
+ * the server auto-resolves to the user's Default account so reads
+ * always return a usable settings object — but the Settings modal
+ * disables the Save action and shows a banner explaining writes only
+ * apply to a single account.
  */
 
 import useSWR from 'swr'
 import { useCallback } from 'react'
+import useJ2SelectedAccount from './useJ2SelectedAccount'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -16,24 +19,28 @@ const fetcher = (url) =>
     return r.json()
   })
 
-/**
- * @returns {{
- *   settings: any,
- *   isLoading: boolean,
- *   error: any,
- *   save: (payload: any) => Promise<any>,
- *   refresh: () => Promise<any>,
- * }}
- */
 export default function useJ2Settings() {
-  const { data, error, isLoading, mutate } = useSWR('/api/j2/settings', fetcher, {
+  const { accountId, account } = useJ2SelectedAccount()
+  // When no account selected (initial load) we still want SOMETHING readable;
+  // hit the legacy global settings endpoint as a backstop. Once an account
+  // is picked, switch to per-account.
+  const url = accountId
+    ? `/api/j2/accounts/${accountId}/settings`
+    : '/api/j2/settings'
+
+  const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })
 
   const save = useCallback(
     async (payload) => {
-      const res = await fetch('/api/j2/settings', {
+      if (!accountId) {
+        throw new Error(
+          'Select a single account to save settings (currently in All Accounts mode).',
+        )
+      }
+      const res = await fetch(`/api/j2/accounts/${accountId}/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -44,12 +51,10 @@ export default function useJ2Settings() {
         throw new Error(body || `save failed (${res.status})`)
       }
       const saved = await res.json()
-      // Replace SWR cache with the server's canonical response (enabled
-      // invariant, dedupe, etc.) without re-fetching.
       await mutate(saved, { revalidate: false })
       return saved
     },
-    [mutate],
+    [mutate, accountId],
   )
 
   return {
@@ -58,5 +63,8 @@ export default function useJ2Settings() {
     error,
     save,
     refresh: () => mutate(),
+    accountId,
+    accountName: account?.name,
+    isAllAccounts: accountId == null,
   }
 }

@@ -20,7 +20,7 @@ describe('PortfolioSettingsModal', () => {
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
     )
-    expect(screen.getByText('Portfolio Settings')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Settings/ })).toBeInTheDocument()
   })
 
   it('shows the pre-populated account size', () => {

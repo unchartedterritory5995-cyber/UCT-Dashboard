@@ -145,10 +145,15 @@ def close_position(
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Close a Position (full or partial). Writes a Trade row using the
-    user's current breakevenRange setting to classify the result, then
-    decrements the Position's shares. A full close archives the
-    Position via closed_at instead of deleting (§10)."""
-    settings = settings_service.get_settings(user["id"])
+    POSITION'S account's breakevenRange to classify the result."""
+    pos = positions_service.get_position(user["id"], position_id)
+    if pos is None:
+        raise HTTPException(status_code=404, detail="Position not found")
+    settings = (
+        accounts_service.get_account_settings(user["id"], pos.get("accountId"))
+        if pos.get("accountId")
+        else settings_service.get_settings(user["id"])
+    )
     try:
         return trades_service.close_position(
             user_id=user["id"],
@@ -232,10 +237,10 @@ def create_trade_manual(
     """Manual Add Trade (spec §11.4). Server computes derived fields.
     positionId is a 'manual-{uuid}' sentinel. account_id defaults to
     the user's Default account if omitted."""
-    settings = settings_service.get_settings(user["id"])
     if not payload.get("accountId"):
         default = accounts_service.get_or_migrate_default_account(user["id"])
         payload = {**payload, "accountId": default["id"]}
+    settings = accounts_service.get_account_settings(user["id"], payload["accountId"])
     try:
         return trades_service.create_trade_manual(user["id"], payload, settings)
     except trades_service.ManualTradeValidationError as e:
@@ -348,7 +353,6 @@ def import_confirm(
         if t["side"] not in {"Long", "Short"}:
             raise HTTPException(400, f"trades[{i}] invalid side")
 
-    settings = settings_service.get_settings(user["id"])
     # Stamp account_id on every imported trade — defaults to current
     # selected account (passed in body) or user's Default account.
     account_id = (
@@ -357,6 +361,7 @@ def import_confirm(
     if not account_id:
         default = accounts_service.get_or_migrate_default_account(user["id"])
         account_id = default["id"]
+    settings = accounts_service.get_account_settings(user["id"], account_id)
     result = trades_service.bulk_insert_trades(
         user["id"], trades, settings, account_id=account_id,
     )

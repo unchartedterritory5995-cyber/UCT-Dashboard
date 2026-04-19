@@ -33,7 +33,7 @@ const NESTED_TABS = [
 ]
 
 export default function JournalTwoRoot() {
-  const { settings, isLoading, error, save } = useJ2Settings()
+  const { settings, isLoading, error, save, accountName, isAllAccounts } = useJ2Settings()
   const [searchParams, setSearchParams] = useSearchParams()
   const [showSettings, setShowSettings] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -147,6 +147,8 @@ export default function JournalTwoRoot() {
           settings={settings}
           onSave={save}
           onClose={closeSettings}
+          accountName={accountName}
+          isAllAccounts={isAllAccounts}
         />
       )}
 
