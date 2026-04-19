@@ -1,0 +1,703 @@
+/**
+ * Analytics tab — single-scroll page with 4 sections (Equity / Performance /
+ * Distribution / Attribution) covering ~14 charts via ECharts.
+ *
+ * Account-scoped via useJ2SelectedAccount; time-range filtered via URL
+ * params (?from=YYYY-MM-DD&to=YYYY-MM-DD). Live unrealized equity toggle
+ * (J2.0-unique) lands in Phase 3 / Step 7.
+ */
+
+import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import ReactECharts from 'echarts-for-react'
+import useJ2Analytics from '../hooks/useJ2Analytics'
+import {
+  fmtSignedDollar,
+  fmtSignedPct,
+  fmtSignedR,
+  todayET,
+} from '../lib/calendar'
+import { money } from '../../../lib/journal-2-0'
+import styles from './AnalyticsTab.module.css'
+
+// ── Theme tokens for ECharts ─────────────────────────────────────────────────
+
+const CHART_COLORS = {
+  gain: '#3cb868',
+  loss: '#e74c3c',
+  gold: '#c9a84c',
+  text: '#a8a290',
+  textBright: '#e0dac8',
+  border: '#2e3127',
+  bg: '#1a1c17',
+}
+
+const baseChart = {
+  backgroundColor: 'transparent',
+  textStyle: {
+    fontFamily: 'Instrument Sans, system-ui',
+    color: CHART_COLORS.text,
+  },
+  grid: { left: 50, right: 18, top: 20, bottom: 30, containLabel: true },
+  tooltip: {
+    backgroundColor: '#22251e',
+    borderColor: CHART_COLORS.border,
+    textStyle: { color: CHART_COLORS.textBright },
+    confine: true,
+  },
+}
+
+const moneyAxis = {
+  type: 'value',
+  axisLine: { lineStyle: { color: CHART_COLORS.border } },
+  splitLine: { lineStyle: { color: CHART_COLORS.border, type: 'dashed' } },
+  axisLabel: {
+    color: CHART_COLORS.text,
+    formatter: (v) => `$${Math.round(v).toLocaleString()}`,
+  },
+}
+
+const categoryAxis = {
+  type: 'category',
+  axisLine: { lineStyle: { color: CHART_COLORS.border } },
+  axisLabel: { color: CHART_COLORS.text },
+}
+
+// ── Range filter ─────────────────────────────────────────────────────────────
+
+const RANGE_PRESETS = [
+  { key: 'all', label: 'All time' },
+  { key: '30d', label: 'Last 30d' },
+  { key: '90d', label: 'Last 90d' },
+  { key: 'mtd', label: 'MTD' },
+  { key: 'qtd', label: 'QTD' },
+  { key: 'ytd', label: 'YTD' },
+  { key: '12mo', label: 'Last 12mo' },
+  { key: 'custom', label: 'Custom' },
+]
+
+function presetToRange(key) {
+  const today = todayET()
+  const [y, m, d] = today.split('-').map(Number)
+  const t = new Date(Date.UTC(y, m - 1, d))
+  const iso = (date) => date.toISOString().slice(0, 10)
+  switch (key) {
+    case 'all': return { from: null, to: null }
+    case '30d': {
+      const from = new Date(t); from.setUTCDate(t.getUTCDate() - 30)
+      return { from: iso(from), to: iso(t) }
+    }
+    case '90d': {
+      const from = new Date(t); from.setUTCDate(t.getUTCDate() - 90)
+      return { from: iso(from), to: iso(t) }
+    }
+    case 'mtd': return { from: `${y}-${String(m).padStart(2,'0')}-01`, to: iso(t) }
+    case 'qtd': {
+      const qStart = Math.floor((m - 1) / 3) * 3 + 1
+      return { from: `${y}-${String(qStart).padStart(2,'0')}-01`, to: iso(t) }
+    }
+    case 'ytd': return { from: `${y}-01-01`, to: iso(t) }
+    case '12mo': {
+      const from = new Date(t); from.setUTCMonth(t.getUTCMonth() - 12)
+      return { from: iso(from), to: iso(t) }
+    }
+    default: return { from: null, to: null }
+  }
+}
+
+// ── AnalyticsTab ─────────────────────────────────────────────────────────────
+
+export default function AnalyticsTab() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const from = searchParams.get('afrom') || null
+  const to = searchParams.get('ato') || null
+  const [activePreset, setActivePreset] = useState('all')
+
+  const { data, isLoading, error } = useJ2Analytics({ from, to })
+
+  const setRange = (preset) => {
+    setActivePreset(preset)
+    if (preset === 'custom') return
+    const { from: f, to: t } = presetToRange(preset)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (f) next.set('afrom', f); else next.delete('afrom')
+      if (t) next.set('ato', t); else next.delete('ato')
+      return next
+    }, { replace: true })
+  }
+
+  return (
+    <div className={styles.wrap}>
+      <div className={styles.header}>
+        <div>
+          <h2 className={styles.title}>Analytics</h2>
+          <p className={styles.subtitle}>
+            Detailed performance analysis
+            {data && ` across ${data.tradeCount} trade${data.tradeCount === 1 ? '' : 's'}`}
+          </p>
+        </div>
+      </div>
+
+      <div className={styles.rangeRow}>
+        <span className={styles.rangeLabel}>Range</span>
+        <div className={styles.rangePills}>
+          {RANGE_PRESETS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              className={`${styles.pill} ${activePreset === p.key ? styles.pillActive : ''}`}
+              onClick={() => setRange(p.key)}
+              aria-pressed={activePreset === p.key}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {activePreset === 'custom' && (
+          <div className={styles.customRange}>
+            <input
+              type="date"
+              value={from || ''}
+              onChange={(e) => setSearchParams((prev) => {
+                const n = new URLSearchParams(prev)
+                if (e.target.value) n.set('afrom', e.target.value)
+                else n.delete('afrom')
+                return n
+              }, { replace: true })}
+              className={styles.dateInput}
+            />
+            <span className={styles.dash}>–</span>
+            <input
+              type="date"
+              value={to || ''}
+              onChange={(e) => setSearchParams((prev) => {
+                const n = new URLSearchParams(prev)
+                if (e.target.value) n.set('ato', e.target.value)
+                else n.delete('ato')
+                return n
+              }, { replace: true })}
+              className={styles.dateInput}
+            />
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className={styles.errorBanner} role="alert">
+          Couldn't load analytics: {String(error.message || error)}
+        </div>
+      )}
+
+      {isLoading && !data && (
+        <p className={styles.hint}>Loading analytics…</p>
+      )}
+
+      {data && data.tradeCount === 0 && (
+        <div className={styles.empty}>
+          <p>No trades in this range.</p>
+          <p className={styles.emptyHint}>
+            Try expanding the date range or switching accounts.
+          </p>
+        </div>
+      )}
+
+      {data && data.tradeCount > 0 && (
+        <>
+          <EquitySection equity={data.equity} />
+          <PerformanceSection performance={data.performance} />
+          <DistributionSection distribution={data.distribution} />
+          <AttributionSection attribution={data.attribution} />
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Section 1: Equity ────────────────────────────────────────────────────────
+
+function EquitySection({ equity }) {
+  const { kpis, curve } = equity
+  const [showDD, setShowDD] = useState(false)
+
+  const option = useMemo(() => {
+    const dates = curve.map((d) => d.date)
+    const equitySeries = curve.map((d) => d.equity)
+    const ddSeries = curve.map((d) => d.drawdown)
+    return {
+      ...baseChart,
+      tooltip: {
+        ...baseChart.tooltip,
+        trigger: 'axis',
+        formatter: (params) => {
+          const eq = params.find((p) => p.seriesName === 'Equity')
+          const dd = params.find((p) => p.seriesName === 'Drawdown')
+          return `<div><b>${eq?.axisValue}</b><br/>` +
+            `Equity: $${(eq?.value ?? 0).toLocaleString()}<br/>` +
+            (showDD ? `Drawdown: $${(dd?.value ?? 0).toLocaleString()}` : '') +
+            `</div>`
+        },
+      },
+      xAxis: { ...categoryAxis, data: dates, boundaryGap: false },
+      yAxis: showDD
+        ? [moneyAxis, { ...moneyAxis, name: 'DD', position: 'right', axisLabel: { ...moneyAxis.axisLabel, color: CHART_COLORS.loss } }]
+        : moneyAxis,
+      series: [
+        {
+          name: 'Equity',
+          type: 'line',
+          data: equitySeries,
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 4,
+          itemStyle: { color: CHART_COLORS.gain },
+          areaStyle: {
+            color: {
+              type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+              colorStops: [
+                { offset: 0, color: 'rgba(60, 184, 104, 0.3)' },
+                { offset: 1, color: 'rgba(60, 184, 104, 0)' },
+              ],
+            },
+          },
+        },
+        ...(showDD ? [{
+          name: 'Drawdown', type: 'line', data: ddSeries, yAxisIndex: 1,
+          symbol: 'none',
+          itemStyle: { color: CHART_COLORS.loss },
+          areaStyle: {
+            color: {
+              type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+              colorStops: [
+                { offset: 0, color: 'rgba(231, 76, 60, 0)' },
+                { offset: 1, color: 'rgba(231, 76, 60, 0.3)' },
+              ],
+            },
+          },
+        }] : []),
+      ],
+    }
+  }, [curve, showDD])
+
+  return (
+    <section className={styles.section}>
+      <h3 className={styles.sectionHeader}>Equity</h3>
+      <div className={styles.kpiStrip}>
+        <Kpi label="Peak P&L" value={fmtSignedDollar(kpis.peakPnl)} positive={kpis.peakPnl > 0} />
+        <Kpi label="Max Drawdown" value={fmtSignedDollar(kpis.maxDrawdown)} negative={kpis.maxDrawdown < 0} />
+        <Kpi label="Max DD %" value={fmtSignedPct(kpis.maxDrawdownPct, 2)} negative={kpis.maxDrawdownPct < 0} />
+        <Kpi label="Current DD" value={fmtSignedDollar(kpis.currentDrawdown)} negative={kpis.currentDrawdown < 0} />
+        <Kpi label="Longest Underwater" value={`${kpis.longestUnderwaterDays}d`} />
+      </div>
+      <div className={styles.chartCard}>
+        <div className={styles.chartHeader}>
+          <h4 className={styles.chartTitle}>Equity Curve</h4>
+          <button
+            type="button"
+            className={`${styles.toggle} ${showDD ? styles.toggleOn : ''}`}
+            onClick={() => setShowDD((x) => !x)}
+          >
+            Drawdown overlay
+          </button>
+        </div>
+        <ReactECharts option={option} style={{ height: 280 }} />
+      </div>
+    </section>
+  )
+}
+
+// ── Section 2: Performance ───────────────────────────────────────────────────
+
+function PerformanceSection({ performance }) {
+  const [granularity, setGranularity] = useState('byMonth')
+
+  const histOption = useMemo(() => {
+    const series = performance[granularity] || []
+    const labels = series.map((d) => {
+      if (granularity === 'byDay') return d.date.slice(5)  // MM-DD
+      if (granularity === 'byWeek') return d.weekStart.slice(5)
+      if (granularity === 'byMonth') return d.month
+      return String(d.year)
+    })
+    const values = series.map((d) => d.pnl)
+    return {
+      ...baseChart,
+      tooltip: { ...baseChart.tooltip, trigger: 'axis' },
+      xAxis: { ...categoryAxis, data: labels },
+      yAxis: moneyAxis,
+      series: [{
+        type: 'bar',
+        data: values.map((v) => ({
+          value: v, itemStyle: { color: v >= 0 ? CHART_COLORS.gain : CHART_COLORS.loss },
+        })),
+      }],
+    }
+  }, [performance, granularity])
+
+  const hourlyOption = useMemo(() => {
+    const data = performance.hourly || []
+    return {
+      ...baseChart,
+      tooltip: { ...baseChart.tooltip, trigger: 'axis' },
+      xAxis: { ...categoryAxis, data: data.map((h) => `${h.hour}:00`) },
+      yAxis: moneyAxis,
+      series: [{
+        type: 'bar',
+        data: data.map((h) => ({
+          value: h.pnl,
+          itemStyle: { color: h.pnl >= 0 ? CHART_COLORS.gain : CHART_COLORS.loss },
+        })),
+      }],
+    }
+  }, [performance])
+
+  const dowOption = useMemo(() => {
+    const data = performance.dayOfWeek || []
+    return {
+      ...baseChart,
+      tooltip: { ...baseChart.tooltip, trigger: 'axis' },
+      xAxis: { ...categoryAxis, data: data.map((d) => `${d.day} (${d.tradeCount})`) },
+      yAxis: moneyAxis,
+      series: [{
+        type: 'bar',
+        data: data.map((d) => ({
+          value: d.pnl,
+          itemStyle: { color: d.pnl >= 0 ? CHART_COLORS.gain : CHART_COLORS.loss },
+        })),
+      }],
+    }
+  }, [performance])
+
+  return (
+    <section className={styles.section}>
+      <h3 className={styles.sectionHeader}>Performance</h3>
+      <div className={styles.grid2}>
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            <h4 className={styles.chartTitle}>P&L Histogram</h4>
+            <div className={styles.miniPills}>
+              {[
+                ['byDay', 'D'], ['byWeek', 'W'],
+                ['byMonth', 'M'], ['byYear', 'Y'],
+              ].map(([k, lbl]) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={`${styles.miniPill} ${granularity === k ? styles.miniPillActive : ''}`}
+                  onClick={() => setGranularity(k)}
+                >{lbl}</button>
+              ))}
+            </div>
+          </div>
+          <ReactECharts option={histOption} style={{ height: 220 }} />
+        </div>
+        <div className={styles.chartCard}>
+          <h4 className={styles.chartTitle}>Hourly Performance (ET)</h4>
+          <ReactECharts option={hourlyOption} style={{ height: 220 }} />
+        </div>
+        <div className={styles.chartCard}>
+          <h4 className={styles.chartTitle}>Day of Week</h4>
+          <ReactECharts option={dowOption} style={{ height: 220 }} />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── Section 3: Distribution ──────────────────────────────────────────────────
+
+function DistributionSection({ distribution }) {
+  const longShortOption = useMemo(() => {
+    const ls = distribution.longVsShort
+    return {
+      ...baseChart,
+      tooltip: { ...baseChart.tooltip, trigger: 'axis' },
+      legend: { textStyle: { color: CHART_COLORS.text }, top: 0 },
+      xAxis: { ...categoryAxis, data: ['Total P&L', 'Win Rate %', 'Avg P&L', 'Trades'] },
+      yAxis: moneyAxis,
+      series: [
+        {
+          name: 'Long', type: 'bar',
+          itemStyle: { color: CHART_COLORS.gain },
+          data: [
+            ls.long.totalPnl,
+            (ls.long.winRate ?? 0) * 100,
+            ls.long.avgPnl ?? 0,
+            ls.long.tradeCount,
+          ],
+        },
+        {
+          name: 'Short', type: 'bar',
+          itemStyle: { color: CHART_COLORS.loss },
+          data: [
+            ls.short.totalPnl,
+            (ls.short.winRate ?? 0) * 100,
+            ls.short.avgPnl ?? 0,
+            ls.short.tradeCount,
+          ],
+        },
+      ],
+    }
+  }, [distribution])
+
+  const pnlDistOption = useMemo(() => {
+    const buckets = distribution.pnlBuckets || []
+    return {
+      ...baseChart,
+      tooltip: { ...baseChart.tooltip, trigger: 'axis' },
+      xAxis: { ...categoryAxis, data: buckets.map((b) => b.bucket), axisLabel: { ...categoryAxis.axisLabel, rotate: 30, fontSize: 9 } },
+      yAxis: { ...moneyAxis, axisLabel: { ...moneyAxis.axisLabel, formatter: (v) => v } },
+      series: [{
+        type: 'bar',
+        data: buckets.map((b, i) => ({
+          value: b.count,
+          itemStyle: { color: i < buckets.length / 2 ? CHART_COLORS.loss : CHART_COLORS.gain },
+        })),
+      }],
+    }
+  }, [distribution])
+
+  const rDistOption = useMemo(() => {
+    const buckets = distribution.rMultiples || []
+    return {
+      ...baseChart,
+      tooltip: { ...baseChart.tooltip, trigger: 'axis' },
+      xAxis: { ...categoryAxis, data: buckets.map((b) => b.bucket) },
+      yAxis: { ...moneyAxis, axisLabel: { ...moneyAxis.axisLabel, formatter: (v) => v } },
+      series: [{
+        type: 'bar',
+        data: buckets.map((b, i) => ({
+          value: b.count,
+          itemStyle: { color: i < 3 ? CHART_COLORS.loss : (i === 3 ? CHART_COLORS.text : CHART_COLORS.gain) },
+        })),
+      }],
+    }
+  }, [distribution])
+
+  const streaksOption = useMemo(() => {
+    const streaks = distribution.winLossStreaks || []
+    return {
+      ...baseChart,
+      tooltip: {
+        ...baseChart.tooltip,
+        trigger: 'axis',
+        formatter: (params) => {
+          const p = params[0]
+          const streak = streaks[p.dataIndex]
+          return `Streak #${streak.index}: ${streak.length} ${streak.type}${streak.length === 1 ? '' : 's'}`
+        },
+      },
+      xAxis: { ...categoryAxis, data: streaks.map((s) => `#${s.index}`) },
+      yAxis: { ...moneyAxis, axisLabel: { ...moneyAxis.axisLabel, formatter: (v) => v } },
+      series: [{
+        type: 'bar',
+        data: streaks.map((s) => ({
+          value: s.length,
+          itemStyle: { color: s.type === 'win' ? CHART_COLORS.gain : CHART_COLORS.loss },
+        })),
+      }],
+    }
+  }, [distribution])
+
+  return (
+    <section className={styles.section}>
+      <h3 className={styles.sectionHeader}>Distribution</h3>
+      <div className={styles.grid2}>
+        <div className={styles.chartCard}>
+          <h4 className={styles.chartTitle}>Long vs Short</h4>
+          <ReactECharts option={longShortOption} style={{ height: 240 }} />
+        </div>
+        <div className={styles.chartCard}>
+          <h4 className={styles.chartTitle}>P&L Distribution</h4>
+          <ReactECharts option={pnlDistOption} style={{ height: 240 }} />
+        </div>
+        <div className={styles.chartCard}>
+          <h4 className={styles.chartTitle}>R-Multiple Distribution</h4>
+          <ReactECharts option={rDistOption} style={{ height: 220 }} />
+        </div>
+        <div className={styles.chartCard}>
+          <h4 className={styles.chartTitle}>Win/Loss Streaks</h4>
+          {streaksOption.series[0].data.length > 0 ? (
+            <ReactECharts option={streaksOption} style={{ height: 220 }} />
+          ) : (
+            <p className={styles.hint}>Not enough data for streak analysis.</p>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── Section 4: Attribution ───────────────────────────────────────────────────
+
+function AttributionSection({ attribution }) {
+  const [setupSort, setSetupSort] = useState('totalPnl')
+  const [symbolSort, setSymbolSort] = useState('totalPnl')
+  const [rwrWindow, setRwrWindow] = useState('20')
+
+  const setupSorted = useMemo(() => {
+    return [...(attribution.bySetup || [])].sort((a, b) => {
+      if (setupSort === 'tradeCount') return b.tradeCount - a.tradeCount
+      if (setupSort === 'winRate') return (b.winRate || 0) - (a.winRate || 0)
+      return b.totalPnl - a.totalPnl
+    })
+  }, [attribution, setupSort])
+
+  const symbolSorted = useMemo(() => {
+    return [...(attribution.bySymbol || [])].sort((a, b) => {
+      if (symbolSort === 'tradeCount') return b.tradeCount - a.tradeCount
+      if (symbolSort === 'winRate') return (b.winRate || 0) - (a.winRate || 0)
+      return b.totalPnl - a.totalPnl
+    })
+  }, [attribution, symbolSort])
+
+  const setupOption = useMemo(() => barChart(setupSorted, 'setup', setupSort), [setupSorted, setupSort])
+  const symbolOption = useMemo(() => barChart(symbolSorted, 'symbol', symbolSort), [symbolSorted, symbolSort])
+
+  const rwrOption = useMemo(() => {
+    const data = attribution.rollingWinRate?.windows?.[rwrWindow] || []
+    return {
+      ...baseChart,
+      tooltip: { ...baseChart.tooltip, trigger: 'axis' },
+      xAxis: { ...categoryAxis, data: data.map((d) => `#${d.tradeIndex}`), boundaryGap: false },
+      yAxis: { ...moneyAxis, min: 0, max: 1, axisLabel: { ...moneyAxis.axisLabel, formatter: (v) => `${(v * 100).toFixed(0)}%` } },
+      series: [{
+        name: 'Win rate', type: 'line', data: data.map((d) => d.winRate),
+        symbol: 'none', smooth: true, itemStyle: { color: CHART_COLORS.gold },
+      }],
+    }
+  }, [attribution, rwrWindow])
+
+  return (
+    <section className={styles.section}>
+      <h3 className={styles.sectionHeader}>Attribution</h3>
+      <div className={styles.grid2}>
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            <h4 className={styles.chartTitle}>P&L by Setup</h4>
+            <SortPills active={setupSort} onChange={setSetupSort} />
+          </div>
+          {setupSorted.length === 0 ? (
+            <p className={styles.hint}>Tag your trades with a setup to see attribution.</p>
+          ) : (
+            <ReactECharts option={setupOption} style={{ height: 240 }} />
+          )}
+        </div>
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            <h4 className={styles.chartTitle}>P&L by Symbol</h4>
+            <SortPills active={symbolSort} onChange={setSymbolSort} />
+          </div>
+          <ReactECharts option={symbolOption} style={{ height: 240 }} />
+        </div>
+        <div className={`${styles.chartCard} ${styles.full}`}>
+          <div className={styles.chartHeader}>
+            <h4 className={styles.chartTitle}>Rolling Win Rate</h4>
+            <div className={styles.miniPills}>
+              {['10', '20', '50', '100', '200'].map((w) => (
+                <button
+                  key={w}
+                  type="button"
+                  className={`${styles.miniPill} ${rwrWindow === w ? styles.miniPillActive : ''}`}
+                  onClick={() => setRwrWindow(w)}
+                >{w}</button>
+              ))}
+            </div>
+          </div>
+          {(attribution.rollingWinRate?.windows?.[rwrWindow] || []).length === 0 ? (
+            <p className={styles.hint}>
+              Need at least {rwrWindow} trades in range. Try a smaller window.
+            </p>
+          ) : (
+            <ReactECharts option={rwrOption} style={{ height: 240 }} />
+          )}
+        </div>
+      </div>
+      <SymbolMiniCards symbols={symbolSorted} />
+    </section>
+  )
+}
+
+function barChart(items, labelKey, sortKey) {
+  const labels = items.map((x) => x[labelKey])
+  const sortedKey = sortKey === 'totalPnl' ? 'totalPnl' : (sortKey === 'tradeCount' ? 'tradeCount' : 'winRate')
+  const data = items.map((x) => sortedKey === 'winRate' ? (x.winRate ?? 0) * 100 : x[sortedKey])
+  return {
+    ...baseChart,
+    grid: { ...baseChart.grid, left: 80 },
+    tooltip: {
+      ...baseChart.tooltip,
+      trigger: 'axis',
+      formatter: (params) => {
+        const p = params[0]
+        const item = items[p.dataIndex]
+        return `<b>${item[labelKey]}</b><br/>` +
+          `P&L: ${fmtSignedDollar(item.totalPnl)}<br/>` +
+          `Trades: ${item.tradeCount}<br/>` +
+          (item.winRate != null ? `Win rate: ${(item.winRate * 100).toFixed(1)}%<br/>` : '') +
+          (item.avgR != null ? `Avg R: ${item.avgR.toFixed(2)}` : '')
+      },
+    },
+    yAxis: { ...categoryAxis, data: labels.slice().reverse() },  // top-to-bottom
+    xAxis: sortedKey === 'totalPnl'
+      ? moneyAxis
+      : { ...moneyAxis, axisLabel: { ...moneyAxis.axisLabel, formatter: (v) => sortedKey === 'winRate' ? `${v}%` : v } },
+    series: [{
+      type: 'bar',
+      data: data.slice().reverse().map((v) => ({
+        value: v,
+        itemStyle: { color: v >= 0 ? CHART_COLORS.gain : CHART_COLORS.loss },
+      })),
+    }],
+  }
+}
+
+function SortPills({ active, onChange }) {
+  return (
+    <div className={styles.miniPills}>
+      {[['totalPnl', 'P&L'], ['tradeCount', 'Count'], ['winRate', 'Win%']].map(([k, lbl]) => (
+        <button
+          key={k}
+          type="button"
+          className={`${styles.miniPill} ${active === k ? styles.miniPillActive : ''}`}
+          onClick={() => onChange(k)}
+        >{lbl}</button>
+      ))}
+    </div>
+  )
+}
+
+function SymbolMiniCards({ symbols }) {
+  if (!symbols || symbols.length === 0) return null
+  return (
+    <div className={styles.symbolGrid}>
+      {symbols.slice(0, 12).map((s) => (
+        <div key={s.symbol} className={styles.symbolCard}>
+          <div className={styles.symbolHead}>
+            <span className={styles.symbolSym}>{s.symbol}</span>
+            <span className={styles.symbolCount}>{s.tradeCount} trade{s.tradeCount === 1 ? '' : 's'}</span>
+          </div>
+          <div className={`${styles.symbolPnl} ${s.totalPnl >= 0 ? styles.pos : styles.neg}`}>
+            {fmtSignedDollar(s.totalPnl)}
+          </div>
+          <div className={styles.symbolMeta}>
+            Win rate: {s.winRate != null ? `${(s.winRate * 100).toFixed(0)}%` : '—'}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Shared ────────────────────────────────────────────────────────────────────
+
+function Kpi({ label, value, positive, negative }) {
+  return (
+    <div className={styles.kpi}>
+      <span className={styles.kpiLabel}>{label}</span>
+      <span className={`${styles.kpiValue} ${positive ? styles.pos : ''} ${negative ? styles.neg : ''}`}>
+        {value}
+      </span>
+    </div>
+  )
+}
