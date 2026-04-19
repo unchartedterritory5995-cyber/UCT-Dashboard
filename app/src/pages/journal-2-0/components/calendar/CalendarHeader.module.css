@@ -1,0 +1,141 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.controlsRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.viewPills {
+  display: inline-flex;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.pill {
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.pill:hover {
+  background: var(--bg-hover);
+}
+
+.pillActive {
+  background: var(--ut-gold);
+  color: var(--bg);
+}
+
+.pillActive:hover {
+  background: var(--ut-gold);
+}
+
+.periodNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navBtn {
+  width: 28px;
+  height: 28px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.navBtn:hover {
+  background: var(--bg-hover);
+}
+
+.periodLabel {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-heading);
+  min-width: 140px;
+  text-align: center;
+}
+
+.modeGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.modeLabel {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.totalsRow {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.statLabel {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.pos {
+  color: var(--gain);
+}
+
+.neg {
+  color: var(--loss);
+}
+
+@media (max-width: 720px) {
+  .totalsRow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .controlsRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .modeGroup { margin-left: 0; }
+}

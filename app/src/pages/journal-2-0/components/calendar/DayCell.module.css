@@ -1,0 +1,83 @@
+.cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 96px;
+  padding: 8px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 80ms, transform 80ms;
+}
+
+.cell:hover {
+  border-color: var(--border-accent);
+  transform: translateY(-1px);
+}
+
+.today {
+  border: 2px solid var(--ut-gold);
+}
+
+.blank {
+  min-height: 96px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.day {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+
+.notesBadge {
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.tradeCount {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: auto;
+}
+
+.pnlBig {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.pnlSmall {
+  display: flex;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.rSum {
+  color: var(--text-muted);
+}

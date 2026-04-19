@@ -12,6 +12,7 @@ import useJ2Settings from './hooks/useJ2Settings'
 import PortfolioSettingsModal from './components/PortfolioSettingsModal'
 import OpenPositionsTab from './tabs/OpenPositionsTab'
 import TradeJournalTab from './tabs/TradeJournalTab'
+import CalendarTab from './tabs/CalendarTab'
 import CommunityTab from './tabs/CommunityTab'
 import ShortcutCheatSheet from './components/ShortcutCheatSheet'
 import { money } from '../../lib/journal-2-0'
@@ -20,6 +21,7 @@ import styles from './JournalTwoRoot.module.css'
 const NESTED_TABS = [
   { key: 'positions', label: '📊 Open Positions' },
   { key: 'journal', label: '📒 Trade Journal' },
+  { key: 'calendar', label: '📅 Calendar' },
   { key: 'community', label: '🌐 Community' },
 ]
 
@@ -36,6 +38,7 @@ export default function JournalTwoRoot() {
   useHotkeys('shift+/', () => setShowShortcuts((x) => !x), { preventDefault: true })
   useHotkeys('g>p', () => setNestedTab('positions'))
   useHotkeys('g>j', () => setNestedTab('journal'))
+  useHotkeys('g>a', () => setNestedTab('calendar'))
   useHotkeys('g>c', () => setNestedTab('community'))
 
   return (
@@ -99,6 +102,7 @@ export default function JournalTwoRoot() {
           />
         )}
         {nestedTab === 'journal' && <TradeJournalTab settings={settings} />}
+        {nestedTab === 'calendar' && <CalendarTab />}
         {nestedTab === 'community' && <CommunityTab />}
       </div>
 
