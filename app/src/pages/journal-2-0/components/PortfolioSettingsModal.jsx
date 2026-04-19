@@ -493,8 +493,8 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
                 alignItems: 'flex-start',
                 gap: 10,
                 padding: '10px 12px',
-                background: '#0d0f13',
-                border: '1px solid #242730',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
                 borderRadius: 8,
                 cursor: 'pointer',
               }}
@@ -503,10 +503,10 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
                 type="checkbox"
                 checked={shareJournalData}
                 onChange={(e) => setShareJournalData(e.target.checked)}
-                style={{ accentColor: '#3b82f6', marginTop: 3 }}
+                style={{ accentColor: 'var(--ut-gold)', marginTop: 3 }}
               />
               <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ color: '#e6e8eb', fontWeight: 500 }}>
+                <span style={{ color: 'var(--text-bright)', fontWeight: 500 }}>
                   Share my closed trades with the community
                 </span>
                 <span className={styles.helper}>

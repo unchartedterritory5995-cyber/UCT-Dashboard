@@ -6,8 +6,8 @@
   min-width: 260px;
   max-height: 420px;
   overflow-y: auto;
-  background: #121417;
-  border: 1px solid #2a2e38;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: 10px;
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.45);
   padding: 10px 8px;
@@ -18,21 +18,21 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 10px 8px;
-  border-bottom: 1px solid #20232b;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 6px;
 }
 
 .popoverTitle {
   font-size: 12px;
   font-weight: 600;
-  color: #c2c6cf;
+  color: var(--text-bright);
   letter-spacing: 0.4px;
 }
 
 .resetBtn {
   background: none;
   border: none;
-  color: #7c8290;
+  color: var(--text-muted);
   font-family: inherit;
   font-size: 11px;
   cursor: pointer;
@@ -40,8 +40,8 @@
   border-radius: 4px;
 }
 .resetBtn:hover {
-  color: #e6e8eb;
-  background: #1b1e25;
+  color: var(--text-bright);
+  background: var(--bg-hover);
 }
 
 .list {
@@ -60,17 +60,17 @@
   padding: 6px 8px;
   border-radius: 6px;
   font-size: 12px;
-  color: #e6e8eb;
+  color: var(--text-bright);
 }
 
 .row:hover {
-  background: #1b1e25;
+  background: var(--bg-hover);
 }
 
 .handle {
   background: none;
   border: none;
-  color: #5a606c;
+  color: var(--text-muted);
   cursor: grab;
   font-size: 13px;
   padding: 2px 4px;
@@ -78,8 +78,8 @@
 }
 
 .handle:hover {
-  color: #c2c6cf;
-  background: #242730;
+  color: var(--text-bright);
+  background: var(--border);
 }
 
 .handle:active {
@@ -95,7 +95,7 @@
 }
 
 .checkbox {
-  accent-color: #3b82f6;
+  accent-color: var(--ut-gold);
   cursor: pointer;
 }
 
@@ -111,7 +111,7 @@
 .lockedTag {
   margin-left: 6px;
   font-size: 10px;
-  color: #5a606c;
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -122,8 +122,8 @@
 
 .moveBtn {
   background: none;
-  border: 1px solid #2a2e38;
-  color: #8b92a1;
+  border: 1px solid var(--border-accent);
+  color: var(--text-muted);
   font-family: inherit;
   font-size: 11px;
   padding: 1px 6px;
@@ -133,8 +133,8 @@
 }
 
 .moveBtn:hover:not(:disabled) {
-  background: #1b1e25;
-  color: #e6e8eb;
+  background: var(--bg-hover);
+  color: var(--text-bright);
 }
 
 .moveBtn:disabled {

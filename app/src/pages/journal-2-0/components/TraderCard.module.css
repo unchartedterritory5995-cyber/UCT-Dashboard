@@ -3,31 +3,31 @@
   flex-direction: column;
   gap: 14px;
   padding: 16px;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
   cursor: pointer;
   text-align: left;
-  font-family: Inter, system-ui, sans-serif;
-  color: #e6e8eb;
+  font-family: var(--font-sans);
+  color: var(--text-bright);
   transition: border-color 120ms, background 120ms, transform 120ms;
 }
 
 .card:hover {
-  background: #141720;
-  border-color: #3b4354;
+  background: var(--bg-hover);
+  border-color: var(--border-accent);
   transform: translateY(-1px);
 }
 
 .cardMine {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
-  background: #121722;
+  border-color: var(--ut-gold);
+  box-shadow: 0 0 0 1px var(--ut-gold-glow);
+  background: var(--bg-elevated);
 }
 
 .cardMine:hover {
-  background: #141c2e;
-  border-color: #3b82f6;
+  background: var(--bg-hover);
+  border-color: var(--ut-gold);
 }
 
 .head {
@@ -43,8 +43,8 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-  color: #fff;
+  background: linear-gradient(135deg, var(--ut-gold) 0%, var(--ut-cream) 100%);
+  color: var(--bg);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.4px;
@@ -62,7 +62,7 @@
 .name {
   font-size: 14px;
   font-weight: 600;
-  color: #f0f2f5;
+  color: var(--text-heading);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -77,15 +77,15 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #3b82f6;
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 4px;
 }
 
 .activity {
   font-size: 11px;
-  color: #7c8290;
+  color: var(--text-muted);
 }
 
 .metrics {
@@ -99,8 +99,8 @@
   flex-direction: column;
   gap: 2px;
   padding: 8px 10px;
-  background: #121417;
-  border: 1px solid #1b1e25;
+  background: var(--bg-elevated);
+  border: 1px solid var(--bg-hover);
   border-radius: 8px;
   min-width: 0;
 }
@@ -110,14 +110,14 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #8b92a1;
+  color: var(--text-muted);
 }
 
 .metricValue {
   font-size: 16px;
   font-weight: 600;
-  color: #f0f2f5;
-  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  color: var(--text-heading);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
@@ -126,18 +126,18 @@
 
 .metricSub {
   font-size: 10px;
-  color: #7c8290;
-  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }
 
 .tonePos {
-  color: #22c55e;
+  color: var(--gain);
 }
 
 .toneNeg {
-  color: #ef4444;
+  color: var(--loss);
 }
 
 .toneMeh {
-  color: #eab308;
+  color: var(--warn);
 }

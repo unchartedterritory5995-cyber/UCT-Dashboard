@@ -18,13 +18,13 @@
 
 .card {
   padding: 12px 14px;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   min-width: 0;
 }
@@ -34,14 +34,14 @@
   font-weight: 600;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: #8b92a1;
-  font-family: Inter, system-ui, sans-serif;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
 }
 
 .value {
   font-size: 18px;
   font-weight: 600;
-  color: #f0f2f5;
+  color: var(--text-heading);
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -50,22 +50,22 @@
 
 .sublabel {
   font-size: 11px;
-  color: #7c8290;
-  font-family: Inter, system-ui, sans-serif;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
 }
 
 .pos {
-  color: #22c55e;
+  color: var(--gain);
 }
 
 .neg {
-  color: #ef4444;
+  color: var(--loss);
 }
 
 .empty {
   padding: 32px;
   text-align: center;
-  color: #7c8290;
-  font-family: Inter, system-ui, sans-serif;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
   font-size: 13px;
 }

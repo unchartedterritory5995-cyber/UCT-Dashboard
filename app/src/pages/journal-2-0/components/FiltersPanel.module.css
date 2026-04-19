@@ -6,14 +6,14 @@
   width: 320px;
   max-height: 520px;
   overflow: hidden;
-  background: #121417;
-  border: 1px solid #2a2e38;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
   border-radius: 10px;
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
-  font-family: Inter, system-ui, sans-serif;
-  color: #e6e8eb;
+  font-family: var(--font-sans);
+  color: var(--text-bright);
 }
 
 .header {
@@ -21,7 +21,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid #20232b;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -29,13 +29,13 @@
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.4px;
-  color: #c2c6cf;
+  color: var(--text-bright);
 }
 
 .clearAll {
   background: none;
   border: none;
-  color: #3b82f6;
+  color: var(--ut-gold);
   font-family: inherit;
   font-size: 12px;
   cursor: pointer;
@@ -44,7 +44,7 @@
 }
 
 .clearAll:hover {
-  background: #1b1e25;
+  background: var(--bg-hover);
 }
 
 .body {
@@ -67,7 +67,7 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: #8b92a1;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -87,17 +87,17 @@
 
 .miniLabel {
   font-size: 11px;
-  color: #7c8290;
+  color: var(--text-muted);
 }
 
 .input {
   flex: 1;
   min-width: 0;
   padding: 7px 10px;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: #e6e8eb;
+  color: var(--text-bright);
   font-family: inherit;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
@@ -105,7 +105,7 @@
 }
 
 .input:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--ut-gold);
   outline-offset: -2px;
 }
 
@@ -113,8 +113,8 @@
   display: flex;
   gap: 4px;
   padding: 3px;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 
@@ -122,7 +122,7 @@
   padding: 4px 10px;
   background: transparent;
   border: none;
-  color: #c2c6cf;
+  color: var(--text-bright);
   font-family: inherit;
   font-size: 11px;
   cursor: pointer;
@@ -130,12 +130,12 @@
 }
 
 .pill:hover {
-  background: #141720;
+  background: var(--bg-hover);
 }
 
 .pillActive {
-  background: #3b82f6;
-  color: #fff;
+  background: var(--ut-gold);
+  color: var(--bg);
 }
 
 .checkList {
@@ -155,17 +155,17 @@
 }
 
 .checkRow:hover {
-  background: #1b1e25;
+  background: var(--bg-hover);
 }
 
 .checkRow input[type='checkbox'] {
-  accent-color: #3b82f6;
+  accent-color: var(--ut-gold);
   cursor: pointer;
 }
 
 .hint {
   margin: 0;
   font-size: 11px;
-  color: #5a606c;
+  color: var(--text-muted);
   font-style: italic;
 }

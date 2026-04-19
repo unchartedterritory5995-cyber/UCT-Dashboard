@@ -7,7 +7,7 @@
 .intro p {
   margin: 0;
   font-size: 12px;
-  color: #8b92a1;
+  color: var(--text-muted);
   line-height: 1.5;
 }
 
@@ -22,7 +22,7 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: #8b92a1;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -35,7 +35,7 @@
 
 .fieldLabel {
   font-size: 12px;
-  color: #c2c6cf;
+  color: var(--text-bright);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -43,30 +43,30 @@
 
 .optionalTag {
   font-size: 10px;
-  color: #5a606c;
+  color: var(--text-muted);
   font-style: italic;
 }
 
 .select {
   padding: 7px 10px;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: #e6e8eb;
+  color: var(--text-bright);
   font-family: inherit;
   font-size: 12px;
   outline: none;
 }
 
 .select:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--ut-gold);
   outline-offset: -2px;
 }
 
 .rawTable {
   overflow-x: auto;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   max-height: 180px;
 }
@@ -74,38 +74,38 @@
 .rawTable table {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: #c2c6cf;
+  color: var(--text-bright);
 }
 
 .rawTable th {
   position: sticky;
   top: 0;
-  background: #121417;
+  background: var(--bg-elevated);
   padding: 6px 10px;
   text-align: left;
   font-weight: 600;
   font-size: 10px;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: #8b92a1;
-  border-bottom: 1px solid #242730;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .rawTable td {
   padding: 6px 10px;
-  border-bottom: 1px solid #181b22;
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .warning {
   padding: 8px 12px;
-  background: rgba(234, 179, 8, 0.08);
-  border: 1px solid rgba(234, 179, 8, 0.35);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
   border-radius: 6px;
-  color: #f5c858;
+  color: var(--warn);
   font-size: 12px;
 }
 
@@ -118,24 +118,24 @@
 .ghostBtn {
   padding: 8px 16px;
   background: transparent;
-  border: 1px solid #2a2e38;
+  border: 1px solid var(--border-accent);
   border-radius: 8px;
-  color: #c2c6cf;
+  color: var(--text-bright);
   font-family: inherit;
   font-size: 13px;
   cursor: pointer;
 }
 
 .ghostBtn:hover {
-  background: #1b1e25;
+  background: var(--bg-hover);
 }
 
 .primaryBtn {
   padding: 8px 18px;
-  background: #3b82f6;
+  background: var(--ut-gold);
   border: none;
   border-radius: 8px;
-  color: #fff;
+  color: var(--bg);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;

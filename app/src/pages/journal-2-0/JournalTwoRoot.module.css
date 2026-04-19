@@ -2,8 +2,8 @@
 
 .root {
   padding: 20px 24px 40px;
-  color: #e6e8eb;
-  font-family: Inter, system-ui, sans-serif;
+  color: var(--text-bright);
+  font-family: var(--font-sans);
 }
 
 .header {
@@ -27,20 +27,20 @@
   width: 32px;
   height: 32px;
   padding: 0;
-  background: #1b1e25;
-  border: 1px solid #2a2e38;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-accent);
   border-radius: 8px;
   cursor: pointer;
-  color: #8b92a1;
+  color: var(--text-muted);
 }
 
 .shortcutsBtn:hover {
-  background: #252935;
-  color: #e6e8eb;
+  background: var(--bg-hover);
+  color: var(--text-bright);
 }
 
 .headerKbd {
-  font-family: 'IBM Plex Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
   background: transparent;
@@ -53,7 +53,7 @@
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.2px;
-  color: #f0f2f5;
+  color: var(--text-heading);
 }
 
 .settingsPill {
@@ -61,10 +61,10 @@
   align-items: center;
   gap: 10px;
   padding: 7px 14px;
-  background: #1b1e25;
-  border: 1px solid #2a2e38;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-accent);
   border-radius: 999px;
-  color: #e6e8eb;
+  color: var(--text-bright);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -73,8 +73,8 @@
 }
 
 .settingsPill:hover:not(:disabled) {
-  background: #252935;
-  border-color: #3b82f6;
+  background: var(--bg-hover);
+  border-color: var(--ut-gold);
 }
 
 .settingsPill:disabled {
@@ -88,11 +88,11 @@
 }
 
 .pillLabel {
-  color: #c2c6cf;
+  color: var(--text-bright);
 }
 
 .pillValue {
-  color: #f0f2f5;
+  color: var(--text-heading);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
@@ -100,17 +100,17 @@
 .errorBanner {
   margin-bottom: 14px;
   padding: 10px 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
   border-radius: 8px;
-  color: #ef8d8d;
+  color: var(--loss);
   font-size: 12px;
 }
 
 .nestedTabBar {
   display: flex;
   gap: 0;
-  border-bottom: 1px solid #20232b;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 20px;
 }
 
@@ -119,7 +119,7 @@
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  color: #8b92a1;
+  color: var(--text-muted);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -130,12 +130,12 @@
 }
 
 .nestedTab:hover {
-  color: #c2c6cf;
+  color: var(--text-bright);
 }
 
 .nestedTabActive {
-  color: #3b82f6;
-  border-bottom-color: #3b82f6;
+  color: var(--ut-gold);
+  border-bottom-color: var(--ut-gold);
 }
 
 .content {
@@ -144,10 +144,10 @@
 
 .placeholder {
   padding: 48px;
-  background: #0d0f13;
-  border: 1px dashed #242730;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border);
   border-radius: 12px;
-  color: #7c8290;
+  color: var(--text-muted);
   text-align: center;
   font-size: 13px;
 }
@@ -158,5 +158,5 @@
 
 .placeholderHint {
   font-size: 12px;
-  color: #5a606c;
+  color: var(--text-muted);
 }

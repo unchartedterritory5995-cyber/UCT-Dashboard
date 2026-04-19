@@ -21,14 +21,14 @@
 .modal {
   width: min(520px, 100%);
   max-height: calc(100vh - 64px);
-  background: #121417;
-  color: #e6e8eb;
-  border: 1px solid #242730;
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
 }
 
@@ -37,7 +37,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 18px 22px 14px;
-  border-bottom: 1px solid #20232b;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -46,13 +46,13 @@
   font-size: 18px;
   font-weight: 600;
   letter-spacing: 0.2px;
-  color: #f0f2f5;
+  color: var(--text-heading);
 }
 
 .xBtn {
   background: none;
   border: none;
-  color: #7c8290;
+  color: var(--text-muted);
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
@@ -61,8 +61,8 @@
 }
 
 .xBtn:hover {
-  color: #e6e8eb;
-  background: #1b1e25;
+  color: var(--text-bright);
+  background: var(--bg-hover);
 }
 
 .body {
@@ -88,7 +88,7 @@
 
 .fieldLabel {
   font-size: 12px;
-  color: #c2c6cf;
+  color: var(--text-bright);
 }
 
 .textInput,
@@ -97,10 +97,10 @@
 .textarea,
 .numberInputInner {
   padding: 9px 12px;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  color: #e6e8eb;
+  color: var(--text-bright);
   font-family: inherit;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
@@ -112,7 +112,7 @@
 .select:focus,
 .textarea:focus,
 .numberInputInner:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--ut-gold);
   outline-offset: -2px;
 }
 
@@ -126,15 +126,15 @@
 .prefixInput {
   display: flex;
   align-items: center;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .prefix {
   padding: 0 10px;
-  color: #7c8290;
+  color: var(--text-muted);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -149,8 +149,8 @@
   display: flex;
   gap: 4px;
   padding: 3px;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   height: 36px;
 }
@@ -160,7 +160,7 @@
   padding: 0 14px;
   background: transparent;
   border: none;
-  color: #c2c6cf;
+  color: var(--text-bright);
   font-family: inherit;
   font-size: 12px;
   font-weight: 500;
@@ -169,21 +169,21 @@
 }
 
 .pill:hover {
-  background: #141720;
+  background: var(--bg-hover);
 }
 
 .pillActive {
-  background: #3b82f6;
-  color: #fff;
+  background: var(--ut-gold);
+  color: var(--bg);
 }
 
 .pillActive:hover {
-  background: #3b82f6;
+  background: var(--ut-gold);
 }
 
 .helper {
   font-size: 11px;
-  color: #7c8290;
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -195,9 +195,9 @@
   font-weight: 600;
   letter-spacing: 0.3px;
   text-transform: uppercase;
-  color: #3b82f6;
-  background: rgba(59, 130, 246, 0.12);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 4px;
   vertical-align: middle;
 }
@@ -207,14 +207,14 @@
   align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 
 .checkboxRow input[type="checkbox"] {
   margin-top: 3px;
-  accent-color: #3b82f6;
+  accent-color: var(--ut-gold);
 }
 
 .checkboxBody {
@@ -225,12 +225,12 @@
 
 .checkboxTitle {
   font-weight: 500;
-  color: #e6e8eb;
+  color: var(--text-bright);
 }
 
 .checkboxSub {
   font-size: 11px;
-  color: #7c8290;
+  color: var(--text-muted);
   line-height: 1.45;
 }
 
@@ -241,19 +241,19 @@
 
 .errorBanner {
   padding: 10px 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
   border-radius: 8px;
-  color: #ef8d8d;
+  color: var(--loss);
   font-size: 12px;
 }
 
 .infoBanner {
   padding: 10px 12px;
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
   border-radius: 8px;
-  color: #9cb7e8;
+  color: var(--info);
   font-size: 12px;
   display: flex;
   gap: 12px;
@@ -267,9 +267,9 @@
   justify-content: flex-end;
   gap: 10px;
   padding: 14px 22px;
-  border-top: 1px solid #20232b;
+  border-top: 1px solid var(--border);
   flex-shrink: 0;
-  background: #121417;
+  background: var(--bg-elevated);
   border-bottom-left-radius: 14px;
   border-bottom-right-radius: 14px;
 }
@@ -277,9 +277,9 @@
 .ghostBtn {
   padding: 9px 18px;
   background: transparent;
-  border: 1px solid #2a2e38;
+  border: 1px solid var(--border-accent);
   border-radius: 8px;
-  color: #c2c6cf;
+  color: var(--text-bright);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -287,15 +287,15 @@
 }
 
 .ghostBtn:hover {
-  background: #1b1e25;
+  background: var(--bg-hover);
 }
 
 .primaryBtn {
   padding: 9px 22px;
-  background: #3b82f6;
+  background: var(--ut-gold);
   border: none;
   border-radius: 8px;
-  color: #fff;
+  color: var(--bg);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -303,15 +303,15 @@
 }
 
 .primaryBtn:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--ut-gold);
 }
 
 .dangerBtn {
   padding: 9px 22px;
-  background: #ef4444;
+  background: var(--loss);
   border: none;
   border-radius: 8px;
-  color: #fff;
+  color: var(--bg);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -319,7 +319,7 @@
 }
 
 .dangerBtn:hover:not(:disabled) {
-  background: #dc2626;
+  background: var(--ut-red);
 }
 
 .primaryBtn:disabled,

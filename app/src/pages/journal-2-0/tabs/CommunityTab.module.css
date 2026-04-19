@@ -2,14 +2,14 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .intro {
   padding: 14px 16px;
-  background: #0d0f13;
-  border: 1px solid #242730;
-  border-left: 3px solid #3b82f6;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ut-gold);
   border-radius: 8px;
 }
 
@@ -17,13 +17,13 @@
   margin: 0 0 4px;
   font-size: 13px;
   font-weight: 600;
-  color: #f0f2f5;
+  color: var(--text-heading);
 }
 
 .introBody {
   margin: 0;
   font-size: 12px;
-  color: #8b92a1;
+  color: var(--text-muted);
   line-height: 1.5;
 }
 
@@ -38,17 +38,17 @@
   flex: 1;
   min-width: 220px;
   padding: 8px 12px;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  color: #e6e8eb;
+  color: var(--text-bright);
   font-family: inherit;
   font-size: 13px;
   outline: none;
 }
 
 .search:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--ut-gold);
   outline-offset: -2px;
 }
 
@@ -63,13 +63,13 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #8b92a1;
+  color: var(--text-muted);
 }
 
 .sortPills {
   display: flex;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 3px;
   gap: 2px;
@@ -79,7 +79,7 @@
   padding: 6px 12px;
   background: transparent;
   border: none;
-  color: #c2c6cf;
+  color: var(--text-bright);
   font-family: inherit;
   font-size: 12px;
   font-weight: 500;
@@ -88,16 +88,16 @@
 }
 
 .sortPill:hover {
-  background: #1b1e25;
+  background: var(--bg-hover);
 }
 
 .sortPillActive {
-  background: #3b82f6;
-  color: #fff;
+  background: var(--ut-gold);
+  color: var(--bg);
 }
 
 .sortPillActive:hover {
-  background: #3b82f6;
+  background: var(--ut-gold);
 }
 
 .grid {
@@ -109,18 +109,18 @@
 .loading {
   padding: 48px;
   text-align: center;
-  color: #8b92a1;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
 .empty {
   padding: 48px;
-  background: #0d0f13;
-  border: 1px dashed #242730;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border);
   border-radius: 12px;
   text-align: center;
   font-size: 13px;
-  color: #8b92a1;
+  color: var(--text-muted);
 }
 
 .empty p {
@@ -129,23 +129,23 @@
 
 .emptyHint {
   font-size: 12px;
-  color: #5a606c;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 
 .hint {
   margin: 0;
   font-size: 11px;
-  color: #5a606c;
+  color: var(--text-muted);
   font-style: italic;
   text-align: center;
 }
 
 .errorBanner {
   padding: 10px 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
   border-radius: 8px;
-  color: #ef8d8d;
+  color: var(--loss);
   font-size: 13px;
 }

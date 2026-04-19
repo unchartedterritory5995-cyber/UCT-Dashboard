@@ -1,7 +1,7 @@
 .tableWrap {
   overflow-x: auto;
-  background: #0d0f13;
-  border: 1px solid #242730;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
 }
 
@@ -9,23 +9,23 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  color: #e6e8eb;
+  color: var(--text-bright);
 }
 
 .th {
   position: sticky;
   top: 0;
-  background: #121417;
+  background: var(--bg-elevated);
   padding: 10px 12px;
   font-weight: 600;
   font-size: 11px;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: #8b92a1;
-  border-bottom: 1px solid #242730;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
   z-index: 1;
   cursor: default;
   white-space: nowrap;
@@ -39,12 +39,12 @@
 }
 
 .row:hover {
-  background: #141720;
+  background: var(--bg-hover);
 }
 
 .td {
   padding: 9px 12px;
-  border-bottom: 1px solid #181b22;
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
@@ -61,33 +61,33 @@
 }
 
 .badgeWin {
-  background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
+  background: var(--gain-bg);
+  color: var(--gain);
 }
 
 .badgeLoss {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background: var(--loss-bg);
+  color: var(--loss);
 }
 
 .badgeBe {
-  background: rgba(234, 179, 8, 0.15);
-  color: #eab308;
+  background: var(--warn-bg);
+  color: var(--warn);
 }
 
-.pos { color: #22c55e; }
-.neg { color: #ef4444; }
-.dash { color: #5a606c; }
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
+.dash { color: var(--text-muted); }
 
 .empty {
   padding: 48px;
-  background: #0d0f13;
-  border: 1px dashed #242730;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border);
   border-radius: 12px;
-  color: #8b92a1;
+  color: var(--text-muted);
   text-align: center;
   font-size: 13px;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .empty p {
@@ -96,5 +96,5 @@
 
 .emptyHint {
   font-size: 12px;
-  color: #5a606c;
+  color: var(--text-muted);
 }

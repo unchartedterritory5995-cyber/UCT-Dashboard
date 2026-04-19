@@ -10,7 +10,7 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #8b92a1;
+  color: var(--text-muted);
 }
 
 .list {
@@ -29,13 +29,13 @@
   gap: 12px;
   padding: 6px 10px;
   border-radius: 6px;
-  background: #0d0f13;
-  border: 1px solid #1b1e25;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-hover);
 }
 
 .label {
   font-size: 13px;
-  color: #c2c6cf;
+  color: var(--text-bright);
 }
 
 .kbdGroup {
@@ -48,19 +48,19 @@
   display: inline-block;
   min-width: 22px;
   padding: 2px 8px;
-  background: #1b1e25;
-  border: 1px solid #2a2e38;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-accent);
   border-radius: 4px;
-  font-family: 'IBM Plex Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: #e6e8eb;
+  color: var(--text-bright);
   text-align: center;
   line-height: 1.4;
 }
 
 .then {
   font-size: 10px;
-  color: #7c8290;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -68,8 +68,8 @@
 .footNote {
   margin: 0;
   font-size: 11px;
-  color: #7c8290;
+  color: var(--text-muted);
   font-style: italic;
   padding: 8px 0;
-  border-top: 1px solid #1b1e25;
+  border-top: 1px solid var(--bg-hover);
 }
