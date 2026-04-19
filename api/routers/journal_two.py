@@ -24,6 +24,7 @@ from fastapi.responses import FileResponse
 from api.middleware.auth_middleware import get_current_user
 from api.services.journal_two import (
     accounts as accounts_service,
+    analytics as analytics_service,
     calendar as calendar_service,
     community as community_service,
     csv_import as csv_import_service,
@@ -480,6 +481,38 @@ def put_account_settings_route(
         raise HTTPException(status_code=400, detail=str(e))
     except accounts_service.AccountValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Analytics (Phase 3) ──────────────────────────────────────────────────────
+
+
+@router.get("/analytics")
+def get_analytics_route(
+    account_id: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Single mega-endpoint returning all chart data for the Analytics
+    tab in one round-trip. Optional account_id + date range filters."""
+    if date_from:
+        try:
+            from datetime import date as Date
+            Date.fromisoformat(date_from)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date_from must be YYYY-MM-DD")
+    if date_to:
+        try:
+            from datetime import date as Date
+            Date.fromisoformat(date_to)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date_to must be YYYY-MM-DD")
+    return analytics_service.get_analytics(
+        user["id"],
+        account_id=account_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
 
 # ── Calendar (Phase 1) ───────────────────────────────────────────────────────

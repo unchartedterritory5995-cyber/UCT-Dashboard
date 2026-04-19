@@ -1,0 +1,458 @@
+"""
+Journal 2.0 — Analytics aggregation.
+
+Single mega-endpoint that returns all chart data for the Analytics tab
+in one round-trip. Reads from j2_trades, optionally filtered by
+account_id and date range. Aggregation done in Python (faster than
+shipping raw trades + computing in JS for the typical user payload).
+
+Spec: docs/superpowers/specs/2026-04-18-analytics-design.md §6
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from collections import defaultdict
+from datetime import date as Date, datetime, timedelta, timezone
+from typing import Any
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # pragma: no cover
+    from backports.zoneinfo import ZoneInfo  # type: ignore
+
+from api.services.auth_db import get_connection
+from api.services.journal_two.calendar import to_et_date
+
+
+ET = ZoneInfo("America/New_York")
+UTC = timezone.utc
+
+
+# ── R-multiple bucket boundaries (spec §6.3) ─────────────────────────────────
+
+
+_R_BUCKETS = [
+    ("< -2R",  lambda r: r < -2),
+    ("-2R..-1R", lambda r: -2 <= r < -1),
+    ("-1R..0R",  lambda r: -1 <= r < 0),
+    ("0R..1R",   lambda r: 0 <= r < 1),
+    ("1R..2R",   lambda r: 1 <= r < 2),
+    ("2R..3R",   lambda r: 2 <= r < 3),
+    ("> 3R",    lambda r: r >= 3),
+]
+
+
+def get_analytics(
+    user_id: str,
+    *,
+    account_id: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Return the full analytics payload (4 sections, ~16 charts of data)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = _fetch_trades(
+            conn, user_id,
+            account_id=account_id,
+            date_from=date_from, date_to=date_to,
+        )
+
+        starting_balance = _starting_balance(conn, user_id, account_id)
+
+        return {
+            "tradeCount": len(rows),
+            "dateRange": {"from": date_from, "to": date_to},
+            "equity": _equity_section(rows, starting_balance),
+            "performance": _performance_section(rows),
+            "distribution": _distribution_section(rows),
+            "attribution": _attribution_section(rows),
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── Data fetch ────────────────────────────────────────────────────────────────
+
+
+def _fetch_trades(
+    conn: sqlite3.Connection,
+    user_id: str,
+    *,
+    account_id: str | None,
+    date_from: str | None,
+    date_to: str | None,
+) -> list[sqlite3.Row]:
+    sql = (
+        "SELECT exit_date, entry_date, pnl_dollar, pnl_percent, "
+        "       r_multiple, hold_days, result, side, setup, symbol, "
+        "       account_id "
+        "  FROM j2_trades "
+        " WHERE user_id = ?"
+    )
+    params: list[Any] = [user_id]
+    if account_id:
+        sql += " AND account_id = ?"
+        params.append(account_id)
+    if date_from:
+        # Buffer ±1 day on each side because exit_date is UTC and ET
+        # bucketing might shift by up to 24h. We re-filter in Python.
+        sql += " AND exit_date >= ?"
+        params.append((Date.fromisoformat(date_from) - timedelta(days=1)).isoformat() + "T00:00:00Z")
+    if date_to:
+        sql += " AND exit_date <= ?"
+        params.append((Date.fromisoformat(date_to) + timedelta(days=1)).isoformat() + "T23:59:59Z")
+    sql += " ORDER BY exit_date ASC"
+
+    rows = conn.execute(sql, params).fetchall()
+
+    # Re-filter on ET-bucketed exit date if range was given
+    if date_from or date_to:
+        out = []
+        for r in rows:
+            d = to_et_date(r["exit_date"])
+            if date_from and d < date_from:
+                continue
+            if date_to and d > date_to:
+                continue
+            out.append(r)
+        return out
+    return rows
+
+
+def _starting_balance(
+    conn: sqlite3.Connection,
+    user_id: str,
+    account_id: str | None,
+) -> float:
+    """Starting balance for equity-curve baseline. If account_id is
+    given, use that account's starting_balance. Else, sum across all
+    user's accounts (or fall back to 100k default)."""
+    if account_id:
+        row = conn.execute(
+            "SELECT starting_balance FROM j2_accounts "
+            "WHERE id = ? AND user_id = ?",
+            (account_id, user_id),
+        ).fetchone()
+        if row:
+            return float(row["starting_balance"])
+        return 100_000.0
+    # All Accounts: sum
+    row = conn.execute(
+        "SELECT COALESCE(SUM(starting_balance), 0) AS total "
+        "FROM j2_accounts WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+    if row and row["total"]:
+        return float(row["total"])
+    return 100_000.0
+
+
+# ── Section 1: Equity ─────────────────────────────────────────────────────────
+
+
+def _equity_section(rows: list[sqlite3.Row], starting_balance: float) -> dict[str, Any]:
+    """Equity curve + KPI strip (peak / max DD / current DD / longest underwater)."""
+    if not rows:
+        return {
+            "kpis": {
+                "peakPnl": 0.0,
+                "maxDrawdown": 0.0,
+                "maxDrawdownPct": 0.0,
+                "currentDrawdown": 0.0,
+                "longestUnderwaterDays": 0,
+            },
+            "curve": [],
+        }
+
+    # Aggregate per ET-bucketed day
+    by_day: dict[str, float] = defaultdict(float)
+    for r in rows:
+        d = to_et_date(r["exit_date"])
+        by_day[d] += float(r["pnl_dollar"] or 0)
+
+    sorted_days = sorted(by_day.keys())
+
+    curve: list[dict[str, Any]] = []
+    running = starting_balance
+    peak = starting_balance
+    max_dd = 0.0
+    max_dd_pct = 0.0
+    current_dd = 0.0
+    longest_underwater = 0
+    underwater_streak = 0
+
+    for d in sorted_days:
+        running += by_day[d]
+        if running > peak:
+            peak = running
+            underwater_streak = 0
+        dd = running - peak
+        if dd < 0:
+            underwater_streak += 1
+            longest_underwater = max(longest_underwater, underwater_streak)
+        if dd < max_dd:
+            max_dd = dd
+            max_dd_pct = (dd / peak) if peak > 0 else 0.0
+        current_dd = dd
+        curve.append({
+            "date": d,
+            "equity": round(running, 2),
+            "drawdown": round(dd, 2),
+        })
+
+    return {
+        "kpis": {
+            "peakPnl": round(peak - starting_balance, 2),
+            "maxDrawdown": round(max_dd, 2),
+            "maxDrawdownPct": round(max_dd_pct, 6),
+            "currentDrawdown": round(current_dd, 2),
+            "longestUnderwaterDays": longest_underwater,
+        },
+        "curve": curve,
+    }
+
+
+# ── Section 2: Performance ────────────────────────────────────────────────────
+
+
+def _performance_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
+    """Daily/weekly/monthly/yearly P&L + hourly + day-of-week."""
+    by_day: dict[str, float] = defaultdict(float)
+    by_week: dict[str, float] = defaultdict(float)
+    by_month: dict[str, float] = defaultdict(float)
+    by_year: dict[int, float] = defaultdict(float)
+    by_hour: dict[int, dict[str, Any]] = defaultdict(lambda: {"pnl": 0.0, "tradeCount": 0})
+    by_dow: dict[str, dict[str, Any]] = defaultdict(lambda: {"pnl": 0.0, "tradeCount": 0})
+
+    DOW_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    for r in rows:
+        pnl = float(r["pnl_dollar"] or 0)
+        d_str = to_et_date(r["exit_date"])
+        d = Date.fromisoformat(d_str)
+
+        by_day[d_str] += pnl
+
+        # ISO week start Monday
+        monday = d - timedelta(days=d.weekday())
+        by_week[monday.isoformat()] += pnl
+
+        by_month[d.strftime("%Y-%m")] += pnl
+        by_year[d.year] += pnl
+
+        # Hour in ET
+        dt = datetime.fromisoformat(r["exit_date"].replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        et_dt = dt.astimezone(ET)
+        h = et_dt.hour
+        by_hour[h]["pnl"] += pnl
+        by_hour[h]["tradeCount"] += 1
+
+        dow_label = DOW_LABELS[d.weekday()]
+        by_dow[dow_label]["pnl"] += pnl
+        by_dow[dow_label]["tradeCount"] += 1
+
+    return {
+        "byDay":   [{"date": k, "pnl": round(v, 2)} for k, v in sorted(by_day.items())],
+        "byWeek":  [{"weekStart": k, "pnl": round(v, 2)} for k, v in sorted(by_week.items())],
+        "byMonth": [{"month": k, "pnl": round(v, 2)} for k, v in sorted(by_month.items())],
+        "byYear":  [{"year": k, "pnl": round(v, 2)} for k, v in sorted(by_year.items())],
+        "hourly":  [
+            {"hour": h, "pnl": round(by_hour.get(h, {"pnl": 0})["pnl"], 2),
+             "tradeCount": by_hour.get(h, {"tradeCount": 0})["tradeCount"]}
+            for h in range(24)
+        ],
+        "dayOfWeek": [
+            {"day": dow, "pnl": round(by_dow.get(dow, {"pnl": 0})["pnl"], 2),
+             "tradeCount": by_dow.get(dow, {"tradeCount": 0})["tradeCount"]}
+            for dow in DOW_LABELS[:5]  # Mon-Fri only (markets closed weekends typically)
+        ],
+    }
+
+
+# ── Section 3: Distribution ───────────────────────────────────────────────────
+
+
+def _distribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
+    """Long vs Short, P&L distribution histogram, R-mult buckets, win/loss streaks."""
+    long_pnls = [float(r["pnl_dollar"] or 0) for r in rows if r["side"] == "Long"]
+    short_pnls = [float(r["pnl_dollar"] or 0) for r in rows if r["side"] == "Short"]
+
+    def _side_summary(pnls):
+        if not pnls:
+            return {"totalPnl": 0.0, "winRate": None, "avgPnl": None, "tradeCount": 0}
+        wins = sum(1 for p in pnls if p > 0)
+        losses = sum(1 for p in pnls if p < 0)
+        wl = wins + losses
+        return {
+            "totalPnl": round(sum(pnls), 2),
+            "winRate": (wins / wl) if wl > 0 else None,
+            "avgPnl": round(sum(pnls) / len(pnls), 2),
+            "tradeCount": len(pnls),
+        }
+
+    long_short = {
+        "long":  _side_summary(long_pnls),
+        "short": _side_summary(short_pnls),
+    }
+
+    # P&L distribution histogram — 20 equal-width buckets
+    pnl_buckets: list[dict[str, Any]] = []
+    if rows:
+        all_pnls = [float(r["pnl_dollar"] or 0) for r in rows]
+        lo, hi = min(all_pnls), max(all_pnls)
+        if lo == hi:
+            pnl_buckets = [{"bucket": f"${lo:.0f}-${hi:.0f}", "count": len(all_pnls)}]
+        else:
+            n = 20
+            step = (hi - lo) / n
+            counts = [0] * n
+            for p in all_pnls:
+                idx = min(int((p - lo) / step), n - 1)
+                counts[idx] += 1
+            for i, c in enumerate(counts):
+                bl = lo + i * step
+                bh = lo + (i + 1) * step
+                pnl_buckets.append({
+                    "bucket": f"${bl:.0f}-${bh:.0f}",
+                    "count": c,
+                })
+
+    # R-multiple distribution (excludes null R)
+    r_counts: dict[str, int] = {label: 0 for label, _ in _R_BUCKETS}
+    for r in rows:
+        rm = r["r_multiple"]
+        if rm is None:
+            continue
+        rmf = float(rm)
+        for label, fn in _R_BUCKETS:
+            if fn(rmf):
+                r_counts[label] += 1
+                break
+
+    # Win/loss streaks — sequence of consecutive same-result trades
+    streaks: list[dict[str, Any]] = []
+    if rows:
+        cur_type = None
+        cur_len = 0
+        for r in rows:
+            t = "win" if r["result"] == "Win" else (
+                "loss" if r["result"] == "Loss" else "be"
+            )
+            if t == "be":
+                # BE doesn't break a streak; skip (matches typical convention)
+                continue
+            if t == cur_type:
+                cur_len += 1
+            else:
+                if cur_type is not None:
+                    streaks.append({"index": len(streaks) + 1, "type": cur_type, "length": cur_len})
+                cur_type = t
+                cur_len = 1
+        if cur_type is not None:
+            streaks.append({"index": len(streaks) + 1, "type": cur_type, "length": cur_len})
+
+    return {
+        "longVsShort": long_short,
+        "pnlBuckets": pnl_buckets,
+        "rMultiples": [{"bucket": label, "count": r_counts[label]} for label, _ in _R_BUCKETS],
+        "winLossStreaks": streaks,
+    }
+
+
+# ── Section 4: Attribution ────────────────────────────────────────────────────
+
+
+def _attribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
+    """P&L by setup/symbol + win-rate-by-setup + avg-R-by-setup + rolling win rate."""
+    by_setup_data: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"pnl": 0.0, "wins": 0, "losses": 0, "rs": [], "count": 0}
+    )
+    by_symbol_data: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"pnl": 0.0, "wins": 0, "losses": 0, "count": 0}
+    )
+
+    for r in rows:
+        pnl = float(r["pnl_dollar"] or 0)
+        result = r["result"]
+
+        symbol = r["symbol"]
+        s = by_symbol_data[symbol]
+        s["pnl"] += pnl
+        s["count"] += 1
+        if result == "Win": s["wins"] += 1
+        elif result == "Loss": s["losses"] += 1
+
+        setup = r["setup"]
+        if setup:  # exclude null-setup trades from attribution
+            t = by_setup_data[setup]
+            t["pnl"] += pnl
+            t["count"] += 1
+            if result == "Win": t["wins"] += 1
+            elif result == "Loss": t["losses"] += 1
+            if r["r_multiple"] is not None:
+                t["rs"].append(float(r["r_multiple"]))
+
+    by_setup = []
+    for setup, d in by_setup_data.items():
+        wl = d["wins"] + d["losses"]
+        wr = d["wins"] / wl if wl > 0 else None
+        avg_r = sum(d["rs"]) / len(d["rs"]) if d["rs"] else None
+        by_setup.append({
+            "setup": setup,
+            "totalPnl": round(d["pnl"], 2),
+            "winRate": wr,
+            "avgR": round(avg_r, 3) if avg_r is not None else None,
+            "tradeCount": d["count"],
+        })
+    by_setup.sort(key=lambda x: x["totalPnl"], reverse=True)
+
+    by_symbol = []
+    for symbol, d in by_symbol_data.items():
+        wl = d["wins"] + d["losses"]
+        wr = d["wins"] / wl if wl > 0 else None
+        by_symbol.append({
+            "symbol": symbol,
+            "totalPnl": round(d["pnl"], 2),
+            "winRate": wr,
+            "avgPnl": round(d["pnl"] / d["count"], 2) if d["count"] else None,
+            "tradeCount": d["count"],
+        })
+    by_symbol.sort(key=lambda x: x["totalPnl"], reverse=True)
+
+    # Rolling win rate windows
+    windows = {}
+    for w in (10, 20, 50, 100, 200):
+        windows[str(w)] = _rolling_win_rate(rows, w)
+
+    return {
+        "bySetup": by_setup,
+        "bySymbol": by_symbol,
+        "rollingWinRate": {"windows": windows},
+    }
+
+
+def _rolling_win_rate(rows: list[sqlite3.Row], window: int) -> list[dict[str, Any]]:
+    """For each trade index >= window, compute win rate over [i-window, i]."""
+    if len(rows) < window:
+        return []
+    # 1 = win, 0 = loss, skip BE in numerator+denominator to match other charts
+    wins_loss = []
+    for r in rows:
+        if r["result"] == "Win":   wins_loss.append(1)
+        elif r["result"] == "Loss": wins_loss.append(0)
+        else:                       wins_loss.append(None)  # BE
+    out = []
+    for i in range(window, len(wins_loss) + 1):
+        slc = [x for x in wins_loss[i - window:i] if x is not None]
+        if not slc:
+            continue
+        wr = sum(slc) / len(slc)
+        out.append({"tradeIndex": i, "winRate": round(wr, 4)})
+    return out
