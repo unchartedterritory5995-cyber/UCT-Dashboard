@@ -74,10 +74,26 @@ CREATE INDEX IF NOT EXISTS idx_j2_trades_user
     ON j2_trades(user_id);
 CREATE INDEX IF NOT EXISTS idx_j2_trades_user_entry
     ON j2_trades(user_id, entry_date);
+CREATE INDEX IF NOT EXISTS idx_j2_trades_user_exit
+    ON j2_trades(user_id, exit_date);
 CREATE INDEX IF NOT EXISTS idx_j2_trades_user_result
     ON j2_trades(user_id, result);
 CREATE INDEX IF NOT EXISTS idx_j2_trades_position
     ON j2_trades(position_id);
+
+CREATE TABLE IF NOT EXISTS j2_day_notes (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    date        TEXT NOT NULL,
+    notes       TEXT,
+    attachments TEXT NOT NULL DEFAULT '[]',
+    rules       TEXT NOT NULL DEFAULT '[]',
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    UNIQUE(user_id, date)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_day_notes_user_date
+    ON j2_day_notes(user_id, date);
 """
 
 

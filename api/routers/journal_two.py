@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 from api.middleware.auth_middleware import get_current_user
 from api.services.journal_two import (
+    calendar as calendar_service,
     community as community_service,
     csv_import as csv_import_service,
     positions as positions_service,
@@ -320,5 +321,72 @@ def import_confirm(
     settings = settings_service.get_settings(user["id"])
     result = trades_service.bulk_insert_trades(user["id"], trades, settings)
     return result
+
+
+# ── Calendar (Phase 1) ───────────────────────────────────────────────────────
+
+
+@router.get("/calendar")
+def get_calendar(
+    view: str = "month",
+    year: int | None = None,
+    month: int | None = None,
+    week: int | None = None,
+    account_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Aggregate trades into per-day buckets for the requested period.
+    `view` = year|month|week. `account_id` is accepted but unused until
+    Phase 2 (Accounts) ships."""
+    if year is None:
+        from datetime import datetime
+        year = datetime.now().year
+    try:
+        return calendar_service.get_calendar(
+            user["id"],
+            view=view,
+            year=year,
+            month=month,
+            week=week,
+            account_id=account_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/calendar/day/{date}")
+def get_calendar_day(
+    date: str,
+    account_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Per-day metrics + trade list + saved reflection notes."""
+    # Validate date format YYYY-MM-DD
+    from datetime import date as Date
+    try:
+        Date.fromisoformat(date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    return calendar_service.get_day_detail(
+        user["id"], date, account_id=account_id,
+    )
+
+
+@router.put("/calendar/day/{date}/notes")
+def put_calendar_day_notes(
+    date: str,
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Upsert reflection notes / attachments / rules-checklist for a day."""
+    from datetime import date as Date
+    try:
+        Date.fromisoformat(date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    try:
+        return calendar_service.upsert_day_notes(user["id"], date, payload)
+    except calendar_service.DayNotesValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
