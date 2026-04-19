@@ -9,6 +9,8 @@ import useJ2AccountComparison from '../hooks/useJ2AccountComparison'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import ComparisonGrid from '../components/accounts/ComparisonGrid'
 import DeleteAccountModal from '../components/accounts/DeleteAccountModal'
+import GoalProgress from '../components/accounts/GoalProgress'
+import Milestones from '../components/accounts/Milestones'
 import { colorHex } from '../lib/accountColors'
 import { money } from '../../../lib/journal-2-0'
 import styles from './AccountsTab.module.css'
@@ -16,7 +18,8 @@ import styles from './AccountsTab.module.css'
 export default function AccountsTab({ onNewAccount }) {
   const { accounts, isLoading, error, refresh } = useJ2Accounts()
   const { accounts: comparison, isLoading: cmpLoading } = useJ2AccountComparison()
-  const { setAccount } = useJ2SelectedAccount()
+  const { accountId, account, setAccount } = useJ2SelectedAccount()
+  const currentComparison = comparison.find((c) => c.id === accountId) || comparison[0]
 
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteConflict, setDeleteConflict] = useState(null)
@@ -115,6 +118,15 @@ export default function AccountsTab({ onNewAccount }) {
           </div>
         )}
       </section>
+
+      {(accountId != null && account) && (
+        <>
+          <GoalProgress account={account} />
+          {currentComparison && (
+            <Milestones totalReturn={currentComparison.totalReturn} />
+          )}
+        </>
+      )}
 
       <section className={styles.section}>
         <h3 className={styles.sectionHeader}>Account Comparison</h3>

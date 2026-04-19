@@ -70,6 +70,7 @@ def get_analytics(
             "performance": _performance_section(rows),
             "distribution": _distribution_section(rows),
             "attribution": _attribution_section(rows),
+            "edgeScore": _edge_score(rows),
         }
     finally:
         if owned:
@@ -435,6 +436,95 @@ def _attribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
         "bySetup": by_setup,
         "bySymbol": by_symbol,
         "rollingWinRate": {"windows": windows},
+    }
+
+
+def _edge_score(rows: list[sqlite3.Row]) -> dict[str, Any]:
+    """Composite Edge Scorecard: combines win rate, profit factor, and
+    R-multiple consistency into one trended metric.
+
+    Formula (simplified, all-time):
+      score = winRate * min(profitFactor, 5) * rConsistency
+
+    Where rConsistency = 1 - normalized stdev of R-multiples (capped 0..1).
+    Higher = more reliable edge. Returns null when fewer than 10 trades.
+
+    Also returns components so the UI can show "why" the score is what
+    it is + a 30-day trailing trend (last 30 trades).
+    """
+    if not rows:
+        return {"score": None, "components": None, "trend": []}
+
+    pnls = [float(r["pnl_dollar"] or 0) for r in rows]
+    rs = [float(r["r_multiple"]) for r in rows if r["r_multiple"] is not None]
+    wins = sum(1 for r in rows if r["result"] == "Win")
+    losses = sum(1 for r in rows if r["result"] == "Loss")
+    wl = wins + losses
+    if wl == 0:
+        return {"score": None, "components": None, "trend": []}
+
+    win_rate = wins / wl
+
+    sum_wins = sum(p for p in pnls if p > 0)
+    sum_losses = abs(sum(p for p in pnls if p < 0))
+    if sum_losses == 0:
+        profit_factor = 5.0  # capped
+    else:
+        profit_factor = min(sum_wins / sum_losses, 5.0)
+
+    if len(rs) >= 2:
+        mean_r = sum(rs) / len(rs)
+        var_r = sum((r - mean_r) ** 2 for r in rs) / len(rs)
+        stdev_r = var_r ** 0.5
+        # Normalize by ~3R as the "high variance" baseline → 1 = high consistency
+        r_consistency = max(0.0, min(1.0, 1.0 - (stdev_r / 3.0)))
+    else:
+        r_consistency = None
+
+    if len(rows) < 10 or r_consistency is None:
+        return {
+            "score": None,
+            "components": {
+                "winRate": round(win_rate, 4),
+                "profitFactor": round(profit_factor, 3),
+                "rConsistency": r_consistency,
+                "tradeCount": len(rows),
+            },
+            "trend": [],
+        }
+
+    score = win_rate * profit_factor * r_consistency
+
+    # Rolling trend: every 5th trade index, recompute score on trailing 30
+    trend: list[dict[str, Any]] = []
+    window = 30
+    for i in range(window, len(rows) + 1, 5):
+        slc = rows[i - window:i]
+        slc_rs = [float(r["r_multiple"]) for r in slc if r["r_multiple"] is not None]
+        slc_wins = sum(1 for r in slc if r["result"] == "Win")
+        slc_losses = sum(1 for r in slc if r["result"] == "Loss")
+        slc_wl = slc_wins + slc_losses
+        if slc_wl == 0 or len(slc_rs) < 2:
+            continue
+        wr = slc_wins / slc_wl
+        slc_pnls = [float(r["pnl_dollar"] or 0) for r in slc]
+        sw = sum(p for p in slc_pnls if p > 0)
+        sl = abs(sum(p for p in slc_pnls if p < 0))
+        pf = 5.0 if sl == 0 else min(sw / sl, 5.0)
+        m = sum(slc_rs) / len(slc_rs)
+        sd = (sum((r - m) ** 2 for r in slc_rs) / len(slc_rs)) ** 0.5
+        rc = max(0.0, min(1.0, 1.0 - (sd / 3.0)))
+        trend.append({"tradeIndex": i, "score": round(wr * pf * rc, 4)})
+
+    return {
+        "score": round(score, 4),
+        "components": {
+            "winRate": round(win_rate, 4),
+            "profitFactor": round(profit_factor, 3),
+            "rConsistency": round(r_consistency, 4),
+            "tradeCount": len(rows),
+        },
+        "trend": trend,
     }
 
 

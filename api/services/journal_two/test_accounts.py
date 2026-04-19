@@ -409,6 +409,76 @@ def test_get_account_settings_returns_default_on_first_call(db_conn):
     assert settings["setups"] == ["VCP"]
 
 
+def test_update_goals_round_trip(db_conn):
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, update_goals, get_account,
+    )
+    _add_user(db_conn, "u1", "u1@x.com")
+    acc = get_or_migrate_default_account("u1", conn=db_conn)
+
+    updated = update_goals("u1", acc["id"], {
+        "daily": 100,
+        "weekly": 500,
+        "monthly": 2000,
+        "yearly": 24000,
+    }, conn=db_conn)
+    assert updated["goals"]["daily"] == 100
+    assert updated["goals"]["yearly"] == 24000
+
+
+def test_update_goals_drops_unknown_keys(db_conn):
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, update_goals,
+    )
+    _add_user(db_conn, "u1", "u1@x.com")
+    acc = get_or_migrate_default_account("u1", conn=db_conn)
+
+    updated = update_goals("u1", acc["id"], {
+        "daily": 100,
+        "hourly": 999,  # unknown — dropped
+    }, conn=db_conn)
+    assert "hourly" not in updated["goals"]
+    assert updated["goals"]["daily"] == 100
+
+
+def test_update_goals_rejects_negative(db_conn):
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, update_goals, AccountValidationError,
+    )
+    _add_user(db_conn, "u1", "u1@x.com")
+    acc = get_or_migrate_default_account("u1", conn=db_conn)
+    with pytest.raises(AccountValidationError):
+        update_goals("u1", acc["id"], {"daily": -50}, conn=db_conn)
+
+
+def test_goal_progress_with_targets(db_conn):
+    """Compute current Y/M/W/D P&L vs targets."""
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, update_goals, goal_progress,
+    )
+    from datetime import datetime, timezone
+    _add_user(db_conn, "u1", "u1@x.com")
+    acc = get_or_migrate_default_account("u1", conn=db_conn)
+    update_goals("u1", acc["id"], {
+        "daily": 100, "weekly": 500, "monthly": 2000, "yearly": 24000,
+    }, conn=db_conn)
+
+    # Trade dated today (ET) so all 4 periods include it.
+    now_iso = datetime.now(timezone.utc).isoformat()
+    _add_trade(db_conn, "u1", account_id=acc["id"], pnl=50, result="Win")
+    # Override exit_date to "now" to land in today bucket
+    db_conn.execute(
+        "UPDATE j2_trades SET exit_date = ? WHERE user_id = ?",
+        (now_iso, "u1"),
+    )
+    db_conn.commit()
+
+    got = goal_progress("u1", acc["id"], conn=db_conn)
+    assert got["periods"]["daily"]["target"] == 100
+    assert got["periods"]["daily"]["pnl"] == 50
+    assert got["periods"]["daily"]["progress"] == 0.5
+
+
 def test_upsert_account_settings_round_trip(db_conn):
     from api.services.journal_two.accounts import (
         get_or_migrate_default_account, upsert_account_settings,

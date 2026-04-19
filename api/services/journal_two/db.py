@@ -127,6 +127,9 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_trades ADD COLUMN account_id TEXT",
     "CREATE INDEX IF NOT EXISTS idx_j2_positions_account ON j2_positions(account_id)",
     "CREATE INDEX IF NOT EXISTS idx_j2_trades_account ON j2_trades(account_id)",
+    # Phase 4: per-account Goal Progress targets (JSON blob on accounts row).
+    # Shape: {"daily":95.24,"weekly":461.89,"monthly":2000,"yearly":24000}.
+    "ALTER TABLE j2_accounts ADD COLUMN goals TEXT NOT NULL DEFAULT '{}'",
 ]
 
 

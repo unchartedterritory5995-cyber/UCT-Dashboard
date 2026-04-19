@@ -223,6 +223,124 @@
   color: var(--ut-gold);
 }
 
+.toggleGroup {
+  display: flex;
+  gap: 6px;
+}
+
+.toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.edgeSection {
+  padding: 14px 18px;
+  background: linear-gradient(135deg, var(--bg-surface), var(--bg-elevated));
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: 10px;
+}
+
+.edgeRow {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.edgeMain {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.edgeLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.edgeValue {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ut-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.edgeValueDim {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  color: var(--text-muted);
+}
+
+.edgeFormula {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.edgeNeed {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.edgeBreakdown {
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+  padding: 6px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.edgeComp {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 70px;
+}
+
+.edgeCompLabel {
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.edgeCompValue {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+.edgeTrend {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trendLabel {
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.liveHint {
+  margin: 0;
+  padding: 6px 12px;
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-size: 12px;
+}
+
 .miniPills {
   display: inline-flex;
   background: var(--bg);

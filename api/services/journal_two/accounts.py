@@ -634,6 +634,82 @@ def _account_metrics(
     }
 
 
+# ── Goal progress (current-period P&L vs target) ────────────────────────────
+
+
+def goal_progress(
+    user_id: str,
+    account_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Return current Daily/Weekly/Monthly/Yearly P&L totals + each
+    goal's percentage. Uses ET calendar day boundaries via calendar.to_et_date.
+    """
+    from datetime import date as Date, timedelta
+    from api.services.journal_two.calendar import to_et_date, ET
+
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        acc = get_account(user_id, account_id, conn=conn)
+        if not acc:
+            return None
+
+        now_et = datetime.now(ET)
+        today_et = now_et.date()
+        # Week starts Monday
+        monday = today_et - timedelta(days=today_et.weekday())
+        month_start = today_et.replace(day=1)
+        year_start = today_et.replace(month=1, day=1)
+
+        rows = conn.execute(
+            """
+            SELECT exit_date, pnl_dollar
+              FROM j2_trades
+             WHERE user_id = ? AND account_id = ?
+               AND exit_date >= ?
+            """,
+            (user_id, account_id, year_start.isoformat() + "T00:00:00Z"),
+        ).fetchall()
+
+        daily_pnl = 0.0
+        weekly_pnl = 0.0
+        monthly_pnl = 0.0
+        yearly_pnl = 0.0
+        for r in rows:
+            d_str = to_et_date(r["exit_date"])
+            d = Date.fromisoformat(d_str)
+            pnl = float(r["pnl_dollar"] or 0)
+            if d >= year_start:
+                yearly_pnl += pnl
+            if d >= month_start:
+                monthly_pnl += pnl
+            if d >= monday:
+                weekly_pnl += pnl
+            if d == today_et:
+                daily_pnl += pnl
+
+        goals = acc.get("goals") or {}
+
+        def pct(pnl, target):
+            if not target or target <= 0:
+                return None
+            return round(pnl / target, 4)
+
+        return {
+            "accountId": account_id,
+            "periods": {
+                "daily":   {"pnl": round(daily_pnl, 2),   "target": goals.get("daily"),   "progress": pct(daily_pnl, goals.get("daily"))},
+                "weekly":  {"pnl": round(weekly_pnl, 2),  "target": goals.get("weekly"),  "progress": pct(weekly_pnl, goals.get("weekly"))},
+                "monthly": {"pnl": round(monthly_pnl, 2), "target": goals.get("monthly"), "progress": pct(monthly_pnl, goals.get("monthly"))},
+                "yearly":  {"pnl": round(yearly_pnl, 2),  "target": goals.get("yearly"),  "progress": pct(yearly_pnl, goals.get("yearly"))},
+            },
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
 # ── Per-account settings ─────────────────────────────────────────────────────
 
 
@@ -713,6 +789,12 @@ def upsert_account_settings(
 
 
 def _row_to_account(row: sqlite3.Row) -> dict[str, Any]:
+    keys = row.keys() if hasattr(row, "keys") else []
+    goals_raw = row["goals"] if "goals" in keys else None
+    try:
+        goals = json.loads(goals_raw) if goals_raw else {}
+    except (TypeError, json.JSONDecodeError):
+        goals = {}
     return {
         "id": row["id"],
         "userId": row["user_id"],
@@ -720,9 +802,59 @@ def _row_to_account(row: sqlite3.Row) -> dict[str, Any]:
         "color": row["color"],
         "broker": row["broker"],
         "startingBalance": float(row["starting_balance"]),
+        "goals": goals,
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
+
+
+# ── Goals (Phase 4) ──────────────────────────────────────────────────────────
+
+
+_GOAL_KEYS = {"daily", "weekly", "monthly", "yearly"}
+
+
+def update_goals(
+    user_id: str,
+    account_id: str,
+    goals: dict[str, Any],
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Set this account's Daily/Weekly/Monthly/Yearly target $ values.
+    Unrecognized keys are dropped; non-numeric values raise."""
+    if not isinstance(goals, dict):
+        raise AccountValidationError("goals must be an object")
+    cleaned: dict[str, float] = {}
+    for k, v in goals.items():
+        if k not in _GOAL_KEYS:
+            continue
+        if v is None or v == "":
+            continue
+        if not isinstance(v, (int, float)):
+            raise AccountValidationError(f"goals.{k} must be a number")
+        if v < 0:
+            raise AccountValidationError(f"goals.{k} must be >= 0")
+        cleaned[k] = float(v)
+
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id FROM j2_accounts WHERE id = ? AND user_id = ?",
+            (account_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None
+        conn.execute(
+            "UPDATE j2_accounts SET goals = ?, updated_at = ? "
+            "WHERE id = ? AND user_id = ?",
+            (json.dumps(cleaned), _now_iso(), account_id, user_id),
+        )
+        conn.commit()
+        return get_account(user_id, account_id, conn=conn)
+    finally:
+        if owned:
+            conn.close()
 
 
 def _account_to_settings(acc: dict[str, Any]) -> dict[str, Any]:

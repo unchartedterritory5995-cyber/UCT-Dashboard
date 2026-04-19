@@ -456,6 +456,36 @@ def move_all_to_route(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.put("/accounts/{account_id}/goals")
+def put_account_goals(
+    account_id: str,
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Update Daily/Weekly/Monthly/Yearly $ targets for this account."""
+    try:
+        updated = accounts_service.update_goals(
+            user["id"], account_id, payload,
+        )
+    except accounts_service.AccountValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return updated
+
+
+@router.get("/accounts/{account_id}/goal-progress")
+def get_account_goal_progress(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Current Daily/Weekly/Monthly/Yearly P&L vs each target."""
+    got = accounts_service.goal_progress(user["id"], account_id)
+    if got is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return got
+
+
 @router.get("/accounts/{account_id}/settings")
 def get_account_settings_route(
     account_id: str,

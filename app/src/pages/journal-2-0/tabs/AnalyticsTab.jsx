@@ -11,6 +11,9 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
 import useJ2Analytics from '../hooks/useJ2Analytics'
+import useJ2Positions from '../hooks/useJ2Positions'
+import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
+import useLivePrices from '../../../hooks/useLivePrices'
 import {
   fmtSignedDollar,
   fmtSignedPct,
@@ -204,12 +207,91 @@ export default function AnalyticsTab() {
 
       {data && data.tradeCount > 0 && (
         <>
+          {data.edgeScore && <EdgeScorecard edge={data.edgeScore} />}
           <EquitySection equity={data.equity} />
           <PerformanceSection performance={data.performance} />
           <DistributionSection distribution={data.distribution} />
           <AttributionSection attribution={data.attribution} />
         </>
       )}
+      {data && data.tradeCount === 0 && data.equity?.curve?.length > 0 && (
+        // Shouldn't happen but guard — keep blank
+        null
+      )}
+    </div>
+  )
+}
+
+// ── Edge Scorecard (J2-unique) ───────────────────────────────────────────────
+
+function EdgeScorecard({ edge }) {
+  const trendOption = useMemo(() => {
+    const t = edge.trend || []
+    return {
+      ...baseChart,
+      grid: { ...baseChart.grid, top: 10, bottom: 18, left: 30, right: 10 },
+      tooltip: {
+        ...baseChart.tooltip, trigger: 'axis',
+        formatter: (params) => `Trade #${t[params[0].dataIndex].tradeIndex}: ${params[0].value.toFixed(3)}`,
+      },
+      xAxis: { type: 'category', show: false, data: t.map((d) => d.tradeIndex), boundaryGap: false },
+      yAxis: { type: 'value', show: false, min: 0 },
+      series: [{
+        type: 'line', data: t.map((d) => d.score), symbol: 'none', smooth: true,
+        lineStyle: { color: CHART_COLORS.gold, width: 2 },
+        areaStyle: { color: 'rgba(201, 168, 76, 0.15)' },
+      }],
+    }
+  }, [edge])
+
+  const score = edge.score
+  const c = edge.components || {}
+
+  return (
+    <section className={styles.edgeSection}>
+      <div className={styles.edgeRow}>
+        <div className={styles.edgeMain}>
+          <span className={styles.edgeLabel}>Edge Score</span>
+          {score == null ? (
+            <>
+              <span className={styles.edgeValueDim}>—</span>
+              <span className={styles.edgeNeed}>
+                Need 10+ trades with R-multiples to compute
+              </span>
+            </>
+          ) : (
+            <>
+              <span className={styles.edgeValue}>{score.toFixed(3)}</span>
+              <span className={styles.edgeFormula}>
+                = Win × PF × R-consistency
+              </span>
+            </>
+          )}
+        </div>
+        {c.winRate != null && (
+          <div className={styles.edgeBreakdown}>
+            <Component label="Win Rate" value={`${(c.winRate * 100).toFixed(1)}%`} />
+            <Component label="Profit Factor" value={c.profitFactor === 5 ? '5.0+' : c.profitFactor.toFixed(2)} />
+            <Component label="R Consistency" value={c.rConsistency != null ? `${(c.rConsistency * 100).toFixed(0)}%` : '—'} />
+            <Component label="Trades" value={c.tradeCount} />
+          </div>
+        )}
+        {edge.trend && edge.trend.length > 0 && (
+          <div className={styles.edgeTrend}>
+            <span className={styles.trendLabel}>Trend (rolling-30)</span>
+            <ReactECharts option={trendOption} style={{ height: 50, width: 180 }} />
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function Component({ label, value }) {
+  return (
+    <div className={styles.edgeComp}>
+      <span className={styles.edgeCompLabel}>{label}</span>
+      <span className={styles.edgeCompValue}>{value}</span>
     </div>
   )
 }
@@ -219,11 +301,49 @@ export default function AnalyticsTab() {
 function EquitySection({ equity }) {
   const { kpis, curve } = equity
   const [showDD, setShowDD] = useState(false)
+  const [showLive, setShowLive] = useState(false)
+  const { accountId } = useJ2SelectedAccount()
+  const { positions } = useJ2Positions()
+
+  // Open positions live prices
+  const symbols = useMemo(
+    () => (showLive ? positions.map((p) => p.symbol) : []),
+    [positions, showLive],
+  )
+  const { prices } = useLivePrices(symbols)
+
+  // Unrealized P&L from currently open positions (single account only)
+  const liveUnrealized = useMemo(() => {
+    if (!showLive || accountId == null) return null
+    if (!positions.length) return 0
+    let total = 0
+    for (const p of positions) {
+      const cur = prices[p.symbol]?.price
+      if (cur == null || !Number.isFinite(cur)) continue
+      const delta = (cur - p.entryPrice) * p.shares
+      total += p.side === 'Short' ? -delta : delta
+    }
+    return total
+  }, [showLive, positions, prices, accountId])
 
   const option = useMemo(() => {
     const dates = curve.map((d) => d.date)
     const equitySeries = curve.map((d) => d.equity)
     const ddSeries = curve.map((d) => d.drawdown)
+
+    // Append "now" dashed point when live toggle is on
+    let liveSeries = null
+    if (showLive && liveUnrealized != null && curve.length > 0) {
+      const lastEq = curve[curve.length - 1].equity
+      const liveEq = lastEq + liveUnrealized
+      const today = todayET()
+      dates.push(today)
+      // build a parallel series with null for all prior indices + the live point
+      liveSeries = new Array(equitySeries.length).fill(null)
+      liveSeries.push(liveEq)
+      equitySeries.push(null)  // don't draw solid through "now"
+      ddSeries.push(null)
+    }
     return {
       ...baseChart,
       tooltip: {
@@ -275,9 +395,19 @@ function EquitySection({ equity }) {
             },
           },
         }] : []),
+        ...(liveSeries ? [{
+          name: 'Live (unrealized)',
+          type: 'line',
+          data: liveSeries,
+          connectNulls: true,
+          symbol: 'circle',
+          symbolSize: 7,
+          lineStyle: { color: CHART_COLORS.gold, type: 'dashed' },
+          itemStyle: { color: CHART_COLORS.gold },
+        }] : []),
       ],
     }
-  }, [curve, showDD])
+  }, [curve, showDD, showLive, liveUnrealized])
 
   return (
     <section className={styles.section}>
@@ -292,14 +422,32 @@ function EquitySection({ equity }) {
       <div className={styles.chartCard}>
         <div className={styles.chartHeader}>
           <h4 className={styles.chartTitle}>Equity Curve</h4>
-          <button
-            type="button"
-            className={`${styles.toggle} ${showDD ? styles.toggleOn : ''}`}
-            onClick={() => setShowDD((x) => !x)}
-          >
-            Drawdown overlay
-          </button>
+          <div className={styles.toggleGroup}>
+            <button
+              type="button"
+              className={`${styles.toggle} ${showDD ? styles.toggleOn : ''}`}
+              onClick={() => setShowDD((x) => !x)}
+            >
+              Drawdown overlay
+            </button>
+            <button
+              type="button"
+              className={`${styles.toggle} ${showLive ? styles.toggleOn : ''}`}
+              onClick={() => setShowLive((x) => !x)}
+              disabled={accountId == null}
+              title={accountId == null ? 'Select a single account to show live unrealized' : ''}
+            >
+              Live unrealized
+            </button>
+          </div>
         </div>
+        {showLive && accountId != null && liveUnrealized != null && (
+          <p className={styles.liveHint}>
+            Live unrealized: <strong className={liveUnrealized >= 0 ? styles.pos : styles.neg}>
+              {fmtSignedDollar(liveUnrealized)}
+            </strong> from {positions.length} open position{positions.length === 1 ? '' : 's'}
+          </p>
+        )}
         <ReactECharts option={option} style={{ height: 280 }} />
       </div>
     </section>

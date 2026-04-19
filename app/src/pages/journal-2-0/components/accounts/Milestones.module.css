@@ -1,0 +1,126 @@
+.section {
+  padding: 16px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  font-size: 14px;
+}
+
+.title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.current {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.current strong {
+  color: var(--text-bright);
+  font-weight: 700;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tier {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 84px;
+  opacity: 0.5;
+  transition: opacity 200ms;
+}
+
+.tierHit {
+  opacity: 1;
+  border-color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+}
+
+.tierActive {
+  opacity: 1;
+}
+
+.badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.tierHit .badge {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+  color: var(--bg);
+  font-size: 14px;
+}
+
+.tierActive .badge {
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
+}
+
+.tierLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+.tierHit .tierLabel,
+.tierActive .tierLabel {
+  color: var(--text-bright);
+}
+
+.tierBar {
+  width: 100%;
+  height: 3px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.tierBarFill {
+  height: 100%;
+  background: var(--ut-gold);
+  border-radius: 2px;
+}
