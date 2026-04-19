@@ -10,6 +10,8 @@ import { useSearchParams } from 'react-router-dom'
 import useJ2Calendar from '../hooks/useJ2Calendar'
 import CalendarHeader from '../components/calendar/CalendarHeader'
 import MonthView from '../components/calendar/MonthView'
+import YearView from '../components/calendar/YearView'
+import WeekView from '../components/calendar/WeekView'
 import { todayET } from '../lib/calendar'
 import styles from './CalendarTab.module.css'
 
@@ -88,14 +90,10 @@ export default function CalendarTab() {
         <MonthView year={year} month={month} days={days} mode={mode} />
       )}
       {view === 'year' && (
-        <div className={styles.placeholder}>
-          Year view ships in Phase 1 / Step 7.
-        </div>
+        <YearView year={year} days={days} mode={mode} />
       )}
       {view === 'week' && (
-        <div className={styles.placeholder}>
-          Week view ships in Phase 1 / Step 7.
-        </div>
+        <WeekView year={year} week={week || 1} days={days} mode={mode} />
       )}
 
       {isLoading && days.length === 0 && (
