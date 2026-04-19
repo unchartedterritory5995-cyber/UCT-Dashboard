@@ -32,6 +32,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
   const [originalStop, setOriginalStop] = useState('')
   const [setupVal, setSetupVal] = useState('')
   const [notes, setNotes] = useState('')
+  const [fees, setFees] = useState('')
 
   const [errorMsg, setErrorMsg] = useState('')
   const [saving, setSaving] = useState(false)
@@ -101,6 +102,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
         originalStop: originalStop === '' ? null : Number(originalStop),
         setup: setupVal.trim() || null,
         notes: notes.trim() || null,
+        fees: fees === '' ? 0 : Number(fees),
         contextAtEntry: {},
       })
       onClose?.()
@@ -249,17 +251,34 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
             </label>
           </div>
 
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>Setup</span>
-            <select
-              value={setupVal}
-              onChange={(e) => setSetupVal(e.target.value)}
-              className={styles.select}
-            >
-              <option value="">— none —</option>
-              {setups.map((s) => (<option key={s} value={s}>{s}</option>))}
-            </select>
-          </label>
+          <div className={styles.grid2}>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Setup</span>
+              <select
+                value={setupVal}
+                onChange={(e) => setSetupVal(e.target.value)}
+                className={styles.select}
+              >
+                <option value="">— none —</option>
+                {setups.map((s) => (<option key={s} value={s}>{s}</option>))}
+              </select>
+            </label>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Fees / Commissions</span>
+              <div className={styles.prefixInput}>
+                <span className={styles.prefix}>$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={fees}
+                  onChange={(e) => setFees(e.target.value)}
+                  className={styles.numberInputInner}
+                  placeholder="0.00"
+                />
+              </div>
+            </label>
+          </div>
 
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Notes</span>

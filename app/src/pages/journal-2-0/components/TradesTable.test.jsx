@@ -41,7 +41,8 @@ describe('TradesTable — YSS reference render (§11.3)', () => {
   it('renders P&L +$493.00 and R +3.0R', () => {
     const cols = buildTradesColumns().filter((c) => !c.hiddenByDefault)
     render(<TradesTable trades={[BASE_TRADE]} visibleColumns={cols} />)
-    expect(screen.getByText('+$493.00')).toBeInTheDocument()
+    // Now rendered in both "P&L $" (gross) and "Net P&L" columns
+    expect(screen.getAllByText('+$493.00').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('+3.0R')).toBeInTheDocument()
   })
 

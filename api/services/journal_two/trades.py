@@ -73,11 +73,20 @@ def _validate_close_payload(position: dict[str, Any], payload: dict[str, Any]) -
     if exit_dt.astimezone(timezone.utc) < entry_dt.astimezone(timezone.utc):
         raise CloseValidationError("exitDate cannot be before entryDate")
 
+    fees_raw = payload.get("fees", 0)
+    if fees_raw is None or fees_raw == "":
+        fees = 0.0
+    elif isinstance(fees_raw, (int, float)) and fees_raw >= 0:
+        fees = float(fees_raw)
+    else:
+        raise CloseValidationError("fees must be a non-negative number")
+
     return {
         "shares": float(shares_to_close),
         "exit_price": float(exit_price),
         "exit_date": exit_dt.astimezone(timezone.utc).isoformat(),
         "notes": notes if isinstance(notes, str) else None,
+        "fees": fees,
     }
 
 
@@ -143,8 +152,8 @@ def close_position(
                     entry_price, entry_date, exit_price, exit_date,
                     original_stop, setup, notes, pnl_dollar, pnl_percent,
                     r_multiple, hold_days, result, context_at_entry,
-                    account_id, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    account_id, fees, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     trade_id,
@@ -167,6 +176,7 @@ def close_position(
                     derived["result"],
                     json.dumps(position["contextAtEntry"]),
                     position.get("accountId"),  # inherit from parent position
+                    normalized.get("fees", 0.0),
                     now,
                 ),
             )
@@ -318,6 +328,13 @@ def _validate_manual_trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
     setup = payload.get("setup")
     notes = payload.get("notes")
+    fees_raw = payload.get("fees", 0)
+    if fees_raw is None or fees_raw == "":
+        fees = 0.0
+    elif isinstance(fees_raw, (int, float)) and fees_raw >= 0:
+        fees = float(fees_raw)
+    else:
+        raise ManualTradeValidationError("fees must be a non-negative number")
 
     return {
         "symbol": symbol.strip().upper(),
@@ -330,6 +347,7 @@ def _validate_manual_trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "originalStop": original_stop,
         "setup": setup.strip() if isinstance(setup, str) and setup.strip() else None,
         "notes": notes if isinstance(notes, str) else None,
+        "fees": fees,
     }
 
 
@@ -375,8 +393,8 @@ def create_trade_manual(
                 entry_price, entry_date, exit_price, exit_date,
                 original_stop, setup, notes, pnl_dollar, pnl_percent,
                 r_multiple, hold_days, result, context_at_entry,
-                account_id, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                account_id, fees, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 trade_id,
@@ -399,6 +417,7 @@ def create_trade_manual(
                 derived["result"],
                 json.dumps(context),
                 account_id,
+                validated.get("fees", 0.0),
                 now,
             ),
         )
@@ -501,8 +520,8 @@ def bulk_insert_trades(
                         entry_price, entry_date, exit_price, exit_date,
                         original_stop, setup, notes, pnl_dollar, pnl_percent,
                         r_multiple, hold_days, result, context_at_entry,
-                        account_id, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        account_id, fees, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         trade_id,
@@ -525,6 +544,7 @@ def bulk_insert_trades(
                         derived["result"],
                         json.dumps(context),
                         account_id,
+                        float(pt.get("fees") or 0),
                         now,
                     ),
                 )
@@ -562,6 +582,10 @@ def delete_all_trades(
 def _row_to_trade(row: sqlite3.Row) -> dict[str, Any]:
     keys = row.keys() if hasattr(row, "keys") else []
     account_id = row["account_id"] if "account_id" in keys else None
+    fees = float(row["fees"]) if "fees" in keys and row["fees"] is not None else 0.0
+    gross_pnl = float(row["pnl_dollar"])
+    # pnl_dollar is stored GROSS (pre-fees). Expose both so the UI can
+    # show Net P&L where appropriate.
     return {
         "id": row["id"],
         "userId": row["user_id"],
@@ -577,7 +601,10 @@ def _row_to_trade(row: sqlite3.Row) -> dict[str, Any]:
         "originalStop": float(row["original_stop"]),
         "setup": row["setup"],
         "notes": row["notes"],
-        "pnlDollar": float(row["pnl_dollar"]),
+        "pnlDollar": gross_pnl,                  # gross (legacy field name retained)
+        "pnlDollarGross": gross_pnl,             # explicit alias
+        "pnlDollarNet": round(gross_pnl - fees, 2),  # net-of-fees
+        "fees": round(fees, 2),
         "pnlPercent": float(row["pnl_percent"]),
         "rMultiple": None if row["r_multiple"] is None else float(row["r_multiple"]),
         "holdDays": int(row["hold_days"]),

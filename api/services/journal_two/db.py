@@ -130,6 +130,10 @@ _PHASE_2_ALTERS = [
     # Phase 4: per-account Goal Progress targets (JSON blob on accounts row).
     # Shape: {"daily":95.24,"weekly":461.89,"monthly":2000,"yearly":24000}.
     "ALTER TABLE j2_accounts ADD COLUMN goals TEXT NOT NULL DEFAULT '{}'",
+    # Phase 5: Fees/commissions on trades. Defaults to 0 for legacy rows
+    # so existing trades' reported P&L stays the same (gross = net when
+    # no fees recorded). New trades can specify real fees.
+    "ALTER TABLE j2_trades ADD COLUMN fees REAL NOT NULL DEFAULT 0",
 ]
 
 

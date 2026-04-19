@@ -24,7 +24,9 @@ export function buildTradesColumns() {
     { key: 'entryDate', label: 'Entry Date', align: 'left', tooltip: 'Entry date. Default sort (newest first).' },
     { key: 'exitPrice', label: 'Exit $', align: 'right', tooltip: 'Exit price.' },
     { key: 'exitDate', label: 'Exit Date', align: 'left', tooltip: 'Exit date.' },
-    { key: 'pnlDollar', label: 'P&L $', align: 'right', tooltip: '(exit − entry) × shares (Long); sign-flipped for Short.' },
+    { key: 'pnlDollar', label: 'P&L $', align: 'right', tooltip: 'Gross (exit − entry) × shares (Long); sign-flipped for Short.' },
+    { key: 'pnlDollarNet', label: 'Net P&L', align: 'right', tooltip: 'P&L minus fees/commissions.' },
+    { key: 'fees', label: 'Fees', align: 'right', tooltip: 'Commissions and fees for this trade.', hiddenByDefault: true },
     { key: 'pnlPercent', label: 'P&L %', align: 'right', tooltip: '(exit − entry) / entry.' },
     { key: 'rMultiple', label: 'R', align: 'right', tooltip: 'Reward / risk, using the ORIGINAL stop — frozen for R math.' },
     { key: 'holdDays', label: 'Hold', align: 'right', tooltip: 'Calendar days between entry and exit, UTC.' },
@@ -71,6 +73,18 @@ function cellFor(key, trade) {
           {moneySigned(trade.pnlDollar)}
         </span>
       )
+    case 'pnlDollarNet': {
+      const net = trade.pnlDollarNet ?? trade.pnlDollar
+      return (
+        <span className={net > 0 ? styles.pos : net < 0 ? styles.neg : ''}>
+          {moneySigned(net)}
+        </span>
+      )
+    }
+    case 'fees':
+      return trade.fees && trade.fees > 0
+        ? <span>{moneySigned(-trade.fees)}</span>
+        : dash
     case 'pnlPercent':
       return (
         <span
