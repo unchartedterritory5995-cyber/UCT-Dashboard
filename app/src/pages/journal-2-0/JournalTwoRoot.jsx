@@ -6,7 +6,8 @@
  * placeholder nested tabs. Tab content is filled by Phases 3 + 5.
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Settings from './hooks/useJ2Settings'
 import PortfolioSettingsModal from './components/PortfolioSettingsModal'
@@ -27,9 +28,32 @@ const NESTED_TABS = [
 
 export default function JournalTwoRoot() {
   const { settings, isLoading, error, save } = useJ2Settings()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showSettings, setShowSettings] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
-  const [nestedTab, setNestedTab] = useState('positions')
+  const initialTab = searchParams.get('j2tab') || 'positions'
+  const [nestedTab, setNestedTab] = useState(initialTab)
+
+  // When the URL ?j2tab= changes (e.g. user navigates back from DayDetailPage),
+  // reflect into local state.
+  useEffect(() => {
+    const fromUrl = searchParams.get('j2tab')
+    if (fromUrl && fromUrl !== nestedTab) {
+      setNestedTab(fromUrl)
+    }
+  }, [searchParams, nestedTab])
+
+  // Mirror tab state back into URL so deep-links + back-nav work.
+  useEffect(() => {
+    if (searchParams.get('j2tab') !== nestedTab) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('j2tab', nestedTab)
+        return next
+      }, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nestedTab])
 
   const openSettings = useCallback(() => setShowSettings(true), [])
   const closeSettings = useCallback(() => setShowSettings(false), [])
