@@ -37,7 +37,6 @@ def test_get_settings_seeds_defaults_on_first_read(db_conn):
     assert got["positionClosing"] == "FIFO"
     assert got["breakevenRange"] == {"enabled": False, "unit": "$", "value": 0}
     assert got["setups"] == []
-    assert got["journalColumns"] == {"marketNavIndex": "NYA", "breadthMetric": "NASI RSI"}
     assert got["createdAt"]
     assert got["updatedAt"]
 
@@ -189,7 +188,6 @@ def _make_payload(
     closing="FIFO",
     breakeven_range=None,
     setups=None,
-    journal_columns=None,
 ):
     return {
         "accountSize": account_size,
@@ -197,6 +195,4 @@ def _make_payload(
         "positionClosing": closing,
         "breakevenRange": breakeven_range or {"enabled": False, "unit": "$", "value": 0},
         "setups": setups if setups is not None else [],
-        "journalColumns": journal_columns
-        or {"marketNavIndex": "NYA", "breadthMetric": "NASI RSI"},
     }

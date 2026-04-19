@@ -49,11 +49,7 @@ export default function TradeJournalTab({ settings }) {
   const { trades, isLoading, error, refresh } = useJ2Trades()
   const { mutate } = useSWRConfig()
 
-  // Build columns with the live breadth metric label so settings changes
-  // flow into the header immediately. Columns flagged hiddenByDefault
-  // (e.g. originalStop per §11.3) are hidden on first visit — the hook
-  // itself honors the flag.
-  const defaultColumns = useMemo(() => buildTradesColumns(settings), [settings])
+  const defaultColumns = useMemo(() => buildTradesColumns(), [])
 
   const {
     columns,

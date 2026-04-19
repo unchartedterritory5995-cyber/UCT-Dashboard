@@ -1,12 +1,6 @@
 /**
  * Trade Journal table — Journal 2.0.
  * Spec §11.3.
- *
- * 18 default-visible columns + 1 hidden default (Stop). The breadth
- * metric column uses the LIVE settings label so the header updates
- * when the user changes the Breadth Metric in settings. Cell values
- * come from each trade's frozen `contextAtEntry` — which may use an
- * older metric name, but that's the historical record (§5.6).
  */
 
 import { useMemo } from 'react'
@@ -21,13 +15,7 @@ import {
 } from '../../../lib/journal-2-0'
 import styles from './TradesTable.module.css'
 
-/**
- * Build the column list dynamically from settings so the breadth metric
- * header label reflects the user's current choice.
- * @param {{ journalColumns?: { breadthMetric?: string, marketNavIndex?: string } }} settings
- */
-export function buildTradesColumns(settings) {
-  const breadthLabel = settings?.journalColumns?.breadthMetric || 'Breadth'
+export function buildTradesColumns() {
   return [
     { key: 'symbol', label: 'Symbol', nonHideable: true, align: 'left', tooltip: 'Ticker.' },
     { key: 'result', label: 'Result', align: 'left', tooltip: 'Win / Loss / BE per settings.breakevenRange.' },
@@ -40,13 +28,7 @@ export function buildTradesColumns(settings) {
     { key: 'pnlPercent', label: 'P&L %', align: 'right', tooltip: '(exit − entry) / entry.' },
     { key: 'rMultiple', label: 'R', align: 'right', tooltip: 'Reward / risk, using the ORIGINAL stop — frozen for R math.' },
     { key: 'holdDays', label: 'Hold', align: 'right', tooltip: 'Calendar days between entry and exit, UTC.' },
-    { key: 'navCount', label: 'Nav Count', align: 'right', tooltip: 'Open positions at entry (snapshot).' },
-    { key: 'rallyDay', label: 'Rally Day', align: 'left', tooltip: 'Rally day count at entry.' },
-    { key: 'powerTrend', label: 'Power Trend', align: 'left', tooltip: 'On / Off at entry.' },
-    { key: 'breadth', label: breadthLabel, align: 'right', tooltip: 'Breadth metric value snapshotted at entry.' },
     { key: 'setup', label: 'Setup', align: 'left', tooltip: 'Setup classification.' },
-    { key: 'igRank', label: 'IG Rank', align: 'right', tooltip: 'Industry Group rank at entry.' },
-    { key: 'rsRating', label: 'RS', align: 'right', tooltip: 'Relative Strength rating at entry.' },
     { key: 'originalStop', label: 'Stop', align: 'right', tooltip: 'Original stop (frozen — used for R math).', hiddenByDefault: true },
   ]
 }
@@ -64,7 +46,6 @@ function resultBadge(result) {
 const dash = <span className={styles.dash}>—</span>
 
 function cellFor(key, trade) {
-  const ctx = trade.contextAtEntry || {}
   switch (key) {
     case 'symbol':
       return trade.symbol
@@ -108,18 +89,6 @@ function cellFor(key, trade) {
       return money(trade.originalStop)
     case 'setup':
       return trade.setup || dash
-    case 'navCount':
-      return ctx.navCount == null ? dash : ctx.navCount
-    case 'rallyDay':
-      return ctx.rallyDay == null ? dash : ctx.rallyDay
-    case 'powerTrend':
-      return ctx.powerTrend == null ? dash : ctx.powerTrend
-    case 'breadth':
-      return ctx.breadthValue == null ? dash : ctx.breadthValue
-    case 'igRank':
-      return ctx.igRank == null ? dash : ctx.igRank
-    case 'rsRating':
-      return ctx.rsRating == null ? dash : ctx.rsRating
     default:
       return null
   }

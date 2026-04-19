@@ -2,21 +2,14 @@
  * Filters Panel — Journal 2.0.
  * Spec §12.
  *
- * Left-drawer / popover, ~320px wide, anchored to the ☰ Filters ▾ button.
- * 9 filter sections per §12.1. AND across sections, OR within groups.
- * Clear all in footer. Esc / outside-click dismiss.
+ * Left-drawer / popover, anchored to the ☰ Filters ▾ button.
+ * AND across sections, OR within groups. Esc / outside-click dismiss.
  *
  * Controlled by useJ2Filters (hook owns state + URL sync).
  */
 
 import { useEffect, useMemo, useRef } from 'react'
 import styles from './FiltersPanel.module.css'
-
-const NAV_OPTIONS = [
-  { key: 'light', label: '0–2 (light)' },
-  { key: 'moderate', label: '3–4 (moderate)' },
-  { key: 'heavy', label: '5+ (heavy)' },
-]
 
 export default function FiltersPanel({
   open,
@@ -122,54 +115,6 @@ export default function FiltersPanel({
           />
         </section>
 
-        {/* RS Rating Minimum (at entry) */}
-        <section className={styles.section}>
-          <h4 className={styles.sectionTitle}>RS Rating Minimum (at entry)</h4>
-          <input
-            type="number"
-            min="0"
-            max="99"
-            step="1"
-            value={filters.rsMin}
-            onChange={(e) => setFilter('rsMin', e.target.value)}
-            placeholder="e.g. 80"
-            className={styles.input}
-          />
-          <p className={styles.hint}>Trades without an RS rating are excluded.</p>
-        </section>
-
-        {/* NASI RSI */}
-        <section className={styles.section}>
-          <h4 className={styles.sectionTitle}>
-            {settings?.journalColumns?.breadthMetric || 'Breadth'} (at entry)
-          </h4>
-          <div className={styles.row}>
-            <div className={styles.pillToggle} role="radiogroup" aria-label="Direction">
-              {['Above', 'Below'].map((dir) => (
-                <button
-                  key={dir}
-                  type="button"
-                  className={`${styles.pill} ${filters.nasiDir === dir ? styles.pillActive : ''}`}
-                  onClick={() =>
-                    setFilter('nasiDir', filters.nasiDir === dir ? '' : dir)
-                  }
-                  aria-pressed={filters.nasiDir === dir}
-                >
-                  {dir}
-                </button>
-              ))}
-            </div>
-            <input
-              type="number"
-              step="any"
-              value={filters.nasiThreshold}
-              onChange={(e) => setFilter('nasiThreshold', e.target.value)}
-              placeholder="threshold"
-              className={styles.input}
-            />
-          </div>
-        </section>
-
         {/* Side */}
         <section className={styles.section}>
           <h4 className={styles.sectionTitle}>Side</h4>
@@ -208,51 +153,6 @@ export default function FiltersPanel({
           )}
         </section>
 
-        {/* Nav Count */}
-        <section className={styles.section}>
-          <h4 className={styles.sectionTitle}>Nav Count (market exposure)</h4>
-          <div className={styles.checkList}>
-            {NAV_OPTIONS.map((opt) => (
-              <label key={opt.key} className={styles.checkRow}>
-                <input
-                  type="checkbox"
-                  checked={filters.navBuckets.has(opt.key)}
-                  onChange={() => toggleSetMember('navBuckets', opt.key)}
-                />
-                <span>{opt.label}</span>
-              </label>
-            ))}
-          </div>
-        </section>
-
-        {/* Power Trend */}
-        <section className={styles.section}>
-          <h4 className={styles.sectionTitle}>Power Trend</h4>
-          <div className={styles.checkList}>
-            {['On', 'Off'].map((v) => (
-              <label key={v} className={styles.checkRow}>
-                <input
-                  type="checkbox"
-                  checked={filters.powerTrends.has(v)}
-                  onChange={() => toggleSetMember('powerTrends', v)}
-                />
-                <span>{v}</span>
-              </label>
-            ))}
-          </div>
-        </section>
-
-        {/* Rally Day */}
-        <section className={styles.section}>
-          <h4 className={styles.sectionTitle}>Rally Day</h4>
-          <input
-            type="text"
-            value={filters.rallyDay}
-            onChange={(e) => setFilter('rallyDay', e.target.value)}
-            placeholder="e.g. D7"
-            className={styles.input}
-          />
-        </section>
       </div>
     </div>
   )

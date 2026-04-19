@@ -298,7 +298,6 @@ def db_conn(monkeypatch):
 class TestBulkInsert:
     SETTINGS = {
         "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
-        "journalColumns": {"marketNavIndex": "NYA", "breadthMetric": "NASI RSI"},
     }
 
     def test_bulk_insert_happy_path(self, db_conn):
@@ -325,7 +324,6 @@ class TestBulkInsert:
         from api.services.journal_two import trades as svc
         settings_be = {
             "breakevenRange": {"enabled": True, "unit": "$", "value": 100_000},
-            "journalColumns": {"marketNavIndex": "NYA", "breadthMetric": "NASI RSI"},
         }
         # Huge BE threshold → every tiny-P&L trade classified as BE
         result = parse_csv(PREMATCHED_HAPPY)

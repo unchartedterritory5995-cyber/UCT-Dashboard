@@ -37,12 +37,6 @@
  */
 
 /**
- * @typedef {Object} JournalColumnsConfig
- * @property {string} marketNavIndex    e.g. "NYA", "IWM"
- * @property {string} breadthMetric     e.g. "NASI RSI"
- */
-
-/**
  * Single row per user.
  * @typedef {Object} PortfolioSettings
  * @property {string} id
@@ -52,23 +46,9 @@
  * @property {'FIFO'|'LIFO'} positionClosing
  * @property {BreakevenRange} breakevenRange
  * @property {string[]} setups
- * @property {JournalColumnsConfig} journalColumns
+ * @property {boolean} shareJournalData
  * @property {string} createdAt
  * @property {string} updatedAt
- */
-
-/**
- * Captured at the moment a Position is created (not including the new
- * position in navCount). Historical — never mutated after write.
- * @typedef {Object} MarketContextSnapshot
- * @property {number} navCount               open-position count BEFORE this one was added
- * @property {string|null} rallyDay          e.g. "D7"
- * @property {'On'|'Off'|null} powerTrend
- * @property {number|null} breadthValue
- * @property {string} breadthMetricName      snapshot of settings.journalColumns.breadthMetric
- * @property {string} indexName              snapshot of settings.journalColumns.marketNavIndex
- * @property {number|null} igRank
- * @property {number|null} rsRating
  */
 
 /**
@@ -94,7 +74,6 @@
  * @property {boolean} raiseToBreakeven
  * @property {string|null} setup
  * @property {string|null} notes
- * @property {MarketContextSnapshot} contextAtEntry
  * @property {string} createdAt
  * @property {string} updatedAt
  * @property {string|null} closedAt          set when shares reach 0 (archive, not delete)
@@ -124,7 +103,6 @@
  * @property {number|null} rMultiple         null when entry === originalStop
  * @property {number} holdDays
  * @property {'Win'|'Loss'|'BE'} result       using settings.breakevenRange at time of close
- * @property {MarketContextSnapshot} contextAtEntry
  * @property {string} createdAt
  */
 

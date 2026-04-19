@@ -35,16 +35,7 @@ YSS = {
     "raise_to_breakeven": 0,
     "setup": "VCP",
     "notes": "§14.7 reference position — seed for Journal 2.0 Phase 3 verification",
-    "context_at_entry": {
-        "navCount": 0,
-        "rallyDay": None,
-        "powerTrend": None,
-        "breadthValue": None,
-        "breadthMetricName": "NASI RSI",
-        "indexName": "NYA",
-        "igRank": None,
-        "rsRating": None,
-    },
+    "context_at_entry": {},
 }
 
 

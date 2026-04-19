@@ -9,14 +9,11 @@ function emptyFilters() {
     ...EMPTY_FILTERS,
     sides: new Set(),
     setups: new Set(),
-    navBuckets: new Set(),
-    powerTrends: new Set(),
   }
 }
 
 const SETTINGS = {
   setups: ['VCP', 'Breakout'],
-  journalColumns: { marketNavIndex: 'NYA', breadthMetric: 'NASI RSI' },
 }
 
 const baseProps = {
@@ -33,17 +30,12 @@ const baseProps = {
 }
 
 describe('FiltersPanel', () => {
-  it('renders all 9 sections', () => {
+  it('renders the surviving sections', () => {
     render(<FiltersPanel {...baseProps} />)
     expect(screen.getByText('Date Range')).toBeInTheDocument()
     expect(screen.getByText('Symbol')).toBeInTheDocument()
-    expect(screen.getByText('RS Rating Minimum (at entry)')).toBeInTheDocument()
-    expect(screen.getByText(/NASI RSI \(at entry\)/)).toBeInTheDocument()
     expect(screen.getByText('Side')).toBeInTheDocument()
     expect(screen.getByText('Setup')).toBeInTheDocument()
-    expect(screen.getByText('Nav Count (market exposure)')).toBeInTheDocument()
-    expect(screen.getByText('Power Trend')).toBeInTheDocument()
-    expect(screen.getByText('Rally Day')).toBeInTheDocument()
   })
 
   it('does not render when open=false', () => {
@@ -87,44 +79,14 @@ describe('FiltersPanel', () => {
   })
 
   it('merges settings setups with historical setups from trades', () => {
-    // settings has VCP + Breakout; trade carries a retired setup "Old Setup"
     const trades = [
-      { id: '1', setup: 'Old Setup', contextAtEntry: {} },
-      { id: '2', setup: 'VCP', contextAtEntry: {} },
+      { id: '1', setup: 'Old Setup' },
+      { id: '2', setup: 'VCP' },
     ]
     render(<FiltersPanel {...baseProps} trades={trades} />)
     expect(screen.getByLabelText('Breakout')).toBeInTheDocument()
     expect(screen.getByLabelText('VCP')).toBeInTheDocument()
     expect(screen.getByLabelText('Old Setup')).toBeInTheDocument()
-  })
-
-  it('breadth section header reflects live settings metric name', () => {
-    const custom = {
-      ...SETTINGS,
-      journalColumns: { marketNavIndex: 'NYA', breadthMetric: '% Above 50MA' },
-    }
-    render(<FiltersPanel {...baseProps} settings={custom} />)
-    expect(screen.getByText(/% Above 50MA \(at entry\)/)).toBeInTheDocument()
-  })
-
-  it('NASI dir pill toggle sets value; second click clears it', async () => {
-    const user = userEvent.setup()
-    const setFilter = vi.fn()
-    render(<FiltersPanel {...baseProps} setFilter={setFilter} />)
-    await user.click(screen.getByRole('button', { name: 'Above' }))
-    expect(setFilter).toHaveBeenLastCalledWith('nasiDir', 'Above')
-
-    // Second render: filter.nasiDir already 'Above' → clicking Above clears
-    render(
-      <FiltersPanel
-        {...baseProps}
-        setFilter={setFilter}
-        filters={{ ...emptyFilters(), nasiDir: 'Above' }}
-      />,
-    )
-    const abovePills = screen.getAllByRole('button', { name: 'Above' })
-    await user.click(abovePills[abovePills.length - 1])
-    expect(setFilter).toHaveBeenLastCalledWith('nasiDir', '')
   })
 
   it('Esc closes the panel', () => {

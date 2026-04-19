@@ -164,12 +164,7 @@ def create_position(
     context_at_entry: dict[str, Any],
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
-    """Insert a new open Position for a user (spec §8.3, §8.4).
-
-    `context_at_entry` must be built by the caller from
-    market_context.build_snapshot(user_id, settings) BEFORE this call,
-    so navCount correctly excludes the new position.
-    """
+    """Insert a new open Position for a user (spec §8.4)."""
     validated = _validate_create_payload(payload)
     owned_conn = conn is None
     conn = conn or get_connection()

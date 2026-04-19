@@ -375,7 +375,6 @@ def test_list_trades_user_isolation(db_conn):
 
 SETTINGS_STD = {
     "breakevenRange": {"enabled": True, "unit": "$", "value": 20},
-    "journalColumns": {"marketNavIndex": "NYA", "breadthMetric": "NASI RSI"},
 }
 
 
@@ -418,60 +417,12 @@ def test_manual_add_trade_positionId_uses_manual_sentinel(db_conn):
     assert len(t["positionId"]) > len("manual-") + 30
 
 
-def test_manual_add_trade_context_defaults_to_nulls_when_blank(db_conn):
-    """A2: all optional context fields blank → null; labels snapshot from settings."""
+def test_manual_add_trade_context_is_empty_dict(db_conn):
+    """Market-context capture was removed; manual trades store an empty dict."""
     from api.services.journal_two import trades as svc
 
     t = svc.create_trade_manual("u1", _valid_manual_payload(), SETTINGS_STD, conn=db_conn)
-    ctx = t["contextAtEntry"]
-    # User-optional fields → null
-    assert ctx["navCount"] is None
-    assert ctx["rallyDay"] is None
-    assert ctx["powerTrend"] is None
-    assert ctx["breadthValue"] is None
-    assert ctx["igRank"] is None
-    assert ctx["rsRating"] is None
-    # Labels snapshot from settings
-    assert ctx["breadthMetricName"] == "NASI RSI"
-    assert ctx["indexName"] == "NYA"
-
-
-def test_manual_add_trade_context_accepts_user_supplied_values(db_conn):
-    """A2: power users who care about historical filter accuracy can fill in."""
-    from api.services.journal_two import trades as svc
-
-    payload = _valid_manual_payload()
-    payload["contextAtEntry"] = {
-        "navCount": 5,
-        "rallyDay": "D12",
-        "powerTrend": "On",
-        "breadthValue": 65.5,
-        "igRank": 42,
-        "rsRating": 88,
-    }
-    t = svc.create_trade_manual("u1", payload, SETTINGS_STD, conn=db_conn)
-    ctx = t["contextAtEntry"]
-    assert ctx["navCount"] == 5
-    assert ctx["rallyDay"] == "D12"
-    assert ctx["powerTrend"] == "On"
-    assert ctx["breadthValue"] == 65.5
-    assert ctx["igRank"] == 42
-    assert ctx["rsRating"] == 88
-
-
-def test_manual_add_trade_rejects_client_supplied_label_fields(db_conn):
-    """A2: breadthMetricName + indexName are authoritative from settings —
-    client-supplied values for these are ignored (settings wins)."""
-    from api.services.journal_two import trades as svc
-
-    payload = _valid_manual_payload()
-    payload["contextAtEntry"] = {
-        "breadthMetricName": "HACKED",
-        "indexName": "HACKED",
-    }
-    t = svc.create_trade_manual("u1", payload, SETTINGS_STD, conn=db_conn)
-    assert t["contextAtEntry"]["breadthMetricName"] == "NASI RSI"
-    assert t["contextAtEntry"]["indexName"] == "NYA"
+    assert t["contextAtEntry"] == {}
 
 
 def test_manual_add_trade_blank_original_stop_defaults_to_entry_price(db_conn):
@@ -517,16 +468,6 @@ def test_manual_add_trade_rejects_zero_shares(db_conn):
     from api.services.journal_two.trades import ManualTradeValidationError
 
     payload = _valid_manual_payload(shares=0)
-    with pytest.raises(ManualTradeValidationError):
-        svc.create_trade_manual("u1", payload, SETTINGS_STD, conn=db_conn)
-
-
-def test_manual_add_trade_rejects_bad_power_trend(db_conn):
-    from api.services.journal_two import trades as svc
-    from api.services.journal_two.trades import ManualTradeValidationError
-
-    payload = _valid_manual_payload()
-    payload["contextAtEntry"] = {"powerTrend": "Maybe"}
     with pytest.raises(ManualTradeValidationError):
         svc.create_trade_manual("u1", payload, SETTINGS_STD, conn=db_conn)
 

@@ -1,25 +1,10 @@
 /**
  * Portfolio Settings Modal — Journal 2.0.
  * Spec §5.
- *
- * Six sections: Account, Default Stop, Position Closing, Breakeven
- * Range, Trade Setups, Journal Columns. Cancel discards; Save persists
- * via the useJ2Settings hook. Local form state; initialized from the
- * hook's `settings` on open.
  */
 
 import { useEffect, useState, useCallback, useId } from 'react'
 import styles from './PortfolioSettingsModal.module.css'
-
-const INDEX_OPTIONS = ['NYA', 'SPX', 'COMPQ', 'IWM', 'DJI']
-const BREADTH_OPTIONS = [
-  'NASI RSI',
-  'NYSI RSI',
-  '% Above 50MA',
-  '% Above 200MA',
-  'NH-NL',
-  'Breadth Score',
-]
 
 const STOP_MODES = [
   {
@@ -93,12 +78,6 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
   const [beValue, setBeValue] = useState(settings?.breakevenRange?.value ?? 0)
   const [setups, setSetups] = useState(settings?.setups ?? [])
   const [newSetup, setNewSetup] = useState('')
-  const [marketNavIndex, setMarketNavIndex] = useState(
-    settings?.journalColumns?.marketNavIndex ?? 'NYA',
-  )
-  const [breadthMetric, setBreadthMetric] = useState(
-    settings?.journalColumns?.breadthMetric ?? 'NASI RSI',
-  )
   const [shareJournalData, setShareJournalData] = useState(
     !!settings?.shareJournalData,
   )
@@ -151,10 +130,6 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
         value: Number(beValue),
       },
       setups,
-      journalColumns: {
-        marketNavIndex,
-        breadthMetric,
-      },
       shareJournalData,
     }
     setSaving(true)
@@ -177,8 +152,6 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
     beUnit,
     beValue,
     setups,
-    marketNavIndex,
-    breadthMetric,
     shareJournalData,
     onSave,
     onClose,
@@ -444,43 +417,6 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose }) {
                 ))}
               </div>
             )}
-          </section>
-
-          {/* 5.6 JOURNAL COLUMNS */}
-          <section className={styles.section}>
-            <h3 className={styles.sectionHeader}>JOURNAL COLUMNS</h3>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Market Nav Index</span>
-              <select
-                value={marketNavIndex}
-                onChange={(e) => setMarketNavIndex(e.target.value)}
-                className={styles.select}
-              >
-                {INDEX_OPTIONS.map((x) => (
-                  <option key={x} value={x}>
-                    {x}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Breadth Metric</span>
-              <select
-                value={breadthMetric}
-                onChange={(e) => setBreadthMetric(e.target.value)}
-                className={styles.select}
-              >
-                {BREADTH_OPTIONS.map((x) => (
-                  <option key={x} value={x}>
-                    {x}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p className={styles.helper}>
-              Changing these changes the snapshot name for future positions only.
-              Existing Positions/Trades keep their captured snapshot.
-            </p>
           </section>
 
           {/* COMMUNITY SHARING */}

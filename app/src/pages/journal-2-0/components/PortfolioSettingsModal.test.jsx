@@ -11,7 +11,6 @@ const baseSettings = {
   positionClosing: 'FIFO',
   breakevenRange: { enabled: false, unit: '$', value: 0 },
   setups: ['Breakout'],
-  journalColumns: { marketNavIndex: 'NYA', breadthMetric: 'NASI RSI' },
   createdAt: '2026-04-17T00:00:00Z',
   updatedAt: '2026-04-17T00:00:00Z',
 }
@@ -54,10 +53,6 @@ describe('PortfolioSettingsModal', () => {
     expect(payload.positionClosing).toBe('FIFO')
     expect(payload.breakevenRange).toEqual({ enabled: false, unit: '$', value: 0 })
     expect(payload.setups).toEqual(['Breakout'])
-    expect(payload.journalColumns).toEqual({
-      marketNavIndex: 'NYA',
-      breadthMetric: 'NASI RSI',
-    })
   })
 
   it('shareJournalData toggle ships in the save payload', async () => {

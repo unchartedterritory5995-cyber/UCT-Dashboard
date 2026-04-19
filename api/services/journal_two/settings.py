@@ -35,10 +35,6 @@ def default_settings_data() -> dict[str, Any]:
         "positionClosing": "FIFO",
         "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
         "setups": [],
-        "journalColumns": {
-            "marketNavIndex": "NYA",
-            "breadthMetric": "NASI RSI",
-        },
         # Community sharing — opt-in. When true, this user's CLOSED
         # trades (stripped of shares and pnlDollar) become visible in
         # the Journal 2.0 Community tab alongside every other user who
@@ -104,18 +100,6 @@ def _validate_breakeven_range(be: Any) -> dict[str, Any]:
     }
 
 
-def _validate_journal_columns(cols: Any) -> dict[str, Any]:
-    if not isinstance(cols, dict):
-        raise SettingsValidationError("journalColumns must be an object")
-    idx = cols.get("marketNavIndex")
-    breadth = cols.get("breadthMetric")
-    if not isinstance(idx, str) or not idx:
-        raise SettingsValidationError("journalColumns.marketNavIndex must be a non-empty string")
-    if not isinstance(breadth, str) or not breadth:
-        raise SettingsValidationError("journalColumns.breadthMetric must be a non-empty string")
-    return {"marketNavIndex": idx, "breadthMetric": breadth}
-
-
 def _validate_setups(setups: Any) -> list[str]:
     if not isinstance(setups, list):
         raise SettingsValidationError("setups must be a list")
@@ -154,7 +138,6 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "positionClosing": closing,
         "breakevenRange": _validate_breakeven_range(payload.get("breakevenRange")),
         "setups": _validate_setups(payload.get("setups", [])),
-        "journalColumns": _validate_journal_columns(payload.get("journalColumns")),
         "shareJournalData": bool(payload.get("shareJournalData", False)),
     }
 

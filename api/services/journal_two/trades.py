@@ -240,66 +240,6 @@ class ManualTradeValidationError(ValueError):
     """Raised when a manual Add Trade payload fails validation."""
 
 
-_VALID_POWER_TREND = {"On", "Off"}
-
-
-def _validate_optional_context(raw: Any) -> dict[str, Any]:
-    """Historical Market Context (A2 hybrid). All fields optional; blank/
-    missing → null. breadthMetricName + indexName are NOT read from the
-    client — they're always snapshotted from settings in create_trade_manual.
-    """
-    if raw is None:
-        return {
-            "navCount": None,
-            "rallyDay": None,
-            "powerTrend": None,
-            "breadthValue": None,
-            "igRank": None,
-            "rsRating": None,
-        }
-    if not isinstance(raw, dict):
-        raise ManualTradeValidationError("contextAtEntry must be an object")
-
-    def _opt_number(key, allow_zero=True):
-        v = raw.get(key)
-        if v is None or v == "":
-            return None
-        if not isinstance(v, (int, float)):
-            raise ManualTradeValidationError(f"{key} must be a number or null")
-        if not allow_zero and v == 0:
-            return None
-        return float(v) if isinstance(v, float) else int(v)
-
-    nav = raw.get("navCount")
-    if nav is not None and nav != "":
-        if not isinstance(nav, int) or nav < 0:
-            raise ManualTradeValidationError("navCount must be a non-negative integer")
-    else:
-        nav = None
-
-    rally = raw.get("rallyDay")
-    if rally is not None and rally != "":
-        if not isinstance(rally, str):
-            raise ManualTradeValidationError("rallyDay must be a string like 'D7' or null")
-        rally = rally.strip() or None
-
-    pt = raw.get("powerTrend")
-    if pt is not None and pt != "":
-        if pt not in _VALID_POWER_TREND:
-            raise ManualTradeValidationError("powerTrend must be 'On', 'Off', or null")
-    else:
-        pt = None
-
-    return {
-        "navCount": nav,
-        "rallyDay": rally,
-        "powerTrend": pt,
-        "breadthValue": _opt_number("breadthValue"),
-        "igRank": _opt_number("igRank"),
-        "rsRating": _opt_number("rsRating"),
-    }
-
-
 def _validate_manual_trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Spec §11.4 manual Add Trade. Server computes derived via
     compute_trade_derived (A3)."""
@@ -375,7 +315,6 @@ def _validate_manual_trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
     setup = payload.get("setup")
     notes = payload.get("notes")
-    context_raw = payload.get("contextAtEntry")
 
     return {
         "symbol": symbol.strip().upper(),
@@ -388,7 +327,6 @@ def _validate_manual_trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "originalStop": original_stop,
         "setup": setup.strip() if isinstance(setup, str) and setup.strip() else None,
         "notes": notes if isinstance(notes, str) else None,
-        "userContext": _validate_optional_context(context_raw),
     }
 
 
@@ -400,12 +338,8 @@ def create_trade_manual(
 ) -> dict[str, Any]:
     """Manual Add Trade (spec §11.4). Server computes derived fields via
     compute_trade_derived using the user's current breakevenRange. The
-    resulting Trade has positionId = 'manual-{uuid}' (A1 sentinel)
-    since there is no parent Position.
-
-    contextAtEntry (A2): blank/null-defaulted user fields merged with
-    breadthMetricName + indexName snapshotted from settings.journalColumns.
-    """
+    resulting Trade has positionId = 'manual-{uuid}' since there is no
+    parent Position."""
     validated = _validate_manual_trade_payload(payload)
 
     derived = calc.compute_trade_derived(
@@ -419,15 +353,7 @@ def create_trade_manual(
         breakeven_range=settings["breakevenRange"],
     )
 
-    # A2: build contextAtEntry from (user-supplied optional fields) +
-    # (settings-snapshot labels). Labels are authoritative on the
-    # server side — we never read them from the client.
-    journal_cols = settings.get("journalColumns", {})
-    context = {
-        **validated["userContext"],
-        "breadthMetricName": journal_cols.get("breadthMetric", ""),
-        "indexName": journal_cols.get("marketNavIndex", ""),
-    }
+    context: dict[str, Any] = {}
 
     owned_conn = conn is None
     conn = conn or get_connection()
@@ -533,21 +459,14 @@ def bulk_insert_trades(
     result) computed via compute_trade_derived using the user's current
     breakevenRange at import time (same rule as Close / manual Add).
 
-    Each trade gets a fresh `manual-{uuid}` positionId sentinel (A1
-    decision — imports are trades without a parent Position in j2_positions).
-
-    `contextAtEntry`: if the parsed trade carries one, it's merged with
-    the server-snapshot breadthMetricName/indexName from settings
-    (same rule as manual Add Trade in A2). If not, fully null.
+    Each trade gets a fresh `manual-{uuid}` positionId sentinel — imports
+    are trades without a parent Position in j2_positions.
     """
     if not parsed_trades:
         return {"imported": 0, "errors": []}
 
     owned_conn = conn is None
     conn = conn or get_connection()
-    journal_cols = settings.get("journalColumns", {})
-    breadth_name = journal_cols.get("breadthMetric", "")
-    index_name = journal_cols.get("marketNavIndex", "")
 
     try:
         conn.execute("BEGIN")
@@ -570,17 +489,7 @@ def bulk_insert_trades(
                     breakeven_range=settings["breakevenRange"],
                 )
 
-                user_ctx = pt.get("contextAtEntry") or {}
-                context = {
-                    "navCount": user_ctx.get("navCount"),
-                    "rallyDay": user_ctx.get("rallyDay"),
-                    "powerTrend": user_ctx.get("powerTrend"),
-                    "breadthValue": user_ctx.get("breadthValue"),
-                    "igRank": user_ctx.get("igRank"),
-                    "rsRating": user_ctx.get("rsRating"),
-                    "breadthMetricName": breadth_name,
-                    "indexName": index_name,
-                }
+                context: dict[str, Any] = {}
 
                 now = _now_iso()
                 trade_id = str(uuid.uuid4())

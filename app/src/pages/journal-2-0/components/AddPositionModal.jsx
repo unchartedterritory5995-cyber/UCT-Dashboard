@@ -9,10 +9,6 @@
  *   - fixed_dollar_risk: stop = entry − (amount / shares) on blur (Long)
  *                       or entry + (amount / shares) (Short); clamp ≥ 0
  *   - fixed_percent_distance: entry × (1 − p/100) (Long) or × (1 + p/100) (Short)
- *
- * The server re-computes the MarketContextSnapshot at insertion time
- * (so navCount excludes this new position). We don't need to capture
- * it client-side.
  */
 
 import { useState, useCallback, useId, useEffect } from 'react'

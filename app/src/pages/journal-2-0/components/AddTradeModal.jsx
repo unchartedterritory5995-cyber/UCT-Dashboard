@@ -1,27 +1,19 @@
 /**
  * Add Trade modal — manual Add Trade flow.
- * Spec §11.4; A1+A2+A3 decisions.
+ * Spec §11.4.
  *
  * Derived fields (pnl, r, holdDays, result) are computed server-side
- * on insert (A3). positionId is a server-generated `manual-{uuid}`
- * sentinel (A1).
- *
- * Historical Market Context is a collapsible optional section (A2).
- * Default state: collapsed. All context inputs default blank → null
- * on save. Power users who care about filter accuracy on historical
- * trades can expand and fill; casual adds stay fast.
+ * on insert. positionId is a server-generated `manual-{uuid}` sentinel.
  */
 
 import { useState, useCallback, useEffect, useId, useMemo } from 'react'
 import {
   positionPnlDollar,
   tradeRMultiple,
-  money,
   moneySigned,
   rMultiple as fmtR,
 } from '../../../lib/journal-2-0'
 import styles from './ModalShell.module.css'
-import ctxStyles from './AddTradeModal.module.css'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -40,15 +32,6 @@ export default function AddTradeModal({ settings, onSave, onClose }) {
   const [originalStop, setOriginalStop] = useState('')
   const [setupVal, setSetupVal] = useState('')
   const [notes, setNotes] = useState('')
-
-  // A2 — collapsible Historical Market Context (default collapsed, all blank)
-  const [ctxOpen, setCtxOpen] = useState(false)
-  const [navCount, setNavCount] = useState('')
-  const [rallyDay, setRallyDay] = useState('')
-  const [powerTrend, setPowerTrend] = useState('')  // '' | 'On' | 'Off'
-  const [breadthValue, setBreadthValue] = useState('')
-  const [igRank, setIgRank] = useState('')
-  const [rsRating, setRsRating] = useState('')
 
   const [errorMsg, setErrorMsg] = useState('')
   const [saving, setSaving] = useState(false)
@@ -107,16 +90,6 @@ export default function AddTradeModal({ settings, onSave, onClose }) {
     if (err) { setErrorMsg(err); return }
     setSaving(true)
     try {
-      // A2: build contextAtEntry with user-filled or null values.
-      // Server will merge in breadthMetricName + indexName from settings.
-      const context = {
-        navCount: navCount === '' ? null : Number(navCount),
-        rallyDay: rallyDay.trim() || null,
-        powerTrend: powerTrend || null,
-        breadthValue: breadthValue === '' ? null : Number(breadthValue),
-        igRank: igRank === '' ? null : Number(igRank),
-        rsRating: rsRating === '' ? null : Number(rsRating),
-      }
       await onSave({
         symbol: symbol.trim().toUpperCase(),
         side,
@@ -128,7 +101,7 @@ export default function AddTradeModal({ settings, onSave, onClose }) {
         originalStop: originalStop === '' ? null : Number(originalStop),
         setup: setupVal.trim() || null,
         notes: notes.trim() || null,
-        contextAtEntry: context,
+        contextAtEntry: {},
       })
       onClose?.()
     } catch (e) {
@@ -138,8 +111,7 @@ export default function AddTradeModal({ settings, onSave, onClose }) {
     }
   }, [
     validate, symbol, side, shares, entryPrice, entryDate, exitPrice, exitDate,
-    originalStop, setupVal, notes, navCount, rallyDay, powerTrend, breadthValue,
-    igRank, rsRating, onSave, onClose,
+    originalStop, setupVal, notes, onSave, onClose,
   ])
 
   return (
@@ -289,110 +261,6 @@ export default function AddTradeModal({ settings, onSave, onClose }) {
               rows={2}
             />
           </label>
-
-          {/* A2 — collapsible Historical Market Context */}
-          <div className={ctxStyles.ctxSection}>
-            <button
-              type="button"
-              className={ctxStyles.ctxToggle}
-              onClick={() => setCtxOpen((x) => !x)}
-              aria-expanded={ctxOpen}
-              aria-controls="historical-context-body"
-            >
-              <span className={ctxStyles.ctxChevron}>{ctxOpen ? '▼' : '▶'}</span>
-              <span className={ctxStyles.ctxTitle}>Historical Market Context</span>
-              <span className={ctxStyles.ctxOptional}>(optional)</span>
-            </button>
-            {ctxOpen && (
-              <div id="historical-context-body" className={ctxStyles.ctxBody}>
-                <p className={styles.helper}>
-                  Fill in to make this trade participate in Journal filters
-                  (Nav Count, Rally Day, etc.). Leave blank if unknown —
-                  cells render as <strong>—</strong>.
-                </p>
-                <div className={styles.grid2}>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Nav Count</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={navCount}
-                      onChange={(e) => setNavCount(e.target.value)}
-                      className={styles.numberInput}
-                      placeholder="e.g. 5"
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Rally Day</span>
-                    <input
-                      type="text"
-                      value={rallyDay}
-                      onChange={(e) => setRallyDay(e.target.value)}
-                      className={styles.textInput}
-                      placeholder="e.g. D7"
-                    />
-                  </label>
-                </div>
-
-                <label className={styles.field}>
-                  <span className={styles.fieldLabel}>Power Trend</span>
-                  <div className={styles.pillToggle} role="radiogroup" aria-label="Power trend">
-                    {['', 'On', 'Off'].map((v) => (
-                      <button
-                        key={v || 'unknown'}
-                        type="button"
-                        className={`${styles.pill} ${powerTrend === v ? styles.pillActive : ''}`}
-                        onClick={() => setPowerTrend(v)}
-                        aria-pressed={powerTrend === v}
-                      >
-                        {v || 'Unknown'}
-                      </button>
-                    ))}
-                  </div>
-                </label>
-
-                <div className={styles.grid2}>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>
-                      {settings?.journalColumns?.breadthMetric || 'Breadth'} Value
-                    </span>
-                    <input
-                      type="number"
-                      step="any"
-                      value={breadthValue}
-                      onChange={(e) => setBreadthValue(e.target.value)}
-                      className={styles.numberInput}
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>IG Rank</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={igRank}
-                      onChange={(e) => setIgRank(e.target.value)}
-                      className={styles.numberInput}
-                    />
-                  </label>
-                </div>
-
-                <label className={styles.field}>
-                  <span className={styles.fieldLabel}>RS Rating</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    step="1"
-                    value={rsRating}
-                    onChange={(e) => setRsRating(e.target.value)}
-                    className={styles.numberInput}
-                  />
-                </label>
-              </div>
-            )}
-          </div>
 
           {preview && (
             <div className={styles.infoBanner}>

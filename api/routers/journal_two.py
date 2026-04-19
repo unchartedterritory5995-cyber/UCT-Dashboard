@@ -24,7 +24,6 @@ from api.middleware.auth_middleware import get_current_user
 from api.services.journal_two import (
     community as community_service,
     csv_import as csv_import_service,
-    market_context as market_context_service,
     positions as positions_service,
     settings as settings_service,
     trades as trades_service,
@@ -81,13 +80,9 @@ def create_position(
     payload: dict[str, Any],
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Create a new open Position (spec §8). Server builds the
-    MarketContextSnapshot before insertion so navCount excludes the
-    new row."""
-    settings = settings_service.get_settings(user["id"])
-    context = market_context_service.build_snapshot(user["id"], settings)
+    """Create a new open Position (spec §8)."""
     try:
-        return positions_service.create_position(user["id"], payload, context)
+        return positions_service.create_position(user["id"], payload, {})
     except positions_service.PositionValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -327,13 +322,3 @@ def import_confirm(
     return result
 
 
-# ── Market context — Phase 3 ─────────────────────────────────────────────────
-
-@router.get("/market-context")
-def get_market_context(user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    """Current market-context snapshot, for pre-filling the Add Position
-    modal (spec §8.3). `navCount` reflects open positions BEFORE any
-    new addition. `powerTrend` returns null until the derivation rule is
-    wired in a later pass."""
-    settings = settings_service.get_settings(user["id"])
-    return market_context_service.build_snapshot(user["id"], settings)
