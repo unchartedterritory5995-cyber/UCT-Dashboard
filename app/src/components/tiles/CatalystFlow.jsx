@@ -6,7 +6,6 @@ import TileCard from '../TileCard'
 import EarningsModal from './EarningsModal'
 import ErrorBoundary from '../ErrorBoundary'
 import ErrorState from '../ErrorState'
-import { useTileCapture } from '../../hooks/useTileCapture'
 import { SkeletonTable } from '../Skeleton'
 import styles from './CatalystFlow.module.css'
 
@@ -97,7 +96,6 @@ export default function CatalystFlow({ data: propData }) {
   const data = propData !== undefined ? propData : fetched
   const [selected, setSelected] = useState(null)
   const scrollBodyRef = useRef(null)
-  const { tileRef, capturing, capture } = useTileCapture('earnings')
 
   // Live prices for all earnings tickers
   const earningsTickers = useMemo(() => {
@@ -110,23 +108,12 @@ export default function CatalystFlow({ data: propData }) {
   }, [data])
   const { prices: livePrices } = useRealtimePrices(earningsTickers)
 
-  const exportBtn = (
-    <button
-      className={styles.exportBtn}
-      onClick={capture}
-      disabled={capturing}
-      title="Export as PNG"
-    >
-      {capturing ? '…' : '📷'}
-    </button>
-  )
-
   if (error) return <TileCard title="Earnings"><ErrorState compact message="Failed to load earnings" onRetry={() => mutate()} /></TileCard>
   if (!data) return <TileCard title="Catalyst Flow"><SkeletonTable rows={5} cols={3} /></TileCard>
 
   return (
     <>
-      <TileCard ref={tileRef} title="Earnings" actions={exportBtn}>
+      <TileCard title="Earnings">
         <div className={styles.scrollBody} ref={scrollBodyRef}>
           <EarningsTable
             rows={data.bmo}

@@ -4,7 +4,6 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
-import { useTileCapture } from '../../hooks/useTileCapture'
 import { SkeletonTileContent } from '../Skeleton'
 import styles from './ThemeTracker.module.css'
 
@@ -128,7 +127,6 @@ export default function ThemeTracker({ data: propData }) {
     if (!raw?.themes) return null
     return buildLeadersLaggards(raw.themes, PERIOD_KEY[period])
   }, [propData, fetched, period])
-  const { tileRef, capturing, capture } = useTileCapture('themetracker')
 
   const toggleExpanded = useCallback((ticker) => {
     setExpandedTickers(prev => ({ ...prev, [ticker]: !prev[ticker] }))
@@ -151,19 +149,8 @@ export default function ThemeTracker({ data: propData }) {
 
   const { prices: livePrices } = useRealtimePrices(expandedHoldings)
 
-  const captureBtn = (
-    <button
-      className={styles.captureBtn}
-      onClick={capture}
-      disabled={capturing}
-      title="Export as PNG"
-    >
-      {capturing ? '…' : '📷'}
-    </button>
-  )
-
   return (
-    <TileCard ref={tileRef} title="Theme Tracker" badge={period} actions={captureBtn}>
+    <TileCard title="Theme Tracker" badge={period}>
       <div className={styles.tabs}>
         {PERIODS.map(p => (
           <button

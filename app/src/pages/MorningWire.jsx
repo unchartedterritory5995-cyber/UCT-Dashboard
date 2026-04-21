@@ -4,7 +4,6 @@ import PullToRefresh from '../components/PullToRefresh'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
 import useRealtimePrices from '../hooks/useRealtimePrices'
-import { useTileCapture } from '../hooks/useTileCapture'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './MorningWire.module.css'
 
@@ -206,7 +205,6 @@ export default function MorningWire() {
   const { mutate } = useSWRConfig()
   const { data: rundown }  = useSWR('/api/rundown',         fetcher, { refreshInterval: 300000 })
   const { data: analysts } = useSWR('/api/analyst-actions', fetcher, { refreshInterval: 300000 })
-  const { tileRef, capturing, capture } = useTileCapture('morning-wire')
 
   const handleRefresh = useCallback(() => Promise.all([
     mutate('/api/rundown'),
@@ -222,19 +220,11 @@ export default function MorningWire() {
         <div className={styles.titleRow}>
           <span className={styles.wireName}>The Morning Wire</span>
           {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
-          <button
-            className={styles.captureBtn}
-            onClick={capture}
-            disabled={capturing || !rundown?.html}
-            title="Export as PNG"
-          >
-            {capturing ? '…' : '📷'}
-          </button>
         </div>
       </div>
 
       {/* ── The Rundown ──────────────────────────────────────────── */}
-      <TileCard ref={tileRef}>
+      <TileCard>
         {rundown?.html
           ? (
             <div

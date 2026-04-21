@@ -4,7 +4,6 @@ import ReactECharts from 'echarts-for-react'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
 import BreadthCharts from './BreadthCharts'
-import { useTileCapture } from '../hooks/useTileCapture'
 import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
@@ -1162,7 +1161,6 @@ const phaseClass = (phase, styles) => {
 
 export default function Breadth() {
   const [activeTab, setActiveTab] = useState('breadth')
-  const { tileRef: tableRef, capturing, capture } = useTileCapture('breadth-monitor')
   const [days, setDays] = useState(90)
   const { data, isLoading, error } = useSWR(
     `/api/breadth-monitor?days=${days}`,
@@ -1332,14 +1330,6 @@ export default function Breadth() {
             >
               ↓ CSV
             </button>
-            <button
-              className={styles.exportBtn}
-              onClick={capture}
-              disabled={capturing || rows.length === 0}
-              title="Export as PNG"
-            >
-              {capturing ? '…' : '📷'}
-            </button>
           </>
         )}
       </div>
@@ -1362,7 +1352,7 @@ export default function Breadth() {
       )}
 
       {rows.length > 0 && activeTab === 'breadth' && (
-        <div className={styles.tableWrap} ref={tableRef}>
+        <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
               {/* Group header row */}

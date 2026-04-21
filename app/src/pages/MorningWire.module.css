@@ -22,21 +22,6 @@
   gap: 14px;
 }
 
-.captureBtn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1;
-  border-radius: var(--radius-sm);
-  transition: color 0.15s;
-  margin-left: auto;
-}
-.captureBtn:hover { color: var(--text-bright); }
-.captureBtn:disabled { opacity: 0.4; cursor: default; }
-
 .wireName {
   font-family: var(--font-display);
   font-size: 18px;

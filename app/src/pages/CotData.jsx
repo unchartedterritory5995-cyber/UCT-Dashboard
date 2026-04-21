@@ -1,6 +1,5 @@
 // app/src/pages/CotData.jsx
 import { useState, useRef, useEffect, Component } from 'react'
-import { useTileCapture } from '../hooks/useTileCapture'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale,
@@ -117,7 +116,6 @@ export default function CotData() {
   const [loading,      setLoading]      = useState(false)
   const [error,        setError]        = useState(null)
   const dropdownRef = useRef(null)
-  const { tileRef: chartRef, capturing, capture } = useTileCapture('cot-data')
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -371,18 +369,10 @@ export default function CotData() {
           ))}
         </div>
 
-        <button
-          className={styles.captureBtn}
-          onClick={capture}
-          disabled={capturing || !data}
-          title="Export as PNG"
-        >
-          {capturing ? '…' : '📷'}
-        </button>
       </div>
 
       {/* Chart */}
-      <div className={styles.chartWrap} ref={chartRef}>
+      <div className={styles.chartWrap}>
         {loading && (
           <div className={styles.overlay}>Loading COT data…</div>
         )}
