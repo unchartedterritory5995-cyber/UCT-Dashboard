@@ -241,36 +241,6 @@
   border: 1px solid rgba(239,68,68,0.3);
 }
 
-/* ── Correlation toggle ── */
-.corrToggle {
-  padding: 12px 0 4px;
-  border-top: 1px solid var(--border);
-  margin-top: 8px;
-}
-.corrBtn {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: var(--text-muted);
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 6px 14px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.corrBtn:hover {
-  background: rgba(201,168,76,0.08);
-  color: var(--ut-cream);
-  border-color: rgba(201,168,76,0.3);
-}
-.corrBtnActive {
-  color: var(--ut-gold);
-  border-color: rgba(201,168,76,0.4);
-  background: rgba(201,168,76,0.06);
-}
-
 /* ── Legacy fallback ── */
 .legacyThesis { font-family: var(--font-sans); font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0; }
 

@@ -6,7 +6,6 @@ import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
 import UCT20Performance from '../components/tiles/UCT20Performance'
 import UCT20Backtest from '../components/tiles/UCT20Backtest'
-import CorrelationMatrix from '../components/tiles/CorrelationMatrix'
 import { SkeletonTable } from '../components/Skeleton'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useMobileSWR from '../hooks/useMobileSWR'
@@ -214,7 +213,6 @@ export default function UCT20() {
   const { data: insiderFeed } = useSWR('/api/insider/feed', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
   const { data: rsRankings } = useMobileSWR('/api/rs-rankings', fetcher, { refreshInterval: 3600000, marketHoursOnly: true })
   const [expandedIdx, setExpandedIdx] = useState(null)
-  const [showCorrelation, setShowCorrelation] = useState(false)
 
   const handleRefresh = useCallback(() => Promise.all([
     mutate('/api/leadership'),
@@ -322,17 +320,6 @@ export default function UCT20() {
         )}
         <UCT20Performance />
         <UCT20Backtest />
-
-        {/* Correlation Matrix toggle */}
-        <div className={styles.corrToggle}>
-          <button
-            className={`${styles.corrBtn} ${showCorrelation ? styles.corrBtnActive : ''}`}
-            onClick={() => setShowCorrelation(prev => !prev)}
-          >
-            {showCorrelation ? '▾ Hide Correlation Matrix' : '▸ Correlation Matrix'}
-          </button>
-        </div>
-        {showCorrelation && <CorrelationMatrix />}
       </TileCard>
     </div>
     </PullToRefresh>

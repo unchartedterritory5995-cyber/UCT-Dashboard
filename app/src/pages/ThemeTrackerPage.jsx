@@ -49,22 +49,18 @@ function groupReturn(theme, periodKey) {
     : avgReturn(theme.holdings, periodKey)
 }
 
-function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, tierFilter }) {
+function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions }) {
   const isPortfolio = theme.ticker === 'UCT20'
   const groupAvg = groupReturn(theme, activeKey)
   const momentumDelta = rotationRanking?.momentum_delta
 
   const sortedHoldings = useMemo(() => {
-    let items = [...theme.holdings]
-    if (tierFilter && tierFilter.size > 0) {
-      items = items.filter(h => !h.tier || tierFilter.has(h.tier))
-    }
-    return items.sort((a, b) => {
+    return [...theme.holdings].sort((a, b) => {
       const av = a.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
       const bv = b.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
       return sortDir === 'desc' ? bv - av : av - bv
     })
-  }, [theme.holdings, activeKey, sortDir, tierFilter])
+  }, [theme.holdings, activeKey, sortDir])
 
   return (
     <>
@@ -124,8 +120,6 @@ export default function ThemeTrackerPage() {
   const [sortDir, setSortDir] = useState('desc')
   const [openThemes, setOpenThemes] = useState(new Set())
   const [search, setSearch] = useState('')
-  const [groupBySector, setGroupBySector] = useState(false)
-  const [tierFilter, setTierFilter] = useState(new Set(['core', 'relevant']))
 
   const rowRefs = useRef({})
   const activeKey = RANK_TO_KEY[activeTab]
@@ -304,22 +298,6 @@ export default function ThemeTrackerPage() {
           )}
         </div>
 
-        <div className={styles.filterBar}>
-          <button
-            className={`${styles.filterToggle}${groupBySector ? ' ' + styles.filterToggleActive : ''}`}
-            onClick={() => setGroupBySector(g => !g)}
-            title="Group by sector"
-          >Sectors</button>
-          {['core', 'relevant', 'peripheral'].map(t => (
-            <label key={t} className={styles.tierCheck}>
-              <input type="checkbox" checked={tierFilter.has(t)} onChange={() => {
-                setTierFilter(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n })
-              }} />
-              <span>{t[0].toUpperCase() + t.slice(1)}</span>
-            </label>
-          ))}
-        </div>
-
         <div className={styles.tableHeader}>
           <span className={styles.colLabel}>Theme</span>
           <span className={`${styles.colLabel} ${styles.colLabelActive}`}>
@@ -336,29 +314,11 @@ export default function ThemeTrackerPage() {
           {!isLoading && !isComputing && (!data || data.themes?.length === 0) && (
             <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
           )}
-          {groupBySector ? (() => {
-            const sectors = {}
-            filteredThemes.forEach(t => {
-              const s = t.sector || 'Other'
-              if (!sectors[s]) sectors[s] = []
-              sectors[s].push(t)
-            })
-            return Object.entries(sectors).map(([sectorName, themes]) => (
-              <div key={sectorName}>
-                <div className={styles.sectorHeader}>{sectorName} <span className={styles.sectorCount}>{themes.length}</span></div>
-                {themes.map(theme => (
-                  <ThemeGroup key={theme.ticker} theme={theme} selectedSym={selectedSym} onSelectSym={handleSelect}
-                    activeKey={activeKey} sortDir={sortDir} open={openThemes.has(theme.ticker)} onToggle={toggleTheme}
-                    rowRefs={rowRefs} rotationRanking={rotationRankings[theme.ticker]} getTag={getTag}
-                    tickerActions={tickerActions} tierFilter={tierFilter} />
-                ))}
-              </div>
-            ))
-          })() : filteredThemes.map(theme => (
+          {filteredThemes.map(theme => (
             <ThemeGroup key={theme.ticker} theme={theme} selectedSym={selectedSym} onSelectSym={handleSelect}
               activeKey={activeKey} sortDir={sortDir} open={openThemes.has(theme.ticker)} onToggle={toggleTheme}
               rowRefs={rowRefs} rotationRanking={rotationRankings[theme.ticker]} getTag={getTag}
-              tickerActions={tickerActions} tierFilter={tierFilter} />
+              tickerActions={tickerActions} />
           ))}
         </div>
       </div>
