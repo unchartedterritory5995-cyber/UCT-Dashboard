@@ -47,6 +47,14 @@ export default function DayCell({ cell, summary, mode = 'pct', isToday = false }
         {summary?.hasNotes && (
           <span className={styles.notesBadge} title="Has reflection notes">📝</span>
         )}
+        {summary?.expiringCount > 0 && (
+          <span
+            className={styles.expBadge}
+            title={`${summary.expiringCount} option ${summary.expiringCount === 1 ? 'strategy' : 'strategies'} expiring`}
+          >
+            ⏳{summary.expiringCount}
+          </span>
+        )}
         {summary?.tradeCount > 0 && (
           <span className={styles.tradeCount}>
             {summary.tradeCount} trade{summary.tradeCount === 1 ? '' : 's'}

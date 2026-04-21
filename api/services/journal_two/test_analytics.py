@@ -329,3 +329,77 @@ def test_user_isolation(db_conn):
 
     got = get_analytics("alice", conn=db_conn)
     assert got["tradeCount"] == 1
+
+
+def test_options_section_empty(db_conn):
+    """No strategies → zero-state for all options aggregates."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_account(db_conn, "u1")
+    got = get_analytics("u1", conn=db_conn)
+    assert got["strategyCount"] == 0
+    assert got["options"]["headline"]["count"] == 0
+    assert got["options"]["byStrategyType"] == []
+    assert got["options"]["dteScatter"] == []
+
+
+def test_options_section_with_closed_strategies(db_conn):
+    """Closed strategies feed byAssetType / byStrategyType / creditVsDebit."""
+    from datetime import date, timedelta
+    from api.services.journal_two.analytics import get_analytics
+    from api.services.journal_two.options import create_strategy, close_strategy
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    exp = (date.today() + timedelta(days=30)).isoformat()
+
+    # One winning long call: debit $500 → $800, +$300 / +0.6R (max risk = debit)
+    s1 = create_strategy("u1", {
+        "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
+        "entry_date": date.today().isoformat(), "accountId": aid,
+        "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
+                  "expiration": exp, "qty": 1, "entry_price": 5}],
+    }, conn=db_conn)
+    close_strategy("u1", s1["id"], {
+        "exitPrices": {"0": 8}, "exitDate": date.today().isoformat(),
+    }, conn=db_conn)
+
+    # One losing credit spread: $-180 credit, close at +$220 debit → -$400
+    s2 = create_strategy("u1", {
+        "underlying": "SPY", "strategy_type": "vertical_credit_call",
+        "direction": "bearish",
+        "entry_date": date.today().isoformat(), "accountId": aid,
+        "legs": [
+            {"side": "sell", "contract_type": "call", "strike": 420,
+             "expiration": exp, "qty": 1, "entry_price": 3.0},
+            {"side": "buy",  "contract_type": "call", "strike": 425,
+             "expiration": exp, "qty": 1, "entry_price": 1.2},
+        ],
+    }, conn=db_conn)
+    close_strategy("u1", s2["id"], {
+        "exitPrices": {"0": 4.5, "1": 2.3}, "exitDate": date.today().isoformat(),
+    }, conn=db_conn)
+
+    got = get_analytics("u1", account_id=aid, conn=db_conn)
+    opts = got["options"]
+    assert got["strategyCount"] == 2
+    assert opts["headline"]["count"] == 2
+
+    # byStrategyType
+    types = {e["strategyType"]: e for e in opts["byStrategyType"]}
+    assert "long_call" in types
+    assert "vertical_credit_call" in types
+    assert types["long_call"]["totalPnl"] == 300.0
+    assert types["vertical_credit_call"]["totalPnl"] < 0
+
+    # creditVsDebit
+    assert opts["creditVsDebit"]["credit"]["count"] == 1  # credit spread
+    assert opts["creditVsDebit"]["debit"]["count"] == 1   # long call
+
+    # byAssetType
+    assert opts["byAssetType"]["options"]["count"] == 2
+    assert opts["byAssetType"]["equity"]["count"] == 0
+
+    # dteScatter: only strategies with r_multiple have points
+    # long_call has max_risk, credit_spread has max_risk → both have R → 2 points
+    assert len(opts["dteScatter"]) == 2

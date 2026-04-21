@@ -35,6 +35,7 @@ export default function DayReflection({
   onSave,
   saving,
   error,
+  optionsActivity = '',
 }) {
   return (
     <div className={styles.stack}>
@@ -61,6 +62,7 @@ export default function DayReflection({
           }}
           onSave={onSave}
           externalError={error}
+          suggestion={s.key === 'recapNotes' ? optionsActivity : ''}
         />
       ))}
     </div>
@@ -70,6 +72,7 @@ export default function DayReflection({
 function Section({
   sectionKey, label, icon, placeholder, initialValue,
   attachments, rules, currentAll, onSave, externalError,
+  suggestion = '',
 }) {
   const [text, setText] = useState(initialValue)
   const [open, setOpen] = useState(() => Boolean(initialValue && initialValue.length > 0))
@@ -147,6 +150,22 @@ function Section({
       </button>
       {open && (
         <div className={styles.body}>
+          {suggestion && !text.includes(suggestion.slice(0, 20)) && (
+            <button
+              type="button"
+              className={styles.suggestBtn}
+              onClick={() => {
+                const next = text ? `${suggestion}\n\n${text}` : suggestion
+                setText(next)
+                setStatus('typing')
+                clearTimeout(debounceRef.current)
+                debounceRef.current = setTimeout(() => triggerSave(next), AUTOSAVE_DEBOUNCE_MS)
+              }}
+              title="Prepend an auto-generated summary of today's options activity"
+            >
+              ✨ Insert today's options summary
+            </button>
+          )}
           <textarea
             className={styles.textarea}
             value={text}

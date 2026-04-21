@@ -1,0 +1,533 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 6, 10, 0.72);
+  backdrop-filter: blur(6px);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+
+.modal {
+  width: min(780px, 100%);
+  max-height: calc(100vh - 48px);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.xBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.xBtn:hover {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+}
+
+.accountBanner {
+  margin: 10px 22px 0;
+  padding: 6px 12px;
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
+  color: var(--text-bright);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.accountBanner strong {
+  color: var(--ut-gold);
+}
+
+.body {
+  padding: 18px 22px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.backBtn {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.backBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+
+/* ── Template picker ────────────────────────────────────────────── */
+
+.pickerWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pickerGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pickerGroupTitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.pickerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.pickerCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.pickerCard:hover {
+  background: var(--bg-hover);
+  border-color: var(--ut-gold);
+  transform: translateY(-1px);
+}
+
+.pickerLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+  line-height: 1.2;
+}
+
+.pickerDirection {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.2px;
+}
+
+/* ── Form ──────────────────────────────────────────────────────── */
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  color: var(--text-bright);
+}
+
+.autoTag {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-left: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.textInput,
+.textarea {
+  padding: 9px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.textInput:focus,
+.textarea:focus {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+
+.prefixInput {
+  display: flex;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.prefix {
+  padding: 0 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.numberInputInner {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 9px 10px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.pillToggle {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  height: 36px;
+}
+
+.pill {
+  flex: 1;
+  padding: 0 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 7px;
+  text-transform: capitalize;
+}
+
+.pill:hover {
+  background: var(--bg-hover);
+}
+
+.pillActive {
+  background: var(--ut-gold);
+  color: var(--bg);
+}
+
+.setupRow {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Legs editor ───────────────────────────────────────────────── */
+
+.legsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.legsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.legsTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.legsHint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  flex: 1;
+}
+
+.addLegBtn {
+  background: transparent;
+  color: var(--ut-gold);
+  border: 1px solid var(--ut-gold-dim);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.addLegBtn:hover:not(:disabled) {
+  background: var(--ut-gold-glow);
+}
+
+.addLegBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.legsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.legsTable th {
+  text-align: left;
+  padding: 5px 8px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--border);
+}
+
+.legsTable td {
+  padding: 5px 6px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.legsTable tr:last-child td {
+  border-bottom: none;
+}
+
+.legSelect,
+.legInput {
+  padding: 5px 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 12px;
+  width: 100%;
+  outline: none;
+}
+
+.legInput:focus,
+.legSelect:focus {
+  outline: 1px solid var(--ut-gold);
+}
+
+.removeLegBtn {
+  background: transparent;
+  border: none;
+  color: var(--loss);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+.removeLegBtn:hover:not(:disabled) {
+  background: var(--loss-bg);
+  border-radius: 4px;
+}
+
+.removeLegBtn:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* ── Hint / coaching box ────────────────────────────────────────── */
+
+.hintBox {
+  padding: 10px 12px;
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: 8px;
+}
+
+.hintTitle {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ut-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.hintLine {
+  font-size: 12px;
+  color: var(--text-bright);
+  line-height: 1.5;
+}
+
+/* ── Error banner ───────────────────────────────────────────────── */
+
+.errorBanner {
+  padding: 10px 12px;
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  border-radius: 8px;
+  color: var(--loss);
+  font-size: 12px;
+}
+
+/* ── Sticky footer + live calc ──────────────────────────────────── */
+
+.stickyFooter {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 22px 14px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+  flex-shrink: 0;
+}
+
+.liveCalc {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.calcCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 100px;
+}
+
+.calcLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.calcValue {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--text-bright);
+  font-weight: 500;
+}
+
+.calcValue.pos { color: var(--gain); }
+.calcValue.neg { color: var(--loss); }
+.calcValue.warn { color: var(--ut-gold); }
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ghostBtn {
+  padding: 9px 18px;
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ghostBtn:hover {
+  background: var(--bg-hover);
+}
+
+.primaryBtn {
+  padding: 9px 22px;
+  background: var(--ut-gold);
+  border: none;
+  border-radius: 8px;
+  color: var(--bg);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.primaryBtn:disabled,
+.ghostBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

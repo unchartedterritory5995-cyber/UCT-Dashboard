@@ -46,6 +46,18 @@
   margin-left: auto;
 }
 
+.expBadge {
+  font-size: 10px;
+  color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  letter-spacing: 0.3px;
+}
+
 .tradeCount {
   font-size: 10px;
   color: var(--text-muted);

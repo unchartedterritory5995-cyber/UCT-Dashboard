@@ -38,10 +38,29 @@ Settings + Admin (admin only) pinned to bottom of sidebar.
 A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 2.0 beta" (last sub-tab). **Additive only** — the existing Journal's code, data, and UI are unchanged. The two Journals share no code, no components, and no database tables.
 
 - **Source:** `app/src/pages/journal-2-0/`, `api/routers/journal_two.py`, `api/services/journal_two/`
-- **Tables:** `j2_settings`, `j2_positions`, `j2_trades` (prefix-namespaced; migration runs from `auth_db.init_db()`)
-- **Spec:** `docs/plans/journal-2.0-spec.md`
+- **Tables (all `j2_` prefix, migration from `auth_db.init_db()`):**
+  - `j2_settings` — legacy pre-accounts global settings (fallback path)
+  - `j2_accounts` — multi-account model (per-account sizing/setups/goals/fees)
+  - `j2_positions`, `j2_trades` — open + closed equity trades
+  - `j2_day_notes` — prep/mid-day/recap reflection + attachments + rules checklist
+  - `j2_playbook_entries` — stock observation library (Prep → Plan → Trade → Recap)
+  - `j2_option_strategies`, `j2_option_legs` — Pattern C multi-leg options
+- **Phases shipped:** 1 (Calendar) · 2 (Accounts) · 3 (Analytics 14 charts + Edge Scorecard) · 4 (Goals + Report) · 5 (Fees, Daily Notes, Playbook, **Options multi-leg**)
+- **Specs:** `docs/superpowers/specs/` (newer specs; e.g. `2026-04-19-options-multi-leg-design.md`) + `docs/plans/journal-2.0-spec.md` (original)
 - **Architecture:** `docs/journal-2.0-architecture.md`
-- **Cherry-picking reference:** `docs/feature-blending-guide.md` — every feature mapped with merge-back notes + effort estimates
+- **Cherry-picking reference:** `docs/feature-blending-guide.md`
+
+### Journal 2.0 — Options (Phase 5 Step 3)
+- **Pattern C schema:** separate `j2_option_strategies` (one row) + `j2_option_legs` (N rows, immutable after create). 18 strategy types (long/short call/put, verticals, straddle/strangle, calendar/diagonal, iron condor/butterfly, call/put butterfly, custom).
+- **Calc rules** (mirrored in `api/services/journal_two/options.py` Python AND `app/src/pages/journal-2-0/lib/optionCalcs.js` — keep in sync):
+  - `net_entry = Σ (sideSign × qty × entry_price × 100)` — positive = debit, negative = credit
+  - `pnl_dollar = net_exit − net_entry − fees − exit_fees` (NET of fees; pnl_percent stored as fraction, not percent)
+  - `max_risk`: long = net_entry; credit spread = width×100×qty + net_entry; iron condor/butterfly = wider_wing×100×min_qty + net_entry; naked short = None
+  - `closed_at` date-only inputs anchor at **ET noon** (not UTC midnight) so calendar bucketing lands on the user-typed day regardless of DST
+  - Past expirations rejected at create (server + client)
+- **Analytics:** options get their own `options` section (byAssetType, byStrategyType, creditVsDebit, DTE-vs-R scatter) — separate from equity aggregates, not unioned into equity curve.
+- **Calendar:** closed strategies union into day `pnlDollar`/`tradeCount`; open strategies with leg expiration in window get `expiringCount` badge; `DayDetailPage` renders closed + expiring strategies in separate sections + auto-fills a recap summary button.
+- **Live options pricing + Greeks + chain data = TODO (future critical work).** Greeks, IV rank, live option quotes, and option-chain integration are out of v1 scope.
 
 Open the last tab to try it. All existing Journal tabs behave identically to before.
 

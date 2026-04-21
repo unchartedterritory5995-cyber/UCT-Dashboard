@@ -114,3 +114,21 @@
   color: var(--text-muted);
   text-align: right;
 }
+
+.suggestBtn {
+  align-self: flex-start;
+  padding: 5px 10px;
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
+  color: var(--ut-gold);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.suggestBtn:hover {
+  filter: brightness(1.15);
+}

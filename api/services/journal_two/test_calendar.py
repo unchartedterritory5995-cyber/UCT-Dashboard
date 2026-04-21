@@ -435,3 +435,74 @@ def test_calendar_marks_days_with_notes(db_conn):
     by_date = {d["date"]: d for d in got["days"]}
     assert by_date["2026-04-19"]["hasNotes"] is True
     assert by_date["2026-04-20"]["hasNotes"] is False
+
+
+def test_calendar_unions_option_strategies(db_conn):
+    """Closed option strategies add to the day's pnlDollar and tradeCount."""
+    from datetime import date, timedelta
+    from api.services.journal_two.calendar import get_calendar
+    from api.services.journal_two.options import create_strategy, close_strategy
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+
+    today = date.today()
+    exp = (today + timedelta(days=21)).isoformat()
+
+    # 1 equity trade closed today: +$100
+    _add_trade(db_conn, "u1",
+               exit_date_iso=f"{today.isoformat()}T18:00:00Z", pnl=100)
+
+    # 1 option strategy closed today: buy call @5 → sell @8 → +$300
+    s = create_strategy("u1", {
+        "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
+        "entry_date": today.isoformat(),
+        "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
+                  "expiration": exp, "qty": 1, "entry_price": 5}],
+    }, conn=db_conn)
+    close_strategy("u1", s["id"], {
+        "exitPrices": {"0": 8}, "exitDate": today.isoformat(),
+    }, conn=db_conn)
+
+    got = get_calendar(
+        "u1", view="month", year=today.year, month=today.month,
+        conn=db_conn,
+    )
+    by_date = {d["date"]: d for d in got["days"]}
+    bucket = by_date.get(today.isoformat())
+    assert bucket is not None
+    assert bucket["pnlDollar"] == 400   # 100 + 300
+    assert bucket["tradeCount"] == 2    # 1 trade + 1 strategy
+
+
+def test_calendar_marks_expiring_strategies(db_conn):
+    """Open strategies with legs expiring in the month get expiringCount > 0."""
+    from datetime import date, timedelta
+    from api.services.journal_two.calendar import get_calendar
+    from api.services.journal_two.options import create_strategy
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+
+    today = date.today()
+    # Pick an expiration that's still within `today`'s calendar month
+    # so the get_calendar query window includes it.
+    next_month = today.replace(day=1) + timedelta(days=32)
+    last_of_month = next_month.replace(day=1) - timedelta(days=1)
+    days_left = (last_of_month - today).days
+    exp = (today + timedelta(days=min(7, max(1, days_left)))).isoformat()
+
+    create_strategy("u1", {
+        "underlying": "SPY", "strategy_type": "long_call", "direction": "bullish",
+        "entry_date": today.isoformat(),
+        "legs": [{"side": "buy", "contract_type": "call", "strike": 420,
+                  "expiration": exp, "qty": 1, "entry_price": 3}],
+    }, conn=db_conn)
+
+    got = get_calendar(
+        "u1", view="month", year=today.year, month=today.month,
+        conn=db_conn,
+    )
+    by_date = {d["date"]: d for d in got["days"]}
+    assert exp in by_date
+    assert by_date[exp]["expiringCount"] == 1
+
+

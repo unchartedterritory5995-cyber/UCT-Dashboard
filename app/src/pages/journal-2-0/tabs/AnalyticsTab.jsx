@@ -196,9 +196,9 @@ export default function AnalyticsTab() {
         <p className={styles.hint}>Loading analytics…</p>
       )}
 
-      {data && data.tradeCount === 0 && (
+      {data && data.tradeCount === 0 && (data.strategyCount ?? 0) === 0 && (
         <div className={styles.empty}>
-          <p>No trades in this range.</p>
+          <p>No trades or option strategies in this range.</p>
           <p className={styles.emptyHint}>
             Try expanding the date range or switching accounts.
           </p>
@@ -213,6 +213,9 @@ export default function AnalyticsTab() {
           <DistributionSection distribution={data.distribution} />
           <AttributionSection attribution={data.attribution} />
         </>
+      )}
+      {data && (data.strategyCount ?? 0) > 0 && data.options && (
+        <OptionsSection options={data.options} />
       )}
       {data && data.tradeCount === 0 && data.equity?.curve?.length > 0 && (
         // Shouldn't happen but guard — keep blank
@@ -848,4 +851,228 @@ function Kpi({ label, value, positive, negative }) {
       </span>
     </div>
   )
+}
+
+// ── Section 5: Options breakdown (Phase 5 Step 6) ─────────────────────────
+
+function OptionsSection({ options }) {
+  const { headline, byAssetType, byStrategyType, creditVsDebit, dteScatter } = options
+  const byAssetOption = useMemo(() => ({
+    ...baseChart,
+    tooltip: { ...baseChart.tooltip, trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { ...baseChart.grid, bottom: 45 },
+    xAxis: { ...categoryAxis, data: ['Equity', 'Options'] },
+    yAxis: moneyAxis,
+    series: [{
+      type: 'bar',
+      data: [byAssetType.equity.totalPnl || 0, byAssetType.options.totalPnl || 0].map((v) => ({
+        value: v,
+        itemStyle: { color: v >= 0 ? CHART_COLORS.gain : CHART_COLORS.loss },
+      })),
+      label: {
+        show: true, position: 'top', color: CHART_COLORS.textBright,
+        formatter: (p) => fmtSignedDollar(p.value),
+      },
+      barWidth: '45%',
+    }],
+  }), [byAssetType])
+
+  const byStrategyOption = useMemo(() => {
+    if (!byStrategyType || byStrategyType.length === 0) return null
+    const labels = byStrategyType.map((e) => prettyType(e.strategyType))
+    const values = byStrategyType.map((e) => e.totalPnl)
+    return {
+      ...baseChart,
+      grid: { ...baseChart.grid, left: 140 },
+      tooltip: {
+        ...baseChart.tooltip,
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: (p) => {
+          const e = byStrategyType[p[0].dataIndex]
+          return `<strong>${prettyType(e.strategyType)}</strong><br/>
+                  Count: ${e.count}<br/>
+                  P&L: ${fmtSignedDollar(e.totalPnl)}<br/>
+                  Win Rate: ${e.winRate == null ? '—' : `${(e.winRate*100).toFixed(0)}%`}<br/>
+                  Avg R: ${e.avgR == null ? '—' : e.avgR.toFixed(2) + 'R'}`
+        },
+      },
+      xAxis: moneyAxis,
+      yAxis: { ...categoryAxis, data: labels, axisLabel: { color: CHART_COLORS.text } },
+      series: [{
+        type: 'bar',
+        data: values.map((v) => ({
+          value: v,
+          itemStyle: { color: v >= 0 ? CHART_COLORS.gain : CHART_COLORS.loss },
+        })),
+        label: {
+          show: true, position: 'right', color: CHART_COLORS.textBright,
+          formatter: (p) => fmtSignedDollar(p.value),
+        },
+        barWidth: '55%',
+      }],
+    }
+  }, [byStrategyType])
+
+  const creditVsDebitOption = useMemo(() => {
+    const cr = creditVsDebit.credit
+    const de = creditVsDebit.debit
+    if (cr.count === 0 && de.count === 0) return null
+    return {
+      ...baseChart,
+      tooltip: { ...baseChart.tooltip, trigger: 'item' },
+      legend: {
+        data: ['Credit', 'Debit'],
+        textStyle: { color: CHART_COLORS.text },
+        bottom: 0,
+      },
+      grid: { ...baseChart.grid, bottom: 45 },
+      series: [{
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['50%', '45%'],
+        data: [
+          {
+            value: Math.abs(cr.totalPnl),
+            name: 'Credit',
+            itemStyle: { color: cr.totalPnl >= 0 ? CHART_COLORS.gain : CHART_COLORS.loss },
+          },
+          {
+            value: Math.abs(de.totalPnl),
+            name: 'Debit',
+            itemStyle: { color: de.totalPnl >= 0 ? CHART_COLORS.gain : CHART_COLORS.loss },
+          },
+        ],
+        label: {
+          color: CHART_COLORS.textBright,
+          formatter: (p) => {
+            const data = p.name === 'Credit' ? cr : de
+            return `${p.name}\n${fmtSignedDollar(data.totalPnl)}\n(${data.count})`
+          },
+        },
+      }],
+    }
+  }, [creditVsDebit])
+
+  const dteScatterOption = useMemo(() => {
+    if (!dteScatter || dteScatter.length === 0) return null
+    return {
+      ...baseChart,
+      tooltip: {
+        ...baseChart.tooltip,
+        trigger: 'item',
+        formatter: (p) => {
+          const d = p.data
+          return `<strong>${d[3]} ${prettyType(d[4])}</strong><br/>
+                  Days held: ${d[0]}<br/>
+                  R-Multiple: ${fmtSignedR(d[1])}<br/>
+                  P&L: ${fmtSignedDollar(d[2])}`
+        },
+      },
+      xAxis: {
+        type: 'value',
+        name: 'Days Held',
+        nameLocation: 'middle',
+        nameGap: 25,
+        nameTextStyle: { color: CHART_COLORS.text, fontSize: 11 },
+        axisLine: { lineStyle: { color: CHART_COLORS.border } },
+        splitLine: { lineStyle: { color: CHART_COLORS.border, type: 'dashed' } },
+        axisLabel: { color: CHART_COLORS.text },
+      },
+      yAxis: {
+        type: 'value',
+        name: 'R-Multiple',
+        nameLocation: 'middle',
+        nameGap: 36,
+        nameTextStyle: { color: CHART_COLORS.text, fontSize: 11 },
+        axisLine: { lineStyle: { color: CHART_COLORS.border } },
+        splitLine: { lineStyle: { color: CHART_COLORS.border, type: 'dashed' } },
+        axisLabel: { color: CHART_COLORS.text, formatter: (v) => `${v}R` },
+      },
+      series: [{
+        type: 'scatter',
+        symbolSize: (p) => Math.min(30, 6 + Math.sqrt(Math.abs(p[2]) / 10)),
+        data: dteScatter.map((s) => [
+          s.daysHeld,
+          s.rMultiple,
+          s.pnlDollar,
+          s.underlying,
+          s.strategyType,
+        ]),
+        itemStyle: {
+          color: (p) => (p.data[1] >= 0 ? CHART_COLORS.gain : CHART_COLORS.loss),
+          opacity: 0.7,
+        },
+      }],
+      grid: { ...baseChart.grid, left: 60, bottom: 50 },
+    }
+  }, [dteScatter])
+
+  return (
+    <section className={styles.section}>
+      <header className={styles.sectionHeader}>
+        <h3 className={styles.sectionTitle}>Options Breakdown</h3>
+        <span className={styles.sectionSub}>
+          {headline.count} strategies · {fmtSignedDollar(headline.totalPnl)} P&L
+          {headline.winRate != null && ` · ${(headline.winRate * 100).toFixed(0)}% win rate`}
+        </span>
+      </header>
+
+      <div className={styles.chartGrid}>
+        <ChartCard title="Equity vs Options">
+          <ReactECharts option={byAssetOption} style={{ height: 260, width: '100%' }} />
+        </ChartCard>
+
+        {byStrategyOption && (
+          <ChartCard title="P&L by Strategy Type">
+            <ReactECharts option={byStrategyOption} style={{ height: Math.max(180, byStrategyType.length * 30 + 60), width: '100%' }} />
+          </ChartCard>
+        )}
+
+        {creditVsDebitOption && (
+          <ChartCard title="Credit vs Debit Structures">
+            <ReactECharts option={creditVsDebitOption} style={{ height: 260, width: '100%' }} />
+          </ChartCard>
+        )}
+
+        {dteScatterOption && (
+          <ChartCard title="Days Held vs R-Multiple">
+            <ReactECharts option={dteScatterOption} style={{ height: 280, width: '100%' }} />
+          </ChartCard>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function ChartCard({ title, children }) {
+  return (
+    <div className={styles.chartCard}>
+      <div className={styles.chartTitle}>{title}</div>
+      {children}
+    </div>
+  )
+}
+
+function prettyType(t) {
+  const map = {
+    long_call: 'Long Call',
+    long_put: 'Long Put',
+    short_call: 'Short Call',
+    short_put: 'Short Put',
+    vertical_debit_call: 'Call Debit Spread',
+    vertical_credit_call: 'Call Credit Spread',
+    vertical_debit_put: 'Put Debit Spread',
+    vertical_credit_put: 'Put Credit Spread',
+    calendar: 'Calendar',
+    diagonal: 'Diagonal',
+    straddle: 'Straddle',
+    strangle: 'Strangle',
+    iron_condor: 'Iron Condor',
+    iron_butterfly: 'Iron Butterfly',
+    call_butterfly: 'Call Butterfly',
+    put_butterfly: 'Put Butterfly',
+    custom: 'Custom',
+  }
+  return map[t] || t
 }

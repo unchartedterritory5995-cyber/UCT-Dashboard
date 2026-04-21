@@ -28,6 +28,7 @@ from api.services.journal_two import (
     calendar as calendar_service,
     community as community_service,
     csv_import as csv_import_service,
+    options as options_service,
     playbook as playbook_service,
     positions as positions_service,
     settings as settings_service,
@@ -618,6 +619,142 @@ def get_playbook_screenshot(
     if path is None:
         raise HTTPException(status_code=404, detail="Screenshot not found")
     return FileResponse(path)
+
+
+# ── Options — multi-leg strategies (Phase 5) ────────────────────────────────
+
+
+@router.get("/options")
+def list_option_strategies(
+    account_id: str | None = None,
+    status: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """All option strategies for the user, newest-first. Filters are optional."""
+    try:
+        return {
+            "strategies": options_service.list_strategies(
+                user["id"],
+                account_id=account_id,
+                status=status,
+                date_from=date_from,
+                date_to=date_to,
+            ),
+        }
+    except options_service.OptionValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/options")
+def create_option_strategy(
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Create a new multi-leg option strategy. Defaults to the user's
+    Default account if accountId is omitted."""
+    acc_id = payload.get("accountId") or payload.get("account_id")
+    if not acc_id:
+        default = accounts_service.get_or_migrate_default_account(user["id"])
+        acc_id = default["id"]
+    try:
+        return options_service.create_strategy(
+            user["id"], payload, account_id=acc_id,
+        )
+    except options_service.OptionValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/options/{strategy_id}")
+def get_option_strategy(
+    strategy_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    got = options_service.get_strategy(user["id"], strategy_id)
+    if got is None:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    return got
+
+
+@router.put("/options/{strategy_id}")
+def update_option_strategy(
+    strategy_id: str,
+    patch: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Metadata-only update (notes/setup/direction/linked_playbook_id).
+    Legs are IMMUTABLE; delete + re-create to fix a misrecorded fill."""
+    try:
+        updated = options_service.update_strategy(user["id"], strategy_id, patch)
+    except options_service.OptionValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    return updated
+
+
+@router.delete("/options/{strategy_id}")
+def delete_option_strategy(
+    strategy_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Delete an OPEN strategy. Closed strategies are historical record
+    and cannot be deleted."""
+    try:
+        ok = options_service.delete_strategy(user["id"], strategy_id)
+    except options_service.OptionValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not ok:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    return {"deleted": True}
+
+
+@router.post("/options/{strategy_id}/close")
+def close_option_strategy(
+    strategy_id: str,
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Close a strategy with per-leg exit prices. Body must include
+    exitPrices {legIndex: price}, exitDate, optional exitFees, notes, status."""
+    try:
+        closed = options_service.close_strategy(user["id"], strategy_id, payload)
+    except options_service.OptionValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if closed is None:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    return closed
+
+
+@router.post("/options/{strategy_id}/expire")
+def expire_option_strategy(
+    strategy_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """One-click expire: all legs' exit_price = 0, status='expired'."""
+    try:
+        expired = options_service.mark_expired(user["id"], strategy_id)
+    except options_service.OptionValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if expired is None:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    return expired
+
+
+@router.post("/options/mark-expired-batch")
+def mark_expired_batch_route(
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Batch-expire a list of strategy ids. Used by the expired banner."""
+    ids = payload.get("strategyIds") or payload.get("strategy_ids")
+    if not isinstance(ids, list):
+        raise HTTPException(status_code=400, detail="strategyIds must be a list")
+    try:
+        return options_service.mark_expired_batch(user["id"], ids)
+    except options_service.OptionValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── Analytics (Phase 3) ──────────────────────────────────────────────────────

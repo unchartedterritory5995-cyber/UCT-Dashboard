@@ -13,12 +13,39 @@ import MiniMonthNav from './MiniMonthNav'
 import DayReflection from './DayReflection'
 import DayAttachments from './DayAttachments'
 import DayRulesChecklist from './DayRulesChecklist'
+import OptionStrategiesSection from '../options/OptionStrategiesSection'
+import { buildStrategyLabel } from '../../lib/optionCalcs'
 import {
   fmtSignedDollar,
   fmtSignedPct,
   fmtSignedR,
 } from '../../lib/calendar'
 import styles from './DayDetailPage.module.css'
+
+function buildOptionsActivitySummary(strategies) {
+  if (!strategies) return ''
+  const lines = []
+  const closed = strategies.closed || []
+  const expiring = strategies.expiring || []
+  if (closed.length > 0) {
+    lines.push(`Closed ${closed.length} option ${closed.length === 1 ? 'strategy' : 'strategies'}:`)
+    for (const s of closed) {
+      const pnl = s.pnlDollar == null ? '—'
+        : `${s.pnlDollar >= 0 ? '+' : ''}$${Math.abs(s.pnlDollar).toFixed(2)}`
+      const r = s.rMultiple == null ? ''
+        : ` (${s.rMultiple >= 0 ? '+' : ''}${s.rMultiple.toFixed(2)}R)`
+      lines.push(`- ${buildStrategyLabel(s)} → ${pnl}${r} · ${s.result || s.status}`)
+    }
+  }
+  if (expiring.length > 0) {
+    if (lines.length) lines.push('')
+    lines.push(`Expiring today (${expiring.length}):`)
+    for (const s of expiring) {
+      lines.push(`- ${buildStrategyLabel(s)}`)
+    }
+  }
+  return lines.join('\n')
+}
 
 function isValidDate(s) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false
@@ -42,7 +69,7 @@ export default function DayDetailPage() {
   const { date } = useParams()
   const { accountId } = useJ2SelectedAccount()
   const valid = isValidDate(date || '')
-  const { metrics, trades, notes, isLoading, error } = useJ2DayDetail(valid ? date : null, accountId)
+  const { metrics, trades, strategies, notes, isLoading, error } = useJ2DayDetail(valid ? date : null, accountId)
   const { save, saving, error: saveError } = useJ2DayNotesMutation(valid ? date : null)
   const notesText = notes?.notes ?? ''
   const prepText = notes?.prepNotes ?? ''
@@ -86,6 +113,20 @@ export default function DayDetailPage() {
 
           <DayTradesTable trades={trades} isLoading={isLoading} />
 
+          {strategies?.closed?.length > 0 && (
+            <OptionStrategiesSection
+              strategies={strategies.closed}
+              variant="closed"
+            />
+          )}
+
+          {strategies?.expiring?.length > 0 && (
+            <OptionStrategiesSection
+              strategies={strategies.expiring}
+              variant="open"
+            />
+          )}
+
           <DayReflection
             initialNotes={notesText}
             initialPrep={prepText}
@@ -96,6 +137,7 @@ export default function DayDetailPage() {
             onSave={save}
             saving={saving}
             error={saveError}
+            optionsActivity={buildOptionsActivitySummary(strategies)}
           />
 
           <DayAttachments

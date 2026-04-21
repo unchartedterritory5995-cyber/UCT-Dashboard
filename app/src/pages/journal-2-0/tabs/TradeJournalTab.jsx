@@ -11,9 +11,11 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useSWRConfig } from 'swr'
 import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Trades from '../hooks/useJ2Trades'
+import useJ2OptionStrategies from '../hooks/useJ2OptionStrategies'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
 import useJ2Filters from '../hooks/useJ2Filters'
+import OptionStrategiesSection from '../components/options/OptionStrategiesSection'
 import { applyFilters } from '../hooks/useJ2Filters'
 import StatsGrid from '../components/StatsGrid'
 import TradesTable, { buildTradesColumns } from '../components/TradesTable'
@@ -48,6 +50,11 @@ async function jsonFetch(url, method, body) {
 
 export default function TradeJournalTab({ settings }) {
   const { trades, isLoading, error, refresh } = useJ2Trades()
+  const {
+    strategies: closedStrategies,
+    isLoading: stratLoading,
+    error: stratError,
+  } = useJ2OptionStrategies({ status: 'closed' })
   const { accountId: selectedAccountId, accounts } = useJ2SelectedAccount()
   const { mutate } = useSWRConfig()
 
@@ -290,6 +297,14 @@ export default function TradeJournalTab({ settings }) {
       ) : (
         <TradesTable trades={filteredTrades} visibleColumns={visibleColumns} />
       )}
+
+      <OptionStrategiesSection
+        strategies={closedStrategies}
+        variant="closed"
+        isLoading={stratLoading}
+        error={stratError}
+      />
+
 
       {addOpen && (
         <AddTradeModal

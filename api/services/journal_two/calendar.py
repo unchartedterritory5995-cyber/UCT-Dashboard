@@ -118,25 +118,32 @@ def _account_size_for_user(
     return float(size) if isinstance(size, (int, float)) else 100_000.0
 
 
+def _empty_bucket(d: str) -> dict[str, Any]:
+    return {
+        "date": d,
+        "pnlDollar": 0.0,
+        "rSum": 0.0,
+        "tradeCount": 0,
+        "winners": 0,
+        "losers": 0,
+    }
+
+
 def _aggregate_trades(
     rows: list[sqlite3.Row],
     account_size: float,
+    *,
+    _extra_bucket: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Bucket trades by ET exit-date and return (days, totals)."""
-    bucket: dict[str, dict[str, Any]] = {}
+    """Bucket trades by ET exit-date and return (days, totals).
+
+    `_extra_bucket` is an optional pre-populated bucket dict (e.g. from
+    option strategies) to fold in before final flattening.
+    """
+    bucket: dict[str, dict[str, Any]] = _extra_bucket or {}
     for r in rows:
         d = to_et_date(r["exit_date"])
-        b = bucket.setdefault(
-            d,
-            {
-                "date": d,
-                "pnlDollar": 0.0,
-                "rSum": 0.0,
-                "tradeCount": 0,
-                "winners": 0,
-                "losers": 0,
-            },
-        )
+        b = bucket.setdefault(d, _empty_bucket(d))
         b["pnlDollar"] += float(r["pnl_dollar"] or 0)
         if r["r_multiple"] is not None:
             b["rSum"] += float(r["r_multiple"])
@@ -173,6 +180,104 @@ def _aggregate_trades(
         "rSum": total_r,
     }
     return days, totals
+
+
+def _fetch_strategies_in_window(
+    user_id: str,
+    sql_lo: str,
+    sql_hi: str,
+    conn: sqlite3.Connection,
+    *,
+    account_id: str | None = None,
+) -> list[sqlite3.Row]:
+    """Closed option strategies with closed_at in the SQL range.
+    ET-bucket filtering happens on the caller side."""
+    if account_id:
+        return conn.execute(
+            """
+            SELECT id, closed_at, pnl_dollar, r_multiple, result, status
+              FROM j2_option_strategies
+             WHERE user_id = ? AND account_id = ?
+               AND status != 'open'
+               AND closed_at >= ? AND closed_at <= ?
+            """,
+            (user_id, account_id, sql_lo, sql_hi),
+        ).fetchall()
+    return conn.execute(
+        """
+        SELECT id, closed_at, pnl_dollar, r_multiple, result, status
+          FROM j2_option_strategies
+         WHERE user_id = ?
+           AND status != 'open'
+           AND closed_at >= ? AND closed_at <= ?
+        """,
+        (user_id, sql_lo, sql_hi),
+    ).fetchall()
+
+
+def _fetch_expiring_legs(
+    user_id: str,
+    start_iso: str,
+    end_iso: str,
+    conn: sqlite3.Connection,
+    *,
+    account_id: str | None = None,
+) -> list[sqlite3.Row]:
+    """Open-strategy legs whose expiration falls in the date window.
+    Returns one row per leg with its strategy id + expiration."""
+    params: list[Any] = [user_id, start_iso, end_iso]
+    sql = (
+        "SELECT s.id AS strategy_id, l.expiration "
+        "  FROM j2_option_legs l "
+        "  JOIN j2_option_strategies s ON s.id = l.strategy_id "
+        " WHERE s.user_id = ? AND s.status = 'open' "
+        "   AND l.expiration >= ? AND l.expiration <= ?"
+    )
+    if account_id:
+        sql += " AND s.account_id = ?"
+        params.append(account_id)
+    return conn.execute(sql, params).fetchall()
+
+
+def _union_strategy_aggregates(
+    bucket: dict[str, dict[str, Any]],
+    strategies: list[sqlite3.Row],
+    start_iso: str,
+    end_iso: str,
+) -> None:
+    """Fold closed option strategies into existing day buckets (by ET
+    bucketed closed_at). Mutates `bucket` in place."""
+    for s in strategies:
+        if s["closed_at"] is None:
+            continue
+        d = to_et_date(s["closed_at"])
+        if not (start_iso <= d <= end_iso):
+            continue
+        b = bucket.setdefault(d, _empty_bucket(d))
+        b["pnlDollar"] += float(s["pnl_dollar"] or 0)
+        if s["r_multiple"] is not None:
+            b["rSum"] += float(s["r_multiple"])
+        b["tradeCount"] += 1
+        if s["result"] == "Win":
+            b["winners"] += 1
+        elif s["result"] == "Loss":
+            b["losers"] += 1
+
+
+def _expiring_counts(
+    expiring_legs: list[sqlite3.Row],
+    start_iso: str,
+    end_iso: str,
+) -> dict[str, int]:
+    """Distinct-strategy count of legs expiring per day. Same strategy
+    with multiple legs on the same expiry counts once."""
+    by_date: dict[str, set[str]] = {}
+    for r in expiring_legs:
+        exp = r["expiration"]
+        if not (start_iso <= exp <= end_iso):
+            continue
+        by_date.setdefault(exp, set()).add(r["strategy_id"])
+    return {d: len(ids) for d, ids in by_date.items()}
 
 
 def _has_notes_set(
@@ -261,13 +366,41 @@ def get_calendar(
             if start_iso <= et_d <= end_iso:
                 in_window.append(r)
 
-        account_size = _account_size_for_user(user_id, conn, account_id=account_id)
-        days, totals = _aggregate_trades(in_window, account_size)
+        # Fold closed option strategies into the same day buckets.
+        strategies = _fetch_strategies_in_window(
+            user_id, sql_lo, sql_hi, conn, account_id=account_id,
+        )
+        extra_bucket: dict[str, dict[str, Any]] = {}
+        _union_strategy_aggregates(extra_bucket, strategies, start_iso, end_iso)
 
-        # Mark days that have user-saved notes.
+        # Expiring-soon badge counts — open strategies with legs expiring in window.
+        expiring_legs = _fetch_expiring_legs(
+            user_id, start_iso, end_iso, conn, account_id=account_id,
+        )
+        expiring_by_date = _expiring_counts(expiring_legs, start_iso, end_iso)
+
+        account_size = _account_size_for_user(user_id, conn, account_id=account_id)
+        days, totals = _aggregate_trades(
+            in_window, account_size, _extra_bucket=extra_bucket,
+        )
+
+        # Mark days that have user-saved notes + expiring strategies.
         notes_set = _has_notes_set(user_id, [d["date"] for d in days], conn)
         for d in days:
             d["hasNotes"] = d["date"] in notes_set
+            d["expiringCount"] = expiring_by_date.get(d["date"], 0)
+
+        # A day with only an expiring leg and no trades/closes still needs
+        # to show the badge. Add zero-P&L bucket entries for those.
+        existing_dates = {d["date"] for d in days}
+        for exp_date, count in expiring_by_date.items():
+            if exp_date not in existing_dates:
+                bucket = _empty_bucket(exp_date)
+                bucket["pnlPercent"] = 0.0
+                bucket["hasNotes"] = exp_date in notes_set
+                bucket["expiringCount"] = count
+                days.append(bucket)
+        days.sort(key=lambda x: x["date"])
 
         payload: dict[str, Any] = {
             "view": view,
@@ -329,9 +462,28 @@ def get_day_detail(
 
         same_day = [r for r in rows if to_et_date(r["exit_date"]) == date]
 
+        # Option strategies: closed on this day + open ones expiring today.
+        closed_strategies = _fetch_strategies_in_window(
+            user_id, sql_lo, sql_hi, conn, account_id=account_id,
+        )
+        same_day_strategies = [
+            s for s in closed_strategies
+            if s["closed_at"] and to_et_date(s["closed_at"]) == date
+        ]
+        expiring_today = _fetch_expiring_legs(
+            user_id, date, date, conn, account_id=account_id,
+        )
+        expiring_strategy_ids = {r["strategy_id"] for r in expiring_today}
+
+        # Union the strategies into the metrics row.
+        extra_bucket: dict[str, dict[str, Any]] = {}
+        _union_strategy_aggregates(extra_bucket, same_day_strategies, date, date)
+
         # Reuse aggregation logic for the metrics row.
         account_size = _account_size_for_user(user_id, conn, account_id=account_id)
-        _, totals = _aggregate_trades(same_day, account_size)
+        _, totals = _aggregate_trades(
+            same_day, account_size, _extra_bucket=extra_bucket,
+        )
         # Day-detail metrics include a pnlPercent (vs account size).
         pnl_pct = (
             totals["netPnlDollar"] / account_size if account_size > 0 else 0.0
@@ -365,6 +517,40 @@ def get_day_detail(
 
         notes = get_day_notes(user_id, date, conn=conn)
 
+        # Strategy payloads: include a thin shape the day-detail UI can render
+        # without needing another round-trip for leg data. Reuse options service
+        # row→dict helpers by fetching full rows.
+        strategies_out: dict[str, list[dict[str, Any]]] = {
+            "closed": [],
+            "expiring": [],
+        }
+        if same_day_strategies or expiring_strategy_ids:
+            from api.services.journal_two.options import (
+                _row_to_strategy, _fetch_legs,
+            )
+            ids_to_fetch = {s["id"] for s in same_day_strategies} | expiring_strategy_ids
+            placeholders = ",".join("?" * len(ids_to_fetch))
+            strategy_rows = conn.execute(
+                f"SELECT * FROM j2_option_strategies "
+                f"WHERE id IN ({placeholders}) AND user_id = ?",
+                (*ids_to_fetch, user_id),
+            ).fetchall()
+            by_id = {r["id"]: r for r in strategy_rows}
+            for s in same_day_strategies:
+                full = by_id.get(s["id"])
+                if full is None:
+                    continue
+                strategies_out["closed"].append(
+                    _row_to_strategy(full, _fetch_legs(conn, full["id"])),
+                )
+            for sid in expiring_strategy_ids:
+                full = by_id.get(sid)
+                if full is None or full["status"] != "open":
+                    continue
+                strategies_out["expiring"].append(
+                    _row_to_strategy(full, _fetch_legs(conn, sid)),
+                )
+
         return {
             "date": date,
             "metrics": {
@@ -372,6 +558,7 @@ def get_day_detail(
                 "pnlPercent": pnl_pct,
             },
             "trades": trades_out,
+            "strategies": strategies_out,
             "notes": notes,
         }
     finally:

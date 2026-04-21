@@ -11,8 +11,13 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useSWRConfig } from 'swr'
 import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Positions from '../hooks/useJ2Positions'
+import useJ2OptionStrategies from '../hooks/useJ2OptionStrategies'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
+import OptionStrategiesSection from '../components/options/OptionStrategiesSection'
+import AddOptionStrategyModal from '../components/options/AddOptionStrategyModal'
+import CloseOptionStrategyModal from '../components/options/CloseOptionStrategyModal'
+import ExpiredBanner from '../components/options/ExpiredBanner'
 import useLivePrices from '../../../hooks/useLivePrices'
 import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
 import ColumnsPicker from '../components/ColumnsPicker'
@@ -53,6 +58,12 @@ async function jsonFetch(url, method, body) {
 
 export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const { positions, isLoading, error, refresh: refreshPositions } = useJ2Positions()
+  const {
+    strategies: optionStrategies,
+    isLoading: optionsLoading,
+    error: optionsError,
+    refresh: refreshOptions,
+  } = useJ2OptionStrategies({ status: 'open' })
   const { accountId: selectedAccountId, account: selectedAccount, accounts } = useJ2SelectedAccount()
   const {
     columns,
@@ -74,6 +85,10 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const [editTarget, setEditTarget] = useState(null)
   const [closeTarget, setCloseTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [optionsAddOpen, setOptionsAddOpen] = useState(false)
+  const [optionsDeleteTarget, setOptionsDeleteTarget] = useState(null)
+  const [optionsCloseTarget, setOptionsCloseTarget] = useState(null)
+  const [expiredBannerDismissed, setExpiredBannerDismissed] = useState(false)
   const [toast, setToast] = useState(null)  // { message, tone }
 
   // Tab-scoped shortcuts. react-hotkeys-hook skips input/textarea/
@@ -255,6 +270,49 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
         />
       )}
 
+      {!expiredBannerDismissed && (
+        <ExpiredBanner
+          strategies={optionStrategies}
+          onMarkAll={async (expired) => {
+            const ids = expired.map((s) => s.id)
+            try {
+              await jsonFetch('/api/j2/options/mark-expired-batch', 'POST', {
+                strategyIds: ids,
+              })
+              refreshOptions()
+              mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/analytics'))
+              mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/calendar'))
+              setToast({ message: `Marked ${ids.length} strategies expired.`, tone: 'success' })
+            } catch (e) {
+              setToast({ message: `Batch-expire failed: ${e.message}`, tone: 'error' })
+            }
+          }}
+          onDismiss={() => setExpiredBannerDismissed(true)}
+        />
+      )}
+
+      <OptionStrategiesSection
+        strategies={optionStrategies}
+        variant="open"
+        isLoading={optionsLoading}
+        error={optionsError}
+        onAddClick={() => setOptionsAddOpen(true)}
+        onExpire={async (s) => {
+          try {
+            await jsonFetch(`/api/j2/options/${s.id}/expire`, 'POST')
+            refreshOptions()
+            mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/analytics'))
+            mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/calendar'))
+            setToast({ message: `Marked ${s.underlying} expired.`, tone: 'success' })
+          } catch (e) {
+            setToast({ message: `Couldn't expire: ${e.message}`, tone: 'error' })
+          }
+        }}
+        onClose={(s) => setOptionsCloseTarget(s)}
+        onDelete={(s) => setOptionsDeleteTarget(s)}
+      />
+
+
       {(addOpen || addPrefill) && (
         <AddPositionModal
           settings={settings}
@@ -274,7 +332,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
                 Permanently delete the <strong>{deleteTarget.symbol}</strong> {deleteTarget.side.toLowerCase()} position
                 ({deleteTarget.shares} shares @ {money(deleteTarget.entryPrice)})?
               </p>
-              <p style={{ fontSize: 12, color: '#7c8290', marginTop: 8 }}>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
                 Trades written from this position stay in the Journal — only
                 the open Position row is removed.
               </p>
@@ -300,6 +358,76 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           currentPrice={prices[closeTarget.symbol]?.price}
           onSave={(payload) => handleClose(closeTarget, payload)}
           onClose={() => setCloseTarget(null)}
+        />
+      )}
+
+      {optionsDeleteTarget && (
+        <ConfirmModal
+          title={`Delete ${optionsDeleteTarget.underlying} strategy?`}
+          body={
+            <p>
+              Permanently delete this option strategy. Only OPEN strategies can be deleted;
+              closed strategies are part of your trading history.
+            </p>
+          }
+          confirmLabel="Delete Strategy"
+          tone="danger"
+          onConfirm={async () => {
+            const s = optionsDeleteTarget
+            setOptionsDeleteTarget(null)
+            try {
+              await jsonFetch(`/api/j2/options/${s.id}`, 'DELETE')
+              refreshOptions()
+              mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/analytics'))
+              mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/calendar'))
+              setToast({ message: `Deleted ${s.underlying} strategy.`, tone: 'success' })
+            } catch (e) {
+              setToast({ message: `Couldn't delete: ${e.message}`, tone: 'error' })
+            }
+          }}
+          onClose={() => setOptionsDeleteTarget(null)}
+        />
+      )}
+
+      {optionsCloseTarget && (
+        <CloseOptionStrategyModal
+          strategy={optionsCloseTarget}
+          defaultFeePerContract={settings?.defaultFeePerContract || 0}
+          onSave={async (payload) => {
+            const s = optionsCloseTarget
+            await jsonFetch(`/api/j2/options/${s.id}/close`, 'POST', payload)
+            refreshOptions()
+            mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/analytics'))
+            mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/calendar'))
+            mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/trades'))
+            setOptionsCloseTarget(null)
+            setToast({
+              message: `Closed ${s.underlying} strategy.`,
+              tone: 'success',
+            })
+          }}
+          onClose={() => setOptionsCloseTarget(null)}
+        />
+      )}
+
+      {optionsAddOpen && (
+        <AddOptionStrategyModal
+          defaultFeePerContract={settings?.defaultFeePerContract || 0}
+          setups={settings?.setups || []}
+          accountName={selectedAccount?.name || accounts[0]?.name}
+          onSave={async (payload) => {
+            const body = {
+              ...payload,
+              accountId: selectedAccountId || accounts[0]?.id,
+            }
+            await jsonFetch('/api/j2/options', 'POST', body)
+            refreshOptions()
+            mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/analytics'))
+            mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/calendar'))
+            setOptionsAddOpen(false)
+            setToast({ message: `Created ${payload.underlying} strategy.`, tone: 'success' })
+          }}
+          onClose={() => setOptionsAddOpen(false)}
         />
       )}
 

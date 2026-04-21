@@ -20,6 +20,7 @@ export default function useJ2DayDetail(date, accountId) {
   return {
     metrics: data?.metrics ?? null,
     trades: data?.trades ?? [],
+    strategies: data?.strategies ?? { closed: [], expiring: [] },
     notes: data?.notes ?? null,
     isLoading,
     error,
