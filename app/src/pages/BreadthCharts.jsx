@@ -143,6 +143,7 @@ export default function BreadthCharts() {
       data: rows.map(r => [r.date, r[key] ?? null]),
       yAxisIndex: PRICE_KEYS.has(key) ? 1 : 0,
       symbol: 'none',
+      smooth: 0.35,
       lineStyle: { width: 2 },
       itemStyle: { color: PALETTE[i % PALETTE.length] },
       connectNulls: false,
