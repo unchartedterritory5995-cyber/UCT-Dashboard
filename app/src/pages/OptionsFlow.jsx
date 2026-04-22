@@ -2814,7 +2814,7 @@ export default function OptionsFlowDashboard() {
                       <div style={{ marginBottom:14 }}>
                         {/* Timeframe buttons */}
                         <div style={{ display:"flex", gap:3, marginBottom:6, flexWrap:"wrap" }}>
-                          {[["15m","15m"],["30m","30m"],["65m","65m"],["1D","1d"],["5D","5d"],["1M","1mo"],["3M","3mo"],["6M","6mo"],["1Y","1y"]].map(([label,val])=>(
+                          {[["15m","15min"],["30m","30min"],["65m","65min"],["1D","1d"],["5D","5d"],["1M","1mo"],["3M","3mo"],["6M","6mo"],["1Y","1y"]].map(([label,val])=>(
                             <button key={val} onClick={()=>setIdeaGexRange(val)} style={{
                               padding:"3px 8px", borderRadius:4, border:"1px solid "+(ideaGexRange===val?"#e040fb":P.bd+"80"),
                               background:ideaGexRange===val?"#e040fb22":"transparent", color:ideaGexRange===val?"#e040fb":P.dm,
@@ -2825,6 +2825,7 @@ export default function OptionsFlowDashboard() {
                         <div key={ideaGexRange+"_"+ideaGex.sym} ref={el=>{
                           if (!el || el._tvInit) return;
                           el._tvInit = true;
+                          const isIntra = ideaGexRange.includes("min");
                           const buildChart = () => {
                             const LWC = window.LightweightCharts;
                             if (!LWC) return;
@@ -2834,9 +2835,17 @@ export default function OptionsFlowDashboard() {
                               layout:{background:{color:"#0d1117"},textColor:"#7b8fa3",fontSize:9},
                               grid:{vertLines:{color:"#1a254022"},horzLines:{color:"#1a254022"}},
                               crosshair:{mode:0}, rightPriceScale:{borderColor:"#1a2540"},
-                              timeScale:{borderColor:"#1a2540",timeVisible:true,secondsVisible:false,
-                                tickMarkFormatter:ti=>{const d=new Date(ti*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});}},
-                              localization:{timeFormatter:ti=>{const d=new Date(ti*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});}},
+                              timeScale:{borderColor:"#1a2540",timeVisible:isIntra,secondsVisible:false,
+                                tickMarkFormatter:ti=>{
+                                  const d=new Date(ti*1000);
+                                  if(isIntra) return d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});
+                                  return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric'});
+                                }},
+                              localization:{timeFormatter:ti=>{
+                                const d=new Date(ti*1000);
+                                if(isIntra) return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
+                                return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',year:'numeric'});
+                              }},
                             });
                             const sr = chart.addCandlestickSeries({upColor:"#0a8f55",downColor:"#c43030",borderUpColor:"#0a8f55",borderDownColor:"#c43030",wickUpColor:"#0a8f55",wickDownColor:"#c43030"});
                             fetch("/api/schwab/chart-ohlc?sym="+encodeURIComponent(g.ticker)+"&range="+ideaGexRange).then(r=>r.ok?r.json():null).then(d=>{
