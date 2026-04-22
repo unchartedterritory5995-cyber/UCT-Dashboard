@@ -978,6 +978,7 @@ export default function OptionsFlowDashboard() {
   const [showGexSummary, setShowGexSummary] = useState(false);
   const [showGexChart, setShowGexChart] = useState(false);
   const [gexChartRange, setGexChartRange] = useState("3mo");
+  const [ideaGex, setIdeaGex] = useState(null); // { sym, data, loading } for Ideas popup
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
@@ -1811,6 +1812,22 @@ export default function OptionsFlowDashboard() {
       setGexData({ error: e.message });
     }
     setGexLoading(false);
+  }
+
+  async function fetchIdeaGex(sym) {
+    setIdeaGex({ sym, data:null, loading:true });
+    try {
+      const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(sym)}&dte=month`);
+      if (resp.ok) {
+        const data = await resp.json();
+        data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
+        setIdeaGex({ sym, data, loading:false });
+      } else {
+        setIdeaGex({ sym, data:{ error:"API error: "+resp.status }, loading:false });
+      }
+    } catch(e) {
+      setIdeaGex({ sym, data:{ error:e.message }, loading:false });
+    }
   }
 
   async function fetchMarketData() {
@@ -2733,7 +2750,7 @@ export default function OptionsFlowDashboard() {
                 </div>
 
                 {/* GEX button */}
-                <button onClick={()=>{ setGexInput(idea.sym); setGexTicker(idea.sym); setGexDte("month"); setShowGexChart(true); setDataMode("gex"); }}
+                <button onClick={()=>fetchIdeaGex(idea.sym)}
                   style={{ fontSize:10, fontWeight:700, padding:"5px 14px", borderRadius:5, cursor:"pointer", fontFamily:"inherit",
                     background:"#e040fb22", color:"#e040fb", border:"1px solid #e040fb55", marginBottom:8,
                     letterSpacing:0.5 }}>
@@ -2749,6 +2766,138 @@ export default function OptionsFlowDashboard() {
               </div>
               );
             })}
+
+            {/* GEX Popup Modal */}
+            {ideaGex && (
+              <div onClick={e=>{ if(e.target===e.currentTarget) setIdeaGex(null); }}
+                style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.75)",
+                  display:"flex", alignItems:"flex-start", justifyContent:"center", padding:"40px 16px", overflowY:"auto" }}>
+                <div style={{ background:P.cd, borderRadius:12, border:"1px solid "+P.bd, width:"100%", maxWidth:700, padding:20, position:"relative" }}>
+                  <button onClick={()=>setIdeaGex(null)} style={{ position:"absolute", top:12, right:14, background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer" }}>×</button>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+                    <span style={{ fontSize:16, fontWeight:800, color:P.wh }}>{ideaGex.sym}</span>
+                    <span style={{ fontSize:11, color:"#e040fb", fontWeight:700 }}>Monthly GEX</span>
+                    {ideaGex.data?.fetchedAt && <span style={{ fontSize:10, color:P.mt }}>{ideaGex.data.fetchedAt} ET</span>}
+                  </div>
+
+                  {ideaGex.loading && (
+                    <div style={{ textAlign:"center", padding:40, color:P.dm, fontSize:12 }}>
+                      <div style={{ width:30, height:30, border:"3px solid "+P.bd, borderTop:"3px solid #e040fb", borderRadius:"50%", animation:"spin 1s linear infinite", margin:"0 auto 12px" }} />
+                      Loading GEX data...
+                      <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
+                    </div>
+                  )}
+
+                  {ideaGex.data && !ideaGex.data.error && !ideaGex.loading && (()=>{
+                    const g = ideaGex.data;
+                    const fmtG = v => { const abs=Math.abs(v); if(abs>=1e9) return "$"+(abs/1e9).toFixed(1)+"B"; if(abs>=1e6) return "$"+(abs/1e6).toFixed(1)+"M"; if(abs>=1e3) return "$"+(abs/1e3).toFixed(0)+"K"; return "$"+abs.toFixed(0); };
+                    return (
+                    <div>
+                      {/* Key metrics */}
+                      <div style={{ display:"flex", gap:10, marginBottom:14, flexWrap:"wrap" }}>
+                        {[
+                          ["Spot", "$"+(g.spot?.toFixed(2)||"—"), P.wh],
+                          ["Ceiling", "$"+(g.callWall?.strike||"—"), "#c43030"],
+                          ["Floor", "$"+(g.putWall?.strike||"—"), P.bu],
+                          ["Danger Line", "$"+(g.zeroGamma?.toFixed(0)||"—"), P.ac],
+                          ["Total GEX", fmtG(g.totalGex||0), (g.totalGex||0)>0?P.bu:P.be],
+                        ].map(([l,v,c])=>(
+                          <div key={l} style={{ background:P.al, borderRadius:6, padding:"6px 10px", textAlign:"center", flex:1, minWidth:80 }}>
+                            <div style={{ fontSize:8, color:P.mt, textTransform:"uppercase", letterSpacing:0.5 }}>{l}</div>
+                            <div style={{ fontSize:14, fontWeight:800, color:c }}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* TradingView Chart with GEX levels */}
+                      <div style={{ marginBottom:14 }}>
+                        <div ref={el=>{
+                          if (!el || el._tvInit) return;
+                          el._tvInit = true;
+                          const buildChart = () => {
+                            const LWC = window.LightweightCharts;
+                            if (!LWC) return;
+                            el.innerHTML = "";
+                            const chart = LWC.createChart(el, {
+                              width:el.clientWidth, height:350,
+                              layout:{background:{color:"#0d1117"},textColor:"#7b8fa3",fontSize:9},
+                              grid:{vertLines:{color:"#1a254022"},horzLines:{color:"#1a254022"}},
+                              crosshair:{mode:0}, rightPriceScale:{borderColor:"#1a2540"},
+                              timeScale:{borderColor:"#1a2540",timeVisible:true,secondsVisible:false,
+                                tickMarkFormatter:ti=>{const d=new Date(ti*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});}},
+                              localization:{timeFormatter:ti=>{const d=new Date(ti*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});}},
+                            });
+                            const sr = chart.addCandlestickSeries({upColor:"#0a8f55",downColor:"#c43030",borderUpColor:"#0a8f55",borderDownColor:"#c43030",wickUpColor:"#0a8f55",wickDownColor:"#c43030"});
+                            fetch("/api/schwab/chart-ohlc?sym="+encodeURIComponent(g.ticker)+"&range=3mo").then(r=>r.ok?r.json():null).then(d=>{
+                              if(d?.candles?.length){sr.setData(d.candles);chart.timeScale().fitContent();}
+                            }).catch(()=>{});
+                            // Draw GEX levels
+                            const sp = g.spot||0;
+                            const cw = g.callWall, pw = g.putWall, zg = g.zeroGamma;
+                            const wallMax = Math.max(cw?.gex||0, Math.abs(pw?.gex||0));
+                            const getW = v => { const r=wallMax>0?Math.abs(v)/wallMax:0; return r>0.5?3:r>0.25?2:1; };
+                            if (cw) {
+                              const abv = cw.strike > sp, prx = Math.abs(cw.strike-sp)/sp;
+                              const lbl = abv?"Ceiling "+fmtG(cw.gex):prx<0.02?"Magnet ⬇ "+fmtG(cw.gex):"Support ↑ "+fmtG(cw.gex);
+                              const clr = abv?"#c43030":prx<0.02?"#B0BEC5":"#00BCD4";
+                              sr.createPriceLine({price:cw.strike,color:clr,lineWidth:4,lineStyle:0,axisLabelVisible:true,title:lbl});
+                            }
+                            if (pw && (!cw || pw.strike!==cw.strike)) {
+                              const blw = pw.strike < sp, prx = Math.abs(pw.strike-sp)/sp;
+                              const lbl = blw?"Bounce "+fmtG(Math.abs(pw.gex)):prx<0.02?"Magnet ⬆ "+fmtG(Math.abs(pw.gex)):"Resistance "+fmtG(Math.abs(pw.gex));
+                              const clr = blw?"#0a8f55":prx<0.02?"#B0BEC5":"#c43030";
+                              sr.createPriceLine({price:pw.strike,color:clr,lineWidth:4,lineStyle:0,axisLabelVisible:true,title:lbl});
+                            }
+                            if (zg) sr.createPriceLine({price:zg,color:"#ffab00",lineWidth:1,lineStyle:2,axisLabelVisible:true,title:"Danger Line"});
+                            // Secondary levels
+                            const used = new Set([cw?.strike,pw?.strike].filter(Boolean));
+                            const strikes = g.strikes||[];
+                            strikes.filter(s=>s.strike>sp&&!used.has(s.strike)&&s.callGex>0).sort((a,b)=>b.callGex-a.callGex).slice(0,2).forEach(s=>{
+                              used.add(s.strike);
+                              sr.createPriceLine({price:s.strike,color:"#c4303080",lineWidth:getW(s.callGex),lineStyle:0,axisLabelVisible:true,title:"Ceiling "+fmtG(s.callGex)});
+                            });
+                            strikes.filter(s=>s.strike<sp&&!used.has(s.strike)).map(s=>{
+                              const cv=s.callGex>0?s.callGex:0, pv=s.putGex<0?Math.abs(s.putGex):0;
+                              return {strike:s.strike,gex:Math.max(cv,pv),type:cv>=pv?"call":"put"};
+                            }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,2).forEach(s=>{
+                              const clr=s.type==="call"?"#00BCD480":"#0a8f5580";
+                              sr.createPriceLine({price:s.strike,color:clr,lineWidth:getW(s.gex),lineStyle:0,axisLabelVisible:true,title:(s.type==="call"?"Support ↑ ":"Bounce ")+fmtG(s.gex)});
+                            });
+                            const ro=new ResizeObserver(()=>{if(el.clientWidth>0)chart.applyOptions({width:el.clientWidth});});
+                            ro.observe(el);
+                          };
+                          if (window.LightweightCharts) buildChart();
+                          else {
+                            el.innerHTML="<div style='color:#555;padding:20px;font-size:11px'>Loading chart...</div>";
+                            const sc=document.createElement("script");
+                            sc.src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js";
+                            sc.onload=buildChart;
+                            document.head.appendChild(sc);
+                          }
+                        }} style={{ width:"100%", height:350, borderRadius:6, overflow:"hidden" }} />
+                      </div>
+
+                      {/* Quick summary */}
+                      <div style={{ fontSize:11, color:P.dm, lineHeight:1.6 }}>
+                        {g.spot > 0 && g.callWall && (()=>{
+                          const sp=g.spot, cw=g.callWall.strike, pw=g.putWall?.strike||0;
+                          const above = sp > cw;
+                          const prx = Math.abs(sp-cw)/sp;
+                          if (above && prx > 0.02) return <span><span style={{color:P.bu,fontWeight:600}}>${cw} ({fmtG(g.callWall.gex)}) is major support below.</span> Price cleared the wall. Buy dips toward ${cw}.</span>;
+                          if (above && prx <= 0.02) return <span><span style={{color:P.ac,fontWeight:600}}>Decision point at ${cw}.</span> Hold above = support. Break below = resistance. {fmtG(g.callWall.gex)} at stake.</span>;
+                          return <span><span style={{color:"#c43030",fontWeight:600}}>${cw} ceiling ({fmtG(g.callWall.gex)}).</span> Price grinding toward it. A break above flips it to support.</span>;
+                        })()}
+                      </div>
+                    </div>
+                    );
+                  })()}
+
+                  {ideaGex.data?.error && !ideaGex.loading && (
+                    <div style={{ textAlign:"center", padding:20, color:P.be, fontSize:12 }}>Failed to load GEX: {ideaGex.data.error}</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           );
         })()}
