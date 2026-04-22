@@ -2679,19 +2679,21 @@ export default function OptionsFlowDashboard() {
           const fmtPrem = v => { if(v>=1e6) return "$"+(v/1e6).toFixed(2)+"M"; if(v>=1e3) return "$"+(v/1e3).toFixed(0)+"K"; return "$"+v.toFixed(0); };
 
           return (
-          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            <div style={{ gridColumn:"1 / -1" }}>
             <Card>
               <div style={{ display:"flex", gap:14 }}>
                 <div style={{ width:3, background:"#e040fb", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                 <div>
                   <div style={{ fontSize:13, fontWeight:700, color:"#e040fb", marginBottom:5 }}>UCT Top Ideas</div>
-                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Top conviction trades based on confirmed flow. Grade A+ and A clusters with clean direction, scored by repetition, order type, OI confirmation, and DTE. GEX context shown when available.</div>
+                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Top conviction trades from confirmed flow. A+/A grade, clean direction, scored by repetition, OI, order type, and DTE.</div>
                 </div>
               </div>
             </Card>
+            </div>
 
             {ideas.length === 0 && (
-              <div style={{ textAlign:"center", padding:30, color:P.dm, fontSize:12 }}>No high-conviction ideas found today. Check back when A+ or A grade clusters appear.</div>
+              <div style={{ gridColumn:"1 / -1", textAlign:"center", padding:30, color:P.dm, fontSize:12 }}>No high-conviction ideas found today. Check back when A+ or A grade clusters appear.</div>
             )}
 
             {ideas.map((idea, idx) => {
@@ -2701,70 +2703,50 @@ export default function OptionsFlowDashboard() {
               const convPct = idea.conviction;
               const sweepCount = idea.trades.filter(t=>t.Ty==="SWP").length;
               const blockCount = idea.trades.filter(t=>t.Ty==="BLK").length;
-              const typeLabel = (sweepCount > 0 && blockCount > 0) ? "SWEEP + BLOCK" : sweepCount > 0 ? "SWEEP" : "BLOCK";
-              const oiLabel = idea.hasMagenta ? "OI exceeded (magenta)" : idea.oiExceeded ? "OI exceeded (yellow)" : "";
+              const typeLabel = (sweepCount > 0 && blockCount > 0) ? "S+B" : sweepCount > 0 ? "SWP" : "BLK";
+              const oiLabel = idea.hasMagenta ? "MAG" : idea.oiExceeded ? "YEL" : "";
               const pctStr = idea.pctToProfit >= 0 ? "+"+idea.pctToProfit.toFixed(1)+"%" : idea.pctToProfit.toFixed(1)+"%";
+              const spreadW = Math.round(idea.K * 0.05);
+              const uciTier = convPct >= 90 ? "VERY HIGH" : convPct >= 80 ? "HIGH" : convPct >= 70 ? "MODERATE" : convPct >= 60 ? "FAIR" : "LOW";
 
               return (
-              <div key={idx} style={{ background:P.cd, borderRadius:10, padding:"14px 16px", border:"1px solid "+P.bd, borderLeft:"4px solid "+dirColor, position:"relative" }}>
-                {/* Rank watermark */}
-                <div style={{ position:"absolute", top:10, right:14, fontSize:28, fontWeight:900, color:P.bd, opacity:0.5 }}>{idx+1}</div>
-
-                {/* Top row: ticker, strike, grade, direction, premium */}
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, flexWrap:"wrap" }}>
-                  <span style={{ fontSize:15, fontWeight:800, color:P.wh }}>{idea.sym}</span>
-                  <span style={{ fontSize:12, fontWeight:700, color:"#00BCD4" }}>${idea.K}{idea.cp} {idea.exp}</span>
-                  <span style={{ fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:4, background:(GRADE_COLORS[idea.grade]||P.dm)+"22", color:GRADE_COLORS[idea.grade]||P.dm }}>{idea.grade}</span>
-                  <span style={{ fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:4, background:dirColor+"22", color:dirColor }}>{idea.dir==="BULL"?"BULLISH":"BEARISH"}</span>
-                  <span style={{ fontSize:11, fontWeight:700, color:"#ffab00" }}>{fmtPrem(idea.prem)}</span>
+              <div key={idx} style={{ background:P.cd, borderRadius:8, padding:"8px 12px", border:"1px solid "+P.bd, borderLeft:"4px solid "+dirColor }}>
+                {/* Row 1: Ticker + strike + grade + direction + premium */}
+                <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:5 }}>
+                  <span style={{ fontSize:10, fontWeight:900, color:P.bd, opacity:0.6 }}>{idx+1}</span>
+                  <span style={{ fontSize:13, fontWeight:800, color:P.wh }}>{idea.sym}</span>
+                  <span style={{ fontSize:10, fontWeight:700, color:"#00BCD4" }}>${idea.K}{idea.cp} {idea.exp}</span>
+                  <span style={{ fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:3, background:(GRADE_COLORS[idea.grade]||P.dm)+"22", color:GRADE_COLORS[idea.grade]||P.dm }}>{idea.grade}</span>
+                  <span style={{ fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:3, background:dirColor+"22", color:dirColor }}>{isBull?"BULL":"BEAR"}</span>
+                  <span style={{ fontSize:10, fontWeight:700, color:"#ffab00", marginLeft:"auto" }}>{fmtPrem(idea.prem)}</span>
                 </div>
 
-                {/* Conviction bar */}
-                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-                  <span style={{ fontSize:10, color:P.mt, width:65 }}>Conviction</span>
-                  <div style={{ flex:1, height:6, background:P.al, borderRadius:3, overflow:"hidden" }}>
-                    <div style={{ height:"100%", width:convPct+"%", borderRadius:3, background:"linear-gradient(90deg, "+dirColor+", "+convColor+")" }} />
-                  </div>
-                  <span style={{ fontSize:11, fontWeight:700, color:convColor, minWidth:24, textAlign:"right" }}>{convPct}</span>
+                {/* Row 2: Conviction bar + tags + GEX */}
+                <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:5 }}>
+                  <span style={{ width:50, height:4, background:P.al, borderRadius:2, overflow:"hidden", display:"inline-block", flexShrink:0 }}>
+                    <span style={{ display:"block", height:"100%", width:convPct+"%", borderRadius:2, background:"linear-gradient(90deg, "+dirColor+", "+convColor+")" }} />
+                  </span>
+                  <span style={{ fontSize:8, fontWeight:700, color:P.mt }}>UCT Confidence</span>
+                  <span style={{ fontSize:9, fontWeight:800, color:convColor }}>{convPct}</span>
+                  <span style={{ fontSize:7, fontWeight:700, color:convColor, letterSpacing:0.5 }}>{uciTier}</span>
+                  <button onClick={()=>fetchIdeaGex(idea.sym)}
+                    style={{ fontSize:8, fontWeight:700, padding:"2px 8px", borderRadius:3, cursor:"pointer", fontFamily:"inherit",
+                      background:"#e040fb22", color:"#e040fb", border:"1px solid #e040fb55", marginLeft:"auto" }}>
+                    📊 GEX
+                  </button>
                 </div>
 
-                {/* Tags */}
-                <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:10 }}>
-                  <span style={{ fontSize:9, padding:"2px 8px", borderRadius:3, fontWeight:600, background:"#e040fb22", color:"#e040fb" }}>{typeLabel}</span>
-                  {oiLabel && <span style={{ fontSize:9, padding:"2px 8px", borderRadius:3, fontWeight:600, background:"#ffab0022", color:"#ffab00" }}>{oiLabel}</span>}
-                  <span style={{ fontSize:9, padding:"2px 8px", borderRadius:3, fontWeight:600, background:P.bu+"22", color:P.bu }}>CLEAN</span>
-                  <span style={{ fontSize:9, padding:"2px 8px", borderRadius:3, fontWeight:600, background:P.mt+"22", color:P.mt }}>{idea.DTE} DTE</span>
-                  {idea.moneyness && <span style={{ fontSize:9, padding:"2px 8px", borderRadius:3, fontWeight:600, background:(idea.moneyness==="OTM"?P.be:P.bu)+"22", color:idea.moneyness==="OTM"?P.be:P.bu }}>{idea.moneyness}</span>}
+                {/* Row 3: Details + trade */}
+                <div style={{ fontSize:9, color:P.dm, display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
+                  <span><span style={{ color:P.wh, fontWeight:600 }}>{idea.hits}×</span>{sweepCount>0&&blockCount>0?" ("+sweepCount+"s+"+blockCount+"b)":""}</span>
+                  <span>BE ~${idea.breakEven.toFixed(0)}</span>
+                  <span style={{ color:isBull?P.bu:P.be, fontWeight:600 }}>{pctStr}</span>
+                  <span>V/OI:{idea.maxOI>0?(idea.volOI*100).toFixed(0)+"%":"—"}</span>
+                  {idea.avgIV > 0 && <span>IV:{(idea.avgIV*100).toFixed(0)}%</span>}
                 </div>
-
-                {/* Details */}
-                <div style={{ fontSize:11, color:P.dm, lineHeight:1.6, marginBottom:6 }}>
-                  <span style={{ color:P.wh, fontWeight:600 }}>{idea.hits} trade{idea.hits>1?"s":""}</span> on same strike+exp
-                  {sweepCount > 0 && blockCount > 0 ? " · "+sweepCount+" sweeps + "+blockCount+" blocks" : ""}
-                  {idea.hasMagenta ? " · Magenta confirmed" : idea.oiExceeded ? " · Yellow confirmed" : ""}
-                  <br/>
-                  Break-even ~${idea.breakEven.toFixed(2)} · Needs <span style={{ color:isBull?P.bu:P.be, fontWeight:600 }}>{pctStr}</span> to profit
-                </div>
-
-                {/* Trade suggestion */}
-                <div style={{ fontSize:11, color:"#00BCD4", fontWeight:600, marginBottom:8 }}>
-                  Trade: {isBull ? "Buy" : "Buy"} ${idea.K}{idea.cp==="C"?"C":"P"} {idea.exp}
-                  {idea.cp==="C" ? " or $"+idea.K+"/$"+(idea.K+Math.round(idea.K*0.05))+" call spread" : " or $"+idea.K+"/$"+(idea.K-Math.round(idea.K*0.05))+" put spread"}
-                </div>
-
-                {/* GEX button */}
-                <button onClick={()=>fetchIdeaGex(idea.sym)}
-                  style={{ fontSize:10, fontWeight:700, padding:"5px 14px", borderRadius:5, cursor:"pointer", fontFamily:"inherit",
-                    background:"#e040fb22", color:"#e040fb", border:"1px solid #e040fb55", marginBottom:8,
-                    letterSpacing:0.5 }}>
-                  📊 View {idea.sym} Monthly GEX
-                </button>
-
-                {/* Meta */}
-                <div style={{ display:"flex", gap:16, fontSize:10, color:P.mt, flexWrap:"wrap" }}>
-                  <span>Vol/OI: {idea.vol.toLocaleString()} / {idea.maxOI.toLocaleString()}{idea.maxOI > 0 ? " ("+(idea.volOI*100).toFixed(0)+"%)" : ""}</span>
-                  {idea.avgIV > 0 && <span>IV: {(idea.avgIV*100).toFixed(0)}%</span>}
-                  {idea.sector && <span>Sector: {idea.sector}</span>}
+                <div style={{ fontSize:9, color:"#00BCD4", fontWeight:600, marginTop:3 }}>
+                  ${idea.K}{idea.cp==="C"?"C":"P"} {idea.exp} or ${idea.K}/${idea.cp==="C"?idea.K+spreadW:idea.K-spreadW} spread
+                  {idea.sector && <span style={{ color:P.mt, fontWeight:400, marginLeft:8 }}>{idea.sector}</span>}
                 </div>
               </div>
               );
