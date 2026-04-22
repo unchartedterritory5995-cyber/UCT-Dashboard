@@ -979,6 +979,7 @@ export default function OptionsFlowDashboard() {
   const [showGexChart, setShowGexChart] = useState(false);
   const [gexChartRange, setGexChartRange] = useState("3mo");
   const [ideaGex, setIdeaGex] = useState(null); // { sym, data, loading } for Ideas popup
+  const [ideaGexRange, setIdeaGexRange] = useState("3mo");
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
@@ -2811,7 +2812,17 @@ export default function OptionsFlowDashboard() {
 
                       {/* TradingView Chart with GEX levels */}
                       <div style={{ marginBottom:14 }}>
-                        <div ref={el=>{
+                        {/* Timeframe buttons */}
+                        <div style={{ display:"flex", gap:3, marginBottom:6, flexWrap:"wrap" }}>
+                          {[["15m","15m"],["30m","30m"],["65m","65m"],["1D","1d"],["5D","5d"],["1M","1mo"],["3M","3mo"],["6M","6mo"],["1Y","1y"]].map(([label,val])=>(
+                            <button key={val} onClick={()=>setIdeaGexRange(val)} style={{
+                              padding:"3px 8px", borderRadius:4, border:"1px solid "+(ideaGexRange===val?"#e040fb":P.bd+"80"),
+                              background:ideaGexRange===val?"#e040fb22":"transparent", color:ideaGexRange===val?"#e040fb":P.dm,
+                              fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit"
+                            }}>{label}</button>
+                          ))}
+                        </div>
+                        <div key={ideaGexRange+"_"+ideaGex.sym} ref={el=>{
                           if (!el || el._tvInit) return;
                           el._tvInit = true;
                           const buildChart = () => {
@@ -2828,7 +2839,7 @@ export default function OptionsFlowDashboard() {
                               localization:{timeFormatter:ti=>{const d=new Date(ti*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});}},
                             });
                             const sr = chart.addCandlestickSeries({upColor:"#0a8f55",downColor:"#c43030",borderUpColor:"#0a8f55",borderDownColor:"#c43030",wickUpColor:"#0a8f55",wickDownColor:"#c43030"});
-                            fetch("/api/schwab/chart-ohlc?sym="+encodeURIComponent(g.ticker)+"&range=3mo").then(r=>r.ok?r.json():null).then(d=>{
+                            fetch("/api/schwab/chart-ohlc?sym="+encodeURIComponent(g.ticker)+"&range="+ideaGexRange).then(r=>r.ok?r.json():null).then(d=>{
                               if(d?.candles?.length){sr.setData(d.candles);chart.timeScale().fitContent();}
                             }).catch(()=>{});
                             // Draw GEX levels
