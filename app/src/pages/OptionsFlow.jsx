@@ -994,6 +994,8 @@ export default function OptionsFlowDashboard() {
   const convPanelRef = useRef(null);
   const gexChartRef = useRef(null);
   const gexChartObjRef = useRef(null);
+  const ideaGexModalRef = useRef(null);
+  const ideaGexDragRef = useRef({ dragging:false, startX:0, startY:0, offX:0, offY:0 });
   const prevNetDeltaRef = useRef(null);
 
   // ─── Dynamic CSV Loading ─────────────────────────────────────────────
@@ -2768,18 +2770,50 @@ export default function OptionsFlowDashboard() {
               );
             })}
 
-            {/* GEX Popup Modal */}
+            {/* GEX Popup Modal — Draggable */}
             {ideaGex && (
               <div onClick={e=>{ if(e.target===e.currentTarget) setIdeaGex(null); }}
-                style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.75)",
-                  display:"flex", alignItems:"flex-start", justifyContent:"center", padding:"40px 16px", overflowY:"auto" }}>
-                <div style={{ background:P.cd, borderRadius:12, border:"1px solid "+P.bd, width:"100%", maxWidth:700, padding:20, position:"relative" }}>
-                  <button onClick={()=>setIdeaGex(null)} style={{ position:"absolute", top:12, right:14, background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer" }}>×</button>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+                style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.5)" }}>
+                <div ref={ideaGexModalRef} style={{ background:P.cd, borderRadius:12, border:"1px solid "+P.bd, width:"100%", maxWidth:700, padding:0, position:"absolute",
+                  top:"40px", left:"50%", transform:"translateX(-50%)", maxHeight:"calc(100vh - 60px)", overflowY:"auto",
+                  boxShadow:"0 8px 32px rgba(0,0,0,0.6)" }}>
+                  {/* Drag handle header */}
+                  <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 20px 10px", cursor:"grab", userSelect:"none", borderBottom:"1px solid "+P.bd }}
+                    onMouseDown={e=>{
+                      const dr = ideaGexDragRef.current;
+                      const modal = ideaGexModalRef.current;
+                      if (!modal) return;
+                      dr.dragging = true;
+                      dr.startX = e.clientX;
+                      dr.startY = e.clientY;
+                      const rect = modal.getBoundingClientRect();
+                      dr.initLeft = rect.left;
+                      dr.initTop = rect.top;
+                      modal.style.cursor = "grabbing";
+                      const onMove = ev => {
+                        if (!dr.dragging) return;
+                        const dx = ev.clientX - dr.startX;
+                        const dy = ev.clientY - dr.startY;
+                        modal.style.left = (dr.initLeft + dx) + "px";
+                        modal.style.top = (dr.initTop + dy) + "px";
+                        modal.style.transform = "none";
+                      };
+                      const onUp = () => {
+                        dr.dragging = false;
+                        modal.style.cursor = "";
+                        document.removeEventListener("mousemove", onMove);
+                        document.removeEventListener("mouseup", onUp);
+                      };
+                      document.addEventListener("mousemove", onMove);
+                      document.addEventListener("mouseup", onUp);
+                    }}>
                     <span style={{ fontSize:16, fontWeight:800, color:P.wh }}>{ideaGex.sym}</span>
                     <span style={{ fontSize:11, color:"#e040fb", fontWeight:700 }}>Monthly GEX</span>
                     {ideaGex.data?.fetchedAt && <span style={{ fontSize:10, color:P.mt }}>{ideaGex.data.fetchedAt} ET</span>}
+                    <span style={{ marginLeft:"auto", fontSize:9, color:P.mt }}>⣿ drag to move</span>
+                    <button onClick={()=>setIdeaGex(null)} style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", marginLeft:8 }}>×</button>
                   </div>
+                  <div style={{ padding:"14px 20px 20px" }}>
 
                   {ideaGex.loading && (
                     <div style={{ textAlign:"center", padding:40, color:P.dm, fontSize:12 }}>
@@ -2915,6 +2949,7 @@ export default function OptionsFlowDashboard() {
                   {ideaGex.data?.error && !ideaGex.loading && (
                     <div style={{ textAlign:"center", padding:20, color:P.be, fontSize:12 }}>Failed to load GEX: {ideaGex.data.error}</div>
                   )}
+                  </div>
                 </div>
               </div>
             )}
