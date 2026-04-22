@@ -957,7 +957,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Top Flow","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker"];
+const TABS = ["Market Read","Ideas","Top Flow","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -2404,11 +2404,11 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:"none", cursor:"pointer",
-              fontSize:11, fontWeight:600, fontFamily:"inherit",
-              background:tab===t?P.cd:"transparent",
-              color:tab===t?P.wh:P.mt
-            }}>{t}</button>
+              padding:"6px 14px", borderRadius:5, border:t==="Ideas"?(tab===t?"1px solid #ffab00":"1px solid #ffab0055"):"none", cursor:"pointer",
+              fontSize:t==="Ideas"?12:11, fontWeight:t==="Ideas"?800:600, fontFamily:"inherit",
+              background:tab===t?(t==="Ideas"?"#ffab0033":P.cd):"transparent",
+              color:tab===t?(t==="Ideas"?"#ffab00":P.wh):(t==="Ideas"?"#ffab00":P.mt)
+            }}>{t==="Ideas"?"💡 Ideas":t}</button>
           ))}
         </div>
 
@@ -2599,6 +2599,159 @@ export default function OptionsFlowDashboard() {
             )}
           </div>
         )}
+
+        {/* UCT Top Ideas */}
+        {tab==="Ideas" && (()=>{
+          // Build clusters from all clean confirmed trades
+          const idClusters = {};
+          (D.clean_confirmed||[]).forEach(t => {
+            const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+            if (!idClusters[k]) idClusters[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, vol:0, dir:t.D,
+              hasSweep:false, hasBlock:false, oiExceeded:false, hasMagenta:false, dirs:new Set(),
+              trades:[], maxOI:0, spot:t.Spot||0, sector:t.sector||"", iv:0, ivCount:0 };
+            const c = idClusters[k];
+            c.hits++; c.prem += t.P; c.vol += t.V;
+            if (t.Ty==="SWP") c.hasSweep = true;
+            if (t.Ty==="BLK") c.hasBlock = true;
+            if (t.Co==="YELLOW"||t.Co==="MAGENTA") c.oiExceeded = true;
+            if (t.Co==="MAGENTA") c.hasMagenta = true;
+            if (t.D) c.dirs.add(t.D);
+            if (t.OI > c.maxOI) c.maxOI = t.OI;
+            if (t.IV > 0) { c.iv += t.IV; c.ivCount++; }
+            if (t.Spot > 0) c.spot = t.Spot;
+            c.trades.push(t);
+          });
+
+          const ideas = Object.values(idClusters).map(c => {
+            c.clean = c.dirs.size <= 1;
+            c.grade = gradeCluster(c);
+            // Conviction score
+            const gradeBase = {"A+":90,"A":80,"B+":70,"B":60,"C":40,"D":20};
+            let conv = gradeBase[c.grade] || 20;
+            if (c.hits > 3) conv += Math.min((c.hits - 3) * 3, 15); // +3 per repeat beyond 3, max +15
+            if (c.hasSweep && c.hasBlock) conv += 8;
+            if (c.hasMagenta) conv += 8;
+            else if (c.oiExceeded) conv += 5;
+            if (c.clean) conv += 3;
+            if (!c.clean) conv -= 10;
+            if (c.DTE <= 7) conv -= 15;
+            else if (c.DTE <= 14) conv -= 5;
+            if (c.DTE >= 30 && c.DTE <= 90) conv += 3; // sweet spot for swing
+            // Vol/OI ratio bonus
+            const volOI = c.maxOI > 0 ? c.vol / c.maxOI : 0;
+            if (volOI > 0.8) conv += 5; // near full OI replacement
+            conv = Math.max(0, Math.min(99, conv));
+            c.conviction = conv;
+            c.avgIV = c.ivCount > 0 ? c.iv / c.ivCount : 0;
+            c.volOI = volOI;
+            // Break-even and % to profit
+            const avgEntry = c.vol > 0 ? c.prem / c.vol / 100 : 0;
+            c.avgEntry = avgEntry;
+            c.breakEven = c.cp === "C" ? c.K + avgEntry : c.K - avgEntry;
+            c.pctToProfit = c.spot > 0 ? ((c.breakEven - c.spot) / c.spot * 100) : 0;
+            c.moneyness = c.spot > 0 ? (c.cp==="C" ? (c.K > c.spot ? "OTM" : "ITM") : (c.K < c.spot ? "OTM" : "ITM")) : "";
+            return c;
+          })
+          .filter(c => c.clean && c.dir && (c.grade==="A+"||c.grade==="A"||c.grade==="B+") && c.DTE > 7)
+          .sort((a,b) => b.conviction - a.conviction || b.prem - a.prem)
+          .slice(0, 5);
+
+          const fmtPrem = v => { if(v>=1e6) return "$"+(v/1e6).toFixed(2)+"M"; if(v>=1e3) return "$"+(v/1e3).toFixed(0)+"K"; return "$"+v.toFixed(0); };
+
+          return (
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <Card>
+              <div style={{ display:"flex", gap:14 }}>
+                <div style={{ width:3, background:"#e040fb", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#e040fb", marginBottom:5 }}>UCT Top Ideas</div>
+                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Top conviction trades based on confirmed flow. Grade A+ and A clusters with clean direction, scored by repetition, order type, OI confirmation, and DTE. GEX context shown when available.</div>
+                </div>
+              </div>
+            </Card>
+
+            {ideas.length === 0 && (
+              <div style={{ textAlign:"center", padding:30, color:P.dm, fontSize:12 }}>No high-conviction ideas found today. Check back when A+ or A grade clusters appear.</div>
+            )}
+
+            {ideas.map((idea, idx) => {
+              const isBull = idea.dir === "BULL";
+              const dirColor = isBull ? P.bu : P.be;
+              const convColor = idea.conviction >= 85 ? "#00BCD4" : idea.conviction >= 70 ? P.bu : P.ac;
+              const convPct = idea.conviction;
+              const sweepCount = idea.trades.filter(t=>t.Ty==="SWP").length;
+              const blockCount = idea.trades.filter(t=>t.Ty==="BLK").length;
+              const typeLabel = (sweepCount > 0 && blockCount > 0) ? "SWEEP + BLOCK" : sweepCount > 0 ? "SWEEP" : "BLOCK";
+              const oiLabel = idea.hasMagenta ? "OI exceeded (magenta)" : idea.oiExceeded ? "OI exceeded (yellow)" : "";
+              const pctStr = idea.pctToProfit >= 0 ? "+"+idea.pctToProfit.toFixed(1)+"%" : idea.pctToProfit.toFixed(1)+"%";
+
+              return (
+              <div key={idx} style={{ background:P.cd, borderRadius:10, padding:"14px 16px", border:"1px solid "+P.bd, borderLeft:"4px solid "+dirColor, position:"relative" }}>
+                {/* Rank watermark */}
+                <div style={{ position:"absolute", top:10, right:14, fontSize:28, fontWeight:900, color:P.bd, opacity:0.5 }}>{idx+1}</div>
+
+                {/* Top row: ticker, strike, grade, direction, premium */}
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+                  <span style={{ fontSize:15, fontWeight:800, color:P.wh }}>{idea.sym}</span>
+                  <span style={{ fontSize:12, fontWeight:700, color:"#00BCD4" }}>${idea.K}{idea.cp} {idea.exp}</span>
+                  <span style={{ fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:4, background:(GRADE_COLORS[idea.grade]||P.dm)+"22", color:GRADE_COLORS[idea.grade]||P.dm }}>{idea.grade}</span>
+                  <span style={{ fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:4, background:dirColor+"22", color:dirColor }}>{idea.dir==="BULL"?"BULLISH":"BEARISH"}</span>
+                  <span style={{ fontSize:11, fontWeight:700, color:"#ffab00" }}>{fmtPrem(idea.prem)}</span>
+                </div>
+
+                {/* Conviction bar */}
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                  <span style={{ fontSize:10, color:P.mt, width:65 }}>Conviction</span>
+                  <div style={{ flex:1, height:6, background:P.al, borderRadius:3, overflow:"hidden" }}>
+                    <div style={{ height:"100%", width:convPct+"%", borderRadius:3, background:"linear-gradient(90deg, "+dirColor+", "+convColor+")" }} />
+                  </div>
+                  <span style={{ fontSize:11, fontWeight:700, color:convColor, minWidth:24, textAlign:"right" }}>{convPct}</span>
+                </div>
+
+                {/* Tags */}
+                <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:10 }}>
+                  <span style={{ fontSize:9, padding:"2px 8px", borderRadius:3, fontWeight:600, background:"#e040fb22", color:"#e040fb" }}>{typeLabel}</span>
+                  {oiLabel && <span style={{ fontSize:9, padding:"2px 8px", borderRadius:3, fontWeight:600, background:"#ffab0022", color:"#ffab00" }}>{oiLabel}</span>}
+                  <span style={{ fontSize:9, padding:"2px 8px", borderRadius:3, fontWeight:600, background:P.bu+"22", color:P.bu }}>CLEAN</span>
+                  <span style={{ fontSize:9, padding:"2px 8px", borderRadius:3, fontWeight:600, background:P.mt+"22", color:P.mt }}>{idea.DTE} DTE</span>
+                  {idea.moneyness && <span style={{ fontSize:9, padding:"2px 8px", borderRadius:3, fontWeight:600, background:(idea.moneyness==="OTM"?P.be:P.bu)+"22", color:idea.moneyness==="OTM"?P.be:P.bu }}>{idea.moneyness}</span>}
+                </div>
+
+                {/* Details */}
+                <div style={{ fontSize:11, color:P.dm, lineHeight:1.6, marginBottom:6 }}>
+                  <span style={{ color:P.wh, fontWeight:600 }}>{idea.hits} trade{idea.hits>1?"s":""}</span> on same strike+exp
+                  {sweepCount > 0 && blockCount > 0 ? " · "+sweepCount+" sweeps + "+blockCount+" blocks" : ""}
+                  {idea.hasMagenta ? " · Magenta confirmed" : idea.oiExceeded ? " · Yellow confirmed" : ""}
+                  <br/>
+                  Break-even ~${idea.breakEven.toFixed(2)} · Needs <span style={{ color:isBull?P.bu:P.be, fontWeight:600 }}>{pctStr}</span> to profit
+                </div>
+
+                {/* Trade suggestion */}
+                <div style={{ fontSize:11, color:"#00BCD4", fontWeight:600, marginBottom:8 }}>
+                  Trade: {isBull ? "Buy" : "Buy"} ${idea.K}{idea.cp==="C"?"C":"P"} {idea.exp}
+                  {idea.cp==="C" ? " or $"+idea.K+"/$"+(idea.K+Math.round(idea.K*0.05))+" call spread" : " or $"+idea.K+"/$"+(idea.K-Math.round(idea.K*0.05))+" put spread"}
+                </div>
+
+                {/* GEX button */}
+                <button onClick={()=>{ setGexInput(idea.sym); setGexTicker(idea.sym); setGexDte("month"); setShowGexChart(true); setDataMode("gex"); }}
+                  style={{ fontSize:10, fontWeight:700, padding:"5px 14px", borderRadius:5, cursor:"pointer", fontFamily:"inherit",
+                    background:"#e040fb22", color:"#e040fb", border:"1px solid #e040fb55", marginBottom:8,
+                    letterSpacing:0.5 }}>
+                  📊 View {idea.sym} Monthly GEX
+                </button>
+
+                {/* Meta */}
+                <div style={{ display:"flex", gap:16, fontSize:10, color:P.mt, flexWrap:"wrap" }}>
+                  <span>Vol/OI: {idea.vol.toLocaleString()} / {idea.maxOI.toLocaleString()}{idea.maxOI > 0 ? " ("+(idea.volOI*100).toFixed(0)+"%)" : ""}</span>
+                  {idea.avgIV > 0 && <span>IV: {(idea.avgIV*100).toFixed(0)}%</span>}
+                  {idea.sector && <span>Sector: {idea.sector}</span>}
+                </div>
+              </div>
+              );
+            })}
+          </div>
+          );
+        })()}
 
         {/* Top Flow — Master List */}
         {tab==="Top Flow" && (()=>{
