@@ -2746,7 +2746,7 @@ export default function OptionsFlowDashboard() {
           const fmtPrem = v => { if(v>=1e6) return "$"+(v/1e6).toFixed(2)+"M"; if(v>=1e3) return "$"+(v/1e3).toFixed(0)+"K"; return "$"+v.toFixed(0); };
 
           return (
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
             <div style={{ gridColumn:"1 / -1" }}>
             <Card>
               <div style={{ display:"flex", gap:14 }}>
@@ -2788,43 +2788,47 @@ export default function OptionsFlowDashboard() {
               const uciTier = convPct >= 90 ? "VERY HIGH" : convPct >= 80 ? "HIGH" : convPct >= 70 ? "MODERATE" : convPct >= 60 ? "FAIR" : "LOW";
 
               return (
-              <div key={idx} style={{ background:P.cd, borderRadius:8, padding:"8px 12px", border:"1px solid "+P.bd, borderLeft:"4px solid "+dirColor }}>
+              <div key={idx} style={{ background:P.cd, borderRadius:10, padding:"14px 18px", border:"1px solid "+P.bd, borderLeft:"4px solid "+dirColor }}>
                 {/* Row 1: Ticker + strike + grade + direction + premium */}
-                <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:5 }}>
-                  <span style={{ fontSize:10, fontWeight:900, color:P.bd, opacity:0.6 }}>{idx+1}</span>
-                  <span style={{ fontSize:13, fontWeight:800, color:P.wh }}>{idea.sym}</span>
-                  <span style={{ fontSize:10, fontWeight:700, color:"#00BCD4" }}>${idea.K}{idea.cp} {idea.exp}</span>
-                  <span style={{ fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:3, background:(GRADE_COLORS[idea.grade]||P.dm)+"22", color:GRADE_COLORS[idea.grade]||P.dm }}>{idea.grade}</span>
-                  <span style={{ fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:3, background:dirColor+"22", color:dirColor }}>{isBull?"BULL":"BEAR"}</span>
-                  <span style={{ fontSize:10, fontWeight:700, color:"#ffab00", marginLeft:"auto" }}>{fmtPrem(idea.prem)}</span>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
+                  <span style={{ fontSize:15, fontWeight:900, color:P.wh }}>{idea.sym}</span>
+                  <span style={{ fontSize:12, fontWeight:700, color:"#00BCD4" }}>${idea.K}{idea.cp}</span>
+                  <span style={{ fontSize:11, fontWeight:600, color:P.wh }}>{idea.exp}</span>
+                  <Tag c={GRADE_COLORS[idea.grade]||P.dm}>{idea.grade}</Tag>
+                  <Tag c={dirColor}>{isBull?"BULL":"BEAR"}</Tag>
+                  {idea.DTE > 0 && <span style={{ fontSize:8, fontWeight:700, color:idea.DTE<60?"#ff6d00":idea.DTE<180?"#00b0ff":"#e040fb", background:(idea.DTE<60?"#ff6d00":idea.DTE<180?"#00b0ff":"#e040fb")+"15", padding:"1px 6px", borderRadius:3 }}>{idea.DTE}d</span>}
+                  <span style={{ fontSize:13, fontWeight:800, color:"#ffab00", marginLeft:"auto" }}>{fmtPrem(idea.prem)}</span>
                 </div>
 
-                {/* Row 2: Conviction bar + tags + GEX */}
-                <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:5 }}>
-                  <span style={{ width:50, height:4, background:P.al, borderRadius:2, overflow:"hidden", display:"inline-block", flexShrink:0 }}>
-                    <span style={{ display:"block", height:"100%", width:convPct+"%", borderRadius:2, background:"linear-gradient(90deg, "+dirColor+", "+convColor+")" }} />
+                {/* Row 2: Conviction bar + GEX button */}
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
+                  <span style={{ width:80, height:5, background:P.al, borderRadius:3, overflow:"hidden", display:"inline-block", flexShrink:0 }}>
+                    <span style={{ display:"block", height:"100%", width:convPct+"%", borderRadius:3, background:"linear-gradient(90deg, "+dirColor+", "+convColor+")" }} />
                   </span>
-                  <span style={{ fontSize:8, fontWeight:700, color:P.mt }}>UCT Confidence</span>
-                  <span style={{ fontSize:9, fontWeight:800, color:convColor }}>{convPct}</span>
-                  <span style={{ fontSize:7, fontWeight:700, color:convColor, letterSpacing:0.5 }}>{uciTier}</span>
+                  <span style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:0.5 }}>UCT Confidence</span>
+                  <span style={{ fontSize:11, fontWeight:900, color:convColor }}>{convPct}</span>
+                  <span style={{ fontSize:8, fontWeight:700, color:convColor, letterSpacing:0.5 }}>{uciTier}</span>
                   <button onClick={()=>fetchIdeaGex(idea.sym)}
-                    style={{ fontSize:8, fontWeight:700, padding:"2px 8px", borderRadius:3, cursor:"pointer", fontFamily:"inherit",
+                    style={{ fontSize:8, fontWeight:700, padding:"3px 10px", borderRadius:4, cursor:"pointer", fontFamily:"inherit",
                       background:"#e040fb22", color:"#e040fb", border:"1px solid #e040fb55", marginLeft:"auto" }}>
                     📊 GEX
                   </button>
                 </div>
 
-                {/* Row 3: Details + trade */}
-                <div style={{ fontSize:9, color:P.dm, display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
-                  <span><span style={{ color:P.wh, fontWeight:600 }}>{idea.hits}×</span>{sweepCount>0&&blockCount>0?" ("+sweepCount+"s+"+blockCount+"b)":""}</span>
-                  <span>BE ~${idea.breakEven.toFixed(0)}</span>
-                  <span style={{ color:isBull?P.bu:P.be, fontWeight:600 }}>{pctStr}</span>
-                  <span>V/OI:{idea.maxOI>0?(idea.volOI*100).toFixed(0)+"%":"—"}</span>
-                  {idea.avgIV > 0 && <span>IV:{(idea.avgIV*100).toFixed(0)}%</span>}
+                {/* Row 3: Key metrics */}
+                <div style={{ fontSize:10, color:P.dm, display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginBottom:6 }}>
+                  <span style={{ color:P.wh, fontWeight:700 }}>{idea.hits}×</span>
+                  {sweepCount>0&&blockCount>0 && <span style={{ color:P.mt }}>({sweepCount}s+{blockCount}b)</span>}
+                  <span>BE ~<span style={{ color:P.wh, fontWeight:600 }}>${idea.breakEven.toFixed(0)}</span></span>
+                  <span style={{ color:isBull?P.bu:P.be, fontWeight:700 }}>{pctStr}</span>
+                  <span>V/OI:<span style={{ color:idea.volOI>=1?"#e040fb":P.wh, fontWeight:idea.volOI>=1?700:400 }}>{idea.maxOI>0?(idea.volOI*100).toFixed(0)+"%":"—"}</span></span>
+                  {idea.avgIV > 0 && <span>IV:<span style={{ fontWeight:600 }}>{(idea.avgIV*100).toFixed(0)}%</span></span>}
                   {idea.risingIV && <span style={{ color:"#ffab00", fontWeight:700 }}>IV↑</span>}
                   {idea.dominantOverride && <span style={{ color:P.ac, fontWeight:600 }}>80%+{isBull?"bull":"bear"}</span>}
                 </div>
-                <div style={{ fontSize:9, color:"#00BCD4", fontWeight:600, marginTop:3 }}>
+
+                {/* Row 4: Trade suggestion */}
+                <div style={{ fontSize:10, color:"#00BCD4", fontWeight:600, padding:"4px 8px", background:"#00BCD410", borderRadius:4 }}>
                   ${idea.K}{idea.cp==="C"?"C":"P"} {idea.exp} or ${idea.K}/${idea.cp==="C"?idea.K+spreadW:idea.K-spreadW} spread
                   {idea.sector && <span style={{ color:P.mt, fontWeight:400, marginLeft:8 }}>{idea.sector}</span>}
                 </div>
