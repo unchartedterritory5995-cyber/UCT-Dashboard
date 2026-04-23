@@ -382,8 +382,11 @@ function consistencyTable(trades, n=8) {
   trades.forEach(t => {
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!m[k]) m[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
-      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, prices:[], maxOI:0 };
+      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, prices:[], maxOI:0,
+      bullPrem:0, bearPrem:0, dominantOverride:false };
     m[k].H++; m[k].P+=t.P; m[k].V+=t.V;
+    if (t.D === "BULL") m[k].bullPrem += t.P;
+    if (t.D === "BEAR") m[k].bearPrem += t.P;
     if (t.price > 0) m[k].prices.push(t.price);
     if (t.OI > m[k].maxOI) m[k].maxOI = t.OI;
     if (t.Ty==="SWP") m[k].hasSweep = true;
@@ -393,6 +396,14 @@ function consistencyTable(trades, n=8) {
   });
   return Object.values(m).filter(c=>c.H>=2).map(c => {
     c.clean = c.dirs.size <= 1;
+    // 80% dominant direction override — if one side has 80%+ of premium, treat as clean
+    if (!c.clean) {
+      const totalDir = c.bullPrem + c.bearPrem;
+      if (totalDir > 0) {
+        if (c.bullPrem / totalDir >= 0.8) { c.clean = true; c.D = "BULL"; c.dominantOverride = true; }
+        else if (c.bearPrem / totalDir >= 0.8) { c.clean = true; c.D = "BEAR"; c.dominantOverride = true; }
+      }
+    }
     c.grade = gradeCluster(c);
     // Median entry price from individual trades
     const sp = [...c.prices].sort((a,b)=>a-b);
@@ -463,25 +474,41 @@ function buildCharts(cc) {
   const allCons = {}; const consTrades = {};
   cc.forEach(t => {
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
-    if (!allCons[k]) allCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, dir:t.D,
-      hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true };
+    if (!allCons[k]) allCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, vol:0, dir:t.D,
+      hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
+      bullPrem:0, bearPrem:0, dominantOverride:false, maxOI:0 };
     if (!consTrades[k]) consTrades[k] = [];
     consTrades[k].push(t);
-    allCons[k].hits++; allCons[k].prem += t.P;
+    allCons[k].hits++; allCons[k].prem += t.P; allCons[k].vol += t.V;
+    if (t.D === "BULL") allCons[k].bullPrem += t.P;
+    if (t.D === "BEAR") allCons[k].bearPrem += t.P;
     if (t.Si==="AA") allCons[k].hasAA = true;
     if (t.Si==="BB") allCons[k].hasBB = true;
     if (t.Ty==="SWP") allCons[k].hasSweep = true;
     if (t.Ty==="BLK") allCons[k].hasBlock = true;
     if (t.Co==="YELLOW"||t.Co==="MAGENTA") allCons[k].oiExceeded = true;
     if (t.D) allCons[k].dirs.add(t.D);
+    if (t.OI > allCons[k].maxOI) allCons[k].maxOI = t.OI;
   });
   const CONV = Object.values(allCons).filter(c=>c.dir).map(c => {
     c.clean = c.dirs.size <= 1;
+    // 80% dominant direction override — if one side has 80%+ of premium, treat as clean
+    if (!c.clean) {
+      const totalDir = c.bullPrem + c.bearPrem;
+      if (totalDir > 0) {
+        if (c.bullPrem / totalDir >= 0.8) { c.clean = true; c.dir = "BULL"; c.dominantOverride = true; }
+        else if (c.bearPrem / totalDir >= 0.8) { c.clean = true; c.dir = "BEAR"; c.dominantOverride = true; }
+      }
+    }
     const grade = gradeCluster(c);
     const scoreMap = {"A+":600,"A":500,"B+":400,"B":300,"C":200,"D":100};
+    // Vol/OI ratio bonus — rewards unusually high activity relative to open interest
+    // 3x+ vol/OI on a mid-cap is far more significant than 0.5x on a mega-cap
+    const volOI = c.maxOI > 0 ? c.vol / c.maxOI : 0;
+    const voiBonus = Math.min(volOI, 5) * 80; // caps at 5x = +400
     const k = c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
     const trades = (consTrades[k]||[]).sort((a,b)=>b.P-a.P);
-    return { ...c, grade, score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e5,
+    return { ...c, grade, volOI, score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e5+voiBonus,
       side:c.hasAA?"AA":c.hasBB?"BB":"ASK", strike:"$"+c.K+c.cp, trades };
   }).filter(c => {
     if (!c.clean || c.DTE <= 7) return false;
@@ -496,7 +523,7 @@ function buildCharts(cc) {
     return true;
   })
   .sort((a,b)=>b.score-a.score).slice(0,6)
-  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade,
+  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"" })) }));
   const sectorMap = {};
   const tickerFlowMap = {};
@@ -920,8 +947,10 @@ function processFlowData(rows) {
     }
     const ck = t.CP+"|"+t.K+"|"+t.E;
     if (!tk.consMap[ck]) tk.consMap[ck] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
-      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true };
+      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, bullPrem:0, bearPrem:0 };
     tk.consMap[ck].H++; tk.consMap[ck].P+=t.P; tk.consMap[ck].V+=t.V;
+    if (t.D === "BULL") tk.consMap[ck].bullPrem += t.P;
+    if (t.D === "BEAR") tk.consMap[ck].bearPrem += t.P;
     if (t.Ty==="SWP") tk.consMap[ck].hasSweep = true;
     if (t.Ty==="BLK") tk.consMap[ck].hasBlock = true;
     if (t.Co==="YELLOW"||t.Co==="MAGENTA") tk.consMap[ck].oiExceeded = true;
@@ -934,6 +963,14 @@ function processFlowData(rows) {
       t:tk.topTrades.sort((a,b)=>b.P-a.P),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
         c.clean = c.dirs.size <= 1;
+        // 80% dominant direction override
+        if (!c.clean && c.bullPrem !== undefined) {
+          const totalDir = (c.bullPrem||0) + (c.bearPrem||0);
+          if (totalDir > 0) {
+            if ((c.bullPrem||0) / totalDir >= 0.8) { c.clean = true; c.D = "BULL"; }
+            else if ((c.bearPrem||0) / totalDir >= 0.8) { c.clean = true; c.D = "BEAR"; }
+          }
+        }
         c.grade = gradeCluster(c);
         return c;
       }).sort((a,b)=>b.H-a.H||b.P-a.P).slice(0,8),
@@ -948,6 +985,7 @@ function processFlowData(rows) {
   return {
     ...charts,
     clean_confirmed,
+    all_directional: filtered.filter(t => t.D), // all trades with direction for Ideas tab
     TICKER_DB, ALL_SYMS, WATCH, PERF_INIT,
     UOA_TRADES, darkPool,
     dateRange, totalTrades:filtered.length,
@@ -963,6 +1001,7 @@ export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
   const [tab, setTab] = useState("Market Read");
   const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
+  const [ideaCapFilter, setIdeaCapFilter] = useState("All");
   const [perf, setPerf] = useState([]);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [status, setStatus] = useState("");
@@ -2022,7 +2061,7 @@ export default function OptionsFlowDashboard() {
                     <span style={{ color:P.ac, fontWeight:700 }}>{t.hits}x</span> · {fmt(t.prem)} ·{" "}
                     {t.side==="AA"?<Tag c={P.ac}>AA</Tag>:t.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>ASK</Tag>}
                   </div>
-                  <div style={{ marginTop:4 }}><Tag c={c}>{t.dir}</Tag></div>
+                  <div style={{ marginTop:4 }}><Tag c={c}>{t.dir}</Tag>{t.dominantOverride && <span style={{ fontSize:9, color:P.ac, fontWeight:600, marginLeft:4 }}>80%+</span>}</div>
                 </div>
               </div>
             );
@@ -2622,28 +2661,41 @@ export default function OptionsFlowDashboard() {
 
         {/* UCT Top Ideas */}
         {tab==="Ideas" && (()=>{
-          // Build clusters from all clean confirmed trades
+          // Build clusters from ALL directional trades (not just confirmed)
+          // Confirmation status affects conviction, not inclusion
           const idClusters = {};
-          (D.clean_confirmed||[]).forEach(t => {
+          (D.all_directional||[]).forEach(t => {
             const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
             if (!idClusters[k]) idClusters[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, vol:0, dir:t.D,
-              hasSweep:false, hasBlock:false, oiExceeded:false, hasMagenta:false, dirs:new Set(),
-              trades:[], maxOI:0, spot:t.Spot||0, sector:t.sector||"", iv:0, ivCount:0 };
+              hasSweep:false, hasBlock:false, oiExceeded:false, hasMagenta:false, hasConfirmed:false, dirs:new Set(),
+              trades:[], maxOI:0, spot:t.Spot||0, sector:t.sector||"", iv:0, ivCount:0, mktcap:t.mktcap||0, bullPrem:0, bearPrem:0 };
             const c = idClusters[k];
             c.hits++; c.prem += t.P; c.vol += t.V;
+            if (t.D === "BULL") c.bullPrem += t.P;
+            if (t.D === "BEAR") c.bearPrem += t.P;
             if (t.Ty==="SWP") c.hasSweep = true;
             if (t.Ty==="BLK") c.hasBlock = true;
-            if (t.Co==="YELLOW"||t.Co==="MAGENTA") c.oiExceeded = true;
+            if (t.Co==="YELLOW"||t.Co==="MAGENTA") { c.oiExceeded = true; c.hasConfirmed = true; }
             if (t.Co==="MAGENTA") c.hasMagenta = true;
             if (t.D) c.dirs.add(t.D);
             if (t.OI > c.maxOI) c.maxOI = t.OI;
             if (t.IV > 0) { c.iv += t.IV; c.ivCount++; }
             if (t.Spot > 0) c.spot = t.Spot;
+            if (t.mktcap > c.mktcap) c.mktcap = t.mktcap;
             c.trades.push(t);
           });
 
           const ideas = Object.values(idClusters).map(c => {
             c.clean = c.dirs.size <= 1;
+            // Dominant direction override: if 80%+ of premium is one side, treat as clean
+            const totalDirPrem = c.bullPrem + c.bearPrem;
+            c.dominantOverride = false;
+            if (!c.clean && totalDirPrem > 0) {
+              const bullPct = c.bullPrem / totalDirPrem;
+              const bearPct = c.bearPrem / totalDirPrem;
+              if (bullPct >= 0.8) { c.clean = true; c.dir = "BULL"; c.dominantOverride = true; }
+              else if (bearPct >= 0.8) { c.clean = true; c.dir = "BEAR"; c.dominantOverride = true; }
+            }
             c.grade = gradeCluster(c);
             // Conviction score
             const gradeBase = {"A+":90,"A":80,"B+":70,"B":60,"C":40,"D":20};
@@ -2660,8 +2712,22 @@ export default function OptionsFlowDashboard() {
             // Vol/OI ratio bonus
             const volOI = c.maxOI > 0 ? c.vol / c.maxOI : 0;
             if (volOI > 0.8) conv += 5; // near full OI replacement
+            // Rising IV detection — IV trending up across trades = increasing demand
+            const tradeIVs = c.trades.filter(t=>t.IV>0).map(t=>t.IV);
+            c.risingIV = false;
+            if (tradeIVs.length >= 3) {
+              const half = Math.floor(tradeIVs.length / 2);
+              const firstHalfAvg = tradeIVs.slice(0, half).reduce((a,b)=>a+b,0) / half;
+              const secondHalfAvg = tradeIVs.slice(half).reduce((a,b)=>a+b,0) / (tradeIVs.length - half);
+              if (secondHalfAvg > firstHalfAvg * 1.03) { c.risingIV = true; conv += 5; } // IV up 3%+ = demand increasing
+            }
+            // Small/mid cap bonus — same $ is more significant on smaller names
+            const cap = capBand(c.mktcap);
+            if (cap === "Small") conv += 5;
+            else if (cap === "Mid") conv += 3;
             conv = Math.max(0, Math.min(99, conv));
             c.conviction = conv;
+            c.capBand = cap;
             c.avgIV = c.ivCount > 0 ? c.iv / c.ivCount : 0;
             c.volOI = volOI;
             // Break-even and % to profit
@@ -2673,8 +2739,9 @@ export default function OptionsFlowDashboard() {
             return c;
           })
           .filter(c => c.clean && c.dir && (c.grade==="A+"||c.grade==="A"||c.grade==="B+") && c.DTE > 7)
+          .filter(c => ideaCapFilter === "All" || c.capBand === ideaCapFilter)
           .sort((a,b) => b.conviction - a.conviction || b.prem - a.prem)
-          .slice(0, 5);
+          .slice(0, 6);
 
           const fmtPrem = v => { if(v>=1e6) return "$"+(v/1e6).toFixed(2)+"M"; if(v>=1e3) return "$"+(v/1e3).toFixed(0)+"K"; return "$"+v.toFixed(0); };
 
@@ -2684,9 +2751,20 @@ export default function OptionsFlowDashboard() {
             <Card>
               <div style={{ display:"flex", gap:14 }}>
                 <div style={{ width:3, background:"#e040fb", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
-                <div>
-                  <div style={{ fontSize:13, fontWeight:700, color:"#e040fb", marginBottom:5 }}>UCT Top Ideas</div>
-                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Top conviction trades from confirmed flow. A+/A grade, clean direction, scored by repetition, OI, order type, and DTE.</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:5 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#e040fb" }}>UCT Top Ideas</div>
+                    <div style={{ display:"flex", gap:3 }}>
+                      {["All","Mega","Large","Mid","Small"].map(cap=>(
+                        <button key={cap} onClick={()=>setIdeaCapFilter(cap)} style={{
+                          padding:"2px 10px", borderRadius:4, border:"1px solid "+(ideaCapFilter===cap?"#e040fb":P.bd),
+                          background:ideaCapFilter===cap?"#e040fb22":"transparent", color:ideaCapFilter===cap?"#e040fb":P.mt,
+                          fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit"
+                        }}>{cap}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:10, color:P.dm, lineHeight:1.5 }}>Top conviction trades from confirmed flow. A+/A grade, clean direction, scored by repetition, OI, order type, and DTE.</div>
                 </div>
               </div>
             </Card>
@@ -2743,6 +2821,8 @@ export default function OptionsFlowDashboard() {
                   <span style={{ color:isBull?P.bu:P.be, fontWeight:600 }}>{pctStr}</span>
                   <span>V/OI:{idea.maxOI>0?(idea.volOI*100).toFixed(0)+"%":"—"}</span>
                   {idea.avgIV > 0 && <span>IV:{(idea.avgIV*100).toFixed(0)}%</span>}
+                  {idea.risingIV && <span style={{ color:"#ffab00", fontWeight:700 }}>IV↑</span>}
+                  {idea.dominantOverride && <span style={{ color:P.ac, fontWeight:600 }}>80%+{isBull?"bull":"bear"}</span>}
                 </div>
                 <div style={{ fontSize:9, color:"#00BCD4", fontWeight:600, marginTop:3 }}>
                   ${idea.K}{idea.cp==="C"?"C":"P"} {idea.exp} or ${idea.K}/${idea.cp==="C"?idea.K+spreadW:idea.K-spreadW} spread
@@ -2947,9 +3027,12 @@ export default function OptionsFlowDashboard() {
             const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
             if (!tfClusters[k]) tfClusters[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, dir:t.D,
               hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
-              mktcap:t.mktcap||0, sector:t.sector||"", prices:[], volumes:0, maxOI:0 };
+              mktcap:t.mktcap||0, sector:t.sector||"", prices:[], volumes:0, maxOI:0,
+              bullPrem:0, bearPrem:0, dominantOverride:false };
             const c = tfClusters[k];
             c.hits++; c.prem += t.P; c.volumes += t.V;
+            if (t.D === "BULL") c.bullPrem += t.P;
+            if (t.D === "BEAR") c.bearPrem += t.P;
             if (t.OI > c.maxOI) c.maxOI = t.OI;
             if (t.price > 0) c.prices.push(t.price);
             if (t.Si==="AA") c.hasAA = true;
@@ -2962,14 +3045,25 @@ export default function OptionsFlowDashboard() {
           });
           const allFlow = Object.values(tfClusters).filter(c=>c.dir).map(c => {
             c.clean = c.dirs.size <= 1;
+            // 80% dominant direction override
+            if (!c.clean) {
+              const totalDir = c.bullPrem + c.bearPrem;
+              if (totalDir > 0) {
+                if (c.bullPrem / totalDir >= 0.8) { c.clean = true; c.dir = "BULL"; c.dominantOverride = true; }
+                else if (c.bearPrem / totalDir >= 0.8) { c.clean = true; c.dir = "BEAR"; c.dominantOverride = true; }
+              }
+            }
             const grade = gradeCluster(c);
             const scoreMap = {"A+":600,"A":500,"B+":400,"B":300,"C":200,"D":100};
             const sp = [...c.prices].sort((a,b)=>a-b);
             const entry = sp.length>0 ? sp[Math.floor(sp.length/2)] : 0;
             const cap = capBand(c.mktcap);
             const dteBand = c.DTE < 60 ? "ST" : c.DTE < 180 ? "LT" : "LEAPS";
+            // Vol/OI ratio bonus
+            const volOI = c.maxOI > 0 ? c.volumes / c.maxOI : 0;
+            const voiBonus = Math.min(volOI, 5) * 80;
             return { ...c, grade, entry, cap, dteBand,
-              score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e4,
+              score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e4+voiBonus,
               side:c.hasAA?"AA":c.hasBB?"BB":"ASK" };
           }).filter(c => c.clean && c.DTE > 7);
 
@@ -3028,7 +3122,7 @@ export default function OptionsFlowDashboard() {
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["#","Ticker","Exp","Strike","C/P","Dir","Grade","Hits","Premium","Entry","Now","P&L","Cap","DTE","Side","OI Signal"].map(h=>(
+                    {["#","Ticker","Exp","Strike","C/P","Dir","Grade","Hits","Premium","Entry","Now","P&L","Cap","DTE","Side"].map(h=>(
                       <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr>
@@ -3061,7 +3155,6 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, color:P.dm, fontWeight:600 }}>{r.cap}</span></td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, fontWeight:700, color:dteBandC, background:dteBandC+"15", padding:"1px 5px", borderRadius:3 }}>{r.dteBand} {r.DTE}d</span></td>
                         <td style={{ padding:"5px 5px" }}>{r.side==="AA"?<Tag c={P.ac}>AA</Tag>:r.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>ASK</Tag>}</td>
-                        <td style={{ padding:"5px 5px" }}><span style={{ display:"flex", gap:2 }}>{r.oiExceeded && <span style={{ width:6, height:6, borderRadius:"50%", background:P.ye, display:"inline-block" }} title="OI Exceeded" />}{r.hasSweep && r.hasBlock && <span style={{ width:6, height:6, borderRadius:"50%", background:P.ma, display:"inline-block" }} title="Sweep+Block" />}</span></td>
                       </tr>
                     );
                   })}
@@ -3287,8 +3380,11 @@ export default function OptionsFlowDashboard() {
               leapsTrades.forEach(t => {
                 const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
                 if (!leapsCons[k]) leapsCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, dir:t.D,
-                  hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true };
+                  hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
+                  bullPrem:0, bearPrem:0 };
                 leapsCons[k].hits++; leapsCons[k].prem += t.P;
+                if (t.D === "BULL") leapsCons[k].bullPrem += t.P;
+                if (t.D === "BEAR") leapsCons[k].bearPrem += t.P;
                 if (t.Si==="AA") leapsCons[k].hasAA = true;
                 if (t.Si==="BB") leapsCons[k].hasBB = true;
                 if (t.Ty==="SWP") leapsCons[k].hasSweep = true;
@@ -3298,6 +3394,13 @@ export default function OptionsFlowDashboard() {
               });
               const leapsTop = Object.values(leapsCons).filter(c=>c.dir).map(c => {
                 c.clean = c.dirs.size <= 1;
+                if (!c.clean) {
+                  const totalDir = c.bullPrem + c.bearPrem;
+                  if (totalDir > 0) {
+                    if (c.bullPrem / totalDir >= 0.8) { c.clean = true; c.dir = "BULL"; }
+                    else if (c.bearPrem / totalDir >= 0.8) { c.clean = true; c.dir = "BEAR"; }
+                  }
+                }
                 const grade = gradeCluster(c);
                 const scoreMap = {"A+":600,"A":500,"B+":400,"B":300,"C":200,"D":100};
                 return { ...c, grade, score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e4,
