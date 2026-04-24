@@ -284,12 +284,15 @@ function FlowTable({items, showCat=true, showZone=false}){
 }
 
 // ── Overview stat card ────────────────────────────────────────────────────────
-function StatCard({label, value, sub, color}){
+function StatCard({label, value, sub, color, icon}){
   return (
     <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,
-      padding:"14px 18px",minWidth:140}}>
-      <div style={{fontSize:11,color:C.tx3,marginBottom:4,textTransform:"uppercase",
-        letterSpacing:"0.06em"}}>{label}</div>
+      padding:"14px 18px",minWidth:120,flex:"1 1 0"}}>
+      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:4}}>
+        {icon && <span style={{fontSize:12,opacity:0.7}}>{icon}</span>}
+        <span style={{fontSize:10,color:C.tx3,textTransform:"uppercase",
+          letterSpacing:"0.06em",fontWeight:700}}>{label}</span>
+      </div>
       <div style={{fontSize:20,fontWeight:700,color:color||C.tx,fontFamily:"JetBrains Mono, monospace"}}>
         {value}
       </div>
@@ -298,12 +301,149 @@ function StatCard({label, value, sub, color}){
   );
 }
 
+// ── Zone Gauge — horizontal segmented bar ─────────────────────────────────────
+function ZoneGauge({above,inside,below}){
+  const total=above+inside+below||1;
+  const pA=((above/total)*100).toFixed(1);
+  const pI=((inside/total)*100).toFixed(1);
+  const pB=((below/total)*100).toFixed(1);
+  const seg=(count,pct,color,label,align)=>(
+    <div style={{flex:count||0.01,display:"flex",flexDirection:"column",alignItems:align,gap:3,minWidth:0}}>
+      <div style={{fontSize:10,color,fontWeight:700,fontFamily:"JetBrains Mono, monospace",whiteSpace:"nowrap"}}>
+        {count} <span style={{fontWeight:400,color:C.tx3}}>({pct}%)</span>
+      </div>
+      <div style={{width:"100%",height:8,borderRadius:4,background:color,opacity:0.85,
+        transition:"all 0.3s ease"}}/>
+      <div style={{fontSize:9,color:C.tx3,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.08em"}}>{label}</div>
+    </div>
+  );
+  return (
+    <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"14px 18px"}}>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+        textTransform:"uppercase",marginBottom:10}}>Zone Positioning</div>
+      <div style={{display:"flex",gap:3,alignItems:"flex-start"}}>
+        {seg(above,pA,C.green,"Above","flex-start")}
+        {seg(inside,pI,"#556b8a","Inside","center")}
+        {seg(below,pB,C.red,"Below","flex-end")}
+      </div>
+    </div>
+  );
+}
+
+// ── Category Notional Bars ────────────────────────────────────────────────────
+function CategoryBars({categories,onJumpTo}){
+  const maxN=Math.max(...categories.map(c=>c.totalNotional),1);
+  return (
+    <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+        textTransform:"uppercase",marginBottom:12}}>Notional by Category</div>
+      {categories.filter(c=>c.count>0).map(c=>{
+        const color=CAT_COLORS[c.name]||C.tx2;
+        const pct=Math.max((c.totalNotional/maxN)*100,1);
+        return (
+          <div key={c.name} style={{marginBottom:8,cursor:onJumpTo?"pointer":"default"}}
+            onClick={()=>onJumpTo&&onJumpTo(c.name)}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+              <span style={{fontSize:11,fontWeight:600,color}}>{c.name}</span>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:10,color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>{c.count} tickers</span>
+                <span style={{fontSize:11,fontWeight:700,color:C.cyan,fontFamily:"JetBrains Mono, monospace",minWidth:64,textAlign:"right"}}>
+                  {fmt(c.totalNotional)}
+                </span>
+              </div>
+            </div>
+            <div style={{width:"100%",height:6,background:C.bdr,borderRadius:3,overflow:"hidden"}}>
+              <div style={{width:pct+"%",height:"100%",background:`linear-gradient(90deg, ${color}cc, ${color})`,
+                borderRadius:3,transition:"width 0.4s ease"}}/>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Top Biggest Prints panel ──────────────────────────────────────────────────
+function BiggestPrintsPanel(){
+  const allItems=useMemo(()=>{
+    const map={};
+    for(const cat of D.categories) for(const it of cat.items) if(it.bigPrintN>0) map[it.t]=it;
+    return Object.values(map).sort((a,b)=>b.bigPrintN-a.bigPrintN).slice(0,10);
+  },[]);
+  return (
+    <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+        textTransform:"uppercase",marginBottom:10}}>Top 10 Biggest Single Prints</div>
+      <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
+        borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,width:18,textAlign:"center"}}>#</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:50}}>Ticker</span>
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:56,textAlign:"right"}}>Print $</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>Notional</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>% Move</span>
+        </div>
+      </div>
+      {allItems.map((it,i)=>{
+        const bpPct=it.bigPrint>0?((it.last-it.bigPrint)/it.bigPrint*100):null;
+        const bpColor=bpPct==null?C.tx3:bpPct>0?C.green:bpPct<0?C.red:C.tx3;
+        const cc=CAT_COLORS[it.cat]||C.tx;
+        return (
+          <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+            padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <span style={{fontSize:10,color:C.tx3,fontFamily:"JetBrains Mono, monospace",
+                width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
+              <span style={{fontFamily:"JetBrains Mono, monospace",fontWeight:700,
+                fontSize:12,color:cc}}>{it.t}</span>
+            </div>
+            <div style={{display:"flex",gap:10,alignItems:"center"}}>
+              <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.amber,
+                fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
+              <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.cyan,
+                fontWeight:700,minWidth:60,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
+              <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:10,color:C.tx3,
+                minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
+              <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,fontWeight:700,
+                color:bpColor,minWidth:52,textAlign:"right"}}>
+                {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+      {allItems.length===0 && <div style={{fontSize:12,color:C.tx3}}>No prints</div>}
+    </div>
+  );
+}
+
 // ── Overview tab ─────────────────────────────────────────────────────────────
-function OverviewPane(){
+function OverviewPane({onJumpTo}){
   const sectionLabel = txt => (
     <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
       textTransform:"uppercase",marginBottom:10}}>{txt}</div>
   );
+
+  // Compute zone counts across ALL tickers
+  const {aboveN,insideN,belowN,allItems}=useMemo(()=>{
+    const map={};
+    for(const cat of D.categories) for(const it of cat.items) map[it.t]=it;
+    const items=Object.values(map);
+    return {
+      aboveN:items.filter(i=>i.pos==="above").length,
+      insideN:items.filter(i=>i.pos==="inside").length,
+      belowN:items.filter(i=>i.pos==="below").length,
+      allItems:items,
+    };
+  },[]);
+
+  // Net sentiment: bull/bear lean
+  const netLean=aboveN-belowN;
+  const leanColor=netLean>0?C.green:netLean<0?C.red:C.tx2;
+  const leanLabel=netLean>0?"Bullish Lean":netLean<0?"Bearish Lean":"Neutral";
 
   function MiniRow({item, dir}){
     const color = dir==="above" ? C.green : C.red;
@@ -329,7 +469,6 @@ function OverviewPane(){
           <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.tx2}}>
             {fP(item.last)}
           </span>
-          {/* Big Print level */}
           <div style={{position:"relative",display:"inline-block"}}
             onMouseEnter={()=>setBpHover(true)} onMouseLeave={()=>setBpHover(false)}>
             <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.amber,
@@ -348,7 +487,6 @@ function OverviewPane(){
               </div>
             )}
           </div>
-          {/* % move since big print */}
           <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:12,
             fontWeight:700,color:bpMoveColor,minWidth:60,textAlign:"right"}}>
             {bpPct==null ? "—" : (bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
@@ -362,82 +500,81 @@ function OverviewPane(){
   }
 
   return (
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
-      {/* Above zone */}
-      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
-        {sectionLabel(`▲ Above Zone — Top ${Math.min(8,D.above.length)}`)}
-        <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 6px 0",
-          borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
-          <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:52}}>Ticker</span>
-          <div style={{display:"flex",gap:12,alignItems:"center"}}>
-            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Last</span>
-            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:68,textAlign:"right"}}>Big Print</span>
-            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>% Move</span>
-            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:36,textAlign:"right"}}>Flow</span>
+      {/* ── Row 1: Stat Cards ────────────────────────────────────── */}
+      <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+        <StatCard icon="💰" label="Total Flow" color={C.cyan}
+          value={D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(1)}B`}
+          sub={`${D.meta.tradingDays} trading days`}/>
+        <StatCard icon="📊" label="Block Trades" color={C.blue}
+          value={D.meta.totalTrades.toLocaleString()}
+          sub={`${(D.meta.totalTrades/Math.max(D.meta.tradingDays,1)).toFixed(0)}/day avg`}/>
+        <StatCard icon="🏷️" label="Tickers" color={C.purple}
+          value={D.meta.totalTickers.toLocaleString()}
+          sub={`${D.categories.filter(c=>c.count>0).length} categories`}/>
+        <StatCard icon="▲" label="Above Zone" color={C.green}
+          value={aboveN}
+          sub={`${((aboveN/(allItems.length||1))*100).toFixed(0)}% of universe`}/>
+        <StatCard icon="▼" label="Below Zone" color={C.red}
+          value={belowN}
+          sub={`${((belowN/(allItems.length||1))*100).toFixed(0)}% of universe`}/>
+        <StatCard icon="⚖️" label="Net Lean" color={leanColor}
+          value={(netLean>0?"+":"")+netLean}
+          sub={leanLabel}/>
+      </div>
+
+      {/* ── Row 2: Zone Gauge ────────────────────────────────────── */}
+      <ZoneGauge above={aboveN} inside={insideN} below={belowN}/>
+
+      {/* ── Row 3: Category Bars + Biggest Prints ────────────────── */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <CategoryBars categories={D.categories} onJumpTo={onJumpTo}/>
+        <BiggestPrintsPanel/>
+      </div>
+
+      {/* ── Row 4: Above / Below zone panels ─────────────────────── */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+
+        {/* Above zone */}
+        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+          {sectionLabel(`▲ Above Zone — Top ${Math.min(8,D.above.length)}`)}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 6px 0",
+            borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:52}}>Ticker</span>
+            <div style={{display:"flex",gap:12,alignItems:"center"}}>
+              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Last</span>
+              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:68,textAlign:"right"}}>Big Print</span>
+              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>% Move</span>
+              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:36,textAlign:"right"}}>Flow</span>
+            </div>
           </div>
+          {D.above.slice(0,8).map(item=>(
+            <MiniRow key={item.t} item={item} dir="above"/>
+          ))}
+          {D.above.length===0 && <div style={{fontSize:12,color:C.tx3}}>None</div>}
         </div>
-        {D.above.slice(0,8).map(item=>(
-          <MiniRow key={item.t} item={item} dir="above"/>
-        ))}
-        {D.above.length===0 && <div style={{fontSize:12,color:C.tx3}}>None</div>}
-      </div>
 
-      {/* Below zone */}
-      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
-        {sectionLabel(`▼ Below Zone — Top ${Math.min(8,D.below.length)}`)}
-        <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 6px 0",
-          borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
-          <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:52}}>Ticker</span>
-          <div style={{display:"flex",gap:12,alignItems:"center"}}>
-            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Last</span>
-            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:68,textAlign:"right"}}>Big Print</span>
-            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>% Move</span>
-            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:36,textAlign:"right"}}>Flow</span>
+        {/* Below zone */}
+        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+          {sectionLabel(`▼ Below Zone — Top ${Math.min(8,D.below.length)}`)}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 6px 0",
+            borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:52}}>Ticker</span>
+            <div style={{display:"flex",gap:12,alignItems:"center"}}>
+              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Last</span>
+              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:68,textAlign:"right"}}>Big Print</span>
+              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>% Move</span>
+              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:36,textAlign:"right"}}>Flow</span>
+            </div>
           </div>
+          {D.below.slice(0,8).map(item=>(
+            <MiniRow key={item.t} item={item} dir="below"/>
+          ))}
+          {D.below.length===0 && <div style={{fontSize:12,color:C.tx3}}>None</div>}
         </div>
-        {D.below.slice(0,8).map(item=>(
-          <MiniRow key={item.t} item={item} dir="below"/>
-        ))}
-        {D.below.length===0 && <div style={{fontSize:12,color:C.tx3}}>None</div>}
-      </div>
 
-    </div>
-  );
-}
-
-// ── Category tab ─────────────────────────────────────────────────────────────
-function CategoryPane(){
-  const [active,setActive]=useState(D.categories[0].name);
-  const cat=D.categories.find(c=>c.name===active)||D.categories[0];
-  const color=CAT_COLORS[active]||C.tx;
-  return (
-    <div>
-      {/* Sub-tabs */}
-      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
-        {D.categories.map(c=>{
-          const cc=CAT_COLORS[c.name]||C.tx;
-          const isOn=c.name===active;
-          return (
-            <button key={c.name} onClick={()=>setActive(c.name)}
-              style={{padding:"5px 14px",borderRadius:20,border:`1px solid ${cc}${isOn?"":"33"}`,
-                background:isOn?cc+"22":"transparent",color:isOn?cc:C.tx2,
-                fontWeight:isOn?700:400,fontSize:12,cursor:"pointer",transition:"all 0.15s"}}>
-              {c.name}
-            </button>
-          );
-        })}
       </div>
-      {/* Category info */}
-      <div style={{marginBottom:12}}>
-        <div style={{fontSize:14,fontWeight:700,color,marginBottom:4}}>{cat.name}</div>
-        <div style={{fontSize:12,color:C.tx2}}>{cat.desc}</div>
-        <div style={{fontSize:12,color:C.tx3,marginTop:2}}>
-          Total: <span style={{color:C.cyan,fontWeight:700}}>{fmt(cat.totalNotional)}</span>
-          {" · "}{cat.count} tickers
-        </div>
-      </div>
-      <FlowTable items={cat.items} showCat={false}/>
     </div>
   );
 }
@@ -1175,7 +1312,7 @@ export default function DarkPool(){
 
       {/* Content */}
       <div style={{padding:"18px 20px",maxWidth:1400,margin:"0 auto"}}>
-        {tab==="overview" && <OverviewPane/>}
+        {tab==="overview" && <OverviewPane onJumpTo={handleJumpTo}/>}
         {tab==="category" && <CategoryPaneWrapper jump={catJump} onJumpDone={()=>setCatJump(null)}/>}
         {tab==="above"    && <AbovePane/>}
         {tab==="below"    && <BelowPane/>}
