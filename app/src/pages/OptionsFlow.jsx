@@ -508,7 +508,7 @@ function buildCharts(cc) {
     const voiBonus = Math.min(volOI, 5) * 80; // caps at 5x = +400
     const k = c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
     const trades = (consTrades[k]||[]).sort((a,b)=>b.P-a.P);
-    return { ...c, grade, volOI, score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e5+voiBonus,
+    return { ...c, grade, volOI, score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus,
       side:c.hasAA?"AA":c.hasBB?"BB":"ASK", strike:"$"+c.K+c.cp, trades };
   }).filter(c => {
     if (!c.clean || c.DTE <= 7) return false;
@@ -1041,15 +1041,61 @@ export default function OptionsFlowDashboard() {
   const [csvText, setCsvText] = useState(null);
   const [csvLoading, setCsvLoading] = useState(true);
   const [csvError, setCsvError] = useState(null);
+  const [parsedRows, setParsedRows] = useState(null);
+  const [dateFilter, setDateFilter] = useState("All");
   const [D, setD] = useState(null);
 
   const csvFile = dataMode === "index" ? "/Indexes-data.csv" : "/flow-data.csv";
+
+  // Extract unique dates from parsed rows
+  const availableDates = useMemo(() => {
+    if (!parsedRows || parsedRows.length === 0) return [];
+    const dateSet = new Set();
+    parsedRows.forEach(r => { if (r.date) dateSet.add(r.date.trim()); });
+    // Sort dates chronologically
+    return [...dateSet].sort((a, b) => {
+      const pa = a.split("/").map(Number);
+      const pb = b.split("/").map(Number);
+      const ya = pa.length >= 3 ? (pa[2] < 100 ? pa[2] + 2000 : pa[2]) : new Date().getFullYear();
+      const yb = pb.length >= 3 ? (pb[2] < 100 ? pb[2] + 2000 : pb[2]) : new Date().getFullYear();
+      const da = new Date(ya, pa[0] - 1, pa[1] || 1);
+      const db = new Date(yb, pb[0] - 1, pb[1] || 1);
+      return da - db;
+    });
+  }, [parsedRows]);
+
+  // Format date for pill label: "Mon 4/21"
+  const fmtDatePill = (dateStr) => {
+    const parts = dateStr.split("/").map(Number);
+    const y = parts.length >= 3 ? (parts[2] < 100 ? parts[2] + 2000 : parts[2]) : new Date().getFullYear();
+    const d = new Date(y, parts[0] - 1, parts[1] || 1);
+    const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    return days[d.getDay()] + " " + parts[0] + "/" + (parts[1] || 1);
+  };
+
+  // Process data whenever parsedRows or dateFilter changes
+  useEffect(() => {
+    if (!parsedRows || parsedRows.length === 0) return;
+    const t2 = performance.now();
+    const filtered = dateFilter === "All" ? parsedRows : parsedRows.filter(r => r.date && r.date.trim() === dateFilter);
+    if (filtered.length === 0) { setD(null); return; }
+    try {
+      const data = processFlowData(filtered);
+      console.log(`[perf] processFlowData (${dateFilter}): ${(performance.now()-t2).toFixed(0)}ms (${filtered.length} rows)`);
+      setD(data);
+    } catch(err) {
+      console.error("processFlowData error:", err);
+      setCsvError(err.message);
+    }
+  }, [parsedRows, dateFilter]);
 
   useEffect(() => {
     let cancelled = false;
     setCsvLoading(true);
     setCsvError(null);
     setD(null);
+    setParsedRows(null);
+    setDateFilter("All");
     setSelectedConv(null);
     setSelectedItem(null);
     setSelectedTicker(null);
@@ -1084,11 +1130,7 @@ export default function OptionsFlowDashboard() {
               const rows = parseCSV(text);
               console.log(`[perf] CSV parsed: ${(performance.now()-t1).toFixed(0)}ms (${rows.length} rows)`);
               if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
-              const t2 = performance.now();
-              const data = processFlowData(rows);
-              console.log(`[perf] processFlowData: ${(performance.now()-t2).toFixed(0)}ms`);
-              console.log(`[perf] Total: ${(performance.now()-t0).toFixed(0)}ms`);
-              if (!cancelled) { setD(data); setCsvLoading(false); }
+              if (!cancelled) { setParsedRows(rows); setCsvLoading(false); }
             } catch(err) {
               if (!cancelled) { setCsvError(err.message); setCsvLoading(false); }
             }
@@ -1912,6 +1954,26 @@ export default function OptionsFlowDashboard() {
             ))}
           </div>
         </div>
+
+        {/* Date Filter — auto-generated from CSV dates */}
+        {dataMode !== "gex" && availableDates.length > 1 && (
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
+            <div style={{ display:"flex", gap:2, background:P.al, borderRadius:6, padding:2, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center" }}>
+              <button onClick={()=>setDateFilter("All")} style={{
+                padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                fontSize:10, fontWeight:700, fontFamily:"inherit",
+                background:dateFilter==="All"?P.cd:"transparent", color:dateFilter==="All"?P.ac:P.mt
+              }}>All · {availableDates.length}d</button>
+              {availableDates.map(d=>(
+                <button key={d} onClick={()=>setDateFilter(d)} style={{
+                  padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                  fontSize:10, fontWeight:600, fontFamily:"inherit",
+                  background:dateFilter===d?P.cd:"transparent", color:dateFilter===d?P.wh:P.mt
+                }}>{fmtDatePill(d)}</button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {dataMode !== "gex" && D && (<>
         {/* Header */}
@@ -3067,7 +3129,7 @@ export default function OptionsFlowDashboard() {
             const volOI = c.maxOI > 0 ? c.volumes / c.maxOI : 0;
             const voiBonus = Math.min(volOI, 5) * 80;
             return { ...c, grade, entry, cap, dteBand,
-              score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e4+voiBonus,
+              score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus,
               side:c.hasAA?"AA":c.hasBB?"BB":"ASK" };
           }).filter(c => c.clean && c.DTE > 7);
 
@@ -3126,7 +3188,7 @@ export default function OptionsFlowDashboard() {
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["#","Ticker","Exp","Strike","C/P","Dir","Grade","Hits","Premium","Entry","Now","P&L","Cap","DTE","Side"].map(h=>(
+                    {["#","Ticker","Exp","Strike","C/P","Side","Dir","Grade","Hits","Premium","Entry","Now","P&L","Cap","DTE"].map(h=>(
                       <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr>
@@ -3149,6 +3211,7 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
+                        <td style={{ padding:"5px 5px" }}>{r.side==="AA"?<Tag c={P.ac}>AA</Tag>:r.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>ASK</Tag>}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={dirC}>{r.dir}</Tag></td>
                         <td style={{ padding:"5px 5px" }}><Tag c={GRADE_COLORS[r.grade]||P.mt}>{r.grade}</Tag></td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontWeight:800, fontSize:13, color:r.hits>=10?P.ac:r.hits>=5?P.ye:P.dm }}>{r.hits}x</span></td>
@@ -3158,7 +3221,6 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 5px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, color:P.dm, fontWeight:600 }}>{r.cap}</span></td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, fontWeight:700, color:dteBandC, background:dteBandC+"15", padding:"1px 5px", borderRadius:3 }}>{r.dteBand} {r.DTE}d</span></td>
-                        <td style={{ padding:"5px 5px" }}>{r.side==="AA"?<Tag c={P.ac}>AA</Tag>:r.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>ASK</Tag>}</td>
                       </tr>
                     );
                   })}
@@ -3407,7 +3469,7 @@ export default function OptionsFlowDashboard() {
                 }
                 const grade = gradeCluster(c);
                 const scoreMap = {"A+":600,"A":500,"B+":400,"B":300,"C":200,"D":100};
-                return { ...c, grade, score:(scoreMap[grade]||0)+c.hits*50+c.prem/1e4,
+                return { ...c, grade, score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3,
                   side:c.hasAA?"AA":c.hasBB?"BB":"ASK", strike:"$"+c.K+c.cp };
               }).filter(c => c.clean)
                 .sort((a,b)=>b.score-a.score)
