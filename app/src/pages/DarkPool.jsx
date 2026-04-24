@@ -363,34 +363,108 @@ function CategoryBars({categories,onJumpTo}){
   );
 }
 
-// ── Top Biggest Prints panel ──────────────────────────────────────────────────
+// ── Top Biggest Prints panel (tabbed, sortable, %AvgVol) ─────────────────────
 function BiggestPrintsPanel(){
-  const allItems=useMemo(()=>{
+  const [catTab,setCatTab]=useState("All");
+  const [sortKey,setSortKey]=useState("bigPrintN");
+  const [sortDir,setSortDir]=useState("desc");
+
+  const PRINT_TABS=[
+    {id:"All",label:"All"},
+    {id:"Indexes",label:"Indexes"},
+    {id:"ETFs",label:"ETFs"},
+    {id:"Large Cap",label:"Large"},
+    {id:"Mid Cap",label:"Mid"},
+    {id:"Small Cap",label:"Small"},
+  ];
+  const ETF_CATS=new Set(["Sector ETFs","Bond ETFs","Intl/EM ETFs","Commodity ETFs"]);
+
+  const universe=useMemo(()=>{
     const map={};
     for(const cat of D.categories) for(const it of cat.items) if(it.bigPrintN>0) map[it.t]=it;
-    return Object.values(map).sort((a,b)=>b.bigPrintN-a.bigPrintN).slice(0,10);
+    return Object.values(map);
   },[]);
+
+  const filtered=useMemo(()=>{
+    let items=universe;
+    if(catTab==="ETFs") items=items.filter(i=>ETF_CATS.has(i.cat));
+    else if(catTab!=="All") items=items.filter(i=>i.cat===catTab);
+
+    const acc={
+      bigPrintN:x=>x.bigPrintN, bigPrint:x=>x.bigPrint, t:x=>x.t,
+      bpMove:x=>x.bigPrint>0?((x.last-x.bigPrint)/x.bigPrint*100):null,
+      avgVol:x=>x.bigPrintPctAvgVol||0,
+    };
+    const fn=acc[sortKey]||(x=>x[sortKey]);
+    items=[...items].sort((a,b)=>{
+      const va=fn(a),vb=fn(b);
+      if(va==null&&vb==null) return 0; if(va==null) return 1; if(vb==null) return -1;
+      if(typeof va==="string") return sortDir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
+      return sortDir==="asc"?va-vb:vb-va;
+    });
+    return items.slice(0,15);
+  },[universe,catTab,sortKey,sortDir]);
+
+  function toggleSort(key){
+    if(sortKey===key) setSortDir(d=>d==="desc"?"asc":"desc");
+    else { setSortKey(key); setSortDir("desc"); }
+  }
+  const hdr=(key,label,minW)=>{
+    const active=sortKey===key;
+    const arrow=active?(sortDir==="asc"?" ▲":" ▼"):"";
+    return (
+      <span onClick={()=>toggleSort(key)}
+        style={{fontSize:9,color:active?C.blue:C.tx3,fontWeight:600,minWidth:minW,textAlign:"right",
+          cursor:"pointer",userSelect:"none",transition:"color 0.15s"}}>
+        {label}{arrow}
+      </span>
+    );
+  };
+
   return (
     <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
       <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
-        textTransform:"uppercase",marginBottom:10}}>Top 10 Biggest Single Prints</div>
+        textTransform:"uppercase",marginBottom:8}}>Biggest Single Prints</div>
+
+      {/* Category tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}}>
+        {PRINT_TABS.map(t=>{
+          const on=catTab===t.id;
+          return (
+            <button key={t.id} onClick={()=>setCatTab(t.id)}
+              style={{padding:"3px 10px",borderRadius:12,fontSize:10,fontWeight:on?700:400,
+                border:`1px solid ${on?C.blue+"88":C.bdr}`,
+                background:on?C.blue+"18":"transparent",color:on?C.blue:C.tx3,
+                cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}}>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Column headers */}
       <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
         borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <span style={{fontSize:9,color:C.tx3,fontWeight:600,width:18,textAlign:"center"}}>#</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:50}}>Ticker</span>
+          {hdr("t","Ticker",50)}
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:56,textAlign:"right"}}>Print $</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>Notional</span>
+          {hdr("bigPrint","Print $",56)}
+          {hdr("bigPrintN","Notional",60)}
           <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>% Move</span>
+          {hdr("bpMove","% Move",48)}
+          {hdr("avgVol","% AvgVol",52)}
         </div>
       </div>
-      {allItems.map((it,i)=>{
+
+      {/* Rows */}
+      {filtered.map((it,i)=>{
         const bpPct=it.bigPrint>0?((it.last-it.bigPrint)/it.bigPrint*100):null;
         const bpColor=bpPct==null?C.tx3:bpPct>0?C.green:bpPct<0?C.red:C.tx3;
         const cc=CAT_COLORS[it.cat]||C.tx;
+        const avgV=it.bigPrintPctAvgVol;
+        const avgVColor=avgV>=50?C.pink:avgV>=20?C.amber:avgV>0?C.tx2:C.tx3;
         return (
           <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
             padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
@@ -408,14 +482,18 @@ function BiggestPrintsPanel(){
               <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:10,color:C.tx3,
                 minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
               <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,fontWeight:700,
-                color:bpColor,minWidth:52,textAlign:"right"}}>
+                color:bpColor,minWidth:48,textAlign:"right"}}>
                 {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
+              </span>
+              <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,fontWeight:700,
+                color:avgVColor,minWidth:52,textAlign:"right"}}>
+                {avgV>0?avgV.toFixed(1)+"%":"—"}
               </span>
             </div>
           </div>
         );
       })}
-      {allItems.length===0 && <div style={{fontSize:12,color:C.tx3}}>No prints</div>}
+      {filtered.length===0 && <div style={{fontSize:12,color:C.tx3,padding:8}}>No prints in this category</div>}
     </div>
   );
 }
