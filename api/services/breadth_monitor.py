@@ -220,6 +220,10 @@ def get_history(days: int = 90) -> list:
                 if rally_days >= 4 and drawdown <= -3.0:
                     row["is_ftd"] = True
 
+        # Manual override: allow PATCH /field to force is_ftd on a specific date
+        if row.get("manual_ftd") is True:
+            row["is_ftd"] = True
+
         row["breadth_score"] = _compute_breadth_score(row)
 
     # Return newest-first
