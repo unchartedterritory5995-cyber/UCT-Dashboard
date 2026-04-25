@@ -1150,6 +1150,8 @@ function BreadthAnalogues() {
       <div className={styles.analoguesFooter}>
         Similarity computed via weighted normalized Euclidean distance on {Object.keys(ANALOGUE_METRIC_LABELS).length}+ breadth metrics.
         Forward returns show SPY performance after each historical match date. Past performance does not predict future results.
+        <br />
+        <em>* This view will become more useful as the historical breadth dataset grows over the coming months and years.</em>
       </div>
     </div>
   )
