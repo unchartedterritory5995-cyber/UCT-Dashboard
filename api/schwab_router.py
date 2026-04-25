@@ -519,9 +519,8 @@ async def chart_ohlc(
         return {"error": str(e)}
 
 
-# ─── Earnings Dates (Finviz) ─────────────────────────────────────────────────
+# ─── Earnings Dates (Yahoo Finance) ──────────────────────────────────────────
 
-import re as _re
 from datetime import datetime as _datetime, date as _date
 import asyncio as _asyncio
 
@@ -578,7 +577,7 @@ def _fetch_earnings_yf(symbol: str):
 
 @router.post("/earnings")
 async def get_earnings_dates(req: dict):
-    """Batch fetch next earnings dates from Finviz."""
+    """Batch fetch next earnings dates from Yahoo Finance."""
     symbols = req.get("symbols", [])[:50]
     results = {}
     now = _datetime.now()
@@ -600,14 +599,52 @@ async def get_earnings_dates(req: dict):
             if i > 0:
                 await _asyncio.sleep(0.15)
             try:
-                info = await loop.run_in_executor(None, _fetch_earnings_finviz, sym)
+                info = await loop.run_in_executor(None, _fetch_earnings_yf, sym)
                 if info:
                     _earnings_cache[sym] = {**info, "_at": now}
                     results[sym] = info
                 else:
                     _earnings_cache[sym] = {"date": None, "daysUntil": None, "confirmed": False, "timing": "", "_at": now}
                     results[sym] = None
-            except Exception:
-                results[sym] = None
+            except Exception as e:
+                results[sym] = {"error": str(e)}
 
     return {"earnings": results}
+
+
+@router.get("/earnings-test")
+async def earnings_test(sym: str = Query("QCOM", description="Ticker to test")):
+    """Debug endpoint — test earnings fetch for a single ticker. Hit in browser: /api/schwab/earnings-test?sym=QCOM"""
+    import requests
+    sym = sym.upper().strip()
+    debug = {"symbol": sym, "steps": []}
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        url = f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{sym}"
+        debug["steps"].append(f"Fetching {url}")
+        resp = requests.get(url, params={"modules": "calendarEvents"}, headers=headers, timeout=8)
+        debug["status_code"] = resp.status_code
+        if resp.status_code != 200:
+            debug["steps"].append(f"Bad status: {resp.status_code}")
+            debug["response_text"] = resp.text[:500]
+            return debug
+        data = resp.json()
+        debug["steps"].append("Got JSON response")
+        cal = data.get("quoteSummary", {}).get("result", [{}])[0].get("calendarEvents", {})
+        earnings = cal.get("earnings", {})
+        dates = earnings.get("earningsDate", [])
+        debug["calendarEvents_keys"] = list(cal.keys()) if cal else "empty"
+        debug["earnings_keys"] = list(earnings.keys()) if earnings else "empty"
+        debug["earningsDate_raw"] = dates
+        if dates:
+            raw = dates[0].get("raw") if isinstance(dates[0], dict) else dates[0]
+            debug["first_date_raw"] = raw
+            if raw:
+                from datetime import datetime as dt
+                ed = dt.utcfromtimestamp(raw).date()
+                debug["parsed_date"] = str(ed)
+                debug["days_until"] = (ed - _date.today()).days
+        debug["steps"].append("Done")
+    except Exception as e:
+        debug["error"] = str(e)
+    return debug
