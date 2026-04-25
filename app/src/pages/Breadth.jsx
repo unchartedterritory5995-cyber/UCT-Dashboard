@@ -8,7 +8,7 @@ import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
-import { prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
+import { prefetchBars } from '../utils/prefetchBars'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
@@ -389,11 +389,13 @@ function DrillModal({ drill, onClose }) {
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [chartPeriod, setChartPeriod] = useState('D')
 
-  // Prefetch all timeframes for current ticker + adjacent tickers for active TF
+  // Prefetch upcoming tickers' active timeframe so arrow-key scanning is instant.
+  // We deliberately DON'T prefetch all 8 timeframes for the current ticker — that
+  // fired 13 parallel /api/bars calls per click (5000 bars each) and made the
+  // user-visible Daily chart wait 15+ seconds behind cold-cache fetches for TFs
+  // the user doesn't even view. StockChart already fetches the active TF directly.
   useEffect(() => {
     if (!items.length) return
-    const current = items[selectedIdx]?.t
-    if (current) prefetchAllTimeframes(current)
     const upcoming = items.slice(selectedIdx + 1, selectedIdx + 6).map(i => i.t)
     prefetchBars(upcoming, chartPeriod)
   }, [selectedIdx, items, chartPeriod])
