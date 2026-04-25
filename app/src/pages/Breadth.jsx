@@ -9,6 +9,9 @@ import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
 import { prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
+import useBreadthCustomize from './breadth/useBreadthCustomize'
+import CustomizePanel from './breadth/CustomizePanel'
+import customizeStyles from './breadth/CustomizePanel.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -243,7 +246,9 @@ function buildGroupSpans(cols) {
   return spans
 }
 
-const GROUP_SPANS = buildGroupSpans(COLS)
+// GROUP_SPANS removed — group spans are now derived from visibleCols inside
+// the component (see `groupSpans = useMemo(...)`) so customize-hidden metrics
+// shrink the header correctly.
 
 // ── Heatmap column set (curated — most color-meaningful metrics) ───────────
 const HEATMAP_COL_KEYS = new Set([
@@ -1180,6 +1185,9 @@ export default function Breadth() {
       return raw ? new Set(JSON.parse(raw)) : new Set()
     } catch { return new Set() }
   })
+
+  const customize = useBreadthCustomize()
+  const [customizeOpen, setCustomizeOpen] = useState(false)
   const toggleGroup = group => {
     setCollapsed(prev => {
       const next = new Set(prev)
@@ -1217,7 +1225,11 @@ export default function Breadth() {
         month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
       })
     : null
-  const visibleCols = COLS.filter(col => !collapsed.has(col.group))
+  const visibleCols = useMemo(
+    () => COLS.filter(col => !collapsed.has(col.group) && !customize.hidden.has(col.key)),
+    [collapsed, customize.hidden],
+  )
+  const groupSpans = useMemo(() => buildGroupSpans(visibleCols), [visibleCols])
 
   const sparkData = useMemo(() => {
     const out = {}
@@ -1323,9 +1335,37 @@ export default function Breadth() {
                 </button>
               ))}
             </div>
+            {activeTab === 'breadth' && (
+              <div className={customizeStyles.anchor}>
+                <button
+                  className={`${customizeStyles.triggerBtn} ${customizeOpen ? customizeStyles.triggerBtnActive : ''}`}
+                  onClick={() => setCustomizeOpen(o => !o)}
+                  title="Customize which metrics show in the sheet"
+                >
+                  <span className={customizeStyles.triggerIcon}>⚙</span>
+                  Customize
+                </button>
+                {customizeOpen && (
+                  <CustomizePanel
+                    cols={COLS}
+                    activePreset={customize.activePreset}
+                    hidden={customize.hidden}
+                    presetNames={customize.presetNames}
+                    isDefaultActive={customize.isDefaultActive}
+                    onToggleHidden={customize.toggleHidden}
+                    onSavePreset={customize.savePreset}
+                    onRenamePreset={customize.renamePreset}
+                    onDeletePreset={customize.deletePreset}
+                    onSwitchPreset={customize.switchPreset}
+                    onResetActive={customize.resetActive}
+                    onClose={() => setCustomizeOpen(false)}
+                  />
+                )}
+              </div>
+            )}
             <button
               className={styles.exportBtn}
-              onClick={() => exportCsv(rows, COLS)}
+              onClick={() => exportCsv(rows, visibleCols)}
               title="Download as CSV"
             >
               ↓ CSV
@@ -1351,7 +1391,13 @@ export default function Breadth() {
         <BreadthHeatmap rows={rows} onDrill={openDrill} />
       )}
 
-      {rows.length > 0 && activeTab === 'breadth' && (
+      {rows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (
+        <div className={styles.empty}>
+          All metrics hidden — open <strong>Customize</strong> to show some.
+        </div>
+      )}
+
+      {rows.length > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
@@ -1363,10 +1409,10 @@ export default function Breadth() {
                 >
                   Date
                 </th>
-                {GROUP_SPANS.map((gs, i) => {
+                {groupSpans.map((gs, i) => {
                   const isCollapsed = collapsed.has(gs.group)
-                  // Count how many individual cols in this group are collapsed (they still occupy 1 slot each)
-                  const groupCols = COLS.filter(c => c.group === gs.group)
+                  // Count how many individual cols in this group are visible (they still occupy 1 slot each, including collapsed-narrow ones)
+                  const groupCols = visibleCols.filter(c => c.group === gs.group)
                   const visibleSpan = isCollapsed ? 1 : groupCols.reduce((acc, c) => acc + 1, 0)
                   return (
                     <th
@@ -1411,12 +1457,12 @@ export default function Breadth() {
               {rows.map((row, ri) => (
                 <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>{row.date}</td>
-                  {GROUP_SPANS.flatMap(gs => {
+                  {groupSpans.flatMap(gs => {
                     if (collapsed.has(gs.group)) {
                       // Placeholder cell to match the colSpan=1 rowSpan=2 header cell
                       return [<td key={`grp-${gs.group}`} className={styles.td} />]
                     }
-                    const groupCols = COLS.filter(c => c.group === gs.group)
+                    const groupCols = visibleCols.filter(c => c.group === gs.group)
                     return groupCols.map(col => {
                       if (collapsedCols.has(col.key)) {
                         return <td key={col.key} className={`${styles.td} ${styles.colCollapsedCell}`} />

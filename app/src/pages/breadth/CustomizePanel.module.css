@@ -1,0 +1,316 @@
+/* Breadth Sheet Customize Panel — anchored dropdown.
+ * Visual style mirrors PortfolioSettingsModal (dark + gold accents, sectioned).
+ * Spec: docs/superpowers/specs/2026-04-24-breadth-customize-design.md
+ */
+
+.anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.triggerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+}
+
+.triggerBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-accent);
+}
+
+.triggerBtnActive {
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
+}
+
+.triggerIcon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;  /* below the panel; lets clicks-outside close it */
+  background: transparent;
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 340px;
+  max-height: calc(100vh - 140px);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.55);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.xBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.xBtn:hover {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+}
+
+.presetRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.presetSelect {
+  flex: 1;
+  padding: 7px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+.presetSelect:focus {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+}
+
+.presetActions {
+  display: flex;
+  gap: 4px;
+}
+
+.smallBtn {
+  padding: 6px 9px;
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.smallBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.smallBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.smallBtnDanger:not(:disabled):hover {
+  border-color: var(--loss);
+  color: var(--loss);
+}
+
+.inlineForm {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.inlineLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.inlineInput {
+  padding: 8px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.inlineInput:focus {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+}
+
+.inlineRow {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.ghostBtn {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ghostBtn:hover {
+  background: var(--bg-hover);
+}
+
+.primaryBtn {
+  padding: 7px 16px;
+  background: var(--ut-gold);
+  border: none;
+  border-radius: 6px;
+  color: var(--bg);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.errorMsg {
+  font-size: 12px;
+  color: var(--loss);
+}
+
+.confirmText {
+  font-size: 12px;
+  color: var(--text-bright);
+  margin: 0;
+}
+
+.body {
+  padding: 8px 18px 14px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sectionHeader {
+  margin: 6px 0 2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 100ms;
+}
+.checkRow:hover {
+  background: var(--bg-hover);
+}
+
+.checkbox {
+  margin: 0;
+  accent-color: var(--ut-gold);
+  width: 14px;
+  height: 14px;
+}
+
+.checkLabel {
+  font-size: 12px;
+  color: var(--text-bright);
+  user-select: none;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.resetLink {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-color: var(--border-accent);
+}
+.resetLink:hover:not(:disabled) {
+  color: var(--text-bright);
+}
+.resetLink:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.activeLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+}
