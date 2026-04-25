@@ -528,18 +528,51 @@ _earnings_cache: dict = {}
 _EARNINGS_TTL_HOURS = 12
 
 
+_yf_crumb = None
+_yf_session = None
+
+def _get_yf_session():
+    """Get a Yahoo Finance session with valid crumb."""
+    global _yf_crumb, _yf_session
+    import requests
+    if _yf_crumb and _yf_session:
+        return _yf_session, _yf_crumb
+    s = requests.Session()
+    s.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"})
+    # Get cookies
+    s.get("https://fc.yahoo.com", timeout=8)
+    # Get crumb
+    r = s.get("https://query2.finance.yahoo.com/v1/test/getcrumb", timeout=8)
+    if r.status_code == 200 and r.text:
+        _yf_crumb = r.text.strip()
+        _yf_session = s
+        print(f"[earnings] Got Yahoo crumb: {_yf_crumb[:8]}...", flush=True)
+        return s, _yf_crumb
+    raise Exception(f"Failed to get crumb: {r.status_code}")
+
+
 def _fetch_earnings_yf(symbol: str):
     """Fetch next earnings date from Yahoo Finance quoteSummary API."""
-    import requests
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
-        resp = requests.get(
-            f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{symbol}",
-            params={"modules": "calendarEvents"},
-            headers=headers, timeout=8
+        s, crumb = _get_yf_session()
+        resp = s.get(
+            f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}",
+            params={"modules": "calendarEvents", "crumb": crumb},
+            timeout=8
         )
+        if resp.status_code == 401:
+            # Crumb expired — reset and retry once
+            global _yf_crumb, _yf_session
+            _yf_crumb = None
+            _yf_session = None
+            s, crumb = _get_yf_session()
+            resp = s.get(
+                f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}",
+                params={"modules": "calendarEvents", "crumb": crumb},
+                timeout=8
+            )
         if resp.status_code != 200:
-            print(f"[earnings] Yahoo returned {resp.status_code} for {symbol}")
+            print(f"[earnings] Yahoo returned {resp.status_code} for {symbol}", flush=True)
             return None
 
         data = resp.json()
@@ -548,15 +581,13 @@ def _fetch_earnings_yf(symbol: str):
         dates = earnings.get("earningsDate", [])
 
         if not dates:
-            print(f"[earnings] {symbol}: no earningsDate in response")
+            print(f"[earnings] {symbol}: no earningsDate in response", flush=True)
             return None
 
-        # First date in list is the next earnings date
         raw = dates[0].get("raw") if isinstance(dates[0], dict) else dates[0]
         if not raw:
             return None
 
-        # raw is Unix timestamp
         from datetime import datetime as dt
         ed = dt.utcfromtimestamp(raw).date()
         today = _date.today()
@@ -564,14 +595,12 @@ def _fetch_earnings_yf(symbol: str):
 
         m, d, y = ed.month, ed.day, ed.year
         date_str = f"{m}/{d}" if y == today.year else f"{m}/{d}/{str(y)[-2:]}"
-
-        # Check if there are 2 dates (range estimate) vs 1 (confirmed)
         confirmed = len(dates) == 1
 
-        print(f"[earnings] {symbol}: {date_str} in {days_until}d {'confirmed' if confirmed else 'estimated'}")
+        print(f"[earnings] {symbol}: {date_str} in {days_until}d {'confirmed' if confirmed else 'estimated'}", flush=True)
         return {"date": date_str, "daysUntil": days_until, "confirmed": confirmed, "timing": ""}
     except Exception as e:
-        print(f"[earnings] {symbol} exception: {e}")
+        print(f"[earnings] {symbol} exception: {e}", flush=True)
         return None
 
 
@@ -614,15 +643,16 @@ async def get_earnings_dates(req: dict):
 
 @router.get("/earnings-test")
 async def earnings_test(sym: str = Query("QCOM", description="Ticker to test")):
-    """Debug endpoint — test earnings fetch for a single ticker. Hit in browser: /api/schwab/earnings-test?sym=QCOM"""
+    """Debug endpoint — test earnings fetch for a single ticker."""
     import requests
     sym = sym.upper().strip()
     debug = {"symbol": sym, "steps": []}
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
-        url = f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{sym}"
+        s, crumb = _get_yf_session()
+        debug["steps"].append(f"Got crumb: {crumb[:8]}...")
+        url = f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{sym}"
         debug["steps"].append(f"Fetching {url}")
-        resp = requests.get(url, params={"modules": "calendarEvents"}, headers=headers, timeout=8)
+        resp = s.get(url, params={"modules": "calendarEvents", "crumb": crumb}, timeout=8)
         debug["status_code"] = resp.status_code
         if resp.status_code != 200:
             debug["steps"].append(f"Bad status: {resp.status_code}")
