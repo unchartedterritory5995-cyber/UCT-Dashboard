@@ -517,3 +517,104 @@ async def chart_ohlc(
         return {"sym": sym, "range": range, "intraday": is_intraday, "candles": candles}
     except Exception as e:
         return {"error": str(e)}
+
+
+# ─── Earnings Dates (Finviz) ─────────────────────────────────────────────────
+
+import re as _re
+from datetime import datetime as _datetime, date as _date
+import asyncio as _asyncio
+
+_earnings_cache: dict = {}
+_EARNINGS_TTL_HOURS = 12
+
+
+def _fetch_earnings_finviz(symbol: str):
+    """Fetch next earnings date for a symbol from Finviz."""
+    import requests
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        resp = requests.get(f"https://finviz.com/quote.ashx?t={symbol}&p=d", headers=headers, timeout=8)
+        if resp.status_code != 200:
+            return None
+
+        html = resp.text
+        match = _re.search(
+            r'<td[^>]*class="snapshot-td2-cp"[^>]*>Earnings</td>\s*<td[^>]*class="snapshot-td2"[^>]*>([^<]+)</td>',
+            html
+        )
+        if not match:
+            match = _re.search(r'>Earnings<.*?<b>([^<]+)</b>', html, _re.DOTALL)
+        if not match:
+            return None
+
+        raw = match.group(1).strip()
+        if raw == "-" or not raw:
+            return None
+
+        timing = "AMC" if "AMC" in raw else ("BMO" if "BMO" in raw else "")
+        date_part = _re.sub(r'\s*(AMC|BMO)\s*', '', raw).strip()
+
+        months = {"Jan":1,"Feb":2,"Mar":3,"Apr":4,"May":5,"Jun":6,
+                   "Jul":7,"Aug":8,"Sep":9,"Oct":10,"Nov":11,"Dec":12}
+        parts = date_part.split()
+        if len(parts) < 2 or parts[0] not in months:
+            return None
+
+        m, d = months[parts[0]], int(parts[1])
+        today = _date.today()
+        year = today.year
+        try:
+            ed = _date(year, m, d)
+        except ValueError:
+            return None
+
+        if (today - ed).days > 30:
+            year += 1
+            try:
+                ed = _date(year, m, d)
+            except ValueError:
+                return None
+
+        days_until = (ed - today).days
+        date_str = f"{m}/{d}" if year == today.year else f"{m}/{d}/{str(year)[-2:]}"
+        return {"date": date_str, "daysUntil": days_until, "confirmed": True, "timing": timing}
+    except Exception:
+        return None
+
+
+@router.post("/earnings")
+async def get_earnings_dates(req: dict):
+    """Batch fetch next earnings dates from Finviz."""
+    symbols = req.get("symbols", [])[:50]
+    results = {}
+    now = _datetime.now()
+    to_fetch = []
+
+    for sym in symbols:
+        sym = sym.upper().strip()
+        if not sym:
+            continue
+        cached = _earnings_cache.get(sym)
+        if cached and (now - cached["_at"]).total_seconds() < _EARNINGS_TTL_HOURS * 3600:
+            results[sym] = {k: v for k, v in cached.items() if k != "_at"}
+            continue
+        to_fetch.append(sym)
+
+    if to_fetch:
+        loop = _asyncio.get_event_loop()
+        for i, sym in enumerate(to_fetch):
+            if i > 0:
+                await _asyncio.sleep(0.15)
+            try:
+                info = await loop.run_in_executor(None, _fetch_earnings_finviz, sym)
+                if info:
+                    _earnings_cache[sym] = {**info, "_at": now}
+                    results[sym] = info
+                else:
+                    _earnings_cache[sym] = {"date": None, "daysUntil": None, "confirmed": False, "timing": "", "_at": now}
+                    results[sym] = None
+            except Exception:
+                results[sym] = None
+
+    return {"earnings": results}
