@@ -533,23 +533,61 @@ def _fetch_earnings_finviz(symbol: str):
     """Fetch next earnings date for a symbol from Finviz."""
     import requests
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
         resp = requests.get(f"https://finviz.com/quote.ashx?t={symbol}&p=d", headers=headers, timeout=8)
         if resp.status_code != 200:
+            print(f"[earnings] Finviz returned {resp.status_code} for {symbol}")
             return None
 
         html = resp.text
-        match = _re.search(
-            r'<td[^>]*class="snapshot-td2-cp"[^>]*>Earnings</td>\s*<td[^>]*class="snapshot-td2"[^>]*>([^<]+)</td>',
-            html
-        )
-        if not match:
-            match = _re.search(r'>Earnings<.*?<b>([^<]+)</b>', html, _re.DOTALL)
-        if not match:
+
+        # Debug: find the HTML around "Earnings" to see actual structure
+        idx = html.find("Earnings")
+        if idx == -1:
+            # Try lowercase
+            idx = html.lower().find("earnings")
+        if idx == -1:
+            print(f"[earnings] No 'Earnings' text found in HTML for {symbol} (len={len(html)})")
             return None
 
-        raw = match.group(1).strip()
-        if raw == "-" or not raw:
+        # Log 300 chars around the match for debugging
+        snippet = html[max(0, idx-50):idx+250].replace("\n", " ").replace("\r", "")
+        print(f"[earnings] {symbol} HTML snippet: {snippet[:200]}")
+
+        # Try multiple regex patterns from most specific to most permissive
+        raw = None
+
+        # Pattern 1: td class → td class with <b> tags
+        m = _re.search(r'Earnings</td>\s*<td[^>]*><b>([^<]+)</b>', html)
+        if m:
+            raw = m.group(1).strip()
+            print(f"[earnings] {symbol} matched pattern 1: '{raw}'")
+
+        # Pattern 2: td class → td class without <b> tags
+        if not raw:
+            m = _re.search(r'Earnings</td>\s*<td[^>]*>([^<]+)</td>', html)
+            if m:
+                raw = m.group(1).strip()
+                print(f"[earnings] {symbol} matched pattern 2: '{raw}'")
+
+        # Pattern 3: look for Month Day pattern anywhere near "Earnings"
+        if not raw:
+            # Grab 500 chars after "Earnings" and look for a date pattern
+            after = html[idx:idx+500]
+            m = _re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:\s+(?:AMC|BMO))?', after)
+            if m:
+                raw = m.group(0).strip()
+                print(f"[earnings] {symbol} matched pattern 3 (proximity): '{raw}'")
+
+        # Pattern 4: span or any tag with date near Earnings
+        if not raw:
+            m = _re.search(r'Earnings.*?>((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}[^<]*)<', html[idx:idx+500], _re.DOTALL)
+            if m:
+                raw = m.group(1).strip()
+                print(f"[earnings] {symbol} matched pattern 4 (any tag): '{raw}'")
+
+        if not raw or raw == "-":
+            print(f"[earnings] {symbol}: no date found after trying all patterns")
             return None
 
         timing = "AMC" if "AMC" in raw else ("BMO" if "BMO" in raw else "")
@@ -559,27 +597,30 @@ def _fetch_earnings_finviz(symbol: str):
                    "Jul":7,"Aug":8,"Sep":9,"Oct":10,"Nov":11,"Dec":12}
         parts = date_part.split()
         if len(parts) < 2 or parts[0] not in months:
+            print(f"[earnings] {symbol}: could not parse date from '{date_part}'")
             return None
 
-        m, d = months[parts[0]], int(parts[1])
+        m_num, d = months[parts[0]], int(parts[1])
         today = _date.today()
         year = today.year
         try:
-            ed = _date(year, m, d)
+            ed = _date(year, m_num, d)
         except ValueError:
             return None
 
         if (today - ed).days > 30:
             year += 1
             try:
-                ed = _date(year, m, d)
+                ed = _date(year, m_num, d)
             except ValueError:
                 return None
 
         days_until = (ed - today).days
-        date_str = f"{m}/{d}" if year == today.year else f"{m}/{d}/{str(year)[-2:]}"
+        date_str = f"{m_num}/{d}" if year == today.year else f"{m_num}/{d}/{str(year)[-2:]}"
+        print(f"[earnings] {symbol}: {date_str} ({timing}) in {days_until} days")
         return {"date": date_str, "daysUntil": days_until, "confirmed": True, "timing": timing}
-    except Exception:
+    except Exception as e:
+        print(f"[earnings] {symbol} exception: {e}")
         return None
 
 
