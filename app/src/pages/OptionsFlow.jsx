@@ -268,6 +268,7 @@ function parseCSV(text) {
     sector:["sector"],
     uoa:["uoa"],
     stocketf:["stocketf","stocketf","assettype","type2"],
+    er:["er","earnings","earningsdate"],
   };
   const colIdx = {};
   Object.entries(ALIASES).forEach(([field, aliases]) => {
@@ -476,7 +477,7 @@ function buildCharts(cc) {
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!allCons[k]) allCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, vol:0, dir:t.D,
       hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
-      bullPrem:0, bearPrem:0, dominantOverride:false, maxOI:0 };
+      bullPrem:0, bearPrem:0, dominantOverride:false, maxOI:0, er:t.er||false };
     if (!consTrades[k]) consTrades[k] = [];
     consTrades[k].push(t);
     allCons[k].hits++; allCons[k].prem += t.P; allCons[k].vol += t.V;
@@ -523,7 +524,7 @@ function buildCharts(cc) {
     return true;
   })
   .sort((a,b)=>b.score-a.score).slice(0,6)
-  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0,
+  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"" })) }));
   const sectorMap = {};
   const tickerFlowMap = {};
@@ -645,6 +646,7 @@ function processFlowData(rows) {
       E:expStr, expiry, Si:side, Co:color, DTE:dte, Dt:dt,
       D:direction, OI:oi, IV:iv, Spot:spot, isML, confirmed,
       mktcap, sector, uoa, isDeep, pctFromSpot,
+      er:(r.er||"").toUpperCase().trim() === "T",
       stocketf:(r.stocketf||"").toUpperCase().trim(),
       time:(r.time||"").trim()
     };
@@ -1023,6 +1025,8 @@ export default function OptionsFlowDashboard() {
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
   const [priceCache, setPriceCache] = useState({}); // key: "SYM|CP|STRIKE|EXP" -> { mark, bid, ask, last, delta, theta, iv }
+  const [earningsCache, setEarningsCache] = useState({}); // key: "SYM" -> { date, daysUntil }
+  const earningsFetchedRef = useRef(new Set());
   const [marketIndices, setMarketIndices] = useState(null);
   const [marketNarrative, setMarketNarrative] = useState(null);
   const [narrativeLoading, setNarrativeLoading] = useState(false);
@@ -1152,6 +1156,32 @@ export default function OptionsFlowDashboard() {
 
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
+  }, [D]);
+
+  // Auto-fetch earnings dates for tickers with ER flag
+  useEffect(() => {
+    if (!D || !D.ALL_SYMS) return;
+    const erTickers = D.ALL_SYMS.filter(s => {
+      const trades = D.clean_confirmed || [];
+      return trades.some(t => t.S === s && t.er) && !earningsFetchedRef.current.has(s);
+    });
+    if (erTickers.length === 0) return;
+    erTickers.forEach(s => earningsFetchedRef.current.add(s));
+    // Batch fetch earnings dates
+    fetch("/api/schwab/earnings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbols: erTickers })
+    }).then(r => r.ok ? r.json() : null).then(data => {
+      if (!data || !data.earnings) return;
+      setEarningsCache(prev => {
+        const next = { ...prev };
+        Object.entries(data.earnings).forEach(([sym, info]) => {
+          if (info && info.date) next[sym] = info;
+        });
+        return next;
+      });
+    }).catch(() => {});
   }, [D]);
 
   // Auto-scroll to Top Flow detail panel when opened
@@ -2123,7 +2153,11 @@ export default function OptionsFlowDashboard() {
                     <span style={{ color:P.ac, fontWeight:700 }}>{t.hits}x</span> · {fmt(t.prem)} ·{" "}
                     {t.side==="AA"?<Tag c={P.ac}>AA</Tag>:t.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>ASK</Tag>}
                   </div>
-                  <div style={{ marginTop:4 }}><Tag c={c}>{t.dir}</Tag>{t.dominantOverride && <span style={{ fontSize:9, color:P.ac, fontWeight:600, marginLeft:4 }}>80%+</span>}</div>
+                  <div style={{ marginTop:4 }}>
+                    <Tag c={c}>{t.dir}</Tag>
+                    {t.dominantOverride && <span style={{ fontSize:9, color:P.ac, fontWeight:600, marginLeft:4 }}>80%+</span>}
+                    {t.er && <span style={{ fontSize:8, fontWeight:800, marginLeft:4, padding:"1px 5px", borderRadius:3, background:"#ff6d0033", color:"#ff6d00" }}>⚡ER{earningsCache[t.sym]?" "+earningsCache[t.sym].date:""}</span>}
+                  </div>
                 </div>
               </div>
             );
@@ -2730,7 +2764,7 @@ export default function OptionsFlowDashboard() {
             const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
             if (!idClusters[k]) idClusters[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, vol:0, dir:t.D,
               hasSweep:false, hasBlock:false, oiExceeded:false, hasMagenta:false, hasConfirmed:false, dirs:new Set(),
-              trades:[], maxOI:0, spot:t.Spot||0, sector:t.sector||"", iv:0, ivCount:0, mktcap:t.mktcap||0, bullPrem:0, bearPrem:0 };
+              trades:[], maxOI:0, spot:t.Spot||0, sector:t.sector||"", iv:0, ivCount:0, mktcap:t.mktcap||0, bullPrem:0, bearPrem:0, er:t.er||false };
             const c = idClusters[k];
             c.hits++; c.prem += t.P; c.vol += t.V;
             if (t.D === "BULL") c.bullPrem += t.P;
@@ -2887,6 +2921,7 @@ export default function OptionsFlowDashboard() {
                   {idea.avgIV > 0 && <span>IV:<span style={{ fontWeight:600 }}>{(idea.avgIV*100).toFixed(0)}%</span></span>}
                   {idea.risingIV && <span style={{ color:"#ffab00", fontWeight:700 }}>IV↑</span>}
                   {idea.dominantOverride && <span style={{ color:P.ac, fontWeight:600 }}>80%+{isBull?"bull":"bear"}</span>}
+                  {idea.er && <span style={{ fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:3, background:"#ff6d0033", color:"#ff6d00" }}>⚡ER{earningsCache[idea.sym]?" "+earningsCache[idea.sym].date:""}</span>}
                 </div>
 
                 {/* Row 4: Trade suggestion */}
@@ -3094,7 +3129,7 @@ export default function OptionsFlowDashboard() {
             if (!tfClusters[k]) tfClusters[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, dir:t.D,
               hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
               mktcap:t.mktcap||0, sector:t.sector||"", prices:[], volumes:0, maxOI:0,
-              bullPrem:0, bearPrem:0, dominantOverride:false };
+              bullPrem:0, bearPrem:0, dominantOverride:false, er:t.er||false };
             const c = tfClusters[k];
             c.hits++; c.prem += t.P; c.volumes += t.V;
             if (t.D === "BULL") c.bullPrem += t.P;
@@ -3207,7 +3242,7 @@ export default function OptionsFlowDashboard() {
                         onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                         onMouseLeave={e=>e.currentTarget.style.background=i<3?(P.ac+"06"):"transparent"}>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:i<3?P.ac:P.dm, fontSize:12 }}>{i+1}</td>
-                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER{earningsCache[r.sym]?" "+earningsCache[r.sym].date:""}</span>}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
