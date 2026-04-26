@@ -630,14 +630,18 @@ def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: 
         futures = []
         is_deep_tf = tf in ("D", "W", "M")
         for sym in tickers:
-            try:
-                if disk_cache.get(sym, tf, bars_count) is not None:
-                    with _warm_state_lock:
-                        _warm_state["skipped"] += 1
-                        _warm_state["done"] += 1
-                    continue
-            except Exception:
-                pass
+            # For D/W/M we always re-warm because users may have already
+            # populated the cache with Massive-only data via a normal /api/bars
+            # request. Skipping would leave us with shallow history forever.
+            if not is_deep_tf:
+                try:
+                    if disk_cache.get(sym, tf, bars_count) is not None:
+                        with _warm_state_lock:
+                            _warm_state["skipped"] += 1
+                            _warm_state["done"] += 1
+                        continue
+                except Exception:
+                    pass
 
             def _task(s=sym, t=tf, deep=is_deep_tf):
                 try:
