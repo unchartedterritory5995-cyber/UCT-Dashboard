@@ -758,6 +758,31 @@ def warm_universe(request: Request, tf: str = None, bars: int = 5000, tfs: str =
     }
 
 
+@router.post("/api/admin/warm-universe-stop")
+def warm_universe_stop(request: Request):
+    """Cancel an in-flight universe warm. Auth: Bearer PUSH_SECRET.
+
+    Shuts down the bars-warm thread pool (cancelling pending tasks), then
+    re-creates it so future warms can start cleanly. In-flight HTTP calls
+    that have already been dispatched will finish — Python ThreadPoolExecutor
+    can't interrupt them — but no new tasks will be picked up.
+    """
+    _check_admin_auth(request)
+    global _bars_warm_pool
+    try:
+        _bars_warm_pool.shutdown(wait=False, cancel_futures=True)
+    except Exception:
+        pass
+    with _warm_state_lock:
+        was_running = _warm_state.get("running", False)
+        if was_running:
+            _warm_state["running"] = False
+            _warm_state["completed_iso"] = datetime.utcnow().isoformat() + "Z"
+    # Recreate the pool so the next /api/admin/warm-universe call works
+    _bars_warm_pool = _BarsWarmExecutor(max_workers=4, thread_name_prefix="bars-warm")
+    return {"status": "stopped", "was_running": was_running}
+
+
 @router.get("/api/admin/warm-universe-status")
 def warm_universe_status():
     """Return current progress of the universe warmer (no auth — read-only)."""
