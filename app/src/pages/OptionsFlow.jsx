@@ -524,7 +524,7 @@ function buildCharts(cc) {
     return true;
   })
   .sort((a,b)=>b.score-a.score).slice(0,6)
-  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false,
+  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"" })) }));
   const sectorMap = {};
   const tickerFlowMap = {};
@@ -1184,7 +1184,7 @@ export default function OptionsFlowDashboard() {
   useEffect(() => {
     if (!D || !D.CONV || D.CONV.length === 0) return;
     const today = new Date().toISOString().slice(0,10);
-    const picks = D.CONV.map(c => {
+    const picks = D.CONV.filter(c => capBand(c.mktcap) !== "Mega").map(c => {
       const trades = c.trades || [];
       const prices = trades.filter(t=>t.V>0).map(t=>t.P/t.V/100).filter(p=>p>0);
       const sorted = [...prices].sort((a,b)=>a-b);
