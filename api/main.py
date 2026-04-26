@@ -295,7 +295,9 @@ async def lifespan(app: FastAPI):
         warmed = 0
         skipped = 0
         fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))  # Daily-only count for fast-path milestone
-        with _PrewarmTPE(max_workers=16, thread_name_prefix="prewarm-bars") as ex:
+        # NOTE: 4 workers — keep prewarm gentle so the FastAPI request thread pool
+        # and Massive upstream both have headroom for live user requests.
+        with _PrewarmTPE(max_workers=4, thread_name_prefix="prewarm-bars") as ex:
             for i, (status, _sym, _tf) in enumerate(ex.map(_warm_one, jobs), start=1):
                 if status == 'warmed':
                     warmed += 1
@@ -316,7 +318,7 @@ async def lifespan(app: FastAPI):
             if not refresh_jobs:
                 continue
             refreshed = 0
-            with _PrewarmTPE(max_workers=16, thread_name_prefix="prewarm-refresh") as ex:
+            with _PrewarmTPE(max_workers=4, thread_name_prefix="prewarm-refresh") as ex:
                 for status, _sym, _tf in ex.map(_warm_one, refresh_jobs):
                     if status == 'warmed':
                         refreshed += 1

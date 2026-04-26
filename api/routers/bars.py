@@ -306,7 +306,7 @@ def get_bars(
 # cache before the client requests it (e.g. when a breadth drill list is
 # fetched, warm the top tickers' Daily bars so chart loads are instant).
 from concurrent.futures import ThreadPoolExecutor as _BarsWarmExecutor
-_bars_warm_pool = _BarsWarmExecutor(max_workers=6, thread_name_prefix="bars-warm")
+_bars_warm_pool = _BarsWarmExecutor(max_workers=2, thread_name_prefix="bars-warm")
 
 
 def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 5000) -> None:
