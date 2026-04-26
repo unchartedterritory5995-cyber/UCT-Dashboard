@@ -1025,8 +1025,7 @@ export default function OptionsFlowDashboard() {
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
   const [priceCache, setPriceCache] = useState({}); // key: "SYM|CP|STRIKE|EXP" -> { mark, bid, ask, last, delta, theta, iv }
-  const [earningsCache, setEarningsCache] = useState({}); // key: "SYM" -> { date, daysUntil }
-  const earningsFetchedRef = useRef(new Set());
+  const [earningsCache, setEarningsCache] = useState({});
   const [marketIndices, setMarketIndices] = useState(null);
   const [marketNarrative, setMarketNarrative] = useState(null);
   const [narrativeLoading, setNarrativeLoading] = useState(false);
@@ -1157,34 +1156,6 @@ export default function OptionsFlowDashboard() {
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
   }, [D]);
-
-  // Auto-fetch earnings dates for tickers with ER flag
-  useEffect(() => {
-    if (!D || !D.ALL_SYMS) return;
-    const erTickers = D.ALL_SYMS.filter(s => {
-      const trades = D.clean_confirmed || [];
-      return trades.some(t => t.S === s && t.er) && !earningsFetchedRef.current.has(s);
-    });
-    console.log("[earnings] ER tickers found:", erTickers.length);
-    if (erTickers.length === 0) return;
-    erTickers.forEach(s => earningsFetchedRef.current.add(s));
-    // Batch fetch earnings dates
-    fetch("/api/schwab/earnings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbols: erTickers })
-    }).then(r => r.ok ? r.json() : null).then(data => {
-      if (!data || !data.earnings) { console.log("[earnings] No data returned"); return; }
-      const withDates = Object.entries(data.earnings).filter(([,info]) => info && info.date);
-      console.log("[earnings] Got dates for:", withDates.map(([s,i])=>s+":"+i.date).join(", "));
-      setEarningsCache(prev => {
-        const next = { ...prev };
-        withDates.forEach(([sym, info]) => { next[sym] = info; });
-        console.log("[earnings] Cache now has", Object.keys(next).length, "entries");
-        window.__earningsCache = next;
-        return next;
-      });
-    }).catch(e => console.error("[earnings] Fetch error:", e));
   }, [D]);
 
   // Auto-scroll to Top Flow detail panel when opened
@@ -2159,7 +2130,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ marginTop:4 }}>
                     <Tag c={c}>{t.dir}</Tag>
                     {t.dominantOverride && <span style={{ fontSize:9, color:P.ac, fontWeight:600, marginLeft:4 }}>80%+</span>}
-                    {t.er && <span style={{ fontSize:8, fontWeight:800, marginLeft:4, padding:"1px 5px", borderRadius:3, background:"#ff6d0033", color:"#ff6d00" }}>⚡ER{earningsCache[t.sym]?" "+earningsCache[t.sym].date:""}</span>}
+                    {t.er && <span style={{ fontSize:8, fontWeight:800, marginLeft:4, padding:"1px 5px", borderRadius:3, background:"#ff6d0033", color:"#ff6d00" }}>⚡ER</span>}
                   </div>
                 </div>
               </div>
@@ -2924,7 +2895,7 @@ export default function OptionsFlowDashboard() {
                   {idea.avgIV > 0 && <span>IV:<span style={{ fontWeight:600 }}>{(idea.avgIV*100).toFixed(0)}%</span></span>}
                   {idea.risingIV && <span style={{ color:"#ffab00", fontWeight:700 }}>IV↑</span>}
                   {idea.dominantOverride && <span style={{ color:P.ac, fontWeight:600 }}>80%+{isBull?"bull":"bear"}</span>}
-                  {idea.er && <span style={{ fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:3, background:"#ff6d0033", color:"#ff6d00" }}>⚡ER{earningsCache[idea.sym]?" "+earningsCache[idea.sym].date:""}</span>}
+                  {idea.er && <span style={{ fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:3, background:"#ff6d0033", color:"#ff6d00" }}>⚡ER</span>}
                 </div>
 
                 {/* Row 4: Trade suggestion */}
@@ -3245,7 +3216,7 @@ export default function OptionsFlowDashboard() {
                         onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                         onMouseLeave={e=>e.currentTarget.style.background=i<3?(P.ac+"06"):"transparent"}>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:i<3?P.ac:P.dm, fontSize:12 }}>{i+1}</td>
-                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER{earningsCache[r.sym]?" "+earningsCache[r.sym].date:""}</span>}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
