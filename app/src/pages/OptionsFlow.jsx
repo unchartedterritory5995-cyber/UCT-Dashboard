@@ -1168,6 +1168,7 @@ export default function OptionsFlowDashboard() {
   const [topFlowPicks, setTopFlowPicks] = useState({ active:[], archived:[] });
   const [trackerLookback, setTrackerLookback] = useState(7);
   const [trackerSort, setTrackerSort] = useState("recent");
+  const [trackerCapFilter, setTrackerCapFilter] = useState("All");
   const [showArchived, setShowArchived] = useState(false);
 
   // Fetch history after initial render (deferred)
@@ -1184,12 +1185,12 @@ export default function OptionsFlowDashboard() {
   useEffect(() => {
     if (!D || !D.CONV || D.CONV.length === 0) return;
     const today = new Date().toISOString().slice(0,10);
-    const picks = D.CONV.filter(c => capBand(c.mktcap) !== "Mega").map(c => {
+    const picks = D.CONV.map(c => {
       const trades = c.trades || [];
       const prices = trades.filter(t=>t.V>0).map(t=>t.P/t.V/100).filter(p=>p>0);
       const sorted = [...prices].sort((a,b)=>a-b);
       const entry = sorted.length > 0 ? sorted[Math.floor(sorted.length/2)] : 0;
-      return { sym:c.sym, cp:c.cp, strike:parseFloat(c.K), exp:c.exp, entry:Math.round(entry*100)/100, grade:c.grade, dir:c.dir, hits:c.hits, prem:c.prem };
+      return { sym:c.sym, cp:c.cp, strike:parseFloat(c.K), exp:c.exp, entry:Math.round(entry*100)/100, grade:c.grade, dir:c.dir, hits:c.hits, prem:c.prem, cap:capBand(c.mktcap) };
     });
     // Populate locally immediately so tracker shows even without backend
     const localPicks = picks.map(p => ({
@@ -1199,7 +1200,7 @@ export default function OptionsFlowDashboard() {
     setTopFlowPicks(prev => {
       const existingMap = {};
       prev.active.forEach(a => { existingMap[a.id] = a; });
-      const merged = localPicks.map(lp => existingMap[lp.id] ? { ...existingMap[lp.id], grade:lp.grade, hits:lp.hits, prem:lp.prem, dir:lp.dir } : lp);
+      const merged = localPicks.map(lp => existingMap[lp.id] ? { ...existingMap[lp.id], grade:lp.grade, hits:lp.hits, prem:lp.prem, dir:lp.dir, cap:lp.cap } : lp);
       return { ...prev, active: merged };
     });
     // Also try to save to backend (deferred — non-critical)
@@ -4374,8 +4375,10 @@ export default function OptionsFlowDashboard() {
         {/* Tracker */}
         {tab==="Tracker" && (() => {
           const cutoff = trackerLookback === 0 ? 0 : Date.now() - trackerLookback * 86400000;
-          const filteredActive = trackerLookback === 0 ? topFlowPicks.active : topFlowPicks.active.filter(p => p.dateSaved && new Date(p.dateSaved).getTime() >= cutoff);
-          const filteredArchived = trackerLookback === 0 ? topFlowPicks.archived : topFlowPicks.archived.filter(p => p.dateSaved && new Date(p.dateSaved).getTime() >= cutoff);
+          const afterLookback = (list) => trackerLookback === 0 ? list : list.filter(p => p.dateSaved && new Date(p.dateSaved).getTime() >= cutoff);
+          const afterCap = (list) => trackerCapFilter === "All" ? list : list.filter(p => (p.cap||"Unknown") === trackerCapFilter);
+          const filteredActive = afterCap(afterLookback(topFlowPicks.active));
+          const filteredArchived = afterCap(afterLookback(topFlowPicks.archived));
           const calcPnl = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):(p.history&&p.history.length>0?p.history[p.history.length-1].price:0); return now>0&&p.entry>0?(now-p.entry)/p.entry*100:0; };
           const calcPeak = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):0; const hist=p.history||[]; const allPx=[...hist.map(h=>h.price),now,p.finalPrice||0].filter(v=>v>0); const peak=allPx.length>0?Math.max(...allPx):0; return peak>0&&p.entry>0?(peak-p.entry)/p.entry*100:0; };
           const sortFn = (a,b) => {
@@ -4409,6 +4412,13 @@ export default function OptionsFlowDashboard() {
                     style={{ padding:"4px 10px", borderRadius:5, border:"1px solid "+(trackerSort===o.val?P.sw:P.bd),
                       background:trackerSort===o.val?P.sw+"18":"transparent", color:trackerSort===o.val?P.sw:P.dm,
                       fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>{o.label}</button>
+                ))}
+                <span style={{ width:1, height:16, background:P.bd, margin:"0 6px" }}/>
+                {["All","Mega","Large","Mid","Small"].map(f=>(
+                  <button key={f} onClick={()=>setTrackerCapFilter(f)}
+                    style={{ padding:"4px 10px", borderRadius:5, border:"1px solid "+(trackerCapFilter===f?P.ye:P.bd),
+                      background:trackerCapFilter===f?P.ye+"18":"transparent", color:trackerCapFilter===f?P.ye:P.dm,
+                      fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>{f}</button>
                 ))}
                 <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{filteredActive.length} active · {filteredArchived.length} archived</span>
               </div>
