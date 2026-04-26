@@ -41,14 +41,17 @@ export default function EarningsModal({ row, label, onClose }) {
     if (!row) return
     setAiState({ loading: true, data: null })
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 20_000)
+    // Bumped 20s → 30s: the AI call can take 12-18s for cold cache, and the
+    // previous timeout was aborting just-barely-too-late requests.
+    const timer = setTimeout(() => controller.abort(), 30_000)
     fetch(`/api/earnings-analysis/${row.sym}`, { signal: controller.signal })
       .then(r => r.json())
       .then(d => setAiState({ loading: false, data: d }))
-      .catch(err => {
-        if (err.name !== 'AbortError') {
-          setAiState({ loading: false, data: null })
-        }
+      .catch(() => {
+        // Always clear loading on error (including AbortError) so the spinner
+        // never persists indefinitely. Previously the AbortError branch left
+        // loading=true, which is what produced the "Generating preview…" hang.
+        setAiState({ loading: false, data: null })
       })
       .finally(() => clearTimeout(timer))
     return () => { controller.abort(); clearTimeout(timer) }
@@ -168,9 +171,12 @@ export default function EarningsModal({ row, label, onClose }) {
                 <NewsList items={aiState.data.news} />
               )}
             </div>
-          ) : aiState.data && !aiState.data.preview_text ? (
+          ) : (
+            // No preview_text — either data was empty or fetch failed/aborted.
+            // Show explicit fallback rather than rendering nothing so the user
+            // knows the request finished (vs a perpetual spinner).
             <div className={styles.previewUnavailable}>Preview unavailable</div>
-          ) : null
+          )
         )}
 
         {/* ── Trend block ──────────────────────────────────────────────── */}

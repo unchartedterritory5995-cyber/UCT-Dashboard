@@ -908,9 +908,14 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
     return result
 
 
-def _generate_earnings_preview(sym: str, row: dict) -> dict:
-    """Generate forward-looking AI preview for Pending earnings entries. Cached 12h."""
-    assert row is not None, "_generate_earnings_preview requires a non-None row"
+def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
+    """Generate forward-looking AI preview for Pending earnings entries. Cached 12h.
+
+    row may be None or {} (e.g., when called for a future calendar entry not in
+    today's bmo/amc); the function falls back to N/A for missing context.
+    """
+    if row is None:
+        row = {"sym": sym}
     cache_key = f"earnings_preview_{sym}"
     cached = cache.get(cache_key)
     if cached:
