@@ -1167,6 +1167,7 @@ export default function OptionsFlowDashboard() {
   // ─── Top Flow Tracker ───────────────────────────────────────────────
   const [topFlowPicks, setTopFlowPicks] = useState({ active:[], archived:[] });
   const [trackerLookback, setTrackerLookback] = useState(7);
+  const [trackerSort, setTrackerSort] = useState("recent");
   const [showArchived, setShowArchived] = useState(false);
 
   // Fetch history after initial render (deferred)
@@ -4375,6 +4376,16 @@ export default function OptionsFlowDashboard() {
           const cutoff = trackerLookback === 0 ? 0 : Date.now() - trackerLookback * 86400000;
           const filteredActive = trackerLookback === 0 ? topFlowPicks.active : topFlowPicks.active.filter(p => p.dateSaved && new Date(p.dateSaved).getTime() >= cutoff);
           const filteredArchived = trackerLookback === 0 ? topFlowPicks.archived : topFlowPicks.archived.filter(p => p.dateSaved && new Date(p.dateSaved).getTime() >= cutoff);
+          const calcPnl = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):(p.history&&p.history.length>0?p.history[p.history.length-1].price:0); return now>0&&p.entry>0?(now-p.entry)/p.entry*100:0; };
+          const calcPeak = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):0; const hist=p.history||[]; const allPx=[...hist.map(h=>h.price),now,p.finalPrice||0].filter(v=>v>0); const peak=allPx.length>0?Math.max(...allPx):0; return peak>0&&p.entry>0?(peak-p.entry)/p.entry*100:0; };
+          const sortFn = (a,b) => {
+            if (trackerSort==="pnl") return calcPnl(b)-calcPnl(a);
+            if (trackerSort==="peak") return calcPeak(b)-calcPeak(a);
+            if (trackerSort==="ticker") return (a.sym||"").localeCompare(b.sym||"");
+            return new Date(b.dateSaved||0).getTime()-new Date(a.dateSaved||0).getTime();
+          };
+          const sortedActive = [...filteredActive].sort(sortFn);
+          const sortedArchived = [...filteredArchived].sort(sortFn);
           return (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
@@ -4385,17 +4396,24 @@ export default function OptionsFlowDashboard() {
                   <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Tracks performance of Top Flow conviction picks over time. Picks are auto-saved when new flow data loads. Daily snapshots at 4:30 PM ET update prices. Expired contracts auto-archive.</div>
                 </div>
               </div>
-              <div style={{ display:"flex", gap:4, marginTop:10 }}>
+              <div style={{ display:"flex", gap:4, marginTop:10, flexWrap:"wrap", alignItems:"center" }}>
                 {[{label:"7d",val:7},{label:"14d",val:14},{label:"30d",val:30},{label:"All",val:0}].map(o=>(
                   <button key={o.val} onClick={()=>setTrackerLookback(o.val)}
                     style={{ padding:"4px 12px", borderRadius:5, border:"1px solid "+(trackerLookback===o.val?P.ac:P.bd),
                       background:trackerLookback===o.val?P.ac+"18":"transparent", color:trackerLookback===o.val?P.ac:P.dm,
                       fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>{o.label}</button>
                 ))}
-                <span style={{ fontSize:9, color:P.dm, marginLeft:8, alignSelf:"center" }}>{filteredActive.length} active · {filteredArchived.length} archived</span>
+                <span style={{ width:1, height:16, background:P.bd, margin:"0 6px" }}/>
+                {[{label:"Recent",val:"recent"},{label:"P&L",val:"pnl"},{label:"Peak",val:"peak"},{label:"Ticker",val:"ticker"}].map(o=>(
+                  <button key={o.val} onClick={()=>setTrackerSort(o.val)}
+                    style={{ padding:"4px 10px", borderRadius:5, border:"1px solid "+(trackerSort===o.val?P.sw:P.bd),
+                      background:trackerSort===o.val?P.sw+"18":"transparent", color:trackerSort===o.val?P.sw:P.dm,
+                      fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>{o.label}</button>
+                ))}
+                <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{filteredActive.length} active · {filteredArchived.length} archived</span>
               </div>
             </Card>
-            {filteredActive.length > 0 ? (
+            {sortedActive.length > 0 ? (
               <Card title="Active Picks" sub={filteredActive.length+" of "+topFlowPicks.active.length+" contracts"}>
                 <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
                   <button onClick={()=>{
@@ -4417,7 +4435,7 @@ export default function OptionsFlowDashboard() {
                     ))}
                   </tr></thead>
                   <tbody>
-                    {filteredActive.map((p,i)=>{
+                    {sortedActive.map((p,i)=>{
                       const px = getPrice(p.sym, p.cp, p.strike, p.exp);
                       const now = px ? (px.mark||px.last||0) : (p.history&&p.history.length>0 ? p.history[p.history.length-1].price : 0);
                       const pnl = now>0 && p.entry>0 ? (now-p.entry)/p.entry*100 : 0;
@@ -4459,7 +4477,7 @@ export default function OptionsFlowDashboard() {
               <Card><div style={{ textAlign:"center", padding:"20px 0", color:P.dm, fontSize:12 }}>No active picks yet. Upload flow data — Top Flow picks will be tracked automatically.</div></Card>
             )}
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
-            {filteredArchived.length > 0 && (
+            {sortedArchived.length > 0 && (
               <Card title="Archived Picks" sub={filteredArchived.length+" of "+topFlowPicks.archived.length+" expired"}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
@@ -4468,7 +4486,7 @@ export default function OptionsFlowDashboard() {
                     ))}
                   </tr></thead>
                   <tbody>
-                    {filteredArchived.slice().reverse().map((p,i)=>{
+                    {sortedArchived.map((p,i)=>{
                       const pnlC = p.finalPnl>0?P.bu:p.finalPnl<0?P.be:P.dm;
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
                       const hist = p.history||[];
