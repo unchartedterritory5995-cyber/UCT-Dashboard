@@ -1166,6 +1166,7 @@ export default function OptionsFlowDashboard() {
 
   // ─── Top Flow Tracker ───────────────────────────────────────────────
   const [topFlowPicks, setTopFlowPicks] = useState({ active:[], archived:[] });
+  const [trackerLookback, setTrackerLookback] = useState(7);
   const [showArchived, setShowArchived] = useState(false);
 
   // Fetch history after initial render (deferred)
@@ -4370,19 +4371,32 @@ export default function OptionsFlowDashboard() {
         )}
 
         {/* Tracker */}
-        {tab==="Tracker" && (
+        {tab==="Tracker" && (() => {
+          const cutoff = trackerLookback === 0 ? 0 : Date.now() - trackerLookback * 86400000;
+          const filteredActive = trackerLookback === 0 ? topFlowPicks.active : topFlowPicks.active.filter(p => p.dateSaved && new Date(p.dateSaved).getTime() >= cutoff);
+          const filteredArchived = trackerLookback === 0 ? topFlowPicks.archived : topFlowPicks.archived.filter(p => p.dateSaved && new Date(p.dateSaved).getTime() >= cutoff);
+          return (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
               <div style={{ display:"flex", gap:14 }}>
                 <div style={{ width:3, background:P.ac, borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
-                <div>
+                <div style={{ flex:1 }}>
                   <div style={{ fontSize:13, fontWeight:700, color:P.ac, marginBottom:5 }}>Top Flow Tracker</div>
                   <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Tracks performance of Top Flow conviction picks over time. Picks are auto-saved when new flow data loads. Daily snapshots at 4:30 PM ET update prices. Expired contracts auto-archive.</div>
                 </div>
               </div>
+              <div style={{ display:"flex", gap:4, marginTop:10 }}>
+                {[{label:"7d",val:7},{label:"14d",val:14},{label:"30d",val:30},{label:"All",val:0}].map(o=>(
+                  <button key={o.val} onClick={()=>setTrackerLookback(o.val)}
+                    style={{ padding:"4px 12px", borderRadius:5, border:"1px solid "+(trackerLookback===o.val?P.ac:P.bd),
+                      background:trackerLookback===o.val?P.ac+"18":"transparent", color:trackerLookback===o.val?P.ac:P.dm,
+                      fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>{o.label}</button>
+                ))}
+                <span style={{ fontSize:9, color:P.dm, marginLeft:8, alignSelf:"center" }}>{filteredActive.length} active · {filteredArchived.length} archived</span>
+              </div>
             </Card>
-            {topFlowPicks.active.length > 0 ? (
-              <Card title="Active Picks" sub={topFlowPicks.active.length+" contracts"}>
+            {filteredActive.length > 0 ? (
+              <Card title="Active Picks" sub={filteredActive.length+" of "+topFlowPicks.active.length+" contracts"}>
                 <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
                   <button onClick={()=>{
                     const contracts = topFlowPicks.active.map(p=>({sym:p.sym,cp:p.cp,strike:p.strike,exp:p.exp}));
@@ -4403,7 +4417,7 @@ export default function OptionsFlowDashboard() {
                     ))}
                   </tr></thead>
                   <tbody>
-                    {topFlowPicks.active.map((p,i)=>{
+                    {filteredActive.map((p,i)=>{
                       const px = getPrice(p.sym, p.cp, p.strike, p.exp);
                       const now = px ? (px.mark||px.last||0) : (p.history&&p.history.length>0 ? p.history[p.history.length-1].price : 0);
                       const pnl = now>0 && p.entry>0 ? (now-p.entry)/p.entry*100 : 0;
@@ -4445,8 +4459,8 @@ export default function OptionsFlowDashboard() {
               <Card><div style={{ textAlign:"center", padding:"20px 0", color:P.dm, fontSize:12 }}>No active picks yet. Upload flow data — Top Flow picks will be tracked automatically.</div></Card>
             )}
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
-            {topFlowPicks.archived.length > 0 && (
-              <Card title="Archived Picks" sub={topFlowPicks.archived.length+" expired"}>
+            {filteredArchived.length > 0 && (
+              <Card title="Archived Picks" sub={filteredArchived.length+" of "+topFlowPicks.archived.length+" expired"}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                     {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Final","P&L","Peak","Saved"].map(h=>(
@@ -4454,7 +4468,7 @@ export default function OptionsFlowDashboard() {
                     ))}
                   </tr></thead>
                   <tbody>
-                    {topFlowPicks.archived.slice().reverse().map((p,i)=>{
+                    {filteredArchived.slice().reverse().map((p,i)=>{
                       const pnlC = p.finalPnl>0?P.bu:p.finalPnl<0?P.be:P.dm;
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
                       const hist = p.history||[];
@@ -4482,7 +4496,8 @@ export default function OptionsFlowDashboard() {
               </Card>
             )}
           </div>
-        )}
+          );
+        })()}
 
         <div style={{ marginTop:16, padding:"10px 0", borderTop:"1px solid "+P.bd, display:"flex", justifyContent:"space-between" }}>
           <span style={{ fontSize:9, color:P.mt }}>Options Flow Dashboard · {D.dateRange}</span>
