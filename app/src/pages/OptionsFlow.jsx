@@ -2129,10 +2129,15 @@ export default function OptionsFlowDashboard() {
           {(convCpFilter==="All"?FD.CONV.slice(0,6):FD.CONV.filter(t=>t.dir===(convCpFilter==="Calls"?"BULL":"BEAR")).slice(0,6)).map((t, i) => {
             const c = t.dir==="BULL" ? P.bu : P.be;
             const hk = "conv_"+i;
+            const _pick = topFlowPicks.active.find(p=>p.sym===t.sym&&p.cp===t.cp&&parseFloat(p.strike)===parseFloat(t.K)&&p.exp===t.exp);
+            const _oiH = _pick ? (_pick.history||[]).filter(h=>(h.oi||0)>0) : [];
+            const _curOI = _oiH.length>0 ? _oiH[_oiH.length-1].oi : 0;
+            const _peakOI = _oiH.length>0 ? Math.max(..._oiH.map(h=>h.oi)) : 0;
+            const _isExit = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
             return (
               <div key={i} style={{ position:"relative" }}
                 onClick={()=>{ const next = selectedConv===i ? null : i; setSelectedConv(next); if(next!==null) fetchContractHistory(t.sym, t.cp, t.K, t.exp); }}>
-                <div style={{ background:P.cd, border:"1px solid "+(selectedConv===i?P.ac:P.bd), borderRadius:8, padding:"10px 12px", borderTop:"2px solid "+c, cursor:"pointer", transition:"border-color 0.15s" }}>
+                <div style={{ background:P.cd, border:"1px solid "+(selectedConv===i?P.ac:(_isExit?"#ff174466":P.bd)), borderRadius:8, padding:"10px 12px", borderTop:_isExit?"2px solid #ff1744":"2px solid "+c, cursor:"pointer", transition:"border-color 0.15s" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{t.sym}</span>
                     <Tag c={GRADE_COLORS[t.grade]||P.mt}>{t.grade}</Tag>
@@ -2146,6 +2151,7 @@ export default function OptionsFlowDashboard() {
                     <Tag c={c}>{t.dir}</Tag>
                     {t.dominantOverride && <span style={{ fontSize:9, color:P.ac, fontWeight:600, marginLeft:4 }}>80%+</span>}
                     {t.er && <span style={{ fontSize:8, fontWeight:800, marginLeft:4, padding:"1px 5px", borderRadius:3, background:"#ff6d0033", color:"#ff6d00" }}>⚡ER</span>}
+                    {_isExit && <span style={{ fontSize:8, fontWeight:800, marginLeft:4, padding:"1px 5px", borderRadius:3, background:"#ff174433", color:"#ff1744" }}>🚪EXIT</span>}
                   </div>
                 </div>
               </div>
@@ -3241,13 +3247,17 @@ export default function OptionsFlowDashboard() {
                     const peakPrice = allPx.length>0 ? Math.max(...allPx) : 0;
                     const peakPnl = peakPrice>0 && r.entry>0 ? (peakPrice-r.entry)/r.entry*100 : 0;
                     const peakRetrace = peakPnl>0 && pnl<peakPnl;
+                    const _oiH = hist.filter(h=>(h.oi||0)>0);
+                    const _curOI = _oiH.length>0 ? _oiH[_oiH.length-1].oi : 0;
+                    const _peakOI = _oiH.length>0 ? Math.max(..._oiH.map(h=>h.oi)) : 0;
+                    const _isExit = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
                     return (
                       <tr key={i} onClick={()=>{ fetchContractHistory(r.sym,r.cp,r.K,r.exp); setSelectedItem(prev=>prev&&prev.sym===r.sym&&prev.cp===r.cp&&String(prev.K)===String(r.K)&&prev.exp===r.exp?null:{sym:r.sym,cp:r.cp,K:r.K,exp:r.exp}); }}
                         style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer", background:i<3?(P.ac+"06"):"transparent" }}
                         onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                         onMouseLeave={e=>e.currentTarget.style.background=i<3?(P.ac+"06"):"transparent"}>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:i<3?P.ac:P.dm, fontSize:12 }}>{i+1}</td>
-                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff174433", color:"#ff1744", verticalAlign:"super" }}>EXIT</span>}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
@@ -4539,7 +4549,7 @@ export default function OptionsFlowDashboard() {
               <Card title="Archived Picks" sub={cappedArchived.length+(cappedArchived.length<filteredArchived.length?" of "+filteredArchived.length:"")+" expired"}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Final","P&L","Peak","Saved"].map(h=>(
+                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Final","P&L","Peak","Peak OI","Saved"].map(h=>(
                       <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr></thead>
@@ -4551,9 +4561,13 @@ export default function OptionsFlowDashboard() {
                       const allPx = [...hist.map(h=>h.price), p.finalPrice||0].filter(v=>v>0);
                       const peakPrice = allPx.length>0 ? Math.max(...allPx) : 0;
                       const peakPnl = peakPrice>0 && p.entry>0 ? (peakPrice-p.entry)/p.entry*100 : 0;
+                      const oiHist = hist.filter(h=>(h.oi||0)>0);
+                      const peakOI = oiHist.length>0 ? Math.max(...oiHist.map(h=>h.oi)) : 0;
+                      const lastOI = oiHist.length>0 ? oiHist[oiHist.length-1].oi : 0;
+                      const wasExit = peakOI>=100 && lastOI>0 && (peakOI-lastOI)/peakOI*100>=30;
                       return (
                         <tr key={p.id||i} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.7 }}>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{wasExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff174433", color:"#ff1744", verticalAlign:"super" }}>EXIT</span>}</td>
                           <td style={{ padding:"5px 5px", color:P.dm }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
@@ -4563,6 +4577,7 @@ export default function OptionsFlowDashboard() {
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.finalPrice>0?"$"+p.finalPrice.toFixed(2):"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:pnlC }}>{p.finalPnl?(p.finalPnl>0?"+":"")+p.finalPnl.toFixed(1)+"%":"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?P.bu:P.dm }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
+                          <td style={{ padding:"5px 5px", fontSize:10, color:P.dm }}>{peakOI>0?peakOI.toLocaleString():"—"}</td>
                           <td style={{ padding:"5px 5px", color:P.dm, fontSize:9 }}>{p.dateSaved||"—"}</td>
                         </tr>
                       );
