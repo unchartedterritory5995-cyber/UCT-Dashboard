@@ -389,15 +389,21 @@ function DrillModal({ drill, onClose }) {
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [chartPeriod, setChartPeriod] = useState('D')
 
-  // Prefetch upcoming tickers' active timeframe so arrow-key scanning is instant.
-  // We deliberately DON'T prefetch all 8 timeframes for the current ticker — that
-  // fired 13 parallel /api/bars calls per click (5000 bars each) and made the
-  // user-visible Daily chart wait 15+ seconds behind cold-cache fetches for TFs
-  // the user doesn't even view. StockChart already fetches the active TF directly.
+  // Pre-warm a bidirectional sliding window around the selection so arrow-key
+  // scanning is instant in both directions. We delay 250ms and use the cleanup
+  // to debounce — rapid arrow-key holds collapse to a single prefetch batch
+  // instead of queueing dozens. The delay also gives the user-visible chart
+  // fetch for the currently-selected ticker a head start at the API queue
+  // before background prefetches enter the pool.
+  // Window: 3 behind + 17 ahead = 21 tickers per active TF. SWR dedupes repeats.
   useEffect(() => {
     if (!items.length) return
-    const upcoming = items.slice(selectedIdx + 1, selectedIdx + 6).map(i => i.t)
-    prefetchBars(upcoming, chartPeriod)
+    const t = setTimeout(() => {
+      const start = Math.max(0, selectedIdx - 3)
+      const end   = Math.min(items.length, selectedIdx + 18)
+      prefetchBars(items.slice(start, end).map(i => i.t), chartPeriod)
+    }, 250)
+    return () => clearTimeout(t)
   }, [selectedIdx, items, chartPeriod])
   const [flagToast, setFlagToast] = useState(null)
   const { isFlagged, toggle: toggleFlag } = useFlagged()

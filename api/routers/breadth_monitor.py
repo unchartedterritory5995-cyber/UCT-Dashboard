@@ -94,6 +94,17 @@ def get_drill_list(date_str: str, metric_key: str):
     items = svc.get_drill_list(date_str, metric_key)
     if items is None:
         raise HTTPException(status_code=404, detail=f"No data for {date_str}/{metric_key}")
+
+    # Fire-and-forget: pre-warm /api/bars cache for the top tickers in this
+    # drill list so the client's chart fetches hit hot cache while the user
+    # scans. Bounded by the bars-warm thread pool (max_workers=6).
+    try:
+        from api.routers.bars import warm_bars_async
+        top = [it.get("t") for it in (items[:30] or []) if it.get("t")]
+        warm_bars_async(top, "D", 5000)
+    except Exception:
+        pass
+
     return {"date": date_str, "metric": metric_key, "items": items}
 
 

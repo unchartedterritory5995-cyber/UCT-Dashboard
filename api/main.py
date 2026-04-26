@@ -217,76 +217,85 @@ async def lifespan(app: FastAPI):
         priority_set = set(_PRIORITY)
         rest = sorted(tickers - priority_set)
         ticker_list = _PRIORITY + rest
-        # All timeframes — 5000 bars each. Daily first (most viewed), then rest.
-        # All timeframes — Massive → FMP → yfinance fallback chain.
-        # Priority: daily/weekly/monthly first, then descending intraday.
-        _TF_CONFIGS = [
-            ('D', 5000),   # Daily
-            ('W', 5000),   # Weekly
-            ('M', 5000),   # Monthly
-            ('60', 5000),  # 1hr
-            ('30', 5000),  # 30min
-            ('15', 5000),  # 15min
-            ('5', 5000),   # 5min
-            ('1', 5000),   # 1min
-        ]
-        total_jobs = len(ticker_list) * len(_TF_CONFIGS)
-        print(f"[prewarm] Targeting {len(ticker_list)} tickers × {len(_TF_CONFIGS)} timeframes = {total_jobs} cache entries")
 
+        # Parallel prewarm — 8 workers via ThreadPoolExecutor (matches the
+        # pattern used elsewhere in services/massive.py). Daily TF goes first
+        # for ALL tickers (most-viewed), then Weekly, then Monthly. Intraday
+        # is bounded to a leadership subset because (a) it has shorter TTLs
+        # so it churns, and (b) most tickers are scanned on Daily.
+        from concurrent.futures import ThreadPoolExecutor as _PrewarmTPE
         from api.routers.bars import _fetch_daily, _fetch_weekly, _fetch_monthly, _fetch_intraday
+
+        # Intraday warming is only worthwhile for tickers users actually open
+        # at minute-level granularity — leadership names, indices, watchlist.
+        _INTRADAY_TICKERS = ticker_list[:200]
+        _INTRADAY_TFS = ('60', '30', '15', '5', '1')
+
+        def _warm_one(args):
+            sym, tf, bar_count = args
+            try:
+                if _disk.get(sym, tf, bar_count) is not None:
+                    return ('skipped', sym, tf)
+                if tf == 'D':
+                    bars = _fetch_daily(sym, bar_count)
+                elif tf == 'W':
+                    bars = _fetch_weekly(sym, bar_count)
+                elif tf == 'M':
+                    bars = _fetch_monthly(sym, bar_count)
+                else:
+                    bars = _fetch_intraday(sym, tf, bar_count)
+                if bars:
+                    payload = {"ticker": sym, "tf": tf, "bars": bars}
+                    _disk.put(sym, tf, bar_count, payload)
+                    cache.set(f"bars_{sym}_{tf}_{bar_count}", payload, ttl=300)
+                    return ('warmed', sym, tf)
+            except Exception:
+                pass
+            return ('failed', sym, tf)
+
+        # Build job list — Daily first across the full universe so the
+        # dominant scan TF is fully warm before secondary TFs are touched.
+        jobs = []
+        for sym in ticker_list:
+            jobs.append((sym, 'D', 5000))
+        for sym in ticker_list:
+            jobs.append((sym, 'W', 5000))
+        for sym in ticker_list:
+            jobs.append((sym, 'M', 5000))
+        for sym in _INTRADAY_TICKERS:
+            for tf in _INTRADAY_TFS:
+                jobs.append((sym, tf, 5000))
+
+        print(f"[prewarm] {len(jobs)} jobs queued ({len(ticker_list)} tickers; "
+              f"Daily/Weekly/Monthly all + {len(_INTRADAY_TICKERS)} for intraday)")
+
         warmed = 0
         skipped = 0
-        for sym in ticker_list:
-            for tf, bar_count in _TF_CONFIGS:
-                if _disk.get(sym, tf, bar_count) is not None:
+        with _PrewarmTPE(max_workers=8, thread_name_prefix="prewarm-bars") as ex:
+            for i, (status, _sym, _tf) in enumerate(ex.map(_warm_one, jobs), start=1):
+                if status == 'warmed':
+                    warmed += 1
+                elif status == 'skipped':
                     skipped += 1
-                    continue
-                try:
-                    if tf == 'D':
-                        bars = _fetch_daily(sym, bar_count)
-                    elif tf == 'W':
-                        bars = _fetch_weekly(sym, bar_count)
-                    elif tf == 'M':
-                        bars = _fetch_monthly(sym, bar_count)
-                    else:
-                        bars = _fetch_intraday(sym, tf, bar_count)
-                    if bars:
-                        payload = {"ticker": sym, "tf": tf, "bars": bars}
-                        _disk.put(sym, tf, bar_count, payload)
-                        cache.set(f"bars_{sym}_{tf}_{bar_count}", payload, ttl=300)
-                        warmed += 1
-                except Exception:
-                    pass
-                _t.sleep(0.5)
-        print(f"[prewarm] Pass complete: {warmed} fetched, {skipped} already cached, {total_jobs} total")
+                if i % 500 == 0:
+                    print(f"[prewarm] Progress {i}/{len(jobs)} — {warmed} fetched, {skipped} cached")
+        print(f"[prewarm] First pass complete: {warmed} fetched, {skipped} cached, {len(jobs)} total")
 
-        # Continuous refresh — loop forever, re-fetching entries as they approach expiry.
-        # This keeps the disk cache permanently warm so charts are always instant.
+        # Continuous refresh — every 5 minutes, re-warm any entries that have
+        # aged out of disk cache. Parallelized with the same 8-worker pool so
+        # the universe stays hot without thrashing the upstream API.
         while True:
-            _t.sleep(60)  # Check every minute
+            _t.sleep(300)
+            refresh_jobs = [j for j in jobs if _disk.get(j[0], j[1], j[2]) is None]
+            if not refresh_jobs:
+                continue
             refreshed = 0
-            for sym in ticker_list:
-                for tf, bar_count in _TF_CONFIGS:
-                    # Only refresh if cache is expired or close to expiry
-                    if _disk.get(sym, tf, bar_count) is not None:
-                        continue
-                    try:
-                        if tf == 'D':
-                            bars = _fetch_daily(sym, bar_count)
-                        elif tf == 'W':
-                            bars = _fetch_weekly(sym, bar_count)
-                        else:
-                            bars = _fetch_intraday(sym, tf, bar_count)
-                        if bars:
-                            payload = {"ticker": sym, "tf": tf, "bars": bars}
-                            _disk.put(sym, tf, bar_count, payload)
-                            cache.set(f"bars_{sym}_{tf}_{bar_count}", payload, ttl=300)
-                            refreshed += 1
-                    except Exception:
-                        pass
-                    _t.sleep(0.5)
+            with _PrewarmTPE(max_workers=8, thread_name_prefix="prewarm-refresh") as ex:
+                for status, _sym, _tf in ex.map(_warm_one, refresh_jobs):
+                    if status == 'warmed':
+                        refreshed += 1
             if refreshed:
-                print(f"[prewarm] Refresh pass: {refreshed} entries updated")
+                print(f"[prewarm] Refresh pass: {refreshed} of {len(refresh_jobs)} entries refilled")
     threading.Thread(target=_prewarm_bars, daemon=True, name="bars-prewarm").start()
 
     # Build deep intraday cache from S3 minute files (one-time, ~30 min on Railway)

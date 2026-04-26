@@ -302,6 +302,40 @@ def get_bars(
         return JSONResponse(content={"ticker": ticker.upper(), "tf": tf, "bars": []})
 
 
+# Background cache warmer — used by other routers to pre-populate /api/bars
+# cache before the client requests it (e.g. when a breadth drill list is
+# fetched, warm the top tickers' Daily bars so chart loads are instant).
+from concurrent.futures import ThreadPoolExecutor as _BarsWarmExecutor
+_bars_warm_pool = _BarsWarmExecutor(max_workers=6, thread_name_prefix="bars-warm")
+
+
+def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 5000) -> None:
+    """Fire-and-forget cache warmer. Submits one task per ticker to a bounded
+    thread pool and returns immediately. Errors are silenced (best-effort).
+
+    Caller should pass a SHORT list (≤30) to avoid swamping the upstream API.
+    """
+    if not tickers:
+        return
+
+    def _warm_one(t: str) -> None:
+        try:
+            _get_bars_inner(t, tf, bars)
+        except Exception:
+            pass  # warming is best-effort; don't poison the executor
+
+    seen: set[str] = set()
+    for t in tickers:
+        if not t or t in seen:
+            continue
+        seen.add(t)
+        try:
+            _bars_warm_pool.submit(_warm_one, t)
+        except RuntimeError:
+            # Executor shut down (app stopping) — drop silently
+            return
+
+
 def _get_bars_inner(ticker: str, tf: str, bars: int):
     ticker_up = ticker.upper()
     cache_key = f"bars_{ticker_up}_{tf}_{bars}"
