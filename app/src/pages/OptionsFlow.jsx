@@ -1148,13 +1148,11 @@ export default function OptionsFlowDashboard() {
   // Cap-filtered view: recompute charts using only the selected cap band's clean_confirmed
   const FD = useMemo(() => {
     if (!D) return null;
-    if (capFilter === "All" && cpFilter === "All") return D;
-    let cc = D.clean_confirmed;
-    if (capFilter !== "All") cc = filterByCap(cc, capFilter);
-    if (cpFilter !== "All") cc = cc.filter(t => t.CP === (cpFilter === "Calls" ? "C" : "P"));
+    if (capFilter === "All") return D;
+    const cc = filterByCap(D.clean_confirmed, capFilter);
     const charts = buildCharts(cc);
     return { ...D, ...charts };
-  }, [D, capFilter, cpFilter]);
+  }, [D, capFilter]);
 
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
@@ -1950,7 +1948,7 @@ export default function OptionsFlowDashboard() {
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
 
         {/* Data Mode Toggle */}
-        <div style={{ display:"flex", justifyContent:"center", marginBottom:12, gap:10, flexWrap:"wrap", alignItems:"center" }}>
+        <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
           <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
             {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
               <button key={m} onClick={()=>{ if(dataMode!==m) setDataMode(m); }} style={{
@@ -1962,19 +1960,6 @@ export default function OptionsFlowDashboard() {
               }}>{label}</button>
             ))}
           </div>
-          {dataMode !== "gex" && (
-            <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
-              {[["All","All"],["Calls","C"],["Puts","P"]].map(([label,val])=>(
-                <button key={label} onClick={()=>setCpFilter(label)} style={{
-                  padding:"8px 18px", borderRadius:6, border:"none", cursor:"pointer",
-                  fontSize:12, fontWeight:800, fontFamily:"inherit",
-                  background:cpFilter===label?P.cd:"transparent",
-                  color:cpFilter===label?(label==="Calls"?P.bu:label==="Puts"?P.be:P.wh):P.mt,
-                  transition:"all 0.15s"
-                }}>{label}</button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Date Filter — auto-generated from CSV dates */}
@@ -3167,6 +3152,7 @@ export default function OptionsFlowDashboard() {
             else if (tfDteFilter === "LT") filtered = filtered.filter(c => c.dteBand === "LT");
             else if (tfDteFilter === "LEAPS") filtered = filtered.filter(c => c.dteBand === "LEAPS");
           }
+          if (cpFilter !== "All") filtered = filtered.filter(c => c.cp === (cpFilter==="Calls"?"C":"P"));
           const ranked = filtered.sort((a,b)=>b.score-a.score).slice(0,20);
 
           return (
@@ -3206,6 +3192,15 @@ export default function OptionsFlowDashboard() {
                     fontSize:10, fontWeight:600, fontFamily:"inherit",
                     background:tfDteFilter===v?P.cd:"transparent", color:tfDteFilter===v?P.wh:P.mt
                   }}>{label}</button>
+                ))}
+              </div>
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                {["All","Calls","Puts"].map(f=>(
+                  <button key={f} onClick={()=>setCpFilter(f)} style={{
+                    padding:"4px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                    fontSize:10, fontWeight:600, fontFamily:"inherit",
+                    background:cpFilter===f?P.cd:"transparent", color:cpFilter===f?(f==="Calls"?P.bu:f==="Puts"?P.be:P.wh):P.mt
+                  }}>{f}</button>
                 ))}
               </div>
               <span style={{ fontSize:10, color:P.dm, alignSelf:"center" }}>{ranked.length} contracts</span>
