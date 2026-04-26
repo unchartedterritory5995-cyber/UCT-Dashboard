@@ -3196,8 +3196,8 @@ export default function OptionsFlowDashboard() {
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["#","Ticker","Exp","Strike","C/P","Side","Dir","Grade","Hits","Premium","Entry","Now","P&L","Cap","DTE"].map(h=>(
-                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                    {["#","Ticker","Exp","Strike","C/P","Side","Dir","Grade","Hits","Premium","Entry","Now","P&L","Peak","Cap","DTE"].map(h=>(
+                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="Peak"?"help":"default" }} title={h==="Peak"?"Highest % gain from entry at any point — the best exit you could have had.":undefined}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -3209,6 +3209,12 @@ export default function OptionsFlowDashboard() {
                     const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
                     const dirC = r.dir==="BULL" ? P.bu : P.be;
                     const dteBandC = r.dteBand==="ST"?"#ff6d00":r.dteBand==="LT"?"#00b0ff":"#e040fb";
+                    const pick = topFlowPicks.active.find(p=>p.sym===r.sym&&p.cp===r.cp&&parseFloat(p.strike)===parseFloat(r.K)&&p.exp===r.exp);
+                    const hist = pick ? (pick.history||[]) : [];
+                    const allPx = [...hist.map(h=>h.price), now].filter(v=>v>0);
+                    const peakPrice = allPx.length>0 ? Math.max(...allPx) : 0;
+                    const peakPnl = peakPrice>0 && r.entry>0 ? (peakPrice-r.entry)/r.entry*100 : 0;
+                    const peakRetrace = peakPnl>0 && pnl<peakPnl;
                     return (
                       <tr key={i} onClick={()=>{ fetchContractHistory(r.sym,r.cp,r.K,r.exp); setSelectedItem(prev=>prev&&prev.sym===r.sym&&prev.cp===r.cp&&String(prev.K)===String(r.K)&&prev.exp===r.exp?null:{sym:r.sym,cp:r.cp,K:r.K,exp:r.exp}); }}
                         style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer", background:i<3?(P.ac+"06"):"transparent" }}
@@ -3227,6 +3233,7 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{r.entry>0?"$"+r.entry.toFixed(2):"—"}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, color:P.dm, fontWeight:600 }}>{r.cap}</span></td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, fontWeight:700, color:dteBandC, background:dteBandC+"15", padding:"1px 5px", borderRadius:3 }}>{r.dteBand} {r.DTE}d</span></td>
                       </tr>
@@ -3280,8 +3287,8 @@ export default function OptionsFlowDashboard() {
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                     <thead>
                       <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                        {["Ticker","Exp","Strike","C/P","Entry","Range","Now","P&L","Hits","Dir","OI","ΔOI"].map(h=>(
-                          <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
+                        {["Ticker","Exp","Strike","C/P","Entry","Range","Now","P&L","Peak","Hits","Dir","OI","ΔOI"].map(h=>(
+                          <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:(h==="ΔOI"||h==="Peak")?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":h==="Peak"?"Highest % gain from entry at any point — the best exit you could have had.":undefined}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -3292,6 +3299,12 @@ export default function OptionsFlowDashboard() {
                         const pnlPct = curr>0&&r.entry>0 ? (curr-r.entry)/r.entry*100 : 0;
                         const pnlColor = pnlPct>0?P.bu:pnlPct<0?P.be:P.dm;
                         const curOI = px ? px.oi : 0;
+                        const pick = topFlowPicks.active.find(p=>p.sym===r.sym&&p.cp===r.cp&&parseFloat(p.strike)===parseFloat(r.strike)&&p.exp===r.exp);
+                        const hist = pick ? (pick.history||[]) : [];
+                        const allPx = [...hist.map(h=>h.price), curr].filter(v=>v>0);
+                        const peakPrice = allPx.length>0 ? Math.max(...allPx) : 0;
+                        const peakPnl = peakPrice>0 && r.entry>0 ? (peakPrice-r.entry)/r.entry*100 : 0;
+                        const peakRetrace = peakPnl>0 && pnlPct<peakPnl;
                         return (
                           <tr key={r.id} onClick={()=>{ fetchContractHistory(r.sym,r.cp,r.strike,r.exp); setSelectedItem(prev=>prev&&prev.sym===r.sym&&prev.cp===r.cp&&String(prev.K)===String(r.strike)&&prev.exp===r.exp?null:{sym:r.sym,cp:r.cp,K:r.strike,exp:r.exp}); }} style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}>
                             <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}</td>
@@ -3302,6 +3315,7 @@ export default function OptionsFlowDashboard() {
                             <td style={{ padding:"5px 5px", fontSize:9, color:P.mt }}>{r.lo&&r.lo!==r.hi?"$"+r.lo.toFixed(2)+"–$"+r.hi.toFixed(2):"—"}</td>
                             <td style={{ padding:"5px 5px", fontWeight:700, color:curr>0?P.wh:P.mt }}>{curr>0?"$"+curr.toFixed(2):"—"}</td>
                             <td style={{ padding:"5px 5px", fontWeight:700, color:pnlColor }}>{curr>0?(pnlPct>=0?"+":"")+pnlPct.toFixed(1)+"%":"—"}</td>
+                            <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
                             <td style={{ padding:"5px 5px" }}><span style={{ fontWeight:800, color:r.hits>=10?P.ac:r.hits>=5?P.ye:P.dm }}>{r.hits}x</span></td>
                             <td style={{ padding:"5px 5px" }}><Tag c={r.dir==="BULL"?P.bu:P.be}>{r.dir}</Tag></td>
                             <td style={{ padding:"5px 5px", color:curOI>0?P.dm:P.mt }}>{curOI>0?curOI.toLocaleString():"—"}</td>
