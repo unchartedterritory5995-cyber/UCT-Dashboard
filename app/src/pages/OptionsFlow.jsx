@@ -1156,7 +1156,6 @@ export default function OptionsFlowDashboard() {
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
   }, [D]);
-  }, [D]);
 
   // Auto-scroll to Top Flow detail panel when opened
   useEffect(() => {
