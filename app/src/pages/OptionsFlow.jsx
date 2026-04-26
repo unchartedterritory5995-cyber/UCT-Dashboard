@@ -2098,11 +2098,11 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ fontSize:10, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase" }}>Top Flow</div>
-            <div style={{ display:"flex", gap:2, background:P.al, borderRadius:4, padding:2 }}>
+            <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2, border:"1px solid "+P.bd }}>
               {["All","Calls","Puts"].map(f=>(
                 <button key={f} onClick={()=>setCpFilter(f)} style={{
-                  padding:"2px 10px", borderRadius:3, border:"none", cursor:"pointer",
-                  fontSize:9, fontWeight:700, fontFamily:"inherit",
+                  padding:"4px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit",
                   background:cpFilter===f?P.cd:"transparent", color:cpFilter===f?(f==="Calls"?P.bu:f==="Puts"?P.be:P.wh):P.mt
                 }}>{f}</button>
               ))}
@@ -2125,7 +2125,7 @@ export default function OptionsFlowDashboard() {
           </button>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:8, marginBottom:12 }}>
-          {(cpFilter==="All"?FD.CONV:FD.CONV.filter(t=>t.cp===(cpFilter==="Calls"?"C":"P"))).map((t, i) => {
+          {(cpFilter==="All"?FD.CONV:FD.CONV.filter(t=>cpFilter==="Calls"?(t.cp==="C"&&t.dir==="BULL"):(t.cp==="P"&&t.dir==="BEAR"))).map((t, i) => {
             const c = t.dir==="BULL" ? P.bu : P.be;
             const hk = "conv_"+i;
             return (
@@ -3163,7 +3163,7 @@ export default function OptionsFlowDashboard() {
             else if (tfDteFilter === "LT") filtered = filtered.filter(c => c.dteBand === "LT");
             else if (tfDteFilter === "LEAPS") filtered = filtered.filter(c => c.dteBand === "LEAPS");
           }
-          if (cpFilter !== "All") filtered = filtered.filter(c => c.cp === (cpFilter==="Calls"?"C":"P"));
+          if (cpFilter !== "All") filtered = filtered.filter(c => cpFilter==="Calls"?(c.cp==="C"&&c.dir==="BULL"):(c.cp==="P"&&c.dir==="BEAR"));
           const ranked = filtered.sort((a,b)=>b.score-a.score).slice(0,20);
 
           return (
