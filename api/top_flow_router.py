@@ -20,6 +20,7 @@ class Pick(BaseModel):
     entry: float = 0
     grade: str = ""
     dir: str = ""
+    cap: str = ""
     hits: int = 0
     prem: float = 0
 
