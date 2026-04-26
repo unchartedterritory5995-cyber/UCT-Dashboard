@@ -40,6 +40,17 @@ def get_history():
 
 @router.post("/snapshot")
 async def trigger_snapshot():
+    import asyncio
     from api.top_flow_tracker import snapshot_prices
-    result = await snapshot_prices()
-    return result
+
+    async def _run():
+        try:
+            result = await snapshot_prices()
+            import logging
+            logging.getLogger(__name__).info("[top-flow-router] Background snapshot done: %s", result)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error("[top-flow-router] Background snapshot error: %s", e)
+
+    asyncio.create_task(_run())
+    return {"status": "started", "message": "Snapshot running in background. Check Railway logs for results."}
