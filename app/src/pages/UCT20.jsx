@@ -141,11 +141,6 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
             <ConfidenceBadge grade={item.confidence_tier} />
             {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}
             {isNew && <span className={styles.newBadge}>NEW</span>}
-            {item.short_flt != null && item.short_flt > 10 && (
-              <span className={`${styles.siBadge} ${item.short_flt > 20 ? styles.siHigh : ''}`}>
-                SI {item.short_flt.toFixed(0)}%
-              </span>
-            )}
             {item.inst_own != null && (
               <span className={styles.instBadge}>
                 Inst {item.inst_own.toFixed(0)}%
