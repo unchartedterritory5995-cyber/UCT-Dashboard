@@ -1,4 +1,8 @@
-import { lazy, Suspense } from 'react'
+import { Suspense } from 'react'
+// Auto-reload on stale-chunk 404 after Railway redeploys (new asset hashes
+// land while user has old HTML loaded). Wraps React.lazy with a one-shot
+// retry that hard-reloads the page instead of hanging on a missing chunk.
+import lazy from './utils/lazyWithRetry'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import AuthGuard from './components/AuthGuard'
