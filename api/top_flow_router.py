@@ -54,3 +54,11 @@ async def trigger_snapshot():
 
     asyncio.create_task(_run())
     return {"status": "started", "message": "Snapshot running in background. Check Railway logs for results."}
+
+@router.post("/archive-now")
+def trigger_archive():
+    """Debug endpoint — just archive expired picks, no Schwab calls."""
+    from api.top_flow_tracker import archive_expired, get_all
+    count = archive_expired()
+    data = get_all()
+    return {"archived_now": count, "active": len(data["active"]), "archived_total": len(data["archived"])}
