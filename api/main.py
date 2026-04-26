@@ -215,14 +215,37 @@ async def lifespan(app: FastAPI):
                       'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
                       'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER']
         priority_set = set(_PRIORITY)
-        rest = sorted(tickers - priority_set)
-        ticker_list = _PRIORITY + rest
 
-        # Parallel prewarm — 8 workers via ThreadPoolExecutor (matches the
-        # pattern used elsewhere in services/massive.py). Daily TF goes first
-        # for ALL tickers (most-viewed), then Weekly, then Monthly. Intraday
-        # is bounded to a leadership subset because (a) it has shorter TTLs
-        # so it churns, and (b) most tickers are scanned on Daily.
+        # Fast-path: tickers actually present in the latest breadth snapshot's
+        # drill lists. These are what the user scans on the Breadth page, so
+        # we warm them BEFORE the long tail of the cap universe — typically
+        # only a few hundred tickers, hot in 2-3 min instead of 30+.
+        _FAST_PATH: list[str] = []
+        try:
+            from api.services import breadth_monitor as _bm
+            latest = _bm.get_latest()
+            if latest:
+                seen: set[str] = set()
+                for k, v in latest.items():
+                    if not k.endswith('_list') or not isinstance(v, list):
+                        continue
+                    for item in v:
+                        if isinstance(item, dict):
+                            sym = item.get('t')
+                            if sym and sym.upper() not in seen and sym.upper() not in priority_set:
+                                seen.add(sym.upper())
+                                _FAST_PATH.append(sym.upper())
+        except Exception as e:
+            print(f"[prewarm] Fast-path lookup failed: {e}")
+
+        fast_path_set = set(_FAST_PATH)
+        rest = sorted(tickers - priority_set - fast_path_set)
+        ticker_list = _PRIORITY + _FAST_PATH + rest
+        print(f"[prewarm] Order: {len(_PRIORITY)} priority + {len(_FAST_PATH)} breadth-list + {len(rest)} long-tail = {len(ticker_list)} tickers")
+
+        # Parallel prewarm — 16 workers via ThreadPoolExecutor. The aggregates
+        # endpoint at Massive is I/O-bound and supports this concurrency
+        # comfortably; if rate limits ever bite, drop to 8.
         from concurrent.futures import ThreadPoolExecutor as _PrewarmTPE
         from api.routers.bars import _fetch_daily, _fetch_weekly, _fetch_monthly, _fetch_intraday
 
@@ -271,18 +294,21 @@ async def lifespan(app: FastAPI):
 
         warmed = 0
         skipped = 0
-        with _PrewarmTPE(max_workers=8, thread_name_prefix="prewarm-bars") as ex:
+        fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))  # Daily-only count for fast-path milestone
+        with _PrewarmTPE(max_workers=16, thread_name_prefix="prewarm-bars") as ex:
             for i, (status, _sym, _tf) in enumerate(ex.map(_warm_one, jobs), start=1):
                 if status == 'warmed':
                     warmed += 1
                 elif status == 'skipped':
                     skipped += 1
+                if i == fast_path_size_jobs:
+                    print(f"[prewarm] ★ Fast-path complete ({i} jobs) — Breadth scanning is hot. Continuing with long-tail in background.")
                 if i % 500 == 0:
                     print(f"[prewarm] Progress {i}/{len(jobs)} — {warmed} fetched, {skipped} cached")
         print(f"[prewarm] First pass complete: {warmed} fetched, {skipped} cached, {len(jobs)} total")
 
         # Continuous refresh — every 5 minutes, re-warm any entries that have
-        # aged out of disk cache. Parallelized with the same 8-worker pool so
+        # aged out of disk cache. Parallelized with the same worker pool so
         # the universe stays hot without thrashing the upstream API.
         while True:
             _t.sleep(300)
@@ -290,7 +316,7 @@ async def lifespan(app: FastAPI):
             if not refresh_jobs:
                 continue
             refreshed = 0
-            with _PrewarmTPE(max_workers=8, thread_name_prefix="prewarm-refresh") as ex:
+            with _PrewarmTPE(max_workers=16, thread_name_prefix="prewarm-refresh") as ex:
                 for status, _sym, _tf in ex.map(_warm_one, refresh_jobs):
                     if status == 'warmed':
                         refreshed += 1
