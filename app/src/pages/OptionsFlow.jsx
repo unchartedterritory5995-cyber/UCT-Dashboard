@@ -4475,8 +4475,8 @@ export default function OptionsFlowDashboard() {
                 </div>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Now","P&L","Peak","Days","Trend","Added"].map(h=>(
-                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="Peak"?"help":"default" }} title={h==="Peak"?"Highest % gain from entry at any point — the best exit you could have had.":undefined}>{h}</th>
+                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Now","P&L","Peak","OI","ΔOI","Days","Trend","Added"].map(h=>(
+                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:(h==="Peak"||h==="ΔOI")?"help":"default" }} title={h==="Peak"?"Highest % gain from entry at any point — the best exit you could have had.":h==="ΔOI"?"Change in OI from previous snapshot. Big drops = smart money exiting.":undefined}>{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
@@ -4495,14 +4495,21 @@ export default function OptionsFlowDashboard() {
                       const trendC = trend==="↑"?P.bu:trend==="↓"?P.be:P.dm;
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
                       const showSep = activeResult.split > 0 && i === activeResult.split;
+                      const oiHist = hist.filter(h=>(h.oi||0)>0);
+                      const curOI = oiHist.length>0 ? oiHist[oiHist.length-1].oi : 0;
+                      const prevOI = oiHist.length>1 ? oiHist[oiHist.length-2].oi : 0;
+                      const deltaOI = curOI>0 && prevOI>0 ? curOI-prevOI : 0;
+                      const peakOI = oiHist.length>0 ? Math.max(...oiHist.map(h=>h.oi)) : 0;
+                      const oiDropPct = peakOI>0 && curOI>0 ? (peakOI-curOI)/peakOI*100 : 0;
+                      const isExit = oiDropPct >= 30 && peakOI >= 100;
                       return (
                         <Fragment key={p.id||i}>
-                        {showSep && <tr><td colSpan={13} style={{ padding:"6px 0", textAlign:"center" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><div style={{ flex:1, height:1, background:P.be+"40" }}/><span style={{ fontSize:8, fontWeight:700, color:P.be, letterSpacing:1 }}>▼ BOTTOM {cappedActive.length - activeResult.split}</span><div style={{ flex:1, height:1, background:P.be+"40" }}/></div></td></tr>}
+                        {showSep && <tr><td colSpan={15} style={{ padding:"6px 0", textAlign:"center" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><div style={{ flex:1, height:1, background:P.be+"40" }}/><span style={{ fontSize:8, fontWeight:700, color:P.be, letterSpacing:1 }}>▼ BOTTOM {cappedActive.length - activeResult.split}</span><div style={{ flex:1, height:1, background:P.be+"40" }}/></div></td></tr>}
                         <tr onClick={()=>{ fetchContractHistory(p.sym,p.cp,p.strike,p.exp); setSelectedItem({sym:p.sym,cp:p.cp,K:p.strike,exp:p.exp}); }}
                           style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff174433", color:"#ff1744", verticalAlign:"super" }}>EXIT</span>}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
@@ -4512,6 +4519,8 @@ export default function OptionsFlowDashboard() {
                           <td style={{ padding:"5px 5px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
+                          <td style={{ padding:"5px 5px", fontSize:10, color:curOI>0?P.dm:P.mt }}>{curOI>0?curOI.toLocaleString():"—"}</td>
+                          <td style={{ padding:"5px 5px", fontSize:10, fontWeight:700, color:deltaOI>0?P.bu:deltaOI<0?P.be:P.dm }}>{deltaOI!==0?(deltaOI>0?"+":"")+deltaOI.toLocaleString():"—"}</td>
                           <td style={{ padding:"5px 5px", color:P.dm }}>{days}d</td>
                           <td style={{ padding:"5px 5px", fontSize:14, fontWeight:800, color:trendC }}>{trend}</td>
                           <td style={{ padding:"5px 5px", color:P.dm, fontSize:9 }}>{p.dateSaved||"—"}</td>
