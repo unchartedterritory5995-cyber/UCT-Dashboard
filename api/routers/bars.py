@@ -7,8 +7,12 @@ Monthly: Massive daily bars resampled to monthly
 
 Cache hierarchy: in-memory TTLCache → deep cache (S3 minute resampled) → disk cache → API
 """
+import json as _json
+import os as _os
+import threading as _threading
+import time as _time
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from api.services.cache import cache
 from api.services import bars_disk_cache as disk_cache
@@ -306,7 +310,7 @@ def get_bars(
 # cache before the client requests it (e.g. when a breadth drill list is
 # fetched, warm the top tickers' Daily bars so chart loads are instant).
 from concurrent.futures import ThreadPoolExecutor as _BarsWarmExecutor
-_bars_warm_pool = _BarsWarmExecutor(max_workers=2, thread_name_prefix="bars-warm")
+_bars_warm_pool = _BarsWarmExecutor(max_workers=4, thread_name_prefix="bars-warm")
 
 
 def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 5000) -> None:
@@ -334,6 +338,202 @@ def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 5000) -> None
         except RuntimeError:
             # Executor shut down (app stopping) — drop silently
             return
+
+
+# ─── Universe warm: scheduled bulk pre-cache ──────────────────────────────────
+# State for the long-running universe warm. Tracked in module globals so the
+# admin endpoint can return live progress and prevent overlapping runs.
+_warm_state = {
+    "running": False,
+    "started_at": None,
+    "total": 0,
+    "done": 0,
+    "skipped": 0,
+    "errors": 0,
+    "tf": None,
+    "started_iso": None,
+    "completed_iso": None,
+}
+_warm_state_lock = _threading.Lock()
+
+
+def _build_universe_ticker_list() -> list[str]:
+    """Build the combined ticker list to warm: priority + breadth-list + cap-universe."""
+    PRIORITY = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
+                'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
+                'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER']
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in PRIORITY:
+        if t not in seen:
+            seen.add(t)
+            out.append(t)
+
+    # Breadth-list tickers next (most-likely to be drilled today)
+    try:
+        from api.services import breadth_monitor as _bm
+        latest = _bm.get_latest()
+        if latest:
+            for k, v in latest.items():
+                if not k.endswith('_list') or not isinstance(v, list):
+                    continue
+                for item in v:
+                    if isinstance(item, dict):
+                        sym = item.get('t')
+                        if sym and sym.upper() not in seen:
+                            seen.add(sym.upper())
+                            out.append(sym.upper())
+    except Exception:
+        pass
+
+    # Full $300M+ cap universe last
+    try:
+        cap_path = _os.path.join(
+            _os.path.dirname(_os.path.dirname(__file__)),
+            "data", "cap_universe.json",
+        )
+        if _os.path.exists(cap_path):
+            with open(cap_path) as f:
+                cap_tickers = _json.load(f)
+            for t in cap_tickers:
+                if t and t.upper() not in seen:
+                    seen.add(t.upper())
+                    out.append(t.upper())
+    except Exception:
+        pass
+
+    return out
+
+
+def _run_universe_warm(tickers: list[str], tf: str, bars_count: int) -> None:
+    """Warm the disk cache for `tickers`. Runs in a daemon thread; updates
+    _warm_state as it progresses so /api/admin/warm-universe-status can report.
+
+    Already-cached tickers are skipped (no Massive call). Cold tickers are
+    submitted to the bars-warm pool (4 workers) so live API requests aren't
+    blocked. This typically completes in 1-3 hours for ~3,700 tickers.
+    """
+    from concurrent.futures import as_completed
+    with _warm_state_lock:
+        _warm_state.update({
+            "running": True,
+            "started_at": _time.time(),
+            "started_iso": datetime.utcnow().isoformat() + "Z",
+            "completed_iso": None,
+            "total": len(tickers),
+            "done": 0,
+            "skipped": 0,
+            "errors": 0,
+            "tf": tf,
+        })
+
+    futures = []
+    for sym in tickers:
+        # Quick path: skip if disk cache already has it.
+        try:
+            if disk_cache.get(sym, tf, bars_count) is not None:
+                with _warm_state_lock:
+                    _warm_state["skipped"] += 1
+                    _warm_state["done"] += 1
+                continue
+        except Exception:
+            pass
+
+        def _task(s=sym):
+            try:
+                _get_bars_inner(s, tf, bars_count)
+                return True
+            except Exception:
+                return False
+
+        try:
+            futures.append(_bars_warm_pool.submit(_task))
+        except RuntimeError:
+            break  # pool shutting down
+
+    for fut in as_completed(futures):
+        try:
+            ok = fut.result()
+        except Exception:
+            ok = False
+        with _warm_state_lock:
+            _warm_state["done"] += 1
+            if not ok:
+                _warm_state["errors"] += 1
+
+    with _warm_state_lock:
+        _warm_state["running"] = False
+        _warm_state["completed_iso"] = datetime.utcnow().isoformat() + "Z"
+
+
+def _check_admin_auth(request: Request) -> None:
+    secret = _os.environ.get("PUSH_SECRET", "")
+    if not secret:
+        raise HTTPException(status_code=500, detail="PUSH_SECRET not configured")
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@router.post("/api/admin/warm-universe")
+def warm_universe(request: Request, tf: str = "D", bars: int = 5000):
+    """Kick off a background warm of the full ticker universe for the given TF.
+
+    Returns immediately with the count of tickers queued. Progress can be
+    polled at /api/admin/warm-universe-status.
+
+    Auth: Bearer PUSH_SECRET. Idempotent — rejects with 409 if a warm is
+    already in progress.
+    """
+    _check_admin_auth(request)
+
+    with _warm_state_lock:
+        if _warm_state["running"]:
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "status": "already-running",
+                    "started_iso": _warm_state["started_iso"],
+                    "total": _warm_state["total"],
+                    "done": _warm_state["done"],
+                },
+            )
+
+    tickers = _build_universe_ticker_list()
+    if not tickers:
+        raise HTTPException(status_code=503, detail="Universe ticker list empty — breadth_monitor.db or cap_universe.json missing?")
+
+    # Start in a daemon thread — don't block the request
+    _threading.Thread(
+        target=_run_universe_warm,
+        args=(tickers, tf, bars),
+        daemon=True,
+        name="warm-universe-runner",
+    ).start()
+
+    return {
+        "status": "started",
+        "tf": tf,
+        "bars": bars,
+        "total_tickers": len(tickers),
+        "estimated_minutes": int(len(tickers) * 5 / 4 / 60),  # ~5s per cold fetch / 4 workers
+        "poll": "/api/admin/warm-universe-status",
+    }
+
+
+@router.get("/api/admin/warm-universe-status")
+def warm_universe_status():
+    """Return current progress of the universe warmer (no auth — read-only)."""
+    with _warm_state_lock:
+        snap = dict(_warm_state)
+    if snap["started_at"]:
+        elapsed = (_time.time() - snap["started_at"]) if snap["running"] else None
+        snap["elapsed_seconds"] = elapsed
+        if snap["done"] > 0 and snap["total"] > 0 and snap["running"]:
+            rate = snap["done"] / (_time.time() - snap["started_at"])
+            remaining = (snap["total"] - snap["done"]) / max(rate, 0.001)
+            snap["eta_seconds"] = int(remaining)
+    return snap
 
 
 def _get_bars_inner(ticker: str, tf: str, bars: int):
