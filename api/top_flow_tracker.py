@@ -196,9 +196,11 @@ async def snapshot_prices() -> dict:
         except (ValueError, IndexError):
             return False
 
-    # Filter to non-expired only
+    # Filter to non-expired only, cap at 200 most recent by dateSaved
     live_picks = [p for p in active if not _is_expired(p.get("exp", ""))]
-    logger.info("[top-flow] Snapshot: %d live of %d total active picks.", len(live_picks), len(active))
+    live_picks.sort(key=lambda p: p.get("dateSaved", ""), reverse=True)
+    live_picks = live_picks[:200]
+    logger.info("[top-flow] Snapshot: %d live (capped 200) of %d total active picks.", len(live_picks), len(active))
 
     if not live_picks:
         return {"status": "skipped", "reason": "all picks expired"}
