@@ -215,18 +215,66 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     return bars or []
 
 
-def _fetch_daily(ticker: str, max_bars: int) -> list[dict]:
-    """Fetch daily bars from Massive API."""
+def _fetch_daily_yf(ticker: str) -> list[dict]:
+    """Fetch daily bars from yfinance period='max' for deep history.
+    Returns bars in our normalized format (t = ISO date string).
+    Used during nightly warm to get pre-2006 history that Massive lacks.
+    """
+    try:
+        import yfinance as yf
+        df = yf.Ticker(ticker.upper()).history(period='max', interval='1d', auto_adjust=False, raise_errors=False)
+        if df is None or df.empty:
+            return []
+        out = []
+        for ts, row in df.iterrows():
+            try:
+                dt_str = ts.strftime("%Y-%m-%d") if hasattr(ts, 'strftime') else str(ts)[:10]
+                out.append({
+                    "t": dt_str,
+                    "o": round(float(row["Open"]), 2),
+                    "h": round(float(row["High"]), 2),
+                    "l": round(float(row["Low"]), 2),
+                    "c": round(float(row["Close"]), 2),
+                    "v": int(row.get("Volume", 0) or 0),
+                })
+            except Exception:
+                continue
+        return out
+    except Exception as e:
+        print(f"[bars] yfinance daily fetch failed for {ticker}: {e}")
+        return []
+
+
+def _merge_daily_bars(yf_bars: list[dict], massive_bars: list[dict]) -> list[dict]:
+    """Merge yfinance (deep history) + Massive (recent, more accurate).
+    Massive wins for any overlapping date range. yfinance fills the older
+    pre-Massive history.
+    """
+    if not yf_bars:
+        return massive_bars
+    if not massive_bars:
+        return yf_bars
+    cutoff = massive_bars[0]["t"]  # ISO date string sorts lexically
+    older_yf = [b for b in yf_bars if b["t"] < cutoff]
+    return older_yf + massive_bars
+
+
+def _fetch_daily(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
+    """Fetch daily bars from Massive API. If deep=True, also pull yfinance
+    period='max' and merge for full pre-2006 history. The deep path is only
+    invoked by the nightly universe warmer — live user requests never call
+    yfinance, ensuring zero latency impact.
+    """
     from api.services.massive import get_agg_bars
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     # ~1.5 calendar days per trading day, capped at 30 years to avoid strftime crash
     lookback = min(int(max_bars * 1.5) + 30, 10950)
     from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
     raw = get_agg_bars(ticker.upper(), from_date, to_date)
-    bars = []
-    for bar in raw[-max_bars:]:
+    massive_bars = []
+    for bar in raw:
         dt = datetime.utcfromtimestamp(bar["t"] / 1000)
-        bars.append({
+        massive_bars.append({
             "t": dt.strftime("%Y-%m-%d"),  # BusinessDay format for LW Charts
             "o": round(bar["o"], 2),
             "h": round(bar["h"], 2),
@@ -234,11 +282,25 @@ def _fetch_daily(ticker: str, max_bars: int) -> list[dict]:
             "c": round(bar["c"], 2),
             "v": int(bar.get("v", 0)),
         })
-    return bars
+
+    if deep:
+        # Only nightly warmer asks for deep history — pulls yfinance and merges.
+        yf_bars = _fetch_daily_yf(ticker)
+        merged = _merge_daily_bars(yf_bars, massive_bars)
+        return merged[-max_bars:]
+
+    return massive_bars[-max_bars:]
 
 
-def _fetch_weekly(ticker: str, max_bars: int) -> list[dict]:
-    """Fetch weekly bars — daily from Massive, resampled to weekly."""
+def _fetch_weekly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
+    """Fetch weekly bars — daily from Massive (+ yfinance if deep), resampled."""
+    if deep:
+        # Build deep daily series first, then resample. Need enough daily bars
+        # to cover max_bars weeks: ~5 trading days/week + buffer.
+        daily = _fetch_daily(ticker, max_bars * 7, deep=True)
+        weekly = _resample_weekly_iso(daily)
+        return weekly[-max_bars:]
+    # Fast path: Massive only, original logic
     from api.services.massive import get_agg_bars
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     lookback = min(max_bars * 8, 10950)
@@ -277,8 +339,13 @@ def _resample_monthly(daily_bars: list[dict]) -> list[dict]:
 
 
 
-def _fetch_monthly(ticker: str, max_bars: int) -> list[dict]:
-    """Fetch monthly bars — daily from Massive, resampled to monthly."""
+def _fetch_monthly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
+    """Fetch monthly bars — daily from Massive (+ yfinance if deep), resampled."""
+    if deep:
+        daily = _fetch_daily(ticker, max_bars * 25, deep=True)  # ~21 trading days/month
+        monthly = _resample_monthly_iso(daily)
+        return monthly[-max_bars:]
+    # Fast path: Massive only
     from api.services.massive import get_agg_bars
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     lookback = min(max_bars * 35, 10950)  # ~35 calendar days per month
@@ -286,6 +353,68 @@ def _fetch_monthly(ticker: str, max_bars: int) -> list[dict]:
     raw = get_agg_bars(ticker.upper(), from_date, to_date)
     monthly = _resample_monthly(raw)
     return monthly[-max_bars:]
+
+
+def _resample_weekly_iso(daily_bars: list[dict]) -> list[dict]:
+    """Resample our normalized daily bars (t = ISO date string) to weekly."""
+    if not daily_bars:
+        return []
+    weeks = {}
+    for bar in daily_bars:
+        try:
+            dt = datetime.strptime(bar["t"], "%Y-%m-%d")
+        except (ValueError, TypeError):
+            continue
+        key = dt.isocalendar()[:2]
+        if key not in weeks:
+            weeks[key] = {
+                "dt": dt, "o": bar["o"], "h": bar["h"],
+                "l": bar["l"], "c": bar["c"], "v": bar.get("v", 0),
+            }
+        else:
+            w = weeks[key]
+            w["h"] = max(w["h"], bar["h"])
+            w["l"] = min(w["l"], bar["l"])
+            w["c"] = bar["c"]
+            w["v"] += bar.get("v", 0)
+    return [
+        {
+            "t": w["dt"].strftime("%Y-%m-%d"),
+            "o": w["o"], "h": w["h"], "l": w["l"], "c": w["c"], "v": w["v"],
+        }
+        for w in sorted(weeks.values(), key=lambda x: x["dt"])
+    ]
+
+
+def _resample_monthly_iso(daily_bars: list[dict]) -> list[dict]:
+    """Resample our normalized daily bars (t = ISO date string) to monthly."""
+    if not daily_bars:
+        return []
+    months = {}
+    for bar in daily_bars:
+        try:
+            dt = datetime.strptime(bar["t"], "%Y-%m-%d")
+        except (ValueError, TypeError):
+            continue
+        key = (dt.year, dt.month)
+        if key not in months:
+            months[key] = {
+                "dt": dt.replace(day=1), "o": bar["o"], "h": bar["h"],
+                "l": bar["l"], "c": bar["c"], "v": bar.get("v", 0),
+            }
+        else:
+            m = months[key]
+            m["h"] = max(m["h"], bar["h"])
+            m["l"] = min(m["l"], bar["l"])
+            m["c"] = bar["c"]
+            m["v"] += bar.get("v", 0)
+    return [
+        {
+            "t": m["dt"].strftime("%Y-%m-%d"),
+            "o": m["o"], "h": m["h"], "l": m["l"], "c": m["c"], "v": m["v"],
+        }
+        for m in sorted(months.values(), key=lambda x: x["dt"])
+    ]
 
 
 @router.get("/api/bars/{ticker}")
@@ -499,6 +628,7 @@ def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: 
 
     for tf in tfs:
         futures = []
+        is_deep_tf = tf in ("D", "W", "M")
         for sym in tickers:
             try:
                 if disk_cache.get(sym, tf, bars_count) is not None:
@@ -509,8 +639,31 @@ def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: 
             except Exception:
                 pass
 
-            def _task(s=sym, t=tf):
+            def _task(s=sym, t=tf, deep=is_deep_tf):
                 try:
+                    if deep:
+                        # Deep warm: Massive + yfinance merged for full history.
+                        # Writes directly to disk + memory cache so subsequent
+                        # /api/bars reads see the deep history.
+                        if t == 'D':
+                            data = _fetch_daily(s, bars_count, deep=True)
+                        elif t == 'W':
+                            data = _fetch_weekly(s, bars_count, deep=True)
+                        elif t == 'M':
+                            data = _fetch_monthly(s, bars_count, deep=True)
+                        else:
+                            data = []
+                        if data:
+                            ticker_up = s.upper()
+                            payload = {"ticker": ticker_up, "tf": t, "bars": data}
+                            try:
+                                disk_cache.put(ticker_up, t, bars_count, payload)
+                                cache.set(f"bars_{ticker_up}_{t}_{bars_count}", payload, ttl=_CACHE_TTL.get(t, 300))
+                            except Exception:
+                                pass
+                            return True
+                        return False
+                    # Intraday: standard cache fill via _get_bars_inner
                     _get_bars_inner(s, t, bars_count)
                     return True
                 except Exception:

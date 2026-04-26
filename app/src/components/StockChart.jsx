@@ -218,7 +218,10 @@ export default function StockChart({
   }, [setPref])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
 
-  const barCount = 5000
+  // 8000 daily bars ≈ 32 years — covers dot-com era for tickers that go
+  // back that far (CIEN since 1997, etc.). Other timeframes don't need
+  // more than 5000 (5000 weeks ≈ 96 years; 5000 months ≈ 416 years).
+  const barCount = (resolvedTf === 'D' || resolvedTf === 'W') ? 8000 : 5000
 
   // Intraday refetches more often to keep candles current during market hours
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
