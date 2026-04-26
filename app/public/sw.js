@@ -1,92 +1,43 @@
-const CACHE_VERSION = 'uct-shell-v1';
-const SHELL_ASSETS = [
-  '/',
-  '/dashboard',
-  '/index.html',
-];
+// Service Worker — KILL SWITCH (2026-04-26)
+//
+// The previous SW used cache-first for all static assets, which meant browsers
+// served stale JS/CSS bundles indefinitely after Railway redeploys — making
+// "fresh" code invisible to existing users until they manually cleared site
+// data. This version installs, immediately deletes every cache the old SW
+// created, unregisters itself, and reloads any open clients to force a clean
+// network refetch.
+//
+// After this rolls out, browsers fall back to their normal HTTP cache, which
+// honors Cache-Control headers from the server (already set correctly).
 
-// Install: pre-cache app shell
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(SHELL_ASSETS))
-  );
-  self.skipWaiting();
-});
+self.addEventListener('install', () => {
+  // Take control as soon as install completes — don't wait for tabs to close.
+  self.skipWaiting()
+})
 
-// Activate: purge old cache versions
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((k) => k !== CACHE_VERSION)
-          .map((k) => caches.delete(k))
-      )
-    )
-  );
-  self.clients.claim();
-});
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    // 1. Delete every cache entry the old SW created.
+    try {
+      const keys = await caches.keys()
+      await Promise.all(keys.map((k) => caches.delete(k)))
+    } catch (_) { /* best-effort */ }
 
-// Fetch strategy
-self.addEventListener('fetch', (e) => {
-  const { request } = e;
-  const url = new URL(request.url);
+    // 2. Unregister this service worker so the browser stops calling it.
+    try {
+      await self.registration.unregister()
+    } catch (_) { /* best-effort */ }
 
-  // Skip non-GET
-  if (request.method !== 'GET') return;
+    // 3. Reload every open tab so it pulls fresh HTML + assets from the network.
+    try {
+      const clients = await self.clients.matchAll({ type: 'window' })
+      for (const client of clients) {
+        try { client.navigate(client.url) } catch (_) { /* navigate may be blocked; ignore */ }
+      }
+    } catch (_) { /* best-effort */ }
+  })())
+})
 
-  // API calls: network-first, no cache fallback (stale API data is worse than offline)
-  if (url.pathname.startsWith('/api/')) {
-    e.respondWith(
-      fetch(request).catch(() =>
-        new Response(JSON.stringify({ error: 'offline' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      )
-    );
-    return;
-  }
-
-  // Static assets (JS, CSS, fonts, images, SVG): cache-first
-  if (/\.(js|css|woff2?|ttf|eot|png|jpe?g|gif|svg|ico|webp)(\?.*)?$/.test(url.pathname)) {
-    e.respondWith(
-      caches.match(request).then(
-        (cached) =>
-          cached ||
-          fetch(request).then((res) => {
-            const clone = res.clone();
-            caches.open(CACHE_VERSION).then((c) => c.put(request, clone));
-            return res;
-          })
-      ).catch(() =>
-        new Response('', { status: 503, statusText: 'Offline' })
-      )
-    );
-    return;
-  }
-
-  // Navigation / HTML: network-first, fall back to cached shell
-  e.respondWith(
-    fetch(request)
-      .then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE_VERSION).then((c) => c.put(request, clone));
-        return res;
-      })
-      .catch(() =>
-        caches.match(request).then(
-          (cached) =>
-            cached ||
-            caches.match('/index.html').then(
-              (shell) =>
-                shell ||
-                new Response(
-                  '<!DOCTYPE html><html><body style="background:#0e0f0d;color:#ccc;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><h2>UCT Intelligence</h2><p>You appear to be offline.</p><p style="opacity:.5">Reconnect and refresh to continue.</p></div></body></html>',
-                  { headers: { 'Content-Type': 'text/html' } }
-                )
-            )
-        )
-      )
-  );
-});
+// Intentionally NO fetch handler. Without one, requests bypass the SW
+// completely and go straight to the browser's HTTP cache + network, which
+// is exactly what we want post-uninstall.
