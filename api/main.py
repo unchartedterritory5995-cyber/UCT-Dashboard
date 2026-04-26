@@ -106,7 +106,14 @@ async def lifespan(app: FastAPI):
     # Pre-warm bars disk cache — background thread fetches all commonly viewed
     # tickers so charts load instantly from disk cache. Runs on every startup,
     # skips tickers already cached on disk (survives Railway restarts).
+    #
+    # GATED OFF BY DEFAULT — set BARS_PREWARM_ENABLED=1 to enable. The prewarm
+    # was starving the FastAPI process on Railway when combined with normal
+    # request traffic. The cache will warm organically as users view tickers.
     def _prewarm_bars():
+        if os.environ.get("BARS_PREWARM_ENABLED", "0") != "1":
+            print("[prewarm] Skipped (set BARS_PREWARM_ENABLED=1 to enable).")
+            return
         from api.services import bars_disk_cache as _disk
         from api.routers.bars import _fetch_daily
         import time as _t
@@ -328,7 +335,12 @@ async def lifespan(app: FastAPI):
 
     # Build deep intraday cache from S3 minute files (one-time, ~30 min on Railway)
     # Saves incrementally so partial progress survives restarts.
+    # GATED OFF — set DEEP_CACHE_ENABLED=1 to enable. This was a major source
+    # of CPU/disk thrash on startup; once built, it stays built (idempotent).
     def _build_deep_cache():
+        if os.environ.get("DEEP_CACHE_ENABLED", "0") != "1":
+            print("[deep-cache] Skipped (set DEEP_CACHE_ENABLED=1 to enable).")
+            return
         deep_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache_deep")
         # Purge old clock-hour 60min cache files (now using TC2000-style resample)
         _60_purge_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".60min_purged_v1")
