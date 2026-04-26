@@ -104,6 +104,7 @@ def save_picks(picks: list[dict]) -> dict:
             existing["hits"] = p.get("hits", existing.get("hits", 0))
             existing["prem"] = p.get("prem", existing.get("prem", 0))
             existing["dir"] = p.get("dir", existing.get("dir", ""))
+            existing["cap"] = p.get("cap", existing.get("cap", ""))
             updated += 1
         else:
             _data["active"].append({
@@ -115,6 +116,7 @@ def save_picks(picks: list[dict]) -> dict:
                 "entry": float(p.get("entry", 0)),
                 "grade": p.get("grade", ""),
                 "dir": p.get("dir", ""),
+                "cap": p.get("cap", ""),
                 "dateSaved": today,
                 "hits": p.get("hits", 0),
                 "prem": p.get("prem", 0),
@@ -141,12 +143,95 @@ def get_all() -> dict:
 # ─── Daily Snapshot (called by daily_tracker at 4:30 PM ET) ──────────────────
 
 async def snapshot_prices() -> dict:
-    """Placeholder — quote fetching not currently wired up."""
+    """
+    Fetch live quotes (price + OI) for all active picks and append to history.
+    Called by daily_tracker at 4:30 PM ET, or manually via /api/top-flow/snapshot.
+    """
     active = _data.get("active", [])
     if not active:
         return {"status": "skipped", "reason": "no active picks"}
 
-    return {"status": "skipped", "reason": "option quote fetching not available"}
+    today_str = datetime.now(ET).strftime("%-m/%-d/%Y")
+
+    try:
+        from api.schwab_service import get_batch_option_quotes
+    except Exception as e:
+        logger.error("[top-flow] Cannot import schwab_service: %s", e)
+        return {"status": "error", "reason": str(e)}
+
+    def _exp_to_iso(exp_str: str) -> str:
+        parts = exp_str.split("/")
+        if len(parts) < 2:
+            return ""
+        m, d = int(parts[0]), int(parts[1])
+        if len(parts) >= 3:
+            y = int(parts[2])
+            if y < 100:
+                y += 2000
+        else:
+            y = datetime.now().year
+            if date(y, m, d) < date.today():
+                y += 1
+        return f"{y}-{m:02d}-{d:02d}"
+
+    batch = [
+        {
+            "symbol": p["sym"],
+            "cp": p["cp"],
+            "strike": p["strike"],
+            "expDate": _exp_to_iso(p["exp"]),
+        }
+        for p in active
+    ]
+
+    try:
+        quotes = await get_batch_option_quotes(batch)
+    except Exception as e:
+        logger.error("[top-flow] Schwab batch fetch failed: %s", e)
+        return {"status": "error", "reason": str(e)}
+
+    saved = 0
+    skipped = 0
+
+    for pick, q in zip(active, quotes):
+        if not q or q.get("error") or q.get("expired"):
+            skipped += 1
+            continue
+
+        price = q.get("mark") or q.get("last") or 0
+        oi = q.get("openInterest") or q.get("open_interest") or 0
+        spot = q.get("underlyingPrice") or q.get("spot") or 0
+        volume = q.get("volume") or 0
+
+        history = pick.setdefault("history", [])
+        entry = {
+            "date": today_str,
+            "price": price,
+            "oi": oi,
+            "spot": spot,
+            "volume": volume,
+        }
+
+        # Overwrite today's entry if exists (idempotent)
+        existing_idx = next((i for i, h in enumerate(history) if h.get("date") == today_str), None)
+        if existing_idx is not None:
+            history[existing_idx] = entry
+        else:
+            history.append(entry)
+        saved += 1
+
+    if saved:
+        _save()
+
+    result = {
+        "status": "ok",
+        "date": today_str,
+        "saved": saved,
+        "skipped": skipped,
+        "total": len(active),
+    }
+    logger.info("[top-flow] Snapshot complete: %s", result)
+    return result
 
 
 # ─── Archive Expired ──────────────────────────────────────────────────────────
