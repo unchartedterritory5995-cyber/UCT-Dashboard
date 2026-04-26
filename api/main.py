@@ -95,6 +95,18 @@ def _seed_cache_from_volume():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Bump the anyio/starlette thread pool so sync endpoints (like /api/bars
+    # which blocks on Massive HTTP calls ~4-8s) don't queue behind each other.
+    # Default is min(32, cpu+4) — typically just 5 on a small Railway container,
+    # which causes drill-scan stalls when 8+ chart prefetches arrive in a wave.
+    try:
+        import anyio
+        limiter = anyio.to_thread.current_default_thread_limiter()
+        limiter.total_tokens = 64
+        print(f"[startup] anyio thread limiter set to {limiter.total_tokens}")
+    except Exception as e:
+        print(f"[startup] anyio thread-pool tuning failed (non-fatal): {e}")
+
     # Auth DB — separate from all other databases, safe to init
     try:
         _init_auth_db()

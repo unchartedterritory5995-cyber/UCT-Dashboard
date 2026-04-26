@@ -389,18 +389,18 @@ function DrillModal({ drill, onClose }) {
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [chartPeriod, setChartPeriod] = useState('D')
 
-  // Pre-warm a bidirectional sliding window around the selection so arrow-key
-  // scanning is instant in both directions. We delay 250ms and use the cleanup
-  // to debounce — rapid arrow-key holds collapse to a single prefetch batch
-  // instead of queueing dozens. The delay also gives the user-visible chart
-  // fetch for the currently-selected ticker a head start at the API queue
-  // before background prefetches enter the pool.
-  // Window: 3 behind + 17 ahead = 21 tickers per active TF. SWR dedupes repeats.
+  // Pre-warm a small sliding window ahead of the cursor so arrow-key scanning
+  // stays instant. Window kept narrow (8 ahead, 1 behind) so the FastAPI
+  // thread pool isn't saturated by 18 concurrent cold Massive fetches —
+  // when the prefetch wave is too wide, scrolling past the window edge stalls
+  // because new requests queue behind in-flight ones.
+  // 250ms debounce: rapid arrow-key holds collapse to a single batch, and the
+  // user-visible chart fetch gets a head start at the API queue.
   useEffect(() => {
     if (!items.length) return
     const t = setTimeout(() => {
-      const start = Math.max(0, selectedIdx - 3)
-      const end   = Math.min(items.length, selectedIdx + 18)
+      const start = Math.max(0, selectedIdx - 1)
+      const end   = Math.min(items.length, selectedIdx + 9)  // current + 8 ahead
       prefetchBars(items.slice(start, end).map(i => i.t), chartPeriod)
     }, 250)
     return () => clearTimeout(t)
