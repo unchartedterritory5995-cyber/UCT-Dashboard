@@ -523,7 +523,7 @@ function buildCharts(cc) {
     }
     return true;
   })
-  .sort((a,b)=>b.score-a.score).slice(0,20)
+  .sort((a,b)=>b.score-a.score)
   .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"" })) }));
   const sectorMap = {};
@@ -2126,7 +2126,7 @@ export default function OptionsFlowDashboard() {
           </button>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:8, marginBottom:12 }}>
-          {(convCpFilter==="All"?FD.CONV.slice(0,6):FD.CONV.filter(t=>convCpFilter==="Calls"?(t.cp==="C"&&t.dir==="BULL"):(t.cp==="P"&&t.dir==="BEAR")).slice(0,6)).map((t, i) => {
+          {(convCpFilter==="All"?FD.CONV.slice(0,6):FD.CONV.filter(t=>t.dir===(convCpFilter==="Calls"?"BULL":"BEAR")).slice(0,6)).map((t, i) => {
             const c = t.dir==="BULL" ? P.bu : P.be;
             const hk = "conv_"+i;
             return (
@@ -3164,7 +3164,7 @@ export default function OptionsFlowDashboard() {
             else if (tfDteFilter === "LT") filtered = filtered.filter(c => c.dteBand === "LT");
             else if (tfDteFilter === "LEAPS") filtered = filtered.filter(c => c.dteBand === "LEAPS");
           }
-          if (cpFilter !== "All") filtered = filtered.filter(c => cpFilter==="Calls"?(c.cp==="C"&&c.dir==="BULL"):(c.cp==="P"&&c.dir==="BEAR"));
+          if (cpFilter !== "All") filtered = filtered.filter(c => c.dir===(cpFilter==="Calls"?"BULL":"BEAR"));
           const ranked = filtered.sort((a,b)=>b.score-a.score).slice(0,20);
 
           return (
