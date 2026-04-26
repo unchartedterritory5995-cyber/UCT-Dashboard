@@ -2096,7 +2096,18 @@ export default function OptionsFlowDashboard() {
 
         {/* Conviction Strikes */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <div style={{ fontSize:10, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase" }}>Top Flow</div>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase" }}>Top Flow</div>
+            <div style={{ display:"flex", gap:2, background:P.al, borderRadius:4, padding:2 }}>
+              {["All","Calls","Puts"].map(f=>(
+                <button key={f} onClick={()=>setCpFilter(f)} style={{
+                  padding:"2px 10px", borderRadius:3, border:"none", cursor:"pointer",
+                  fontSize:9, fontWeight:700, fontFamily:"inherit",
+                  background:cpFilter===f?P.cd:"transparent", color:cpFilter===f?(f==="Calls"?P.bu:f==="Puts"?P.be:P.wh):P.mt
+                }}>{f}</button>
+              ))}
+            </div>
+          </div>
           <button
             onClick={async () => {
               const convContracts = FD.CONV.map(t => ({ sym:t.sym, cp:t.cp, strike:t.K, exp:t.exp }));
@@ -2114,7 +2125,7 @@ export default function OptionsFlowDashboard() {
           </button>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:8, marginBottom:12 }}>
-          {FD.CONV.map((t, i) => {
+          {(cpFilter==="All"?FD.CONV:FD.CONV.filter(t=>t.cp===(cpFilter==="Calls"?"C":"P"))).map((t, i) => {
             const c = t.dir==="BULL" ? P.bu : P.be;
             const hk = "conv_"+i;
             return (
