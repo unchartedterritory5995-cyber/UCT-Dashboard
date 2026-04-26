@@ -1181,6 +1181,7 @@ export default function OptionsFlowDashboard() {
         const next = { ...prev };
         withDates.forEach(([sym, info]) => { next[sym] = info; });
         console.log("[earnings] Cache now has", Object.keys(next).length, "entries");
+        window.__earningsCache = next;
         return next;
       });
     }).catch(e => console.error("[earnings] Fetch error:", e));
