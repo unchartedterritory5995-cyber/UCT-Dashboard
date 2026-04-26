@@ -313,12 +313,22 @@ export default function StockChart({
     const last = lastBarRef.current
     const useOhlc = isOhlcType(cs.chartType)
 
-    // Compute which bar period this tick belongs to
-    const tickSec = liveData.updated_at || (Date.now() / 1000)
-    const barTime = computeBarTime(resolvedTf, tickSec)
+    // Compute which bar period this tick belongs to.
+    // CRITICAL: do NOT fall back to Date.now() — if a tick arrives without
+    // updated_at (reconnect, stale cache, weekend straggler), wall-clock time
+    // can land on a non-trading day and spawn a phantom Saturday/Sunday candle
+    // next to Friday's real one. When the timestamp is missing, just keep
+    // updating the last known bar in place.
+    const tickSec = liveData.updated_at
+    const barTime = tickSec ? computeBarTime(resolvedTf, tickSec) : last.time
 
-    // Detect new bar period (new candle should form)
-    const isNewBar = barTime !== last.time && barTime > last.time
+    // Detect new bar period (new candle should form).
+    // For Daily / Weekly / Monthly, live ticks must NEVER create new bars —
+    // those are session-aggregated and only roll over at market open the next
+    // session, which the cold-fetch path handles. Allowing tick-driven new-bar
+    // creation here was the source of duplicate-candle reports across all TFs.
+    const isIntradayTf = !['D', 'W', 'M'].includes(resolvedTf)
+    const isNewBar = isIntradayTf && barTime !== last.time && barTime > last.time
 
     try {
       if (isNewBar) {
@@ -483,10 +493,14 @@ export default function StockChart({
     // re-apply the latest WebSocket tick to keep the current candle accurate.
     if (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price && lastBarRef.current) {
       const lp = latestLiveRef.current.price
-      const tickSec = latestLiveRef.current.updated_at || (Date.now() / 1000)
-      const barTime = computeBarTime(resolvedTf, tickSec)
+      // Same guard as in the per-tick effect: missing updated_at must NOT
+      // fall back to wall-clock time, and Daily/Weekly/Monthly never spawn
+      // a new candle from a live tick.
+      const tickSec = latestLiveRef.current.updated_at
+      const barTime = tickSec ? computeBarTime(resolvedTf, tickSec) : lastBarRef.current.time
       const last = lastBarRef.current
-      const isNew = barTime !== last.time && barTime > last.time
+      const isIntradayTf = !['D', 'W', 'M'].includes(resolvedTf)
+      const isNew = isIntradayTf && barTime !== last.time && barTime > last.time
 
       // Use liveBarRef if available — it has tick-accurate high/low that survives setData()
       const lb = liveBarRef.current

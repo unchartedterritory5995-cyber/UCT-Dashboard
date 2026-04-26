@@ -475,17 +475,96 @@ def _check_admin_auth(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
-@router.post("/api/admin/warm-universe")
-def warm_universe(request: Request, tf: str = "D", bars: int = 5000):
-    """Kick off a background warm of the full ticker universe for the given TF.
+def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: int) -> None:
+    """Run _run_universe_warm sequentially across multiple TFs.
 
-    Returns immediately with the count of tickers queued. Progress can be
-    polled at /api/admin/warm-universe-status.
+    TFs are processed in priority order (Daily first, then Weekly, then
+    intraday) so the most-viewed TF is hot earliest. Aggregate progress is
+    reported in _warm_state.
+    """
+    from concurrent.futures import as_completed
+    total_jobs = len(tickers) * len(tfs)
+    with _warm_state_lock:
+        _warm_state.update({
+            "running": True,
+            "started_at": _time.time(),
+            "started_iso": datetime.utcnow().isoformat() + "Z",
+            "completed_iso": None,
+            "total": total_jobs,
+            "done": 0,
+            "skipped": 0,
+            "errors": 0,
+            "tf": ",".join(tfs),
+        })
+
+    for tf in tfs:
+        futures = []
+        for sym in tickers:
+            try:
+                if disk_cache.get(sym, tf, bars_count) is not None:
+                    with _warm_state_lock:
+                        _warm_state["skipped"] += 1
+                        _warm_state["done"] += 1
+                    continue
+            except Exception:
+                pass
+
+            def _task(s=sym, t=tf):
+                try:
+                    _get_bars_inner(s, t, bars_count)
+                    return True
+                except Exception:
+                    return False
+
+            try:
+                futures.append(_bars_warm_pool.submit(_task))
+            except RuntimeError:
+                break
+
+        for fut in as_completed(futures):
+            try:
+                ok = fut.result()
+            except Exception:
+                ok = False
+            with _warm_state_lock:
+                _warm_state["done"] += 1
+                if not ok:
+                    _warm_state["errors"] += 1
+
+    with _warm_state_lock:
+        _warm_state["running"] = False
+        _warm_state["completed_iso"] = datetime.utcnow().isoformat() + "Z"
+
+
+# Default warm set: Daily first (dominant scan TF), then Weekly/Monthly for
+# context, then intraday in descending order. Caller can override with ?tfs=.
+_DEFAULT_WARM_TFS = ["D", "W", "M", "60", "30", "15", "5", "1"]
+
+
+@router.post("/api/admin/warm-universe")
+def warm_universe(request: Request, tf: str = None, bars: int = 5000, tfs: str = None):
+    """Kick off a background warm of the full ticker universe.
+
+    Query params:
+        tf:    legacy single-TF mode (e.g. tf=D). Used if tfs is not given.
+        tfs:   comma-separated list of timeframes to warm in order
+               (e.g. tfs=D,W,M,60,30,15,5,1). Defaults to all 8.
+        bars:  bar count per ticker (default 5000)
+
+    Returns immediately. Poll /api/admin/warm-universe-status for progress.
 
     Auth: Bearer PUSH_SECRET. Idempotent — rejects with 409 if a warm is
     already in progress.
     """
     _check_admin_auth(request)
+
+    # Resolve TF list
+    if tfs:
+        tf_list = [t.strip() for t in tfs.split(",") if t.strip()]
+    elif tf:
+        tf_list = [tf]
+    else:
+        tf_list = list(_DEFAULT_WARM_TFS)
 
     with _warm_state_lock:
         if _warm_state["running"]:
@@ -503,20 +582,21 @@ def warm_universe(request: Request, tf: str = "D", bars: int = 5000):
     if not tickers:
         raise HTTPException(status_code=503, detail="Universe ticker list empty — breadth_monitor.db or cap_universe.json missing?")
 
-    # Start in a daemon thread — don't block the request
     _threading.Thread(
-        target=_run_universe_warm,
-        args=(tickers, tf, bars),
+        target=_run_universe_warm_multi_tf,
+        args=(tickers, tf_list, bars),
         daemon=True,
         name="warm-universe-runner",
     ).start()
 
+    total_jobs = len(tickers) * len(tf_list)
     return {
         "status": "started",
-        "tf": tf,
+        "tfs": tf_list,
         "bars": bars,
         "total_tickers": len(tickers),
-        "estimated_minutes": int(len(tickers) * 5 / 4 / 60),  # ~5s per cold fetch / 4 workers
+        "total_jobs": total_jobs,
+        "estimated_minutes": int(total_jobs * 5 / 4 / 60),
         "poll": "/api/admin/warm-universe-status",
     }
 
