@@ -523,7 +523,7 @@ function buildCharts(cc) {
     }
     return true;
   })
-  .sort((a,b)=>b.score-a.score).slice(0,6)
+  .sort((a,b)=>b.score-a.score).slice(0,20)
   .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"" })) }));
   const sectorMap = {};
@@ -1004,6 +1004,7 @@ export default function OptionsFlowDashboard() {
   const [tab, setTab] = useState("Market Read");
   const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
   const [cpFilter, setCpFilter] = useState("All"); // All | Calls | Puts
+  const [convCpFilter, setConvCpFilter] = useState("All"); // independent C/P for CONV cards
   const [ideaCapFilter, setIdeaCapFilter] = useState("All");
   const [perf, setPerf] = useState([]);
   const [fetchLoading, setFetchLoading] = useState(false);
@@ -2100,10 +2101,10 @@ export default function OptionsFlowDashboard() {
             <div style={{ fontSize:10, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase" }}>Top Flow</div>
             <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2, border:"1px solid "+P.bd }}>
               {["All","Calls","Puts"].map(f=>(
-                <button key={f} onClick={()=>setCpFilter(f)} style={{
+                <button key={f} onClick={()=>setConvCpFilter(f)} style={{
                   padding:"4px 14px", borderRadius:4, border:"none", cursor:"pointer",
                   fontSize:10, fontWeight:700, fontFamily:"inherit",
-                  background:cpFilter===f?P.cd:"transparent", color:cpFilter===f?(f==="Calls"?P.bu:f==="Puts"?P.be:P.wh):P.mt
+                  background:convCpFilter===f?P.cd:"transparent", color:convCpFilter===f?(f==="Calls"?P.bu:f==="Puts"?P.be:P.wh):P.mt
                 }}>{f}</button>
               ))}
             </div>
@@ -2125,7 +2126,7 @@ export default function OptionsFlowDashboard() {
           </button>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:8, marginBottom:12 }}>
-          {(cpFilter==="All"?FD.CONV:FD.CONV.filter(t=>cpFilter==="Calls"?(t.cp==="C"&&t.dir==="BULL"):(t.cp==="P"&&t.dir==="BEAR"))).map((t, i) => {
+          {(convCpFilter==="All"?FD.CONV.slice(0,6):FD.CONV.filter(t=>convCpFilter==="Calls"?(t.cp==="C"&&t.dir==="BULL"):(t.cp==="P"&&t.dir==="BEAR")).slice(0,6)).map((t, i) => {
             const c = t.dir==="BULL" ? P.bu : P.be;
             const hk = "conv_"+i;
             return (
