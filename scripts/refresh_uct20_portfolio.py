@@ -46,10 +46,26 @@ def main():
         wire = json.load(f)
 
     print("Computing fresh UCT20 portfolio...")
-    portfolio = uct_api.get_uct20_portfolio(account_size=50000, inception_date="2026-03-31")
+    portfolio = uct_api.get_uct20_portfolio(account_size=50000, inception_date="2026-04-27")
     if not portfolio:
-        print("ERROR: portfolio computation returned empty", file=sys.stderr)
-        sys.exit(1)
+        # Inception is in the future or no snapshots yet — push a clean
+        # "tracking begins on inception_date" empty state instead of erroring.
+        portfolio = {
+            "account_size":      50000.0,
+            "current_value":     50000.0,
+            "total_return_pct":  0.0,
+            "total_pnl":         0.0,
+            "win_rate":          0.0,
+            "total_trades":      0,
+            "open_count":        0,
+            "avg_hold_days":     0,
+            "open_positions":    [],
+            "trades":             [],
+            "equity_curve":      [],
+            "inception_date":    "2026-04-27",
+            "status":            "Tracking begins 2026-04-27 (Monday open)",
+        }
+        print("  No snapshots yet — pushing empty 'tracking begins 2026-04-27' state")
 
     open_count = portfolio.get("open_count", 0)
     total_trades = portfolio.get("total_trades", 0)
