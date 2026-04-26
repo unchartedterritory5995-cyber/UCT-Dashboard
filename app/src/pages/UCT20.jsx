@@ -14,8 +14,11 @@ import styles from './UCT20.module.css'
 const fetcher = url => fetch(url).then(r => r.json())
 
 function SetupBadge({ type }) {
-  if (!type) return null
-  return <span className={styles.setupBadge}>{type}</span>
+  // Fall back to a generic label when the morning-wire AI thesis batch
+  // failed for this stock — better than a blank slot. Engine retries first
+  // and synthesizes a setup_type from EMA/RS, so this fallback is mostly
+  // for legacy data where setup_type was empty.
+  return <span className={styles.setupBadge}>{type || 'Leadership'}</span>
 }
 
 function fmtPct(v) {
