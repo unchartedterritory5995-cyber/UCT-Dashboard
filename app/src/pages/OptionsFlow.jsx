@@ -1165,6 +1165,7 @@ export default function OptionsFlowDashboard() {
       const trades = D.clean_confirmed || [];
       return trades.some(t => t.S === s && t.er) && !earningsFetchedRef.current.has(s);
     });
+    console.log("[earnings] ER tickers found:", erTickers.length);
     if (erTickers.length === 0) return;
     erTickers.forEach(s => earningsFetchedRef.current.add(s));
     // Batch fetch earnings dates
@@ -1173,15 +1174,16 @@ export default function OptionsFlowDashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ symbols: erTickers })
     }).then(r => r.ok ? r.json() : null).then(data => {
-      if (!data || !data.earnings) return;
+      if (!data || !data.earnings) { console.log("[earnings] No data returned"); return; }
+      const withDates = Object.entries(data.earnings).filter(([,info]) => info && info.date);
+      console.log("[earnings] Got dates for:", withDates.map(([s,i])=>s+":"+i.date).join(", "));
       setEarningsCache(prev => {
         const next = { ...prev };
-        Object.entries(data.earnings).forEach(([sym, info]) => {
-          if (info && info.date) next[sym] = info;
-        });
+        withDates.forEach(([sym, info]) => { next[sym] = info; });
+        console.log("[earnings] Cache now has", Object.keys(next).length, "entries");
         return next;
       });
-    }).catch(() => {});
+    }).catch(e => console.error("[earnings] Fetch error:", e));
   }, [D]);
 
   // Auto-scroll to Top Flow detail panel when opened
