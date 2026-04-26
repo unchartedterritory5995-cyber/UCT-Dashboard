@@ -146,11 +146,22 @@ async def snapshot_prices() -> dict:
     """
     Fetch live quotes (price + OI) for all active picks and append to history.
     Called by daily_tracker at 4:30 PM ET, or manually via /api/top-flow/snapshot.
+    Batches in chunks of 50 to avoid overwhelming Schwab API.
+    Skips already-expired contracts.
     """
+    import asyncio as _aio
+
     active = _data.get("active", [])
     if not active:
         return {"status": "skipped", "reason": "no active picks"}
 
+    # Auto-archive expired picks first
+    archived = archive_expired()
+    if archived:
+        active = _data.get("active", [])
+        logger.info("[top-flow] Auto-archived %d expired picks before snapshot.", archived)
+
+    today = date.today()
     today_str = datetime.now(ET).strftime("%-m/%-d/%Y")
 
     try:
@@ -174,51 +185,78 @@ async def snapshot_prices() -> dict:
                 y += 1
         return f"{y}-{m:02d}-{d:02d}"
 
-    batch = [
-        {
-            "symbol": p["sym"],
-            "cp": p["cp"],
-            "strike": p["strike"],
-            "expDate": _exp_to_iso(p["exp"]),
-        }
-        for p in active
-    ]
+    def _is_expired(exp_str: str) -> bool:
+        parts = exp_str.split("/")
+        try:
+            m, d = int(parts[0]), int(parts[1])
+            y = int(parts[2]) + 2000 if len(parts) >= 3 and int(parts[2]) < 100 else (
+                int(parts[2]) if len(parts) >= 3 else today.year
+            )
+            return date(y, m, d) < today
+        except (ValueError, IndexError):
+            return False
 
-    try:
-        quotes = await get_batch_option_quotes(batch)
-    except Exception as e:
-        logger.error("[top-flow] Schwab batch fetch failed: %s", e)
-        return {"status": "error", "reason": str(e)}
+    # Filter to non-expired only
+    live_picks = [p for p in active if not _is_expired(p.get("exp", ""))]
+    logger.info("[top-flow] Snapshot: %d live of %d total active picks.", len(live_picks), len(active))
+
+    if not live_picks:
+        return {"status": "skipped", "reason": "all picks expired"}
 
     saved = 0
     skipped = 0
+    errors = 0
+    CHUNK = 50
 
-    for pick, q in zip(active, quotes):
-        if not q or q.get("error") or q.get("expired"):
-            skipped += 1
+    for ci in range(0, len(live_picks), CHUNK):
+        chunk = live_picks[ci:ci + CHUNK]
+        batch = [
+            {
+                "symbol": p["sym"],
+                "cp": p["cp"],
+                "strike": p["strike"],
+                "expDate": _exp_to_iso(p["exp"]),
+            }
+            for p in chunk
+        ]
+
+        try:
+            quotes = await get_batch_option_quotes(batch)
+        except Exception as e:
+            logger.error("[top-flow] Schwab chunk %d failed: %s", ci // CHUNK, e)
+            errors += len(chunk)
             continue
 
-        price = q.get("mark") or q.get("last") or 0
-        oi = q.get("openInterest") or q.get("open_interest") or 0
-        spot = q.get("underlyingPrice") or q.get("spot") or 0
-        volume = q.get("volume") or 0
+        for pick, q in zip(chunk, quotes):
+            if not q or q.get("error") or q.get("expired"):
+                skipped += 1
+                continue
 
-        history = pick.setdefault("history", [])
-        entry = {
-            "date": today_str,
-            "price": price,
-            "oi": oi,
-            "spot": spot,
-            "volume": volume,
-        }
+            price = q.get("mark") or q.get("last") or 0
+            oi = q.get("openInterest") or q.get("open_interest") or 0
+            spot = q.get("underlyingPrice") or q.get("spot") or 0
+            volume = q.get("volume") or 0
 
-        # Overwrite today's entry if exists (idempotent)
-        existing_idx = next((i for i, h in enumerate(history) if h.get("date") == today_str), None)
-        if existing_idx is not None:
-            history[existing_idx] = entry
-        else:
-            history.append(entry)
-        saved += 1
+            history = pick.setdefault("history", [])
+            entry = {
+                "date": today_str,
+                "price": price,
+                "oi": oi,
+                "spot": spot,
+                "volume": volume,
+            }
+
+            # Overwrite today's entry if exists (idempotent)
+            existing_idx = next((i for i, h in enumerate(history) if h.get("date") == today_str), None)
+            if existing_idx is not None:
+                history[existing_idx] = entry
+            else:
+                history.append(entry)
+            saved += 1
+
+        # Small delay between chunks to stay under rate limits
+        if ci + CHUNK < len(live_picks):
+            await _aio.sleep(2)
 
     if saved:
         _save()
@@ -228,6 +266,8 @@ async def snapshot_prices() -> dict:
         "date": today_str,
         "saved": saved,
         "skipped": skipped,
+        "errors": errors,
+        "live": len(live_picks),
         "total": len(active),
     }
     logger.info("[top-flow] Snapshot complete: %s", result)
