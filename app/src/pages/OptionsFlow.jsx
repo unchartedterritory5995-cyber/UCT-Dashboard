@@ -4389,6 +4389,18 @@ export default function OptionsFlowDashboard() {
           };
           const sortedActive = [...filteredActive].sort(sortFn);
           const sortedArchived = [...filteredArchived].sort(sortFn);
+          const smartCap = (list) => {
+            if (trackerSort === "pnl" || trackerSort === "peak") {
+              const top = list.slice(0, 25);
+              const bot = list.length > 25 ? list.slice(-Math.min(25, list.length - 25)) : [];
+              return { items: [...top, ...bot], split: bot.length > 0 ? top.length : -1 };
+            }
+            return { items: list.slice(0, 50), split: -1 };
+          };
+          const activeResult = smartCap(sortedActive);
+          const archivedResult = smartCap(sortedArchived);
+          const cappedActive = activeResult.items;
+          const cappedArchived = archivedResult.items;
           return (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
@@ -4423,8 +4435,8 @@ export default function OptionsFlowDashboard() {
                 <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{filteredActive.length} active · {filteredArchived.length} archived</span>
               </div>
             </Card>
-            {sortedActive.length > 0 ? (
-              <Card title="Active Picks" sub={filteredActive.length+" of "+topFlowPicks.active.length+" contracts"}>
+            {cappedActive.length > 0 ? (
+              <Card title="Active Picks" sub={cappedActive.length+(cappedActive.length<filteredActive.length?" of "+filteredActive.length:"")+" contracts"}>
                 <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
                   <button onClick={()=>{
                     const contracts = topFlowPicks.active.map(p=>({sym:p.sym,cp:p.cp,strike:p.strike,exp:p.exp}));
@@ -4445,7 +4457,7 @@ export default function OptionsFlowDashboard() {
                     ))}
                   </tr></thead>
                   <tbody>
-                    {sortedActive.map((p,i)=>{
+                    {cappedActive.map((p,i)=>{
                       const px = getPrice(p.sym, p.cp, p.strike, p.exp);
                       const now = px ? (px.mark||px.last||0) : (p.history&&p.history.length>0 ? p.history[p.history.length-1].price : 0);
                       const pnl = now>0 && p.entry>0 ? (now-p.entry)/p.entry*100 : 0;
@@ -4459,8 +4471,11 @@ export default function OptionsFlowDashboard() {
                       const trend = hist.length>=2 ? (hist[hist.length-1].price > hist[hist.length-2].price ? "↑" : hist[hist.length-1].price < hist[hist.length-2].price ? "↓" : "→") : "—";
                       const trendC = trend==="↑"?P.bu:trend==="↓"?P.be:P.dm;
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
+                      const showSep = activeResult.split > 0 && i === activeResult.split;
                       return (
-                        <tr key={p.id||i} onClick={()=>{ fetchContractHistory(p.sym,p.cp,p.strike,p.exp); setSelectedItem({sym:p.sym,cp:p.cp,K:p.strike,exp:p.exp}); }}
+                        <Fragment key={p.id||i}>
+                        {showSep && <tr><td colSpan={13} style={{ padding:"6px 0", textAlign:"center" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><div style={{ flex:1, height:1, background:P.be+"40" }}/><span style={{ fontSize:8, fontWeight:700, color:P.be, letterSpacing:1 }}>▼ BOTTOM {cappedActive.length - activeResult.split}</span><div style={{ flex:1, height:1, background:P.be+"40" }}/></div></td></tr>}
+                        <tr onClick={()=>{ fetchContractHistory(p.sym,p.cp,p.strike,p.exp); setSelectedItem({sym:p.sym,cp:p.cp,K:p.strike,exp:p.exp}); }}
                           style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
@@ -4478,6 +4493,7 @@ export default function OptionsFlowDashboard() {
                           <td style={{ padding:"5px 5px", fontSize:14, fontWeight:800, color:trendC }}>{trend}</td>
                           <td style={{ padding:"5px 5px", color:P.dm, fontSize:9 }}>{p.dateSaved||"—"}</td>
                         </tr>
+                        </Fragment>
                       );
                     })}
                   </tbody>
@@ -4487,8 +4503,8 @@ export default function OptionsFlowDashboard() {
               <Card><div style={{ textAlign:"center", padding:"20px 0", color:P.dm, fontSize:12 }}>No active picks yet. Upload flow data — Top Flow picks will be tracked automatically.</div></Card>
             )}
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
-            {sortedArchived.length > 0 && (
-              <Card title="Archived Picks" sub={filteredArchived.length+" of "+topFlowPicks.archived.length+" expired"}>
+            {cappedArchived.length > 0 && (
+              <Card title="Archived Picks" sub={cappedArchived.length+(cappedArchived.length<filteredArchived.length?" of "+filteredArchived.length:"")+" expired"}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                     {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Final","P&L","Peak","Saved"].map(h=>(
@@ -4496,7 +4512,7 @@ export default function OptionsFlowDashboard() {
                     ))}
                   </tr></thead>
                   <tbody>
-                    {sortedArchived.map((p,i)=>{
+                    {cappedArchived.map((p,i)=>{
                       const pnlC = p.finalPnl>0?P.bu:p.finalPnl<0?P.be:P.dm;
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
                       const hist = p.history||[];
