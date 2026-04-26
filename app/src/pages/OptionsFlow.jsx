@@ -4384,8 +4384,8 @@ export default function OptionsFlowDashboard() {
                 </div>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Now","P&L","Days","Trend","Added"].map(h=>(
-                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Now","P&L","Peak","Days","Trend","Added"].map(h=>(
+                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="Peak"?"help":"default" }} title={h==="Peak"?"Highest % gain from entry at any point — the best exit you could have had.":undefined}>{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
@@ -4396,6 +4396,10 @@ export default function OptionsFlowDashboard() {
                       const pnlC = pnl>0?P.bu:pnl<0?P.be:P.dm;
                       const days = p.dateSaved ? Math.max(1, Math.round((Date.now()-new Date(p.dateSaved).getTime())/86400000)) : 0;
                       const hist = p.history||[];
+                      const allPx = [...hist.map(h=>h.price), now].filter(v=>v>0);
+                      const peakPrice = allPx.length>0 ? Math.max(...allPx) : 0;
+                      const peakPnl = peakPrice>0 && p.entry>0 ? (peakPrice-p.entry)/p.entry*100 : 0;
+                      const peakRetrace = peakPnl>0 && pnl<peakPnl;
                       const trend = hist.length>=2 ? (hist[hist.length-1].price > hist[hist.length-2].price ? "↑" : hist[hist.length-1].price < hist[hist.length-2].price ? "↓" : "→") : "—";
                       const trendC = trend==="↑"?P.bu:trend==="↓"?P.be:P.dm;
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
@@ -4413,6 +4417,7 @@ export default function OptionsFlowDashboard() {
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{p.entry>0?"$"+p.entry.toFixed(2):"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
                           <td style={{ padding:"5px 5px", color:P.dm }}>{days}d</td>
                           <td style={{ padding:"5px 5px", fontSize:14, fontWeight:800, color:trendC }}>{trend}</td>
                           <td style={{ padding:"5px 5px", color:P.dm, fontSize:9 }}>{p.dateSaved||"—"}</td>
@@ -4430,7 +4435,7 @@ export default function OptionsFlowDashboard() {
               <Card title="Archived Picks" sub={topFlowPicks.archived.length+" expired"}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Final","P&L","Saved"].map(h=>(
+                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Final","P&L","Peak","Saved"].map(h=>(
                       <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr></thead>
@@ -4438,6 +4443,10 @@ export default function OptionsFlowDashboard() {
                     {topFlowPicks.archived.slice().reverse().map((p,i)=>{
                       const pnlC = p.finalPnl>0?P.bu:p.finalPnl<0?P.be:P.dm;
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
+                      const hist = p.history||[];
+                      const allPx = [...hist.map(h=>h.price), p.finalPrice||0].filter(v=>v>0);
+                      const peakPrice = allPx.length>0 ? Math.max(...allPx) : 0;
+                      const peakPnl = peakPrice>0 && p.entry>0 ? (peakPrice-p.entry)/p.entry*100 : 0;
                       return (
                         <tr key={p.id||i} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.7 }}>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}</td>
@@ -4449,6 +4458,7 @@ export default function OptionsFlowDashboard() {
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{p.entry>0?"$"+p.entry.toFixed(2):"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.finalPrice>0?"$"+p.finalPrice.toFixed(2):"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:pnlC }}>{p.finalPnl?(p.finalPnl>0?"+":"")+p.finalPnl.toFixed(1)+"%":"—"}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?P.bu:P.dm }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
                           <td style={{ padding:"5px 5px", color:P.dm, fontSize:9 }}>{p.dateSaved||"—"}</td>
                         </tr>
                       );
