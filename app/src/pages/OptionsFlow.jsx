@@ -1187,7 +1187,7 @@ export default function OptionsFlowDashboard() {
   useEffect(() => {
     if (!D || !D.CONV || D.CONV.length === 0) return;
     const today = new Date().toISOString().slice(0,10);
-    const picks = D.CONV.map(c => {
+    const picks = D.CONV.slice(0, 20).map(c => {
       const trades = c.trades || [];
       const prices = trades.filter(t=>t.V>0).map(t=>t.P/t.V/100).filter(p=>p>0);
       const sorted = [...prices].sort((a,b)=>a-b);
