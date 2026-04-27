@@ -106,6 +106,67 @@ def _av_get(req_module, url: str, timeout: int = _AV_TIMEOUT_SECS) -> dict:
     return data
 
 
+def _fetch_quarterly_history(sym: str) -> list:
+    """Fetch up to 12 quarters of EPS history. FMP first, AV fallback.
+
+    Returns a list normalized to AV's quarterlyEarnings shape so existing
+    code (yoy_eps_growth, beat_streak, beat_history computation) keeps
+    working unchanged. Each item: {reportedDate, fiscalDateEnding,
+    reportedEPS, estimatedEPS, surprise, surprisePercentage, reportTime}.
+    """
+    import requests as _r
+    fmp_key = os.environ.get("FMP_API_KEY", "")
+    if fmp_key:
+        try:
+            url = f"https://financialmodelingprep.com/api/v3/earnings-surprises/{sym.upper()}?apikey={fmp_key}"
+            resp = _r.get(url, timeout=8).json()
+            if isinstance(resp, list) and resp:
+                out = []
+                for item in resp[:12]:
+                    try:
+                        actual = item.get("actualEarningResult")
+                        estimated = item.get("estimatedEarning")
+                        date_str = item.get("date")
+                        if actual is None or estimated is None or not date_str:
+                            continue
+                        actual_f = float(actual)
+                        est_f = float(estimated)
+                        surprise = actual_f - est_f
+                        surprise_pct = (surprise / abs(est_f) * 100) if est_f else 0.0
+                        out.append({
+                            "reportedDate":       date_str,
+                            "fiscalDateEnding":   date_str,
+                            "reportedEPS":        str(actual_f),
+                            "estimatedEPS":       str(est_f),
+                            "surprise":           f"{surprise:.4f}",
+                            "surprisePercentage": f"{surprise_pct:.2f}",
+                            "reportTime":         "",  # FMP doesn't provide AM/PM
+                        })
+                    except (TypeError, ValueError):
+                        continue
+                if out:
+                    return out
+        except Exception as e:
+            _logger.warning("FMP quarterly history failed for %s: %s", sym, e)
+
+    # AV fallback
+    av_key = os.environ.get("ALPHAVANTAGE_API_KEY", "")
+    if av_key:
+        try:
+            av_url = (
+                f"https://www.alphavantage.co/query"
+                f"?function=EARNINGS&symbol={sym}&apikey={av_key}"
+            )
+            av_resp = _av_get(_r, av_url, timeout=_AV_TIMEOUT_SECS)
+            quarters = av_resp.get("quarterlyEarnings", [])
+            if quarters:
+                return quarters
+        except Exception as e:
+            _logger.warning("AV quarterly history failed for %s: %s", sym, e)
+
+    return []
+
+
 def _with_retry(fn, retries: int = 1, delay: float = 2.0):
     """Call fn(); on requests.Timeout or ConnectionError, retry up to `retries` times.
 
@@ -737,19 +798,12 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
     av_key  = os.environ.get("ALPHAVANTAGE_API_KEY", "")
     fh_key  = os.environ.get("FINNHUB_API_KEY", "")
 
-    # ── Step 1: Alpha Vantage quarterly history ───────────────────────────────
+    # ── Step 1: Quarterly EPS history (FMP primary, AV fallback) ──────────────
     yoy_eps_growth = None
     beat_streak    = None
     beat_history   = []       # visual pattern e.g. ["✗","✓","✓","✓"] oldest→newest
-    quarters       = []       # AV quarterlyEarnings — used by enrichment helpers
+    quarters       = _fetch_quarterly_history(sym)
     try:
-        av_url = (
-            f"https://www.alphavantage.co/query"
-            f"?function=EARNINGS&symbol={sym}&apikey={av_key}"
-        )
-        av_resp = _av_get(_req, av_url, timeout=_AV_TIMEOUT_SECS)
-        quarters = av_resp.get("quarterlyEarnings", [])
-
         def _to_f(v):
             try: return float(v)
             except (TypeError, ValueError): return None
@@ -943,18 +997,12 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
     av_key = os.environ.get("ALPHAVANTAGE_API_KEY", "")
     fh_key = os.environ.get("FINNHUB_API_KEY", "")
 
-    # ── Step 1: Alpha Vantage quarterly history ────────────────────────────────
+    # ── Step 1: Quarterly EPS history (FMP primary, AV fallback) ──────────────
     yoy_eps_growth = None
     beat_streak    = None
     beat_history   = []
-    quarters       = []
+    quarters       = _fetch_quarterly_history(sym)
     try:
-        av_url = (
-            f"https://www.alphavantage.co/query"
-            f"?function=EARNINGS&symbol={sym}&apikey={av_key}"
-        )
-        av_resp  = _av_get(_req, av_url, timeout=_AV_TIMEOUT_SECS)
-        quarters = av_resp.get("quarterlyEarnings", [])
 
         def _to_f(v):
             try: return float(v)
