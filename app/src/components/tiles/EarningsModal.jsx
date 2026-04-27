@@ -146,6 +146,46 @@ export default function EarningsModal({ row, label, onClose }) {
           </div>
         )}
 
+        {/* ── Earnings stats strip (implied/historical move, pre-earnings ctx, revisions) */}
+        {!aiState.loading && aiState.data && (
+          (aiState.data.implied_move || aiState.data.hist_moves || aiState.data.pre_earnings || aiState.data.revisions) && (
+            <div className={styles.statsStrip}>
+              {(aiState.data.implied_move || aiState.data.hist_moves) && (
+                <div className={styles.statRow}>
+                  <span className={styles.statLabel}>EXPECTED MOVE</span>
+                  {aiState.data.implied_move?.pct != null && (
+                    <span className={styles.statVal}>
+                      Options ±{aiState.data.implied_move.pct.toFixed(1)}%
+                    </span>
+                  )}
+                  {aiState.data.hist_moves?.avg_abs_move_pct != null && (
+                    <span className={styles.muted}>
+                      Hist avg ±{aiState.data.hist_moves.avg_abs_move_pct.toFixed(1)}% ({aiState.data.hist_moves.n_quarters}q)
+                    </span>
+                  )}
+                </div>
+              )}
+              {aiState.data.pre_earnings?.label && (
+                <div className={styles.statRow}>
+                  <span className={styles.statLabel}>HEADING IN</span>
+                  <span className={styles.statVal}>{aiState.data.pre_earnings.label}</span>
+                </div>
+              )}
+              {aiState.data.revisions?.label && (
+                <div className={styles.statRow}>
+                  <span className={styles.statLabel}>REVISIONS</span>
+                  <span className={
+                    aiState.data.revisions.delta_90d > 0 ? styles.pos :
+                    aiState.data.revisions.delta_90d < 0 ? styles.neg : styles.muted
+                  }>
+                    {aiState.data.revisions.arrow} {aiState.data.revisions.label}
+                  </span>
+                </div>
+              )}
+            </div>
+          )
+        )}
+
         {/* ── Pending: AI Preview ──────────────────────────────────────── */}
         {isPending && (
           aiState.loading ? (
@@ -179,15 +219,32 @@ export default function EarningsModal({ row, label, onClose }) {
           )
         )}
 
-        {/* ── Trend block ──────────────────────────────────────────────── */}
-        {(aiState.data?.yoy_eps_growth || aiState.data?.beat_streak) && (
+        {/* ── Trend block (YoY EPS + beat-magnitude bars or fallback) ───── */}
+        {(aiState.data?.yoy_eps_growth || aiState.data?.beat_streak || aiState.data?.beat_surprises?.length) && (
           <div className={styles.trend}>
             {aiState.data.yoy_eps_growth && (
               <span className={aiState.data.yoy_eps_growth.startsWith('+') ? styles.pos : styles.neg}>
                 YoY EPS {aiState.data.yoy_eps_growth}
               </span>
             )}
-            {aiState.data.beat_history?.length > 0 && (
+            {aiState.data.beat_surprises?.length > 0 ? (
+              <span className={styles.beatBars} title="Last quarters' EPS surprise %">
+                {/* Render oldest→newest so bar order matches time direction */}
+                {[...aiState.data.beat_surprises].reverse().map((q, i) => {
+                  const mag = Math.min(Math.abs(q.surprise_pct || 0), 30) / 30  // clip at 30%
+                  const h = Math.max(4, Math.round(mag * 18))  // 4-18px tall
+                  return (
+                    <span
+                      key={i}
+                      className={q.beat ? styles.beatBarPos : styles.beatBarNeg}
+                      style={{ height: `${h}px` }}
+                      title={`${q.date}: ${q.surprise_pct >= 0 ? '+' : ''}${q.surprise_pct}%`}
+                    />
+                  )
+                })}
+                <span className={styles.muted}>{aiState.data.beat_streak}</span>
+              </span>
+            ) : aiState.data.beat_history?.length > 0 ? (
               <span className={styles.beatHistory}>
                 {aiState.data.beat_history.map((s, i) => (
                   <span key={i} className={s === '✓' ? styles.pos : s === '✗' ? styles.neg : styles.muted}>
@@ -196,7 +253,7 @@ export default function EarningsModal({ row, label, onClose }) {
                 ))}
                 <span className={styles.muted}>{aiState.data.beat_streak}</span>
               </span>
-            )}
+            ) : null}
           </div>
         )}
 
@@ -306,6 +363,21 @@ export default function EarningsModal({ row, label, onClose }) {
         )}
         {!isPending && transcriptState.loading && (
           <div className={styles.transcriptLoading}>Loading transcript…</div>
+        )}
+
+        {/* ── Key quotes from prior earnings call (works pre + post) ───── */}
+        {aiState.data?.key_quotes?.length > 0 && (
+          <div className={styles.quotesSection}>
+            <div className={styles.watchLabel}>LAST CALL — KEY QUOTES</div>
+            <ul className={styles.quoteList}>
+              {aiState.data.key_quotes.map((q, i) => (
+                <li key={i} className={styles.quoteItem}>
+                  {q.topic && <span className={styles.quoteTopic}>{q.topic}: </span>}
+                  <span className={styles.quoteText}>"{q.quote}"</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         <div className={styles.actions}>

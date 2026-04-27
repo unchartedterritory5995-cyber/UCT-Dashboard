@@ -363,6 +363,105 @@
   margin-right: 2px;
 }
 
+/* ── Earnings stats strip (implied move, hist move, pre-earnings, revisions) */
+.statsStrip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.statRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.statLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  min-width: 110px;
+}
+
+.statVal {
+  color: var(--text-bright);
+}
+
+/* ── Beat-magnitude bars (replaces beatHistory checkmarks when surprise data is available) */
+.beatBars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  margin-left: 4px;
+}
+
+.beatBars > .muted {
+  margin-left: 6px;
+  align-self: center;
+}
+
+.beatBarPos,
+.beatBarNeg {
+  display: inline-block;
+  width: 4px;
+  border-radius: 1px;
+  vertical-align: bottom;
+}
+
+.beatBarPos {
+  background: var(--ut-green-bright, #3cb868);
+  opacity: 0.85;
+}
+
+.beatBarNeg {
+  background: var(--loss, #d65656);
+  opacity: 0.85;
+}
+
+/* ── Key quotes from prior earnings call ────────────────── */
+.quotesSection {
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.02);
+  border-left: 2px solid var(--border-accent, var(--border));
+  border-radius: var(--radius-sm);
+}
+
+.quoteList {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quoteItem {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-bright);
+}
+
+.quoteTopic {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.quoteText {
+  font-style: italic;
+  color: var(--text-bright);
+}
+
 /* ── Transcript section (collapsible) ────────────────────── */
 .transcriptSection {
   border: 1px solid var(--border);

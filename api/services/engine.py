@@ -741,6 +741,7 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
     yoy_eps_growth = None
     beat_streak    = None
     beat_history   = []       # visual pattern e.g. ["✗","✓","✓","✓"] oldest→newest
+    quarters       = []       # AV quarterlyEarnings — used by enrichment helpers
     try:
         av_url = (
             f"https://www.alphavantage.co/query"
@@ -892,6 +893,15 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
             analysis_headline = None
             analysis_bullets = []
 
+    # ── Enrichment: pre-earnings context, historical moves, revisions, etc. ─
+    enrichment = {}
+    try:
+        from api.services.earnings_enrichment import enrich_earnings_response
+        earnings_date = (row or {}).get("date") or (row or {}).get("earnings_date")
+        enrichment = enrich_earnings_response(sym, quarters or [], earnings_date)
+    except Exception as _e:
+        _logger.warning("enrichment failed for %s (analysis): %s", sym, _e)
+
     result = {
         "sym":               sym,
         "analysis":          analysis,
@@ -901,6 +911,13 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
         "beat_streak":       beat_streak,
         "beat_history":      beat_history,
         "news":              news_items,
+        # Enrichment (may be None)
+        "pre_earnings":      enrichment.get("pre_earnings"),
+        "hist_moves":        enrichment.get("hist_moves"),
+        "revisions":         enrichment.get("revisions"),
+        "beat_surprises":    enrichment.get("beat_surprises"),
+        "implied_move":      enrichment.get("implied_move"),
+        "key_quotes":        enrichment.get("key_quotes"),
     }
     # Only cache for full 12h if analysis succeeded; short TTL lets it retry on failure
     ttl = _EARNINGS_CACHE_TTL_HIT if analysis is not None else _EARNINGS_CACHE_TTL_MISS
@@ -930,6 +947,7 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
     yoy_eps_growth = None
     beat_streak    = None
     beat_history   = []
+    quarters       = []
     try:
         av_url = (
             f"https://www.alphavantage.co/query"
@@ -1064,6 +1082,16 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
         preview_text    = ""
         preview_bullets = []
 
+    # ── Enrichment: pre-earnings context, historical moves, revisions, etc. ─
+    # All best-effort — each helper returns None on failure.
+    enrichment = {}
+    try:
+        from api.services.earnings_enrichment import enrich_earnings_response
+        earnings_date = row.get("date") or row.get("earnings_date")
+        enrichment = enrich_earnings_response(sym, quarters or [], earnings_date)
+    except Exception as _e:
+        _logger.warning("enrichment failed for %s (preview): %s", sym, _e)
+
     result = {
         "sym":             sym,
         "preview_text":    preview_text,
@@ -1072,6 +1100,13 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
         "yoy_eps_growth":  yoy_eps_growth,
         "beat_streak":     beat_streak,
         "news":            news_items,
+        # ── Enrichment fields (may be None) ─────────────────────────────────
+        "pre_earnings":    enrichment.get("pre_earnings"),
+        "hist_moves":      enrichment.get("hist_moves"),
+        "revisions":       enrichment.get("revisions"),
+        "beat_surprises":  enrichment.get("beat_surprises"),
+        "implied_move":    enrichment.get("implied_move"),
+        "key_quotes":      enrichment.get("key_quotes"),
     }
     ttl = _EARNINGS_CACHE_TTL_HIT if preview_text else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)
