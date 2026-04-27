@@ -40,7 +40,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse as StarletteJSONResponse
 from api.gex_router import router as gex_router
 from api.watchlist_router import router as watchlist_router
-app.include_router(watchlist_router)
+from api import watchlist_tracker as _watchlist_tracker
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 
@@ -414,6 +414,9 @@ async def lifespan(app: FastAPI):
     _top_flow_tracker.archive_expired()
     print(f"[startup] Top Flow tracker: {len(_top_flow_tracker.get_all()['active'])} active, {len(_top_flow_tracker.get_all()['archived'])} archived.")
 
+    _watchlist_tracker.init()
+    print(f"[startup] Watchlist tracker: {len(_watchlist_tracker.get_recent_dates())} saved days.")
+
     try:
         _cot_service.init_db()
         if _cot_service.is_empty():
@@ -640,6 +643,7 @@ app.include_router(rs_ranking_router.router)
 app.include_router(intelligence_router.router)
 app.include_router(transcripts_router.router)
 app.include_router(gex_router)
+app.include_router(watchlist_router)
 
 # ─── CSV routes: serve from app/public/ directly (bypasses Vite build cache) ──
 PUBLIC = os.path.join(os.path.dirname(__file__), "..", "app", "public")
