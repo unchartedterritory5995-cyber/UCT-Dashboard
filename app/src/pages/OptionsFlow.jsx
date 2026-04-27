@@ -1177,43 +1177,90 @@ export default function OptionsFlowDashboard() {
   const [wlBear, setWlBear] = useState([]);
   const [wlDate, setWlDate] = useState(new Date().toISOString().slice(0,10));
   const [wlDates, setWlDates] = useState([]);
-  const [wlEditing, setWlEditing] = useState(null); // "bull-0", "bear-2", etc
+  const [wlEditing, setWlEditing] = useState(null);
   const [wlLoaded, setWlLoaded] = useState(false);
+  const [wlCapPref, setWlCapPref] = useState("No Mega"); // All | No Mega | Mid+Small
+  const [wlAddBull, setWlAddBull] = useState("");
+  const [wlAddBear, setWlAddBear] = useState("");
+  const [wlRemoving, setWlRemoving] = useState(null);
+  const [wlRemoveReason, setWlRemoveReason] = useState("");
+  const [wlRemoved, setWlRemoved] = useState([]);
 
   const autoScore = (c) => {
     let s = 0;
     const g = c.grade||"";
-    s += g==="A+"?3:g==="A"?2.5:g==="B+"?2:g==="B"?1.5:g==="C"?1:0.5;
+    s += g==="A+"?2.5:g==="A"?2:g==="B+"?1.5:g==="B"?1:g==="C"?0.5:0.5;
     const h = c.hits||0;
-    s += h>=10?3:h>=5?2:h>=2?1.5:1;
+    s += h>=10?2.5:h>=5?2:h>=2?1.5:1;
     const p = c.prem||0;
-    s += p>=10e6?3:p>=5e6?2.5:p>=1e6?2:p>=500e3?1.5:1;
+    s += p>=10e6?2:p>=5e6?1.5:p>=1e6?1:p>=500e3?0.5:0.5;
     const v = c.volOI||0;
     s += v>=3?1.5:v>=2?1:0.5;
     const sd = c.side||"";
     s += sd==="AA"?1.5:sd==="BB"?1:0.5;
-    return Math.min(12.5, Math.round(s*10)/10);
+    return Math.min(10, Math.round(s*10)/10);
+  };
+
+  const MEGA_TICKERS = new Set(["AAPL","MSFT","NVDA","GOOGL","GOOG","AMZN","META","TSLA","BRK.B","LLY","AVGO","JPM","V","UNH","WMT","MA","XOM","COST","JNJ","HD","PG","ABBV","NFLX","BAC","CRM","AMD","KO","MRK","PEP","TMO","ADBE","MCD","CSCO","INTU","QCOM","GS","BKNG","NOW","MU","PANW","SNPS","CDNS","ANET","PYPL","CMG","ORLY","COP","CVX"]);
+  const wlCapCheck = (c) => {
+    const cap = capBand(c.mktcap);
+    if (cap !== "Unknown") return cap;
+    return MEGA_TICKERS.has(c.sym) ? "Mega" : "Large";
   };
 
   const wlPopulate = () => {
     if (!FD || !FD.CONV) return;
-    const bulls = FD.CONV.filter(c=>c.dir==="BULL").slice(0,10).map(c=>({
+    const capOk = (c) => {
+      const cap = wlCapCheck(c);
+      if (wlCapPref==="No Mega") return cap!=="Mega";
+      if (wlCapPref==="Mid+Small") return cap==="Mid"||cap==="Small";
+      return true;
+    };
+    const bulls = FD.CONV.filter(c=>c.dir==="BULL"&&capOk(c)).slice(0,10).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-      dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", notes:""
+      dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", notes:"",
+      cap:wlCapCheck(c)
     }));
-    const bears = FD.CONV.filter(c=>c.dir==="BEAR").slice(0,10).map(c=>({
+    const bears = FD.CONV.filter(c=>c.dir==="BEAR"&&capOk(c)).slice(0,10).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-      dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", notes:""
+      dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", notes:"",
+      cap:wlCapCheck(c)
     }));
     setWlBull(bulls);
     setWlBear(bears);
   };
 
+  const wlAddTicker = (side) => {
+    const input = side==="bull"?wlAddBull.trim().toUpperCase():wlAddBear.trim().toUpperCase();
+    if (!input) return;
+    const setInput = side==="bull"?setWlAddBull:setWlAddBear;
+    const setList = side==="bull"?setWlBull:setWlBear;
+    const list = side==="bull"?wlBull:wlBear;
+    // Check if already exists
+    if (list.some(i=>i.sym===input)) { setInput(""); return; }
+    // Try to find in CONV data for auto-population
+    const match = FD?.CONV?.find(c=>c.sym===input);
+    const item = match ? {
+      sym:input, score:autoScore(match), autoScore:autoScore(match), tier:"WATCH",
+      strike:match.K||match.strike||"", exp:match.exp||"", cp:match.cp||"",
+      grade:match.grade||"", dir:side==="bull"?"BULL":"BEAR",
+      hits:match.hits||0, prem:match.prem||0, side:match.side||"", notes:"",
+      cap:wlCapCheck(match)
+    } : {
+      sym:input, score:5, autoScore:0, tier:"WATCH",
+      strike:"", exp:"", cp:side==="bull"?"C":"P",
+      grade:"", dir:side==="bull"?"BULL":"BEAR",
+      hits:0, prem:0, side:"", notes:"", cap:""
+    };
+    setList([...list, item]);
+    setInput("");
+  };
+
   const wlSave = () => {
     fetch("/api/watchlist/save",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({date:wlDate,bull:wlBull,bear:wlBear})
+      body:JSON.stringify({date:wlDate,bull:wlBull,bear:wlBear,removed:wlRemoved})
     }).then(r=>r.json()).then(()=>{
       fetch("/api/watchlist/dates").then(r=>r.json()).then(d=>setWlDates(d));
     }).catch(()=>{});
@@ -1221,7 +1268,7 @@ export default function OptionsFlowDashboard() {
 
   const wlLoad = (day) => {
     fetch("/api/watchlist/load/"+day).then(r=>r.json()).then(d=>{
-      setWlBull(d.bull||[]); setWlBear(d.bear||[]); setWlDate(day); setWlLoaded(true);
+      setWlBull(d.bull||[]); setWlBear(d.bear||[]); setWlRemoved(d.removed||[]); setWlDate(day); setWlLoaded(true);
     }).catch(()=>{});
   };
 
@@ -4653,32 +4700,44 @@ export default function OptionsFlowDashboard() {
           const tierC = (t) => t==="FULL"?"#00e676":t==="HALF"?"#ff9800":t==="PAPER MAX"?"#e040fb":t==="PAPER"?"#29b6f6":t==="WATCH"?"#78909c":t==="POST-ER"?"#ff6d00":"#616161";
           const scoreC = (s) => s>=9?P.bu:s>=7?"#ff9800":s>=5?P.ye:P.be;
 
+          const REMOVE_REASONS = ["Dirty flow","Arb/Hedge","Deep ITM/OTM","Low conviction","Already moved","Bad R/R","Mega cap noise","Other"];
+
           const renderItem = (item, idx, side) => {
             const key = side+"-"+idx;
             const isEditing = wlEditing===key;
+            const isRemoving = wlRemoving===key;
             const setList = side==="bull"?setWlBull:setWlBear;
             const list = side==="bull"?wlBull:wlBear;
             const update = (field,val) => { const n=[...list]; n[idx]={...n[idx],[field]:val}; setList(n); };
-            const remove = () => { const n=[...list]; n.splice(idx,1); setList(n); };
+            const confirmRemove = (reason) => {
+              setWlRemoved(prev=>[...prev,{...item, removeReason:reason, removedAt:new Date().toISOString()}]);
+              const n=[...list]; n.splice(idx,1); setList(n);
+              setWlRemoving(null); setWlRemoveReason(""); setWlEditing(null);
+            };
 
             return (
-              <div key={key} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 10px",
-                background:isEditing?P.ac+"08":P.cd, borderRadius:6, border:"1px solid "+(isEditing?P.ac+"40":P.bd),
+              <div key={key} style={{ display:"flex", flexDirection:"column", gap:0 }}>
+              <div style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 10px",
+                background:isEditing?P.ac+"08":(isRemoving?P.be+"08":P.cd), borderRadius:isRemoving?"6px 6px 0 0":6, border:"1px solid "+(isRemoving?P.be+"40":isEditing?P.ac+"40":P.bd),
+                borderBottom:isRemoving?"none":undefined,
                 cursor:"pointer", transition:"all 0.15s" }}
-                onClick={()=>setWlEditing(isEditing?null:key)}>
+                onClick={()=>{if(!isRemoving){setWlEditing(isEditing?null:key); setWlRemoving(null);}}}>
                 {/* Ticker + Score */}
                 <div style={{ minWidth:70 }}>
-                  <div style={{ fontSize:14, fontWeight:900, color:P.wh }}>{item.sym}</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                    <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{item.sym}</span>
+                    {item.cap && item.cap!=="Unknown" && <span style={{ fontSize:7, fontWeight:700, color:P.dm, background:P.al, padding:"1px 4px", borderRadius:2 }}>{item.cap}</span>}
+                  </div>
                   <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
                     {isEditing ? (
-                      <input type="number" step="0.5" min="0" max="12.5" value={item.score}
+                      <input type="number" step="0.5" min="0" max="10" value={item.score}
                         onChange={e=>update("score",parseFloat(e.target.value)||0)}
                         onClick={e=>e.stopPropagation()}
                         style={{ width:40, background:P.al, border:"1px solid "+P.bd, borderRadius:3, color:P.wh, fontSize:11, padding:"1px 4px", fontFamily:"inherit" }}/>
                     ) : (
-                      <span style={{ fontSize:12, fontWeight:800, color:scoreC(item.score) }}>{item.score}</span>
+                      <span style={{ fontSize:12, fontWeight:800, color:scoreC(item.score) }}>{Math.round(item.score*10)}%</span>
                     )}
-                    <span style={{ fontSize:9, color:P.dm }}>/12.5</span>
+                    
                   </div>
                 </div>
                 {/* Tier badge */}
@@ -4711,11 +4770,35 @@ export default function OptionsFlowDashboard() {
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2, minWidth:50 }}>
                   <Tag c={GRADE_COLORS[item.grade]||P.mt}>{item.grade}</Tag>
                   <span style={{ fontSize:9, color:P.dm }}>{item.hits}x · {fmt(item.prem)}</span>
-                  {isEditing && (
-                    <button onClick={e=>{e.stopPropagation(); remove();}}
+                  {isEditing && !isRemoving && (
+                    <button onClick={e=>{e.stopPropagation(); setWlRemoving(key); setWlRemoveReason("");}}
                       style={{ fontSize:8, color:P.be, background:"transparent", border:"1px solid "+P.be+"40", borderRadius:3, padding:"1px 6px", cursor:"pointer", fontFamily:"inherit", fontWeight:700, marginTop:2 }}>✕ Remove</button>
                   )}
                 </div>
+              </div>
+              {/* Removal reason prompt */}
+              {isRemoving && (
+                <div style={{ padding:"8px 10px", background:P.be+"06", border:"1px solid "+P.be+"40", borderTop:"none", borderRadius:"0 0 6px 6px" }}
+                  onClick={e=>e.stopPropagation()}>
+                  <div style={{ fontSize:10, fontWeight:700, color:P.be, marginBottom:6 }}>Why are you removing {item.sym}?</div>
+                  <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:6 }}>
+                    {REMOVE_REASONS.map(r=>(
+                      <button key={r} onClick={()=>confirmRemove(r)}
+                        style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.be+"30", background:P.al, color:P.dm, fontSize:9, fontWeight:600, fontFamily:"inherit", cursor:"pointer" }}
+                        onMouseEnter={e=>{e.currentTarget.style.background=P.be+"22";e.currentTarget.style.color=P.be;}}
+                        onMouseLeave={e=>{e.currentTarget.style.background=P.al;e.currentTarget.style.color=P.dm;}}>{r}</button>
+                    ))}
+                  </div>
+                  <div style={{ display:"flex", gap:4 }}>
+                    <input value={wlRemoveReason} onChange={e=>setWlRemoveReason(e.target.value)}
+                      onKeyDown={e=>e.key==="Enter"&&wlRemoveReason.trim()&&confirmRemove(wlRemoveReason.trim())}
+                      placeholder="Or type a custom reason..."
+                      style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"4px 8px", fontFamily:"inherit" }}/>
+                    <button onClick={()=>{setWlRemoving(null); setWlRemoveReason("");}}
+                      style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:9, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>Cancel</button>
+                  </div>
+                </div>
+              )}
               </div>
             );
           };
@@ -4732,7 +4815,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:10, color:P.dm }}>Auto-scored from flow data. Click any row to edit score, tier, and notes.</div>
                   </div>
                 </div>
-                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
                   {wlDates.length>0 && (
                     <select value={wlDate} onChange={e=>wlLoad(e.target.value)}
                       style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:5, color:P.wh, fontSize:10, padding:"4px 8px", fontFamily:"inherit" }}>
@@ -4740,6 +4823,15 @@ export default function OptionsFlowDashboard() {
                       {wlDates.map(d=><option key={d} value={d}>{d}</option>)}
                     </select>
                   )}
+                  <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                    {["All","No Mega","Mid+Small"].map(f=>(
+                      <button key={f} onClick={()=>setWlCapPref(f)}
+                        style={{ padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
+                          fontSize:9, fontWeight:700, fontFamily:"inherit",
+                          background:wlCapPref===f?P.cd:"transparent", color:wlCapPref===f?P.ye:P.dm
+                        }}>{f}</button>
+                    ))}
+                  </div>
                   <button onClick={wlPopulate}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     ⟳ Auto-Fill from Scanner
@@ -4763,6 +4855,14 @@ export default function OptionsFlowDashboard() {
                   {wlBull.length>0 ? wlBull.map((item,i)=>renderItem(item,i,"bull")) : (
                     <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>No bull picks. Click "Auto-Fill from Scanner" to populate.</div>
                   )}
+                  <div style={{ display:"flex", gap:4, marginTop:4 }}>
+                    <input value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
+                      onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bull")}
+                      placeholder="Add ticker..."
+                      style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
+                    <button onClick={()=>wlAddTicker("bull")}
+                      style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                  </div>
                 </div>
               </Card>
               {/* Bear */}
@@ -4775,9 +4875,94 @@ export default function OptionsFlowDashboard() {
                   {wlBear.length>0 ? wlBear.map((item,i)=>renderItem(item,i,"bear")) : (
                     <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>No bear picks. Click "Auto-Fill from Scanner" to populate.</div>
                   )}
+                  <div style={{ display:"flex", gap:4, marginTop:4 }}>
+                    <input value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
+                      onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bear")}
+                      placeholder="Add ticker..."
+                      style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
+                    <button onClick={()=>wlAddTicker("bear")}
+                      style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                  </div>
                 </div>
               </Card>
             </div>
+            {/* Scanner Suggestions — overflow picks not yet on watchlist */}
+            {FD && FD.CONV && (() => {
+              const existingSyms = new Set([...wlBull.map(i=>i.sym+"|"+i.exp+"|"+i.strike), ...wlBear.map(i=>i.sym+"|"+i.exp+"|"+i.strike)]);
+              const capOk = (c) => { const cap=wlCapCheck(c); return wlCapPref==="All"?true:wlCapPref==="No Mega"?cap!=="Mega":(cap==="Mid"||cap==="Small"); };
+              const overflow = FD.CONV.filter(c=>capOk(c)&&!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)))
+                .map(c=>({...c, _score:autoScore(c), _cap:wlCapCheck(c)}))
+                .sort((a,b)=>b._score-a._score);
+              const bullSugg = overflow.filter(c=>c.dir==="BULL").slice(0,15);
+              const bearSugg = overflow.filter(c=>c.dir==="BEAR").slice(0,15);
+              if (!bullSugg.length && !bearSugg.length) return null;
+
+              const addFromSugg = (c, side) => {
+                const item = {
+                  sym:c.sym, score:c._score, autoScore:c._score, tier:"WATCH",
+                  strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+                  dir:side==="bull"?"BULL":"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", notes:"",
+                  cap:c._cap
+                };
+                if (side==="bull") setWlBull(prev=>[...prev,item]);
+                else setWlBear(prev=>[...prev,item]);
+              };
+
+              const renderSuggRow = (c, side) => (
+                <div key={c.sym+c.exp+(c.K||c.strike)} style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 8px", background:P.al, borderRadius:4 }}>
+                  <button onClick={()=>addFromSugg(c,side)}
+                    style={{ padding:"2px 8px", borderRadius:3, border:"none", background:side==="bull"?P.bu+"22":P.be+"22", color:side==="bull"?P.bu:P.be, fontSize:10, fontWeight:800, fontFamily:"inherit", cursor:"pointer" }}>+</button>
+                  <span style={{ fontSize:12, fontWeight:800, color:P.wh, minWidth:50 }}>{c.sym}</span>
+                  {c._cap && c._cap!=="Unknown" && <span style={{ fontSize:7, fontWeight:700, color:P.dm, background:P.cd, padding:"1px 4px", borderRadius:2 }}>{c._cap}</span>}
+                  <span style={{ fontSize:10, fontWeight:800, color:c._score>=7?P.bu:c._score>=5?"#ff9800":P.ye }}>{Math.round(c._score*10)}%</span>
+                  <span style={{ fontSize:10, color:c.cp==="C"?P.bu:P.be }}>{c.cp==="C"?"C":"P"} ${c.K||c.strike} {c.exp}</span>
+                  <Tag c={GRADE_COLORS[c.grade]||P.mt}>{c.grade}</Tag>
+                  <span style={{ fontSize:9, color:P.dm }}>{c.hits}x · {fmt(c.prem)}</span>
+                  <span style={{ fontSize:9, color:P.dm, marginLeft:"auto" }}>{c.side}</span>
+                </div>
+              );
+
+              return (
+                <Card>
+                  <div style={{ fontSize:11, fontWeight:800, color:P.ac, letterSpacing:1, marginBottom:8 }}>📋 SCANNER SUGGESTIONS — not yet on watchlist</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                    <div>
+                      <div style={{ fontSize:10, fontWeight:700, color:P.bu, marginBottom:4 }}>▲ Bull ({bullSugg.length})</div>
+                      <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                        {bullSugg.map(c=>renderSuggRow(c,"bull"))}
+                        {!bullSugg.length && <div style={{ fontSize:10, color:P.dm, padding:8 }}>No more bull suggestions</div>}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize:10, fontWeight:700, color:P.be, marginBottom:4 }}>▼ Bear ({bearSugg.length})</div>
+                      <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                        {bearSugg.map(c=>renderSuggRow(c,"bear"))}
+                        {!bearSugg.length && <div style={{ fontSize:10, color:P.dm, padding:8 }}>No more bear suggestions</div>}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })()}
+            {/* Removed Log */}
+            {wlRemoved.length>0 && (
+              <Card>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                  <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>✕ REMOVED ({wlRemoved.length})</div>
+                  <span style={{ fontSize:9, color:P.dm }}>Saved with watchlist for pattern analysis</span>
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  {wlRemoved.map((r,i)=>(
+                    <div key={i} style={{ display:"flex", gap:8, alignItems:"center", padding:"4px 8px", background:P.al, borderRadius:4, opacity:0.7 }}>
+                      <span style={{ fontSize:11, fontWeight:800, color:P.dm, minWidth:50 }}>{r.sym}</span>
+                      <span style={{ fontSize:9, color:r.cp==="C"?P.bu:P.be }}>{r.cp==="C"?"C":"P"} ${r.strike} {r.exp}</span>
+                      <span style={{ fontSize:9, fontWeight:700, color:P.be, background:P.be+"15", padding:"1px 6px", borderRadius:3 }}>{r.removeReason}</span>
+                      <span style={{ fontSize:8, color:P.dm, marginLeft:"auto" }}>{r.grade} · {r.hits}x · {fmt(r.prem)}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </div>
           );
         })()}
