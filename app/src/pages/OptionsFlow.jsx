@@ -1216,16 +1216,16 @@ export default function OptionsFlowDashboard() {
       if (wlCapPref==="Mid+Small") return cap==="Mid"||cap==="Small";
       return true;
     };
-    const bulls = FD.CONV.filter(c=>c.dir==="BULL"&&capOk(c)).slice(0,10).map(c=>({
+    const bulls = FD.CONV.filter(c=>c.cp==="C"&&capOk(c)).slice(0,10).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-      dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", notes:"",
+      dir:c.dir||"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
       cap:wlCapCheck(c)
     }));
-    const bears = FD.CONV.filter(c=>c.dir==="BEAR"&&capOk(c)).slice(0,10).map(c=>({
+    const bears = FD.CONV.filter(c=>c.cp==="P"&&capOk(c)).slice(0,10).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-      dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", notes:"",
+      dir:c.dir||"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
       cap:wlCapCheck(c)
     }));
     setWlBull(bulls);
@@ -1246,13 +1246,13 @@ export default function OptionsFlowDashboard() {
       sym:input, score:autoScore(match), autoScore:autoScore(match), tier:"WATCH",
       strike:match.K||match.strike||"", exp:match.exp||"", cp:match.cp||"",
       grade:match.grade||"", dir:side==="bull"?"BULL":"BEAR",
-      hits:match.hits||0, prem:match.prem||0, side:match.side||"", notes:"",
+      hits:match.hits||0, prem:match.prem||0, side:match.side||"", er:match.er||false, notes:"",
       cap:wlCapCheck(match)
     } : {
       sym:input, score:5, autoScore:0, tier:"WATCH",
       strike:"", exp:"", cp:side==="bull"?"C":"P",
       grade:"", dir:side==="bull"?"BULL":"BEAR",
-      hits:0, prem:0, side:"", notes:"", cap:""
+      hits:0, prem:0, side:"", er:false, notes:"", cap:""
     };
     setList([...list, item]);
     setInput("");
@@ -4727,6 +4727,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{item.sym}</span>
                     {item.cap && item.cap!=="Unknown" && <span style={{ fontSize:7, fontWeight:700, color:P.dm, background:P.al, padding:"1px 4px", borderRadius:2 }}>{item.cap}</span>}
+                    {item.er && <span style={{ fontSize:7, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00" }}>ER</span>}
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
                     {isEditing ? (
@@ -4893,15 +4894,15 @@ export default function OptionsFlowDashboard() {
               const overflow = FD.CONV.filter(c=>capOk(c)&&!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)))
                 .map(c=>({...c, _score:autoScore(c), _cap:wlCapCheck(c)}))
                 .sort((a,b)=>b._score-a._score);
-              const bullSugg = overflow.filter(c=>c.dir==="BULL").slice(0,15);
-              const bearSugg = overflow.filter(c=>c.dir==="BEAR").slice(0,15);
+              const bullSugg = overflow.filter(c=>c.cp==="C").slice(0,15);
+              const bearSugg = overflow.filter(c=>c.cp==="P").slice(0,15);
               if (!bullSugg.length && !bearSugg.length) return null;
 
               const addFromSugg = (c, side) => {
                 const item = {
                   sym:c.sym, score:c._score, autoScore:c._score, tier:"WATCH",
                   strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-                  dir:side==="bull"?"BULL":"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", notes:"",
+                  dir:side==="bull"?"BULL":"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
                   cap:c._cap
                 };
                 if (side==="bull") setWlBull(prev=>[...prev,item]);
