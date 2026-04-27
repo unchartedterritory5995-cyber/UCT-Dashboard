@@ -1205,10 +1205,15 @@ export default function OptionsFlowDashboard() {
   };
 
   const MEGA_TICKERS = new Set(["AAPL","MSFT","NVDA","GOOGL","GOOG","AMZN","META","TSLA","BRK.B","LLY","AVGO","JPM","V","UNH","WMT","MA","XOM","COST","JNJ","HD","PG","ABBV","NFLX","BAC","CRM","AMD","KO","MRK","PEP","TMO","ADBE","MCD","CSCO","INTU","QCOM","GS","BKNG","NOW","MU","PANW","SNPS","CDNS","ANET","PYPL","CMG","ORLY","COP","CVX"]);
+  const MID_TICKERS = new Set(["CAR","RSI","ZETA","WULF","SNAP","PLUG","CORZ","UUUU","QS","PBI","CIFR","MARA","RIOT","CLSK","HUT","LCID","ENPH","SEDG","RUN","HIMS","DUOL","CROX","DOCS","BILL","GTLB","DOCN","CELH","AVTR","ELF","MBLY","SOUN","JOBY","LUNR","RGTI","SMR","ACHR","DJT","PTON","LYFT","RIG","CLF","MOS","PENN","CZR","MGM","NCLH","ANF","KMX","WHR","SFM","OLLI","WING","EAT","COMP","LMND","UPST","PATH","S","SEI","WIX","SRAD","BLSH","BTU","NXE","UEC","FRMI","FLNC","SIRI","VFC"]);
+  const SMALL_TICKERS = new Set(["INDI","GOGO","POET","AMC","FCEL","SPCE","TLRY","HTZ","BYND","RCAT","SLDP","BBAI","SKLZ","CLOV","WOLF","ASAN","FVRR","PURR","RXRX","NNE","BFLY","MAX","JBLU","KSS","XRX","GPRO","PZZA","LAC","OCGN","PRCH","NEXT"]);
   const wlCapCheck = (c) => {
     const cap = capBand(c.mktcap);
     if (cap !== "Unknown") return cap;
-    return MEGA_TICKERS.has(c.sym) ? "Mega" : "Large";
+    if (MEGA_TICKERS.has(c.sym)) return "Mega";
+    if (SMALL_TICKERS.has(c.sym)) return "Small";
+    if (MID_TICKERS.has(c.sym)) return "Mid";
+    return "Large";
   };
 
   const wlPopulate = () => {
