@@ -997,7 +997,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Ideas","Top Flow","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker"];
+const TABS = ["Market Read","Ideas","Top Flow","Performance","Search","Short Term","Long Term","LEAPS","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -1171,6 +1171,63 @@ export default function OptionsFlowDashboard() {
   const [trackerLookback, setTrackerLookback] = useState(7);
   const [trackerSort, setTrackerSort] = useState("recent");
   const [trackerCapFilter, setTrackerCapFilter] = useState("All");
+
+  // ─── Watchlist State ─────────────────────────────────────────────────
+  const [wlBull, setWlBull] = useState([]);
+  const [wlBear, setWlBear] = useState([]);
+  const [wlDate, setWlDate] = useState(new Date().toISOString().slice(0,10));
+  const [wlDates, setWlDates] = useState([]);
+  const [wlEditing, setWlEditing] = useState(null); // "bull-0", "bear-2", etc
+  const [wlLoaded, setWlLoaded] = useState(false);
+
+  const autoScore = (c) => {
+    let s = 0;
+    const g = c.grade||"";
+    s += g==="A+"?3:g==="A"?2.5:g==="B+"?2:g==="B"?1.5:g==="C"?1:0.5;
+    const h = c.hits||0;
+    s += h>=10?3:h>=5?2:h>=2?1.5:1;
+    const p = c.prem||0;
+    s += p>=10e6?3:p>=5e6?2.5:p>=1e6?2:p>=500e3?1.5:1;
+    const v = c.volOI||0;
+    s += v>=3?1.5:v>=2?1:0.5;
+    const sd = c.side||"";
+    s += sd==="AA"?1.5:sd==="BB"?1:0.5;
+    return Math.min(12.5, Math.round(s*10)/10);
+  };
+
+  const wlPopulate = () => {
+    if (!FD || !FD.CONV) return;
+    const bulls = FD.CONV.filter(c=>c.dir==="BULL").slice(0,10).map(c=>({
+      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+      dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", notes:""
+    }));
+    const bears = FD.CONV.filter(c=>c.dir==="BEAR").slice(0,10).map(c=>({
+      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+      dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", notes:""
+    }));
+    setWlBull(bulls);
+    setWlBear(bears);
+  };
+
+  const wlSave = () => {
+    fetch("/api/watchlist/save",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({date:wlDate,bull:wlBull,bear:wlBear})
+    }).then(r=>r.json()).then(()=>{
+      fetch("/api/watchlist/dates").then(r=>r.json()).then(d=>setWlDates(d));
+    }).catch(()=>{});
+  };
+
+  const wlLoad = (day) => {
+    fetch("/api/watchlist/load/"+day).then(r=>r.json()).then(d=>{
+      setWlBull(d.bull||[]); setWlBear(d.bear||[]); setWlDate(day); setWlLoaded(true);
+    }).catch(()=>{});
+  };
+
+  useEffect(()=>{
+    fetch("/api/watchlist/dates").then(r=>r.ok?r.json():[]).then(d=>setWlDates(d)).catch(()=>{});
+  },[]);
   const [showArchived, setShowArchived] = useState(false);
 
   // Fetch history after initial render (deferred)
@@ -4586,6 +4643,141 @@ export default function OptionsFlowDashboard() {
                 </table>
               </Card>
             )}
+          </div>
+          );
+        })()}
+
+        {/* Watchlist */}
+        {tab==="Watchlist" && (() => {
+          const TIERS = ["FULL","HALF","PAPER MAX","PAPER","WATCH","POST-ER","DQ"];
+          const tierC = (t) => t==="FULL"?"#00e676":t==="HALF"?"#ff9800":t==="PAPER MAX"?"#e040fb":t==="PAPER"?"#29b6f6":t==="WATCH"?"#78909c":t==="POST-ER"?"#ff6d00":"#616161";
+          const scoreC = (s) => s>=9?P.bu:s>=7?"#ff9800":s>=5?P.ye:P.be;
+
+          const renderItem = (item, idx, side) => {
+            const key = side+"-"+idx;
+            const isEditing = wlEditing===key;
+            const setList = side==="bull"?setWlBull:setWlBear;
+            const list = side==="bull"?wlBull:wlBear;
+            const update = (field,val) => { const n=[...list]; n[idx]={...n[idx],[field]:val}; setList(n); };
+            const remove = () => { const n=[...list]; n.splice(idx,1); setList(n); };
+
+            return (
+              <div key={key} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 10px",
+                background:isEditing?P.ac+"08":P.cd, borderRadius:6, border:"1px solid "+(isEditing?P.ac+"40":P.bd),
+                cursor:"pointer", transition:"all 0.15s" }}
+                onClick={()=>setWlEditing(isEditing?null:key)}>
+                {/* Ticker + Score */}
+                <div style={{ minWidth:70 }}>
+                  <div style={{ fontSize:14, fontWeight:900, color:P.wh }}>{item.sym}</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
+                    {isEditing ? (
+                      <input type="number" step="0.5" min="0" max="12.5" value={item.score}
+                        onChange={e=>update("score",parseFloat(e.target.value)||0)}
+                        onClick={e=>e.stopPropagation()}
+                        style={{ width:40, background:P.al, border:"1px solid "+P.bd, borderRadius:3, color:P.wh, fontSize:11, padding:"1px 4px", fontFamily:"inherit" }}/>
+                    ) : (
+                      <span style={{ fontSize:12, fontWeight:800, color:scoreC(item.score) }}>{item.score}</span>
+                    )}
+                    <span style={{ fontSize:9, color:P.dm }}>/12.5</span>
+                  </div>
+                </div>
+                {/* Tier badge */}
+                <div style={{ minWidth:75 }}>
+                  {isEditing ? (
+                    <select value={item.tier} onChange={e=>{update("tier",e.target.value); e.stopPropagation();}}
+                      onClick={e=>e.stopPropagation()}
+                      style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:9, padding:"3px 4px", fontFamily:"inherit", fontWeight:700 }}>
+                      {TIERS.map(t=><option key={t} value={t}>{t}</option>)}
+                    </select>
+                  ) : (
+                    <span style={{ fontSize:9, fontWeight:800, padding:"2px 8px", borderRadius:4, background:tierC(item.tier)+"22", color:tierC(item.tier), border:"1px solid "+tierC(item.tier)+"44" }}>{item.tier}</span>
+                  )}
+                </div>
+                {/* Strike/Exp */}
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:item.cp==="C"?P.bu:P.be }}>
+                    {item.cp==="C"?"CALL":"PUT"} ${item.strike} {item.exp}
+                  </div>
+                  {isEditing ? (
+                    <textarea value={item.notes||""} onChange={e=>{update("notes",e.target.value); e.stopPropagation();}}
+                      onClick={e=>e.stopPropagation()}
+                      placeholder="Trade notes, DP checks, GSA status..."
+                      style={{ width:"100%", minHeight:40, marginTop:4, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"4px 6px", fontFamily:"inherit", resize:"vertical" }}/>
+                  ) : item.notes ? (
+                    <div style={{ fontSize:10, color:P.dm, marginTop:2, lineHeight:1.4 }}>{item.notes}</div>
+                  ) : null}
+                </div>
+                {/* Meta + Remove */}
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2, minWidth:50 }}>
+                  <Tag c={GRADE_COLORS[item.grade]||P.mt}>{item.grade}</Tag>
+                  <span style={{ fontSize:9, color:P.dm }}>{item.hits}x · {fmt(item.prem)}</span>
+                  {isEditing && (
+                    <button onClick={e=>{e.stopPropagation(); remove();}}
+                      style={{ fontSize:8, color:P.be, background:"transparent", border:"1px solid "+P.be+"40", borderRadius:3, padding:"1px 6px", cursor:"pointer", fontFamily:"inherit", fontWeight:700, marginTop:2 }}>✕ Remove</button>
+                  )}
+                </div>
+              </div>
+            );
+          };
+
+          return (
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            {/* Header */}
+            <Card>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:3, height:28, background:P.ac, borderRadius:2 }}/>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700, color:P.ac }}>Final Watchlist — {wlDate}</div>
+                    <div style={{ fontSize:10, color:P.dm }}>Auto-scored from flow data. Click any row to edit score, tier, and notes.</div>
+                  </div>
+                </div>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {wlDates.length>0 && (
+                    <select value={wlDate} onChange={e=>wlLoad(e.target.value)}
+                      style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:5, color:P.wh, fontSize:10, padding:"4px 8px", fontFamily:"inherit" }}>
+                      <option value={new Date().toISOString().slice(0,10)}>Today</option>
+                      {wlDates.map(d=><option key={d} value={d}>{d}</option>)}
+                    </select>
+                  )}
+                  <button onClick={wlPopulate}
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    ⟳ Auto-Fill from Scanner
+                  </button>
+                  <button onClick={wlSave}
+                    style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    💾 Save Watchlist
+                  </button>
+                </div>
+              </div>
+            </Card>
+            {/* Two-column layout */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              {/* Bull */}
+              <Card>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                  <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
+                  <span style={{ fontSize:9, color:P.dm }}>{wlBull.length} tickers</span>
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {wlBull.length>0 ? wlBull.map((item,i)=>renderItem(item,i,"bull")) : (
+                    <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>No bull picks. Click "Auto-Fill from Scanner" to populate.</div>
+                  )}
+                </div>
+              </Card>
+              {/* Bear */}
+              <Card>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                  <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
+                  <span style={{ fontSize:9, color:P.dm }}>{wlBear.length} tickers</span>
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {wlBear.length>0 ? wlBear.map((item,i)=>renderItem(item,i,"bear")) : (
+                    <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>No bear picks. Click "Auto-Fill from Scanner" to populate.</div>
+                  )}
+                </div>
+              </Card>
+            </div>
           </div>
           );
         })()}
