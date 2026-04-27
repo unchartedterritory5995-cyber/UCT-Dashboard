@@ -71,8 +71,8 @@ def _get_anthropic_client():
 
 # ── Earnings analysis configuration ───────────────────────────────────────────
 _EARNINGS_NEWS_MAX_ITEMS    = 4        # max Finnhub headlines per ticker
-_EARNINGS_AI_MAX_TOKENS         = 450      # Haiku response token limit (JSON structured)
-_EARNINGS_PREVIEW_AI_MAX_TOKENS = 350  # JSON-structured output fits in fewer tokens
+_EARNINGS_AI_MAX_TOKENS         = 1800     # post-earnings: rich narrative + 5 substantive bullets
+_EARNINGS_PREVIEW_AI_MAX_TOKENS = 1800     # pre-earnings: strategist-note paragraph + 5 substantive bullets
 _EARNINGS_CACHE_TTL_HIT     = 43_200   # 12 h — full result cached after success
 _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
 _AV_TIMEOUT_SECS            = 8        # Alpha Vantage request timeout
@@ -795,8 +795,13 @@ def _normalize_earnings(raw, amc_tonight_raw=None) -> dict:
 
 
 def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
-    """Generate Claude Haiku earnings analysis + fetch AV history + Finnhub news. Cached 12h."""
-    cache_key = f"earnings_analysis_{sym}"
+    """Generate Claude Haiku earnings analysis + fetch AV history + Finnhub news. Cached 12h.
+
+    Cache key is versioned (v2) — bumped when the strategist-note prompt
+    redesign shipped so users get fresh richer output instead of short
+    bullets cached under v1.
+    """
+    cache_key = f"earnings_analysis_v2_{sym}"
     cached = cache.get(cache_key)
     if cached:
         return cached
@@ -872,9 +877,22 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
     except Exception as _e:
         _logger.warning("Finnhub news fetch failed for %s: %s", sym, _e)
 
-    # ── Step 3: AI analysis (non-Pending only, JSON-structured) ────────────────
+    # ── Step 3: Run enrichment FIRST so the AI prompt can use it ──────────────
+    # All best-effort — each helper returns None on failure. Running this before
+    # the AI call lets the model see implied move, historical move, revisions,
+    # pre-earnings price action, and beat magnitudes for a much richer analysis.
+    enrichment = {}
+    try:
+        from api.services.earnings_enrichment import enrich_earnings_response
+        earnings_date = (row or {}).get("date") or (row or {}).get("earnings_date")
+        enrichment = enrich_earnings_response(sym, quarters or [], earnings_date)
+    except Exception as _e:
+        _logger.warning("enrichment failed for %s (analysis): %s", sym, _e)
+
+    # ── Step 4: AI analysis (non-Pending only, JSON-structured) ───────────────
     analysis = None
     analysis_headline = None
+    analysis_summary = None
     analysis_bullets = []
     is_pending = not row or row.get("verdict", "").lower() in ("pending", "")
     if not is_pending:
@@ -893,43 +911,155 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
                 if change_pct is not None else "N/A"
             )
 
-            context_parts = []
-            if yoy_eps_growth:
-                context_parts.append(f"YoY EPS growth: {yoy_eps_growth}")
-            if beat_streak:
-                context_parts.append(f"Beat history: {beat_streak}")
-            if news_items:
-                context_parts.append(
-                    "Recent headlines: "
-                    + " / ".join(n["headline"] for n in news_items[:2] if n["headline"])
+            # Build a dense, trader-focused context block from all enrichment data
+            ctx = []
+            ctx.append(
+                f"Verdict: {row.get('verdict', 'N/A')} · "
+                f"EPS {_fmt_eps(row.get('eps_estimate'))} → "
+                f"{_fmt_eps(row.get('reported_eps'))} "
+                f"({row.get('surprise_pct', 'N/A')} surprise)"
+            )
+            ctx.append(
+                f"Revenue {_fmt_rev(row.get('rev_estimate'))} → "
+                f"{_fmt_rev(row.get('rev_actual'))} "
+                f"({row.get('rev_surprise_pct', 'N/A')} surprise)"
+            )
+            # Pre-earnings setup — what the stock did into the print
+            pe = enrichment.get("pre_earnings") or {}
+            if pe.get("label"):
+                ctx.append(f"Heading in: {pe['label']}")
+            # Reaction vs implied/historical — was move expected?
+            im = enrichment.get("implied_move") or {}
+            hm = enrichment.get("hist_moves") or {}
+            reaction_parts = [f"Stock reaction: {gap_str}"]
+            if im.get("pct"):
+                reaction_parts.append(f"options implied ±{im['pct']}%")
+            if hm.get("avg_abs_move_pct"):
+                reaction_parts.append(
+                    f"hist avg ±{hm['avg_abs_move_pct']}% over "
+                    f"last {hm.get('n_quarters', '?')} reports"
                 )
-            context_block = "\n".join(context_parts)
+            ctx.append(" · ".join(reaction_parts))
+            # Beat history with magnitudes (not just count)
+            bs = enrichment.get("beat_surprises") or []
+            if bs:
+                recent = bs[:4]
+                mags = ", ".join(
+                    f"{'+' if s['surprise_pct'] >= 0 else ''}{s['surprise_pct']}%"
+                    for s in recent
+                )
+                ctx.append(f"Last 4 EPS surprises (most recent first): {mags}")
+            elif beat_streak:
+                ctx.append(f"Beat history: {beat_streak}")
+            # YoY direction
+            if yoy_eps_growth:
+                ctx.append(f"YoY EPS: {yoy_eps_growth}")
+            # Estimate / analyst revision trend going in
+            rv = enrichment.get("revisions") or {}
+            if rv.get("label"):
+                ctx.append(f"Pre-print revisions: {rv['label']}")
+            # Key quotes from prior call (if available — gives signal on guidance shifts)
+            kq = enrichment.get("key_quotes") or []
+            if kq:
+                top_quotes = kq[:2]
+                quote_lines = " | ".join(
+                    f"[{q.get('topic', 'topic')}] {q.get('text', '')[:140]}"
+                    for q in top_quotes
+                    if q.get("text")
+                )
+                if quote_lines:
+                    ctx.append(f"Prior call quotes: {quote_lines}")
+            # Recent headlines — top 3
+            if news_items:
+                top_news = news_items[:3]
+                heads = " · ".join(
+                    f"{n['headline']}"
+                    for n in top_news
+                    if n.get("headline")
+                )
+                if heads:
+                    ctx.append(f"Recent news: {heads}")
+
+            context_block = "\n".join(f"- {line}" for line in ctx)
 
             prompt = (
-                f"Analyze this earnings report for {sym}.\n"
-                f"Return JSON only — no markdown, no explanation.\n\n"
-                f"Verdict: {row.get('verdict')}\n"
-                f"EPS: Expected {_fmt_eps(row.get('eps_estimate'))} → "
-                f"Reported {_fmt_eps(row.get('reported_eps'))} "
-                f"({row.get('surprise_pct', 'N/A')} surprise)\n"
-                f"Revenue: Expected {_fmt_rev(row.get('rev_estimate'))} → "
-                f"Reported {_fmt_rev(row.get('rev_actual'))} "
-                f"({row.get('rev_surprise_pct', 'N/A')} surprise)\n"
-                f"Stock reaction: {gap_str}\n"
-            )
-            if context_block:
-                prompt += f"{context_block}\n"
-            prompt += (
-                '\nJSON format (exactly):\n'
-                '{"headline": "<1 sentence verdict summary>", '
-                '"bullets": ['
-                '"<what the numbers say about business health>", '
-                '"<whether this is consistent with historical trend>", '
-                '"<what the market reaction implies about expectations>", '
-                '"<guidance or outlook signal if any>", '
-                '"<key risk or catalyst going forward>"'
-                "]}\n\n"
-                "Be specific to this company. No trade advice."
+                f"You are a senior buy-side options strategist writing a "
+                f"post-earnings briefing for {sym}'s earnings print that just "
+                f"released. Your job is to produce a detailed, specific, "
+                f"trader-actionable analysis that pulls from your knowledge of "
+                f"this company's business model, segment dynamics, peer competitive "
+                f"positioning, and prior management commentary — combined with the "
+                f"LIVE PRINT DATA below.\n\n"
+                f"==== LIVE PRINT DATA ====\n{context_block}\n\n"
+                "==== HOW TO THINK ====\n"
+                f"Before writing, draw on what you know about {sym}:\n"
+                "  - Which 2-3 SPECIFIC business segments or product lines drove "
+                "the surprise (or miss) — name them concretely (Reels, Cloud, "
+                "iPhone, Data Center, Networking, etc.)\n"
+                "  - The named KPIs the buy-side actually models for this "
+                "company (DAU growth, take rate, ARPU, segment margin, AI/cloud "
+                "growth %, ad pricing, subs net adds, capex absorption — pick "
+                "what's specific to THIS company)\n"
+                "  - The recent earnings narrative arc — did this print extend "
+                "the streak, break it, accelerate, or signal transition? Use "
+                "the surprise magnitudes and YoY context above.\n"
+                "  - What management's prior guidance said vs what they likely "
+                "said today on the call — frame the guidance trajectory\n"
+                "  - Whether the stock reaction was IN-line, UNDER-, or OVER- "
+                "the options-implied move — and what that says about positioning\n"
+                "  - Macro/peer dynamics relevant to this name (peer prints, "
+                "AI capex cycle, ad market, rates, regulatory)\n\n"
+                "==== OUTPUT FORMAT ====\n"
+                "Return JSON only — no markdown fences, no preamble outside the JSON:\n"
+                "{\n"
+                '  "headline": "<1-2 sentence verdict that captures the print + '
+                "reaction in trader terms — e.g., 'Q1 came in $0.12 ahead on the "
+                "line but light on data center; stock sold the news inside the "
+                'implied move\'>",\n'
+                '  "summary": "<5-8 sentence strategist-note paragraph: (1) what '
+                "the company reported with specific surprise %, (2) what the most "
+                "important segment(s) or KPI(s) did or implied, (3) how the stock "
+                "reaction compares to the options-implied move and historical "
+                "move and what that means for positioning, (4) what guidance "
+                "signaled for forward (specific bracket / segment / margin), (5) "
+                "where the print fits in the recent narrative arc (extend "
+                "beat-and-raise / break it / accelerate / decelerate), (6) what "
+                'the buy-side debate is going forward.>",\n'
+                '  "bullets": [\n'
+                '    "<THE PRINT: EPS and revenue surprise magnitudes (quote '
+                "them) + what they say about underlying business health vs the "
+                'prior trend. 60-90 words.>",\n'
+                '    "<REACTION DECODED: actual stock move vs implied move vs '
+                "historical — was this in-line, under-, or over- expected? "
+                "What does that say about positioning, expectations, and "
+                'whether the move is fadeable or extendable? 60-90 words.>",\n'
+                '    "<TREND CONSISTENCY: how this print fits vs the last 4 '
+                "surprise magnitudes and YoY trajectory — accelerating, "
+                'decelerating, breaking, or stable? Quote the magnitudes. 60-90 words.>",\n'
+                '    "<GUIDANCE / OUTLOOK: what the company said (or implied) '
+                "about forward — be specific to a metric/segment/range. If "
+                'missing, name the gap and what was expected. 60-90 words.>",\n'
+                '    "<NEXT CATALYST OR RISK: a SPECIFIC event/segment/KPI to '
+                "watch into next quarter — name it concretely (margin line, "
+                "segment growth rate, capex digestion, peer print, regulatory "
+                'event, etc.). 60-90 words.>"\n'
+                '  ]\n'
+                "}\n\n"
+                "==== RULES ====\n"
+                f"- Be SPECIFIC to {sym}'s actual business. Don't write generic "
+                "'investors will watch' when you can write 'AWS growth rate "
+                "deceleration vs Azure' or 'iPhone ASP and India mix.'\n"
+                "- QUOTE real numbers from CONTEXT (surprise %, gap %, implied "
+                "move, historical move). These are not optional — they are the "
+                "spine of the briefing.\n"
+                "- Use your training knowledge of this company's segments, "
+                "prior management commentary, and peer dynamics — but don't "
+                "fabricate specific numbers you don't have. Frame uncertain "
+                "ranges qualitatively.\n"
+                "- No directional trade calls. Surface signal, asymmetry, and "
+                "tradeable structure only.\n"
+                "- Aim for the depth of a strategist's morning note (think: a "
+                "well-written sell-side post-earnings recap), not a press release."
             )
 
             client = _get_anthropic_client()
@@ -947,28 +1077,22 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
                 raw = raw.strip()
             parsed = json.loads(raw)
             analysis_headline = str(parsed.get("headline", "")).strip()
-            analysis_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:5]]
-            # Populate legacy `analysis` field as joined text for backwards compat
-            analysis = analysis_headline
+            analysis_summary  = str(parsed.get("summary",  "")).strip()
+            analysis_bullets  = [str(b).strip() for b in parsed.get("bullets", [])[:5]]
+            # Populate legacy `analysis` field — prefer summary, fall back to headline
+            analysis = analysis_summary or analysis_headline
         except Exception as _e:
             _logger.warning("AI analysis failed for %s: %s", sym, _e, exc_info=True)
             analysis = None
             analysis_headline = None
+            analysis_summary  = None
             analysis_bullets = []
-
-    # ── Enrichment: pre-earnings context, historical moves, revisions, etc. ─
-    enrichment = {}
-    try:
-        from api.services.earnings_enrichment import enrich_earnings_response
-        earnings_date = (row or {}).get("date") or (row or {}).get("earnings_date")
-        enrichment = enrich_earnings_response(sym, quarters or [], earnings_date)
-    except Exception as _e:
-        _logger.warning("enrichment failed for %s (analysis): %s", sym, _e)
 
     result = {
         "sym":               sym,
         "analysis":          analysis,
         "analysis_headline": analysis_headline,
+        "analysis_summary":  analysis_summary,
         "analysis_bullets":  analysis_bullets,
         "yoy_eps_growth":    yoy_eps_growth,
         "beat_streak":       beat_streak,
@@ -993,10 +1117,14 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
 
     row may be None or {} (e.g., when called for a future calendar entry not in
     today's bmo/amc); the function falls back to N/A for missing context.
+
+    Cache key is versioned (v2) — bumped when the strategist-note prompt
+    redesign shipped so users get fresh richer output instead of short
+    bullets cached under v1.
     """
     if row is None:
         row = {"sym": sym}
-    cache_key = f"earnings_preview_{sym}"
+    cache_key = f"earnings_preview_v2_{sym}"
     cached = cache.get(cache_key)
     if cached:
         return cached
@@ -1070,7 +1198,19 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
     except Exception as _e:
         _logger.warning("Finnhub news fetch failed for %s (preview): %s", sym, _e)
 
-    # ── Step 3: AI preview (forward-looking, JSON-structured) ─────────────────
+    # ── Step 3: Run enrichment FIRST so the AI prompt can use it ──────────────
+    # All best-effort — each helper returns None on failure. Running this before
+    # the AI call lets the model see implied move, historical move, revisions,
+    # pre-earnings price action, and beat magnitudes for a much richer preview.
+    enrichment = {}
+    try:
+        from api.services.earnings_enrichment import enrich_earnings_response
+        earnings_date = row.get("date") or row.get("earnings_date")
+        enrichment = enrich_earnings_response(sym, quarters or [], earnings_date)
+    except Exception as _e:
+        _logger.warning("enrichment failed for %s (preview): %s", sym, _e)
+
+    # ── Step 4: AI preview (forward-looking, JSON-structured) ─────────────────
     preview_text    = ""
     preview_bullets = []
     try:
@@ -1088,34 +1228,177 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
             if change_pct is not None else "N/A"
         )
 
-        context_parts = []
-        if beat_streak:
-            context_parts.append(f"Beat history: {beat_streak} | YoY EPS: {yoy_eps_growth}")
-        if news_items:
-            context_parts.append(
-                "Recent headlines: "
-                + " / ".join(n["headline"] for n in news_items[:2] if n["headline"])
+        # ── Build a dense, strategist-note-quality context block ──────────────
+        ctx = []
+        # Report timing + date framing
+        timing_label = (row.get("session") or row.get("when") or "").upper()
+        timing_str = (
+            "before the open" if timing_label in ("BMO", "BEFORE", "PRE")
+            else "after the close" if timing_label in ("AMC", "AFTER", "POST")
+            else ""
+        )
+        report_date = row.get("date") or row.get("earnings_date") or ""
+        when_parts = [p for p in [report_date, timing_str] if p]
+        if when_parts:
+            ctx.append(f"Report timing: {' '.join(when_parts)}")
+        # Consensus (the number to beat)
+        ctx.append(
+            f"Street consensus: EPS {_fmt_eps(row.get('eps_estimate'))} · "
+            f"Revenue {_fmt_rev(row.get('rev_estimate'))}"
+        )
+        # Most recent reported quarter (for beat-and-raise / accel/decel framing)
+        if quarters:
+            q0 = quarters[0]
+            q0_rep = q0.get("reportedEPS")
+            q0_est = q0.get("estimatedEPS")
+            q0_date = q0.get("fiscalDateEnding") or q0.get("date") or ""
+            q0_surp = q0.get("surprisePercentage")
+            try:
+                q0_rep_f = float(q0_rep) if q0_rep is not None else None
+                q0_est_f = float(q0_est) if q0_est is not None else None
+            except (TypeError, ValueError):
+                q0_rep_f = q0_est_f = None
+            if q0_rep_f is not None and q0_est_f is not None:
+                surp_str = ""
+                try:
+                    if q0_surp is not None:
+                        surp_str = f" ({float(q0_surp):+.1f}% surprise)"
+                except (TypeError, ValueError):
+                    pass
+                ctx.append(
+                    f"Last reported quarter ({q0_date}): EPS "
+                    f"{_fmt_eps(q0_rep_f)} vs {_fmt_eps(q0_est_f)} consensus"
+                    f"{surp_str}"
+                )
+        # Pre-earnings price action — multi-window, not just intraday gap
+        pe = enrichment.get("pre_earnings") or {}
+        if pe.get("label"):
+            ctx.append(f"Heading in: {pe['label']}")
+        elif change_pct is not None:
+            ctx.append(f"Today's gap: {gap_str}")
+        # Implied move vs historical move — the #1 trader question
+        im = enrichment.get("implied_move") or {}
+        hm = enrichment.get("hist_moves") or {}
+        if im.get("pct") and hm.get("avg_abs_move_pct"):
+            ctx.append(
+                f"Options imply ±{im['pct']}% move (front-week ATM straddle); "
+                f"historical avg ±{hm['avg_abs_move_pct']}% over last "
+                f"{hm.get('n_quarters', '?')} reports"
             )
-        context_block = "\n".join(context_parts)
+        elif im.get("pct"):
+            ctx.append(f"Options imply ±{im['pct']}% (front-week ATM straddle)")
+        elif hm.get("avg_abs_move_pct"):
+            ctx.append(
+                f"Historical avg earnings move ±{hm['avg_abs_move_pct']}% over "
+                f"last {hm.get('n_quarters', '?')} reports"
+            )
+        # Beat history with magnitudes (not just count)
+        bs = enrichment.get("beat_surprises") or []
+        if bs:
+            recent = bs[:4]
+            mags = ", ".join(
+                f"{'+' if s['surprise_pct'] >= 0 else ''}{s['surprise_pct']}%"
+                for s in recent
+            )
+            ctx.append(f"Last 4 EPS surprises (most recent first): {mags}")
+        elif beat_streak:
+            ctx.append(f"Beat history: {beat_streak}")
+        # YoY direction
+        if yoy_eps_growth:
+            ctx.append(f"YoY EPS growth (most recent quarter vs year-ago): {yoy_eps_growth}")
+        # Estimate / analyst revision trend
+        rv = enrichment.get("revisions") or {}
+        if rv.get("label"):
+            ctx.append(f"Pre-print analyst revisions: {rv['label']}")
+        # Recent headlines — top 3 with sources
+        if news_items:
+            top_news = news_items[:3]
+            heads = " · ".join(
+                f"{n['headline']}"
+                for n in top_news
+                if n.get("headline")
+            )
+            if heads:
+                ctx.append(f"Recent news (last 3 days): {heads}")
+
+        context_block = "\n".join(f"- {line}" for line in ctx)
 
         prompt = (
-            f"Write a pre-earnings preview for {sym} reporting tonight.\n"
-            f"Return JSON only — no markdown, no explanation.\n\n"
-            f"Consensus: EPS {_fmt_eps(row.get('eps_estimate'))}, "
-            f"Revenue {_fmt_rev(row.get('rev_estimate'))}\n"
-            f"Stock pre-report: {gap_str}\n"
-        )
-        if context_block:
-            prompt += f"{context_block}\n"
-        prompt += (
-            "\nJSON format (exactly):\n"
-            '{"preview": "<1-2 sentence setup — what to expect and why it matters>", '
-            '"bullets": ['
-            '"<historical consistency: beat streak + YoY trend>", '
-            '"<revenue/guidance: specific metric or line to watch>", '
-            '"<market positioning: what the current gap implies about the bar>"'
-            "]}\n\n"
-            "Be specific to this company. No trade advice."
+            f"You are a senior buy-side options strategist writing a pre-earnings "
+            f"briefing for {sym}'s upcoming report. Your job is to produce a "
+            f"detailed, specific, trader-actionable preview that pulls from your "
+            f"knowledge of this company's business model, recent earnings narrative, "
+            f"segment dynamics, peer competitive positioning, and prior management "
+            f"commentary — combined with the LIVE SETUP DATA below.\n\n"
+            f"==== LIVE SETUP DATA ====\n{context_block}\n\n"
+            "==== HOW TO THINK ====\n"
+            f"Before writing, draw on what you know about {sym}:\n"
+            "  - The 2-3 SPECIFIC business segments or product lines that drive "
+            "this print (name them — Reels, Cloud, iPhone, Data Center, Networking, etc.)\n"
+            "  - The named KPIs the buy-side actually models for this company "
+            "(DAU growth, take rate, ARPU, segment margin, AI/cloud growth %, "
+            "ad pricing, subs net adds, capex absorption — pick what's specific to THIS company)\n"
+            "  - The recent earnings narrative arc (beat-and-raise streak, "
+            "deceleration, transition phase, turnaround, accelerating into AI cycle, "
+            "etc.) using the surprise magnitudes and YoY context above\n"
+            "  - The forward guidance brackets management gave on the prior call "
+            "if you remember them (revenue growth range, capex range, segment color) "
+            "— if you don't remember exact numbers, frame the bracket qualitatively rather than fabricate\n"
+            "  - The macro/peer dynamics in play right now relevant to this name "
+            "(peer prints, AI capex cycle, ad market trends, rates, regulatory)\n\n"
+            "==== OUTPUT FORMAT ====\n"
+            "Return JSON only — no markdown fences, no preamble outside the JSON:\n"
+            "{\n"
+            '  "preview": "<5-8 sentence strategist-note paragraph that reads '
+            "like a buy-side morning note. MUST include: (1) company + report "
+            "date/timing framing, (2) specific consensus EPS and revenue + "
+            "implied YoY % growth, (3) what the last reported quarter did and "
+            "the narrative arc that creates (beat-and-raise / accelerating / "
+            "decelerating / transition), (4) the 2-3 specific business drivers "
+            "that determine this print outcome — named segments and KPIs, (5) "
+            "what management's prior guidance signals or the bracket the buy-side "
+            "is watching, (6) a binary or trinary scenario setup framed against "
+            "the implied move (clean beat → reaction; in-line/soft → fade; "
+            "miss → downside). Reference real numbers, real segment names, real KPIs.>\","
+            "\n"
+            '  "bullets": [\n'
+            '    "<THE BACKDROP: Recent narrative arc — quote the last 4 surprise '
+            "magnitudes from CONTEXT and frame what this print needs to do to "
+            'extend or break the arc. 60-90 words.>",\n'
+            '    "<BUSINESS DRIVERS: The 2-3 specific segments, products, or '
+            "KPIs that determine print outcome — name them concretely (e.g., "
+            "'Reels monetization,' 'AWS growth rate,' 'iPhone ASP,' 'cloud "
+            "margin,' 'AI capex absorption'). Tie each to a number when "
+            'possible. 60-90 words.>",\n'
+            '    "<EXPECTATIONS BAR: Combine consensus EPS + revenue + YoY % '
+            "implied with pre-print positioning (revisions trend, stock action "
+            "heading in, options pricing ±X% vs historical ±Y%). What is the "
+            'buy-side actually modeled at vs whisper? 60-90 words.>",\n'
+            '    "<GUIDANCE SETUP: Specific forward commentary the market is '
+            "focused on — full-year revenue growth bracket, capex range, "
+            "segment color, margin trajectory. Name the specific data points "
+            'investors are listening for on the call. 60-90 words.>",\n'
+            '    "<SCENARIO MAP: Binary or trinary setup tied to the implied '
+            "move. Clean beat + raise → expected reaction direction and "
+            "magnitude vs implied; in-line + flat guide → likely faded move; "
+            "miss or soft guide → downside setup. Quote the implied % so the "
+            'trader can size against it. 60-90 words.>"\n'
+            '  ]\n'
+            "}\n\n"
+            "==== RULES ====\n"
+            f"- Be SPECIFIC to {sym}'s actual business. Don't write generic "
+            "'ad spending environment' when you can write 'Reels engagement and "
+            "Meta AI ad ranking lift.'\n"
+            "- QUOTE real numbers from CONTEXT (consensus EPS, revenue, YoY %, "
+            "surprise %, implied move, historical move, recent stock action). "
+            "These are not optional — they are the spine of the briefing.\n"
+            "- Use your training knowledge of this company's segments, prior "
+            "management commentary, and peer dynamics — but don't fabricate "
+            "specific numbers you don't have. Frame uncertain ranges qualitatively.\n"
+            "- No directional trade calls (no 'buy this' or 'sell that'). "
+            "Surface asymmetry, scenarios, and tradeable structure only.\n"
+            "- Aim for the depth of a strategist's morning note (think: a "
+            "well-written sell-side preview), not a press release summary."
         )
 
         client = _get_anthropic_client()
@@ -1133,21 +1416,11 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
             raw = raw.strip()
         parsed = json.loads(raw)
         preview_text    = str(parsed.get("preview", "")).strip()
-        preview_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:3]]
+        preview_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:5]]
     except Exception as _e:
         _logger.warning("AI preview failed for %s: %s", sym, _e, exc_info=True)
         preview_text    = ""
         preview_bullets = []
-
-    # ── Enrichment: pre-earnings context, historical moves, revisions, etc. ─
-    # All best-effort — each helper returns None on failure.
-    enrichment = {}
-    try:
-        from api.services.earnings_enrichment import enrich_earnings_response
-        earnings_date = row.get("date") or row.get("earnings_date")
-        enrichment = enrich_earnings_response(sym, quarters or [], earnings_date)
-    except Exception as _e:
-        _logger.warning("enrichment failed for %s (preview): %s", sym, _e)
 
     result = {
         "sym":             sym,
@@ -1185,11 +1458,11 @@ def _prewarm_earnings_analysis(data: dict) -> None:
 
             if is_pending:
                 # Full AI preview (AV history + news + Claude)
-                if not cache.get(f"earnings_preview_{sym}"):
+                if not cache.get(f"earnings_preview_v2_{sym}"):
                     _prewarm_executor.submit(_generate_earnings_preview, sym, dict(entry))
             else:
                 # Full post-earnings analysis (AV history + news + Claude)
-                if not cache.get(f"earnings_analysis_{sym}"):
+                if not cache.get(f"earnings_analysis_v2_{sym}"):
                     _prewarm_executor.submit(_generate_earnings_analysis, sym, dict(entry))
 
 

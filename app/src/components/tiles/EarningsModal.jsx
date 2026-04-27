@@ -303,6 +303,9 @@ export default function EarningsModal({ row, label, onClose }) {
                   {aiState.data.analysis_headline && (
                     <p className={styles.analysisHeadline}>{aiState.data.analysis_headline}</p>
                   )}
+                  {aiState.data.analysis_summary && (
+                    <p className={styles.aiText}>{aiState.data.analysis_summary}</p>
+                  )}
                   <div className={styles.watchLabel}>KEY TAKEAWAYS</div>
                   <ul className={styles.watchList}>
                     {aiState.data.analysis_bullets.map((b, i) => (
