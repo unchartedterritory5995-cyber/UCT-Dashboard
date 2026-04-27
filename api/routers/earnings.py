@@ -39,6 +39,98 @@ def earnings_gaps():
     return result
 
 
+@router.get("/api/debug/earnings-sources/{sym}")
+def debug_earnings_sources(sym: str):
+    """Diagnostic: hit each earnings-data source and report status + sample.
+
+    Use to see why preview_text/beat_streak/etc are empty. Shows which of FMP,
+    Alpha Vantage, Finnhub, Anthropic returns usable data for this ticker.
+    """
+    import os, requests
+    sym = sym.upper()
+    out = {}
+
+    fmp_key = os.environ.get("FMP_API_KEY", "")
+    av_key = os.environ.get("ALPHAVANTAGE_API_KEY", "")
+    fh_key = os.environ.get("FINNHUB_API_KEY", "")
+    ant_key = os.environ.get("ANTHROPIC_API_KEY", "")
+
+    out["env"] = {
+        "FMP_API_KEY":         "set" if fmp_key else "MISSING",
+        "ALPHAVANTAGE_API_KEY":"set" if av_key else "MISSING",
+        "FINNHUB_API_KEY":     "set" if fh_key else "MISSING",
+        "ANTHROPIC_API_KEY":   "set" if ant_key else "MISSING",
+    }
+
+    # Test each FMP earnings endpoint variant
+    fmp_tests = [
+        ("v3/earnings-surprises", f"https://financialmodelingprep.com/api/v3/earnings-surprises/{sym}?apikey={fmp_key}"),
+        ("stable/earnings-surprises", f"https://financialmodelingprep.com/stable/earnings-surprises?symbol={sym}&apikey={fmp_key}"),
+        ("v3/historical/earning_calendar", f"https://financialmodelingprep.com/api/v3/historical/earning_calendar/{sym}?apikey={fmp_key}"),
+        ("stable/earnings", f"https://financialmodelingprep.com/stable/earnings?symbol={sym}&limit=12&apikey={fmp_key}"),
+        ("stable/historical-earning-calendar", f"https://financialmodelingprep.com/stable/historical-earning-calendar?symbol={sym}&limit=12&apikey={fmp_key}"),
+    ]
+    out["fmp"] = {}
+    if fmp_key:
+        for name, url in fmp_tests:
+            try:
+                r = requests.get(url, timeout=8)
+                body = r.text[:200] if r.status_code != 200 else None
+                if r.status_code == 200:
+                    try:
+                        data = r.json()
+                        if isinstance(data, list):
+                            out["fmp"][name] = f"OK list[{len(data)}]" + (f" sample={data[0]}" if data else "")
+                        elif isinstance(data, dict):
+                            out["fmp"][name] = f"OK dict keys={list(data.keys())[:5]}"
+                        else:
+                            out["fmp"][name] = f"OK type={type(data).__name__}"
+                    except Exception as je:
+                        out["fmp"][name] = f"200 but JSON parse failed: {je}"
+                else:
+                    out["fmp"][name] = f"{r.status_code}: {body}"
+            except Exception as e:
+                out["fmp"][name] = f"exception: {e}"
+
+    # Test AV
+    if av_key:
+        try:
+            r = requests.get(f"https://www.alphavantage.co/query?function=EARNINGS&symbol={sym}&apikey={av_key}", timeout=10)
+            data = r.json()
+            if data.get("quarterlyEarnings"):
+                out["av"] = f"OK quarters={len(data['quarterlyEarnings'])}"
+            else:
+                out["av"] = f"empty/error: {str(data)[:200]}"
+        except Exception as e:
+            out["av"] = f"exception: {e}"
+
+    # Test Anthropic with a one-line haiku call
+    if ant_key:
+        try:
+            from api.services.engine import _get_anthropic_client
+            client = _get_anthropic_client()
+            msg = client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=20,
+                messages=[{"role": "user", "content": "Say 'pong' and nothing else."}],
+            )
+            out["anthropic"] = f"OK: {msg.content[0].text[:50]}"
+        except Exception as e:
+            out["anthropic"] = f"exception: {type(e).__name__}: {e}"
+
+    # Test Finnhub transcript availability
+    if fh_key:
+        try:
+            r = requests.get(f"https://finnhub.io/api/v1/stock/transcripts/list?symbol={sym}&token={fh_key}", timeout=8)
+            data = r.json()
+            tr_count = len(data.get("transcripts", []))
+            out["finnhub_transcripts"] = f"OK count={tr_count}" if tr_count else f"empty: {str(data)[:200]}"
+        except Exception as e:
+            out["finnhub_transcripts"] = f"exception: {e}"
+
+    return out
+
+
 @router.get("/api/earnings/intel/{ticker}")
 def earnings_intel(ticker: str):
     """Analyst consensus, EPS beat history, and price targets for a ticker."""
