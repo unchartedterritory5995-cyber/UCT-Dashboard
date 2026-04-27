@@ -1192,8 +1192,11 @@ export default function OptionsFlowDashboard() {
     s += g==="A+"?2.5:g==="A"?2:g==="B+"?1.5:g==="B"?1:g==="C"?0.5:0.5;
     const h = c.hits||0;
     s += h>=10?2.5:h>=5?2:h>=2?1.5:1;
+    // Cap-relative premium scoring
     const p = c.prem||0;
-    s += p>=10e6?2:p>=5e6?1.5:p>=1e6?1:p>=500e3?0.5:0.5;
+    const isMega = MEGA_TICKERS.has(c.sym);
+    if (isMega) { s += p>=10e6?2:p>=5e6?1.5:p>=1e6?1:0.5; }
+    else { s += p>=2e6?2:p>=500e3?1.5:p>=100e3?1:0.5; }
     const v = c.volOI||0;
     s += v>=3?1.5:v>=2?1:0.5;
     const sd = c.side||"";
@@ -1216,13 +1219,13 @@ export default function OptionsFlowDashboard() {
       if (wlCapPref==="Mid+Small") return cap==="Mid"||cap==="Small";
       return true;
     };
-    const bulls = FD.CONV.filter(c=>c.cp==="C"&&capOk(c)).slice(0,10).map(c=>({
+    const bulls = FD.CONV.filter(c=>c.dir==="BULL"&&capOk(c)).slice(0,10).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:c.dir||"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
       cap:wlCapCheck(c)
     }));
-    const bears = FD.CONV.filter(c=>c.cp==="P"&&capOk(c)).slice(0,10).map(c=>({
+    const bears = FD.CONV.filter(c=>c.dir==="BEAR"&&capOk(c)).slice(0,10).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:c.dir||"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
@@ -4756,7 +4759,7 @@ export default function OptionsFlowDashboard() {
                 {/* Strike/Exp */}
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11, fontWeight:700, color:item.cp==="C"?P.bu:P.be }}>
-                    {item.cp==="C"?"CALL":"PUT"} ${item.strike} {item.exp}
+                    {item.cp==="C"?"CALL":"PUT"} ${item.strike} {item.exp}{item.side&&<span style={{ fontSize:8, fontWeight:800, marginLeft:5, padding:"1px 5px", borderRadius:3, background:item.side==="AA"?P.ac+"22":item.side==="BB"?P.be+"22":P.mt+"22", color:item.side==="AA"?P.ac:item.side==="BB"?P.be:P.mt }}>{item.side}</span>}
                   </div>
                   {isEditing ? (
                     <textarea value={item.notes||""} onChange={e=>{update("notes",e.target.value); e.stopPropagation();}}
@@ -4894,8 +4897,8 @@ export default function OptionsFlowDashboard() {
               const overflow = FD.CONV.filter(c=>capOk(c)&&!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)))
                 .map(c=>({...c, _score:autoScore(c), _cap:wlCapCheck(c)}))
                 .sort((a,b)=>b._score-a._score);
-              const bullSugg = overflow.filter(c=>c.cp==="C").slice(0,15);
-              const bearSugg = overflow.filter(c=>c.cp==="P").slice(0,15);
+              const bullSugg = overflow.filter(c=>c.dir==="BULL").slice(0,15);
+              const bearSugg = overflow.filter(c=>c.dir==="BEAR").slice(0,15);
               if (!bullSugg.length && !bearSugg.length) return null;
 
               const addFromSugg = (c, side) => {
