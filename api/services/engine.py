@@ -118,15 +118,22 @@ def _fetch_quarterly_history(sym: str) -> list:
     fmp_key = os.environ.get("FMP_API_KEY", "")
     if fmp_key:
         try:
-            url = f"https://financialmodelingprep.com/api/v3/earnings-surprises/{sym.upper()}?apikey={fmp_key}"
+            # FMP stable/earnings is the current supported endpoint.
+            # v3/earnings-surprises and v3/historical/earning_calendar are
+            # legacy as of Aug 31 2025 — return 403 on new subscriptions.
+            url = (
+                f"https://financialmodelingprep.com/stable/earnings"
+                f"?symbol={sym.upper()}&limit=20&apikey={fmp_key}"
+            )
             resp = _r.get(url, timeout=8).json()
             if isinstance(resp, list) and resp:
                 out = []
-                for item in resp[:12]:
+                for item in resp:
                     try:
-                        actual = item.get("actualEarningResult")
-                        estimated = item.get("estimatedEarning")
+                        actual = item.get("epsActual")
+                        estimated = item.get("epsEstimated")
                         date_str = item.get("date")
+                        # Skip future earnings (epsActual is null) — only past quarters
                         if actual is None or estimated is None or not date_str:
                             continue
                         actual_f = float(actual)
@@ -140,8 +147,10 @@ def _fetch_quarterly_history(sym: str) -> list:
                             "estimatedEPS":       str(est_f),
                             "surprise":           f"{surprise:.4f}",
                             "surprisePercentage": f"{surprise_pct:.2f}",
-                            "reportTime":         "",  # FMP doesn't provide AM/PM
+                            "reportTime":         "",  # FMP doesn't expose pre/post
                         })
+                        if len(out) >= 12:
+                            break
                     except (TypeError, ValueError):
                         continue
                 if out:
