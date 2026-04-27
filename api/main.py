@@ -39,6 +39,8 @@ from api.services.auth_db import init_db as _init_auth_db
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse as StarletteJSONResponse
 from api.gex_router import router as gex_router
+from api.watchlist_router import router as watchlist_router
+app.include_router(watchlist_router)
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 
