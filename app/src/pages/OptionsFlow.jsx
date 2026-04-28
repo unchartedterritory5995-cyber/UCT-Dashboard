@@ -524,7 +524,7 @@ function buildCharts(cc) {
     return true;
   })
   .sort((a,b)=>b.score-a.score)
-  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0,
+  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"" })) }));
   const sectorMap = {};
   const tickerFlowMap = {};
@@ -1185,6 +1185,48 @@ export default function OptionsFlowDashboard() {
   const [wlRemoving, setWlRemoving] = useState(null);
   const [wlRemoveReason, setWlRemoveReason] = useState("");
   const [wlRemoved, setWlRemoved] = useState([]);
+  const [wlOILoading, setWlOILoading] = useState(false);
+
+  const wlFetchOI = async () => {
+    const all = [...wlBull, ...wlBear];
+    if (!all.length) return;
+    setWlOILoading(true);
+    const contracts = all.map(i=>({sym:i.sym, cp:i.cp, strike:i.strike, exp:i.exp}));
+    try {
+      await fetchPrices(contracts);
+      // After prices fetched, update liveOI from priceMap
+      const updateList = (list) => list.map(item => {
+        const px = getPrice(item.sym, item.cp, item.strike, item.exp);
+        if (!px) return item;
+        const liveOI = px.oi || px.openInterest || 0;
+        const delta = liveOI > 0 && item.oi > 0 ? liveOI - item.oi : 0;
+        return { ...item, liveOI, liveOIDelta: delta };
+      });
+      setWlBull(prev => updateList(prev));
+      setWlBear(prev => updateList(prev));
+    } catch(e) { console.error("WL OI fetch error:", e); }
+    setWlOILoading(false);
+  };
+
+  // Build cap lookup from raw trade data — FD.clean_confirmed has mktcap on each trade
+  const capLookup = useMemo(() => {
+    if (!D || !D.clean_confirmed) return {};
+    const map = {};
+    D.clean_confirmed.forEach(t => {
+      const sym = (t.S || t.sym || "").toUpperCase();
+      const mc = t.mktcap || 0;
+      if (sym && mc > 0 && (!map[sym] || mc > map[sym])) map[sym] = mc;
+    });
+    return map;
+  }, [D]);
+
+  const wlCapCheck = (c) => {
+    const cap = capBand(c.mktcap);
+    if (cap !== "Unknown") return cap;
+    const lookup = capLookup[(c.sym||"").toUpperCase()];
+    if (lookup) return capBand(lookup);
+    return "Unknown";
+  };
 
   const autoScore = (c) => {
     let s = 0;
@@ -1194,7 +1236,7 @@ export default function OptionsFlowDashboard() {
     s += h>=10?2.5:h>=5?2:h>=2?1.5:1;
     // Cap-relative premium scoring
     const p = c.prem||0;
-    const isMega = MEGA_TICKERS.has(c.sym);
+    const isMega = wlCapCheck(c)==="Mega";
     if (isMega) { s += p>=10e6?2:p>=5e6?1.5:p>=1e6?1:0.5; }
     else { s += p>=2e6?2:p>=500e3?1.5:p>=100e3?1:0.5; }
     const v = c.volOI||0;
@@ -1204,23 +1246,11 @@ export default function OptionsFlowDashboard() {
     return Math.min(10, Math.round(s*10)/10);
   };
 
-  const MEGA_TICKERS = new Set(["AAPL","MSFT","NVDA","GOOGL","GOOG","AMZN","META","TSLA","BRK.B","LLY","AVGO","JPM","V","UNH","WMT","MA","XOM","COST","JNJ","HD","PG","ABBV","NFLX","BAC","CRM","AMD","KO","MRK","PEP","TMO","ADBE","MCD","CSCO","INTU","QCOM","GS","BKNG","NOW","MU","PANW","SNPS","CDNS","ANET","PYPL","CMG","ORLY","COP","CVX"]);
-  const MID_TICKERS = new Set(["CAR","RSI","ZETA","WULF","SNAP","PLUG","CORZ","UUUU","QS","PBI","CIFR","MARA","RIOT","CLSK","HUT","LCID","ENPH","SEDG","RUN","HIMS","DUOL","CROX","DOCS","BILL","GTLB","DOCN","CELH","AVTR","ELF","MBLY","SOUN","JOBY","LUNR","RGTI","SMR","ACHR","DJT","PTON","LYFT","RIG","CLF","MOS","PENN","CZR","MGM","NCLH","ANF","KMX","WHR","SFM","OLLI","WING","EAT","COMP","LMND","UPST","PATH","S","SEI","WIX","SRAD","BLSH","BTU","NXE","UEC","FRMI","FLNC","SIRI","VFC"]);
-  const SMALL_TICKERS = new Set(["INDI","GOGO","POET","AMC","FCEL","SPCE","TLRY","HTZ","BYND","RCAT","SLDP","BBAI","SKLZ","CLOV","WOLF","ASAN","FVRR","PURR","RXRX","NNE","BFLY","MAX","JBLU","KSS","XRX","GPRO","PZZA","LAC","OCGN","PRCH","NEXT"]);
-  const wlCapCheck = (c) => {
-    const cap = capBand(c.mktcap);
-    if (cap !== "Unknown") return cap;
-    if (MEGA_TICKERS.has(c.sym)) return "Mega";
-    if (SMALL_TICKERS.has(c.sym)) return "Small";
-    if (MID_TICKERS.has(c.sym)) return "Mid";
-    return "Large";
-  };
-
   const wlPopulate = () => {
     if (!FD || !FD.CONV) return;
     const capOk = (c) => {
       const cap = wlCapCheck(c);
-      if (wlCapPref==="No Mega") return cap!=="Mega";
+      if (wlCapPref==="No Mega") return cap!=="Mega" && cap!=="Unknown";
       if (wlCapPref==="Mid+Small") return cap==="Mid"||cap==="Small";
       return true;
     };
@@ -1228,13 +1258,13 @@ export default function OptionsFlowDashboard() {
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:c.dir||"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
-      cap:wlCapCheck(c)
+      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
     }));
     const bears = FD.CONV.filter(c=>c.dir==="BEAR"&&capOk(c)).slice(0,10).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:c.dir||"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
-      cap:wlCapCheck(c)
+      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
     }));
     setWlBull(bulls);
     setWlBear(bears);
@@ -1255,12 +1285,13 @@ export default function OptionsFlowDashboard() {
       strike:match.K||match.strike||"", exp:match.exp||"", cp:match.cp||"",
       grade:match.grade||"", dir:side==="bull"?"BULL":"BEAR",
       hits:match.hits||0, prem:match.prem||0, side:match.side||"", er:match.er||false, notes:"",
-      cap:wlCapCheck(match)
+      cap:wlCapCheck(match), oi:match.maxOI||0, volume:match.vol||0, volOI:match.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
     } : {
       sym:input, score:5, autoScore:0, tier:"WATCH",
       strike:"", exp:"", cp:side==="bull"?"C":"P",
       grade:"", dir:side==="bull"?"BULL":"BEAR",
-      hits:0, prem:0, side:"", er:false, notes:"", cap:""
+      hits:0, prem:0, side:"", er:false, notes:"", cap:"",
+      oi:0, volume:0, volOI:0, liveOI:0, liveOIDelta:0, actionLog:[]
     };
     setList([...list, item]);
     setInput("");
@@ -4716,9 +4747,24 @@ export default function OptionsFlowDashboard() {
             const isRemoving = wlRemoving===key;
             const setList = side==="bull"?setWlBull:setWlBear;
             const list = side==="bull"?wlBull:wlBear;
-            const update = (field,val) => { const n=[...list]; n[idx]={...n[idx],[field]:val}; setList(n); };
+            const update = (field,val) => {
+              const n=[...list]; const old=n[idx][field]; n[idx]={...n[idx],[field]:val};
+              if ((field==="tier"||field==="score") && old!==val) {
+                const log = n[idx].actionLog||[];
+                log.push({action:field==="tier"?"tier_change":"score_override", from:old, to:val, at:new Date().toISOString()});
+                n[idx].actionLog = log;
+              }
+              if (field==="notes" && val && !old) {
+                const log = n[idx].actionLog||[];
+                log.push({action:"notes_added", at:new Date().toISOString()});
+                n[idx].actionLog = log;
+              }
+              setList(n);
+            };
             const confirmRemove = (reason) => {
-              setWlRemoved(prev=>[...prev,{...item, removeReason:reason, removedAt:new Date().toISOString()}]);
+              const log = item.actionLog||[];
+              log.push({action:"removed", reason, at:new Date().toISOString()});
+              setWlRemoved(prev=>[...prev,{...item, actionLog:log, removeReason:reason, removedAt:new Date().toISOString()}]);
               const n=[...list]; n.splice(idx,1); setList(n);
               setWlRemoving(null); setWlRemoveReason(""); setWlEditing(null);
             };
@@ -4766,6 +4812,12 @@ export default function OptionsFlowDashboard() {
                   <div style={{ fontSize:11, fontWeight:700, color:item.cp==="C"?P.bu:P.be }}>
                     {item.cp==="C"?"CALL":"PUT"} ${item.strike} {item.exp}{item.side&&<span style={{ fontSize:8, fontWeight:800, marginLeft:5, padding:"1px 5px", borderRadius:3, background:item.side==="AA"?P.ac+"22":item.side==="BB"?P.be+"22":P.mt+"22", color:item.side==="AA"?P.ac:item.side==="BB"?P.be:P.mt }}>{item.side}</span>}
                   </div>
+                  <div style={{ display:"flex", gap:8, marginTop:3, fontSize:9 }}>
+                    {item.oi>0 && <span style={{ color:P.dm }}>OI: <span style={{ color:P.wh, fontWeight:700 }}>{item.oi.toLocaleString()}</span></span>}
+                    {item.volume>0 && <span style={{ color:P.dm }}>Vol: <span style={{ color:P.wh, fontWeight:700 }}>{item.volume.toLocaleString()}</span></span>}
+                    {item.volOI>0 && <span style={{ color:item.volOI>=3?P.bu:item.volOI>=1?P.ye:P.dm, fontWeight:700 }}>{item.volOI.toFixed(1)}x</span>}
+                    {item.liveOI>0 && <span style={{ color:P.ac }}>Live OI: <span style={{ fontWeight:700 }}>{item.liveOI.toLocaleString()}</span>{item.liveOIDelta!==0 && <span style={{ color:item.liveOIDelta>0?P.bu:P.be, fontWeight:800, marginLeft:3 }}>{item.liveOIDelta>0?"+":""}{item.liveOIDelta.toLocaleString()}</span>}</span>}
+                  </div>
                   {isEditing ? (
                     <textarea value={item.notes||""} onChange={e=>{update("notes",e.target.value); e.stopPropagation();}}
                       onClick={e=>e.stopPropagation()}
@@ -4774,11 +4826,25 @@ export default function OptionsFlowDashboard() {
                   ) : item.notes ? (
                     <div style={{ fontSize:10, color:P.dm, marginTop:2, lineHeight:1.4 }}>{item.notes}</div>
                   ) : null}
+                  {isEditing && (item.actionLog||[]).length>0 && (
+                    <div style={{ marginTop:4, padding:"4px 6px", background:P.al, borderRadius:4, maxHeight:80, overflowY:"auto" }}>
+                      <div style={{ fontSize:8, fontWeight:700, color:P.mt, marginBottom:2 }}>ACTION LOG</div>
+                      {(item.actionLog||[]).slice(-5).reverse().map((a,ai)=>(
+                        <div key={ai} style={{ fontSize:8, color:P.dm, lineHeight:1.5 }}>
+                          {a.action==="tier_change" && <span><span style={{ color:P.ye }}>TIER</span> {a.from} → <span style={{ fontWeight:700, color:P.wh }}>{a.to}</span></span>}
+                          {a.action==="score_override" && <span><span style={{ color:P.ac }}>SCORE</span> {Math.round(a.from*10)}% → <span style={{ fontWeight:700, color:P.wh }}>{Math.round(a.to*10)}%</span></span>}
+                          {a.action==="notes_added" && <span style={{ color:P.dm }}>Notes added</span>}
+                          {a.action==="removed" && <span><span style={{ color:P.be }}>REMOVED</span> — {a.reason}</span>}
+                          <span style={{ color:P.mt, marginLeft:6 }}>{new Date(a.at).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {/* Meta + Remove */}
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2, minWidth:50 }}>
                   <Tag c={GRADE_COLORS[item.grade]||P.mt}>{item.grade}</Tag>
-                  <span style={{ fontSize:9, color:P.dm }}>{item.hits}x · {fmt(item.prem)}</span>
+                  <span style={{ fontSize:9 }}><span style={{ color:item.hits>=10?P.ac:item.hits>=5?P.ye:P.dm, fontWeight:700 }}>{item.hits}x</span> · <span style={{ color:premC(item.prem), fontWeight:700 }}>{fmt(item.prem)}</span></span>
                   {isEditing && !isRemoving && (
                     <button onClick={e=>{e.stopPropagation(); setWlRemoving(key); setWlRemoveReason("");}}
                       style={{ fontSize:8, color:P.be, background:"transparent", border:"1px solid "+P.be+"40", borderRadius:3, padding:"1px 6px", cursor:"pointer", fontFamily:"inherit", fontWeight:700, marginTop:2 }}>✕ Remove</button>
@@ -4849,6 +4915,11 @@ export default function OptionsFlowDashboard() {
                     style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     💾 Save Watchlist
                   </button>
+                  <button onClick={wlFetchOI} disabled={wlOILoading}
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+(wlOILoading?P.bd:P.ac), background:"transparent",
+                      color:wlOILoading?P.dm:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlOILoading?"not-allowed":"pointer" }}>
+                    {wlOILoading?"Fetching…":"📊 Fetch Live OI"}
+                  </button>
                 </div>
               </div>
             </Card>
@@ -4898,7 +4969,7 @@ export default function OptionsFlowDashboard() {
             {/* Scanner Suggestions — overflow picks not yet on watchlist */}
             {FD && FD.CONV && (() => {
               const existingSyms = new Set([...wlBull.map(i=>i.sym+"|"+i.exp+"|"+i.strike), ...wlBear.map(i=>i.sym+"|"+i.exp+"|"+i.strike)]);
-              const capOk = (c) => { const cap=wlCapCheck(c); return wlCapPref==="All"?true:wlCapPref==="No Mega"?cap!=="Mega":(cap==="Mid"||cap==="Small"); };
+              const capOk = (c) => { const cap=wlCapCheck(c); return wlCapPref==="All"?true:wlCapPref==="No Mega"?(cap!=="Mega"&&cap!=="Unknown"):(cap==="Mid"||cap==="Small"); };
               const overflow = FD.CONV.filter(c=>capOk(c)&&!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)))
                 .map(c=>({...c, _score:autoScore(c), _cap:wlCapCheck(c)}))
                 .sort((a,b)=>b._score-a._score);
@@ -4911,7 +4982,7 @@ export default function OptionsFlowDashboard() {
                   sym:c.sym, score:c._score, autoScore:c._score, tier:"WATCH",
                   strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
                   dir:side==="bull"?"BULL":"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
-                  cap:c._cap
+                  cap:c._cap, oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
                 };
                 if (side==="bull") setWlBull(prev=>[...prev,item]);
                 else setWlBear(prev=>[...prev,item]);
