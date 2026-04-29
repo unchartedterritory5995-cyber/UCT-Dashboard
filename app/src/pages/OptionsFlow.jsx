@@ -1171,6 +1171,7 @@ export default function OptionsFlowDashboard() {
   const [topFlowPicks, setTopFlowPicks] = useState({ active:[], archived:[] });
   const [trackerLookback, setTrackerLookback] = useState(7);
   const [trackerSort, setTrackerSort] = useState("recent");
+  const [trkSort, setTrkSort] = useState({col:"added", dir:"desc", col2:"premium", dir2:"desc"});
   const [trackerCapFilter, setTrackerCapFilter] = useState("All");
 
   // ─── Watchlist State ─────────────────────────────────────────────────
@@ -4605,16 +4606,39 @@ export default function OptionsFlowDashboard() {
           const filteredArchived = afterCap(afterLookback(topFlowPicks.archived));
           const calcPnl = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):(p.history&&p.history.length>0?p.history[p.history.length-1].price:0); return now>0&&p.entry>0?(now-p.entry)/p.entry*100:0; };
           const calcPeak = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):0; const hist=p.history||[]; const allPx=[...hist.map(h=>h.price),now,p.finalPrice||0].filter(v=>v>0); const peak=allPx.length>0?Math.max(...allPx):0; return peak>0&&p.entry>0?(peak-p.entry)/p.entry*100:0; };
-          const sortFn = (a,b) => {
-            if (trackerSort==="pnl") return calcPnl(b)-calcPnl(a);
-            if (trackerSort==="peak") return calcPeak(b)-calcPeak(a);
-            if (trackerSort==="ticker") return (a.sym||"").localeCompare(b.sym||"");
-            return new Date(b.dateSaved||0).getTime()-new Date(a.dateSaved||0).getTime();
+          const calcNow = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); return px?(px.mark||px.last||0):(p.history&&p.history.length>0?p.history[p.history.length-1].price:0); };
+          const trkGetVal = (p, key) => {
+            if (key==="ticker") return p.sym||"";
+            if (key==="exp") return p.exp||"";
+            if (key==="strike") return parseFloat(p.strike)||0;
+            if (key==="grade") return ({"A+":6,"A":5,"B+":4,"B":3,"C":2,"D":1})[p.grade]||0;
+            if (key==="entry") return p.entry||0;
+            if (key==="now") return calcNow(p);
+            if (key==="pnl") return calcPnl(p);
+            if (key==="peak") return calcPeak(p);
+            if (key==="oi") { const h=(p.history||[]).filter(h=>(h.oi||0)>0); return h.length>0?h[h.length-1].oi:0; }
+            if (key==="doi") { const h=(p.history||[]).filter(h=>(h.oi||0)>0); return h.length>1?h[h.length-1].oi-h[h.length-2].oi:0; }
+            if (key==="days") return p.dateSaved?Math.round((Date.now()-new Date(p.dateSaved).getTime())/86400000):0;
+            if (key==="added") return new Date(p.dateSaved||0).getTime();
+            if (key==="premium") return p.prem||0;
+            return 0;
           };
+          const sortFn = (a,b) => {
+            const d1 = trkSort.dir==="asc"?1:-1;
+            const av1=trkGetVal(a,trkSort.col), bv1=trkGetVal(b,trkSort.col);
+            const cmp1 = trkSort.col==="ticker"?av1.localeCompare(bv1)*d1:(av1-bv1)*d1;
+            if (cmp1!==0) return cmp1;
+            const d2 = trkSort.dir2==="asc"?1:-1;
+            const av2=trkGetVal(a,trkSort.col2), bv2=trkGetVal(b,trkSort.col2);
+            return trkSort.col2==="ticker"?av2.localeCompare(bv2)*d2:(av2-bv2)*d2;
+          };
+          const trkToggle = (col) => setTrkSort(prev => prev.col===col?{...prev,dir:prev.dir==="desc"?"asc":"desc"}:{col,dir:"desc",col2:prev.col,dir2:prev.dir});
+          const trkIcon = (col) => trkSort.col===col?(trkSort.dir==="desc"?" ▼":" ▲"):trkSort.col2===col?(trkSort.dir2==="desc"?" ▽":" △"):"";
+          const trkColor = (col) => trkSort.col===col?P.ac:trkSort.col2===col?P.ye:P.mt;
           const sortedActive = [...filteredActive].sort(sortFn);
           const sortedArchived = [...filteredArchived].sort(sortFn);
           const smartCap = (list) => {
-            if (trackerSort === "pnl" || trackerSort === "peak") {
+            if (trkSort.col === "pnl" || trkSort.col === "peak") {
               const top = list.slice(0, 25);
               const bot = list.length > 25 ? list.slice(-Math.min(25, list.length - 25)) : [];
               return { items: [...top, ...bot], split: bot.length > 0 ? top.length : -1 };
@@ -4640,13 +4664,6 @@ export default function OptionsFlowDashboard() {
                   <button key={o.val} onClick={()=>setTrackerLookback(o.val)}
                     style={{ padding:"4px 12px", borderRadius:5, border:"1px solid "+(trackerLookback===o.val?P.ac:P.bd),
                       background:trackerLookback===o.val?P.ac+"18":"transparent", color:trackerLookback===o.val?P.ac:P.dm,
-                      fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>{o.label}</button>
-                ))}
-                <span style={{ width:1, height:16, background:P.bd, margin:"0 6px" }}/>
-                {[{label:"Recent",val:"recent"},{label:"P&L",val:"pnl"},{label:"Peak",val:"peak"},{label:"Ticker",val:"ticker"}].map(o=>(
-                  <button key={o.val} onClick={()=>setTrackerSort(o.val)}
-                    style={{ padding:"4px 10px", borderRadius:5, border:"1px solid "+(trackerSort===o.val?P.sw:P.bd),
-                      background:trackerSort===o.val?P.sw+"18":"transparent", color:trackerSort===o.val?P.sw:P.dm,
                       fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>{o.label}</button>
                 ))}
                 <span style={{ width:1, height:16, background:P.bd, margin:"0 6px" }}/>
@@ -4676,8 +4693,10 @@ export default function OptionsFlowDashboard() {
                 </div>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Now","P&L","Peak","OI","ΔOI","Days","Trend","Added"].map(h=>(
-                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:(h==="Peak"||h==="ΔOI")?"help":"default" }} title={h==="Peak"?"Highest % gain from entry at any point — the best exit you could have had.":h==="ΔOI"?"Change in OI from previous snapshot. Big drops = smart money exiting.":undefined}>{h}</th>
+                    {[{label:"Ticker",key:"ticker"},{label:"Exp",key:"exp"},{label:"Strike",key:"strike"},{label:"C/P",key:""},{label:"Grade",key:"grade"},{label:"Dir",key:""},{label:"Entry",key:"entry"},{label:"Now",key:"now"},{label:"P&L",key:"pnl"},{label:"Peak",key:"peak"},{label:"OI",key:"oi"},{label:"ΔOI",key:"doi"},{label:"Days",key:"days"},{label:"Trend",key:""},{label:"Added",key:"added"}].map(h=>(
+                      <th key={h.label} onClick={()=>h.key&&trkToggle(h.key)}
+                        style={{ padding:"5px 5px", textAlign:"left", color:h.key?trkColor(h.key):P.mt, fontSize:9, fontWeight:600, cursor:h.key?"pointer":"default", userSelect:"none" }}
+                        title={h.label==="Peak"?"Highest % gain from entry":h.label==="ΔOI"?"Change in OI from previous snapshot":undefined}>{h.label}{h.key?trkIcon(h.key):""}</th>
                     ))}
                   </tr></thead>
                   <tbody>
