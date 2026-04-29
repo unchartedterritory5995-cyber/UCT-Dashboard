@@ -1403,7 +1403,22 @@ export default function Breadth() {
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (
         <div className={styles.empty}>
-          All metrics hidden — open <strong>Customize</strong> to show some.
+          {collapsed.size > 0
+            ? <>
+                All column groups are collapsed —{' '}
+                <button
+                  className={styles.emptyAction}
+                  onClick={() => {
+                    setCollapsed(new Set())
+                    try { localStorage.removeItem('breadth_collapsed_groups') } catch {}
+                  }}
+                >
+                  Expand all
+                </button>
+                {customize.hidden.size > 0 && <> or open <strong>Customize</strong> to show hidden metrics.</>}
+              </>
+            : <>All metrics hidden — open <strong>Customize</strong> to show some.</>
+          }
         </div>
       )}
 

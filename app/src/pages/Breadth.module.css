@@ -61,6 +61,19 @@
   color: var(--text-muted);
   padding: 24px 0;
 }
+.emptyAction {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-gold, #c9a84c);
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.emptyAction:hover {
+  opacity: 0.8;
+}
 .empty code {
   font-family: var(--font-mono);
   font-size: 11px;
