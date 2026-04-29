@@ -1239,7 +1239,12 @@ export default function Breadth() {
     () => COLS.filter(col => !collapsed.has(col.group) && !customize.hidden.has(col.key)),
     [collapsed, customize.hidden],
   )
-  const groupSpans = useMemo(() => buildGroupSpans(visibleCols), [visibleCols])
+  // groupSpans must include collapsed groups so their header <th> always renders
+  // as a click target. Only exclude cols that are fully hidden via Customize.
+  const groupSpans = useMemo(
+    () => buildGroupSpans(COLS.filter(col => !customize.hidden.has(col.key))),
+    [customize.hidden],
+  )
 
   const sparkData = useMemo(() => {
     const out = {}
