@@ -1011,7 +1011,7 @@ export default function OptionsFlowDashboard() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [oiSearch, setOiSearch] = useState("");
-  const [oiSort, setOiSort] = useState({col:"volOI", dir:"desc"});
+  const [oiSort, setOiSort] = useState({col:"premium", dir:"desc", col2:"volOI", dir2:"desc"});
   const [tfCapFilter, setTfCapFilter] = useState("All");
   const [tfDteFilter, setTfDteFilter] = useState("All");
   const [gexTicker, setGexTicker] = useState("SPY");
@@ -4510,38 +4510,51 @@ export default function OptionsFlowDashboard() {
                 return { ...r, curOI, dOI };
               });
               // Sort
-              const sortKey = oiSort.col;
-              const sortDir = oiSort.dir === "asc" ? 1 : -1;
-              const sorted = [...enriched].sort((a,b) => {
-                let av, bv;
-                if (sortKey==="sym") { av=a.S||""; bv=b.S||""; return av.localeCompare(bv)*sortDir; }
-                if (sortKey==="exp") { av=new Date(a.E||0).getTime(); bv=new Date(b.E||0).getTime(); return (av-bv)*sortDir; }
-                if (sortKey==="strike") { av=parseFloat(a.K)||0; bv=parseFloat(b.K)||0; return (av-bv)*sortDir; }
-                if (sortKey==="entry") { av=a.price||0; bv=b.price||0; return (av-bv)*sortDir; }
-                if (sortKey==="premium") { av=a.P||0; bv=b.P||0; return (av-bv)*sortDir; }
-                if (sortKey==="vol") { av=a.V||0; bv=b.V||0; return (av-bv)*sortDir; }
-                if (sortKey==="oi") { av=a.OI||0; bv=b.OI||0; return (av-bv)*sortDir; }
-                if (sortKey==="doi") { av=a.dOI||0; bv=b.dOI||0; return (av-bv)*sortDir; }
-                if (sortKey==="volOI") { av=a.volOI||0; bv=b.volOI||0; return (av-bv)*sortDir; }
-                if (sortKey==="dte") { av=a.DTE||0; bv=b.DTE||0; return (av-bv)*sortDir; }
-                if (sortKey==="hits") { av=a.trades||0; bv=b.trades||0; return (av-bv)*sortDir; }
+              const getVal = (r, key) => {
+                if (key==="sym") return r.S||"";
+                if (key==="exp") return new Date(r.E||0).getTime();
+                if (key==="strike") return parseFloat(r.K)||0;
+                if (key==="entry") return r.price||0;
+                if (key==="premium") return r.P||0;
+                if (key==="vol") return r.V||0;
+                if (key==="oi") return r.OI||0;
+                if (key==="doi") return r.dOI||0;
+                if (key==="volOI") return r.volOI||0;
+                if (key==="dte") return r.DTE||0;
+                if (key==="hits") return r.trades||0;
                 return 0;
+              };
+              const sorted = [...enriched].sort((a,b) => {
+                const d1 = oiSort.dir === "asc" ? 1 : -1;
+                const d2 = oiSort.dir2 === "asc" ? 1 : -1;
+                const av1 = getVal(a, oiSort.col), bv1 = getVal(b, oiSort.col);
+                const cmp1 = oiSort.col==="sym" ? av1.localeCompare(bv1)*d1 : (av1-bv1)*d1;
+                if (cmp1 !== 0) return cmp1;
+                const av2 = getVal(a, oiSort.col2), bv2 = getVal(b, oiSort.col2);
+                return oiSort.col2==="sym" ? av2.localeCompare(bv2)*d2 : (av2-bv2)*d2;
               });
-              const toggleSort = (col) => setOiSort(prev => prev.col===col ? {col, dir:prev.dir==="desc"?"asc":"desc"} : {col, dir:"desc"});
-              const sortIcon = (col) => oiSort.col===col ? (oiSort.dir==="desc"?" ▼":" ▲") : "";
+              const toggleSort = (col) => setOiSort(prev => {
+                if (prev.col===col) return {...prev, dir:prev.dir==="desc"?"asc":"desc"};
+                return {col, dir:"desc", col2:prev.col, dir2:prev.dir};
+              });
+              const sortIcon = (col) => {
+                if (oiSort.col===col) return oiSort.dir==="desc"?" ▼":" ▲";
+                if (oiSort.col2===col) return oiSort.dir2==="desc"?" ▽":" △";
+                return "";
+              };
               const cols = [
                 {key:"sym",label:"Ticker"},{key:"exp",label:"Exp"},{key:"strike",label:"Strike"},{key:"cp",label:"C/P"},
                 {key:"entry",label:"Entry"},{key:"premium",label:"Premium"},{key:"flow",label:"Flow"},{key:"hits",label:"Hits"},
                 {key:"vol",label:"Vol"},{key:"oi",label:"OI"},{key:"doi",label:"ΔOI"},{key:"volOI",label:"Vol/OI"},{key:"dte",label:"DTE"}
               ];
               return (
-            <Card title="OI Check" sub={sorted.length+" contracts"}>
+            <Card title="OI Check" sub={sorted.length+" contracts · sorted by "+oiSort.col+(oiSort.col2?" then "+oiSort.col2:"")}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
                     {cols.map(c=>(
                       <th key={c.key} onClick={()=>c.key!=="cp"&&c.key!=="flow"&&toggleSort(c.key)}
-                        style={{ padding:"5px 4px", textAlign:c.key==="flow"?"center":"left", color:oiSort.col===c.key?P.ac:P.mt, fontSize:9, fontWeight:600,
+                        style={{ padding:"5px 4px", textAlign:c.key==="flow"?"center":"left", color:oiSort.col===c.key?P.ac:oiSort.col2===c.key?P.ye:P.mt, fontSize:9, fontWeight:600,
                           cursor:c.key!=="cp"&&c.key!=="flow"?"pointer":"default", userSelect:"none" }}
                         title={c.key==="doi"?"Change in OI from CSV snapshot to live. ΔOI up = new positions, ΔOI down = exits.":undefined}>
                         {c.label}{sortIcon(c.key)}
