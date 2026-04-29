@@ -874,7 +874,7 @@ function processFlowData(rows) {
   // OI Watchlist — cluster ALL trades by strike, rank by Vol/OI ratio
   const watchMap = {};
   filtered.forEach(t => {
-    if (!t.OI || t.OI <= 0) return; // skip if no OI data
+    if (!t.OI || t.OI <= 0 || t.DTE <= 0) return; // skip if no OI data or 0DTE
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!watchMap[k]) watchMap[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, V:0, OI:t.OI, P:0, Si:t.Si, Ty:t.Ty, trades:0,
       hasSweep:false, hasBlock:false, price:0, DTE:t.DTE };
@@ -1011,6 +1011,7 @@ export default function OptionsFlowDashboard() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [oiSearch, setOiSearch] = useState("");
+  const [oiSort, setOiSort] = useState({col:"volOI", dir:"desc"});
   const [tfCapFilter, setTfCapFilter] = useState("All");
   const [tfDteFilter, setTfDteFilter] = useState("All");
   const [gexTicker, setGexTicker] = useState("SPY");
@@ -4500,24 +4501,58 @@ export default function OptionsFlowDashboard() {
               </div>
             </div>
             {(() => {
-              const watchFiltered = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,10) : D.WATCH.slice(0,20);
+              const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,30) : D.WATCH.slice(0,40);
+              // Enrich with live OI data
+              const enriched = watchAll.map(r => {
+                const px = getPrice(r.S, r.CP, r.K, r.E);
+                const curOI = px ? (px.oi||0) : 0;
+                const dOI = curOI > 0 && r.OI > 0 ? curOI - r.OI : 0;
+                return { ...r, curOI, dOI };
+              });
+              // Sort
+              const sortKey = oiSort.col;
+              const sortDir = oiSort.dir === "asc" ? 1 : -1;
+              const sorted = [...enriched].sort((a,b) => {
+                let av, bv;
+                if (sortKey==="sym") { av=a.S||""; bv=b.S||""; return av.localeCompare(bv)*sortDir; }
+                if (sortKey==="exp") { av=new Date(a.E||0).getTime(); bv=new Date(b.E||0).getTime(); return (av-bv)*sortDir; }
+                if (sortKey==="strike") { av=parseFloat(a.K)||0; bv=parseFloat(b.K)||0; return (av-bv)*sortDir; }
+                if (sortKey==="entry") { av=a.price||0; bv=b.price||0; return (av-bv)*sortDir; }
+                if (sortKey==="premium") { av=a.P||0; bv=b.P||0; return (av-bv)*sortDir; }
+                if (sortKey==="vol") { av=a.V||0; bv=b.V||0; return (av-bv)*sortDir; }
+                if (sortKey==="oi") { av=a.OI||0; bv=b.OI||0; return (av-bv)*sortDir; }
+                if (sortKey==="doi") { av=a.dOI||0; bv=b.dOI||0; return (av-bv)*sortDir; }
+                if (sortKey==="volOI") { av=a.volOI||0; bv=b.volOI||0; return (av-bv)*sortDir; }
+                if (sortKey==="dte") { av=a.DTE||0; bv=b.DTE||0; return (av-bv)*sortDir; }
+                if (sortKey==="hits") { av=a.trades||0; bv=b.trades||0; return (av-bv)*sortDir; }
+                return 0;
+              });
+              const toggleSort = (col) => setOiSort(prev => prev.col===col ? {col, dir:prev.dir==="desc"?"asc":"desc"} : {col, dir:"desc"});
+              const sortIcon = (col) => oiSort.col===col ? (oiSort.dir==="desc"?" ▼":" ▲") : "";
+              const cols = [
+                {key:"sym",label:"Ticker"},{key:"exp",label:"Exp"},{key:"strike",label:"Strike"},{key:"cp",label:"C/P"},
+                {key:"entry",label:"Entry"},{key:"premium",label:"Premium"},{key:"flow",label:"Flow"},{key:"hits",label:"Hits"},
+                {key:"vol",label:"Vol"},{key:"oi",label:"OI"},{key:"doi",label:"ΔOI"},{key:"volOI",label:"Vol/OI"},{key:"dte",label:"DTE"}
+              ];
               return (
-            <Card title="OI Check" sub={watchFiltered.length+" contracts · sorted by Vol/OI"}>
+            <Card title="OI Check" sub={sorted.length+" contracts"}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","Exp","Strike","C/P","Entry","Premium","Flow","Vol","OI","ΔOI","Vol/OI","DTE"].map(h=>(
-                      <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
+                    {cols.map(c=>(
+                      <th key={c.key} onClick={()=>c.key!=="cp"&&c.key!=="flow"&&toggleSort(c.key)}
+                        style={{ padding:"5px 4px", textAlign:c.key==="flow"?"center":"left", color:oiSort.col===c.key?P.ac:P.mt, fontSize:9, fontWeight:600,
+                          cursor:c.key!=="cp"&&c.key!=="flow"?"pointer":"default", userSelect:"none" }}
+                        title={c.key==="doi"?"Change in OI from CSV snapshot to live. ΔOI up = new positions, ΔOI down = exits.":undefined}>
+                        {c.label}{sortIcon(c.key)}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {watchFiltered.map((r,i)=>{
+                  {sorted.map((r,i)=>{
                     const pct = r.volOI;
-                    const px = getPrice(r.S, r.CP, r.K, r.E);
-                    const curOI = px ? px.oi : 0;
-                    const dOI = curOI > 0 && r.OI > 0 ? curOI - r.OI : 0;
-                    const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
+                    const dOIC = r.dOI > 0 ? P.bu : r.dOI < 0 ? P.be : P.dm;
                     return (
                       <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:pct>=1?(P.ac+"08"):pct>=0.5?(P.ye+"08"):"transparent" }}>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
@@ -4529,12 +4564,12 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 4px" }}>
                           <span style={{ display:"flex", gap:2, alignItems:"center", justifyContent:"center" }}>
                             {r.hasSweep&&r.hasBlock?<Tag c={P.ac}>S+B</Tag>:r.hasSweep?<Tag c={P.sw}>SWP</Tag>:<Tag c={P.bk}>BLK</Tag>}
-                            <span style={{ fontWeight:700, fontSize:9, color:r.trades>=3?P.ac:r.trades>=2?P.ye:P.dm }}>{r.trades}x</span>
                           </span>
                         </td>
+                        <td style={{ padding:"5px 4px", fontWeight:700, color:r.trades>=5?P.ac:r.trades>=3?P.ye:P.dm }}>{r.trades}x</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.V.toLocaleString()}</td>
-                        <td style={{ padding:"5px 4px", color:P.dm }}>{r.OI.toLocaleString()}</td>
-                        <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>
+                        <td style={{ padding:"5px 4px", color:P.dm }}>{r.OI>0?r.OI.toLocaleString():"—"}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{r.dOI!==0?(r.dOI>0?"+":"")+r.dOI.toLocaleString():"—"}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:pct>=1?P.ac:pct>=0.5?P.ye:pct>=0.25?P.wh:P.dm }}>{(pct*100).toFixed(0)}%</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
                       </tr>
