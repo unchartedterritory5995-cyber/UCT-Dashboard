@@ -5,16 +5,24 @@ Calls https://api.massive.com using MASSIVE_API_KEY env var.
 
 No dependency on the local uct-intelligence package — works on Railway.
 """
-import json
 import os
-import urllib.request
 from typing import Any
+
+import httpx
 
 from api.services.cache import cache
 
 _REST_BASE = "https://api.massive.com"
 
 _client = None
+
+# Shared httpx session — persistent TCP connections, 8 s timeout.
+# Connection pooling cuts per-call overhead by ~100-200 ms vs urllib.
+_http = httpx.Client(
+    timeout=httpx.Timeout(8.0, connect=3.0),
+    limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+    headers={"Accept": "application/json"},
+)
 
 
 class _MassiveRestClient:
@@ -29,10 +37,10 @@ class _MassiveRestClient:
         if not self._api_key:
             raise RuntimeError("MASSIVE_API_KEY not set in environment")
 
-    def _get(self, url: str, timeout: int = 90) -> dict:
-        req = urllib.request.Request(url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+    def _get(self, url: str, timeout: float = 8.0) -> dict:
+        resp = _http.get(url, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
 
     def get_top_movers(self, direction: str = "gainers", limit: int = 20) -> list:
         """Return top gaining or losing stocks for the current session.

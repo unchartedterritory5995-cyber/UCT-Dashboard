@@ -115,6 +115,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] Auth DB init error (non-fatal): {e}")
 
+    # SQLite bar store — persistent OHLCV history (delta-updated on each request)
+    try:
+        from api.services import bars_sqlite as _bars_sqlite
+        _bars_sqlite.init_db()
+        print("[startup] SQLite bar store ready")
+    except Exception as e:
+        print(f"[startup] SQLite bar store init error (non-fatal): {e}")
+
     _seed_cache_from_volume()
 
     # Pre-warm bars disk cache — background thread fetches all commonly viewed

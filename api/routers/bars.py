@@ -5,18 +5,72 @@ Intraday: Massive API primary → FMP fallback → yfinance fallback
 Daily/Weekly: Massive API via get_agg_bars()
 Monthly: Massive daily bars resampled to monthly
 
-Cache hierarchy: in-memory TTLCache → deep cache (S3 minute resampled) → disk cache → API
+Cache hierarchy:
+  1. In-memory TTLCache     (<1 ms  — hot path)
+  2. SQLite bar store       (<5 ms  — persistent across redeploys, delta-updated)
+  3. Disk cache             (<20 ms — legacy fallback during SQLite cold-start)
+  4. Massive API delta      (<1 s   — only new bars since last stored ts)
+  5. Massive API full       (4-8 s  — first-ever fetch for a ticker)
+
+Request deduplication: if N concurrent requests arrive for the same
+(ticker, tf, bars) while a Massive call is in-flight, all waiters
+share the result of a single API call instead of stampeding.
 """
 import json as _json
 import os as _os
 import threading as _threading
 import time as _time
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo as _ZI
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from api.services.cache import cache
 from api.services import bars_disk_cache as disk_cache
+from api.services import bars_sqlite as _sqlite
 from api.services.massive import _get_client, _REST_BASE
+
+# ── In-flight deduplication ───────────────────────────────────────────────────
+# Prevents N concurrent requests for the same key from each making a separate
+# Massive API call.  The first thread that arrives becomes the "fetcher" and
+# sets the result into cache; all others wait on an Event and read from cache.
+_inflight: dict[str, _threading.Event] = {}
+_inflight_lock = _threading.Lock()
+
+
+def _is_market_open() -> bool:
+    now = datetime.now(_ZI("America/New_York"))
+    if now.weekday() >= 5:
+        return False
+    hm = now.hour * 100 + now.minute
+    return 930 <= hm < 1600
+
+
+def _needs_fresh(last_ts: int | None, tf: str) -> bool:
+    """True if SQLite data is stale enough to warrant a delta fetch."""
+    if last_ts is None:
+        return True
+    if tf in ("D", "W", "M"):
+        today = int(datetime.utcnow().strftime("%Y%m%d"))
+        return last_ts < today
+    # Intraday: only fetch during market hours
+    if not _is_market_open():
+        return False
+    thresholds = {"1": 90, "5": 300, "15": 900, "30": 1800, "60": 3600}
+    return (_time.time() - last_ts) > thresholds.get(tf, 300)
+
+
+def _fmt_sqlite_bars(rows: list[tuple], tf: str) -> list[dict]:
+    """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format."""
+    date_tf = tf in ("D", "W", "M")
+    out = []
+    for ts, o, h, l, c, v in rows:
+        if date_tf:
+            s = str(ts)
+            t_val = f"{s[:4]}-{s[4:6]}-{s[6:]}"
+        else:
+            t_val = ts
+        out.append({"t": t_val, "o": o, "h": h, "l": l, "c": c, "v": v})
+    return out
 
 router = APIRouter()
 
@@ -123,7 +177,7 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
     try:
         url = f"https://financialmodelingprep.com/stable/historical-chart/{interval}?symbol={ticker.upper()}&apikey={fmp_key}"
         req = urllib.request.Request(url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=8) as resp:
             import json as _json
             data = _json.loads(resp.read().decode("utf-8"))
         if not isinstance(data, list) or not data:
@@ -213,6 +267,89 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
 
     # Return whatever we had (stale > nothing)
     return bars or []
+
+
+# ── Delta-fetch helpers (tiny payloads — only new bars since last stored ts) ──
+
+def _delta_daily(ticker: str, last_ts: int) -> list[dict]:
+    """Fetch only daily bars newer than last_ts (YYYYMMDD int)."""
+    from api.services.massive import get_agg_bars
+    from_date = (datetime.utcnow() - timedelta(days=10)).strftime("%Y-%m-%d")
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+    new = []
+    for bar in get_agg_bars(ticker, from_date, to_date):
+        dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+        ts = int(dt.strftime("%Y%m%d"))
+        if ts > last_ts:
+            new.append({
+                "t": dt.strftime("%Y-%m-%d"),
+                "o": round(bar["o"], 2), "h": round(bar["h"], 2),
+                "l": round(bar["l"], 2), "c": round(bar["c"], 2),
+                "v": int(bar.get("v", 0)),
+            })
+    return new
+
+
+def _delta_weekly(ticker: str, last_ts: int) -> list[dict]:
+    """Fetch daily bars for the last 14 days, resample, return new weekly bars."""
+    from api.services.massive import get_agg_bars
+    from_date = (datetime.utcnow() - timedelta(days=14)).strftime("%Y-%m-%d")
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+    daily = []
+    for bar in get_agg_bars(ticker, from_date, to_date):
+        dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+        daily.append({
+            "t": dt.strftime("%Y-%m-%d"),
+            "o": round(bar["o"], 2), "h": round(bar["h"], 2),
+            "l": round(bar["l"], 2), "c": round(bar["c"], 2),
+            "v": int(bar.get("v", 0)),
+        })
+    return [b for b in _resample_weekly_iso(daily) if int(b["t"].replace("-", "")) > last_ts]
+
+
+def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
+    """Fetch daily bars for the last 60 days, resample, return new monthly bars."""
+    from api.services.massive import get_agg_bars
+    from_date = (datetime.utcnow() - timedelta(days=60)).strftime("%Y-%m-%d")
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+    daily = []
+    for bar in get_agg_bars(ticker, from_date, to_date):
+        dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+        daily.append({
+            "t": dt.strftime("%Y-%m-%d"),
+            "o": round(bar["o"], 2), "h": round(bar["h"], 2),
+            "l": round(bar["l"], 2), "c": round(bar["c"], 2),
+            "v": int(bar.get("v", 0)),
+        })
+    return [b for b in _resample_monthly_iso(daily) if int(b["t"].replace("-", "")) > last_ts]
+
+
+def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
+    """Fetch only intraday bars newer than last_ts (unix seconds)."""
+    multiplier = int(tf)
+    from_date = (datetime.utcnow() - timedelta(days=2)).strftime("%Y-%m-%d")
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+    try:
+        client = _get_client()
+        url = (
+            f"{_REST_BASE}/v2/aggs/ticker/{ticker.upper()}/range/{multiplier}/minute"
+            f"/{from_date}/{to_date}"
+            f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
+        )
+        data = client._get(url)
+        new = []
+        for bar in (data.get("results") or []):
+            ts = int(bar["t"] / 1000)
+            if ts > last_ts:
+                new.append({
+                    "t": ts,
+                    "o": round(bar["o"], 2), "h": round(bar["h"], 2),
+                    "l": round(bar["l"], 2), "c": round(bar["c"], 2),
+                    "v": int(bar.get("v", 0)),
+                })
+        return new
+    except Exception:
+        return []
 
 
 def _fetch_daily_yf(ticker: str) -> list[dict]:
@@ -798,11 +935,12 @@ def warm_universe_status():
     return snap
 
 
-def _get_bars_inner(ticker: str, tf: str, bars: int):
+def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     ticker_up = ticker.upper()
     cache_key = f"bars_{ticker_up}_{tf}_{bars}"
+    date_tf   = tf in ("D", "W", "M")
 
-    # Layer 1: In-memory TTL cache (fastest — <1ms)
+    # ── Layer 1: In-memory TTL cache (<1 ms) ─────────────────────────────────
     cached = cache.get(cache_key)
     if cached is not None:
         return JSONResponse(
@@ -810,93 +948,119 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):
             headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
         )
 
-    # Layer 2: Deep cache + fresh merge for 15/30/60min
-    # Deep cache has 3,400-5,000 historical bars from S3, but may be missing today.
-    # Merge with fresh REST data to get full history + current session candles.
-    # Layer 2: Deep cache for 15/30/60min (S3 minute data, 3,400-5,000 bars)
-    if tf in ("15", "30", "60"):
-        deep = disk_cache.get_deep(ticker_up, tf, bars)
-        if deep is not None:
-            deep_bars = deep.get("bars", [])
-            last_deep_ts = deep_bars[-1]["t"] if deep_bars else 0
-            # Check if deep cache is missing recent data (>4 hours old)
-            import time as _time
-            if (_time.time() - last_deep_ts) > 14400:
-                # Fetch fresh bars from REST to cover the gap
-                try:
-                    fresh = _fetch_intraday(ticker_up, tf, 500)
-                    if fresh:
-                        # Merge: keep deep history, append fresh bars newer than deep's last
-                        merged = deep_bars + [b for b in fresh if b["t"] > last_deep_ts]
-                        merged = merged[-bars:]  # Trim to requested count
-                        payload = {"ticker": ticker_up, "tf": tf, "bars": merged}
-                        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
-                        return JSONResponse(
-                            content=payload,
-                            headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
-                        )
-                except Exception:
-                    pass
-            # Deep cache is fresh enough or merge failed — serve as-is
-            cache.set(cache_key, deep, ttl=_CACHE_TTL.get(tf, 300))
+    # ── Layer 2: SQLite persistent store (<5 ms) ──────────────────────────────
+    last_ts     = _sqlite.get_last_ts(ticker_up, tf)
+    stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
+
+    if stored_rows and not _needs_fresh(last_ts, tf):
+        # SQLite has enough fresh data — serve immediately, no API call.
+        payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf)}
+        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
+        return JSONResponse(
+            content=payload,
+            headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+        )
+
+    # ── Layer 3: Legacy disk cache fallback (transition period) ──────────────
+    # Serves existing warm disk-cache entries during the SQLite cold-start.
+    # Once SQLite is populated for a ticker, this branch is never reached.
+    if not stored_rows:
+        disk_cached = disk_cache.get(ticker_up, tf, bars)
+        if disk_cached and disk_cached.get("bars"):
+            payload = disk_cached
+            cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
             return JSONResponse(
-                content=deep,
+                content=payload,
                 headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
             )
 
-    # Layer 2b: Regular disk cache (for TFs without deep cache: 1min, 5min, D, W, M)
-    disk_cached = disk_cache.get(ticker_up, tf, bars)
-    if disk_cached is not None:
-        if tf in ("1", "5", "15", "30", "60"):
-            import time as _time
-            from datetime import datetime as _dt
-            from zoneinfo import ZoneInfo as _ZI
-            _now_et = _dt.now(_ZI("America/New_York"))
-            _is_market = (_now_et.weekday() < 5
-                          and _now_et.hour >= 9 and _now_et.hour < 16
-                          and not (_now_et.hour == 9 and _now_et.minute < 30))
-            if _is_market:
-                _max_age_min = {"1": 5, "5": 10, "15": 30, "30": 45, "60": 90}.get(tf, 60)
-                cached_bars = disk_cached.get("bars", [])
-                if cached_bars:
-                    last_ts = cached_bars[-1].get("t", 0)
-                    age_min = (_time.time() - last_ts) / 60
-                    if age_min > _max_age_min:
-                        disk_cached = None
-        if disk_cached is not None:
-            cache.set(cache_key, disk_cached, ttl=_CACHE_TTL.get(tf, 300))
-            return JSONResponse(
-                content=disk_cached,
-                headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
-            )
-
-    # Layer 3: Fetch from Massive API (slow — 4-8s from Railway)
-    try:
-        if tf in ("1", "5", "15", "30", "60"):
-            result_bars = _fetch_intraday(ticker_up, tf, bars)
-        elif tf == "W":
-            result_bars = _fetch_weekly(ticker_up, bars)
-        elif tf == "M":
-            result_bars = _fetch_monthly(ticker_up, bars)
+    # ── Layer 4: API fetch (delta or full) — with deduplication ──────────────
+    # Prevent a stampede: only one thread fetches per cache_key; the rest wait.
+    with _inflight_lock:
+        if cache_key in _inflight:
+            waiter_ev  = _inflight[cache_key]
+            i_am_fetcher = False
         else:
-            result_bars = _fetch_daily(ticker_up, bars)
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"[bars] Fetch failed {ticker_up} tf={tf}: {e}")
-        result_bars = []
+            waiter_ev  = _threading.Event()
+            _inflight[cache_key] = waiter_ev
+            i_am_fetcher = True
+
+    if not i_am_fetcher:
+        # Wait up to 12 s for the fetcher to finish, then read from cache.
+        waiter_ev.wait(timeout=12)
+        hit = cache.get(cache_key)
+        if hit is not None:
+            return JSONResponse(
+                content=hit,
+                headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+            )
+        # Fetcher may have failed — return stale SQLite data or empty
+        stale = _fmt_sqlite_bars(stored_rows, tf) if stored_rows else []
+        return JSONResponse(
+            content={"ticker": ticker_up, "tf": tf, "bars": stale},
+            headers={"Cache-Control": "public, max-age=5"},
+        )
+
+    # We are the designated fetcher for this key.
+    import logging as _log
+    _logger = _log.getLogger(__name__)
+    result_bars: list[dict] = []
+
+    try:
+        if stored_rows and last_ts:
+            # ── Delta fetch: only new bars since last stored ts (fast) ────────
+            try:
+                if tf == "D":
+                    new_bars = _delta_daily(ticker_up, last_ts)
+                elif tf == "W":
+                    new_bars = _delta_weekly(ticker_up, last_ts)
+                elif tf == "M":
+                    new_bars = _delta_monthly(ticker_up, last_ts)
+                else:  # intraday
+                    new_bars = _delta_intraday(ticker_up, tf, last_ts)
+
+                if new_bars:
+                    _sqlite.put_bars(ticker_up, tf, new_bars, date_tf=date_tf)
+
+                # Read fresh rows from SQLite (includes the new bars)
+                fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
+                result_bars = _fmt_sqlite_bars(fresh_rows or stored_rows, tf)
+
+            except Exception as e:
+                _logger.warning(f"[bars] delta failed {ticker_up} tf={tf}: {e}")
+                result_bars = _fmt_sqlite_bars(stored_rows, tf)
+
+        else:
+            # ── Full fetch: first time we see this ticker/tf ──────────────────
+            try:
+                if tf in ("1", "5", "15", "30", "60"):
+                    raw = _fetch_intraday(ticker_up, tf, bars)
+                elif tf == "W":
+                    raw = _fetch_weekly(ticker_up, bars)
+                elif tf == "M":
+                    raw = _fetch_monthly(ticker_up, bars)
+                else:
+                    raw = _fetch_daily(ticker_up, bars)
+
+                if raw:
+                    _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
+                result_bars = raw
+
+            except Exception as e:
+                _logger.error(f"[bars] full fetch failed {ticker_up} tf={tf}: {e}")
+                result_bars = []
+
+    finally:
+        # Always release waiters, even on exception.
+        with _inflight_lock:
+            _inflight.pop(cache_key, None)
+        waiter_ev.set()
 
     payload = {"ticker": ticker_up, "tf": tf, "bars": result_bars}
-
-    # Persist to both cache layers — but NEVER cache empty results
-    # (empty = API error or missing data, should retry on next request)
-    if result_bars:
-        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
-        disk_cache.put(ticker_up, tf, bars, payload)
-    else:
-        # Cache empty for only 5 seconds so retries happen quickly
-        cache.set(cache_key, payload, ttl=5)
+    ttl = _CACHE_TTL.get(tf, 300)
+    cache.set(cache_key, payload, ttl=ttl if result_bars else 5)
 
     return JSONResponse(
         content=payload,
-        headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+        headers={"Cache-Control": f"public, max-age={ttl}"},
     )
