@@ -229,29 +229,33 @@ export default function StockChart({
   const dedupMs = isIntraday ? 15000 : 60000  // 15s intraday, 60s daily/weekly
 
   // ── IndexedDB layer — instant renders on repeat visits ────────────────────
-  // On every sym/tf change: load cached bars from IDB immediately (0 ms,
-  // no network).  SWR fires in parallel; when it returns, we merge any new
-  // bars, update IDB, and the chart refreshes with the latest data.
-  const [idbBars, setIdbBars] = useState(null)
-  const [idbSince, setIdbSince] = useState(null)  // last t value — used as `since` param
+  // On every sym/tf change: read IDB (~0 ms) BEFORE firing SWR.
+  // idbSinceRef holds the last cached `t` value as a ref (not state) so
+  // the SWR URL is stable after the first fire — prevents the double-fetch
+  // that would occur if `since` were state and changed after IDB resolved.
+  const [idbBars, setIdbBars]   = useState(null)
+  const [idbLoaded, setIdbLoaded] = useState(false)
+  const idbSinceRef = useRef(null)
 
   useEffect(() => {
     if (!sym || !resolvedTf) return
     setIdbBars(null)
-    setIdbSince(null)
+    setIdbLoaded(false)
+    idbSinceRef.current = null
     idbGet(sym, resolvedTf).then(entry => {
       if (entry?.bars?.length) {
         setIdbBars(entry.bars)
-        setIdbSince(entry.lastT ?? null)
+        idbSinceRef.current = entry.lastT ?? null
       }
-    }).catch(() => {})
+      setIdbLoaded(true)   // gate SWR until IDB check is done (<5 ms)
+    }).catch(() => setIdbLoaded(true))
   }, [sym, resolvedTf])
 
-  // SWR: pass `since` so the server returns only new bars when we have IDB data.
-  // First visit (no IDB): no `since` → full fetch.
-  // Repeat visit (IDB hit): `since=<lastT>` → tiny delta payload (0-5 bars).
-  const swrUrl = sym
-    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${idbSince != null ? `&since=${encodeURIComponent(String(idbSince))}` : ''}`
+  // SWR fires only after IDB check so the URL is already final (no re-key).
+  // `since` = last stored t → server returns only new bars (0-5 bars, ~100 B).
+  // No `since` on first visit → full fetch, stored in IDB for next session.
+  const swrUrl = (sym && idbLoaded)
+    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${idbSinceRef.current != null ? `&since=${encodeURIComponent(String(idbSinceRef.current))}` : ''}`
     : null
 
   const { data, error, mutate } = useSWR(
@@ -260,25 +264,55 @@ export default function StockChart({
     { dedupingInterval: dedupMs, revalidateOnFocus: false }
   )
 
-  // When SWR returns, persist to IDB and merge delta if applicable.
+  // Persist to IDB and merge delta when SWR returns.
   useEffect(() => {
     if (!data?.bars || !sym || !resolvedTf) return
     if (data.delta && idbBars?.length) {
-      // Delta response: merge new bars onto IDB history
       const merged = mergeDelta(idbBars, data.bars)
       setIdbBars(merged)
-      if (merged.length) setIdbSince(merged[merged.length - 1].t)
+      if (merged.length) idbSinceRef.current = merged[merged.length - 1].t
       idbPut(sym, resolvedTf, merged)
     } else if (!data.delta && data.bars.length) {
-      // Full response: store and use directly
       setIdbBars(data.bars)
-      setIdbSince(data.bars[data.bars.length - 1]?.t ?? null)
+      idbSinceRef.current = data.bars[data.bars.length - 1]?.t ?? null
       idbPut(sym, resolvedTf, data.bars)
     }
   }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Bars to render: IDB serves immediately; full SWR data takes priority
-  // once it arrives (replaces IDB with authoritative server data).
+  // ── Background prefetch — all other timeframes when sym changes ───────────
+  // After the primary chart loads, silently fetch every other TF into IDB so
+  // switching timeframes is also instant (no spinner, no wait).
+  useEffect(() => {
+    if (!sym) return
+    const ALL_TFS   = ['D', 'W', '5', '15', '30', '60']
+    const BC        = { D: 8000, W: 8000 }
+    // Delay 600 ms so primary chart load gets priority on the network
+    const timer = setTimeout(() => {
+      ALL_TFS.filter(t => t !== resolvedTf).forEach(tf => {
+        idbGet(sym, tf).then(entry => {
+          // Skip if IDB has fresh data (D/W: 24 h; intraday: 4 h)
+          const maxAge = (['D','W'].includes(tf) ? 86400 : 14400) * 1000
+          if (entry?.bars?.length && Date.now() - (entry.savedAt || 0) < maxAge) return
+          const bc    = BC[tf] ?? 5000
+          const since = entry?.lastT
+          const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}`
+          fetch(url)
+            .then(r => r.json())
+            .then(d => {
+              if (!d.bars?.length) return
+              const next = (d.delta && entry?.bars?.length)
+                ? mergeDelta(entry.bars, d.bars)
+                : d.bars
+              idbPut(sym, tf, next)
+            })
+            .catch(() => {})
+        })
+      })
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [sym])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Bars: IDB renders instantly; full SWR data replaces it when available.
   const bars = (data && !data.delta && data.bars?.length)
     ? data.bars
     : (idbBars?.length ? idbBars : data?.bars)

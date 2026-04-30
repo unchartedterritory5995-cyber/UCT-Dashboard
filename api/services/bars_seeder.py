@@ -128,11 +128,12 @@ def _build_tier2(tier1_set: set[str]) -> list[str]:
 
     # Watchlist items from DB
     try:
-        from api.services.auth_db import get_db
-        with get_db() as db:
-            rows = db.execute("SELECT DISTINCT sym FROM watchlist_items").fetchall()
-            for r in rows:
-                _add(r[0])
+        from api.services.auth_db import get_connection
+        conn = get_connection()
+        rows = conn.execute("SELECT DISTINCT sym FROM watchlist_items").fetchall()
+        conn.close()
+        for r in rows:
+            _add(r[0])
     except Exception:
         pass
 
