@@ -123,6 +123,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] SQLite bar store init error (non-fatal): {e}")
 
+    # Background bar seeder — pre-populates SQLite for priority tickers so
+    # charts load instantly without waiting for Massive API on first request.
+    try:
+        from api.services.bars_seeder import start_background_seeder
+        start_background_seeder()
+    except Exception as e:
+        print(f"[startup] Bar seeder start error (non-fatal): {e}")
+
     _seed_cache_from_volume()
 
     # Pre-warm bars disk cache — background thread fetches all commonly viewed
@@ -573,6 +581,24 @@ async def lifespan(app: FastAPI):
         run_weekly_digests,
         trigger=CronTrigger(day_of_week="fri", hour=17, minute=5),
         id="watchlist_weekly_digest",
+        max_instances=1,
+        replace_existing=True,
+    )
+
+    # Nightly bar refresh — delta-updates all universe tickers after market close
+    # so every Daily chart loads instantly next morning from SQLite.
+    def _nightly_bar_refresh():
+        try:
+            from api.services.bars_seeder import seed_full_universe
+            import threading as _th
+            _th.Thread(target=seed_full_universe, daemon=True, name="bars-nightly").start()
+        except Exception as e:
+            print(f"[scheduler] nightly bar refresh error: {e}")
+
+    _scheduler.add_job(
+        _nightly_bar_refresh,
+        trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=15),
+        id="bars_nightly_refresh",
         max_instances=1,
         replace_existing=True,
     )

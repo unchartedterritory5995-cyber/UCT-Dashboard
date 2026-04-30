@@ -557,19 +557,69 @@ def _resample_monthly_iso(daily_bars: list[dict]) -> list[dict]:
 @router.get("/api/bars/{ticker}")
 def get_bars(
     ticker: str,
-    tf: str = Query(default="D", description="Timeframe: 5, 30, 60, D, W"),
-    bars: int = Query(default=200, ge=1, le=10000, description="Max bars"),
+    tf: str = Query(default="D", description="Timeframe: 1, 5, 15, 30, 60, D, W, M"),
+    bars: int = Query(default=200, ge=1, le=10000, description="Max bars to return"),
+    since: str = Query(default="", description="Return only bars with t > since (browser delta sync)"),
 ):
-    """Return OHLCV bars for client-side charting.
+    """Return OHLCV bars for client-side charting (Lightweight Charts v5).
 
-    3-layer cache: memory (~5min) → disk (~4hr) → Massive API (~4-8s).
+    Cache hierarchy: memory → SQLite (delta-updated) → disk fallback → Massive API.
+
+    When `since` is provided (browser already has bars up to that timestamp),
+    only newer bars are returned — drastically smaller payloads on repeat visits.
     """
     try:
+        if since:
+            return _get_bars_since_response(ticker, tf, bars, since)
         return _get_bars_inner(ticker, tf, bars)
     except Exception as e:
         import logging, traceback
         logging.getLogger(__name__).error(f"[bars] CRASH {ticker} tf={tf}: {e}\n{traceback.format_exc()}")
         return JSONResponse(content={"ticker": ticker.upper(), "tf": tf, "bars": []})
+
+
+def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) -> JSONResponse:
+    """Return only bars newer than `since_str` for the browser's delta sync.
+
+    Triggers a delta fetch from Massive if SQLite data is stale, then returns
+    only the new rows — typically 0-5 bars, so payload is ~500 bytes vs 50 KB.
+    """
+    ticker_up = ticker.upper()
+    date_tf   = tf in ("D", "W", "M")
+
+    # Parse `since` → SQLite ts int
+    try:
+        if date_tf:
+            since_ts = int(str(since_str).replace("-", "")[:8])
+        else:
+            since_ts = int(float(since_str))
+    except (ValueError, TypeError):
+        since_ts = 0
+
+    # Trigger delta update if data is stale (non-blocking for callers that
+    # already have the bulk of history; this just fills in the latest bars)
+    last_ts = _sqlite.get_last_ts(ticker_up, tf)
+    if _needs_fresh(last_ts, tf) and last_ts:
+        try:
+            if tf == "D":
+                new = _delta_daily(ticker_up, last_ts)
+            elif tf == "W":
+                new = _delta_weekly(ticker_up, last_ts)
+            elif tf == "M":
+                new = _delta_monthly(ticker_up, last_ts)
+            else:
+                new = _delta_intraday(ticker_up, tf, last_ts)
+            if new:
+                _sqlite.put_bars(ticker_up, tf, new, date_tf=date_tf)
+        except Exception:
+            pass
+
+    rows  = _sqlite.get_bars_since(ticker_up, tf, since_ts)
+    delta = _fmt_sqlite_bars(rows, tf)
+    return JSONResponse(
+        content={"ticker": ticker_up, "tf": tf, "bars": delta, "delta": True},
+        headers={"Cache-Control": "public, max-age=5"},
+    )
 
 
 # Background cache warmer — used by other routers to pre-populate /api/bars

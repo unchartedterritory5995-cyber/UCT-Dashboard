@@ -11,6 +11,7 @@ import ChartToolbar from './chart/ChartToolbar'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import styles from './StockChart.module.css'
+import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -227,14 +228,61 @@ export default function StockChart({
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
   const dedupMs = isIntraday ? 15000 : 60000  // 15s intraday, 60s daily/weekly
 
+  // ── IndexedDB layer — instant renders on repeat visits ────────────────────
+  // On every sym/tf change: load cached bars from IDB immediately (0 ms,
+  // no network).  SWR fires in parallel; when it returns, we merge any new
+  // bars, update IDB, and the chart refreshes with the latest data.
+  const [idbBars, setIdbBars] = useState(null)
+  const [idbSince, setIdbSince] = useState(null)  // last t value — used as `since` param
+
+  useEffect(() => {
+    if (!sym || !resolvedTf) return
+    setIdbBars(null)
+    setIdbSince(null)
+    idbGet(sym, resolvedTf).then(entry => {
+      if (entry?.bars?.length) {
+        setIdbBars(entry.bars)
+        setIdbSince(entry.lastT ?? null)
+      }
+    }).catch(() => {})
+  }, [sym, resolvedTf])
+
+  // SWR: pass `since` so the server returns only new bars when we have IDB data.
+  // First visit (no IDB): no `since` → full fetch.
+  // Repeat visit (IDB hit): `since=<lastT>` → tiny delta payload (0-5 bars).
+  const swrUrl = sym
+    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${idbSince != null ? `&since=${encodeURIComponent(String(idbSince))}` : ''}`
+    : null
+
   const { data, error, mutate } = useSWR(
-    sym ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}` : null,
+    swrUrl,
     fetcher,
     { dedupingInterval: dedupMs, revalidateOnFocus: false }
   )
 
-  const bars = data?.bars
-  const loading = !data && !error
+  // When SWR returns, persist to IDB and merge delta if applicable.
+  useEffect(() => {
+    if (!data?.bars || !sym || !resolvedTf) return
+    if (data.delta && idbBars?.length) {
+      // Delta response: merge new bars onto IDB history
+      const merged = mergeDelta(idbBars, data.bars)
+      setIdbBars(merged)
+      if (merged.length) setIdbSince(merged[merged.length - 1].t)
+      idbPut(sym, resolvedTf, merged)
+    } else if (!data.delta && data.bars.length) {
+      // Full response: store and use directly
+      setIdbBars(data.bars)
+      setIdbSince(data.bars[data.bars.length - 1]?.t ?? null)
+      idbPut(sym, resolvedTf, data.bars)
+    }
+  }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Bars to render: IDB serves immediately; full SWR data takes priority
+  // once it arrives (replaces IDB with authoritative server data).
+  const bars = (data && !data.delta && data.bars?.length)
+    ? data.bars
+    : (idbBars?.length ? idbBars : data?.bars)
+  const loading = !bars && !error
 
   // Real-time price streaming for live candle updates
   const { prices: livePrices } = useRealtimePrices(sym ? [sym] : [])

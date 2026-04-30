@@ -72,6 +72,14 @@ def get_bars(ticker: str, tf: str, max_bars: int) -> list[tuple]:
     ).fetchall()
 
 
+def get_bars_since(ticker: str, tf: str, since_ts: int) -> list[tuple]:
+    """Return bars with ts > since_ts, oldest-first (for browser delta sync)."""
+    return _conn().execute(
+        "SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf=? AND ts>? ORDER BY ts ASC",
+        (ticker.upper(), tf, since_ts),
+    ).fetchall()
+
+
 def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False) -> int:
     """Upsert bars.  date_tf=True means bar["t"] is 'YYYY-MM-DD' → YYYYMMDD int.
     Returns number of rows inserted/replaced.
