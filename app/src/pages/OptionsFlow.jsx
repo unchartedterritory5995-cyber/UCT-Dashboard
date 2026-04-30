@@ -1079,11 +1079,27 @@ export default function OptionsFlowDashboard() {
     return days[d.getDay()] + " " + parts[0] + "/" + (parts[1] || 1);
   };
 
+  // Auto-set to latest date when CSV has many dates
+  useEffect(() => {
+    if (availableDates.length > 5 && dateFilter === "All") {
+      setDateFilter(availableDates[availableDates.length - 1]);
+    }
+  }, [availableDates]);
+
   // Process data whenever parsedRows or dateFilter changes
   useEffect(() => {
     if (!parsedRows || parsedRows.length === 0) return;
     const t2 = performance.now();
-    const filtered = dateFilter === "All" ? parsedRows : parsedRows.filter(r => r.date && r.date.trim() === dateFilter);
+    let filtered;
+    if (dateFilter === "All") {
+      filtered = parsedRows;
+    } else if (dateFilter.startsWith("Last")) {
+      const n = parseInt(dateFilter.replace("Last",""))||3;
+      const recentDates = new Set(availableDates.slice(-n));
+      filtered = parsedRows.filter(r => r.date && recentDates.has(r.date.trim()));
+    } else {
+      filtered = parsedRows.filter(r => r.date && r.date.trim() === dateFilter);
+    }
     if (filtered.length === 0) { setD(null); return; }
     try {
       const data = processFlowData(filtered);
@@ -2108,23 +2124,54 @@ export default function OptionsFlowDashboard() {
           </div>
         </div>
 
-        {/* Date Filter — auto-generated from CSV dates */}
+        {/* Date Filter — pills for ≤5 dates, dropdown for more */}
         {dataMode !== "gex" && availableDates.length > 1 && (
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
-            <div style={{ display:"flex", gap:2, background:P.al, borderRadius:6, padding:2, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center" }}>
-              <button onClick={()=>setDateFilter("All")} style={{
-                padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
-                fontSize:10, fontWeight:700, fontFamily:"inherit",
-                background:dateFilter==="All"?P.cd:"transparent", color:dateFilter==="All"?P.ac:P.mt
-              }}>All · {availableDates.length}d</button>
-              {availableDates.map(d=>(
-                <button key={d} onClick={()=>setDateFilter(d)} style={{
+            {availableDates.length <= 5 ? (
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:6, padding:2, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center" }}>
+                <button onClick={()=>setDateFilter("All")} style={{
+                  padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit",
+                  background:dateFilter==="All"?P.cd:"transparent", color:dateFilter==="All"?P.ac:P.mt
+                }}>All · {availableDates.length}d</button>
+                {availableDates.map(d=>(
+                  <button key={d} onClick={()=>setDateFilter(d)} style={{
+                    padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                    fontSize:10, fontWeight:600, fontFamily:"inherit",
+                    background:dateFilter===d?P.cd:"transparent", color:dateFilter===d?P.wh:P.mt
+                  }}>{fmtDatePill(d)}</button>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display:"flex", gap:6, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd }}>
+                {["Last3","Last5"].map(v=>{
+                  const n = parseInt(v.replace("Last",""));
+                  const label = "Last "+n+"d";
+                  return (
+                    <button key={v} onClick={()=>setDateFilter(v)} style={{
+                      padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                      fontSize:10, fontWeight:700, fontFamily:"inherit",
+                      background:dateFilter===v?P.cd:"transparent", color:dateFilter===v?P.ac:P.mt
+                    }}>{label}</button>
+                  );
+                })}
+                <button onClick={()=>setDateFilter("All")} style={{
                   padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
-                  fontSize:10, fontWeight:600, fontFamily:"inherit",
-                  background:dateFilter===d?P.cd:"transparent", color:dateFilter===d?P.wh:P.mt
-                }}>{fmtDatePill(d)}</button>
-              ))}
-            </div>
+                  fontSize:10, fontWeight:700, fontFamily:"inherit",
+                  background:dateFilter==="All"?P.cd:"transparent", color:dateFilter==="All"?P.ac:P.mt
+                }}>All {availableDates.length}d</button>
+                <span style={{ width:1, height:16, background:P.bd }}/>
+                <select value={dateFilter.startsWith("Last")||dateFilter==="All"?"":dateFilter}
+                  onChange={e=>e.target.value&&setDateFilter(e.target.value)}
+                  style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit", fontWeight:600, minWidth:120 }}>
+                  <option value="">Select date...</option>
+                  {[...availableDates].reverse().map(d=>(
+                    <option key={d} value={d}>{fmtDatePill(d)}</option>
+                  ))}
+                </select>
+                <span style={{ fontSize:9, color:P.dm }}>{availableDates.length} trading days</span>
+              </div>
+            )}
           </div>
         )}
 
