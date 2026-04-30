@@ -18,7 +18,6 @@ const UCT20 = lazy(() => import('./pages/UCT20'))
 const Breadth = lazy(() => import('./pages/Breadth'))
 const ThemeTrackerPage = lazy(() => import('./pages/ThemeTrackerPage'))
 const Calendar = lazy(() => import('./pages/Calendar'))
-const Traders = lazy(() => import('./pages/Traders'))
 const Screener = lazy(() => import('./pages/Screener'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const LiveFlow = lazy(() => import('./pages/LiveFlow'))
@@ -99,7 +98,6 @@ export default function App() {
                 <Route path="/breadth" element={<Breadth />} />
                 <Route path="/theme-tracker" element={<ThemeTrackerPage />} />
                 <Route path="/calendar" element={<Calendar />} />
-                <Route path="/traders" element={<Traders />} />
                 <Route path="/screener" element={<Screener />} />
                 <Route path="/options-flow" element={<OptionsFlow />} />
                 <Route path="/dark-pool" element={<DarkPool />} />

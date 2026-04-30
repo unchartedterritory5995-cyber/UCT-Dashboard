@@ -34,7 +34,6 @@ const NAV_SECTIONS = [
   {
     label: 'Trading',
     items: [
-      { to: '/traders',     label: 'Traders',     icon: '\uD83D\uDC65' },
       { to: '/post-market', label: 'Post Market', icon: '\uD83C\uDF19' },
       { to: '/model-book',     label: 'Model Book',    icon: '\uD83D\uDCD6' },
       { to: '/setup-library', label: 'Setup Library', icon: '\uD83D\uDCDA' },

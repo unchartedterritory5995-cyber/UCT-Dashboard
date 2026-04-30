@@ -11,7 +11,6 @@ const NAV_ITEMS = [
   { to: '/breadth',        label: 'Breadth',        icon: '📶' },
   { to: '/theme-tracker',  label: 'Theme Tracker',  icon: '🎯' },
   { to: '/calendar',       label: 'Calendar',        icon: '📅' },
-  { to: '/traders',        label: 'Traders',         icon: '👥' },
   { to: '/screener',     label: 'Screener',      icon: '⚡' },
   { to: '/options-flow', label: 'Options Flow',  icon: '📊' },
   { to: '/dark-pool',    label: 'Dark Pool',     icon: '🌊' },
