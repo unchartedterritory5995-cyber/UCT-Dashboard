@@ -1404,9 +1404,15 @@ export default function OptionsFlowDashboard() {
         crosshair: { mode: 0 },
         rightPriceScale: { borderColor: "#1a2540" },
         timeScale: { borderColor: "#1a2540", timeVisible: true, secondsVisible: false,
-          tickMarkFormatter: (time) => {
+          tickMarkFormatter: (time, tickMarkType) => {
             const d = new Date(time * 1000);
-            return d.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+            const et = d.toLocaleString('en-US', { timeZone: 'America/New_York', month:'numeric', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true });
+            const parts = et.split(', ');
+            const datePart = d.toLocaleString('en-US', { timeZone: 'America/New_York', month:'short', day:'numeric' });
+            const timePart = d.toLocaleString('en-US', { timeZone: 'America/New_York', hour:'numeric', minute:'2-digit', hour12:true });
+            const h = parseInt(d.toLocaleString('en-US', { timeZone: 'America/New_York', hour:'numeric', hour12:false }));
+            if (h <= 10 && parseInt(d.toLocaleString('en-US', { timeZone: 'America/New_York', minute:'numeric' })) <= 30) return datePart;
+            return timePart;
           }
         },
         localization: {
@@ -1681,7 +1687,7 @@ export default function OptionsFlowDashboard() {
                   grid:{vertLines:{color:"#1a254022"},horzLines:{color:"#1a254022"}},
                   crosshair:{mode:0}, rightPriceScale:{borderColor:"#1a2540"},
                   timeScale:{borderColor:"#1a2540",timeVisible:true,secondsVisible:false,
-                    tickMarkFormatter:t=>{const d=new Date(t*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});}},
+                    tickMarkFormatter:(t)=>{const d=new Date(t*1000);const h=parseInt(d.toLocaleString("en-US",{timeZone:"America/New_York",hour:"numeric",hour12:false}));const m=parseInt(d.toLocaleString("en-US",{timeZone:"America/New_York",minute:"numeric"}));if(h<=10&&m<=30)return d.toLocaleString("en-US",{timeZone:"America/New_York",month:"short",day:"numeric"});return d.toLocaleString("en-US",{timeZone:"America/New_York",hour:"numeric",minute:"2-digit",hour12:true});}},
                   localization:{timeFormatter:t=>{const d=new Date(t*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});}},
                 });
                 const s = chart.addCandlestickSeries({upColor:"#0a8f55",downColor:"#c43030",borderUpColor:"#0a8f55",borderDownColor:"#c43030",wickUpColor:"#0a8f55",wickDownColor:"#c43030"});
@@ -2472,7 +2478,7 @@ export default function OptionsFlowDashboard() {
                         grid:{vertLines:{color:"#1a254022"},horzLines:{color:"#1a254022"}},
                         crosshair:{mode:0}, rightPriceScale:{borderColor:"#1a2540"},
                         timeScale:{borderColor:"#1a2540",timeVisible:true,secondsVisible:false,
-                          tickMarkFormatter:ti=>{const d=new Date(ti*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});}},
+                          tickMarkFormatter:(t)=>{const d=new Date(t*1000);const h=parseInt(d.toLocaleString("en-US",{timeZone:"America/New_York",hour:"numeric",hour12:false}));const m=parseInt(d.toLocaleString("en-US",{timeZone:"America/New_York",minute:"numeric"}));if(h<=10&&m<=30)return d.toLocaleString("en-US",{timeZone:"America/New_York",month:"short",day:"numeric"});return d.toLocaleString("en-US",{timeZone:"America/New_York",hour:"numeric",minute:"2-digit",hour12:true});}},
                         localization:{timeFormatter:ti=>{const d=new Date(ti*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});}},
                       });
                       const sr = chart.addCandlestickSeries({upColor:"#0a8f55",downColor:"#c43030",borderUpColor:"#0a8f55",borderDownColor:"#c43030",wickUpColor:"#0a8f55",wickDownColor:"#c43030"});
@@ -3222,8 +3228,11 @@ export default function OptionsFlowDashboard() {
                               timeScale:{borderColor:"#1a2540",timeVisible:isIntra,secondsVisible:false,
                                 tickMarkFormatter:ti=>{
                                   const d=new Date(ti*1000);
-                                  if(isIntra) return d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});
-                                  return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric'});
+                                  if(!isIntra) return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric'});
+                                  const h=parseInt(d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',hour12:false}));
+                                  const m=parseInt(d.toLocaleString('en-US',{timeZone:'America/New_York',minute:'numeric'}));
+                                  if(h<=10&&m<=30) return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric'});
+                                  return d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});
                                 }},
                               localization:{timeFormatter:ti=>{
                                 const d=new Date(ti*1000);
