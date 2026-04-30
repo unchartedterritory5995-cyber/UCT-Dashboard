@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import TickerPopup from '../components/TickerPopup'
 import CustomScan from './CustomScan'
 import { SkeletonTable } from '../components/Skeleton'
+import { prefetchBars } from '../utils/prefetchBars'
 import styles from './Screener.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -245,6 +246,12 @@ export default function Screener() {
     [allCandidates]
   )
   const { prices } = useRealtimePrices(pageTab === 'scanner' ? allTickers : [])
+
+  // Pre-warm Daily bars for the top candidates when scanner data arrives
+  useEffect(() => {
+    if (!allTickers.length) return
+    prefetchBars(allTickers.slice(0, 30), 'D')
+  }, [allTickers])
 
   return (
     <div className={pageTab === 'custom' ? styles.containerFull : styles.container}>

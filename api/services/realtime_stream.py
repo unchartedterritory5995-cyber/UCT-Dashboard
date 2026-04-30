@@ -64,6 +64,29 @@ def subscribe_tickers(tickers):
     _logger.info("[stream] Subscribed %d new tickers (total: %d)", len(new), len(_subscribed))
 
 
+def unsubscribe_tickers(tickers):
+    """Remove tickers from the subscription set and send unsubscribe messages."""
+    to_remove = set(t.upper() for t in tickers) & _subscribed
+    if not to_remove:
+        return
+    _subscribed.difference_update(to_remove)
+    if _ws_loop and _running:
+        asyncio.run_coroutine_threadsafe(_async_unsubscribe(to_remove), _ws_loop)
+    _logger.debug("[stream] Unsubscribed %d tickers (total: %d)", len(to_remove), len(_subscribed))
+
+
+async def _async_unsubscribe(tickers):
+    """Send unsubscribe messages on the existing Finnhub WebSocket."""
+    global _ws_connection
+    if not _ws_connection:
+        return
+    for sym in tickers:
+        try:
+            await _ws_connection.send(json.dumps({"type": "unsubscribe", "symbol": sym}))
+        except Exception as e:
+            _logger.warning("[stream] Unsubscribe %s failed: %s", sym, e)
+
+
 async def _async_subscribe(tickers):
     """Send subscribe messages on the existing Finnhub WebSocket."""
     global _ws_connection
@@ -107,14 +130,14 @@ async def _run_websocket():
                 backoff = 1
                 _logger.info("[stream] Finnhub WebSocket connected")
 
-                # Subscribe full $300M+ universe on connect
-                universe = _load_full_universe()
-                if universe:
-                    _subscribed.update(universe)
+                # Re-subscribe only already-requested tickers (lazy subscription model).
+                # Bulk-subscribing the full 3,685-ticker universe on every connect
+                # saturates Finnhub free-tier limits and wastes bandwidth.
                 all_tickers = sorted(_subscribed)
                 for sym in all_tickers:
                     await ws.send(json.dumps({"type": "subscribe", "symbol": sym}))
-                _logger.info("[stream] Subscribed to %d tickers (full universe)", len(all_tickers))
+                if all_tickers:
+                    _logger.info("[stream] Re-subscribed %d active tickers on reconnect", len(all_tickers))
 
                 # Process messages
                 async for raw_msg in ws:
@@ -163,7 +186,8 @@ def _process_finnhub_trade(trade):
             "price": round(trade_price, 2),
             "change_pct": change_pct,
             "change": round(trade_price - prev_close, 4) if prev_close else 0,
-            "volume": prev.get("volume", 0) + trade_vol,
+            # volume intentionally omitted: REST polling owns accurate day volume.
+            # Accumulating tick volumes here produced unbounded runaway totals.
             "prev_close": prev_close,
             "timestamp": timestamp,
             "updated_at": time.time(),

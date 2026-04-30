@@ -7,16 +7,21 @@ import asyncio
 import json
 import time
 
-from fastapi import APIRouter, Query
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 
-from api.services.realtime_stream import get_realtime_prices, subscribe_tickers, get_stream_status
+from api.services.realtime_stream import (
+    get_realtime_prices, subscribe_tickers, unsubscribe_tickers, get_stream_status
+)
 
 router = APIRouter()
+
+MAX_SSE_TICKERS = 50  # Finnhub free tier cap; prevents unbounded subscription growth
 
 
 @router.get("/api/stream/prices")
 async def stream_prices(
+    request: Request,
     tickers: str = Query(..., description="Comma-separated ticker symbols"),
 ):
     """SSE endpoint — streams real-time price updates to the browser.
@@ -27,7 +32,10 @@ async def stream_prices(
     """
     ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     if not ticker_list:
-        return {"error": "No tickers provided"}
+        return JSONResponse({"error": "No tickers provided"}, status_code=400)
+
+    # Cap to MAX_SSE_TICKERS to prevent subscription bloat
+    ticker_list = ticker_list[:MAX_SSE_TICKERS]
 
     # Subscribe these tickers to the WebSocket stream
     subscribe_tickers(ticker_list)
@@ -37,28 +45,37 @@ async def stream_prices(
         heartbeat_interval = 15  # seconds
         last_heartbeat = time.time()
 
-        while True:
-            # Get latest prices for requested tickers
-            current = get_realtime_prices(ticker_list)
+        try:
+            while True:
+                # Exit immediately when browser disconnects — prevents zombie coroutines
+                if await request.is_disconnected():
+                    break
 
-            # Only send if any ticker's price actually changed (not just updated_at)
-            prices_now = {s: d.get("price") for s, d in current.items()} if current else {}
-            if prices_now != last_prices and current:
-                last_prices = prices_now
-                yield f"data: {json.dumps(current)}\n\n"
+                # Get latest prices for requested tickers
+                current = get_realtime_prices(ticker_list)
 
-            # Heartbeat to keep connection alive
-            if time.time() - last_heartbeat > heartbeat_interval:
-                yield f": heartbeat\n\n"
-                last_heartbeat = time.time()
+                # Only send if any ticker's price actually changed
+                prices_now = {s: d.get("price") for s, d in current.items()} if current else {}
+                if prices_now != last_prices and current:
+                    last_prices = prices_now
+                    yield f"data: {json.dumps(current)}\n\n"
 
-            await asyncio.sleep(0.1)  # Check every 100ms for near-instant updates
+                # Heartbeat to keep connection alive through proxies
+                if time.time() - last_heartbeat > heartbeat_interval:
+                    yield f": heartbeat\n\n"
+                    last_heartbeat = time.time()
+
+                await asyncio.sleep(0.1)
+        finally:
+            # Clean up subscriptions when client disconnects so _subscribed
+            # doesn't grow unbounded as users navigate between pages.
+            unsubscribe_tickers(ticker_list)
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # Disable Nginx/proxy buffering
         },

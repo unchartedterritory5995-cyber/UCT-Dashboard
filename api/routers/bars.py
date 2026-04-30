@@ -52,9 +52,10 @@ def _needs_fresh(last_ts: int | None, tf: str) -> bool:
     if tf in ("D", "W", "M"):
         today = int(datetime.utcnow().strftime("%Y%m%d"))
         return last_ts < today
-    # Intraday: only fetch during market hours
+    # Intraday: skip refresh outside market hours UNLESS data is from a prior session
     if not _is_market_open():
-        return False
+        # Force refresh if last bar is older than 30 hours (previous session / missed day)
+        return (_time.time() - last_ts) > 30 * 3600
     thresholds = {"1": 90, "5": 300, "15": 900, "30": 1800, "60": 3600}
     return (_time.time() - last_ts) > thresholds.get(tf, 300)
 
@@ -327,7 +328,10 @@ def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
 def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
     """Fetch only intraday bars newer than last_ts (unix seconds)."""
     multiplier = int(tf)
-    from_date = (datetime.utcnow() - timedelta(days=2)).strftime("%Y-%m-%d")
+    # Scale lookback to cover the full gap since last stored bar + 2-day buffer.
+    # A fixed 2-day window misses bars when a user hasn't opened the app in days.
+    gap_days = max(2, int((_time.time() - last_ts) / 86400) + 2)
+    from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
     try:
         client = _get_client()
@@ -1055,6 +1059,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     import logging as _log
     _logger = _log.getLogger(__name__)
     result_bars: list[dict] = []
+    ttl = _CACHE_TTL.get(tf, 300)
+    # Pre-initialise payload so finally block always has something to cache
+    payload: dict = {"ticker": ticker_up, "tf": tf, "bars": []}
 
     try:
         if stored_rows and last_ts:
@@ -1093,22 +1100,27 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     raw = _fetch_daily(ticker_up, bars)
 
                 if raw:
-                    _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
+                    # Don't persist stale intraday fallback data to SQLite — it would
+                    # be served as fresh on subsequent requests since _needs_fresh
+                    # checks last_ts age, not data age.
+                    if date_tf or not _is_intraday_stale(raw):
+                        _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
                 result_bars = raw
 
             except Exception as e:
                 _logger.error(f"[bars] full fetch failed {ticker_up} tf={tf}: {e}")
                 result_bars = []
 
+        # Build payload and write to cache BEFORE releasing waiters, so that
+        # concurrent waiters that wake in the finally block read fresh data.
+        payload = {"ticker": ticker_up, "tf": tf, "bars": result_bars}
+        cache.set(cache_key, payload, ttl=ttl if result_bars else 5)
+
     finally:
-        # Always release waiters, even on exception.
+        # Always release waiters — cache is already populated above.
         with _inflight_lock:
             _inflight.pop(cache_key, None)
         waiter_ev.set()
-
-    payload = {"ticker": ticker_up, "tf": tf, "bars": result_bars}
-    ttl = _CACHE_TTL.get(tf, 300)
-    cache.set(cache_key, payload, ttl=ttl if result_bars else 5)
 
     return JSONResponse(
         content=payload,

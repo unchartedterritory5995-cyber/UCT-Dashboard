@@ -83,23 +83,28 @@ export default function TradeDrawer({ tradeId, onClose, onTradeUpdated }) {
   const chartMarkers = useMemo(() => {
     if (!trade) return []
     const markers = []
-    if (trade.entry_price && trade.entry_date) {
-      markers.push({
-        time: trade.entry_date,
-        position: 'belowBar',
-        color: '#3cb868',
-        shape: 'arrowUp',
-        text: trade.direction === 'short' ? 'SHORT' : 'BUY',
-      })
-    }
-    if (trade.exit_price && trade.exit_date) {
-      markers.push({
-        time: trade.exit_date,
-        position: 'aboveBar',
-        color: '#e74c3c',
-        shape: 'arrowDown',
-        text: trade.status === 'stopped' ? 'STOP' : (trade.direction === 'short' ? 'COVER' : 'SELL'),
-      })
+    // When detailed executions exist, they are more informative than the parent
+    // entry/exit markers — skip the parent to avoid double-stamping the same bar.
+    const hasExecs = executions.length > 0
+    if (!hasExecs) {
+      if (trade.entry_price && trade.entry_date) {
+        markers.push({
+          time: trade.entry_date,
+          position: 'belowBar',
+          color: '#3cb868',
+          shape: 'arrowUp',
+          text: trade.direction === 'short' ? 'SHORT' : 'BUY',
+        })
+      }
+      if (trade.exit_price && trade.exit_date) {
+        markers.push({
+          time: trade.exit_date,
+          position: 'aboveBar',
+          color: '#e74c3c',
+          shape: 'arrowDown',
+          text: trade.status === 'stopped' ? 'STOP' : (trade.direction === 'short' ? 'COVER' : 'SELL'),
+        })
+      }
     }
     executions.forEach(ex => {
       const isEntry = ['entry', 'add'].includes(ex.exec_type)
@@ -331,7 +336,7 @@ export default function TradeDrawer({ tradeId, onClose, onTradeUpdated }) {
               {deleting ? '...' : '\u2715'}
             </button>
             <button className={styles.closeBtn} onClick={onClose} title="Close (Esc)">
-              \u00D7
+              {'\u00D7'}
             </button>
           </div>
         </div>
@@ -385,6 +390,7 @@ export default function TradeDrawer({ tradeId, onClose, onTradeUpdated }) {
                   height={420}
                   markers={chartMarkers}
                   priceLines={priceLines}
+                  overlays={[]}
                 />
               )}
             </div>

@@ -267,6 +267,10 @@ export default function StockChart({
   // Persist to IDB and merge delta when SWR returns.
   useEffect(() => {
     if (!data?.bars || !sym || !resolvedTf) return
+    // Guard against stale closure: if sym changed between fetch-start and resolve,
+    // the server's `ticker` field reveals the mismatch — skip to avoid storing
+    // e.g. AAPL bars under MSFT when the user switches tickers rapidly.
+    if (data.ticker && data.ticker !== sym.toUpperCase()) return
     if (data.delta && idbBars?.length) {
       const merged = mergeDelta(idbBars, data.bars)
       setIdbBars(merged)
@@ -284,7 +288,7 @@ export default function StockChart({
   // switching timeframes is also instant (no spinner, no wait).
   useEffect(() => {
     if (!sym) return
-    const ALL_TFS   = ['D', 'W', '5', '15', '30', '60']
+    const ALL_TFS   = ['D', 'W', 'M', '1', '5', '15', '30', '60']
     const BC        = { D: 8000, W: 8000 }
     // Delay 600 ms so primary chart load gets priority on the network
     const timer = setTimeout(() => {

@@ -8,7 +8,7 @@ import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
-import { prefetchBars } from '../utils/prefetchBars'
+import { prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
@@ -401,6 +401,9 @@ function DrillModal({ drill, onClose }) {
     const t = setTimeout(() => {
       const start = Math.max(0, selectedIdx - 1)
       const end   = Math.min(items.length, selectedIdx + 9)  // current + 8 ahead
+      // Prefetch all TFs for the current selection so TF switching is instant
+      prefetchAllTimeframes(items[selectedIdx]?.t)
+      // Prefetch the primary chartPeriod for neighbors (adjacent arrow-key targets)
       prefetchBars(items.slice(start, end).map(i => i.t), chartPeriod)
     }, 250)
     return () => clearTimeout(t)

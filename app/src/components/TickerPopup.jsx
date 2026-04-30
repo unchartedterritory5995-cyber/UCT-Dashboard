@@ -1,16 +1,12 @@
 // app/src/components/TickerPopup.jsx
 import { useState, useEffect, lazy, Suspense } from 'react'
-import useSWR from 'swr'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
-import PositionCalc from './PositionCalc'
 import TickerActionsMenu, { useTickerActions } from './TickerActions'
-import { prefetchBar, prefetchAllTimeframes } from '../utils/prefetchBars'
+import { prefetchAllTimeframes } from '../utils/prefetchBars'
 import styles from './TickerPopup.module.css'
-
-const fetcher = url => fetch(url).then(r => r.json())
 
 const StockChart = lazy(() => import('./StockChart'))
 
@@ -103,20 +99,6 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
 
   // Fetch live price only when modal is open
   const { prices } = useRealtimePrices(modalOpen && sym ? [sym] : [])
-
-  // Fetch insider transactions when modal is open
-  const { data: insiderTxns } = useSWR(
-    modalOpen && sym ? `/api/insider/${sym}` : null,
-    fetcher,
-    { revalidateOnFocus: false }
-  )
-
-  // Fetch earnings intelligence when modal is open
-  const { data: earningsIntel } = useSWR(
-    modalOpen && sym ? `/api/earnings/intel/${sym}` : null,
-    fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 60000 }
-  )
   const liveData = prices[sym]
 
   // Clear flag toast after 1.5s
@@ -145,7 +127,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
       <Tag
         className={`${styles.trigger}${className ? ` ${className}` : ''}`}
         onClick={() => { setModalOpen(true); setTab('Daily'); prefetchAllTimeframes(sym) }}
-        onMouseEnter={() => prefetchBar(sym, 'D')}
+        onMouseEnter={() => prefetchAllTimeframes(sym)}
         onContextMenu={e => tickerActions.openMenu(e, sym)}
         role="button"
         aria-label={`View chart for ${sym}`}
