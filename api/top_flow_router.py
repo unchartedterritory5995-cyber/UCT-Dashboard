@@ -23,6 +23,7 @@ class Pick(BaseModel):
     cap: str = ""
     hits: int = 0
     prem: float = 0
+    dateSaved: str = ""
 
 
 @router.post("/save")
