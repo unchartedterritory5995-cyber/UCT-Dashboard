@@ -1205,7 +1205,7 @@ export default function OptionsFlowDashboard() {
 
   // ─── Top Flow Tracker ───────────────────────────────────────────────
   const [topFlowPicks, setTopFlowPicks] = useState({ active:[], archived:[] });
-  const [trackerLookback, setTrackerLookback] = useState(7);
+  const [trackerDateFilter, setTrackerDateFilter] = useState("All");
   const [trackerSort, setTrackerSort] = useState("recent");
   const [trkSort, setTrkSort] = useState({col:"added", dir:"desc", col2:"premium", dir2:"desc"});
   const [trackerCapFilter, setTrackerCapFilter] = useState("All");
@@ -1364,31 +1364,68 @@ export default function OptionsFlowDashboard() {
     return () => clearTimeout(t);
   }, []);
 
-  // Auto-save Top Flow picks when CSV loads — also populate locally as fallback
+  // Auto-save Top Flow picks when CSV loads — save top 20 per CSV date
   useEffect(() => {
     if (!D || !D.CONV || D.CONV.length === 0) return;
-    const today = new Date().toISOString().slice(0,10);
-    const picks = D.CONV.slice(0, 20).map(c => {
+    // Tag each CONV entry with its CSV date from trades
+    const convWithDates = D.CONV.map(c => {
       const trades = c.trades || [];
-      const prices = trades.filter(t=>t.V>0).map(t=>t.P/t.V/100).filter(p=>p>0);
-      const sorted = [...prices].sort((a,b)=>a-b);
-      const entry = sorted.length > 0 ? sorted[Math.floor(sorted.length/2)] : 0;
-      return { sym:c.sym, cp:c.cp, strike:parseFloat(c.K), exp:c.exp, entry:Math.round(entry*100)/100, grade:c.grade, dir:c.dir, hits:c.hits, prem:c.prem, cap:capBand(c.mktcap) };
+      const tradeDates = trades.map(t => (t.date || "").trim()).filter(d => d);
+      const csvDate = tradeDates.length > 0 ? tradeDates[tradeDates.length - 1] : "";
+      // Convert CSV date (4/28/2026) to ISO (2026-04-28)
+      let isoDate = new Date().toISOString().slice(0,10);
+      if (csvDate) {
+        const parts = csvDate.split("/");
+        if (parts.length >= 2) {
+          const m = parseInt(parts[0]), d = parseInt(parts[1]);
+          const y = parts.length >= 3 ? (parseInt(parts[2]) < 100 ? parseInt(parts[2]) + 2000 : parseInt(parts[2])) : new Date().getFullYear();
+          isoDate = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+        }
+      }
+      return { ...c, _csvDate: csvDate, _isoDate: isoDate };
     });
-    // Populate locally immediately so tracker shows even without backend
-    const localPicks = picks.map(p => ({
+
+    // Group by date, take top 20 per date
+    const byDate = {};
+    convWithDates.forEach(c => {
+      const d = c._isoDate;
+      if (!byDate[d]) byDate[d] = [];
+      byDate[d].push(c);
+    });
+
+    const allPicks = [];
+    Object.entries(byDate).forEach(([isoDate, entries]) => {
+      entries.slice(0, 20).forEach(c => {
+        const trades = c.trades || [];
+        const prices = trades.filter(t=>t.V>0).map(t=>t.P/t.V/100).filter(p=>p>0);
+        const sorted = [...prices].sort((a,b)=>a-b);
+        const entry = sorted.length > 0 ? sorted[Math.floor(sorted.length/2)] : 0;
+        allPicks.push({ sym:c.sym, cp:c.cp, strike:parseFloat(c.K), exp:c.exp,
+          entry:Math.round(entry*100)/100, grade:c.grade, dir:c.dir, hits:c.hits, prem:c.prem,
+          cap:capBand(c.mktcap), _dateSaved:isoDate });
+      });
+    });
+
+    // Populate locally immediately
+    const localPicks = allPicks.map(p => ({
       id: `${p.sym}|${p.cp}|${p.strike}|${p.exp}`,
-      ...p, dateSaved: today, history: []
+      ...p, dateSaved: p._dateSaved, history: []
     }));
     setTopFlowPicks(prev => {
       const existingMap = {};
       prev.active.forEach(a => { existingMap[a.id] = a; });
-      const merged = localPicks.map(lp => existingMap[lp.id] ? { ...existingMap[lp.id], grade:lp.grade, hits:lp.hits, prem:lp.prem, dir:lp.dir, cap:lp.cap } : lp);
-      return { ...prev, active: merged };
+      const merged = localPicks.map(lp => existingMap[lp.id]
+        ? { ...existingMap[lp.id], grade:lp.grade, hits:lp.hits, prem:lp.prem, dir:lp.dir, cap:lp.cap, dateSaved:lp.dateSaved }
+        : lp);
+      // Keep existing picks that aren't in the new set
+      const newIds = new Set(localPicks.map(p=>p.id));
+      const kept = prev.active.filter(a => !newIds.has(a.id));
+      return { ...prev, active: [...merged, ...kept] };
     });
-    // Also try to save to backend (deferred — non-critical)
+    // Save to backend (deferred)
     setTimeout(() => {
-      fetch("/api/top-flow/save", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(picks) })
+      const savePicks = allPicks.map(({_dateSaved, ...rest}) => ({...rest, dateSaved: _dateSaved}));
+      fetch("/api/top-flow/save", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(savePicks) })
         .then(r=>r.ok?r.json():null)
         .then(()=>{
           fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{ if(data) setTopFlowPicks(data); }).catch(()=>{});
@@ -4680,11 +4717,11 @@ export default function OptionsFlowDashboard() {
 
         {/* Tracker */}
         {tab==="Tracker" && (() => {
-          const cutoff = trackerLookback === 0 ? 0 : Date.now() - trackerLookback * 86400000;
-          const afterLookback = (list) => trackerLookback === 0 ? list : list.filter(p => p.dateSaved && new Date(p.dateSaved).getTime() >= cutoff);
+          const trackerDates = [...new Set((topFlowPicks.active||[]).map(p=>p.dateSaved).filter(Boolean))].sort().reverse();
+          const afterDateFilter = (list) => trackerDateFilter === "All" ? list : list.filter(p => p.dateSaved === trackerDateFilter);
           const afterCap = (list) => trackerCapFilter === "All" ? list : list.filter(p => (p.cap||"Unknown") === trackerCapFilter);
-          const filteredActive = afterCap(afterLookback(topFlowPicks.active));
-          const filteredArchived = afterCap(afterLookback(topFlowPicks.archived));
+          const filteredActive = afterCap(afterDateFilter(topFlowPicks.active));
+          const filteredArchived = afterCap(afterDateFilter(topFlowPicks.archived));
           const calcPnl = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):(p.history&&p.history.length>0?p.history[p.history.length-1].price:0); return now>0&&p.entry>0?(now-p.entry)/p.entry*100:0; };
           const calcPeak = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):0; const hist=p.history||[]; const allPx=[...hist.map(h=>h.price),now,p.finalPrice||0].filter(v=>v>0); const peak=allPx.length>0?Math.max(...allPx):0; return peak>0&&p.entry>0?(peak-p.entry)/p.entry*100:0; };
           const calcNow = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); return px?(px.mark||px.last||0):(p.history&&p.history.length>0?p.history[p.history.length-1].price:0); };
@@ -4697,8 +4734,16 @@ export default function OptionsFlowDashboard() {
             if (key==="now") return calcNow(p);
             if (key==="pnl") return calcPnl(p);
             if (key==="peak") return calcPeak(p);
-            if (key==="oi") { const h=(p.history||[]).filter(h=>(h.oi||0)>0); return h.length>0?h[h.length-1].oi:0; }
-            if (key==="doi") { const h=(p.history||[]).filter(h=>(h.oi||0)>0); return h.length>1?h[h.length-1].oi-h[h.length-2].oi:0; }
+            if (key==="oi") {
+              const csv = D?.WATCH?.find(w=>w.S===p.sym&&w.CP===p.cp&&String(w.K)===String(p.strike)&&w.E===p.exp);
+              if (csv) return csv.lastOI||csv.OI||0;
+              const h=(p.history||[]).filter(h=>(h.oi||0)>0); return h.length>0?h[h.length-1].oi:0;
+            }
+            if (key==="doi") {
+              const csv = D?.WATCH?.find(w=>w.S===p.sym&&w.CP===p.cp&&String(w.K)===String(p.strike)&&w.E===p.exp);
+              if (csv && csv.daysTracked>1) return csv.csvDOI||0;
+              const h=(p.history||[]).filter(h=>(h.oi||0)>0); return h.length>1?h[h.length-1].oi-h[h.length-2].oi:0;
+            }
             if (key==="days") return p.dateSaved?Math.round((Date.now()-new Date(p.dateSaved).getTime())/86400000):0;
             if (key==="added") return new Date(p.dateSaved||0).getTime();
             if (key==="premium") return p.prem||0;
@@ -4741,12 +4786,18 @@ export default function OptionsFlowDashboard() {
                 </div>
               </div>
               <div style={{ display:"flex", gap:4, marginTop:10, flexWrap:"wrap", alignItems:"center" }}>
-                {[{label:"7d",val:7},{label:"14d",val:14},{label:"30d",val:30},{label:"All",val:0}].map(o=>(
-                  <button key={o.val} onClick={()=>setTrackerLookback(o.val)}
-                    style={{ padding:"4px 12px", borderRadius:5, border:"1px solid "+(trackerLookback===o.val?P.ac:P.bd),
-                      background:trackerLookback===o.val?P.ac+"18":"transparent", color:trackerLookback===o.val?P.ac:P.dm,
-                      fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>{o.label}</button>
-                ))}
+                <button onClick={()=>setTrackerDateFilter("All")}
+                  style={{ padding:"4px 12px", borderRadius:5, border:"1px solid "+(trackerDateFilter==="All"?P.ac:P.bd),
+                    background:trackerDateFilter==="All"?P.ac+"18":"transparent", color:trackerDateFilter==="All"?P.ac:P.dm,
+                    fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>All</button>
+                {trackerDates.length > 0 && (
+                  <select value={trackerDateFilter==="All"?"":trackerDateFilter}
+                    onChange={e=>e.target.value?setTrackerDateFilter(e.target.value):setTrackerDateFilter("All")}
+                    style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:5, color:P.wh, fontSize:10, padding:"4px 8px", fontFamily:"inherit", fontWeight:600 }}>
+                    <option value="">Select date...</option>
+                    {trackerDates.map(d=><option key={d} value={d}>{d}</option>)}
+                  </select>
+                )}
                 <span style={{ width:1, height:16, background:P.bd, margin:"0 6px" }}/>
                 {["All","Mega","Large","Mid","Small"].map(f=>(
                   <button key={f} onClick={()=>setTrackerCapFilter(f)}
@@ -4796,11 +4847,26 @@ export default function OptionsFlowDashboard() {
                       const trendC = trend==="↑"?P.bu:trend==="↓"?P.be:P.dm;
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
                       const showSep = activeResult.split > 0 && i === activeResult.split;
+                      // OI: prefer CSV cross-reference, fallback to snapshot history
+                      const csvMatch = D?.WATCH?.find(w=>w.S===p.sym&&w.CP===p.cp&&String(w.K)===String(p.strike)&&w.E===p.exp);
                       const oiHist = hist.filter(h=>(h.oi||0)>0);
-                      const curOI = oiHist.length>0 ? oiHist[oiHist.length-1].oi : 0;
-                      const prevOI = oiHist.length>1 ? oiHist[oiHist.length-2].oi : 0;
-                      const deltaOI = curOI>0 && prevOI>0 ? curOI-prevOI : 0;
-                      const peakOI = oiHist.length>0 ? Math.max(...oiHist.map(h=>h.oi)) : 0;
+                      let curOI, prevOI, deltaOI;
+                      if (csvMatch && csvMatch.daysTracked > 1) {
+                        curOI = csvMatch.lastOI||0;
+                        prevOI = csvMatch.firstOI||0;
+                        deltaOI = csvMatch.csvDOI||0;
+                      } else if (oiHist.length > 0) {
+                        curOI = oiHist[oiHist.length-1].oi;
+                        prevOI = oiHist.length>1 ? oiHist[oiHist.length-2].oi : 0;
+                        deltaOI = curOI>0 && prevOI>0 ? curOI-prevOI : 0;
+                      } else if (csvMatch) {
+                        curOI = csvMatch.lastOI||csvMatch.OI||0;
+                        prevOI = 0;
+                        deltaOI = 0;
+                      } else {
+                        curOI = 0; prevOI = 0; deltaOI = 0;
+                      }
+                      const peakOI = Math.max(curOI, prevOI, ...(oiHist.map(h=>h.oi)||[0]));
                       const oiDropPct = peakOI>0 && curOI>0 ? (peakOI-curOI)/peakOI*100 : 0;
                       const isExit = oiDropPct >= 30 && peakOI >= 100;
                       return (
