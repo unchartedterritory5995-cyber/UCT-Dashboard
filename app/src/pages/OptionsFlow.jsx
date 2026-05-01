@@ -4825,7 +4825,7 @@ export default function OptionsFlowDashboard() {
                 </div>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {[{label:"Ticker",key:"ticker"},{label:"Exp",key:"exp"},{label:"Strike",key:"strike"},{label:"C/P",key:""},{label:"Grade",key:"grade"},{label:"Dir",key:""},{label:"Entry",key:"entry"},{label:"Now",key:"now"},{label:"P&L",key:"pnl"},{label:"Peak",key:"peak"},{label:"OI",key:"oi"},{label:"ΔOI",key:"doi"},{label:"Days",key:"days"},{label:"Trend",key:""},{label:"Added",key:"added"}].map(h=>(
+                    {[{label:"Ticker",key:"ticker"},{label:"Exp",key:"exp"},{label:"Strike",key:"strike"},{label:"C/P",key:""},{label:"OI",key:"oi"},{label:"ΔOI",key:"doi"},{label:"Grade",key:"grade"},{label:"Dir",key:""},{label:"Entry",key:"entry"},{label:"Now",key:"now"},{label:"P&L",key:"pnl"},{label:"Peak",key:"peak"},{label:"Days",key:"days"},{label:"Trend",key:""},{label:"Added",key:"added"}].map(h=>(
                       <th key={h.label} onClick={()=>h.key&&trkToggle(h.key)}
                         style={{ padding:"5px 5px", textAlign:"left", color:h.key?trkColor(h.key):P.mt, fontSize:9, fontWeight:600, cursor:h.key?"pointer":"default", userSelect:"none" }}
                         title={h.label==="Peak"?"Highest % gain from entry":h.label==="ΔOI"?"Change in OI from previous snapshot":undefined}>{h.label}{h.key?trkIcon(h.key):""}</th>
@@ -4880,14 +4880,14 @@ export default function OptionsFlowDashboard() {
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
+                          <td style={{ padding:"5px 5px", fontSize:10, color:curOI>0?P.dm:P.mt }}>{curOI>0?curOI.toLocaleString():"—"}</td>
+                          <td style={{ padding:"5px 5px", fontSize:10, fontWeight:700, color:deltaOI>0?P.bu:deltaOI<0?P.be:P.dm }}>{deltaOI!==0?(deltaOI>0?"+":"")+deltaOI.toLocaleString():"—"}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={GRADE_COLORS[p.grade]||P.mt}>{p.grade}</Tag></td>
                           <td style={{ padding:"5px 5px" }}><Tag c={dirC}>{p.dir}</Tag></td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{p.entry>0?"$"+p.entry.toFixed(2):"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
-                          <td style={{ padding:"5px 5px", fontSize:10, color:curOI>0?P.dm:P.mt }}>{curOI>0?curOI.toLocaleString():"—"}</td>
-                          <td style={{ padding:"5px 5px", fontSize:10, fontWeight:700, color:deltaOI>0?P.bu:deltaOI<0?P.be:P.dm }}>{deltaOI!==0?(deltaOI>0?"+":"")+deltaOI.toLocaleString():"—"}</td>
                           <td style={{ padding:"5px 5px", color:P.dm }}>{days}d</td>
                           <td style={{ padding:"5px 5px", fontSize:14, fontWeight:800, color:trendC }}>{trend}</td>
                           <td style={{ padding:"5px 5px", color:P.dm, fontSize:9 }}>{p.dateSaved||"—"}</td>
