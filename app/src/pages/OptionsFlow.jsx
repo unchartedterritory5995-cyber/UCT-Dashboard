@@ -877,7 +877,7 @@ function processFlowData(rows) {
     if (!t.OI || t.OI <= 0 || t.DTE <= 0) return; // skip if no OI data or 0DTE
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!watchMap[k]) watchMap[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, V:0, OI:t.OI, P:0, Si:t.Si, Ty:t.Ty, trades:0,
-      hasSweep:false, hasBlock:false, price:0, DTE:t.DTE };
+      hasSweep:false, hasBlock:false, price:0, DTE:t.DTE, dailyOI:{}, dailyVol:{} };
     watchMap[k].V += t.V;
     watchMap[k].P += t.P;
     watchMap[k].trades++;
@@ -885,9 +885,29 @@ function processFlowData(rows) {
     if (t.OI > watchMap[k].OI) watchMap[k].OI = t.OI;
     if (t.Ty === "SWP") watchMap[k].hasSweep = true;
     if (t.Ty === "BLK") watchMap[k].hasBlock = true;
+    // Track OI and volume by date
+    const dt = (t.date||"").trim();
+    if (dt) {
+      if (!watchMap[k].dailyOI[dt] || t.OI > watchMap[k].dailyOI[dt]) watchMap[k].dailyOI[dt] = t.OI;
+      watchMap[k].dailyVol[dt] = (watchMap[k].dailyVol[dt]||0) + t.V;
+    }
   });
   const WATCH = Object.values(watchMap)
-    .map(w => ({ ...w, volOI: w.OI > 0 ? w.V / w.OI : 0 }))
+    .map(w => {
+      const dates = Object.keys(w.dailyOI).sort((a,b) => {
+        const pa=a.split("/").map(Number), pb=b.split("/").map(Number);
+        const ya=pa.length>=3?(pa[2]<100?pa[2]+2000:pa[2]):new Date().getFullYear();
+        const yb=pb.length>=3?(pb[2]<100?pb[2]+2000:pb[2]):new Date().getFullYear();
+        return new Date(ya,pa[0]-1,pa[1]||1) - new Date(yb,pb[0]-1,pb[1]||1);
+      });
+      const firstOI = dates.length>0 ? w.dailyOI[dates[0]] : 0;
+      const lastOI = dates.length>0 ? w.dailyOI[dates[dates.length-1]] : 0;
+      const csvDOI = dates.length>1 ? lastOI - firstOI : 0;
+      const firstDate = dates[0]||"";
+      const lastDate = dates[dates.length-1]||"";
+      const daysTracked = dates.length;
+      return { ...w, volOI: w.OI > 0 ? w.V / w.OI : 0, csvDOI, firstOI, lastOI, firstDate, lastDate, daysTracked, dailyOI:w.dailyOI, dailyVol:w.dailyVol };
+    })
     .sort((a,b) => b.volOI - a.volOI);
 
   // Performance tracker (needs DTE segments from charts)
@@ -1011,7 +1031,7 @@ export default function OptionsFlowDashboard() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [oiSearch, setOiSearch] = useState("");
-  const [oiSort, setOiSort] = useState({col:"premium", dir:"desc", col2:"volOI", dir2:"desc"});
+  const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
   const [tfCapFilter, setTfCapFilter] = useState("All");
   const [tfDteFilter, setTfDteFilter] = useState("All");
   const [gexTicker, setGexTicker] = useState("SPY");
@@ -4547,7 +4567,7 @@ export default function OptionsFlowDashboard() {
               />
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                 <button onClick={()=>{
-                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,10) : D.WATCH.slice(0,20);
+                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,30) : D.WATCH.slice(0,40);
                   fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -4574,9 +4594,11 @@ export default function OptionsFlowDashboard() {
                 if (key==="entry") return r.price||0;
                 if (key==="premium") return r.P||0;
                 if (key==="vol") return r.V||0;
-                if (key==="oi") return r.OI||0;
-                if (key==="doi") return r.dOI||0;
+                if (key==="firstOI") return r.firstOI||0;
+                if (key==="lastOI") return r.lastOI||0;
+                if (key==="doi") return r.csvDOI||0;
                 if (key==="volOI") return r.volOI||0;
+                if (key==="days") return r.daysTracked||0;
                 if (key==="dte") return r.DTE||0;
                 if (key==="hits") return r.trades||0;
                 return 0;
@@ -4602,10 +4624,10 @@ export default function OptionsFlowDashboard() {
               const cols = [
                 {key:"sym",label:"Ticker"},{key:"exp",label:"Exp"},{key:"strike",label:"Strike"},{key:"cp",label:"C/P"},
                 {key:"entry",label:"Entry"},{key:"premium",label:"Premium"},{key:"flow",label:"Flow"},{key:"hits",label:"Hits"},
-                {key:"vol",label:"Vol"},{key:"oi",label:"OI"},{key:"doi",label:"ΔOI"},{key:"volOI",label:"Vol/OI"},{key:"dte",label:"DTE"}
+                {key:"vol",label:"Vol"},{key:"firstOI",label:"First OI"},{key:"lastOI",label:"Last OI"},{key:"doi",label:"ΔOI"},{key:"volOI",label:"Vol/OI"},{key:"days",label:"Days"},{key:"dte",label:"DTE"}
               ];
               return (
-            <Card title="OI Check" sub={sorted.length+" contracts · sorted by "+oiSort.col+(oiSort.col2?" then "+oiSort.col2:"")}>
+            <Card title="OI Check" sub={sorted.length+" contracts · "+oiSort.col+(oiSort.col2?" → "+oiSort.col2:"")}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
@@ -4613,7 +4635,7 @@ export default function OptionsFlowDashboard() {
                       <th key={c.key} onClick={()=>c.key!=="cp"&&c.key!=="flow"&&toggleSort(c.key)}
                         style={{ padding:"5px 4px", textAlign:c.key==="flow"?"center":"left", color:oiSort.col===c.key?P.ac:oiSort.col2===c.key?P.ye:P.mt, fontSize:9, fontWeight:600,
                           cursor:c.key!=="cp"&&c.key!=="flow"?"pointer":"default", userSelect:"none" }}
-                        title={c.key==="doi"?"Change in OI from CSV snapshot to live. ΔOI up = new positions, ΔOI down = exits.":undefined}>
+                        title={c.key==="doi"?"OI change from first day seen to last day in CSV":c.key==="firstOI"?"OI on first day this contract appeared":c.key==="lastOI"?"OI on most recent day":undefined}>
                         {c.label}{sortIcon(c.key)}
                       </th>
                     ))}
@@ -4622,7 +4644,8 @@ export default function OptionsFlowDashboard() {
                 <tbody>
                   {sorted.map((r,i)=>{
                     const pct = r.volOI;
-                    const dOIC = r.dOI > 0 ? P.bu : r.dOI < 0 ? P.be : P.dm;
+                    const dOI = r.csvDOI || 0;
+                    const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
                     return (
                       <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:pct>=1?(P.ac+"08"):pct>=0.5?(P.ye+"08"):"transparent" }}>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
@@ -4638,9 +4661,11 @@ export default function OptionsFlowDashboard() {
                         </td>
                         <td style={{ padding:"5px 4px", fontWeight:700, color:r.trades>=5?P.ac:r.trades>=3?P.ye:P.dm }}>{r.trades}x</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.V.toLocaleString()}</td>
-                        <td style={{ padding:"5px 4px", color:P.dm }}>{r.OI>0?r.OI.toLocaleString():"—"}</td>
-                        <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{r.dOI!==0?(r.dOI>0?"+":"")+r.dOI.toLocaleString():"—"}</td>
+                        <td style={{ padding:"5px 4px", color:P.dm }}>{r.firstOI>0?r.firstOI.toLocaleString():"—"}{r.firstDate&&<span style={{ fontSize:7, color:P.mt, marginLeft:2 }}>{r.firstDate.split("/").slice(0,2).join("/")}</span>}</td>
+                        <td style={{ padding:"5px 4px", color:P.wh, fontWeight:700 }}>{r.lastOI>0?r.lastOI.toLocaleString():"—"}{r.lastDate&&r.daysTracked>1&&<span style={{ fontSize:7, color:P.mt, marginLeft:2 }}>{r.lastDate.split("/").slice(0,2).join("/")}</span>}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:800, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}{r.daysTracked>1&&<span style={{ fontSize:7, color:P.mt, marginLeft:2 }}>{r.daysTracked}d</span>}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:pct>=1?P.ac:pct>=0.5?P.ye:pct>=0.25?P.wh:P.dm }}>{(pct*100).toFixed(0)}%</td>
+                        <td style={{ padding:"5px 4px", color:r.daysTracked>1?P.ac:P.dm, fontWeight:r.daysTracked>1?700:400 }}>{r.daysTracked>1?r.daysTracked+"d":"1d"}</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
                       </tr>
                     );
