@@ -117,7 +117,7 @@ def save_picks(picks: list[dict]) -> dict:
                 "grade": p.get("grade", ""),
                 "dir": p.get("dir", ""),
                 "cap": p.get("cap", ""),
-                "dateSaved": today,
+                "dateSaved": p.get("dateSaved", "") or today,
                 "hits": p.get("hits", 0),
                 "prem": p.get("prem", 0),
                 "history": [],
