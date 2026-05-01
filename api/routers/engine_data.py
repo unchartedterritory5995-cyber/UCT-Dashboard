@@ -25,7 +25,19 @@ def themes(period: str = Query("1W")):
 @router.get("/api/leadership")
 def leadership():
     try:
-        return get_leadership()
+        result = get_leadership()
+        try:
+            from api.routers.bars import warm_bars_async
+            picks = result if isinstance(result, list) else (result.get("list") or result.get("picks") or [])
+            tickers = [
+                (p.get("sym") or p.get("ticker")).upper()
+                for p in picks if isinstance(p, dict) and (p.get("sym") or p.get("ticker"))
+            ]
+            if tickers:
+                warm_bars_async(tickers, tf="D", bars=5000)
+        except Exception:
+            pass
+        return result
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 

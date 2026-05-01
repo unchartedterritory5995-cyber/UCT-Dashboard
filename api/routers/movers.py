@@ -7,7 +7,20 @@ router = APIRouter()
 @router.get("/api/movers")
 def movers():
     try:
-        return get_movers()
+        result = get_movers()
+        try:
+            from api.routers.bars import warm_bars_async
+            tickers = []
+            for bucket in ("ripping", "drilling"):
+                for item in (result.get(bucket) or []):
+                    sym = item.get("sym") if isinstance(item, dict) else None
+                    if sym:
+                        tickers.append(sym.upper())
+            if tickers:
+                warm_bars_async(tickers, tf="D", bars=5000)
+        except Exception:
+            pass
+        return result
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 

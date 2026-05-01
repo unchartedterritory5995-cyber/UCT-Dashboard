@@ -16,7 +16,22 @@ def screener():
 @router.get("/api/candidates")
 def candidates():
     try:
-        return get_candidates()
+        result = get_candidates()
+        try:
+            from api.routers.bars import warm_bars_async
+            cands = result.get("candidates") or result
+            tickers = []
+            for group in cands.values():
+                if isinstance(group, list):
+                    for c in group:
+                        sym = (c.get("sym") or c.get("ticker")) if isinstance(c, dict) else None
+                        if sym:
+                            tickers.append(sym.upper())
+            if tickers:
+                warm_bars_async(list(dict.fromkeys(tickers)), tf="D", bars=5000)
+        except Exception:
+            pass
+        return result
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 

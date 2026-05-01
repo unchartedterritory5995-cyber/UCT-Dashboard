@@ -133,19 +133,12 @@ async def lifespan(app: FastAPI):
 
     _seed_cache_from_volume()
 
-    # Pre-warm bars disk cache — background thread fetches all commonly viewed
-    # tickers so charts load instantly from disk cache. Runs on every startup,
-    # skips tickers already cached on disk (survives Railway restarts).
-    #
-    # GATED OFF BY DEFAULT — set BARS_PREWARM_ENABLED=1 to enable. The prewarm
-    # was starving the FastAPI process on Railway when combined with normal
-    # request traffic. The cache will warm organically as users view tickers.
+    # Pre-warm bars cache — background thread fetches all commonly viewed
+    # tickers so charts load instantly from SQLite/disk on first request.
+    # Skips tickers that are already fresh in SQLite (survives Railway restarts).
+    # Uses _get_bars_inner so all 4 cache layers (memory→SQLite→disk→API) are hit.
     def _prewarm_bars():
-        if os.environ.get("BARS_PREWARM_ENABLED", "0") != "1":
-            print("[prewarm] Skipped (set BARS_PREWARM_ENABLED=1 to enable).")
-            return
         from api.services import bars_disk_cache as _disk
-        from api.routers.bars import _fetch_daily
         import time as _t
 
         # Purge stale cache entries from prior bugs
@@ -284,7 +277,8 @@ async def lifespan(app: FastAPI):
         # endpoint at Massive is I/O-bound and supports this concurrency
         # comfortably; if rate limits ever bite, drop to 8.
         from concurrent.futures import ThreadPoolExecutor as _PrewarmTPE
-        from api.routers.bars import _fetch_daily, _fetch_weekly, _fetch_monthly, _fetch_intraday
+        from api.routers.bars import _get_bars_inner, _needs_fresh
+        from api.services import bars_sqlite as _sqlite
 
         # Intraday warming is only worthwhile for tickers users actually open
         # at minute-level granularity — leadership names, indices, watchlist.
@@ -294,21 +288,11 @@ async def lifespan(app: FastAPI):
         def _warm_one(args):
             sym, tf, bar_count = args
             try:
-                if _disk.get(sym, tf, bar_count) is not None:
+                last_ts = _sqlite.get_last_ts(sym.upper(), tf)
+                if not _needs_fresh(last_ts, tf):
                     return ('skipped', sym, tf)
-                if tf == 'D':
-                    bars = _fetch_daily(sym, bar_count)
-                elif tf == 'W':
-                    bars = _fetch_weekly(sym, bar_count)
-                elif tf == 'M':
-                    bars = _fetch_monthly(sym, bar_count)
-                else:
-                    bars = _fetch_intraday(sym, tf, bar_count)
-                if bars:
-                    payload = {"ticker": sym, "tf": tf, "bars": bars}
-                    _disk.put(sym, tf, bar_count, payload)
-                    cache.set(f"bars_{sym}_{tf}_{bar_count}", payload, ttl=300)
-                    return ('warmed', sym, tf)
+                _get_bars_inner(sym.upper(), tf, bar_count)
+                return ('warmed', sym, tf)
             except Exception:
                 pass
             return ('failed', sym, tf)
@@ -351,7 +335,7 @@ async def lifespan(app: FastAPI):
         # the universe stays hot without thrashing the upstream API.
         while True:
             _t.sleep(300)
-            refresh_jobs = [j for j in jobs if _disk.get(j[0], j[1], j[2]) is None]
+            refresh_jobs = [j for j in jobs if _needs_fresh(_sqlite.get_last_ts(j[0].upper(), j[1]), j[1])]
             if not refresh_jobs:
                 continue
             refreshed = 0
