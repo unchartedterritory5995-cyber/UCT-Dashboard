@@ -94,6 +94,16 @@ def get_drill_list(date_str: str, metric_key: str):
     items = svc.get_drill_list(date_str, metric_key)
     if items is None:
         raise HTTPException(status_code=404, detail=f"No data for {date_str}/{metric_key}")
+    # Fire-and-forget: warm Daily bars for the first 30 tickers in the list.
+    # By the time the user navigates to any of them (usually >5 s away), the
+    # Massive API call will have completed and the chart loads instantly.
+    try:
+        from api.routers.bars import warm_bars_async
+        tickers = [i["t"] for i in items[:30] if isinstance(i, dict) and i.get("t")]
+        if tickers:
+            warm_bars_async(tickers, tf="D", bars=8000)
+    except Exception:
+        pass
     return {"date": date_str, "metric": metric_key, "items": items}
 
 

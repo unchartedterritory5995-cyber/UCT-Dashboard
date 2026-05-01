@@ -16,11 +16,14 @@ _REST_BASE = "https://api.massive.com"
 
 _client = None
 
-# Shared httpx session — persistent TCP connections, 8 s timeout.
-# Connection pooling cuts per-call overhead by ~100-200 ms vs urllib.
+# Shared httpx session — persistent TCP connections.
+# read=25s: historical bar responses can be large (8000 daily bars ≈ 500 KB
+# compressed); 8s was timing out on Massive for full-universe fetches.
+# connect=3s: fast fail on DNS/TCP failure.
+# max_connections=30: more headroom when multiple tickers load simultaneously.
 _http = httpx.Client(
-    timeout=httpx.Timeout(8.0, connect=3.0),
-    limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+    timeout=httpx.Timeout(connect=3.0, read=25.0, write=5.0, pool=5.0),
+    limits=httpx.Limits(max_keepalive_connections=15, max_connections=30),
     headers={"Accept": "application/json"},
 )
 
@@ -37,8 +40,8 @@ class _MassiveRestClient:
         if not self._api_key:
             raise RuntimeError("MASSIVE_API_KEY not set in environment")
 
-    def _get(self, url: str, timeout: float = 8.0) -> dict:
-        resp = _http.get(url, timeout=timeout)
+    def _get(self, url: str, timeout: float = None) -> dict:
+        resp = _http.get(url, timeout=timeout)  # None = use client-level timeout (read=25s)
         resp.raise_for_status()
         return resp.json()
 
