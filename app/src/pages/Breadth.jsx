@@ -8,7 +8,7 @@ import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
-import { prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
+import { prefetchBars } from '../utils/prefetchBars'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
@@ -390,20 +390,17 @@ function DrillModal({ drill, onClose }) {
   const [chartPeriod, setChartPeriod] = useState('D')
 
   // Pre-warm a small sliding window ahead of the cursor so arrow-key scanning
-  // stays instant. Window kept narrow (8 ahead, 1 behind) so the FastAPI
-  // thread pool isn't saturated by 18 concurrent cold Massive fetches —
-  // when the prefetch wave is too wide, scrolling past the window edge stalls
-  // because new requests queue behind in-flight ones.
-  // 250ms debounce: rapid arrow-key holds collapse to a single batch, and the
-  // user-visible chart fetch gets a head start at the API queue.
+  // stays instant. Only prefetch the primary chartPeriod for neighbors — StockChart's
+  // own internal background prefetch handles all TFs for the selected ticker after 600ms,
+  // so firing prefetchAllTimeframes here would race with the chart's own SWR request and
+  // saturate the httpx connection pool on cold-cache tickers (slows the visible chart).
+  // 250ms debounce: rapid arrow-key holds collapse to a single batch.
   useEffect(() => {
     if (!items.length) return
     const t = setTimeout(() => {
       const start = Math.max(0, selectedIdx - 1)
-      const end   = Math.min(items.length, selectedIdx + 9)  // current + 8 ahead
-      // Prefetch all TFs for the current selection so TF switching is instant
-      prefetchAllTimeframes(items[selectedIdx]?.t)
-      // Prefetch the primary chartPeriod for neighbors (adjacent arrow-key targets)
+      const end   = Math.min(items.length, selectedIdx + 4)  // current + 3 ahead
+      // Prefetch only the active TF for a small neighbor window (not all 8 TFs)
       prefetchBars(items.slice(start, end).map(i => i.t), chartPeriod)
     }, 250)
     return () => clearTimeout(t)

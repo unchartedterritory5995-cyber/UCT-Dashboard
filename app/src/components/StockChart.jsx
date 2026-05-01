@@ -415,18 +415,22 @@ export default function StockChart({
     const barTime = tickSec ? computeBarTime(resolvedTf, tickSec) : last.time
 
     // Detect new bar period (new candle should form).
-    // For Daily / Weekly / Monthly, live ticks must NEVER create new bars —
-    // those are session-aggregated and only roll over at market open the next
-    // session, which the cold-fetch path handles. Allowing tick-driven new-bar
-    // creation here was the source of duplicate-candle reports across all TFs.
+    // For D/W/M: only create a new bar when the REST session OHLC is available
+    // (day_open > 0), confirming the new session is actually underway.
+    // Without this guard, pre-market ticks with a new date would spawn a phantom
+    // candle before the session opens. When NOT creating a new bar for D/W/M on a
+    // new day, we skip updating the last bar entirely to avoid corrupting yesterday's
+    // candle with today's pre-market price.
     const isIntradayTf = !['D', 'W', 'M'].includes(resolvedTf)
-    const isNewBar = isIntradayTf && barTime !== last.time && barTime > last.time
+    const isNewPeriod = barTime !== last.time && barTime > last.time
+    const live = latestLiveRef.current || {}
+    const sessionConfirmed = isIntradayTf || (live.day_open > 0)
+    const isNewBar = isNewPeriod && sessionConfirmed
 
     try {
       if (isNewBar) {
         // ── NEW CANDLE ──
-        const live = latestLiveRef.current || {}
-        const isDailyWeekly = resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M'
+        const isDailyWeekly = !isIntradayTf
         // Daily/Weekly: use session OHLC. Intraday: use current tick as open (closest to actual first trade)
         const openPrice = (isDailyWeekly && live.day_open) ? live.day_open : price
         const highPrice = isDailyWeekly ? Math.max(live.day_high || openPrice, price) : price
@@ -447,7 +451,11 @@ export default function StockChart({
           volumeSeriesRef.current.update({ time: barTime, value: 0, color: 'rgba(74,222,128,0.35)' })
         }
       } else {
-        // ── SAME CANDLE: update close, extend high/low tick-by-tick ──
+        // ── SAME CANDLE (or new D/W/M day without session data yet) ──
+        // If it's a new day for D/W/M but we don't have session OHLC, skip the
+        // update entirely — don't corrupt yesterday's bar with today's pre-market price.
+        if (!isIntradayTf && isNewPeriod) return
+
         // Track in liveBarRef (survives setData wipes)
         if (liveBarRef.current && liveBarRef.current.time === last.time) {
           liveBarRef.current.high = Math.max(liveBarRef.current.high, price)
@@ -585,24 +593,23 @@ export default function StockChart({
     // re-apply the latest WebSocket tick to keep the current candle accurate.
     if (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price && lastBarRef.current) {
       const lp = latestLiveRef.current.price
-      // Same guard as in the per-tick effect: missing updated_at must NOT
-      // fall back to wall-clock time, and Daily/Weekly/Monthly never spawn
-      // a new candle from a live tick.
       const tickSec = latestLiveRef.current.updated_at
       const barTime = tickSec ? computeBarTime(resolvedTf, tickSec) : lastBarRef.current.time
       const last = lastBarRef.current
       const isIntradayTf = !['D', 'W', 'M'].includes(resolvedTf)
-      const isNew = isIntradayTf && barTime !== last.time && barTime > last.time
+      const isNewPeriod = barTime !== last.time && barTime > last.time
+      const liveSnap = latestLiveRef.current
+      const sessionConfirmed = isIntradayTf || (liveSnap.day_open > 0)
+      const isNew = isNewPeriod && sessionConfirmed
 
       // Use liveBarRef if available — it has tick-accurate high/low that survives setData()
       const lb = liveBarRef.current
 
       if (isNew) {
-        const live = latestLiveRef.current
-        const isDW = resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M'
-        const openPrice = (isDW && live.day_open) ? live.day_open : (lb ? lb.open : lp)
-        const highPrice = isDW ? Math.max(live.day_high || openPrice, lp) : (lb ? Math.max(lb.high, lp) : lp)
-        const lowPrice = isDW ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, lp) : (lb ? Math.min(lb.low, lp) : lp)
+        const isDW = !isIntradayTf
+        const openPrice = (isDW && liveSnap.day_open) ? liveSnap.day_open : (lb ? lb.open : lp)
+        const highPrice = isDW ? Math.max(liveSnap.day_high || openPrice, lp) : (lb ? Math.max(lb.high, lp) : lp)
+        const lowPrice = isDW ? Math.min((liveSnap.day_low && liveSnap.day_low > 0) ? liveSnap.day_low : openPrice, lp) : (lb ? Math.min(lb.low, lp) : lp)
         const newBar = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: lp }
         if (isOhlcType(cs.chartType)) {
           candleSeriesRef.current.update(newBar)
@@ -611,6 +618,8 @@ export default function StockChart({
         }
         liveBarRef.current = { ...newBar }
         lastBarRef.current = { ...newBar, volume: 0 }
+      } else if (!isIntradayTf && isNewPeriod) {
+        // New day for D/W/M but no session data — don't corrupt yesterday's bar
       } else {
         // Same bar — restore tick-tracked high/low from liveBarRef
         const high = lb ? Math.max(lb.high, lp) : Math.max(last.high, lp)

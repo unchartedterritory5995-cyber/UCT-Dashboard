@@ -92,15 +92,16 @@ export async function idbPut(sym, tf, bars) {
 
 /**
  * Merge a delta (new bars from server) into an existing bar array.
- * Deduplicates by `t` and returns sorted result.
+ * Delta bars REPLACE existing bars with the same timestamp — server data
+ * is always fresher than a cached developing candle or stale IDB entry.
  */
 export function mergeDelta(existing, delta) {
   if (!delta?.length) return existing
   if (!existing?.length) return delta
-  const existingSet = new Set(existing.map(b => String(b.t)))
-  const toAdd = delta.filter(b => !existingSet.has(String(b.t)))
-  if (!toAdd.length) return existing
-  const merged = [...existing, ...toAdd]
+  const deltaMap = new Map(delta.map(b => [String(b.t), b]))
+  // Keep existing bars whose timestamp is NOT in the delta (delta wins on conflict)
+  const kept = existing.filter(b => !deltaMap.has(String(b.t)))
+  const merged = [...kept, ...delta]
   // Sort: ISO date strings sort lexically; unix seconds sort numerically
   const isDate = typeof merged[0]?.t === 'string'
   merged.sort((a, b) => isDate
