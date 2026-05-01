@@ -114,7 +114,7 @@ export default function Watchlists() {
   }
   function sortIndicator(col) { return sortBy !== col ? '' : sortDir === 'desc' ? ' ▾' : ' ▴' }
 
-  function sortAndFilterItems(items) {
+  const sortAndFilterItems = useCallback((items) => {
     let filtered = items
     if (filterText) {
       const q = filterText.toUpperCase()
@@ -134,7 +134,7 @@ export default function Watchlists() {
       if (sortBy === 'sym') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
       return sortDir === 'asc' ? va - vb : vb - va
     })
-  }
+  }, [sortBy, sortDir, filterText, prices, perfData])
 
   function exportCSV(wl) {
     const items = wl.items || []

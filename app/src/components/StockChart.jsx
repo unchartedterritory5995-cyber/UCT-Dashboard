@@ -149,6 +149,9 @@ export default function StockChart({
   showDrawingTools = true,
   onSymbolChange = null,
   onBarContextMenu = null,  // Journal 2.0: right-click a bar → callback({bar, clientX, clientY})
+  entryDate = null,         // ISO date string — zoom centers on trade holding period
+  exitDate = null,          // ISO date string — end of holding period zoom
+  liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -323,7 +326,7 @@ export default function StockChart({
   const loading = !bars && !error
 
   // Real-time price streaming for live candle updates
-  const { prices: livePrices } = useRealtimePrices(sym ? [sym] : [])
+  const { prices: livePrices } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
 
   // ── Memoized data transforms (only recompute when bars change) ─────────────
 
@@ -707,27 +710,40 @@ export default function StockChart({
     const zoomKey = `${sym}_${resolvedTf}`
     if (zoomKeyRef.current !== zoomKey) {
       zoomKeyRef.current = zoomKey
-      const defaultVisible = {
-        '1': 390,   // ~1 trading day of 1min bars
-        '5': 78,    // ~1 trading day of 5min bars
-        '15': 78,   // ~3 trading days of 15min bars
-        '30': 65,   // ~5 trading days of 30min bars
-        '60': 65,   // ~10 trading days of 1hr bars
-        'D': 65,    // ~3 months of daily bars
-        'W': 52,    // ~1 year of weekly bars
-        'M': 36,    // ~3 years of monthly bars
-      }
-      const visibleBars = defaultVisible[resolvedTf] || 65
-      if (filteredBars.length > visibleBars) {
-        chart.timeScale().setVisibleLogicalRange({
-          from: filteredBars.length - visibleBars,
-          to: filteredBars.length + 8,
-        })
+
+      // Holding-period zoom: when entryDate is supplied (e.g. TradeDrawer),
+      // center the view on the trade window with 20-bar padding each side.
+      if (entryDate && filteredBars.length > 0) {
+        const entryIdx = filteredBars.findIndex(b => b.t >= entryDate)
+        const exitIdx  = exitDate
+          ? filteredBars.findIndex(b => b.t >= exitDate)
+          : -1
+        const fromBar = Math.max(0, (entryIdx >= 0 ? entryIdx : 0) - 20)
+        const toBar   = (exitIdx >= 0 ? exitIdx : filteredBars.length - 1) + 28
+        chart.timeScale().setVisibleLogicalRange({ from: fromBar, to: toBar })
       } else {
-        chart.timeScale().setVisibleLogicalRange({
-          from: 0,
-          to: filteredBars.length + 8,
-        })
+        const defaultVisible = {
+          '1': 390,   // ~1 trading day of 1min bars
+          '5': 78,    // ~1 trading day of 5min bars
+          '15': 78,   // ~3 trading days of 15min bars
+          '30': 65,   // ~5 trading days of 30min bars
+          '60': 65,   // ~10 trading days of 1hr bars
+          'D': 65,    // ~3 months of daily bars
+          'W': 52,    // ~1 year of weekly bars
+          'M': 36,    // ~3 years of monthly bars
+        }
+        const visibleBars = defaultVisible[resolvedTf] || 65
+        if (filteredBars.length > visibleBars) {
+          chart.timeScale().setVisibleLogicalRange({
+            from: filteredBars.length - visibleBars,
+            to: filteredBars.length + 8,
+          })
+        } else {
+          chart.timeScale().setVisibleLogicalRange({
+            from: 0,
+            to: filteredBars.length + 8,
+          })
+        }
       }
     }
   }, [filteredBars, ohlcData, closeData, volData, overlayData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf])

@@ -31,14 +31,23 @@ _ws_loop = None
 _running = False
 
 
+_STREAM_FIELDS = {"price", "change_pct", "change", "timestamp", "updated_at"}
+
+
 def get_realtime_prices(tickers=None):
     """Get latest prices from the stream.
-    Returns dict of {SYM: {price, change_pct, volume, timestamp, updated_at}}.
+    Returns dict of {SYM: {price, change_pct, change, timestamp, updated_at}}.
+
+    prev_close is stripped — it starts seeded to trade_price on first tick, which
+    would overwrite REST polling's correct prev_close value in the browser merge.
+    REST polling owns prev_close; stream owns only the live tick fields.
     """
     with _lock:
         if tickers:
-            return {s: _prices[s] for s in tickers if s in _prices}
-        return dict(_prices)
+            raw = {s: _prices[s] for s in tickers if s in _prices}
+        else:
+            raw = dict(_prices)
+    return {s: {k: v for k, v in d.items() if k in _STREAM_FIELDS} for s, d in raw.items()}
 
 
 def get_stream_status():

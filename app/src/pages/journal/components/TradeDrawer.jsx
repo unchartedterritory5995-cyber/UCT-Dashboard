@@ -391,6 +391,9 @@ export default function TradeDrawer({ tradeId, onClose, onTradeUpdated }) {
                   markers={chartMarkers}
                   priceLines={priceLines}
                   overlays={[]}
+                  entryDate={trade.entry_date ?? null}
+                  exitDate={trade.exit_date ?? null}
+                  liveUpdates={isOpen}
                 />
               )}
             </div>

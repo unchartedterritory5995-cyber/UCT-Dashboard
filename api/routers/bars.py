@@ -45,13 +45,23 @@ def _is_market_open() -> bool:
     return 930 <= hm < 1600
 
 
+def _last_weekday_yyyymmdd() -> int:
+    """Return the most recent weekday as YYYYMMDD (rolls Sat → Fri, Sun → Fri)."""
+    d = datetime.utcnow()
+    wd = d.weekday()  # 0=Mon … 5=Sat, 6=Sun
+    if wd == 5:
+        d -= timedelta(days=1)
+    elif wd == 6:
+        d -= timedelta(days=2)
+    return int(d.strftime("%Y%m%d"))
+
+
 def _needs_fresh(last_ts: int | None, tf: str) -> bool:
     """True if SQLite data is stale enough to warrant a delta fetch."""
     if last_ts is None:
         return True
     if tf in ("D", "W", "M"):
-        today = int(datetime.utcnow().strftime("%Y%m%d"))
-        return last_ts < today
+        return last_ts < _last_weekday_yyyymmdd()
     # Intraday: skip refresh outside market hours UNLESS data is from a prior session
     if not _is_market_open():
         # Force refresh if last bar is older than 30 hours (previous session / missed day)

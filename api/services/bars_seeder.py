@@ -50,7 +50,7 @@ def _seed_one(sym: str, tf: str, bars: int = 5000) -> bool:
 def _run_tier(label: str, jobs: list[tuple], workers: int) -> None:
     """Execute a list of (ticker, tf) seed jobs with bounded concurrency."""
     total = len(jobs)
-    done = skipped = errors = 0
+    done = succeeded = errors = 0
     _log.info(f"[seeder/{label}] starting — {total} jobs, {workers} workers")
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix=f"seed-{label}") as ex:
         futures = {ex.submit(_seed_one, sym, tf): (sym, tf) for sym, tf in jobs}
@@ -62,12 +62,12 @@ def _run_tier(label: str, jobs: list[tuple], workers: int) -> None:
                 pass
             done += 1
             if ok:
-                skipped += 1  # fast-path = already cached
+                succeeded += 1
             else:
                 errors += 1
             if done % 100 == 0 or done == total:
-                _log.info(f"[seeder/{label}] {done}/{total} done")
-    _log.info(f"[seeder/{label}] complete")
+                _log.info(f"[seeder/{label}] {done}/{total} done ({succeeded} ok, {errors} err)")
+    _log.info(f"[seeder/{label}] complete — {succeeded}/{total} succeeded, {errors} errors")
 
 
 # ── Ticker-list builders ───────────────────────────────────────────────────────

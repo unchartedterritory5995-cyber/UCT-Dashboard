@@ -14,6 +14,7 @@ export default function useRealtimePrices(tickers = []) {
   const [connected, setConnected] = useState(false)
   const esRef = useRef(null)
   const reconnectRef = useRef(null)
+  const retryDelayRef = useRef(5000)  // exponential backoff: 5→10→20→40→80→120s
 
   // Massive REST polling always runs (2s) — provides session OHLC + volume
   const { prices: polledPrices, isLoading } = useLivePrices(tickers)
@@ -28,6 +29,7 @@ export default function useRealtimePrices(tickers = []) {
 
     es.onopen = () => {
       setConnected(true)
+      retryDelayRef.current = 5000  // reset backoff on successful connection
       if (reconnectRef.current) {
         clearTimeout(reconnectRef.current)
         reconnectRef.current = null
@@ -43,10 +45,13 @@ export default function useRealtimePrices(tickers = []) {
 
     es.onerror = () => {
       setConnected(false)
-      setStreamPrices({})
+      // Don't clear streamPrices — show last known prices rather than blanking
+      // the UI on a transient network hiccup or brief server restart.
       es.close()
       esRef.current = null
-      reconnectRef.current = setTimeout(() => connect(), 5000)
+      const delay = retryDelayRef.current
+      retryDelayRef.current = Math.min(delay * 2, 120000)  // cap at 120s
+      reconnectRef.current = setTimeout(() => connect(), delay)
     }
   }, [sorted])
 

@@ -1,10 +1,7 @@
 // app/src/components/tiles/UCT20Performance.jsx
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { createChart, LineSeries } from 'lightweight-charts'
 import useMobileSWR from '../../hooks/useMobileSWR'
-import {
-  ResponsiveContainer, LineChart, Line,
-  XAxis, YAxis, Tooltip, ReferenceLine,
-} from 'recharts'
 import { SkeletonChart } from '../Skeleton'
 import styles from './UCT20Performance.module.css'
 
@@ -17,6 +14,12 @@ const PERIODS = [
   { label: 'YTD', days: null },
   { label: 'ALL', days: 0   },
 ]
+
+// Design tokens (must be raw values for LW Charts canvas)
+const CHART_BG    = '#1a1c17'  // --bg-surface
+const COLOR_GREEN = '#3cb868'  // --ut-green-bright
+const COLOR_MUTED = '#706b5e'  // --text-muted
+const COLOR_BORDER = '#2e3127' // --border
 
 function ytdStart() {
   return `${new Date().getFullYear()}-01-01`
@@ -40,8 +43,8 @@ function buildChartData(equityCurve, qqqCurve, days) {
     for (const pt of qqqCurve) qqqMap[pt.date] = pt.pct
   }
 
-  const firstVal  = eq[0].value
-  const qqqBase   = qqqMap[eq[0].date] ?? 0
+  const firstVal = eq[0].value
+  const qqqBase  = qqqMap[eq[0].date] ?? 0
 
   return eq.map(pt => {
     const uct20Pct = firstVal > 0 ? ((pt.value / firstVal) - 1) * 100 : 0
@@ -66,31 +69,6 @@ function fmtDollar(v) {
   return `${v < 0 ? '-' : '+'}$${abs.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 }
 
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
-  const uct20 = payload.find(p => p.dataKey === 'uct20')
-  const qqq   = payload.find(p => p.dataKey === 'qqq')
-  return (
-    <div className={styles.tooltip}>
-      <div className={styles.tooltipDate}>{label}</div>
-      {uct20 && (
-        <div className={styles.tooltipRow}>
-          <span className={styles.tooltipDotGreen} />
-          <span>UCT 20</span>
-          <span className={uct20.value >= 0 ? styles.gain : styles.loss}>{fmtPct(uct20.value)}</span>
-        </div>
-      )}
-      {qqq && qqq.value != null && (
-        <div className={styles.tooltipRow}>
-          <span className={styles.tooltipDotGray} />
-          <span>QQQ</span>
-          <span className={qqq.value >= 0 ? styles.gain : styles.loss}>{fmtPct(qqq.value)}</span>
-        </div>
-      )}
-    </div>
-  )
-}
-
 function StatBox({ label, value, className }) {
   return (
     <div className={styles.stat}>
@@ -100,6 +78,144 @@ function StatBox({ label, value, className }) {
   )
 }
 
+// ── Lightweight Charts equity curve ──────────────────────────────────────────
+function EquityChart({ chartData }) {
+  const containerRef = useRef(null)
+  const chartRef     = useRef(null)
+  const uct20Ref     = useRef(null)
+  const qqqRef       = useRef(null)
+  const [crosshair, setCrosshair] = useState(null)
+
+  // Create chart once on mount
+  useEffect(() => {
+    if (!containerRef.current) return
+    const chart = createChart(containerRef.current, {
+      autoSize: true,
+      height: 180,
+      layout: {
+        background: { type: 'solid', color: CHART_BG },
+        textColor: COLOR_MUTED,
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 9,
+      },
+      grid: {
+        vertLines: { visible: false },
+        horzLines: { color: COLOR_BORDER, visible: true },
+      },
+      rightPriceScale: {
+        borderVisible: false,
+        minimumWidth: 38,
+      },
+      timeScale: {
+        borderVisible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        tickMarkFormatter: (t) => (typeof t === 'string' ? t.slice(5) : String(t)),
+      },
+      crosshair: {
+        mode: 1,
+        vertLine: { width: 1, color: COLOR_MUTED, style: 3, labelVisible: false },
+        horzLine: { visible: false, labelVisible: false },
+      },
+      handleScroll: false,
+      handleScale: false,
+    })
+    chartRef.current = chart
+
+    const priceFmt = {
+      type: 'custom',
+      formatter: (v) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`,
+      minMove: 0.01,
+    }
+
+    // QQQ — gray dashed, rendered behind
+    const qqqSeries = chart.addSeries(LineSeries, {
+      color: COLOR_MUTED,
+      lineWidth: 1,
+      lineStyle: 2,  // dashed
+      priceLineVisible: false,
+      lastValueVisible: false,
+      priceFormat: priceFmt,
+    })
+    qqqRef.current = qqqSeries
+
+    // UCT20 — green solid, on top
+    const uct20Series = chart.addSeries(LineSeries, {
+      color: COLOR_GREEN,
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      priceFormat: priceFmt,
+    })
+    uct20Ref.current = uct20Series
+
+    // Zero reference line
+    uct20Series.createPriceLine({
+      price: 0,
+      color: COLOR_BORDER,
+      lineWidth: 1,
+      lineStyle: 2,
+      axisLabelVisible: false,
+    })
+
+    // Crosshair tooltip
+    chart.subscribeCrosshairMove((param) => {
+      if (!param.point || !param.time) { setCrosshair(null); return }
+      const u = param.seriesData.get(uct20Series)
+      const q = param.seriesData.get(qqqSeries)
+      setCrosshair({
+        date:  param.time,
+        uct20: u?.value ?? null,
+        qqq:   q?.value ?? null,
+      })
+    })
+
+    return () => {
+      chart.remove()
+      chartRef.current = null
+      uct20Ref.current = null
+      qqqRef.current = null
+    }
+  }, [])
+
+  // Update data when chartData changes
+  useEffect(() => {
+    if (!uct20Ref.current || !qqqRef.current || !chartData.length) return
+
+    uct20Ref.current.setData(
+      chartData.map(d => ({ time: d.date, value: d.uct20 }))
+    )
+    qqqRef.current.setData(
+      chartData.filter(d => d.qqq !== null).map(d => ({ time: d.date, value: d.qqq }))
+    )
+    chartRef.current?.timeScale().fitContent()
+  }, [chartData])
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div ref={containerRef} />
+      {crosshair && (
+        <div className={styles.tooltip} style={{ position: 'absolute', top: 8, left: 8, pointerEvents: 'none', zIndex: 10 }}>
+          <div className={styles.tooltipDate}>{crosshair.date}</div>
+          <div className={styles.tooltipRow}>
+            <span className={styles.tooltipDotGreen} />
+            <span>UCT 20</span>
+            <span className={crosshair.uct20 >= 0 ? styles.gain : styles.loss}>{fmtPct(crosshair.uct20)}</span>
+          </div>
+          {crosshair.qqq !== null && (
+            <div className={styles.tooltipRow}>
+              <span className={styles.tooltipDotGray} />
+              <span>QQQ</span>
+              <span className={crosshair.qqq >= 0 ? styles.gain : styles.loss}>{fmtPct(crosshair.qqq)}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main tile ─────────────────────────────────────────────────────────────────
 export default function UCT20Performance() {
   const { data, isLoading } = useMobileSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 60000, marketHoursOnly: true })
   const [period, setPeriod]       = useState('ALL')
@@ -173,26 +289,7 @@ export default function UCT20Performance() {
           {/* ── Chart ── */}
           {chartData.length >= 2 ? (
             <div className={styles.chartWrap}>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 9, fill: 'var(--text-muted)', fontFamily: 'IBM Plex Mono' }}
-                    tickLine={false} axisLine={false}
-                    interval="preserveStartEnd" minTickGap={50}
-                    tickFormatter={d => d?.slice(5)}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 9, fill: 'var(--text-muted)', fontFamily: 'IBM Plex Mono' }}
-                    tickLine={false} axisLine={false} width={36}
-                    tickFormatter={v => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`}
-                  />
-                  <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Line dataKey="qqq"   stroke="var(--text-muted)"      strokeWidth={1.5} dot={false} strokeDasharray="4 3" connectNulls />
-                  <Line dataKey="uct20" stroke="var(--ut-green-bright)" strokeWidth={2}   dot={false} connectNulls />
-                </LineChart>
-              </ResponsiveContainer>
+              <EquityChart chartData={chartData} />
             </div>
           ) : (
             <p className={styles.loading}>Not enough data points for selected period.</p>
