@@ -1514,26 +1514,19 @@ export default function OptionsFlowDashboard() {
             let label, color;
             if (proximity < 0.003) {
               label = "Pin "+fmtG(combined); color = "#e040fb"; // purple — price right at pin
-            } else if (aboveSpot && proximity < 0.02) {
-              label = "Magnet ⬆ "+fmtG(combined); color = "#B0BEC5"; // metallic silver — contested level, pulling up
             } else if (aboveSpot) {
-              label = "Resistance "+fmtG(combined); color = "#c43030"; // red — distant resistance
-            } else if (proximity < 0.02) {
-              label = "Magnet ⬇ "+fmtG(combined); color = "#B0BEC5"; // metallic silver — contested level, pulling down
+              label = "Resistance "+fmtG(combined); color = "#c43030"; // red — level above spot = resistance
             } else {
-              label = "Support ↑ "+fmtG(combined); color = "#00BCD4"; // cyan — distant support
+              label = "Support ↑ "+fmtG(combined); color = "#00BCD4"; // cyan — level below spot = support
             }
             series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
           } else {
             // Different strikes — draw separately
             if (cw) {
               const aboveSpot = cw.strike > sp;
-              const cwProx = Math.abs(cw.strike - sp) / sp;
               let label, color;
               if (aboveSpot) {
                 label = "Ceiling "+fmtG(cw.gex); color = "#c43030"; // red ceiling
-              } else if (cwProx < 0.02) {
-                label = "Magnet ⬇ "+fmtG(cw.gex); color = "#B0BEC5"; // metallic silver — contested, could be support or pull
               } else {
                 label = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; // cyan — cleared, now support
               }
@@ -1541,12 +1534,9 @@ export default function OptionsFlowDashboard() {
             }
             if (pw) {
               const belowSpot = pw.strike < sp;
-              const pwProx = Math.abs(pw.strike - sp) / sp;
               let label, color;
               if (belowSpot) {
                 label = "Bounce "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; // green bounce
-              } else if (pwProx < 0.02) {
-                label = "Magnet ⬆ "+fmtG(Math.abs(pw.gex)); color = "#B0BEC5"; // metallic silver — contested, could be resistance or pull
               } else {
                 label = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; // red — broken floor now resistance
               }
@@ -3308,14 +3298,14 @@ export default function OptionsFlowDashboard() {
                             const getW = v => { const r=wallMax>0?Math.abs(v)/wallMax:0; return r>0.5?3:r>0.25?2:1; };
                             if (cw) {
                               const abv = cw.strike > sp, prx = Math.abs(cw.strike-sp)/sp;
-                              const lbl = abv?"Ceiling "+fmtG(cw.gex):prx<0.02?"Magnet ⬇ "+fmtG(cw.gex):"Support ↑ "+fmtG(cw.gex);
-                              const clr = abv?"#c43030":prx<0.02?"#B0BEC5":"#00BCD4";
+                              const lbl = abv?"Ceiling "+fmtG(cw.gex):"Support ↑ "+fmtG(cw.gex);
+                              const clr = abv?"#c43030":"#00BCD4";
                               sr.createPriceLine({price:cw.strike,color:clr,lineWidth:4,lineStyle:0,axisLabelVisible:true,title:lbl});
                             }
                             if (pw && (!cw || pw.strike!==cw.strike)) {
                               const blw = pw.strike < sp, prx = Math.abs(pw.strike-sp)/sp;
-                              const lbl = blw?"Bounce "+fmtG(Math.abs(pw.gex)):prx<0.02?"Magnet ⬆ "+fmtG(Math.abs(pw.gex)):"Resistance "+fmtG(Math.abs(pw.gex));
-                              const clr = blw?"#0a8f55":prx<0.02?"#B0BEC5":"#c43030";
+                              const lbl = blw?"Bounce "+fmtG(Math.abs(pw.gex)):"Resistance "+fmtG(Math.abs(pw.gex));
+                              const clr = blw?"#0a8f55":"#c43030";
                               sr.createPriceLine({price:pw.strike,color:clr,lineWidth:4,lineStyle:0,axisLabelVisible:true,title:lbl});
                             }
                             if (zg) sr.createPriceLine({price:zg,color:"#ffab00",lineWidth:1,lineStyle:2,axisLabelVisible:true,title:"Danger Line"});
@@ -4050,7 +4040,7 @@ export default function OptionsFlowDashboard() {
                   const cwAboveSpot = cwStrike > sp;
                   const pwBelowSpot = pwStrike < sp;
                   const cwLabel = cwAboveSpot ? "ceiling" : ((sp - cwStrike) / sp < 0.02 ? "decision point" : "major support below");
-                  const pwLabel = pwBelowSpot ? "floor" : "gravity pulling up";
+                  const pwLabel = pwBelowSpot ? "floor" : "resistance above";
                   const wallsInverted = !cwAboveSpot || !pwBelowSpot;
                   const spotBetweenWalls = cwStrike === pwStrike || (sp >= Math.min(cwStrike,pwStrike) && sp <= Math.max(cwStrike,pwStrike));
                   const wallSpread = Math.abs(cwStrike - pwStrike);
@@ -4111,7 +4101,7 @@ export default function OptionsFlowDashboard() {
                         verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
                       }
                     } else {
-                      verdictText = "Price squeezed between two gravity zones pulling inward. " + fmtGex(cwGex + pwGex) + " combined traps price in a tight $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike) + " range.";
+                      verdictText = "Price squeezed between two key levels pulling inward. " + fmtGex(cwGex + pwGex) + " combined traps price in a tight $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike) + " range.";
                       verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
                     }
                   } else if (squeezeSetup) {
@@ -4149,34 +4139,34 @@ export default function OptionsFlowDashboard() {
                     const isCW = s.strike === cwStrike;
                     const isMagnet = isCW && !cwAboveSpot;
                     allLevels.push({ strike:s.strike, fillPct:Math.min(95, Math.round(s.callGex/(cwGex||1)*95)),
-                      dir:isMagnet?"⇡":(s.strike>sp?"▲":"●"), dirColor:isMagnet?P.be:P.bu,
+                      dir:isMagnet?"●":(s.strike>sp?"▲":"●"), dirColor:isMagnet?"#00BCD4":P.bu,
                       label:isCW ? fmtGex(cwGex)+" · "+cwLabel : (s.strike>sp?"ceiling zone":"bounce zone"),
-                      tag:isCW?(isMagnet?"gravity ↓":"ceiling"):(s.strike>sp?"ceiling":"bounce"),
-                      tagBg:isCW?(isMagnet?P.be+"22":"#00BCD422"):(s.strike>sp?"#00BCD422":P.bu+"22"),
-                      tagColor:isCW?(isMagnet?P.be:"#00BCD4"):(s.strike>sp?"#00BCD4":P.bu),
-                      fillColor:SG, fillText:"#0d1117", isCW, showMagnet:isMagnet, magnetColor:P.be,
+                      tag:isCW?(isMagnet?"support ↑":"ceiling"):(s.strike>sp?"ceiling":"bounce"),
+                      tagBg:isCW?(isMagnet?"#00BCD422":"#00BCD422"):(s.strike>sp?"#00BCD422":P.bu+"22"),
+                      tagColor:isCW?(isMagnet?"#00BCD4":"#00BCD4"):(s.strike>sp?"#00BCD4":P.bu),
+                      fillColor:SG, fillText:"#0d1117", isCW, showMagnet:false, magnetColor:P.be,
                       border:isCW?"1px solid "+P.bu:"none" });
                   });
                   topPuts.forEach(s => {
                     const isPW = s.strike === pwStrike;
                     const isMagnet = isPW && !pwBelowSpot;
                     allLevels.push({ strike:s.strike, fillPct:Math.min(55, Math.round(Math.abs(s.putGex)/(pwGex||1)*55)),
-                      dir:isMagnet?"⇣":"▼", dirColor:isMagnet?P.bu:P.be,
+                      dir:isMagnet?"●":"▼", dirColor:isMagnet?"#c43030":P.be,
                       label:isPW ? fmtGex(pwGex)+" · "+pwLabel : "weak spot",
-                      tag:isPW?(isMagnet?"gravity ↑":"floor"):"caution",
-                      tagBg:isPW?(isMagnet?P.bu+"22":P.be+"22"):P.be+"22",
-                      tagColor:isPW?(isMagnet?P.bu:P.be):P.be,
-                      fillColor:SR, fillText:"#fff", isPW, showMagnet:isMagnet, magnetColor:P.bu,
+                      tag:isPW?(isMagnet?"resistance":"floor"):"caution",
+                      tagBg:isPW?(isMagnet?"#c4303022":P.be+"22"):P.be+"22",
+                      tagColor:isPW?(isMagnet?"#c43030":P.be):P.be,
+                      fillColor:SR, fillText:"#fff", isPW, showMagnet:false, magnetColor:P.bu,
                       border:isPW?"1px solid "+P.be:"none" });
                   });
                   // Always ensure call wall appears
                   if (!allLevels.find(l => l.strike === cwStrike)) {
                     const isMagnet = !cwAboveSpot;
                     allLevels.push({ strike:cwStrike, fillPct:95,
-                      dir:isMagnet?"⇡":"▲", dirColor:isMagnet?P.be:P.bu,
+                      dir:isMagnet?"●":"▲", dirColor:isMagnet?"#00BCD4":P.bu,
                       label:fmtGex(cwGex)+" · "+cwLabel,
-                      tag:isMagnet?"gravity ↓":"ceiling", tagBg:isMagnet?P.be+"22":"#00BCD422", tagColor:isMagnet?P.be:"#00BCD4",
-                      fillColor:SG, fillText:"#0d1117", isCW:true, showMagnet:isMagnet, magnetColor:P.be,
+                      tag:isMagnet?"support ↑":"ceiling", tagBg:isMagnet?"#00BCD422":"#00BCD422", tagColor:isMagnet?"#00BCD4":"#00BCD4",
+                      fillColor:SG, fillText:"#0d1117", isCW:true, showMagnet:false, magnetColor:P.be,
                       border:"1px solid "+P.bu });
                   }
                   // Always ensure put wall appears
@@ -4185,11 +4175,11 @@ export default function OptionsFlowDashboard() {
                     const cwEntry = allLevels.find(l => l.strike === cwStrike);
                     if (cwEntry) {
                       const pwMagnetHere = !pwBelowSpot;
-                      cwEntry.label = fmtGex(cwGex+pwGex) + " ceiling + floor" + (cwEntry.showMagnet || pwMagnetHere ? " · gravity zone" : "");
-                      cwEntry.tag = cwEntry.showMagnet ? "gravity ↓" : pwMagnetHere ? "gravity ↑" : "ceiling + floor";
-                      cwEntry.tagBg = pwMagnetHere ? "#e040fb22" : "#00BCD422";
-                      cwEntry.tagColor = pwMagnetHere ? "#e040fb" : "#00BCD4";
-                      if (pwMagnetHere && !cwEntry.showMagnet) cwEntry.magnetColor = P.bu;
+                      cwEntry.label = fmtGex(cwGex+pwGex) + " ceiling + floor" + (pwMagnetHere ? " · resistance" : "");
+                      cwEntry.tag = !cwAboveSpot ? "support ↑" : pwMagnetHere ? "resistance" : "ceiling + floor";
+                      cwEntry.tagBg = pwMagnetHere ? "#c4303022" : "#00BCD422";
+                      cwEntry.tagColor = pwMagnetHere ? "#c43030" : "#00BCD4";
+                      if (pwMagnetHere && cwAboveSpot) cwEntry.magnetColor = P.bu;
                       cwEntry.showMagnet = cwEntry.showMagnet || pwMagnetHere;
                       cwEntry.isPW = true;
                       cwEntry.border = "1px solid #e040fb";
@@ -4222,7 +4212,7 @@ export default function OptionsFlowDashboard() {
                         setupText = "Price pushed above the $" + cwStrike + " pin (" + fmtGex(cwGex+pwGex) + "). It's now support below — pullbacks toward $" + cwStrike + " are buying opportunities." + (isIntraday?"":((firstResAbovePin ? " If it holds, swing target $" + firstResAbovePin.strike + "." : "") + " " + (isPositive?"Safety net active — dips are cushioned.":"No safety net — be quick on exits if $"+cwStrike+" breaks.")));
                       } else if (spotBelowPin) {
                         setupTitle = "What to expect — recovering toward $" + cwStrike;
-                        setupText = fmtGex(cwGex+pwGex) + " of gravity at $" + cwStrike + " is pulling price back up." + (isIntraday?" Expect a snap back to the pin.":" Expect price to recover toward $" + cwStrike + " this week.") + (isPositive?" Safety net active — dips are limited.":" No safety net — recovery may be choppy.") + (firstResAbovePin && !isIntraday ? " If price reclaims $" + cwStrike + ", it becomes support — swing target $" + firstResAbovePin.strike + "." : "");
+                        setupText = fmtGex(cwGex+pwGex) + " of support at $" + cwStrike + " catches pullbacks." + (isIntraday?" Expect a bounce back to the pin.":" Expect price to recover toward $" + cwStrike + " this week.") + (isPositive?" Safety net active — dips are limited.":" No safety net — recovery may be choppy.") + (firstResAbovePin && !isIntraday ? " If price reclaims $" + cwStrike + ", it becomes support — swing target $" + firstResAbovePin.strike + "." : "");
                       } else {
                         setupTitle = "What to expect — price stuck at $" + cwStrike;
                         setupText = "Ceiling and floor sit at the same price ($" + cwStrike + ") with " + fmtGex(cwGex+pwGex) + " behind it. Price wants to stay here — every move away gets pulled back. " + (isPositive?(isIntraday?"Dips bounce, rallies fade.":"Expect price to orbit $"+cwStrike+" this week. Dips bounce, rallies fade."):"Moves can be sharp but snap back to $" + cwStrike + ".");
@@ -4235,7 +4225,7 @@ export default function OptionsFlowDashboard() {
                   } else if (squeezeSetup) {
                     const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
                     setupTitle = "What to expect — price stuck at $" + lo + "–$" + hi;
-                    setupText = "Price is caught between two gravity zones. The ceiling above at $" + hi + " caps rallies, the floor below at $" + lo + " cushions dips. " + fmtGex(cwGex+pwGex) + " total is squeezing price into a tight $" + wallSpread + " range." + (isIntraday?"":" Use daily closes outside this range as your signal — anything inside is noise.");
+                    setupText = "Price is caught between two key levels. The ceiling above at $" + hi + " caps rallies, the floor below at $" + lo + " cushions dips. " + fmtGex(cwGex+pwGex) + " total is squeezing price into a tight $" + wallSpread + " range." + (isIntraday?"":" Use daily closes outside this range as your signal — anything inside is noise.");
                   } else if (cwDominant && cwAboveSpot) {
                     setupTitle = "What to expect — grinding up toward $" + cwStrike;
                     setupText = "Price at $" + sp.toFixed(0) + " heading toward the $" + cwStrike + " ceiling (" + fmtGex(cwGex) + "). " + (isPositive?(isIntraday?"Safety net is ON — dips tend to bounce back. Orderly grind higher.":"Safety net is ON — weekly pullbacks should find buyers. Buy dips, target $"+cwStrike+"."):(isIntraday?"Safety net is OFF — expect bigger swings both ways. Be careful with size.":"Safety net is OFF — wider swings this week. Size down and use daily closes for entries."));
@@ -4243,7 +4233,7 @@ export default function OptionsFlowDashboard() {
                     const cwProxSetup = (sp - cwStrike) / sp;
                     if (cwProxSetup < 0.02 && firstResAbove) {
                       setupTitle = "What to expect — decision point at $" + cwStrike;
-                      setupText = "Price sitting just above the $" + cwStrike + " gravity zone (" + fmtGex(cwGex) + "). Two outcomes: " + (isIntraday?"hold above $"+cwStrike+" and the wall gets absorbed — next target $"+firstResAbove.strike+". Lose $"+cwStrike+" and gravity pulls price down fast.":"a daily close above $"+cwStrike+" absorbs the wall — swing target $"+firstResAbove.strike+". A close below confirms the pull down.");
+                      setupText = "Price sitting just above the $" + cwStrike + " support zone (" + fmtGex(cwGex) + "). Two outcomes: " + (isIntraday?"hold above $"+cwStrike+" and the wall gets absorbed — next target $"+firstResAbove.strike+". Lose $"+cwStrike+" and support breaks — expect a drop.":"a daily close above $"+cwStrike+" absorbs the wall — swing target $"+firstResAbove.strike+". A close below means support is lost.");
                     } else {
                       // Price well above the wall — wall is support below
                       setupTitle = "What to expect — $" + cwStrike + " is support";
@@ -4253,7 +4243,7 @@ export default function OptionsFlowDashboard() {
                     setupTitle = "What to expect — strong bounce zone at $" + pwStrike;
                     setupText = "Very strong floor at $" + pwStrike + " — " + (pwGex/cwGex).toFixed(1) + "x stronger than the ceiling." + (isIntraday?" Price has a big safety net below and room to run above $"+cwStrike+".":" Weekly dips toward $"+pwStrike+" are buying opportunities. Swing target above $"+cwStrike+".");
                   } else if (pwDominant && !pwBelowSpot) {
-                    setupTitle = "What to expect — gravity pulling up to $" + pwStrike;
+                    setupTitle = "What to expect — resistance at $" + pwStrike;
                     setupText = "The biggest support level ($" + pwStrike + ") is above current price — it's pulling price UP. " + fmtGex(pwGex) + (isIntraday?" wants price higher than where it is now.":" wants price higher. Look for swing entries on dips — bullish weekly bias.");
                   } else {
                     setupTitle = "What to expect — choppy between $" + Math.min(pwStrike,cwStrike) + "–$" + Math.max(pwStrike,cwStrike);
@@ -4264,8 +4254,8 @@ export default function OptionsFlowDashboard() {
                   const trades = [];
                   const zgNearSpot = zg && Math.abs(sp - zg) / sp < 0.005; // within 0.5%
                   const zgBelowClose = zg && (zg - sp) / sp > -0.01 && zg < sp; // zg just below spot (<1%)
-                  const cwMagnet = !cwAboveSpot; // call wall below spot = magnet down
-                  const pwMagnet = !pwBelowSpot; // put wall above spot = magnet up
+                  const cwMagnet = !cwAboveSpot; // call wall below spot = support
+                  const pwMagnet = !pwBelowSpot; // put wall above spot = resistance
 
                   if (pinSetup) {
                     // Pin setup trades
@@ -4276,7 +4266,7 @@ export default function OptionsFlowDashboard() {
                     if (isIntraday) {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+pinStrike+" — sell premium here (iron fly). Profit if price stays between $"+(pinStrike-pinRange*2)+"–$"+(pinStrike+pinRange*2)+"." });
                       if (pinAboveSpot) {
-                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips near $"+sp.toFixed(0)+" — gravity at $"+pinStrike+" is pulling price up. Target $"+pinStrike+"." });
+                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips near $"+sp.toFixed(0)+" — support at $"+pinStrike+" catches pullbacks. Target $"+pinStrike+"." });
                       }
                       if (pinBelowSpot && firstResAbovePin) {
                         trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price holds above $"+pinStrike+", pin becomes support. Next target $"+firstResAbovePin.strike+"." });
@@ -4288,9 +4278,9 @@ export default function OptionsFlowDashboard() {
                       if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin air above the pin — if price breaks above $"+(pinStrike+pinRange*3)+", it can run fast. Join the breakout, don't fade it." });
                       if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin air below — if $"+(pinStrike-pinRange*3)+" breaks, price can slice through quickly. Protect downside." });
                     } else {
-                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+pinStrike+" is the magnet strike this week — sell weekly premium around it. Iron fly or short straddle with defined risk." });
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+pinStrike+" is the pin strike this week — sell weekly premium around it. Iron fly or short straddle with defined risk." });
                       if (pinAboveSpot) {
-                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Price below the $"+pinStrike+" pin — gravity pulls it back up. Buy dips this week targeting $"+pinStrike+". "+fmtGex(cwGex+pwGex)+" wants price there." });
+                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Price below the $"+pinStrike+" pin — support pulls it back up. Buy dips this week targeting $"+pinStrike+". "+fmtGex(cwGex+pwGex)+" wants price there." });
                       }
                       if (pinBelowSpot && firstResAbovePin) {
                         trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+pinStrike+" for 2+ days, the pin becomes support. Swing long toward $"+firstResAbovePin.strike+"." });
@@ -4396,7 +4386,7 @@ export default function OptionsFlowDashboard() {
                     trades.push({ i:"⚠", bg:P.be+"33", c:P.be, t:(isIntraday?"Thin air below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — if support breaks, price can slice through fast. No cushion to slow the drop.":"Thin support below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — a break means fast downside with nothing to catch it.") });
                   }
                   const cwCloseBelow = cwMagnet && (sp - cwStrike) / sp < 0.02;
-                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwCloseBelow && !pinSetup && !squeezeSetup ? " Price gravity at $"+cwStrike+" would speed up the drop." : "") });
+                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwCloseBelow && !pinSetup && !squeezeSetup ? " Broken support at $"+cwStrike+" would speed up the drop." : "") });
 
                   const gaugeMin = zg ? Math.min(zg, pwStrike) - (sp*0.005) : pwStrike - (sp*0.01);
                   const gaugeMax = Math.max(cwStrike, sp) + (sp*0.01);
@@ -4468,12 +4458,12 @@ export default function OptionsFlowDashboard() {
                           parts.push(isIntraday ? "Both about the same strength — choppy range. "+safetyStr : "Expect a choppy week in this range. Swing the edges. "+safetyStr);
                         }
                       } else if (!cwAboveSpot) {
-                        // CW below = magnet pulling down
+                        // CW below = support
                         const cwProxQR = (sp - cwStrike) / sp;
                         if (cwProxQR < 0.02) {
-                          parts.push("Spot just above the massive "+cwStr+" level ("+fmtGex(cwGex)+") — gravity pulling down, but price is holding above it.");
+                          parts.push("Spot just above the massive "+cwStr+" level ("+fmtGex(cwGex)+") — now acting as support below.");
                           if (isIntraday) {
-                            parts.push(firstResAbove ? "If "+cwStr+" holds as support, next target is $"+firstResAbove.strike+". If it breaks below, expect a quick slide." : "Watch if "+cwStr+" holds — break below means gravity wins.");
+                            parts.push(firstResAbove ? "If "+cwStr+" holds as support, next target is $"+firstResAbove.strike+". If it breaks below, expect a quick slide." : "Watch if "+cwStr+" holds as support — break below opens the downside.");
                           } else {
                             parts.push(firstResAbove ? "A daily close above "+cwStr+" this week absorbs the wall — swing target $"+firstResAbove.strike+". A close below confirms the pull." : "Watch for daily closes relative to "+cwStr+" — that's the decision point this week.");
                           }
@@ -4483,7 +4473,7 @@ export default function OptionsFlowDashboard() {
                           parts.push((firstResAbove ? "Next resistance at $"+firstResAbove.strike+"." : "Room to run higher.")+" "+(isPositive ? (isIntraday?"Pullbacks toward "+cwStr+" are buying opportunities.":"Buy dips toward "+cwStr+" this week — safety net supports.") : "Safety net off — protect below "+cwStr+"."));
                         }
                       } else if (!pwBelowSpot) {
-                        // PW above = magnet pulling up
+                        // PW above = resistance
                         parts.push("Floor at "+pwStr+" is above current price — pulling price UP.");
                         parts.push(fmtGex(pwGex)+" wants price at "+pwStr+"."+(isIntraday?" Bullish pull.":" Bullish weekly bias — look for entries on dips."));
                       }
