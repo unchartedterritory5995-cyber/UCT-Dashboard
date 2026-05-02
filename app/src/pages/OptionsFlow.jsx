@@ -105,7 +105,7 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
         {rows.map((r, i) => {
           const px = priceFn ? priceFn(r.S, r.CP, r.K, r.E) : null;
           const entry = r.price || (r.V > 0 ? r.P / r.V / 100 : 0);
-          const now = px ? px.mark : 0;
+          const now = px ? (px.mark || px.last || 0) : 0;
           const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
           const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
           const csvOI = r.OI || 0;
@@ -167,7 +167,7 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
         {rows.map((r, i) => {
           const px = priceFn ? priceFn(r.S, r.CP, r.K, r.E) : null;
           const entry = r.entry || (r.V > 0 ? r.P / r.V / 100 : 0);
-          const now = px ? px.mark : 0;
+          const now = px ? (px.mark || px.last || 0) : 0;
           const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
           const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
           const csvOI = r.maxOI || 0;
@@ -1060,7 +1060,7 @@ function processFlowData(rows) {
     .sort((a,b)=>(b.b+b.r)-(a.b+a.r))
     .map(tk => ({
       s:tk.s, b:tk.b, r:tk.r, n:tk.n,
-      t:tk.topTrades.sort((a,b)=>b.P-a.P),
+      t:(()=>{ const seen = new Set(); return tk.topTrades.sort((a,b)=>b.P-a.P).filter(t=>{ const k=t.CP+"|"+t.K+"|"+t.E; if(seen.has(k)) return false; seen.add(k); return true; }); })(),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
         c.clean = c.dirs.size <= 1;
         // 80% dominant direction override
