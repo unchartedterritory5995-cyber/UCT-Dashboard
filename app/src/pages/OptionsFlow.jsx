@@ -477,7 +477,8 @@ function buildCharts(cc) {
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!allCons[k]) allCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, vol:0, dir:t.D,
       hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
-      bullPrem:0, bearPrem:0, dominantOverride:false, maxOI:0, er:t.er||false };
+      bullPrem:0, bearPrem:0, dominantOverride:false, maxOI:0, er:t.er||false,
+      ivs:[], spots:[], prices:[], sideTimes:[] };
     if (!consTrades[k]) consTrades[k] = [];
     consTrades[k].push(t);
     allCons[k].hits++; allCons[k].prem += t.P; allCons[k].vol += t.V;
@@ -490,7 +491,57 @@ function buildCharts(cc) {
     if (t.Co==="YELLOW"||t.Co==="MAGENTA") allCons[k].oiExceeded = true;
     if (t.D) allCons[k].dirs.add(t.D);
     if (t.OI > allCons[k].maxOI) allCons[k].maxOI = t.OI;
+    // Track IV, spot, price, and side with time for pattern detection
+    if (t.IV > 0) allCons[k].ivs.push(t.IV);
+    if (t.Spot > 0) allCons[k].spots.push(t.Spot);
+    if (t.price > 0) allCons[k].prices.push(t.price);
+    allCons[k].sideTimes.push({ si:t.Si, time:t.time||"", prem:t.P });
   });
+  // Pattern detection helper
+  const detectPatterns = (c) => {
+    const patterns = [];
+    // 1. IV SURGE — IV increased 50%+ while spot stayed within 3%
+    if (c.ivs.length >= 3) {
+      const minIV = Math.min(...c.ivs), maxIV = Math.max(...c.ivs);
+      const minSpot = c.spots.length>0 ? Math.min(...c.spots) : 0;
+      const maxSpot = c.spots.length>0 ? Math.max(...c.spots) : 0;
+      const spotRange = minSpot > 0 ? (maxSpot - minSpot) / minSpot : 0;
+      const ivChange = minIV > 0 ? (maxIV - minIV) / minIV : 0;
+      if (ivChange >= 0.5 && spotRange < 0.03) {
+        patterns.push({ type:"IV_SURGE", ivChange:Math.round(ivChange*100), spotRange:Math.round(spotRange*100) });
+      }
+    }
+    // 2. SIDE FLIP — first half ASK-dominant, second half BID-dominant (or vice versa)
+    if (c.sideTimes.length >= 6) {
+      const half = Math.floor(c.sideTimes.length / 2);
+      const firstHalf = c.sideTimes.slice(0, half);
+      const secondHalf = c.sideTimes.slice(half);
+      const askPrem1 = firstHalf.filter(s=>s.si==="AA"||s.si==="A").reduce((a,s)=>a+s.prem,0);
+      const bidPrem1 = firstHalf.filter(s=>s.si==="BB"||s.si==="B").reduce((a,s)=>a+s.prem,0);
+      const askPrem2 = secondHalf.filter(s=>s.si==="AA"||s.si==="A").reduce((a,s)=>a+s.prem,0);
+      const bidPrem2 = secondHalf.filter(s=>s.si==="BB"||s.si==="B").reduce((a,s)=>a+s.prem,0);
+      const total1 = askPrem1+bidPrem1, total2 = askPrem2+bidPrem2;
+      const askDom1 = total1>0 && askPrem1/total1>0.7;
+      const bidDom1 = total1>0 && bidPrem1/total1>0.7;
+      const askDom2 = total2>0 && askPrem2/total2>0.7;
+      const bidDom2 = total2>0 && bidPrem2/total2>0.7;
+      if ((askDom1 && bidDom2) || (bidDom1 && askDom2)) {
+        patterns.push({ type:"SIDE_FLIP", from:askDom1?"ASK":"BID", to:askDom1?"BID":"ASK" });
+      }
+    }
+    // 3. HEAVY — 20+ prints on same strike = extreme concentration
+    if (c.hits >= 20) {
+      patterns.push({ type:"HEAVY", hits:c.hits });
+    }
+    // 4. PRICE SURGE — contract price doubled+ while accumulating
+    if (c.prices.length >= 4) {
+      const firstPrice = c.prices[0], lastPrice = c.prices[c.prices.length-1];
+      if (firstPrice > 0 && lastPrice / firstPrice >= 1.8) {
+        patterns.push({ type:"PRICE_SURGE", pctChange:Math.round((lastPrice/firstPrice-1)*100) });
+      }
+    }
+    return patterns;
+  };
   const CONV = Object.values(allCons).filter(c=>c.dir).map(c => {
     c.clean = c.dirs.size <= 1;
     // 80% dominant direction override — if one side has 80%+ of premium, treat as clean
@@ -510,7 +561,7 @@ function buildCharts(cc) {
     const k = c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
     const trades = (consTrades[k]||[]).sort((a,b)=>b.P-a.P);
     return { ...c, grade, volOI, score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus,
-      side:c.hasAA?"AA":c.hasBB?"BB":"ASK", strike:"$"+c.K+c.cp, trades };
+      side:c.hasAA?"AA":c.hasBB?"BB":"ASK", strike:"$"+c.K+c.cp, trades, patterns:detectPatterns(c) };
   }).filter(c => {
     if (!c.clean || c.DTE <= 7) return false;
     // Re-check expiry against today — parse c.exp "M/D" or "M/D/YYYY" at render time
@@ -525,7 +576,7 @@ function buildCharts(cc) {
   })
   .sort((a,b)=>b.score-a.score)
   .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0,
-    trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"" })) }));
+    trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"", price:t.price||0, Spot:t.Spot||0 })), patterns:c.patterns||[] }));
   const sectorMap = {};
   const tickerFlowMap = {};
   cc.forEach(t => {
@@ -3137,6 +3188,12 @@ export default function OptionsFlowDashboard() {
                     {t.dominantOverride && <span style={{ fontSize:9, color:P.ac, fontWeight:600, marginLeft:4 }}>80%+</span>}
                     {t.er && <span style={{ fontSize:8, fontWeight:800, marginLeft:4, padding:"1px 5px", borderRadius:3, background:"#ff6d0033", color:"#ff6d00" }}>⚡ER</span>}
                     {_isExit && <span style={{ fontSize:8, fontWeight:800, marginLeft:4, padding:"1px 5px", borderRadius:3, background:"#ff174433", color:"#ff1744" }}>🚪EXIT</span>}
+                    {(t.patterns||[]).map((p,pi)=>(
+                      <span key={pi} style={{ fontSize:7, fontWeight:800, marginLeft:4, padding:"1px 5px", borderRadius:3,
+                        background:p.type==="IV_SURGE"?"#e040fb22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#00e67622":"#29b6f622",
+                        color:p.type==="IV_SURGE"?"#e040fb":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#00e676":"#29b6f6"
+                      }}>{p.type==="IV_SURGE"?"IV +"+p.ivChange+"%":p.type==="SIDE_FLIP"?p.from+"→"+p.to:p.type==="HEAVY"?p.hits+"x HEAVY":"PRICE +"+p.pctChange+"%"}</span>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -3744,9 +3801,10 @@ export default function OptionsFlowDashboard() {
             if (!tfClusters[k]) tfClusters[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, dir:t.D,
               hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
               mktcap:t.mktcap||0, sector:t.sector||"", prices:[], volumes:0, maxOI:0,
-              bullPrem:0, bearPrem:0, dominantOverride:false, er:t.er||false };
+              bullPrem:0, bearPrem:0, dominantOverride:false, er:t.er||false,
+              ivs:[], spots:[], sideTimes:[], vol:0 };
             const c = tfClusters[k];
-            c.hits++; c.prem += t.P; c.volumes += t.V;
+            c.hits++; c.prem += t.P; c.volumes += t.V; c.vol += t.V;
             if (t.D === "BULL") c.bullPrem += t.P;
             if (t.D === "BEAR") c.bearPrem += t.P;
             if (t.OI > c.maxOI) c.maxOI = t.OI;
@@ -3758,6 +3816,9 @@ export default function OptionsFlowDashboard() {
             if (t.Co==="YELLOW"||t.Co==="MAGENTA") c.oiExceeded = true;
             if (t.D) c.dirs.add(t.D);
             if (t.mktcap > c.mktcap) c.mktcap = t.mktcap;
+            if (t.IV > 0) c.ivs.push(t.IV);
+            if (t.Spot > 0) c.spots.push(t.Spot);
+            c.sideTimes.push({ si:t.Si, time:t.time||"", prem:t.P });
           });
           const allFlow = Object.values(tfClusters).filter(c=>c.dir).map(c => {
             c.clean = c.dirs.size <= 1;
@@ -3780,7 +3841,7 @@ export default function OptionsFlowDashboard() {
             const voiBonus = Math.min(volOI, 5) * 80;
             return { ...c, grade, entry, cap, dteBand,
               score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus,
-              side:c.hasAA?"AA":c.hasBB?"BB":"ASK" };
+              side:c.hasAA?"AA":c.hasBB?"BB":"ASK", patterns:detectPatterns(c) };
           }).filter(c => c.clean && c.DTE > 7);
 
           let filtered = allFlow;
@@ -3877,7 +3938,7 @@ export default function OptionsFlowDashboard() {
                         onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                         onMouseLeave={e=>e.currentTarget.style.background=i<3?(P.ac+"06"):"transparent"}>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:i<3?P.ac:P.dm, fontSize:12 }}>{i+1}</td>
-                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff174433", color:"#ff1744", verticalAlign:"super" }}>EXIT</span>}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff174433", color:"#ff1744", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#e040fb22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#00e67622":"#29b6f622", color:p.type==="IV_SURGE"?"#e040fb":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#00e676":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
