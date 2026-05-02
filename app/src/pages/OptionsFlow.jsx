@@ -4131,8 +4131,8 @@ export default function OptionsFlowDashboard() {
               <div style={{ display:"flex", gap:14 }}>
                 <div style={{ width:3, background:P.uc, borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                 <div>
-                  <div style={{ fontSize:13, fontWeight:700, color:P.uc, marginBottom:5 }}>OI Check — Ranked by Vol/OI</div>
-                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>All trades ranked by volume relative to open interest. Higher Vol/OI = more unusual. Fetch prices to compare next-day OI: ΔOI up = new positions, ΔOI down = exits.</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:P.uc, marginBottom:5 }}>OI Check — Flow Confirmed</div>
+                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Track open interest changes on flow contracts. Fetch Live OI to compare current OI vs when flow first appeared. ΔOI up = positions grew, ΔOI down = exits.</div>
                 </div>
               </div>
             </Card>
@@ -4178,7 +4178,13 @@ export default function OptionsFlowDashboard() {
                 if (key==="doi") return r.dOI||0;
                 if (key==="lastOI") return r.displayLastOI||r.lastOI||0;
                 if (key==="volOI") return r.volOI||0;
-                if (key==="days") return r.daysTracked||0;
+                if (key==="flowDate") {
+                  const d = r.firstDate||"";
+                  if (!d) return 0;
+                  const p = d.split("/").map(Number);
+                  const y = p.length>=3?(p[2]<100?p[2]+2000:p[2]):new Date().getFullYear();
+                  return new Date(y, p[0]-1, p[1]||1).getTime();
+                }
                 if (key==="dte") return r.DTE||0;
                 if (key==="hits") return r.trades||0;
                 return 0;
@@ -4204,7 +4210,7 @@ export default function OptionsFlowDashboard() {
               const cols = [
                 {key:"sym",label:"Ticker"},{key:"exp",label:"Exp"},{key:"strike",label:"Strike"},{key:"cp",label:"C/P"},
                 {key:"entry",label:"Entry"},{key:"premium",label:"Premium"},{key:"flow",label:"Flow"},{key:"hits",label:"Hits"},
-                {key:"vol",label:"Vol"},{key:"firstOI",label:"First OI"},{key:"lastOI",label:"Last OI"},{key:"doi",label:"ΔOI"},{key:"volOI",label:"Vol/OI"},{key:"days",label:"Days"},{key:"dte",label:"DTE"}
+                {key:"vol",label:"Vol"},{key:"firstOI",label:"First OI"},{key:"lastOI",label:"Last OI"},{key:"doi",label:"ΔOI"},{key:"flowDate",label:"Date"},{key:"dte",label:"DTE"}
               ];
               return (
             <Card title="OI Check" sub={sorted.length+" contracts · "+oiSort.col+(oiSort.col2?" → "+oiSort.col2:"")}>
@@ -4223,11 +4229,10 @@ export default function OptionsFlowDashboard() {
                 </thead>
                 <tbody>
                   {sorted.map((r,i)=>{
-                    const pct = r.volOI;
                     const dOI = r.dOI || 0;
                     const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
                     return (
-                      <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:pct>=1?(P.ac+"08"):pct>=0.5?(P.ye+"08"):"transparent" }}>
+                      <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:dOI>1000?(P.bu+"08"):dOI<-100?(P.be+"08"):"transparent" }}>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
@@ -4241,11 +4246,10 @@ export default function OptionsFlowDashboard() {
                         </td>
                         <td style={{ padding:"5px 4px", fontWeight:700, color:r.trades>=5?P.ac:r.trades>=3?P.ye:P.dm }}>{r.trades}x</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.V.toLocaleString()}</td>
-                        <td style={{ padding:"5px 4px", color:P.dm }}>{r.firstOI>0?r.firstOI.toLocaleString():"—"}{r.firstDate&&r.daysTracked>1&&<span style={{ fontSize:7, color:P.mt, marginLeft:2 }}>{r.firstDate.split("/").slice(0,2).join("/")}</span>}</td>
+                        <td style={{ padding:"5px 4px", color:P.dm }}>{r.firstOI>0?r.firstOI.toLocaleString():"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.wh, fontWeight:700 }}>{(r.displayLastOI||r.lastOI)>0?(r.displayLastOI||r.lastOI).toLocaleString():"—"}{r.curOI>0&&<span style={{ fontSize:7, color:P.ac, marginLeft:2 }}>live</span>}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>
-                        <td style={{ padding:"5px 4px", fontWeight:800, color:pct>=1?P.ac:pct>=0.5?P.ye:pct>=0.25?P.wh:P.dm }}>{(pct*100).toFixed(0)}%</td>
-                        <td style={{ padding:"5px 4px", color:r.daysTracked>1?P.ac:P.dm, fontWeight:r.daysTracked>1?700:400 }}>{r.daysTracked>1?r.daysTracked+"d":"1d"}</td>
+                        <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.firstDate||"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
                       </tr>
                     );
