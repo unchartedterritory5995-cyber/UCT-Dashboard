@@ -1095,7 +1095,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Top Flow","Performance","Search","OI Check","Tracker","Watchlist"];
+const TABS = ["Market Read","Top Flow","Unusual","Performance","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -3425,6 +3425,126 @@ export default function OptionsFlowDashboard() {
             )}
           </div>
         )}
+
+        {/* Unusual Flow Detection */}
+        {tab==="Unusual" && FD && (()=>{
+          // Build unusual flow entries from CONV patterns + custom anomaly detection
+          const unusual = [];
+          // 1. CONV entries with detected patterns
+          (FD.CONV||[]).forEach(c => {
+            (c.patterns||[]).forEach(p => {
+              unusual.push({ ...c, anomaly:p.type, anomalyDetail:p, source:"pattern" });
+            });
+          });
+          // 2. Extreme Vol/OI — volume > 10x open interest
+          (FD.CONV||[]).forEach(c => {
+            if (c.volOI >= 10 && c.maxOI > 0 && c.maxOI < 500) {
+              unusual.push({ ...c, anomaly:"VOL_OI_EXTREME", anomalyDetail:{ ratio:Math.round(c.volOI*10)/10 }, source:"voloi" });
+            }
+          });
+          // 3. Outsized premium for cap size — $500K+ on small cap, $2M+ on mid cap
+          (FD.CONV||[]).forEach(c => {
+            const cap = capBand(c.mktcap);
+            const thresh = cap==="Small"?500e3:cap==="Mid"?2e6:0;
+            if (thresh > 0 && c.prem >= thresh) {
+              unusual.push({ ...c, anomaly:"SIZE_VS_CAP", anomalyDetail:{ cap, prem:c.prem }, source:"sizecap" });
+            }
+          });
+          // 4. Low OI + YELLOW/MAGENTA — new positions on thin contracts
+          (D.WATCH||[]).forEach(w => {
+            if (w.OI > 0 && w.OI <= 50 && w.V >= 500 && w.volOI >= 10) {
+              const conv = (FD.CONV||[]).find(c=>c.sym===w.S&&c.cp===w.CP&&String(c.K)===String(w.K)&&c.exp===w.E);
+              unusual.push({ sym:w.S, cp:w.CP, K:w.K, exp:w.E, hits:w.trades, prem:w.P, grade:conv?.grade||"", dir:conv?.dir||"", side:conv?.side||"",
+                maxOI:w.OI, vol:w.V, volOI:w.volOI, mktcap:0, er:false,
+                anomaly:"THIN_OI", anomalyDetail:{ oi:w.OI, vol:w.V, ratio:Math.round(w.volOI*10)/10 }, source:"thinoi" });
+            }
+          });
+          // Deduplicate — same contract can trigger multiple anomalies, keep all but dedup exact matches
+          const seen = new Set();
+          const deduped = unusual.filter(u => {
+            const k = u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp+"|"+u.anomaly;
+            if (seen.has(k)) return false; seen.add(k); return true;
+          });
+          // Sort by premium descending within each anomaly type
+          const sorted = deduped.sort((a,b) => b.prem - a.prem);
+          // Group by anomaly type
+          const groups = {
+            IV_SURGE: { label:"IV Surge — IV climbing on flat spot", color:"#e040fb", icon:"📈", items:[] },
+            SIDE_FLIP: { label:"Side Flip — direction reversed intraday", color:"#ff9800", icon:"🔄", items:[] },
+            HEAVY: { label:"Heavy Prints — 20+ trades on one strike", color:"#00e676", icon:"🔨", items:[] },
+            PRICE_SURGE: { label:"Price Surge — contract price nearly doubled", color:"#29b6f6", icon:"🚀", items:[] },
+            VOL_OI_EXTREME: { label:"Vol/OI Explosion — 10x+ volume vs open interest", color:"#ffd600", icon:"💥", items:[] },
+            SIZE_VS_CAP: { label:"Outsized Premium — big money on small/mid name", color:"#ff6d00", icon:"🐋", items:[] },
+            THIN_OI: { label:"Thin OI Accumulation — heavy volume on <50 OI contracts", color:"#00bcd4", icon:"🎯", items:[] },
+          };
+          sorted.forEach(u => { if (groups[u.anomaly]) groups[u.anomaly].items.push(u); });
+          const activeGroups = Object.entries(groups).filter(([,g]) => g.items.length > 0);
+          return (
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              <Card>
+                <div style={{ display:"flex", gap:14, alignItems:"center" }}>
+                  <div style={{ width:3, background:"#e040fb", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#e040fb", marginBottom:5 }}>Unusual Flow Scanner</div>
+                    <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Anomalous flow patterns that don't fit normal trading. IV surges on flat spot, extreme Vol/OI, outsized premium on small names, heavy single-strike accumulation, and side flips.</div>
+                  </div>
+                </div>
+              </Card>
+              {activeGroups.length === 0 && (
+                <Card><div style={{ textAlign:"center", padding:20, color:P.dm }}>No unusual patterns detected in current data.</div></Card>
+              )}
+              {activeGroups.map(([type, group]) => (
+                <Card key={type}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                    <span style={{ fontSize:14 }}>{group.icon}</span>
+                    <span style={{ fontSize:12, fontWeight:800, color:group.color, letterSpacing:0.5 }}>{group.label}</span>
+                    <span style={{ fontSize:9, color:P.dm, fontWeight:600 }}>{group.items.length} found</span>
+                  </div>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                    <thead>
+                      <tr style={{ borderBottom:"1px solid "+P.bd }}>
+                        {["Ticker","Exp","Strike","C/P","Grade","Dir","Side","Hits","Premium","Vol","OI","Vol/OI","Detail"].map(h=>(
+                          <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.items.slice(0,15).map((u,i)=>{
+                        const dirC = u.dir==="BULL"?P.bu:u.dir==="BEAR"?P.be:P.dm;
+                        const detail = u.anomaly==="IV_SURGE" ? "IV +"+u.anomalyDetail.ivChange+"% on flat spot"
+                          : u.anomaly==="SIDE_FLIP" ? u.anomalyDetail.from+"→"+u.anomalyDetail.to+" intraday"
+                          : u.anomaly==="HEAVY" ? u.anomalyDetail.hits+"x prints on one strike"
+                          : u.anomaly==="PRICE_SURGE" ? "Price +"+u.anomalyDetail.pctChange+"% during accumulation"
+                          : u.anomaly==="VOL_OI_EXTREME" ? u.anomalyDetail.ratio+"x Vol/OI"
+                          : u.anomaly==="SIZE_VS_CAP" ? fmt(u.anomalyDetail.prem)+" on "+u.anomalyDetail.cap+" cap"
+                          : u.anomaly==="THIN_OI" ? "OI: "+u.anomalyDetail.oi+", Vol: "+u.anomalyDetail.vol.toLocaleString()+" ("+u.anomalyDetail.ratio+"x)"
+                          : "";
+                        return (
+                          <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
+                            onClick={()=>{ fetchContractHistory(u.sym,u.cp,u.K,u.exp); setSelectedItem(prev=>prev&&prev.sym===u.sym?null:{sym:u.sym,cp:u.cp,K:u.K,exp:u.exp}); setTab("Search"); setSearch(u.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===u.sym)||null); }}>
+                            <td style={{ padding:"4px 5px", fontWeight:800, color:P.wh }}>{u.sym}<span style={{ fontSize:7, color:P.dm, marginLeft:3 }}>{capBand(u.mktcap)}</span></td>
+                            <td style={{ padding:"4px 5px", color:P.wh }}>{u.exp}</td>
+                            <td style={{ padding:"4px 5px", color:P.wh }}>${u.K}</td>
+                            <td style={{ padding:"4px 5px" }}><Tag c={u.cp==="C"?P.bu:P.be}>{u.cp}</Tag></td>
+                            <td style={{ padding:"4px 5px" }}><Tag c={GRADE_COLORS[u.grade]||P.mt}>{u.grade||"—"}</Tag></td>
+                            <td style={{ padding:"4px 5px" }}>{u.dir?<Tag c={dirC}>{u.dir}</Tag>:"—"}</td>
+                            <td style={{ padding:"4px 5px" }}>{u.side==="AA"?<Tag c={P.ac}>AA</Tag>:u.side==="BB"?<Tag c={P.be}>BB</Tag>:u.side?<Tag c={P.mt}>{u.side}</Tag>:"—"}</td>
+                            <td style={{ padding:"4px 5px", fontWeight:700, color:u.hits>=10?P.ac:u.hits>=5?P.ye:P.dm }}>{u.hits||"—"}x</td>
+                            <td style={{ padding:"4px 5px", fontWeight:700, color:premC(u.prem) }}>{fmt(u.prem)}</td>
+                            <td style={{ padding:"4px 5px", color:P.dm }}>{(u.vol||0).toLocaleString()}</td>
+                            <td style={{ padding:"4px 5px", color:P.dm }}>{(u.maxOI||0).toLocaleString()}</td>
+                            <td style={{ padding:"4px 5px", fontWeight:700, color:u.volOI>=10?P.ac:u.volOI>=3?P.ye:P.dm }}>{u.volOI>0?u.volOI.toFixed(1)+"x":"—"}</td>
+                            <td style={{ padding:"4px 5px", fontWeight:700, fontSize:9, color:group.color }}>{detail}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </Card>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* Top Flow — Master List */}
         {tab==="Top Flow" && (()=>{
