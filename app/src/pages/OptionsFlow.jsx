@@ -4144,7 +4144,7 @@ export default function OptionsFlowDashboard() {
               />
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                 <button onClick={()=>{
-                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,30) : D.WATCH.filter(w=>w.OI>=5).slice(0,40);
+                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40) : D.WATCH.filter(w=>w.OI>=5).slice(0,100);
                   fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -4155,7 +4155,7 @@ export default function OptionsFlowDashboard() {
               </div>
             </div>
             {(() => {
-              const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,30) : D.WATCH.filter(w=>w.OI>=5).slice(0,40);
+              const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40) : D.WATCH.filter(w=>w.OI>=5).slice(0,100);
               // Enrich with live OI data
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);
@@ -4213,7 +4213,7 @@ export default function OptionsFlowDashboard() {
                 {key:"vol",label:"Vol"},{key:"firstOI",label:"First OI"},{key:"lastOI",label:"Last OI"},{key:"doi",label:"ΔOI"},{key:"flowDate",label:"Date"},{key:"dte",label:"DTE"}
               ];
               return (
-            <Card title="OI Check" sub={sorted.length+" contracts · "+oiSort.col+(oiSort.col2?" → "+oiSort.col2:"")}>
+            <Card title="OI Check" sub={Math.min(40,sorted.length)+" of "+sorted.length+" contracts · "+oiSort.col+(oiSort.col2?" → "+oiSort.col2:"")}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
@@ -4228,7 +4228,7 @@ export default function OptionsFlowDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sorted.map((r,i)=>{
+                  {sorted.slice(0,40).map((r,i)=>{
                     const dOI = r.dOI || 0;
                     const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
                     return (
