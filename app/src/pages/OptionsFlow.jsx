@@ -4562,6 +4562,12 @@ export default function OptionsFlowDashboard() {
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{item.sym}</span>
                     {item.cap && item.cap!=="Unknown" && <span style={{ fontSize:7, fontWeight:700, color:P.dm, background:P.al, padding:"1px 4px", borderRadius:2 }}>{item.cap}</span>}
                     {item.er && <span style={{ fontSize:7, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00" }}>ER</span>}
+                    {(()=>{ const conv = FD?.CONV?.find(c=>c.sym===item.sym&&c.cp===item.cp&&String(c.K)===String(item.strike)&&c.exp===item.exp);
+                      return (conv?.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:2,
+                        background:p.type==="IV_SURGE"?"#e040fb22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#00e67622":"#29b6f622",
+                        color:p.type==="IV_SURGE"?"#e040fb":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#00e676":"#29b6f6"
+                      }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>);
+                    })()}
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
                     {isEditing ? (
@@ -4572,7 +4578,14 @@ export default function OptionsFlowDashboard() {
                     ) : (
                       <span style={{ fontSize:12, fontWeight:800, color:scoreC(item.score) }}>{Math.round(item.score*10)}%</span>
                     )}
-                    
+                    {(()=>{ const conv = FD?.CONV?.find(c=>c.sym===item.sym&&c.cp===item.cp&&String(c.K)===String(item.strike)&&c.exp===item.exp);
+                      const bP = conv?.bullPrem||0, brP = conv?.bearPrem||0, tot = bP+brP;
+                      if (tot<=0) return null;
+                      return <div style={{ width:"100%", display:"flex", height:3, borderRadius:2, overflow:"hidden", background:P.al, marginTop:3 }}>
+                        {bP>0&&<div style={{ width:Math.round(bP/tot*100)+"%", background:P.bu }}/>}
+                        {brP>0&&<div style={{ width:Math.round(brP/tot*100)+"%", background:P.be }}/>}
+                      </div>;
+                    })()}
                   </div>
                 </div>
                 {/* Tier badge */}
@@ -4712,7 +4725,7 @@ export default function OptionsFlowDashboard() {
                   <span style={{ fontSize:9, color:P.dm }}>{wlBull.length} tickers</span>
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                  {wlBull.length>0 ? wlBull.map((item,i)=>renderItem(item,i,"bull")) : (
+                  {wlBull.length>0 ? wlBull.map((_,i)=>i).sort((a,b)=>(wlBull[b].score||0)-(wlBull[a].score||0)).map(i=>renderItem(wlBull[i],i,"bull")) : (
                     <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>No bull picks. Click "Auto-Fill from Scanner" to populate.</div>
                   )}
                   <div style={{ display:"flex", gap:4, marginTop:4 }}>
@@ -4732,7 +4745,7 @@ export default function OptionsFlowDashboard() {
                   <span style={{ fontSize:9, color:P.dm }}>{wlBear.length} tickers</span>
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                  {wlBear.length>0 ? wlBear.map((item,i)=>renderItem(item,i,"bear")) : (
+                  {wlBear.length>0 ? wlBear.map((_,i)=>i).sort((a,b)=>(wlBear[b].score||0)-(wlBear[a].score||0)).map(i=>renderItem(wlBear[i],i,"bear")) : (
                     <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>No bear picks. Click "Auto-Fill from Scanner" to populate.</div>
                   )}
                   <div style={{ display:"flex", gap:4, marginTop:4 }}>
