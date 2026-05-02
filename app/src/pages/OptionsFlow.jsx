@@ -575,7 +575,7 @@ function buildCharts(cc) {
     return true;
   })
   .sort((a,b)=>b.score-a.score)
-  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0,
+  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0, bullPrem:c.bullPrem||0, bearPrem:c.bearPrem||0,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"", price:t.price||0, Spot:t.Spot||0 })), patterns:c.patterns||[] }));
   const sectorMap = {};
   const tickerFlowMap = {};
@@ -3183,9 +3183,20 @@ export default function OptionsFlowDashboard() {
                     <span style={{ color:P.ac, fontWeight:700 }}>{t.hits}x</span> · {fmt(t.prem)} ·{" "}
                     {t.side==="AA"?<Tag c={P.ac}>AA</Tag>:t.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>ASK</Tag>}
                   </div>
-                  <div style={{ marginTop:4 }}>
+                  <div style={{ marginTop:4, display:"flex", alignItems:"center", gap:6 }}>
                     <Tag c={c}>{t.dir}</Tag>
-                    {t.dominantOverride && <span style={{ fontSize:9, color:P.ac, fontWeight:600, marginLeft:4 }}>80%+</span>}
+                    {(() => {
+                      const total = (t.bullPrem||0) + (t.bearPrem||0);
+                      if (total <= 0) return null;
+                      const bullPct = Math.round((t.bullPrem||0) / total * 100);
+                      const bearPct = 100 - bullPct;
+                      return (
+                        <div style={{ flex:1, display:"flex", height:4, borderRadius:2, overflow:"hidden", background:P.al }}>
+                          {bullPct > 0 && <div style={{ width:bullPct+"%", background:P.bu, transition:"width 0.3s" }}/>}
+                          {bearPct > 0 && <div style={{ width:bearPct+"%", background:P.be, transition:"width 0.3s" }}/>}
+                        </div>
+                      );
+                    })()}
                     {t.er && <span style={{ fontSize:8, fontWeight:800, marginLeft:4, padding:"1px 5px", borderRadius:3, background:"#ff6d0033", color:"#ff6d00" }}>⚡ER</span>}
                     {_isExit && <span style={{ fontSize:8, fontWeight:800, marginLeft:4, padding:"1px 5px", borderRadius:3, background:"#ff174433", color:"#ff1744" }}>🚪EXIT</span>}
                     {(t.patterns||[]).map((p,pi)=>(
