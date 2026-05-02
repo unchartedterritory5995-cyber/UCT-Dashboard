@@ -4160,8 +4160,10 @@ export default function OptionsFlowDashboard() {
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);
                 const curOI = px ? (px.oi||0) : 0;
-                const dOI = curOI > 0 && r.OI > 0 ? curOI - r.OI : 0;
-                return { ...r, curOI, dOI };
+                const liveDOI = curOI > 0 && r.firstOI > 0 ? curOI - r.firstOI : (curOI > 0 && r.OI > 0 ? curOI - r.OI : 0);
+                const bestDOI = liveDOI !== 0 ? liveDOI : (r.csvDOI || 0);
+                const bestLastOI = curOI > 0 ? curOI : r.lastOI || 0;
+                return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI };
               });
               // Sort
               const getVal = (r, key) => {
@@ -4173,7 +4175,8 @@ export default function OptionsFlowDashboard() {
                 if (key==="vol") return r.V||0;
                 if (key==="firstOI") return r.firstOI||0;
                 if (key==="lastOI") return r.lastOI||0;
-                if (key==="doi") return r.csvDOI||0;
+                if (key==="doi") return r.dOI||0;
+                if (key==="lastOI") return r.displayLastOI||r.lastOI||0;
                 if (key==="volOI") return r.volOI||0;
                 if (key==="days") return r.daysTracked||0;
                 if (key==="dte") return r.DTE||0;
@@ -4221,7 +4224,7 @@ export default function OptionsFlowDashboard() {
                 <tbody>
                   {sorted.map((r,i)=>{
                     const pct = r.volOI;
-                    const dOI = r.csvDOI || 0;
+                    const dOI = r.dOI || 0;
                     const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
                     return (
                       <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", background:pct>=1?(P.ac+"08"):pct>=0.5?(P.ye+"08"):"transparent" }}>
@@ -4238,9 +4241,9 @@ export default function OptionsFlowDashboard() {
                         </td>
                         <td style={{ padding:"5px 4px", fontWeight:700, color:r.trades>=5?P.ac:r.trades>=3?P.ye:P.dm }}>{r.trades}x</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.V.toLocaleString()}</td>
-                        <td style={{ padding:"5px 4px", color:P.dm }}>{r.firstOI>0?r.firstOI.toLocaleString():"—"}{r.firstDate&&<span style={{ fontSize:7, color:P.mt, marginLeft:2 }}>{r.firstDate.split("/").slice(0,2).join("/")}</span>}</td>
-                        <td style={{ padding:"5px 4px", color:P.wh, fontWeight:700 }}>{r.lastOI>0?r.lastOI.toLocaleString():"—"}{r.lastDate&&r.daysTracked>1&&<span style={{ fontSize:7, color:P.mt, marginLeft:2 }}>{r.lastDate.split("/").slice(0,2).join("/")}</span>}</td>
-                        <td style={{ padding:"5px 4px", fontWeight:800, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}{r.daysTracked>1&&<span style={{ fontSize:7, color:P.mt, marginLeft:2 }}>{r.daysTracked}d</span>}</td>
+                        <td style={{ padding:"5px 4px", color:P.dm }}>{r.firstOI>0?r.firstOI.toLocaleString():"—"}{r.firstDate&&r.daysTracked>1&&<span style={{ fontSize:7, color:P.mt, marginLeft:2 }}>{r.firstDate.split("/").slice(0,2).join("/")}</span>}</td>
+                        <td style={{ padding:"5px 4px", color:P.wh, fontWeight:700 }}>{(r.displayLastOI||r.lastOI)>0?(r.displayLastOI||r.lastOI).toLocaleString():"—"}{r.curOI>0&&<span style={{ fontSize:7, color:P.ac, marginLeft:2 }}>live</span>}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:800, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:pct>=1?P.ac:pct>=0.5?P.ye:pct>=0.25?P.wh:P.dm }}>{(pct*100).toFixed(0)}%</td>
                         <td style={{ padding:"5px 4px", color:r.daysTracked>1?P.ac:P.dm, fontWeight:r.daysTracked>1?700:400 }}>{r.daysTracked>1?r.daysTracked+"d":"1d"}</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
