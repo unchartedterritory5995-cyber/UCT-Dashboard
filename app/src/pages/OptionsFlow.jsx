@@ -1371,13 +1371,18 @@ export default function OptionsFlowDashboard() {
       if (wlCapPref==="Mid+Small") return cap==="Mid"||cap==="Small";
       return true;
     };
-    const bulls = FD.CONV.filter(c=>c.dir==="BULL"&&capOk(c)).slice(0,10).map(c=>({
+    // Deduplicate by ticker — take highest-scoring contract per ticker
+    const dedup = (list) => {
+      const seen = new Set();
+      return list.filter(c => { if (seen.has(c.sym)) return false; seen.add(c.sym); return true; });
+    };
+    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL"&&capOk(c))).slice(0,10).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:c.dir||"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
       cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
     }));
-    const bears = FD.CONV.filter(c=>c.dir==="BEAR"&&capOk(c)).slice(0,10).map(c=>({
+    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR"&&capOk(c))).slice(0,10).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:c.dir||"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
