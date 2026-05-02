@@ -50,7 +50,15 @@ class FlaggedRename(BaseModel):
 
 @router.get("/api/watchlists/flagged")
 def get_flagged(user: dict = Depends(get_current_user)):
-    return watchlist_service.get_or_create_flagged_list(user["id"])
+    result = watchlist_service.get_or_create_flagged_list(user["id"])
+    try:
+        from api.routers.bars import warm_bars_async
+        tickers = [i["sym"].upper() for i in (result.get("items") or []) if isinstance(i, dict) and i.get("sym")]
+        if tickers:
+            warm_bars_async(tickers, tf="D", bars=5000)
+    except Exception:
+        pass
+    return result
 
 
 @router.post("/api/watchlists/flagged/sync")
@@ -101,6 +109,13 @@ def get_watchlist(wl_id: str, user: dict = Depends(get_current_user)):
     wl = watchlist_service.get_watchlist(wl_id, user["id"])
     if not wl:
         raise HTTPException(status_code=404, detail="Watchlist not found")
+    try:
+        from api.routers.bars import warm_bars_async
+        tickers = [i["sym"].upper() for i in (wl.get("items") or []) if isinstance(i, dict) and i.get("sym")]
+        if tickers:
+            warm_bars_async(tickers, tf="D", bars=5000)
+    except Exception:
+        pass
     return wl
 
 

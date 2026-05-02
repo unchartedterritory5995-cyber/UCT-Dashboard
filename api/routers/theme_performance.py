@@ -12,7 +12,24 @@ router = APIRouter()
 @router.get("/api/theme-performance")
 def get_theme_performance():
     try:
-        return svc.get_theme_performance()
+        result = svc.get_theme_performance()
+        try:
+            from api.routers.bars import warm_bars_async
+            tickers: set[str] = set()
+            themes = result if isinstance(result, list) else (result.get("themes") or [])
+            for theme in themes:
+                etf = theme.get("ticker")
+                if etf and etf != "UCT20":
+                    tickers.add(etf.upper())
+                for h in (theme.get("holdings") or []):
+                    sym = h.get("sym") if isinstance(h, dict) else (h if isinstance(h, str) else None)
+                    if sym:
+                        tickers.add(sym.upper())
+            if tickers:
+                warm_bars_async(list(tickers), tf="D", bars=5000)
+        except Exception:
+            pass
+        return result
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 

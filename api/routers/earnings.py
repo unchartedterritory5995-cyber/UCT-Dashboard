@@ -11,7 +11,19 @@ router = APIRouter()
 @router.get("/api/earnings")
 def earnings():
     try:
-        return get_earnings()
+        result = get_earnings()
+        try:
+            from api.routers.bars import warm_bars_async
+            tickers = [
+                e["sym"].upper()
+                for bucket in (result.get("bmo") or [], result.get("amc") or [], result.get("amc_tonight") or [])
+                for e in bucket if isinstance(e, dict) and e.get("sym")
+            ]
+            if tickers:
+                warm_bars_async(list(dict.fromkeys(tickers)), tf="D", bars=5000)
+        except Exception:
+            pass
+        return result
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
