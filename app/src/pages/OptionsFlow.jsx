@@ -1095,6 +1095,7 @@ export default function OptionsFlowDashboard() {
   const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
   const [oiCapFilter, setOiCapFilter] = useState("All");
   const [leaderDte, setLeaderDte] = useState("All");
+  const [selectedLeaderTicker, setSelectedLeaderTicker] = useState(null);
   const [tfCapFilter, setTfCapFilter] = useState("All");
   const [tfDteFilter, setTfDteFilter] = useState("All");
   const [gexTicker, setGexTicker] = useState("SPY");
@@ -3422,7 +3423,7 @@ export default function OptionsFlowDashboard() {
                   const dirC = net > 0 ? P.bu : P.be;
                   return (
                     <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
-                      onClick={()=>{ setTab("Search"); setSearch(tk.s); setSelectedTicker(tk); }}>
+                      onClick={()=>setSelectedLeaderTicker(selectedLeaderTicker===tk.s?null:tk.s)}>
                       <td style={{ padding:"5px 6px", fontWeight:800, color:P.wh, fontSize:12 }}>{tk.s}</td>
                       <td style={{ padding:"5px 6px", fontWeight:700, color:P.bu }}>{fmt(tk.b)}</td>
                       <td style={{ padding:"5px 6px", fontWeight:700, color:P.be }}>{fmt(tk.r)}</td>
@@ -3475,6 +3476,77 @@ export default function OptionsFlowDashboard() {
                 );
               })()}
             </Card>
+            {/* Inline Ticker Detail */}
+            {selectedLeaderTicker && (()=>{
+              const tk = D.TICKER_DB.find(t=>t.s===selectedLeaderTicker);
+              if (!tk) return null;
+              const net = tk.b - tk.r;
+              const total = tk.b + tk.r;
+              const dir = net>0?"BULL":"BEAR";
+              const dirC = dir==="BULL"?P.bu:P.be;
+              const bullPct = total>0?Math.round(tk.b/total*100):50;
+              return (
+                <Card>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      <span style={{ fontSize:18, fontWeight:900, color:P.wh }}>{tk.s}</span>
+                      <span style={{ fontSize:14, fontWeight:800, color:dirC }}>{dir}</span>
+                      <span style={{ fontSize:11, color:P.dm }}>{tk.n} trades</span>
+                    </div>
+                    <button onClick={()=>setSelectedLeaderTicker(null)} style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:16, fontFamily:"inherit" }}>✕</button>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:12 }}>
+                    <div style={{ padding:8, background:P.al, borderRadius:6, borderLeft:"3px solid "+dirC }}>
+                      <div style={{ fontSize:8, color:P.mt, fontWeight:600 }}>NET DIRECTION</div>
+                      <div style={{ fontSize:16, fontWeight:900, color:dirC }}>{dir}</div>
+                    </div>
+                    <div style={{ padding:8, background:P.al, borderRadius:6 }}>
+                      <div style={{ fontSize:8, color:P.mt, fontWeight:600 }}>BULLISH FLOW</div>
+                      <div style={{ fontSize:16, fontWeight:900, color:P.bu }}>{fmt(tk.b)}</div>
+                      <div style={{ display:"flex", height:3, borderRadius:2, overflow:"hidden", background:P.bd, marginTop:4 }}>
+                        <div style={{ width:bullPct+"%", background:P.bu }}/><div style={{ width:(100-bullPct)+"%", background:P.be }}/>
+                      </div>
+                    </div>
+                    <div style={{ padding:8, background:P.al, borderRadius:6 }}>
+                      <div style={{ fontSize:8, color:P.mt, fontWeight:600 }}>BEARISH FLOW</div>
+                      <div style={{ fontSize:16, fontWeight:900, color:P.be }}>{fmt(tk.r)}</div>
+                    </div>
+                  </div>
+                  {tk.c.length>0 && (
+                    <div>
+                      <div style={{ fontSize:10, fontWeight:700, color:P.mt, marginBottom:6, letterSpacing:1 }}>TOP CONTRACTS (2+ HITS)</div>
+                      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                        <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                          {["Strike","C/P","Exp","Hits","Grade","Premium","Side"].map(h=>(
+                            <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8 }}>{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {tk.c.slice(0,6).map((c,i)=>(
+                            <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
+                              onClick={()=>{ setTab("Search"); setSearch(tk.s); setSelectedTicker(tk); }}>
+                              <td style={{ padding:"4px 5px", fontWeight:800, color:P.wh }}>${c.K}</td>
+                              <td style={{ padding:"4px 5px" }}><Tag c={c.CP==="C"?P.bu:P.be}>{c.CP}</Tag></td>
+                              <td style={{ padding:"4px 5px", color:P.wh }}>{c.E}</td>
+                              <td style={{ padding:"4px 5px", fontWeight:700, color:c.H>=5?P.ac:c.H>=3?P.ye:P.dm }}>{c.H}x</td>
+                              <td style={{ padding:"4px 5px" }}><Tag c={GRADE_COLORS[c.grade]||P.mt}>{c.grade||"—"}</Tag></td>
+                              <td style={{ padding:"4px 5px", fontWeight:700, color:premC(c.P) }}>{fmt(c.P)}</td>
+                              <td style={{ padding:"4px 5px" }}>{c.hasSweep&&c.hasBlock?<Tag c={P.ac}>S+B</Tag>:c.hasSweep?<Tag c={P.sw}>SWP</Tag>:<Tag c={P.bk}>BLK</Tag>}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div style={{ textAlign:"center", marginTop:6 }}>
+                        <button onClick={()=>{ setTab("Search"); setSearch(tk.s); setSelectedTicker(tk); }}
+                          style={{ fontSize:9, color:P.ac, background:"transparent", border:"1px solid "+P.ac+"44", borderRadius:4, padding:"3px 12px", cursor:"pointer", fontFamily:"inherit", fontWeight:700 }}>
+                          View full detail in Search →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })()}
           </div>
         )}
 
