@@ -1104,6 +1104,54 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
             headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
         )
 
+    if stored_rows and last_ts:
+        # Stale-while-revalidate: SQLite has data but it needs updating.
+        # Serve the stale data immediately (no spinner) and refresh in the background.
+        # The browser's SWR will revalidate after a short TTL and pick up fresh data.
+        stale_payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf)}
+        cache.set(cache_key, stale_payload, ttl=12)  # short TTL so next poll gets fresh
+
+        with _inflight_lock:
+            if cache_key not in _inflight:
+                _bg_ev = _threading.Event()
+                _inflight[cache_key] = _bg_ev
+
+                def _bg_delta(
+                    _key=cache_key, _sym=ticker_up, _tf=tf, _bars=bars,
+                    _last_ts=last_ts, _stored=stored_rows, _ev=_bg_ev, _dtf=date_tf,
+                ):
+                    try:
+                        if _tf == "D":
+                            new = _delta_daily(_sym, _last_ts)
+                        elif _tf == "W":
+                            new = _delta_weekly(_sym, _last_ts)
+                        elif _tf == "M":
+                            new = _delta_monthly(_sym, _last_ts)
+                        else:
+                            new = _delta_intraday(_sym, _tf, _last_ts)
+                        if new:
+                            _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
+                        fresh_rows = _sqlite.get_bars(_sym, _tf, _bars)
+                        fresh_payload = {
+                            "ticker": _sym, "tf": _tf,
+                            "bars": _fmt_sqlite_bars(fresh_rows or _stored, _tf),
+                        }
+                        cache.set(_key, fresh_payload, ttl=_CACHE_TTL.get(_tf, 300))
+                    except Exception:
+                        pass
+                    finally:
+                        with _inflight_lock:
+                            _inflight.pop(_key, None)
+                        _ev.set()
+
+                _threading.Thread(target=_bg_delta, daemon=True,
+                                  name=f"bars-bg-{ticker_up}-{tf}").start()
+
+        return JSONResponse(
+            content=stale_payload,
+            headers={"Cache-Control": "public, max-age=5"},
+        )
+
     # ── Layer 3: Legacy disk cache fallback (transition period) ──────────────
     # Serves existing warm disk-cache entries during the SQLite cold-start.
     # Once SQLite is populated for a ticker, this branch is never reached.
