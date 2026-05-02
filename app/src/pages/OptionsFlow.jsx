@@ -937,7 +937,7 @@ function processFlowData(rows) {
     if (t.Ty === "SWP") watchMap[k].hasSweep = true;
     if (t.Ty === "BLK") watchMap[k].hasBlock = true;
     // Track OI and volume by date
-    const dt = (t.date||"").trim();
+    const dt = (t.Dt||"").trim();
     if (dt) {
       if (!watchMap[k].dailyOI[dt] || t.OI > watchMap[k].dailyOI[dt]) watchMap[k].dailyOI[dt] = t.OI;
       watchMap[k].dailyVol[dt] = (watchMap[k].dailyVol[dt]||0) + t.V;
@@ -4144,7 +4144,7 @@ export default function OptionsFlowDashboard() {
               />
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                 <button onClick={()=>{
-                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,30) : D.WATCH.slice(0,40);
+                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,30) : D.WATCH.filter(w=>w.OI>=5).slice(0,40);
                   fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -4155,7 +4155,7 @@ export default function OptionsFlowDashboard() {
               </div>
             </div>
             {(() => {
-              const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)).sort((a,b)=>b.P-a.P).slice(0,30) : D.WATCH.slice(0,40);
+              const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,30) : D.WATCH.filter(w=>w.OI>=5).slice(0,40);
               // Enrich with live OI data
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);
