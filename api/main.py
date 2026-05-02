@@ -124,29 +124,57 @@ async def lifespan(app: FastAPI):
         print(f"[startup] SQLite bar store init error (non-fatal): {e}")
 
     # Synchronous memory pre-warm from SQLite — zero API calls, just reads.
-    # Populates the in-memory TTLCache for all Tier 1 tickers before the server
-    # starts accepting requests so every chart loads instantly on first hit.
+    # Loads Tier 1 tickers AND latest breadth drill-list tickers from SQLite into
+    # the in-memory TTLCache before accepting requests. Cache key uses 8000 for
+    # D/W (matching StockChart's barCount) and 5000 for intraday.
     try:
         from api.services import bars_sqlite as _pbs
         from api.services.cache import cache as _pcache
         from api.routers.bars import _fmt_sqlite_bars, _CACHE_TTL
         from api.services.bars_seeder import _TIER1_BASE
         _pw = 0
+        _pw_syms: set[str] = set()
+
+        def _warm_sym_into_memory(sym: str, tf: str):
+            nonlocal _pw
+            _bc = 8000 if tf in ('D', 'W') else 5000
+            try:
+                _lt = _pbs.get_last_ts(sym, tf)
+                if _lt is None:
+                    return
+                _rows = _pbs.get_bars(sym, tf, _bc)
+                if not _rows:
+                    return
+                _pl = {"ticker": sym, "tf": tf, "bars": _fmt_sqlite_bars(_rows, tf)}
+                _pcache.set(f"bars_{sym}_{tf}_{_bc}", _pl, ttl=_CACHE_TTL.get(tf, 300))
+                _pw += 1
+            except Exception:
+                pass
+
+        # Tier 1: all TFs
         for _sym in _TIER1_BASE:
+            _pw_syms.add(_sym)
             for _tf in ('D', 'W', '5', '15', '30', '60'):
-                try:
-                    _lt = _pbs.get_last_ts(_sym, _tf)
-                    if _lt is None:
+                _warm_sym_into_memory(_sym, _tf)
+
+        # Latest breadth drill-list: D + W only (these are what DrillModal charts show)
+        try:
+            from api.services import breadth_monitor as _bm
+            _latest = _bm.get_latest()
+            if _latest:
+                for _k, _v in _latest.items():
+                    if not _k.endswith('_list') or not isinstance(_v, list):
                         continue
-                    _rows = _pbs.get_bars(_sym, _tf, 5000)
-                    if not _rows:
-                        continue
-                    _pl = {"ticker": _sym, "tf": _tf, "bars": _fmt_sqlite_bars(_rows, _tf)}
-                    _pcache.set(f"bars_{_sym}_{_tf}_5000", _pl, ttl=_CACHE_TTL.get(_tf, 300))
-                    _pw += 1
-                except Exception:
-                    pass
-        print(f"[startup] Memory pre-warm: {_pw} Tier1 bar series loaded from SQLite")
+                    for _item in _v:
+                        _s = _item.get('t') if isinstance(_item, dict) else None
+                        if _s and _s.upper() not in _pw_syms:
+                            _pw_syms.add(_s.upper())
+                            for _tf in ('D', 'W'):
+                                _warm_sym_into_memory(_s.upper(), _tf)
+        except Exception:
+            pass
+
+        print(f"[startup] Memory pre-warm: {_pw} bar series loaded from SQLite ({len(_pw_syms)} tickers)")
     except Exception as _e:
         print(f"[startup] Memory pre-warm failed (non-fatal): {_e}")
 

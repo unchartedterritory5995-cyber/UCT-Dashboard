@@ -389,18 +389,23 @@ function DrillModal({ drill, onClose }) {
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [chartPeriod, setChartPeriod] = useState('D')
 
-  // Pre-warm a small sliding window ahead of the cursor so arrow-key scanning
-  // stays instant. Only prefetch the primary chartPeriod for neighbors — StockChart's
-  // own internal background prefetch handles all TFs for the selected ticker after 600ms,
-  // so firing prefetchAllTimeframes here would race with the chart's own SWR request and
-  // saturate the httpx connection pool on cold-cache tickers (slows the visible chart).
-  // 250ms debounce: rapid arrow-key holds collapse to a single batch.
+  // When the drill list first loads, immediately prefetch ALL tickers into the
+  // browser's SWR cache. For tickers already in server SQLite (the vast majority),
+  // each request returns in <5ms via stale-while-revalidate. This means all 95+
+  // items are client-cached before the user clicks any of them → zero spinner.
+  const prefetchedListRef = useRef(null)
+  useEffect(() => {
+    if (!items.length || prefetchedListRef.current === items) return
+    prefetchedListRef.current = items
+    prefetchBars(items.map(i => i.t), 'D')
+  }, [items])
+
+  // Sliding window ahead of cursor for arrow-key scanning (keeps adjacent tickers hot).
   useEffect(() => {
     if (!items.length) return
     const t = setTimeout(() => {
       const start = Math.max(0, selectedIdx - 1)
-      const end   = Math.min(items.length, selectedIdx + 4)  // current + 3 ahead
-      // Prefetch only the active TF for a small neighbor window (not all 8 TFs)
+      const end   = Math.min(items.length, selectedIdx + 4)
       prefetchBars(items.slice(start, end).map(i => i.t), chartPeriod)
     }, 250)
     return () => clearTimeout(t)

@@ -126,6 +126,23 @@ def _build_tier2(tier1_set: set[str]) -> list[str]:
     except Exception:
         pass
 
+    # Breadth drill-list tickers — every ticker a user might click in a DrillModal.
+    # These are the most frequently charted non-Tier-1 tickers and must be in SQLite
+    # at startup so stale-while-revalidate serves them instantly (no Massive API wait).
+    try:
+        from api.services import breadth_monitor as _bm
+        latest = _bm.get_latest()
+        if latest:
+            for k, v in latest.items():
+                if not k.endswith('_list') or not isinstance(v, list):
+                    continue
+                for item in v:
+                    sym = item.get('t') if isinstance(item, dict) else None
+                    if sym:
+                        _add(sym.upper())
+    except Exception:
+        pass
+
     # Watchlist items from DB
     try:
         from api.services.auth_db import get_connection
