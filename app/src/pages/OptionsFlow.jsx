@@ -2228,6 +2228,746 @@ export default function OptionsFlowDashboard() {
           </div>
         )}
 
+        {dataMode==="gex" && (()=>{
+          const fmtGex = v => {
+            if (v === null || v === undefined || isNaN(v)) return "—";
+            const abs = Math.abs(v);
+            const sign = v < 0 ? "-" : "";
+            if (abs >= 1e9) return sign + "$" + (abs/1e9).toFixed(2) + "B";
+            if (abs >= 1e6) return sign + "$" + (abs/1e6).toFixed(1) + "M";
+            if (abs >= 1e3) return sign + "$" + (abs/1e3).toFixed(0) + "K";
+            return sign + "$" + abs.toFixed(0);
+          };
+          const quickTickers = ["SPY","QQQ","IWM","SPX","NDX","DIA"];
+          // Filter strikes to within ±12% of spot for readability
+          const spot = gexData?.spot || 0;
+          const visibleStrikes = gexData?.strikes ?
+            gexData.strikes.filter(s => spot > 0 ? Math.abs(s.strike - spot) / spot <= 0.12 : true)
+              .map(s => ({ ...s, label: "$"+s.strike })) : [];
+          const hasError = gexData?.error;
+          return (
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <Card>
+              <div style={{ display:"flex", gap:14, alignItems:"center" }}>
+                <div style={{ width:3, background:"#e040fb", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#e040fb", marginBottom:5 }}>Gamma Exposure (GEX)</div>
+                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Shows where big options activity creates price levels. Ceiling = price struggles above. Floor = price bounces here. Danger line = below this, drops get faster.</div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Search + Quick Tickers + DTE */}
+            <div style={{ display:"flex", gap:12, flexWrap:"wrap", alignItems:"center" }}>
+              <div style={{ display:"flex", gap:6, flex:"1 1 300px" }}>
+                <input type="text" value={gexInput}
+                  onChange={e=>setGexInput(e.target.value.toUpperCase())}
+                  onKeyDown={e=>{ if(e.key==="Enter") setGexTicker(gexInput.trim()); }}
+                  placeholder="Enter ticker (SPY, NVDA, etc)"
+                  style={{ flex:1, padding:"8px 14px", borderRadius:6, fontSize:12, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }} />
+                <button onClick={()=>setGexTicker(gexInput.trim())}
+                  style={{ padding:"8px 18px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", background:"#e040fb", color:P.bg }}>
+                  Load
+                </button>
+              </div>
+              <div style={{ display:"flex", gap:4 }}>
+                {quickTickers.map(t=>(
+                  <button key={t} onClick={()=>{ setGexInput(t); setGexTicker(t); }}
+                    style={{ padding:"6px 12px", borderRadius:4, border:"1px solid "+P.bl, background:gexTicker===t?("#e040fb22"):P.al, color:gexTicker===t?"#e040fb":P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                {[["0dte","0DTE"],["1dte","1DTE"],["2dte","2DTE"],["3dte","3DTE"],["week","Week"],["month","Month"],["all","All"]].map(([v,label])=>(
+                  <button key={v} onClick={()=>setGexDte(v)} style={{
+                    padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                    fontSize:10, fontWeight:600, fontFamily:"inherit",
+                    background:gexDte===v?P.cd:"transparent", color:gexDte===v?P.wh:P.mt
+                  }}>{label}</button>
+                ))}
+              </div>
+            </div>
+
+            {gexLoading && <Card><div style={{ textAlign:"center", padding:"40px 0", color:P.dm, fontSize:12 }}>Loading gamma data for {gexTicker}…</div></Card>}
+
+            {!gexLoading && hasError && (
+              <Card>
+                <div style={{ textAlign:"center", padding:"30px 0", color:P.be, fontSize:12 }}>
+                  <div style={{ marginBottom:6, fontWeight:700 }}>Unable to load GEX data</div>
+                  <div style={{ color:P.dm, fontSize:11 }}>{gexData.error}</div>
+                </div>
+              </Card>
+            )}
+
+            {!gexLoading && !hasError && gexData && (
+              <>
+                {/* Key Level Cards */}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:8 }}>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.wh }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Spot</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:P.wh }}>${gexData.spot?.toFixed(2)}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.ticker}</div>
+                  </div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.ac }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Danger Line</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:P.ac }}>{gexData.zeroGamma ? "$"+gexData.zeroGamma.toFixed(2) : "—"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>
+                      {gexData.zeroGamma && gexData.spot ? ((gexData.spot - gexData.zeroGamma)/gexData.zeroGamma*100).toFixed(2)+"% above" : ""}
+                    </div>
+                  </div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.bu }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Ceiling</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:P.bu }}>{gexData.callWall ? "$"+gexData.callWall.strike : "—"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""} ceiling</div>
+                  </div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.be }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Floor</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:P.be }}>{gexData.putWall ? "$"+gexData.putWall.strike : "—"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""} floor</div>
+                  </div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #e040fb" }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.zeroGamma && gexData.spot < gexData.zeroGamma ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
+                  </div>
+                </div>
+
+                {/* GEX Bar Chart */}
+                <Card title={"GEX by Strike — "+gexData.ticker} sub={visibleStrikes.length+" strikes · ±12% of spot"}>
+                  <div style={{ height:Math.max(400, visibleStrikes.length*18) }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={visibleStrikes} layout="vertical" margin={{ top:4, right:20, left:20, bottom:4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
+                        <XAxis type="number" tick={{ fontSize:10, fill:"#7b8fa3" }}
+                          tickFormatter={v=>fmtGex(v)} />
+                        <YAxis type="category" dataKey="label" tick={{ fontSize:10, fill:"#7b8fa3" }}
+                          width={60} reversed />
+                        <Tooltip contentStyle={{ background:"#0d1525", border:"1px solid #243352", borderRadius:6, fontSize:11 }}
+                          formatter={(val, name) => [fmtGex(val), name === "callGex" ? "Call GEX" : name === "putGex" ? "Put GEX" : "Net GEX"]} />
+                        <ReferenceLine x={0} stroke="#7b8fa3" strokeWidth={1} />
+                        {gexData.zeroGamma && <ReferenceLine y={"$"+Math.round(gexData.zeroGamma)} stroke={P.ac} strokeDasharray="3 3" label={{ value:"0γ", position:"right", fill:P.ac, fontSize:10 }} />}
+                        {gexData.spot && <ReferenceLine y={"$"+Math.round(gexData.spot)} stroke={P.wh} strokeWidth={2} label={{ value:"Spot", position:"right", fill:P.wh, fontSize:10, fontWeight:700 }} />}
+                        <Bar dataKey="callGex" fill={P.bu} opacity={0.85} />
+                        <Bar dataKey="putGex" fill={P.be} opacity={0.85} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+
+
+                {/* Action Buttons */}
+                <div style={{ display:"flex", justifyContent:"center", gap:10, marginTop:4 }}>
+                  <button onClick={()=>setShowGexChart(!showGexChart)} style={{
+                    padding:"10px 28px", borderRadius:6, border:"1px solid "+P.ac, cursor:"pointer",
+                    fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5,
+                    background:showGexChart?P.ac+"22":"transparent", color:P.ac
+                  }}>
+                    {showGexChart ? "✕ Hide Chart" : "📈 Chart with Levels"}
+                  </button>
+                  <button onClick={()=>setShowGexSummary(!showGexSummary)} style={{
+                    padding:"10px 28px", borderRadius:6, border:"1px solid #e040fb", cursor:"pointer",
+                    fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5,
+                    background:showGexSummary?"#e040fb22":"transparent", color:"#e040fb"
+                  }}>
+                    {showGexSummary ? "✕ Hide Summary" : "🔮 Generate Summary"}
+                  </button>
+                </div>
+
+                {/* GEX Chart with Levels */}
+                {showGexChart && gexData && !gexData.error && (
+                  <div style={{ background:P.cd, borderRadius:10, padding:12, border:"1px solid "+P.bd, marginTop:4 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <span style={{ fontSize:11, fontWeight:700, color:P.ac, textTransform:"uppercase", letterSpacing:1 }}>{gexData.ticker} Chart with GEX Levels</span>
+                      <div style={{ display:"flex", gap:4 }}>
+                        {[["5min","5m"],["10min","10m"],["15min","15m"],["30min","30m"],["65min","65m"],["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
+                          <button key={val} onClick={()=>setGexChartRange(val)}
+                            style={{ padding:"3px 8px", borderRadius:4, border:"1px solid "+(gexChartRange===val?P.ac:P.bd+"80"),
+                              background:gexChartRange===val?P.ac+"22":"transparent", color:gexChartRange===val?P.ac:P.dm,
+                              fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div ref={gexChartRef} style={{ width:"100%", height:500, borderRadius:6, overflow:"hidden" }} />
+                  </div>
+                )}
+
+                {/* GEX Summary Panel */}
+                {showGexSummary && gexData && (()=>{
+                  const sp = gexData.spot;
+                  const cw = gexData.callWall;
+                  const pw = gexData.putWall;
+                  const zg = gexData.zeroGamma;
+                  const tg = gexData.totalGex;
+                  if (!sp || !cw || !pw) return null;
+                  const cwStrike = cw.strike, pwStrike = pw.strike, cwGex = cw.gex, pwGex = Math.abs(pw.gex);
+                  const SG = "#0a8f55", SR = "#c43030"; // darker bar fills for summary
+                  const isIntraday = gexDte === "0dte" || gexDte === "1dte";
+                  const timeframe = isIntraday ? "today" : "this week";
+
+                  // Net delta tracking — store all readings for daily trend sparkline
+                  const nd = gexData.netDelta;
+                  const today = new Date().toLocaleDateString("en-US");
+                  const ndRef = prevNetDeltaRef.current || {};
+                  let ndChange = null, ndImproving = null, ndReadings = [];
+                  if (nd != null) {
+                    if (ndRef.date !== today) {
+                      // New day — reset
+                      prevNetDeltaRef.current = { date: today, baseline: nd, readings: [nd] };
+                      ndReadings = [nd];
+                    } else {
+                      // Same day — append if value changed meaningfully (>0.5% shift)
+                      const prev = ndRef.readings || [];
+                      const lastVal = prev.length > 0 ? prev[prev.length - 1] : null;
+                      const threshold = Math.abs(ndRef.baseline || 1) * 0.005;
+                      if (lastVal === null || Math.abs(nd - lastVal) > threshold || prev.length === 0) {
+                        ndRef.readings = [...prev, nd];
+                      }
+                      ndReadings = ndRef.readings || prev;
+                      ndChange = nd - ndRef.baseline;
+                      ndImproving = ndChange > 0;
+                    }
+                  }
+
+                  const cwAboveSpot = cwStrike > sp;
+                  const pwBelowSpot = pwStrike < sp;
+                  const cwLabel = cwAboveSpot ? "ceiling" : ((sp - cwStrike) / sp < 0.02 ? "decision point" : "major support below");
+                  const pwLabel = pwBelowSpot ? "floor" : "resistance above";
+                  const wallsInverted = !cwAboveSpot || !pwBelowSpot;
+                  const spotBetweenWalls = cwStrike === pwStrike || (sp >= Math.min(cwStrike,pwStrike) && sp <= Math.max(cwStrike,pwStrike));
+                  const wallSpread = Math.abs(cwStrike - pwStrike);
+                  const pinSetup = (cwStrike === pwStrike) || (spotBetweenWalls && wallSpread <= Math.max(sp * 0.003, 5));
+                  const squeezeSetup = !pinSetup && spotBetweenWalls && wallSpread <= sp * 0.01;
+
+                  const cwRatio = pwGex > 0 ? (cwGex / pwGex).toFixed(1) : "∞";
+                  const cwDominant = cwGex > pwGex * 1.5;
+                  const pwDominant = pwGex > cwGex * 1.5;
+                  const cwPct = Math.round(cwGex / (cwGex + pwGex) * 100);
+                  const pwPct = 100 - cwPct;
+
+                  const isPositive = tg > 0 && (!zg || sp >= zg); // positive GEX AND above danger line
+                  const belowDangerLine = zg && sp < zg;
+                  const zgDist = zg ? ((sp - zg) / zg * 100).toFixed(1) : null;
+
+                  // Pre-compute strike helpers (needed by verdict, setup text, trade ideas)
+                  const sortedStrikes = [...(gexData.strikes||[])].filter(s => sp > 0 ? (Math.abs(s.strike - sp) / sp <= 0.08 || s.strike === cwStrike || s.strike === pwStrike) : true);
+                  const topCalls = sortedStrikes.filter(s => s.callGex > 0 && s.strike !== cwStrike && s.strike !== pwStrike).sort((a,b) => b.callGex - a.callGex).slice(0, 3);
+                  const topPuts = sortedStrikes.filter(s => s.putGex < 0 && s.strike !== cwStrike && s.strike !== pwStrike && !topCalls.find(c => c.strike === s.strike)).sort((a,b) => a.putGex - b.putGex).slice(0, 2);
+                  const callsAboveSpot = topCalls.filter(s => s.strike > sp);
+                  // For swing targets, skip levels within 1.5% of spot — too close to be a real target
+                  const minTargetDist = isIntraday ? 0 : sp * 0.015;
+                  const swingCallsAbove = callsAboveSpot.filter(s => s.strike - sp >= minTargetDist);
+                  const firstResAbove = swingCallsAbove.length > 0 ? swingCallsAbove.sort((a,b)=>a.strike-b.strike)[0] : (callsAboveSpot.length > 0 ? callsAboveSpot.sort((a,b)=>a.strike-b.strike)[0] : null);
+                  const pinHighStrike = Math.max(cwStrike, pwStrike);
+                  const callsAbovePin = topCalls.filter(s => s.strike > pinHighStrike);
+                  const swingCallsAbovePin = callsAbovePin.filter(s => s.strike - pinHighStrike >= minTargetDist);
+                  const firstResAbovePin = swingCallsAbovePin.length > 0 ? swingCallsAbovePin.sort((a,b)=>a.strike-b.strike)[0] : (callsAbovePin.length > 0 ? callsAbovePin.sort((a,b)=>a.strike-b.strike)[0] : null);
+                  const putsBelowSpot = topPuts.filter(s => s.strike < sp);
+                  const swingPutsBelow = putsBelowSpot.filter(s => sp - s.strike >= minTargetDist);
+                  const firstSupBelow = swingPutsBelow.length > 0 ? swingPutsBelow.sort((a,b)=>b.strike-a.strike)[0] : (putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null);
+                  const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
+
+                  // Thin zone detection — gaps where price can accelerate
+                  const allStrikesAbove = [...(gexData.strikes||[])].filter(s => s.strike > sp && (s.callGex > 0 || Math.abs(s.putGex) > 0)).sort((a,b)=>a.strike-b.strike);
+                  const allStrikesBelow = [...(gexData.strikes||[])].filter(s => s.strike < sp && (s.callGex > 0 || Math.abs(s.putGex) > 0)).sort((a,b)=>b.strike-a.strike);
+                  // Thin above: gap between ceiling (or first res) and the next level above it
+                  const ceilingStrike = cwAboveSpot ? cwStrike : (firstResAbove ? firstResAbove.strike : null);
+                  const levelAboveCeiling = ceilingStrike ? allStrikesAbove.find(s => s.strike > ceilingStrike) : null;
+                  const thinAbove = ceilingStrike && (!levelAboveCeiling || (levelAboveCeiling.strike - ceilingStrike) / sp > 0.015);
+                  // Thin below: gap between floor (or first support) and the next level below it
+                  const floorStrike = pwBelowSpot ? pwStrike : (firstSupBelow ? firstSupBelow.strike : null);
+                  const levelBelowFloor = floorStrike ? allStrikesBelow.find(s => s.strike < floorStrike) : null;
+                  const thinBelow = floorStrike && (!levelBelowFloor || (floorStrike - levelBelowFloor.strike) / sp > 0.015);
+
+                  let verdictText, verdictIcon, verdictBg, verdictColor;
+                  if (pinSetup) {
+                    if (cwStrike === pwStrike) {
+                      if (sp > cwStrike + cwStrike * 0.003) {
+                        verdictText = "Price above the $" + cwStrike + " pin — " + fmtGex(cwGex + pwGex) + " is now support below. Pullbacks toward $" + cwStrike + " are buying opportunities.";
+                        verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                      } else if (sp < cwStrike - cwStrike * 0.003) {
+                        verdictText = fmtGex(cwGex + pwGex) + " at $" + cwStrike + " pulling price back up. Expect recovery toward $" + cwStrike + (isIntraday?".":" this week.");
+                        verdictIcon = "⇡"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                      } else {
+                        verdictText = "Ceiling and floor at the same price ($" + cwStrike + ") — " + fmtGex(cwGex + pwGex) + " combined. Price is stuck here. Every push up or down gets pulled back.";
+                        verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                      }
+                    } else {
+                      verdictText = "Price squeezed between two key levels pulling inward. " + fmtGex(cwGex + pwGex) + " combined traps price in a tight $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike) + " range.";
+                      verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                    }
+                  } else if (squeezeSetup) {
+                    const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
+                    verdictText = "Price squeezed between $" + lo + " floor and $" + hi + " ceiling. " + fmtGex(cwGex + pwGex) + " combined traps price in a $" + wallSpread + " range." + (isIntraday?" Fade the edges.":" Swing the edges this week.");
+                    verdictIcon = "↔"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                  } else if (cwDominant && cwAboveSpot) {
+                    verdictText = isIntraday ? "Strong ceiling at $" + cwStrike + " — price drifts up but gets rejected there. Buy dips near support, don't chase into the ceiling." : "Strong ceiling at $" + cwStrike + " this week. Buy weekly pullbacks toward support, take profits near the ceiling.";
+                    verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                  } else if (cwDominant && !cwAboveSpot) {
+                    const cwProxVerdict = (sp - cwStrike) / sp;
+                    if (cwProxVerdict < 0.02) {
+                      verdictText = isIntraday ? "Decision point at $" + cwStrike + " — " + fmtGex(cwGex) + " below. Hold above = wall absorbed, next target $" + (firstResAbove ? firstResAbove.strike : cwStrike + Math.round(sp*0.005)) + ". Lose it = quick slide." : "Decision point at $" + cwStrike + " this week. A close above absorbs the wall" + (firstResAbove ? " — target $" + firstResAbove.strike : "") + ". A close below confirms the pull.";
+                      verdictIcon = "⚡"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                    } else {
+                      // Price well above the call wall — wall is acting as major support
+                      verdictText = isIntraday ? "$" + cwStrike + " (" + fmtGex(cwGex) + ") cleared and acting as support below. " + (firstResAbove ? "Next target $" + firstResAbove.strike + "." : "Room to run above.") : "$" + cwStrike + " (" + fmtGex(cwGex) + ") is now major support — price cleared the wall with room above. " + (firstResAbove ? "Swing target $" + firstResAbove.strike + "." : "Buy dips toward $" + cwStrike + ".");
+                      verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                    }
+                  } else if (pwDominant && pwBelowSpot) {
+                    verdictText = isIntraday ? "Strong floor at $" + pwStrike + " with a weak ceiling above — price wants to go up. Breakout potential." : "Strong weekly floor at $" + pwStrike + ". Buy dips toward it — breakout potential above $" + cwStrike + ".";
+                    verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                  } else if (pwDominant && !pwBelowSpot) {
+                    verdictText = isIntraday ? "Gravity pulling price UP toward $" + pwStrike + " — " + fmtGex(pwGex) + " lifting price. Bullish pull." : "$" + pwStrike + " pulling price UP this week — " + fmtGex(pwGex) + " wants price higher. Bullish weekly bias.";
+                    verdictIcon = "⇡"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                  } else {
+                    verdictText = isIntraday ? "Price bouncing between floor ($" + Math.min(pwStrike,cwStrike) + ") and ceiling ($" + Math.max(pwStrike,cwStrike) + "). Expect choppy back-and-forth." : "Choppy week between $" + Math.min(pwStrike,cwStrike) + " and $" + Math.max(pwStrike,cwStrike) + ". Swing the range — sell premium or fade the edges.";
+                    verdictIcon = "↔"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                  }
+
+                  // Build key levels
+                  const allLevels = [];
+
+                  topCalls.forEach(s => {
+                    const isCW = s.strike === cwStrike;
+                    const isMagnet = isCW && !cwAboveSpot;
+                    allLevels.push({ strike:s.strike, fillPct:Math.min(95, Math.round(s.callGex/(cwGex||1)*95)),
+                      dir:isMagnet?"●":(s.strike>sp?"▲":"●"), dirColor:isMagnet?"#00BCD4":P.bu,
+                      label:isCW ? fmtGex(cwGex)+" · "+cwLabel : (s.strike>sp?"ceiling zone":"bounce zone"),
+                      tag:isCW?(isMagnet?"support ↑":"ceiling"):(s.strike>sp?"ceiling":"bounce"),
+                      tagBg:isCW?(isMagnet?"#00BCD422":"#00BCD422"):(s.strike>sp?"#00BCD422":P.bu+"22"),
+                      tagColor:isCW?(isMagnet?"#00BCD4":"#00BCD4"):(s.strike>sp?"#00BCD4":P.bu),
+                      fillColor:SG, fillText:"#0d1117", isCW, showMagnet:false, magnetColor:P.be,
+                      border:isCW?"1px solid "+P.bu:"none" });
+                  });
+                  topPuts.forEach(s => {
+                    const isPW = s.strike === pwStrike;
+                    const isMagnet = isPW && !pwBelowSpot;
+                    allLevels.push({ strike:s.strike, fillPct:Math.min(55, Math.round(Math.abs(s.putGex)/(pwGex||1)*55)),
+                      dir:isMagnet?"●":"▼", dirColor:isMagnet?"#c43030":P.be,
+                      label:isPW ? fmtGex(pwGex)+" · "+pwLabel : "weak spot",
+                      tag:isPW?(isMagnet?"resistance":"floor"):"caution",
+                      tagBg:isPW?(isMagnet?"#c4303022":P.be+"22"):P.be+"22",
+                      tagColor:isPW?(isMagnet?"#c43030":P.be):P.be,
+                      fillColor:SR, fillText:"#fff", isPW, showMagnet:false, magnetColor:P.bu,
+                      border:isPW?"1px solid "+P.be:"none" });
+                  });
+                  // Always ensure call wall appears
+                  if (!allLevels.find(l => l.strike === cwStrike)) {
+                    const isMagnet = !cwAboveSpot;
+                    allLevels.push({ strike:cwStrike, fillPct:95,
+                      dir:isMagnet?"●":"▲", dirColor:isMagnet?"#00BCD4":P.bu,
+                      label:fmtGex(cwGex)+" · "+cwLabel,
+                      tag:isMagnet?"support ↑":"ceiling", tagBg:isMagnet?"#00BCD422":"#00BCD422", tagColor:isMagnet?"#00BCD4":"#00BCD4",
+                      fillColor:SG, fillText:"#0d1117", isCW:true, showMagnet:false, magnetColor:P.be,
+                      border:"1px solid "+P.bu });
+                  }
+                  // Always ensure put wall appears
+                  if (cwStrike === pwStrike) {
+                    // Same strike — add combined entry showing both roles
+                    const cwEntry = allLevels.find(l => l.strike === cwStrike);
+                    if (cwEntry) {
+                      const pwMagnetHere = !pwBelowSpot;
+                      cwEntry.label = fmtGex(cwGex+pwGex) + " ceiling + floor" + (pwMagnetHere ? " · resistance" : "");
+                      cwEntry.tag = !cwAboveSpot ? "support ↑" : pwMagnetHere ? "resistance" : "ceiling + floor";
+                      cwEntry.tagBg = pwMagnetHere ? "#e040fb22" : "#00BCD422";
+                      cwEntry.tagColor = pwMagnetHere ? "#e040fb" : "#00BCD4";
+                      if (pwMagnetHere && !cwEntry.showMagnet) cwEntry.magnetColor = P.bu;
+                      cwEntry.showMagnet = pwMagnetHere;
+                      cwEntry.isPW = true;
+                      cwEntry.border = "1px solid #e040fb";
+                      cwEntry.fillPct = 95;
+                    }
+                  } else if (!allLevels.find(l => l.strike === pwStrike)) {
+                    const isMagnet = !pwBelowSpot;
+                    allLevels.push({ strike:pwStrike, fillPct:55,
+                      dir:isMagnet?"●":"▼", dirColor:isMagnet?"#c43030":P.be,
+                      label:fmtGex(pwGex)+" · "+pwLabel,
+                      tag:isMagnet?"gravity ↑":"floor", tagBg:isMagnet?P.bu+"22":P.be+"22", tagColor:isMagnet?P.bu:P.be,
+                      fillColor:SR, fillText:"#fff", isPW:true, showMagnet:isMagnet, magnetColor:P.bu,
+                      border:"1px solid "+P.be });
+                  }
+                  if (zg) {
+                    allLevels.push({ strike:zg, fillPct:100, dir:"⚡", dirColor:P.ac,
+                      label:"", tag:"danger line", tagBg:P.ac+"22", tagColor:P.ac,
+                      fillColor:P.ac, fillText:P.bg, isZero:true, border:"1px dashed "+P.ac });
+                  }
+                  allLevels.sort((a,b) => b.strike - a.strike);
+
+                  let setupTitle, setupText;
+                  if (pinSetup) {
+                    const pinStrikeSetup = cwStrike === pwStrike ? cwStrike : Math.round((cwStrike+pwStrike)/2);
+                    const spotAbovePin = sp > pinStrikeSetup;
+                    const spotBelowPin = sp < pinStrikeSetup;
+                    if (cwStrike === pwStrike) {
+                      if (spotAbovePin) {
+                        setupTitle = "What to expect — $" + cwStrike + " is support";
+                        setupText = "Price pushed above the $" + cwStrike + " pin (" + fmtGex(cwGex+pwGex) + "). It's now support below — pullbacks toward $" + cwStrike + " are buying opportunities." + (isIntraday?"":((firstResAbovePin ? " If it holds, swing target $" + firstResAbovePin.strike + "." : "") + " " + (isPositive?"Safety net active — dips are cushioned.":"No safety net — be quick on exits if $"+cwStrike+" breaks.")));
+                      } else if (spotBelowPin) {
+                        setupTitle = "What to expect — recovering toward $" + cwStrike;
+                        setupText = fmtGex(cwGex+pwGex) + " of support at $" + cwStrike + " catches pullbacks." + (isIntraday?" Expect a bounce back to the pin.":" Expect price to recover toward $" + cwStrike + " this week.") + (isPositive?" Safety net active — dips are limited.":" No safety net — recovery may be choppy.") + (firstResAbovePin && !isIntraday ? " If price reclaims $" + cwStrike + ", it becomes support — swing target $" + firstResAbovePin.strike + "." : "");
+                      } else {
+                        setupTitle = "What to expect — price stuck at $" + cwStrike;
+                        setupText = "Ceiling and floor sit at the same price ($" + cwStrike + ") with " + fmtGex(cwGex+pwGex) + " behind it. Price wants to stay here — every move away gets pulled back. " + (isPositive?(isIntraday?"Dips bounce, rallies fade.":"Expect price to orbit $"+cwStrike+" this week. Dips bounce, rallies fade."):"Moves can be sharp but snap back to $" + cwStrike + ".");
+                      }
+                    } else {
+                      const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
+                      setupTitle = "What to expect — price pinned at $" + lo + "–$" + hi;
+                      setupText = "Ceiling at $" + hi + " caps rallies, floor at $" + lo + " cushions dips. " + fmtGex(cwGex+pwGex) + " combined gamma pins price in a tight $" + wallSpread + " range." + (isIntraday?" Dealers fight every move in both directions.":" This range should hold for the week — trade the edges.");
+                    }
+                  } else if (squeezeSetup) {
+                    const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
+                    setupTitle = "What to expect — price stuck at $" + lo + "–$" + hi;
+                    setupText = "Price is caught between two key levels. The ceiling above at $" + hi + " caps rallies, the floor below at $" + lo + " cushions dips. " + fmtGex(cwGex+pwGex) + " total is squeezing price into a tight $" + wallSpread + " range." + (isIntraday?"":" Use daily closes outside this range as your signal — anything inside is noise.");
+                  } else if (cwDominant && cwAboveSpot) {
+                    setupTitle = "What to expect — grinding up toward $" + cwStrike;
+                    setupText = "Price at $" + sp.toFixed(0) + " heading toward the $" + cwStrike + " ceiling (" + fmtGex(cwGex) + "). " + (isPositive?(isIntraday?"Safety net is ON — dips tend to bounce back. Orderly grind higher.":"Safety net is ON — weekly pullbacks should find buyers. Buy dips, target $"+cwStrike+"."):(isIntraday?"Safety net is OFF — expect bigger swings both ways. Be careful with size.":"Safety net is OFF — wider swings this week. Size down and use daily closes for entries."));
+                  } else if (cwDominant && !cwAboveSpot) {
+                    const cwProxSetup = (sp - cwStrike) / sp;
+                    if (cwProxSetup < 0.02 && firstResAbove) {
+                      setupTitle = "What to expect — decision point at $" + cwStrike;
+                      setupText = "Price sitting just above the $" + cwStrike + " support zone (" + fmtGex(cwGex) + "). Two outcomes: " + (isIntraday?"hold above $"+cwStrike+" and the wall gets absorbed — next target $"+firstResAbove.strike+". Lose $"+cwStrike+" and support breaks — expect a drop.":"a daily close above $"+cwStrike+" absorbs the wall — swing target $"+firstResAbove.strike+". A close below means support is lost.");
+                    } else {
+                      // Price well above the wall — wall is support below
+                      setupTitle = "What to expect — $" + cwStrike + " is support";
+                      setupText = "Price cleared the $" + cwStrike + " wall (" + fmtGex(cwGex) + ") and has room above. " + fmtGex(cwGex) + " now acts as major support — pullbacks toward $" + cwStrike + " are buying opportunities." + (firstResAbove ? (isIntraday?" Next target $" + firstResAbove.strike + ".":" Swing target $" + firstResAbove.strike + ".") : "") + " " + (isPositive?(isIntraday?"Safety net is ON — dips tend to hold.":"Safety net ON — weekly dips find buyers."):(isIntraday?"Safety net OFF — be quick if $"+cwStrike+" breaks.":"Safety net OFF — tight stops below $"+cwStrike+"."));
+                    }
+                  } else if (pwDominant && pwBelowSpot) {
+                    setupTitle = "What to expect — strong bounce zone at $" + pwStrike;
+                    setupText = "Very strong floor at $" + pwStrike + " — " + (pwGex/cwGex).toFixed(1) + "x stronger than the ceiling." + (isIntraday?" Price has a big safety net below and room to run above $"+cwStrike+".":" Weekly dips toward $"+pwStrike+" are buying opportunities. Swing target above $"+cwStrike+".");
+                  } else if (pwDominant && !pwBelowSpot) {
+                    setupTitle = "What to expect — resistance at $" + pwStrike;
+                    setupText = "The biggest support level ($" + pwStrike + ") is above current price — it's pulling price UP. " + fmtGex(pwGex) + (isIntraday?" wants price higher than where it is now.":" wants price higher. Look for swing entries on dips — bullish weekly bias.");
+                  } else {
+                    setupTitle = "What to expect — choppy between $" + Math.min(pwStrike,cwStrike) + "–$" + Math.max(pwStrike,cwStrike);
+                    setupText = "Floor and ceiling are about the same strength. Price will bounce between them. " + (isPositive?(isIntraday?"Safety net is ON — moves are contained.":"Safety net is ON — weekly range likely holds. Sell premium or swing the edges."):(isIntraday?"Safety net is OFF — swings can be sharp.":"Safety net is OFF — wider weekly swings. Tighter stops, smaller size."));
+                  }
+
+                  // Pattern-based trade ideas
+                  const trades = [];
+                  const zgNearSpot = zg && Math.abs(sp - zg) / sp < 0.005; // within 0.5%
+                  const zgBelowClose = zg && (zg - sp) / sp > -0.01 && zg < sp; // zg just below spot (<1%)
+                  const cwMagnet = !cwAboveSpot; // call wall below spot = support
+                  const pwMagnet = !pwBelowSpot; // put wall above spot = resistance
+
+                  if (pinSetup) {
+                    // Pin setup trades
+                    const pinStrike = cwStrike === pwStrike ? cwStrike : Math.round((cwStrike+pwStrike)/2);
+                    const pinRange = cwStrike === pwStrike ? Math.round(sp*0.005) : wallSpread;
+                    const pinAboveSpot = pinStrike > sp;
+                    const pinBelowSpot = pinStrike < sp;
+                    if (isIntraday) {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+pinStrike+" — sell premium here (iron fly). Profit if price stays between $"+(pinStrike-pinRange*2)+"–$"+(pinStrike+pinRange*2)+"." });
+                      if (pinAboveSpot) {
+                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips near $"+sp.toFixed(0)+" — support at $"+pinStrike+" catches pullbacks. Target $"+pinStrike+"." });
+                      }
+                      if (pinBelowSpot && firstResAbovePin) {
+                        trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price holds above $"+pinStrike+", pin becomes support. Next target $"+firstResAbovePin.strike+"." });
+                      }
+                      if (pinBelowSpot) {
+                        trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is support below. Buy dips toward it — "+fmtGex(cwGex+pwGex)+" catches any pullback." });
+                      }
+                      trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+pinStrike+". Sell rallies above $"+(pinStrike+pinRange*3)+" and buy dips below $"+(pinStrike-pinRange*3)+"." });
+                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin air above the pin — if price breaks above $"+(pinStrike+pinRange*3)+", it can run fast. Join the breakout, don't fade it." });
+                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin air below — if $"+(pinStrike-pinRange*3)+" breaks, price can slice through quickly. Protect downside." });
+                    } else {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+pinStrike+" is the pin strike this week — sell weekly premium around it. Iron fly or short straddle with defined risk." });
+                      if (pinAboveSpot) {
+                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Price below the $"+pinStrike+" pin — support catches pullbacks. Buy dips this week targeting $"+pinStrike+". "+fmtGex(cwGex+pwGex)+" wants price there." });
+                      }
+                      if (pinBelowSpot && firstResAbovePin) {
+                        trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+pinStrike+" for 2+ days, the pin becomes support. Swing long toward $"+firstResAbovePin.strike+"." });
+                      }
+                      if (pinBelowSpot) {
+                        trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is weekly support below — "+fmtGex(cwGex+pwGex)+" catches pullbacks. Buy dips toward it." });
+                      }
+                      trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Use $"+(pinStrike+pinRange*3)+" and $"+(pinStrike-pinRange*3)+" as swing fade levels. Enter on daily closes outside the range, target a snap back to $"+pinStrike+"." });
+                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin resistance above the pin — a daily close above $"+(pinStrike+pinRange*3)+" can run fast. Join the breakout." });
+                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin support below — a daily close below $"+(pinStrike-pinRange*3)+" means fast downside. Cut longs." });
+                    }
+                  } else if (squeezeSetup) {
+                    // Squeeze setup trades
+                    const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
+                    const mid = Math.round((lo+hi)/2);
+                    if (isIntraday) {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+mid+" — sell premium here (iron fly). Profit if price stays between $"+(lo-Math.round(wallSpread))+"–$"+(hi+Math.round(wallSpread))+"." });
+                      trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+mid+". Sell rallies above $"+(hi+Math.round(wallSpread*0.5))+" and buy dips below $"+(lo-Math.round(wallSpread*0.5))+"." });
+                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin air above $"+hi+" — if price breaks the ceiling, it can run fast. Don't fade a breakout above $"+(hi+Math.round(wallSpread))+"." });
+                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin air below $"+lo+" — if the floor breaks, price can slice through quickly. Tighten stops." });
+                    } else {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+lo+"–$"+hi+" is the weekly range. Sell weekly premium — iron condor with wings outside $"+(lo-Math.round(wallSpread))+" and $"+(hi+Math.round(wallSpread))+"." });
+                      trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Swing entries: buy daily closes near $"+lo+", take profits near $"+hi+". Fade daily closes above $"+hi+" back toward $"+mid+"." });
+                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin resistance above $"+hi+" — a daily close above it can run fast. Don't fade, join the move." });
+                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin support below $"+lo+" — a daily close below it means fast downside. Cut longs." });
+                    }
+                  } else {
+                    // Directional trades
+                    if (cwAboveSpot) {
+                      const cwDistPct = (cwStrike - sp) / sp;
+                      if (isIntraday) {
+                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips toward $"+(sp-(sp-(pwBelowSpot?pwStrike:sp*0.97))*0.3).toFixed(0)+". "+(isPositive?fmtGex(tg)+" safety net active — dips tend to bounce.":"No safety net — use smaller size and wider stops.")+" Stop below $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+"." });
+                        trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Target $"+cwStrike+" ("+fmtGex(cwGex)+" ceiling)."+(firstResAbove && firstResAbove.strike < cwStrike ? " First test at $"+firstResAbove.strike+"." : "") });
+                        if (cwDistPct < 0.005 && firstResAbovePin) {
+                          trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price pushes above $"+cwStrike+" and holds, "+fmtGex(cwGex)+" becomes support. Next target $"+firstResAbovePin.strike+"." });
+                        }
+                      } else {
+                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Swing long entry on a daily close above $"+sp.toFixed(0)+" or a dip toward $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+". "+(isPositive?"Safety net is on — weekly dips tend to find buyers.":"No safety net — size down and use wider stops.")+" Stop on a daily close below $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+"." });
+                        trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Swing target $"+cwStrike+" ("+fmtGex(cwGex)+" ceiling)."+(firstResAbove && firstResAbove.strike < cwStrike ? " Watch for resistance at $"+firstResAbove.strike+" first." : "")+" Take partial profits there." });
+                        if (cwDistPct < 0.01 && firstResAbovePin) {
+                          trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+cwStrike+", "+fmtGex(cwGex)+" becomes support below. Swing target $"+firstResAbovePin.strike+"." });
+                        }
+                      }
+                    } else {
+                      // Call wall below — behavior depends on proximity
+                      const cwProximity = (sp - cwStrike) / sp;
+                      if (cwProximity < 0.02) {
+                        // Close to wall — decision point: lead with bullish (price IS above), then risk
+                        if (isIntraday) {
+                          if (firstResAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price holds above $"+cwStrike+" and consolidates, the wall gets absorbed — next target $"+firstResAbove.strike+"." });
+                          trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+cwStrike+" ("+fmtGex(cwGex)+") is support while price holds above. Buy dips toward it." });
+                          trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Risk: a break below $"+cwStrike+" flips this level to resistance. Don't hold longs below it." });
+                        } else {
+                          if (firstResAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+cwStrike+" for 2+ days, the wall is absorbed. Swing long toward $"+firstResAbove.strike+"." });
+                          trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+cwStrike+" ("+fmtGex(cwGex)+") is support while price holds above. Buy dips toward it this week." });
+                          trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Risk: a daily close below $"+cwStrike+" confirms the break. Avoid longs below it — level flips to resistance." });
+                        }
+                      } else {
+                        // Price cleared the wall — now acts as support
+                        if (isIntraday) {
+                          trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+cwStrike+" ("+fmtGex(cwGex)+") is now major support below — pullbacks toward it are buying opportunities." });
+                          if (firstResAbove) trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Next target $"+firstResAbove.strike+". Ride the breakout, protect below $"+cwStrike+"." });
+                        } else {
+                          trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+cwStrike+" ("+fmtGex(cwGex)+") is now weekly support — buy dips toward it. "+fmtGex(cwGex)+" catches pullbacks." });
+                          if (firstResAbove) trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Swing target $"+firstResAbove.strike+". Take partial profits there. Stop on a daily close below $"+cwStrike+"." });
+                        }
+                      }
+                    }
+                    if (pwMagnet) {
+                      trades.push({ i:"↑", bg:P.bu+"33", c:P.bu, t:"Floor at $"+pwStrike+" is above current price — pulling price UP. "+fmtGex(pwGex)+" wants price at $"+pwStrike+"." });
+                    }
+                  }
+
+                  // Zero gamma proximity warning
+                  if (zgNearSpot) {
+                    trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Danger line right here — price at $"+sp.toFixed(0)+", danger line at $"+zg.toFixed(0)+". "+(sp > zg ? "Below $"+zg.toFixed(0)+" the safety net breaks and drops get faster." : "Above $"+zg.toFixed(0)+" the safety net turns back on.")+(isIntraday?"":" Watch for a daily close below — that confirms the regime flip.")+" Smaller positions." });
+                  } else if (zgBelowClose) {
+                    trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Danger line at $"+zg.toFixed(0)+" is only "+(Math.abs((sp-zg)/sp)*100).toFixed(1)+"% away. "+(isIntraday?"One bad move and the safety net breaks — drops would get faster after that.":"A daily close below $"+zg.toFixed(0)+" flips the regime — expect faster drops and wider swings after that.") });
+                  }
+
+                  // Clear air / breakout potential
+                  if (clearAirAbove && cwAboveSpot) {
+                    const intermediateRes = firstResAbove && firstResAbove.strike < cwStrike ? firstResAbove : null;
+                    if (isIntraday) {
+                      trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Not much blocking price above $"+sp.toFixed(0)+""+(intermediateRes ? " — if $"+intermediateRes.strike+" breaks" : "")+", could run quickly toward $"+cwStrike+"." });
+                    } else {
+                      trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin resistance above $"+sp.toFixed(0)+""+(intermediateRes ? " — a daily close above $"+intermediateRes.strike+" opens the path" : "")+". Swing target $"+cwStrike+" this week." });
+                    }
+                  }
+
+                  // Premium selling on positive GEX
+                  if (isPositive && !pinSetup && !squeezeSetup) {
+                    if (isIntraday) {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell puts below $"+(pwBelowSpot?pwStrike:(sp*0.96).toFixed(0))+" — the "+fmtGex(tg)+" safety net means big drops are unlikely. High probability they expire worthless." });
+                    } else {
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell weekly puts below $"+(pwBelowSpot?pwStrike:(sp*0.96).toFixed(0))+" — "+fmtGex(tg)+" safety net makes big weekly drops unlikely. Let time decay work for you." });
+                    }
+                  }
+
+                  // Danger zone
+                  const dangerLevel = pwBelowSpot ? pwStrike : Math.round(sp * 0.97);
+                  if (thinBelow && !pinSetup && !squeezeSetup) {
+                    trades.push({ i:"⚠", bg:P.be+"33", c:P.be, t:(isIntraday?"Thin air below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — if support breaks, price can slice through fast. No cushion to slow the drop.":"Thin support below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — a break means fast downside with nothing to catch it.") });
+                  }
+                  const cwCloseBelow = cwMagnet && (sp - cwStrike) / sp < 0.02;
+                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwCloseBelow && !pinSetup && !squeezeSetup ? " Broken support at $"+cwStrike+" would speed up the drop." : "") });
+
+                  const gaugeMin = zg ? Math.min(zg, pwStrike) - (sp*0.005) : pwStrike - (sp*0.01);
+                  const gaugeMax = Math.max(cwStrike, sp) + (sp*0.01);
+                  const gPct = v => Math.max(0, Math.min(100, ((v-gaugeMin)/(gaugeMax-gaugeMin))*100));
+
+                  return (
+                  <div style={{ background:P.cd, borderRadius:10, padding:16, border:"1px solid "+P.bd, marginTop:4 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                      <span style={{ fontSize:13, fontWeight:700, color:"#e040fb", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
+                      <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
+                    </div>
+                    <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:belowDangerLine?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:belowDangerLine?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
+                      {belowDangerLine?"⚠️ Below danger line — drops accelerate":isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
+                    </div>
+
+                    {/* Quick Read — auto-generated narrative */}
+                    {(()=>{
+                      const parts = [];
+                      const spStr = "$"+sp.toFixed(0);
+                      const cwStr = "$"+cwStrike;
+                      const pwStr = "$"+pwStrike;
+                      const dist = Math.abs(sp - cwStrike);
+                      const distPw = Math.abs(sp - (pwBelowSpot ? pwStrike : 0));
+                      const safetyStr = isPositive ? (isIntraday ? fmtGex(tg)+" safety net means dips bounce." : fmtGex(tg)+" safety net supports weekly dips.") : (isIntraday ? "No safety net — moves can snowball." : "No safety net — expect wider weekly swings.");
+
+                      if (pinSetup) {
+                        if (Math.abs(sp - cwStrike) <= sp * 0.003) {
+                          parts.push("Price sitting right at the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined). Everything pulls back to this strike.");
+                          parts.push(isPositive ? (isIntraday ? "Dips bounce, rallies fade. Classic pin action." : "This week expect price to orbit "+cwStr+". Dips bounce, rallies fade.") : "Pin is active but no safety net — expect sharp whipsaws around "+cwStr+".");
+                          if (firstResAbovePin && !isIntraday) parts.push("If price breaks and holds above "+cwStr+", it becomes support — swing target $"+firstResAbovePin.strike+".");
+                        } else if (sp > cwStrike) {
+                          parts.push("Price pushed above the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) — "+cwStr+" is now support below.");
+                          if (isIntraday) {
+                            parts.push(fmtGex(cwGex+pwGex)+" catches any pullback to "+cwStr+". "+safetyStr+(firstResAbovePin ? " Next resistance at $"+firstResAbovePin.strike+"." : ""));
+                          } else {
+                            parts.push("Buy dips toward "+cwStr+" this week — "+fmtGex(cwGex+pwGex)+" acts as a floor."+(firstResAbovePin ? " If it holds, swing target $"+firstResAbovePin.strike+"." : "")+" "+safetyStr);
+                          }
+                        } else {
+                          parts.push("Price dipped below the "+cwStr+" pin ("+fmtGex(cwGex+pwGex)+" combined) and is $"+dist.toFixed(0)+" below.");
+                          if (isIntraday) {
+                            parts.push("Gravity pulling up toward "+cwStr+". "+(isPositive ? "Safety net active — expect a bounce back to the pin." : "No safety net — could break further before snapping back."));
+                          } else {
+                            parts.push("Gravity pulling up toward "+cwStr+". "+(isPositive ? "Safety net active — expect price to recover toward the pin this week." : "No safety net — could break further before snapping back."));
+                            parts.push("If price reclaims "+cwStr+", it becomes support"+(firstResAbovePin ? " — swing target $"+firstResAbovePin.strike+"." : "."));
+                          }
+                        }
+                      } else if (squeezeSetup) {
+                        const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
+                        const midpoint = Math.round((lo + hi) / 2);
+                        parts.push("Price squeezed between $"+lo+" floor and $"+hi+" ceiling — "+fmtGex(cwGex+pwGex)+" combined traps price in a $"+wallSpread+" range.");
+                        parts.push(isIntraday ? "Fade rallies near $"+hi+", buy dips near $"+lo+". "+safetyStr : "This week's range: $"+lo+"–$"+hi+". Swing entries near the edges, take profits in the middle. "+safetyStr);
+                      } else if (cwAboveSpot && pwBelowSpot) {
+                        // Normal: CW above, PW below
+                        const cwDist = ((cwStrike - sp) / sp * 100).toFixed(1);
+                        const pwDist = ((sp - pwStrike) / sp * 100).toFixed(1);
+                        if (cwDominant) {
+                          parts.push("Price at "+spStr+" grinding toward the "+cwStr+" ceiling ("+fmtGex(cwGex)+"), just "+cwDist+"% away.");
+                          if (isIntraday) {
+                            parts.push(cwDist < 1 ? "Testing the ceiling now — either breaks through or gets rejected." : "Floor at "+pwStr+" ("+fmtGex(pwGex)+") catches any dips.");
+                          } else {
+                            parts.push(cwDist < 1 ? "Testing the ceiling — a daily close above "+cwStr+" this week confirms the breakout." : "Floor at "+pwStr+" ("+fmtGex(pwGex)+") supports any weekly pullbacks.");
+                          }
+                          parts.push(safetyStr);
+                        } else if (pwDominant) {
+                          parts.push("Strong floor at "+pwStr+" ("+fmtGex(pwGex)+") with a weak ceiling above at "+cwStr+".");
+                          parts.push(isIntraday ? "Price has room to run. "+safetyStr : "Room to run this week — buy pullbacks toward "+pwStr+". "+safetyStr);
+                        } else {
+                          parts.push("Price at "+spStr+" bouncing between the "+cwStr+" ceiling and "+pwStr+" floor.");
+                          parts.push(isIntraday ? "Both about the same strength — choppy range. "+safetyStr : "Expect a choppy week in this range. Swing the edges. "+safetyStr);
+                        }
+                      } else if (!cwAboveSpot) {
+                        // CW below = support
+                        const cwProxQR = (sp - cwStrike) / sp;
+                        if (cwProxQR < 0.02) {
+                          parts.push("Spot just above the massive "+cwStr+" level ("+fmtGex(cwGex)+") — now acting as support below.");
+                          if (isIntraday) {
+                            parts.push(firstResAbove ? "If "+cwStr+" holds as support, next target is $"+firstResAbove.strike+". If it breaks below, expect a quick slide." : "Watch if "+cwStr+" holds — break below opens the downside.");
+                          } else {
+                            parts.push(firstResAbove ? "A daily close above "+cwStr+" this week absorbs the wall — swing target $"+firstResAbove.strike+". A close below confirms the pull." : "Watch for daily closes relative to "+cwStr+" — that's the decision point this week.");
+                          }
+                        } else {
+                          // Price well above — wall is support
+                          parts.push(cwStr+" ("+fmtGex(cwGex)+") is now major support below — price cleared the wall and has room above.");
+                          parts.push((firstResAbove ? "Next resistance at $"+firstResAbove.strike+"." : "Room to run higher.")+" "+(isPositive ? (isIntraday?"Pullbacks toward "+cwStr+" are buying opportunities.":"Buy dips toward "+cwStr+" this week — safety net supports.") : "Safety net off — protect below "+cwStr+"."));
+                        }
+                      } else if (!pwBelowSpot) {
+                        // PW above = resistance
+                        parts.push("Floor at "+pwStr+" is above current price — pulling price UP.");
+                        parts.push(fmtGex(pwGex)+" wants price at "+pwStr+"."+(isIntraday?" Bullish pull.":" Bullish weekly bias — look for entries on dips."));
+                      }
+
+                      // Danger line proximity add-on
+                      if (zgNearSpot) {
+                        parts.push("⚠️ Danger line at $"+(zg?.toFixed(0)||"—")+" is RIGHT HERE — one bad candle flips the safety net off.");
+                      } else if (zgBelowClose) {
+                        parts.push("Danger line at $"+(zg?.toFixed(0)||"—")+" is close — thin cushion before the safety net breaks.");
+                      }
+
+                      return parts.length > 0 ? (
+                        <div style={{ background:P.al, borderRadius:6, padding:"10px 14px", marginBottom:10, lineHeight:1.6 }}>
+                          <div style={{ fontSize:10, fontWeight:700, color:"#e040fb", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Quick Read</div>
+                          <div style={{ fontSize:12, color:P.wh }}>{parts.join(" ")}</div>
+                        </div>
+                      ) : null;
+                    })()}
+
+                    <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"center" }}>
+                      <div style={{ display:"flex", gap:6 }}>
+                        {[["Spot","$"+sp.toFixed(0),P.wh],["Danger Line","$"+(zg?zg.toFixed(0):"—"),P.ac],["GEX",fmtGex(tg),tg>0?P.bu:P.be]].map(([l,v,c])=>(
+                          <div key={l} style={{ background:P.al, borderRadius:6, padding:"8px 12px", textAlign:"center" }}>
+                            <div style={{ fontSize:9, color:P.dm, textTransform:"uppercase" }}>{l}</div>
+                            <div style={{ fontSize:16, fontWeight:800, color:c }}>{v}</div>
+                          </div>
+                        ))}
+                        {nd != null && (
+                          <div style={{ background:P.al, borderRadius:6, padding:"8px 12px", textAlign:"center", minWidth:90 }}>
+                            <div style={{ fontSize:9, color:P.dm, textTransform:"uppercase" }}>Net Delta</div>
+                            <div style={{ fontSize:16, fontWeight:800, color:nd>0?P.bu:nd<0?P.be:P.dm }}>
+                              {nd > 0 ? "+" : ""}{Math.abs(nd) > 999999 ? (nd/1e6).toFixed(1)+"M" : Math.abs(nd) > 999 ? (nd/1e3).toFixed(0)+"K" : nd.toFixed(0)}
+                              {ndChange !== null && <span style={{ fontSize:11, marginLeft:3, color:ndImproving?P.bu:P.be }}>{ndImproving?"▲":"▼"}</span>}
+                            </div>
+                            {ndReadings.length > 1 && (()=>{
+                              const r = ndReadings;
+                              const mn = Math.min(...r), mx = Math.max(...r);
+                              const range = mx - mn || 1;
+                              const w = 70, h = 18;
+                              const pts = r.map((v,i) => [i/(r.length-1)*w, h - ((v-mn)/range)*h]);
+                              const pathD = pts.map((p,i) => (i===0?"M":"L")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+                              const trendColor = r[r.length-1] >= r[0] ? P.bu : P.be;
+                              return (
+                                <svg width={w} height={h} style={{ display:"block", margin:"3px auto 0" }}>
+                                  <path d={pathD} fill="none" stroke={trendColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                  <circle cx={pts[pts.length-1][0]} cy={pts[pts.length-1][1]} r="2" fill={trendColor} />
+                                </svg>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ position:"relative", padding:"0 4px" }}>
+                        <div style={{ position:"relative", height:20, borderRadius:10, background:"linear-gradient(90deg, "+P.be+"33 0%, "+P.be+"33 20%, #1a2035 20%, #1a2035 40%, "+P.bu+"33 40%)" }}>
+                          {zg&&<div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(zg)+"%",background:P.ac,opacity:0.6,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:8,color:P.dm,whiteSpace:"nowrap" }}>${zg.toFixed(0)}</span></div>}
+                          <div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(pwStrike)+"%",background:P.be,opacity:0.4,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:8,color:P.dm,whiteSpace:"nowrap" }}>${pwStrike}</span></div>
+                          <div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(cwStrike)+"%",background:P.bu,opacity:0.5,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:8,color:P.dm,whiteSpace:"nowrap" }}>${cwStrike}</span></div>
+                          <div style={{ position:"absolute",top:-2,width:4,height:24,left:gPct(sp)+"%",background:"#00BCD4",borderRadius:2,zIndex:3 }}><span style={{ position:"absolute",top:-14,transform:"translateX(-50%)",fontSize:9,fontWeight:700,color:"#00BCD4",whiteSpace:"nowrap" }}>${sp.toFixed(0)}</span></div>
+                        </div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, marginTop:14 }}><span style={{ color:P.be }}>Danger</span><span style={{ color:P.bu }}>Safe</span></div>
+                      </div>
+                    </div>
+                    <div style={{ background:P.al, borderRadius:6, padding:"10px 12px", marginBottom:10 }}>
+                      <div style={{ fontSize:10, color:P.dm, textTransform:"uppercase", letterSpacing:0.5, marginBottom:6 }}>Ceiling vs floor{wallsInverted?" — spot between both":""}</div>
+                      <div style={{ display:"flex", height:28, borderRadius:4, overflow:"hidden", marginBottom:5 }}>
+                        <div style={{ width:cwPct+"%", background:SG, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#e1f5ee" }}>Ceiling ${cwStrike} — {fmtGex(cwGex)}</div>
+                        <div style={{ width:pwPct+"%", background:SR, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff" }}>{fmtGex(pwGex)}</div>
+                      </div>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, marginBottom:5 }}>
+                        <span style={{ color:P.bu }}>Call {cwRatio}x · {cwLabel}</span>
+                        <span style={{ color:P.be }}>Put ${pwStrike} · {pwLabel}</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:4, fontSize:11, fontWeight:700, background:verdictBg, color:verdictColor }}><span style={{ fontSize:14 }}>{verdictIcon}</span><span>{verdictText}</span></div>
+                    </div>
+                    <div style={{ height:1, background:P.bd, margin:"8px 0" }} />
+                    <div style={{ fontSize:14, fontWeight:700, color:P.wh, marginBottom:4 }}>{setupTitle}</div>
+                    <p style={{ fontSize:12, color:P.dm, lineHeight:1.5, margin:"0 0 8px" }}>{setupText}</p>
+                    <div style={{ fontSize:13, fontWeight:800, color:P.wh, textTransform:"uppercase", letterSpacing:1.5, marginBottom:5 }}>Game Plan</div>
+                    {trades.map((t,ti) => (
+                      <div key={ti} style={{ display:"flex", gap:7, alignItems:"flex-start", marginBottom:5, fontSize:12, color:P.dm, lineHeight:1.45 }}>
+                        <div style={{ flexShrink:0, width:22, height:22, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, marginTop:1, background:t.bg, color:t.c }}>{t.i}</div>
+                        <div>{t.t}</div>
+                      </div>
+                    ))}
+                    <div style={{ height:1, background:P.bd, margin:"8px 0" }} />
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#555" }}>
+                      <span>Safety net breaks: ${zg?zg.toFixed(0):"—"}{zgDist?" ("+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+")":""}</span>
+                      <span>{gexData.fetchedAt ? "Fetched: "+gexData.fetchedAt+" ET" : ""}</span>
+                      <span>UCT Intelligence</span>
+                    </div>
+                  </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+          );
+        })()}
+
+
         {dataMode !== "gex" && D && (<>
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
