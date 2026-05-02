@@ -260,8 +260,24 @@ def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
 def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars — Massive primary, FMP + yfinance fallbacks.
 
-    All intraday TFs: Massive API → FMP → yfinance → empty.
+    tf='60' is special: internally uses 30-min bars resampled to session-aligned
+    hourly (9:30-10:00 first candle, then 10:00-11:00 ... 15:00-16:00) so the
+    chart matches TC2000 / ThinkorSwim behaviour in RTH mode.
     """
+    if tf == "60":
+        # Need ~2× 30-min bars to produce max_bars session-aligned hourly bars
+        src = max_bars * 2
+        bars_30m = _fetch_intraday_massive(ticker, "30", src)
+        if bars_30m and not _is_intraday_stale(bars_30m):
+            return _session_resample_hourly(bars_30m)[-max_bars:]
+        fmp_30m = _fetch_intraday_fmp(ticker, "30", src)
+        if fmp_30m and not _is_intraday_stale(fmp_30m):
+            return _session_resample_hourly(fmp_30m)[-max_bars:]
+        yf_30m = _fetch_intraday_yfinance(ticker, "30", src)
+        if yf_30m:
+            return _session_resample_hourly(yf_30m)[-max_bars:]
+        return _session_resample_hourly(bars_30m)[-max_bars:] if bars_30m else []
+
     bars = _fetch_intraday_massive(ticker, tf, max_bars)
     if bars and not _is_intraday_stale(bars):
         return bars
@@ -335,14 +351,77 @@ def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
     return [b for b in _resample_monthly_iso(daily) if int(b["t"].replace("-", "")) > last_ts]
 
 
+def _session_resample_hourly(bars_30m: list[dict]) -> list[dict]:
+    """Resample 30-min bars to session-aligned 60-min bars.
+
+    Regular session (9:30-16:00 ET):
+      - First bar: 9:30-10:00 (30-min only — clean open candle)
+      - Remaining: 10:00-11:00, 11:00-12:00, ..., 15:00-16:00
+    Extended hours: clock-aligned 60-min groupings.
+    """
+    try:
+        import zoneinfo
+        ET = zoneinfo.ZoneInfo("America/New_York")
+    except ImportError:
+        from datetime import timezone, timedelta as _td
+        ET = timezone(_td(hours=-4))
+
+    def _bucket(t_utc: int) -> int:
+        dt = datetime.fromtimestamp(t_utc, tz=ET)
+        h, m = dt.hour, dt.minute
+        # 9:30-9:59: first RTH bar — its own 30-min bucket starting at 9:30
+        if h == 9 and m >= 30:
+            return int(datetime(dt.year, dt.month, dt.day, 9, 30, tzinfo=ET).timestamp())
+        # All other hours (RTH 10-15 + extended): floor to clock-hour in ET
+        return int(datetime(dt.year, dt.month, dt.day, h, 0, tzinfo=ET).timestamp())
+
+    groups: dict[int, list[dict]] = {}
+    for bar in bars_30m:
+        bkt = _bucket(bar["t"])
+        groups.setdefault(bkt, []).append(bar)
+
+    result = []
+    for bkt_t in sorted(groups):
+        grp = sorted(groups[bkt_t], key=lambda b: b["t"])
+        result.append({
+            "t": bkt_t,
+            "o": grp[0]["o"],
+            "h": max(b["h"] for b in grp),
+            "l": min(b["l"] for b in grp),
+            "c": grp[-1]["c"],
+            "v": sum(b["v"] for b in grp),
+        })
+    return result
+
+
 def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
     """Fetch only intraday bars newer than last_ts (unix seconds)."""
-    multiplier = int(tf)
-    # Scale lookback to cover the full gap since last stored bar + 2-day buffer.
-    # A fixed 2-day window misses bars when a user hasn't opened the app in days.
     gap_days = max(2, int((_time.time() - last_ts) / 86400) + 2)
     from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # 60-min: fetch 30-min delta and resample to session-aligned hourly
+    if tf == "60":
+        try:
+            client = _get_client()
+            url = (
+                f"{_REST_BASE}/v2/aggs/ticker/{ticker.upper()}/range/30/minute"
+                f"/{from_date}/{to_date}"
+                f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
+            )
+            data = client._get(url)
+            bars_30m = [
+                {"t": int(b["t"] / 1000), "o": round(b["o"], 2), "h": round(b["h"], 2),
+                 "l": round(b["l"], 2), "c": round(b["c"], 2), "v": int(b.get("v", 0))}
+                for b in (data.get("results") or [])
+            ]
+            return [b for b in _session_resample_hourly(bars_30m) if b["t"] > last_ts]
+        except Exception:
+            return []
+
+    multiplier = int(tf)
+    # Scale lookback to cover the full gap since last stored bar + 2-day buffer.
+    # A fixed 2-day window misses bars when a user hasn't opened the app in days.
     try:
         client = _get_client()
         url = (
