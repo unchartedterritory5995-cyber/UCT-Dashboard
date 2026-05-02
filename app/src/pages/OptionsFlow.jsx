@@ -928,12 +928,13 @@ function processFlowData(rows) {
     if (!t.OI || t.OI <= 0 || t.DTE <= 0) return; // skip if no OI data or 0DTE
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!watchMap[k]) watchMap[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, V:0, OI:t.OI, P:0, Si:t.Si, Ty:t.Ty, trades:0,
-      hasSweep:false, hasBlock:false, price:0, DTE:t.DTE, dailyOI:{}, dailyVol:{} };
+      hasSweep:false, hasBlock:false, price:0, DTE:t.DTE, dailyOI:{}, dailyVol:{}, mktcap:0 };
     watchMap[k].V += t.V;
     watchMap[k].P += t.P;
     watchMap[k].trades++;
     if (t.price > 0 && watchMap[k].price === 0) watchMap[k].price = t.price;
     if (t.OI > watchMap[k].OI) watchMap[k].OI = t.OI;
+    if (t.mktcap > watchMap[k].mktcap) watchMap[k].mktcap = t.mktcap;
     if (t.Ty === "SWP") watchMap[k].hasSweep = true;
     if (t.Ty === "BLK") watchMap[k].hasBlock = true;
     // Track OI and volume by date
@@ -957,7 +958,7 @@ function processFlowData(rows) {
       const firstDate = dates[0]||"";
       const lastDate = dates[dates.length-1]||"";
       const daysTracked = dates.length;
-      return { ...w, volOI: w.OI > 0 ? w.V / w.OI : 0, csvDOI, firstOI, lastOI, firstDate, lastDate, daysTracked, dailyOI:w.dailyOI, dailyVol:w.dailyVol };
+      return { ...w, volOI: w.OI > 0 ? w.V / w.OI : 0, csvDOI, firstOI, lastOI, firstDate, lastDate, daysTracked, dailyOI:w.dailyOI, dailyVol:w.dailyVol, cap:capBand(w.mktcap) };
     })
     .sort((a,b) => b.volOI - a.volOI);
 
@@ -1083,6 +1084,7 @@ export default function OptionsFlowDashboard() {
   const [search, setSearch] = useState("");
   const [oiSearch, setOiSearch] = useState("");
   const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
+  const [oiCapFilter, setOiCapFilter] = useState("All");
   const [tfCapFilter, setTfCapFilter] = useState("All");
   const [tfDteFilter, setTfDteFilter] = useState("All");
   const [gexTicker, setGexTicker] = useState("SPY");
@@ -4136,15 +4138,27 @@ export default function OptionsFlowDashboard() {
                 </div>
               </div>
             </Card>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
-              <input type="text" value={oiSearch}
-                onChange={e=>setOiSearch(e.target.value.toUpperCase())}
-                placeholder="Search ticker…"
-                style={{ width:180, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
-              />
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <input type="text" value={oiSearch}
+                  onChange={e=>setOiSearch(e.target.value.toUpperCase())}
+                  placeholder="Search ticker…"
+                  style={{ width:140, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
+                />
+                <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                  {["All","Mega","Large","Mid","Small"].map(f=>(
+                    <button key={f} onClick={()=>setOiCapFilter(f)}
+                      style={{ padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
+                        fontSize:9, fontWeight:700, fontFamily:"inherit",
+                        background:oiCapFilter===f?P.cd:"transparent", color:oiCapFilter===f?(f==="All"?P.ac:P.ye):P.dm
+                      }}>{f}</button>
+                  ))}
+                </div>
+              </div>
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                 <button onClick={()=>{
-                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40) : D.WATCH.filter(w=>w.OI>=5).slice(0,100);
+                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40)
+                    : D.WATCH.filter(w=>w.OI>=5&&(oiCapFilter==="All"||w.cap===oiCapFilter)).slice(0,100);
                   fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -4155,7 +4169,8 @@ export default function OptionsFlowDashboard() {
               </div>
             </div>
             {(() => {
-              const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40) : D.WATCH.filter(w=>w.OI>=5).slice(0,100);
+              const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40)
+                : D.WATCH.filter(w=>w.OI>=5&&(oiCapFilter==="All"||w.cap===oiCapFilter)).slice(0,100);
               // Enrich with live OI data
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);
@@ -4163,7 +4178,9 @@ export default function OptionsFlowDashboard() {
                 const liveDOI = curOI > 0 && r.firstOI > 0 ? curOI - r.firstOI : (curOI > 0 && r.OI > 0 ? curOI - r.OI : 0);
                 const bestDOI = liveDOI !== 0 ? liveDOI : (r.csvDOI || 0);
                 const bestLastOI = curOI > 0 ? curOI : r.lastOI || 0;
-                return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI };
+                const baseOI = r.firstOI > 0 ? r.firstOI : r.OI;
+                const pctDOI = baseOI > 0 && bestDOI !== 0 ? Math.round(bestDOI / baseOI * 100) : 0;
+                return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI, pctDOI };
               });
               // Sort
               const getVal = (r, key) => {
@@ -4176,6 +4193,7 @@ export default function OptionsFlowDashboard() {
                 if (key==="firstOI") return r.firstOI||0;
                 if (key==="lastOI") return r.lastOI||0;
                 if (key==="doi") return r.dOI||0;
+                if (key==="pctDOI") return r.pctDOI||0;
                 if (key==="lastOI") return r.displayLastOI||r.lastOI||0;
                 if (key==="volOI") return r.volOI||0;
                 if (key==="flowDate") {
@@ -4210,7 +4228,7 @@ export default function OptionsFlowDashboard() {
               const cols = [
                 {key:"sym",label:"Ticker"},{key:"exp",label:"Exp"},{key:"strike",label:"Strike"},{key:"cp",label:"C/P"},
                 {key:"entry",label:"Entry"},{key:"premium",label:"Premium"},{key:"flow",label:"Flow"},{key:"hits",label:"Hits"},
-                {key:"vol",label:"Vol"},{key:"firstOI",label:"First OI"},{key:"lastOI",label:"Last OI"},{key:"doi",label:"ΔOI"},{key:"flowDate",label:"Date"},{key:"dte",label:"DTE"}
+                {key:"vol",label:"Vol"},{key:"firstOI",label:"First OI"},{key:"lastOI",label:"Last OI"},{key:"doi",label:"ΔOI"},{key:"pctDOI",label:"%ΔOI"},{key:"flowDate",label:"Date"},{key:"dte",label:"DTE"}
               ];
               return (
             <Card title="OI Check" sub={Math.min(40,sorted.length)+" of "+sorted.length+" contracts · "+oiSort.col+(oiSort.col2?" → "+oiSort.col2:"")}>
@@ -4249,6 +4267,7 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.firstOI>0?r.firstOI.toLocaleString():"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.wh, fontWeight:700 }}>{(r.displayLastOI||r.lastOI)>0?(r.displayLastOI||r.lastOI).toLocaleString():"—"}{r.curOI>0&&<span style={{ fontSize:7, color:P.ac, marginLeft:2 }}>live</span>}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:700, fontSize:10, color:r.pctDOI>=500?"#00e676":r.pctDOI>=100?P.bu:r.pctDOI>=50?P.ye:r.pctDOI>0?P.dm:r.pctDOI<0?P.be:P.mt }}>{r.pctDOI!==0?(r.pctDOI>0?"+":"")+r.pctDOI.toLocaleString()+"%":"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.firstDate||"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
                       </tr>
