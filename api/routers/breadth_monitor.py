@@ -77,6 +77,24 @@ async def push_breadth_snapshot(request: Request):
         raise HTTPException(status_code=500, detail="Failed to store snapshot")
 
     invalidate_analogues_cache()
+
+    # Warm bars for every ticker in every _list field of this snapshot so
+    # Breadth drill charts load instantly for the new day's data.
+    try:
+        from api.routers.bars import warm_bars_async
+        seen: set[str] = set()
+        for k, v in metrics.items():
+            if not k.endswith("_list") or not isinstance(v, list):
+                continue
+            for item in v:
+                sym = item.get("t") if isinstance(item, dict) else None
+                if sym:
+                    seen.add(sym.upper())
+        if seen:
+            warm_bars_async(list(seen), tf="D", bars=5000)
+    except Exception:
+        pass
+
     return {"status": "ok", "date": date_str, "keys": len(metrics)}
 
 
@@ -99,9 +117,9 @@ def get_drill_list(date_str: str, metric_key: str):
     # Massive API call will have completed and the chart loads instantly.
     try:
         from api.routers.bars import warm_bars_async
-        tickers = [i["t"] for i in items[:30] if isinstance(i, dict) and i.get("t")]
+        tickers = [i["t"] for i in items if isinstance(i, dict) and i.get("t")]
         if tickers:
-            warm_bars_async(tickers, tf="D", bars=8000)
+            warm_bars_async(tickers, tf="D", bars=5000)
     except Exception:
         pass
     return {"date": date_str, "metric": metric_key, "items": items}
