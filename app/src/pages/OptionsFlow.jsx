@@ -4183,6 +4183,13 @@ export default function OptionsFlowDashboard() {
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{item.sym}</span>
                     {item.cap && item.cap!=="Unknown" && <span style={{ fontSize:7, fontWeight:700, color:P.dm, background:P.al, padding:"1px 4px", borderRadius:2 }}>{item.cap}</span>}
                     {item.er && <span style={{ fontSize:7, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00" }}>ER</span>}
+                    {(()=>{ const _pick = topFlowPicks.active.find(p=>p.sym===item.sym&&p.cp===item.cp&&parseFloat(p.strike)===parseFloat(item.strike)&&p.exp===item.exp);
+                      const _oiH = _pick ? (_pick.history||[]).filter(h=>(h.oi||0)>0) : [];
+                      const _curOI = _oiH.length>0 ? _oiH[_oiH.length-1].oi : 0;
+                      const _peakOI = _oiH.length>0 ? Math.max(..._oiH.map(h=>h.oi)) : 0;
+                      const _isExit = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
+                      return _isExit ? <span style={{ fontSize:7, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#ff174433", color:"#ff1744" }}>EXIT</span> : null;
+                    })()}
                     {(()=>{ const conv = FD?.CONV?.find(c=>c.sym===item.sym&&c.cp===item.cp&&String(c.K)===String(item.strike)&&c.exp===item.exp);
                       return (conv?.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:2,
                         background:p.type==="IV_SURGE"?"#e040fb22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#00e67622":"#29b6f622",
