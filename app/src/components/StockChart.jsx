@@ -508,7 +508,10 @@ export default function StockChart({
         vertLine: { color: cs.crosshair.color, width: 1, style: cs.crosshair.style, labelBackgroundColor: cs.background },
         horzLine: { color: cs.crosshair.color, width: 1, style: cs.crosshair.style, labelBackgroundColor: cs.background },
       },
-      rightPriceScale: { borderColor: cs.grid.color },
+      rightPriceScale: {
+        borderColor: cs.grid.color,
+        scaleMargins: (showVolume && volData.length) ? { top: 0.02, bottom: 0.20 } : { top: 0.02, bottom: 0.02 },
+      },
       timeScale: {
         borderColor: cs.grid.color,
         timeVisible: true,
@@ -636,21 +639,17 @@ export default function StockChart({
       }
     }
 
-    // ── Volume series (pane 1) — reuse if exists ──
+    // ── Volume series (pane 0 overlay) — bottom 20% via scaleMargins ──
     if (showVolume && volData.length) {
       if (!volumeSeriesRef.current) {
         const vs = chart.addSeries(HistogramSeries, {
           priceFormat: { type: 'volume' },
           priceScaleId: '',
-        }, 1)
-        vs.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0 } })
+        })
+        vs.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
         volumeSeriesRef.current = vs
       }
       volumeSeriesRef.current.setData(volData)
-      try {
-        const panes = chart.panes()
-        if (panes.length > 1) panes[1].setHeight(80)
-      } catch (_) {}
     } else if (volumeSeriesRef.current) {
       try { chart.removeSeries(volumeSeriesRef.current) } catch {}
       volumeSeriesRef.current = null
@@ -678,6 +677,7 @@ export default function StockChart({
           crosshairMarkerVisible: false,
           priceLineVisible: false,
           lastValueVisible: false,
+          autoscaleInfoProvider: () => null,
         })
         ls.setData(ovData)
         overlaySeriesRefs.current.push(ls)

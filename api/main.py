@@ -123,6 +123,33 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] SQLite bar store init error (non-fatal): {e}")
 
+    # Synchronous memory pre-warm from SQLite — zero API calls, just reads.
+    # Populates the in-memory TTLCache for all Tier 1 tickers before the server
+    # starts accepting requests so every chart loads instantly on first hit.
+    try:
+        from api.services import bars_sqlite as _pbs
+        from api.services.cache import cache as _pcache
+        from api.routers.bars import _fmt_sqlite_bars, _CACHE_TTL
+        from api.services.bars_seeder import _TIER1_BASE
+        _pw = 0
+        for _sym in _TIER1_BASE:
+            for _tf in ('D', 'W', '5', '15', '30', '60'):
+                try:
+                    _lt = _pbs.get_last_ts(_sym, _tf)
+                    if _lt is None:
+                        continue
+                    _rows = _pbs.get_bars(_sym, _tf, 5000)
+                    if not _rows:
+                        continue
+                    _pl = {"ticker": _sym, "tf": _tf, "bars": _fmt_sqlite_bars(_rows, _tf)}
+                    _pcache.set(f"bars_{_sym}_{_tf}_5000", _pl, ttl=_CACHE_TTL.get(_tf, 300))
+                    _pw += 1
+                except Exception:
+                    pass
+        print(f"[startup] Memory pre-warm: {_pw} Tier1 bar series loaded from SQLite")
+    except Exception as _e:
+        print(f"[startup] Memory pre-warm failed (non-fatal): {_e}")
+
     # Background bar seeder — pre-populates SQLite for priority tickers so
     # charts load instantly without waiting for Massive API on first request.
     try:
