@@ -10,7 +10,7 @@
  */
 
 const DB_NAME    = 'uct_bars_v1'
-const DB_VERSION = 1
+const DB_VERSION = 2  // v2: clears stale unix-timestamp monthly bar entries on upgrade
 const STORE      = 'bars'
 
 // Max age for intraday data (stale session bars shouldn't linger forever)
@@ -24,6 +24,10 @@ async function _open() {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = (e) => {
       const db = e.target.result
+      // v1→v2: drop old store to purge unix-timestamp monthly bar entries
+      if (e.oldVersion < 2 && db.objectStoreNames.contains(STORE)) {
+        db.deleteObjectStore(STORE)
+      }
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE, { keyPath: 'key' })
       }
