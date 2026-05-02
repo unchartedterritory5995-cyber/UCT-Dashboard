@@ -135,9 +135,14 @@ async def lifespan(app: FastAPI):
 
     # Pre-warm bars cache — background thread fetches all commonly viewed
     # tickers so charts load instantly from SQLite/disk on first request.
-    # Skips tickers that are already fresh in SQLite (survives Railway restarts).
-    # Uses _get_bars_inner so all 4 cache layers (memory→SQLite→disk→API) are hit.
+    # GATED OFF BY DEFAULT — set BARS_PREWARM_ENABLED=1 to enable. The prewarm
+    # starves the FastAPI process on Railway when combined with normal traffic.
+    # Targeted warming (drill-list, push, candidates, leadership, movers) is
+    # the preferred mechanism — it warms exactly what the user is about to view.
     def _prewarm_bars():
+        if os.environ.get("BARS_PREWARM_ENABLED", "0") != "1":
+            print("[prewarm] Skipped (set BARS_PREWARM_ENABLED=1 to enable).")
+            return
         from api.services import bars_disk_cache as _disk
         import time as _t
 
