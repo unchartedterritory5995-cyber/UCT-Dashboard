@@ -542,7 +542,7 @@ function buildCharts(cc) {
     }
     return patterns;
   };
-  const CONV = Object.values(allCons).filter(c=>c.dir).map(c => {
+  const preSort = Object.values(allCons).filter(c=>c.dir).map(c => {
     c.clean = c.dirs.size <= 1;
     // 80% dominant direction override — if one side has 80%+ of premium, treat as clean
     if (!c.clean) {
@@ -573,9 +573,35 @@ function buildCharts(cc) {
       if (expDate < new Date()) return false;
     }
     return true;
+  });
+  // Ticker-level aggregation — boost scores when multiple clean contracts exist on same ticker
+  const tickerHeat = {};
+  preSort.forEach(c => {
+    if (!tickerHeat[c.sym]) tickerHeat[c.sym] = { contracts:0, totalPrem:0, strikes:new Set(), exps:new Set(), dirs:new Set(), grades:[] };
+    const th = tickerHeat[c.sym];
+    th.contracts++;
+    th.totalPrem += c.prem;
+    th.strikes.add(c.K);
+    th.exps.add(c.exp);
+    th.dirs.add(c.dir);
+    th.grades.push(c.grade);
+  });
+  // Apply ticker heat bonus
+  const CONV = preSort.map(c => {
+    const th = tickerHeat[c.sym];
+    let heatBonus = 0;
+    if (th.contracts >= 2) heatBonus += Math.min(th.contracts, 6) * 50; // +50-300 for multi-contract
+    if (th.exps.size >= 2) heatBonus += th.exps.size * 40; // +80-200 for multi-expiry (urgency)
+    if (th.strikes.size >= 2) heatBonus += th.strikes.size * 20; // +40-120 for strike spread
+    if (th.totalPrem >= 5e6) heatBonus += 200; // $5M+ aggregate = institutional
+    else if (th.totalPrem >= 2e6) heatBonus += 100;
+    else if (th.totalPrem >= 1e6) heatBonus += 50;
+    // Only boost if direction is consistent (all bull or all bear)
+    if (th.dirs.size > 1) heatBonus = Math.floor(heatBonus * 0.3); // mixed direction = reduce bonus
+    return { ...c, score: c.score + heatBonus, tickerHeat: th.contracts >= 2 ? { contracts:th.contracts, totalPrem:th.totalPrem, strikes:th.strikes.size, exps:th.exps.size } : null };
   })
   .sort((a,b)=>b.score-a.score)
-  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0, bullPrem:c.bullPrem||0, bearPrem:c.bearPrem||0,
+  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0, bullPrem:c.bullPrem||0, bearPrem:c.bearPrem||0, tickerHeat:c.tickerHeat,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"", price:t.price||0, Spot:t.Spot||0 })), patterns:c.patterns||[] }));
   const sectorMap = {};
   const tickerFlowMap = {};
@@ -3207,6 +3233,7 @@ export default function OptionsFlowDashboard() {
                         color:p.type==="IV_SURGE"?"#e040fb":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#00e676":"#29b6f6"
                       }}>{p.type==="IV_SURGE"?"IV +"+p.ivChange+"%":p.type==="SIDE_FLIP"?p.from+"→"+p.to:p.type==="HEAVY"?p.hits+"x HEAVY":"PRICE +"+p.pctChange+"%"}</span>
                     ))}
+                    {t.tickerHeat && <span style={{ fontSize:7, fontWeight:800, marginLeft:4, padding:"1px 5px", borderRadius:3, background:"#ffd60022", color:"#ffd600" }}>{t.tickerHeat.contracts}ctr · {fmt(t.tickerHeat.totalPrem)}</span>}
                   </div>
                 </div>
               </div>
