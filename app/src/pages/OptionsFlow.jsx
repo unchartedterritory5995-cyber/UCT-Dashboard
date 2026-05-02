@@ -4178,7 +4178,7 @@ export default function OptionsFlowDashboard() {
                 cursor:"pointer", transition:"all 0.15s" }}
                 onClick={()=>{if(!isRemoving){setWlEditing(isEditing?null:key); setWlRemoving(null);}}}>
                 {/* Ticker + Score */}
-                <div style={{ minWidth:70 }}>
+                <div style={{ width:120, flexShrink:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{item.sym}</span>
                     {item.cap && item.cap!=="Unknown" && <span style={{ fontSize:7, fontWeight:700, color:P.dm, background:P.al, padding:"1px 4px", borderRadius:2 }}>{item.cap}</span>}
@@ -4210,16 +4210,16 @@ export default function OptionsFlowDashboard() {
                   </div>
                 </div>
                 {/* Tier badge */}
-                <div style={{ minWidth:75 }}>
+                <div style={{ width:10, flexShrink:0 }}>
                   {isEditing ? (
                     <select value={item.tier} onChange={e=>{update("tier",e.target.value); e.stopPropagation();}}
                       onClick={e=>e.stopPropagation()}
                       style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:9, padding:"3px 4px", fontFamily:"inherit", fontWeight:700 }}>
                       {TIERS.map(t=><option key={t} value={t}>{t}</option>)}
                     </select>
-                  ) : (
+                  ) : item.tier && item.tier !== "WATCH" ? (
                     <span style={{ fontSize:9, fontWeight:800, padding:"2px 8px", borderRadius:4, background:tierC(item.tier)+"22", color:tierC(item.tier), border:"1px solid "+tierC(item.tier)+"44" }}>{item.tier}</span>
-                  )}
+                  ) : null}
                 </div>
                 {/* Strike/Exp */}
                 <div style={{ flex:1 }}>
