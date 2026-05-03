@@ -91,7 +91,7 @@ async def push_breadth_snapshot(request: Request):
                 if sym:
                     seen.add(sym.upper())
         if seen:
-            warm_bars_async(list(seen), tf="D", bars=5000)
+            warm_bars_async(list(seen), tf="D", bars=8000)
     except Exception:
         pass
 
@@ -119,7 +119,7 @@ def get_drill_list(date_str: str, metric_key: str):
         from api.routers.bars import warm_bars_async
         tickers = [i["t"] for i in items if isinstance(i, dict) and i.get("t")]
         if tickers:
-            warm_bars_async(tickers, tf="D", bars=5000)
+            warm_bars_async(tickers, tf="D", bars=8000)
     except Exception:
         pass
     return {"date": date_str, "metric": metric_key, "items": items}

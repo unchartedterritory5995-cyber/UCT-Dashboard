@@ -31,7 +31,7 @@ def themes(period: str = Query("1W")):
                         if sym:
                             tickers.add(sym.upper())
             if tickers:
-                warm_bars_async(list(tickers), tf="D", bars=5000)
+                warm_bars_async(list(tickers), tf="D", bars=8000)
         except Exception:
             pass
         return result
@@ -51,7 +51,7 @@ def leadership():
                 for p in picks if isinstance(p, dict) and (p.get("sym") or p.get("ticker"))
             ]
             if tickers:
-                warm_bars_async(tickers, tf="D", bars=5000)
+                warm_bars_async(tickers, tf="D", bars=8000)
         except Exception:
             pass
         return result

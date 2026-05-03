@@ -722,7 +722,7 @@ from concurrent.futures import ThreadPoolExecutor as _BarsWarmExecutor
 _bars_warm_pool = _BarsWarmExecutor(max_workers=4, thread_name_prefix="bars-warm")
 
 
-def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 5000) -> None:
+def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 8000) -> None:
     """Fire-and-forget cache warmer. Submits one task per ticker to a bounded
     thread pool and returns immediately. Errors are silenced (best-effort).
 

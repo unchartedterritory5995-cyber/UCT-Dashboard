@@ -20,7 +20,7 @@ def earnings():
                 for e in bucket if isinstance(e, dict) and e.get("sym")
             ]
             if tickers:
-                warm_bars_async(list(dict.fromkeys(tickers)), tf="D", bars=5000)
+                warm_bars_async(list(dict.fromkeys(tickers)), tf="D", bars=8000)
         except Exception:
             pass
         return result

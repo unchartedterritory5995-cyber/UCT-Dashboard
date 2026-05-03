@@ -80,6 +80,13 @@ def get_bars_since(ticker: str, tf: str, since_ts: int) -> list[tuple]:
     ).fetchall()
 
 
+def get_all_tickers() -> list[tuple]:
+    """Return all (ticker, tf) pairs that have at least one row stored, ordered by ticker."""
+    return _conn().execute(
+        "SELECT DISTINCT ticker, tf FROM ohlcv ORDER BY ticker, tf"
+    ).fetchall()
+
+
 def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False) -> int:
     """Upsert bars.  date_tf=True means bar["t"] is 'YYYY-MM-DD' → YYYYMMDD int.
     Returns number of rows inserted/replaced.

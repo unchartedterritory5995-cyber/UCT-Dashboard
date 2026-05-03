@@ -55,7 +55,7 @@ def get_flagged(user: dict = Depends(get_current_user)):
         from api.routers.bars import warm_bars_async
         tickers = [i["sym"].upper() for i in (result.get("items") or []) if isinstance(i, dict) and i.get("sym")]
         if tickers:
-            warm_bars_async(tickers, tf="D", bars=5000)
+            warm_bars_async(tickers, tf="D", bars=8000)
     except Exception:
         pass
     return result
@@ -113,7 +113,7 @@ def get_watchlist(wl_id: str, user: dict = Depends(get_current_user)):
         from api.routers.bars import warm_bars_async
         tickers = [i["sym"].upper() for i in (wl.get("items") or []) if isinstance(i, dict) and i.get("sym")]
         if tickers:
-            warm_bars_async(tickers, tf="D", bars=5000)
+            warm_bars_async(tickers, tf="D", bars=8000)
     except Exception:
         pass
     return wl

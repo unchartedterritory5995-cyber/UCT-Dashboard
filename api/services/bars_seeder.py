@@ -36,8 +36,10 @@ _TIER1_BASE = [
 ]
 
 
-def _seed_one(sym: str, tf: str, bars: int = 5000) -> bool:
+def _seed_one(sym: str, tf: str, bars: int | None = None) -> bool:
     """Idempotent: warm (ticker, tf) via _get_bars_inner.  Returns True on success."""
+    if bars is None:
+        bars = 8000 if tf in ('D', 'W') else 5000
     try:
         from api.routers.bars import _get_bars_inner
         _get_bars_inner(sym.upper(), tf, bars)

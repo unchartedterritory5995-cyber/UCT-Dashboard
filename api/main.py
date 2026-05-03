@@ -174,7 +174,25 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
-        print(f"[startup] Memory pre-warm: {_pw} bar series loaded from SQLite ({len(_pw_syms)} tickers)")
+        print(f"[startup] Memory pre-warm pass 1: {_pw} bar series loaded from SQLite ({len(_pw_syms)} tickers)")
+
+        # Pass 2: load ALL remaining tickers in SQLite into memory (D/W only).
+        # This covers every ticker seeded by the nightly universe run (e.g. TEAM,
+        # APLD, or any name in the $300M cap universe) even if not in Tier 1 or the
+        # breadth drill-list above.  SQLite reads are ~1ms each; 3,685 tickers × 2 TFs
+        # ≈ 7s total — well within Railway's 600s health-check window.
+        try:
+            from api.services.bars_sqlite import get_all_tickers as _gat
+            _p2_before = _pw
+            for _sym, _tf in _gat():
+                if _tf in ('D', 'W') and _sym not in _pw_syms:
+                    _pw_syms.add(_sym)
+                    _warm_sym_into_memory(_sym, 'D')
+                    _warm_sym_into_memory(_sym, 'W')
+            print(f"[startup] Memory pre-warm pass 2: +{_pw - _p2_before} series ({len(_pw_syms)} total tickers, {_pw} total series)")
+        except Exception as _e2:
+            print(f"[startup] Memory pre-warm pass 2 failed (non-fatal): {_e2}")
+
     except Exception as _e:
         print(f"[startup] Memory pre-warm failed (non-fatal): {_e}")
 

@@ -28,7 +28,7 @@ def candidates():
                         if sym:
                             tickers.append(sym.upper())
             if tickers:
-                warm_bars_async(list(dict.fromkeys(tickers)), tf="D", bars=5000)
+                warm_bars_async(list(dict.fromkeys(tickers)), tf="D", bars=8000)
         except Exception:
             pass
         return result
