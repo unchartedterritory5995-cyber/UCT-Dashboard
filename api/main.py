@@ -420,6 +420,59 @@ async def lifespan(app: FastAPI):
     _watchlist_tracker.init()
     print(f"[startup] Watchlist tracker: {len(_watchlist_tracker.get_recent_dates())} saved days.")
 
+    # ── Flow DB: auto-seed from static CSVs if DB is empty ──────────────────
+    try:
+        from api.flow_db import FlowDB
+        _flow_db = FlowDB()
+        _flow_stats = _flow_db.stats()
+        _public_dir = os.path.join(os.path.dirname(__file__), "..", "app", "public")
+
+        # Seed stocks
+        if _flow_stats["stocks_rows"] == 0:
+            _stock_csv = os.path.join(_public_dir, "flow-data.csv")
+            if os.path.exists(_stock_csv):
+                with open(_stock_csv, "r", encoding="utf-8-sig") as _f:
+                    _result = _flow_db.insert_csv(_f.read(), source="stocks")
+                print(f"[startup] Flow DB seeded stocks: {_result['inserted']:,} rows from flow-data.csv ({len(_result['dates'])} dates)")
+            else:
+                print("[startup] Flow DB: no flow-data.csv found to seed")
+        else:
+            # Check if CSV has newer data than DB
+            _stock_csv = os.path.join(_public_dir, "flow-data.csv")
+            if os.path.exists(_stock_csv):
+                with open(_stock_csv, "r", encoding="utf-8-sig") as _f:
+                    _result = _flow_db.insert_csv(_f.read(), source="stocks")
+                if _result["inserted"] > 0:
+                    print(f"[startup] Flow DB stocks: +{_result['inserted']:,} new rows, {_result['skipped']:,} dupes skipped")
+                else:
+                    print(f"[startup] Flow DB stocks: {_flow_stats['stocks_rows']:,} rows, {_flow_stats['stock_days']} days — up to date")
+
+        # Seed indexes
+        if _flow_stats["indexes_rows"] == 0:
+            _idx_csv = os.path.join(_public_dir, "Indexes-data.csv")
+            if os.path.exists(_idx_csv):
+                with open(_idx_csv, "r", encoding="utf-8-sig") as _f:
+                    _result = _flow_db.insert_csv(_f.read(), source="indexes")
+                print(f"[startup] Flow DB seeded indexes: {_result['inserted']:,} rows from Indexes-data.csv ({len(_result['dates'])} dates)")
+            else:
+                print("[startup] Flow DB: no Indexes-data.csv found to seed")
+        else:
+            _idx_csv = os.path.join(_public_dir, "Indexes-data.csv")
+            if os.path.exists(_idx_csv):
+                with open(_idx_csv, "r", encoding="utf-8-sig") as _f:
+                    _result = _flow_db.insert_csv(_f.read(), source="indexes")
+                if _result["inserted"] > 0:
+                    print(f"[startup] Flow DB indexes: +{_result['inserted']:,} new rows, {_result['skipped']:,} dupes skipped")
+                else:
+                    print(f"[startup] Flow DB indexes: {_flow_stats['indexes_rows']:,} rows, {_flow_stats['index_days']} days — up to date")
+
+        # Auto-prune expired
+        _pruned = _flow_db.prune_expired()
+        if _pruned:
+            print(f"[startup] Flow DB pruned {_pruned} expired rows")
+    except Exception as e:
+        print(f"[startup] Flow DB auto-seed error (non-fatal): {e}")
+
     try:
         _cot_service.init_db()
         if _cot_service.is_empty():
