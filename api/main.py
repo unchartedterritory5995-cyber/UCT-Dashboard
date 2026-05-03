@@ -239,6 +239,32 @@ async def lifespan(app: FastAPI):
                     f.write("done")
             except Exception:
                 pass
+        # One-time disk-cache purge for tf=60 — pre-resample (commit 2f42e55)
+        # cached responses merged the 9:00 pre-market 30-min bar with the 9:30
+        # RTH-open 30-min bar into a single 9:00 hourly bucket. After the
+        # session-aligned resample shipped, fresh fetches produce the correct
+        # split, but cached files persisted with the old format.
+        _tf60_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".tf60_purged_2f42e55")
+        if not os.path.exists(_tf60_flag):
+            try:
+                _cd = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+                if os.path.isdir(_cd):
+                    n = 0
+                    for f in os.listdir(_cd):
+                        if "_60_" in f and f.endswith(".json"):
+                            try:
+                                os.remove(os.path.join(_cd, f))
+                                n += 1
+                            except Exception:
+                                pass
+                    print(f"[prewarm] Purged {n} tf=60 disk-cache files")
+            except Exception as e:
+                print(f"[prewarm] tf=60 disk purge failed: {e}")
+            try:
+                with open(_tf60_flag, "w") as f:
+                    f.write("done")
+            except Exception:
+                pass
 
         # Gather all tickers worth pre-caching
         tickers = set()

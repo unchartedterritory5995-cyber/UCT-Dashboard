@@ -40,7 +40,37 @@ def init_db() -> None:
     c.execute(
         "CREATE INDEX IF NOT EXISTS idx_ohlcv_lookup ON ohlcv(ticker, tf, ts DESC)"
     )
+    # ── One-time migration: purge tf='60' rows seeded before the
+    # session-aligned hourly resample feature shipped (commit 2f42e55,
+    # 2026-05-01). Pre-feature rows merged the 9:00 pre-market bar with
+    # the 9:30 RTH-open bar into one 9:00 bucket, persisting incorrect
+    # bars after the fix. Marker row records that the migration ran.
+    c.execute("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)")
+    already = c.execute("SELECT 1 FROM _migrations WHERE name=?", ("purge_tf60_2f42e55",)).fetchone()
+    if not already:
+        try:
+            c.execute("DELETE FROM ohlcv WHERE tf='60'")
+            c.execute("INSERT INTO _migrations(name, applied_at) VALUES (?, ?)",
+                      ("purge_tf60_2f42e55", int(__import__('time').time())))
+        except Exception:
+            pass
     c.commit()
+
+
+def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
+    """Delete rows by (ticker, tf). Either may be None to wildcard.
+    Returns rows deleted."""
+    c = _conn()
+    if ticker and tf:
+        cur = c.execute("DELETE FROM ohlcv WHERE ticker=? AND tf=?", (ticker.upper(), tf))
+    elif tf:
+        cur = c.execute("DELETE FROM ohlcv WHERE tf=?", (tf,))
+    elif ticker:
+        cur = c.execute("DELETE FROM ohlcv WHERE ticker=?", (ticker.upper(),))
+    else:
+        cur = c.execute("DELETE FROM ohlcv")
+    c.commit()
+    return cur.rowcount
 
 
 def get_last_ts(ticker: str, tf: str) -> int | None:
