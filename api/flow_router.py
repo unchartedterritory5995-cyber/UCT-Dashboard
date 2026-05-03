@@ -28,7 +28,7 @@ flow_router = APIRouter(prefix="/api/flow", tags=["flow"])
 @flow_router.post("/upload")
 async def upload_flow(
     file: UploadFile = File(...),
-    source: str = Query("stocks", regex="^(stocks|indexes)$"),
+    source: str = Query("stocks", pattern="^(stocks|indexes)$"),
 ):
     """
     Upload a BBS CSV file. Automatically deduplicates.
@@ -61,12 +61,12 @@ async def upload_flow(
 @flow_router.get("/data")
 async def get_flow_data(
     days: int = Query(20, ge=1, le=365),
-    all_data: bool = Query(False, alias="all"),
+    all_data: bool = Query(False),
 ):
     """
     Serve stock flow data as CSV.
     ?days=20 (default) — last 20 trading days
-    ?all=true — all available data (use with caution)
+    ?all_data=true — all available data (use with caution)
     """
     if all_data:
         csv_text = db.query_all_csv(source="stocks")
@@ -78,7 +78,7 @@ async def get_flow_data(
 @flow_router.get("/indexes-data")
 async def get_indexes_data(
     days: int = Query(20, ge=1, le=365),
-    all_data: bool = Query(False, alias="all"),
+    all_data: bool = Query(False),
 ):
     """Serve indexes/ETF flow data as CSV."""
     if all_data:
@@ -105,7 +105,7 @@ async def prune_expired(
 
 @flow_router.get("/dates")
 async def get_dates(
-    source: str = Query("stocks", regex="^(stocks|indexes)$"),
+    source: str = Query("stocks", pattern="^(stocks|indexes)$"),
 ):
     """Get available trading dates for a source."""
     dates = db.get_available_dates(source)
