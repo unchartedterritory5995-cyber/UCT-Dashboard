@@ -114,27 +114,8 @@ export default function Watchlists() {
   }
   function sortIndicator(col) { return sortBy !== col ? '' : sortDir === 'desc' ? ' ▾' : ' ▴' }
 
-  const sortAndFilterItems = useCallback((items) => {
-    let filtered = items
-    if (filterText) {
-      const q = filterText.toUpperCase()
-      filtered = filtered.filter(i => (i.sym || i).toString().toUpperCase().includes(q))
-    }
-    if (!sortBy) return filtered
-    return [...filtered].sort((a, b) => {
-      const symA = a.sym || a, symB = b.sym || b
-      let va, vb
-      if (sortBy === 'sym') { va = symA; vb = symB }
-      else if (sortBy === 'price') { va = prices[symA]?.price; vb = prices[symB]?.price }
-      else if (sortBy === 'change') { va = prices[symA]?.change_pct; vb = prices[symB]?.change_pct }
-      else { va = perfData[symA]?.[sortBy]; vb = perfData[symB]?.[sortBy] }
-      if (va == null && vb == null) return 0
-      if (va == null) return 1
-      if (vb == null) return -1
-      if (sortBy === 'sym') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
-      return sortDir === 'asc' ? va - vb : vb - va
-    })
-  }, [sortBy, sortDir, filterText, prices, perfData])
+  // sortAndFilterItems is defined further down — after `prices` and `perfData`
+  // are in scope. Defining it here would TDZ on those `const` deps.
 
   function exportCSV(wl) {
     const items = wl.items || []
@@ -245,6 +226,31 @@ export default function Watchlists() {
 
   const { prices } = useRealtimePrices(allTickers)
   const { perfData } = useWatchlistPerformance(visiblePerf.size > 0 ? allTickers : [])
+
+  // Moved here from earlier in the file — depends on `prices` and `perfData`,
+  // which are declared above. Putting it earlier hits a TDZ on those consts
+  // when the deps array evaluates, crashing the page on mount.
+  const sortAndFilterItems = useCallback((items) => {
+    let filtered = items
+    if (filterText) {
+      const q = filterText.toUpperCase()
+      filtered = filtered.filter(i => (i.sym || i).toString().toUpperCase().includes(q))
+    }
+    if (!sortBy) return filtered
+    return [...filtered].sort((a, b) => {
+      const symA = a.sym || a, symB = b.sym || b
+      let va, vb
+      if (sortBy === 'sym') { va = symA; vb = symB }
+      else if (sortBy === 'price') { va = prices[symA]?.price; vb = prices[symB]?.price }
+      else if (sortBy === 'change') { va = prices[symA]?.change_pct; vb = prices[symB]?.change_pct }
+      else { va = perfData[symA]?.[sortBy]; vb = perfData[symB]?.[sortBy] }
+      if (va == null && vb == null) return 0
+      if (va == null) return 1
+      if (vb == null) return -1
+      if (sortBy === 'sym') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+      return sortDir === 'asc' ? va - vb : vb - va
+    })
+  }, [sortBy, sortDir, filterText, prices, perfData])
 
   function togglePerfCol(key) {
     setVisiblePerf(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n })
