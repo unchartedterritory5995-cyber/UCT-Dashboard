@@ -35,8 +35,6 @@ from api.routers import community as community_router
 from api.routers import rs_ranking as rs_ranking_router
 from api.routers import intelligence as intelligence_router
 from api.routers import transcripts as transcripts_router
-from flow_router import flow_router
-app.include_router(flow_router)
 from api.services.auth_db import init_db as _init_auth_db
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse as StarletteJSONResponse
