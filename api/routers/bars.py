@@ -264,18 +264,35 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     hourly (9:30-10:00 first candle, then 10:00-11:00 ... 15:00-16:00) so the
     chart matches TC2000 / ThinkorSwim behaviour in RTH mode.
     """
+    import logging as _log
+    _logger = _log.getLogger(__name__)
     if tf == "60":
         # Need ~2× 30-min bars to produce max_bars session-aligned hourly bars
         src = max_bars * 2
         bars_30m = _fetch_intraday_massive(ticker, "30", src)
-        if bars_30m and not _is_intraday_stale(bars_30m):
-            return _session_resample_hourly(bars_30m)[-max_bars:]
+        n_mass = len(bars_30m) if bars_30m else 0
+        is_stale_mass = _is_intraday_stale(bars_30m) if bars_30m else True
+        _logger.warning(f"[bars-resample] {ticker} tf=60 src={src} massive_30m={n_mass} stale={is_stale_mass}")
+        if bars_30m and not is_stale_mass:
+            out = _session_resample_hourly(bars_30m)[-max_bars:]
+            _logger.warning(f"[bars-resample] {ticker} tf=60 source=MASSIVE resampled_to={len(out)}")
+            return out
         fmp_30m = _fetch_intraday_fmp(ticker, "30", src)
-        if fmp_30m and not _is_intraday_stale(fmp_30m):
-            return _session_resample_hourly(fmp_30m)[-max_bars:]
+        n_fmp = len(fmp_30m) if fmp_30m else 0
+        is_stale_fmp = _is_intraday_stale(fmp_30m) if fmp_30m else True
+        _logger.warning(f"[bars-resample] {ticker} tf=60 fmp_30m={n_fmp} stale={is_stale_fmp}")
+        if fmp_30m and not is_stale_fmp:
+            out = _session_resample_hourly(fmp_30m)[-max_bars:]
+            _logger.warning(f"[bars-resample] {ticker} tf=60 source=FMP resampled_to={len(out)}")
+            return out
         yf_30m = _fetch_intraday_yfinance(ticker, "30", src)
+        n_yf = len(yf_30m) if yf_30m else 0
+        _logger.warning(f"[bars-resample] {ticker} tf=60 yf_30m={n_yf}")
         if yf_30m:
-            return _session_resample_hourly(yf_30m)[-max_bars:]
+            out = _session_resample_hourly(yf_30m)[-max_bars:]
+            _logger.warning(f"[bars-resample] {ticker} tf=60 source=YFINANCE resampled_to={len(out)}")
+            return out
+        _logger.warning(f"[bars-resample] {ticker} tf=60 source=NONE bars_30m_was={n_mass}")
         return _session_resample_hourly(bars_30m)[-max_bars:] if bars_30m else []
 
     bars = _fetch_intraday_massive(ticker, tf, max_bars)
@@ -645,6 +662,43 @@ def _resample_monthly_iso(daily_bars: list[dict]) -> list[dict]:
         }
         for m in sorted(months.values(), key=lambda x: x["dt"])
     ]
+
+
+@router.get("/api/bars/_debug_source/{ticker}")
+def debug_source(ticker: str, tf: str = Query(default="60")):
+    """Diagnostic — returns which source is providing intraday data + sample bars."""
+    if tf not in ("1", "5", "15", "30", "60"):
+        return {"error": "intraday only"}
+    src = 1000 if tf == "60" else 200
+    out = {"ticker": ticker.upper(), "tf": tf, "src_bars_requested": src}
+    try:
+        massive_bars = _fetch_intraday_massive(ticker, "30" if tf == "60" else tf, src)
+        out["massive"] = {"count": len(massive_bars) if massive_bars else 0,
+                          "stale": _is_intraday_stale(massive_bars) if massive_bars else None,
+                          "first": massive_bars[0] if massive_bars else None,
+                          "last": massive_bars[-1] if massive_bars else None}
+    except Exception as e:
+        out["massive"] = {"error": str(e)[:200]}
+    try:
+        fmp_bars = _fetch_intraday_fmp(ticker, "30" if tf == "60" else tf, src)
+        out["fmp"] = {"count": len(fmp_bars) if fmp_bars else 0,
+                      "stale": _is_intraday_stale(fmp_bars) if fmp_bars else None,
+                      "last": fmp_bars[-1] if fmp_bars else None}
+    except Exception as e:
+        out["fmp"] = {"error": str(e)[:200]}
+    try:
+        yf_bars = _fetch_intraday_yfinance(ticker, "30" if tf == "60" else tf, src)
+        out["yfinance"] = {"count": len(yf_bars) if yf_bars else 0,
+                           "last": yf_bars[-1] if yf_bars else None}
+    except Exception as e:
+        out["yfinance"] = {"error": str(e)[:200]}
+    if tf == "60" and out.get("massive", {}).get("count"):
+        try:
+            resampled = _session_resample_hourly(massive_bars)
+            out["resampled_from_massive"] = {"count": len(resampled), "last5": resampled[-5:] if resampled else []}
+        except Exception as e:
+            out["resampled_from_massive"] = {"error": str(e)[:200]}
+    return out
 
 
 @router.get("/api/bars/{ticker}")
