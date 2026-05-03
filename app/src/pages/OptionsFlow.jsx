@@ -3433,20 +3433,51 @@ export default function OptionsFlowDashboard() {
             </Card>
             {/* Inline Ticker Detail */}
             {selectedLeaderTicker && (()=>{
-              const tk = D.TICKER_DB.find(t=>t.s===selectedLeaderTicker);
-              if (!tk) return null;
-              const net = tk.b - tk.r;
-              const total = tk.b + tk.r;
+              // Build popup data from clean_confirmed with same DTE + cap filters as leaderboard
+              const dteFilter = t => leaderDte==="All" ? true : leaderDte==="ST" ? t.DTE<60 : t.DTE>=60;
+              const trades = (D.clean_confirmed||[]).filter(t => t.S===selectedLeaderTicker && dteFilter(t) && (capFilter==="All" || capBand(t.mktcap)===capFilter));
+              if (trades.length===0) return null;
+              let b=0, r=0;
+              const consMap = {};
+              trades.forEach(t => {
+                if (t.D==="BULL") b+=t.P; else if (t.D==="BEAR") r+=t.P;
+                const ck = t.CP+"|"+t.K+"|"+t.E;
+                if (!consMap[ck]) consMap[ck] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
+                  hasSweep:false, hasBlock:false, dirs:new Set(), bullPrem:0, bearPrem:0 };
+                const c = consMap[ck];
+                c.H++; c.P+=t.P; c.V+=t.V;
+                if (t.D==="BULL") c.bullPrem+=t.P;
+                if (t.D==="BEAR") c.bearPrem+=t.P;
+                if (t.Ty==="SWP") c.hasSweep=true;
+                if (t.Ty==="BLK") c.hasBlock=true;
+                if (t.D) c.dirs.add(t.D);
+              });
+              const contracts = Object.values(consMap).filter(c=>c.H>=2).map(c => {
+                c.clean = c.dirs.size<=1;
+                if (!c.clean) {
+                  const totalDir = (c.bullPrem||0)+(c.bearPrem||0);
+                  if (totalDir>0) {
+                    if ((c.bullPrem||0)/totalDir>=0.8) { c.clean=true; c.D="BULL"; }
+                    else if ((c.bearPrem||0)/totalDir>=0.8) { c.clean=true; c.D="BEAR"; }
+                  }
+                }
+                c.grade = gradeCluster(c);
+                return c;
+              }).sort((a,bb)=>bb.H-a.H||bb.P-a.P).slice(0,6);
+              const net = b - r;
+              const total = b + r;
               const dir = net>0?"BULL":"BEAR";
               const dirC = dir==="BULL"?P.bu:P.be;
-              const bullPct = total>0?Math.round(tk.b/total*100):50;
+              const bullPct = total>0?Math.round(b/total*100):50;
+              const tkRef = D.TICKER_DB.find(t=>t.s===selectedLeaderTicker);
               return (
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                      <span style={{ fontSize:18, fontWeight:900, color:P.wh }}>{tk.s}</span>
+                      <span style={{ fontSize:18, fontWeight:900, color:P.wh }}>{selectedLeaderTicker}</span>
                       <span style={{ fontSize:14, fontWeight:800, color:dirC }}>{dir}</span>
-                      <span style={{ fontSize:11, color:P.dm }}>{tk.n} trades</span>
+                      <span style={{ fontSize:11, color:P.dm }}>{trades.length} trades</span>
+                      {(leaderDte!=="All"||capFilter!=="All") && <span style={{ fontSize:9, color:P.mt, fontStyle:"italic" }}>filtered</span>}
                     </div>
                     <button onClick={()=>setSelectedLeaderTicker(null)} style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:16, fontFamily:"inherit" }}>✕</button>
                   </div>
@@ -3457,17 +3488,17 @@ export default function OptionsFlowDashboard() {
                     </div>
                     <div style={{ padding:8, background:P.al, borderRadius:6 }}>
                       <div style={{ fontSize:8, color:P.mt, fontWeight:600 }}>BULLISH FLOW</div>
-                      <div style={{ fontSize:16, fontWeight:900, color:P.bu }}>{fmt(tk.b)}</div>
+                      <div style={{ fontSize:16, fontWeight:900, color:P.bu }}>{fmt(b)}</div>
                       <div style={{ display:"flex", height:3, borderRadius:2, overflow:"hidden", background:P.bd, marginTop:4 }}>
                         <div style={{ width:bullPct+"%", background:P.bu }}/><div style={{ width:(100-bullPct)+"%", background:P.be }}/>
                       </div>
                     </div>
                     <div style={{ padding:8, background:P.al, borderRadius:6 }}>
                       <div style={{ fontSize:8, color:P.mt, fontWeight:600 }}>BEARISH FLOW</div>
-                      <div style={{ fontSize:16, fontWeight:900, color:P.be }}>{fmt(tk.r)}</div>
+                      <div style={{ fontSize:16, fontWeight:900, color:P.be }}>{fmt(r)}</div>
                     </div>
                   </div>
-                  {tk.c.length>0 && (
+                  {contracts.length>0 && (
                     <div>
                       <div style={{ fontSize:10, fontWeight:700, color:P.mt, marginBottom:6, letterSpacing:1 }}>TOP CONTRACTS (2+ HITS)</div>
                       <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
@@ -3477,9 +3508,9 @@ export default function OptionsFlowDashboard() {
                           ))}
                         </tr></thead>
                         <tbody>
-                          {tk.c.slice(0,6).map((c,i)=>(
+                          {contracts.map((c,i)=>(
                             <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
-                              onClick={()=>{ setTab("Search"); setSearch(tk.s); setSelectedTicker(tk); }}>
+                              onClick={()=>{ setTab("Search"); setSearch(selectedLeaderTicker); setSelectedTicker(tkRef||null); }}>
                               <td style={{ padding:"4px 5px", fontWeight:800, color:P.wh }}>${c.K}</td>
                               <td style={{ padding:"4px 5px" }}><Tag c={c.CP==="C"?P.bu:P.be}>{c.CP}</Tag></td>
                               <td style={{ padding:"4px 5px", color:P.wh }}>{c.E}</td>
@@ -3492,7 +3523,7 @@ export default function OptionsFlowDashboard() {
                         </tbody>
                       </table>
                       <div style={{ textAlign:"center", marginTop:6 }}>
-                        <button onClick={()=>{ setTab("Search"); setSearch(tk.s); setSelectedTicker(tk); }}
+                        <button onClick={()=>{ setTab("Search"); setSearch(selectedLeaderTicker); setSelectedTicker(tkRef||null); }}
                           style={{ fontSize:9, color:P.ac, background:"transparent", border:"1px solid "+P.ac+"44", borderRadius:4, padding:"3px 12px", cursor:"pointer", fontFamily:"inherit", fontWeight:700 }}>
                           View full detail in Search →
                         </button>
