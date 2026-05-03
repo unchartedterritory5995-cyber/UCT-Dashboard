@@ -684,7 +684,13 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 class _GZipSkipSSE(_GZipBase):
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
-        if scope.get("type") == "http" and (scope.get("path") or "").startswith("/api/stream"):
+        path = scope.get("path") or ""
+        # Skip gzip for SSE (would buffer stream) and for /assets/* (content-hash
+        # JS/CSS files are cached forever by the browser; on-the-fly gzip of large
+        # files can produce truncated streams in some proxy/Railway configurations).
+        if scope.get("type") == "http" and (
+            path.startswith("/api/stream") or path.startswith("/assets/")
+        ):
             await self.app(scope, receive, send)
         else:
             await super().__call__(scope, receive, send)
@@ -769,6 +775,25 @@ def serve_indexes_csv():
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 if os.path.exists(DIST):
     app.mount("/assets", StaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
+
+    # Serve root-level static files explicitly so the SPA catchall below doesn't
+    # intercept them and return index.html (which breaks manifest parsing, SW
+    # registration, and favicon loading).
+    @app.get("/manifest.json", include_in_schema=False)
+    def _serve_manifest():
+        return FileResponse(os.path.join(DIST, "manifest.json"), media_type="application/json")
+
+    @app.get("/sw.js", include_in_schema=False)
+    def _serve_sw():
+        return FileResponse(os.path.join(DIST, "sw.js"), media_type="application/javascript; charset=utf-8")
+
+    @app.get("/favicon.svg", include_in_schema=False)
+    def _serve_favicon():
+        return FileResponse(os.path.join(DIST, "favicon.svg"), media_type="image/svg+xml")
+
+    @app.get("/vite.svg", include_in_schema=False)
+    def _serve_vite_svg():
+        return FileResponse(os.path.join(DIST, "vite.svg"), media_type="image/svg+xml")
 
     @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
