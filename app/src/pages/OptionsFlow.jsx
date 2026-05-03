@@ -1379,6 +1379,40 @@ export default function OptionsFlowDashboard() {
     setWlBear(bears);
   };
 
+  const wlPopulateUnusual = () => {
+    if (!FD || !FD.CONV) return;
+    // Build unusual items same way as Unusual tab
+    const unusual = [];
+    (FD.CONV||[]).forEach(c => { (c.patterns||[]).forEach(p => { unusual.push({ ...c, anomaly:p.type, source:"pattern" }); }); });
+    (FD.CONV||[]).forEach(c => { if (c.volOI >= 10 && c.maxOI > 0 && c.maxOI < 500) unusual.push({ ...c, anomaly:"VOL_OI_EXTREME", source:"voloi" }); });
+    (FD.CONV||[]).forEach(c => {
+      const cap = capBand(c.mktcap);
+      const thresh = cap==="Small"?500e3:cap==="Mid"?2e6:0;
+      if (thresh > 0 && c.prem >= thresh) unusual.push({ ...c, anomaly:"SIZE_VS_CAP", source:"sizecap" });
+    });
+    // Dedup by contract
+    const seen = new Set();
+    const deduped = unusual.filter(u => { const k = u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp; if (seen.has(k)) return false; seen.add(k); return true; });
+    // Dedup by ticker — highest premium per ticker
+    const sorted = deduped.sort((a,b) => b.prem - a.prem);
+    const tickerSeen = new Set();
+    const uniqueTicker = (list) => list.filter(c => { if (tickerSeen.has(c.sym+"|"+c.dir)) return false; tickerSeen.add(c.sym+"|"+c.dir); return true; });
+    const bulls = uniqueTicker(sorted.filter(c=>c.dir==="BULL")).slice(0,10).map(c=>({
+      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+      dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
+      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
+    }));
+    const bears = uniqueTicker(sorted.filter(c=>c.dir==="BEAR")).slice(0,10).map(c=>({
+      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+      dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
+      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
+    }));
+    setWlBull(bulls);
+    setWlBear(bears);
+  };
+
   const wlAddTicker = (side) => {
     const input = side==="bull"?wlAddBull.trim().toUpperCase():wlAddBear.trim().toUpperCase();
     if (!input) return;
@@ -3589,6 +3623,23 @@ export default function OptionsFlowDashboard() {
                   </div>
                 </div>
               </Card>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <button onClick={()=>{
+                  const contracts = [];
+                  const seen = new Set();
+                  sorted.forEach(u => {
+                    const k = u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp;
+                    if (seen.has(k)) return; seen.add(k);
+                    contracts.push({sym:u.sym, cp:u.cp, strike:u.K, exp:u.exp});
+                  });
+                  fetchPrices(contracts);
+                }} disabled={fetchLoading}
+                  style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                    fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:"#e040fb", color:fetchLoading?P.dm:P.bg }}>
+                  {fetchLoading?"Fetching…":"⚡ Fetch Live OI"}
+                </button>
+                <span style={{ fontSize:9, color:P.dm }}>Updates OI for all {new Set(sorted.map(u=>u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp)).size} unusual contracts</span>
+              </div>
               {activeGroups.length === 0 && (
                 <Card><div style={{ textAlign:"center", padding:20, color:P.dm }}>No unusual patterns detected in current data.</div></Card>
               )}
@@ -4558,6 +4609,10 @@ export default function OptionsFlowDashboard() {
                   <button onClick={wlPopulate}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     ⟳ Auto-Fill from Scanner
+                  </button>
+                  <button onClick={wlPopulateUnusual}
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #e040fb60", background:"transparent", color:"#e040fb", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    ⟳ Fill from Unusual
                   </button>
                   <button onClick={wlSave}
                     style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
