@@ -3169,6 +3169,58 @@ export default function OptionsFlowDashboard() {
           ))}
         </div>
 
+        {/* Global Cap Filter */}
+        {FD && (()=>{
+          const caps = ["All","Mega","Large","Mid","Small"];
+          const capColors = { Mega:"#ffd700", Large:"#00e5ff", Mid:"#69f0ae", Small:"#ff8a65", All:P.wh };
+          const capDescriptions = {
+            Mega:  "$500B+ · SPY-weight movers",
+            Large: "$10B–$500B · institutional conviction plays",
+            Mid:   "$2B–$10B · directional bets, less noise",
+            Small: "Under $2B · high-risk, high-conviction small name flow",
+          };
+          const capThresh = {
+            Mega: t=>capBand(t.mktcap)==="Mega", Large: t=>capBand(t.mktcap)==="Large",
+            Mid: t=>capBand(t.mktcap)==="Mid", Small: t=>capBand(t.mktcap)==="Small"
+          };
+          return (
+            <div style={{ marginBottom:10 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                <span style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:"0.08em", textTransform:"uppercase" }}>Cap Filter</span>
+                {caps.map(c => {
+                  const active = capFilter === c;
+                  const clr = capColors[c] || P.wh;
+                  const count = c === "All"
+                    ? D.clean_confirmed.length
+                    : D.clean_confirmed.filter(capThresh[c]).length;
+                  const prem = c === "All"
+                    ? D.clean_confirmed.reduce((a,t)=>a+t.P,0)
+                    : D.clean_confirmed.filter(capThresh[c]).reduce((a,t)=>a+t.P,0);
+                  return (
+                    <button key={c} onClick={()=>setCapFilter(c)} title={capDescriptions[c]||"All cap sizes"} style={{
+                      padding:"5px 12px", borderRadius:20, border:`1.5px solid ${active?clr:P.bd}`,
+                      cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
+                      background:active?clr+"22":"transparent",
+                      color:active?clr:P.mt, transition:"all 0.15s",
+                      display:"flex", alignItems:"center", gap:6
+                    }}>
+                      <span>{c}</span>
+                      <span style={{ fontSize:9, fontWeight:600, opacity:0.75 }}>
+                        {count} · ${(prem/1e6).toFixed(0)}M
+                      </span>
+                    </button>
+                  );
+                })}
+                {capFilter !== "All" && (
+                  <span style={{ fontSize:10, color:P.mt, fontStyle:"italic" }}>
+                    {capDescriptions[capFilter]}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Market Read */}
         {tab==="Market Read" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
@@ -3297,62 +3349,7 @@ export default function OptionsFlowDashboard() {
             )}
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
 
-
             {/* Bull vs Bear Leaderboard */}
-
-        {/* Cap Band Filter */}
-        {(() => {
-          const caps = ["All","Mega","Large","Mid","Small"];
-          const capColors = { Mega:"#7c3aed", Large:"#0ea5e9", Mid:"#10b981", Small:"#f59e0b" };
-          const capThresh = {
-            Mega: t => t.mktcap >= 500e9,
-            Large: t => t.mktcap >= 10e9 && t.mktcap < 500e9,
-            Mid:   t => t.mktcap >= 2e9  && t.mktcap < 10e9,
-            Small: t => t.mktcap > 0     && t.mktcap < 2e9,
-          };
-          const capDescriptions = {
-            Mega:  "$500B+ · heaviest flow but noisy — mostly hedges & index arb",
-            Large: "$10B–$500B · institutional conviction plays",
-            Mid:   "$2B–$10B · directional bets, less noise",
-            Small: "Under $2B · high-risk, high-conviction small name flow",
-          };
-          return (
-            <div style={{ marginBottom:10 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                <span style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:"0.08em", textTransform:"uppercase" }}>Cap Filter</span>
-                {caps.map(c => {
-                  const active = capFilter === c;
-                  const clr = capColors[c] || P.cd;
-                  const count = c === "All"
-                    ? D.clean_confirmed.length
-                    : D.clean_confirmed.filter(capThresh[c]).length;
-                  const prem = c === "All"
-                    ? D.clean_confirmed.reduce((a,t)=>a+t.P,0)
-                    : D.clean_confirmed.filter(capThresh[c]).reduce((a,t)=>a+t.P,0);
-                  return (
-                    <button key={c} onClick={()=>setCapFilter(c)} title={capDescriptions[c]||"All cap sizes"} style={{
-                      padding:"5px 12px", borderRadius:20, border:`1.5px solid ${active?clr:P.bd}`,
-                      cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
-                      background:active?clr+"22":"transparent",
-                      color:active?clr:P.mt, transition:"all 0.15s",
-                      display:"flex", alignItems:"center", gap:6
-                    }}>
-                      <span>{c}</span>
-                      <span style={{ fontSize:9, fontWeight:600, opacity:0.75 }}>
-                        {count} · ${(prem/1e6).toFixed(0)}M
-                      </span>
-                    </button>
-                  );
-                })}
-                {capFilter !== "All" && (
-                  <span style={{ fontSize:10, color:P.mt, fontStyle:"italic" }}>
-                    {capDescriptions[capFilter]}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })()}
 
             <Card title="Flow Leaderboard" sub="Top bullish & bearish tickers by net premium">
               {(()=>{
@@ -3433,9 +3430,8 @@ export default function OptionsFlowDashboard() {
             </Card>
             {/* Inline Ticker Detail */}
             {selectedLeaderTicker && (()=>{
-              // Build popup data from clean_confirmed with same DTE + cap filters as leaderboard
-              const dteFilter = t => leaderDte==="All" ? true : leaderDte==="ST" ? t.DTE<60 : t.DTE>=60;
-              const trades = (D.clean_confirmed||[]).filter(t => t.S===selectedLeaderTicker && dteFilter(t) && (capFilter==="All" || capBand(t.mktcap)===capFilter));
+              // Build popup data from ALL clean_confirmed (no DTE/cap filter) — matches Search tab
+              const trades = (D.clean_confirmed||[]).filter(t => t.S===selectedLeaderTicker);
               if (trades.length===0) return null;
               let b=0, r=0;
               const consMap = {};
@@ -3476,8 +3472,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                       <span style={{ fontSize:18, fontWeight:900, color:P.wh }}>{selectedLeaderTicker}</span>
                       <span style={{ fontSize:14, fontWeight:800, color:dirC }}>{dir}</span>
-                      <span style={{ fontSize:11, color:P.dm }}>{trades.length} trades</span>
-                      {(leaderDte!=="All"||capFilter!=="All") && <span style={{ fontSize:9, color:P.mt, fontStyle:"italic" }}>filtered</span>}
+                      <span style={{ fontSize:11, color:P.dm }}>{trades.length} confirmed trades</span>
                     </div>
                     <button onClick={()=>setSelectedLeaderTicker(null)} style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:16, fontFamily:"inherit" }}>✕</button>
                   </div>
