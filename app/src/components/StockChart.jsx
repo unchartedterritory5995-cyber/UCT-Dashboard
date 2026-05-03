@@ -286,38 +286,12 @@ export default function StockChart({
     }
   }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Background prefetch — all other timeframes when sym changes ───────────
-  // After the primary chart loads, silently fetch every other TF into IDB so
-  // switching timeframes is also instant (no spinner, no wait).
-  useEffect(() => {
-    if (!sym) return
-    const ALL_TFS   = ['D', 'W', 'M', '1', '5', '15', '30', '60']
-    const BC        = { D: 8000, W: 8000 }
-    // Delay 600 ms so primary chart load gets priority on the network
-    const timer = setTimeout(() => {
-      ALL_TFS.filter(t => t !== resolvedTf).forEach(tf => {
-        idbGet(sym, tf).then(entry => {
-          // Skip if IDB has fresh data (D/W: 24 h; intraday: 4 h)
-          const maxAge = (['D','W'].includes(tf) ? 86400 : 14400) * 1000
-          if (entry?.bars?.length && Date.now() - (entry.savedAt || 0) < maxAge) return
-          const bc    = BC[tf] ?? 5000
-          const since = entry?.lastT
-          const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}`
-          fetch(url)
-            .then(r => r.json())
-            .then(d => {
-              if (!d.bars?.length) return
-              const next = (d.delta && entry?.bars?.length)
-                ? mergeDelta(entry.bars, d.bars)
-                : d.bars
-              idbPut(sym, tf, next)
-            })
-            .catch(() => {})
-        })
-      })
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [sym])  // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Background prefetch — DISABLED. The fan-out (7 fetches per ticker click,
+  // one per non-visible timeframe) saturated the sync /api/bars handler's thread
+  // pool when IDB was empty. Each visible chart then queued behind a wave of
+  // background fetches and took 2+ minutes. IDB now repopulates organically as
+  // the user actually views each timeframe — slower TF switches on first visit,
+  // but the primary chart loads in seconds instead of minutes.
 
   // Bars: IDB renders instantly; full SWR data replaces it when available.
   const bars = (data && !data.delta && data.bars?.length)
