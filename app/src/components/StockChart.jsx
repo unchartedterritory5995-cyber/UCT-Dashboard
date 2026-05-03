@@ -236,28 +236,41 @@ export default function StockChart({
   // idbSinceRef holds the last cached `t` value as a ref (not state) so
   // the SWR URL is stable after the first fire — prevents the double-fetch
   // that would occur if `since` were state and changed after IDB resolved.
+  //
+  // CRITICAL: idbReadyForRef tracks WHICH sym+tf the IDB state currently
+  // belongs to. State updates (setIdbLoaded etc.) are async; on a sym/tf
+  // change the FIRST render after the click still sees stale idbLoaded=true
+  // and stale idbSinceRef from the previous ticker. Without this gate,
+  // swrUrl would be computed as `/api/bars/NEW?since=<OLD's lastT>`, the
+  // backend returns an empty delta, mergeDelta(OLD_bars, []) = OLD_bars,
+  // and we idbPut(NEW, OLD_bars) — corrupting IDB so NEW chart shows OLD
+  // ticker's data forever. This is the "blended" data bug.
   const [idbBars, setIdbBars]   = useState(null)
   const [idbLoaded, setIdbLoaded] = useState(false)
-  const idbSinceRef = useRef(null)
+  const idbSinceRef     = useRef(null)
+  const idbReadyForRef  = useRef(null)  // string `${sym}_${tf}` once IDB load completes
 
   useEffect(() => {
     if (!sym || !resolvedTf) return
     setIdbBars(null)
     setIdbLoaded(false)
     idbSinceRef.current = null
+    idbReadyForRef.current = null  // synchronous — invalidates the gate immediately
+    const key = `${sym}_${resolvedTf}`
     idbGet(sym, resolvedTf).then(entry => {
       if (entry?.bars?.length) {
         setIdbBars(entry.bars)
         idbSinceRef.current = entry.lastT ?? null
       }
-      setIdbLoaded(true)   // gate SWR until IDB check is done (<5 ms)
-    }).catch(() => setIdbLoaded(true))
+      idbReadyForRef.current = key
+      setIdbLoaded(true)
+    }).catch(() => { idbReadyForRef.current = key; setIdbLoaded(true) })
   }, [sym, resolvedTf])
 
-  // SWR fires only after IDB check so the URL is already final (no re-key).
-  // `since` = last stored t → server returns only new bars (0-5 bars, ~100 B).
-  // No `since` on first visit → full fetch, stored in IDB for next session.
-  const swrUrl = (sym && idbLoaded)
+  // SWR URL: only set if IDB state is for the CURRENT sym+tf. Stale idbLoaded
+  // from a previous ticker (before the IDB effect runs) is rejected by the ref
+  // check, preventing the cross-ticker mergeDelta corruption described above.
+  const swrUrl = (sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
     ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${idbSinceRef.current != null ? `&since=${encodeURIComponent(String(idbSinceRef.current))}` : ''}`
     : null
 
@@ -274,7 +287,11 @@ export default function StockChart({
     // the server's `ticker` field reveals the mismatch — skip to avoid storing
     // e.g. AAPL bars under MSFT when the user switches tickers rapidly.
     if (data.ticker && data.ticker !== sym.toUpperCase()) return
-    if (data.delta && idbBars?.length) {
+    // Belt-and-suspenders: only merge if idbBars is known to belong to this sym+tf.
+    // Without this, a delta response could merge with leftover bars from another
+    // ticker still sitting in idbBars state (the cross-ticker race).
+    const sameSymTf = idbReadyForRef.current === `${sym}_${resolvedTf}`
+    if (data.delta && idbBars?.length && sameSymTf) {
       const merged = mergeDelta(idbBars, data.bars)
       setIdbBars(merged)
       if (merged.length) idbSinceRef.current = merged[merged.length - 1].t
