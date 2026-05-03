@@ -3157,60 +3157,6 @@ export default function OptionsFlowDashboard() {
           })()}
         </div>
 
-        {/* Cap Band Filter */}
-        {(() => {
-          const caps = ["All","Mega","Large","Mid","Small"];
-          const capColors = { Mega:"#7c3aed", Large:"#0ea5e9", Mid:"#10b981", Small:"#f59e0b" };
-          const capThresh = {
-            Mega: t => t.mktcap >= 500e9,
-            Large: t => t.mktcap >= 10e9 && t.mktcap < 500e9,
-            Mid:   t => t.mktcap >= 2e9  && t.mktcap < 10e9,
-            Small: t => t.mktcap > 0     && t.mktcap < 2e9,
-          };
-          const capDescriptions = {
-            Mega:  "$500B+ · heaviest flow but noisy — mostly hedges & index arb",
-            Large: "$10B–$500B · institutional conviction plays",
-            Mid:   "$2B–$10B · directional bets, less noise",
-            Small: "Under $2B · high-risk, high-conviction small name flow",
-          };
-          return (
-            <div style={{ marginBottom:10 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                <span style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:"0.08em", textTransform:"uppercase" }}>Cap Filter</span>
-                {caps.map(c => {
-                  const active = capFilter === c;
-                  const clr = capColors[c] || P.cd;
-                  const count = c === "All"
-                    ? D.clean_confirmed.length
-                    : D.clean_confirmed.filter(capThresh[c]).length;
-                  const prem = c === "All"
-                    ? D.clean_confirmed.reduce((a,t)=>a+t.P,0)
-                    : D.clean_confirmed.filter(capThresh[c]).reduce((a,t)=>a+t.P,0);
-                  return (
-                    <button key={c} onClick={()=>setCapFilter(c)} title={capDescriptions[c]||"All cap sizes"} style={{
-                      padding:"5px 12px", borderRadius:20, border:`1.5px solid ${active?clr:P.bd}`,
-                      cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
-                      background:active?clr+"22":"transparent",
-                      color:active?clr:P.mt, transition:"all 0.15s",
-                      display:"flex", alignItems:"center", gap:6
-                    }}>
-                      <span>{c}</span>
-                      <span style={{ fontSize:9, fontWeight:600, opacity:0.75 }}>
-                        {count} · ${(prem/1e6).toFixed(0)}M
-                      </span>
-                    </button>
-                  );
-                })}
-                {capFilter !== "All" && (
-                  <span style={{ fontSize:10, color:P.mt, fontStyle:"italic" }}>
-                    {capDescriptions[capFilter]}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-
         {/* Tabs */}
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
@@ -3226,52 +3172,6 @@ export default function OptionsFlowDashboard() {
         {/* Market Read */}
         {tab==="Market Read" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            <Card title="Daily Flow" sub="Bull vs Bear · confirmed flow">
-              <div style={{ height:220 }}>
-                <ResponsiveContainer>
-                  <AreaChart data={FD.DAYS} margin={{ top:5, right:8, left:0, bottom:0 }}>
-                    <defs>
-                      <linearGradient id="bullGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={P.bu} stopOpacity={0.4}/>
-                        <stop offset="100%" stopColor={P.bu} stopOpacity={0.05}/>
-                      </linearGradient>
-                      <linearGradient id="bearGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={P.be} stopOpacity={0.4}/>
-                        <stop offset="100%" stopColor={P.be} stopOpacity={0.05}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={P.bd} vertical={false} />
-                    <XAxis dataKey="d" tick={{ fill:P.tx, fontSize:10, fontWeight:600 }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fill:P.mt, fontSize:9 }} tickLine={false} axisLine={false} tickFormatter={fmt} width={56} />
-                    <Tooltip content={({ active, payload, label }) => {
-                      if (!active||!payload||!payload.length) return null;
-                      const bull = payload.find(p=>p.dataKey==="b")?.value||0;
-                      const bear = payload.find(p=>p.dataKey==="r")?.value||0;
-                      const net = bull - bear;
-                      return (
-                        <div style={{ background:"#152038", border:"1px solid "+P.bl, borderRadius:6, padding:"10px 14px", fontSize:11 }}>
-                          <div style={{ color:P.dm, fontWeight:600, marginBottom:6 }}>{label}</div>
-                          <div style={{ display:"flex", justifyContent:"space-between", gap:20 }}>
-                            <span style={{ color:P.bu }}>● Bull</span>
-                            <span style={{ fontWeight:700, color:P.bu }}>{fmt(bull)}</span>
-                          </div>
-                          <div style={{ display:"flex", justifyContent:"space-between", gap:20 }}>
-                            <span style={{ color:P.be }}>● Bear</span>
-                            <span style={{ fontWeight:700, color:P.be }}>{fmt(bear)}</span>
-                          </div>
-                          <div style={{ borderTop:"1px solid "+P.bd, marginTop:4, paddingTop:4, display:"flex", justifyContent:"space-between", gap:20 }}>
-                            <span style={{ color:P.dm }}>Net</span>
-                            <span style={{ fontWeight:800, color:net>=0?P.bu:P.be }}>{net>=0?"+":""}{fmt(net)}</span>
-                          </div>
-                        </div>
-                      );
-                    }} />
-                    <Area type="monotone" dataKey="b" name="Bullish" stroke={P.bu} strokeWidth={2} fill="url(#bullGrad)" dot={{ r:3, fill:P.bu, strokeWidth:0 }} activeDot={{ r:5, fill:P.bu }} />
-                    <Area type="monotone" dataKey="r" name="Bearish" stroke={P.be} strokeWidth={2} fill="url(#bearGrad)" dot={{ r:3, fill:P.be, strokeWidth:0 }} activeDot={{ r:5, fill:P.be }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
             {/* Sector / Ticker Breakdown */}
             {FD.SECTORS.length > 0 && (
               <Card title={FD.sectorTickerMode?(FD.sectorIsETF?"ETF Flow":"Ticker Flow"):"Sector Flow"} sub={FD.sectorTickerMode?"Confirmed premium by ticker":"Confirmed premium by sector"}>
@@ -3399,6 +3299,61 @@ export default function OptionsFlowDashboard() {
 
 
             {/* Bull vs Bear Leaderboard */}
+
+        {/* Cap Band Filter */}
+        {(() => {
+          const caps = ["All","Mega","Large","Mid","Small"];
+          const capColors = { Mega:"#7c3aed", Large:"#0ea5e9", Mid:"#10b981", Small:"#f59e0b" };
+          const capThresh = {
+            Mega: t => t.mktcap >= 500e9,
+            Large: t => t.mktcap >= 10e9 && t.mktcap < 500e9,
+            Mid:   t => t.mktcap >= 2e9  && t.mktcap < 10e9,
+            Small: t => t.mktcap > 0     && t.mktcap < 2e9,
+          };
+          const capDescriptions = {
+            Mega:  "$500B+ · heaviest flow but noisy — mostly hedges & index arb",
+            Large: "$10B–$500B · institutional conviction plays",
+            Mid:   "$2B–$10B · directional bets, less noise",
+            Small: "Under $2B · high-risk, high-conviction small name flow",
+          };
+          return (
+            <div style={{ marginBottom:10 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                <span style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:"0.08em", textTransform:"uppercase" }}>Cap Filter</span>
+                {caps.map(c => {
+                  const active = capFilter === c;
+                  const clr = capColors[c] || P.cd;
+                  const count = c === "All"
+                    ? D.clean_confirmed.length
+                    : D.clean_confirmed.filter(capThresh[c]).length;
+                  const prem = c === "All"
+                    ? D.clean_confirmed.reduce((a,t)=>a+t.P,0)
+                    : D.clean_confirmed.filter(capThresh[c]).reduce((a,t)=>a+t.P,0);
+                  return (
+                    <button key={c} onClick={()=>setCapFilter(c)} title={capDescriptions[c]||"All cap sizes"} style={{
+                      padding:"5px 12px", borderRadius:20, border:`1.5px solid ${active?clr:P.bd}`,
+                      cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
+                      background:active?clr+"22":"transparent",
+                      color:active?clr:P.mt, transition:"all 0.15s",
+                      display:"flex", alignItems:"center", gap:6
+                    }}>
+                      <span>{c}</span>
+                      <span style={{ fontSize:9, fontWeight:600, opacity:0.75 }}>
+                        {count} · ${(prem/1e6).toFixed(0)}M
+                      </span>
+                    </button>
+                  );
+                })}
+                {capFilter !== "All" && (
+                  <span style={{ fontSize:10, color:P.mt, fontStyle:"italic" }}>
+                    {capDescriptions[capFilter]}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
             <Card title="Flow Leaderboard" sub="Top bullish & bearish tickers by net premium">
               {(()=>{
                 const [lbDte, setLbDte] = [leaderDte, setLeaderDte];
