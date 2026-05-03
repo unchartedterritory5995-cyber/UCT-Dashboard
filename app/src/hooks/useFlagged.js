@@ -5,6 +5,14 @@ const STORAGE_KEY = 'uct_flagged'
 const SYNC_EVENT  = 'uct:flagged-changed'
 const DEBOUNCE_MS = 300
 
+// Module-level dedupe — every useFlagged instance shares these. Without them
+// a page with N TickerPopups (e.g. breadth drill-list with 60+ rows) fired
+// N parallel GET /flagged + N parallel POST /flagged/sync on mount, blowing
+// past Chrome's parallel-stream cap and producing ERR_INSUFFICIENT_RESOURCES
+// for unrelated requests on the page.
+let _flaggedGetInflight = null   // shared Promise for /api/watchlists/flagged
+let _initialSyncSent = false     // initial syncToServer fires at most once per page
+
 function read() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') }
   catch { return [] }
@@ -50,24 +58,29 @@ export function useFlagged() {
     }, DEBOUNCE_MS)
   }, [user])
 
-  // On mount (when logged in): fetch server state + initial sync
+  // On mount (when logged in): fetch server state + initial sync. Both calls
+  // are module-level deduped so N concurrent useFlagged consumers (one per
+  // TickerPopup, dozens-to-hundreds on a populated drill-list) make at most
+  // ONE network request per page.
   useEffect(() => {
     if (!user) return
-    fetch('/api/watchlists/flagged')
-      .then(r => r.json())
-      .then(data => {
-        if (mountedRef.current) {
-          setIsShared(!!data.is_public)
-          // Use server name if it was custom-renamed (doesn't start with "Flagged (")
-          const defaultPrefix = `Flagged (${user.display_name || 'You'})`
-          if (data.name && data.name !== defaultPrefix) {
-            setFlaggedName(data.name)
-          }
-        }
-      })
-      .catch(() => {})
-    // Push current localStorage state to server
-    syncToServer()
+    if (!_flaggedGetInflight) {
+      _flaggedGetInflight = fetch('/api/watchlists/flagged')
+        .then(r => r.json())
+        .catch(() => null)
+    }
+    _flaggedGetInflight.then(data => {
+      if (!data || !mountedRef.current) return
+      setIsShared(!!data.is_public)
+      const defaultPrefix = `Flagged (${user.display_name || 'You'})`
+      if (data.name && data.name !== defaultPrefix) {
+        setFlaggedName(data.name)
+      }
+    })
+    if (!_initialSyncSent) {
+      _initialSyncSent = true
+      syncToServer()
+    }
   }, [user, syncToServer])
 
   const toggle = useCallback((sym) => {
