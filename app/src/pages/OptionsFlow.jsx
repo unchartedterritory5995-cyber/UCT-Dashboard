@@ -3941,8 +3941,12 @@ export default function OptionsFlowDashboard() {
             </Card>
             {selectedTicker && (() => {
               const tk = selectedTicker;
-              const net = tk.b - tk.r;
-              const total = tk.b + tk.r;
+              // Summary cards from clean_confirmed (matches leaderboard)
+              const ccTrades = (D.clean_confirmed||[]).filter(t => t.S===tk.s);
+              let ccB=0, ccR=0;
+              ccTrades.forEach(t => { if(t.D==="BULL") ccB+=t.P; else if(t.D==="BEAR") ccR+=t.P; });
+              const net = ccB - ccR;
+              const total = ccB + ccR;
               const dir = total===0?"NEUTRAL":net>0?"BULL":"BEAR";
               const dirC = dir==="BULL"?P.bu:dir==="BEAR"?P.be:P.dm;
               return (
@@ -3951,20 +3955,20 @@ export default function OptionsFlowDashboard() {
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16, borderTop:"3px solid "+dirC }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Net Direction</div>
                       <div style={{ fontSize:28, fontWeight:900, color:dirC }}>{dir}</div>
-                      <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{tk.n} trades</div>
+                      <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{ccTrades.length} confirmed trades</div>
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bullish Flow</div>
-                      <div style={{ fontSize:22, fontWeight:800, color:P.bu }}>{fmt(tk.b)}</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:P.bu }}>{fmt(ccB)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
-                        <div style={{ width:(total>0?(tk.b/total*100):0)+"%", height:"100%", background:P.bu, borderRadius:2 }} />
+                        <div style={{ width:(total>0?(ccB/total*100):0)+"%", height:"100%", background:P.bu, borderRadius:2 }} />
                       </div>
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bearish Flow</div>
-                      <div style={{ fontSize:22, fontWeight:800, color:P.be }}>{fmt(tk.r)}</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:P.be }}>{fmt(ccR)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
-                        <div style={{ width:(total>0?(tk.r/total*100):0)+"%", height:"100%", background:P.be, borderRadius:2 }} />
+                        <div style={{ width:(total>0?(ccR/total*100):0)+"%", height:"100%", background:P.be, borderRadius:2 }} />
                       </div>
                     </div>
                   </div>
