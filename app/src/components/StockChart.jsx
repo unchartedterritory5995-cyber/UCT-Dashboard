@@ -720,6 +720,12 @@ export default function StockChart({
     if (zoomKeyRef.current !== zoomKey) {
       zoomKeyRef.current = zoomKey
 
+      // Re-enable price-scale auto-fit on ticker/timeframe change. Lightweight-charts
+      // flips the right price scale into manual mode the first time a user drags it,
+      // and stays manual until reset — without this, switching from a $290 ticker to a
+      // $4 ticker leaves the Y-axis stuck and the new candles render below the viewport.
+      try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch {}
+
       // Holding-period zoom: when entryDate is supplied (e.g. TradeDrawer),
       // center the view on the trade window with 20-bar padding each side.
       if (entryDate && filteredBars.length > 0) {
