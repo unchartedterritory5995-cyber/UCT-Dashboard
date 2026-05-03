@@ -14,7 +14,7 @@ Integration in main.py:
     app.include_router(flow_router)
 """
 
-from fastapi import APIRouter, UploadFile, File, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse, JSONResponse
 from api.flow_db import FlowDB
 import os
@@ -26,17 +26,24 @@ flow_router = APIRouter(prefix="/api/flow", tags=["flow"])
 
 
 @flow_router.post("/upload")
-async def upload_flow(request: Request, file: UploadFile = File(...)):
+async def upload_flow(request: Request):
     """
     Upload a BBS CSV file. Automatically deduplicates.
     ?source=stocks (default) or ?source=indexes
+    Accepts raw CSV text in request body.
     """
     source = request.query_params.get("source", "stocks")
     if source not in ("stocks", "indexes"):
         source = "stocks"
     try:
-        content = await file.read()
-        csv_text = content.decode("utf-8-sig")
+        body = await request.body()
+        csv_text = body.decode("utf-8-sig")
+
+        if not csv_text or len(csv_text.strip()) < 50:
+            return JSONResponse(
+                {"status": "error", "message": "Empty or invalid CSV body"},
+                status_code=400,
+            )
 
         result = db.insert_csv(csv_text, source=source)
         pruned = db.prune_expired()
