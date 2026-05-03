@@ -1134,7 +1134,9 @@ export default function OptionsFlowDashboard() {
   const [csvError, setCsvError] = useState(null);
   const [parsedRows, setParsedRows] = useState(null);
   const [dateFilter, setDateFilter] = useState("All");
-  const [fetchDays, setFetchDays] = useState(30);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [fetchDays, setFetchDays] = useState(20);
   const [D, setD] = useState(null);
 
   const csvFile = dataMode === "index"
@@ -1167,6 +1169,22 @@ export default function OptionsFlowDashboard() {
     return days[d.getDay()] + " " + parts[0] + "/" + (parts[1] || 1);
   };
 
+  // Convert M/D/YYYY → YYYY-MM-DD for date input
+  const mdyToIso = (mdy) => {
+    const p = mdy.split("/").map(Number);
+    if (p.length < 3) return "";
+    const y = p[2] < 100 ? p[2] + 2000 : p[2];
+    return `${y}-${String(p[0]).padStart(2,"0")}-${String(p[1]).padStart(2,"0")}`;
+  };
+  // Convert YYYY-MM-DD → Date object for comparison
+  const isoToDate = (iso) => { const p = iso.split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); };
+  // Convert M/D/YYYY → Date object for comparison
+  const mdyToDate = (mdy) => { const p = mdy.split("/").map(Number); const y = p.length>=3?(p[2]<100?p[2]+2000:p[2]):new Date().getFullYear(); return new Date(y, p[0]-1, p[1]||1); };
+
+  // Date range boundaries from available dates
+  const dateInputMin = availableDates.length > 0 ? mdyToIso(availableDates[0]) : "";
+  const dateInputMax = availableDates.length > 0 ? mdyToIso(availableDates[availableDates.length-1]) : "";
+
   // Auto-set dateFilter when data loads
   useEffect(() => {
     if (availableDates.length > 0 && dateFilter !== "All" && !dateFilter.startsWith("Last") && !availableDates.includes(dateFilter)) {
@@ -1174,12 +1192,22 @@ export default function OptionsFlowDashboard() {
     }
   }, [availableDates]);
 
-  // Process data whenever parsedRows or dateFilter changes
+  // Process data whenever parsedRows or dateFilter or date range changes
   useEffect(() => {
     if (!parsedRows || parsedRows.length === 0) return;
     const t2 = performance.now();
     let filtered;
-    if (dateFilter === "All") {
+    if (dateFrom && dateTo) {
+      // Date range mode
+      const from = isoToDate(dateFrom);
+      const to = isoToDate(dateTo);
+      to.setHours(23,59,59); // include end date fully
+      filtered = parsedRows.filter(r => {
+        if (!r.date) return false;
+        const d = mdyToDate(r.date.trim());
+        return d >= from && d <= to;
+      });
+    } else if (dateFilter === "All") {
       filtered = parsedRows;
     } else if (dateFilter.startsWith("Last")) {
       const n = parseInt(dateFilter.replace("Last",""))||3;
@@ -1191,13 +1219,14 @@ export default function OptionsFlowDashboard() {
     if (filtered.length === 0) { setD(null); return; }
     try {
       const data = processFlowData(filtered);
-      console.log(`[perf] processFlowData (${dateFilter}): ${(performance.now()-t2).toFixed(0)}ms (${filtered.length} rows)`);
+      const label = dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFilter;
+      console.log(`[perf] processFlowData (${label}): ${(performance.now()-t2).toFixed(0)}ms (${filtered.length} rows)`);
       setD(data);
     } catch(err) {
       console.error("processFlowData error:", err);
       setCsvError(err.message);
     }
-  }, [parsedRows, dateFilter]);
+  }, [parsedRows, dateFilter, dateFrom, dateTo]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2063,7 +2092,7 @@ export default function OptionsFlowDashboard() {
       <div style={{textAlign:"center",maxWidth:400}}>
         <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
           {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
-            <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(30); setDateFilter('All'); } }} style={{
+            <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(20); setDateFilter('All'); setDateFrom(''); setDateTo(''); } }} style={{
               padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
               fontSize:14, fontWeight:800, fontFamily:"inherit",
               background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
@@ -2275,7 +2304,7 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
           <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
             {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
-              <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(30); setDateFilter('All'); } }} style={{
+              <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(20); setDateFilter('All'); setDateFrom(''); setDateTo(''); } }} style={{
                 padding:"8px 28px", borderRadius:6, border:m==="gex"?(dataMode===m?"1px solid #e040fb":"1px solid #e040fb55"):"none", cursor:"pointer",
                 fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
                 background:dataMode===m?(m==="gex"?"#e040fb33":P.cd):"transparent", color:dataMode===m?(m==="gex"?"#e040fb":P.wh):(m==="gex"?"#e040fb":P.mt),
@@ -2286,47 +2315,64 @@ export default function OptionsFlowDashboard() {
           </div>
         </div>
 
-        {/* Date Filter — rolling windows + All + date picker */}
+        {/* Date Filter — rolling windows + date range picker */}
         {dataMode !== "gex" && availableDates.length > 0 && (
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
             <div style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center" }}>
               {[
-                { key:"Last5", label:"5d", days:30 },
-                { key:"Last20", label:"20d", days:30 },
+                { key:"Last5", label:"5d", days:5 },
+                { key:"Last20", label:"20d", days:20 },
                 { key:"Last60", label:"60d", days:60 },
                 { key:"Last90", label:"90d", days:90 },
                 { key:"All", label:"All", days:0 },
               ].map(({key, label, days}) => {
-                const active = dateFilter === key || (key === "All" && dateFilter === "All");
-                const count = key === "All" ? availableDates.length
-                  : key.startsWith("Last") ? Math.min(parseInt(key.replace("Last","")) || 5, availableDates.length)
-                  : 0;
+                const isActive = !dateFrom && !dateTo && dateFilter==="All" && fetchDays===days;
                 return (
                   <button key={key} onClick={()=>{
-                    if (days !== fetchDays) { setFetchDays(days); }
-                    setDateFilter(key);
+                    setFetchDays(days);
+                    setDateFilter("All");
+                    setDateFrom("");
+                    setDateTo("");
                   }} style={{
                     padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
                     fontSize:10, fontWeight:700, fontFamily:"inherit",
-                    background:active?P.cd:"transparent",
-                    color:active?(key==="All"?P.ac:P.wh):P.mt,
+                    background:isActive?P.cd:"transparent",
+                    color:isActive?(key==="All"?P.ac:P.wh):P.mt,
                     transition:"all 0.15s"
                   }}>
-                    {label}{count > 0 ? ` · ${count}` : ""}
+                    {label}
                   </button>
                 );
               })}
               <span style={{ width:1, height:16, background:P.bd }}/>
-              <select
-                value={!dateFilter.startsWith("Last") && dateFilter !== "All" ? dateFilter : ""}
-                onChange={e => { if (e.target.value) setDateFilter(e.target.value); }}
-                style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit", fontWeight:600, minWidth:120 }}>
-                <option value="">Select date...</option>
-                {[...availableDates].reverse().map(d=>(
-                  <option key={d} value={d}>{fmtDatePill(d)}</option>
-                ))}
-              </select>
-              <span style={{ fontSize:9, color:P.dm }}>{availableDates.length} trading days</span>
+              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                <input type="date" value={dateFrom} min={dateInputMin} max={dateInputMax}
+                  onChange={e => {
+                    setDateFrom(e.target.value);
+                    if (!dateTo || e.target.value > dateTo) setDateTo(e.target.value);
+                    if (fetchDays !== 0) setFetchDays(0); // fetch all to cover any range
+                  }}
+                  style={{ background:P.cd, border:"1px solid "+(dateFrom?P.ac:P.bd), borderRadius:4, color:P.wh, fontSize:10, padding:"4px 6px", fontFamily:"inherit", fontWeight:600, colorScheme:"dark" }}
+                />
+                <span style={{ fontSize:9, color:P.dm }}>→</span>
+                <input type="date" value={dateTo} min={dateFrom||dateInputMin} max={dateInputMax}
+                  onChange={e => {
+                    setDateTo(e.target.value);
+                    if (!dateFrom) setDateFrom(dateInputMin);
+                    if (fetchDays !== 0) setFetchDays(0);
+                  }}
+                  style={{ background:P.cd, border:"1px solid "+(dateTo?P.ac:P.bd), borderRadius:4, color:P.wh, fontSize:10, padding:"4px 6px", fontFamily:"inherit", fontWeight:600, colorScheme:"dark" }}
+                />
+                {dateFrom && dateTo && (
+                  <button onClick={()=>{ setDateFrom(""); setDateTo(""); setDateFilter("All"); }}
+                    style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}>✕</button>
+                )}
+              </div>
+              <span style={{ fontSize:9, color:P.dm }}>
+                {dateFrom && dateTo
+                  ? `${Math.round((isoToDate(dateTo)-isoToDate(dateFrom))/86400000)+1} calendar days`
+                  : `${availableDates.length} trading days`}
+              </span>
               {csvLoading && <span style={{ fontSize:9, color:P.ye }}>Loading...</span>}
             </div>
           </div>
