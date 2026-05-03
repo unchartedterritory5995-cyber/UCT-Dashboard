@@ -1091,6 +1091,7 @@ export default function OptionsFlowDashboard() {
   const [fetchLoading, setFetchLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
+  const [searchDte, setSearchDte] = useState("All");
   const [oiSearch, setOiSearch] = useState("");
   const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
   const [oiCapFilter, setOiCapFilter] = useState("All");
@@ -3964,7 +3965,7 @@ export default function OptionsFlowDashboard() {
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
               <input type="text" value={search}
-                onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(D.TICKER_DB.find(t=>t.s===v)||null); }}
+                onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(D.TICKER_DB.find(t=>t.s===v)||null); setSearchDte("All"); }}
                 placeholder="Enter ticker symbol (e.g. TSLA, MU, AAPL)"
                 style={{ width:"100%", padding:"10px 16px", borderRadius:8, fontSize:13, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
               />
@@ -3981,19 +3982,46 @@ export default function OptionsFlowDashboard() {
             </Card>
             {selectedTicker && (() => {
               const tk = selectedTicker;
-              // Summary cards from clean_confirmed (matches leaderboard)
-              const ccTrades = (D.clean_confirmed||[]).filter(t => t.S===tk.s);
+              // DTE filter for summary cards
+              const dteF = t => searchDte==="All" ? true : searchDte==="ST" ? t.DTE>=0&&t.DTE<60 : searchDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
+              const ccAll = (D.clean_confirmed||[]).filter(t => t.S===tk.s);
+              const ccTrades = ccAll.filter(dteF);
               let ccB=0, ccR=0;
               ccTrades.forEach(t => { if(t.D==="BULL") ccB+=t.P; else if(t.D==="BEAR") ccR+=t.P; });
               const net = ccB - ccR;
               const total = ccB + ccR;
               const dir = total===0?"NEUTRAL":net>0?"BULL":"BEAR";
               const dirC = dir==="BULL"?P.bu:dir==="BEAR"?P.be:P.dm;
+              // DTE counts for pills
+              const stN = ccAll.filter(t=>t.DTE>=0&&t.DTE<60).length;
+              const ltN = ccAll.filter(t=>t.DTE>=60&&t.DTE<180).length;
+              const leN = ccAll.filter(t=>t.DTE>=180).length;
               return (
                 <>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                    {[
+                      {k:"All", label:"All", count:ccAll.length},
+                      {k:"ST", label:"0–59d", count:stN},
+                      {k:"LT", label:"60–179d", count:ltN},
+                      {k:"LEAPS", label:"180+d", count:leN},
+                    ].map(d => {
+                      const active = searchDte===d.k;
+                      return (
+                        <button key={d.k} onClick={()=>setSearchDte(d.k)} style={{
+                          padding:"4px 12px", borderRadius:16, border:"1.5px solid "+(active?P.ac:P.bd),
+                          cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+                          background:active?P.ac+"22":"transparent", color:active?P.ac:P.mt,
+                          display:"flex", alignItems:"center", gap:5, transition:"all 0.15s"
+                        }}>
+                          <span>{d.label}</span>
+                          <span style={{ fontSize:8, opacity:0.7 }}>{d.count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16, borderTop:"3px solid "+dirC }}>
-                      <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Net Direction</div>
+                      <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Net Direction{searchDte!=="All"?" ("+({ST:"0–59d",LT:"60–179d",LEAPS:"180+d"})[searchDte]+")":""}</div>
                       <div style={{ fontSize:28, fontWeight:900, color:dirC }}>{dir}</div>
                       <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{ccTrades.length} confirmed trades</div>
                     </div>
