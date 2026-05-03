@@ -10,11 +10,19 @@
  */
 
 const DB_NAME    = 'uct_bars_v1'
-const DB_VERSION = 2  // v2: clears stale unix-timestamp monthly bar entries on upgrade
+// v3: clears all entries on upgrade. Some users had cross-ticker corruption
+// (e.g. BearingPoint 2003 data persisted under "BE_D" because the data source
+// backfilled the symbol with the prior company's history). Combined with
+// `since=lastT` delta requests, the API never overwrote those historical bars.
+const DB_VERSION = 3
 const STORE      = 'bars'
 
 // Max age for intraday data (stale session bars shouldn't linger forever)
 const INTRADAY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000  // 7 days
+// Max age for daily/weekly/monthly. Without this, corrupted historical bars
+// (wrong company, pre-split, etc.) persist indefinitely because delta fetches
+// only ask for bars newer than the last cached timestamp.
+const DAILY_MAX_AGE_MS = 24 * 60 * 60 * 1000  // 24 hours
 
 let _db = null
 
@@ -24,13 +32,12 @@ async function _open() {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = (e) => {
       const db = e.target.result
-      // v1→v2: drop old store to purge unix-timestamp monthly bar entries
-      if (e.oldVersion < 2 && db.objectStoreNames.contains(STORE)) {
+      // Any upgrade drops the store — cached bars are pure derived data, so
+      // a clean rebuild is always safe and avoids carrying forward corruption.
+      if (db.objectStoreNames.contains(STORE)) {
         db.deleteObjectStore(STORE)
       }
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: 'key' })
-      }
+      db.createObjectStore(STORE, { keyPath: 'key' })
     }
     req.onsuccess  = (e) => { _db = e.target.result; resolve(_db) }
     req.onerror    = (e) => reject(e.target.error)
@@ -55,11 +62,10 @@ export async function idbGet(sym, tf) {
       req.onsuccess = () => {
         const entry = req.result
         if (!entry || !entry.bars?.length) return resolve(null)
-        // Expire stale intraday entries
+        const age = Date.now() - (entry.savedAt || 0)
         const isIntraday = ['1','5','15','30','60'].includes(tf)
-        if (isIntraday && Date.now() - (entry.savedAt || 0) > INTRADAY_MAX_AGE_MS) {
-          return resolve(null)
-        }
+        const maxAge = isIntraday ? INTRADAY_MAX_AGE_MS : DAILY_MAX_AGE_MS
+        if (age > maxAge) return resolve(null)
         resolve(entry)
       }
       req.onerror = () => resolve(null)
