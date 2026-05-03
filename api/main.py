@@ -123,6 +123,34 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] SQLite bar store init error (non-fatal): {e}")
 
+    # One-time disk-cache purge for tf=60 — pre-resample (commit 2f42e55) cached
+    # responses merged the 9:00 pre-market 30-min bar with the 9:30 RTH-open bar
+    # into a single 9:00 hourly bucket. After the session-aligned resample
+    # shipped, fresh fetches produce the correct split, but cached files
+    # persisted with the old format. MUST run on every startup (not gated by the
+    # prewarmer) — flag-file makes it idempotent.
+    try:
+        _tf60_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".tf60_purged_2f42e55")
+        if not os.path.exists(_tf60_flag):
+            _cd = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+            n = 0
+            if os.path.isdir(_cd):
+                for _f in os.listdir(_cd):
+                    if "_60_" in _f and _f.endswith(".json"):
+                        try:
+                            os.remove(os.path.join(_cd, _f))
+                            n += 1
+                        except OSError:
+                            pass
+            print(f"[startup] Purged {n} tf=60 disk-cache files (one-time, post-resample fix)")
+            try:
+                with open(_tf60_flag, "w") as _f:
+                    _f.write("done")
+            except OSError:
+                pass
+    except Exception as e:
+        print(f"[startup] tf=60 disk purge error (non-fatal): {e}")
+
     # Synchronous memory pre-warm from SQLite — zero API calls, just reads.
     # Loads Tier 1 tickers AND latest breadth drill-list tickers from SQLite into
     # the in-memory TTLCache before accepting requests. Cache key uses 8000 for
@@ -239,32 +267,8 @@ async def lifespan(app: FastAPI):
                     f.write("done")
             except Exception:
                 pass
-        # One-time disk-cache purge for tf=60 — pre-resample (commit 2f42e55)
-        # cached responses merged the 9:00 pre-market 30-min bar with the 9:30
-        # RTH-open 30-min bar into a single 9:00 hourly bucket. After the
-        # session-aligned resample shipped, fresh fetches produce the correct
-        # split, but cached files persisted with the old format.
-        _tf60_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".tf60_purged_2f42e55")
-        if not os.path.exists(_tf60_flag):
-            try:
-                _cd = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
-                if os.path.isdir(_cd):
-                    n = 0
-                    for f in os.listdir(_cd):
-                        if "_60_" in f and f.endswith(".json"):
-                            try:
-                                os.remove(os.path.join(_cd, f))
-                                n += 1
-                            except Exception:
-                                pass
-                    print(f"[prewarm] Purged {n} tf=60 disk-cache files")
-            except Exception as e:
-                print(f"[prewarm] tf=60 disk purge failed: {e}")
-            try:
-                with open(_tf60_flag, "w") as f:
-                    f.write("done")
-            except Exception:
-                pass
+        # tf=60 disk purge moved to top-level startup (was previously here, but
+        # _prewarm_bars only runs when BARS_PREWARM_ENABLED=1, which prod has off)
 
         # Gather all tickers worth pre-caching
         tickers = set()
