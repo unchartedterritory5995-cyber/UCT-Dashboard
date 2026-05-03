@@ -72,14 +72,20 @@ export default function useRealtimePrices(tickers = []) {
   // Per-field merge: REST fields (day_open, day_high, day_low, volume, prev_close)
   // are preserved, stream fields (price, change_pct, updated_at, timestamp) overlay.
   // This ensures developing candles get session OHLC from REST + live price from stream.
+  //
+  // CRITICAL: only merge for tickers in the CURRENT subscription set. streamPrices
+  // accumulates entries from prior subscriptions (we never delete keys on unsubscribe);
+  // without this filter, charts could see stale prices for unrelated tickers from
+  // earlier sessions, e.g. AAPL's old price showing up while viewing MSFT.
+  const tickerSet = useMemo(() => new Set(tickers.filter(Boolean)), [sorted]) // eslint-disable-line react-hooks/exhaustive-deps
   const mergedPrices = useMemo(() => {
-    const allSyms = new Set([...Object.keys(polledPrices), ...Object.keys(streamPrices)])
     const result = {}
-    for (const sym of allSyms) {
-      result[sym] = { ...polledPrices[sym], ...streamPrices[sym] }
+    for (const sym of tickerSet) {
+      const merged = { ...polledPrices[sym], ...streamPrices[sym] }
+      if (merged.price != null || merged.day_open != null) result[sym] = merged
     }
     return result
-  }, [polledPrices, streamPrices])
+  }, [polledPrices, streamPrices, tickerSet])
 
   return { prices: mergedPrices, isLoading: !connected && isLoading, isStreaming: connected }
 }

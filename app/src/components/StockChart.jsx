@@ -185,6 +185,7 @@ export default function StockChart({
   const volumeSeriesRef = useRef(null)
   const overlaySeriesRefs = useRef([])
   const priceLineRefs = useRef([])
+  const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
   const lastBarRef = useRef(null)
   const prevChartTypeRef = useRef(null)
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
@@ -323,6 +324,7 @@ export default function StockChart({
     async function runSequential() {
       // 600ms initial delay so the primary chart's fetch goes out alone first.
       await new Promise(r => setTimeout(r, 600))
+      if (cancelled) return  // user may have switched tickers during the sleep
       for (const tf of tfs) {
         if (cancelled) return
         try {
@@ -415,11 +417,16 @@ export default function StockChart({
     })
   }, [filteredBars, resolvedOverlays, adjustTime])
 
-  // Reset all live tracking refs on symbol or timeframe change
+  // Reset all live tracking refs on symbol or timeframe change.
+  // CRITICAL: latestLiveRef must also be cleared — without it, a leftover live
+  // tick from the previous ticker (e.g. AAPL price) gets re-applied to the new
+  // ticker's first bar in the post-setData re-apply at the bottom of updateChart,
+  // producing a wrong wick on the first candle of the new ticker.
   useEffect(() => {
     lastBarRef.current = null
     liveBarRef.current = null
     barStartVolRef.current = 0
+    latestLiveRef.current = null
   }, [sym, resolvedTf])
 
   // Real-time candle updates — tick-by-tick via WebSocket.
@@ -567,9 +574,14 @@ export default function StockChart({
     }
 
     // ── Price series — reuse if chart type unchanged, else swap ──
+    // When swapping the candle series, the markers controller is bound to the
+    // old series — detach it so the next markers update creates a fresh
+    // controller against the new series.
     if (prevChartTypeRef.current !== cs.chartType && candleSeriesRef.current) {
       try { chart.removeSeries(candleSeriesRef.current) } catch {}
       candleSeriesRef.current = null
+      try { markersControllerRef.current?.detach?.() } catch {}
+      markersControllerRef.current = null
     }
 
     if (!candleSeriesRef.current) {
@@ -691,16 +703,18 @@ export default function StockChart({
       const old = overlaySeriesRefs.current.pop()
       try { chart.removeSeries(old) } catch {}
     }
-    // Update existing or add new overlay series
+    // Update existing or add new overlay series. CRITICAL: when an existing
+    // overlay's new data is empty (e.g. switched to a recent IPO with too few
+    // bars to compute SMA200), we must explicitly clear it. The previous
+    // `if (!ovData.length) continue` left the OLD ticker's overlay line visible.
     for (let i = 0; i < overlayData.length; i++) {
       const { data: ovData, color } = overlayData[i]
-      if (!ovData.length) continue
       if (i < overlaySeriesRefs.current.length) {
-        // Reuse existing series
+        // Reuse existing series — always setData (even empty) to clear stale data
         overlaySeriesRefs.current[i].applyOptions({ color })
         overlaySeriesRefs.current[i].setData(ovData)
-      } else {
-        // Add new series
+      } else if (ovData.length) {
+        // Add new series only if there's data to show
         const ls = chart.addSeries(LineSeries, {
           color,
           lineWidth: 1,
@@ -734,12 +748,20 @@ export default function StockChart({
     }
 
     // ── Markers (BUY/SELL arrows) ──
+    // Reuse a single controller per chart instance and feed it new markers.
+    // Without this, each updateChart() call stacks new marker layers over old
+    // ones — markers from the prior ticker leak into the new ticker's chart.
+    // Always call setMarkers (even with []) so old markers clear when the new
+    // ticker has none.
     const allMarkers = [...(mergedMarkers || [])]
       .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
-    if (allMarkers.length && candleSeriesRef.current) {
+    if (candleSeriesRef.current) {
       import('lightweight-charts').then(({ createSeriesMarkers }) => {
-        if (createSeriesMarkers) {
-          createSeriesMarkers(candleSeriesRef.current, allMarkers)
+        if (!createSeriesMarkers || !candleSeriesRef.current) return
+        if (markersControllerRef.current && typeof markersControllerRef.current.setMarkers === 'function') {
+          markersControllerRef.current.setMarkers(allMarkers)
+        } else {
+          markersControllerRef.current = createSeriesMarkers(candleSeriesRef.current, allMarkers)
         }
       }).catch(() => {})
     }
@@ -970,6 +992,8 @@ export default function StockChart({
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
     return () => {
+      try { markersControllerRef.current?.detach?.() } catch {}
+      markersControllerRef.current = null
       if (chartRef.current) {
         chartRef.current.remove()
         chartRef.current = null
