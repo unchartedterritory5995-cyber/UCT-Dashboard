@@ -267,8 +267,14 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     import logging as _log
     _logger = _log.getLogger(__name__)
     if tf == "60":
-        # Need ~2× 30-min bars to produce max_bars session-aligned hourly bars
-        src = max_bars * 2
+        # Need ~2× 30-min bars to produce max_bars session-aligned hourly bars,
+        # BUT Massive's 30-min endpoint returns truncated/stale data when asked
+        # for >1000 bars (verified empirically: src=200/500/1000 → fresh through
+        # today; src=2000 → ends 25 days ago; src=5000 → ends 5+ months ago).
+        # Cap the source request so the freshness check passes and we use Massive
+        # instead of falling through to FMP/yfinance which produce different
+        # OHLC values for the same period.
+        src = min(max_bars * 2, 1000)
         bars_30m = _fetch_intraday_massive(ticker, "30", src)
         n_mass = len(bars_30m) if bars_30m else 0
         is_stale_mass = _is_intraday_stale(bars_30m) if bars_30m else True
