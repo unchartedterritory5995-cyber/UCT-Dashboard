@@ -772,9 +772,21 @@ def serve_indexes_csv():
     return JSONResponse(status_code=404, content={"error": "Indexes-data.csv not found"})
 
 # ─── Serve React build (JS/CSS assets + SPA fallback) ────────────────────────
+class _ImmutableStaticFiles(StaticFiles):
+    # no-transform stops Cloudflare from re-encoding origin gzip → zstd, which
+    # was deterministically truncating the 1.1MB ECharts vendor bundle by 668
+    # bytes and producing "SyntaxError: Unexpected end of input" at parse time.
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers["Cache-Control"] = (
+                "public, max-age=31536000, immutable, no-transform"
+            )
+        return response
+
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 if os.path.exists(DIST):
-    app.mount("/assets", StaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
+    app.mount("/assets", _ImmutableStaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
 
     # Serve root-level static files explicitly so the SPA catchall below doesn't
     # intercept them and return index.html (which breaks manifest parsing, SW
