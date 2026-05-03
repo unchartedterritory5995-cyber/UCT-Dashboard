@@ -130,24 +130,29 @@ async def lifespan(app: FastAPI):
     # persisted with the old format. MUST run on every startup (not gated by the
     # prewarmer) — flag-file makes it idempotent.
     try:
-        _tf60_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".tf60_purged_2f42e55")
-        if not os.path.exists(_tf60_flag):
-            _cd = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
-            n = 0
-            if os.path.isdir(_cd):
-                for _f in os.listdir(_cd):
-                    if "_60_" in _f and _f.endswith(".json"):
-                        try:
-                            os.remove(os.path.join(_cd, _f))
-                            n += 1
-                        except OSError:
-                            pass
-            print(f"[startup] Purged {n} tf=60 disk-cache files (one-time, post-resample fix)")
-            try:
-                with open(_tf60_flag, "w") as _f:
-                    _f.write("done")
-            except OSError:
-                pass
+        # Each flag-name corresponds to a one-time purge. Add a new flag-name
+        # whenever the tf=60 fetch path changes upstream (resample feature,
+        # src-cap fix, etc) — the new file is created if absent, triggering
+        # one purge of *_60_*.json. Old flag-names stay (idempotent).
+        for _flag_name in (".tf60_purged_2f42e55", ".tf60_purged_3cbe1cf_src_cap"):
+            _flag_path = os.path.join(os.environ.get("DATA_DIR", "/data"), _flag_name)
+            if not os.path.exists(_flag_path):
+                _cd = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+                n = 0
+                if os.path.isdir(_cd):
+                    for _f in os.listdir(_cd):
+                        if "_60_" in _f and _f.endswith(".json"):
+                            try:
+                                os.remove(os.path.join(_cd, _f))
+                                n += 1
+                            except OSError:
+                                pass
+                print(f"[startup] {_flag_name}: purged {n} tf=60 disk-cache files")
+                try:
+                    with open(_flag_path, "w") as _f:
+                        _f.write("done")
+                except OSError:
+                    pass
     except Exception as e:
         print(f"[startup] tf=60 disk purge error (non-fatal): {e}")
 

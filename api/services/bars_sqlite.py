@@ -46,14 +46,19 @@ def init_db() -> None:
     # the 9:30 RTH-open bar into one 9:00 bucket, persisting incorrect
     # bars after the fix. Marker row records that the migration ran.
     c.execute("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)")
-    already = c.execute("SELECT 1 FROM _migrations WHERE name=?", ("purge_tf60_2f42e55",)).fetchone()
-    if not already:
-        try:
-            c.execute("DELETE FROM ohlcv WHERE tf='60'")
-            c.execute("INSERT INTO _migrations(name, applied_at) VALUES (?, ?)",
-                      ("purge_tf60_2f42e55", int(__import__('time').time())))
-        except Exception:
-            pass
+    for migration_name in ("purge_tf60_2f42e55", "purge_tf60_3cbe1cf_src_cap"):
+        # Each named migration runs at most once. Adding a new name forces a
+        # re-purge of tf=60 — needed when the upstream fetch path changes
+        # (e.g. src-cap fix that switches from FMP-fallback back to Massive).
+        already = c.execute("SELECT 1 FROM _migrations WHERE name=?", (migration_name,)).fetchone()
+        if not already:
+            try:
+                c.execute("DELETE FROM ohlcv WHERE tf='60'")
+                c.execute("INSERT INTO _migrations(name, applied_at) VALUES (?, ?)",
+                          (migration_name, int(__import__('time').time())))
+                print(f"[sqlite-migration] Applied {migration_name}: purged tf=60 rows")
+            except Exception:
+                pass
     c.commit()
 
 
