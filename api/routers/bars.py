@@ -665,11 +665,16 @@ def _resample_monthly_iso(daily_bars: list[dict]) -> list[dict]:
 
 
 @router.get("/api/bars/_debug_source/{ticker}")
-def debug_source(ticker: str, tf: str = Query(default="60")):
-    """Diagnostic — returns which source is providing intraday data + sample bars."""
+def debug_source(ticker: str, tf: str = Query(default="60"), src_override: int = Query(default=0), focus_date: str = Query(default="")):
+    """Diagnostic — returns which source is providing intraday data + sample bars.
+
+    src_override: if >0, use this as the bars-to-fetch count instead of default 1000.
+    focus_date: if set (YYYY-MM-DD), include all 30-min bars for that ET date and
+                show what the resample produces for it.
+    """
     if tf not in ("1", "5", "15", "30", "60"):
         return {"error": "intraday only"}
-    src = 1000 if tf == "60" else 200
+    src = src_override if src_override > 0 else (1000 if tf == "60" else 200)
     out = {"ticker": ticker.upper(), "tf": tf, "src_bars_requested": src}
     try:
         massive_bars = _fetch_intraday_massive(ticker, "30" if tf == "60" else tf, src)
@@ -698,6 +703,41 @@ def debug_source(ticker: str, tf: str = Query(default="60")):
             out["resampled_from_massive"] = {"count": len(resampled), "last5": resampled[-5:] if resampled else []}
         except Exception as e:
             out["resampled_from_massive"] = {"error": str(e)[:200]}
+
+    # Optional: dump 30-min bars for a specific ET date so we can see exactly
+    # what the resample sees vs what comes back. Useful when the OHLC/volume
+    # of a hourly bar doesn't match the 30-min source.
+    if focus_date and out.get("massive", {}).get("count"):
+        try:
+            import zoneinfo
+            ET = zoneinfo.ZoneInfo("America/New_York")
+            day_bars = []
+            for b in massive_bars:
+                dt = datetime.fromtimestamp(b["t"], tz=ET)
+                if dt.strftime("%Y-%m-%d") == focus_date:
+                    day_bars.append({"et": dt.strftime("%H:%M"), **b})
+            # Also bucket-stamp them per resample logic
+            from collections import defaultdict
+            by_bucket = defaultdict(list)
+            for b in massive_bars:
+                dt = datetime.fromtimestamp(b["t"], tz=ET)
+                if dt.strftime("%Y-%m-%d") != focus_date:
+                    continue
+                h, m = dt.hour, dt.minute
+                if h == 9 and m >= 30:
+                    bkt = int(datetime(dt.year, dt.month, dt.day, 9, 30, tzinfo=ET).timestamp())
+                else:
+                    bkt = int(datetime(dt.year, dt.month, dt.day, h, 0, tzinfo=ET).timestamp())
+                bkt_label = datetime.fromtimestamp(bkt, tz=ET).strftime("%H:%M")
+                by_bucket[bkt_label].append({"et": dt.strftime("%H:%M"), "v": b["v"], "o": b["o"], "c": b["c"]})
+            out["focus_date"] = {
+                "date": focus_date,
+                "raw_30m_bars": day_bars,
+                "bars_per_bucket": dict(by_bucket),
+            }
+        except Exception as e:
+            out["focus_date"] = {"error": str(e)[:200]}
+
     return out
 
 
