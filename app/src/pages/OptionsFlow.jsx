@@ -1133,10 +1133,10 @@ export default function OptionsFlowDashboard() {
   const [csvLoading, setCsvLoading] = useState(true);
   const [csvError, setCsvError] = useState(null);
   const [parsedRows, setParsedRows] = useState(null);
-  const [dateFilter, setDateFilter] = useState("All");
+  const [dateFilter, setDateFilter] = useState("Last1");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [fetchDays, setFetchDays] = useState(20);
+  const [fetchDays, setFetchDays] = useState(1);
   const [D, setD] = useState(null);
 
   const csvFile = dataMode === "index"
@@ -2092,7 +2092,7 @@ export default function OptionsFlowDashboard() {
       <div style={{textAlign:"center",maxWidth:400}}>
         <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
           {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
-            <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(20); setDateFilter('All'); setDateFrom(''); setDateTo(''); } }} style={{
+            <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); } }} style={{
               padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
               fontSize:14, fontWeight:800, fontFamily:"inherit",
               background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
@@ -2304,7 +2304,7 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
           <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
             {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
-              <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(20); setDateFilter('All'); setDateFrom(''); setDateTo(''); } }} style={{
+              <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); } }} style={{
                 padding:"8px 28px", borderRadius:6, border:m==="gex"?(dataMode===m?"1px solid #e040fb":"1px solid #e040fb55"):"none", cursor:"pointer",
                 fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
                 background:dataMode===m?(m==="gex"?"#e040fb33":P.cd):"transparent", color:dataMode===m?(m==="gex"?"#e040fb":P.wh):(m==="gex"?"#e040fb":P.mt),
@@ -2320,6 +2320,7 @@ export default function OptionsFlowDashboard() {
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
             <div style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center" }}>
               {[
+                { key:"Last1", label:"1d", days:1 },
                 { key:"Last5", label:"5d", days:5 },
                 { key:"Last20", label:"20d", days:20 },
                 { key:"Last60", label:"60d", days:60 },
@@ -2375,7 +2376,7 @@ export default function OptionsFlowDashboard() {
               <span style={{ fontSize:9, color:P.dm }}>
                 {dateFrom && dateTo
                   ? `${Math.round((isoToDate(dateTo)-isoToDate(dateFrom))/86400000)+1} calendar days`
-                  : `${availableDates.length} trading days`}
+                  : `${dateFilter.startsWith("Last") ? Math.min(parseInt(dateFilter.replace("Last",""))||1, availableDates.length) : availableDates.length} trading days`}
               </span>
               {csvLoading && <span style={{ fontSize:9, color:P.ye }}>Loading...</span>}
             </div>
