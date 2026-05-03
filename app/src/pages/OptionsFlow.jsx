@@ -1350,12 +1350,6 @@ export default function OptionsFlowDashboard() {
 
   const wlPopulate = () => {
     if (!FD || !FD.CONV) return;
-    const capOk = (c) => {
-      const cap = wlCapCheck(c);
-      if (wlCapPref==="No Mega") return cap!=="Mega" && cap!=="Unknown";
-      if (wlCapPref==="Mid+Small") return cap==="Mid"||cap==="Small";
-      return true;
-    };
     // Deduplicate by ticker — take highest-scoring contract per ticker
     // Also apply EXIT penalty so watchlist matches Top Flow ranking
     const dedup = (list) => {
@@ -1369,13 +1363,13 @@ export default function OptionsFlowDashboard() {
         return { ...c, _isExit, _rankScore: _isExit ? (c.score||0) * 0.4 : (c.score||0) };
       }).sort((a,b)=>b._rankScore-a._rankScore).filter(c => { if (seen.has(c.sym)) return false; seen.add(c.sym); return true; });
     };
-    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL"&&capOk(c))).slice(0,10).map(c=>({
+    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL")).slice(0,10).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:c.dir||"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
       cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
     }));
-    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR"&&capOk(c))).slice(0,10).map(c=>({
+    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR")).slice(0,10).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:c.dir||"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
@@ -4561,15 +4555,6 @@ export default function OptionsFlowDashboard() {
                       {wlDates.map(d=><option key={d} value={d}>{d}</option>)}
                     </select>
                   )}
-                  <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
-                    {["All","No Mega","Mid+Small"].map(f=>(
-                      <button key={f} onClick={()=>setWlCapPref(f)}
-                        style={{ padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
-                          fontSize:9, fontWeight:700, fontFamily:"inherit",
-                          background:wlCapPref===f?P.cd:"transparent", color:wlCapPref===f?P.ye:P.dm
-                        }}>{f}</button>
-                    ))}
-                  </div>
                   <button onClick={wlPopulate}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     ⟳ Auto-Fill from Scanner
@@ -4632,8 +4617,8 @@ export default function OptionsFlowDashboard() {
             {/* Scanner Suggestions — overflow picks not yet on watchlist */}
             {FD && FD.CONV && (() => {
               const existingSyms = new Set([...wlBull.map(i=>i.sym+"|"+i.exp+"|"+i.strike), ...wlBear.map(i=>i.sym+"|"+i.exp+"|"+i.strike)]);
-              const capOk = (c) => { const cap=wlCapCheck(c); return wlCapPref==="All"?true:wlCapPref==="No Mega"?(cap!=="Mega"&&cap!=="Unknown"):(cap==="Mid"||cap==="Small"); };
-              const overflow = FD.CONV.filter(c=>capOk(c)&&!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)))
+              const capOk = () => true; // FD.CONV already cap-filtered by global filter
+              const overflow = FD.CONV.filter(c=>!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)))
                 .map(c=>({...c, _score:autoScore(c), _cap:wlCapCheck(c)}))
                 .sort((a,b)=>b._score-a._score);
               const bullSugg = overflow.filter(c=>c.dir==="BULL").slice(0,15);
