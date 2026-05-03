@@ -288,44 +288,48 @@ export default function StockChart({
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
   // After the primary chart loads, fetch every other TF into IDB so switching
-  // timeframes is instant (no spinner, no wait). Fetches are STAGGERED by
-  // 250ms to avoid parallel fan-out — without staggering, 7 simultaneous
-  // requests against the sync /api/bars handler saturated the anyio thread
-  // pool and queued the user's primary chart for minutes.
+  // timeframes is instant. Fetches run STRICTLY SEQUENTIAL (one at a time,
+  // wait for previous to finish before starting next) — fixed-delay staggering
+  // doesn't work because some TFs are slow (e.g. VIX 1min ≈ 7s due to yfinance
+  // fallback) and end up overlapping anyway. Sequential = backend sees exactly
+  // 1 prefetch in flight per chart at a time.
+  //
+  // Order: fast / common TFs first (D, W, M, 60, 30) so most TF switches are
+  // already instant by the time the slow intraday TFs (15, 5, 1) get fetched.
   useEffect(() => {
     if (!sym) return
-    const ALL_TFS = ['D', 'W', 'M', '1', '5', '15', '30', '60']
-    const BC      = { D: 8000, W: 8000 }
-    const tfs     = ALL_TFS.filter(t => t !== resolvedTf)
-    const timers  = []
+    const ORDER = ['D', 'W', 'M', '60', '30', '15', '5', '1']
+    const BC    = { D: 8000, W: 8000 }
+    const tfs   = ORDER.filter(t => t !== resolvedTf)
+    let cancelled = false
 
-    tfs.forEach((tf, idx) => {
-      // 600ms initial delay so the primary chart's request goes out alone,
-      // then 250ms spacing between each background fetch (≈1.75s total span
-      // for all 7 fetches — backend sees them serialised).
-      timers.push(setTimeout(() => {
-        idbGet(sym, tf).then(entry => {
+    async function runSequential() {
+      // 600ms initial delay so the primary chart's fetch goes out alone first.
+      await new Promise(r => setTimeout(r, 600))
+      for (const tf of tfs) {
+        if (cancelled) return
+        try {
+          const entry = await idbGet(sym, tf)
           // Skip if IDB has fresh data (D/W: 24 h; intraday: 4 h)
-          const maxAge = (['D','W'].includes(tf) ? 86400 : 14400) * 1000
-          if (entry?.bars?.length && Date.now() - (entry.savedAt || 0) < maxAge) return
+          const maxAge = (['D', 'W'].includes(tf) ? 86400 : 14400) * 1000
+          if (entry?.bars?.length && Date.now() - (entry.savedAt || 0) < maxAge) continue
           const bc    = BC[tf] ?? 5000
           const since = entry?.lastT
           const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}`
-          fetch(url)
-            .then(r => r.json())
-            .then(d => {
-              if (!d.bars?.length) return
-              const next = (d.delta && entry?.bars?.length)
-                ? mergeDelta(entry.bars, d.bars)
-                : d.bars
-              idbPut(sym, tf, next)
-            })
-            .catch(() => {})
-        })
-      }, 600 + idx * 250))
-    })
+          const r = await fetch(url)
+          if (cancelled || !r.ok) continue
+          const d = await r.json()
+          if (cancelled || !d.bars?.length) continue
+          const next = (d.delta && entry?.bars?.length) ? mergeDelta(entry.bars, d.bars) : d.bars
+          idbPut(sym, tf, next)
+        } catch {
+          // Single-TF failures shouldn't kill the whole prefetch chain.
+        }
+      }
+    }
+    runSequential()
 
-    return () => timers.forEach(t => clearTimeout(t))
+    return () => { cancelled = true }
   }, [sym])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bars: IDB renders instantly; full SWR data replaces it when available.
