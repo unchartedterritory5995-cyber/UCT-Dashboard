@@ -16,7 +16,7 @@ Integration in main.py:
 
 from fastapi import APIRouter, UploadFile, File, Query
 from fastapi.responses import PlainTextResponse, JSONResponse
-from flow_db import FlowDB
+from api.flow_db import FlowDB
 import os
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")

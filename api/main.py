@@ -35,6 +35,7 @@ from api.routers import community as community_router
 from api.routers import rs_ranking as rs_ranking_router
 from api.routers import intelligence as intelligence_router
 from api.routers import transcripts as transcripts_router
+from api.flow_router import flow_router
 from api.services.auth_db import init_db as _init_auth_db
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse as StarletteJSONResponse
@@ -97,10 +98,7 @@ def _seed_cache_from_volume():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Bump the anyio/starlette thread pool so sync endpoints (like /api/bars
-    # which blocks on Massive HTTP calls ~4-8s) don't queue behind each other.
-    # Default is min(32, cpu+4) — typically just 5 on a small Railway container,
-    # which causes drill-scan stalls when 8+ chart prefetches arrive in a wave.
+    # Bump the anyio/starlette thread pool so sync endpoints don't queue
     try:
         import anyio
         limiter = anyio.to_thread.current_default_thread_limiter()
@@ -109,13 +107,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] anyio thread-pool tuning failed (non-fatal): {e}")
 
-    # Auth DB — separate from all other databases, safe to init
     try:
         _init_auth_db()
     except Exception as e:
         print(f"[startup] Auth DB init error (non-fatal): {e}")
 
-    # SQLite bar store — persistent OHLCV history (delta-updated on each request)
     try:
         from api.services import bars_sqlite as _bars_sqlite
         _bars_sqlite.init_db()
@@ -123,17 +119,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] SQLite bar store init error (non-fatal): {e}")
 
-    # One-time disk-cache purge for tf=60 — pre-resample (commit 2f42e55) cached
-    # responses merged the 9:00 pre-market 30-min bar with the 9:30 RTH-open bar
-    # into a single 9:00 hourly bucket. After the session-aligned resample
-    # shipped, fresh fetches produce the correct split, but cached files
-    # persisted with the old format. MUST run on every startup (not gated by the
-    # prewarmer) — flag-file makes it idempotent.
     try:
-        # Each flag-name corresponds to a one-time purge. Add a new flag-name
-        # whenever the tf=60 fetch path changes upstream (resample feature,
-        # src-cap fix, etc) — the new file is created if absent, triggering
-        # one purge of *_60_*.json. Old flag-names stay (idempotent).
         for _flag_name in (".tf60_purged_2f42e55", ".tf60_purged_3cbe1cf_src_cap"):
             _flag_path = os.path.join(os.environ.get("DATA_DIR", "/data"), _flag_name)
             if not os.path.exists(_flag_path):
@@ -156,10 +142,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] tf=60 disk purge error (non-fatal): {e}")
 
-    # Synchronous memory pre-warm from SQLite — zero API calls, just reads.
-    # Loads Tier 1 tickers AND latest breadth drill-list tickers from SQLite into
-    # the in-memory TTLCache before accepting requests. Cache key uses 8000 for
-    # D/W (matching StockChart's barCount) and 5000 for intraday.
     try:
         from api.services import bars_sqlite as _pbs
         from api.services.cache import cache as _pcache
@@ -184,13 +166,11 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
 
-        # Tier 1: all TFs
         for _sym in _TIER1_BASE:
             _pw_syms.add(_sym)
             for _tf in ('D', 'W', '5', '15', '30', '60'):
                 _warm_sym_into_memory(_sym, _tf)
 
-        # Latest breadth drill-list: D + W only (these are what DrillModal charts show)
         try:
             from api.services import breadth_monitor as _bm
             _latest = _bm.get_latest()
@@ -209,11 +189,6 @@ async def lifespan(app: FastAPI):
 
         print(f"[startup] Memory pre-warm pass 1: {_pw} bar series loaded from SQLite ({len(_pw_syms)} tickers)")
 
-        # Pass 2: load ALL remaining tickers in SQLite into memory (D/W only).
-        # This covers every ticker seeded by the nightly universe run (e.g. TEAM,
-        # APLD, or any name in the $300M cap universe) even if not in Tier 1 or the
-        # breadth drill-list above.  SQLite reads are ~1ms each; 3,685 tickers × 2 TFs
-        # ≈ 7s total — well within Railway's 600s health-check window.
         try:
             from api.services.bars_sqlite import get_all_tickers as _gat
             _p2_before = _pw
@@ -229,8 +204,6 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         print(f"[startup] Memory pre-warm failed (non-fatal): {_e}")
 
-    # Background bar seeder — pre-populates SQLite for priority tickers so
-    # charts load instantly without waiting for Massive API on first request.
     try:
         from api.services.bars_seeder import start_background_seeder
         start_background_seeder()
@@ -239,24 +212,15 @@ async def lifespan(app: FastAPI):
 
     _seed_cache_from_volume()
 
-    # Pre-warm bars cache — background thread fetches all commonly viewed
-    # tickers so charts load instantly from SQLite/disk on first request.
-    # GATED OFF BY DEFAULT — set BARS_PREWARM_ENABLED=1 to enable. The prewarm
-    # starves the FastAPI process on Railway when combined with normal traffic.
-    # Targeted warming (drill-list, push, candidates, leadership, movers) is
-    # the preferred mechanism — it warms exactly what the user is about to view.
     def _prewarm_bars():
         if os.environ.get("BARS_PREWARM_ENABLED", "0") != "1":
             print("[prewarm] Skipped (set BARS_PREWARM_ENABLED=1 to enable).")
             return
         from api.services import bars_disk_cache as _disk
         import time as _t
-
-        # Purge stale cache entries from prior bugs
         purged = _disk.purge_empty()
         if purged:
             print(f"[prewarm] Purged {purged} empty cache entries")
-        # One-time nuke: delete entire bars cache directory (old 500-bar entries)
         _purge_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".cache_nuked_v2")
         if not os.path.exists(_purge_flag):
             import shutil
@@ -272,44 +236,28 @@ async def lifespan(app: FastAPI):
                     f.write("done")
             except Exception:
                 pass
-        # tf=60 disk purge moved to top-level startup (was previously here, but
-        # _prewarm_bars only runs when BARS_PREWARM_ENABLED=1, which prod has off)
-
-        # Gather all tickers worth pre-caching
         tickers = set()
-
-        # 1. Core market indices + mega caps (always needed)
         tickers.update(['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
                         'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
                         'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER'])
-
-        # 2. Everything from wire_data — UCT20, scanner candidates, earnings, movers
         try:
             wd = cache.get("wire_data")
             if wd:
-                # UCT20 / leadership
                 for pick in (wd.get("uct20") or wd.get("leadership") or []):
                     sym = pick.get("ticker") or pick.get("sym")
-                    if sym:
-                        tickers.add(sym.upper())
-                # Scanner candidates (pullback, remount, gapper)
+                    if sym: tickers.add(sym.upper())
                 cands = wd.get("candidates") or {}
                 for group in (cands.get("pullback_ma") or [], cands.get("remount") or [], cands.get("gapper_news") or []):
                     for c in (group if isinstance(group, list) else []):
                         sym = c.get("ticker") or c.get("sym")
-                        if sym:
-                            tickers.add(sym.upper())
-                # Earnings (BMO + AMC)
+                        if sym: tickers.add(sym.upper())
                 earn = wd.get("earnings") or {}
                 for bucket in (earn.get("bmo") or [], earn.get("amc") or []):
                     for e in bucket:
                         sym = e.get("sym") or e.get("ticker")
-                        if sym:
-                            tickers.add(sym.upper())
+                        if sym: tickers.add(sym.upper())
         except Exception:
             pass
-
-        # 2b. Watchlist + tagged tickers from auth DB
         try:
             from api.services.auth_db import get_db_path
             import sqlite3
@@ -318,15 +266,12 @@ async def lifespan(app: FastAPI):
                 try:
                     rows = db.execute(f"SELECT DISTINCT {col} FROM {tbl}").fetchall()
                     for (sym,) in rows:
-                        if sym:
-                            tickers.add(sym.upper())
+                        if sym: tickers.add(sym.upper())
                 except Exception:
                     pass
             db.close()
         except Exception:
             pass
-
-        # 4. Full $300M+ cap universe — the master list (3,685 tickers)
         try:
             cap_path = os.path.join(os.path.dirname(__file__), "data", "cap_universe.json")
             if os.path.exists(cap_path):
@@ -336,8 +281,6 @@ async def lifespan(app: FastAPI):
                 print(f"[prewarm] Loaded {len(cap_tickers)} tickers from cap_universe.json")
         except Exception:
             pass
-
-        # 3. ALL theme tracker tickers from taxonomy — every ETF + every holding (all tiers)
         try:
             taxonomy_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "themes_taxonomy.json")
             if os.path.exists(taxonomy_path):
@@ -345,24 +288,16 @@ async def lifespan(app: FastAPI):
                     themes = json.load(f)
                 for theme in themes:
                     etf = theme.get("ticker")
-                    if etf:
-                        tickers.add(etf.upper())
+                    if etf: tickers.add(etf.upper())
                     for h in (theme.get("holdings") or []):
                         tickers.add(h["sym"].upper())
         except Exception:
             pass
-
         tickers.discard('')
-        # Priority order: indices first, then UCT20, then themes, then rest
         _PRIORITY = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
                       'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
                       'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER']
         priority_set = set(_PRIORITY)
-
-        # Fast-path: tickers actually present in the latest breadth snapshot's
-        # drill lists. These are what the user scans on the Breadth page, so
-        # we warm them BEFORE the long tail of the cap universe — typically
-        # only a few hundred tickers, hot in 2-3 min instead of 30+.
         _FAST_PATH: list[str] = []
         try:
             from api.services import breadth_monitor as _bm
@@ -370,8 +305,7 @@ async def lifespan(app: FastAPI):
             if latest:
                 seen: set[str] = set()
                 for k, v in latest.items():
-                    if not k.endswith('_list') or not isinstance(v, list):
-                        continue
+                    if not k.endswith('_list') or not isinstance(v, list): continue
                     for item in v:
                         if isinstance(item, dict):
                             sym = item.get('t')
@@ -380,24 +314,15 @@ async def lifespan(app: FastAPI):
                                 _FAST_PATH.append(sym.upper())
         except Exception as e:
             print(f"[prewarm] Fast-path lookup failed: {e}")
-
         fast_path_set = set(_FAST_PATH)
         rest = sorted(tickers - priority_set - fast_path_set)
         ticker_list = _PRIORITY + _FAST_PATH + rest
         print(f"[prewarm] Order: {len(_PRIORITY)} priority + {len(_FAST_PATH)} breadth-list + {len(rest)} long-tail = {len(ticker_list)} tickers")
-
-        # Parallel prewarm — 16 workers via ThreadPoolExecutor. The aggregates
-        # endpoint at Massive is I/O-bound and supports this concurrency
-        # comfortably; if rate limits ever bite, drop to 8.
         from concurrent.futures import ThreadPoolExecutor as _PrewarmTPE
         from api.routers.bars import _get_bars_inner, _needs_fresh
         from api.services import bars_sqlite as _sqlite
-
-        # Intraday warming is only worthwhile for tickers users actually open
-        # at minute-level granularity — leadership names, indices, watchlist.
         _INTRADAY_TICKERS = ticker_list[:200]
         _INTRADAY_TFS = ('60', '30', '15', '5', '1')
-
         def _warm_one(args):
             sym, tf, bar_count = args
             try:
@@ -409,67 +334,42 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
             return ('failed', sym, tf)
-
-        # Build job list — Daily first across the full universe so the
-        # dominant scan TF is fully warm before secondary TFs are touched.
         jobs = []
-        for sym in ticker_list:
-            jobs.append((sym, 'D', 5000))
-        for sym in ticker_list:
-            jobs.append((sym, 'W', 5000))
-        for sym in ticker_list:
-            jobs.append((sym, 'M', 5000))
+        for sym in ticker_list: jobs.append((sym, 'D', 5000))
+        for sym in ticker_list: jobs.append((sym, 'W', 5000))
+        for sym in ticker_list: jobs.append((sym, 'M', 5000))
         for sym in _INTRADAY_TICKERS:
-            for tf in _INTRADAY_TFS:
-                jobs.append((sym, tf, 5000))
-
-        print(f"[prewarm] {len(jobs)} jobs queued ({len(ticker_list)} tickers; "
-              f"Daily/Weekly/Monthly all + {len(_INTRADAY_TICKERS)} for intraday)")
-
+            for tf in _INTRADAY_TFS: jobs.append((sym, tf, 5000))
+        print(f"[prewarm] {len(jobs)} jobs queued ({len(ticker_list)} tickers; Daily/Weekly/Monthly all + {len(_INTRADAY_TICKERS)} for intraday)")
         warmed = 0
         skipped = 0
-        fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))  # Daily-only count for fast-path milestone
-        # NOTE: 4 workers — keep prewarm gentle so the FastAPI request thread pool
-        # and Massive upstream both have headroom for live user requests.
+        fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))
         with _PrewarmTPE(max_workers=2, thread_name_prefix="prewarm-bars") as ex:
             for i, (status, _sym, _tf) in enumerate(ex.map(_warm_one, jobs), start=1):
-                if status == 'warmed':
-                    warmed += 1
-                elif status == 'skipped':
-                    skipped += 1
+                if status == 'warmed': warmed += 1
+                elif status == 'skipped': skipped += 1
                 if i == fast_path_size_jobs:
                     print(f"[prewarm] ★ Fast-path complete ({i} jobs) — Breadth scanning is hot. Continuing with long-tail in background.")
                 if i % 500 == 0:
                     print(f"[prewarm] Progress {i}/{len(jobs)} — {warmed} fetched, {skipped} cached")
         print(f"[prewarm] First pass complete: {warmed} fetched, {skipped} cached, {len(jobs)} total")
-
-        # Continuous refresh — every 5 minutes, re-warm any entries that have
-        # aged out of disk cache. Parallelized with the same worker pool so
-        # the universe stays hot without thrashing the upstream API.
         while True:
             _t.sleep(300)
             refresh_jobs = [j for j in jobs if _needs_fresh(_sqlite.get_last_ts(j[0].upper(), j[1]), j[1])]
-            if not refresh_jobs:
-                continue
+            if not refresh_jobs: continue
             refreshed = 0
             with _PrewarmTPE(max_workers=2, thread_name_prefix="prewarm-refresh") as ex:
                 for status, _sym, _tf in ex.map(_warm_one, refresh_jobs):
-                    if status == 'warmed':
-                        refreshed += 1
+                    if status == 'warmed': refreshed += 1
             if refreshed:
                 print(f"[prewarm] Refresh pass: {refreshed} of {len(refresh_jobs)} entries refilled")
     threading.Thread(target=_prewarm_bars, daemon=True, name="bars-prewarm").start()
 
-    # Build deep intraday cache from S3 minute files (one-time, ~30 min on Railway)
-    # Saves incrementally so partial progress survives restarts.
-    # GATED OFF — set DEEP_CACHE_ENABLED=1 to enable. This was a major source
-    # of CPU/disk thrash on startup; once built, it stays built (idempotent).
     def _build_deep_cache():
         if os.environ.get("DEEP_CACHE_ENABLED", "0") != "1":
             print("[deep-cache] Skipped (set DEEP_CACHE_ENABLED=1 to enable).")
             return
         deep_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache_deep")
-        # Purge old clock-hour 60min cache files (now using TC2000-style resample)
         _60_purge_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".60min_purged_v1")
         if not os.path.exists(_60_purge_flag):
             _cache_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
@@ -477,19 +377,12 @@ async def lifespan(app: FastAPI):
                 purged_60 = 0
                 for f in os.listdir(_cache_dir):
                     if '_60_' in f and f.endswith('.json'):
-                        try:
-                            os.remove(os.path.join(_cache_dir, f))
-                            purged_60 += 1
-                        except OSError:
-                            pass
-                if purged_60:
-                    print(f"[prewarm] Purged {purged_60} old 60min cache files")
+                        try: os.remove(os.path.join(_cache_dir, f)); purged_60 += 1
+                        except OSError: pass
+                if purged_60: print(f"[prewarm] Purged {purged_60} old 60min cache files")
             try:
-                with open(_60_purge_flag, 'w') as f:
-                    f.write("done")
-            except Exception:
-                pass
-
+                with open(_60_purge_flag, 'w') as f: f.write("done")
+            except Exception: pass
         flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".deep_cache_built_v4")
         if os.path.exists(flag):
             count = len([f for f in os.listdir(deep_dir) if f.endswith('.json')]) if os.path.isdir(deep_dir) else 0
@@ -499,14 +392,12 @@ async def lifespan(app: FastAPI):
         try:
             from api.services.build_intraday_cache import build_cache
             build_cache(days=160, timeframes=[15, 30, 60], output_dir=deep_dir)
-            with open(flag, 'w') as f:
-                f.write("done")
+            with open(flag, 'w') as f: f.write("done")
             print("[deep-cache] Build complete")
         except Exception as e:
             print(f"[deep-cache] Build failed: {e}")
     threading.Thread(target=_build_deep_cache, daemon=True, name="deep-cache-builder").start()
 
-    # Seed theme taxonomy from JSON → SQLite
     from api.services.theme_db import init_theme_tables, seed_from_json
     init_theme_tables()
     seed_from_json()
@@ -514,7 +405,6 @@ async def lifespan(app: FastAPI):
     from api.services.theme_performance import load_persisted_on_startup
     load_persisted_on_startup()
 
-    # Start real-time WebSocket stream (Massive/Polygon)
     from api.services.realtime_stream import start_stream
     try:
         start_stream()
@@ -536,8 +426,6 @@ async def lifespan(app: FastAPI):
             print("[startup] COT table empty — seeding from CFTC historical archive (background)...")
             threading.Thread(target=_cot_seed_background, daemon=True, name="cot-seed").start()
         else:
-            # Catch-up: trigger if data is stale (>=8 days old = missed at least one Friday refresh)
-            # or if today is Friday past 5 PM ET and the scheduled 3:50 PM job was missed.
             from datetime import date as _date
             now_et = datetime.now(ZoneInfo("America/New_York"))
             status = _cot_service.get_status()
@@ -552,7 +440,7 @@ async def lifespan(app: FastAPI):
                 if days_old >= 8:
                     print(f"[startup] COT data is {days_old}d stale — running catch-up refresh...")
                     threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
-                elif now_et.weekday() == 4 and now_et.hour >= 17:  # Friday past 5 PM ET
+                elif now_et.weekday() == 4 and now_et.hour >= 17:
                     print("[startup] COT catch-up: Friday refresh missed — running now...")
                     threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
                 else:
@@ -566,30 +454,10 @@ async def lifespan(app: FastAPI):
     from apscheduler.triggers.cron import CronTrigger
     from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens, record_mrr_snapshot
     _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
-    # COT refresh: primary at 3:50 PM ET, retries at 4:15 PM and 4:45 PM if stale
-    _scheduler.add_job(
-        _cot_service.refresh_from_current,
-        trigger=CronTrigger(day_of_week="fri", hour=15, minute=50),
-        id="cot_weekly_refresh",
-        max_instances=1,
-        replace_existing=True,
-    )
-    _scheduler.add_job(
-        _cot_service.refresh_if_stale,
-        trigger=CronTrigger(day_of_week="fri", hour=16, minute=15),
-        id="cot_weekly_retry_1",
-        max_instances=1,
-        replace_existing=True,
-    )
-    _scheduler.add_job(
-        _cot_service.refresh_if_stale,
-        trigger=CronTrigger(day_of_week="fri", hour=16, minute=45),
-        id="cot_weekly_retry_2",
-        max_instances=1,
-        replace_existing=True,
-    )
-    # Daily safety-net: catches missed Friday refreshes. Runs at 6 PM ET every day.
-    # Only downloads if latest DB record is >=8 days old (missed at least one Friday).
+    _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
+    _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
+    _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
+
     def _cot_daily_catchup():
         try:
             from datetime import date as _dt
@@ -606,21 +474,9 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] COT daily catchup error: {e}")
 
-    _scheduler.add_job(
-        _cot_daily_catchup,
-        trigger=CronTrigger(hour=18, minute=0),
-        id="cot_daily_catchup",
-        max_instances=1,
-        replace_existing=True,
-    )
-    _scheduler.add_job(
-        cleanup_expired_sessions,
-        trigger=CronTrigger(hour=3, minute=0),
-        id="session_cleanup",
-        max_instances=1,
-        replace_existing=True,
-    )
-    # Churn risk check — daily at 9 AM ET, alerts on users inactive 7+ days
+    _scheduler.add_job(_cot_daily_catchup, trigger=CronTrigger(hour=18, minute=0), id="cot_daily_catchup", max_instances=1, replace_existing=True)
+    _scheduler.add_job(cleanup_expired_sessions, trigger=CronTrigger(hour=3, minute=0), id="session_cleanup", max_instances=1, replace_existing=True)
+
     def _check_churn_risk():
         try:
             from api.services.auth_db import get_connection
@@ -644,46 +500,17 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[churn] Error checking churn risk: {e}")
 
-    _scheduler.add_job(
-        _check_churn_risk,
-        trigger=CronTrigger(hour=9, minute=0),
-        id="churn_risk_check",
-        max_instances=1,
-        replace_existing=True,
-    )
-    # MRR snapshot — daily at 11:59 PM ET
-    _scheduler.add_job(
-        record_mrr_snapshot,
-        trigger=CronTrigger(hour=23, minute=59),
-        id="mrr_snapshot",
-        max_instances=1,
-        replace_existing=True,
-    )
-    # Record first snapshot on startup
+    _scheduler.add_job(_check_churn_risk, trigger=CronTrigger(hour=9, minute=0), id="churn_risk_check", max_instances=1, replace_existing=True)
+    _scheduler.add_job(record_mrr_snapshot, trigger=CronTrigger(hour=23, minute=59), id="mrr_snapshot", max_instances=1, replace_existing=True)
     try:
         record_mrr_snapshot()
     except Exception as e:
         print(f"[startup] MRR snapshot error (non-fatal): {e}")
 
-    # Watchlist digest emails
     from api.services.watchlist_digest import run_daily_digests, run_weekly_digests
-    _scheduler.add_job(
-        run_daily_digests,
-        trigger=CronTrigger(hour=17, minute=0),
-        id="watchlist_daily_digest",
-        max_instances=1,
-        replace_existing=True,
-    )
-    _scheduler.add_job(
-        run_weekly_digests,
-        trigger=CronTrigger(day_of_week="fri", hour=17, minute=5),
-        id="watchlist_weekly_digest",
-        max_instances=1,
-        replace_existing=True,
-    )
+    _scheduler.add_job(run_daily_digests, trigger=CronTrigger(hour=17, minute=0), id="watchlist_daily_digest", max_instances=1, replace_existing=True)
+    _scheduler.add_job(run_weekly_digests, trigger=CronTrigger(day_of_week="fri", hour=17, minute=5), id="watchlist_weekly_digest", max_instances=1, replace_existing=True)
 
-    # Nightly bar refresh — delta-updates all universe tickers after market close
-    # so every Daily chart loads instantly next morning from SQLite.
     def _nightly_bar_refresh():
         try:
             from api.services.bars_seeder import seed_full_universe
@@ -692,13 +519,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] nightly bar refresh error: {e}")
 
-    _scheduler.add_job(
-        _nightly_bar_refresh,
-        trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=15),
-        id="bars_nightly_refresh",
-        max_instances=1,
-        replace_existing=True,
-    )
+    _scheduler.add_job(_nightly_bar_refresh, trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=15), id="bars_nightly_refresh", max_instances=1, replace_existing=True)
 
     _scheduler.start()
     print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
@@ -712,17 +533,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.add_middleware(MaintenanceMiddleware)
-# Gzip responses >1KB — cuts ~200KB bar payloads to ~30KB on the wire.
-# Excludes SSE streaming endpoints (real-time prices) to avoid buffering.
 from starlette.middleware.gzip import GZipMiddleware as _GZipBase
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 class _GZipSkipSSE(_GZipBase):
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
         path = scope.get("path") or ""
-        # Skip gzip for SSE (would buffer stream) and for /assets/* (content-hash
-        # JS/CSS files are cached forever by the browser; on-the-fly gzip of large
-        # files can produce truncated streams in some proxy/Railway configurations).
         if scope.get("type") == "http" and (
             path.startswith("/api/stream") or path.startswith("/assets/")
         ):
@@ -781,8 +597,9 @@ app.include_router(intelligence_router.router)
 app.include_router(transcripts_router.router)
 app.include_router(gex_router)
 app.include_router(watchlist_router)
+app.include_router(flow_router)
 
-# ─── CSV routes: serve from app/public/ directly (bypasses Vite build cache) ──
+# ─── CSV routes: serve from app/public/ directly (fallback for legacy paths) ──
 PUBLIC = os.path.join(os.path.dirname(__file__), "..", "app", "public")
 
 @app.get("/flow-data.csv")
@@ -808,9 +625,6 @@ def serve_indexes_csv():
 
 # ─── Serve React build (JS/CSS assets + SPA fallback) ────────────────────────
 class _ImmutableStaticFiles(StaticFiles):
-    # no-transform stops Cloudflare from re-encoding origin gzip → zstd, which
-    # was deterministically truncating the 1.1MB ECharts vendor bundle by 668
-    # bytes and producing "SyntaxError: Unexpected end of input" at parse time.
     async def get_response(self, path, scope):
         response = await super().get_response(path, scope)
         if response.status_code == 200:
@@ -823,9 +637,6 @@ DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 if os.path.exists(DIST):
     app.mount("/assets", _ImmutableStaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
 
-    # Serve root-level static files explicitly so the SPA catchall below doesn't
-    # intercept them and return index.html (which breaks manifest parsing, SW
-    # registration, and favicon loading).
     @app.get("/manifest.json", include_in_schema=False)
     def _serve_manifest():
         return FileResponse(os.path.join(DIST, "manifest.json"), media_type="application/json")
