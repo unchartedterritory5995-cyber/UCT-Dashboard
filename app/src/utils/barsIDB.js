@@ -10,11 +10,11 @@
  */
 
 const DB_NAME    = 'uct_bars_v1'
-// v3: clears all entries on upgrade. Some users had cross-ticker corruption
-// (e.g. BearingPoint 2003 data persisted under "BE_D" because the data source
-// backfilled the symbol with the prior company's history). Combined with
-// `since=lastT` delta requests, the API never overwrote those historical bars.
-const DB_VERSION = 3
+// Stay at v2. The v3 bump caused a deadlock: existing v2 connections held by
+// the page blocked the upgrade, idbGet hung forever, and charts never loaded.
+// The cross-ticker corruption (e.g. "BE_D" with BearingPoint 2003 history) is
+// now mitigated by DAILY_MAX_AGE_MS — stale entries get refetched within 24h.
+const DB_VERSION = 2
 const STORE      = 'bars'
 
 // Max age for intraday data (stale session bars shouldn't linger forever)
@@ -29,6 +29,10 @@ let _db = null
 async function _open() {
   if (_db) return _db
   return new Promise((resolve, reject) => {
+    // Hard timeout so a blocked / hung upgrade can never freeze the chart.
+    // If IDB is unavailable, callers fall back to network-only — slower, but
+    // the app stays usable.
+    const timeout = setTimeout(() => reject(new Error('IDB open timeout')), 3000)
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = (e) => {
       const db = e.target.result
@@ -39,9 +43,16 @@ async function _open() {
       }
       db.createObjectStore(STORE, { keyPath: 'key' })
     }
-    req.onsuccess  = (e) => { _db = e.target.result; resolve(_db) }
-    req.onerror    = (e) => reject(e.target.error)
-    req.onblocked  = ()  => reject(new Error('IDB blocked'))
+    req.onsuccess = (e) => {
+      clearTimeout(timeout)
+      _db = e.target.result
+      // When another tab opens this DB at a higher version, close our handle
+      // so the upgrade can proceed. Without this, version bumps deadlock.
+      _db.onversionchange = () => { try { _db.close() } catch {}; _db = null }
+      resolve(_db)
+    }
+    req.onerror   = (e) => { clearTimeout(timeout); reject(e.target.error) }
+    req.onblocked = ()  => { clearTimeout(timeout); reject(new Error('IDB blocked')) }
   })
 }
 
