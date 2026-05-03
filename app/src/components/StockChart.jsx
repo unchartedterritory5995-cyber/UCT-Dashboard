@@ -524,7 +524,20 @@ export default function StockChart({
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
-    if (!containerRef.current || !filteredBars?.length) return
+    if (!containerRef.current) return
+    // No bars yet for this sym/tf? Clear the existing series so the prior
+    // ticker's data doesn't visually persist on screen during transitions.
+    // Without this, switching tickers leaves the OLD ticker's candles drawn
+    // until the new SWR fetch returns — that's the "blended data" the user
+    // sees flipping between charts.
+    if (!filteredBars?.length) {
+      try { candleSeriesRef.current?.setData([]) } catch {}
+      try { volumeSeriesRef.current?.setData([]) } catch {}
+      for (const s of overlaySeriesRefs.current) {
+        try { s.setData([]) } catch {}
+      }
+      return
+    }
 
     let chart = chartRef.current
 
