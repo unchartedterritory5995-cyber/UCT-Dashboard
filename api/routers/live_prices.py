@@ -11,7 +11,9 @@ from api.services.massive import _get_client
 
 router = APIRouter()
 
-_MAX_TICKERS = 50
+_MAX_TICKERS = 250  # Bumped from 50 — Watchlists page sends every visible ticker
+                    # in one request and easily exceeds 50 across expanded lists.
+                    # Massive's batch snapshot endpoint and URL length both fine at 250.
 _CACHE_TTL = 15  # seconds
 
 
