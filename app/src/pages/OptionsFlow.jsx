@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 
-// ─── Flow Data loaded dynamically from /flow-data.csv ─────────────────────────
+// ─── Flow Data loaded dynamically from /api/flow/data (SQLite DB) ─────────────
 
 
 // ─── Color Palette ─────────────────────────────────────────────────────────────
@@ -1136,7 +1136,7 @@ export default function OptionsFlowDashboard() {
   const [dateFilter, setDateFilter] = useState("All");
   const [D, setD] = useState(null);
 
-  const csvFile = dataMode === "index" ? "/Indexes-data.csv" : "/flow-data.csv";
+  const csvFile = dataMode === "index" ? "/api/flow/indexes-data?days=30" : "/api/flow/data?days=30";
 
   // Extract unique dates from parsed rows
   const availableDates = useMemo(() => {
@@ -2070,7 +2070,7 @@ export default function OptionsFlowDashboard() {
         <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
         <div style={{color:"#ff1744",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
         <div style={{color:"#7b8fa3",fontSize:12,marginBottom:16}}>{csvError}</div>
-        <div style={{color:"#4a5c73",fontSize:11}}>Make sure <code style={{color:"#ffab00"}}>{dataMode==="index"?"Indexes-data.csv":"flow-data.csv"}</code> is in <code style={{color:"#ffab00"}}>app/public/</code> and redeploy.</div>
+        <div style={{color:"#4a5c73",fontSize:11}}>No flow data in database. Upload CSV via the admin page to get started.</div>
         <button onClick={()=>window.location.reload()} style={{marginTop:16,background:"#1a2540",color:"#c8d6e5",border:"1px solid #243352",borderRadius:6,padding:"8px 20px",fontSize:12,cursor:"pointer"}}>Retry</button>
       </div>
     </div>
