@@ -2326,11 +2326,15 @@ export default function OptionsFlowDashboard() {
                 { key:"Last90", label:"90d", days:90 },
                 { key:"All", label:"All", days:0 },
               ].map(({key, label, days}) => {
-                const isActive = !dateFrom && !dateTo && dateFilter==="All" && fetchDays===days;
+                const filterKey = days === 0 ? "All" : "Last" + days;
+                const isActive = !dateFrom && !dateTo && dateFilter === filterKey;
+                // Only re-fetch if requesting more days than we've ever fetched
+                // days=0 means "All", only fetch if not already fetched all
+                const needsFetch = days === 0 ? fetchDays !== 0 : days > fetchDays && fetchDays !== 0;
                 return (
                   <button key={key} onClick={()=>{
-                    setFetchDays(days);
-                    setDateFilter("All");
+                    if (needsFetch) setFetchDays(days);
+                    setDateFilter(filterKey);
                     setDateFrom("");
                     setDateTo("");
                   }} style={{
