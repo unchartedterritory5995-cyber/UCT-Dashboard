@@ -198,6 +198,8 @@ export default function StockChart({
   exitDate = null,          // ISO date string — end of holding period zoom
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
+  compareSymbol = null,     // optional secondary symbol for % return comparison overlay
+  onCompareChange = null,   // callback(sym) — parent manages compareSymbol state
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -280,6 +282,7 @@ export default function StockChart({
   const stochDRef     = useRef(null)
   const atrSeriesRef  = useRef(null)
   const sarSeriesRef  = useRef(null)
+  const compareSeriesRef = useRef(null)
   const ichimokuTenkanRef = useRef(null)
   const ichimokuKijunRef  = useRef(null)
   const ichimokuSpanARef  = useRef(null)
@@ -454,6 +457,12 @@ export default function StockChart({
     fetcher,
     { dedupingInterval: dedupMs, revalidateOnFocus: false }
   )
+
+  // ── Comparison symbol SWR fetch ──
+  const compareSwrUrl = compareSymbol
+    ? `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${resolvedTf}&bars=${barCount}`
+    : null
+  const { data: compareData } = useSWR(compareSwrUrl, fetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
 
   // Persist to IDB and merge delta when SWR returns.
   useEffect(() => {
@@ -652,6 +661,35 @@ export default function StockChart({
       },
     }
   }, [filteredBars, cs.indicators, resolvedTf, adjustTime])
+
+  // ── Comparison symbol % return data ──
+  const comparisonData = useMemo(() => {
+    const cmpBars = compareData?.bars || (Array.isArray(compareData) ? compareData : null)
+    if (!cmpBars?.length || !filteredBars?.length) return []
+    // Build a timestamp-keyed map for the comparison symbol
+    const cmpMap = new Map(cmpBars.map(b => [b.t, b.c]))
+    // Find the first filteredBar date that exists in comparison data
+    let baseCmp = null
+    for (const bar of filteredBars) {
+      if (cmpMap.has(bar.t)) {
+        baseCmp = cmpMap.get(bar.t)
+        break
+      }
+    }
+    if (!baseCmp) return []
+    // Build % return series aligned to filteredBars timeline
+    const result = []
+    for (const bar of filteredBars) {
+      const cmpClose = cmpMap.get(bar.t)
+      if (cmpClose != null) {
+        result.push({
+          time: adjustTime(bar.t),
+          value: parseFloat(((cmpClose / baseCmp - 1) * 100).toFixed(3)),
+        })
+      }
+    }
+    return result
+  }, [compareData, filteredBars, adjustTime])
 
   // Reset all live tracking refs on symbol or timeframe change.
   // CRITICAL: latestLiveRef must also be cleared — without it, a leftover live
@@ -1226,6 +1264,30 @@ export default function StockChart({
       }
     }
 
+    // ── Symbol comparison overlay ──
+    if (comparisonData.length) {
+      if (!compareSeriesRef.current) {
+        compareSeriesRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'compare',
+          color: '#fb923c',
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          crosshairMarkerVisible: true,
+          crosshairMarkerRadius: 4,
+        })
+        chart.priceScale('compare').applyOptions({
+          scaleMargins: { top: 0.1, bottom: 0.1 },
+          borderVisible: false,
+          visible: false,  // hide the right-axis label — value shown in legend instead
+        })
+      }
+      compareSeriesRef.current.setData(comparisonData)
+    } else if (compareSeriesRef.current) {
+      try { chart.removeSeries(compareSeriesRef.current) } catch {}
+      compareSeriesRef.current = null
+    }
+
     // ── Price lines — remove old, add new ──
     for (const pl of priceLineRefs.current) {
       try { candleSeriesRef.current.removePriceLine(pl) } catch {}
@@ -1311,7 +1373,7 @@ export default function StockChart({
         }
       }
     }
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -1403,6 +1465,12 @@ export default function StockChart({
         ichimokuKijun  = dk?.value ?? null
       }
 
+      let compareValue = null
+      if (compareSeriesRef.current) {
+        const dc = param.seriesData.get(compareSeriesRef.current)
+        compareValue = dc?.value ?? (comparisonData.at(-1)?.value ?? null)
+      }
+
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -1414,6 +1482,7 @@ export default function StockChart({
         stochK: stochKValue, stochD: stochDValue,
         atr: atrValue, sar: sarValue,
         ichimokuTenkan, ichimokuKijun,
+        compare: compareValue,
       })
     }
 
@@ -1423,7 +1492,7 @@ export default function StockChart({
     return () => {
       try { chart.unsubscribeCrosshairMove(handler) } catch {}
     }
-  }, [updateChart, resolvedOverlays, overlayData, indicatorData, livePrices, sym])
+  }, [updateChart, resolvedOverlays, overlayData, indicatorData, comparisonData, livePrices, sym])
 
   // ── Right-click on a bar → fire callback or dispatch global event ──
   // Behavior:
@@ -1636,6 +1705,11 @@ export default function StockChart({
               KJ {crosshairData.ichimokuKijun.toFixed(2)}
             </span>
           )}
+          {crosshairData.compare != null && compareSymbol && (
+            <span style={{ color: '#fb923c' }}>
+              {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
+            </span>
+          )}
         </div>
       )}
       {showDrawingTools && bars?.length > 0 && (
@@ -1675,6 +1749,8 @@ export default function StockChart({
             onToggleExtended={isIntraday ? handleToggleExtended : null}
             onScreenshot={handleScreenshot}
             tf={resolvedTf}
+            compareSymbol={compareSymbol}
+            onCompareChange={onCompareChange}
           />
           {activeTool === 'position' && (
             <div style={{

@@ -442,6 +442,8 @@ export default function ChartToolbar({
   showExtended, onToggleExtended,
   onScreenshot,
   tf = null,
+  compareSymbol = null,
+  onCompareChange = null,
 }) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -535,6 +537,21 @@ export default function ChartToolbar({
           >
             {showExtended ? 'EXT' : 'RTH'}
           </button>
+        )}
+
+        {/* ── Compare symbol input ── */}
+        {onCompareChange && (
+          <div className={styles.compareWrap}>
+            <input
+              type="text"
+              className={styles.compareInput}
+              placeholder="+ Compare"
+              value={compareSymbol || ''}
+              onChange={e => onCompareChange(e.target.value.toUpperCase())}
+              onKeyDown={e => { if (e.key === 'Escape') { onCompareChange(''); e.target.blur() } }}
+              maxLength={10}
+            />
+          </div>
         )}
 
         {/* ── Countdown to bar close ── */}

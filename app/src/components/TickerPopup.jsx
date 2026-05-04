@@ -18,6 +18,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const [modalOpen, setModalOpen] = useState(false)
   const [tab, setTab] = useState('Daily')
   const [flagToast, setFlagToast] = useState(null)
+  const [compareSymbol, setCompareSymbol] = useState('')
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
@@ -132,6 +133,8 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   markers={markers}
                   priceLines={priceLines}
                   onTfChange={tf => setTab(TF_TO_TAB[tf] || tab)}
+                  compareSymbol={compareSymbol || null}
+                  onCompareChange={setCompareSymbol}
                 />
               </Suspense>
             </div>
