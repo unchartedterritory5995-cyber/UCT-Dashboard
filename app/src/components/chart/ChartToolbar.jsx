@@ -104,7 +104,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
   }, [cs, onUpdateSettings])
 
   const updateIndicator = useCallback((key, field, value) => {
-    const numFields = new Set(['period', 'fastPeriod', 'slowPeriod', 'signalPeriod', 'stdDev'])
+    const numFields = new Set(['period', 'fastPeriod', 'slowPeriod', 'signalPeriod', 'stdDev', 'kPeriod', 'dPeriod'])
     const next = { ...cs }
     next.indicators = {
       ...next.indicators,
@@ -295,6 +295,37 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <ColorPicker value={cs.indicators?.vwap?.color ?? '#26C6DA'}
             onChange={v => updateIndicator('vwap', 'color', v)} />
         </div>
+
+        {/* Stochastic */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.stoch?.enabled ?? false}
+            onChange={e => updateIndicator('stoch', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>Stoch</span>
+          <div className={styles.sMiniPeriodGroup}>
+            <input type="number" className={styles.sPeriodInput}
+              value={cs.indicators?.stoch?.kPeriod ?? 14} min={1} max={100}
+              onChange={e => updateIndicator('stoch', 'kPeriod', e.target.value)} title="%K Period" />
+            <input type="number" className={styles.sPeriodInput}
+              value={cs.indicators?.stoch?.dPeriod ?? 3} min={1} max={20}
+              onChange={e => updateIndicator('stoch', 'dPeriod', e.target.value)} title="%D Period" />
+          </div>
+          <ColorPicker value={cs.indicators?.stoch?.kColor ?? '#FF6B6B'}
+            onChange={v => updateIndicator('stoch', 'kColor', v)} />
+        </div>
+
+        {/* ATR */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.atr?.enabled ?? false}
+            onChange={e => updateIndicator('atr', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>ATR</span>
+          <input type="number" className={styles.sPeriodInput}
+            value={cs.indicators?.atr?.period ?? 14} min={1} max={100}
+            onChange={e => updateIndicator('atr', 'period', e.target.value)} title="Period" />
+          <ColorPicker value={cs.indicators?.atr?.color ?? '#FFA726'}
+            onChange={v => updateIndicator('atr', 'color', v)} />
+        </div>
       </div>
 
       {/* Display Options */}
@@ -312,6 +343,31 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
               checked={cs.logScale ?? false}
               onChange={e => update('logScale', e.target.checked)} />
             Log Scale
+          </label>
+        </div>
+      </div>
+
+      {/* Chart Markers */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Markers</span>
+        <div className={styles.sRow}>
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.markers?.earnings ?? false}
+              onChange={e => {
+                const next = { ...cs, markers: { ...cs.markers, earnings: e.target.checked }, preset: 'custom' }
+                onUpdateSettings(next)
+              }} />
+            Earnings
+          </label>
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.markers?.splits ?? false}
+              onChange={e => {
+                const next = { ...cs, markers: { ...cs.markers, splits: e.target.checked }, preset: 'custom' }
+                onUpdateSettings(next)
+              }} />
+            Splits
           </label>
         </div>
       </div>
