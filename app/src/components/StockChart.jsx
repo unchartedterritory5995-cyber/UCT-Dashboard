@@ -204,13 +204,54 @@ export default function StockChart({
   // ── Chart settings from user preferences ──
   const cs = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
 
+  // ── Chart event markers (earnings + splits) — fetched from /api/chart/markers ──
+  const markersEnabled = cs.markers?.earnings || cs.markers?.splits
+  const { data: markersData } = useSWR(
+    markersEnabled && sym ? `/api/chart/markers/${encodeURIComponent(sym)}` : null,
+    fetcher,
+    { dedupingInterval: 21_600_000 }  // 6 hours — markers don't change often
+  )
+  const chartEventMarkers = useMemo(() => {
+    // Only show event markers on daily/weekly — intraday bars don't line up with quarter dates
+    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    if (!markersData || !isDailyWeekly) return []
+    const eventMarkers = []
+    if (cs.markers?.earnings && Array.isArray(markersData.earnings)) {
+      for (const e of markersData.earnings) {
+        if (!e.date) continue
+        eventMarkers.push({
+          time: e.date,
+          position: 'belowBar',
+          color: e.beat === true ? '#4ade80' : e.beat === false ? '#f87171' : '#94a3b8',
+          shape: e.beat === true ? 'arrowUp' : 'arrowDown',
+          text: 'E',
+          size: 1,
+        })
+      }
+    }
+    if (cs.markers?.splits && Array.isArray(markersData.splits)) {
+      for (const s of markersData.splits) {
+        if (!s.date) continue
+        eventMarkers.push({
+          time: s.date,
+          position: 'aboveBar',
+          color: '#60a5fa',
+          shape: 'square',
+          text: s.ratio || 'S',
+          size: 1,
+        })
+      }
+    }
+    return eventMarkers
+  }, [markersData, cs.markers, resolvedTf])
+
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
   // markers/priceLines below so consumers (e.g. TradeDrawer) keep working.
   const j2 = useJ2ChartMarkers(sym, resolvedTf)
   const mergedMarkers = useMemo(
-    () => [...(markers || []), ...(j2.markers || [])],
-    [markers, j2.markers],
+    () => [...(markers || []), ...(j2.markers || []), ...chartEventMarkers],
+    [markers, j2.markers, chartEventMarkers],
   )
   const mergedPriceLines = useMemo(
     () => [...(priceLines || []), ...(j2.priceLines || [])],
