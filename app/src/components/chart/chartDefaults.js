@@ -123,6 +123,39 @@ export const PRESETS = {
       },
     },
   },
+  light: {
+    label: 'Light',
+    desc: 'Clean white light theme',
+    swatch: '#ffffff',
+    settings: {
+      ...CHART_DEFAULTS,
+      preset: 'light',
+      background: '#ffffff',
+      textColor: '#555555',
+      grid: { color: 'rgba(0,0,0,0.08)', visible: true },
+      crosshair: { color: '#999999', style: 3 },
+      candles: {
+        upColor: '#26a69a',
+        downColor: '#ef5350',
+        upBorder: '#26a69a',
+        downBorder: '#ef5350',
+        upWick: '#26a69a',
+        downWick: '#ef5350',
+      },
+      overlays: [
+        { enabled: true, type: 'EMA', period: 9,   color: '#2196f3' },
+        { enabled: true, type: 'EMA', period: 20,  color: '#e040fb' },
+        { enabled: true, type: 'SMA', period: 50,  color: '#ff9800' },
+        { enabled: true, type: 'SMA', period: 200, color: '#f44336' },
+      ],
+      volume: {
+        visible: true,
+        upColor: 'rgba(38,166,154,0.3)',
+        downColor: 'rgba(239,83,80,0.3)',
+        hvcEnabled: true,
+      },
+    },
+  },
 }
 
 // ─── Deep merge user settings over defaults ──────────────────────────────────
