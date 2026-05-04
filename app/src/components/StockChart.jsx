@@ -564,7 +564,7 @@ export default function StockChart({
       layout: {
         background: { type: ColorType.Solid, color: cs.background },
         textColor: cs.textColor,
-        fontFamily: "'IBM Plex Mono', monospace",
+        fontFamily: "'Instrument Sans', sans-serif",
         fontSize: 10,
       },
       grid: {
@@ -592,7 +592,7 @@ export default function StockChart({
         text: watermark ?? sym,
         color: `rgba(168,162,144,${cs.watermark.opacity})`,
         fontSize: 48,
-        fontFamily: "'IBM Plex Mono', monospace",
+        fontFamily: "'Instrument Sans', sans-serif",
         fontWeight: '700',
       } : { visible: false },
     }

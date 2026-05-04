@@ -79,7 +79,7 @@ export default function Analytics() {
         borderColor: '#2e3127',
         textStyle: {
           color: '#e0dac8',
-          fontFamily: 'IBM Plex Mono',
+          fontFamily: 'Instrument Sans',
           fontSize: 11,
         },
         formatter: (params) => {
@@ -100,7 +100,7 @@ export default function Analytics() {
         axisLine: { lineStyle: { color: '#2e3127' } },
         axisLabel: {
           color: '#706b5e',
-          fontFamily: 'IBM Plex Mono',
+          fontFamily: 'Instrument Sans',
           fontSize: 9,
           rotate: 45,
         },
@@ -111,7 +111,7 @@ export default function Analytics() {
         axisLine: { show: false },
         axisLabel: {
           color: '#706b5e',
-          fontFamily: 'IBM Plex Mono',
+          fontFamily: 'Instrument Sans',
           fontSize: 10,
           formatter: v => `${v >= 0 ? '+' : ''}${v}%`,
         },
@@ -126,7 +126,7 @@ export default function Analytics() {
           borderColor: '#2e3127',
           fillerColor: 'rgba(201,168,76,0.1)',
           handleStyle: { color: '#c9a84c' },
-          textStyle: { color: '#706b5e', fontFamily: 'IBM Plex Mono', fontSize: 9 },
+          textStyle: { color: '#706b5e', fontFamily: 'Instrument Sans', fontSize: 9 },
         },
       ],
       series: [

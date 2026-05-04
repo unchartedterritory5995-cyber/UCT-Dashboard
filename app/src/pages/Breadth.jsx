@@ -902,7 +902,7 @@ function BreadthHeatmap({ rows, onDrill }) {
         borderColor: '#c9a84c',
         borderWidth: 1,
         padding: [8, 12],
-        textStyle: { color: '#e0e0e0', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11 },
+        textStyle: { color: '#e0e0e0', fontFamily: 'Instrument Sans, sans-serif', fontSize: 11 },
         formatter: params => {
           const d = params.data
           if (!d || !d.tier) return ''
@@ -920,7 +920,7 @@ function BreadthHeatmap({ rows, onDrill }) {
             pctileStr = `p${pct} of ${sorted.length}d`
           }
           return (
-            `<div style="min-width:145px;font-family:IBM Plex Mono,monospace">` +
+            `<div style="min-width:145px;font-family:Instrument Sans,sans-serif">` +
             `<div style="color:#c9a84c;font-weight:700;margin-bottom:3px">${metric.label}</div>` +
             `<div style="color:#555;font-size:10px;margin-bottom:6px">${currentRow.date}</div>` +
             `<div style="font-size:16px;font-weight:700;margin-bottom:4px">${metric.getFmt(currentRow)}</div>` +
@@ -939,14 +939,14 @@ function BreadthHeatmap({ rows, onDrill }) {
         rich: {
           lbl: {
             fontSize:   11,
-            fontFamily: 'IBM Plex Mono, monospace',
+            fontFamily: 'Instrument Sans, sans-serif',
             fontWeight: 700,
             color:      'rgba(255,255,255,0.60)',
             lineHeight: 18,
           },
           val: {
             fontSize:   30,
-            fontFamily: 'IBM Plex Mono, monospace',
+            fontFamily: 'Instrument Sans, sans-serif',
             fontWeight: 700,
             color:      '#ffffff',
             lineHeight: 40,

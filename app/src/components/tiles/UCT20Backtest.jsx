@@ -196,12 +196,12 @@ export default function UCT20Backtest() {
                       </linearGradient>
                     </defs>
                     <XAxis
-                      dataKey="date" tick={{ fontSize: 9, fill: 'var(--text-muted)', fontFamily: 'IBM Plex Mono' }}
+                      dataKey="date" tick={{ fontSize: 9, fill: 'var(--text-muted)', fontFamily: 'Instrument Sans' }}
                       tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={50}
                       tickFormatter={d => d?.slice(5)}
                     />
                     <YAxis
-                      tick={{ fontSize: 9, fill: 'var(--text-muted)', fontFamily: 'IBM Plex Mono' }}
+                      tick={{ fontSize: 9, fill: 'var(--text-muted)', fontFamily: 'Instrument Sans' }}
                       tickLine={false} axisLine={false} width={36}
                       tickFormatter={v => `${v.toFixed(0)}%`}
                     />
@@ -228,12 +228,12 @@ export default function UCT20Backtest() {
                       </linearGradient>
                     </defs>
                     <XAxis
-                      dataKey="date" tick={{ fontSize: 9, fill: 'var(--text-muted)', fontFamily: 'IBM Plex Mono' }}
+                      dataKey="date" tick={{ fontSize: 9, fill: 'var(--text-muted)', fontFamily: 'Instrument Sans' }}
                       tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={50}
                       tickFormatter={d => d?.slice(5)}
                     />
                     <YAxis
-                      tick={{ fontSize: 9, fill: 'var(--text-muted)', fontFamily: 'IBM Plex Mono' }}
+                      tick={{ fontSize: 9, fill: 'var(--text-muted)', fontFamily: 'Instrument Sans' }}
                       tickLine={false} axisLine={false} width={36}
                       tickFormatter={v => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`}
                     />
@@ -254,7 +254,7 @@ export default function UCT20Backtest() {
                 <ResponsiveContainer width="100%" height={100}>
                   <BarChart data={distData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                     <XAxis
-                      dataKey="bucket" tick={{ fontSize: 8, fill: 'var(--text-muted)', fontFamily: 'IBM Plex Mono' }}
+                      dataKey="bucket" tick={{ fontSize: 8, fill: 'var(--text-muted)', fontFamily: 'Instrument Sans' }}
                       tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={30}
                     />
                     <YAxis hide />

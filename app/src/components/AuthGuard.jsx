@@ -18,8 +18,8 @@ function MaintenancePage() {
         animation: 'maintenancePulse 3s ease-in-out infinite',
       }} />
       <div style={{
-        fontFamily: "'Cinzel', serif", fontSize: 48, fontWeight: 700,
-        color: '#c9a84c', letterSpacing: 12, marginBottom: 24,
+        fontFamily: "'Instrument Sans', sans-serif", fontSize: 42, fontWeight: 700,
+        color: '#c9a84c', letterSpacing: 6, marginBottom: 24,
         position: 'relative', zIndex: 1,
       }}>
         UCT

@@ -103,7 +103,7 @@ function renderHorizontal(ctx, pts, w) {
   // Price label
   if (pts[0].price != null) {
     const label = pts[0].price.toFixed(2)
-    ctx.font = '10px "IBM Plex Mono", monospace'
+    ctx.font = '10px "Instrument Sans", sans-serif'
     ctx.fillStyle = ctx.strokeStyle
     ctx.fillText(label, w - ctx.measureText(label).width - 4, pts[0].y - 4)
   }
@@ -119,7 +119,7 @@ function renderHRay(ctx, pts, w) {
   // Price label
   if (pts[0].price != null) {
     const label = pts[0].price.toFixed(2)
-    ctx.font = '10px "IBM Plex Mono", monospace'
+    ctx.font = '10px "Instrument Sans", sans-serif'
     ctx.fillStyle = ctx.strokeStyle
     ctx.fillText(label, w - ctx.measureText(label).width - 4, pts[0].y - 4)
   }
@@ -183,7 +183,7 @@ function renderArrow(ctx, pts) {
 
 function renderText(ctx, pts, drawing) {
   if (!pts.length || !drawing.text) return
-  ctx.font = `${drawing.fontSize || 13}px "IBM Plex Mono", monospace`
+  ctx.font = `${drawing.fontSize || 13}px "Instrument Sans", sans-serif`
   ctx.fillStyle = ctx.strokeStyle
   const lines = drawing.text.split('\n')
   lines.forEach((line, i) => {
@@ -198,7 +198,7 @@ function renderFib(ctx, pts, w, toPixel) {
   const range = highPrice - lowPrice
   if (range <= 0) return
 
-  ctx.font = '10px "IBM Plex Mono", monospace'
+  ctx.font = '10px "Instrument Sans", sans-serif'
   FIB_LEVELS.forEach((level, i) => {
     const price = highPrice - range * level
     const y = toPixel(null, price)
@@ -275,7 +275,7 @@ function renderMeasure(ctx, pts, drawing) {
     const pct = ((diff / p1Price) * 100).toFixed(2)
     const bars = drawing.barCount || ''
     const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2
-    ctx.font = 'bold 11px "IBM Plex Mono", monospace'
+    ctx.font = 'bold 11px "Instrument Sans", sans-serif'
     ctx.fillStyle = ctx.strokeStyle
     ctx.textAlign = 'center'
     const line1 = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`
@@ -334,7 +334,7 @@ function renderAnchoredVwap(ctx, anchorPt, bars, timeToIndex, toPixelFn) {
   // Price label at rightmost visible point
   const last = drawable[drawable.length - 1]
   const lastVwap = cumV > 0 ? cumPV / cumV : 0
-  ctx.font = '10px "IBM Plex Mono", monospace'
+  ctx.font = '10px "Instrument Sans", sans-serif'
   ctx.fillStyle = ctx.strokeStyle
   ctx.fillText(`VWAP ${lastVwap.toFixed(2)}`, last.x + 6, last.y - 4)
 
@@ -349,7 +349,7 @@ function renderAnchoredVwap(ctx, anchorPt, bars, timeToIndex, toPixelFn) {
       ctx.fill()
 
       // "A" label at anchor
-      ctx.font = 'bold 9px "IBM Plex Mono", monospace'
+      ctx.font = 'bold 9px "Instrument Sans", sans-serif'
       ctx.fillText('A', anchorPx.x - 3, anchorPx.y - 8)
     }
   }
@@ -379,7 +379,7 @@ function renderCrosshair(ctx, x, y, price, w, h) {
   ctx.setLineDash([])
   // Price label
   if (price != null) {
-    ctx.font = '10px "IBM Plex Mono", monospace'
+    ctx.font = '10px "Instrument Sans", sans-serif'
     ctx.fillStyle = '#c9a84c'
     ctx.fillText(`$${price.toFixed(2)}`, x + 8, y - 6)
   }
@@ -1089,7 +1089,7 @@ function TextInputOverlay({ x, y, color, onSubmit, onCancel }) {
         borderRadius: 4,
         boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
         color: '#e2dfd6',
-        fontFamily: "'IBM Plex Mono', monospace",
+        fontFamily: "'Instrument Sans', sans-serif",
         fontSize: 12,
         lineHeight: 1.4,
         resize: 'both',
@@ -1125,7 +1125,7 @@ function DrawingContextMenu({ x, y, onDelete, onClose }) {
         borderRadius: 4,
         boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
         padding: '3px 0',
-        fontFamily: "'IBM Plex Mono', monospace",
+        fontFamily: "'Instrument Sans', sans-serif",
         fontSize: 11,
       }}
     >

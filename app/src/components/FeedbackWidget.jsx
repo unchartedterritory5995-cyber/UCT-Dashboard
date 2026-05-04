@@ -23,7 +23,7 @@ const S = {
   menuItem: {
     display: 'flex', alignItems: 'center', gap: 8,
     padding: '10px 14px', cursor: 'pointer', fontSize: 12,
-    color: '#e8e3d6', fontFamily: 'IBM Plex Mono, monospace',
+    color: '#e8e3d6', fontFamily: 'Instrument Sans, sans-serif',
     fontWeight: 600, letterSpacing: 0.3,
     borderBottom: '1px solid rgba(255,255,255,0.06)',
     transition: 'background 0.12s',
