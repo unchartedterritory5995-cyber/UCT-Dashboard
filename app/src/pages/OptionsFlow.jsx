@@ -2092,7 +2092,7 @@ export default function OptionsFlowDashboard() {
 
   // ─── Loading / Error / Empty States (AFTER all hooks) ──────────────────
   if (csvLoading && !D) return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Instrument Sans', sans-serif"}}>
+    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #00e676",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Loading flow data...</div>
@@ -2101,7 +2101,7 @@ export default function OptionsFlowDashboard() {
     </div>
   );
   if (csvError && dataMode !== "gex") return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Instrument Sans', sans-serif"}}>
+    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center",maxWidth:400}}>
         <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
           {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
@@ -2121,7 +2121,7 @@ export default function OptionsFlowDashboard() {
     </div>
   );
   if ((!D || !FD) && dataMode !== "gex") return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Instrument Sans', sans-serif"}}>
+    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #00e676",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Processing flow data...</div>
@@ -2130,8 +2130,8 @@ export default function OptionsFlowDashboard() {
     </div>
   );
 
-  const shortDir = FD.shortBullTotal >= FD.shortBearTotal ? "BULL" : "BEAR";
-  const longDir = FD.longBullTotal >= FD.longBearTotal ? "BULL" : "BEAR";
+  const shortDir = FD ? (FD.shortBullTotal >= FD.shortBearTotal ? "BULL" : "BEAR") : "BULL";
+  const longDir = FD ? (FD.longBullTotal >= FD.longBearTotal ? "BULL" : "BEAR") : "BULL";
   const shortC = shortDir==="BULL" ? P.bu : P.be;
   const longC = longDir==="BULL" ? P.bu : P.be;
 
@@ -2310,7 +2310,7 @@ export default function OptionsFlowDashboard() {
 
 
   return (
-    <div style={{ background:P.bg, color:P.tx, fontFamily:"'Instrument Sans', system-ui, sans-serif", minHeight:"100vh", padding:"16px 20px", zoom:1.18 }}>
+    <div style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", padding:"16px 20px", zoom:1.18 }}>
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
 
         {/* Data Mode Toggle */}
