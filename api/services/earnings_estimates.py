@@ -104,3 +104,62 @@ def get_earnings_intel(ticker: str) -> dict | None:
     }
     cache.set(cache_key, result, ttl=_CACHE_TTL)
     return result
+
+
+def get_chart_markers(ticker: str) -> dict:
+    """Return earnings beat/miss history and stock splits for chart annotation.
+
+    Returns:
+        {
+          "earnings": [{"date": "2024-11-01", "beat": true, "surprise": 3.2}, ...],
+          "splits":   [{"date": "2020-08-28", "ratio": "4:1"}, ...]
+        }
+    Keys with no data return empty lists. Never raises.
+    """
+    try:
+        ticker = ticker.upper()
+        cache_key = f"chart_markers_{ticker}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        result = {"earnings": [], "splits": []}
+
+        # ── Earnings history (last 16 quarters ≈ 4 years) ─────────────────────
+        eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": 16})
+        if isinstance(eps_raw, list):
+            for q in eps_raw:
+                date_str = q.get("period") or q.get("date") or q.get("reportDate")
+                if not date_str:
+                    continue
+                actual   = q.get("actual")
+                estimate = q.get("estimate")
+                beat = bool(actual >= estimate) if (actual is not None and estimate is not None) else None
+                result["earnings"].append({
+                    "date": str(date_str)[:10],
+                    "beat": beat,
+                    "surprise": q.get("surprisePercent"),
+                })
+
+        # ── Stock splits (last 5 years) ───────────────────────────────────────
+        from datetime import date, timedelta
+        today = date.today()
+        from_date = (today - timedelta(days=365 * 5)).strftime("%Y-%m-%d")
+        to_date   = today.strftime("%Y-%m-%d")
+        splits_raw = _fh_get("/stock/split", {"symbol": ticker, "from": from_date, "to": to_date})
+        if isinstance(splits_raw, list):
+            for s in splits_raw:
+                date_str = s.get("date")
+                from_f   = s.get("fromFactor", 1)
+                to_f     = s.get("toFactor", 1)
+                if date_str:
+                    result["splits"].append({
+                        "date": str(date_str)[:10],
+                        "ratio": f"{from_f}:{to_f}",
+                    })
+
+        cache.set(cache_key, result, ttl=_CACHE_TTL)
+        return result
+    except Exception as exc:
+        _logger.warning("get_chart_markers failed for %s: %s", ticker, exc)
+        return {"earnings": [], "splits": []}

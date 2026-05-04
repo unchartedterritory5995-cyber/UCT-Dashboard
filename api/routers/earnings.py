@@ -231,3 +231,10 @@ def earnings_analysis(request: Request, sym: str):
             "news": [],
             "error": str(e),
         }
+
+
+@router.get("/api/chart/markers/{ticker}")
+def chart_markers_endpoint(ticker: str):
+    """Earnings beat/miss history + stock splits for chart annotation."""
+    from api.services.earnings_estimates import get_chart_markers
+    return get_chart_markers(ticker.upper())
