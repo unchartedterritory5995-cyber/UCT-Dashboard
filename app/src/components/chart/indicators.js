@@ -33,8 +33,8 @@ export function computeRSI(bars, period = 14) {
       avgGain = (avgGain * (period - 1) + gain) / period
       avgLoss = (avgLoss * (period - 1) + loss) / period
     }
-    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss
-    result.push({ time: bars[i].t, value: parseFloat((100 - 100 / (1 + rs)).toFixed(2)) })
+    const rsi = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss)
+    result.push({ time: bars[i].t, value: parseFloat(rsi.toFixed(2)) })
   }
   return result
 }
@@ -85,7 +85,7 @@ export function computeBB(bars, period = 20, stdDev = 2) {
     const avg = sum / period
     let sqSum = 0
     for (let j = i - period + 1; j <= i; j++) sqSum += (bars[j].c - avg) ** 2
-    const std = Math.sqrt(sqSum / period)
+    const std = Math.sqrt(sqSum / (period - 1))
     const t = bars[i].t
     upper.push({ time: t, value: parseFloat((avg + stdDev * std).toFixed(4)) })
     middle.push({ time: t, value: parseFloat(avg.toFixed(4)) })
@@ -101,7 +101,7 @@ export function computeVWAP(bars) {
   for (const bar of bars) {
     // Use UTC date to determine session boundaries (9:30 ET is always same UTC day)
     const d = new Date(bar.t * 1000)
-    const dayKey = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`
+    const dayKey = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`
     if (dayKey !== currentDay) { cumPV = 0; cumVol = 0; currentDay = dayKey }
     const tp = (bar.h + bar.l + bar.c) / 3
     cumPV += tp * bar.v
