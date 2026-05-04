@@ -119,13 +119,14 @@ function Card({ children, title, sub }) {
 
 function TT({ rows, priceFn, onRowClick, panelFn }) {
   const [expandedKey, setExpandedKey] = useState(null);
-  const colCount = ["Ticker","Day","Exp","Strike","C/P","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow","Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).length;
+  const cols = ["Ticker","Day","Exp","Strike","C/P","Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,"DTE","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow"].filter(Boolean);
+  const colCount = cols.length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
-          {["Ticker","Day","Exp","Strike","C/P","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow","Vol","OI",priceFn?"ΔOI":null,"DTE"].filter(Boolean).map(h => (
-            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
+          {cols.map(h => (
+            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in OI from CSV snapshot to live — shows if positions are growing or closing.":h==="Live OI"?"Current open interest fetched from broker":undefined}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -150,6 +151,11 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
+              <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.V)}</td>
+              <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:P.dm }}>{curOI>0?curOI.toLocaleString():"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
+              <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
@@ -161,10 +167,6 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
                   <Tag c={r.Co==="YELLOW"?P.ye:r.Co==="MAGENTA"?P.ma:P.uc}>{r.Co}</Tag>
                 </span>
               </td>
-              <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.V)}</td>
-              <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
-              <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
             </tr>
             {isExpanded && onRowClick && (
               <tr><td colSpan={colCount} style={{ padding:0, background:"#060e1e" }}>
@@ -181,13 +183,14 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
 
 function CT({ rows, priceFn, onRowClick, panelFn }) {
   const [expandedKey, setExpandedKey] = useState(null);
-  const colCount = ["Ticker","Exp","Strike","C/P","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade","OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).length;
+  const cols = ["Ticker","Exp","Strike","C/P","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null,"Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade"].filter(Boolean);
+  const colCount = cols.length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
-          {["Ticker","Exp","Strike","C/P","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Hits","Grade","OI",priceFn?"ΔOI":null,priceFn?"Δ":null,priceFn?"θ":null].filter(Boolean).map(h => (
-            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":undefined}>{h}</th>
+          {cols.map(h => (
+            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in OI from CSV snapshot to live — shows if positions are growing or closing.":h==="Live OI"?"Current open interest fetched from broker":undefined}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -211,6 +214,11 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
+              <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:P.dm }}>{curOI>0?curOI.toLocaleString():"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:P.dm }}>{px&&px.delta?px.delta.toFixed(2):"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:px&&px.theta<0?P.be:P.dm }}>{px&&px.theta?px.theta.toFixed(2):"—"}</td>}
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
@@ -219,10 +227,6 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
                 <span style={{ fontWeight:800, fontSize:13, color:r.H>=10?P.ac:r.H>=5?P.ye:P.dm }}>{r.H}x</span>
               </td>
               <td style={{ padding:"5px 4px" }}><Tag c={GRADE_COLORS[r.grade]||P.mt}>{r.grade||"—"}</Tag></td>
-              <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
-              {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:P.dm }}>{px&&px.delta?px.delta.toFixed(2):"—"}</td>}
-              {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:px&&px.theta<0?P.be:P.dm }}>{px&&px.theta?px.theta.toFixed(2):"—"}</td>}
             </tr>
             {isExpanded && onRowClick && (
               <tr><td colSpan={colCount} style={{ padding:0, background:"#060e1e" }}>
