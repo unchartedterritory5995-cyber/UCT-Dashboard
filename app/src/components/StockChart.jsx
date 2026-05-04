@@ -32,11 +32,17 @@ function formatVolume(v) {
 
 // ─── Indicator computations ──────────────────────────────────────────────────
 
-function computeSMA(bars, period) {
+// Rolling-window O(n) SMA. Mathematically identical to the naive
+// O(n*period) version but adds the entering bar and subtracts the
+// leaving bar instead of re-summing the window each step.
+export function computeSMA(bars, period) {
+  if (bars.length < period) return []
   const result = []
-  for (let i = period - 1; i < bars.length; i++) {
-    let sum = 0
-    for (let j = i - period + 1; j <= i; j++) sum += bars[j].c
+  let sum = 0
+  for (let i = 0; i < period; i++) sum += bars[i].c
+  result.push({ time: bars[period - 1].t, value: +(sum / period).toFixed(2) })
+  for (let i = period; i < bars.length; i++) {
+    sum += bars[i].c - bars[i - period].c
     result.push({ time: bars[i].t, value: +(sum / period).toFixed(2) })
   }
   return result
