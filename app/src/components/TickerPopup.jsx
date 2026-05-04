@@ -12,6 +12,7 @@ const StockChart = lazy(() => import('./StockChart'))
 
 const TABS = ['1min', '5min', '15min', '30min', '1hr', 'Daily', 'Weekly', 'Monthly']
 const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
+const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [v, k]))
 
 export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null }) {
   const [modalOpen, setModalOpen] = useState(false)
@@ -130,6 +131,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   height="min(650px, 70vh)"
                   markers={markers}
                   priceLines={priceLines}
+                  onTfChange={tf => setTab(TF_TO_TAB[tf] || tab)}
                 />
               </Suspense>
             </div>

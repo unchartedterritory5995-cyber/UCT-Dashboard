@@ -197,6 +197,7 @@ export default function StockChart({
   entryDate = null,         // ISO date string — zoom centers on trade holding period
   exitDate = null,          // ISO date string — end of holding period zoom
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
+  onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -336,9 +337,10 @@ export default function StockChart({
   }, [sym])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
 
-  // ── Drawing tool keyboard shortcuts ──
+  // ── Drawing tool + TF keyboard shortcuts ──
   useEffect(() => {
-    if (!showDrawingTools) return
+    if (!showDrawingTools && !onTfChange) return
+    const TF_KEYS = { '1': '1', '5': '5', 'd': 'D', 'w': 'W' }
     const TOOL_KEYS = { t: 'trendline', h: 'horizontal', r: 'rect', f: 'fib', x: 'text', m: 'measure' }
     const handler = (e) => {
       // Skip if user is typing in an input
@@ -346,14 +348,22 @@ export default function StockChart({
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return
       if (document.activeElement?.isContentEditable) return
       const key = e.key.toLowerCase()
-      if (e.key === 'Escape') { setActiveTool(null); return }
-      if (key === 'v') { setActiveTool(t => t === 'cursor' ? null : 'cursor'); return }
-      const tool = TOOL_KEYS[key]
-      if (tool) { e.preventDefault(); setActiveTool(t => t === tool ? null : tool) }
+      // TF shortcuts (1=1min, 5=5min, d=daily, w=weekly)
+      if (onTfChange) {
+        const tfKey = TF_KEYS[key]
+        if (tfKey) { e.preventDefault(); onTfChange(tfKey); return }
+      }
+      // Drawing tool shortcuts
+      if (showDrawingTools) {
+        if (e.key === 'Escape') { setActiveTool(null); return }
+        if (key === 'v') { setActiveTool(t => t === 'cursor' ? null : 'cursor'); return }
+        const tool = TOOL_KEYS[key]
+        if (tool) { e.preventDefault(); setActiveTool(t => t === tool ? null : tool) }
+      }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [showDrawingTools, setActiveTool])
+  }, [showDrawingTools, setActiveTool, onTfChange])
 
   // 8000 daily bars ≈ 32 years — covers dot-com era for tickers that go
   // back that far (CIEN since 1997, etc.). Other timeframes don't need
