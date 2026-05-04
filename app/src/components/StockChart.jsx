@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings } from './chart/chartDefaults'
-import { toHeikinAshi } from './chart/indicators'
+import { toHeikinAshi, computeBB, computeVWAP } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
@@ -147,6 +147,7 @@ function computeBarTime(tf, tickTimeSec) {
 // ─── Series type helpers ─────────────────────────────────────────────────────
 
 const OHLC_TYPES = new Set(['candles', 'hollow', 'bars'])
+const VWAP_TFS = new Set(['1', '5', '15', '30', '60'])
 
 function isOhlcType(chartType) {
   return !chartType || OHLC_TYPES.has(chartType)
@@ -202,6 +203,10 @@ export default function StockChart({
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
   const overlaySeriesRefs = useRef([])
+  const bbUpperRef    = useRef(null)
+  const bbMiddleRef   = useRef(null)
+  const bbLowerRef    = useRef(null)
+  const vwapSeriesRef = useRef(null)
   const priceLineRefs = useRef([])
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
   const lastBarRef = useRef(null)
@@ -439,6 +444,26 @@ export default function StockChart({
       return { data: raw.map(p => ({ time: adjustTime(p.time), value: p.value })), color: ov.color }
     })
   }, [filteredBars, resolvedOverlays, adjustTime])
+
+  const indicatorData = useMemo(() => {
+    const ind = cs.indicators || {}
+    const bbRaw = ind.bb?.enabled
+      ? computeBB(filteredBars, ind.bb.period, ind.bb.stdDev)
+      : { upper: [], middle: [], lower: [] }
+    const vwapRaw = (ind.vwap?.enabled && VWAP_TFS.has(resolvedTf))
+      ? computeVWAP(filteredBars)
+      : []
+    return {
+      rsi:  [],
+      bb: {
+        upper:  bbRaw.upper.map(p  => ({ time: adjustTime(p.time), value: p.value })),
+        middle: bbRaw.middle.map(p => ({ time: adjustTime(p.time), value: p.value })),
+        lower:  bbRaw.lower.map(p  => ({ time: adjustTime(p.time), value: p.value })),
+      },
+      vwap: vwapRaw.map(p => ({ time: adjustTime(p.time), value: p.value })),
+      macd: { macd: [], signal: [], histogram: [] },
+    }
+  }, [filteredBars, cs.indicators, resolvedTf, adjustTime])
 
   // Reset all live tracking refs on symbol or timeframe change.
   // CRITICAL: latestLiveRef must also be cleared — without it, a leftover live
@@ -771,6 +796,49 @@ export default function StockChart({
       }
     }
 
+    // ── Bollinger Bands (3 LineSeries on main price scale) ──
+    const bbColor = cs.indicators?.bb?.color || 'rgba(156,39,176,0.85)'
+    const BB_BANDS = [
+      { ref: bbUpperRef,  data: indicatorData.bb.upper,  style: 2 },
+      { ref: bbMiddleRef, data: indicatorData.bb.middle, style: 0 },
+      { ref: bbLowerRef,  data: indicatorData.bb.lower,  style: 2 },
+    ]
+    for (const { ref, data, style } of BB_BANDS) {
+      if (data.length) {
+        if (!ref.current) {
+          ref.current = chart.addSeries(LineSeries, {
+            color: bbColor, lineWidth: 1, lineStyle: style,
+            priceLineVisible: false, lastValueVisible: false,
+            crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
+          })
+        } else {
+          ref.current.applyOptions({ color: bbColor })
+        }
+        ref.current.setData(data)
+      } else if (ref.current) {
+        try { chart.removeSeries(ref.current) } catch {}
+        ref.current = null
+      }
+    }
+
+    // ── Session VWAP (intraday only) ──
+    if (indicatorData.vwap.length) {
+      const vwapColor = cs.indicators?.vwap?.color || '#26C6DA'
+      if (!vwapSeriesRef.current) {
+        vwapSeriesRef.current = chart.addSeries(LineSeries, {
+          color: vwapColor, lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false,
+          crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
+        })
+      } else {
+        vwapSeriesRef.current.applyOptions({ color: vwapColor })
+      }
+      vwapSeriesRef.current.setData(indicatorData.vwap)
+    } else if (vwapSeriesRef.current) {
+      try { chart.removeSeries(vwapSeriesRef.current) } catch {}
+      vwapSeriesRef.current = null
+    }
+
     // ── Price lines — remove old, add new ──
     for (const pl of priceLineRefs.current) {
       try { candleSeriesRef.current.removePriceLine(pl) } catch {}
@@ -856,7 +924,7 @@ export default function StockChart({
         }
       }
     }
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
