@@ -97,7 +97,7 @@
 .dropdownItemActive  { background: #3B82F6 !important; }
 
 .dropdownSym {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
   min-width: 36px;
