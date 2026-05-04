@@ -156,3 +156,48 @@ export function computeATR(bars, period = 14) {
   }
   return result
 }
+
+export function computeParabolicSAR(bars, step = 0.02, maxStep = 0.2) {
+  if (!bars || bars.length < 2) return []
+  const result = []
+  let isUptrend = bars[1].c > bars[0].c
+  let sar = isUptrend ? bars[0].l : bars[0].h
+  let ep  = isUptrend ? bars[0].h : bars[0].l
+  let af  = step
+
+  for (let i = 1; i < bars.length; i++) {
+    const bar = bars[i]
+    // Project SAR for this bar
+    let nextSar = sar + af * (ep - sar)
+    if (isUptrend) {
+      // SAR must be at or below the two prior lows
+      if (i >= 2) nextSar = Math.min(nextSar, bars[i - 1].l, bars[i - 2].l)
+      else        nextSar = Math.min(nextSar, bars[i - 1].l)
+      if (bar.l < nextSar) {
+        // Reversal to downtrend
+        isUptrend = false
+        nextSar = ep
+        ep = bar.l
+        af = step
+      } else {
+        if (bar.h > ep) { ep = bar.h; af = Math.min(af + step, maxStep) }
+      }
+    } else {
+      // SAR must be at or above the two prior highs
+      if (i >= 2) nextSar = Math.max(nextSar, bars[i - 1].h, bars[i - 2].h)
+      else        nextSar = Math.max(nextSar, bars[i - 1].h)
+      if (bar.h > nextSar) {
+        // Reversal to uptrend
+        isUptrend = true
+        nextSar = ep
+        ep = bar.h
+        af = step
+      } else {
+        if (bar.l < ep) { ep = bar.l; af = Math.min(af + step, maxStep) }
+      }
+    }
+    sar = nextSar
+    result.push({ time: bar.t, value: parseFloat(sar.toFixed(4)), isUptrend })
+  }
+  return result
+}

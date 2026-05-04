@@ -105,14 +105,14 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
   }, [cs, onUpdateSettings])
 
   const updateIndicator = useCallback((key, field, value) => {
-    const numFields = new Set(['period', 'fastPeriod', 'slowPeriod', 'signalPeriod', 'stdDev', 'kPeriod', 'dPeriod'])
+    const numFields = new Set(['period', 'fastPeriod', 'slowPeriod', 'signalPeriod', 'stdDev', 'kPeriod', 'dPeriod', 'step', 'maxStep'])
     const next = { ...cs }
     next.indicators = {
       ...next.indicators,
       [key]: {
         ...next.indicators[key],
         [field]: numFields.has(field)
-          ? (field === 'stdDev' ? (parseFloat(value) || next.indicators[key][field]) : (parseInt(value) || next.indicators[key][field]))
+          ? (['stdDev', 'step', 'maxStep'].includes(field) ? (parseFloat(value) || next.indicators[key][field]) : (parseInt(value) || next.indicators[key][field]))
           : value,
       },
     }
@@ -328,6 +328,22 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
             onChange={e => updateIndicator('atr', 'period', e.target.value)} title="Period" />
           <ColorPicker value={cs.indicators?.atr?.color ?? '#FFA726'}
             onChange={v => updateIndicator('atr', 'color', v)} />
+        </div>
+
+        {/* Parabolic SAR */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.sar?.enabled ?? false}
+            onChange={e => updateIndicator('sar', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>SAR</span>
+          <div className={styles.sMiniPeriodGroup}>
+            <input type="number" className={styles.sPeriodInput}
+              value={cs.indicators?.sar?.step ?? 0.02} min={0.001} max={0.1} step={0.001}
+              onChange={e => updateIndicator('sar', 'step', parseFloat(e.target.value) || 0.02)}
+              title="Step (acceleration factor)" />
+          </div>
+          <ColorPicker value={cs.indicators?.sar?.color ?? '#ffeb3b'}
+            onChange={v => updateIndicator('sar', 'color', v)} />
         </div>
       </div>
 

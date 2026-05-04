@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings } from './chart/chartDefaults'
-import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR } from './chart/indicators'
+import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
@@ -279,6 +279,7 @@ export default function StockChart({
   const stochKRef     = useRef(null)
   const stochDRef     = useRef(null)
   const atrSeriesRef  = useRef(null)
+  const sarSeriesRef  = useRef(null)
   const macdLineRef   = useRef(null)
   const macdSignalRef = useRef(null)
   const macdHistRef   = useRef(null)
@@ -581,6 +582,9 @@ export default function StockChart({
     const atrRaw = ind.atr?.enabled
       ? computeATR(filteredBars, ind.atr.period)
       : []
+    const sarRaw = ind.sar?.enabled
+      ? computeParabolicSAR(filteredBars, ind.sar.step, ind.sar.maxStep)
+      : []
     return {
       rsi: rsiRaw,
       bb: {
@@ -604,6 +608,7 @@ export default function StockChart({
         d: stochRaw.d.map(p => ({ time: adjustTime(p.time), value: p.value })),
       },
       atr: atrRaw.map(p => ({ time: adjustTime(p.time), value: p.value })),
+      sar: sarRaw.map(p => ({ time: adjustTime(p.time), value: p.value, isUptrend: p.isUptrend })),
     }
   }, [filteredBars, cs.indicators, resolvedTf, adjustTime])
 
@@ -1124,6 +1129,30 @@ export default function StockChart({
       atrSeriesRef.current = null
     }
 
+    // ── Parabolic SAR (dots on main price scale) ──
+    if (indicatorData.sar.length) {
+      const sarColor = cs.indicators?.sar?.color || '#ffeb3b'
+      if (!sarSeriesRef.current) {
+        sarSeriesRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'right',
+          color: sarColor,
+          lineWidth: 0,
+          pointMarkersVisible: true,
+          pointMarkersRadius: 3,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+          autoscaleInfoProvider: () => null,
+        })
+      } else {
+        sarSeriesRef.current.applyOptions({ color: sarColor })
+      }
+      sarSeriesRef.current.setData(indicatorData.sar.map(p => ({ time: p.time, value: p.value })))
+    } else if (sarSeriesRef.current) {
+      try { chart.removeSeries(sarSeriesRef.current) } catch {}
+      sarSeriesRef.current = null
+    }
+
     // ── Price lines — remove old, add new ──
     for (const pl of priceLineRefs.current) {
       try { candleSeriesRef.current.removePriceLine(pl) } catch {}
@@ -1287,6 +1316,12 @@ export default function StockChart({
         atrValue = da?.value ?? (indicatorData.atr.at(-1)?.value ?? null)
       }
 
+      let sarValue = null
+      if (sarSeriesRef.current) {
+        const ds = param.seriesData.get(sarSeriesRef.current)
+        sarValue = ds?.value ?? (indicatorData.sar.at(-1)?.value ?? null)
+      }
+
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -1296,7 +1331,7 @@ export default function StockChart({
         overlays: ovValues,
         rsi: rsiValue, macd: macdValue, macdSig: macdSignalValue,
         stochK: stochKValue, stochD: stochDValue,
-        atr: atrValue,
+        atr: atrValue, sar: sarValue,
       })
     }
 
@@ -1502,6 +1537,11 @@ export default function StockChart({
           {crosshairData.atr != null && (
             <span style={{ color: cs.indicators?.atr?.color || '#FFA726' }}>
               ATR({cs.indicators?.atr?.period || 14}) {crosshairData.atr.toFixed(4)}
+            </span>
+          )}
+          {crosshairData.sar != null && (
+            <span style={{ color: cs.indicators?.sar?.color || '#ffeb3b' }}>
+              SAR {crosshairData.sar.toFixed(4)}
             </span>
           )}
         </div>
