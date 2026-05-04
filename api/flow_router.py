@@ -24,6 +24,14 @@ db = FlowDB(DB_PATH)
 
 flow_router = APIRouter(prefix="/api/flow", tags=["flow"])
 
+# Same caching policy as the legacy CSV endpoints in main.py — SWR with a
+# 5-min max-age. Query string (?days=N) is part of CF's cache key, so each
+# window caches independently.
+_FLOW_CACHE_HEADERS = {
+    "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+    "Vary": "Accept-Encoding",
+}
+
 
 @flow_router.post("/upload")
 async def upload_flow(request: Request):
@@ -87,7 +95,7 @@ async def get_flow_data(request: Request):
             csv_text = db.query_all_csv(source="stocks")
         else:
             csv_text = db.query_csv(source="stocks", days=days)
-        return PlainTextResponse(csv_text, media_type="text/csv")
+        return PlainTextResponse(csv_text, media_type="text/csv", headers=_FLOW_CACHE_HEADERS)
     except Exception as e:
         return PlainTextResponse(
             f"Error: {e}", status_code=500, media_type="text/plain"
@@ -114,7 +122,7 @@ async def get_indexes_data(request: Request):
             csv_text = db.query_all_csv(source="indexes")
         else:
             csv_text = db.query_csv(source="indexes", days=days)
-        return PlainTextResponse(csv_text, media_type="text/csv")
+        return PlainTextResponse(csv_text, media_type="text/csv", headers=_FLOW_CACHE_HEADERS)
     except Exception as e:
         return PlainTextResponse(
             f"Error: {e}", status_code=500, media_type="text/plain"
