@@ -16,24 +16,27 @@
   border-color: var(--ut-green-bright);
 }
 .sym {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 700;
   color: var(--ut-cream);
   margin-bottom: 3px;
 }
 .price {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   color: var(--text-heading);
 }
 .chg {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 10px;
   font-weight: 600;
 }
 .score {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 9px;
   color: var(--ut-gold);
   margin-top: 2px;

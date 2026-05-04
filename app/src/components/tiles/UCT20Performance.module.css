@@ -14,14 +14,14 @@
   flex-wrap: wrap;
 }
 .sectionTitle {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 2px;
   color: var(--ut-gold);
 }
 .sectionSub {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   color: var(--text-muted);
 }
@@ -44,17 +44,18 @@
   background: var(--text-muted); flex-shrink: 0;
 }
 .perfLabel {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px; color: var(--text-muted);
 }
 .perfPct {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 15px; font-weight: 700;
 }
 .perfAlpha { font-size: 13px; }
 .perfPeriods { display: flex; gap: 4px; margin-left: auto; flex-shrink: 0; }
 .periodBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
   background: transparent; color: var(--text-muted);
   border: 1px solid transparent; border-radius: 4px;
@@ -75,19 +76,20 @@
 }
 .stat { display: flex; flex-direction: column; gap: 3px; }
 .statLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
   color: var(--text-muted); text-transform: uppercase;
 }
 .statVal {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 12px; font-weight: 700; color: var(--text-bright);
 }
 
 /* ── Open positions ── */
 .openWrap { border-top: 1px solid var(--border); padding-top: 12px; margin-bottom: 12px; }
 .openHeader {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
   color: var(--text-muted); margin-bottom: 8px;
 }
@@ -98,23 +100,24 @@
 }
 .openRow:last-child { border-bottom: none; }
 .openSym {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 12px; font-weight: 700; color: var(--ut-cream); min-width: 50px;
 }
 .openEntry {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 11px; color: var(--text-muted); flex: 1;
 }
 .openPct {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 11px; font-weight: 700; min-width: 56px; text-align: right;
 }
 .openStop {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px; color: var(--loss); opacity: 0.75; flex: 1;
 }
 .openDays {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px; color: var(--text-muted); min-width: 28px; text-align: right;
 }
 
@@ -124,7 +127,7 @@
   display: flex; align-items: center; justify-content: space-between;
   width: 100%; background: transparent; border: none; cursor: pointer;
   padding: 4px 0 8px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
   color: var(--text-muted); text-transform: uppercase;
   transition: color 0.1s;
@@ -139,7 +142,7 @@
   gap: 0 6px;
   padding: 4px 0 6px;
   border-bottom: 1px solid var(--border-accent);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 8px; font-weight: 700; letter-spacing: 1px;
   color: var(--text-muted); text-transform: uppercase;
 }
@@ -149,7 +152,7 @@
   gap: 0 6px;
   padding: 5px 0;
   border-bottom: 1px solid var(--border);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px; color: var(--text);
   align-items: center;
 }
@@ -179,7 +182,7 @@
 .tooltip {
   background: var(--bg-elevated); border: 1px solid var(--border-accent);
   border-radius: 6px; padding: 8px 10px;
-  font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+  font-family: var(--font-sans); font-size: 11px;
 }
 .tooltipDate { color: var(--text-muted); font-size: 10px; margin-bottom: 4px; }
 .tooltipRow {
@@ -192,7 +195,7 @@
 /* ── Loading ── */
 .loading {
   color: var(--text-muted); font-size: 12px; padding: 8px 0;
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* ── Responsive ── */
