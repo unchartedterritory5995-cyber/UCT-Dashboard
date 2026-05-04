@@ -318,7 +318,42 @@ export default function StockChart({
   const handleUpdateChartSettings = useCallback((newSettings) => {
     setPref('chart_settings', JSON.stringify(newSettings))
   }, [setPref])
+  const handleScreenshot = useCallback(() => {
+    if (!chartRef.current) return
+    try {
+      const imageData = chartRef.current.takeScreenshot()
+      const canvas = document.createElement('canvas')
+      canvas.width = imageData.width
+      canvas.height = imageData.height
+      canvas.getContext('2d').putImageData(imageData, 0, 0)
+      const link = document.createElement('a')
+      link.download = `${sym || 'chart'}-${new Date().toISOString().slice(0, 10)}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (err) {
+      console.warn('Screenshot failed:', err)
+    }
+  }, [sym])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
+
+  // ── Drawing tool keyboard shortcuts ──
+  useEffect(() => {
+    if (!showDrawingTools) return
+    const TOOL_KEYS = { t: 'trendline', h: 'horizontal', r: 'rect', f: 'fib', x: 'text', m: 'measure' }
+    const handler = (e) => {
+      // Skip if user is typing in an input
+      const tag = document.activeElement?.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return
+      if (document.activeElement?.isContentEditable) return
+      const key = e.key.toLowerCase()
+      if (e.key === 'Escape') { setActiveTool(null); return }
+      if (key === 'v') { setActiveTool(t => t === 'cursor' ? null : 'cursor'); return }
+      const tool = TOOL_KEYS[key]
+      if (tool) { e.preventDefault(); setActiveTool(t => t === tool ? null : tool) }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [showDrawingTools, setActiveTool])
 
   // 8000 daily bars ≈ 32 years — covers dot-com era for tickers that go
   // back that far (CIEN since 1997, etc.). Other timeframes don't need
@@ -1496,6 +1531,7 @@ export default function StockChart({
             onUpdateSettings={handleUpdateChartSettings}
             showExtended={isIntraday ? showExtended : null}
             onToggleExtended={isIntraday ? handleToggleExtended : null}
+            onScreenshot={handleScreenshot}
           />
         </>
       )}

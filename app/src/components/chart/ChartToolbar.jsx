@@ -32,6 +32,7 @@ const ICONS = {
   measure:    I(<><rect x="2" y="4" width="12" height="8" strokeDasharray="2 1" /><line x1="4" y1="8" x2="12" y2="8" /><line x1="4" y1="6" x2="4" y2="10" /><line x1="12" y1="6" x2="12" y2="10" /></>),
   delete:     I(<><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>),
   clear:      I(<><line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" /></>),
+  camera:     I(<><path d="M2 5.5h12v8H2z" /><circle cx="8" cy="9.5" r="2" /><path d="M5.5 5.5l1-2h3l1 2" /></>),
 }
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
@@ -406,6 +407,7 @@ export default function ChartToolbar({
   repeatMode, setRepeatMode,
   chartSettings, onUpdateSettings,
   showExtended, onToggleExtended,
+  onScreenshot,
 }) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -479,6 +481,13 @@ export default function ChartToolbar({
             style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, padding: '2px 6px' }}
           >
             {showExtended ? 'EXT' : 'RTH'}
+          </button>
+        )}
+
+        {/* ── Screenshot ── */}
+        {onScreenshot && (
+          <button className={styles.btn} onClick={onScreenshot} title="Download chart as PNG">
+            {ICONS.camera}
           </button>
         )}
 
