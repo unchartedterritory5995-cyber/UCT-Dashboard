@@ -362,6 +362,20 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
               onChange={v => updateIndicator('ichimoku', 'kijunColor', v)} title="Kijun" />
           </div>
         </div>
+
+        {/* Volume Profile */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.volumeProfile?.enabled ?? false}
+            onChange={e => updateIndicator('volumeProfile', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>Vol Profile</span>
+          <input type="number" className={styles.sPeriodInput}
+            value={cs.indicators?.volumeProfile?.bins ?? 24} min={8} max={50}
+            onChange={e => updateIndicator('volumeProfile', 'bins', e.target.value)}
+            title="Number of price bins" />
+          <ColorPicker value={cs.indicators?.volumeProfile?.color ?? 'rgba(120,160,100,0.25)'}
+            onChange={v => updateIndicator('volumeProfile', 'color', v)} />
+        </div>
       </div>
 
       {/* Display Options */}

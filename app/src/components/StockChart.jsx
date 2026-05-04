@@ -179,6 +179,56 @@ function isOhlcType(chartType) {
   return !chartType || OHLC_TYPES.has(chartType)
 }
 
+// ─── Volume Profile canvas draw ──────────────────────────────────────────────
+
+function drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg) {
+  if (!canvas || !chart || !series || !filteredBars?.length) return
+  const ctx = canvas.getContext('2d')
+  const { width, height } = canvas
+  ctx.clearRect(0, 0, width, height)
+  if (!vpCfg?.enabled) return
+
+  const visRange = chart.timeScale().getVisibleLogicalRange()
+  if (!visRange) return
+
+  const startIdx = Math.max(0, Math.floor(visRange.from))
+  const endIdx = Math.min(filteredBars.length - 1, Math.ceil(visRange.to))
+  const visBars = filteredBars.slice(startIdx, endIdx + 1)
+  if (!visBars.length) return
+
+  let minP = Infinity, maxP = -Infinity
+  for (const b of visBars) { if (b.l < minP) minP = b.l; if (b.h > maxP) maxP = b.h }
+  if (maxP <= minP) return
+
+  const N = Math.max(8, Math.min(50, vpCfg.bins || 24))
+  const bucketSize = (maxP - minP) / N
+  const bins = new Float64Array(N)
+  for (const b of visBars) {
+    const tp = (b.h + b.l + b.c) / 3
+    const idx = Math.min(N - 1, Math.floor((tp - minP) / bucketSize))
+    bins[idx] += b.v
+  }
+
+  let maxVol = 0
+  let poc = 0
+  for (let i = 0; i < N; i++) { if (bins[i] > maxVol) { maxVol = bins[i]; poc = i } }
+  if (!maxVol) return
+
+  const maxBarW = width * 0.15
+  for (let i = 0; i < N; i++) {
+    if (!bins[i]) continue
+    const pLow  = minP + i * bucketSize
+    const pHigh = pLow + bucketSize
+    const yTop  = series.priceToCoordinate(pHigh)
+    const yBot  = series.priceToCoordinate(pLow)
+    if (yTop == null || yBot == null) continue
+    const barH = Math.max(1, Math.abs(yBot - yTop))
+    const barW = (bins[i] / maxVol) * maxBarW
+    ctx.fillStyle = i === poc ? (vpCfg.pocColor || 'rgba(200,160,40,0.65)') : (vpCfg.color || 'rgba(120,160,100,0.25)')
+    ctx.fillRect(width - barW, Math.min(yTop, yBot), barW, barH)
+  }
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function StockChart({
@@ -283,6 +333,7 @@ export default function StockChart({
   const atrSeriesRef  = useRef(null)
   const sarSeriesRef  = useRef(null)
   const compareSeriesRef = useRef(null)
+  const vpCanvasRef = useRef(null)
   const ichimokuTenkanRef = useRef(null)
   const ichimokuKijunRef  = useRef(null)
   const ichimokuSpanARef  = useRef(null)
@@ -1602,6 +1653,31 @@ export default function StockChart({
     return () => el.removeEventListener('contextmenu', handler)
   }, [onBarContextMenu, bars, sym, resolvedTf])
 
+  // ── Volume Profile canvas overlay ──
+  useEffect(() => {
+    const canvas = vpCanvasRef.current
+    const chart = chartRef.current
+    if (!chart || !canvas) return
+    const vpCfg = cs.indicators?.volumeProfile
+    const series = candleSeriesRef.current
+
+    // Resize canvas to match container
+    const container = containerRef.current
+    if (container) {
+      canvas.width  = container.offsetWidth
+      canvas.height = container.offsetHeight
+    }
+
+    const redraw = () => drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg)
+    redraw()
+    const unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(redraw)
+    return () => {
+      try { unsub() } catch {}
+      const ctx = canvas.getContext('2d')
+      ctx?.clearRect(0, 0, canvas.width, canvas.height)
+    }
+  }, [cs.indicators?.volumeProfile, filteredBars])
+
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
     return () => {
@@ -1712,6 +1788,10 @@ export default function StockChart({
           )}
         </div>
       )}
+      <canvas
+        ref={vpCanvasRef}
+        style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 2 }}
+      />
       {showDrawingTools && bars?.length > 0 && (
         <>
           <ChartDrawingOverlay
