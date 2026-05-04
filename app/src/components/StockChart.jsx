@@ -236,6 +236,7 @@ export default function StockChart({
   const rsiSeriesRef  = useRef(null)
   const stochKRef     = useRef(null)
   const stochDRef     = useRef(null)
+  const atrSeriesRef  = useRef(null)
   const macdLineRef   = useRef(null)
   const macdSignalRef = useRef(null)
   const macdHistRef   = useRef(null)
@@ -1010,6 +1011,33 @@ export default function StockChart({
       }
     }
 
+    // ── ATR sub-pane ──
+    if (indicatorData.atr.length) {
+      const atrColor = cs.indicators?.atr?.color || '#FFA726'
+      if (!atrSeriesRef.current) {
+        atrSeriesRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'atr',
+          color: atrColor,
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        })
+        chart.priceScale('atr').applyOptions({
+          borderVisible: false,
+          scaleMargins: paneMargins.atr || { top: 0.86, bottom: 0 },
+          autoScale: true,
+        })
+      } else {
+        atrSeriesRef.current.applyOptions({ color: atrColor })
+        chart.priceScale('atr').applyOptions({ scaleMargins: paneMargins.atr || { top: 0.86, bottom: 0 } })
+      }
+      atrSeriesRef.current.setData(indicatorData.atr)
+    } else if (atrSeriesRef.current) {
+      try { chart.removeSeries(atrSeriesRef.current) } catch {}
+      atrSeriesRef.current = null
+    }
+
     // ── Price lines — remove old, add new ──
     for (const pl of priceLineRefs.current) {
       try { candleSeriesRef.current.removePriceLine(pl) } catch {}
@@ -1167,6 +1195,12 @@ export default function StockChart({
         stochDValue = dd?.value ?? (indicatorData.stoch.d.at(-1)?.value ?? null)
       }
 
+      let atrValue = null
+      if (atrSeriesRef.current) {
+        const da = param.seriesData.get(atrSeriesRef.current)
+        atrValue = da?.value ?? (indicatorData.atr.at(-1)?.value ?? null)
+      }
+
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -1176,6 +1210,7 @@ export default function StockChart({
         overlays: ovValues,
         rsi: rsiValue, macd: macdValue, macdSig: macdSignalValue,
         stochK: stochKValue, stochD: stochDValue,
+        atr: atrValue,
       })
     }
 
@@ -1376,6 +1411,11 @@ export default function StockChart({
           {crosshairData.stochD != null && (
             <span style={{ color: cs.indicators?.stoch?.dColor || '#4ECDC4' }}>
               %D {crosshairData.stochD.toFixed(1)}
+            </span>
+          )}
+          {crosshairData.atr != null && (
+            <span style={{ color: cs.indicators?.atr?.color || '#FFA726' }}>
+              ATR({cs.indicators?.atr?.period || 14}) {crosshairData.atr.toFixed(4)}
             </span>
           )}
         </div>
