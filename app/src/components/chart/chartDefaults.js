@@ -36,6 +36,18 @@ export const CHART_DEFAULTS = {
 
   drawingDefaults: { color: '#c9a84c', width: 1 },
 
+  indicators: {
+    rsi:  { enabled: false, period: 14, color: '#7b68ee' },
+    macd: {
+      enabled: false, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9,
+      macdColor: '#2196F3', signalColor: '#FF9800',
+    },
+    bb:   { enabled: false, period: 20, stdDev: 2, color: 'rgba(156,39,176,0.85)' },
+    vwap: { enabled: false, color: '#26C6DA' },
+  },
+  heikinAshi: false,
+  logScale:   false,
+
   preset: 'classic',
 }
 
@@ -133,6 +145,14 @@ export function mergeChartSettings(userSettings) {
     volume: { ...CHART_DEFAULTS.volume, ...(parsed.volume || {}) },
     watermark: { ...CHART_DEFAULTS.watermark, ...(parsed.watermark || {}) },
     drawingDefaults: { ...CHART_DEFAULTS.drawingDefaults, ...(parsed.drawingDefaults || {}) },
+    indicators: {
+      rsi:  { ...CHART_DEFAULTS.indicators.rsi,  ...(parsed.indicators?.rsi  || {}) },
+      macd: { ...CHART_DEFAULTS.indicators.macd, ...(parsed.indicators?.macd || {}) },
+      bb:   { ...CHART_DEFAULTS.indicators.bb,   ...(parsed.indicators?.bb   || {}) },
+      vwap: { ...CHART_DEFAULTS.indicators.vwap, ...(parsed.indicators?.vwap || {}) },
+    },
+    heikinAshi: parsed.heikinAshi ?? CHART_DEFAULTS.heikinAshi,
+    logScale:   parsed.logScale   ?? CHART_DEFAULTS.logScale,
     preset: parsed.preset || 'classic',
   }
 }
