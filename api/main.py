@@ -667,26 +667,30 @@ app.include_router(flow_router)
 # ─── CSV routes: serve from app/public/ directly (fallback for legacy paths) ──
 PUBLIC = os.path.join(os.path.dirname(__file__), "..", "app", "public")
 
+# Cacheable static-on-deploy CSV files. 5-min max-age bounds staleness if
+# someone hot-swaps the file; SWR makes the next mount-after-expiry instant
+# while Cloudflare refreshes asynchronously.
+_CSV_CACHE_HEADERS = {
+    "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+    "Vary": "Accept-Encoding",
+}
+
+def _csv_response(csv_path: str, filename: str):
+    if os.path.exists(csv_path):
+        return FileResponse(csv_path, media_type="text/csv", headers=_CSV_CACHE_HEADERS)
+    return JSONResponse(status_code=404, content={"error": f"{filename} not found"})
+
 @app.get("/flow-data.csv")
 def serve_csv():
-    csv_path = os.path.join(PUBLIC, "flow-data.csv")
-    if os.path.exists(csv_path):
-        return FileResponse(csv_path, media_type="text/csv")
-    return JSONResponse(status_code=404, content={"error": "flow-data.csv not found"})
+    return _csv_response(os.path.join(PUBLIC, "flow-data.csv"), "flow-data.csv")
 
 @app.get("/Darkpool-data.csv")
 def serve_darkpool_csv():
-    csv_path = os.path.join(PUBLIC, "Darkpool-data.csv")
-    if os.path.exists(csv_path):
-        return FileResponse(csv_path, media_type="text/csv")
-    return JSONResponse(status_code=404, content={"error": "Darkpool-data.csv not found"})
+    return _csv_response(os.path.join(PUBLIC, "Darkpool-data.csv"), "Darkpool-data.csv")
 
 @app.get("/Indexes-data.csv")
 def serve_indexes_csv():
-    csv_path = os.path.join(PUBLIC, "Indexes-data.csv")
-    if os.path.exists(csv_path):
-        return FileResponse(csv_path, media_type="text/csv")
-    return JSONResponse(status_code=404, content={"error": "Indexes-data.csv not found"})
+    return _csv_response(os.path.join(PUBLIC, "Indexes-data.csv"), "Indexes-data.csv")
 
 # ─── Serve React build (JS/CSS assets + SPA fallback) ────────────────────────
 class _ImmutableStaticFiles(StaticFiles):
