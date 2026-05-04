@@ -17,7 +17,7 @@
 .row:last-child { border-bottom: none; }
 
 .rank {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
   color: var(--text-muted);
@@ -35,7 +35,7 @@
 }
 
 .sym {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 800;
   color: var(--ut-cream);
@@ -43,7 +43,7 @@
 }
 
 .cap {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 8px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -56,7 +56,7 @@
 }
 
 .livePrice {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 600;
   color: var(--text);
@@ -64,7 +64,7 @@
 }
 
 .liveChange {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 700;
   white-space: nowrap;
@@ -74,7 +74,7 @@
 .loss { color: var(--loss); }
 
 .score {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
   color: var(--ut-green-bright);
@@ -89,7 +89,7 @@
 }
 
 .thesis {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 10px;
   color: var(--text-muted);
   line-height: 1.4;
