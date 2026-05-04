@@ -32,20 +32,19 @@ function formatVolume(v) {
 
 // ─── Indicator computations ──────────────────────────────────────────────────
 
-// Rolling-window O(n) SMA. Mathematically identical to the naive
-// O(n*period) version. Adds the entering bar and subtracts the leaving bar
-// instead of re-summing the window each step. Periodically (every `period`
-// steps) re-sums from scratch to prevent floating-point drift accumulating
-// across long sequences — without this, cent-rounded prices produce ~1c
-// divergence vs the naive impl in ~24% of bars on long SMA200 series.
+// O(n*period) SMA via full window re-sum at every bar. The naive approach,
+// kept because the rolling-window optimization (sum += in - out) accumulates
+// floating-point error that can flip .toFixed(2) results at cent boundaries
+// — verified empirically on cent-rounded prices producing ~1c divergence vs
+// the reference in ~24% of bars on SMA200 over 8000 bars. Even periodic
+// re-sync of the rolling sum doesn't fully eliminate it because the subtract
+// itself introduces drift between syncs.
 //
-// FP-correctness note: the rolling add/subtract approach (sum += in - out)
-// accumulates rounding error that can land on .toFixed(2) boundaries and
-// produce 1-cent divergence from the reference, even between re-syncs. The
-// only implementation that guarantees exact bitwise parity with a fresh
-// per-bar re-sum is to re-sync at every step — i.e., always re-sum the
-// full window. For the period sizes used here (50-200) and bar counts up
-// to 8000, this runs in ~2ms after JIT warmup, well within the 50ms budget.
+// For the period sizes used here (5-200) and bar counts up to 8000, this
+// runs in ~2ms after JIT warmup, well within the 50ms budget. If/when chart
+// jank from this becomes measurable, the fix is integer-cents arithmetic
+// (Math.round(price*100) → integer sum → divide at output) which is exact,
+// or moving the compute to a Web Worker.
 export function computeSMA(bars, period) {
   if (bars.length < period) return []
   const result = []
