@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings } from './chart/chartDefaults'
-import { toHeikinAshi, computeBB, computeVWAP, computeRSI } from './chart/indicators'
+import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
@@ -224,6 +224,9 @@ export default function StockChart({
   const bbLowerRef    = useRef(null)
   const vwapSeriesRef = useRef(null)
   const rsiSeriesRef  = useRef(null)
+  const macdLineRef   = useRef(null)
+  const macdSignalRef = useRef(null)
+  const macdHistRef   = useRef(null)
   const priceLineRefs = useRef([])
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
   const lastBarRef = useRef(null)
@@ -481,7 +484,16 @@ export default function StockChart({
         lower:  bbRaw.lower.map(p  => ({ time: adjustTime(p.time), value: p.value })),
       },
       vwap: vwapRaw.map(p => ({ time: adjustTime(p.time), value: p.value })),
-      macd: { macd: [], signal: [], histogram: [] },
+      macd: (() => {
+        const macdCfg = ind.macd
+        if (!macdCfg?.enabled) return { macd: [], signal: [], histogram: [] }
+        const raw = computeMACD(filteredBars, macdCfg.fastPeriod, macdCfg.slowPeriod, macdCfg.signalPeriod)
+        return {
+          macd:      raw.macd.map(p      => ({ time: adjustTime(p.time), value: p.value })),
+          signal:    raw.signal.map(p    => ({ time: adjustTime(p.time), value: p.value })),
+          histogram: raw.histogram.map(p => ({ time: adjustTime(p.time), value: p.value, color: p.color })),
+        }
+      })(),
     }
   }, [filteredBars, cs.indicators, resolvedTf, adjustTime])
 
@@ -893,6 +905,48 @@ export default function StockChart({
       rsiSeriesRef.current = null
     }
 
+    // ── MACD sub-pane ──
+    const macdCfg = cs.indicators?.macd
+    const macdD   = indicatorData.macd
+    if (macdD.macd.length) {
+      if (!macdLineRef.current) {
+        macdLineRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'macd',
+          color: macdCfg?.macdColor || '#2196F3',
+          lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        })
+        macdSignalRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'macd',
+          color: macdCfg?.signalColor || '#FF9800',
+          lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        })
+        macdHistRef.current = chart.addSeries(HistogramSeries, {
+          priceScaleId: 'macd',
+          priceFormat: { type: 'price', precision: 5 },
+          priceLineVisible: false, lastValueVisible: false,
+        })
+        chart.priceScale('macd').applyOptions({
+          borderVisible: false,
+          scaleMargins: paneMargins.macd || { top: 0.80, bottom: 0 },
+          autoScale: true,
+        })
+        macdLineRef.current.createPriceLine({ price: 0, color: 'rgba(255,255,255,0.12)', lineWidth: 1, lineStyle: 3, axisLabelVisible: false })
+      } else {
+        macdLineRef.current.applyOptions({ color: macdCfg?.macdColor || '#2196F3' })
+        macdSignalRef.current.applyOptions({ color: macdCfg?.signalColor || '#FF9800' })
+        chart.priceScale('macd').applyOptions({ scaleMargins: paneMargins.macd || { top: 0.80, bottom: 0 } })
+      }
+      macdLineRef.current.setData(macdD.macd)
+      macdSignalRef.current.setData(macdD.signal)
+      macdHistRef.current.setData(macdD.histogram)
+    } else {
+      for (const ref of [macdLineRef, macdSignalRef, macdHistRef]) {
+        if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
+      }
+    }
+
     // ── Price lines — remove old, add new ──
     for (const pl of priceLineRefs.current) {
       try { candleSeriesRef.current.removePriceLine(pl) } catch {}
@@ -1034,6 +1088,14 @@ export default function StockChart({
         rsiValue = d?.value ?? (indicatorData.rsi.at(-1)?.value ?? null)
       }
 
+      let macdValue = null, macdSignalValue = null
+      if (macdLineRef.current) {
+        const dm = param.seriesData.get(macdLineRef.current)
+        const ds = macdSignalRef.current ? param.seriesData.get(macdSignalRef.current) : null
+        macdValue       = dm?.value ?? (indicatorData.macd.macd.at(-1)?.value   ?? null)
+        macdSignalValue = ds?.value ?? (indicatorData.macd.signal.at(-1)?.value ?? null)
+      }
+
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -1041,7 +1103,7 @@ export default function StockChart({
         change: change.toFixed(2),
         changePct: changePct.toFixed(2),
         overlays: ovValues,
-        rsi: rsiValue,
+        rsi: rsiValue, macd: macdValue, macdSig: macdSignalValue,
       })
     }
 
@@ -1222,6 +1284,16 @@ export default function StockChart({
           {crosshairData.rsi != null && (
             <span style={{ color: cs.indicators?.rsi?.color || '#7b68ee' }}>
               RSI({cs.indicators?.rsi?.period || 14}) {crosshairData.rsi.toFixed(1)}
+            </span>
+          )}
+          {crosshairData.macd != null && (
+            <span style={{ color: cs.indicators?.macd?.macdColor || '#2196F3' }}>
+              MACD {crosshairData.macd.toFixed(4)}
+            </span>
+          )}
+          {crosshairData.macdSig != null && (
+            <span style={{ color: cs.indicators?.macd?.signalColor || '#FF9800' }}>
+              SIG {crosshairData.macdSig.toFixed(4)}
             </span>
           )}
         </div>
