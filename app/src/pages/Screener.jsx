@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import TickerPopup from '../components/TickerPopup'
@@ -11,8 +11,201 @@ const fetcher = url => fetch(url).then(r => r.json())
 
 const PAGE_TABS = [
   { key: 'scanner', label: 'Scanner' },
+  { key: 'live',    label: '⚡ Live Scan' },
   { key: 'custom',  label: 'Custom Scan' },
 ]
+
+// ── Trigger definitions (each returns an object or null) ─────────────────────
+const TRIGGERS = [
+  {
+    id: 'PDH_BREAK',
+    label: 'PDH Break',
+    color: '#c9a84c',
+    check: (price, px, row) => {
+      const lvl = row.prev_day_high ?? px?.prev_close
+      return lvl && price > lvl ? { level: lvl } : null
+    },
+  },
+  {
+    id: 'R2G',
+    label: 'Red→Green',
+    color: '#4ade80',
+    check: (price, px, row) => {
+      const ref = row.prev_day_close ?? px?.prev_close
+      if (!ref || !px?.day_open) return null
+      return px.day_open < ref && price > ref ? { level: ref } : null
+    },
+  },
+  {
+    id: 'SURGE_5',
+    label: '+5% Surge',
+    color: '#60a5fa',
+    check: (price, px) => {
+      const chg = px?.change_pct ?? 0
+      return chg >= 5 ? { pct: chg } : null
+    },
+  },
+  {
+    id: 'DROP_5',
+    label: '-5% Drop',
+    color: '#f87171',
+    check: (price, px) => {
+      const chg = px?.change_pct ?? 0
+      return chg <= -5 ? { pct: chg } : null
+    },
+  },
+]
+
+function fmt(n, d = 2) { return n != null ? n.toFixed(d) : '—' }
+function fmtPct(n) { const s = n >= 0 ? '+' : ''; return `${s}${fmt(n)}%` }
+
+// ── LiveScanTab ───────────────────────────────────────────────────────────────
+function LiveScanTab({ allCandidates, prices }) {
+  const [feed, setFeed] = useState([])         // [{id, sym, trigger, price, meta, time}]
+  const [flashSet, setFlashSet] = useState(new Set())
+  const [mutedTriggers, setMutedTriggers] = useState(new Set())
+  const firedRef = useRef(new Set())           // `${sym}_${trigId}` — one-shot detection
+
+  // When candidates change (new day), reset fired set
+  useEffect(() => { firedRef.current = new Set() }, [allCandidates])
+
+  // Evaluate triggers on every price tick
+  useEffect(() => {
+    if (!allCandidates.length) return
+    const newFeed = []
+    const newFlash = new Set()
+
+    for (const row of allCandidates) {
+      const sym = row.ticker
+      const px = prices[sym]
+      if (!px?.price) continue
+
+      for (const trig of TRIGGERS) {
+        if (mutedTriggers.has(trig.id)) continue
+        const key = `${sym}_${trig.id}`
+        const meta = trig.check(px.price, px, row)
+        if (meta && !firedRef.current.has(key)) {
+          firedRef.current.add(key)
+          const entry = {
+            id: `${key}_${Date.now()}`,
+            sym,
+            trigger: trig,
+            price: px.price,
+            change_pct: px.change_pct,
+            meta,
+            time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/New_York' }),
+          }
+          newFeed.push(entry)
+          newFlash.add(sym)
+        }
+      }
+    }
+
+    if (newFeed.length) {
+      setFeed(prev => [...newFeed, ...prev].slice(0, 100))
+      setFlashSet(prev => { const next = new Set([...prev, ...newFlash]); return next })
+      setTimeout(() => setFlashSet(prev => { const next = new Set(prev); newFlash.forEach(s => next.delete(s)); return next }), 1500)
+    }
+  }, [prices, allCandidates, mutedTriggers])
+
+  const toggleMute = useCallback(id => {
+    setMutedTriggers(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
+  }, [])
+
+  const { prices: livePrices, isStreaming } = useRealtimePrices(
+    allCandidates.map(r => r.ticker).filter(Boolean)
+  )
+  // Use parent's prices (already merged)
+
+  return (
+    <div className={styles.liveScan}>
+      {/* Header */}
+      <div className={styles.liveScanHeader}>
+        <span className={`${styles.streamDot} ${isStreaming ? styles.streamDotLive : ''}`} />
+        <span className={styles.streamLabel}>{isStreaming ? 'Live' : 'Connecting...'}</span>
+        <span className={styles.liveScanCount}>{allCandidates.length} candidates</span>
+        <div className={styles.triggerFilters}>
+          {TRIGGERS.map(t => (
+            <button
+              key={t.id}
+              className={`${styles.trigFilter} ${mutedTriggers.has(t.id) ? styles.trigFilterMuted : ''}`}
+              style={{ '--trig-color': t.color }}
+              onClick={() => toggleMute(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {feed.length > 0 && (
+          <button className={styles.clearFeed} onClick={() => { setFeed([]); firedRef.current = new Set() }}>
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* Feed + candidates side by side */}
+      <div className={styles.liveScanBody}>
+        {/* Left: trigger feed */}
+        <div className={styles.feedPanel}>
+          <div className={styles.feedTitle}>Trigger Feed</div>
+          {feed.length === 0 ? (
+            <div className={styles.feedEmpty}>Watching for triggers…</div>
+          ) : (
+            feed.map(e => (
+              <div key={e.id} className={styles.feedItem}>
+                <span className={styles.feedTime}>{e.time}</span>
+                <TickerPopup sym={e.sym}>
+                  <span className={styles.feedSym}>{e.sym}</span>
+                </TickerPopup>
+                <span className={styles.feedTrig} style={{ color: e.trigger.color }}>{e.trigger.label}</span>
+                <span className={styles.feedPrice}>${fmt(e.price)}</span>
+                <span className={`${styles.feedChg} ${(e.change_pct ?? 0) >= 0 ? styles.pos : styles.neg}`}>
+                  {fmtPct(e.change_pct ?? 0)}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Right: candidate watch table */}
+        <div className={styles.watchTable}>
+          <div className={styles.watchHeader}>
+            <span>Symbol</span><span>Price</span><span>Chg%</span><span>PDH</span><span>Triggers</span>
+          </div>
+          {allCandidates.map(row => {
+            const sym = row.ticker
+            const px = prices[sym]
+            const price = px?.price
+            const chg = px?.change_pct
+            const activeTriggers = TRIGGERS.filter(t => {
+              const key = `${sym}_${t.id}`
+              return firedRef.current.has(key)
+            })
+            return (
+              <div key={sym} className={`${styles.watchRow} ${flashSet.has(sym) ? styles.watchRowFlash : ''} ${activeTriggers.length ? styles.watchRowTriggered : ''}`}>
+                <TickerPopup sym={sym}>
+                  <span className={styles.watchSym}>{sym}</span>
+                </TickerPopup>
+                <span className={styles.watchPrice}>{price ? `$${fmt(price)}` : '—'}</span>
+                <span className={`${styles.watchChg} ${chg == null ? '' : chg >= 0 ? styles.pos : styles.neg}`}>
+                  {chg != null ? fmtPct(chg) : '—'}
+                </span>
+                <span className={styles.watchPdh}>{row.prev_day_high ? `$${fmt(row.prev_day_high)}` : '—'}</span>
+                <div className={styles.watchTrigs}>
+                  {activeTriggers.map(t => (
+                    <span key={t.id} className={styles.watchTrigBadge} style={{ background: t.color + '22', color: t.color, borderColor: t.color + '55' }}>
+                      {t.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Alert state display config ────────────────────────────────────────────────
 const ALERT_CFG = {
@@ -245,7 +438,7 @@ export default function Screener() {
     allCandidates.map(r => r.ticker).filter(Boolean),
     [allCandidates]
   )
-  const { prices } = useRealtimePrices(pageTab === 'scanner' ? allTickers : [])
+  const { prices } = useRealtimePrices(['scanner', 'live'].includes(pageTab) ? allTickers : [])
 
   // Pre-warm Daily bars for the top candidates when scanner data arrives
   useEffect(() => {
@@ -276,6 +469,8 @@ export default function Screener() {
         <SkeletonTable rows={8} cols={3} />
       ) : pageTab === 'custom' ? (
         <CustomScan allCandidates={allCandidates} />
+      ) : pageTab === 'live' ? (
+        <LiveScanTab allCandidates={allCandidates} prices={prices} />
       ) : (
         <>
           <PremarketBar premarket={data.premarket_context} />
