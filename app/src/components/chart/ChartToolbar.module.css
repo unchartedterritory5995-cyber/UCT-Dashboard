@@ -282,6 +282,26 @@
   cursor: pointer;
 }
 
+.sIndicatorLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 36px;
+  flex-shrink: 0;
+}
+
+.sIndicatorNote {
+  font-size: 9px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.sMiniPeriodGroup {
+  display: flex;
+  gap: 3px;
+  flex: 1;
+}
+
 .sMiniSelect {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);

@@ -103,6 +103,22 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
     onUpdateSettings(next)
   }, [cs, onUpdateSettings])
 
+  const updateIndicator = useCallback((key, field, value) => {
+    const numFields = new Set(['period', 'fastPeriod', 'slowPeriod', 'signalPeriod', 'stdDev'])
+    const next = { ...cs }
+    next.indicators = {
+      ...next.indicators,
+      [key]: {
+        ...next.indicators[key],
+        [field]: numFields.has(field)
+          ? (field === 'stdDev' ? (parseFloat(value) || next.indicators[key][field]) : (parseInt(value) || next.indicators[key][field]))
+          : value,
+      },
+    }
+    next.preset = 'custom'
+    onUpdateSettings(next)
+  }, [cs, onUpdateSettings])
+
   const applyPreset = useCallback((key) => {
     const preset = PRESETS[key]
     if (preset) onUpdateSettings(preset.settings)
@@ -180,7 +196,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
 
       {/* Indicators */}
       <div className={styles.sGroup}>
-        <span className={styles.sLabel}>Indicators</span>
+        <span className={styles.sLabel}>Moving Averages</span>
         {cs.overlays.map((ov, i) => (
           <div key={i} className={styles.sOverlayRow}>
             <input type="checkbox" checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
@@ -214,6 +230,89 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           </label>
           <ColorPicker label="Up" value={cs.volume.upColor} onChange={v => update('volume.upColor', v)} />
           <ColorPicker label="Dn" value={cs.volume.downColor} onChange={v => update('volume.downColor', v)} />
+        </div>
+      </div>
+
+      {/* Technical Indicators */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Indicators</span>
+
+        {/* RSI */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.rsi?.enabled ?? false}
+            onChange={e => updateIndicator('rsi', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>RSI</span>
+          <input type="number" className={styles.sPeriodInput}
+            value={cs.indicators?.rsi?.period ?? 14} min={2} max={100}
+            onChange={e => updateIndicator('rsi', 'period', e.target.value)} title="Period" />
+          <ColorPicker value={cs.indicators?.rsi?.color ?? '#7b68ee'}
+            onChange={v => updateIndicator('rsi', 'color', v)} />
+        </div>
+
+        {/* MACD */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.macd?.enabled ?? false}
+            onChange={e => updateIndicator('macd', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>MACD</span>
+          <div className={styles.sMiniPeriodGroup}>
+            <input type="number" className={styles.sPeriodInput}
+              value={cs.indicators?.macd?.fastPeriod ?? 12} min={1} max={100}
+              onChange={e => updateIndicator('macd', 'fastPeriod', e.target.value)} title="Fast" />
+            <input type="number" className={styles.sPeriodInput}
+              value={cs.indicators?.macd?.slowPeriod ?? 26} min={1} max={200}
+              onChange={e => updateIndicator('macd', 'slowPeriod', e.target.value)} title="Slow" />
+            <input type="number" className={styles.sPeriodInput}
+              value={cs.indicators?.macd?.signalPeriod ?? 9} min={1} max={50}
+              onChange={e => updateIndicator('macd', 'signalPeriod', e.target.value)} title="Signal" />
+          </div>
+        </div>
+
+        {/* Bollinger Bands */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.bb?.enabled ?? false}
+            onChange={e => updateIndicator('bb', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>BB</span>
+          <input type="number" className={styles.sPeriodInput}
+            value={cs.indicators?.bb?.period ?? 20} min={2} max={200}
+            onChange={e => updateIndicator('bb', 'period', e.target.value)} title="Period" />
+          <input type="number" className={styles.sPeriodInput}
+            value={cs.indicators?.bb?.stdDev ?? 2} min={0.5} max={5} step={0.5}
+            onChange={e => updateIndicator('bb', 'stdDev', e.target.value)} title="Std Dev" />
+          <ColorPicker value={cs.indicators?.bb?.color ?? 'rgba(156,39,176,0.85)'}
+            onChange={v => updateIndicator('bb', 'color', v)} />
+        </div>
+
+        {/* VWAP */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.vwap?.enabled ?? false}
+            onChange={e => updateIndicator('vwap', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>VWAP</span>
+          <span className={styles.sIndicatorNote}>(intraday only)</span>
+          <ColorPicker value={cs.indicators?.vwap?.color ?? '#26C6DA'}
+            onChange={v => updateIndicator('vwap', 'color', v)} />
+        </div>
+      </div>
+
+      {/* Display Options */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Display</span>
+        <div className={styles.sRow}>
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.heikinAshi ?? false}
+              onChange={e => update('heikinAshi', e.target.checked)} />
+            Heikin Ashi
+          </label>
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.logScale ?? false}
+              onChange={e => update('logScale', e.target.checked)} />
+            Log Scale
+          </label>
         </div>
       </div>
 
