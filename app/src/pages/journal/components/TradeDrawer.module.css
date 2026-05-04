@@ -372,7 +372,7 @@
 }
 
 .metricValue {
-  font-family: 'IBM Plex Mono', var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 600;
   color: var(--text-bright);
@@ -418,7 +418,7 @@
 }
 
 .openStopPrice {
-  font-family: 'IBM Plex Mono', var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 15px;
   font-weight: 700;
   color: var(--loss);
@@ -461,7 +461,7 @@
 }
 
 .extraMetricValue {
-  font-family: 'IBM Plex Mono', var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
   color: var(--text-bright);

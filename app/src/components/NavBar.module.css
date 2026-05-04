@@ -20,11 +20,11 @@
   align-items: flex-start;
 }
 .brand {
-  font-family: 'Cinzel', serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 700;
   color: var(--ut-green-bright);
-  letter-spacing: 3px;
+  letter-spacing: 1.5px;
   margin-bottom: 24px;
   padding: 0 18px;
   white-space: nowrap;
@@ -80,7 +80,7 @@
 .label {
   opacity: 0;
   transition: opacity 0.15s;
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-sans);
 }
 .nav:hover .label {
   opacity: 1;

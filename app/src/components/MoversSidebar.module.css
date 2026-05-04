@@ -36,10 +36,10 @@
 .header:hover { background: var(--bg-hover, rgba(255,255,255,0.03)); }
 
 .title {
-  font-family: 'Cinzel', serif;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 2.5px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--text-bright);
 }
@@ -81,10 +81,10 @@
   justify-content: space-between;
 }
 .sectionLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
   margin-bottom: 6px;
   text-transform: uppercase;
 }
@@ -98,13 +98,13 @@
 }
 .row:last-child { border-bottom: none; }
 .sym {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   color: var(--ut-cream);
   font-weight: 600;
   letter-spacing: 0.5px;
 }
 .pct {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 11px;
 }

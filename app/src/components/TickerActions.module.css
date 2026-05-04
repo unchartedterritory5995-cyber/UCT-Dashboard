@@ -16,7 +16,7 @@
 }
 
 .header {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
   color: var(--ut-gold, #c9a84c);
@@ -32,7 +32,7 @@
   background: none;
   border: none;
   color: var(--ut-cream, #e8e0d0);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 11px;
   text-align: left;
   cursor: pointer;
@@ -46,7 +46,7 @@
 }
 
 .tagLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   color: rgba(255,255,255,0.35);
   text-transform: uppercase;
@@ -81,7 +81,7 @@
   background: none;
   border: none;
   color: var(--ut-cream, #e8e0d0);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 11px;
   text-align: left;
   cursor: pointer;
@@ -91,7 +91,7 @@
 .listOption:hover { background: rgba(255,255,255,0.06); }
 
 .noLists {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   color: rgba(255,255,255,0.3);
   padding: 4px 8px;
@@ -109,7 +109,7 @@
 }
 
 .alertSelect, .alertInput {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: var(--ut-cream, #e8e0d0);
   background: rgba(255,255,255,0.06);
@@ -123,7 +123,7 @@
 .alertSelect:focus, .alertInput:focus { border-color: var(--ut-gold, #c9a84c); }
 
 .alertSet {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
   color: #0e0f0d;
@@ -140,7 +140,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   color: rgba(255,255,255,0.5);
   padding: 3px 0;
