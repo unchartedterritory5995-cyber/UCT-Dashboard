@@ -627,6 +627,24 @@ def health():
     wire_date = wire.get("date") if wire else None
     return {"status": "ok", "wire_date": wire_date}
 
+
+@app.get("/api/health/cache")
+def health_cache():
+    """Reports staleness of the bars snapshot pulled from the worker service.
+
+    On the web service: snapshot_ts and synced_at come from data_sync's local
+    marker (written every time we successfully pull from R2). On the worker
+    service or when WORKER_ENABLED is unset, this endpoint still works but
+    snapshot_ts will be None (no syncing happens)."""
+    from api.services.data_sync import get_local_sync_state
+    state = get_local_sync_state()
+    return {
+        "worker_enabled": os.environ.get("WORKER_ENABLED") == "1",
+        "snapshot_ts": state["snapshot_ts"],
+        "synced_at": state["synced_at"],
+        "seconds_since_sync": state["seconds_since_sync"],
+    }
+
 app.include_router(snapshot.router)
 app.include_router(movers.router)
 app.include_router(engine_data.router)
