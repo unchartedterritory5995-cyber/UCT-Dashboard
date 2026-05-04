@@ -1440,7 +1440,7 @@ export default function LiveFlowDashboard() {
 
   // ─── Loading / Error / Empty States (AFTER all hooks) ──────────────────
   if (csvLoading) return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
+    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Instrument Sans', sans-serif"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #00e676",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#00e676",fontSize:14,fontWeight:700,marginBottom:4}}>⚡ LIVE FLOW</div>
@@ -1450,7 +1450,7 @@ export default function LiveFlowDashboard() {
     </div>
   );
   if (csvError) return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
+    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Instrument Sans', sans-serif"}}>
       <div style={{textAlign:"center",maxWidth:400}}>
         <div style={{fontSize:32,marginBottom:12}}>⚡</div>
         <div style={{color:"#ff1744",fontSize:14,fontWeight:700,marginBottom:8}}>Live Flow Unavailable</div>
@@ -1464,7 +1464,7 @@ export default function LiveFlowDashboard() {
     </div>
   );
   if (!D || !FD) return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
+    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Instrument Sans', sans-serif"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #00e676",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Processing live flow data...</div>
@@ -1659,7 +1659,7 @@ export default function LiveFlowDashboard() {
 
 
   return (
-    <div className={styles.page} style={{ background:P.bg, color:P.tx, fontFamily:"'SF Mono','Fira Code',monospace", minHeight:"100vh", minHeight:"100dvh", padding:"16px 20px", zoom:1.18 }}>
+    <div className={styles.page} style={{ background:P.bg, color:P.tx, fontFamily:"'Instrument Sans', system-ui, sans-serif", minHeight:"100vh", minHeight:"100dvh", padding:"16px 20px", zoom:1.18 }}>
       {/* Mobile back button — LiveFlow has no nav wrapper */}
       <a href="/dashboard" style={{
         position:"fixed", top:12, left:12, zIndex:500,

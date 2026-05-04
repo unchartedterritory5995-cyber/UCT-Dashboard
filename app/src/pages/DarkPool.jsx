@@ -116,7 +116,7 @@ function TickerCell({it, catColor}){
   return (
     <div style={{position:"relative",display:"inline-block"}}
       onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}>
-      <span style={{color:catColor||C.tx,fontWeight:700,fontFamily:"JetBrains Mono, monospace",
+      <span style={{color:catColor||C.tx,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif",
         fontSize:13,cursor:"default"}}>
         ${it.t}
       </span>
@@ -131,7 +131,7 @@ function TickerCell({it, catColor}){
             ${it.t} Top Blocks ({it.c} total)
           </div>
           {it.top5.map((r,i)=>(
-            <div key={i} style={{color:C.tx,fontSize:11,fontFamily:"JetBrains Mono, monospace",
+            <div key={i} style={{color:C.tx,fontSize:11,fontFamily:"'Instrument Sans', sans-serif",
               padding:"2px 0"}}>{r}</div>
           ))}
         </div>
@@ -146,7 +146,7 @@ function ZoneCell({it}){
   const color=pos==="above"?C.green:pos==="below"?C.red:"#8899aa";
   const pct=pos==="in"?"IN ZONE":(pos==="above"?"+":"")+it.pct.toFixed(2)+"%";
   return (
-    <span style={{color,fontWeight:700,fontFamily:"JetBrains Mono, monospace",fontSize:13}}>
+    <span style={{color,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif",fontSize:13}}>
       {pct}
     </span>
   );
@@ -184,7 +184,7 @@ function BigPrintCell({it}){
         <div style={{position:"fixed",top:pos.top,left:pos.left,zIndex:9999,
           background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
           padding:"7px 11px",whiteSpace:"nowrap",boxShadow:"0 4px 20px #00000066",
-          color:C.tx,fontSize:13,fontFamily:"JetBrains Mono, monospace",
+          color:C.tx,fontSize:13,fontFamily:"'Instrument Sans', sans-serif",
           fontWeight:500,letterSpacing:"0.01em",pointerEvents:"none"}}>
           {tip}
         </div>
@@ -253,26 +253,26 @@ function FlowTable({items, showCat=true, showZone=false}){
                 onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                 <TD><TickerCell it={it} catColor={cc}/></TD>
                 {showCat && <TD><CatPill cat={it.cat}/></TD>}
-                <TD style={{fontFamily:"JetBrains Mono, monospace",color:zC(it.last,it.lo,it.hi)}}>
+                <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:zC(it.last,it.lo,it.hi)}}>
                   {fP(it.last)}
                 </TD>
                 {showZone && (
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2,fontSize:11}}>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2,fontSize:11}}>
                     {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
                   </TD>
                 )}
-                <TD style={{fontFamily:"JetBrains Mono, monospace",fontSize:11}}>
+                <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11}}>
                   <BigPrintCell it={it}/>
                 </TD>
-                <TD style={{fontFamily:"JetBrains Mono, monospace",fontWeight:700,
+                <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
                   color:bpMoveColor}}>
                   {bpPct==null ? "—" : (bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
                 </TD>
-                <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.cyan,fontWeight:600}}>
+                <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.cyan,fontWeight:600}}>
                   {fmt(it.n)}
                 </TD>
-                <TD style={{color:C.tx2,fontFamily:"JetBrains Mono, monospace"}}>{it.c}</TD>
-                <TD style={{color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>{it.days}</TD>
+                <TD style={{color:C.tx2,fontFamily:"'Instrument Sans', sans-serif"}}>{it.c}</TD>
+                <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{it.days}</TD>
                 <TD><Sparkline it={it}/></TD>
               </tr>
             );
@@ -293,7 +293,7 @@ function StatCard({label, value, sub, color, icon}){
         <span style={{fontSize:10,color:C.tx3,textTransform:"uppercase",
           letterSpacing:"0.06em",fontWeight:700}}>{label}</span>
       </div>
-      <div style={{fontSize:20,fontWeight:700,color:color||C.tx,fontFamily:"JetBrains Mono, monospace"}}>
+      <div style={{fontSize:20,fontWeight:700,color:color||C.tx,fontFamily:"'Instrument Sans', sans-serif"}}>
         {value}
       </div>
       {sub && <div style={{fontSize:11,color:C.tx2,marginTop:3}}>{sub}</div>}
@@ -309,7 +309,7 @@ function ZoneGauge({above,inside,below}){
   const pB=((below/total)*100).toFixed(1);
   const seg=(count,pct,color,label,align)=>(
     <div style={{flex:count||0.01,display:"flex",flexDirection:"column",alignItems:align,gap:3,minWidth:0}}>
-      <div style={{fontSize:10,color,fontWeight:700,fontFamily:"JetBrains Mono, monospace",whiteSpace:"nowrap"}}>
+      <div style={{fontSize:10,color,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif",whiteSpace:"nowrap"}}>
         {count} <span style={{fontWeight:400,color:C.tx3}}>({pct}%)</span>
       </div>
       <div style={{width:"100%",height:8,borderRadius:4,background:color,opacity:0.85,
@@ -346,8 +346,8 @@ function CategoryBars({categories,onJumpTo}){
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
               <span style={{fontSize:11,fontWeight:600,color}}>{c.name}</span>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:10,color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>{c.count} tickers</span>
-                <span style={{fontSize:11,fontWeight:700,color:C.cyan,fontFamily:"JetBrains Mono, monospace",minWidth:64,textAlign:"right"}}>
+                <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{c.count} tickers</span>
+                <span style={{fontSize:11,fontWeight:700,color:C.cyan,fontFamily:"'Instrument Sans', sans-serif",minWidth:64,textAlign:"right"}}>
                   {fmt(c.totalNotional)}
                 </span>
               </div>
@@ -469,23 +469,23 @@ function BiggestPrintsPanel(){
           <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
             padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
             <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <span style={{fontSize:10,color:C.tx3,fontFamily:"JetBrains Mono, monospace",
+              <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans', sans-serif",
                 width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
-              <span style={{fontFamily:"JetBrains Mono, monospace",fontWeight:700,
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
                 fontSize:12,color:cc}}>{it.t}</span>
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
-              <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.amber,
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.amber,
                 fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
-              <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.cyan,
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.cyan,
                 fontWeight:700,minWidth:60,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
-              <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:10,color:C.tx3,
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:10,color:C.tx3,
                 minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
-              <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,fontWeight:700,
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,fontWeight:700,
                 color:bpColor,minWidth:48,textAlign:"right"}}>
                 {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
               </span>
-              <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,fontWeight:700,
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,fontWeight:700,
                 color:avgVColor,minWidth:52,textAlign:"right"}}>
                 {avgV>0?avgV.toFixed(1)+"%":"—"}
               </span>
@@ -537,19 +537,19 @@ function OverviewPane({onJumpTo}){
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
         padding:"6px 0",borderBottom:`1px solid ${C.bdr}`}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontFamily:"JetBrains Mono, monospace",fontWeight:700,
+          <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
             fontSize:12,color:C.tx,minWidth:52}}>{item.t}</span>
           <span style={{fontSize:10,color:C.tx3}}>
             Zone {fP(item.lo)}–{fP(item.hi)}
           </span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.tx2}}>
+          <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.tx2}}>
             {fP(item.last)}
           </span>
           <div style={{position:"relative",display:"inline-block"}}
             onMouseEnter={()=>setBpHover(true)} onMouseLeave={()=>setBpHover(false)}>
-            <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,color:C.amber,
+            <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.amber,
               fontWeight:700,minWidth:68,display:"inline-block",textAlign:"right",cursor:"default"}}>
               {fP(item.bigPrint)}
               {tip && <span style={{fontSize:9,color:C.amber,opacity:0.5,marginLeft:3,
@@ -559,13 +559,13 @@ function OverviewPane({onJumpTo}){
               <div style={{position:"absolute",right:0,top:"100%",zIndex:50,
                 background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
                 padding:"7px 11px",whiteSpace:"nowrap",boxShadow:"0 4px 20px #00000066",
-                marginTop:4,color:C.tx,fontSize:13,fontFamily:"JetBrains Mono, monospace",
+                marginTop:4,color:C.tx,fontSize:13,fontFamily:"'Instrument Sans', sans-serif",
                 fontWeight:500,letterSpacing:"0.01em"}}>
                 {tip}
               </div>
             )}
           </div>
-          <span style={{fontFamily:"JetBrains Mono, monospace",fontSize:12,
+          <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:12,
             fontWeight:700,color:bpMoveColor,minWidth:60,textAlign:"right"}}>
             {bpPct==null ? "—" : (bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
           </span>
@@ -742,16 +742,16 @@ function PhantomPane(){
                 <tr key={i} style={{background:"transparent"}}
                   onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <TD><TickerPopup sym={p.ticker}><span style={{color:C.blue,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
+                  <TD><TickerPopup sym={p.ticker}><span style={{color:C.blue,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif"}}>
                     ${p.ticker}</span></TickerPopup></TD>
-                  <TD style={{color:C.tx2,fontFamily:"JetBrains Mono, monospace"}}>{p.date}</TD>
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx}}>
+                  <TD style={{color:C.tx2,fontFamily:"'Instrument Sans', sans-serif"}}>{p.date}</TD>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx}}>
                     {fP(p.dpPrice)}</TD>
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2}}>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2}}>
                     {fP(p.spotPrice)}</TD>
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:devColor,fontWeight:700}}>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:devColor,fontWeight:700}}>
                     {dev>0?"+":""}{dev.toFixed(2)}%</TD>
-                  <TD style={{color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>
+                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>
                     {p.volume||"—"}</TD>
                 </tr>
               );
@@ -796,10 +796,10 @@ function OptionsPane(){
                 <tr key={i} style={{background:"transparent"}}
                   onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <TD style={{color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>{o.date}</TD>
-                  <TD><TickerPopup sym={o.ticker}><span style={{color:C.pink,fontWeight:700,fontFamily:"JetBrains Mono, monospace"}}>
+                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{o.date}</TD>
+                  <TD><TickerPopup sym={o.ticker}><span style={{color:C.pink,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif"}}>
                     ${o.ticker}</span></TickerPopup></TD>
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2}}>{fP(o.price)}</TD>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2}}>{fP(o.price)}</TD>
                   <TD style={{color:C.tx,fontSize:11,maxWidth:380}}>{o.message}</TD>
                   <TD><span style={{color:dirColor,fontWeight:700,fontSize:11,
                     background:dirColor+"18",padding:"2px 8px",borderRadius:10}}>{dir}</span></TD>
@@ -845,31 +845,31 @@ function SearchResultsTable({items}){
                 <tr key={it.t} style={{background:C.bgH}}>
                   <TD><TickerCell it={it} catColor={cc}/></TD>
                   <TD><CatPill cat={it.cat}/></TD>
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:zC(it.last,it.lo,it.hi)}}>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:zC(it.last,it.lo,it.hi)}}>
                     {fP(it.last)}
                   </TD>
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.tx2,fontSize:11}}>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2,fontSize:11}}>
                     {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
                   </TD>
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",fontSize:11}}>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11}}>
                     <BigPrintCell it={it}/>
                   </TD>
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",fontWeight:700,color:bpMoveColor}}>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,color:bpMoveColor}}>
                     {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
                   </TD>
-                  <TD style={{fontFamily:"JetBrains Mono, monospace",color:C.cyan,fontWeight:600}}>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.cyan,fontWeight:600}}>
                     {fmt(it.n)}
                   </TD>
-                  <TD style={{color:C.tx2,fontFamily:"JetBrains Mono, monospace"}}>{it.c}</TD>
-                  <TD style={{color:C.tx3,fontFamily:"JetBrains Mono, monospace"}}>{it.days}</TD>
+                  <TD style={{color:C.tx2,fontFamily:"'Instrument Sans', sans-serif"}}>{it.c}</TD>
+                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{it.days}</TD>
                 </tr>
                 {/* Top 5 individual prints */}
                 {it.top5&&it.top5.map((row,i)=>(
                   <tr key={it.t+"-print-"+i} style={{background:"transparent"}}>
-                    <TD style={{paddingLeft:24,color:C.tx3,fontSize:10,fontFamily:"JetBrains Mono, monospace"}}>
+                    <TD style={{paddingLeft:24,color:C.tx3,fontSize:10,fontFamily:"'Instrument Sans', sans-serif"}}>
                       #{i+1}
                     </TD>
-                    <TD colSpan={8} style={{fontFamily:"JetBrains Mono, monospace",fontSize:11,
+                    <TD colSpan={8} style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,
                       color:i===0?C.amber:C.tx2,padding:"4px 8px",
                       borderBottom:i===it.top5.length-1?`1px solid ${C.bdr2}`:"none"}}>
                       {row}
@@ -933,7 +933,7 @@ function SearchModal({onClose}){
           placeholder="Search any ticker (e.g. NVDA, SPY...)"
           style={{width:"100%",padding:"10px 16px",borderRadius:6,
             border:`1px solid ${C.bdr2}`,background:C.bg3,color:C.tx,fontSize:14,
-            fontFamily:"JetBrains Mono, monospace",outline:"none",
+            fontFamily:"'Instrument Sans', sans-serif",outline:"none",
             boxSizing:"border-box",marginBottom:16}}
         />
         {query.length>0 && (
@@ -1274,7 +1274,7 @@ export default function DarkPool(){
 
   if(loadErr) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:"60vh",background:"#0b1120",color:"#ff5c72",fontFamily:"Outfit,sans-serif",
+      minHeight:"60vh",background:"#0b1120",color:"#ff5c72",fontFamily:"'Instrument Sans', sans-serif",
       flexDirection:"column",gap:12,padding:20}}>
       <div style={{fontSize:20,fontWeight:700}}>⚠ Failed to load data</div>
       <div style={{fontSize:13,color:"#7a8ba8"}}>Attempted: <code style={{color:"#4e9fff"}}>/Darkpool-data.csv</code></div>
@@ -1288,7 +1288,7 @@ export default function DarkPool(){
 
   if(!dpData) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:"100vh",background:"#0b1120",color:"#4e9fff",fontFamily:"Outfit,sans-serif",
+      minHeight:"100vh",background:"#0b1120",color:"#4e9fff",fontFamily:"'Instrument Sans', sans-serif",
       flexDirection:"column",gap:16}}>
       <div style={{width:40,height:40,border:"3px solid #1b2a45",
         borderTop:"3px solid #4e9fff",borderRadius:"50%",
@@ -1302,11 +1302,10 @@ export default function DarkPool(){
 
   return (
     <div style={{background:C.bg,minHeight:"100vh",color:C.tx,
-      fontFamily:"Outfit, system-ui, sans-serif",fontSize:13}}>
+      fontFamily:"'Instrument Sans', system-ui, sans-serif",fontSize:13}}>
       {/* Global font import */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700&display=swap');
-        ::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar{width:6px;height:6px}
         ::-webkit-scrollbar-track{background:#0b1120}
         ::-webkit-scrollbar-thumb{background:#243352;border-radius:3px}
         input:focus{border-color:#4e9fff !important}
@@ -1319,7 +1318,7 @@ export default function DarkPool(){
           <span style={{width:10,height:10,borderRadius:"50%",background:C.green,
             boxShadow:`0 0 6px ${C.green}`,display:"inline-block",flexShrink:0}}/>
           <span style={{fontSize:22,fontWeight:800,color:C.tx,letterSpacing:"0.02em",
-            fontFamily:"Outfit, system-ui, sans-serif"}}>DARK POOL SCANNER</span>
+            fontFamily:"'Instrument Sans', system-ui, sans-serif"}}>DARK POOL SCANNER</span>
         </div>
         {/* Subtitle */}
         <div style={{fontSize:12,color:C.tx3,marginBottom:14,paddingLeft:18}}>
@@ -1340,9 +1339,9 @@ export default function DarkPool(){
                 <div style={{fontSize:10,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
                   textTransform:"uppercase",marginBottom:4}}>{label}</div>
                 <div style={{fontSize:24,fontWeight:800,color:c,
-                  fontFamily:"JetBrains Mono, monospace",lineHeight:1}}>{fP(item.last)}</div>
+                  fontFamily:"'Instrument Sans', sans-serif",lineHeight:1}}>{fP(item.last)}</div>
                 <div style={{fontSize:11,color:C.tx3,marginTop:4,
-                  fontFamily:"JetBrains Mono, monospace"}}>
+                  fontFamily:"'Instrument Sans', sans-serif"}}>
                   Zone {fP(item.lo)} – {fP(item.hi)}
                 </div>
               </div>
@@ -1354,9 +1353,9 @@ export default function DarkPool(){
             <div style={{fontSize:10,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
               textTransform:"uppercase",marginBottom:4}}>PERIOD</div>
             <div style={{fontSize:24,fontWeight:800,color:C.amber,
-              fontFamily:"JetBrains Mono, monospace",lineHeight:1}}>{D.meta?.tradingDays??""} <span style={{fontSize:14}}>days</span></div>
+              fontFamily:"'Instrument Sans', sans-serif",lineHeight:1}}>{D.meta?.tradingDays??""} <span style={{fontSize:14}}>days</span></div>
             <div style={{fontSize:11,color:C.tx3,marginTop:4,
-              fontFamily:"JetBrains Mono, monospace"}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</div>
+              fontFamily:"'Instrument Sans', sans-serif"}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</div>
           </div>
         </div>
       </div>
@@ -1372,7 +1371,7 @@ export default function DarkPool(){
                 borderBottom:on?`2px solid ${C.blue}`:"2px solid transparent",
                 color:on?C.blue:C.tx2,fontWeight:on?700:400,fontSize:12,
                 cursor:"pointer",whiteSpace:"nowrap",transition:"color 0.15s",
-                fontFamily:"Outfit, system-ui, sans-serif"}}>
+                fontFamily:"'Instrument Sans', system-ui, sans-serif"}}>
               {t.label}
             </button>
           );
@@ -1382,7 +1381,7 @@ export default function DarkPool(){
           style={{marginLeft:"auto",padding:"6px 14px",background:C.blue+"22",
             border:`1px solid ${C.blue}55`,borderRadius:6,color:C.blue,
             fontWeight:600,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",
-            fontFamily:"Outfit, system-ui, sans-serif",transition:"all 0.15s",
+            fontFamily:"'Instrument Sans', system-ui, sans-serif",transition:"all 0.15s",
             flexShrink:0}}>
           🔍 Search
         </button>
