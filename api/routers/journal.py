@@ -23,6 +23,7 @@ from api.services.daily_journal_service import (
 from api.services.journal_analytics import get_analytics, VALID_GROUP_BY
 from api.services import playbook_service, resource_service
 from api.services import journal_insights, journal_import, journal_ai
+from api.services import journal_psychology as psych_svc
 from api.services import trading_accounts
 
 router = APIRouter()
@@ -639,3 +640,11 @@ def remove_screenshot(trade_id: str, screenshot_id: str, user: dict = Depends(ge
     if not journal_screenshots.delete_screenshot(user["id"], trade_id, screenshot_id):
         raise HTTPException(status_code=404, detail="Screenshot not found")
     return {"ok": True}
+
+
+# ── Psychology Timeline ──────────────────────────────────────────────────────
+
+@router.get("/api/journal/psychology")
+def get_psychology_data_route(days: int = 90, user: dict = Depends(get_current_user)):
+    """Time-series psychology data: process trend, emotion/week, emotion outcomes, mistake trend."""
+    return psych_svc.get_psychology_data(user["id"], days)
