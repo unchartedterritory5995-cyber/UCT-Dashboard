@@ -1248,9 +1248,7 @@ export default function OptionsFlowDashboard() {
     let cancelled = false;
     setCsvLoading(true);
     setCsvError(null);
-    setD(null);
     setParsedRows(null);
-    setDateFilter("All");
     setSelectedConv(null);
     setSelectedItem(null);
     setSelectedTicker(null);
@@ -2094,7 +2092,7 @@ export default function OptionsFlowDashboard() {
   }
 
   // ─── Loading / Error / Empty States (AFTER all hooks) ──────────────────
-  if (csvLoading) return (
+  if (csvLoading && !D) return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #00e676",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
