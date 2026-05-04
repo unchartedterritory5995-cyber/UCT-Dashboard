@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings } from './chart/chartDefaults'
-import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD } from './chart/indicators'
+import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
@@ -104,17 +104,27 @@ function computeHVC(bars) {
 
 function computePaneMargins(cs, hasVolume) {
   const ind = cs.indicators || {}
-  const hasRSI  = !!ind.rsi?.enabled
-  const hasMACD = !!ind.macd?.enabled
-  const VOL_H  = 0.18
-  const RSI_H  = 0.18
-  const MACD_H = 0.22
+  // Define all possible sub-panes in stacking order (bottom of chart → top)
+  // Each entry: key (used in returned object), enabled flag, base height fraction
+  const PANES = [
+    { key: 'atr',    enabled: !!ind.atr?.enabled,   baseH: 0.13 },
+    { key: 'macd',   enabled: !!ind.macd?.enabled,  baseH: 0.17 },
+    { key: 'stoch',  enabled: !!ind.stoch?.enabled, baseH: 0.15 },
+    { key: 'rsi',    enabled: !!ind.rsi?.enabled,   baseH: 0.15 },
+    { key: 'volume', enabled: hasVolume,             baseH: 0.15 },
+  ]
+  const active = PANES.filter(p => p.enabled)
+  const totalBase = active.reduce((s, p) => s + p.baseH, 0)
+  // Cap sub-panes at 72% so price area always gets ≥28%
+  const scale = totalBase > 0.72 ? 0.72 / totalBase : 1
   let bottom = 0
   const out = {}
-  if (hasMACD)   { out.macd   = { top: +(1 - bottom - MACD_H).toFixed(2), bottom: +bottom.toFixed(2) }; bottom += MACD_H }
-  if (hasRSI)    { out.rsi    = { top: +(1 - bottom - RSI_H).toFixed(2),  bottom: +bottom.toFixed(2) }; bottom += RSI_H  }
-  if (hasVolume) { out.volume = { top: +(1 - bottom - VOL_H).toFixed(2),  bottom: +bottom.toFixed(2) }; bottom += VOL_H  }
-  out.main = { top: 0.02, bottom: +bottom.toFixed(2) }
+  for (const { key, baseH } of active) {
+    const h = +((baseH * scale).toFixed(2))
+    out[key] = { top: +((1 - bottom - h).toFixed(2)), bottom: +bottom.toFixed(2) }
+    bottom = +(bottom + h).toFixed(2)
+  }
+  out.main = { top: 0.02, bottom: bottom }
   return out
 }
 
@@ -476,6 +486,12 @@ export default function StockChart({
     const vwapRaw = (ind.vwap?.enabled && VWAP_TFS.has(resolvedTf))
       ? computeVWAP(filteredBars)
       : []
+    const stochRaw = ind.stoch?.enabled
+      ? computeStochastic(filteredBars, ind.stoch.kPeriod, ind.stoch.dPeriod)
+      : { k: [], d: [] }
+    const atrRaw = ind.atr?.enabled
+      ? computeATR(filteredBars, ind.atr.period)
+      : []
     return {
       rsi: rsiRaw,
       bb: {
@@ -494,6 +510,11 @@ export default function StockChart({
           histogram: raw.histogram.map(p => ({ time: adjustTime(p.time), value: p.value, color: p.color })),
         }
       })(),
+      stoch: {
+        k: stochRaw.k.map(p => ({ time: adjustTime(p.time), value: p.value })),
+        d: stochRaw.d.map(p => ({ time: adjustTime(p.time), value: p.value })),
+      },
+      atr: atrRaw.map(p => ({ time: adjustTime(p.time), value: p.value })),
     }
   }, [filteredBars, cs.indicators, resolvedTf, adjustTime])
 
