@@ -559,6 +559,14 @@ def get_portfolio(user: dict = Depends(get_current_user)):
     return get_portfolio(user["id"])
 
 
+# ── Psychology Timeline ──────────────────────────────────────────────────────
+
+@router.get("/api/journal/psychology")
+def get_psychology_data_route(days: int = 90, user: dict = Depends(get_current_user)):
+    """Time-series psychology data: process trend, emotion/week, emotion outcomes, mistake trend."""
+    return psych_svc.get_psychology_data(user["id"], days)
+
+
 # ── Single Trade Fetch (MUST be after all /api/journal/{specific} routes) ────
 
 @router.get("/api/journal/{entry_id}")
@@ -640,11 +648,3 @@ def remove_screenshot(trade_id: str, screenshot_id: str, user: dict = Depends(ge
     if not journal_screenshots.delete_screenshot(user["id"], trade_id, screenshot_id):
         raise HTTPException(status_code=404, detail="Screenshot not found")
     return {"ok": True}
-
-
-# ── Psychology Timeline ──────────────────────────────────────────────────────
-
-@router.get("/api/journal/psychology")
-def get_psychology_data_route(days: int = 90, user: dict = Depends(get_current_user)):
-    """Time-series psychology data: process trend, emotion/week, emotion outcomes, mistake trend."""
-    return psych_svc.get_psychology_data(user["id"], days)
