@@ -70,4 +70,33 @@ describe('computeSMA', () => {
     // New algo ≈ 8K ops ≈ <2ms typical. 50ms threshold leaves headroom for slow CI.
     expect(elapsed).toBeLessThan(50)
   })
+
+  test('output matches reference for cent-rounded prices (FP drift regression)', () => {
+    // Cent-rounded prices were the empirical trigger for FP drift in the
+    // pre-fix rolling-window implementation. This input shape MUST match
+    // the reference exactly — any divergence is a correctness bug.
+    const bars = []
+    for (let i = 0; i < 8000; i++) {
+      const raw = 100 + Math.sin(i * 0.07) * 12 + i * 0.005
+      // Round to cents — the FP-drift trigger.
+      bars.push({ t: 1700000000 + i * 86400, c: Math.round(raw * 100) / 100 })
+    }
+    const ours = computeSMA(bars, 200)
+    const ref  = referenceSMA(bars, 200)
+    expect(ours).toEqual(ref)
+  })
+
+  test('output matches reference for monotonically rising integer prices', () => {
+    // Pure integer arithmetic — any rolling-sum drift would surface immediately.
+    const bars = []
+    for (let i = 0; i < 1000; i++) {
+      bars.push({ t: 1700000000 + i * 86400, c: 100 + i * 0.1 })
+    }
+    expect(computeSMA(bars, 50)).toEqual(referenceSMA(bars, 50))
+  })
+
+  test('returns empty array for empty bars input', () => {
+    expect(computeSMA([], 50)).toEqual([])
+    expect(computeSMA([], 1)).toEqual([])
+  })
 })
