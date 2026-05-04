@@ -223,7 +223,7 @@ export default function StockChart({
           time: e.date,
           position: 'belowBar',
           color: e.beat === true ? '#4ade80' : e.beat === false ? '#f87171' : '#94a3b8',
-          shape: e.beat === true ? 'arrowUp' : 'arrowDown',
+          shape: e.beat === true ? 'arrowUp' : e.beat === false ? 'arrowDown' : 'circle',
           text: 'E',
           size: 1,
         })

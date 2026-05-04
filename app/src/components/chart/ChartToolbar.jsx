@@ -312,6 +312,8 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           </div>
           <ColorPicker value={cs.indicators?.stoch?.kColor ?? '#FF6B6B'}
             onChange={v => updateIndicator('stoch', 'kColor', v)} />
+          <ColorPicker value={cs.indicators?.stoch?.dColor ?? '#4ECDC4'}
+            onChange={v => updateIndicator('stoch', 'dColor', v)} />
         </div>
 
         {/* ATR */}
