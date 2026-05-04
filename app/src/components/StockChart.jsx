@@ -425,7 +425,7 @@ export default function StockChart({
 
   // ── Drawing tool + TF keyboard shortcuts ──
   useEffect(() => {
-    if (!showDrawingTools && !onTfChange) return
+    if (!showDrawingTools && !onTfChange && !replayMode) return
     const TF_KEYS = { '1': '1', '5': '5', 'd': 'D', 'w': 'W' }
     const TOOL_KEYS = { t: 'trendline', h: 'horizontal', r: 'rect', f: 'fib', x: 'text', m: 'measure', p: 'position' }
     const handler = (e) => {
@@ -434,6 +434,22 @@ export default function StockChart({
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return
       if (document.activeElement?.isContentEditable) return
       const key = e.key.toLowerCase()
+      // Replay shortcuts — checked first
+      if (replayMode) {
+        if (e.key === ' ') { e.preventDefault(); setReplayPlaying(p => !p); return }
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          setReplayPlaying(false)
+          setReplayIndex(i => Math.max(0, (i ?? 0) - 1))
+          return
+        }
+        if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          setReplayPlaying(false)
+          setReplayIndex(i => Math.min((sessionBars?.length || 1) - 1, (i ?? 0) + 1))
+          return
+        }
+      }
       // TF shortcuts (1=1min, 5=5min, d=daily, w=weekly)
       if (onTfChange) {
         const tfKey = TF_KEYS[key]
@@ -449,7 +465,28 @@ export default function StockChart({
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [showDrawingTools, setActiveTool, onTfChange])
+  }, [showDrawingTools, setActiveTool, onTfChange, replayMode, sessionBars?.length])
+
+  // ── Replay auto-advance interval ──
+  useEffect(() => {
+    if (!replayPlaying || !replayMode) return
+    const intervalMs = replaySpeed === 20 ? 50 : replaySpeed === 5 ? 100 : 500
+    const id = setInterval(() => {
+      setReplayIndex(idx => {
+        const maxIdx = (sessionBars?.length || 1) - 1
+        if (idx >= maxIdx) { setReplayPlaying(false); return idx }
+        return idx + 1
+      })
+    }, intervalMs)
+    return () => clearInterval(id)
+  }, [replayPlaying, replayMode, replaySpeed, sessionBars?.length])
+
+  // ── Reset replay when sym/tf changes ──
+  useEffect(() => {
+    setReplayMode(false)
+    setReplayPlaying(false)
+    setReplayIndex(null)
+  }, [sym, resolvedTf])
 
   // 8000 daily bars ≈ 32 years — covers dot-com era for tickers that go
   // back that far (CIEN since 1997, etc.). Other timeframes don't need
@@ -603,7 +640,7 @@ export default function StockChart({
   )
 
   // Filter bars to regular session only when extended hours hidden
-  const filteredBars = useMemo(() => {
+  const sessionBars = useMemo(() => {
     if (!bars || !isIntraday || showExtended) return bars
 
     const getETMins = (t) => {
@@ -620,6 +657,21 @@ export default function StockChart({
       return mins >= 570 && mins < 960
     })
   }, [bars, isIntraday, showExtended, resolvedTf])
+
+  // ── Replay / Time Machine state ──
+  const [replayMode, setReplayMode] = useState(false)
+  const [replayIndex, setReplayIndex] = useState(null)
+  const [replayPlaying, setReplayPlaying] = useState(false)
+  const [replaySpeed, setReplaySpeed] = useState(1)
+
+  // Restore filteredBars as the replay-sliced version.
+  // All downstream code continues to use `filteredBars` unchanged.
+  const filteredBars = useMemo(
+    () => (replayMode && replayIndex != null)
+      ? sessionBars?.slice(0, replayIndex + 1)
+      : sessionBars,
+    [sessionBars, replayMode, replayIndex]
+  )
 
   const displayBars = useMemo(() => {
     if (!filteredBars?.length) return filteredBars
@@ -760,6 +812,8 @@ export default function StockChart({
   useEffect(() => {
     const liveData = livePrices[sym]
     if (!liveData?.price) return
+    // Skip live updates when replay mode is active — don't corrupt historical view.
+    if (replayMode) return
     // HA bars depend on the full series history — skip tick-by-tick updates.
     // The chart still refreshes every 15s via SWR, which re-runs toHeikinAshi on
     // the full filteredBars array and calls setData() — accurate enough for HA.
@@ -1831,6 +1885,30 @@ export default function StockChart({
             tf={resolvedTf}
             compareSymbol={compareSymbol}
             onCompareChange={onCompareChange}
+            replayMode={replayMode}
+            replayPlaying={replayPlaying}
+            replaySpeed={replaySpeed}
+            replayDate={replayMode && filteredBars?.length ? filteredBars[filteredBars.length - 1]?.t : null}
+            onReplayToggle={() => {
+              if (replayMode) {
+                setReplayMode(false)
+                setReplayPlaying(false)
+                setReplayIndex(null)
+              } else {
+                setReplayMode(true)
+                setReplayPlaying(false)
+                setReplayIndex(Math.floor((sessionBars?.length || 1) * 0.7))
+              }
+            }}
+            onReplayPlayPause={() => setReplayPlaying(p => !p)}
+            onReplayStep={dir => {
+              setReplayPlaying(false)
+              setReplayIndex(i => {
+                const max = (sessionBars?.length || 1) - 1
+                return Math.max(0, Math.min(max, (i ?? 0) + dir))
+              })
+            }}
+            onReplaySpeedChange={setReplaySpeed}
           />
           {activeTool === 'position' && (
             <div style={{

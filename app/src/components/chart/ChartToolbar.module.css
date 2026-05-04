@@ -384,3 +384,62 @@
     display: none;
   }
 }
+
+/* ── Replay / Time Machine controls ── */
+.replayBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(14, 30, 50, 0.95);
+  border-bottom: 1px solid rgba(96, 165, 250, 0.25);
+  flex-shrink: 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 30px;
+  z-index: 6;
+  pointer-events: auto;
+}
+.replayBtn {
+  background: transparent;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 4px;
+  color: #93c5fd;
+  font-size: 14px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.12s;
+  min-width: 28px;
+}
+.replayBtn:hover { background: rgba(96, 165, 250, 0.1); }
+.replayPlay { min-width: 36px; font-size: 12px; }
+.replayDate {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #93c5fd;
+  margin: 0 8px;
+}
+.replaySpeeds { display: flex; gap: 3px; margin: 0 4px; }
+.replaySpeedBtn {
+  background: transparent;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: 3px;
+  color: rgba(147, 197, 253, 0.6);
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+.replaySpeedActive { border-color: #60a5fa; color: #60a5fa; background: rgba(96, 165, 250, 0.1); }
+.replayExit {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 4px;
+  color: #f87171;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.replayExit:hover { background: rgba(248, 113, 113, 0.1); }

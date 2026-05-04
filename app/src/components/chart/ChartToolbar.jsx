@@ -36,6 +36,7 @@ const ICONS = {
   delete:     I(<><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>),
   clear:      I(<><line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" /></>),
   camera:     I(<><path d="M2 5.5h12v8H2z" /><circle cx="8" cy="9.5" r="2" /><path d="M5.5 5.5l1-2h3l1 2" /></>),
+  replay:     I(<><circle cx="8" cy="8" r="6" /><polyline points="8,5 8,8 10,10" /><path d="M3 8 A5 5 0 0 1 8 3" strokeDasharray="2 1" /></>),
 }
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
@@ -449,6 +450,13 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
 
 // ─── Main Toolbar Component ──────────────────────────────────────────────────
 
+function formatReplayDate(t) {
+  if (!t) return ''
+  if (typeof t === 'string') return t
+  const d = new Date(t * 1000)
+  return d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 export default function ChartToolbar({
   activeTool, setActiveTool,
   color, setColor,
@@ -462,6 +470,14 @@ export default function ChartToolbar({
   tf = null,
   compareSymbol = null,
   onCompareChange = null,
+  replayMode = false,
+  replayPlaying = false,
+  replaySpeed = 1,
+  replayDate = null,
+  onReplayToggle = null,
+  onReplayPlayPause = null,
+  onReplayStep = null,
+  onReplaySpeedChange = null,
 }) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -515,6 +531,7 @@ export default function ChartToolbar({
   }
 
   return (
+    <>
     <div className={styles.toolbar}>
       {/* ── Tool buttons ── */}
       <div className={styles.tools}>
@@ -583,6 +600,17 @@ export default function ChartToolbar({
         {onScreenshot && (
           <button className={styles.btn} onClick={onScreenshot} title="Download chart as PNG">
             {ICONS.camera}
+          </button>
+        )}
+
+        {/* ── Replay / Time Machine ── */}
+        {onReplayToggle && (
+          <button
+            className={`${styles.btn} ${replayMode ? styles.active : ''}`}
+            onClick={onReplayToggle}
+            title="Replay / Time Machine"
+          >
+            {ICONS.replay}
           </button>
         )}
 
@@ -680,5 +708,30 @@ export default function ChartToolbar({
         </button>
       </div>
     </div>
+
+    {/* ── Replay controls bar ── */}
+    {replayMode && (
+      <div className={styles.replayBar}>
+        <button className={styles.replayBtn} onClick={() => onReplayStep?.(-10)} title="Back 10">«</button>
+        <button className={styles.replayBtn} onClick={() => onReplayStep?.(-1)} title="Back 1">‹</button>
+        <button className={`${styles.replayBtn} ${styles.replayPlay}`} onClick={onReplayPlayPause}>
+          {replayPlaying ? '⏸' : '▶'}
+        </button>
+        <button className={styles.replayBtn} onClick={() => onReplayStep?.(1)} title="Fwd 1">›</button>
+        <button className={styles.replayBtn} onClick={() => onReplayStep?.(10)} title="Fwd 10">»</button>
+        {replayDate && <span className={styles.replayDate}>{formatReplayDate(replayDate)}</span>}
+        <div className={styles.replaySpeeds}>
+          {[1, 5, 20].map(s => (
+            <button
+              key={s}
+              className={`${styles.replaySpeedBtn} ${replaySpeed === s ? styles.replaySpeedActive : ''}`}
+              onClick={() => onReplaySpeedChange?.(s)}
+            >{s}×</button>
+          ))}
+        </div>
+        <button className={styles.replayExit} onClick={onReplayToggle}>✕ Exit</button>
+      </div>
+    )}
+    </>
   )
 }
