@@ -1,7 +1,6 @@
 # tests/test_journal_insights.py
 """Tests for new journal_insights functions — emotion outcome, process trend,
 mistake recurrence, and discipline consistency."""
-import pytest
 from api.services import journal_insights
 
 

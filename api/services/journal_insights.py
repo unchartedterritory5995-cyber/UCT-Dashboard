@@ -4,6 +4,7 @@ All server-side computation, no AI. Results cached 5 minutes in-memory.
 """
 
 import time
+from collections import Counter, defaultdict
 from api.services.auth_db import get_connection
 
 # Simple in-memory cache: {user_id: (timestamp, results)}
@@ -26,6 +27,9 @@ def get_insights(user_id: str, limit: int = 8) -> list[dict]:
         ).fetchall()
         entries = [dict(r) for r in rows]
 
+        if len(entries) < 5:
+            return []
+
         daily_rows = conn.execute(
             """SELECT entry_date, discipline_score, pnl_total_pct
                FROM daily_journals
@@ -34,9 +38,6 @@ def get_insights(user_id: str, limit: int = 8) -> list[dict]:
             (user_id,),
         ).fetchall()
         daily_journals = [dict(r) for r in daily_rows]
-
-        if len(entries) < 5:
-            return []
 
         insights = []
 
@@ -321,7 +322,6 @@ def _insight_streaks(entries: list[dict], insights: list[dict]):
 
         tag_note = ""
         if all_tags:
-            from collections import Counter
             common = Counter(all_tags).most_common(1)
             if common and common[0][1] >= 2:
                 tag_note = f" — {common[0][0]} appeared in {common[0][1]} of them"
@@ -364,7 +364,6 @@ def _insight_streaks(entries: list[dict], insights: list[dict]):
 
 def _insight_emotion_outcome(entries: list[dict], insights: list[dict]):
     """Compare avg pnl_pct across emotional states."""
-    from collections import defaultdict
     emotion_data: dict[str, list[float]] = defaultdict(list)
     for e in entries:
         tags = e.get("emotion_tags") or ""
@@ -440,7 +439,6 @@ def _insight_discipline_consistency(
     if len(daily_journals) < 10:
         return
 
-    from collections import defaultdict
     pnl_by_date: dict[str, list[float]] = defaultdict(list)
     for e in entries:
         d = e.get("entry_date")
@@ -461,7 +459,7 @@ def _insight_discipline_consistency(
         if d not in pnl_by_date:
             continue
         avg_pnl = sum(pnl_by_date[d]) / len(pnl_by_date[d])
-        if ds >= 70:
+        if int(ds) >= 70:
             high_pnls.append(avg_pnl)
         else:
             low_pnls.append(avg_pnl)
@@ -510,8 +508,6 @@ def _insight_mistake_recurrence(entries: list[dict], insights: list[dict]):
     mid_third = with_mistakes[third: third * 2]
     last_third = with_mistakes[third * 2:]
 
-    from collections import defaultdict
-
     def count_mistakes(group: list[dict]) -> dict[str, int]:
         counts: dict[str, int] = defaultdict(int)
         for e in group:
@@ -537,4 +533,4 @@ def _insight_mistake_recurrence(entries: list[dict], insights: list[dict]):
                 "action_label": "Review mistakes",
                 "priority": 1,
             })
-            break  # report only the worst recurring mistake
+            break  # report only the first recurring mistake found
