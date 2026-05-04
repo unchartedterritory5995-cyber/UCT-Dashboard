@@ -215,21 +215,21 @@
 
 /* -- Cell types -- */
 .dateCell {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: rgba(255,255,255,0.4);
   white-space: nowrap;
 }
 
 .symCell {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-weight: 700;
   color: var(--ut-cream);
   letter-spacing: 0.5px;
 }
 
 .setupCell {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: var(--ut-gold);
   opacity: 0.7;
@@ -240,7 +240,8 @@
 }
 
 .numCell {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: var(--text-bright);
   white-space: nowrap;
@@ -248,7 +249,7 @@
 }
 
 .stopCell {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 12px;
   white-space: nowrap;
   text-align: right;
@@ -260,14 +261,14 @@
 }
 
 .rCell {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 12px;
   white-space: nowrap;
   text-align: right;
 }
 
 .processCell {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 12px;
   white-space: nowrap;
   text-align: right;
@@ -280,7 +281,8 @@
 
 /* -- P&L coloring -- */
 .pnlGain {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   font-weight: 600;
   color: var(--gain);
@@ -288,7 +290,8 @@
 }
 
 .pnlLoss {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   font-weight: 600;
   color: var(--loss);
@@ -313,7 +316,7 @@
 
 /* -- Direction badges -- */
 .longBadge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -325,7 +328,7 @@
 }
 
 .shortBadge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -338,7 +341,7 @@
 
 /* -- OPEN badge -- */
 .openBadge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.8px;
@@ -352,7 +355,7 @@
 
 /* -- Review pill -- */
 .reviewPill {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.8px;
@@ -372,7 +375,7 @@
 }
 
 .pageInfo {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   color: rgba(255,255,255,0.35);
 }
@@ -384,7 +387,7 @@
 }
 
 .pageBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -409,7 +412,7 @@
 }
 
 .pageNum {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   color: rgba(255,255,255,0.35);
   min-width: 36px;

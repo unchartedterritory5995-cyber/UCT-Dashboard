@@ -84,7 +84,7 @@
 }
 
 .emptyTitle {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 13px;
   color: var(--text-heading);
   letter-spacing: 0.5px;
@@ -112,7 +112,7 @@
 }
 
 .heroLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   color: rgba(255,255,255,0.35);
   text-transform: uppercase;
@@ -121,7 +121,8 @@
 }
 
 .heroValue {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 36px;
   font-weight: 700;
   line-height: 1.1;
@@ -129,7 +130,8 @@
 }
 
 .heroPct {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 15px;
   font-weight: 600;
   margin-top: 2px;
@@ -149,7 +151,7 @@
 }
 
 .statLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   color: rgba(255,255,255,0.35);
   text-transform: uppercase;
@@ -157,7 +159,8 @@
 }
 
 .statVal {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-bright);
@@ -199,7 +202,7 @@
 }
 
 .exposureText {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: var(--text);
   font-weight: 500;
@@ -225,7 +228,7 @@
 }
 
 .controlLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   color: rgba(255,255,255,0.35);
   text-transform: uppercase;
@@ -235,7 +238,7 @@
 }
 
 .controlBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -296,7 +299,7 @@
 }
 
 .groupLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
   color: rgba(255,255,255,0.5);
@@ -305,7 +308,7 @@
 }
 
 .groupCount {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   color: rgba(255,255,255,0.3);
   background: rgba(255,255,255,0.04);
@@ -375,7 +378,7 @@
 }
 
 .posSym {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 15px;
   font-weight: 700;
   color: var(--text-heading);
@@ -386,7 +389,7 @@
 .dirBadgeLong,
 .dirBadgeShort {
   display: inline-block;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -433,7 +436,7 @@
 }
 
 .priceLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   color: rgba(255,255,255,0.35);
   text-transform: uppercase;
@@ -441,7 +444,7 @@
 }
 
 .priceVal {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 600;
   color: var(--text-bright);
@@ -465,7 +468,7 @@
 }
 
 .metaLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   color: rgba(255,255,255,0.35);
   text-transform: uppercase;
@@ -473,7 +476,7 @@
 }
 
 .metaVal {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 500;
   color: var(--text);
@@ -489,20 +492,22 @@
 }
 
 .pnlDollar {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 18px;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .pnlPct {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   font-weight: 600;
 }
 
 .dayChange {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 500;
   margin-top: 1px;
@@ -525,7 +530,7 @@
 }
 
 .bottomLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   color: rgba(255,255,255,0.35);
   text-transform: uppercase;
@@ -533,7 +538,7 @@
 }
 
 .bottomVal {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
   color: var(--text);
@@ -554,7 +559,7 @@
 }
 
 .sectionHeading {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
   color: rgba(255,255,255,0.5);
@@ -573,7 +578,7 @@
 
 .riskLabel {
   display: block;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   color: rgba(255,255,255,0.35);
   text-transform: uppercase;
@@ -603,14 +608,14 @@
 }
 
 .legendGreen {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   color: var(--gain);
   font-weight: 500;
 }
 
 .legendRed {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   color: var(--loss);
   font-weight: 500;
@@ -663,7 +668,7 @@
 }
 
 .riskItemSym {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 600;
   color: var(--text-bright);
@@ -671,7 +676,7 @@
 }
 
 .riskItemVal {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: rgba(255,255,255,0.4);
 }
@@ -709,7 +714,7 @@
 }
 
 .disciplineCount {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 20px;
   font-weight: 700;
   color: var(--text-bright);
@@ -717,7 +722,7 @@
 }
 
 .disciplineLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 9px;
   color: rgba(255,255,255,0.35);
   text-transform: uppercase;
@@ -745,7 +750,7 @@
 }
 
 .disciplineChip {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 600;
   padding: 1px 7px;
