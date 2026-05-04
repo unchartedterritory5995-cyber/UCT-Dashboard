@@ -345,6 +345,20 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <ColorPicker value={cs.indicators?.sar?.color ?? '#ffeb3b'}
             onChange={v => updateIndicator('sar', 'color', v)} />
         </div>
+
+        {/* Ichimoku Cloud */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.ichimoku?.enabled ?? false}
+            onChange={e => updateIndicator('ichimoku', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>Ichimoku</span>
+          <div className={styles.sMiniPeriodGroup}>
+            <ColorPicker value={cs.indicators?.ichimoku?.tenkanColor ?? '#26C6DA'}
+              onChange={v => updateIndicator('ichimoku', 'tenkanColor', v)} title="Tenkan" />
+            <ColorPicker value={cs.indicators?.ichimoku?.kijunColor ?? '#EF5350'}
+              onChange={v => updateIndicator('ichimoku', 'kijunColor', v)} title="Kijun" />
+          </div>
+        </div>
       </div>
 
       {/* Display Options */}

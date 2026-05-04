@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings } from './chart/chartDefaults'
-import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR } from './chart/indicators'
+import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
@@ -280,6 +280,11 @@ export default function StockChart({
   const stochDRef     = useRef(null)
   const atrSeriesRef  = useRef(null)
   const sarSeriesRef  = useRef(null)
+  const ichimokuTenkanRef = useRef(null)
+  const ichimokuKijunRef  = useRef(null)
+  const ichimokuSpanARef  = useRef(null)
+  const ichimokuSpanBRef  = useRef(null)
+  const ichimokuChikouRef = useRef(null)
   const macdLineRef   = useRef(null)
   const macdSignalRef = useRef(null)
   const macdHistRef   = useRef(null)
@@ -585,6 +590,9 @@ export default function StockChart({
     const sarRaw = ind.sar?.enabled
       ? computeParabolicSAR(filteredBars, ind.sar.step, ind.sar.maxStep)
       : []
+    const ichimokuRaw = ind.ichimoku?.enabled
+      ? computeIchimoku(filteredBars)
+      : { tenkan: [], kijun: [], spanA: [], spanB: [], chikou: [] }
     return {
       rsi: rsiRaw,
       bb: {
@@ -609,6 +617,13 @@ export default function StockChart({
       },
       atr: atrRaw.map(p => ({ time: adjustTime(p.time), value: p.value })),
       sar: sarRaw.map(p => ({ time: adjustTime(p.time), value: p.value, isUptrend: p.isUptrend })),
+      ichimoku: {
+        tenkan: ichimokuRaw.tenkan.map(p => ({ time: adjustTime(p.time), value: p.value })),
+        kijun:  ichimokuRaw.kijun.map(p  => ({ time: adjustTime(p.time), value: p.value })),
+        spanA:  ichimokuRaw.spanA.map(p  => ({ time: adjustTime(p.time), value: p.value })),
+        spanB:  ichimokuRaw.spanB.map(p  => ({ time: adjustTime(p.time), value: p.value })),
+        chikou: ichimokuRaw.chikou.map(p => ({ time: adjustTime(p.time), value: p.value })),
+      },
     }
   }, [filteredBars, cs.indicators, resolvedTf, adjustTime])
 
@@ -1153,6 +1168,38 @@ export default function StockChart({
       sarSeriesRef.current = null
     }
 
+    // ── Ichimoku Cloud (5 LineSeries on main price scale) ──
+    const ichiCfg = cs.indicators?.ichimoku
+    const ichiD = indicatorData.ichimoku
+    if (ichiD.tenkan.length) {
+      const createIfNeeded = (ref, opts) => {
+        if (!ref.current) {
+          ref.current = chart.addSeries(LineSeries, {
+            priceScaleId: 'right',
+            ...opts,
+            priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+            autoscaleInfoProvider: () => null,
+          })
+        } else {
+          ref.current.applyOptions({ color: opts.color })
+        }
+      }
+      createIfNeeded(ichimokuTenkanRef, { color: ichiCfg?.tenkanColor || '#26C6DA', lineWidth: 1 })
+      createIfNeeded(ichimokuKijunRef,  { color: ichiCfg?.kijunColor  || '#EF5350', lineWidth: 1 })
+      createIfNeeded(ichimokuSpanARef,  { color: ichiCfg?.spanAColor  || 'rgba(76,175,80,0.5)', lineWidth: 1 })
+      createIfNeeded(ichimokuSpanBRef,  { color: ichiCfg?.spanBColor  || 'rgba(239,83,80,0.5)', lineWidth: 1 })
+      createIfNeeded(ichimokuChikouRef, { color: ichiCfg?.chikouColor || 'rgba(255,235,59,0.7)', lineWidth: 1, lineStyle: 2 })
+      ichimokuTenkanRef.current.setData(ichiD.tenkan)
+      ichimokuKijunRef.current.setData(ichiD.kijun)
+      ichimokuSpanARef.current.setData(ichiD.spanA)
+      ichimokuSpanBRef.current.setData(ichiD.spanB)
+      ichimokuChikouRef.current.setData(ichiD.chikou)
+    } else {
+      for (const ref of [ichimokuTenkanRef, ichimokuKijunRef, ichimokuSpanARef, ichimokuSpanBRef, ichimokuChikouRef]) {
+        if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
+      }
+    }
+
     // ── Price lines — remove old, add new ──
     for (const pl of priceLineRefs.current) {
       try { candleSeriesRef.current.removePriceLine(pl) } catch {}
@@ -1322,6 +1369,14 @@ export default function StockChart({
         sarValue = ds?.value ?? (indicatorData.sar.at(-1)?.value ?? null)
       }
 
+      let ichimokuTenkan = null, ichimokuKijun = null
+      if (ichimokuTenkanRef.current) {
+        const dt = param.seriesData.get(ichimokuTenkanRef.current)
+        const dk = ichimokuKijunRef.current ? param.seriesData.get(ichimokuKijunRef.current) : null
+        ichimokuTenkan = dt?.value ?? null
+        ichimokuKijun  = dk?.value ?? null
+      }
+
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -1332,6 +1387,7 @@ export default function StockChart({
         rsi: rsiValue, macd: macdValue, macdSig: macdSignalValue,
         stochK: stochKValue, stochD: stochDValue,
         atr: atrValue, sar: sarValue,
+        ichimokuTenkan, ichimokuKijun,
       })
     }
 
@@ -1542,6 +1598,16 @@ export default function StockChart({
           {crosshairData.sar != null && (
             <span style={{ color: cs.indicators?.sar?.color || '#ffeb3b' }}>
               SAR {crosshairData.sar.toFixed(4)}
+            </span>
+          )}
+          {crosshairData.ichimokuTenkan != null && (
+            <span style={{ color: cs.indicators?.ichimoku?.tenkanColor || '#26C6DA' }}>
+              TK {crosshairData.ichimokuTenkan.toFixed(2)}
+            </span>
+          )}
+          {crosshairData.ichimokuKijun != null && (
+            <span style={{ color: cs.indicators?.ichimoku?.kijunColor || '#EF5350' }}>
+              KJ {crosshairData.ichimokuKijun.toFixed(2)}
             </span>
           )}
         </div>

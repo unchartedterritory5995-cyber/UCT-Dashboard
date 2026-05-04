@@ -157,6 +157,39 @@ export function computeATR(bars, period = 14) {
   return result
 }
 
+export function computeIchimoku(bars, tenkanPeriod = 9, kijunPeriod = 26, senkouBPeriod = 52) {
+  if (!bars || bars.length < senkouBPeriod) return { tenkan: [], kijun: [], spanA: [], spanB: [], chikou: [] }
+
+  function periodMid(bars, end, period) {
+    let hi = -Infinity, lo = Infinity
+    for (let j = end - period + 1; j <= end; j++) {
+      if (bars[j].h > hi) hi = bars[j].h
+      if (bars[j].l < lo) lo = bars[j].l
+    }
+    return (hi + lo) / 2
+  }
+
+  const tenkan = [], kijun = [], spanA = [], spanB = [], chikou = []
+  const displacement = kijunPeriod  // 26
+
+  for (let i = senkouBPeriod - 1; i < bars.length; i++) {
+    const t = bars[i].t
+    const tk = parseFloat(periodMid(bars, i, tenkanPeriod).toFixed(4))
+    const kj = parseFloat(periodMid(bars, i, kijunPeriod).toFixed(4))
+    const sb = parseFloat(periodMid(bars, i, senkouBPeriod).toFixed(4))
+    tenkan.push({ time: t, value: tk })
+    kijun.push({ time: t, value: kj })
+    spanA.push({ time: t, value: parseFloat(((tk + kj) / 2).toFixed(4)) })
+    spanB.push({ time: t, value: sb })
+    // Chikou: close plotted 26 bars BACK
+    if (i >= displacement) {
+      chikou.push({ time: bars[i - displacement].t, value: parseFloat(bars[i].c.toFixed(4)) })
+    }
+  }
+
+  return { tenkan, kijun, spanA, spanB, chikou }
+}
+
 export function computeParabolicSAR(bars, step = 0.02, maxStep = 0.2) {
   if (!bars || bars.length < 2) return []
   const result = []
