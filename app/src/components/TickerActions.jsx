@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
-import { TAG_COLORS, TAG_BY_KEY } from '../constants/tagColors'
+import useTagColors from '../hooks/useTagColors'
 import styles from './TickerActions.module.css'
 
 export function useTickerActions() {
@@ -29,6 +29,7 @@ export function useTickerActions() {
 
 export default function TickerActionsMenu({ menu, onClose, lists, mutateLists }) {
   const { toggle: toggleFlag, isFlagged } = useFlagged()
+  const { tagColors: TAG_COLORS } = useTagColors()
   const { getTag, setTag, removeTag } = useTickerTags()
   const { createAlert, deleteAlert, getAlertsForSym, hasAlert } = useWatchlistAlerts()
   const [showAlert, setShowAlert] = useState(false)

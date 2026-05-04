@@ -7,7 +7,7 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
-import { TAG_COLORS, TAG_BY_KEY } from '../constants/tagColors'
+import useTagColors from '../hooks/useTagColors'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import { prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
@@ -196,6 +196,7 @@ export default function Watchlists() {
   const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare, flaggedName, renameFlagged } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
+  const { tagColors: TAG_COLORS, tagByKey: TAG_BY_KEY } = useTagColors()
   const { tags, setTag, removeTag, getTag, isColorShared, toggleShareColor, communityTags } = useTickerTags()
   const { createAlert, deleteAlert, getAlertsForSym, hasAlert } = useWatchlistAlerts()
   const [alertPopover, setAlertPopover] = useState(null) // { sym, x, y }

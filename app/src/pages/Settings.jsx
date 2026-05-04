@@ -5,7 +5,7 @@ import usePreferences from '../hooks/usePreferences'
 import TileCard from '../components/TileCard'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
-import { TAG_COLORS } from '../constants/tagColors'
+import useTagColors from '../hooks/useTagColors'
 import useTickerTags from '../hooks/useTickerTags'
 import { ALERT_SOUNDS, previewSound } from '../utils/alertSound'
 import styles from './Settings.module.css'
@@ -442,6 +442,7 @@ function ReferralSection() {
 export default function Settings() {
   const { user, plan, subscription, logout, startCheckout, openPortal } = useAuth()
   const { prefs, setPref } = usePreferences()
+  const { tagColors, setTagLabel } = useTagColors()
   const navigate = useNavigate()
   const [changingPw, setChangingPw] = useState(false)
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' })
@@ -883,12 +884,23 @@ export default function Settings() {
         <TileCard title="Color Tags">
           <div className={styles.section}>
             <span className={styles.prefDesc} style={{ marginBottom: 12, display: 'block' }}>
-              Customize tag names. Right-click any ticker in Watchlists to assign a color.
+              Customize tag names. Right-click any ticker to assign a color.
             </span>
-            {TAG_COLORS.map(tc => (
+            {tagColors.map(tc => (
               <div key={tc.key} className={styles.prefRow}>
                 <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: tc.hex, marginRight: 10, flexShrink: 0 }} />
-                <span className={styles.prefLabel} style={{ flex: 1 }}>{tc.label}</span>
+                <input
+                  className={styles.tagLabelInput}
+                  defaultValue={tc.label}
+                  placeholder={tc.label}
+                  maxLength={32}
+                  onBlur={e => {
+                    const val = e.target.value.trim()
+                    if (val) setTagLabel(tc.key, val)
+                    else e.target.value = tc.label
+                  }}
+                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
+                />
               </div>
             ))}
           </div>

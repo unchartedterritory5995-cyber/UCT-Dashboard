@@ -149,6 +149,12 @@
 .prefLabelGroup { display: flex; flex-direction: column; gap: 2px; min-width: 140px; }
 .prefLabel { font-size: 13px; color: #ccc; font-weight: 500; }
 .prefDesc { font-size: 11px; color: #555; }
+.tagLabelInput {
+  font-size: 13px; color: #e2e0d8; background: transparent;
+  border: none; border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding: 2px 4px; flex: 1; outline: none; font-family: inherit;
+}
+.tagLabelInput:focus { border-bottom-color: var(--color-accent, #c9a84c); color: #fff; }
 .prefSelect {
   background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #e5e5e5;
   padding: 8px 12px; border-radius: var(--radius-md); font-size: 13px; font-family: var(--font-mono);
