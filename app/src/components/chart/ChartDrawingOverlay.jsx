@@ -4,11 +4,15 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
   trendline: 2, ray: 2, extended: 2, horizontal: 1, hray: 1, vertical: 1,
-  rect: 2, circle: 2, arrow: 2, text: 1, fib: 2, channel: 3, measure: 2, avwap: 1,
+  rect: 2, circle: 2, arrow: 2, text: 1, fib: 2, fibext: 2, channel: 3, measure: 2, avwap: 1,
+  pitchfork: 3,
 }
 
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
 const FIB_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a5fa', '#a78bfa']
+
+const FIB_EXT_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618, 2, 2.618]
+const FIB_EXT_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a5fa', '#a78bfa', '#e879f9', '#f472b6', '#22d3ee', '#818cf8']
 const HIT_THRESHOLD = 8 // pixels
 
 // ─── Geometry helpers ────────────────────────────────────────────────────────
@@ -215,6 +219,86 @@ function renderFib(ctx, pts, w, toPixel) {
     ctx.fillText(label, 4, y - 3)
   })
   ctx.setLineDash([])
+}
+
+function renderFibExtension(ctx, pts, w, toPixel) {
+  if (pts.length < 2) return
+  // P0 = swing start, P1 = swing end. Extensions project beyond P1 in P0→P1 direction.
+  const p0Price = pts[0].rawPrice
+  const p1Price = pts[1].rawPrice
+  const range = p1Price - p0Price  // positive = upward swing
+  if (range === 0) return
+
+  ctx.font = '10px "Instrument Sans", sans-serif'
+  FIB_EXT_LEVELS.forEach((level, i) => {
+    // level=0 → p0Price, level=1 → p1Price, level>1 → extensions beyond p1
+    const price = p0Price + range * level
+    const y = toPixel(null, price)
+    if (y == null) return
+    ctx.strokeStyle = FIB_EXT_COLORS[i] || '#a8a290'
+    ctx.setLineDash(level > 1 ? [6, 3] : level === 0 || level === 1 ? [] : [4, 3])
+    ctx.beginPath()
+    ctx.moveTo(0, y)
+    ctx.lineTo(w, y)
+    ctx.stroke()
+    ctx.fillStyle = FIB_EXT_COLORS[i] || '#a8a290'
+    const label = `${(level * 100).toFixed(1)}% — $${price.toFixed(2)}`
+    ctx.fillText(label, 4, y - 3)
+  })
+  ctx.setLineDash([])
+}
+
+function renderPitchfork(ctx, pts, w, h) {
+  if (pts.length < 3) return
+  // P1 = pivot, P2 = left shoulder, P3 = right shoulder
+  const [p1, p2, p3] = pts
+  // Median line anchor = midpoint of P2–P3
+  const mid = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 }
+
+  // Extend all three lines to canvas edges
+  const [ma1, ma2] = extendToEdges(p1, mid, w, h)
+  const [ua1, ua2] = extendToEdges(p2, { x: p2.x + (mid.x - p1.x), y: p2.y + (mid.y - p1.y) }, w, h)
+  const [la1, la2] = extendToEdges(p3, { x: p3.x + (mid.x - p1.x), y: p3.y + (mid.y - p1.y) }, w, h)
+
+  // Median line (solid)
+  ctx.setLineDash([])
+  ctx.beginPath()
+  ctx.moveTo(ma1.x, ma1.y)
+  ctx.lineTo(ma2.x, ma2.y)
+  ctx.stroke()
+
+  // Upper and lower prongs (dashed)
+  ctx.setLineDash([5, 3])
+  ctx.beginPath()
+  ctx.moveTo(ua1.x, ua1.y)
+  ctx.lineTo(ua2.x, ua2.y)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(la1.x, la1.y)
+  ctx.lineTo(la2.x, la2.y)
+  ctx.stroke()
+  ctx.setLineDash([])
+
+  // Handle bar connecting P2–P3
+  ctx.globalAlpha = 0.4
+  ctx.beginPath()
+  ctx.moveTo(p2.x, p2.y)
+  ctx.lineTo(p3.x, p3.y)
+  ctx.stroke()
+  ctx.globalAlpha = 1
+
+  // Fill between upper and lower prongs
+  ctx.save()
+  ctx.globalAlpha = 0.04
+  ctx.fillStyle = ctx.strokeStyle
+  ctx.beginPath()
+  ctx.moveTo(ua1.x, ua1.y)
+  ctx.lineTo(ua2.x, ua2.y)
+  ctx.lineTo(la2.x, la2.y)
+  ctx.lineTo(la1.x, la1.y)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
 }
 
 function renderChannel(ctx, pts, w, h) {
@@ -426,8 +510,12 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
       return mx >= pts[0].x - 4 && mx <= pts[0].x + textW + 4 && my >= pts[0].y - textH && my <= pts[0].y + 8
     }
     case 'fib':
+    case 'fibext':
       if (pts.length < 2) return false
-      return mx >= 0 && mx <= w && Math.abs(my - pts[0].y) < HIT_THRESHOLD * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD * 2
+      return mx >= 0 && mx <= w && (Math.abs(my - pts[0].y) < HIT_THRESHOLD * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD * 2)
+    case 'pitchfork':
+      if (pts.length < 3) return false
+      return distToLine(mx, my, pts[0].x, pts[0].y, (pts[1].x + pts[2].x) / 2, (pts[1].y + pts[2].y) / 2) < HIT_THRESHOLD * 2
     case 'channel':
       if (pts.length < 2) return false
       return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD * 2
@@ -653,6 +741,8 @@ export default function ChartDrawingOverlay({
         case 'arrow': renderArrow(ctx, pts); break
         case 'text': renderText(ctx, pts, d); break
         case 'fib': renderFib(ctx, pts, w, toPixelY); break
+        case 'fibext': renderFibExtension(ctx, pts, w, toPixelY); break
+        case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
         case 'channel': renderChannel(ctx, pts, w, h); break
         case 'measure': renderMeasure(ctx, pts, d); break
       }
@@ -681,6 +771,8 @@ export default function ChartDrawingOverlay({
           case 'circle': renderCircle(ctx, previewPts); break
           case 'arrow': renderArrow(ctx, previewPts); break
           case 'fib': renderFib(ctx, previewPts, w, toPixelY); break
+          case 'fibext': renderFibExtension(ctx, previewPts, w, toPixelY); break
+          case 'pitchfork': renderPitchfork(ctx, previewPts, w, h); break
           case 'channel': renderChannel(ctx, previewPts, w, h); break
           case 'measure': {
             const md = {
@@ -934,7 +1026,8 @@ export default function ChartDrawingOverlay({
           case 't': setActiveTool('trendline'); break
           case 'h': setActiveTool('horizontal'); break
           case 'r': setActiveTool('rect'); break
-          case 'f': if (!e.shiftKey) { setActiveTool('fib'); e.preventDefault() } break
+          case 'f': if (!e.shiftKey) { setActiveTool('fib'); e.preventDefault() } else { setActiveTool('fibext'); e.preventDefault() } break
+          case 'p': if (e.shiftKey) { setActiveTool('pitchfork'); e.preventDefault() } break
           case 'x': setActiveTool('text'); break
           case 'm': setActiveTool('measure'); break
         }
