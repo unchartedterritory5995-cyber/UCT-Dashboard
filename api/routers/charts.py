@@ -86,3 +86,16 @@ def chart_image(ticker: str, tf: str = Query(default='D')):
         )
     except Exception as e:
         return Response(status_code=500, content=str(e))
+
+
+@router.get("/api/theme-correlation")
+def theme_correlation_endpoint(n: int = Query(default=40, ge=2, le=80), lookback: int = Query(default=60, ge=20, le=252)):
+    """Return pairwise Pearson correlation matrix for the top N theme ETFs.
+
+    Uses 60-day daily close prices by default. Cached for 1 hour.
+    """
+    from api.services.theme_correlation import get_theme_correlation
+    result = get_theme_correlation(n=n, lookback=lookback)
+    if result is None:
+        return {"error": "unavailable"}
+    return result
