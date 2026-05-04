@@ -110,3 +110,49 @@ export function computeVWAP(bars) {
   }
   return result
 }
+
+export function computeStochastic(bars, kPeriod = 14, dPeriod = 3) {
+  if (!bars || bars.length < kPeriod) return { k: [], d: [] }
+  // Fast %K
+  const kValues = []
+  for (let i = kPeriod - 1; i < bars.length; i++) {
+    let lowestLow = Infinity, highestHigh = -Infinity
+    for (let j = i - kPeriod + 1; j <= i; j++) {
+      if (bars[j].l < lowestLow) lowestLow = bars[j].l
+      if (bars[j].h > highestHigh) highestHigh = bars[j].h
+    }
+    const range = highestHigh - lowestLow
+    const k = range === 0 ? 50 : ((bars[i].c - lowestLow) / range) * 100
+    kValues.push({ time: bars[i].t, value: parseFloat(k.toFixed(2)) })
+  }
+  // %D = SMA(dPeriod) of %K
+  const dValues = []
+  for (let i = dPeriod - 1; i < kValues.length; i++) {
+    let sum = 0
+    for (let j = i - dPeriod + 1; j <= i; j++) sum += kValues[j].value
+    dValues.push({ time: kValues[i].time, value: parseFloat((sum / dPeriod).toFixed(2)) })
+  }
+  return { k: kValues, d: dValues }
+}
+
+export function computeATR(bars, period = 14) {
+  if (!bars || bars.length < period + 1) return []
+  // True Range for each bar starting at index 1 (needs previous close)
+  const trs = []
+  for (let i = 1; i < bars.length; i++) {
+    const tr = Math.max(
+      bars[i].h - bars[i].l,
+      Math.abs(bars[i].h - bars[i - 1].c),
+      Math.abs(bars[i].l - bars[i - 1].c)
+    )
+    trs.push({ t: bars[i].t, tr })
+  }
+  // Seed with simple average of first `period` TRs, then Wilder's smoothing
+  let atr = trs.slice(0, period).reduce((s, x) => s + x.tr, 0) / period
+  const result = [{ time: trs[period - 1].t, value: parseFloat(atr.toFixed(4)) }]
+  for (let i = period; i < trs.length; i++) {
+    atr = (atr * (period - 1) + trs[i].tr) / period
+    result.push({ time: trs[i].t, value: parseFloat(atr.toFixed(4)) })
+  }
+  return result
+}
