@@ -562,7 +562,10 @@ def get_portfolio(user: dict = Depends(get_current_user)):
 # ── Psychology Timeline ──────────────────────────────────────────────────────
 
 @router.get("/api/journal/psychology")
-def get_psychology_data_route(days: int = 90, user: dict = Depends(get_current_user)):
+def get_psychology_data_route(
+    days: int = Query(default=90, ge=1, le=730),
+    user: dict = Depends(get_current_user),
+):
     """Time-series psychology data: process trend, emotion/week, emotion outcomes, mistake trend."""
     return psych_svc.get_psychology_data(user["id"], days)
 
