@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings } from './chart/chartDefaults'
-import { toHeikinAshi, computeBB, computeVWAP } from './chart/indicators'
+import { toHeikinAshi, computeBB, computeVWAP, computeRSI } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
@@ -100,6 +100,22 @@ function computeHVC(bars) {
     deque.push({ idx: i, vol })
   }
   return hvcSet
+}
+
+function computePaneMargins(cs, hasVolume) {
+  const ind = cs.indicators || {}
+  const hasRSI  = !!ind.rsi?.enabled
+  const hasMACD = !!ind.macd?.enabled
+  const VOL_H  = 0.18
+  const RSI_H  = 0.18
+  const MACD_H = 0.22
+  let bottom = 0
+  const out = {}
+  if (hasMACD)   { out.macd   = { top: +(1 - bottom - MACD_H).toFixed(2), bottom: +bottom.toFixed(2) }; bottom += MACD_H }
+  if (hasRSI)    { out.rsi    = { top: +(1 - bottom - RSI_H).toFixed(2),  bottom: +bottom.toFixed(2) }; bottom += RSI_H  }
+  if (hasVolume) { out.volume = { top: +(1 - bottom - VOL_H).toFixed(2),  bottom: +bottom.toFixed(2) }; bottom += VOL_H  }
+  out.main = { top: 0.02, bottom: +bottom.toFixed(2) }
+  return out
 }
 
 // ─── ET timezone offset for intraday charts ─────────────────────────────────
@@ -207,6 +223,7 @@ export default function StockChart({
   const bbMiddleRef   = useRef(null)
   const bbLowerRef    = useRef(null)
   const vwapSeriesRef = useRef(null)
+  const rsiSeriesRef  = useRef(null)
   const priceLineRefs = useRef([])
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
   const lastBarRef = useRef(null)
@@ -447,6 +464,9 @@ export default function StockChart({
 
   const indicatorData = useMemo(() => {
     const ind = cs.indicators || {}
+    const rsiRaw = ind.rsi?.enabled
+      ? computeRSI(filteredBars, ind.rsi.period).map(p => ({ time: adjustTime(p.time), value: p.value }))
+      : []
     const bbRaw = ind.bb?.enabled
       ? computeBB(filteredBars, ind.bb.period, ind.bb.stdDev)
       : { upper: [], middle: [], lower: [] }
@@ -454,7 +474,7 @@ export default function StockChart({
       ? computeVWAP(filteredBars)
       : []
     return {
-      rsi:  [],
+      rsi: rsiRaw,
       bb: {
         upper:  bbRaw.upper.map(p  => ({ time: adjustTime(p.time), value: p.value })),
         middle: bbRaw.middle.map(p => ({ time: adjustTime(p.time), value: p.value })),
@@ -612,7 +632,7 @@ export default function StockChart({
       },
       rightPriceScale: {
         borderColor: cs.grid.color,
-        scaleMargins: (showVolume && volData.length) ? { top: 0.02, bottom: 0.20 } : { top: 0.02, bottom: 0.02 },
+        scaleMargins: computePaneMargins(cs, showVolume && volData.length > 0).main,
       },
       timeScale: {
         borderColor: cs.grid.color,
@@ -749,16 +769,18 @@ export default function StockChart({
       }
     }
 
-    // ── Volume series (pane 0 overlay) — bottom 20% via scaleMargins ──
+    // ── Volume series (pane 0 overlay) — dynamic margins via computePaneMargins ──
+    const paneMargins = computePaneMargins(cs, showVolume && volData.length > 0)
     if (showVolume && volData.length) {
       if (!volumeSeriesRef.current) {
         const vs = chart.addSeries(HistogramSeries, {
           priceFormat: { type: 'volume' },
           priceScaleId: '',
         })
-        vs.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
         volumeSeriesRef.current = vs
       }
+      const volMargins = paneMargins.volume || { top: 0.82, bottom: 0 }
+      volumeSeriesRef.current.priceScale().applyOptions({ scaleMargins: volMargins })
       volumeSeriesRef.current.setData(volData)
     } else if (volumeSeriesRef.current) {
       try { chart.removeSeries(volumeSeriesRef.current) } catch {}
@@ -837,6 +859,38 @@ export default function StockChart({
     } else if (vwapSeriesRef.current) {
       try { chart.removeSeries(vwapSeriesRef.current) } catch {}
       vwapSeriesRef.current = null
+    }
+
+    // ── RSI sub-pane ──
+    if (indicatorData.rsi.length) {
+      const rsiColor = cs.indicators?.rsi?.color || '#7b68ee'
+      if (!rsiSeriesRef.current) {
+        rsiSeriesRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'rsi',
+          color: rsiColor,
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        })
+        chart.priceScale('rsi').applyOptions({
+          borderVisible: false,
+          scaleMargins: paneMargins.rsi || { top: 0.82, bottom: 0 },
+          autoScale: false,
+          minimum: 0,
+          maximum: 100,
+        })
+        rsiSeriesRef.current.createPriceLine({ price: 70, color: 'rgba(123,104,238,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
+        rsiSeriesRef.current.createPriceLine({ price: 50, color: 'rgba(123,104,238,0.2)', lineWidth: 1, lineStyle: 3, axisLabelVisible: false })
+        rsiSeriesRef.current.createPriceLine({ price: 30, color: 'rgba(123,104,238,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
+      } else {
+        rsiSeriesRef.current.applyOptions({ color: rsiColor })
+        chart.priceScale('rsi').applyOptions({ scaleMargins: paneMargins.rsi || { top: 0.82, bottom: 0 } })
+      }
+      rsiSeriesRef.current.setData(indicatorData.rsi)
+    } else if (rsiSeriesRef.current) {
+      try { chart.removeSeries(rsiSeriesRef.current) } catch {}
+      rsiSeriesRef.current = null
     }
 
     // ── Price lines — remove old, add new ──
@@ -974,6 +1028,12 @@ export default function StockChart({
       const change = c - o
       const changePct = o ? ((change / o) * 100) : 0
 
+      let rsiValue = null
+      if (rsiSeriesRef.current) {
+        const d = param.seriesData.get(rsiSeriesRef.current)
+        rsiValue = d?.value ?? (indicatorData.rsi.at(-1)?.value ?? null)
+      }
+
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -981,6 +1041,7 @@ export default function StockChart({
         change: change.toFixed(2),
         changePct: changePct.toFixed(2),
         overlays: ovValues,
+        rsi: rsiValue,
       })
     }
 
@@ -990,7 +1051,7 @@ export default function StockChart({
     return () => {
       try { chart.unsubscribeCrosshairMove(handler) } catch {}
     }
-  }, [updateChart, resolvedOverlays, overlayData, livePrices, sym])
+  }, [updateChart, resolvedOverlays, overlayData, indicatorData, livePrices, sym])
 
   // ── Right-click on a bar → fire callback or dispatch global event ──
   // Behavior:
@@ -1158,6 +1219,11 @@ export default function StockChart({
           {crosshairData.overlays.map((ov, i) => (
             <span key={i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
           ))}
+          {crosshairData.rsi != null && (
+            <span style={{ color: cs.indicators?.rsi?.color || '#7b68ee' }}>
+              RSI({cs.indicators?.rsi?.period || 14}) {crosshairData.rsi.toFixed(1)}
+            </span>
+          )}
         </div>
       )}
       {showDrawingTools && bars?.length > 0 && (
