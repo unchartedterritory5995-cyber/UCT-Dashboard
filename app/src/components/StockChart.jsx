@@ -234,6 +234,8 @@ export default function StockChart({
   const bbLowerRef    = useRef(null)
   const vwapSeriesRef = useRef(null)
   const rsiSeriesRef  = useRef(null)
+  const stochKRef     = useRef(null)
+  const stochDRef     = useRef(null)
   const macdLineRef   = useRef(null)
   const macdSignalRef = useRef(null)
   const macdHistRef   = useRef(null)
@@ -926,6 +928,46 @@ export default function StockChart({
       rsiSeriesRef.current = null
     }
 
+    // ── Stochastic sub-pane ──
+    const stochCfg = cs.indicators?.stoch
+    const stochD   = indicatorData.stoch
+    if (stochD.k.length) {
+      if (!stochKRef.current) {
+        stochKRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'stoch',
+          color: stochCfg?.kColor || '#FF6B6B',
+          lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        })
+        stochDRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'stoch',
+          color: stochCfg?.dColor || '#4ECDC4',
+          lineWidth: 1,
+          lineStyle: 2,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        })
+        chart.priceScale('stoch').applyOptions({
+          borderVisible: false,
+          scaleMargins: paneMargins.stoch || { top: 0.82, bottom: 0 },
+          autoScale: false,
+          minimum: 0,
+          maximum: 100,
+        })
+        stochKRef.current.createPriceLine({ price: 80, color: 'rgba(255,107,107,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
+        stochKRef.current.createPriceLine({ price: 20, color: 'rgba(78,205,196,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
+      } else {
+        stochKRef.current.applyOptions({ color: stochCfg?.kColor || '#FF6B6B' })
+        stochDRef.current.applyOptions({ color: stochCfg?.dColor || '#4ECDC4' })
+        chart.priceScale('stoch').applyOptions({ scaleMargins: paneMargins.stoch || { top: 0.82, bottom: 0 } })
+      }
+      stochKRef.current.setData(stochD.k)
+      stochDRef.current.setData(stochD.d)
+    } else {
+      for (const ref of [stochKRef, stochDRef]) {
+        if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
+      }
+    }
+
     // ── MACD sub-pane ──
     const macdCfg = cs.indicators?.macd
     const macdD   = indicatorData.macd
@@ -1117,6 +1159,14 @@ export default function StockChart({
         macdSignalValue = ds?.value ?? (indicatorData.macd.signal.at(-1)?.value ?? null)
       }
 
+      let stochKValue = null, stochDValue = null
+      if (stochKRef.current) {
+        const dk = param.seriesData.get(stochKRef.current)
+        const dd = stochDRef.current ? param.seriesData.get(stochDRef.current) : null
+        stochKValue = dk?.value ?? (indicatorData.stoch.k.at(-1)?.value ?? null)
+        stochDValue = dd?.value ?? (indicatorData.stoch.d.at(-1)?.value ?? null)
+      }
+
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -1125,6 +1175,7 @@ export default function StockChart({
         changePct: changePct.toFixed(2),
         overlays: ovValues,
         rsi: rsiValue, macd: macdValue, macdSig: macdSignalValue,
+        stochK: stochKValue, stochD: stochDValue,
       })
     }
 
@@ -1315,6 +1366,16 @@ export default function StockChart({
           {crosshairData.macdSig != null && (
             <span style={{ color: cs.indicators?.macd?.signalColor || '#FF9800' }}>
               SIG {crosshairData.macdSig.toFixed(4)}
+            </span>
+          )}
+          {crosshairData.stochK != null && (
+            <span style={{ color: cs.indicators?.stoch?.kColor || '#FF6B6B' }}>
+              %K {crosshairData.stochK.toFixed(1)}
+            </span>
+          )}
+          {crosshairData.stochD != null && (
+            <span style={{ color: cs.indicators?.stoch?.dColor || '#4ECDC4' }}>
+              %D {crosshairData.stochD.toFixed(1)}
             </span>
           )}
         </div>
