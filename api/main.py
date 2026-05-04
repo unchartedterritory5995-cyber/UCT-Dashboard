@@ -120,27 +120,39 @@ async def lifespan(app: FastAPI):
         print(f"[startup] SQLite bar store init error (non-fatal): {e}")
 
     try:
-        for _flag_name in (".tf60_purged_2f42e55", ".tf60_purged_3cbe1cf_src_cap"):
+        # Each entry: (flag_name, predicate). Predicate decides which cache
+        # files to delete. Flag file marks completion so each runs once.
+        _disk_purges = [
+            (".tf60_purged_2f42e55",         lambda f: "_60_" in f and f.endswith(".json")),
+            (".tf60_purged_3cbe1cf_src_cap", lambda f: "_60_" in f and f.endswith(".json")),
+            # Pagination support (this commit) — purge ALL intraday tf disk
+            # cache so they re-fetch through the paginated path with full
+            # history instead of the truncated 30-day window.
+            (".intraday_purged_pagination_v1",
+             lambda f: any(t in f for t in ("_1_", "_5_", "_15_", "_30_", "_60_")) and f.endswith(".json")),
+        ]
+        for _flag_name, _pred in _disk_purges:
             _flag_path = os.path.join(os.environ.get("DATA_DIR", "/data"), _flag_name)
-            if not os.path.exists(_flag_path):
-                _cd = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
-                n = 0
-                if os.path.isdir(_cd):
-                    for _f in os.listdir(_cd):
-                        if "_60_" in _f and _f.endswith(".json"):
-                            try:
-                                os.remove(os.path.join(_cd, _f))
-                                n += 1
-                            except OSError:
-                                pass
-                print(f"[startup] {_flag_name}: purged {n} tf=60 disk-cache files")
-                try:
-                    with open(_flag_path, "w") as _f:
-                        _f.write("done")
-                except OSError:
-                    pass
+            if os.path.exists(_flag_path):
+                continue
+            _cd = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+            n = 0
+            if os.path.isdir(_cd):
+                for _f in os.listdir(_cd):
+                    if _pred(_f):
+                        try:
+                            os.remove(os.path.join(_cd, _f))
+                            n += 1
+                        except OSError:
+                            pass
+            print(f"[startup] {_flag_name}: purged {n} disk-cache files")
+            try:
+                with open(_flag_path, "w") as _f:
+                    _f.write("done")
+            except OSError:
+                pass
     except Exception as e:
-        print(f"[startup] tf=60 disk purge error (non-fatal): {e}")
+        print(f"[startup] intraday disk purge error (non-fatal): {e}")
 
     try:
         from api.services import bars_sqlite as _pbs

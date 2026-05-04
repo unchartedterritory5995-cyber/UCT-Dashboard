@@ -132,17 +132,17 @@ def _resample_weekly(daily_bars: list[dict]) -> list[dict]:
 
 
 def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
-    """Fetch intraday bars from Massive API agg endpoint.
+    """Fetch intraday bars from Massive API agg endpoint with pagination.
 
-    Lookback scales with max_bars to support up to 5000 intraday bars.
-    5min  ~78 bars/day → 5000 bars ≈ 65 trading days → 90 calendar days
-    30min ~13 bars/day → 5000 bars ≈ 385 trading days → 540 calendar days
-    60min ~7 bars/day  → 5000 bars ≈ 715 trading days → 1000 calendar days
+    Massive (Polygon) silently truncates large single-page responses — verified
+    empirically that asking for >1000 bars in one call returns data that ends
+    weeks or months before today (e.g. src=5000 → last bar 5 months stale).
+    The endpoint paginates via a `next_url` field; we follow it until either
+    the response stops returning a next_url or we hit the safety page cap.
     """
-    multiplier = int(tf)  # 5, 30, or 60
-    # Account for extended hours (~16hr/day) to avoid oversized API responses.
-    # Cap lookback to prevent oversized responses from Railway.
-    # 1min: 10 days (960 bars/day), 5min: 44 days, 15min/30min/60min: up to 2 years
+    multiplier = int(tf)  # 1, 5, 15, 30, 60
+    # Lookback scales with max_bars. 16hr/day to account for extended hours.
+    # Caps: 1min keep tight (huge data), 5/15min ~3mo, 30/60min ~2yr.
     bars_per_day = (16 * 60) // multiplier
     max_lookback = {1: 10, 5: 90, 15: 90}.get(multiplier, 730)
     lookback_days = min(max_lookback, max(10, int(max_bars / max(bars_per_day, 1) * 1.5) + 5))
@@ -156,12 +156,24 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
             f"/{from_date}/{to_date}"
             f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
         )
-        data = client._get(url)
-        results = data.get("results") or []
-        if not results:
+        all_results: list[dict] = []
+        # Safety cap: 20 pages × 50000 bars = 1M bars — way more than we'd ever
+        # use, but bounds the worst case if Polygon changes pagination behavior.
+        for _page in range(20):
+            data = client._get(url)
+            page_results = data.get("results") or []
+            all_results.extend(page_results)
+            next_url = data.get("next_url")
+            if not next_url:
+                break
+            # next_url comes back without the apiKey — append it.
+            sep = "&" if "?" in next_url else "?"
+            url = f"{next_url}{sep}apiKey={client._api_key}"
+
+        if not all_results:
             return []
         bars = []
-        for bar in results:
+        for bar in all_results:
             bars.append({
                 "t": int(bar["t"] / 1000),  # ms → unix seconds for LW Charts UTCTimestamp
                 "o": round(bar["o"], 2),
@@ -267,14 +279,11 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     import logging as _log
     _logger = _log.getLogger(__name__)
     if tf == "60":
-        # Need ~2× 30-min bars to produce max_bars session-aligned hourly bars,
-        # BUT Massive's 30-min endpoint returns truncated/stale data when asked
-        # for >1000 bars (verified empirically: src=200/500/1000 → fresh through
-        # today; src=2000 → ends 25 days ago; src=5000 → ends 5+ months ago).
-        # Cap the source request so the freshness check passes and we use Massive
-        # instead of falling through to FMP/yfinance which produce different
-        # OHLC values for the same period.
-        src = min(max_bars * 2, 1000)
+        # Need ~2× 30-min bars to produce max_bars session-aligned hourly bars.
+        # Previously capped at 1000 to avoid Massive's silent truncation, but
+        # _fetch_intraday_massive now paginates so the cap is gone — we get
+        # the full requested history for proper long-range hourly charts.
+        src = max_bars * 2
         bars_30m = _fetch_intraday_massive(ticker, "30", src)
         n_mass = len(bars_30m) if bars_30m else 0
         is_stale_mass = _is_intraday_stale(bars_30m) if bars_30m else True

@@ -46,17 +46,25 @@ def init_db() -> None:
     # the 9:30 RTH-open bar into one 9:00 bucket, persisting incorrect
     # bars after the fix. Marker row records that the migration ran.
     c.execute("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)")
-    for migration_name in ("purge_tf60_2f42e55", "purge_tf60_3cbe1cf_src_cap"):
-        # Each named migration runs at most once. Adding a new name forces a
-        # re-purge of tf=60 — needed when the upstream fetch path changes
-        # (e.g. src-cap fix that switches from FMP-fallback back to Massive).
+    # Each migration tuple: (name, sql_to_run). Runs once per name. Add a new
+    # entry whenever the upstream intraday fetch path changes so existing
+    # cached rows get re-fetched through the corrected code path.
+    _migrations = [
+        ("purge_tf60_2f42e55",            "DELETE FROM ohlcv WHERE tf='60'"),
+        ("purge_tf60_3cbe1cf_src_cap",    "DELETE FROM ohlcv WHERE tf='60'"),
+        # Pagination support (this commit) gives every intraday TF full history
+        # instead of the truncated/stale 30-day window. Repurge ALL intraday
+        # rows so they re-fetch through the paginated path.
+        ("purge_intraday_pagination_v1",  "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60')"),
+    ]
+    for migration_name, sql in _migrations:
         already = c.execute("SELECT 1 FROM _migrations WHERE name=?", (migration_name,)).fetchone()
         if not already:
             try:
-                c.execute("DELETE FROM ohlcv WHERE tf='60'")
+                cur = c.execute(sql)
                 c.execute("INSERT INTO _migrations(name, applied_at) VALUES (?, ?)",
                           (migration_name, int(__import__('time').time())))
-                print(f"[sqlite-migration] Applied {migration_name}: purged tf=60 rows")
+                print(f"[sqlite-migration] Applied {migration_name}: deleted {cur.rowcount} rows")
             except Exception:
                 pass
     c.commit()
