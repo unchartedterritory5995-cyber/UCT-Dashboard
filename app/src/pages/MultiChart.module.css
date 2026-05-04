@@ -1,0 +1,152 @@
+/* MultiChart.module.css */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-base, #0f0f0f);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--bg-panel, #161616);
+  flex-shrink: 0;
+}
+
+.toolbarTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted, #706b5e);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.layoutBtns {
+  display: flex;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.layoutBtn {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: var(--text-muted, #706b5e);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.layoutBtn:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--text-primary, #e2e0d8);
+}
+
+.layoutBtnActive {
+  border-color: var(--color-accent, #c9a84c);
+  color: var(--color-accent, #c9a84c);
+  background: rgba(201, 168, 76, 0.08);
+}
+
+.grid {
+  flex: 1;
+  display: grid;
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base, #0f0f0f);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.paneHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--bg-panel, #161616);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+.symBtn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent, #c9a84c);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  min-width: 52px;
+  text-align: left;
+  letter-spacing: 0.5px;
+}
+
+.symBtn:hover {
+  background: rgba(201, 168, 76, 0.1);
+}
+
+.symInput {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent, #c9a84c);
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid var(--color-accent, #c9a84c);
+  border-radius: 3px;
+  padding: 1px 6px;
+  width: 72px;
+  outline: none;
+  text-transform: uppercase;
+}
+
+.tfRow {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.tfBtn {
+  padding: 2px 6px;
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-muted, #706b5e);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.tfBtn:hover {
+  color: var(--text-primary, #e2e0d8);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.tfBtnActive {
+  color: var(--text-primary, #e2e0d8);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.chartWrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}

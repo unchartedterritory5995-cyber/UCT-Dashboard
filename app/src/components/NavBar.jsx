@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/model-book',      label: 'Model Book',     icon: '📖' },
   { to: '/setup-library',   label: 'Setup Library',  icon: '📚' },
   { to: '/journal',      label: 'Journal',       icon: '📓' },
+  { to: '/multi-chart',  label: 'Multi Chart',   icon: '⊟' },
   { to: '/watchlists',   label: 'Watchlists',    icon: '📋' },
   { to: '/community',    label: 'Community',     icon: '📊' },
   { to: '/support',      label: 'Support',       icon: '💬' },
