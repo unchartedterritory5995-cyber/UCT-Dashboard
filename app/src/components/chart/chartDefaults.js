@@ -44,9 +44,12 @@ export const CHART_DEFAULTS = {
     },
     bb:   { enabled: false, period: 20, stdDev: 2, color: 'rgba(156,39,176,0.85)' },
     vwap: { enabled: false, color: '#26C6DA' },
+    stoch: { enabled: false, kPeriod: 14, dPeriod: 3, kColor: '#FF6B6B', dColor: '#4ECDC4' },
+    atr:   { enabled: false, period: 14, color: '#FFA726' },
   },
   heikinAshi: false,
   logScale:   false,
+  markers: { earnings: false, splits: false },
 
   preset: 'classic',
 }
@@ -150,9 +153,12 @@ export function mergeChartSettings(userSettings) {
       macd: { ...CHART_DEFAULTS.indicators.macd, ...(parsed.indicators?.macd || {}) },
       bb:   { ...CHART_DEFAULTS.indicators.bb,   ...(parsed.indicators?.bb   || {}) },
       vwap: { ...CHART_DEFAULTS.indicators.vwap, ...(parsed.indicators?.vwap || {}) },
+      stoch: { ...CHART_DEFAULTS.indicators.stoch, ...(parsed.indicators?.stoch || {}) },
+      atr:   { ...CHART_DEFAULTS.indicators.atr,   ...(parsed.indicators?.atr   || {}) },
     },
     heikinAshi: parsed.heikinAshi ?? CHART_DEFAULTS.heikinAshi,
     logScale:   parsed.logScale   ?? CHART_DEFAULTS.logScale,
+    markers: { ...CHART_DEFAULTS.markers, ...(parsed.markers || {}) },
     preset: parsed.preset || 'classic',
   }
 }
