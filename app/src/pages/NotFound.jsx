@@ -15,7 +15,7 @@ export default function NotFound() {
       textAlign: 'center',
     }}>
       <div style={{
-        fontFamily: 'var(--font-mono, IBM Plex Mono, monospace)',
+        fontFamily: "'Instrument Sans', sans-serif",
         fontSize: '96px',
         fontWeight: 700,
         color: 'var(--ut-gold, #c9a84c)',

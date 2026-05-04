@@ -95,7 +95,7 @@ function EquityChart({ chartData }) {
       layout: {
         background: { type: 'solid', color: CHART_BG },
         textColor: COLOR_MUTED,
-        fontFamily: "'IBM Plex Mono', monospace",
+        fontFamily: "'Instrument Sans', sans-serif",
         fontSize: 9,
       },
       grid: {
