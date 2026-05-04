@@ -2,22 +2,20 @@
 Psychology data aggregation for the Journal — process score trend, emotion/week,
 emotion → P&L outcomes, mistake trend. Cached 10 minutes per (user_id, days).
 """
-import time
 from datetime import date, timedelta
 from collections import defaultdict
+from api.services.cache import cache
 from api.services.auth_db import get_connection
 
-_cache: dict[tuple, tuple[float, dict]] = {}
 _CACHE_TTL = 600  # 10 minutes
 
 
 def get_psychology_data(user_id: str, days: int = 90) -> dict:
     """Return psychology time-series data for user over the given lookback."""
-    key = (user_id, days)
-    now = time.time()
-    cached = _cache.get(key)
-    if cached and (now - cached[0]) < _CACHE_TTL:
-        return cached[1]
+    key = f"psychology_{user_id}_{days}"
+    cached = cache.get(key)
+    if cached is not None:
+        return dict(cached)
 
     since = (date.today() - timedelta(days=days)).isoformat() if days > 0 else "2000-01-01"
 
@@ -38,8 +36,8 @@ def get_psychology_data(user_id: str, days: int = 90) -> dict:
             "emotion_outcomes": _compute_emotion_outcomes(entries),
             "mistake_trend": _compute_mistake_trend(entries),
         }
-        _cache[key] = (now, result)
-        return result
+        cache.set(key, result, _CACHE_TTL)
+        return dict(result)
     finally:
         conn.close()
 
@@ -110,15 +108,13 @@ def _compute_emotion_outcomes(entries: list[dict]) -> list[dict]:
 
 
 def _compute_mistake_trend(entries: list[dict]) -> list[dict]:
-    by_week: dict[str, dict] = {}
+    by_week: dict[str, dict] = defaultdict(lambda: {"count": 0, "mistakes": defaultdict(int)})
     for e in entries:
         d = e.get("entry_date")
         tags = e.get("mistake_tags") or ""
         if not d or not tags.strip():
             continue
         week = _iso_week(d)
-        if week not in by_week:
-            by_week[week] = {"count": 0, "mistakes": defaultdict(int)}
         for tag in [t.strip() for t in tags.split(",") if t.strip()]:
             by_week[week]["count"] += 1
             by_week[week]["mistakes"][tag] += 1
