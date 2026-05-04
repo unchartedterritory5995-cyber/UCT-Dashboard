@@ -312,6 +312,8 @@ export default function StockChart({
   const crosshairSubRef = useRef(null)
 
   const [activeTool, setActiveTool] = useState(null)
+  const [positionTool, setPositionTool] = useState({ entry: '', stop: '', target: '', risk: 200, direction: 'long' })
+  const positionPriceLines = useRef([])
   const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color)
   const [drawWidth, setDrawWidth] = useState(cs.drawingDefaults.width)
   const [selectedId, setSelectedId] = useState(null)
@@ -343,11 +345,35 @@ export default function StockChart({
   }, [sym])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
 
+  // ── Position tool price lines ──
+  useEffect(() => {
+    const cs2 = candleSeriesRef.current
+    if (!cs2) return
+    for (const pl of positionPriceLines.current) {
+      try { cs2.removePriceLine(pl) } catch {}
+    }
+    positionPriceLines.current = []
+    if (activeTool !== 'position') return
+    const { entry, stop, target } = positionTool
+    const e = parseFloat(entry), s = parseFloat(stop), t = parseFloat(target)
+    if (e > 0) positionPriceLines.current.push(cs2.createPriceLine({ price: e, color: '#60a5fa', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: 'Entry' }))
+    if (s > 0) positionPriceLines.current.push(cs2.createPriceLine({ price: s, color: '#f87171', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Stop' }))
+    if (t > 0) positionPriceLines.current.push(cs2.createPriceLine({ price: t, color: '#4ade80', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Target' }))
+  }, [activeTool, positionTool])
+
+  // ── Position tool: auto-populate entry from last bar close when activated ──
+  useEffect(() => {
+    if (activeTool === 'position' && !positionTool.entry) {
+      const lastBar = filteredBars?.at(-1)
+      if (lastBar) setPositionTool(p => ({ ...p, entry: lastBar.c.toFixed(2) }))
+    }
+  }, [activeTool]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Drawing tool + TF keyboard shortcuts ──
   useEffect(() => {
     if (!showDrawingTools && !onTfChange) return
     const TF_KEYS = { '1': '1', '5': '5', 'd': 'D', 'w': 'W' }
-    const TOOL_KEYS = { t: 'trendline', h: 'horizontal', r: 'rect', f: 'fib', x: 'text', m: 'measure' }
+    const TOOL_KEYS = { t: 'trendline', h: 'horizontal', r: 'rect', f: 'fib', x: 'text', m: 'measure', p: 'position' }
     const handler = (e) => {
       // Skip if user is typing in an input
       const tag = document.activeElement?.tagName?.toLowerCase()
@@ -1650,6 +1676,70 @@ export default function StockChart({
             onScreenshot={handleScreenshot}
             tf={resolvedTf}
           />
+          {activeTool === 'position' && (
+            <div style={{
+              position: 'absolute', right: 8, top: 40, zIndex: 20,
+              background: 'rgba(26,28,23,0.95)', border: '1px solid #3a3d2e',
+              borderRadius: 6, padding: '10px 12px', width: 200,
+              fontSize: 11, color: '#c8c4b0',
+            }}>
+              <div style={{ fontWeight: 600, marginBottom: 8, color: '#e8e4d0' }}>Position Tool</div>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                {['long', 'short'].map(d => (
+                  <button key={d} onClick={() => setPositionTool(p => ({ ...p, direction: d }))}
+                    style={{
+                      flex: 1, padding: '2px 0', fontSize: 10, cursor: 'pointer', borderRadius: 3,
+                      background: positionTool.direction === d ? (d === 'long' ? '#1a4a2e' : '#4a1a1a') : 'transparent',
+                      border: `1px solid ${d === 'long' ? '#4ade80' : '#f87171'}`,
+                      color: d === 'long' ? '#4ade80' : '#f87171',
+                    }}>
+                    {d.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              {[['entry', '#60a5fa', 'Entry $'], ['stop', '#f87171', 'Stop $'], ['target', '#4ade80', 'Target $']].map(([field, color, label]) => (
+                <div key={field} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ color, minWidth: 40 }}>{label}</span>
+                  <input type="number" step="0.01" value={positionTool[field]}
+                    onChange={ev => setPositionTool(p => ({ ...p, [field]: ev.target.value }))}
+                    style={{
+                      flex: 1, background: '#2a2d1e', border: '1px solid #3a3d2e', borderRadius: 3,
+                      color: '#e8e4d0', padding: '2px 4px', fontSize: 11, width: '100%',
+                    }} />
+                </div>
+              ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <span style={{ minWidth: 40 }}>Risk $</span>
+                <input type="number" value={positionTool.risk}
+                  onChange={ev => setPositionTool(p => ({ ...p, risk: parseFloat(ev.target.value) || 200 }))}
+                  style={{
+                    flex: 1, background: '#2a2d1e', border: '1px solid #3a3d2e', borderRadius: 3,
+                    color: '#e8e4d0', padding: '2px 4px', fontSize: 11, width: '100%',
+                  }} />
+              </div>
+              {(() => {
+                const e = parseFloat(positionTool.entry), s = parseFloat(positionTool.stop), t = parseFloat(positionTool.target), r = positionTool.risk
+                const riskPerShare = Math.abs(e - s)
+                const rewardPerShare = Math.abs(t - e)
+                const shares = riskPerShare > 0 ? Math.floor(r / riskPerShare) : 0
+                const rr = riskPerShare > 0 ? (rewardPerShare / riskPerShare).toFixed(2) : '—'
+                const profit = shares * rewardPerShare
+                if (!e || !s) return null
+                return (
+                  <div style={{ borderTop: '1px solid #3a3d2e', paddingTop: 8, lineHeight: 1.7 }}>
+                    <div>R:R <span style={{ color: '#c9a84c', fontWeight: 600 }}>{rr}</span></div>
+                    <div>Shares <span style={{ color: '#e8e4d0' }}>{shares.toLocaleString()}</span></div>
+                    <div>Risk <span style={{ color: '#f87171' }}>${r.toFixed(0)}</span></div>
+                    {t > 0 && <div>Profit <span style={{ color: '#4ade80' }}>${profit.toFixed(0)}</span></div>}
+                  </div>
+                )
+              })()}
+              <button onClick={() => setPositionTool({ entry: '', stop: '', target: '', risk: positionTool.risk, direction: positionTool.direction })}
+                style={{ marginTop: 8, width: '100%', padding: '3px 0', fontSize: 10, cursor: 'pointer', background: 'transparent', border: '1px solid #3a3d2e', borderRadius: 3, color: '#706b5e' }}>
+                Clear
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
