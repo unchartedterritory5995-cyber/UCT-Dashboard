@@ -64,7 +64,7 @@
   font-size: 28px;
   font-weight: 700;
   color: #1a1a1a;
-  font-family: 'Cinzel', serif;
+  font-family: var(--font-sans);
   letter-spacing: 0.5px;
 }
 
@@ -116,7 +116,7 @@
   font-size: 18px;
   font-weight: 700;
   color: #1a1a1a;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .pos { color: #1a7f3e; }
@@ -154,7 +154,7 @@
 
 .right {
   text-align: right;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .empty {

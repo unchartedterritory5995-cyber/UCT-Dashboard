@@ -34,7 +34,7 @@
 }
 
 .toggleLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 1.2px;
@@ -42,7 +42,7 @@
 }
 
 .activeCount {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
   background: var(--ut-gold-dim);
@@ -70,7 +70,7 @@
 }
 
 .label {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -83,7 +83,7 @@
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 3px;
   color: var(--text-bright);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   padding: 4px 7px;
   width: 100%;
@@ -112,7 +112,7 @@ select.input {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: rgba(255,255,255,0.4);
   cursor: pointer;
@@ -134,7 +134,7 @@ select.input {
 }
 
 .clearBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.5px;

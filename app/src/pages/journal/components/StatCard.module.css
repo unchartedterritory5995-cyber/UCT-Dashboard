@@ -9,7 +9,7 @@
 }
 
 .label {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
@@ -20,7 +20,7 @@
 }
 
 .value {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 22px;
   font-weight: 700;
   color: var(--text-bright);

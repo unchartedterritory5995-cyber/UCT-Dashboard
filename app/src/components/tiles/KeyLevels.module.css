@@ -7,7 +7,7 @@
 }
 
 .comingSoonText {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   color: var(--text-muted);
   letter-spacing: 1px;

@@ -28,7 +28,7 @@
 }
 
 .sidebarTitle {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
@@ -37,7 +37,7 @@
 }
 
 .todayBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -90,7 +90,7 @@
 }
 
 .dateLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text);
   white-space: nowrap;
@@ -109,7 +109,7 @@
 }
 
 .tradeBadge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   color: rgba(255,255,255,0.4);
@@ -146,7 +146,7 @@
 }
 
 .formDate {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
   color: var(--ut-gold);
@@ -156,7 +156,7 @@
 }
 
 .savingIndicator {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: rgba(255,255,255,0.35);
   margin-left: 10px;
@@ -187,7 +187,7 @@
 }
 
 .sectionLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -200,7 +200,7 @@
 }
 
 .sectionToggle {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: rgba(255,255,255,0.3);
   transition: transform var(--duration-fast);
@@ -225,7 +225,7 @@
 }
 
 .fieldLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.2px;
@@ -287,7 +287,7 @@
 }
 
 .ratingPill {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   width: 30px;
@@ -351,7 +351,7 @@
 }
 
 .sliderValue {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
   color: var(--text-bright);
@@ -369,7 +369,7 @@
 }
 
 .linkedHeader {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
@@ -399,14 +399,14 @@
 }
 
 .ltSym {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
   color: var(--ut-cream);
   min-width: 50px;
 }
 
 .ltDir {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
@@ -416,7 +416,7 @@
 }
 
 .ltSetup {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--ut-gold);
   opacity: 0.7;
@@ -427,7 +427,7 @@
 }
 
 .ltPnlGain {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
   color: var(--gain);
   min-width: 60px;
@@ -435,7 +435,7 @@
 }
 
 .ltPnlLoss {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
   color: var(--loss);
   min-width: 60px;
@@ -450,7 +450,7 @@
   gap: 12px;
   padding: 60px 20px;
   color: var(--text-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
@@ -498,7 +498,7 @@
 }
 
 .emptyTitle {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);

@@ -32,7 +32,7 @@
 }
 
 .listTitle {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -41,7 +41,7 @@
 }
 
 .listCount {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
@@ -52,7 +52,7 @@
 }
 
 .listHint {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text-muted);
   opacity: 0.5;
@@ -87,7 +87,7 @@
 }
 
 .rowSym {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 700;
   color: var(--ut-cream);
@@ -108,13 +108,13 @@
 }
 
 .rowPrice {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text);
 }
 
 .rowChange {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
   min-width: 48px;
@@ -159,14 +159,14 @@
 }
 
 .emptyText {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-muted);
   margin-bottom: 8px;
 }
 
 .emptyHint {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   opacity: 0.6;
@@ -200,7 +200,7 @@
 }
 
 .chartSym {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -212,7 +212,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.8px;
@@ -237,7 +237,7 @@
 
 /* ── Flag toast ── */
 .flagToast {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.8px;
@@ -272,7 +272,7 @@
 }
 
 .chartPeriodBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.6px;
@@ -305,7 +305,7 @@
   opacity: 0.15;
 }
 .chartEmptyText {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-muted);
   opacity: 0.5;
@@ -321,7 +321,7 @@
 
 .tabBtn {
   flex: 1;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.8px;
@@ -342,7 +342,7 @@
 
 /* ── Sub-header ── */
 .listMeta {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
@@ -350,7 +350,7 @@
 
 .newListBtn {
   margin-left: auto;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -366,7 +366,7 @@
 
 /* ── Loading ── */
 .loading {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
   padding: 32px 20px;
@@ -398,7 +398,7 @@
 }
 
 .wlName {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
   color: var(--ut-cream);
@@ -433,7 +433,7 @@
   background: none;
   border: none;
   color: var(--ut-cream, #e8e0d0);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   text-align: left;
   cursor: pointer;
@@ -482,7 +482,7 @@
   align-items: center;
   gap: 6px;
   padding: 3px 0;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ut-cream, #e8e0d0);
   cursor: pointer;
@@ -497,7 +497,7 @@
 }
 
 .presetBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: rgba(255,255,255,0.6);
   background: rgba(255,255,255,0.06);
@@ -511,7 +511,7 @@
 .presetBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
 
 .perfCell {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   min-width: 42px;
   text-align: right;
@@ -533,7 +533,7 @@
 }
 
 .colH {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
@@ -547,7 +547,7 @@
 .colH:hover { color: var(--ut-gold, #c9a84c); }
 
 .filterInput {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--ut-cream, #e8e0d0);
   background: rgba(255,255,255,0.05);
@@ -562,7 +562,7 @@
 .filterInput:focus { border-color: var(--ut-gold, #c9a84c); }
 
 .resetSortBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: rgba(255,255,255,0.4);
   background: none;
@@ -578,11 +578,11 @@
 .importTextarea {
   min-height: 100px;
   resize: vertical;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .importPreview {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--ut-gold, #c9a84c);
   margin-bottom: 12px;
@@ -613,7 +613,7 @@
 }
 
 .alertPopTitle {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
   color: var(--ut-gold, #c9a84c);
@@ -628,7 +628,7 @@
 }
 
 .alertSelect {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ut-cream, #e8e0d0);
   background: rgba(255,255,255,0.06);
@@ -639,7 +639,7 @@
 }
 
 .alertInput {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ut-cream, #e8e0d0);
   background: rgba(255,255,255,0.06);
@@ -653,7 +653,7 @@
 .alertInput:focus, .alertSelect:focus { border-color: var(--ut-gold, #c9a84c); }
 
 .alertSubmit {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   color: #0e0f0d;
@@ -676,7 +676,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: rgba(255,255,255,0.6);
   padding: 3px 0;
@@ -708,7 +708,7 @@
 }
 
 .ctxTagLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: rgba(255,255,255,0.4);
   text-transform: uppercase;
@@ -778,7 +778,7 @@
 
 .noteTextarea {
   width: 100%;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ut-cream, #e8e0d0);
   background: rgba(255,255,255,0.05);
@@ -796,7 +796,7 @@
 }
 
 .noteReadonly {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: rgba(255,255,255,0.45);
   font-style: italic;
@@ -830,7 +830,7 @@
 }
 
 .renameInput {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
   color: var(--ut-cream);
@@ -844,7 +844,7 @@
 }
 
 .wlCount {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   background: var(--bg-hover);
@@ -855,7 +855,7 @@
 }
 
 .pubBadge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.8px;
@@ -872,12 +872,12 @@
   color: #706b5e;
   opacity: 0.6;
   margin-left: auto;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   letter-spacing: 0.3px;
 }
 
 .ownerTag {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text-muted);
   opacity: 0.6;
@@ -927,7 +927,7 @@
 }
 
 .wlDesc {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   opacity: 0.6;
@@ -936,7 +936,7 @@
 }
 
 .wlEmpty {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   opacity: 0.4;
@@ -953,7 +953,7 @@
 .addItemInput {
   flex: 1;
   min-width: 0;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -967,7 +967,7 @@
 .addItemInput::placeholder { color: var(--text-muted); opacity: 0.5; }
 
 .addItemBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   padding: 4px 10px;
@@ -1002,7 +1002,7 @@
 }
 
 .modalTitle {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -1019,7 +1019,7 @@
 }
 
 .formLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.8px;
@@ -1028,7 +1028,7 @@
 }
 
 .input {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -1049,7 +1049,7 @@
 }
 
 .checkLabel {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
   cursor: pointer;
@@ -1062,7 +1062,7 @@
 }
 
 .cancelBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   padding: 7px 16px;
@@ -1076,7 +1076,7 @@
 .cancelBtn:hover { background: var(--bg-hover); }
 
 .submitBtn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
   padding: 7px 18px;
