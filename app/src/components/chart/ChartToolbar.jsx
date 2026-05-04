@@ -424,6 +424,7 @@ export default function ChartToolbar({
   chartSettings, onUpdateSettings,
   showExtended, onToggleExtended,
   onScreenshot,
+  tf = null,
 }) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -431,6 +432,25 @@ export default function ChartToolbar({
   const colorRef = useRef(null)
   const widthRef = useRef(null)
   const settingsRef = useRef(null)
+
+  // ── Countdown to bar close ──
+  const INTRADAY_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
+  const periodSec = INTRADAY_SECONDS[tf]
+  const [countdown, setCountdown] = useState(null)
+
+  useEffect(() => {
+    if (!periodSec) { setCountdown(null); return }
+    const tick = () => {
+      const nowSec = Math.floor(Date.now() / 1000)
+      const rem = periodSec - (nowSec % periodSec)
+      const mm = String(Math.floor(rem / 60)).padStart(2, '0')
+      const ss = String(rem % 60).padStart(2, '0')
+      setCountdown(`${mm}:${ss}`)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [periodSec])
 
   // Close popups on outside click
   useEffect(() => {
@@ -498,6 +518,13 @@ export default function ChartToolbar({
           >
             {showExtended ? 'EXT' : 'RTH'}
           </button>
+        )}
+
+        {/* ── Countdown to bar close ── */}
+        {countdown && (
+          <span className={styles.countdown} title="Time until bar closes">
+            {countdown}
+          </span>
         )}
 
         {/* ── Screenshot ── */}

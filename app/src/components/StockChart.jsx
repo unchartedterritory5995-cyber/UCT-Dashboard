@@ -1582,6 +1582,7 @@ export default function StockChart({
             showExtended={isIntraday ? showExtended : null}
             onToggleExtended={isIntraday ? handleToggleExtended : null}
             onScreenshot={handleScreenshot}
+            tf={resolvedTf}
           />
         </>
       )}

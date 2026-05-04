@@ -341,6 +341,16 @@
 }
 .sResetBtn:hover { background: rgba(239, 68, 68, 0.18); }
 
+.countdown {
+  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--text-muted, #706b5e);
+  letter-spacing: 0.5px;
+  padding: 0 4px;
+  user-select: none;
+  opacity: 0.8;
+}
+
 /* ── Mobile: hide toolbar on very small screens ── */
 @media (max-width: 640px) {
   .toolbar {
