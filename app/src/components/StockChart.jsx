@@ -5,6 +5,7 @@ import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings } from './chart/chartDefaults'
+import { toHeikinAshi } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
@@ -404,13 +405,18 @@ export default function StockChart({
     })
   }, [bars, isIntraday, showExtended, resolvedTf])
 
+  const displayBars = useMemo(() => {
+    if (!filteredBars?.length) return filteredBars
+    return cs.heikinAshi ? toHeikinAshi(filteredBars) : filteredBars
+  }, [filteredBars, cs.heikinAshi])
+
   const ohlcData = useMemo(
-    () => filteredBars ? filteredBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
-    [filteredBars, adjustTime]
+    () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
+    [displayBars, adjustTime]
   )
   const closeData = useMemo(
-    () => filteredBars ? filteredBars.map(b => ({ time: adjustTime(b.t), value: b.c })) : [],
-    [filteredBars, adjustTime]
+    () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), value: b.c })) : [],
+    [displayBars, adjustTime]
   )
   const hvcSet = useMemo(
     () => cs.volume.hvcEnabled && filteredBars?.length > 20 ? computeHVC(filteredBars) : new Set(),
@@ -452,6 +458,10 @@ export default function StockChart({
   useEffect(() => {
     const liveData = livePrices[sym]
     if (!liveData?.price) return
+    // HA bars depend on the full series history — skip tick-by-tick updates.
+    // The chart still refreshes every 15s via SWR, which re-runs toHeikinAshi on
+    // the full filteredBars array and calls setData() — accurate enough for HA.
+    if (cs.heikinAshi) return
     latestLiveRef.current = { sym, price: liveData.price, updated_at: liveData.updated_at,
       day_open: liveData.day_open, day_high: liveData.day_high, day_low: liveData.day_low }
     if (!candleSeriesRef.current || !lastBarRef.current) return
@@ -602,6 +612,9 @@ export default function StockChart({
     } else {
       chart.applyOptions(chartOpts)
     }
+
+    // Log scale: mode 0 = Normal, 1 = Logarithmic (Lightweight Charts v5)
+    chart.priceScale('right').applyOptions({ mode: cs.logScale ? 1 : 0 })
 
     // ── Price series — reuse if chart type unchanged, else swap ──
     // When swapping the candle series, the markers controller is bound to the
