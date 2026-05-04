@@ -1137,6 +1137,11 @@ export default function OptionsFlowDashboard() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [fetchDays, setFetchDays] = useState(1);
+  const [showCal, setShowCal] = useState(false);
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+  const [calStart, setCalStart] = useState(null); // temp start during selection
+  const calRef = useRef(null);
   const [D, setD] = useState(null);
 
   const csvFile = dataMode === "index"
@@ -1184,6 +1189,17 @@ export default function OptionsFlowDashboard() {
   // Date range boundaries from available dates
   const dateInputMin = availableDates.length > 0 ? mdyToIso(availableDates[0]) : "";
   const dateInputMax = availableDates.length > 0 ? mdyToIso(availableDates[availableDates.length-1]) : "";
+
+  // Close calendar on click outside
+  useEffect(() => {
+    if (!showCal) return;
+    const handler = (e) => { if (calRef.current && !calRef.current.contains(e.target)) setShowCal(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showCal]);
+
+  // Set of available trading dates as ISO for calendar dot indicators
+  const tradingDaysSet = useMemo(() => new Set(availableDates.map(d => mdyToIso(d))), [availableDates]);
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
@@ -2315,10 +2331,10 @@ export default function OptionsFlowDashboard() {
           </div>
         </div>
 
-        {/* Date Filter — rolling windows + date range picker */}
+        {/* Date Filter — rolling windows + presets + calendar */}
         {dataMode !== "gex" && availableDates.length > 0 && (
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
-            <div style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center" }}>
+            <div style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
               {[
                 { key:"Last1", label:"1d", days:1 },
                 { key:"Last5", label:"5d", days:5 },
@@ -2329,15 +2345,12 @@ export default function OptionsFlowDashboard() {
               ].map(({key, label, days}) => {
                 const filterKey = days === 0 ? "All" : "Last" + days;
                 const isActive = !dateFrom && !dateTo && dateFilter === filterKey;
-                // Only re-fetch if requesting more days than we've ever fetched
-                // days=0 means "All", only fetch if not already fetched all
                 const needsFetch = days === 0 ? fetchDays !== 0 : days > fetchDays && fetchDays !== 0;
                 return (
                   <button key={key} onClick={()=>{
                     if (needsFetch) setFetchDays(days);
                     setDateFilter(filterKey);
-                    setDateFrom("");
-                    setDateTo("");
+                    setDateFrom(""); setDateTo(""); setShowCal(false); setCalStart(null);
                   }} style={{
                     padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
                     fontSize:10, fontWeight:700, fontFamily:"inherit",
@@ -2350,35 +2363,123 @@ export default function OptionsFlowDashboard() {
                 );
               })}
               <span style={{ width:1, height:16, background:P.bd }}/>
-              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                <input type="date" value={dateFrom} min={dateInputMin} max={dateInputMax}
-                  onChange={e => {
-                    setDateFrom(e.target.value);
-                    if (!dateTo || e.target.value > dateTo) setDateTo(e.target.value);
-                    if (fetchDays !== 0) setFetchDays(0); // fetch all to cover any range
-                  }}
-                  style={{ background:P.cd, border:"1px solid "+(dateFrom?P.ac:P.bd), borderRadius:4, color:P.wh, fontSize:10, padding:"4px 6px", fontFamily:"inherit", fontWeight:600, colorScheme:"dark" }}
-                />
-                <span style={{ fontSize:9, color:P.dm }}>→</span>
-                <input type="date" value={dateTo} min={dateFrom||dateInputMin} max={dateInputMax}
-                  onChange={e => {
-                    setDateTo(e.target.value);
-                    if (!dateFrom) setDateFrom(dateInputMin);
-                    if (fetchDays !== 0) setFetchDays(0);
-                  }}
-                  style={{ background:P.cd, border:"1px solid "+(dateTo?P.ac:P.bd), borderRadius:4, color:P.wh, fontSize:10, padding:"4px 6px", fontFamily:"inherit", fontWeight:600, colorScheme:"dark" }}
-                />
-                {dateFrom && dateTo && (
-                  <button onClick={()=>{ setDateFrom(""); setDateTo(""); setDateFilter("All"); }}
-                    style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}>✕</button>
-                )}
-              </div>
-              <span style={{ fontSize:9, color:P.dm }}>
+              <button onClick={()=>{
+                if (!showCal) {
+                  const last = availableDates[availableDates.length-1];
+                  if (last) { const d = mdyToDate(last); setCalMonth(d.getMonth()); setCalYear(d.getFullYear()); }
+                }
+                setShowCal(!showCal); setCalStart(null);
+              }} style={{
+                padding:"5px 12px", borderRadius:4, border:"1px solid "+(dateFrom&&dateTo?P.ac:P.bd),
+                cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+                background:dateFrom&&dateTo?P.ac+"22":showCal?P.cd:"transparent",
+                color:dateFrom&&dateTo?P.ac:showCal?P.wh:P.mt, transition:"all 0.15s"
+              }}>
                 {dateFrom && dateTo
-                  ? `${Math.round((isoToDate(dateTo)-isoToDate(dateFrom))/86400000)+1} calendar days`
-                  : `${dateFilter.startsWith("Last") ? Math.min(parseInt(dateFilter.replace("Last",""))||1, availableDates.length) : availableDates.length} trading days`}
+                  ? `${dateFrom.slice(5).replace("-","/")} → ${dateTo.slice(5).replace("-","/")}`
+                  : "📅 Dates"}
+              </button>
+              {dateFrom && dateTo && (
+                <button onClick={()=>{ setDateFrom(""); setDateTo(""); setDateFilter("Last1"); setShowCal(false); setCalStart(null); }}
+                  style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}>✕</button>
+              )}
+              <span style={{ fontSize:9, color:P.dm }}>
+                {csvLoading ? "Loading..." : dateFrom && dateTo
+                  ? (() => { const n = availableDates.filter(d => { const iso = mdyToIso(d); return iso >= dateFrom && iso <= dateTo; }).length; return n + " trading day" + (n!==1?"s":""); })()
+                  : (() => { const n = dateFilter.startsWith("Last") ? Math.min(parseInt(dateFilter.replace("Last",""))||1, availableDates.length) : availableDates.length; return n + " trading day" + (n!==1?"s":""); })()}
               </span>
-              {csvLoading && <span style={{ fontSize:9, color:P.ye }}>Loading...</span>}
+
+              {showCal && (
+                <div ref={calRef} style={{
+                  position:"absolute", top:"100%", right:0, marginTop:6, zIndex:999,
+                  background:P.cd, border:"1px solid "+P.bl, borderRadius:10, padding:14,
+                  boxShadow:"0 8px 32px rgba(0,0,0,0.6)", minWidth:290
+                }}>
+                  <div style={{ display:"flex", gap:4, marginBottom:10, flexWrap:"wrap" }}>
+                    {[
+                      { label:"Today", fn:()=>{ const d=availableDates[availableDates.length-1]; if(d){const iso=mdyToIso(d); setDateFrom(iso); setDateTo(iso); if(fetchDays!==0)setFetchDays(0); setShowCal(false);} }},
+                      { label:"This Week", fn:()=>{ const last=availableDates[availableDates.length-1]; if(!last)return; const ld=mdyToDate(last); const mon=new Date(ld); mon.setDate(ld.getDate()-(ld.getDay()||7)+1); setDateFrom(mon.toISOString().slice(0,10)); setDateTo(mdyToIso(last)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                      { label:"Last Week", fn:()=>{ const now=new Date(); const mon=new Date(now); mon.setDate(now.getDate()-(now.getDay()||7)+1-7); const fri=new Date(mon); fri.setDate(mon.getDate()+4); setDateFrom(mon.toISOString().slice(0,10)); setDateTo(fri.toISOString().slice(0,10)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                      { label:"This Month", fn:()=>{ const now=new Date(); const f=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`; const last=availableDates[availableDates.length-1]; setDateFrom(f); setDateTo(last?mdyToIso(last):now.toISOString().slice(0,10)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                      { label:"Last Month", fn:()=>{ const now=new Date(); const pm=new Date(now.getFullYear(), now.getMonth()-1, 1); const f=`${pm.getFullYear()}-${String(pm.getMonth()+1).padStart(2,"0")}-01`; const lm=new Date(pm.getFullYear(), pm.getMonth()+1, 0); const t=`${lm.getFullYear()}-${String(lm.getMonth()+1).padStart(2,"0")}-${String(lm.getDate()).padStart(2,"0")}`; setDateFrom(f); setDateTo(t); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                    ].map(p => (
+                      <button key={p.label} onClick={p.fn} style={{
+                        padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bd,
+                        background:"transparent", color:P.mt, fontSize:9, fontWeight:700,
+                        cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s"
+                      }}
+                        onMouseEnter={e=>{e.target.style.background=P.al; e.target.style.color=P.wh;}}
+                        onMouseLeave={e=>{e.target.style.background="transparent"; e.target.style.color=P.mt;}}
+                      >{p.label}</button>
+                    ))}
+                  </div>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <button onClick={()=>{ if(calMonth===0){setCalMonth(11);setCalYear(calYear-1);}else setCalMonth(calMonth-1); }}
+                      style={{ background:"transparent", border:"none", color:P.mt, cursor:"pointer", fontSize:14, fontFamily:"inherit", padding:"2px 8px" }}>◀</button>
+                    <span style={{ fontSize:12, fontWeight:700, color:P.wh }}>
+                      {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][calMonth]} {calYear}
+                    </span>
+                    <button onClick={()=>{ if(calMonth===11){setCalMonth(0);setCalYear(calYear+1);}else setCalMonth(calMonth+1); }}
+                      style={{ background:"transparent", border:"none", color:P.mt, cursor:"pointer", fontSize:14, fontFamily:"inherit", padding:"2px 8px" }}>▶</button>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:4 }}>
+                    {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>(
+                      <div key={d} style={{ textAlign:"center", fontSize:8, fontWeight:700, color:P.dm, padding:2 }}>{d}</div>
+                    ))}
+                  </div>
+                  {(()=>{
+                    const firstDay = new Date(calYear, calMonth, 1).getDay();
+                    const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+                    const cells = [];
+                    for (let i=0; i<firstDay; i++) cells.push(null);
+                    for (let d=1; d<=daysInMonth; d++) cells.push(d);
+                    while (cells.length%7!==0) cells.push(null);
+                    return (
+                      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1 }}>
+                        {cells.map((day, i) => {
+                          if (!day) return <div key={i} style={{ padding:4 }}/>;
+                          const iso = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                          const isTrading = tradingDaysSet.has(iso);
+                          const isWeekend = new Date(calYear, calMonth, day).getDay()%6===0;
+                          const isStart = dateFrom===iso;
+                          const isEnd = dateTo===iso;
+                          const inRange = dateFrom && dateTo && iso>=dateFrom && iso<=dateTo;
+                          return (
+                            <button key={i} onClick={()=>{
+                              if (!calStart) {
+                                setCalStart(iso); setDateFrom(iso); setDateTo("");
+                              } else {
+                                let from=calStart, to=iso;
+                                if (iso < calStart) { from=iso; to=calStart; }
+                                setDateFrom(from); setDateTo(to); setCalStart(null);
+                                if (fetchDays!==0) setFetchDays(0);
+                                setShowCal(false);
+                              }
+                            }} style={{
+                              padding:0, borderRadius:4, border:"none", cursor:"pointer",
+                              fontSize:10, fontWeight:isTrading?700:400, fontFamily:"inherit",
+                              background: isStart||isEnd ? P.ac : inRange ? P.ac+"33" : "transparent",
+                              color: isStart||isEnd ? P.bg : inRange ? P.ac : isTrading ? P.wh : isWeekend ? P.bd : P.dm+"88",
+                              minWidth:32, minHeight:32, display:"flex", alignItems:"center", justifyContent:"center",
+                              position:"relative", transition:"background 0.1s"
+                            }}
+                              onMouseEnter={e=>{ if(!inRange&&!isStart&&!isEnd) e.target.style.background=P.al; }}
+                              onMouseLeave={e=>{ if(!inRange&&!isStart&&!isEnd) e.target.style.background="transparent"; }}
+                            >
+                              {day}
+                              {isTrading && <span style={{ position:"absolute", bottom:2, left:"50%", transform:"translateX(-50%)", width:3, height:3, borderRadius:"50%", background:isStart||isEnd?P.bg:P.ac }}/>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                  <div style={{ marginTop:8, fontSize:9, color:P.dm, textAlign:"center" }}>
+                    {calStart && !dateTo ? "Click end date" : "Click to start selection"}
+                    {" · "}<span style={{ color:P.ac }}>●</span> trading day
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
