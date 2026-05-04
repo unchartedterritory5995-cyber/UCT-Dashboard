@@ -78,7 +78,7 @@
   border: 1px solid #2e3127;
   border-radius: 3px;
   color: #e2dfd6;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   font-size: 10px;
   padding: 0 6px;
   outline: none;
@@ -95,7 +95,7 @@
   border-radius: 3px;
   color: #c9a84c;
   font-size: 10px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-sans);
   cursor: pointer;
   transition: background 0.12s;
 }
