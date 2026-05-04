@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
+import RouteErrorBoundary from './components/RouteErrorBoundary'
 
 const Landing = lazy(() => import('./pages/Landing'))
 const Login = lazy(() => import('./pages/Login'))
@@ -59,22 +60,23 @@ export default function App() {
         <Suspense fallback={null}>
           <GlobalAddPositionProvider />
         </Suspense>
-        <Suspense fallback={
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100vh',
-            background: '#0e0f0d',
-            color: '#a8a290',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: '14px',
-            letterSpacing: '0.5px',
-          }}>
-            Loading…
-          </div>
-        }>
-          <Routes>
+        <RouteErrorBoundary>
+          <Suspense fallback={
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100vh',
+              background: '#0e0f0d',
+              color: '#a8a290',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              fontSize: '14px',
+              letterSpacing: '0.5px',
+            }}>
+              Loading…
+            </div>
+          }>
+            <Routes>
             {/* Public routes — redirect to dashboard if already logged in */}
             <Route path="/" element={<PublicOnly><Landing /></PublicOnly>} />
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
@@ -118,7 +120,8 @@ export default function App() {
             {/* Catch-all — 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </Suspense>
+          </Suspense>
+        </RouteErrorBoundary>
       </AuthProvider>
     </BrowserRouter>
   )
