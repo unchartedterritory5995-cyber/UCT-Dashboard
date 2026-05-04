@@ -265,6 +265,7 @@
   font-size: 12px;
   white-space: nowrap;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .processCell {
@@ -272,6 +273,7 @@
   font-size: 12px;
   white-space: nowrap;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .dashMuted {

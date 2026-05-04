@@ -120,7 +120,7 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Instrument Sans', -apple-system, sans-serif;
+  font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.6;
   min-height: 100vh;

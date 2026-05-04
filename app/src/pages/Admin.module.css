@@ -46,6 +46,7 @@
   font-weight: 600;
   color: var(--text-heading);
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 .statLabel {
   font-size: 11px;
@@ -347,10 +348,11 @@
   text-decoration-style: dotted;
   text-underline-offset: 3px;
   text-decoration-color: rgba(255,255,255,0.2);
+  font-variant-numeric: tabular-nums;
 }
 .emailCell:hover { color: var(--ut-gold); }
 .nameCell { color: var(--text); }
-.dateCell { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.dateCell { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .actionsCell { white-space: nowrap; display: flex; gap: 4px; align-items: center; }
 
 .verifiedYes { color: #4ade80; font-size: 14px; }
