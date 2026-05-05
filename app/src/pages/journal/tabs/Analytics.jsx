@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import ReactECharts from 'echarts-for-react'
 import StatCard from '../components/StatCard'
 import styles from './Analytics.module.css'
+import PsychologyTimeline from './PsychologyTimeline'
 
 const fetcher = url => fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
 
@@ -19,6 +20,7 @@ const DIMENSIONS = [
   { key: 'playbook', label: 'Playbook' },
   { key: 'month', label: 'Month' },
   { key: 'week', label: 'Week' },
+  { key: 'psychology', label: 'Psychology' },
 ]
 
 const PERIODS = [
@@ -200,8 +202,14 @@ export default function Analytics() {
         ))}
       </div>
 
-      {/* Totals strip */}
-      {totals && (
+      {/* Psychology timeline — replaces standard results when Psychology is selected */}
+      {dimension === 'psychology' && <PsychologyTimeline />}
+
+      {/* Standard dimension results — hidden when Psychology selected */}
+      {dimension !== 'psychology' && (
+        <>
+          {/* Totals strip */}
+          {totals && (
         <div className={styles.totalsStrip}>
           <StatCard label="Total Trades" value={totals.trade_count} format="number" accent="neutral" />
           <StatCard label="Net P&L" value={totals.total_pnl_pct} format="pct" accent="auto" />
@@ -308,6 +316,8 @@ export default function Analytics() {
             lazyUpdate={true}
           />
         </div>
+      )}
+        </>
       )}
     </div>
   )
