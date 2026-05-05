@@ -423,70 +423,16 @@ export default function StockChart({
     }
   }, [activeTool]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Drawing tool + TF keyboard shortcuts ──
-  useEffect(() => {
-    if (!showDrawingTools && !onTfChange && !replayMode) return
-    const TF_KEYS = { '1': '1', '5': '5', 'd': 'D', 'w': 'W' }
-    const TOOL_KEYS = { t: 'trendline', h: 'horizontal', r: 'rect', f: 'fib', x: 'text', m: 'measure', p: 'position' }
-    const handler = (e) => {
-      // Skip if user is typing in an input
-      const tag = document.activeElement?.tagName?.toLowerCase()
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') return
-      if (document.activeElement?.isContentEditable) return
-      const key = e.key.toLowerCase()
-      // Replay shortcuts — checked first
-      if (replayMode) {
-        if (e.key === ' ') { e.preventDefault(); setReplayPlaying(p => !p); return }
-        if (e.key === 'ArrowLeft') {
-          e.preventDefault()
-          setReplayPlaying(false)
-          setReplayIndex(i => Math.max(0, (i ?? 0) - 1))
-          return
-        }
-        if (e.key === 'ArrowRight') {
-          e.preventDefault()
-          setReplayPlaying(false)
-          setReplayIndex(i => Math.min((sessionBars?.length || 1) - 1, (i ?? 0) + 1))
-          return
-        }
-      }
-      // TF shortcuts (1=1min, 5=5min, d=daily, w=weekly)
-      if (onTfChange) {
-        const tfKey = TF_KEYS[key]
-        if (tfKey) { e.preventDefault(); onTfChange(tfKey); return }
-      }
-      // Drawing tool shortcuts
-      if (showDrawingTools) {
-        if (e.key === 'Escape') { setActiveTool(null); return }
-        if (key === 'v') { setActiveTool(t => t === 'cursor' ? null : 'cursor'); return }
-        const tool = TOOL_KEYS[key]
-        if (tool) { e.preventDefault(); setActiveTool(t => t === tool ? null : tool) }
-      }
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [showDrawingTools, setActiveTool, onTfChange, replayMode, sessionBars?.length])
-
-  // ── Replay auto-advance interval ──
-  useEffect(() => {
-    if (!replayPlaying || !replayMode) return
-    const intervalMs = replaySpeed === 20 ? 50 : replaySpeed === 5 ? 100 : 500
-    const id = setInterval(() => {
-      setReplayIndex(idx => {
-        const maxIdx = (sessionBars?.length || 1) - 1
-        if (idx >= maxIdx) { setReplayPlaying(false); return idx }
-        return idx + 1
-      })
-    }, intervalMs)
-    return () => clearInterval(id)
-  }, [replayPlaying, replayMode, replaySpeed, sessionBars?.length])
-
-  // ── Reset replay when sym/tf changes ──
-  useEffect(() => {
-    setReplayMode(false)
-    setReplayPlaying(false)
-    setReplayIndex(null)
-  }, [sym, resolvedTf])
+  // NOTE: the keyboard shortcuts, replay auto-advance, and replay-reset
+  // useEffects were originally here but referenced `sessionBars`,
+  // `replayMode`, `replayPlaying`, `replaySpeed`, and the replay setter
+  // functions in their deps arrays — all declared further down the file.
+  // Deps arrays evaluate immediately at the useEffect call site, so those
+  // identifiers were in the temporal dead zone, throwing
+  //   ReferenceError: Cannot access 'X' before initialization
+  // on every render of any chart-bearing page (theme tracker, watchlists,
+  // ticker pages, etc.). Moved below `filteredBars` declaration so all the
+  // referenced consts exist before the deps arrays are evaluated.
 
   // 8000 daily bars ≈ 32 years — covers dot-com era for tickers that go
   // back that far (CIEN since 1997, etc.). Other timeframes don't need
@@ -672,6 +618,73 @@ export default function StockChart({
       : sessionBars,
     [sessionBars, replayMode, replayIndex]
   )
+
+  // ── Drawing tool + TF keyboard shortcuts ──
+  // (Moved from above sessionBars/replay state declarations to fix a TDZ
+  // ReferenceError — see the comment higher up the file.)
+  useEffect(() => {
+    if (!showDrawingTools && !onTfChange && !replayMode) return
+    const TF_KEYS = { '1': '1', '5': '5', 'd': 'D', 'w': 'W' }
+    const TOOL_KEYS = { t: 'trendline', h: 'horizontal', r: 'rect', f: 'fib', x: 'text', m: 'measure', p: 'position' }
+    const handler = (e) => {
+      // Skip if user is typing in an input
+      const tag = document.activeElement?.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return
+      if (document.activeElement?.isContentEditable) return
+      const key = e.key.toLowerCase()
+      // Replay shortcuts — checked first
+      if (replayMode) {
+        if (e.key === ' ') { e.preventDefault(); setReplayPlaying(p => !p); return }
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          setReplayPlaying(false)
+          setReplayIndex(i => Math.max(0, (i ?? 0) - 1))
+          return
+        }
+        if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          setReplayPlaying(false)
+          setReplayIndex(i => Math.min((sessionBars?.length || 1) - 1, (i ?? 0) + 1))
+          return
+        }
+      }
+      // TF shortcuts (1=1min, 5=5min, d=daily, w=weekly)
+      if (onTfChange) {
+        const tfKey = TF_KEYS[key]
+        if (tfKey) { e.preventDefault(); onTfChange(tfKey); return }
+      }
+      // Drawing tool shortcuts
+      if (showDrawingTools) {
+        if (e.key === 'Escape') { setActiveTool(null); return }
+        if (key === 'v') { setActiveTool(t => t === 'cursor' ? null : 'cursor'); return }
+        const tool = TOOL_KEYS[key]
+        if (tool) { e.preventDefault(); setActiveTool(t => t === tool ? null : tool) }
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [showDrawingTools, setActiveTool, onTfChange, replayMode, sessionBars?.length])
+
+  // ── Replay auto-advance interval ──
+  useEffect(() => {
+    if (!replayPlaying || !replayMode) return
+    const intervalMs = replaySpeed === 20 ? 50 : replaySpeed === 5 ? 100 : 500
+    const id = setInterval(() => {
+      setReplayIndex(idx => {
+        const maxIdx = (sessionBars?.length || 1) - 1
+        if (idx >= maxIdx) { setReplayPlaying(false); return idx }
+        return idx + 1
+      })
+    }, intervalMs)
+    return () => clearInterval(id)
+  }, [replayPlaying, replayMode, replaySpeed, sessionBars?.length])
+
+  // ── Reset replay when sym/tf changes ──
+  useEffect(() => {
+    setReplayMode(false)
+    setReplayPlaying(false)
+    setReplayIndex(null)
+  }, [sym, resolvedTf])
 
   const displayBars = useMemo(() => {
     if (!filteredBars?.length) return filteredBars
