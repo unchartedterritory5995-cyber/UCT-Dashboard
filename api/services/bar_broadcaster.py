@@ -8,6 +8,13 @@ Phase 4.5: handles both AM (authoritative 1-min closes) and A (per-second aggreg
 - AM events replace the partial with authoritative values at minute close (source-of-truth).
 - A events fold into the current partial for sub-second chart flicker between AM closes.
 
+Phase 4.6: handles T (per-trade ticks) for true tick-by-tick Bloomberg/TradingView-feel.
+- T events carry {t, p, s} (trade price/size/timestamp), not OHLCV bars.
+- Each trade updates c=price, extends h/l, and sums volume for all (sym, tf) partials.
+- T events are throttled to 10 Hz per (sym, tf) for SSE bandwidth control. The partial
+  state is always updated; only the SSE emission is gated by the throttle.
+- AM events bypass the throttle (authoritative, infrequent, must always emit).
+
 When a fresh 1-min bar arrives:
 - Emit it to (sym, "1") subscribers as-is
 - For tf in (5, 15, 30): aggregate into the (sym, tf) in-progress bar and emit the
@@ -23,6 +30,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+import time as _time
 from typing import Callable, Optional
 
 from api.services.bar_rollup import TF_TO_SECONDS, aggregate, bucket_start
@@ -36,7 +44,7 @@ class BarBroadcaster:
     def __init__(self,
                  on_first_subscribe: Optional[Callable[[str], None]] = None,
                  on_last_unsubscribe: Optional[Callable[[str], None]] = None):
-        self._partials: dict[tuple[str, str], dict] = {}     # (sym, tf) -> in-progress bar (may include A events)
+        self._partials: dict[tuple[str, str], dict] = {}     # (sym, tf) -> in-progress bar (may include A/T events)
         # Phase 4.5: AM-only baseline partials, used to reset _partials when AM fires.
         # Tracks only AM-aggregated OHLCV so that AM-close correctly discards A-event
         # accumulation without corrupting multi-AM-bar-in-bucket volume.
@@ -46,6 +54,11 @@ class BarBroadcaster:
         self._lock = threading.Lock()
         self._on_first_subscribe = on_first_subscribe or (lambda sym: None)
         self._on_last_unsubscribe = on_last_unsubscribe or (lambda sym: None)
+        # Phase 4.6: throttle SSE emission for A/T events to 10 Hz per (sym, tf)
+        # AM events bypass throttle (authoritative; infrequent). Partial state is
+        # always updated regardless of throttle — only SSE emission is gated.
+        self._last_emit_ms: dict[tuple[str, str], int] = {}
+        self._emit_throttle_ms: int = 100  # 10 Hz max per (sym, tf)
 
     # ── Subscription management (called from SSE endpoint coroutines) ──
 
@@ -96,27 +109,78 @@ class BarBroadcaster:
 
     # ── Inbound from bar_stream ──
 
-    def push_aggregate(self, sym: str, bar: dict, kind: str) -> None:
+    def push_aggregate(self, sym: str, payload: dict, kind: str) -> None:
         """Called from bar_stream's on_bar callback (background asyncio loop).
 
-        `kind` is "AM" (authoritative 1-min close) or "A" (per-second aggregate, Phase 4.5).
+        `kind` is "AM" (authoritative 1-min close), "A" (per-second aggregate, Phase 4.5),
+        or "T" (per-trade tick, Phase 4.6).
+
+        For AM/A: `payload` is a bar dict {t, o, h, l, c, v}.
+        For T:    `payload` is a trade dict {t, p, s} (timestamp ms, price, size in shares).
 
         Two-track design (Phase 4.5):
         - _am_partials tracks the AM-authoritative bucket state — only AM events update it.
           Consecutive AM bars within the same bucket aggregate normally (correct multi-minute
-          OHLCV). This track is never contaminated by A events.
-        - _partials is the broadcast partial that includes A-event sub-second flicker on top.
+          OHLCV). This track is never contaminated by A or T events.
+        - _partials is the broadcast partial that includes A/T sub-second flicker on top.
           When AM fires for a minute, _partials is reset to the AM baseline (_am_partials),
-          discarding any A-event accumulation for that minute. This prevents double-counting:
-          A events had already approximated the minute's volume; AM delivers the authoritative
-          value, so we REPLACE the A-accumulated slice with AM's value, not add on top.
+          discarding any A/T accumulation for that minute. This prevents double-counting.
         - A events fold into _partials only (not _am_partials) for sub-second chart flicker.
+        - T events (Phase 4.6) update c=price, extend h/l, sum volume into _partials.
+          If no partial exists yet for the current minute bucket, one is created with
+          o=h=l=c=trade_p, v=trade_s anchored at bucket_start(trade_t, tf).
 
-        The stale-bar guard (C2) applies to both kinds — out-of-order events are dropped.
+        Throttle (Phase 4.6): AM events always emit (throttle=False). A and T events are
+        throttled to 10 Hz per (sym, tf). The _partials state is ALWAYS updated; only the
+        SSE emission is gated — so next AM/A event reflects the latest trade state.
+
+        The stale-bar guard (C2) applies to AM/A kinds — out-of-order events are dropped.
+        T events are not stale-checked (trades can arrive slightly out of order; the last
+        price wins and c/h/l/v accumulation handles it gracefully).
         """
         sym = sym.upper()
+
+        if kind == "T":
+            # Trade tick path — payload is {t, p, s}
+            trade_t = payload["t"]
+            trade_p = payload["p"]
+            trade_s = payload["s"]
+            # 1-min bucket: create or update partial from trade
+            for tf in ("1",) + ROLLUP_TFS:
+                new_start = bucket_start(trade_t, tf)
+                key = (sym, tf)
+                with self._lock:
+                    prev = self._partials.get(key)
+                    if prev is None or prev["t"] != new_start:
+                        # No partial for current minute yet — create one anchored at bucket start
+                        next_partial = {
+                            "t": new_start,
+                            "o": trade_p,
+                            "h": trade_p,
+                            "l": trade_p,
+                            "c": trade_p,
+                            "v": trade_s,
+                        }
+                    else:
+                        # Update existing partial: extend h/l, update close, sum volume
+                        next_partial = {
+                            "t": prev["t"],
+                            "o": prev["o"],
+                            "h": max(prev["h"], trade_p),
+                            "l": min(prev["l"], trade_p),
+                            "c": trade_p,
+                            "v": prev["v"] + trade_s,
+                        }
+                    self._partials[key] = next_partial
+                    emit_bar = dict(next_partial)
+                self._emit(sym, tf, emit_bar, throttle=True)
+            return
+
+        # AM / A aggregate path — payload is a bar dict {t, o, h, l, c, v}
+        bar = payload
+        throttle = (kind != "AM")  # AM always emits; A is throttled
         # 1-min: pass-through
-        self._emit(sym, "1", bar)
+        self._emit(sym, "1", bar, throttle=throttle)
         # 5/15/30: bucket-aggregate
         for tf in ROLLUP_TFS:
             new_start = bucket_start(bar["t"], tf)
@@ -138,7 +202,7 @@ class BarBroadcaster:
                         # Same bucket: fold this AM minute into the AM baseline
                         next_am = aggregate(am_prev, bar)
                     self._am_partials[key] = next_am
-                    # Reset _partials to the AM baseline, discarding any A-event accumulation
+                    # Reset _partials to the AM baseline, discarding any A/T accumulation
                     # for the bucket so far. This is the authoritative source-of-truth reset.
                     next_partial = dict(next_am)
                 else:
@@ -151,7 +215,7 @@ class BarBroadcaster:
                         next_partial = aggregate(prev, bar)
                 self._partials[key] = next_partial
                 emit_bar = dict(next_partial)
-            self._emit(sym, tf, emit_bar)
+            self._emit(sym, tf, emit_bar, throttle=throttle)
 
     def push_minute_bar(self, sym: str, bar: dict) -> None:
         """Backward-compat alias — delegates to push_aggregate with kind="AM".
@@ -177,8 +241,24 @@ class BarBroadcaster:
             except Exception:
                 pass
 
-    def _emit(self, sym: str, tf: str, bar: dict) -> None:
+    def _emit(self, sym: str, tf: str, bar: dict, throttle: bool = True) -> None:
+        """Dispatch bar to all subscribers for (sym, tf).
+
+        `throttle=True` (default, used for A and T events): gate emission to 10 Hz per
+        (sym, tf). The partial state was already updated by the caller before this call,
+        so even if we drop this emit the next unthrottled emit carries latest state.
+
+        `throttle=False` (used for AM events): always emit — AM is authoritative and
+        infrequent (once per minute per sym per tf).
+        """
         key = (sym, tf)
+        if throttle:
+            now_ms = int(_time.time() * 1000)
+            with self._lock:
+                last = self._last_emit_ms.get(key, 0)
+                if now_ms - last < self._emit_throttle_ms:
+                    return  # throttle: skip emit; partial already updated
+                self._last_emit_ms[key] = now_ms
         with self._lock:
             # C1: snapshot (queue, loop) pairs
             pairs = list(self._subscribers.get(key, ()))

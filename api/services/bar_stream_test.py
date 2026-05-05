@@ -155,7 +155,6 @@ def test_parse_aggregate_event_returns_kind_A_for_A_events():
 
 def test_parse_aggregate_event_rejects_non_aggregate_events():
     assert parse_aggregate_event({"ev": "status", "status": "auth_success"}) is None
-    assert parse_aggregate_event({"ev": "T", "sym": "AAPL", "p": 150.0}) is None
     assert parse_aggregate_event({"ev": "Q", "sym": "AAPL"}) is None
     assert parse_aggregate_event({}) is None
     assert parse_aggregate_event(None) is None  # type: ignore[arg-type]
@@ -171,3 +170,53 @@ def test_subscribe_message_includes_both_AM_and_A_channels():
     assert "A.AAPL" in params
     assert "AM.MSFT" in params
     assert "A.MSFT" in params
+
+
+# ── Phase 4.6: T-event (per-trade tick) tests ────────────────────────────────
+
+def test_parse_aggregate_event_returns_kind_T_for_T_events():
+    raw = {
+        "ev": "T", "sym": "AAPL",
+        "i": "12345", "x": 4,
+        "p": 150.25, "s": 100, "t": 1746468601234,
+        "c": [12, 37], "z": 1,
+    }
+    out = parse_aggregate_event(raw)
+    assert out is not None
+    assert out["kind"] == "T"
+    assert out["sym"] == "AAPL"
+    assert "trade" in out
+    assert "bar" not in out
+
+
+def test_parse_aggregate_event_T_extracts_p_s_t():
+    raw = {
+        "ev": "T", "sym": "AAPL",
+        "p": 150.25, "s": 100, "t": 1746468601234,
+    }
+    out = parse_aggregate_event(raw)
+    assert out is not None
+    assert out["trade"] == {"t": 1746468601234, "p": 150.25, "s": 100}
+
+
+def test_parse_aggregate_event_T_returns_none_on_missing_fields():
+    # Missing p
+    assert parse_aggregate_event({"ev": "T", "sym": "AAPL", "s": 100, "t": 1746468601234}) is None
+    # Missing s
+    assert parse_aggregate_event({"ev": "T", "sym": "AAPL", "p": 150.0, "t": 1746468601234}) is None
+    # Missing t
+    assert parse_aggregate_event({"ev": "T", "sym": "AAPL", "p": 150.0, "s": 100}) is None
+    # Missing sym
+    assert parse_aggregate_event({"ev": "T", "p": 150.0, "s": 100, "t": 1746468601234}) is None
+
+
+def test_subscribe_message_includes_AM_A_and_T_channels():
+    msg = _build_subscribe_message(["AAPL", "MSFT"])
+    payload = json.loads(msg)
+    assert payload["action"] == "subscribe"
+    params = payload["params"]
+    # All three channels must be present for each symbol
+    for sym in ("AAPL", "MSFT"):
+        assert f"AM.{sym}" in params
+        assert f"A.{sym}" in params
+        assert f"T.{sym}" in params

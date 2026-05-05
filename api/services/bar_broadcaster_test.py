@@ -1,6 +1,7 @@
 """Unit tests for BarBroadcaster."""
 import asyncio
 import threading
+import time
 import pytest
 
 from api.services.bar_broadcaster import BarBroadcaster
@@ -168,12 +169,15 @@ async def test_push_aggregate_A_event_updates_partial_without_finalizing(bb):
 
 @pytest.mark.asyncio
 async def test_push_aggregate_A_events_fold_into_partial(bb):
-    """Phase 4.5: multiple A events in the same bucket accumulate OHLCV correctly."""
+    """Phase 4.5: multiple A events in the same bucket accumulate OHLCV correctly.
+    Throttle windows are bypassed between events via _last_emit_ms.clear() so each
+    event emits, letting the test validate the accumulated partial state."""
     q5 = bb.subscribe("AAPL", "5")
 
     # Three successive seconds in the 14:30 bucket
     bb.push_aggregate("AAPL", {"t": 1746468601000, "o": 100.0, "h": 101.0, "l": 99.5, "c": 100.5, "v": 200}, "A")
     await asyncio.wait_for(q5.get(), timeout=0.1)  # drain first partial
+    bb._last_emit_ms.clear()  # bypass throttle window for next A event
 
     bb.push_aggregate("AAPL", {"t": 1746468602000, "o": 100.5, "h": 102.0, "l": 100.2, "c": 101.8, "v": 150}, "A")
     msg2 = await asyncio.wait_for(q5.get(), timeout=0.1)
@@ -181,6 +185,7 @@ async def test_push_aggregate_A_events_fold_into_partial(bb):
     assert msg2["bar"]["l"] == 99.5    # kept low from first
     assert msg2["bar"]["c"] == 101.8   # close from latest second
     assert msg2["bar"]["v"] == 350     # summed volume
+    bb._last_emit_ms.clear()  # bypass throttle window for third event
 
     bb.push_aggregate("AAPL", {"t": 1746468603000, "o": 101.8, "h": 101.9, "l": 101.5, "c": 101.6, "v": 80}, "A")
     msg3 = await asyncio.wait_for(q5.get(), timeout=0.1)
@@ -190,12 +195,16 @@ async def test_push_aggregate_A_events_fold_into_partial(bb):
 
 @pytest.mark.asyncio
 async def test_push_aggregate_AM_overwrites_partial_built_from_A_events(bb):
-    """Phase 4.5 critical race: AM arriving after A events replaces partial, no double-count."""
+    """Phase 4.5 critical race: AM arriving after A events replaces partial, no double-count.
+    Throttle windows are bypassed between A events via _last_emit_ms.clear() so all 3
+    A-event partials can be drained before AM fires."""
     q5 = bb.subscribe("AAPL", "5")
 
     # Push 3 A events into the 14:30 bucket (total A-volume = 450)
     bb.push_aggregate("AAPL", {"t": 1746468601000, "o": 100.0, "h": 101.0, "l": 99.5, "c": 100.5, "v": 200}, "A")
+    bb._last_emit_ms.clear()
     bb.push_aggregate("AAPL", {"t": 1746468602000, "o": 100.5, "h": 102.0, "l": 100.2, "c": 101.8, "v": 150}, "A")
+    bb._last_emit_ms.clear()
     bb.push_aggregate("AAPL", {"t": 1746468603000, "o": 101.8, "h": 101.9, "l": 101.5, "c": 101.6, "v": 100}, "A")
     # drain the 3 A-event partials
     for _ in range(3):
@@ -214,3 +223,132 @@ async def test_push_aggregate_AM_overwrites_partial_built_from_A_events(bb):
     assert msg_am["bar"]["h"] == 102.5   # AM's authoritative high
     assert msg_am["bar"]["l"] == 99.0    # AM's authoritative low
     assert msg_am["bar"]["o"] == 100.0   # AM's authoritative open
+
+
+# ── Phase 4.6: T-event (per-trade tick) tests ────────────────────────────────
+
+# 14:30:01.234 ET = 1746468601234 ms (bucket_start for "1" = 1746468600000)
+
+@pytest.mark.asyncio
+async def test_push_T_creates_partial_when_none_exists(bb):
+    """T event with no prior AM/A for the symbol's current minute creates a fresh partial."""
+    q1 = bb.subscribe("AAPL", "1")
+    # No prior partial — T event must bootstrap one
+    trade = {"t": 1746468601234, "p": 150.25, "s": 100}
+    bb.push_aggregate("AAPL", trade, "T")
+    msg = await asyncio.wait_for(q1.get(), timeout=0.15)
+    bar = msg["bar"]
+    assert bar["o"] == 150.25   # o = trade price (first trade in bucket)
+    assert bar["h"] == 150.25
+    assert bar["l"] == 150.25
+    assert bar["c"] == 150.25
+    assert bar["v"] == 100
+    assert bar["t"] == 1746468600000  # anchored at bucket start
+
+
+@pytest.mark.asyncio
+async def test_push_T_updates_existing_partial_high_low_close_and_sums_volume(bb):
+    """Multiple T events in the same minute accumulate correctly."""
+    q1 = bb.subscribe("AAPL", "1")
+    # Seed partial via first trade
+    bb.push_aggregate("AAPL", {"t": 1746468601000, "p": 150.00, "s": 200}, "T")
+    await asyncio.wait_for(q1.get(), timeout=0.15)
+
+    # Force throttle window to pass so second trade emits
+    bb._last_emit_ms.clear()
+
+    # Second trade: higher price
+    bb.push_aggregate("AAPL", {"t": 1746468602000, "p": 151.00, "s": 100}, "T")
+    msg2 = await asyncio.wait_for(q1.get(), timeout=0.15)
+    bar = msg2["bar"]
+    assert bar["o"] == 150.00   # open from first trade
+    assert bar["h"] == 151.00   # extended high
+    assert bar["l"] == 150.00   # low unchanged
+    assert bar["c"] == 151.00   # close = latest trade
+    assert bar["v"] == 300      # summed volume
+
+
+@pytest.mark.asyncio
+async def test_push_T_extends_high_only_when_trade_price_exceeds(bb):
+    """High is extended only when new trade price > current high."""
+    q1 = bb.subscribe("AAPL", "1")
+    bb.push_aggregate("AAPL", {"t": 1746468601000, "p": 150.00, "s": 100}, "T")
+    await asyncio.wait_for(q1.get(), timeout=0.15)
+    bb._last_emit_ms.clear()
+
+    # Trade below current high — high must NOT change
+    bb.push_aggregate("AAPL", {"t": 1746468602000, "p": 149.50, "s": 50}, "T")
+    msg = await asyncio.wait_for(q1.get(), timeout=0.15)
+    assert msg["bar"]["h"] == 150.00  # unchanged
+
+
+@pytest.mark.asyncio
+async def test_push_T_lowers_low_only_when_trade_price_below(bb):
+    """Low is lowered only when new trade price < current low."""
+    q1 = bb.subscribe("AAPL", "1")
+    bb.push_aggregate("AAPL", {"t": 1746468601000, "p": 150.00, "s": 100}, "T")
+    await asyncio.wait_for(q1.get(), timeout=0.15)
+    bb._last_emit_ms.clear()
+
+    # Trade above current low — low must NOT change
+    bb.push_aggregate("AAPL", {"t": 1746468602000, "p": 150.50, "s": 50}, "T")
+    msg = await asyncio.wait_for(q1.get(), timeout=0.15)
+    assert msg["bar"]["l"] == 150.00  # unchanged
+
+
+@pytest.mark.asyncio
+async def test_push_T_emits_to_1min_subscriber(bb):
+    """T event emits an SSE frame to tf=1 subscriber."""
+    q1 = bb.subscribe("AAPL", "1")
+    bb.push_aggregate("AAPL", {"t": 1746468601234, "p": 155.0, "s": 50}, "T")
+    msg = await asyncio.wait_for(q1.get(), timeout=0.15)
+    assert msg["sym"] == "AAPL"
+    assert msg["tf"] == "1"
+    assert msg["bar"]["c"] == 155.0
+
+
+@pytest.mark.asyncio
+async def test_push_T_emits_to_5min_subscriber_with_5min_bucket_start(bb):
+    """T event emits to tf=5 subscriber with correctly computed 5-min bucket start."""
+    q5 = bb.subscribe("AAPL", "5")
+    # 14:30:01.234 ET — bucket start for tf=5 is 14:30:00 = 1746468600000
+    bb.push_aggregate("AAPL", {"t": 1746468601234, "p": 155.0, "s": 50}, "T")
+    msg = await asyncio.wait_for(q5.get(), timeout=0.15)
+    assert msg["tf"] == "5"
+    assert msg["bar"]["t"] == 1746468600000  # 5-min bucket start
+
+
+@pytest.mark.asyncio
+async def test_push_aggregate_AM_bypasses_throttle(bb):
+    """Two AM events pushed within 50ms must BOTH arrive at subscriber (no throttle for AM)."""
+    q1 = bb.subscribe("AAPL", "1")
+    bar1 = {"t": 1746468600000, "o": 100.0, "h": 101.0, "l": 99.5, "c": 100.5, "v": 1000}
+    bar2 = {"t": 1746468660000, "o": 100.5, "h": 102.0, "l": 100.2, "c": 101.8, "v": 750}
+    # Seed a last_emit_ms entry as if we just emitted (simulates throttle active for A/T)
+    bb._last_emit_ms[("AAPL", "1")] = int(time.time() * 1000)
+    bb.push_aggregate("AAPL", bar1, "AM")
+    bb.push_aggregate("AAPL", bar2, "AM")
+    # Both must arrive — AM bypasses throttle
+    msg1 = await asyncio.wait_for(q1.get(), timeout=0.15)
+    msg2 = await asyncio.wait_for(q1.get(), timeout=0.15)
+    assert msg1["bar"]["v"] == 1000
+    assert msg2["bar"]["v"] == 750
+
+
+@pytest.mark.asyncio
+async def test_push_aggregate_T_throttle_drops_within_window(bb):
+    """5 T events pushed within 50ms (< 100ms throttle window) → only 1 SSE frame arrives."""
+    q1 = bb.subscribe("AAPL", "1")
+    # Ensure last_emit_ms is clear so the FIRST event passes the throttle gate
+    bb._last_emit_ms.clear()
+    trade = {"t": 1746468601000, "p": 150.0, "s": 10}
+    for _ in range(5):
+        bb.push_aggregate("AAPL", trade, "T")
+    # Give the event loop a tick to process queued items
+    await asyncio.sleep(0.02)
+    # Only 1 frame should be in the queue (throttle dropped the rest)
+    count = 0
+    while not q1.empty():
+        q1.get_nowait()
+        count += 1
+    assert count == 1, f"Expected 1 SSE frame within throttle window, got {count}"

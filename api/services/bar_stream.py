@@ -1,14 +1,18 @@
 """Real-time bar streaming via Massive WebSocket.
 
 Connects to wss://socket.massive.com/stocks (Polygon-protocol-compatible),
-authenticates with MASSIVE_API_KEY, subscribes to AM.<sym> and A.<sym> channels
-for the lazy-managed active set, and forwards parsed aggregate bars to a callback
+authenticates with MASSIVE_API_KEY, subscribes to AM.<sym>, A.<sym>, and T.<sym>
+channels for the lazy-managed active set, and forwards parsed events to a callback
 (usually BarBroadcaster.push_aggregate).
 
 Phase 4.5: subscribes to both AM.* (authoritative 1-min closes) and A.* (per-second
 aggregates) so the chart's developing candle updates sub-second instead of once per
 minute. The callback receives a third `kind` arg ("AM" or "A") so the broadcaster
 can treat them differently.
+
+Phase 4.6: also subscribes to T.* (per-trade ticks) for true tick-by-tick updates.
+T events carry {sym, trade: {t, p, s}, kind: "T"} — NOT a bar dict, because trades
+are not OHLCV aggregates. The broadcaster's push_aggregate branches on kind="T".
 
 Lifecycle:
 - start_stream(on_bar) launches a daemon thread running an asyncio event loop
@@ -40,24 +44,50 @@ _ws_loop: Optional[asyncio.AbstractEventLoop] = None
 _ws_connection = None
 _running = False
 
-OnBarCallback = Callable[[str, dict, str], None]  # (symbol, bar_dict, kind) -> None
-# kind is "AM" (authoritative 1-min close) or "A" (per-second aggregate, Phase 4.5)
+OnBarCallback = Callable[[str, dict, str], None]  # (symbol, payload_dict, kind) -> None
+# kind is "AM" (authoritative 1-min close), "A" (per-second aggregate), or "T" (per-trade tick)
+# For AM/A: payload is a bar dict {t, o, h, l, c, v}
+# For T: payload is a trade dict {t, p, s}
 
 _AGGREGATE_EVENT_TYPES = frozenset({"AM", "A"})
+_TRADE_EVENT_TYPE = "T"
 
 
 def parse_aggregate_event(raw: dict) -> Optional[dict]:
-    """Validate + normalize a Massive AM or A event into {sym, bar, kind} or return None.
+    """Validate + normalize a Massive AM, A, or T event or return None.
 
-    Returns None for non-aggregate events (status, T, Q, etc.) and events missing
-    required OHLCV fields. Caller should treat None as "skip silently".
+    For AM/A events: returns {sym, bar: {t, o, h, l, c, v}, kind: "AM"|"A"}.
+    For T events:   returns {sym, trade: {t, p, s}, kind: "T"}.
 
-    `kind` is "AM" for authoritative 1-min closes or "A" for per-second aggregates.
-    Phase 4.5: accepts both ev=AM and ev=A (same field layout; s=start-of-aggregate ms).
+    Returns None for non-aggregate/non-trade events (status, Q, etc.) and events
+    missing required fields. Caller should treat None as "skip silently".
+
+    Phase 4.5: accepts ev=AM and ev=A (same OHLCV field layout).
+    Phase 4.6: accepts ev=T (per-trade ticks); extracts p, s, t fields.
     """
     if not isinstance(raw, dict):
         return None
     ev = raw.get("ev")
+
+    # T-event path (Phase 4.6)
+    if ev == _TRADE_EVENT_TYPE:
+        sym = raw.get("sym")
+        if not sym:
+            return None
+        # Required: p (price), s (size), t (ms timestamp)
+        if any(raw.get(k) is None for k in ("p", "s", "t")):
+            return None
+        return {
+            "sym": sym,
+            "trade": {
+                "t": raw["t"],
+                "p": raw["p"],
+                "s": raw["s"],
+            },
+            "kind": "T",
+        }
+
+    # AM/A aggregate path (Phase 4.5)
     if ev not in _AGGREGATE_EVENT_TYPES:
         return None
     sym = raw.get("sym")
@@ -116,26 +146,29 @@ class BarStreamClient:
 
 
 def _build_subscribe_message(syms: Iterable[str]) -> str:
-    """Polygon-compatible subscribe message: subscribes to both AM.* and A.* for each symbol.
+    """Polygon-compatible subscribe message: subscribes to AM.*, A.*, and T.* for each symbol.
 
     Phase 4.5: includes A.<sym> alongside AM.<sym> so we receive per-second aggregates
     for sub-second chart flicker in addition to the authoritative 1-min closes.
-    Example: AM.AAPL,A.AAPL,AM.MSFT,A.MSFT
+    Phase 4.6: adds T.<sym> for per-trade tick events enabling true tick-by-tick updates.
+    Example: AM.AAPL,A.AAPL,T.AAPL,AM.MSFT,A.MSFT,T.MSFT
     """
     parts = []
     for s in sorted(syms):
         parts.append(f"AM.{s}")
         parts.append(f"A.{s}")
+        parts.append(f"T.{s}")
     params = ",".join(parts)
     return json.dumps({"action": "subscribe", "params": params})
 
 
 def _build_unsubscribe_message(syms: Iterable[str]) -> str:
-    """Unsubscribe from both AM.* and A.* for each symbol (Phase 4.5)."""
+    """Unsubscribe from AM.*, A.*, and T.* for each symbol (Phase 4.6)."""
     parts = []
     for s in sorted(syms):
         parts.append(f"AM.{s}")
         parts.append(f"A.{s}")
+        parts.append(f"T.{s}")
     params = ",".join(parts)
     return json.dumps({"action": "unsubscribe", "params": params})
 
@@ -228,7 +261,10 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                                     _logger.info("[bar_stream] status: %s", ev.get("status"))
                                 continue
                             try:
-                                on_bar(parsed["sym"], parsed["bar"], parsed["kind"])
+                                kind = parsed["kind"]
+                                # T events carry "trade" dict; AM/A events carry "bar" dict
+                                payload_dict = parsed["trade"] if kind == "T" else parsed["bar"]
+                                on_bar(parsed["sym"], payload_dict, kind)
                             except Exception as cb_err:
                                 _logger.warning("[bar_stream] on_bar callback error: %s", cb_err)
                 finally:
