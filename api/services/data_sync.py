@@ -77,6 +77,28 @@ def credentials_ok() -> bool:
     return bool(_client() and _bucket())
 
 
+def _verify_snapshot_db(path: str) -> bool:
+    """Run ``PRAGMA integrity_check`` on a freshly extracted bars.db.
+
+    Used by ``download_snapshot`` to refuse installing a malformed snapshot
+    over a possibly-good local copy. Without this guard, a recovery cycle
+    triggered by local corruption could happily replace it with an equally
+    corrupt R2 copy and bake the problem in.
+
+    Returns True only if integrity_check returns the literal "ok".
+    """
+    try:
+        c = sqlite3.connect(path, timeout=10)
+        try:
+            row = c.execute("PRAGMA integrity_check").fetchone()
+            return bool(row and row[0] == "ok")
+        finally:
+            c.close()
+    except sqlite3.DatabaseError as e:
+        logger.error(f"[data_sync] integrity_check on extracted bars.db failed to open: {e}")
+        return False
+
+
 def _backup_sqlite_db(src_path: str, dst_path: str) -> None:
     """Use SQLite's online backup API to copy a consistent snapshot.
 
@@ -225,7 +247,33 @@ def download_snapshot(ts: str) -> bool:
         # Replace bars.db
         src_db = os.path.join(tmpdir, "bars.db")
         if os.path.exists(src_db):
-            shutil.move(src_db, os.path.join(_DATA_DIR, "bars.db"))
+            # Refuse to install a snapshot whose bars.db is itself corrupt.
+            # Without this guard, a corruption-recovery loop on the web
+            # service would happily replace its malformed local file with
+            # an equally malformed R2 copy and bake the failure in.
+            if not _verify_snapshot_db(src_db):
+                logger.error(
+                    f"[data_sync] snapshot {ts} bars.db failed integrity_check; "
+                    f"refusing to install"
+                )
+                return False
+            # Drop the OLD WAL/SHM sidecars before installing the new main
+            # file. They belong to the previous inode; if left in place,
+            # SQLite would try to recover an unrelated WAL against the new
+            # DB on next open and report "disk image is malformed". This
+            # was almost certainly the original cause of the production
+            # corruption that prompted this whole code path.
+            dst_db = os.path.join(_DATA_DIR, "bars.db")
+            for suffix in ("-wal", "-shm"):
+                sidecar = dst_db + suffix
+                try:
+                    if os.path.exists(sidecar):
+                        os.remove(sidecar)
+                except OSError as e:
+                    logger.warning(
+                        f"[data_sync] could not remove stale sidecar {sidecar}: {e}"
+                    )
+            shutil.move(src_db, dst_db)
         # Replace bars_cache (replace the whole directory, not merge)
         src_cache = os.path.join(tmpdir, "bars_cache")
         if os.path.isdir(src_cache):
@@ -314,3 +362,47 @@ def sync_if_newer() -> Optional[str]:
     if download_snapshot(remote_ts):
         return remote_ts
     return None
+
+
+def force_resync() -> bool:
+    """Force a full snapshot re-pull from R2, bypassing the "already current"
+    short-circuit that ``sync_if_newer`` uses.
+
+    Used by the corruption-recovery path: when the local bars.db is
+    malformed, the local sync marker still says "I have snapshot X" — and
+    R2's latest is also X — so ``sync_if_newer`` would return None and
+    leave the corrupt file in place. ``force_resync`` clears the marker
+    AND removes the local bars.db (plus -wal/-shm sidecars) before pulling
+    the latest snapshot, so even if R2's latest hasn't moved, we install
+    a known-good copy on top of the broken one.
+
+    Returns True iff a snapshot was successfully downloaded and installed."""
+    # Clear the marker so any concurrent reader of get_local_sync_state
+    # sees "no local snapshot" rather than a stale "I'm up to date".
+    marker = os.path.join(_DATA_DIR, _LAST_SYNC_MARKER)
+    try:
+        if os.path.exists(marker):
+            os.remove(marker)
+    except OSError as e:
+        logger.warning(f"[data_sync] force_resync: could not clear marker: {e}")
+    # Remove the corrupt main file and any sidecars. If the subsequent
+    # download fails or R2 has nothing, we end up with an empty data dir
+    # and ``bars_sqlite.init_db`` will create a fresh empty DB — slow but
+    # correct, much better than leaving the malformed file in place where
+    # every put_bars would keep failing forever.
+    db_path = os.path.join(_DATA_DIR, "bars.db")
+    for suffix in ("", "-wal", "-shm"):
+        p = db_path + suffix
+        try:
+            if os.path.exists(p):
+                os.remove(p)
+        except OSError as e:
+            logger.warning(f"[data_sync] force_resync: could not remove {p}: {e}")
+    ts = get_latest_snapshot_ts()
+    if not ts:
+        logger.error(
+            "[data_sync] force_resync: no remote snapshot available; "
+            "local data dir is now empty and init_db will create a fresh DB"
+        )
+        return False
+    return download_snapshot(ts)

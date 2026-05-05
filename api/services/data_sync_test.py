@@ -215,3 +215,143 @@ def test_download_snapshot_bumps_db_epoch(tmp_path, monkeypatch):
         "Connection invalidation broken — pulled snapshots would be ignored "
         "by every thread holding a stale SQLite connection."
     )
+
+
+def _make_tarball_bytes_with(db_bytes: bytes) -> bytes:
+    """Build a tar.gz containing a single bars.db with the provided raw bytes.
+    Used to fabricate both good and corrupt snapshots in tests."""
+    import os as _os
+    import tempfile as _tempfile
+    fd, path = _tempfile.mkstemp()
+    with _os.fdopen(fd, "wb") as f:
+        f.write(db_bytes)
+    try:
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+            tar.add(path, arcname="bars.db")
+        return buf.getvalue()
+    finally:
+        try:
+            _os.remove(path)
+        except OSError:
+            pass
+
+
+def test_download_snapshot_refuses_malformed_payload(tmp_path, monkeypatch):
+    """A snapshot whose bars.db fails PRAGMA integrity_check must NOT be
+    installed. This is the guardrail that prevents the corruption-recovery
+    loop from pulling a bad R2 copy on top of a bad local copy and locking
+    in the failure permanently."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("DATA_SYNC_ENDPOINT_URL", "https://example.test")
+    monkeypatch.setenv("DATA_SYNC_ACCESS_KEY", "x")
+    monkeypatch.setenv("DATA_SYNC_SECRET_KEY", "y")
+    monkeypatch.setenv("DATA_SYNC_BUCKET", "test-bucket")
+
+    # Pre-existing local bars.db that we don't want clobbered
+    local_db = tmp_path / "bars.db"
+    local_src = sqlite3.connect(str(local_db))
+    local_src.execute("CREATE TABLE preserve (id INT)")
+    local_src.execute("INSERT INTO preserve VALUES (777)")
+    local_src.commit()
+    local_src.close()
+    local_db_bytes = local_db.read_bytes()
+
+    # Snapshot whose bars.db is garbage
+    tar_bytes = _make_tarball_bytes_with(b"NOT A SQLITE DATABASE")
+
+    class _Body:
+        def read(self):
+            return tar_bytes
+
+    class _Client:
+        def get_object(self, Bucket, Key):
+            return {"Body": _Body()}
+
+    data_sync = _reload_data_sync()
+    monkeypatch.setattr(data_sync, "_client", lambda: _Client())
+
+    ok = data_sync.download_snapshot("9999999999")
+    assert ok is False, "download_snapshot must refuse a snapshot that fails integrity_check"
+    # Local file must be untouched — we did not overwrite a possibly-good copy
+    assert local_db.read_bytes() == local_db_bytes, (
+        "download_snapshot left the local bars.db corrupted — it should "
+        "have aborted before any move()"
+    )
+
+
+def test_download_snapshot_removes_stale_wal_shm_sidecars(tmp_path, monkeypatch):
+    """When bars.db is replaced, the OLD -wal and -shm files must be cleared.
+    SQLite would otherwise try to recover an unrelated WAL on top of the
+    new main file and report 'disk image is malformed' on the first read.
+    This was almost certainly the original cause of the production
+    corruption that the recovery path was built to handle."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("DATA_SYNC_ENDPOINT_URL", "https://example.test")
+    monkeypatch.setenv("DATA_SYNC_ACCESS_KEY", "x")
+    monkeypatch.setenv("DATA_SYNC_SECRET_KEY", "y")
+    monkeypatch.setenv("DATA_SYNC_BUCKET", "test-bucket")
+
+    # Pre-create stale sidecars belonging to some old inode
+    (tmp_path / "bars.db-wal").write_bytes(b"old-wal-bytes")
+    (tmp_path / "bars.db-shm").write_bytes(b"old-shm-bytes")
+
+    # Build a good snapshot
+    src_db = tmp_path / "snap_src.db"
+    s = sqlite3.connect(str(src_db))
+    s.execute("CREATE TABLE t (k INT)")
+    s.execute("INSERT INTO t VALUES (1)")
+    s.commit()
+    s.close()
+    tar_bytes = _make_tarball_bytes_with(src_db.read_bytes())
+
+    class _Body:
+        def read(self):
+            return tar_bytes
+
+    class _Client:
+        def get_object(self, Bucket, Key):
+            return {"Body": _Body()}
+
+    data_sync = _reload_data_sync()
+    monkeypatch.setattr(data_sync, "_client", lambda: _Client())
+
+    ok = data_sync.download_snapshot("123")
+    assert ok is True
+    assert not (tmp_path / "bars.db-wal").exists(), "stale -wal sidecar not cleaned up"
+    assert not (tmp_path / "bars.db-shm").exists(), "stale -shm sidecar not cleaned up"
+
+
+def test_force_resync_clears_marker_and_local_db(tmp_path, monkeypatch):
+    """force_resync is the recovery hammer: it must clear the local sync
+    marker (so sync_if_newer no longer short-circuits on 'I'm up to date')
+    AND delete the local bars.db plus -wal/-shm so a malformed file can't
+    poison the next open. We verify the cleanup half here without going
+    through R2 — when no remote credentials are configured, force_resync
+    returns False but must still have done the local cleanup."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    # Deliberately do NOT set DATA_SYNC_* — get_latest_snapshot_ts returns None
+    for var in ("DATA_SYNC_ENDPOINT_URL", "DATA_SYNC_ACCESS_KEY",
+                "DATA_SYNC_SECRET_KEY", "DATA_SYNC_BUCKET"):
+        monkeypatch.delenv(var, raising=False)
+
+    # Pre-state: corrupt local bars.db, sidecars, and a sync marker
+    (tmp_path / "bars.db").write_bytes(b"GARBAGE")
+    (tmp_path / "bars.db-wal").write_bytes(b"stale-wal")
+    (tmp_path / "bars.db-shm").write_bytes(b"stale-shm")
+
+    data_sync = _reload_data_sync()
+    data_sync._write_marker(data_sync._LAST_SYNC_MARKER, "9999")
+    assert (tmp_path / data_sync._LAST_SYNC_MARKER).exists()
+
+    ok = data_sync.force_resync()
+    assert ok is False, "no remote credentials → cannot pull → returns False"
+
+    # All four files must be gone after force_resync, even though the pull failed
+    assert not (tmp_path / "bars.db").exists(), "force_resync did not remove corrupt bars.db"
+    assert not (tmp_path / "bars.db-wal").exists(), "force_resync did not remove stale -wal"
+    assert not (tmp_path / "bars.db-shm").exists(), "force_resync did not remove stale -shm"
+    assert not (tmp_path / data_sync._LAST_SYNC_MARKER).exists(), (
+        "force_resync did not clear the sync marker — sync_if_newer would "
+        "still short-circuit on the stale 'I'm up to date' check"
+    )

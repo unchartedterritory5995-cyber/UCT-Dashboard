@@ -124,6 +124,153 @@ def test_bump_db_epoch_propagates_across_threads(tmp_path, monkeypatch):
     assert results["t2_after"] == "v2"
 
 
+def test_conn_sets_busy_timeout_pragma(tmp_path, monkeypatch):
+    """Every connection must set busy_timeout=10000 so concurrent writers
+    wait out lock contention instead of failing immediately. This is the
+    primary defense against the OperationalError("database is locked")
+    errors that contributed to the production corruption incident."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+    db_path = os.path.join(str(tmp_path), "bars.db")
+    _make_db(db_path, [(1, "x")])
+    c = bars_sqlite._conn()
+    row = c.execute("PRAGMA busy_timeout").fetchone()
+    assert row[0] == 10000, f"expected busy_timeout=10000, got {row[0]}"
+
+
+def test_integrity_ok_returns_true_when_file_missing(tmp_path, monkeypatch):
+    """A missing bars.db is a valid state (init_db will create it).
+    integrity_ok must NOT report this as corruption — that would trigger
+    a needless force_resync on every cold-start of a fresh container."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+    assert bars_sqlite.integrity_ok() is True
+
+
+def test_integrity_ok_returns_true_for_good_db(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+    db_path = os.path.join(str(tmp_path), "bars.db")
+    _make_db(db_path, [(1, "x")])
+    assert bars_sqlite.integrity_ok() is True
+
+
+def test_integrity_ok_returns_false_for_garbage_file(tmp_path, monkeypatch):
+    """The startup integrity check must catch the production failure mode:
+    bars.db is present but its on-disk pages are garbage (whether from a
+    killed-mid-write process or from stale -wal/-shm being applied to a
+    new main file). Without this guard, init_db would silently fail and
+    every put_bars at runtime would raise "disk image is malformed"."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+    db_path = os.path.join(str(tmp_path), "bars.db")
+    with open(db_path, "wb") as f:
+        f.write(b"this is not a SQLite database, just garbage bytes")
+    assert bars_sqlite.integrity_ok() is False
+
+
+def test_is_malformed_error_recognizes_canonical_message():
+    """Defensive — guards against a SQLite version bumping the wording."""
+    from api.services import bars_sqlite
+    assert bars_sqlite._is_malformed_error(
+        sqlite3.DatabaseError("database disk image is malformed")
+    )
+    assert bars_sqlite._is_malformed_error(
+        sqlite3.DatabaseError("DATABASE DISK IMAGE IS MALFORMED")
+    )
+    assert not bars_sqlite._is_malformed_error(
+        sqlite3.OperationalError("database is locked")
+    )
+
+
+def test_put_bars_triggers_recovery_on_malformed(tmp_path, monkeypatch):
+    """The whole reason this module gained a recovery path: when put_bars
+    encounters a malformed image, it must (a) schedule a background
+    snapshot re-pull, (b) drop the poisoned thread-local connection so
+    the next call gets a fresh handle after recovery completes, and
+    (c) re-raise so the caller's existing exception handler fires."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+
+    class _PoisonedConn:
+        def executemany(self, *_a, **_kw):
+            raise sqlite3.DatabaseError("database disk image is malformed")
+
+        def commit(self):
+            pass
+
+        def close(self):
+            pass
+
+    poisoned = _PoisonedConn()
+    monkeypatch.setattr(bars_sqlite, "_conn", lambda: poisoned)
+
+    # Pre-seed the thread-local cache so we can verify it gets cleared.
+    bars_sqlite._local.conn = poisoned
+
+    triggered = {"count": 0}
+    monkeypatch.setattr(
+        bars_sqlite,
+        "_trigger_corruption_recovery",
+        lambda: triggered.__setitem__("count", triggered["count"] + 1),
+    )
+
+    with pytest.raises(sqlite3.DatabaseError):
+        bars_sqlite.put_bars(
+            "AAPL", "D",
+            [{"t": 20240101, "o": 1, "h": 2, "l": 1, "c": 2, "v": 100}],
+        )
+
+    assert triggered["count"] == 1, "recovery should be scheduled exactly once"
+    assert getattr(bars_sqlite._local, "conn", "missing") is None, (
+        "thread-local connection should be cleared after malformed error so "
+        "the next call (post-recovery) opens a fresh handle"
+    )
+
+
+def test_put_bars_retries_on_locked_then_succeeds(tmp_path, monkeypatch):
+    """OperationalError("database is locked") on the first attempt must be
+    retried (busy_timeout already absorbs most contention; this loop covers
+    the residual cases). We simulate one transient lock then a successful
+    write and verify put_bars completes without raising."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+
+    real_conn = sqlite3.connect(os.path.join(str(tmp_path), "bars.db"))
+    real_conn.execute(
+        "CREATE TABLE IF NOT EXISTS ohlcv ("
+        "ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, c REAL, v INTEGER, "
+        "PRIMARY KEY(ticker, tf, ts))"
+    )
+    real_conn.commit()
+
+    # sqlite3.Connection methods are read-only attributes, so we wrap the
+    # real connection in a thin proxy whose executemany is monkeypatchable.
+    class _FlakyConn:
+        def __init__(self, real):
+            self._real = real
+            self.calls = 0
+
+        def executemany(self, *args, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                raise sqlite3.OperationalError("database is locked")
+            return self._real.executemany(*args, **kwargs)
+
+        def commit(self):
+            return self._real.commit()
+
+    flaky = _FlakyConn(real_conn)
+    monkeypatch.setattr(bars_sqlite, "_conn", lambda: flaky)
+
+    n = bars_sqlite.put_bars(
+        "AAPL", "D",
+        [{"t": 20240101, "o": 1, "h": 2, "l": 1, "c": 2, "v": 100}],
+    )
+    assert n == 1
+    assert flaky.calls == 2, "expected one retry after a single locked error"
+
+
 def test_bump_with_no_existing_connection_is_safe(tmp_path, monkeypatch):
     """Calling bump_db_epoch before any thread has opened a connection
     should not raise. (Edge case: data_sync.download_snapshot may run

@@ -7,12 +7,26 @@ ts encoding:
 First request for a ticker: full API fetch (~4-8 s), stored forever.
 Every subsequent request: delta fetch of only new bars (<200 ms).
 """
+import logging
 import os
 import sqlite3
 import threading
+import time
+
+_logger = logging.getLogger(__name__)
 
 _DB_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
 _local = threading.local()
+
+# Corruption-recovery state. When put_bars hits "disk image is malformed"
+# we kick off a one-shot background snapshot pull from R2. The lock + flag
+# guard against concurrent triggers, and the cooldown prevents tight loops
+# if the remote snapshot is also corrupt (we'd otherwise trigger recovery,
+# pull a bad snapshot, fail again, trigger recovery, ...).
+_recovery_lock = threading.Lock()
+_recovery_active = False
+_recovery_last_attempt = 0.0
+_RECOVERY_COOLDOWN_SECONDS = 60.0
 
 # Connection epoch — bumped whenever /data/bars.db is replaced wholesale
 # (currently: data_sync.download_snapshot when the web pulls a fresh
@@ -62,6 +76,13 @@ def _conn() -> sqlite3.Connection:
         c = sqlite3.connect(_DB_PATH, check_same_thread=False)
         c.execute("PRAGMA journal_mode=WAL")
         c.execute("PRAGMA synchronous=NORMAL")
+        # busy_timeout makes SQLite wait up to N ms for a contended lock
+        # before raising OperationalError("database is locked"). Without
+        # this, concurrent writers (multiple uvicorn workers / threads)
+        # see immediate failures even when the lock would clear in <1ms.
+        # 10s is generous; combined with the retry loop in put_bars, real
+        # contention should never surface to callers.
+        c.execute("PRAGMA busy_timeout=10000")
         c.execute("PRAGMA cache_size=-8192")   # 8 MB page cache per connection
         c.execute("PRAGMA temp_store=MEMORY")
         _local.conn = c
@@ -172,9 +193,125 @@ def get_all_tickers() -> list[tuple]:
     ).fetchall()
 
 
+def integrity_ok() -> bool:
+    """Return True if /data/bars.db passes ``PRAGMA integrity_check``.
+
+    Used at startup to detect "disk image is malformed" corruption before
+    any handler tries to write. Returns:
+      - True if the file does not exist (init_db will create a fresh DB)
+      - True if integrity_check returns "ok"
+      - False if integrity_check returns anything else, or if SQLite cannot
+        even open the file (which itself indicates structural corruption).
+
+    Opens a one-off connection (not the thread-local cached one) so a
+    failed check doesn't poison subsequent normal operation.
+    """
+    if not os.path.exists(_DB_PATH):
+        return True
+    try:
+        c = sqlite3.connect(_DB_PATH, timeout=10)
+        try:
+            row = c.execute("PRAGMA integrity_check").fetchone()
+            return bool(row and row[0] == "ok")
+        finally:
+            c.close()
+    except sqlite3.DatabaseError as e:
+        _logger.error(f"[sqlite] integrity_check failed to open bars.db: {e}")
+        return False
+
+
+def _is_malformed_error(exc: BaseException) -> bool:
+    """True if the SQLite exception indicates on-disk corruption.
+
+    ``database disk image is malformed`` is the canonical message; we also
+    match the lowercase substring as a defense against minor wording
+    changes between SQLite versions."""
+    msg = str(exc).lower()
+    return "malformed" in msg
+
+
+def _drop_local_conn() -> None:
+    """Close and forget this thread's cached SQLite connection.
+
+    Called after a malformed-image error so the next ``_conn()`` call (after
+    recovery has bumped the epoch) opens a fresh handle to the replaced
+    inode instead of reusing the poisoned one."""
+    c = getattr(_local, "conn", None)
+    if c is not None:
+        try:
+            c.close()
+        except Exception:
+            pass
+    _local.conn = None
+
+
+def _trigger_corruption_recovery() -> None:
+    """Spawn a one-shot background recovery: pull a fresh snapshot from R2
+    and atomically replace bars.db (which also bumps the epoch, refreshing
+    every thread's connection on next use).
+
+    No-op if a recovery is already in flight or if one finished within the
+    last ``_RECOVERY_COOLDOWN_SECONDS``. The cooldown prevents tight loops
+    when R2's snapshot is itself corrupt — every put_bars after install
+    would fail malformed and re-trigger recovery, hammering R2 forever.
+    """
+    global _recovery_active, _recovery_last_attempt
+    with _recovery_lock:
+        now = time.time()
+        if _recovery_active:
+            return
+        if now - _recovery_last_attempt < _RECOVERY_COOLDOWN_SECONDS:
+            return
+        _recovery_active = True
+        _recovery_last_attempt = now
+
+    def _run() -> None:
+        global _recovery_active
+        try:
+            _logger.error(
+                "[sqlite] corruption detected — pulling fresh snapshot from R2"
+            )
+            try:
+                # Late import: data_sync imports bars_sqlite indirectly via
+                # bump_db_epoch, so a top-level import here would create a
+                # cycle at module-load time. Importing inside the recovery
+                # thread is safe because the modules are fully loaded by
+                # the time any put_bars call has fired.
+                from api.services import data_sync
+            except Exception as e:
+                _logger.exception(f"[sqlite] cannot import data_sync: {e}")
+                return
+            try:
+                ok = data_sync.force_resync()
+            except Exception as e:
+                _logger.exception(f"[sqlite] force_resync raised: {e}")
+                return
+            if ok:
+                _logger.info("[sqlite] recovery succeeded — bars.db restored from R2")
+            else:
+                _logger.error(
+                    "[sqlite] recovery FAILED — no usable snapshot available; "
+                    "manual intervention required"
+                )
+        finally:
+            with _recovery_lock:
+                _recovery_active = False
+
+    threading.Thread(
+        target=_run, daemon=True, name="sqlite-recovery"
+    ).start()
+
+
 def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False) -> int:
     """Upsert bars.  date_tf=True means bar["t"] is 'YYYY-MM-DD' → YYYYMMDD int.
     Returns number of rows inserted/replaced.
+
+    On ``OperationalError: database is locked`` retries up to 3 times with
+    short backoff (busy_timeout already gives 10s of in-driver waiting; the
+    extra retries cover edge cases like ``BEGIN IMMEDIATE`` failing fast).
+    On ``DatabaseError: disk image is malformed`` schedules a background
+    recovery (snapshot re-pull from R2) and re-raises so the caller's
+    exception handler can return an empty result for this single request.
     """
     if not bars:
         return 0
@@ -188,10 +325,36 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False) -> i
             b.get("o"), b.get("h"), b.get("l"), b.get("c"),
             int(b.get("v") or 0),
         ))
-    c = _conn()
-    c.executemany(
-        "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
-        rows,
-    )
-    c.commit()
-    return len(rows)
+
+    last_lock_err: sqlite3.OperationalError | None = None
+    for attempt in range(3):
+        try:
+            c = _conn()
+            c.executemany(
+                "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                rows,
+            )
+            c.commit()
+            return len(rows)
+        except sqlite3.OperationalError as e:
+            # OperationalError covers "locked" (contention) and a few non-
+            # corruption cases; only retry the locked variant. Other
+            # OperationalErrors propagate immediately so callers see them.
+            if "locked" not in str(e).lower():
+                raise
+            last_lock_err = e
+            time.sleep(0.05 * (attempt + 1))
+            continue
+        except sqlite3.DatabaseError as e:
+            if _is_malformed_error(e):
+                _logger.error(
+                    f"[sqlite] put_bars hit malformed image for {ticker} tf={tf}; "
+                    f"scheduling recovery"
+                )
+                _trigger_corruption_recovery()
+                _drop_local_conn()
+            raise
+
+    if last_lock_err is not None:
+        raise last_lock_err
+    return 0  # unreachable

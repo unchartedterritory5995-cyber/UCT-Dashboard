@@ -129,6 +129,27 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] Auth DB init error (non-fatal): {e}")
 
+    # Integrity check BEFORE init_db: if /data/bars.db is malformed (which
+    # happens when the previous run was killed mid-write or replaced with
+    # stale WAL/SHM sidecars hanging around), every put_bars at runtime
+    # would fail with "disk image is malformed" and the chart would freeze
+    # at whatever bars were cached before the corruption. Detect it here
+    # and pull a fresh R2 snapshot before any handler can hit the bad file.
+    try:
+        from api.services import bars_sqlite as _bs_check
+        if not _bs_check.integrity_ok():
+            print("[startup] bars.db failed PRAGMA integrity_check — pulling fresh snapshot from R2")
+            try:
+                from api.services import data_sync as _ds_check
+                if _ds_check.force_resync():
+                    print("[startup] bars.db restored from R2 snapshot")
+                else:
+                    print("[startup] bars.db restore from R2 FAILED — init_db will create empty DB")
+            except Exception as e:
+                print(f"[startup] force_resync error (non-fatal): {e}")
+    except Exception as e:
+        print(f"[startup] bars.db integrity_check error (non-fatal): {e}")
+
     try:
         from api.services import bars_sqlite as _bars_sqlite
         _bars_sqlite.init_db()
