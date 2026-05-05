@@ -204,8 +204,17 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         print(f"[startup] Memory pre-warm failed (non-fatal): {_e}")
 
-    if os.environ.get("WORKER_ENABLED") == "1":
-        print("[startup] WORKER_ENABLED=1 — skipping in-process prewarmer/seeder; worker service handles it")
+    # USE_REMOTE_BARS=1 tells this web service that a separate worker is
+    # producing the bars snapshot, so we should NOT run our own prewarmer or
+    # seeder; instead we pull the snapshot from R2 every 5 min.
+    #
+    # NOTE: do NOT use WORKER_ENABLED here. WORKER_ENABLED is consumed by
+    # railway.json's startCommand to decide whether to run worker_main vs
+    # the full uvicorn web app. If we keyed both decisions off the same
+    # variable, setting it on the web service would replace the website
+    # with the tiny worker-only app. Two different decisions = two vars.
+    if os.environ.get("USE_REMOTE_BARS") == "1":
+        print("[startup] USE_REMOTE_BARS=1 — skipping in-process prewarmer/seeder; pulling snapshot from worker via R2")
     else:
         try:
             from api.services.bars_seeder import start_background_seeder
@@ -215,12 +224,12 @@ async def lifespan(app: FastAPI):
 
     _seed_cache_from_volume()
 
-    if os.environ.get("WORKER_ENABLED") != "1":
+    if os.environ.get("USE_REMOTE_BARS") != "1":
         from api.services.bars_prewarm import run_prewarmer_forever
         threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
 
     # When the worker service is producing snapshots, pull them every 5 min.
-    if os.environ.get("WORKER_ENABLED") == "1":
+    if os.environ.get("USE_REMOTE_BARS") == "1":
         def _s3_pull_loop():
             from api.services import data_sync
             import time as _t
@@ -504,12 +513,12 @@ def health_cache():
 
     On the web service: snapshot_ts and synced_at come from data_sync's local
     marker (written every time we successfully pull from R2). On the worker
-    service or when WORKER_ENABLED is unset, this endpoint still works but
+    service or when USE_REMOTE_BARS is unset, this endpoint still works but
     snapshot_ts will be None (no syncing happens)."""
     from api.services.data_sync import get_local_sync_state
     state = get_local_sync_state()
     return {
-        "worker_enabled": os.environ.get("WORKER_ENABLED") == "1",
+        "use_remote_bars": os.environ.get("USE_REMOTE_BARS") == "1",
         "snapshot_ts": state["snapshot_ts"],
         "synced_at": state["synced_at"],
         "seconds_since_sync": state["seconds_since_sync"],
