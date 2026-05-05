@@ -245,8 +245,8 @@ async def lifespan(app: FastAPI):
     # When the worker service is producing snapshots, pull them on a fixed
     # cadence (see SNAPSHOT_INTERVAL_SECONDS in api.services.data_sync).
     if os.environ.get("USE_REMOTE_BARS") == "1":
+        from api.services import data_sync
         def _s3_pull_loop():
-            from api.services import data_sync
             import time as _t
             while True:
                 try:
