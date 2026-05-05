@@ -5,6 +5,7 @@ Fans out WebSocket price data from Massive/Polygon to browser clients.
 
 import asyncio
 import json
+import os
 import time
 
 from fastapi import APIRouter, Query, Request
@@ -78,6 +79,81 @@ async def stream_prices(
             "Cache-Control": "no-cache, no-transform",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # Disable Nginx/proxy buffering
+        },
+    )
+
+
+@router.get("/api/stream/bars")
+async def stream_bars(
+    request: Request,
+    bars: str = Query(..., description="Comma-separated SYM:TF pairs, e.g. AAPL:5,MSFT:1"),
+):
+    """SSE — streams real-time bar updates per (symbol, timeframe).
+
+    Connect via EventSource:
+      const es = new EventSource('/api/stream/bars?bars=AAPL:5,MSFT:1')
+      es.addEventListener('bar', e => { const {sym, tf, bar} = JSON.parse(e.data) })
+
+    Each `event: bar` message contains the latest in-progress (or just-closed) bar
+    for the (sym, tf) pair. Frontend should call series.update(bar) to apply.
+    """
+    if os.environ.get("STREAM_BARS_ENABLED") != "1":
+        return JSONResponse({"error": "Bar streaming disabled"}, status_code=503)
+
+    pairs: list[tuple[str, str]] = []
+    for raw in bars.split(","):
+        s = raw.strip()
+        if not s or ":" not in s:
+            continue
+        sym, tf = s.split(":", 1)
+        sym = sym.strip().upper()
+        tf = tf.strip()
+        if sym and tf in ("1", "5", "15", "30"):  # 60-min excluded in v1 (ET-anchor needed)
+            pairs.append((sym, tf))
+
+    if not pairs:
+        return JSONResponse({"error": "No valid sym:tf pairs"}, status_code=400)
+    pairs = pairs[:50]  # cap to prevent runaway subscriptions per connection
+
+    from api.services.bar_broadcaster import get_broadcaster
+    bb = get_broadcaster()
+    queues = [(sym, tf, bb.subscribe(sym, tf)) for (sym, tf) in pairs]
+
+    async def event_generator():
+        import time as _t
+        last_heartbeat = _t.time()
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                # Drain whatever is ready from any queue without blocking forever.
+                # We round-robin one wait at a time so no queue starves.
+                got_one = False
+                for (sym, tf, q) in queues:
+                    try:
+                        msg = q.get_nowait()
+                    except asyncio.QueueEmpty:
+                        continue
+                    got_one = True
+                    yield f"event: bar\ndata: {json.dumps(msg)}\n\n"
+
+                if not got_one:
+                    await asyncio.sleep(0.05)
+
+                if _t.time() - last_heartbeat > 15:
+                    yield ": heartbeat\n\n"
+                    last_heartbeat = _t.time()
+        finally:
+            for (sym, tf, q) in queues:
+                bb.unsubscribe(sym, tf, q)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
         },
     )
 
