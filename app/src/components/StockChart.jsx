@@ -10,6 +10,7 @@ import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
 import useRealtimePrices from '../hooks/useRealtimePrices'
+import useRealtimeBars from '../hooks/useRealtimeBars'
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import styles from './StockChart.module.css'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
@@ -917,6 +918,79 @@ export default function StockChart({
       if (e?.message) console.warn('[StockChart] live update error:', e.message)
     }
   }, [livePrices, sym, resolvedTf, cs.chartType])
+
+  // Real-time bar streaming (Phase 4) — Massive AM events.
+  // Only on intraday timeframes 1/5/15/30 (60-min uses ET-anchor REST path until v1.1).
+  // Coexists with the tick-driven useEffect above:
+  //  - Tick logic drives sub-second flicker on the current developing candle
+  //  - AM events deliver authoritative just-closed minute bars (1m chart) or
+  //    server-rolled partial bucket bars (5/15/30m charts)
+  //  - When an AM bar matches liveBarRef/lastBarRef.time, we sync them so the
+  //    next tick iteration doesn't overwrite the authoritative values
+  const realtimeTfEligible = ['1', '5', '15', '30'].includes(resolvedTf)
+
+  const onRealtimeBar = useCallback((data) => {
+    if (!candleSeriesRef.current) return
+    // AM `t` is bucket-start in ms; lightweight-charts wants seconds.
+    const tSec = Math.floor(data.bar.t / 1000)
+    const useOhlc = isOhlcType(cs.chartType)
+
+    try {
+      if (useOhlc) {
+        candleSeriesRef.current.update({
+          time: tSec,
+          open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
+        })
+      } else {
+        candleSeriesRef.current.update({ time: tSec, value: data.bar.c })
+      }
+      if (volumeSeriesRef.current) {
+        volumeSeriesRef.current.update({
+          time: tSec,
+          value: data.bar.v,
+          color: data.bar.c >= data.bar.o ? 'rgba(74,222,128,0.5)' : 'rgba(239,83,80,0.5)',
+        })
+      }
+      // Sync the tick-logic refs so the next tick starts from authoritative state.
+      // Only sync if the AM bar matches the current developing/last bar's time —
+      // otherwise this is an older bar's update and shouldn't disturb live state.
+      if (liveBarRef.current && liveBarRef.current.time === tSec) {
+        liveBarRef.current = {
+          time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
+        }
+      }
+      if (lastBarRef.current && lastBarRef.current.time === tSec) {
+        lastBarRef.current = {
+          time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
+          volume: data.bar.v,
+        }
+      }
+    } catch {
+      // lightweight-charts throws if `time` regresses below the series' last bar.
+      // Silently ignore — out-of-order frames are rare and self-correct on next bar.
+    }
+  }, [cs.chartType])
+
+  const onRealtimeReconnect = useCallback((lastBarT) => {
+    // Gap-backfill on reconnect — uses the existing `since` param of /api/bars.
+    if (lastBarT == null || !sym) return
+    fetch(`/api/bars/${encodeURIComponent(sym)}?tf=${encodeURIComponent(resolvedTf)}&since=${lastBarT}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(payload => {
+        if (!payload?.bars?.length) return
+        for (const b of payload.bars) {
+          onRealtimeBar({ sym, tf: resolvedTf, bar: { t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v } })
+        }
+      })
+      .catch(() => {})
+  }, [sym, resolvedTf, onRealtimeBar])
+
+  useRealtimeBars({
+    symbol: realtimeTfEligible && liveUpdates ? sym : null,
+    tf: realtimeTfEligible && liveUpdates ? resolvedTf : null,
+    onBar: onRealtimeBar,
+    onReconnect: onRealtimeReconnect,
+  })
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
