@@ -1123,19 +1123,8 @@ export default function StockChart({
       prevChartTypeRef.current = cs.chartType
     }
 
-    // Set price data — but skip when REST data isn't newer than what's already
-    // in the series. Phase 4 events advance the series' last bar in real time;
-    // calling setData with stale REST bars would WIPE those live updates every
-    // 15s on SWR refresh. Only setData on first load (lastBarRef.current is null,
-    // also true on ticker/tf change via the reset effect at line 816) or when
-    // REST has a strictly newer last bar than what we've already shown.
-    const _newOhlc = isOhlcType(cs.chartType) ? ohlcData : closeData
-    const _newLastT = _newOhlc.length ? _newOhlc[_newOhlc.length - 1].time : null
-    const _prevLastT = lastBarRef.current?.time
-    const _shouldSetData = _prevLastT == null || _newLastT == null || _newLastT > _prevLastT
-    if (_shouldSetData) {
-      candleSeriesRef.current.setData(_newOhlc)
-    }
+    // Set price data
+    candleSeriesRef.current.setData(isOhlcType(cs.chartType) ? ohlcData : closeData)
 
     // Store the last bar for live updates
     if (filteredBars.length) {
