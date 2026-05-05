@@ -61,8 +61,7 @@ def _start_uploader():
 def _build_app() -> FastAPI:
     app = FastAPI(title="UCT Worker", docs_url=None, redoc_url=None)
 
-    @app.get("/internal/health")
-    def health():
+    def _health_payload():
         from api.services.data_sync import get_local_sync_state
         state = get_local_sync_state()
         return {
@@ -72,6 +71,17 @@ def _build_app() -> FastAPI:
             "synced_at": state["synced_at"],
             "seconds_since_sync": state["seconds_since_sync"],
         }
+
+    # /api/health is exposed so the worker satisfies the shared
+    # healthcheckPath in railway.json (set for the web service).
+    # /internal/health is the worker-native path.
+    @app.get("/internal/health")
+    def health():
+        return _health_payload()
+
+    @app.get("/api/health")
+    def health_alias():
+        return _health_payload()
 
     return app
 

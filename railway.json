@@ -5,7 +5,7 @@
     "buildCommand": "pip install -r requirements.txt && cd app && npm install && npm run build"
   },
   "deploy": {
-    "startCommand": "uvicorn api.main:app --host 0.0.0.0 --port $PORT",
+    "startCommand": "if [ \"${WORKER_ENABLED:-0}\" = \"1\" ]; then python -m api.worker_main; else uvicorn api.main:app --host 0.0.0.0 --port $PORT; fi",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 600
   }
