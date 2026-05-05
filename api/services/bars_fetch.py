@@ -185,7 +185,11 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 "v": int(bar.get("v", 0)),
             })
         return bars[-max_bars:]
-    except Exception:
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger(__name__).error(
+            f"[bars] _fetch_intraday_massive {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
+        )
         return []
 
 
@@ -222,7 +226,11 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
             except (KeyError, ValueError):
                 continue
         return bars[-max_bars:]
-    except Exception:
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger(__name__).warning(
+            f"[bars] _fetch_intraday_fmp {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
+        )
         return []
 
 
@@ -254,7 +262,11 @@ def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 "v": int(row.get("Volume", 0)),
             })
         return bars[-max_bars:]
-    except Exception:
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger(__name__).warning(
+            f"[bars] _fetch_intraday_yfinance {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
+        )
         return []
 
 

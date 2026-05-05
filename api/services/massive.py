@@ -22,8 +22,13 @@ _client = None
 # connect=3s: fast fail on DNS/TCP failure.
 # max_connections=30: more headroom when multiple tickers load simultaneously.
 _http = httpx.Client(
-    timeout=httpx.Timeout(connect=3.0, read=25.0, write=5.0, pool=5.0),
-    limits=httpx.Limits(max_keepalive_connections=15, max_connections=30),
+    # Doubled max_connections to 60 + pool wait to 10s. With Phase 4 + browser
+    # loading multiple charts × multiple TFs simultaneously, the previous
+    # 30-connection limit was getting exhausted under load, causing
+    # _fetch_intraday_massive to silently fail with PoolTimeout (caught by
+    # blanket except → return []) → /api/bars empty → blank charts.
+    timeout=httpx.Timeout(connect=3.0, read=25.0, write=5.0, pool=10.0),
+    limits=httpx.Limits(max_keepalive_connections=30, max_connections=60),
     headers={"Accept": "application/json"},
 )
 
