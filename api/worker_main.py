@@ -88,7 +88,12 @@ def main():
         sys.exit(1)
 
     _start_prewarmer()
-    _start_seeder()
+    # Seeder disabled in worker: it competes with the prewarmer for SQLite
+    # writes during boot and produces a flood of "database is locked" errors
+    # because both try to fan out concurrent writes to bars.db. The prewarmer
+    # alone covers the same ticker set (and refreshes every 5 min instead of
+    # one-shot at boot), so the seeder is redundant here.
+    # _start_seeder()
     _start_uploader()
 
     port = int(os.environ.get("PORT", "8080"))
