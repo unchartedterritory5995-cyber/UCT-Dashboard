@@ -189,18 +189,20 @@ export default function Analytics() {
         ))}
       </div>
 
-      {/* Period selector */}
-      <div className={styles.periodBar}>
-        {PERIODS.map(p => (
-          <button
-            key={p.key}
-            className={`${styles.periodBtn} ${periodDays === p.key ? styles.periodActive : ''}`}
-            onClick={() => setPeriodDays(p.key)}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      {/* Period selector — hidden when Psychology selected (PsychologyTimeline has its own period state) */}
+      {dimension !== 'psychology' && (
+        <div className={styles.periodBar}>
+          {PERIODS.map(p => (
+            <button
+              key={p.key}
+              className={`${styles.periodBtn} ${periodDays === p.key ? styles.periodActive : ''}`}
+              onClick={() => setPeriodDays(p.key)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Psychology timeline — replaces standard results when Psychology is selected */}
       {dimension === 'psychology' && <PsychologyTimeline />}
