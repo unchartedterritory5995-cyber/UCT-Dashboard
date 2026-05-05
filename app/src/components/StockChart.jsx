@@ -921,6 +921,8 @@ export default function StockChart({
 
   // Real-time bar streaming (Phase 4) — Massive AM events.
   // Only on intraday timeframes 1/5/15/30 (60-min uses ET-anchor REST path until v1.1).
+  // Keep this list in sync with backend ROLLUP_TFS (api/services/bar_broadcaster.py)
+  // and the tf allow-list in api/routers/stream.py:stream_bars.
   // Coexists with the tick-driven useEffect above:
   //  - Tick logic drives sub-second flicker on the current developing candle
   //  - AM events deliver authoritative just-closed minute bars (1m chart) or
@@ -982,7 +984,9 @@ export default function StockChart({
           onRealtimeBar({ sym, tf: resolvedTf, bar: { t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v } })
         }
       })
-      .catch(() => {})
+      .catch(e => {
+        if (e?.message) console.warn('[StockChart] gap-backfill failed:', e.message)
+      })
   }, [sym, resolvedTf, onRealtimeBar])
 
   useRealtimeBars({
