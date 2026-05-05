@@ -933,12 +933,15 @@ export default function StockChart({
 
   const onRealtimeBar = useCallback((data) => {
     if (!candleSeriesRef.current) return
-    // AM `t` is bucket-start in ms. Convert to seconds AND apply the same
-    // ET offset that adjustTime/computeBarTime use, so the time matches what's
-    // already in candleSeriesRef (initial setData and tick logic both use ET-offset).
-    // Without _ET_OFFSET, lightweight-charts silently rejects updates with
-    // "regression" or appends them at the wrong position with a 4-5h gap.
-    const tSec = Math.floor(data.bar.t / 1000) + _ET_OFFSET
+    // AM `t` is bucket-start in ms; lightweight-charts wants seconds.
+    // NOTE: The series stores bar times via adjustTime(b.t) which adds _ET_OFFSET.
+    // We previously tried to add _ET_OFFSET here too for "alignment" but that
+    // caused lightweight-charts to drop historical bars from the series. Keeping
+    // raw UTC seconds here means Phase 4 updates may not visually align with the
+    // historical series until the underlying chart-time-handling is properly
+    // unified (separate task). For now, prefer historical bars rendering over
+    // perfect Phase 4 alignment.
+    const tSec = Math.floor(data.bar.t / 1000)
     const useOhlc = isOhlcType(cs.chartType)
 
     try {
