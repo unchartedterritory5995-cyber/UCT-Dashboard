@@ -4721,37 +4721,38 @@ export default function OptionsFlowDashboard() {
                     </div>
                   )}
                 </div>
-                {/* Meta + P&L + Remove */}
-                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2, minWidth:80 }}>
+                {/* Meta + Remove */}
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2, minWidth:50 }}>
                   <Tag c={GRADE_COLORS[item.grade]||P.mt}>{item.grade}</Tag>
                   <span style={{ fontSize:9 }}><span style={{ color:item.hits>=10?P.ac:item.hits>=5?P.ye:P.dm, fontWeight:700 }}>{item.hits}x</span> · <span style={{ color:premC(item.prem), fontWeight:700 }}>{fmt(item.prem)}</span></span>
-                  {(()=>{
-                    const px = getPrice(item.sym, item.cp, item.strike, item.exp);
-                    if (!px) return null;
-                    const now = px.mark || px.last || 0;
-                    if (now <= 0) return null;
-                    // Entry from CONV match
-                    const conv = FD?.CONV?.find(c=>c.sym===item.sym&&c.cp===item.cp&&String(c.K)===String(item.strike)&&c.exp===item.exp);
-                    const entry = conv ? (conv.vol > 0 ? conv.prem / conv.vol / 100 : 0) : 0;
-                    if (entry <= 0) return <span style={{ fontSize:10, fontWeight:800, color:P.wh }}>${now.toFixed(2)}</span>;
-                    const pnl = ((now - entry) / entry) * 100;
-                    const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
-                    return (
-                      <div style={{ textAlign:"right" }}>
-                        <div style={{ fontSize:9, color:P.dm }}>
-                          <span style={{ color:P.ac }}>${entry.toFixed(2)}</span>
-                          <span style={{ marginLeft:3 }}>→</span>
-                          <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${now.toFixed(2)}</span>
-                        </div>
-                        <div style={{ fontSize:11, fontWeight:800, color:pnlC }}>{pnl>=0?"+":""}{pnl.toFixed(1)}%</div>
-                      </div>
-                    );
-                  })()}
                   {isEditing && !isRemoving && (
                     <button onClick={e=>{e.stopPropagation(); setWlRemoving(key); setWlRemoveReason("");}}
                       style={{ fontSize:8, color:P.be, background:"transparent", border:"1px solid "+P.be+"40", borderRadius:3, padding:"1px 6px", cursor:"pointer", fontFamily:"inherit", fontWeight:700, marginTop:2 }}>✕ Remove</button>
                   )}
                 </div>
+                {/* P&L Column */}
+                {(()=>{
+                  const px = getPrice(item.sym, item.cp, item.strike, item.exp);
+                  if (!px) return null;
+                  const now = px.mark || px.last || 0;
+                  if (now <= 0) return null;
+                  const conv = FD?.CONV?.find(c=>c.sym===item.sym&&c.cp===item.cp&&String(c.K)===String(item.strike)&&c.exp===item.exp);
+                  const entry = conv ? (conv.vol > 0 ? conv.prem / conv.vol / 100 : 0) : 0;
+                  if (entry <= 0) return (
+                    <div style={{ borderLeft:"1px solid "+P.bd, paddingLeft:10, minWidth:75, textAlign:"right" }}>
+                      <div style={{ fontSize:14, fontWeight:900, color:P.wh }}>${now.toFixed(2)}</div>
+                    </div>
+                  );
+                  const pnl = ((now - entry) / entry) * 100;
+                  const pnlC = pnl >= 0 ? P.bu : P.be;
+                  const arrow = pnl >= 0 ? "▲" : "▼";
+                  return (
+                    <div style={{ borderLeft:"1px solid "+P.bd, paddingLeft:10, minWidth:75, textAlign:"right" }}>
+                      <div style={{ fontSize:16, fontWeight:900, color:pnlC }}><span style={{ fontSize:14 }}>{arrow}</span> {pnl>=0?"+":""}{pnl.toFixed(1)}%</div>
+                      <div style={{ fontSize:9, color:P.dm, marginTop:2 }}>${entry.toFixed(2)} → <span style={{ color:P.wh, fontWeight:700 }}>${now.toFixed(2)}</span></div>
+                    </div>
+                  );
+                })()}
               </div>
               {/* Removal reason prompt */}
               {isRemoving && (
