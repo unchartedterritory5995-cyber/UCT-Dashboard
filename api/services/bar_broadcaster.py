@@ -33,7 +33,8 @@ class BarBroadcaster:
                  on_first_subscribe: Optional[Callable[[str], None]] = None,
                  on_last_unsubscribe: Optional[Callable[[str], None]] = None):
         self._partials: dict[tuple[str, str], dict] = {}     # (sym, tf) -> in-progress bar
-        self._subscribers: dict[tuple[str, str], set[asyncio.Queue]] = {}
+        # C1: store (queue, loop) tuples so _emit can use call_soon_threadsafe
+        self._subscribers: dict[tuple[str, str], set[tuple[asyncio.Queue, asyncio.AbstractEventLoop]]] = {}
         self._lock = threading.Lock()
         self._on_first_subscribe = on_first_subscribe or (lambda sym: None)
         self._on_last_unsubscribe = on_last_unsubscribe or (lambda sym: None)
@@ -45,10 +46,12 @@ class BarBroadcaster:
         if tf != "1" and tf not in ROLLUP_TFS:
             raise ValueError(f"Unsupported tf: {tf!r}")
         q: asyncio.Queue = asyncio.Queue(maxsize=64)
+        # C1: capture the calling coroutine's loop so _emit can dispatch safely
+        loop = asyncio.get_running_loop()
         key = (sym, tf)
         with self._lock:
             had_any = self._symbol_has_any_subscriber(sym)
-            self._subscribers.setdefault(key, set()).add(q)
+            self._subscribers.setdefault(key, set()).add((q, loop))
         if not had_any:
             try:
                 self._on_first_subscribe(sym)
@@ -61,12 +64,19 @@ class BarBroadcaster:
         key = (sym, tf)
         with self._lock:
             subs = self._subscribers.get(key)
-            if subs and q in subs:
-                subs.discard(q)
-                if not subs:
-                    self._subscribers.pop(key, None)
+            # C1: subs now contains (queue, loop) tuples — find by queue identity
+            if subs:
+                match = next((t for t in subs if t[0] is q), None)
+                if match:
+                    subs.discard(match)
+                    if not subs:
+                        self._subscribers.pop(key, None)
             still_any = self._symbol_has_any_subscriber(sym)
         if not still_any:
+            # I1: clean up partial state — no subscribers watching anymore
+            with self._lock:
+                for tf_to_clear in ("1",) + ROLLUP_TFS:
+                    self._partials.pop((sym, tf_to_clear), None)
             try:
                 self._on_last_unsubscribe(sym)
             except Exception as e:
@@ -88,6 +98,9 @@ class BarBroadcaster:
             key = (sym, tf)
             with self._lock:
                 prev = self._partials.get(key)
+                # C2: drop stale/out-of-order bars for rollup tfs to prevent bucket overwrite
+                if prev is not None and bar["t"] < prev["t"]:
+                    continue
                 if prev is None or prev["t"] != new_start:
                     # New bucket: replace partial with first-bar-of-bucket
                     next_partial = aggregate(None, {**bar, "t": new_start})
@@ -99,22 +112,33 @@ class BarBroadcaster:
 
     # ── Internal: dispatch to subscriber queues ──
 
+    @staticmethod
+    def _safe_put(q: asyncio.Queue, msg: dict) -> None:
+        """Runs on the queue's owner loop via call_soon_threadsafe."""
+        try:
+            q.put_nowait(msg)
+        except asyncio.QueueFull:
+            # Slow consumer — drop the oldest, push the new. Real-time data:
+            # freshness > completeness.
+            try:
+                q.get_nowait()
+                q.put_nowait(msg)
+            except Exception:
+                pass
+
     def _emit(self, sym: str, tf: str, bar: dict) -> None:
         key = (sym, tf)
         with self._lock:
-            queues = list(self._subscribers.get(key, ()))
+            # C1: snapshot (queue, loop) pairs
+            pairs = list(self._subscribers.get(key, ()))
         msg = {"sym": sym, "tf": tf, "bar": bar}
-        for q in queues:
+        for (q, loop) in pairs:
+            # C1: dispatch via call_soon_threadsafe — safe from any thread
             try:
-                q.put_nowait(msg)
-            except asyncio.QueueFull:
-                # Slow consumer — drop the oldest, push the new. Real-time data:
-                # freshness > completeness.
-                try:
-                    q.get_nowait()
-                    q.put_nowait(msg)
-                except Exception:
-                    pass
+                loop.call_soon_threadsafe(self._safe_put, q, msg)
+            except RuntimeError:
+                # Loop already closed — subscriber's session is dead. Skip.
+                pass
 
     def get_status(self) -> dict:
         with self._lock:
@@ -138,8 +162,17 @@ def get_broadcaster() -> BarBroadcaster:
 
 def init_broadcaster(*, on_first_subscribe=None, on_last_unsubscribe=None) -> BarBroadcaster:
     global _singleton
+    # I4: guard against double-init — would orphan in-flight subscriber queues
+    if _singleton is not None:
+        raise RuntimeError("BarBroadcaster already initialized — call once at app startup")
     _singleton = BarBroadcaster(
         on_first_subscribe=on_first_subscribe,
         on_last_unsubscribe=on_last_unsubscribe,
     )
     return _singleton
+
+
+def reset_broadcaster_for_tests() -> None:
+    """Test-only: clear the singleton so init_broadcaster can be called again."""
+    global _singleton
+    _singleton = None
