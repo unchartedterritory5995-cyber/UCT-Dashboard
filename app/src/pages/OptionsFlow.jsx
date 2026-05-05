@@ -1332,6 +1332,7 @@ export default function OptionsFlowDashboard() {
   // ─── Watchlist State ─────────────────────────────────────────────────
   const [wlBull, setWlBull] = useState([]);
   const [wlBear, setWlBear] = useState([]);
+  const [wlDteFilter, setWlDteFilter] = useState("All");
   const [wlDate, setWlDate] = useState(new Date().toISOString().slice(0,10));
   const [wlDates, setWlDates] = useState([]);
   const [wlEditing, setWlEditing] = useState(null);
@@ -4831,17 +4832,57 @@ export default function OptionsFlowDashboard() {
                 </div>
               </div>
             </Card>
+            {/* DTE Filter */}
+            <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+              {[
+                {k:"All", label:"All"},
+                {k:"ST", label:"0–59d"},
+                {k:"LT", label:"60–179d"},
+                {k:"LEAPS", label:"180+d"},
+              ].map(d => {
+                const active = wlDteFilter===d.k;
+                return (
+                  <button key={d.k} onClick={()=>setWlDteFilter(d.k)} style={{
+                    padding:"4px 12px", borderRadius:16, border:"1.5px solid "+(active?P.ac:P.bd),
+                    cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+                    background:active?P.ac+"22":"transparent", color:active?P.ac:P.mt,
+                    transition:"all 0.15s"
+                  }}>{d.label}</button>
+                );
+              })}
+            </div>
             {/* Two-column layout */}
+            {(()=>{
+              // Compute DTE and filter
+              const getDTE = (item) => {
+                if (!item.exp) return -1;
+                const parts = item.exp.split("/").map(Number);
+                if (parts.length < 2) return -1;
+                const y = parts.length >= 3 ? (parts[2] < 100 ? parts[2]+2000 : parts[2]) : new Date().getFullYear();
+                const expDate = new Date(y, parts[0]-1, parts[1]);
+                return Math.max(0, Math.round((expDate - new Date()) / 86400000));
+              };
+              const dteOk = (item) => {
+                if (wlDteFilter === "All") return true;
+                const dte = getDTE(item);
+                if (dte < 0) return true;
+                if (wlDteFilter === "ST") return dte < 60;
+                if (wlDteFilter === "LT") return dte >= 60 && dte < 180;
+                return dte >= 180;
+              };
+              const filtBull = wlBull.filter(dteOk);
+              const filtBear = wlBear.filter(dteOk);
+              return (
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               {/* Bull */}
               <Card>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                   <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
-                  <span style={{ fontSize:9, color:P.dm }}>{wlBull.length} tickers</span>
+                  <span style={{ fontSize:9, color:P.dm }}>{filtBull.length} tickers</span>
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                  {wlBull.length>0 ? wlBull.map((_,i)=>i).sort((a,b)=>(wlBull[b].score||0)-(wlBull[a].score||0)).map(i=>renderItem(wlBull[i],i,"bull")) : (
-                    <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>No bull picks. Click "Auto-Fill from Scanner" to populate.</div>
+                  {filtBull.length>0 ? filtBull.map((_,i)=>i).sort((a,b)=>(filtBull[b].score||0)-(filtBull[a].score||0)).map(i=>renderItem(filtBull[i], wlBull.indexOf(filtBull[i]),"bull")) : (
+                    <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBull.length>0?"No bull picks in this DTE range.":"No bull picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                   )}
                   <div style={{ display:"flex", gap:4, marginTop:4 }}>
                     <input value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
@@ -4857,11 +4898,11 @@ export default function OptionsFlowDashboard() {
               <Card>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                   <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
-                  <span style={{ fontSize:9, color:P.dm }}>{wlBear.length} tickers</span>
+                  <span style={{ fontSize:9, color:P.dm }}>{filtBear.length} tickers</span>
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                  {wlBear.length>0 ? wlBear.map((_,i)=>i).sort((a,b)=>(wlBear[b].score||0)-(wlBear[a].score||0)).map(i=>renderItem(wlBear[i],i,"bear")) : (
-                    <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>No bear picks. Click "Auto-Fill from Scanner" to populate.</div>
+                  {filtBear.length>0 ? filtBear.map((_,i)=>i).sort((a,b)=>(filtBear[b].score||0)-(filtBear[a].score||0)).map(i=>renderItem(filtBear[i], wlBear.indexOf(filtBear[i]),"bear")) : (
+                    <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBear.length>0?"No bear picks in this DTE range.":"No bear picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                   )}
                   <div style={{ display:"flex", gap:4, marginTop:4 }}>
                     <input value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
@@ -4874,6 +4915,8 @@ export default function OptionsFlowDashboard() {
                 </div>
               </Card>
             </div>
+              );
+            })()}
             {/* Scanner Suggestions — overflow picks not yet on watchlist */}
             {FD && FD.CONV && (() => {
               const existingSyms = new Set([...wlBull.map(i=>i.sym+"|"+i.exp+"|"+i.strike), ...wlBear.map(i=>i.sym+"|"+i.exp+"|"+i.strike)]);
