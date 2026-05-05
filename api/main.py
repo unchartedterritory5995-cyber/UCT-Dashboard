@@ -1,9 +1,26 @@
 import os
 import json
+import logging
 import threading
 from contextlib import asynccontextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+# Configure logging early — before any service imports — so that INFO messages
+# from api.services.* loggers (bar_stream, realtime_stream, etc.) reach stdout.
+# Default Python root logger is WARNING, which silently drops INFO and we lose
+# operational visibility on background services. force=True overrides any prior
+# config (e.g. an early-import that called basicConfig with defaults).
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    force=True,
+)
+# Quiet down third-party libs that flood INFO with request-level noise.
+for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
+               "websockets.protocol", "asyncio", "uvicorn.access"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
