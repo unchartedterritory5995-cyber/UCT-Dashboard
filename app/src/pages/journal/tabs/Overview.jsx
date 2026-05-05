@@ -53,7 +53,7 @@ export default function Overview({ onSwitchTab, stats: parentStats, onOpenTrade 
   )
 
   const { data: insights } = useSWR(
-    '/api/journal/insights',
+    '/api/journal/insights?limit=12',
     fetcher,
     { refreshInterval: 300000, dedupingInterval: 60000, revalidateOnFocus: false }
   )
@@ -182,21 +182,46 @@ export default function Overview({ onSwitchTab, stats: parentStats, onOpenTrade 
         </div>
       )}
 
-      {/* Insights section */}
+      {/* Insights section — grouped by category */}
       {insights && insights.length > 0 && (
         <div className={styles.insightsSection}>
           <div className={styles.insightsLabel}>Insights</div>
           <div className={styles.insightsList}>
-            {insights.slice(0, 5).map(insight => (
+            {['performance', 'process', 'psychology', 'risk'].map(cat => {
+              const group = insights.filter(ins => ins.category === cat)
+              if (group.length === 0) return null
+              return (
+                <div key={cat}>
+                  <div className={styles.insightGroupHeader}>{cat}</div>
+                  {group.map(insight => (
+                    <InsightCard
+                      key={insight.id}
+                      insight={insight}
+                      onAction={(ins) => {
+                        if (ins.action_type === 'filter') {
+                          if (onSwitchTab) onSwitchTab('log')
+                        } else if (ins.action_type === 'analytics') {
+                          if (onSwitchTab) onSwitchTab('analytics')
+                        } else if (ins.action_type === 'playbooks') {
+                          if (onSwitchTab) onSwitchTab('playbooks')
+                        } else if (ins.action_type === 'review') {
+                          if (onSwitchTab) onSwitchTab('queue')
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              )
+            })}
+            {/* Fallback: insights with no category (backwards compat) */}
+            {insights.filter(ins => !ins.category).map(insight => (
               <InsightCard
                 key={insight.id}
                 insight={insight}
                 onAction={(ins) => {
                   if (ins.action_type === 'filter') {
-                    // Navigate to Trade Log for exploration
                     if (onSwitchTab) onSwitchTab('log')
                   } else if (ins.action_type === 'analytics') {
-                    // Navigate to Analytics tab
                     if (onSwitchTab) onSwitchTab('analytics')
                   } else if (ins.action_type === 'playbooks') {
                     if (onSwitchTab) onSwitchTab('playbooks')
