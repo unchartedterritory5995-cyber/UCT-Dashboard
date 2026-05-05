@@ -832,9 +832,9 @@ function processFlowData(rows) {
     // Build cluster metadata from ALL filtered trades (need bid-side presence for DTE≤3 rule)
     filtered.forEach(t => {
       const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
-      if (!clusterDirs[k]) clusterDirs[k] = { dirs: new Set(), askTimes:[], askIVs:[], bidTimes:[], bidIVs:[], bbSweepTimes:[], hasBidSide:false, hasAskSide:false, hasSweep:false, dte:t.DTE };
-      if (t.Si === "B" || t.Si === "BB") { clusterDirs[k].hasBidSide = true; clusterDirs[k].bidTimes.push(t._idx); if (t.IV > 0) clusterDirs[k].bidIVs.push(t.IV); }
-      if (t.Si === "A" || t.Si === "AA") { clusterDirs[k].hasAskSide = true; clusterDirs[k].askTimes.push(t._idx); if (t.IV > 0) clusterDirs[k].askIVs.push(t.IV); }
+      if (!clusterDirs[k]) clusterDirs[k] = { dirs: new Set(), askTimes:[], askIVs:[], bidTimes:[], bidIVs:[], bbSweepTimes:[], hasBidSide:false, hasAskSide:false, hasSweep:false, dte:t.DTE, askPrem:0, bidPrem:0 };
+      if (t.Si === "B" || t.Si === "BB") { clusterDirs[k].hasBidSide = true; clusterDirs[k].bidTimes.push(t._idx); clusterDirs[k].bidPrem += t.P; if (t.IV > 0) clusterDirs[k].bidIVs.push(t.IV); }
+      if (t.Si === "A" || t.Si === "AA") { clusterDirs[k].hasAskSide = true; clusterDirs[k].askTimes.push(t._idx); clusterDirs[k].askPrem += t.P; if (t.IV > 0) clusterDirs[k].askIVs.push(t.IV); }
       if (t.Ty === "SWP") clusterDirs[k].hasSweep = true;
       if (!t.D) return; // stop here for non-directional trades
       clusterDirs[k].dirs.add(t.D);
@@ -884,6 +884,11 @@ function processFlowData(rows) {
             const lateBidIV = c.bidIVs.length > 0 ? Math.min(...c.bidIVs) : 0;
             if (peakAskIV > 0 && lateBidIV > 0 && lateBidIV < peakAskIV) return; // IV falling = de-escalation, not dirty
           }
+        }
+        // Exception 4: Premium dominance — if one side is 85%+ of total premium, the minor side is noise
+        const totalSidePrem = c.askPrem + c.bidPrem;
+        if (totalSidePrem > 0) {
+          if (c.askPrem / totalSidePrem >= 0.85 || c.bidPrem / totalSidePrem >= 0.85) return; // dominant side is the signal
         }
         dirtyClusterKeys.add(k);
         return;
