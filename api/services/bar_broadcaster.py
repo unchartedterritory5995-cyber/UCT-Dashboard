@@ -4,6 +4,10 @@ For each (symbol, timeframe) we maintain:
 - An in-progress bar (latest bucket, possibly still being filled by 1-min bars)
 - A set of asyncio Queues, one per connected SSE client subscribed to that pair
 
+Phase 4.5: handles both AM (authoritative 1-min closes) and A (per-second aggregates).
+- AM events replace the partial with authoritative values at minute close (source-of-truth).
+- A events fold into the current partial for sub-second chart flicker between AM closes.
+
 When a fresh 1-min bar arrives:
 - Emit it to (sym, "1") subscribers as-is
 - For tf in (5, 15, 30): aggregate into the (sym, tf) in-progress bar and emit the
@@ -32,7 +36,11 @@ class BarBroadcaster:
     def __init__(self,
                  on_first_subscribe: Optional[Callable[[str], None]] = None,
                  on_last_unsubscribe: Optional[Callable[[str], None]] = None):
-        self._partials: dict[tuple[str, str], dict] = {}     # (sym, tf) -> in-progress bar
+        self._partials: dict[tuple[str, str], dict] = {}     # (sym, tf) -> in-progress bar (may include A events)
+        # Phase 4.5: AM-only baseline partials, used to reset _partials when AM fires.
+        # Tracks only AM-aggregated OHLCV so that AM-close correctly discards A-event
+        # accumulation without corrupting multi-AM-bar-in-bucket volume.
+        self._am_partials: dict[tuple[str, str], dict] = {}  # (sym, tf) -> AM-only partial
         # C1: store (queue, loop) tuples so _emit can use call_soon_threadsafe
         self._subscribers: dict[tuple[str, str], set[tuple[asyncio.Queue, asyncio.AbstractEventLoop]]] = {}
         self._lock = threading.Lock()
@@ -77,6 +85,7 @@ class BarBroadcaster:
             with self._lock:
                 for tf_to_clear in ("1",) + ROLLUP_TFS:
                     self._partials.pop((sym, tf_to_clear), None)
+                    self._am_partials.pop((sym, tf_to_clear), None)
             try:
                 self._on_last_unsubscribe(sym)
             except Exception as e:
@@ -87,8 +96,24 @@ class BarBroadcaster:
 
     # ── Inbound from bar_stream ──
 
-    def push_minute_bar(self, sym: str, bar: dict) -> None:
-        """Called from bar_stream's on_bar callback (background asyncio loop)."""
+    def push_aggregate(self, sym: str, bar: dict, kind: str) -> None:
+        """Called from bar_stream's on_bar callback (background asyncio loop).
+
+        `kind` is "AM" (authoritative 1-min close) or "A" (per-second aggregate, Phase 4.5).
+
+        Two-track design (Phase 4.5):
+        - _am_partials tracks the AM-authoritative bucket state — only AM events update it.
+          Consecutive AM bars within the same bucket aggregate normally (correct multi-minute
+          OHLCV). This track is never contaminated by A events.
+        - _partials is the broadcast partial that includes A-event sub-second flicker on top.
+          When AM fires for a minute, _partials is reset to the AM baseline (_am_partials),
+          discarding any A-event accumulation for that minute. This prevents double-counting:
+          A events had already approximated the minute's volume; AM delivers the authoritative
+          value, so we REPLACE the A-accumulated slice with AM's value, not add on top.
+        - A events fold into _partials only (not _am_partials) for sub-second chart flicker.
+
+        The stale-bar guard (C2) applies to both kinds — out-of-order events are dropped.
+        """
         sym = sym.upper()
         # 1-min: pass-through
         self._emit(sym, "1", bar)
@@ -98,17 +123,43 @@ class BarBroadcaster:
             key = (sym, tf)
             with self._lock:
                 prev = self._partials.get(key)
-                # C2: drop stale/out-of-order bars for rollup tfs to prevent bucket overwrite
+                # C2: drop stale/out-of-order bars to prevent bucket overwrite
                 if prev is not None and bar["t"] < prev["t"]:
                     continue
-                if prev is None or prev["t"] != new_start:
-                    # New bucket: replace partial with first-bar-of-bucket
-                    next_partial = aggregate(None, {**bar, "t": new_start})
+                if kind == "AM":
+                    # Update the AM-only baseline: aggregate AM bars normally within a bucket.
+                    # This correctly accumulates multi-minute AM data (open from first bar,
+                    # extended h/l, close from latest, summed volume — one AM bar per minute).
+                    am_prev = self._am_partials.get(key)
+                    if am_prev is None or am_prev["t"] != new_start:
+                        # New bucket or first AM event: start the AM baseline fresh
+                        next_am = aggregate(None, {**bar, "t": new_start})
+                    else:
+                        # Same bucket: fold this AM minute into the AM baseline
+                        next_am = aggregate(am_prev, bar)
+                    self._am_partials[key] = next_am
+                    # Reset _partials to the AM baseline, discarding any A-event accumulation
+                    # for the bucket so far. This is the authoritative source-of-truth reset.
+                    next_partial = dict(next_am)
                 else:
-                    next_partial = aggregate(prev, bar)
+                    # A event: fold into the current broadcast partial for sub-second flicker
+                    if prev is None or prev["t"] != new_start:
+                        # New bucket (no AM baseline yet for this bucket): start fresh
+                        next_partial = aggregate(None, {**bar, "t": new_start})
+                    else:
+                        # Same bucket: fold this second into the existing partial
+                        next_partial = aggregate(prev, bar)
                 self._partials[key] = next_partial
                 emit_bar = dict(next_partial)
             self._emit(sym, tf, emit_bar)
+
+    def push_minute_bar(self, sym: str, bar: dict) -> None:
+        """Backward-compat alias — delegates to push_aggregate with kind="AM".
+
+        Kept so existing callers (stream_bars_test.py E2E test, etc.) continue to
+        work without modification. New code should call push_aggregate directly.
+        """
+        self.push_aggregate(sym, bar, "AM")
 
     # ── Internal: dispatch to subscriber queues ──
 

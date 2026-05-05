@@ -284,8 +284,8 @@ async def lifespan(app: FastAPI):
             on_first_subscribe=bar_stream.subscribe_symbols_one,
             on_last_unsubscribe=bar_stream.unsubscribe_symbols_one,
         )
-        bar_stream.start_stream(on_bar=bb.push_minute_bar)
-        print("[startup] Bar stream thread started (Massive WS → BarBroadcaster)")
+        bar_stream.start_stream(on_bar=bb.push_aggregate)
+        print("[startup] Bar stream thread started (Massive WS → BarBroadcaster, AM+A channels)")
 
     def _build_deep_cache():
         if os.environ.get("DEEP_CACHE_ENABLED", "0") != "1":

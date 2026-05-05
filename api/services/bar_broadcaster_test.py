@@ -139,3 +139,78 @@ async def test_push_minute_bar_drops_stale_out_of_order_bar_for_rollup_tfs(bb):
     msg = await asyncio.wait_for(q5.get(), timeout=0.1)
     assert msg["bar"]["o"] == 100.0   # open from bar1, NOT from stale (would be 50.0)
     assert msg["bar"]["v"] == 1750    # bar1 + bar2, stale's 99999 NOT included
+
+
+# ── Phase 4.5: A-event (per-second aggregate) tests ─────────────────────────
+
+@pytest.mark.asyncio
+async def test_push_aggregate_A_event_updates_partial_without_finalizing(bb):
+    """Phase 4.5: pushing an A event updates the partial bucket and emits to subscribers."""
+    q1 = bb.subscribe("AAPL", "1")
+    q5 = bb.subscribe("AAPL", "5")
+
+    # 14:30:01 — first second of the 14:30 bucket (bucket_start = 14:30:00 = 1746468600000)
+    a_bar = {"t": 1746468601000, "o": 150.10, "h": 150.55, "l": 149.95, "c": 150.40, "v": 100}
+    bb.push_aggregate("AAPL", a_bar, "A")
+
+    # Must emit to tf=1 subscriber
+    msg1 = await asyncio.wait_for(q1.get(), timeout=0.1)
+    assert msg1["sym"] == "AAPL"
+    assert msg1["tf"] == "1"
+    assert msg1["bar"]["v"] == 100
+
+    # Must emit a partial to tf=5 subscriber
+    msg5 = await asyncio.wait_for(q5.get(), timeout=0.1)
+    assert msg5["tf"] == "5"
+    assert msg5["bar"]["t"] == 1746468600000  # bucket start, NOT the per-second t
+    assert msg5["bar"]["v"] == 100
+
+
+@pytest.mark.asyncio
+async def test_push_aggregate_A_events_fold_into_partial(bb):
+    """Phase 4.5: multiple A events in the same bucket accumulate OHLCV correctly."""
+    q5 = bb.subscribe("AAPL", "5")
+
+    # Three successive seconds in the 14:30 bucket
+    bb.push_aggregate("AAPL", {"t": 1746468601000, "o": 100.0, "h": 101.0, "l": 99.5, "c": 100.5, "v": 200}, "A")
+    await asyncio.wait_for(q5.get(), timeout=0.1)  # drain first partial
+
+    bb.push_aggregate("AAPL", {"t": 1746468602000, "o": 100.5, "h": 102.0, "l": 100.2, "c": 101.8, "v": 150}, "A")
+    msg2 = await asyncio.wait_for(q5.get(), timeout=0.1)
+    assert msg2["bar"]["h"] == 102.0   # extended high
+    assert msg2["bar"]["l"] == 99.5    # kept low from first
+    assert msg2["bar"]["c"] == 101.8   # close from latest second
+    assert msg2["bar"]["v"] == 350     # summed volume
+
+    bb.push_aggregate("AAPL", {"t": 1746468603000, "o": 101.8, "h": 101.9, "l": 101.5, "c": 101.6, "v": 80}, "A")
+    msg3 = await asyncio.wait_for(q5.get(), timeout=0.1)
+    assert msg3["bar"]["v"] == 430     # three seconds summed
+    assert msg3["bar"]["o"] == 100.0   # open still from first A event
+
+
+@pytest.mark.asyncio
+async def test_push_aggregate_AM_overwrites_partial_built_from_A_events(bb):
+    """Phase 4.5 critical race: AM arriving after A events replaces partial, no double-count."""
+    q5 = bb.subscribe("AAPL", "5")
+
+    # Push 3 A events into the 14:30 bucket (total A-volume = 450)
+    bb.push_aggregate("AAPL", {"t": 1746468601000, "o": 100.0, "h": 101.0, "l": 99.5, "c": 100.5, "v": 200}, "A")
+    bb.push_aggregate("AAPL", {"t": 1746468602000, "o": 100.5, "h": 102.0, "l": 100.2, "c": 101.8, "v": 150}, "A")
+    bb.push_aggregate("AAPL", {"t": 1746468603000, "o": 101.8, "h": 101.9, "l": 101.5, "c": 101.6, "v": 100}, "A")
+    # drain the 3 A-event partials
+    for _ in range(3):
+        await asyncio.wait_for(q5.get(), timeout=0.1)
+
+    # AM event arrives at minute close — authoritative volume for the full minute = 1000
+    # (not the 450 we already summed from A events)
+    am_bar = {"t": 1746468600000, "o": 100.0, "h": 102.5, "l": 99.0, "c": 101.6, "v": 1000}
+    bb.push_aggregate("AAPL", am_bar, "AM")
+    msg_am = await asyncio.wait_for(q5.get(), timeout=0.1)
+
+    # AM must overwrite: volume = 1000 (authoritative), NOT 450+1000=1450 (double-counted)
+    assert msg_am["bar"]["v"] == 1000, (
+        f"AM must replace A-partial; expected v=1000, got v={msg_am['bar']['v']}"
+    )
+    assert msg_am["bar"]["h"] == 102.5   # AM's authoritative high
+    assert msg_am["bar"]["l"] == 99.0    # AM's authoritative low
+    assert msg_am["bar"]["o"] == 100.0   # AM's authoritative open

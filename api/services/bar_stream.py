@@ -1,9 +1,14 @@
 """Real-time bar streaming via Massive WebSocket.
 
 Connects to wss://socket.massive.com/stocks (Polygon-protocol-compatible),
-authenticates with MASSIVE_API_KEY, subscribes to AM.<sym> channels for
-the lazy-managed active set, and forwards parsed 1-min bars to a callback
-(usually BarBroadcaster.push_minute_bar).
+authenticates with MASSIVE_API_KEY, subscribes to AM.<sym> and A.<sym> channels
+for the lazy-managed active set, and forwards parsed aggregate bars to a callback
+(usually BarBroadcaster.push_aggregate).
+
+Phase 4.5: subscribes to both AM.* (authoritative 1-min closes) and A.* (per-second
+aggregates) so the chart's developing candle updates sub-second instead of once per
+minute. The callback receives a third `kind` arg ("AM" or "A") so the broadcaster
+can treat them differently.
 
 Lifecycle:
 - start_stream(on_bar) launches a daemon thread running an asyncio event loop
@@ -35,16 +40,25 @@ _ws_loop: Optional[asyncio.AbstractEventLoop] = None
 _ws_connection = None
 _running = False
 
-OnBarCallback = Callable[[str, dict], None]  # (symbol, bar_dict) -> None
+OnBarCallback = Callable[[str, dict, str], None]  # (symbol, bar_dict, kind) -> None
+# kind is "AM" (authoritative 1-min close) or "A" (per-second aggregate, Phase 4.5)
+
+_AGGREGATE_EVENT_TYPES = frozenset({"AM", "A"})
 
 
-def parse_am_event(raw: dict) -> Optional[dict]:
-    """Validate + normalize a Massive AM event into {sym, bar} or return None.
+def parse_aggregate_event(raw: dict) -> Optional[dict]:
+    """Validate + normalize a Massive AM or A event into {sym, bar, kind} or return None.
 
-    Returns None for non-AM events (status, T, Q, etc.) and AM events missing
+    Returns None for non-aggregate events (status, T, Q, etc.) and events missing
     required OHLCV fields. Caller should treat None as "skip silently".
+
+    `kind` is "AM" for authoritative 1-min closes or "A" for per-second aggregates.
+    Phase 4.5: accepts both ev=AM and ev=A (same field layout; s=start-of-aggregate ms).
     """
-    if not isinstance(raw, dict) or raw.get("ev") != "AM":
+    if not isinstance(raw, dict):
+        return None
+    ev = raw.get("ev")
+    if ev not in _AGGREGATE_EVENT_TYPES:
         return None
     sym = raw.get("sym")
     if not sym:
@@ -62,7 +76,20 @@ def parse_am_event(raw: dict) -> Optional[dict]:
             "c": raw["c"],
             "v": raw["v"],
         },
+        "kind": ev,  # "AM" or "A"
     }
+
+
+def parse_am_event(raw: dict) -> Optional[dict]:
+    """Backward-compat wrapper around parse_aggregate_event for AM events only.
+
+    Returns {sym, bar} (without the `kind` key) to preserve the original signature
+    used by existing tests. New code should call parse_aggregate_event directly.
+    """
+    result = parse_aggregate_event(raw)
+    if result is None or result["kind"] != "AM":
+        return None
+    return {"sym": result["sym"], "bar": result["bar"]}
 
 
 class BarStreamClient:
@@ -89,13 +116,27 @@ class BarStreamClient:
 
 
 def _build_subscribe_message(syms: Iterable[str]) -> str:
-    """Polygon-compatible subscribe message: AM.AAPL,AM.MSFT comma-joined."""
-    params = ",".join(f"AM.{s}" for s in sorted(syms))
+    """Polygon-compatible subscribe message: subscribes to both AM.* and A.* for each symbol.
+
+    Phase 4.5: includes A.<sym> alongside AM.<sym> so we receive per-second aggregates
+    for sub-second chart flicker in addition to the authoritative 1-min closes.
+    Example: AM.AAPL,A.AAPL,AM.MSFT,A.MSFT
+    """
+    parts = []
+    for s in sorted(syms):
+        parts.append(f"AM.{s}")
+        parts.append(f"A.{s}")
+    params = ",".join(parts)
     return json.dumps({"action": "subscribe", "params": params})
 
 
 def _build_unsubscribe_message(syms: Iterable[str]) -> str:
-    params = ",".join(f"AM.{s}" for s in sorted(syms))
+    """Unsubscribe from both AM.* and A.* for each symbol (Phase 4.5)."""
+    parts = []
+    for s in sorted(syms):
+        parts.append(f"AM.{s}")
+        parts.append(f"A.{s}")
+    params = ",".join(parts)
     return json.dumps({"action": "unsubscribe", "params": params})
 
 
@@ -180,14 +221,14 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                         # Massive frames messages as a JSON array of events
                         events = payload if isinstance(payload, list) else [payload]
                         for ev in events:
-                            parsed = parse_am_event(ev)
+                            parsed = parse_aggregate_event(ev)
                             if parsed is None:
                                 # Log status events at info level for ops visibility
                                 if isinstance(ev, dict) and ev.get("ev") == "status":
                                     _logger.info("[bar_stream] status: %s", ev.get("status"))
                                 continue
                             try:
-                                on_bar(parsed["sym"], parsed["bar"])
+                                on_bar(parsed["sym"], parsed["bar"], parsed["kind"])
                             except Exception as cb_err:
                                 _logger.warning("[bar_stream] on_bar callback error: %s", cb_err)
                 finally:

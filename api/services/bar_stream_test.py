@@ -1,9 +1,15 @@
 """Unit tests for bar_stream parsing and subscription queue."""
 import asyncio
+import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from api.services.bar_stream import parse_am_event, BarStreamClient
+from api.services.bar_stream import (
+    parse_am_event,
+    parse_aggregate_event,
+    _build_subscribe_message,
+    BarStreamClient,
+)
 
 
 def test_parse_am_event_extracts_ohlcv_and_symbol():
@@ -111,6 +117,57 @@ async def test_run_websocket_auth_failure_triggers_hard_backoff(monkeypatch):
     with patch.dict("sys.modules", {"websockets": fake_websockets}), \
          patch("api.services.bar_stream.asyncio.sleep", fake_sleep):
         with pytest.raises(asyncio.CancelledError):
-            await bar_stream._run_websocket(on_bar=lambda s, b: None)
+            await bar_stream._run_websocket(on_bar=lambda s, b, k: None)
 
     assert 60 in sleep_calls, f"Expected 60s hard backoff, got sleeps: {sleep_calls}"
+
+
+# ── Phase 4.5: parse_aggregate_event + subscribe channel tests ───────────────
+
+def test_parse_aggregate_event_returns_kind_AM_for_AM_events():
+    raw = {
+        "ev": "AM", "sym": "AAPL",
+        "o": 150.10, "h": 150.55, "l": 149.95, "c": 150.40,
+        "v": 12500, "s": 1746468600000, "e": 1746468660000,
+    }
+    out = parse_aggregate_event(raw)
+    assert out is not None
+    assert out["kind"] == "AM"
+    assert out["sym"] == "AAPL"
+    assert out["bar"]["t"] == 1746468600000
+    assert out["bar"]["o"] == 150.10
+    assert out["bar"]["v"] == 12500
+
+
+def test_parse_aggregate_event_returns_kind_A_for_A_events():
+    raw = {
+        "ev": "A", "sym": "AAPL",
+        "o": 150.10, "h": 150.55, "l": 149.95, "c": 150.40,
+        "v": 100, "s": 1746468601000, "e": 1746468602000,
+    }
+    out = parse_aggregate_event(raw)
+    assert out is not None
+    assert out["kind"] == "A"
+    assert out["sym"] == "AAPL"
+    assert out["bar"]["t"] == 1746468601000
+    assert out["bar"]["v"] == 100
+
+
+def test_parse_aggregate_event_rejects_non_aggregate_events():
+    assert parse_aggregate_event({"ev": "status", "status": "auth_success"}) is None
+    assert parse_aggregate_event({"ev": "T", "sym": "AAPL", "p": 150.0}) is None
+    assert parse_aggregate_event({"ev": "Q", "sym": "AAPL"}) is None
+    assert parse_aggregate_event({}) is None
+    assert parse_aggregate_event(None) is None  # type: ignore[arg-type]
+
+
+def test_subscribe_message_includes_both_AM_and_A_channels():
+    msg = _build_subscribe_message(["AAPL", "MSFT"])
+    payload = json.loads(msg)
+    assert payload["action"] == "subscribe"
+    params = payload["params"]
+    # Both AM and A channels must be present for each symbol
+    assert "AM.AAPL" in params
+    assert "A.AAPL" in params
+    assert "AM.MSFT" in params
+    assert "A.MSFT" in params
