@@ -1,5 +1,7 @@
 """Unit tests for bar_stream parsing and subscription queue."""
+import asyncio
 import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from api.services.bar_stream import parse_am_event, BarStreamClient
 
@@ -76,3 +78,39 @@ def test_queue_unsubscribe_then_resubscribe_cancels_unsub():
     assert "AAPL" in c.active
     assert c.pending_unsubscribe == set()    # canceled
     assert c.pending_subscribe == {"AAPL"}    # re-queued
+
+
+@pytest.mark.asyncio
+async def test_run_websocket_auth_failure_triggers_hard_backoff(monkeypatch):
+    """Auth-fail must NOT reconnect immediately — 60s hard backoff prevents DOS."""
+    from api.services import bar_stream
+
+    monkeypatch.setattr(bar_stream, "_API_KEY", "fake-key")
+
+    # ws mock: recv returns auth_failed frame
+    ws_mock = AsyncMock()
+    ws_mock.send = AsyncMock()
+    ws_mock.recv = AsyncMock(return_value='[{"ev":"status","status":"auth_failed","message":"bad key"}]')
+
+    # async context manager wrapping ws_mock
+    cm = MagicMock()
+    cm.__aenter__ = AsyncMock(return_value=ws_mock)
+    cm.__aexit__ = AsyncMock(return_value=False)
+
+    fake_websockets = MagicMock()
+    fake_websockets.connect = MagicMock(return_value=cm)
+
+    sleep_calls = []
+
+    async def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+        if 60 in sleep_calls:
+            # Hard backoff observed — break the infinite reconnect loop
+            raise asyncio.CancelledError()
+
+    with patch.dict("sys.modules", {"websockets": fake_websockets}), \
+         patch("api.services.bar_stream.asyncio.sleep", fake_sleep):
+        with pytest.raises(asyncio.CancelledError):
+            await bar_stream._run_websocket(on_bar=lambda s, b: None)
+
+    assert 60 in sleep_calls, f"Expected 60s hard backoff, got sleeps: {sleep_calls}"

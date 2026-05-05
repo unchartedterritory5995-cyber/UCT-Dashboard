@@ -119,10 +119,44 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
             async with websockets.connect(_WS_URL, ping_interval=30, ping_timeout=10) as ws:
                 _ws_connection = ws
 
-                # Auth handshake
+                # Auth handshake — block on auth_success before proceeding
                 await ws.send(_build_auth_message(_API_KEY))
-                # Massive sends a status frame back; we don't block on it but we do
-                # log it for ops visibility.
+                try:
+                    auth_resp_raw = await asyncio.wait_for(ws.recv(), timeout=5.0)
+                    auth_resp = json.loads(auth_resp_raw)
+                    events = auth_resp if isinstance(auth_resp, list) else [auth_resp]
+                    auth_ok = any(
+                        isinstance(ev, dict) and ev.get("ev") == "status" and ev.get("status") == "auth_success"
+                        for ev in events
+                    )
+                    if not auth_ok:
+                        msg = next((ev for ev in events if isinstance(ev, dict) and ev.get("ev") == "status"), {})
+                        status_str = msg.get("status", "unknown")
+                        if status_str == "connected":
+                            # Massive often sends 'connected' before 'auth_success' — read one more frame.
+                            auth_resp2_raw = await asyncio.wait_for(ws.recv(), timeout=5.0)
+                            auth_resp2 = json.loads(auth_resp2_raw)
+                            events2 = auth_resp2 if isinstance(auth_resp2, list) else [auth_resp2]
+                            auth_ok = any(
+                                isinstance(ev, dict) and ev.get("ev") == "status" and ev.get("status") == "auth_success"
+                                for ev in events2
+                            )
+                            if not auth_ok:
+                                status_str = next(
+                                    (ev.get("status", "unknown") for ev in events2 if isinstance(ev, dict) and ev.get("ev") == "status"),
+                                    "unknown",
+                                )
+                                raise RuntimeError(f"Auth rejected after 'connected' frame: status={status_str!r}")
+                        else:
+                            raise RuntimeError(f"Auth rejected: status={status_str!r}")
+                    _logger.info("[bar_stream] auth_success")
+                except (asyncio.TimeoutError, json.JSONDecodeError, RuntimeError) as auth_err:
+                    _logger.error("[bar_stream] auth handshake failed: %s — backing off 60s", auth_err)
+                    _running = False
+                    _ws_connection = None
+                    await asyncio.sleep(60)
+                    continue  # back to outer while True; async with closes ws cleanly
+
                 # Resubscribe whatever was active before the disconnect.
                 with _state_lock:
                     syms_to_resubscribe = sorted(_active)
@@ -157,6 +191,7 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                             except Exception as cb_err:
                                 _logger.warning("[bar_stream] on_bar callback error: %s", cb_err)
                 finally:
+                    _running = False
                     drain_task.cancel()
         except Exception as e:
             _logger.warning("[bar_stream] disconnected: %s — reconnect in %ds", e, backoff)
@@ -184,14 +219,16 @@ async def _drain_pending_queue(ws) -> None:
             except Exception as e:
                 _logger.warning("[bar_stream] subscribe flush failed: %s", e)
                 with _state_lock:
-                    _pending_subscribe |= set(sub)  # re-queue
+                    _pending_subscribe |= (set(sub) & _active)  # Fix 4: only re-queue symbols still wanted
+                return  # Fix 3: stop retrying on dead ws; reconnect loop starts fresh drain task
         if unsub:
             try:
                 await ws.send(_build_unsubscribe_message(unsub))
             except Exception as e:
                 _logger.warning("[bar_stream] unsubscribe flush failed: %s", e)
                 with _state_lock:
-                    _pending_unsubscribe |= set(unsub)
+                    _pending_unsubscribe |= (set(unsub) - _active)  # Fix 4: only re-queue symbols still unwanted
+                return  # Fix 3: stop retrying on dead ws; reconnect loop starts fresh drain task
 
 
 def subscribe_symbols(symbols: Iterable[str]) -> None:
@@ -233,6 +270,9 @@ def get_status() -> dict:
 def start_stream(on_bar: OnBarCallback) -> None:
     """Launch the WS thread. Safe to call once per process."""
     global _ws_loop
+    if _ws_loop is not None:
+        _logger.warning("[bar_stream] start_stream called twice — ignoring duplicate call")
+        return
 
     def _thread_target():
         global _ws_loop
