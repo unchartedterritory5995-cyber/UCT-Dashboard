@@ -283,3 +283,13 @@ def start_stream(on_bar: OnBarCallback) -> None:
 
     threading.Thread(target=_thread_target, daemon=True, name="bar-stream").start()
     _logger.info("[bar_stream] thread started")
+
+
+def subscribe_symbols_one(symbol: str) -> None:
+    """Single-symbol convenience used by BarBroadcaster.on_first_subscribe."""
+    subscribe_symbols([symbol])
+
+
+def unsubscribe_symbols_one(symbol: str) -> None:
+    """Single-symbol convenience used by BarBroadcaster.on_last_unsubscribe."""
+    unsubscribe_symbols([symbol])

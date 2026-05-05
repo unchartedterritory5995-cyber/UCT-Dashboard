@@ -259,6 +259,17 @@ async def lifespan(app: FastAPI):
         threading.Thread(target=_s3_pull_loop, daemon=True, name="s3_pull").start()
         print(f"[startup] S3 snapshot puller thread started ({data_sync.SNAPSHOT_INTERVAL_SECONDS // 60}-min cadence)")
 
+    # Real-time bar streaming (Phase 4): Massive WS → BarBroadcaster → SSE.
+    # Off by default; flip STREAM_BARS_ENABLED=1 to enable.
+    if os.environ.get("STREAM_BARS_ENABLED") == "1":
+        from api.services import bar_stream, bar_broadcaster
+        bb = bar_broadcaster.init_broadcaster(
+            on_first_subscribe=bar_stream.subscribe_symbols_one,
+            on_last_unsubscribe=bar_stream.unsubscribe_symbols_one,
+        )
+        bar_stream.start_stream(on_bar=bb.push_minute_bar)
+        print("[startup] Bar stream thread started (Massive WS → BarBroadcaster)")
+
     def _build_deep_cache():
         if os.environ.get("DEEP_CACHE_ENABLED", "0") != "1":
             print("[deep-cache] Skipped (set DEEP_CACHE_ENABLED=1 to enable).")
