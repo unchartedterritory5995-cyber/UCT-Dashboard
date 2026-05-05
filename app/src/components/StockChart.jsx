@@ -975,8 +975,12 @@ export default function StockChart({
 
   const onRealtimeReconnect = useCallback((lastBarT) => {
     // Gap-backfill on reconnect — uses the existing `since` param of /api/bars.
+    // `since` filters with strict > (see _get_bars_since_response). Subtract 1ms
+    // so the bar at lastBarT is INCLUDED — covers the case where a bar updated
+    // during the disconnect window and we need its authoritative server value.
     if (lastBarT == null || !sym) return
-    fetch(`/api/bars/${encodeURIComponent(sym)}?tf=${encodeURIComponent(resolvedTf)}&since=${lastBarT}`)
+    const sinceMs = Math.max(0, lastBarT - 1)
+    fetch(`/api/bars/${encodeURIComponent(sym)}?tf=${encodeURIComponent(resolvedTf)}&since=${sinceMs}`)
       .then(r => r.ok ? r.json() : null)
       .then(payload => {
         if (!payload?.bars?.length) return

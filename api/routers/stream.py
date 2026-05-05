@@ -5,6 +5,7 @@ Fans out WebSocket price data from Massive/Polygon to browser clients.
 
 import asyncio
 import json
+import logging
 import os
 import time
 
@@ -14,6 +15,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from api.services.realtime_stream import (
     get_realtime_prices, subscribe_tickers, unsubscribe_tickers, get_stream_status
 )
+
+_logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -118,10 +121,10 @@ async def stream_bars(
     from api.services.bar_broadcaster import get_broadcaster
     bb = get_broadcaster()
     queues = [(sym, tf, bb.subscribe(sym, tf)) for (sym, tf) in pairs]
+    _logger.info("[stream_bars] subscribed %d pairs: %s", len(pairs), pairs[:10])
 
     async def event_generator():
-        import time as _t
-        last_heartbeat = _t.time()
+        last_heartbeat = time.time()
         try:
             while True:
                 if await request.is_disconnected():
@@ -140,12 +143,13 @@ async def stream_bars(
                 if not got_one:
                     await asyncio.sleep(0.05)
 
-                if _t.time() - last_heartbeat > 15:
+                if time.time() - last_heartbeat > 15:
                     yield ": heartbeat\n\n"
-                    last_heartbeat = _t.time()
+                    last_heartbeat = time.time()
         finally:
             for (sym, tf, q) in queues:
                 bb.unsubscribe(sym, tf, q)
+            _logger.info("[stream_bars] disconnected, unsubscribed %d pairs", len(queues))
 
     return StreamingResponse(
         event_generator(),
