@@ -184,7 +184,12 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 "c": round(bar["c"], 2),
                 "v": int(bar.get("v", 0)),
             })
-        return bars[-max_bars:]
+        # Return ALL paginated bars (the entire lookback window), not just
+        # max_bars. The caller stores them in SQLite — limiting here means a
+        # small `bars=10` call would store 10 rows, then a later `bars=200`
+        # request reads those 10 rows from SQLite and never fetches more
+        # history. The caller is responsible for slicing the response.
+        return bars
     except Exception as _e:
         import logging as _log
         _log.getLogger(__name__).error(
@@ -1027,7 +1032,15 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     last_ts     = _sqlite.get_last_ts(ticker_up, tf)
     stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
 
-    if stored_rows and not _needs_fresh(last_ts, tf):
+    # SQLite has fresh data AND enough rows for this request count.
+    # The "len(stored_rows) >= bars * 0.9" check catches the case where SQLite
+    # was previously populated with fewer bars than the user is now asking for
+    # (e.g., a small bars=10 admin call populated SQLite with 10 rows, then a
+    # chart asks for bars=300 — without this check the endpoint would happily
+    # serve 10 rows because they're "fresh", leaving a huge gap on the chart).
+    # Fall through to the stale-while-revalidate path when we have data but
+    # less than requested — bg fetch will populate the missing depth.
+    if stored_rows and not _needs_fresh(last_ts, tf) and len(stored_rows) >= bars * 0.9:
         # SQLite has enough fresh data — serve immediately, no API call.
         payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf)}
         cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
@@ -1174,7 +1187,10 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     # checks last_ts age, not data age.
                     if date_tf or not _is_intraday_stale(raw):
                         _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
-                result_bars = raw
+                # Slice to the requested count for the response. We stored ALL
+                # fetched bars in SQLite above (so future larger requests don't
+                # have to refetch), but the caller only needs `bars` count back.
+                result_bars = raw[-bars:] if raw else []
 
             except Exception as e:
                 import traceback as _tb
