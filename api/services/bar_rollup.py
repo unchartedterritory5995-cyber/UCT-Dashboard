@@ -37,7 +37,15 @@ def aggregate(prev: Optional[dict], bar: dict) -> dict:
 
     `prev` is the in-progress bar for this bucket, or None if this is the first bar.
     `bar` is a single 1-min bar with keys: t (ms), o, h, l, c, v.
-    Returns the new partial bucket bar.
+    Returns a fresh dict (no mutation of `prev` or `bar`, no aliasing).
+
+    CONTRACT: caller MUST verify `bar` belongs to the same bucket as `prev`
+    before calling — this function does NOT validate bucket alignment, and
+    mixing buckets silently produces a corrupted bar (sums volume across
+    bucket boundaries, keeps wrong `t`). The canonical caller is
+    `bar_broadcaster.BarBroadcaster.push_minute_bar`, which uses
+    `bucket_start(bar["t"], tf)` to detect bucket transitions and resets
+    `prev=None` at boundaries.
     """
     if prev is None:
         return {
