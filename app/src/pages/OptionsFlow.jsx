@@ -4687,18 +4687,6 @@ export default function OptionsFlowDashboard() {
                     })()}
                   </div>
                 </div>
-                {/* Tier badge */}
-                <div style={{ width:10, flexShrink:0 }}>
-                  {isEditing ? (
-                    <select value={item.tier} onChange={e=>{update("tier",e.target.value); e.stopPropagation();}}
-                      onClick={e=>e.stopPropagation()}
-                      style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:9, padding:"3px 4px", fontFamily:"inherit", fontWeight:700 }}>
-                      {TIERS.map(t=><option key={t} value={t}>{t}</option>)}
-                    </select>
-                  ) : item.tier && item.tier !== "WATCH" ? (
-                    <span style={{ fontSize:9, fontWeight:800, padding:"2px 8px", borderRadius:4, background:tierC(item.tier)+"22", color:tierC(item.tier), border:"1px solid "+tierC(item.tier)+"44" }}>{item.tier}</span>
-                  ) : null}
-                </div>
                 {/* Strike/Exp */}
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11, fontWeight:700, color:item.cp==="C"?P.bu:P.be }}>
@@ -4733,10 +4721,32 @@ export default function OptionsFlowDashboard() {
                     </div>
                   )}
                 </div>
-                {/* Meta + Remove */}
-                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2, minWidth:50 }}>
+                {/* Meta + P&L + Remove */}
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2, minWidth:80 }}>
                   <Tag c={GRADE_COLORS[item.grade]||P.mt}>{item.grade}</Tag>
                   <span style={{ fontSize:9 }}><span style={{ color:item.hits>=10?P.ac:item.hits>=5?P.ye:P.dm, fontWeight:700 }}>{item.hits}x</span> · <span style={{ color:premC(item.prem), fontWeight:700 }}>{fmt(item.prem)}</span></span>
+                  {(()=>{
+                    const px = getPrice(item.sym, item.cp, item.strike, item.exp);
+                    if (!px) return null;
+                    const now = px.mark || px.last || 0;
+                    if (now <= 0) return null;
+                    // Entry from CONV match
+                    const conv = FD?.CONV?.find(c=>c.sym===item.sym&&c.cp===item.cp&&String(c.K)===String(item.strike)&&c.exp===item.exp);
+                    const entry = conv ? (conv.vol > 0 ? conv.prem / conv.vol / 100 : 0) : 0;
+                    if (entry <= 0) return <span style={{ fontSize:10, fontWeight:800, color:P.wh }}>${now.toFixed(2)}</span>;
+                    const pnl = ((now - entry) / entry) * 100;
+                    const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
+                    return (
+                      <div style={{ textAlign:"right" }}>
+                        <div style={{ fontSize:9, color:P.dm }}>
+                          <span style={{ color:P.ac }}>${entry.toFixed(2)}</span>
+                          <span style={{ marginLeft:3 }}>→</span>
+                          <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${now.toFixed(2)}</span>
+                        </div>
+                        <div style={{ fontSize:11, fontWeight:800, color:pnlC }}>{pnl>=0?"+":""}{pnl.toFixed(1)}%</div>
+                      </div>
+                    );
+                  })()}
                   {isEditing && !isRemoving && (
                     <button onClick={e=>{e.stopPropagation(); setWlRemoving(key); setWlRemoveReason("");}}
                       style={{ fontSize:8, color:P.be, background:"transparent", border:"1px solid "+P.be+"40", borderRadius:3, padding:"1px 6px", cursor:"pointer", fontFamily:"inherit", fontWeight:700, marginTop:2 }}>✕ Remove</button>
