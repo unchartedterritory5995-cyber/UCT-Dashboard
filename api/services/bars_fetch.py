@@ -727,7 +727,7 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
         delta = [b for b in formatted if b["t"] > since_val]
 
     # Invalidate the full cache so the next non-delta request picks up fresh data
-    cache.delete(cache_key) if hasattr(cache, "delete") else None
+    cache.invalidate(cache_key)
 
     return JSONResponse(
         content={"ticker": ticker_up, "tf": tf, "bars": delta, "delta": True},

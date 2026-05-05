@@ -4,11 +4,19 @@ Run with: python -m api.worker_main
 
 This is a separate Railway service from the web app. It runs:
   - The bars pre-warmer (api.services.bars_prewarm.run_prewarmer_forever)
-  - The bars seeder (api.services.bars_seeder.start_background_seeder)
-  - A periodic S3 uploader that snapshots /data and pushes to R2
+  - A periodic R2 uploader that snapshots /data and pushes to R2
 
-Exposes only /internal/health on its HTTP port for Railway's healthcheck.
-Never serves user requests."""
+Exposes /internal/health (worker-native) and /api/health (alias so the
+shared railway.json healthcheckPath works) on its HTTP port. Never serves
+user requests.
+
+Note: the bars seeder (api.services.bars_seeder.start_background_seeder)
+is intentionally NOT started here. It competes with the prewarmer for
+SQLite writes during boot and produces a flood of "database is locked"
+errors. The prewarmer covers the same ticker universe and refreshes
+every 5 min (vs one-shot at boot), so the seeder is redundant in the
+worker context.
+"""
 import os
 import sys
 import threading
@@ -24,6 +32,16 @@ logging.basicConfig(
 )
 log = logging.getLogger("worker")
 
+# Liveness signal for the uploader thread. Updated at the top of every
+# loop iteration regardless of upload outcome — so if this stops moving,
+# the thread is dead even if R2 has been unreachable for a while.
+# Lock-guarded so the health endpoint sees a consistent snapshot.
+_uploader_state = {
+    "last_attempt_at": None,   # int unix seconds, or None before first loop
+    "last_outcome": None,      # "success" | "no_data" | "error" | None
+}
+_uploader_state_lock = threading.Lock()
+
 
 def _start_prewarmer():
     from api.services.bars_prewarm import run_prewarmer_forever
@@ -31,30 +49,36 @@ def _start_prewarmer():
     threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
 
 
-def _start_seeder():
-    try:
-        from api.services.bars_seeder import start_background_seeder
-        log.info("starting bars seeder")
-        start_background_seeder()
-    except Exception as e:
-        log.exception(f"seeder start failed (non-fatal): {e}")
-
-
 def _start_uploader():
-    """Push a snapshot to R2 every 5 minutes."""
+    """Push a snapshot to R2 every SNAPSHOT_INTERVAL_SECONDS."""
     from api.services import data_sync
 
     def loop():
         while True:
+            # Default to "error" so an exception below leaves the right
+            # signal in the health endpoint even if logging fails.
+            outcome = "error"
             try:
-                ts = data_sync.upload_snapshot()
-                if ts:
-                    log.info(f"uploaded snapshot {ts}")
+                # Distinguish misconfiguration from "no data yet" — both
+                # would otherwise return None and look identical in health.
+                if not data_sync.credentials_ok():
+                    outcome = "no_credentials"
+                else:
+                    ts = data_sync.upload_snapshot()
+                    outcome = "success" if ts else "no_data"
+                    if ts:
+                        log.info(f"uploaded snapshot {ts}")
             except Exception as e:
                 log.exception(f"upload error (non-fatal): {e}")
-            time.sleep(300)
+            with _uploader_state_lock:
+                _uploader_state["last_attempt_at"] = int(time.time())
+                _uploader_state["last_outcome"] = outcome
+            time.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)
 
-    log.info("starting S3 uploader thread (5-min cadence)")
+    log.info(
+        f"starting R2 uploader thread "
+        f"({data_sync.SNAPSHOT_INTERVAL_SECONDS // 60}-min cadence)"
+    )
     threading.Thread(target=loop, daemon=True, name="s3_upload").start()
 
 
@@ -62,14 +86,45 @@ def _build_app() -> FastAPI:
     app = FastAPI(title="UCT Worker", docs_url=None, redoc_url=None)
 
     def _health_payload():
-        from api.services.data_sync import get_local_sync_state
-        state = get_local_sync_state()
+        # The worker NEVER pulls (it's the producer), so .last_sync_ts is
+        # always empty here. We expose .last_upload_ts instead so an
+        # operator can confirm uploads are flowing without grepping logs.
+        from api.services.data_sync import (
+            get_local_upload_state,
+            SNAPSHOT_INTERVAL_SECONDS,
+        )
+        upload = get_local_upload_state()
+
+        with _uploader_state_lock:
+            last_attempt_at = _uploader_state["last_attempt_at"]
+            last_outcome = _uploader_state["last_outcome"]
+        seconds_since_attempt = (
+            int(time.time()) - last_attempt_at
+            if last_attempt_at is not None else None
+        )
+        # Compute liveness server-side so callers don't have to know the
+        # threshold. "Alive" means the uploader has attempted recently
+        # (within 2 cadences). Strictly informational — Railway's
+        # healthcheck only checks that this endpoint returns 200.
+        uploader_alive = (
+            seconds_since_attempt is not None
+            and seconds_since_attempt < 2 * SNAPSHOT_INTERVAL_SECONDS
+        )
+
         return {
             "alive": True,
             "service": "worker",
-            "snapshot_ts": state["snapshot_ts"],
-            "synced_at": state["synced_at"],
-            "seconds_since_sync": state["seconds_since_sync"],
+            # Most-recent successful upload (timestamp embedded in tarball
+            # key + latest.txt). None until the first success.
+            "last_upload_ts": upload["snapshot_ts"],
+            "last_upload_at": upload["synced_at"],
+            "seconds_since_last_upload": upload["seconds_since_sync"],
+            # Liveness signal for the uploader thread itself. Stays fresh
+            # even when R2 is unreachable.
+            "uploader_alive": uploader_alive,
+            "uploader_last_attempt_at": last_attempt_at,
+            "uploader_last_outcome": last_outcome,
+            "uploader_seconds_since_attempt": seconds_since_attempt,
         }
 
     # /api/health is exposed so the worker satisfies the shared
@@ -88,7 +143,7 @@ def _build_app() -> FastAPI:
 
 def main():
     log.info("worker boot starting")
-    # Bring up SQLite (needed by both prewarmer and seeder)
+    # Bring up SQLite (needed by the prewarmer)
     try:
         from api.services import bars_sqlite as _bs
         _bs.init_db()
@@ -98,12 +153,6 @@ def main():
         sys.exit(1)
 
     _start_prewarmer()
-    # Seeder disabled in worker: it competes with the prewarmer for SQLite
-    # writes during boot and produces a flood of "database is locked" errors
-    # because both try to fan out concurrent writes to bars.db. The prewarmer
-    # alone covers the same ticker set (and refreshes every 5 min instead of
-    # one-shot at boot), so the seeder is redundant here.
-    # _start_seeder()
     _start_uploader()
 
     port = int(os.environ.get("PORT", "8080"))

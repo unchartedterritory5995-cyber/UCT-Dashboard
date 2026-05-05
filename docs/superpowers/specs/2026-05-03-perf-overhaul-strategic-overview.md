@@ -5,6 +5,11 @@
 **Status:** Strategic overview — awaiting approval before per-spec design docs
 **Companion analyses:** 5 sub-spec deep-dives (Async, Web Worker, Prewarmer Extraction, WebSocket Bars, CDN+ErrorBoundary) summarized below; full text of each available on request.
 
+> **Phase 1 post-incident note (2026-05-04):** the in-process gate on web is
+> `USE_REMOTE_BARS=1`, not `WORKER_ENABLED=1` as written in §4 below.
+> `WORKER_ENABLED` is reserved for `railway.json`'s `startCommand` conditional
+> (worker service only). See `api/main.py:207-215` for the rationale.
+
 ---
 
 ## 1. Goal

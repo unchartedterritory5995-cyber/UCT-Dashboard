@@ -14,8 +14,50 @@ import threading
 _DB_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
 _local = threading.local()
 
+# Connection epoch — bumped whenever /data/bars.db is replaced wholesale
+# (currently: data_sync.download_snapshot when the web pulls a fresh
+# snapshot from R2). Each thread caches its own (conn, epoch) pair in
+# _local; on the first _conn() call after a bump, the cached connection
+# is closed and a fresh one opens against the new inode.
+#
+# Why this exists: shutil.move atomically replaces the bars.db inode but
+# does NOT close existing FDs. On Linux the old inode lingers as an
+# unlinked-but-open file, and any thread holding a connection keeps
+# reading it forever. Without this epoch check, snapshot pulls would
+# silently have ZERO effect on the data the web actually serves.
+_db_epoch = 0
+_db_epoch_lock = threading.Lock()
+
+
+def bump_db_epoch() -> None:
+    """Mark every thread-local SQLite connection as stale.
+
+    Call this immediately after replacing /data/bars.db. Every subsequent
+    _conn() in any thread will close its cached connection and open a
+    fresh one against the current inode."""
+    global _db_epoch
+    with _db_epoch_lock:
+        _db_epoch += 1
+
 
 def _conn() -> sqlite3.Connection:
+    # Snapshot the global ONCE per call so a concurrent bump (single-writer:
+    # only the puller calls bump_db_epoch) can't make us stamp an already-
+    # stale epoch on the new connection. Worst-case: we miss a bump and the
+    # NEXT call sees the gap and reconnects. Better than holding a connection
+    # we believe is current when it's not.
+    cur_epoch = _db_epoch
+    if getattr(_local, "epoch", -1) != cur_epoch:
+        # bars.db has been replaced since this thread last touched it.
+        # Close the stale connection so a fresh one opens below.
+        old = getattr(_local, "conn", None)
+        if old is not None:
+            try:
+                old.close()
+            except Exception:
+                pass
+        _local.conn = None
+        _local.epoch = cur_epoch
     if getattr(_local, "conn", None) is None:
         c = sqlite3.connect(_DB_PATH, check_same_thread=False)
         c.execute("PRAGMA journal_mode=WAL")

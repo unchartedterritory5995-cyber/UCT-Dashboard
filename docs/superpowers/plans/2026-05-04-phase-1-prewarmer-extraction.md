@@ -2,6 +2,21 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **POST-INCIDENT NOTE (2026-05-04):** This plan repeatedly references a single
+> `WORKER_ENABLED=1` env var as the on/off switch for the web's in-process
+> prewarmer. **That collided with `railway.json`'s `startCommand` conditional
+> in the live deploy** — both decisions read the same variable, so flipping it
+> on web replaced the full website with the worker-only health-check app.
+> **The fix:** two distinct env vars.
+> - `WORKER_ENABLED=1` is consumed ONLY by `railway.json`'s `startCommand`
+>   shell conditional and is set ONLY on the worker service.
+> - `USE_REMOTE_BARS=1` is consumed ONLY by `api/main.py`'s lifespan and is
+>   set ONLY on the web service to swap in-process prewarmer for the R2 puller.
+> - Source of truth for this split is the comment block at `api/main.py:207-215`.
+>
+> Treat any reference to `WORKER_ENABLED` below in the context of the web
+> service or `api/main.py` as referring to `USE_REMOTE_BARS` instead.
+
 **Goal:** Extract the bars pre-warmer (and bars seeder) from the web FastAPI process into a separate Railway service so it can run continuously without competing with user request handlers for CPU/threads. Web service stays focused on serving requests; worker service warms the cache. Data flows between them via Cloudflare R2 (S3-compatible) snapshots.
 
 **Architecture:** Two Railway services in the same repo (different `startCommand`). The worker service runs `python -m api.worker_main` which spawns the existing `_prewarm_bars` thread + `start_background_seeder()` against its own `/data` volume, then periodically tars `/data/bars.db` + `bars_cache/` and uploads to R2. The web service runs unchanged uvicorn but periodically pulls the latest snapshot from R2 to its own `/data` volume on a background thread. Both feature-flagged: `WORKER_ENABLED=1` on web disables the in-process prewarmer (no double-load). Until the flag flips, web behaves identically to today — fully reversible.
