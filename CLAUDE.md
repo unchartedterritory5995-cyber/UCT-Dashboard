@@ -886,7 +886,8 @@ Tag dots visible on: TickerPopup, ThemeTracker, CustomScan, Screener, OptionsFlo
 - `GET /api/journal/calendar?month=YYYY-MM` — per-day trade_count, wins, losses, net P&L, avg process score, review statuses, mistake/screenshot counts
 - `GET /api/journal/review-queue` — trades/days needing review
 - `GET /api/journal/analytics?group_by={dimension}` — breakdowns by setup, playbook, symbol, direction, asset_class, day_of_week, session, mistake_tag, emotion_tag, holding_period_bucket, process_score_bucket, month, week. Returns per-bucket: trade_count, win_rate, avg_pnl_pct, total_pnl_pct, avg_r, profit_factor, avg_process_score
-- `GET /api/journal/insights` — up to 8 pattern-derived coaching statements (no AI, server-side logic)
+- `GET /api/journal/insights?limit=N` — up to 12 pattern-derived coaching statements; each has `category` (performance/process/psychology/risk), `trend` (improving/worsening/stable/null), `priority`, `statement`, `evidence`, `action_label`, `action_type`
+- `GET /api/journal/psychology?days=N` — psychology time-series data: `process_trend` (date→avg_process), `emotion_by_week` (week→emotion counts), `emotion_outcomes` (emotion→avg_pnl/win_rate/trade_count), `mistake_trend`. Route registered BEFORE the `/{entry_id}` wildcard to avoid shadowing. `days` bounded: `Query(default=90, ge=1, le=730)`.
 - `GET /api/journal/taxonomy` — mistake + emotion tag libraries
 - `POST/PUT/DELETE /api/journal/{id}` — trade CRUD
 - `POST/GET/DELETE /api/journal/{id}/screenshots` — screenshot management
@@ -895,6 +896,21 @@ Tag dots visible on: TickerPopup, ThemeTracker, CustomScan, Screener, OptionsFlo
 - `GET/POST/PUT/DELETE /api/journal/playbooks` — playbook CRUD
 - `GET /api/journal/playbooks/{id}/trades` — trades linked to playbook
 - `GET/POST/PUT/DELETE /api/journal/resources` — resource CRUD (by category)
+
+### Psychology Timeline (Analytics tab — 2026-05-04)
+
+- **Trigger**: selecting the "Psychology" dimension chip in Analytics tab renders `PsychologyTimeline` instead of the standard dimension results
+- **Component**: `app/src/pages/journal/tabs/PsychologyTimeline.jsx` + `PsychologyTimeline.module.css`
+- **Service**: `api/services/journal_psychology.py` — `get_psychology_data(user_id, days)` returns dict with `process_trend`, `emotion_by_week`, `emotion_outcomes`, `mistake_trend`. Uses project TTLCache; returns shallow copies to prevent cache mutation.
+- **3 panels**: (1) Process Score Trend — line chart with visualMap piecewise colouring (≤30=red, 30-70=amber, >70=green) + markLines at 30/70; (2) Emotional State by Week — stacked bar, top 8 emotions by frequency; (3) Avg P&L by Emotional State — horizontal bar, emotions with ≥3 trades only
+- **Period selector**: 30D / 90D / 180D / All (independent from the outer Analytics period)
+- Analytics.jsx period selector is hidden when Psychology dimension is active (avoids dead UI + spurious API calls)
+
+### Coaching Feed — Category-Grouped Insights (Overview tab — 2026-05-04)
+
+- **InsightCard** (`app/src/pages/journal/components/InsightCard.jsx`): now shows a coloured category badge (performance=blue, process=amber, psychology=purple, risk=red) and a `TrendArrow` component (▲ Improving / ▼ Worsening / → Stable — only renders for known values, null for unrecognized)
+- **Overview.jsx**: fetches `/api/journal/insights?limit=12`; renders insights grouped by category with `.insightGroupHeader` labels. Uncategorized/unknown-category insights fall through to a backward-compat section. `handleInsightAction` is a single `useCallback` mapping `action_type` → tab name via lookup object.
+- **`journal_insights.py`**: 12 insight functions total — 8 existing (now with `category`/`trend` fields) + 4 new: `_insight_emotion_outcome` (psychology), `_insight_process_trend` (process, detects improving/worsening), `_insight_discipline_consistency` (psychology), `_insight_mistake_recurrence` (process). `collections.Counter/defaultdict` imported at module level. `daily_journals` query runs after early-return guard.
 
 ### StockChart Integration
 - Trade detail Summary tab embeds `StockChart` component (Lightweight Charts v5)
