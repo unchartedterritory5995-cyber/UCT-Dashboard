@@ -69,6 +69,12 @@ export default function Overview({ onSwitchTab, stats: parentStats, onOpenTrade 
     if (onSwitchTab) onSwitchTab('queue')
   }, [onSwitchTab])
 
+  const handleInsightAction = useCallback((ins) => {
+    if (!onSwitchTab) return
+    const map = { filter: 'log', analytics: 'analytics', playbooks: 'playbooks', review: 'queue' }
+    if (map[ins.action_type]) onSwitchTab(map[ins.action_type])
+  }, [onSwitchTab])
+
   const queueCount = queue?.length || 0
 
   // Compute shortcut counts from stats review_counts
@@ -197,17 +203,7 @@ export default function Overview({ onSwitchTab, stats: parentStats, onOpenTrade 
                     <InsightCard
                       key={insight.id}
                       insight={insight}
-                      onAction={(ins) => {
-                        if (ins.action_type === 'filter') {
-                          if (onSwitchTab) onSwitchTab('log')
-                        } else if (ins.action_type === 'analytics') {
-                          if (onSwitchTab) onSwitchTab('analytics')
-                        } else if (ins.action_type === 'playbooks') {
-                          if (onSwitchTab) onSwitchTab('playbooks')
-                        } else if (ins.action_type === 'review') {
-                          if (onSwitchTab) onSwitchTab('queue')
-                        }
-                      }}
+                      onAction={handleInsightAction}
                     />
                   ))}
                 </div>
@@ -218,17 +214,7 @@ export default function Overview({ onSwitchTab, stats: parentStats, onOpenTrade 
               <InsightCard
                 key={insight.id}
                 insight={insight}
-                onAction={(ins) => {
-                  if (ins.action_type === 'filter') {
-                    if (onSwitchTab) onSwitchTab('log')
-                  } else if (ins.action_type === 'analytics') {
-                    if (onSwitchTab) onSwitchTab('analytics')
-                  } else if (ins.action_type === 'playbooks') {
-                    if (onSwitchTab) onSwitchTab('playbooks')
-                  } else if (ins.action_type === 'review') {
-                    if (onSwitchTab) onSwitchTab('queue')
-                  }
-                }}
+                onAction={handleInsightAction}
               />
             ))}
           </div>
