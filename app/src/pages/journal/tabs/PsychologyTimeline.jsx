@@ -45,7 +45,7 @@ const CHART_TOOLTIP = {
 export default function PsychologyTimeline() {
   const [days, setDays] = useState('90')
 
-  const { data, isLoading } = useSWR(
+  const { data, isLoading, error } = useSWR(
     `/api/journal/psychology?days=${days}`,
     fetcher,
     { refreshInterval: 300000, dedupingInterval: 300000, revalidateOnFocus: false }
@@ -69,7 +69,10 @@ export default function PsychologyTimeline() {
       .map(([e]) => e)
   }, [emotionByWeek])
 
-  const qualifiedOutcomes = emotionOutcomes.filter(e => e.trade_count >= 3)
+  const qualifiedOutcomes = useMemo(
+    () => emotionOutcomes.filter(e => e.trade_count >= 3),
+    [emotionOutcomes]
+  )
 
   // Panel 1: Process score trend line
   const processTrendOption = useMemo(() => {
@@ -217,6 +220,9 @@ export default function PsychologyTimeline() {
 
   if (isLoading && !data) {
     return <div className={styles.wrap}><div className={styles.loading}>Loading psychology data...</div></div>
+  }
+  if (error && !data) {
+    return <div className={styles.wrap}><div className={styles.emptyState}>Failed to load psychology data.</div></div>
   }
 
   return (
