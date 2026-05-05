@@ -467,7 +467,11 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
                 for b in (data.get("results") or [])
             ]
             return [b for b in _session_resample_hourly(bars_30m) if b["t"] > last_ts]
-        except Exception:
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger(__name__).error(
+                f"[bars] _delta_intraday(60-min) {ticker} failed: {type(_e).__name__}: {_e}"
+            )
             return []
 
     multiplier = int(tf)
@@ -492,7 +496,11 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
                     "v": int(bar.get("v", 0)),
                 })
         return new
-    except Exception:
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger(__name__).error(
+            f"[bars] _delta_intraday {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
+        )
         return []
 
 
