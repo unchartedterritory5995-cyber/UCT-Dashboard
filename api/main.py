@@ -263,16 +263,66 @@ async def lifespan(app: FastAPI):
     # cadence (see SNAPSHOT_INTERVAL_SECONDS in api.services.data_sync).
     if os.environ.get("USE_REMOTE_BARS") == "1":
         from api.services import data_sync
+        import time as _t
+
+        # Phase 4.7: pull the initial snapshot synchronously so /api/bars serves
+        # warm-cache responses from the moment the deploy goes Active. Without this,
+        # the first chart load after every deploy waits ~20s for the puller daemon
+        # to do its first sync. The hard timeout ensures we don't hang Railway's
+        # healthcheck if R2 is unreachable.
+        _initial_pull_timeout = float(os.environ.get("INITIAL_SNAPSHOT_TIMEOUT_SEC", "60"))
+        _t0 = _t.time()
+        try:
+            # data_sync.sync_if_newer() is synchronous and may take 5-30s for a
+            # full snapshot pull. We can't easily inject a timeout into it without
+            # refactoring data_sync, so we run it on a thread with a join timeout.
+            # If the join times out, we proceed with a cold cache (existing behavior)
+            # rather than hang the deploy.
+            _result = {"ts": None, "err": None}
+            def _initial_pull():
+                try:
+                    _result["ts"] = data_sync.sync_if_newer()
+                except Exception as e:
+                    _result["err"] = e
+            _initial_thread = threading.Thread(target=_initial_pull, name="initial_snapshot_pull")
+            _initial_thread.start()
+            _initial_thread.join(timeout=_initial_pull_timeout)
+            if _initial_thread.is_alive():
+                elapsed = _t.time() - _t0
+                print(f"[startup] Initial snapshot pull TIMED OUT after {elapsed:.1f}s "
+                      f"(limit={_initial_pull_timeout}s) — proceeding with cold cache; "
+                      f"daemon puller will sync on next interval")
+                # Note: thread is still running; it'll complete in the background and
+                # update the cache. The daemon puller loop below also keeps trying.
+            elif _result["err"] is not None:
+                elapsed = _t.time() - _t0
+                print(f"[startup] Initial snapshot pull FAILED after {elapsed:.1f}s "
+                      f"(non-fatal): {_result['err']} — proceeding with cold cache")
+            else:
+                elapsed = _t.time() - _t0
+                ts = _result["ts"]
+                if ts:
+                    print(f"[startup] Initial snapshot pull complete in {elapsed:.1f}s "
+                          f"— cache warm, serving from snapshot {ts}")
+                else:
+                    # sync_if_newer returns None when no new snapshot is available
+                    # (existing local snapshot is current). Cache should still be warm.
+                    print(f"[startup] Initial snapshot already current ({elapsed:.1f}s) — cache warm")
+        except Exception as e:
+            elapsed = _t.time() - _t0
+            print(f"[startup] Initial snapshot pull error after {elapsed:.1f}s "
+                  f"(non-fatal): {e} — proceeding with cold cache")
+
         def _s3_pull_loop():
             import time as _t
             while True:
+                _t.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)  # sleep first; initial pull just happened
                 try:
                     ts = data_sync.sync_if_newer()
                     if ts:
                         print(f"[data_sync] pulled snapshot {ts}")
                 except Exception as e:
                     print(f"[data_sync] pull error (non-fatal): {e}")
-                _t.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)
         threading.Thread(target=_s3_pull_loop, daemon=True, name="s3_pull").start()
         print(f"[startup] S3 snapshot puller thread started ({data_sync.SNAPSHOT_INTERVAL_SECONDS // 60}-min cadence)")
 
