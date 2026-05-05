@@ -2161,34 +2161,44 @@ export default function OptionsFlowDashboard() {
     });
     setStatus(`Fetching ${unique.length} contracts across ${new Set(unique.map(c=>c.symbol)).size} tickers…`);
     try {
-      // Schwab batch quotes
-      let resp = await fetch("/api/schwab/options-quotes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(unique.map(c => ({ symbol:c.symbol, strike:c.strike, expDate:c.expDate, cp:c.cp }))),
-      });
-      if (!resp.ok) { setStatus("API error: " + resp.status); setFetchLoading(false); return; }
-      const data = await resp.json();
-      const quotes = data.quotes || [];
+      // Schwab batch quotes — chunk into batches of 5 to avoid API timeouts
+      const BATCH_SIZE = 5;
       let successes = 0, failures = 0, expired = 0;
-      quotes.forEach((q, i) => {
-        const orig = unique[i];
-        if (!orig) return;
-        if (q.expired) { expired++; return; }
-        if (q.error) { failures++; return; }
-        const key = orig.symbol+"|"+orig.cp+"|"+orig.strike+"|"+orig._exp;
-        newCache[key] = {
-          mark: q.mark||0, bid: q.bid||0, ask: q.ask||0, last: q.last||0,
-          delta: q.delta||0, theta: q.theta||0, iv: q.iv||0,
-          oi: q.openInterest||0, vol: q.volume||0, spot: q.underlyingPrice||0,
-        };
-        if (updated) {
-          const match = updated.find(u => u.sym===orig.symbol && u.cp===orig.cp && parseFloat(u.strike)===orig.strike && u.exp===orig._exp);
-          if (match) match.now = q.mark || q.last || 0;
-        }
-        successes++;
-      });
-      setPriceCache(newCache);
+      for (let b = 0; b < unique.length; b += BATCH_SIZE) {
+        const batch = unique.slice(b, b + BATCH_SIZE);
+        setStatus(`Fetching batch ${Math.floor(b/BATCH_SIZE)+1}/${Math.ceil(unique.length/BATCH_SIZE)} (${b+batch.length}/${unique.length} contracts)…`);
+        try {
+          let resp = await fetch("/api/schwab/options-quotes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(batch.map(c => ({ symbol:c.symbol, strike:c.strike, expDate:c.expDate, cp:c.cp }))),
+          });
+          if (!resp.ok) { failures += batch.length; continue; }
+          const data = await resp.json();
+          const quotes = data.quotes || [];
+          quotes.forEach((q, i) => {
+            const orig = batch[i];
+            if (!orig) return;
+            if (q.expired) { expired++; return; }
+            if (q.error) { failures++; return; }
+            const key = orig.symbol+"|"+orig.cp+"|"+orig.strike+"|"+orig._exp;
+            newCache[key] = {
+              mark: q.mark||0, bid: q.bid||0, ask: q.ask||0, last: q.last||0,
+              delta: q.delta||0, theta: q.theta||0, iv: q.iv||0,
+              oi: q.openInterest||0, vol: q.volume||0, spot: q.underlyingPrice||0,
+            };
+            if (updated) {
+              const match = updated.find(u => u.sym===orig.symbol && u.cp===orig.cp && parseFloat(u.strike)===orig.strike && u.exp===orig._exp);
+              if (match) match.now = q.mark || q.last || 0;
+            }
+            successes++;
+          });
+          // Update cache progressively so UI shows results as they come in
+          setPriceCache({...newCache});
+        } catch(e) { failures += batch.length; }
+        // Delay between batches to avoid rate limiting
+        if (b + BATCH_SIZE < unique.length) await new Promise(r => setTimeout(r, 800));
+      }
       if (updated) setPerf(updated);
       setStatus(`Done. ${successes} priced` + (expired > 0 ? `, ${expired} expired` : ``) + (failures > 0 ? `, ${failures} failed` : ``) + ` of ${unique.length} contracts.`);
     } catch(e) {
