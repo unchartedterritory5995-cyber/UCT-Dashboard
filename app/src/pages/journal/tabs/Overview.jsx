@@ -7,6 +7,8 @@ import styles from './Overview.module.css'
 
 const fetcher = url => fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
 
+const KNOWN_INSIGHT_CATS = new Set(['performance', 'process', 'psychology', 'risk'])
+
 const PERIOD_OPTIONS = [
   { key: '7', label: '1W' },
   { key: '30', label: '1M' },
@@ -209,8 +211,8 @@ export default function Overview({ onSwitchTab, stats: parentStats, onOpenTrade 
                 </div>
               )
             })}
-            {/* Fallback: insights with no category (backwards compat) */}
-            {insights.filter(ins => !ins.category).map(insight => (
+            {/* Fallback: uncategorized or unknown-category insights (backwards compat) */}
+            {insights.filter(ins => !ins.category || !KNOWN_INSIGHT_CATS.has(ins.category)).map(insight => (
               <InsightCard
                 key={insight.id}
                 insight={insight}

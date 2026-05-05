@@ -312,6 +312,6 @@
   margin-bottom: 8px;
 }
 
-.insightGroupHeader:first-child {
+.insightsList > div:first-child .insightGroupHeader {
   margin-top: 0;
 }

@@ -17,15 +17,15 @@ const CATEGORY_CLASS = {
 }
 
 function TrendArrow({ trend }) {
-  if (!trend) return null
   if (trend === 'improving') return <span className={`${styles.trendArrow} ${styles.trendUp}`}>▲ Improving</span>
   if (trend === 'worsening') return <span className={`${styles.trendArrow} ${styles.trendDown}`}>▼ Worsening</span>
-  return <span className={`${styles.trendArrow} ${styles.trendStable}`}>→ Stable</span>
+  if (trend === 'stable') return <span className={`${styles.trendArrow} ${styles.trendStable}`}>→ Stable</span>
+  return null
 }
 
 export default function InsightCard({ insight, onAction }) {
   const accentColor = PRIORITY_COLORS[insight.priority] || PRIORITY_COLORS[3]
-  const catClass = insight.category ? CATEGORY_CLASS[insight.category] : null
+  const catClass = CATEGORY_CLASS[insight.category] ?? null
 
   return (
     <div className={styles.card} style={{ borderLeftColor: accentColor }}>
