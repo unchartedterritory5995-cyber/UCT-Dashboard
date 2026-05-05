@@ -933,8 +933,12 @@ export default function StockChart({
 
   const onRealtimeBar = useCallback((data) => {
     if (!candleSeriesRef.current) return
-    // AM `t` is bucket-start in ms; lightweight-charts wants seconds.
-    const tSec = Math.floor(data.bar.t / 1000)
+    // AM `t` is bucket-start in ms. Convert to seconds AND apply the same
+    // ET offset that adjustTime/computeBarTime use, so the time matches what's
+    // already in candleSeriesRef (initial setData and tick logic both use ET-offset).
+    // Without _ET_OFFSET, lightweight-charts silently rejects updates with
+    // "regression" or appends them at the wrong position with a 4-5h gap.
+    const tSec = Math.floor(data.bar.t / 1000) + _ET_OFFSET
     const useOhlc = isOhlcType(cs.chartType)
 
     try {
@@ -985,7 +989,9 @@ export default function StockChart({
       .then(payload => {
         if (!payload?.bars?.length) return
         for (const b of payload.bars) {
-          onRealtimeBar({ sym, tf: resolvedTf, bar: { t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v } })
+          // /api/bars returns t in unix SECONDS, but onRealtimeBar expects ms
+          // (matching the AM event shape). Multiply by 1000 to reconcile.
+          onRealtimeBar({ sym, tf: resolvedTf, bar: { t: b.t * 1000, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v } })
         }
       })
       .catch(e => {
@@ -1117,8 +1123,19 @@ export default function StockChart({
       prevChartTypeRef.current = cs.chartType
     }
 
-    // Set price data
-    candleSeriesRef.current.setData(isOhlcType(cs.chartType) ? ohlcData : closeData)
+    // Set price data — but skip when REST data isn't newer than what's already
+    // in the series. Phase 4 events advance the series' last bar in real time;
+    // calling setData with stale REST bars would WIPE those live updates every
+    // 15s on SWR refresh. Only setData on first load (lastBarRef.current is null,
+    // also true on ticker/tf change via the reset effect at line 816) or when
+    // REST has a strictly newer last bar than what we've already shown.
+    const _newOhlc = isOhlcType(cs.chartType) ? ohlcData : closeData
+    const _newLastT = _newOhlc.length ? _newOhlc[_newOhlc.length - 1].time : null
+    const _prevLastT = lastBarRef.current?.time
+    const _shouldSetData = _prevLastT == null || _newLastT == null || _newLastT > _prevLastT
+    if (_shouldSetData) {
+      candleSeriesRef.current.setData(_newOhlc)
+    }
 
     // Store the last bar for live updates
     if (filteredBars.length) {

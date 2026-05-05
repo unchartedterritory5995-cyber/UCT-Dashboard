@@ -1165,13 +1165,20 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                 result_bars = raw
 
             except Exception as e:
-                _logger.error(f"[bars] full fetch failed {ticker_up} tf={tf}: {e}")
+                import traceback as _tb
+                _logger.error(
+                    f"[bars] full fetch failed {ticker_up} tf={tf}: {e}\n{_tb.format_exc()}"
+                )
                 result_bars = []
 
         # Build payload and write to cache BEFORE releasing waiters, so that
         # concurrent waiters that wake in the finally block read fresh data.
         payload = {"ticker": ticker_up, "tf": tf, "bars": result_bars}
-        cache.set(cache_key, payload, ttl=ttl if result_bars else 5)
+        # Don't cache empty results — let the next request retry immediately.
+        # Caching empty for 5s creates a "poisoned" window where every concurrent
+        # client gets bars=[] even if the upstream API would now succeed.
+        if result_bars:
+            cache.set(cache_key, payload, ttl=ttl)
 
     finally:
         # Always release waiters — cache is already populated above.
