@@ -135,7 +135,7 @@ def test_conn_sets_busy_timeout_pragma(tmp_path, monkeypatch):
     _make_db(db_path, [(1, "x")])
     c = bars_sqlite._conn()
     row = c.execute("PRAGMA busy_timeout").fetchone()
-    assert row[0] == 10000, f"expected busy_timeout=10000, got {row[0]}"
+    assert row[0] == 2000, f"expected busy_timeout=2000, got {row[0]}"
 
 
 def test_integrity_ok_returns_true_when_file_missing(tmp_path, monkeypatch):

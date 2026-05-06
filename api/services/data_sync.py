@@ -257,23 +257,17 @@ def download_snapshot(ts: str) -> bool:
                     f"refusing to install"
                 )
                 return False
-            # Drop the OLD WAL/SHM sidecars before installing the new main
-            # file. They belong to the previous inode; if left in place,
-            # SQLite would try to recover an unrelated WAL against the new
-            # DB on next open and report "disk image is malformed". This
-            # was almost certainly the original cause of the production
-            # corruption that prompted this whole code path.
-            dst_db = os.path.join(_DATA_DIR, "bars.db")
-            for suffix in ("-wal", "-shm"):
-                sidecar = dst_db + suffix
-                try:
-                    if os.path.exists(sidecar):
-                        os.remove(sidecar)
-                except OSError as e:
-                    logger.warning(
-                        f"[data_sync] could not remove stale sidecar {sidecar}: {e}"
-                    )
-            shutil.move(src_db, dst_db)
+            # Note: we do NOT remove the OLD bars.db-wal / -shm sidecars here
+            # even though stale WAL+new-main can theoretically cause
+            # "disk image is malformed" on next open. An earlier version of
+            # this code DID remove them and caused a regression: writers
+            # mid-transaction had their WAL deleted from under them, which
+            # SQLite reported as "disk I/O error" on the next operation.
+            # The malformed-image risk is handled by integrity_ok() at boot
+            # plus the put_bars malformed handler that triggers force_resync.
+            # That fail-safe path is much cheaper than corrupting writes
+            # every 5 min during snapshot pulls.
+            shutil.move(src_db, os.path.join(_DATA_DIR, "bars.db"))
         # Replace bars_cache (replace the whole directory, not merge)
         src_cache = os.path.join(tmpdir, "bars_cache")
         if os.path.isdir(src_cache):

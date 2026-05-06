@@ -80,9 +80,13 @@ def _conn() -> sqlite3.Connection:
         # before raising OperationalError("database is locked"). Without
         # this, concurrent writers (multiple uvicorn workers / threads)
         # see immediate failures even when the lock would clear in <1ms.
-        # 10s is generous; combined with the retry loop in put_bars, real
-        # contention should never surface to callers.
-        c.execute("PRAGMA busy_timeout=10000")
+        # 2s is the sweet spot: long enough to absorb normal contention
+        # (most real waits are <50ms), short enough that a stuck writer
+        # doesn't pin the request handler for 10s. Combined with the
+        # 3-attempt retry loop in put_bars, total worst-case wait per
+        # request is ~6.5s — acceptable; an earlier 10s setting compounded
+        # to ~30s per request and saturated the anyio thread pool.
+        c.execute("PRAGMA busy_timeout=2000")
         c.execute("PRAGMA cache_size=-8192")   # 8 MB page cache per connection
         c.execute("PRAGMA temp_store=MEMORY")
         _local.conn = c

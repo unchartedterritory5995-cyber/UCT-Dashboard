@@ -280,21 +280,23 @@ def test_download_snapshot_refuses_malformed_payload(tmp_path, monkeypatch):
     )
 
 
-def test_download_snapshot_removes_stale_wal_shm_sidecars(tmp_path, monkeypatch):
-    """When bars.db is replaced, the OLD -wal and -shm files must be cleared.
-    SQLite would otherwise try to recover an unrelated WAL on top of the
-    new main file and report 'disk image is malformed' on the first read.
-    This was almost certainly the original cause of the production
-    corruption that the recovery path was built to handle."""
+def test_download_snapshot_does_not_clobber_active_sidecars(tmp_path, monkeypatch):
+    """download_snapshot must NOT delete bars.db-wal / bars.db-shm during the
+    swap. An earlier version did so (to prevent a theoretical "stale WAL on
+    new main file → malformed image" path) but that deletion races with
+    in-flight writers — SQLite then reports "disk I/O error" on the next
+    operation in any thread that had the WAL open. The malformed-image
+    risk is instead handled by integrity_ok() at boot + the put_bars
+    malformed handler that triggers force_resync."""
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setenv("DATA_SYNC_ENDPOINT_URL", "https://example.test")
     monkeypatch.setenv("DATA_SYNC_ACCESS_KEY", "x")
     monkeypatch.setenv("DATA_SYNC_SECRET_KEY", "y")
     monkeypatch.setenv("DATA_SYNC_BUCKET", "test-bucket")
 
-    # Pre-create stale sidecars belonging to some old inode
-    (tmp_path / "bars.db-wal").write_bytes(b"old-wal-bytes")
-    (tmp_path / "bars.db-shm").write_bytes(b"old-shm-bytes")
+    # Pre-create sidecars that simulate an in-use WAL
+    (tmp_path / "bars.db-wal").write_bytes(b"in-use-wal-bytes")
+    (tmp_path / "bars.db-shm").write_bytes(b"in-use-shm-bytes")
 
     # Build a good snapshot
     src_db = tmp_path / "snap_src.db"
@@ -318,8 +320,15 @@ def test_download_snapshot_removes_stale_wal_shm_sidecars(tmp_path, monkeypatch)
 
     ok = data_sync.download_snapshot("123")
     assert ok is True
-    assert not (tmp_path / "bars.db-wal").exists(), "stale -wal sidecar not cleaned up"
-    assert not (tmp_path / "bars.db-shm").exists(), "stale -shm sidecar not cleaned up"
+    # Sidecars must STILL be on disk — deleting them would race with
+    # active SQLite writers and surface as disk I/O errors at runtime.
+    assert (tmp_path / "bars.db-wal").exists(), (
+        "download_snapshot deleted bars.db-wal — this races with in-flight "
+        "writers and causes disk I/O errors. See data_sync.py comment."
+    )
+    assert (tmp_path / "bars.db-shm").exists(), (
+        "download_snapshot deleted bars.db-shm — same race as above."
+    )
 
 
 def test_force_resync_clears_marker_and_local_db(tmp_path, monkeypatch):
