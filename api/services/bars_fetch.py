@@ -241,17 +241,24 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
 
 def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars from yfinance (fallback). Includes premarket + after-hours."""
-    import yfinance as yf
+    from api.services.yfinance_pool import fetch_history as _yf_fetch
+    from concurrent.futures import TimeoutError as _YfTimeout
     config = _YF_CONFIG.get(tf)
     if not config:
         return []
     yf_sym = _YF_TICKERS.get(ticker.upper(), ticker.upper())
     try:
-        df = yf.Ticker(yf_sym).history(
+        # Bounded pool + hard timeout. A hung yfinance call would otherwise
+        # hold the calling thread for minutes; the pool caps damage at
+        # YFINANCE_POOL_WORKERS leaked threads max, and the timeout makes
+        # this fetch_intraday_yfinance call return promptly so the caller's
+        # fallback chain (Massive → FMP → yfinance) stays responsive.
+        df = _yf_fetch(
+            yf_sym,
             period=config["period"], interval=config["interval"],
             prepost=True,  # Include premarket (4-9:30 AM) + after-hours (4-8 PM)
         )
-        if df.empty:
+        if df is None or df.empty:
             return []
         # Strip timezone
         if df.index.tzinfo is not None:
@@ -510,8 +517,17 @@ def _fetch_daily_yf(ticker: str) -> list[dict]:
     Used during nightly warm to get pre-2006 history that Massive lacks.
     """
     try:
-        import yfinance as yf
-        df = yf.Ticker(ticker.upper()).history(period='max', interval='1d', auto_adjust=False, raise_errors=False)
+        from api.services.yfinance_pool import fetch_history as _yf_fetch
+        # period='max' on a wide universe is a known yfinance slow-path
+        # (multi-second on cold tickers). Use a longer timeout than the
+        # intraday fast-path because this is invoked from the nightly
+        # warm, not user requests, and the deeper data is worth the wait.
+        df = _yf_fetch(
+            ticker.upper(),
+            timeout=20.0,
+            period='max', interval='1d',
+            auto_adjust=False, raise_errors=False,
+        )
         if df is None or df.empty:
             return []
         out = []
