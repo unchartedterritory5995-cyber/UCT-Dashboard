@@ -721,6 +721,44 @@ def _resample_monthly_iso(daily_bars: list[dict]) -> list[dict]:
     ]
 
 
+def _normalize_since_param(since_str: str, date_tf: bool):
+    """Parse the `?since=` query value into a comparable threshold.
+
+    Handles three input shapes:
+      - ISO date string (`"2024-01-15"`) for daily/weekly/monthly timeframes:
+        passed through unchanged for string comparison
+      - Unix seconds integer (`"1714579200"`) for intraday: parsed as int
+      - Unix MILLISECONDS integer (`"1714579200000"`) for intraday: detected
+        by magnitude and downscaled to seconds
+
+    The millisecond case fires from the Phase 4 chart's gap-backfill
+    (StockChart.jsx onRealtimeReconnect) which tracks the last live bar
+    time in milliseconds (the WebSocket emit shape) and forwards that
+    value verbatim as `since=${sinceMs}`. Without the auto-downscale,
+    `b["t"] > since_val` is e.g. ``1714579200 > 1714579200000`` — always
+    False — so EVERY WebSocket reconnect returns zero bars for the
+    disconnect window, leaving a permanent gap on the chart. Across
+    multiple reconnects per session this accumulates into the "gaps and
+    weird construction" symptom the user reported.
+
+    Returns the parsed threshold. Returns 0 (or "" for date_tf) on parse
+    failure to match the historical default-empty behavior.
+    """
+    try:
+        if date_tf:
+            return since_str  # ISO date string comparison
+        v = int(since_str)
+        # Stored bar `t` values are unix seconds (~1.7e9 in 2024-2030).
+        # Anything >= 1e11 is unambiguously milliseconds (year 5138+ in
+        # seconds). Downscale to bring it back into the seconds domain
+        # so the `>` comparison against bar["t"] is meaningful.
+        if v >= 100_000_000_000:
+            v //= 1000
+        return v
+    except (ValueError, TypeError):
+        return "" if date_tf else 0
+
+
 def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) -> JSONResponse:
     """Return only bars newer than `since_str` for the browser's delta sync.
 
@@ -731,14 +769,8 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     cache_key = f"bars_{ticker_up}_{tf}_{bars}"
     date_tf = tf in ("D", "W", "M")
 
-    # Parse the since threshold
-    try:
-        if date_tf:
-            since_val: int | str = since_str  # ISO date string comparison
-        else:
-            since_val = int(since_str)
-    except (ValueError, TypeError):
-        since_val = 0 if not date_tf else ""
+    # Parse the since threshold (auto-detects ms vs seconds for intraday)
+    since_val = _normalize_since_param(since_str, date_tf)
 
     # Refresh SQLite if stale (same logic as _get_bars_inner)
     last_ts = _sqlite.get_last_ts(ticker_up, tf)
