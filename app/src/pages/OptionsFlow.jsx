@@ -1087,7 +1087,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Top Flow","Conviction","Performance","Search","OI Check","Tracker","Watchlist"];
+const TABS = ["Market Read","Top Flow","Conviction","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -1095,7 +1095,6 @@ export default function OptionsFlowDashboard() {
   const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
   const [cpFilter, setCpFilter] = useState("All"); // All | Calls | Puts
   const [convCpFilter, setConvCpFilter] = useState("All"); // independent C/P for CONV cards
-  const [ideaCapFilter, setIdeaCapFilter] = useState("All");
   const [perf, setPerf] = useState([]);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [status, setStatus] = useState("");
@@ -1105,10 +1104,8 @@ export default function OptionsFlowDashboard() {
   const [convictionSort, setConvictionSort] = useState("net"); // net, bull, bear, trades
   const [oiSearch, setOiSearch] = useState("");
   const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
-  const [oiCapFilter, setOiCapFilter] = useState("All");
   const [leaderDte, setLeaderDte] = useState("All");
   const [selectedLeaderTicker, setSelectedLeaderTicker] = useState(null);
-  const [tfCapFilter, setTfCapFilter] = useState("All");
   const [tfDteFilter, setTfDteFilter] = useState("All");
   const [gexTicker, setGexTicker] = useState("SPY");
   const [gexInput, setGexInput] = useState("SPY");
@@ -1329,7 +1326,6 @@ export default function OptionsFlowDashboard() {
   const [trackerDateFilter, setTrackerDateFilter] = useState("All");
   const [trackerSort, setTrackerSort] = useState("recent");
   const [trkSort, setTrkSort] = useState({col:"added", dir:"desc", col2:"premium", dir2:"desc"});
-  const [trackerCapFilter, setTrackerCapFilter] = useState("All");
 
   // ─── Watchlist State ─────────────────────────────────────────────────
   const [wlBull, setWlBull] = useState([]);
@@ -3361,9 +3357,9 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:(t==="Watchlist"||t==="Conviction")?(tab===t?"1px solid "+(t==="Conviction"?"#e040fb":P.ac):"1px solid "+(t==="Conviction"?"#e040fb55":P.ac+"55")):"none", cursor:"pointer",
-              fontSize:11, fontWeight:(t==="Watchlist"||t==="Conviction")?800:600, fontFamily:"inherit",
-              background:tab===t?(t==="Watchlist"?P.ac+"22":t==="Conviction"?"#e040fb22":P.cd):"transparent",
+              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Conviction"?"#e040fb":t==="Watchlist"?P.ac:P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Conviction"?"1px solid #e040fb55":"1px solid transparent"), cursor:"pointer",
+              fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Conviction")?800:600, fontFamily:"inherit",
+              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Conviction"?"#e040fb33":P.ac+"22"):"transparent",
               color:tab===t?(t==="Watchlist"?P.ac:t==="Conviction"?"#e040fb":P.wh):(t==="Watchlist"?P.ac:t==="Conviction"?"#e040fb":P.mt)
             }}>{t}</button>
           ))}
@@ -3961,7 +3957,7 @@ export default function OptionsFlowDashboard() {
           }).filter(c => c.clean && c.DTE > 7);
 
           let filtered = allFlow;
-          if (tfCapFilter !== "All") filtered = filtered.filter(c => c.cap === tfCapFilter);
+          if (capFilter !== "All") filtered = filtered.filter(c => c.cap === capFilter);
           if (tfDteFilter !== "All") {
             if (tfDteFilter === "ST") filtered = filtered.filter(c => c.dteBand === "ST");
             else if (tfDteFilter === "LT") filtered = filtered.filter(c => c.dteBand === "LT");
@@ -3991,15 +3987,6 @@ export default function OptionsFlowDashboard() {
             </Card>
             {/* Filters */}
             <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
-              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
-                {["All","Mega","Large","Mid","Small"].map(f=>(
-                  <button key={f} onClick={()=>setTfCapFilter(f)} style={{
-                    padding:"4px 12px", borderRadius:4, border:"none", cursor:"pointer",
-                    fontSize:10, fontWeight:600, fontFamily:"inherit",
-                    background:tfCapFilter===f?P.cd:"transparent", color:tfCapFilter===f?P.wh:P.mt
-                  }}>{f}</button>
-                ))}
-              </div>
               <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
                 {[["All","All DTE"],["ST","0–59d"],["LT","60–179d"],["LEAPS","180+d"]].map(([v,label])=>(
                   <button key={v} onClick={()=>setTfDteFilter(v)} style={{
@@ -4079,97 +4066,6 @@ export default function OptionsFlowDashboard() {
           </div>
           );
         })()}
-
-        {/* Performance */}
-        {tab==="Performance" && (
-          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            <Card>
-              <div style={{ display:"flex", gap:14, alignItems:"center" }}>
-                <div style={{ width:3, background:P.ac, borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:P.ac, marginBottom:5 }}>Contract Performance Tracker</div>
-                  <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Entry = median contract price. Live prices from Schwab API.</div>
-                </div>
-                <button onClick={()=>fetchPrices()} disabled={fetchLoading} style={{
-                  padding:"8px 20px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
-                  fontSize:11, fontWeight:700, fontFamily:"inherit",
-                  background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg, opacity:fetchLoading?0.6:1,
-                }}>{fetchLoading?"Fetching…":"Refresh Prices"}</button>
-              </div>
-              {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
-            </Card>
-            {["Conviction","Short Bull","Short Bear","Long Bull","Long Bear","LEAPS Bull","LEAPS Bear"].map(cat => {
-              const items = perf.filter(p=>p.cat===cat);
-              if (items.length===0) return null;
-              const filled = items.filter(r => {
-                const px = getPrice(r.sym, r.cp, r.strike, r.exp);
-                return (px && px.mark > 0) || r.now > 0;
-              });
-              const avgPnl = filled.length>0 ? filled.reduce((s,r) => {
-                const px = getPrice(r.sym, r.cp, r.strike, r.exp);
-                const curr = px ? (px.mark || px.last || px.mid || 0) : r.now || 0;
-                return s + (curr > 0 && r.entry > 0 ? (curr-r.entry)/r.entry*100 : 0);
-              },0)/filled.length : 0;
-              const winners = filled.filter(r => {
-                const px = getPrice(r.sym, r.cp, r.strike, r.exp);
-                const curr = px ? (px.mark || px.last || px.mid || 0) : r.now || 0;
-                return curr > r.entry;
-              }).length;
-              return (
-                <Card key={cat} title={cat} sub={items.length+" contracts"}>
-                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
-                    <thead>
-                      <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                        {["Ticker","Exp","Strike","C/P","Entry","Range","Now","P&L","Peak","Hits","Dir","OI","ΔOI"].map(h=>(
-                          <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:(h==="ΔOI"||h==="Peak")?"help":"default" }} title={h==="ΔOI"?"Change in total open interest across all market participants — not just the trades shown. ΔOI > Vol means more traders are piling in on this strike.":h==="Peak"?"Highest % gain from entry at any point — the best exit you could have had.":undefined}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map(r => {
-                        const px = getPrice(r.sym, r.cp, r.strike, r.exp);
-                        const curr = px ? (px.mark || px.last || px.mid || 0) : r.now || 0;
-                        const pnlPct = curr>0&&r.entry>0 ? (curr-r.entry)/r.entry*100 : 0;
-                        const pnlColor = pnlPct>0?P.bu:pnlPct<0?P.be:P.dm;
-                        const curOI = px ? px.oi : 0;
-                        const pick = topFlowPicks.active.find(p=>p.sym===r.sym&&p.cp===r.cp&&parseFloat(p.strike)===parseFloat(r.strike)&&p.exp===r.exp);
-                        const hist = pick ? (pick.history||[]) : [];
-                        const allPx = [...hist.map(h=>h.price), curr].filter(v=>v>0);
-                        const peakPrice = allPx.length>0 ? Math.max(...allPx) : 0;
-                        const peakPnl = peakPrice>0 && r.entry>0 ? (peakPrice-r.entry)/r.entry*100 : 0;
-                        const peakRetrace = peakPnl>0 && pnlPct<peakPnl;
-                        return (
-                          <tr key={r.id} onClick={()=>{ fetchContractHistory(r.sym,r.cp,r.strike,r.exp); setSelectedItem(prev=>prev&&prev.sym===r.sym&&prev.cp===r.cp&&String(prev.K)===String(r.strike)&&prev.exp===r.exp?null:{sym:r.sym,cp:r.cp,K:r.strike,exp:r.exp}); }} style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}>
-                            <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}</td>
-                            <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.exp}</td>
-                            <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.strike}</td>
-                            <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
-                            <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{r.entry>0?"$"+r.entry.toFixed(2):"—"}</td>
-                            <td style={{ padding:"5px 5px", fontSize:9, color:P.mt }}>{r.lo&&r.lo!==r.hi?"$"+r.lo.toFixed(2)+"–$"+r.hi.toFixed(2):"—"}</td>
-                            <td style={{ padding:"5px 5px", fontWeight:700, color:curr>0?P.wh:P.mt }}>{curr>0?"$"+curr.toFixed(2):"—"}</td>
-                            <td style={{ padding:"5px 5px", fontWeight:700, color:pnlColor }}>{curr>0?(pnlPct>=0?"+":"")+pnlPct.toFixed(1)+"%":"—"}</td>
-                            <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
-                            <td style={{ padding:"5px 5px" }}><span style={{ fontWeight:800, color:r.hits>=10?P.ac:r.hits>=5?P.ye:P.dm }}>{r.hits}x</span></td>
-                            <td style={{ padding:"5px 5px" }}><Tag c={r.dir==="BULL"?P.bu:P.be}>{r.dir}</Tag></td>
-                            <td style={{ padding:"5px 5px", color:curOI>0?P.dm:P.mt }}>{curOI>0?curOI.toLocaleString():"—"}</td>
-                            <td style={{ padding:"5px 5px", color:P.dm }}>{"—"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  {filled.length>0 && (
-                    <div style={{ display:"flex", gap:16, fontSize:10, marginTop:4, color:P.dm }}>
-                      <span>Win rate: <strong style={{ color:winners/filled.length>=0.5?P.bu:P.be }}>{winners}/{filled.length}</strong></span>
-                      <span>Avg P&L: <strong style={{ color:avgPnl>=0?P.bu:P.be }}>{avgPnl>=0?"+":""}{avgPnl.toFixed(1)}%</strong></span>
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
-          {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
-          </div>
-        )}
 
         {/* Search */}
         {tab==="Search" && (
@@ -4292,20 +4188,11 @@ export default function OptionsFlowDashboard() {
                   placeholder="Search ticker…"
                   style={{ width:140, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
                 />
-                <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
-                  {["All","Mega","Large","Mid","Small"].map(f=>(
-                    <button key={f} onClick={()=>setOiCapFilter(f)}
-                      style={{ padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
-                        fontSize:9, fontWeight:700, fontFamily:"inherit",
-                        background:oiCapFilter===f?P.cd:"transparent", color:oiCapFilter===f?(f==="All"?P.ac:P.ye):P.dm
-                      }}>{f}</button>
-                  ))}
-                </div>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                 <button onClick={()=>{
                   const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40)
-                    : D.WATCH.filter(w=>w.OI>=5&&(oiCapFilter==="All"||w.cap===oiCapFilter)).slice(0,100);
+                    : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).slice(0,100);
                   fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -4317,7 +4204,7 @@ export default function OptionsFlowDashboard() {
             </div>
             {(() => {
               const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40)
-                : D.WATCH.filter(w=>w.OI>=5&&(oiCapFilter==="All"||w.cap===oiCapFilter)).slice(0,100);
+                : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).slice(0,100);
               // Enrich with live OI data
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);
@@ -4432,7 +4319,7 @@ export default function OptionsFlowDashboard() {
         {tab==="Tracker" && (() => {
           const trackerDates = [...new Set((topFlowPicks.active||[]).map(p=>p.dateSaved).filter(Boolean))].sort().reverse();
           const afterDateFilter = (list) => trackerDateFilter === "All" ? list : list.filter(p => p.dateSaved === trackerDateFilter);
-          const afterCap = (list) => trackerCapFilter === "All" ? list : list.filter(p => (p.cap||"Unknown") === trackerCapFilter);
+          const afterCap = (list) => capFilter === "All" ? list : list.filter(p => (p.cap||"Unknown") === capFilter);
           const filteredActive = afterCap(afterDateFilter(topFlowPicks.active));
           const filteredArchived = afterCap(afterDateFilter(topFlowPicks.archived));
           const calcPnl = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):(p.history&&p.history.length>0?p.history[p.history.length-1].price:0); return now>0&&p.entry>0?(now-p.entry)/p.entry*100:0; };
@@ -4511,13 +4398,6 @@ export default function OptionsFlowDashboard() {
                     {trackerDates.map(d=><option key={d} value={d}>{d}</option>)}
                   </select>
                 )}
-                <span style={{ width:1, height:16, background:P.bd, margin:"0 6px" }}/>
-                {["All","Mega","Large","Mid","Small"].map(f=>(
-                  <button key={f} onClick={()=>setTrackerCapFilter(f)}
-                    style={{ padding:"4px 10px", borderRadius:5, border:"1px solid "+(trackerCapFilter===f?P.ye:P.bd),
-                      background:trackerCapFilter===f?P.ye+"18":"transparent", color:trackerCapFilter===f?P.ye:P.dm,
-                      fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>{f}</button>
-                ))}
                 <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{filteredActive.length} active · {filteredArchived.length} archived</span>
               </div>
             </Card>
