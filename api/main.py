@@ -496,97 +496,108 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] COT init error (non-fatal): {e}")
 
-    from apscheduler.schedulers.background import BackgroundScheduler
-    from apscheduler.triggers.cron import CronTrigger
-    from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens, record_mrr_snapshot
-    _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
-    _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
-    _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
-    _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
+    # Cross-worker lock: only the first uvicorn worker in this container
+    # starts APScheduler. Without this, --workers 2 (Phase 2) would
+    # double-fire every cron job — COT refreshes twice, MRR snapshots
+    # twice, etc. The lock auto-releases when the holding process exits.
+    # See api/services/scheduler_lock.py for mechanism.
+    from api.services.scheduler_lock import acquire_scheduler_lock
+    _scheduler = None
+    if acquire_scheduler_lock():
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens, record_mrr_snapshot
+        _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
+        _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
 
-    def _cot_daily_catchup():
+        def _cot_daily_catchup():
+            try:
+                from datetime import date as _dt
+                from zoneinfo import ZoneInfo as _ZI
+                latest = _cot_service.get_latest_date()
+                if latest:
+                    import datetime as _dtm
+                    days_old = (_dtm.datetime.now(_ZI("America/New_York")).date() - _dt.fromisoformat(latest)).days
+                    if days_old >= 8:
+                        print(f"[scheduler] COT daily catchup: data is {days_old}d stale — refreshing...")
+                        _cot_service.refresh_from_current()
+                    else:
+                        print(f"[scheduler] COT daily catchup: data is {days_old}d old — fresh, skipping")
+            except Exception as e:
+                print(f"[scheduler] COT daily catchup error: {e}")
+
+        _scheduler.add_job(_cot_daily_catchup, trigger=CronTrigger(hour=18, minute=0), id="cot_daily_catchup", max_instances=1, replace_existing=True)
+        _scheduler.add_job(cleanup_expired_sessions, trigger=CronTrigger(hour=3, minute=0), id="session_cleanup", max_instances=1, replace_existing=True)
+
+        def _check_churn_risk():
+            try:
+                from api.services.auth_db import get_connection
+                from api.services.discord_notify import notify_churn_risk
+                conn = get_connection()
+                rows = conn.execute(
+                    "SELECT u.email, u.last_login_at FROM users u "
+                    "JOIN subscriptions s ON u.id = s.user_id "
+                    "WHERE s.status IN ('active', 'trialing') "
+                    "AND u.last_login_at IS NOT NULL "
+                    "AND u.last_login_at < datetime('now', '-7 days')"
+                ).fetchall()
+                conn.close()
+                for r in rows:
+                    from datetime import datetime, timezone
+                    last = datetime.fromisoformat(r["last_login_at"].replace("Z", "+00:00"))
+                    days = (datetime.now(timezone.utc) - last).days
+                    notify_churn_risk(r["email"], days)
+                if rows:
+                    print(f"[churn] Alerted {len(rows)} churn risk users")
+            except Exception as e:
+                print(f"[churn] Error checking churn risk: {e}")
+
+        _scheduler.add_job(_check_churn_risk, trigger=CronTrigger(hour=9, minute=0), id="churn_risk_check", max_instances=1, replace_existing=True)
+        _scheduler.add_job(record_mrr_snapshot, trigger=CronTrigger(hour=23, minute=59), id="mrr_snapshot", max_instances=1, replace_existing=True)
         try:
-            from datetime import date as _dt
-            from zoneinfo import ZoneInfo as _ZI
-            latest = _cot_service.get_latest_date()
-            if latest:
-                import datetime as _dtm
-                days_old = (_dtm.datetime.now(_ZI("America/New_York")).date() - _dt.fromisoformat(latest)).days
-                if days_old >= 8:
-                    print(f"[scheduler] COT daily catchup: data is {days_old}d stale — refreshing...")
-                    _cot_service.refresh_from_current()
-                else:
-                    print(f"[scheduler] COT daily catchup: data is {days_old}d old — fresh, skipping")
+            record_mrr_snapshot()
         except Exception as e:
-            print(f"[scheduler] COT daily catchup error: {e}")
+            print(f"[startup] MRR snapshot error (non-fatal): {e}")
 
-    _scheduler.add_job(_cot_daily_catchup, trigger=CronTrigger(hour=18, minute=0), id="cot_daily_catchup", max_instances=1, replace_existing=True)
-    _scheduler.add_job(cleanup_expired_sessions, trigger=CronTrigger(hour=3, minute=0), id="session_cleanup", max_instances=1, replace_existing=True)
+        from api.services.watchlist_digest import run_daily_digests, run_weekly_digests
+        _scheduler.add_job(run_daily_digests, trigger=CronTrigger(hour=17, minute=0), id="watchlist_daily_digest", max_instances=1, replace_existing=True)
+        _scheduler.add_job(run_weekly_digests, trigger=CronTrigger(day_of_week="fri", hour=17, minute=5), id="watchlist_weekly_digest", max_instances=1, replace_existing=True)
 
-    def _check_churn_risk():
-        try:
-            from api.services.auth_db import get_connection
-            from api.services.discord_notify import notify_churn_risk
-            conn = get_connection()
-            rows = conn.execute(
-                "SELECT u.email, u.last_login_at FROM users u "
-                "JOIN subscriptions s ON u.id = s.user_id "
-                "WHERE s.status IN ('active', 'trialing') "
-                "AND u.last_login_at IS NOT NULL "
-                "AND u.last_login_at < datetime('now', '-7 days')"
-            ).fetchall()
-            conn.close()
-            for r in rows:
-                from datetime import datetime, timezone
-                last = datetime.fromisoformat(r["last_login_at"].replace("Z", "+00:00"))
-                days = (datetime.now(timezone.utc) - last).days
-                notify_churn_risk(r["email"], days)
-            if rows:
-                print(f"[churn] Alerted {len(rows)} churn risk users")
-        except Exception as e:
-            print(f"[churn] Error checking churn risk: {e}")
+        def _nightly_bar_refresh():
+            try:
+                from api.services.bars_seeder import seed_full_universe
+                import threading as _th
+                _th.Thread(target=seed_full_universe, daemon=True, name="bars-nightly").start()
+            except Exception as e:
+                print(f"[scheduler] nightly bar refresh error: {e}")
 
-    _scheduler.add_job(_check_churn_risk, trigger=CronTrigger(hour=9, minute=0), id="churn_risk_check", max_instances=1, replace_existing=True)
-    _scheduler.add_job(record_mrr_snapshot, trigger=CronTrigger(hour=23, minute=59), id="mrr_snapshot", max_instances=1, replace_existing=True)
-    try:
-        record_mrr_snapshot()
-    except Exception as e:
-        print(f"[startup] MRR snapshot error (non-fatal): {e}")
+        _scheduler.add_job(_nightly_bar_refresh, trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=15), id="bars_nightly_refresh", max_instances=1, replace_existing=True)
 
-    from api.services.watchlist_digest import run_daily_digests, run_weekly_digests
-    _scheduler.add_job(run_daily_digests, trigger=CronTrigger(hour=17, minute=0), id="watchlist_daily_digest", max_instances=1, replace_existing=True)
-    _scheduler.add_job(run_weekly_digests, trigger=CronTrigger(day_of_week="fri", hour=17, minute=5), id="watchlist_weekly_digest", max_instances=1, replace_existing=True)
+        # Nightly flow DB prune — remove expired contracts (buffer_days=1)
+        def _nightly_flow_prune():
+            try:
+                from api.flow_db import FlowDB
+                pruned = FlowDB().prune_expired(buffer_days=1)
+                if pruned:
+                    print(f"[scheduler] Flow DB pruned {pruned} expired rows")
+            except Exception as e:
+                print(f"[scheduler] Flow DB prune error: {e}")
 
-    def _nightly_bar_refresh():
-        try:
-            from api.services.bars_seeder import seed_full_universe
-            import threading as _th
-            _th.Thread(target=seed_full_universe, daemon=True, name="bars-nightly").start()
-        except Exception as e:
-            print(f"[scheduler] nightly bar refresh error: {e}")
+        _scheduler.add_job(_nightly_flow_prune, trigger=CronTrigger(hour=20, minute=0), id="flow_nightly_prune", max_instances=1, replace_existing=True)
 
-    _scheduler.add_job(_nightly_bar_refresh, trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=15), id="bars_nightly_refresh", max_instances=1, replace_existing=True)
-
-    # Nightly flow DB prune — remove expired contracts (buffer_days=1)
-    def _nightly_flow_prune():
-        try:
-            from api.flow_db import FlowDB
-            pruned = FlowDB().prune_expired(buffer_days=1)
-            if pruned:
-                print(f"[scheduler] Flow DB pruned {pruned} expired rows")
-        except Exception as e:
-            print(f"[scheduler] Flow DB prune error: {e}")
-
-    _scheduler.add_job(_nightly_flow_prune, trigger=CronTrigger(hour=20, minute=0), id="flow_nightly_prune", max_instances=1, replace_existing=True)
-
-    _scheduler.start()
-    print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
-    print("[startup] Session cleanup scheduled — daily at 3:00 AM ET")
-    print("[startup] Churn risk check scheduled — daily at 9:00 AM ET")
-    print("[startup] MRR snapshot scheduled — daily at 11:59 PM ET")
+        _scheduler.start()
+        print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
+        print("[startup] Session cleanup scheduled — daily at 3:00 AM ET")
+        print("[startup] Churn risk check scheduled — daily at 9:00 AM ET")
+        print("[startup] MRR snapshot scheduled — daily at 11:59 PM ET")
+    else:
+        print("[startup] APScheduler skipped — lock held by another uvicorn worker (multi-worker mode)")
 
     yield
-    _scheduler.shutdown(wait=False)
+    if _scheduler is not None:
+        _scheduler.shutdown(wait=False)
     stop_snapshot_scheduler()
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
