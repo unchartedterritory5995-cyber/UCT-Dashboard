@@ -134,7 +134,7 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
         {rows.map((r, i) => {
           const px = priceFn ? priceFn(r.S, r.CP, r.K, r.E) : null;
           const entry = r.price || (r.V > 0 ? r.P / r.V / 100 : 0);
-          const now = px ? (px.mark || px.last || 0) : 0;
+          const now = px ? (px.mark || px.last || px.mid || 0) : 0;
           const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
           const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
           const csvOI = r.OI || 0;
@@ -198,7 +198,7 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
         {rows.map((r, i) => {
           const px = priceFn ? priceFn(r.S, r.CP, r.K, r.E) : null;
           const entry = r.entry || (r.V > 0 ? r.P / r.V / 100 : 0);
-          const now = px ? (px.mark || px.last || 0) : 0;
+          const now = px ? (px.mark || px.last || px.mid || 0) : 0;
           const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
           const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
           const csvOI = r.maxOI || 0;
@@ -1087,7 +1087,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Top Flow","Unusual","Performance","Search","OI Check","Tracker","Watchlist"];
+const TABS = ["Market Read","Top Flow","Conviction","Performance","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -1101,6 +1101,8 @@ export default function OptionsFlowDashboard() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [searchDte, setSearchDte] = useState("All");
+  const [convictionDte, setConvictionDte] = useState("All");
+  const [convictionSort, setConvictionSort] = useState("net"); // net, bull, bear, trades
   const [oiSearch, setOiSearch] = useState("");
   const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
   const [oiCapFilter, setOiCapFilter] = useState("All");
@@ -1771,7 +1773,7 @@ export default function OptionsFlowDashboard() {
     const c = cp === "C" ? P.bu : P.be;
     const px = getPrice(sym, cp, K, exp);
     const curOI = px ? px.oi : 0;
-    const curPrice = px ? (px.mark || px.last || 0) : 0;
+    const curPrice = px ? (px.mark || px.last || px.mid || 0) : 0;
     // Auto-fetch live price if not in cache yet
     if (!px) {
       fetch("/api/schwab/options-quotes", {
@@ -2186,6 +2188,7 @@ export default function OptionsFlowDashboard() {
             const key = orig.symbol+"|"+orig.cp+"|"+orig.strike+"|"+orig._exp;
             newCache[key] = {
               mark: q.mark||0, bid: q.bid||0, ask: q.ask||0, last: q.last||0,
+              mid: (q.mark||0) > 0 ? 0 : ((q.bid||0)+(q.ask||0))/2,
               delta: q.delta||0, theta: q.theta||0, iv: q.iv||0,
               oi: q.openInterest||0, vol: q.volume||0, spot: q.underlyingPrice||0,
             };
@@ -3358,10 +3361,10 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:(t==="Watchlist"||t==="Unusual")?(tab===t?"1px solid "+(t==="Unusual"?"#e040fb":P.ac):"1px solid "+(t==="Unusual"?"#e040fb55":P.ac+"55")):"none", cursor:"pointer",
-              fontSize:11, fontWeight:(t==="Watchlist"||t==="Unusual")?800:600, fontFamily:"inherit",
-              background:tab===t?(t==="Watchlist"?P.ac+"22":t==="Unusual"?"#e040fb22":P.cd):"transparent",
-              color:tab===t?(t==="Watchlist"?P.ac:t==="Unusual"?"#e040fb":P.wh):(t==="Watchlist"?P.ac:t==="Unusual"?"#e040fb":P.mt)
+              padding:"6px 14px", borderRadius:5, border:(t==="Watchlist"||t==="Conviction")?(tab===t?"1px solid "+(t==="Conviction"?"#e040fb":P.ac):"1px solid "+(t==="Conviction"?"#e040fb55":P.ac+"55")):"none", cursor:"pointer",
+              fontSize:11, fontWeight:(t==="Watchlist"||t==="Conviction")?800:600, fontFamily:"inherit",
+              background:tab===t?(t==="Watchlist"?P.ac+"22":t==="Conviction"?"#e040fb22":P.cd):"transparent",
+              color:tab===t?(t==="Watchlist"?P.ac:t==="Conviction"?"#e040fb":P.wh):(t==="Watchlist"?P.ac:t==="Conviction"?"#e040fb":P.mt)
             }}>{t}</button>
           ))}
         </div>
@@ -3728,139 +3731,179 @@ export default function OptionsFlowDashboard() {
           </div>
         )}
 
-        {/* Unusual Flow Detection */}
-        {tab==="Unusual" && FD && (()=>{
-          // Build unusual flow entries from CONV patterns + custom anomaly detection
-          const unusual = [];
-          // 1. CONV entries with detected patterns
-          (FD.CONV||[]).forEach(c => {
-            (c.patterns||[]).forEach(p => {
-              unusual.push({ ...c, anomaly:p.type, anomalyDetail:p, source:"pattern" });
+        {/* Conviction Board */}
+        {tab==="Conviction" && FD && (()=>{
+          // Use cap-filtered clean_confirmed
+          const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
+          const [convDte, setConvDte] = [convictionDte, setConvictionDte];
+          const [cSort, setCSort] = [convictionSort, setConvictionSort];
+          const dteF = t => convDte==="All" ? true : convDte==="ST" ? t.DTE>=0&&t.DTE<60 : convDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
+          const filtered = cc.filter(dteF);
+          const tkMap = {};
+          filtered.forEach(t => {
+            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{} };
+            const tk = tkMap[t.S];
+            if (t.D==="BULL") tk.bull += t.P;
+            if (t.D==="BEAR") tk.bear += t.P;
+            tk.n++;
+            const ck = t.CP+"|"+t.K+"|"+t.E;
+            if (!tk.contracts[ck]) tk.contracts[ck] = { cp:t.CP, K:t.K, exp:t.E, hits:0, prem:0, dir:t.D, hasSweep:false, hasBlock:false, askPrem:0, bidPrem:0 };
+            const c = tk.contracts[ck]; c.hits++; c.prem += t.P;
+            if (t.Ty==="SWP") c.hasSweep = true;
+            if (t.Ty==="BLK") c.hasBlock = true;
+            if (t.Si==="A"||t.Si==="AA") c.askPrem += t.P;
+            if (t.Si==="B"||t.Si==="BB") c.bidPrem += t.P;
+          });
+          Object.values(tkMap).forEach(tk => {
+            const sorted = Object.values(tk.contracts).sort((a,b) => b.prem - a.prem);
+            tk.topContract = sorted[0] || null;
+            tk.contractCount = Object.keys(tk.contracts).length;
+          });
+          const allTickers = Object.values(tkMap);
+          // Sort function
+          const sortFn = (list, dir) => {
+            const d = dir==="bull" ? 1 : -1;
+            return [...list].sort((a,b) => {
+              if (cSort==="net") return d>0 ? (b.bull-b.bear)-(a.bull-a.bear) : (b.bear-b.bull)-(a.bear-a.bull);
+              if (cSort==="bull") return b.bull - a.bull;
+              if (cSort==="bear") return b.bear - a.bear;
+              if (cSort==="trades") return b.n - a.n;
+              if (cSort==="contracts") return b.contractCount - a.contractCount;
+              return 0;
             });
-          });
-          // 2. Extreme Vol/OI — volume > 10x open interest
-          (FD.CONV||[]).forEach(c => {
-            if (c.volOI >= 10 && c.maxOI > 0 && c.maxOI < 500) {
-              unusual.push({ ...c, anomaly:"VOL_OI_EXTREME", anomalyDetail:{ ratio:Math.round(c.volOI*10)/10 }, source:"voloi" });
-            }
-          });
-          // 3. Outsized premium for cap size — $500K+ on small cap, $2M+ on mid cap
-          (FD.CONV||[]).forEach(c => {
-            const cap = capBand(c.mktcap);
-            const thresh = cap==="Small"?500e3:cap==="Mid"?2e6:0;
-            if (thresh > 0 && c.prem >= thresh) {
-              unusual.push({ ...c, anomaly:"SIZE_VS_CAP", anomalyDetail:{ cap, prem:c.prem }, source:"sizecap" });
-            }
-          });
-          // 4. Low OI + YELLOW/MAGENTA — new positions on thin contracts
-          (D.WATCH||[]).forEach(w => {
-            if (w.OI > 0 && w.OI <= 50 && w.V >= 500 && w.volOI >= 10) {
-              const conv = (FD.CONV||[]).find(c=>c.sym===w.S&&c.cp===w.CP&&String(c.K)===String(w.K)&&c.exp===w.E);
-              unusual.push({ sym:w.S, cp:w.CP, K:w.K, exp:w.E, hits:w.trades, prem:w.P, grade:conv?.grade||"", dir:conv?.dir||"", side:conv?.side||"",
-                maxOI:w.OI, vol:w.V, volOI:w.volOI, mktcap:0, er:false,
-                anomaly:"THIN_OI", anomalyDetail:{ oi:w.OI, vol:w.V, ratio:Math.round(w.volOI*10)/10 }, source:"thinoi" });
-            }
-          });
-          // Deduplicate — same contract can trigger multiple anomalies, keep all but dedup exact matches
-          const seen = new Set();
-          const deduped = unusual.filter(u => {
-            const k = u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp+"|"+u.anomaly;
-            if (seen.has(k)) return false; seen.add(k); return true;
-          });
-          // Sort by premium descending within each anomaly type
-          const sorted = deduped.sort((a,b) => b.prem - a.prem);
-          // Group by anomaly type
-          const groups = {
-            IV_SURGE: { label:"IV Surge — IV climbing on flat spot", color:"#e040fb", icon:"📈", items:[] },
-            SIDE_FLIP: { label:"Side Flip — direction reversed intraday", color:"#ff9800", icon:"🔄", items:[] },
-            HEAVY: { label:"Heavy Prints — 20+ trades on one strike", color:"#00e676", icon:"🔨", items:[] },
-            PRICE_SURGE: { label:"Price Surge — contract price nearly doubled", color:"#29b6f6", icon:"🚀", items:[] },
-            VOL_OI_EXTREME: { label:"Vol/OI Explosion — 10x+ volume vs open interest", color:"#ffd600", icon:"💥", items:[] },
-            SIZE_VS_CAP: { label:"Outsized Premium — big money on small/mid name", color:"#ff6d00", icon:"🐋", items:[] },
-            THIN_OI: { label:"Thin OI Accumulation — heavy volume on <50 OI contracts", color:"#00bcd4", icon:"🎯", items:[] },
           };
-          sorted.forEach(u => { if (groups[u.anomaly]) groups[u.anomaly].items.push(u); });
-          const activeGroups = Object.entries(groups).filter(([,g]) => g.items.length > 0);
+          const bulls = sortFn(allTickers.filter(t => t.bull > t.bear), "bull");
+          const bears = sortFn(allTickers.filter(t => t.bear > t.bull), "bear");
+          const stN = cc.filter(t=>t.DTE>=0&&t.DTE<60).length;
+          const ltN = cc.filter(t=>t.DTE>=60&&t.DTE<180).length;
+          const leN = cc.filter(t=>t.DTE>=180).length;
+          const renderRow = (tk) => {
+            const total = tk.bull + tk.bear;
+            const bullPct = total > 0 ? Math.round(tk.bull/total*100) : 50;
+            const net = tk.bull - tk.bear;
+            const dir = net > 0 ? "BULL" : "BEAR";
+            const dirC = dir==="BULL" ? P.bu : P.be;
+            const cap = capBand(tk.mktcap);
+            const tc_ = tk.topContract;
+            // Color by C/P + dominant side: ask-side = standard, bid-side = contrarian
+            const tcSide = tc_ ? (tc_.askPrem >= tc_.bidPrem ? "ask" : "bid") : "ask";
+            let tcC = P.dm;
+            if (tc_) {
+              if (tc_.cp==="C") tcC = tcSide==="ask" ? P.bu : "#ff9800"; // green call on ask, orange call on bid
+              else tcC = tcSide==="ask" ? P.be : "#29b6f6"; // red put on ask, cyan put on bid
+            }
+            return (
+              <tr key={tk.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
+                onClick={()=>{ setTab("Search"); setSearch(tk.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.sym)||null); setSearchDte("All"); }}>
+                <td style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:12 }}>
+                  {tk.sym}
+                  {cap!=="Unknown" && <span style={{ fontSize:7, color:P.dm, marginLeft:4, fontWeight:600 }}>{cap}</span>}
+                </td>
+                <td style={{ padding:"6px 5px", fontWeight:800, color:P.bu }}>{fmt(tk.bull)}</td>
+                <td style={{ padding:"6px 5px", fontWeight:800, color:P.be }}>{fmt(tk.bear)}</td>
+                <td style={{ padding:"6px 5px", width:80 }}>
+                  <div style={{ display:"flex", height:4, borderRadius:2, overflow:"hidden", background:P.bd }}>
+                    <div style={{ width:bullPct+"%", background:P.bu }}/><div style={{ width:(100-bullPct)+"%", background:P.be }}/>
+                  </div>
+                </td>
+                <td style={{ padding:"6px 5px", fontWeight:900, color:dirC, fontSize:12 }}>{fmt(Math.abs(net))}</td>
+                <td style={{ padding:"6px 5px", fontSize:9 }}>
+                  {tc_ && (
+                    <span>
+                      <span style={{ color:tcC, fontWeight:800 }}>{tc_.cp==="C"?"C":"P"}</span>
+                      {tcSide==="bid" && <span style={{ fontSize:7, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
+                      <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc_.K}</span>
+                      <span style={{ color:P.ac, marginLeft:3 }}>{tc_.exp}</span>
+                      <span style={{ color:tc_.hits>=10?P.ac:tc_.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc_.hits}x</span>
+                      {tc_.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc_.prem)}</span>}
+                    </span>
+                  )}
+                </td>
+                <td style={{ padding:"6px 5px", color:P.dm, fontSize:9 }}>{tk.n}</td>
+                <td style={{ padding:"6px 5px", color:P.dm, fontSize:9 }}>{tk.contractCount}</td>
+              </tr>
+            );
+          };
+          // Sortable header
+          const sortHdr = (label, key, extraStyle) => (
+            <th key={label} onClick={()=>setConvictionSort(key)} style={{
+              padding:"4px 5px", textAlign:"left", color:cSort===key?"#e040fb":P.mt, fontSize:8, fontWeight:700,
+              cursor:"pointer", userSelect:"none", transition:"color 0.15s", ...extraStyle
+            }}>{label}{cSort===key?" ▼":""}</th>
+          );
           return (
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               <Card>
                 <div style={{ display:"flex", gap:14, alignItems:"center" }}>
                   <div style={{ width:3, background:"#e040fb", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                   <div>
-                    <div style={{ fontSize:13, fontWeight:700, color:"#e040fb", marginBottom:5 }}>Unusual Flow Scanner</div>
-                    <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Anomalous flow patterns that don't fit normal trading. IV surges on flat spot, extreme Vol/OI, outsized premium on small names, heavy single-strike accumulation, and side flips.</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#e040fb", marginBottom:5 }}>Conviction Board</div>
+                    <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Top bullish and bearish tickers ranked by net confirmed premium. Only non-expired, clean flow with confirmed OI. Click any row to drill into Search.</div>
                   </div>
                 </div>
               </Card>
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <button onClick={()=>{
-                  const contracts = [];
-                  const seen = new Set();
-                  sorted.forEach(u => {
-                    const k = u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp;
-                    if (seen.has(k)) return; seen.add(k);
-                    contracts.push({sym:u.sym, cp:u.cp, strike:u.K, exp:u.exp});
-                  });
-                  fetchPrices(contracts);
-                }} disabled={fetchLoading}
-                  style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
-                    fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:"#e040fb", color:fetchLoading?P.dm:P.bg }}>
-                  {fetchLoading?"Fetching…":"⚡ Fetch Live OI"}
-                </button>
-                <span style={{ fontSize:9, color:P.dm }}>Updates OI for all {new Set(sorted.map(u=>u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp)).size} unusual contracts</span>
+              <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                {[
+                  {k:"All", label:"All", count:filtered.length},
+                  {k:"ST", label:"0–59d", count:stN},
+                  {k:"LT", label:"60–179d", count:ltN},
+                  {k:"LEAPS", label:"180+d", count:leN},
+                ].map(d => {
+                  const active = convDte===d.k;
+                  return (
+                    <button key={d.k} onClick={()=>setConvictionDte(d.k)} style={{
+                      padding:"4px 12px", borderRadius:16, border:"1.5px solid "+(active?"#e040fb":P.bd),
+                      cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+                      background:active?"#e040fb22":"transparent", color:active?"#e040fb":P.mt,
+                      display:"flex", alignItems:"center", gap:5, transition:"all 0.15s"
+                    }}>
+                      <span>{d.label}</span>
+                      <span style={{ fontSize:8, opacity:0.7 }}>{d.count}</span>
+                    </button>
+                  );
+                })}
+                <span style={{ fontSize:9, color:P.dm }}>{bulls.length} bullish · {bears.length} bearish · {allTickers.length} total</span>
               </div>
-              {activeGroups.length === 0 && (
-                <Card><div style={{ textAlign:"center", padding:20, color:P.dm }}>No unusual patterns detected in current data.</div></Card>
-              )}
-              {activeGroups.map(([type, group]) => (
-                <Card key={type}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                    <span style={{ fontSize:14 }}>{group.icon}</span>
-                    <span style={{ fontSize:12, fontWeight:800, color:group.color, letterSpacing:0.5 }}>{group.label}</span>
-                    <span style={{ fontSize:9, color:P.dm, fontWeight:600 }}>{group.items.length} found</span>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <Card>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ TOP BULLISH</div>
+                    <span style={{ fontSize:9, color:P.dm }}>{bulls.length} tickers</span>
                   </div>
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
-                    <thead>
-                      <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                        {["Ticker","Exp","Strike","C/P","Grade","Dir","Side","Hits","Premium","Vol","OI","Vol/OI","Detail"].map(h=>(
-                          <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.items.slice(0,15).map((u,i)=>{
-                        const dirC = u.dir==="BULL"?P.bu:u.dir==="BEAR"?P.be:P.dm;
-                        const detail = u.anomaly==="IV_SURGE" ? "IV +"+u.anomalyDetail.ivChange+"% on flat spot"
-                          : u.anomaly==="SIDE_FLIP" ? u.anomalyDetail.from+"→"+u.anomalyDetail.to+" intraday"
-                          : u.anomaly==="HEAVY" ? u.anomalyDetail.hits+"x prints on one strike"
-                          : u.anomaly==="PRICE_SURGE" ? "Price +"+u.anomalyDetail.pctChange+"% during accumulation"
-                          : u.anomaly==="VOL_OI_EXTREME" ? u.anomalyDetail.ratio+"x Vol/OI"
-                          : u.anomaly==="SIZE_VS_CAP" ? fmt(u.anomalyDetail.prem)+" on "+u.anomalyDetail.cap+" cap"
-                          : u.anomaly==="THIN_OI" ? "OI: "+u.anomalyDetail.oi+", Vol: "+u.anomalyDetail.vol.toLocaleString()+" ("+u.anomalyDetail.ratio+"x)"
-                          : "";
-                        return (
-                          <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
-                            onClick={()=>{ fetchContractHistory(u.sym,u.cp,u.K,u.exp); setSelectedItem(prev=>prev&&prev.sym===u.sym?null:{sym:u.sym,cp:u.cp,K:u.K,exp:u.exp}); setTab("Search"); setSearch(u.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===u.sym)||null); }}>
-                            <td style={{ padding:"4px 5px", fontWeight:800, color:P.wh }}>{u.sym}{capBand(u.mktcap)!=="Unknown"&&<span style={{ fontSize:7, color:P.dm, marginLeft:3 }}>{capBand(u.mktcap)}</span>}</td>
-                            <td style={{ padding:"4px 5px", color:P.wh }}>{u.exp}</td>
-                            <td style={{ padding:"4px 5px", color:P.wh }}>${u.K}</td>
-                            <td style={{ padding:"4px 5px" }}><Tag c={u.cp==="C"?P.bu:P.be}>{u.cp}</Tag></td>
-                            <td style={{ padding:"4px 5px" }}><Tag c={GRADE_COLORS[u.grade]||P.mt}>{u.grade||"—"}</Tag></td>
-                            <td style={{ padding:"4px 5px" }}>{u.dir?<Tag c={dirC}>{u.dir}</Tag>:"—"}</td>
-                            <td style={{ padding:"4px 5px" }}>{u.side==="AA"?<Tag c={P.ac}>AA</Tag>:u.side==="BB"?<Tag c={P.be}>BB</Tag>:u.side?<Tag c={P.mt}>{u.side}</Tag>:"—"}</td>
-                            <td style={{ padding:"4px 5px", fontWeight:700, color:u.hits>=10?P.ac:u.hits>=5?P.ye:P.dm }}>{u.hits||"—"}x</td>
-                            <td style={{ padding:"4px 5px", fontWeight:700, color:premC(u.prem) }}>{fmt(u.prem)}</td>
-                            <td style={{ padding:"4px 5px", color:P.dm }}>{(u.vol||0).toLocaleString()}</td>
-                            <td style={{ padding:"4px 5px", color:P.dm }}>{(u.maxOI||0).toLocaleString()}</td>
-                            <td style={{ padding:"4px 5px", fontWeight:700, color:u.volOI>=10?P.ac:u.volOI>=3?P.ye:P.dm }}>{u.volOI>0?u.volOI.toFixed(1)+"x":"—"}</td>
-                            <td style={{ padding:"4px 5px", fontWeight:700, fontSize:9, color:group.color }}>{detail}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
+                    <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Ticker</th>
+                      {sortHdr("Bull","bull")}
+                      {sortHdr("Bear","bear")}
+                      <th style={{ padding:"4px 5px", width:80 }}/>
+                      {sortHdr("Net","net")}
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Top Contract</th>
+                      {sortHdr("Trades","trades")}
+                      {sortHdr("#","contracts")}
+                    </tr></thead>
+                    <tbody>{bulls.slice(0,25).map(renderRow)}</tbody>
                   </table>
                 </Card>
-              ))}
+                <Card>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ TOP BEARISH</div>
+                    <span style={{ fontSize:9, color:P.dm }}>{bears.length} tickers</span>
+                  </div>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                    <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Ticker</th>
+                      {sortHdr("Bull","bull")}
+                      {sortHdr("Bear","bear")}
+                      <th style={{ padding:"4px 5px", width:80 }}/>
+                      {sortHdr("Net","net")}
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Top Contract</th>
+                      {sortHdr("Trades","trades")}
+                      {sortHdr("#","contracts")}
+                    </tr></thead>
+                    <tbody>{bears.slice(0,25).map(renderRow)}</tbody>
+                  </table>
+                </Card>
+              </div>
             </div>
           );
         })()}
@@ -3990,7 +4033,7 @@ export default function OptionsFlowDashboard() {
                 <tbody>
                   {ranked.map((r,i) => {
                     const px = getPrice(r.sym, r.cp, r.K, r.exp);
-                    const now = px ? (px.mark || px.last || 0) : 0;
+                    const now = px ? (px.mark || px.last || px.mid || 0) : 0;
                     const pnl = now > 0 && r.entry > 0 ? (now - r.entry) / r.entry * 100 : 0;
                     const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
                     const dirC = r.dir==="BULL" ? P.bu : P.be;
@@ -4064,12 +4107,12 @@ export default function OptionsFlowDashboard() {
               });
               const avgPnl = filled.length>0 ? filled.reduce((s,r) => {
                 const px = getPrice(r.sym, r.cp, r.strike, r.exp);
-                const curr = px ? (px.mark || px.last || 0) : r.now || 0;
+                const curr = px ? (px.mark || px.last || px.mid || 0) : r.now || 0;
                 return s + (curr > 0 && r.entry > 0 ? (curr-r.entry)/r.entry*100 : 0);
               },0)/filled.length : 0;
               const winners = filled.filter(r => {
                 const px = getPrice(r.sym, r.cp, r.strike, r.exp);
-                const curr = px ? (px.mark || px.last || 0) : r.now || 0;
+                const curr = px ? (px.mark || px.last || px.mid || 0) : r.now || 0;
                 return curr > r.entry;
               }).length;
               return (
@@ -4085,7 +4128,7 @@ export default function OptionsFlowDashboard() {
                     <tbody>
                       {items.map(r => {
                         const px = getPrice(r.sym, r.cp, r.strike, r.exp);
-                        const curr = px ? (px.mark || px.last || 0) : r.now || 0;
+                        const curr = px ? (px.mark || px.last || px.mid || 0) : r.now || 0;
                         const pnlPct = curr>0&&r.entry>0 ? (curr-r.entry)/r.entry*100 : 0;
                         const pnlColor = pnlPct>0?P.bu:pnlPct<0?P.be:P.dm;
                         const curOI = px ? px.oi : 0;
@@ -4816,10 +4859,6 @@ export default function OptionsFlowDashboard() {
                   <button onClick={wlPopulate}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     ⟳ Auto-Fill from Scanner
-                  </button>
-                  <button onClick={wlPopulateUnusual}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #e040fb60", background:"transparent", color:"#e040fb", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
-                    ⟳ Fill from Unusual
                   </button>
                   <button onClick={wlSave}
                     style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
