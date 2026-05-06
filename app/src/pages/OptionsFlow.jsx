@@ -2162,8 +2162,9 @@ export default function OptionsFlowDashboard() {
     });
     setStatus(`Fetching ${unique.length} contracts across ${new Set(unique.map(c=>c.symbol)).size} tickers…`);
     try {
-      // Schwab batch quotes — chunk into batches of 5 to avoid API timeouts
-      const BATCH_SIZE = 5;
+      // Schwab batch quotes — dynamic batch size based on total contracts
+      const BATCH_SIZE = unique.length > 50 ? 20 : unique.length > 20 ? 10 : 5;
+      const BATCH_DELAY = unique.length > 50 ? 400 : 800;
       let successes = 0, failures = 0, expired = 0;
       for (let b = 0; b < unique.length; b += BATCH_SIZE) {
         const batch = unique.slice(b, b + BATCH_SIZE);
@@ -2198,7 +2199,7 @@ export default function OptionsFlowDashboard() {
           setPriceCache({...newCache});
         } catch(e) { failures += batch.length; }
         // Delay between batches to avoid rate limiting
-        if (b + BATCH_SIZE < unique.length) await new Promise(r => setTimeout(r, 800));
+        if (b + BATCH_SIZE < unique.length) await new Promise(r => setTimeout(r, BATCH_DELAY));
       }
       if (updated) setPerf(updated);
       setStatus(`Done. ${successes} priced` + (expired > 0 ? `, ${expired} expired` : ``) + (failures > 0 ? `, ${failures} failed` : ``) + ` of ${unique.length} contracts.`);
