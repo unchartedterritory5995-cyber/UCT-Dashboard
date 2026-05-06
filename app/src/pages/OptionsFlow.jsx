@@ -4860,6 +4860,10 @@ export default function OptionsFlowDashboard() {
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     ⟳ Auto-Fill from Scanner
                   </button>
+                  <button onClick={wlPopulateUnusual}
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #e040fb60", background:"transparent", color:"#e040fb", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    ⟳ Fill from Unusual
+                  </button>
                   <button onClick={wlSave}
                     style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     💾 Save Watchlist
