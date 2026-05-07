@@ -4631,7 +4631,7 @@ export default function OptionsFlowDashboard() {
                     {item.oi>0 && <span style={{ color:P.dm }}>OI: <span style={{ color:P.wh, fontWeight:700 }}>{item.oi.toLocaleString()}</span></span>}
                     {item.volume>0 && <span style={{ color:P.dm }}>Vol: <span style={{ color:P.wh, fontWeight:700 }}>{item.volume.toLocaleString()}</span></span>}
                     {item.volOI>0 && <span style={{ color:item.volOI>=3?P.bu:item.volOI>=1?P.ye:P.dm, fontWeight:700 }}>{item.volOI.toFixed(1)}x</span>}
-                    {item.liveOI>0 && <span style={{ color:P.ac }}>Live OI: <span style={{ fontWeight:700 }}>{item.liveOI.toLocaleString()}</span>{item.liveOIDelta!==0 && <span style={{ color:item.liveOIDelta>0?P.bu:P.be, fontWeight:800, marginLeft:3 }}>{item.liveOIDelta>0?"+":""}{item.liveOIDelta.toLocaleString()}</span>}</span>}
+                    {item.liveOI>0 && <span style={{ color:P.ac }}>Live OI: <span style={{ fontWeight:700 }}>{item.liveOI.toLocaleString()}</span></span>}
                   </div>
                   {isEditing ? (
                     <textarea value={item.notes||""} onChange={e=>{update("notes",e.target.value); e.stopPropagation();}}
