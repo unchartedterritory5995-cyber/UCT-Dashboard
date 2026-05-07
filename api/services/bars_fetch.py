@@ -1161,9 +1161,26 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                             "ticker": _sym, "tf": _tf,
                             "bars": _fmt_sqlite_bars(fresh_rows or _stored, _tf),
                         }
-                        cache.set(_key, fresh_payload, ttl=_CACHE_TTL.get(_tf, 300))
-                    except Exception:
-                        pass
+                        # Only cache with the full TF TTL when the bg fetch
+                        # actually advanced the data. When `new` is empty, the
+                        # delta-fetch either silently failed (httpx pool
+                        # exhaustion, network blip, Polygon hiccup) or returned
+                        # no new bars. Caching the unchanged stale payload
+                        # with a 5-minute TTL traps the chart in stale state
+                        # for that whole window — every subsequent request
+                        # within 5min hits Layer 1 cache and skips the SWR
+                        # path that would otherwise retry the bg fetch.
+                        # Use a short retry TTL so we re-attempt soon.
+                        if new:
+                            cache.set(_key, fresh_payload, ttl=_CACHE_TTL.get(_tf, 300))
+                        else:
+                            cache.set(_key, fresh_payload, ttl=15)
+                    except Exception as _bg_e:
+                        import logging as _log_bg
+                        _log_bg.getLogger(__name__).error(
+                            f"[bars] bg_delta {_sym} tf={_tf}: "
+                            f"{type(_bg_e).__name__}: {_bg_e}"
+                        )
                     finally:
                         with _inflight_lock:
                             _inflight.pop(_key, None)
