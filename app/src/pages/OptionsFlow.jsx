@@ -509,7 +509,7 @@ function buildCharts(cc) {
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!allCons[k]) allCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, vol:0, dir:t.D,
       hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
-      bullPrem:0, bearPrem:0, dominantOverride:false, maxOI:0, er:t.er||false,
+      bullPrem:0, bearPrem:0, askPrem:0, bidPrem:0, dominantOverride:false, maxOI:0, er:t.er||false,
       ivs:[], spots:[], prices:[], sideTimes:[] };
     if (!consTrades[k]) consTrades[k] = [];
     consTrades[k].push(t);
@@ -518,6 +518,8 @@ function buildCharts(cc) {
     if (t.D === "BEAR") allCons[k].bearPrem += t.P;
     if (t.Si==="AA") allCons[k].hasAA = true;
     if (t.Si==="BB") allCons[k].hasBB = true;
+    if (t.Si==="A"||t.Si==="AA") allCons[k].askPrem += t.P;
+    if (t.Si==="B"||t.Si==="BB") allCons[k].bidPrem += t.P;
     if (t.Ty==="SWP") allCons[k].hasSweep = true;
     if (t.Ty==="BLK") allCons[k].hasBlock = true;
     if (t.Co==="YELLOW"||t.Co==="MAGENTA") allCons[k].oiExceeded = true;
@@ -548,7 +550,8 @@ function buildCharts(cc) {
     const k = c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
     const trades = (consTrades[k]||[]).sort((a,b)=>b.P-a.P);
     return { ...c, grade, volOI, score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus,
-      side:c.hasAA?"AA":c.hasBB?"BB":"ASK", strike:"$"+c.K+c.cp, trades, patterns:detectPatterns(c) };
+      side: c.askPrem >= c.bidPrem ? (c.hasAA ? "AA" : "ASK") : (c.hasBB ? "BB" : "BID"),
+      strike:"$"+c.K+c.cp, trades, patterns:detectPatterns(c) };
   }).filter(c => {
     if (!c.clean || c.DTE <= 7) return false;
     // Re-check expiry against today — parse c.exp "M/D" or "M/D/YYYY" at render time
@@ -3913,7 +3916,7 @@ export default function OptionsFlowDashboard() {
             if (!tfClusters[k]) tfClusters[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, dir:t.D,
               hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
               mktcap:t.mktcap||0, sector:t.sector||"", prices:[], volumes:0, maxOI:0,
-              bullPrem:0, bearPrem:0, dominantOverride:false, er:t.er||false,
+              bullPrem:0, bearPrem:0, askPrem:0, bidPrem:0, dominantOverride:false, er:t.er||false,
               ivs:[], spots:[], sideTimes:[], vol:0 };
             const c = tfClusters[k];
             c.hits++; c.prem += t.P; c.volumes += t.V; c.vol += t.V;
@@ -3923,6 +3926,8 @@ export default function OptionsFlowDashboard() {
             if (t.price > 0) c.prices.push(t.price);
             if (t.Si==="AA") c.hasAA = true;
             if (t.Si==="BB") c.hasBB = true;
+            if (t.Si==="A"||t.Si==="AA") c.askPrem += t.P;
+            if (t.Si==="B"||t.Si==="BB") c.bidPrem += t.P;
             if (t.Ty==="SWP") c.hasSweep = true;
             if (t.Ty==="BLK") c.hasBlock = true;
             if (t.Co==="YELLOW"||t.Co==="MAGENTA") c.oiExceeded = true;
@@ -3953,7 +3958,8 @@ export default function OptionsFlowDashboard() {
             const voiBonus = Math.min(volOI, 5) * 80;
             return { ...c, grade, entry, cap, dteBand,
               score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus,
-              side:c.hasAA?"AA":c.hasBB?"BB":"ASK", patterns:detectPatterns(c) };
+              side: c.askPrem >= c.bidPrem ? (c.hasAA ? "AA" : "ASK") : (c.hasBB ? "BB" : "BID"),
+              patterns:detectPatterns(c) };
           }).filter(c => c.clean && c.DTE > 7);
 
           let filtered = allFlow;
