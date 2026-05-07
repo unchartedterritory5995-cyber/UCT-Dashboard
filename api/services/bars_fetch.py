@@ -357,7 +357,14 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
 # ── Delta-fetch helpers (tiny payloads — only new bars since last stored ts) ──
 
 def _delta_daily(ticker: str, last_ts: int) -> list[dict]:
-    """Fetch only daily bars newer than last_ts (YYYYMMDD int)."""
+    """Fetch daily bars from the last 10 days. Returns bars at-or-newer than
+    last_ts so today's still-evolving bar (whose close + high/low keep
+    updating intraday) gets re-fetched and INSERT OR REPLACE-d into the
+    cache on every call. Strict ``>`` would freeze today's daily bar at
+    whatever value happened to be cached on the first fetch of the day —
+    the EVC bug observed in production where the daily candle showed an
+    early-morning partial close instead of the true session close.
+    """
     from api.services.massive import get_agg_bars
     from_date = (datetime.utcnow() - timedelta(days=10)).strftime("%Y-%m-%d")
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
@@ -365,7 +372,7 @@ def _delta_daily(ticker: str, last_ts: int) -> list[dict]:
     for bar in get_agg_bars(ticker, from_date, to_date):
         dt = datetime.utcfromtimestamp(bar["t"] / 1000)
         ts = int(dt.strftime("%Y%m%d"))
-        if ts > last_ts:
+        if ts >= last_ts:
             new.append({
                 "t": dt.strftime("%Y-%m-%d"),
                 "o": round(bar["o"], 2), "h": round(bar["h"], 2),
@@ -376,7 +383,10 @@ def _delta_daily(ticker: str, last_ts: int) -> list[dict]:
 
 
 def _delta_weekly(ticker: str, last_ts: int) -> list[dict]:
-    """Fetch daily bars for the last 14 days, resample, return new weekly bars."""
+    """Fetch daily bars for the last 14 days, resample, return at-or-newer
+    weekly bars. Same rationale as _delta_daily: the in-progress weekly
+    bar (week-to-date OHLC) keeps updating, must be re-fetched not
+    skipped."""
     from api.services.massive import get_agg_bars
     from_date = (datetime.utcnow() - timedelta(days=14)).strftime("%Y-%m-%d")
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
@@ -389,11 +399,13 @@ def _delta_weekly(ticker: str, last_ts: int) -> list[dict]:
             "l": round(bar["l"], 2), "c": round(bar["c"], 2),
             "v": int(bar.get("v", 0)),
         })
-    return [b for b in _resample_weekly_iso(daily) if int(b["t"].replace("-", "")) > last_ts]
+    return [b for b in _resample_weekly_iso(daily) if int(b["t"].replace("-", "")) >= last_ts]
 
 
 def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
-    """Fetch daily bars for the last 60 days, resample, return new monthly bars."""
+    """Fetch daily bars for the last 60 days, resample, return at-or-newer
+    monthly bars. Same rationale as _delta_daily — current month's
+    bar keeps evolving and must be re-fetched."""
     from api.services.massive import get_agg_bars
     from_date = (datetime.utcnow() - timedelta(days=60)).strftime("%Y-%m-%d")
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
@@ -406,7 +418,7 @@ def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
             "l": round(bar["l"], 2), "c": round(bar["c"], 2),
             "v": int(bar.get("v", 0)),
         })
-    return [b for b in _resample_monthly_iso(daily) if int(b["t"].replace("-", "")) > last_ts]
+    return [b for b in _resample_monthly_iso(daily) if int(b["t"].replace("-", "")) >= last_ts]
 
 
 def _session_resample_hourly(bars_30m: list[dict]) -> list[dict]:
@@ -473,7 +485,10 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
                  "l": round(b["l"], 2), "c": round(b["c"], 2), "v": int(b.get("v", 0))}
                 for b in (data.get("results") or [])
             ]
-            return [b for b in _session_resample_hourly(bars_30m) if b["t"] > last_ts]
+            # >= so the in-progress hourly bar (still being aggregated from
+            # the latest 30-min input) gets re-fetched and overwritten on
+            # every call. Strict > would freeze it at first-fetch values.
+            return [b for b in _session_resample_hourly(bars_30m) if b["t"] >= last_ts]
         except Exception as _e:
             import logging as _log
             _log.getLogger(__name__).error(
@@ -495,7 +510,12 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
         new = []
         for bar in (data.get("results") or []):
             ts = int(bar["t"] / 1000)
-            if ts > last_ts:
+            # >= so the most recent bar (which may have been written while
+            # still in-progress on a prior fetch — e.g., the 10:00 15min
+            # bar fetched at 10:05) gets re-fetched and overwritten with
+            # the closed-bar values when it's done forming. INSERT OR
+            # REPLACE in put_bars makes the boundary rewrite cheap.
+            if ts >= last_ts:
                 new.append({
                     "t": ts,
                     "o": round(bar["o"], 2), "h": round(bar["h"], 2),
