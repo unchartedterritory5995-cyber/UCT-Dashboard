@@ -237,3 +237,27 @@ def warm_universe_status():
             remaining = (snap["total"] - snap["done"]) / max(rate, 0.001)
             snap["eta_seconds"] = int(remaining)
     return snap
+
+
+@router.get("/api/admin/audit-bars/{ticker}")
+def audit_bars_endpoint(
+    ticker: str,
+    request: Request,
+    tf: str = Query(default="30"),
+    bars: int = Query(default=200, ge=1, le=2000),
+):
+    """Diff a ticker's cached bars against Polygon canonical.
+
+    The Phase 2C verification keystone: ad-hoc proof that any chart
+    matches authoritative source-of-truth. Returns a structured diff
+    (per-bar field deltas, missing-from-cache list, missing-from-
+    canonical list, pass rate) so an operator can answer "is this
+    chart correct, and if not, where does it diverge?".
+
+    Auth: Bearer PUSH_SECRET (same pattern as warm-universe). Read-only
+    operation but Polygon API calls aren't free, so we gate it.
+    """
+    _check_admin_auth(request)
+    from api.services.audit import audit_ticker
+    result = audit_ticker(ticker, tf, bars)
+    return result.to_dict()
