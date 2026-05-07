@@ -263,6 +263,89 @@ def audit_bars_endpoint(
     return result.to_dict()
 
 
+@router.post("/api/admin/refresh-bars-all")
+def refresh_bars_all_endpoint(
+    request: Request,
+    tf: str | None = Query(default=None,
+        description="Optional timeframe to limit the wipe; omit for ALL timeframes"),
+    confirm: str = Query(default="",
+        description='Required confirmation token. Pass confirm="WIPE_EVERYTHING" to proceed.'),
+):
+    """Nuclear option: wipe ALL cached bars across the entire universe.
+
+    Used after a systemic cache corruption event (e.g., today's incident
+    where the >= fix is shipped but existing cache still contains stale
+    pre-fix data). Clears every (ticker, tf) row from SQLite + every
+    bars_cache JSON file + every in-memory cache key. Next user request
+    on each chart triggers a fresh fetch from upstream which populates
+    correctly under the new code paths.
+
+    Cost: cache rebuild takes ~30 minutes as users browse, with each
+    chart's first load slow. Acceptable trade for systemic clean state
+    when the alternative is per-ticker manual refresh across hundreds
+    of affected charts.
+
+    Auth: Bearer PUSH_SECRET. Plus a confirm=WIPE_EVERYTHING query
+    parameter as a second-factor against fat-fingering — this endpoint
+    will trash an active production cache, the friction is intentional.
+    """
+    _check_admin_auth(request)
+    if confirm != "WIPE_EVERYTHING":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Refusing to wipe without confirmation. Pass "
+                "?confirm=WIPE_EVERYTHING to proceed. This is destructive."
+            ),
+        )
+
+    from api.services import bars_sqlite as _bs
+    from api.services import bars_disk_cache as _disk
+    from api.services.cache import cache as _mem
+    import os as _os
+
+    sqlite_deleted = _bs.delete_bars(tf=tf)
+
+    # Disk cache: walk the bars_cache directory, remove every JSON file.
+    # We don't have a built-in "delete all" — iterate matching files.
+    disk_deleted = 0
+    cache_dir = _os.path.join(_os.environ.get("DATA_DIR", "/data"), "bars_cache")
+    if _os.path.isdir(cache_dir):
+        try:
+            for name in _os.listdir(cache_dir):
+                if not name.endswith(".json"):
+                    continue
+                # If a tf filter was requested, only nuke matching files
+                if tf is not None:
+                    parts = name[:-5].split("_")  # strip .json + split
+                    if len(parts) < 3 or parts[1] != tf:
+                        continue
+                try:
+                    _os.remove(_os.path.join(cache_dir, name))
+                    disk_deleted += 1
+                except OSError:
+                    pass
+        except OSError:
+            pass
+
+    # In-memory cache: every bars key starts with `bars_`. Wipe by prefix.
+    mem_deleted = _mem.delete_prefix("bars_")
+
+    return {
+        "tf": tf or "ALL",
+        "sqlite_rows_deleted": sqlite_deleted,
+        "disk_files_deleted": disk_deleted,
+        "memory_keys_deleted": mem_deleted,
+        "next_steps": (
+            "Cache fully wiped. Next user requests will trigger fresh "
+            "fetches from upstream (Polygon canonical via Massive). "
+            "Expect 30+ minute rebuild as charts are visited; each "
+            "first-load will be slow. After settling, all charts will "
+            "have data correct as of the fetch time."
+        ),
+    }
+
+
 @router.post("/api/admin/refresh-bars/{ticker}")
 def refresh_bars_endpoint(
     ticker: str,
