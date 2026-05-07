@@ -300,50 +300,99 @@ def refresh_bars_all_endpoint(
         )
 
     from api.services import bars_sqlite as _bs
-    from api.services import bars_disk_cache as _disk
     from api.services.cache import cache as _mem
+    import logging as _log
     import os as _os
+    _logger = _log.getLogger(__name__)
 
-    sqlite_deleted = _bs.delete_bars(tf=tf)
+    # Each layer is wrapped in its own try/except so a failure in one
+    # doesn't sink the whole operation. The most common failure mode is
+    # SQLite lock contention under heavy concurrent reads from chart
+    # loads — we report what succeeded vs what didn't and let the
+    # operator retry the failed parts.
+    result = {
+        "tf": tf or "ALL",
+        "sqlite_rows_deleted": None,
+        "sqlite_error": None,
+        "disk_files_deleted": 0,
+        "disk_error": None,
+        "memory_keys_deleted": 0,
+        "memory_error": None,
+    }
+
+    # SQLite — wipe via DROP/recreate on a one-off connection so we're
+    # not bound by the thread-local connection's busy_timeout. DROP is
+    # also dramatically faster than DELETE on a large ohlcv table (it
+    # frees the pages instead of scanning + per-row deleting them).
+    try:
+        import sqlite3 as _sqlite3
+        db_path = _os.path.join(_os.environ.get("DATA_DIR", "/data"), "bars.db")
+        c = _sqlite3.connect(db_path, timeout=30)
+        try:
+            c.execute("PRAGMA busy_timeout=30000")  # 30s for this one op
+            if tf is None:
+                # Drop and recreate from scratch (fastest)
+                row = c.execute("SELECT COUNT(*) FROM ohlcv").fetchone()
+                row_count = row[0] if row else 0
+                c.execute("DROP TABLE IF EXISTS ohlcv")
+                c.commit()
+                result["sqlite_rows_deleted"] = row_count
+            else:
+                # Targeted delete by tf
+                cur = c.execute("DELETE FROM ohlcv WHERE tf=?", (tf,))
+                c.commit()
+                result["sqlite_rows_deleted"] = cur.rowcount
+        finally:
+            c.close()
+        # Re-init so fresh connections see the table on next request.
+        try:
+            _bs.init_db()
+        except Exception as _e:
+            _logger.exception(f"[refresh-all] init_db after wipe failed: {_e}")
+        # Bump epoch so all thread-local connections refresh against the
+        # newly-recreated table on next use (otherwise they'd hold stale
+        # handles to the dropped one).
+        try:
+            _bs.bump_db_epoch()
+        except Exception:
+            pass
+    except Exception as e:
+        _logger.exception(f"[refresh-all] sqlite wipe failed: {e}")
+        result["sqlite_error"] = f"{type(e).__name__}: {e}"
 
     # Disk cache: walk the bars_cache directory, remove every JSON file.
-    # We don't have a built-in "delete all" — iterate matching files.
-    disk_deleted = 0
-    cache_dir = _os.path.join(_os.environ.get("DATA_DIR", "/data"), "bars_cache")
-    if _os.path.isdir(cache_dir):
-        try:
+    try:
+        cache_dir = _os.path.join(_os.environ.get("DATA_DIR", "/data"), "bars_cache")
+        if _os.path.isdir(cache_dir):
             for name in _os.listdir(cache_dir):
                 if not name.endswith(".json"):
                     continue
-                # If a tf filter was requested, only nuke matching files
                 if tf is not None:
-                    parts = name[:-5].split("_")  # strip .json + split
+                    parts = name[:-5].split("_")
                     if len(parts) < 3 or parts[1] != tf:
                         continue
                 try:
                     _os.remove(_os.path.join(cache_dir, name))
-                    disk_deleted += 1
+                    result["disk_files_deleted"] += 1
                 except OSError:
                     pass
-        except OSError:
-            pass
+    except Exception as e:
+        _logger.exception(f"[refresh-all] disk wipe failed: {e}")
+        result["disk_error"] = f"{type(e).__name__}: {e}"
 
-    # In-memory cache: every bars key starts with `bars_`. Wipe by prefix.
-    mem_deleted = _mem.delete_prefix("bars_")
+    # In-memory cache.
+    try:
+        result["memory_keys_deleted"] = _mem.delete_prefix("bars_")
+    except Exception as e:
+        result["memory_error"] = f"{type(e).__name__}: {e}"
 
-    return {
-        "tf": tf or "ALL",
-        "sqlite_rows_deleted": sqlite_deleted,
-        "disk_files_deleted": disk_deleted,
-        "memory_keys_deleted": mem_deleted,
-        "next_steps": (
-            "Cache fully wiped. Next user requests will trigger fresh "
-            "fetches from upstream (Polygon canonical via Massive). "
-            "Expect 30+ minute rebuild as charts are visited; each "
-            "first-load will be slow. After settling, all charts will "
-            "have data correct as of the fetch time."
-        ),
-    }
+    result["next_steps"] = (
+        "Cache wiped. Next user requests trigger fresh fetches from "
+        "upstream (Polygon canonical via Massive). Expect 30+ minute "
+        "rebuild as charts are visited; first-loads are slow during "
+        "that window. Re-run any chart that still looks wrong."
+    )
+    return result
 
 
 @router.post("/api/admin/refresh-bars/{ticker}")
