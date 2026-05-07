@@ -372,7 +372,7 @@ def _delta_daily(ticker: str, last_ts: int) -> list[dict]:
     for bar in get_agg_bars(ticker, from_date, to_date):
         dt = datetime.utcfromtimestamp(bar["t"] / 1000)
         ts = int(dt.strftime("%Y%m%d"))
-        if ts >= last_ts:
+        if ts > last_ts:
             new.append({
                 "t": dt.strftime("%Y-%m-%d"),
                 "o": round(bar["o"], 2), "h": round(bar["h"], 2),
@@ -399,7 +399,7 @@ def _delta_weekly(ticker: str, last_ts: int) -> list[dict]:
             "l": round(bar["l"], 2), "c": round(bar["c"], 2),
             "v": int(bar.get("v", 0)),
         })
-    return [b for b in _resample_weekly_iso(daily) if int(b["t"].replace("-", "")) >= last_ts]
+    return [b for b in _resample_weekly_iso(daily) if int(b["t"].replace("-", "")) > last_ts]
 
 
 def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
@@ -418,7 +418,7 @@ def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
             "l": round(bar["l"], 2), "c": round(bar["c"], 2),
             "v": int(bar.get("v", 0)),
         })
-    return [b for b in _resample_monthly_iso(daily) if int(b["t"].replace("-", "")) >= last_ts]
+    return [b for b in _resample_monthly_iso(daily) if int(b["t"].replace("-", "")) > last_ts]
 
 
 def _session_resample_hourly(bars_30m: list[dict]) -> list[dict]:
