@@ -271,6 +271,82 @@ def test_put_bars_retries_on_locked_then_succeeds(tmp_path, monkeypatch):
     assert flaky.calls == 2, "expected one retry after a single locked error"
 
 
+def test_init_db_creates_provenance_table(tmp_path, monkeypatch):
+    """The bars_provenance schema lands as part of init_db so future
+    fetch sites can record source attribution without coordinating a
+    separate migration step."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+    bars_sqlite.init_db()
+    c = bars_sqlite._conn()
+    rows = c.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='bars_provenance'"
+    ).fetchall()
+    assert rows, "bars_provenance table not created by init_db"
+
+
+def test_put_provenance_round_trip(tmp_path, monkeypatch):
+    """Basic write+read: ensure put_provenance + get_provenance agree."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+    bars_sqlite.init_db()
+
+    n = bars_sqlite.put_provenance("AAPL", "30", [1000, 2000, 3000],
+                                    source="massive", fetched_at=12345)
+    assert n == 3
+
+    row = bars_sqlite.get_provenance("AAPL", "30", 2000)
+    assert row == {"source": "massive", "fetched_at": 12345}
+
+
+def test_get_provenance_missing_returns_none(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+    bars_sqlite.init_db()
+    assert bars_sqlite.get_provenance("AAPL", "30", 9999) is None
+
+
+def test_put_provenance_replaces_on_conflict(tmp_path, monkeypatch):
+    """A higher-priority source replacing a fallback bar must overwrite
+    the source label, not insert a duplicate. The ON CONFLICT REPLACE
+    semantic is the contract."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+    bars_sqlite.init_db()
+
+    bars_sqlite.put_provenance("AAPL", "30", [1000], source="yfinance", fetched_at=100)
+    bars_sqlite.put_provenance("AAPL", "30", [1000], source="massive", fetched_at=200)
+
+    row = bars_sqlite.get_provenance("AAPL", "30", 1000)
+    assert row == {"source": "massive", "fetched_at": 200}
+
+
+def test_put_provenance_empty_timestamps_is_noop(tmp_path, monkeypatch):
+    """Calling with no timestamps must not crash. Common when a fetch
+    returned zero new bars (no provenance to record either)."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+    bars_sqlite.init_db()
+    assert bars_sqlite.put_provenance("AAPL", "30", [], source="massive") == 0
+
+
+def test_get_provenance_summary_counts_by_source(tmp_path, monkeypatch):
+    """Surfaces "what fraction of this ticker's bars came from each
+    source" — a key signal for spotting heavy fallback usage that
+    suggests Massive is failing for a ticker."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bars_sqlite = _reload_bars_sqlite()
+    bars_sqlite.init_db()
+
+    bars_sqlite.put_provenance("AAPL", "30", [1, 2, 3, 4], source="massive")
+    bars_sqlite.put_provenance("AAPL", "30", [5, 6], source="fmp")
+    bars_sqlite.put_provenance("AAPL", "30", [7], source="yfinance")
+    bars_sqlite.put_provenance("AAPL", "60", [1], source="massive")  # different tf
+
+    summary = bars_sqlite.get_provenance_summary("AAPL", "30")
+    assert summary == {"massive": 4, "fmp": 2, "yfinance": 1}
+
+
 def test_bump_with_no_existing_connection_is_safe(tmp_path, monkeypatch):
     """Calling bump_db_epoch before any thread has opened a connection
     should not raise. (Edge case: data_sync.download_snapshot may run

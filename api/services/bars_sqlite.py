@@ -107,6 +107,27 @@ def init_db() -> None:
     c.execute(
         "CREATE INDEX IF NOT EXISTS idx_ohlcv_lookup ON ohlcv(ticker, tf, ts DESC)"
     )
+    # Provenance metadata: which source produced each bar and when.
+    # Sibling table to ohlcv (same primary key) so existing query paths
+    # don't need to change. Populated by put_bars callers that pass a
+    # ``source`` argument; legacy callers leave it unpopulated. Future
+    # audit logic joins ohlcv ⨝ bars_provenance to report "this bad bar
+    # came from yfinance fallback at fetched_at=..." which collapses
+    # debugging from "guess which source" to a one-query answer.
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS bars_provenance (
+            ticker     TEXT NOT NULL,
+            tf         TEXT NOT NULL,
+            ts         INTEGER NOT NULL,
+            source     TEXT NOT NULL,
+            fetched_at INTEGER NOT NULL,
+            PRIMARY KEY (ticker, tf, ts)
+        )
+    """)
+    c.execute(
+        "CREATE INDEX IF NOT EXISTS idx_provenance_source "
+        "ON bars_provenance(source)"
+    )
     # ── One-time migration: purge tf='60' rows seeded before the
     # session-aligned hourly resample feature shipped (commit 2f42e55,
     # 2026-05-01). Pre-feature rows merged the 9:00 pre-market bar with
@@ -195,6 +216,80 @@ def get_all_tickers() -> list[tuple]:
     return _conn().execute(
         "SELECT DISTINCT ticker, tf FROM ohlcv ORDER BY ticker, tf"
     ).fetchall()
+
+
+def put_provenance(
+    ticker: str, tf: str, timestamps: list[int],
+    source: str, fetched_at: int | None = None,
+) -> int:
+    """Record provenance for a batch of bars (one source per call).
+
+    Pairs with put_bars: each ``ts`` in ``timestamps`` should correspond
+    to a row that was just upserted into ohlcv. The (ticker, tf, ts)
+    primary key matches between the two tables so a JOIN reads cleanly.
+
+    fetched_at defaults to "now" — pass an explicit value when recording
+    historical provenance (e.g. backfilling from a snapshot whose actual
+    fetch time you want to preserve).
+
+    Returns rows inserted/replaced. INSERT OR REPLACE so calling twice
+    for the same (ticker, tf, ts) updates the source/fetched_at — useful
+    when a higher-priority source replaces a fallback bar.
+    """
+    if not timestamps:
+        return 0
+    if fetched_at is None:
+        fetched_at = int(time.time())
+    ticker_up = ticker.upper()
+    rows = [(ticker_up, tf, int(ts), source, int(fetched_at)) for ts in timestamps]
+    last_lock_err: sqlite3.OperationalError | None = None
+    for attempt in range(3):
+        try:
+            c = _conn()
+            c.executemany(
+                "INSERT OR REPLACE INTO bars_provenance"
+                "(ticker,tf,ts,source,fetched_at) VALUES(?,?,?,?,?)",
+                rows,
+            )
+            c.commit()
+            return len(rows)
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower():
+                raise
+            last_lock_err = e
+            time.sleep(0.05 * (attempt + 1))
+            continue
+    if last_lock_err is not None:
+        raise last_lock_err
+    return 0  # unreachable
+
+
+def get_provenance(ticker: str, tf: str, ts: int) -> dict | None:
+    """Return (source, fetched_at) for one bar, or None if no row exists.
+
+    Used by debugging endpoints and the audit pipeline when reporting
+    "this bar came from {source} at {fetched_at}". Cheap point lookup
+    via primary key."""
+    row = _conn().execute(
+        "SELECT source, fetched_at FROM bars_provenance "
+        "WHERE ticker=? AND tf=? AND ts=?",
+        (ticker.upper(), tf, int(ts)),
+    ).fetchone()
+    if row is None:
+        return None
+    return {"source": row[0], "fetched_at": int(row[1])}
+
+
+def get_provenance_summary(ticker: str, tf: str) -> dict:
+    """Return per-source counts for a (ticker, tf). Useful for spot-checking
+    "are most of this ticker's bars from the canonical source or did
+    yfinance fallback fire heavily?". Empty dict if no provenance recorded."""
+    rows = _conn().execute(
+        "SELECT source, COUNT(*) FROM bars_provenance "
+        "WHERE ticker=? AND tf=? GROUP BY source",
+        (ticker.upper(), tf),
+    ).fetchall()
+    return {row[0]: row[1] for row in rows}
 
 
 def integrity_ok() -> bool:
