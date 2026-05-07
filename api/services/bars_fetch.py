@@ -485,10 +485,14 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
                  "l": round(b["l"], 2), "c": round(b["c"], 2), "v": int(b.get("v", 0))}
                 for b in (data.get("results") or [])
             ]
-            # >= so the in-progress hourly bar (still being aggregated from
-            # the latest 30-min input) gets re-fetched and overwritten on
-            # every call. Strict > would freeze it at first-fetch values.
-            return [b for b in _session_resample_hourly(bars_30m) if b["t"] >= last_ts]
+            # Intraday boundary bar is owned by Phase 4 WebSocket — REST
+            # must NOT overwrite it on every call or the chart flickers
+            # between WS values and REST values for the same in-progress
+            # bar. Strict > here lets WS keep painting the live bar
+            # without REST stepping on it. Closed bars don't change after
+            # they close, so cache staleness is bounded to the current
+            # bar's worth of time at most.
+            return [b for b in _session_resample_hourly(bars_30m) if b["t"] > last_ts]
         except Exception as _e:
             import logging as _log
             _log.getLogger(__name__).error(
@@ -510,12 +514,12 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
         new = []
         for bar in (data.get("results") or []):
             ts = int(bar["t"] / 1000)
-            # >= so the most recent bar (which may have been written while
-            # still in-progress on a prior fetch — e.g., the 10:00 15min
-            # bar fetched at 10:05) gets re-fetched and overwritten with
-            # the closed-bar values when it's done forming. INSERT OR
-            # REPLACE in put_bars makes the boundary rewrite cheap.
-            if ts >= last_ts:
+            # Strict > so REST does NOT overwrite the boundary bar that
+            # Phase 4 WebSocket is actively painting. With >= we observed
+            # the 1-min QQQ chart flickering between two OHLC values per
+            # second as WS and REST raced to write the same (ticker, tf,
+            # ts) row. WS owns the live bar; REST owns historical fill.
+            if ts > last_ts:
                 new.append({
                     "t": ts,
                     "o": round(bar["o"], 2), "h": round(bar["h"], 2),
