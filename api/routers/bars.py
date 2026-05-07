@@ -261,3 +261,56 @@ def audit_bars_endpoint(
     from api.services.audit import audit_ticker
     result = audit_ticker(ticker, tf, bars)
     return result.to_dict()
+
+
+@router.post("/api/admin/refresh-bars/{ticker}")
+def refresh_bars_endpoint(
+    ticker: str,
+    request: Request,
+    tf: str | None = Query(default=None,
+        description="Optional timeframe; omit to wipe ALL timeframes for the ticker"),
+):
+    """Surgical refresh: wipe a ticker's cached bars across all three
+    cache layers (SQLite, disk JSON, in-memory) so the next user request
+    triggers a clean re-fetch from upstream.
+
+    This is the operator hammer for "this chart is wrong, fix it now."
+    The audit endpoint tells you what's broken; this endpoint fixes it.
+    Pair them in a workflow:
+      1. ``GET  /api/admin/audit-bars/SMCI?tf=30`` → confirms drift
+      2. ``POST /api/admin/refresh-bars/SMCI?tf=30`` → wipes the cache
+      3. user reloads chart → fetch path repopulates from canonical
+      4. ``GET  /api/admin/audit-bars/SMCI?tf=30`` → confirms clean
+
+    Auth: Bearer PUSH_SECRET. Idempotent — calling twice is fine, second
+    call just deletes nothing.
+
+    Returns a per-layer count of what was wiped, so an operator can
+    verify the refresh actually had something to clean up."""
+    _check_admin_auth(request)
+    from api.services import bars_sqlite as _bs
+    from api.services import bars_disk_cache as _disk
+    from api.services.cache import cache as _mem
+
+    sqlite_deleted = _bs.delete_bars(ticker=ticker, tf=tf)
+    disk_deleted = _disk.delete(ticker=ticker, tf=tf)
+
+    # In-memory cache keys: ``bars_{TICKER}_{tf}_{bars_count}``. We don't
+    # know which bar-counts were cached, so wipe by prefix. If tf is
+    # omitted, wipe every tf for the ticker (prefix is short enough).
+    ticker_up = ticker.upper()
+    mem_prefix = f"bars_{ticker_up}_{tf}_" if tf else f"bars_{ticker_up}_"
+    mem_deleted = _mem.delete_prefix(mem_prefix)
+
+    return {
+        "ticker": ticker_up,
+        "tf": tf or "ALL",
+        "sqlite_rows_deleted": sqlite_deleted,
+        "disk_files_deleted": disk_deleted,
+        "memory_keys_deleted": mem_deleted,
+        "next_steps": (
+            "Reload the chart (or call /api/bars/{ticker} directly) to "
+            "trigger fresh fetch from upstream. Verify with "
+            f"GET /api/admin/audit-bars/{ticker_up}"
+        ),
+    }

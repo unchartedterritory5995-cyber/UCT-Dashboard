@@ -128,3 +128,40 @@ def put(ticker: str, tf: str, bars: int, payload: dict):
         os.replace(tmp, p)  # Atomic write
     except Exception:
         pass
+
+
+def delete(ticker: str, tf: str | None = None) -> int:
+    """Delete every disk-cache entry matching ``ticker`` and (optionally)
+    ``tf``. Returns the number of files removed. Non-fatal on any per-file
+    error.
+
+    Used by the refresh-bars admin endpoint. Matches the fan-out of
+    ``_path(ticker, tf, bars)`` — the filename pattern is
+    ``{TICKER}_{tf}_{bars}.json`` (see _path) so we glob to remove all
+    bars-counts for that (ticker, tf) pair, or all (ticker, *) if tf
+    is omitted."""
+    if not os.path.isdir(_CACHE_DIR):
+        return 0
+    ticker_up = ticker.upper()
+    removed = 0
+    try:
+        for name in os.listdir(_CACHE_DIR):
+            if not name.endswith(".json"):
+                continue
+            base = name[:-5]  # strip .json
+            parts = base.split("_")
+            if len(parts) < 3:
+                continue
+            f_ticker, f_tf = parts[0], parts[1]
+            if f_ticker != ticker_up:
+                continue
+            if tf is not None and f_tf != tf:
+                continue
+            try:
+                os.remove(os.path.join(_CACHE_DIR, name))
+                removed += 1
+            except OSError:
+                pass
+    except OSError:
+        pass
+    return removed
