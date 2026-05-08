@@ -832,10 +832,29 @@ export default function StockChart({
     // The chart still refreshes every 15s via SWR, which re-runs toHeikinAshi on
     // the full filteredBars array and calls setData() — accurate enough for HA.
     if (cs.heikinAshi) return
-    latestLiveRef.current = { sym, price: liveData.price, updated_at: liveData.updated_at,
-      day_open: liveData.day_open, day_high: liveData.day_high, day_low: liveData.day_low }
+    // Defensive: drop ticks with bad price BEFORE they touch liveBarRef.
+    // Mirror of onRealtimeBar's guard. A single NaN / 0 / extreme price baked
+    // into liveBarRef.current.high or .low persists across setData() refreshes
+    // because the post-setData re-apply (~line 1170) trusts liveBarRef as the
+    // authoritative developing-bar state. Without this guard the chart can
+    // get stuck with a low of 0 (or extreme) until full page reload, dragging
+    // EMA/SMA series into a V-shape collapse on intraday charts.
+    const _p = liveData.price
+    if (!Number.isFinite(_p) || _p <= 0) return
+    // Sanity bound vs last known close — protects against bad WS ticks during
+    // reconnects / market-maker pulls that briefly emit nonsense quotes.
+    const _last = lastBarRef.current?.close
+    if (_last && _last > 0 && Math.abs(_p - _last) / _last > 0.5) return
+    // day_high / day_low can also arrive zero or stale during the first ticks
+    // after market open. Treat 0 / negative / non-finite as "not provided" so
+    // the bar's H/L don't snap to 0.
+    const _dh = Number.isFinite(liveData.day_high) && liveData.day_high > 0 ? liveData.day_high : null
+    const _dl = Number.isFinite(liveData.day_low) && liveData.day_low > 0 ? liveData.day_low : null
+    const _do = Number.isFinite(liveData.day_open) && liveData.day_open > 0 ? liveData.day_open : null
+    latestLiveRef.current = { sym, price: _p, updated_at: liveData.updated_at,
+      day_open: _do, day_high: _dh, day_low: _dl }
     if (!candleSeriesRef.current || !lastBarRef.current) return
-    const price = liveData.price
+    const price = _p
     const last = lastBarRef.current
     const useOhlc = isOhlcType(cs.chartType)
 
