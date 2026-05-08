@@ -1145,6 +1145,17 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         )
 
     if stored_rows and last_ts:
+        # Partial cache: SQLite has SOME rows but fewer than the chart asked
+        # for. The block above ("len(stored_rows) >= bars * 0.9") falls
+        # through here on purpose so the bg path can populate the missing
+        # historical depth — but a delta-only refresh fetches AFTER last_ts,
+        # which is "today," so it returns nothing and the chart is stuck at
+        # the truncated row count forever. Promote partial-cache bg fetches
+        # to a full fetch so put_bars (INSERT OR REPLACE) actually fills the
+        # gap. Symptom this fixes: warm-universe completed but NVDA/AAPL
+        # only had 6 of 200 bars cached and never recovered.
+        is_partial = len(stored_rows) < bars * 0.9
+
         # Stale-while-revalidate: SQLite has data but it needs updating.
         # Serve the stale data immediately (no spinner) and refresh in the background.
         # The browser's SWR will revalidate after a short TTL and pick up fresh data.
@@ -1159,18 +1170,37 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                 def _bg_delta(
                     _key=cache_key, _sym=ticker_up, _tf=tf, _bars=bars,
                     _last_ts=last_ts, _stored=stored_rows, _ev=_bg_ev, _dtf=date_tf,
+                    _partial=is_partial,
                 ):
                     try:
-                        if _tf == "D":
-                            new = _delta_daily(_sym, _last_ts)
-                        elif _tf == "W":
-                            new = _delta_weekly(_sym, _last_ts)
-                        elif _tf == "M":
-                            new = _delta_monthly(_sym, _last_ts)
+                        if _partial:
+                            # Full fetch — cache is missing historical depth.
+                            # put_bars uses INSERT OR REPLACE so this merges
+                            # with any existing rows instead of duplicating.
+                            if _tf in ("1", "5", "15", "30", "60"):
+                                new = _fetch_intraday(_sym, _tf, _bars)
+                            elif _tf == "W":
+                                new = _fetch_weekly(_sym, _bars)
+                            elif _tf == "M":
+                                new = _fetch_monthly(_sym, _bars)
+                            else:
+                                new = _fetch_daily(_sym, _bars)
+                            # Mirror cold-fetch guard: don't persist stale
+                            # intraday fallback (yfinance returning hours-old
+                            # data) since it'd be served as fresh next time.
+                            if new and (_dtf or not _is_intraday_stale(new)):
+                                _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
                         else:
-                            new = _delta_intraday(_sym, _tf, _last_ts)
-                        if new:
-                            _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
+                            if _tf == "D":
+                                new = _delta_daily(_sym, _last_ts)
+                            elif _tf == "W":
+                                new = _delta_weekly(_sym, _last_ts)
+                            elif _tf == "M":
+                                new = _delta_monthly(_sym, _last_ts)
+                            else:
+                                new = _delta_intraday(_sym, _tf, _last_ts)
+                            if new:
+                                _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
                         fresh_rows = _sqlite.get_bars(_sym, _tf, _bars)
                         fresh_payload = {
                             "ticker": _sym, "tf": _tf,
@@ -1193,7 +1223,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     except Exception as _bg_e:
                         import logging as _log_bg
                         _log_bg.getLogger(__name__).error(
-                            f"[bars] bg_delta {_sym} tf={_tf}: "
+                            f"[bars] bg_delta {_sym} tf={_tf} partial={_partial}: "
                             f"{type(_bg_e).__name__}: {_bg_e}"
                         )
                     finally:
@@ -1201,8 +1231,10 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                             _inflight.pop(_key, None)
                         _ev.set()
 
-                _threading.Thread(target=_bg_delta, daemon=True,
-                                  name=f"bars-bg-{ticker_up}-{tf}").start()
+                _threading.Thread(
+                    target=_bg_delta, daemon=True,
+                    name=f"bars-bg-{ticker_up}-{tf}{'-partial' if is_partial else ''}",
+                ).start()
 
         return JSONResponse(
             content=stale_payload,
