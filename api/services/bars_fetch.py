@@ -357,13 +357,18 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
 # ── Delta-fetch helpers (tiny payloads — only new bars since last stored ts) ──
 
 def _delta_daily(ticker: str, last_ts: int) -> list[dict]:
-    """Fetch daily bars from the last 10 days. Returns bars at-or-newer than
-    last_ts so today's still-evolving bar (whose close + high/low keep
-    updating intraday) gets re-fetched and INSERT OR REPLACE-d into the
-    cache on every call. Strict ``>`` would freeze today's daily bar at
-    whatever value happened to be cached on the first fetch of the day —
-    the EVC bug observed in production where the daily candle showed an
-    early-morning partial close instead of the true session close.
+    """Fetch daily bars from the last 10 days. Uses ``>=`` so today's
+    still-evolving bar (whose close + high/low keep updating intraday)
+    gets re-fetched and INSERT OR REPLACE-d into the cache on every
+    call.
+
+    Earlier I tried `>` to avoid a flicker observed on SANM Daily, but
+    that left today's bar cached at the OPEN print value with no later
+    update — user-visible as wrong close prices on D/W/M. The flicker
+    concern is mitigated by the bg_delta TTL fix (commit 8517729): the
+    SWR layer caches the response for 5 minutes between bg fetches, so
+    intra-session the user sees ONE update every 5min, not constant
+    oscillation. That's correct gradual update, not flicker.
     """
     from api.services.massive import get_agg_bars
     from_date = (datetime.utcnow() - timedelta(days=10)).strftime("%Y-%m-%d")
@@ -372,7 +377,7 @@ def _delta_daily(ticker: str, last_ts: int) -> list[dict]:
     for bar in get_agg_bars(ticker, from_date, to_date):
         dt = datetime.utcfromtimestamp(bar["t"] / 1000)
         ts = int(dt.strftime("%Y%m%d"))
-        if ts > last_ts:
+        if ts >= last_ts:
             new.append({
                 "t": dt.strftime("%Y-%m-%d"),
                 "o": round(bar["o"], 2), "h": round(bar["h"], 2),
@@ -384,9 +389,10 @@ def _delta_daily(ticker: str, last_ts: int) -> list[dict]:
 
 def _delta_weekly(ticker: str, last_ts: int) -> list[dict]:
     """Fetch daily bars for the last 14 days, resample, return at-or-newer
-    weekly bars. Same rationale as _delta_daily: the in-progress weekly
-    bar (week-to-date OHLC) keeps updating, must be re-fetched not
-    skipped."""
+    weekly bars (>=). The in-progress weekly bar (week-to-date OHLC)
+    keeps updating as the week progresses; without >= the cached W bar
+    freezes at first-fetch values and shows yesterday's close instead
+    of today's."""
     from api.services.massive import get_agg_bars
     from_date = (datetime.utcnow() - timedelta(days=14)).strftime("%Y-%m-%d")
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
@@ -399,13 +405,13 @@ def _delta_weekly(ticker: str, last_ts: int) -> list[dict]:
             "l": round(bar["l"], 2), "c": round(bar["c"], 2),
             "v": int(bar.get("v", 0)),
         })
-    return [b for b in _resample_weekly_iso(daily) if int(b["t"].replace("-", "")) > last_ts]
+    return [b for b in _resample_weekly_iso(daily) if int(b["t"].replace("-", "")) >= last_ts]
 
 
 def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
     """Fetch daily bars for the last 60 days, resample, return at-or-newer
-    monthly bars. Same rationale as _delta_daily — current month's
-    bar keeps evolving and must be re-fetched."""
+    monthly bars (>=). Current month's bar keeps evolving as the month
+    progresses; without >= the cached M bar freezes at first-fetch."""
     from api.services.massive import get_agg_bars
     from_date = (datetime.utcnow() - timedelta(days=60)).strftime("%Y-%m-%d")
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
@@ -418,7 +424,7 @@ def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
             "l": round(bar["l"], 2), "c": round(bar["c"], 2),
             "v": int(bar.get("v", 0)),
         })
-    return [b for b in _resample_monthly_iso(daily) if int(b["t"].replace("-", "")) > last_ts]
+    return [b for b in _resample_monthly_iso(daily) if int(b["t"].replace("-", "")) >= last_ts]
 
 
 def _session_resample_hourly(bars_30m: list[dict]) -> list[dict]:
