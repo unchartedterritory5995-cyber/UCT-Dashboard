@@ -3745,7 +3745,7 @@ export default function OptionsFlowDashboard() {
           const dteF = t => convDte==="All" ? true : convDte==="ST" ? t.DTE>=0&&t.DTE<60 : convDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
           const filtered = cc.filter(dteF);
           // Get latest 2 trading dates for "New" badge
-          const allDates = [...new Set(cc.map(t=>t.date).filter(Boolean))].sort((a,b)=>{
+          const allDates = [...new Set(cc.map(t=>t.Dt).filter(Boolean))].sort((a,b)=>{
             const pa=a.split("/").map(Number), pb=b.split("/").map(Number);
             const ya=pa.length>=3?(pa[2]<100?pa[2]+2000:pa[2]):2026, yb=pb.length>=3?(pb[2]<100?pb[2]+2000:pb[2]):2026;
             return new Date(ya,pa[0]-1,pa[1]||1) - new Date(yb,pb[0]-1,pb[1]||1);
@@ -3756,22 +3756,22 @@ export default function OptionsFlowDashboard() {
           const priorDates = new Set(allDates.slice(0, -5));
           const tkMap = {};
           filtered.forEach(t => {
-            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, firstDate:t.date, lastDate:t.date, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set() };
+            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set() };
             const tk = tkMap[t.S];
             if (t.D==="BULL") tk.bull += t.P;
             if (t.D==="BEAR") tk.bear += t.P;
             tk.n++;
             if (t.er) tk.er = true;
             if (t.uoa) tk.uoa = true;
-            tk.dates.add(t.date);
+            tk.dates.add(t.Dt);
             // Momentum: split premium by recent vs prior
-            if (last5Dates.has(t.date)) tk.recentPrem += t.P;
-            if (priorDates.has(t.date)) tk.priorPrem += t.P;
+            if (last5Dates.has(t.Dt)) tk.recentPrem += t.P;
+            if (priorDates.has(t.Dt)) tk.priorPrem += t.P;
             // Track first appearance
             const ck = t.CP+"|"+t.K+"|"+t.E;
             if (!tk.contracts[ck]) tk.contracts[ck] = { cp:t.CP, K:t.K, exp:t.E, hits:0, prem:0, dir:t.D, hasSweep:false, hasBlock:false, askPrem:0, bidPrem:0, maxOI:0, vol:0, volOI:0, dates:new Set() };
             const c = tk.contracts[ck]; c.hits++; c.prem += t.P; c.vol += t.V;
-            if (t.date) c.dates.add(t.date);
+            if (t.Dt) c.dates.add(t.Dt);
             if (t.Ty==="SWP") c.hasSweep = true;
             if (t.Ty==="BLK") c.hasBlock = true;
             if (t.Si==="A"||t.Si==="AA") c.askPrem += t.P;
