@@ -941,14 +941,34 @@ export default function StockChart({
     const tSec = Math.floor(data.bar.t / 1000) + _ET_OFFSET
     const useOhlc = isOhlcType(cs.chartType)
 
+    // Defensive: skip bars with invalid OHLC. WS sources can occasionally
+    // emit zero / NaN / nonsensical values at bar boundaries or during
+    // reconnect; without this guard the chart paints a tall bar spanning
+    // from 0 to the current price, throwing off auto-scale and producing
+    // the "extreme thin vertical bar at right edge" rendering bug the user
+    // has reported repeatedly across intraday charts (60min especially).
+    const o = data.bar.o, h = data.bar.h, l = data.bar.l, c = data.bar.c
+    const allFinitePositive = [o, h, l, c].every(v => Number.isFinite(v) && v > 0)
+    if (!allFinitePositive || l > h) {
+      return  // silently drop the bad bar — next tick will repaint correctly
+    }
+    // Sanity bound: if the last known price differs from this bar's close
+    // by >50%, this is almost certainly bad data (penny stock split, bad
+    // tick, etc). Skip to protect the chart's auto-scale from one bad bar
+    // dominating the y-axis.
+    const lastKnown = lastBarRef.current?.close
+    if (lastKnown && lastKnown > 0 && Math.abs(c - lastKnown) / lastKnown > 0.5) {
+      return
+    }
+
     try {
       if (useOhlc) {
         candleSeriesRef.current.update({
           time: tSec,
-          open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
+          open: o, high: h, low: l, close: c,
         })
       } else {
-        candleSeriesRef.current.update({ time: tSec, value: data.bar.c })
+        candleSeriesRef.current.update({ time: tSec, value: c })
       }
       if (volumeSeriesRef.current) {
         volumeSeriesRef.current.update({
