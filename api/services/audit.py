@@ -395,4 +395,22 @@ def audit_ticker(
         for row in cached_rows
     ]
 
+    # Holiday-Monday normalization for weekly bars: cache stores the dt
+    # of the FIRST trading day of the ISO week (so a week with Monday
+    # off — Labor Day, MLK Day, etc — is anchored at Tuesday). Canonical
+    # is normalized to ISO Monday in fetch_canonical_bars. Without this
+    # second-pass normalization, the audit cannot match those ~10
+    # holiday weeks per year and reports them as both bars_only_in_cache
+    # and bars_only_in_canonical even though the bar values are correct.
+    if tf == "W":
+        for b in cached:
+            ts = int(b["t"])
+            try:
+                dt = datetime.strptime(str(ts), "%Y%m%d")
+                iso_year, iso_week, _ = dt.isocalendar()
+                monday = datetime.fromisocalendar(iso_year, iso_week, 1)
+                b["t"] = int(monday.strftime("%Y%m%d"))
+            except ValueError:
+                pass
+
     return diff_bars(cached, canonical, ticker=ticker, tf=tf)
