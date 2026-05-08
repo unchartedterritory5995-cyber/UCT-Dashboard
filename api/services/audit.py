@@ -248,23 +248,24 @@ def _date_range_for(tf: str, bars: int) -> tuple[str, str]:
     return (today - timedelta(days=days)).isoformat(), today.isoformat()
 
 
-def fetch_canonical_bars(ticker: str, tf: str, bars: int) -> list[dict]:
+def fetch_canonical_bars(ticker: str, tf: str, bars: int) -> tuple[list[dict], str | None]:
     """Fetch the canonical OHLCV bars from Polygon (Massive) directly.
 
     Handles pagination (Polygon truncates at 50k bars per page). Returns
-    bars normalized to the cache's storage shape:
-      - intraday: ``t`` in unix SECONDS
-      - daily/weekly/monthly: ``t`` as YYYYMMDD int
+    a tuple ``(bars, error)``:
+      - bars normalized to the cache's storage shape:
+        * intraday: ``t`` in unix SECONDS
+        * daily/weekly/monthly: ``t`` as YYYYMMDD int
+      - error: None on success, or a string describing what failed.
 
-    On any error returns an empty list — callers must handle the empty
-    case (typically by surfacing it as ``error`` on the AuditResult).
     Does NOT silently fall through to other sources; this is canonical
-    by definition.
+    by definition. Detailed error messages help an operator quickly see
+    whether the audit is broken vs the underlying data is missing.
     """
     import httpx
     api_key = os.environ.get("MASSIVE_API_KEY", "")
     if not api_key:
-        return []
+        return [], "MASSIVE_API_KEY not set in environment"
 
     multiplier, timespan = _massive_endpoint_for(tf)
     from_date, to_date = _date_range_for(tf, bars)
@@ -277,10 +278,19 @@ def fetch_canonical_bars(ticker: str, tf: str, bars: int) -> list[dict]:
 
     out: list[dict] = []
     try:
-        with httpx.Client(timeout=httpx.Timeout(connect=3.0, read=30.0)) as client:
+        # Mirror massive.py's client config: the Accept header and connection
+        # limits matter on some Polygon plans. Without them, calls to
+        # /v2/aggs sporadically fail in ways that the bare exception below
+        # used to swallow silently.
+        with httpx.Client(
+            timeout=httpx.Timeout(connect=3.0, read=30.0, write=5.0, pool=10.0),
+            limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+            headers={"Accept": "application/json"},
+        ) as client:
             for _page in range(20):  # safety cap
                 resp = client.get(url)
-                resp.raise_for_status()
+                if resp.status_code != 200:
+                    return [], f"Polygon HTTP {resp.status_code}: {resp.text[:200]}"
                 data = resp.json()
                 results = data.get("results") or []
                 out.extend(results)
@@ -289,8 +299,13 @@ def fetch_canonical_bars(ticker: str, tf: str, bars: int) -> list[dict]:
                     break
                 sep = "&" if "?" in next_url else "?"
                 url = f"{next_url}{sep}apiKey={api_key}"
-    except Exception:
-        return []
+    except httpx.HTTPError as e:
+        return [], f"httpx {type(e).__name__}: {e}"
+    except Exception as e:
+        return [], f"{type(e).__name__}: {e}"
+
+    if not out:
+        return [], "Polygon returned 0 results (date range or ticker has no data)"
 
     date_tf = tf in ("D", "W", "M")
     bars_norm: list[dict] = []
@@ -312,7 +327,8 @@ def fetch_canonical_bars(ticker: str, tf: str, bars: int) -> list[dict]:
             "v": int(r.get("v", 0) or 0),
         })
 
-    return bars_norm[-bars:] if len(bars_norm) > bars else bars_norm
+    bars_out = bars_norm[-bars:] if len(bars_norm) > bars else bars_norm
+    return bars_out, None
 
 
 def audit_ticker(
@@ -322,19 +338,19 @@ def audit_ticker(
 ) -> AuditResult:
     """Top-level: read cache + fetch canonical + diff. Returns AuditResult.
 
-    On Massive failure (no API key, network, etc.) returns a result with
-    ``error`` populated and zero comparisons. On cache emptiness returns
-    a result with ``bars_only_in_canonical`` populated (every canonical
-    bar is "missing" from cache).
+    On Massive failure returns a result with ``error`` populated and zero
+    comparisons. The error string now contains the actual exception or
+    HTTP status, so an operator can distinguish "API key missing" from
+    "Polygon returned 0 results" from "httpx connect timeout".
     """
     from api.services import bars_sqlite
 
-    canonical = fetch_canonical_bars(ticker, tf, bars)
-    if not canonical:
+    canonical, fetch_err = fetch_canonical_bars(ticker, tf, bars)
+    if fetch_err is not None:
         return AuditResult(
             ticker=ticker.upper(),
             tf=tf,
-            error="canonical fetch returned empty (Massive API key missing or upstream error)",
+            error=f"canonical fetch failed: {fetch_err}",
         )
 
     cached_rows = bars_sqlite.get_bars(ticker, tf, bars)
