@@ -334,18 +334,34 @@ async def lifespan(app: FastAPI):
             print(f"[startup] Initial snapshot pull error after {elapsed:.1f}s "
                   f"(non-fatal): {e} — proceeding with cold cache")
 
-        def _s3_pull_loop():
-            import time as _t
-            while True:
-                _t.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)  # sleep first; initial pull just happened
-                try:
-                    ts = data_sync.sync_if_newer()
-                    if ts:
-                        print(f"[data_sync] pulled snapshot {ts}")
-                except Exception as e:
-                    print(f"[data_sync] pull error (non-fatal): {e}")
-        threading.Thread(target=_s3_pull_loop, daemon=True, name="s3_pull").start()
-        print(f"[startup] S3 snapshot puller thread started ({data_sync.SNAPSHOT_INTERVAL_SECONDS // 60}-min cadence)")
+        # Periodic R2 sync: REPLACES the entire local bars.db with worker's
+        # snapshot every 5 minutes. This was DESIGNED to keep web in sync
+        # with worker's prewarmer, but in practice it overwrites the web's
+        # fresh delta-fetch writes with whatever stale state the worker has.
+        # User report 2026-05-07: charts show correct data after a refresh,
+        # then revert to stale within 5 min — exactly matching this loop.
+        # Gated behind R2_PERIODIC_PULL_ENABLED (default OFF) so the boot-
+        # time initial pull happens (still useful for cold-start), but the
+        # periodic overwrite stops. Web's local writes become authoritative
+        # once the deploy is up. Re-enable by setting the env var to "1"
+        # when worker's prewarmer is verified to produce fresh data.
+        if os.environ.get("R2_PERIODIC_PULL_ENABLED") == "1":
+            def _s3_pull_loop():
+                import time as _t
+                while True:
+                    _t.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)  # sleep first; initial pull just happened
+                    try:
+                        ts = data_sync.sync_if_newer()
+                        if ts:
+                            print(f"[data_sync] pulled snapshot {ts}")
+                    except Exception as e:
+                        print(f"[data_sync] pull error (non-fatal): {e}")
+            threading.Thread(target=_s3_pull_loop, daemon=True, name="s3_pull").start()
+            print(f"[startup] S3 snapshot puller thread started ({data_sync.SNAPSHOT_INTERVAL_SECONDS // 60}-min cadence)")
+        else:
+            print("[startup] S3 periodic puller DISABLED (R2_PERIODIC_PULL_ENABLED!=1) — "
+                  "web's local writes are authoritative; only the boot-time pull happened. "
+                  "Set R2_PERIODIC_PULL_ENABLED=1 to re-enable periodic R2 overrides.")
 
     # Real-time bar streaming (Phase 4): Massive WS → BarBroadcaster → SSE.
     # Off by default; flip STREAM_BARS_ENABLED=1 to enable.
