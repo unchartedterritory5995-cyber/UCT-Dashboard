@@ -291,24 +291,62 @@ async def lifespan(app: FastAPI):
         # the first chart load after every deploy waits ~20s for the puller daemon
         # to do its first sync. The hard timeout ensures we don't hang Railway's
         # healthcheck if R2 is unreachable.
+        #
+        # IMPORTANT: skip the boot pull if local SQLite already has data. After a
+        # restart with persistent volume, the local cache is intact and may have
+        # FRESHER data than the worker's snapshot (the worker can be stuck or
+        # running behind). Pulling unconditionally would replace fresh local
+        # writes with potentially-stale snapshot. The boot pull only matters
+        # for cold-start (first deploy on an empty volume).
         _initial_pull_timeout = float(os.environ.get("INITIAL_SNAPSHOT_TIMEOUT_SEC", "60"))
         _t0 = _t.time()
         try:
-            # data_sync.sync_if_newer() is synchronous and may take 5-30s for a
-            # full snapshot pull. We can't easily inject a timeout into it without
-            # refactoring data_sync, so we run it on a thread with a join timeout.
-            # If the join times out, we proceed with a cold cache (existing behavior)
-            # rather than hang the deploy.
-            _result = {"ts": None, "err": None}
-            def _initial_pull():
-                try:
-                    _result["ts"] = data_sync.sync_if_newer()
-                except Exception as e:
-                    _result["err"] = e
-            _initial_thread = threading.Thread(target=_initial_pull, name="initial_snapshot_pull")
-            _initial_thread.start()
-            _initial_thread.join(timeout=_initial_pull_timeout)
-            if _initial_thread.is_alive():
+            # Probe local SQLite size — skip pull if data already present.
+            _skip_boot_pull = False
+            try:
+                import sqlite3 as _sqlite_probe
+                _db_probe_path = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
+                if os.path.exists(_db_probe_path):
+                    _pc = _sqlite_probe.connect(_db_probe_path, timeout=5)
+                    try:
+                        _row = _pc.execute("SELECT COUNT(*) FROM ohlcv").fetchone()
+                        _local_count = int(_row[0]) if _row else 0
+                    finally:
+                        _pc.close()
+                    if _local_count >= 1000:
+                        _skip_boot_pull = True
+                        print(f"[startup] Skipping boot R2 pull — local SQLite has "
+                              f"{_local_count:,} bars already; preserving local writes "
+                              f"(set FORCE_BOOT_R2_PULL=1 to override)")
+            except Exception as _e:
+                print(f"[startup] Local SQLite probe failed (will pull from R2): {_e}")
+
+            if os.environ.get("FORCE_BOOT_R2_PULL") == "1":
+                _skip_boot_pull = False
+                print("[startup] FORCE_BOOT_R2_PULL=1 — pulling boot snapshot regardless")
+
+            if _skip_boot_pull:
+                _result = {"ts": None, "err": None}
+                _initial_thread = None
+            else:
+                # data_sync.sync_if_newer() is synchronous and may take 5-30s for a
+                # full snapshot pull. We can't easily inject a timeout into it without
+                # refactoring data_sync, so we run it on a thread with a join timeout.
+                # If the join times out, we proceed with a cold cache (existing behavior)
+                # rather than hang the deploy.
+                _result = {"ts": None, "err": None}
+                def _initial_pull():
+                    try:
+                        _result["ts"] = data_sync.sync_if_newer()
+                    except Exception as e:
+                        _result["err"] = e
+                _initial_thread = threading.Thread(target=_initial_pull, name="initial_snapshot_pull")
+                _initial_thread.start()
+                _initial_thread.join(timeout=_initial_pull_timeout)
+            if _initial_thread is None:
+                # Skipped pull entirely (local already has data); nothing to log.
+                pass
+            elif _initial_thread.is_alive():
                 elapsed = _t.time() - _t0
                 print(f"[startup] Initial snapshot pull TIMED OUT after {elapsed:.1f}s "
                       f"(limit={_initial_pull_timeout}s) — proceeding with cold cache; "
