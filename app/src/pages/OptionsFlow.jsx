@@ -3769,8 +3769,9 @@ export default function OptionsFlowDashboard() {
             if (priorDates.has(t.date)) tk.priorPrem += t.P;
             // Track first appearance
             const ck = t.CP+"|"+t.K+"|"+t.E;
-            if (!tk.contracts[ck]) tk.contracts[ck] = { cp:t.CP, K:t.K, exp:t.E, hits:0, prem:0, dir:t.D, hasSweep:false, hasBlock:false, askPrem:0, bidPrem:0, maxOI:0, vol:0, volOI:0 };
+            if (!tk.contracts[ck]) tk.contracts[ck] = { cp:t.CP, K:t.K, exp:t.E, hits:0, prem:0, dir:t.D, hasSweep:false, hasBlock:false, askPrem:0, bidPrem:0, maxOI:0, vol:0, volOI:0, dates:new Set() };
             const c = tk.contracts[ck]; c.hits++; c.prem += t.P; c.vol += t.V;
+            if (t.date) c.dates.add(t.date);
             if (t.Ty==="SWP") c.hasSweep = true;
             if (t.Ty==="BLK") c.hasBlock = true;
             if (t.Si==="A"||t.Si==="AA") c.askPrem += t.P;
@@ -3883,6 +3884,7 @@ export default function OptionsFlowDashboard() {
                       const cC = c.cp==="C" ? (cSide==="ask"?P.bu:"#ff9800") : (cSide==="ask"?P.be:"#29b6f6");
                       return (
                         <div key={i} style={{ padding:"4px 10px", borderRadius:4, background:P.al, border:"1px solid "+P.bd, fontSize:9, cursor:"pointer" }}
+                          title={c.dates && c.dates.size > 0 ? "Flow dates: " + [...c.dates].join(", ") : ""}
                           onClick={e=>{ e.stopPropagation(); setTab("Search"); setSearch(tk.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.sym)||null); setSearchDte("All"); }}>
                           <span style={{ color:cC, fontWeight:800 }}>{c.cp==="C"?"C":"P"}</span>
                           {cSide==="bid" && <span style={{ fontSize:6, color:cC, fontWeight:700, marginLeft:2 }}>BB</span>}
@@ -3931,7 +3933,6 @@ export default function OptionsFlowDashboard() {
                   return <button key={d.k} onClick={()=>setConvictionActivity(cAct===d.k?"All":d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?P.ye:P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?P.ye+"22":"transparent", color:active?P.ye:P.mt }}>{d.l}</button>;
                 })}
               </div>
-              <div style={{ fontSize:9, color:P.dm }}>{bulls.length} bullish · {bears.length} bearish · {allTickers.length} total · 🟢 accelerating 🟡 steady 🔴 fading</div>
               {/* Two-column leaderboard */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 <Card>
