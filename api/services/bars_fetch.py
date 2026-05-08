@@ -64,7 +64,16 @@ def _needs_fresh(last_ts: int | None, tf: str) -> bool:
     if last_ts is None:
         return True
     if tf in ("D", "W", "M"):
-        return last_ts < _last_weekday_yyyymmdd()
+        # Refresh if cached bar is from before today's session, OR if it IS
+        # today's bar (which keeps evolving — open is fixed at 9:30 ET but
+        # high/low/close drift throughout the session and into extended
+        # hours). Strict `<` would freeze today's daily/weekly/monthly bar
+        # at whatever values were first cached (typically just-after-open
+        # values when the first request hit). Combined with the in-memory
+        # cache's 5-minute TTL, this triggers at most one fetch per 5min
+        # per ticker per tf — fine for Polygon rate limits, and ensures
+        # today's evolving close updates instead of freezing.
+        return last_ts <= _last_weekday_yyyymmdd()
     # Intraday: skip refresh outside market hours UNLESS data is from a prior session
     if not _is_market_open():
         # Force refresh if last bar is older than 30 hours (previous session / missed day)
