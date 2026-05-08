@@ -591,7 +591,7 @@ function buildCharts(cc) {
     return { ...c, score: c.score + heatBonus, tickerHeat: th.contracts >= 2 ? { contracts:th.contracts, totalPrem:th.totalPrem, strikes:th.strikes.size, exps:th.exps.size } : null };
   })
   .sort((a,b)=>b.score-a.score)
-  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0, bullPrem:c.bullPrem||0, bearPrem:c.bearPrem||0, tickerHeat:c.tickerHeat,
+  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, DTE:c.DTE, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0, bullPrem:c.bullPrem||0, bearPrem:c.bearPrem||0, tickerHeat:c.tickerHeat,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"", price:t.price||0, Spot:t.Spot||0 })), patterns:c.patterns||[] }));
   const sectorMap = {};
   const tickerFlowMap = {};
@@ -3834,7 +3834,7 @@ export default function OptionsFlowDashboard() {
           const ltN = cc.filter(t=>t.DTE>=60&&t.DTE<180).length;
           const leN = cc.filter(t=>t.DTE>=180).length;
           const momIcon = m => m==="accel"?"🟢":m==="fading"?"🔴":"🟡";
-          const renderRow = (tk, idx) => {
+          const renderRow = (tk, idx, side) => {
             const total = tk.bull + tk.bear;
             const net = tk.bull - tk.bear;
             const dir = net > 0 ? "BULL" : "BEAR";
@@ -3845,6 +3845,8 @@ export default function OptionsFlowDashboard() {
             let tcC = P.dm;
             if (tc_) { if (tc_.cp==="C") tcC = tcSide==="ask" ? P.bu : "#ff9800"; else tcC = tcSide==="ask" ? P.be : "#29b6f6"; }
             const isExp = cExp === tk.sym;
+            const displayPct = side==="bear" ? (100-tk.bullPct) : tk.bullPct;
+            const pctColor = displayPct>=80 ? (side==="bear"?P.be:P.bu) : displayPct<=20 ? (side==="bear"?P.bu:P.be) : P.dm;
             return (
               <Fragment key={tk.sym}>
               <tr style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer", background:isExp?P.ac+"0a":idx<5?dirC+"06":"transparent" }}
@@ -3862,7 +3864,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ width:tk.bullPct+"%", background:P.bu }}/><div style={{ width:(100-tk.bullPct)+"%", background:P.be }}/>
                   </div>
                 </td>
-                <td style={{ padding:"6px 5px", fontWeight:800, fontSize:10, color:tk.bullPct>=80?P.bu:tk.bullPct<=20?P.be:P.dm }}>{tk.bullPct}%</td>
+                <td style={{ padding:"6px 5px", fontWeight:800, fontSize:10, color:pctColor }}>{displayPct}%</td>
                 <td style={{ padding:"6px 5px", fontWeight:900, color:dirC, fontSize:12 }}>{fmt(Math.abs(net))}</td>
                 <td style={{ padding:"6px 5px", fontSize:9 }}>
                   {tc_ && (<span>
@@ -3954,7 +3956,7 @@ export default function OptionsFlowDashboard() {
                       
                       
                     </tr></thead>
-                    <tbody>{bulls.slice(0,25).map((tk,i)=>renderRow(tk,i))}</tbody>
+                    <tbody>{bulls.slice(0,25).map((tk,i)=>renderRow(tk,i,"bull"))}</tbody>
                   </table>
                   {bulls.length>25 && <div style={{ textAlign:"center", marginTop:6 }}><button onClick={()=>{}} style={{ fontSize:9, color:P.dm, background:"transparent", border:"1px solid "+P.bd, borderRadius:4, padding:"3px 12px", cursor:"pointer", fontFamily:"inherit" }}>Show all {bulls.length}</button></div>}
                 </Card>
@@ -3977,7 +3979,7 @@ export default function OptionsFlowDashboard() {
                       
                       
                     </tr></thead>
-                    <tbody>{bears.slice(0,25).map((tk,i)=>renderRow(tk,i))}</tbody>
+                    <tbody>{bears.slice(0,25).map((tk,i)=>renderRow(tk,i,"bear"))}</tbody>
                   </table>
                   {bears.length>25 && <div style={{ textAlign:"center", marginTop:6 }}><button onClick={()=>{}} style={{ fontSize:9, color:P.dm, background:"transparent", border:"1px solid "+P.bd, borderRadius:4, padding:"3px 12px", cursor:"pointer", fontFamily:"inherit" }}>Show all {bears.length}</button></div>}
                 </Card>
@@ -4845,6 +4847,7 @@ export default function OptionsFlowDashboard() {
             <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
               {[
                 {k:"All", label:"All"},
+                {k:"1-2W", label:"1–2 Wks"},
                 {k:"ST", label:"0–59d"},
                 {k:"LT", label:"60–179d"},
                 {k:"LEAPS", label:"180+d"},
@@ -4875,6 +4878,7 @@ export default function OptionsFlowDashboard() {
                 if (wlDteFilter === "All") return true;
                 const dte = getDTE(item);
                 if (dte < 0) return true;
+                if (wlDteFilter === "1-2W") return dte >= 5 && dte <= 14;
                 if (wlDteFilter === "ST") return dte < 60;
                 if (wlDteFilter === "LT") return dte >= 60 && dte < 180;
                 return dte >= 180;
@@ -4929,8 +4933,15 @@ export default function OptionsFlowDashboard() {
             {/* Scanner Suggestions — overflow picks not yet on watchlist */}
             {FD && FD.CONV && (() => {
               const existingSyms = new Set([...wlBull.map(i=>i.sym+"|"+i.exp+"|"+i.strike), ...wlBear.map(i=>i.sym+"|"+i.exp+"|"+i.strike)]);
-              const capOk = () => true; // FD.CONV already cap-filtered by global filter
-              const overflow = FD.CONV.filter(c=>!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)))
+              const dteOkSugg = (c) => {
+                if (wlDteFilter === "All") return true;
+                const dte = c.DTE || 0;
+                if (wlDteFilter === "1-2W") return dte >= 5 && dte <= 14;
+                if (wlDteFilter === "ST") return dte < 60;
+                if (wlDteFilter === "LT") return dte >= 60 && dte < 180;
+                return dte >= 180;
+              };
+              const overflow = FD.CONV.filter(c=>!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)) && dteOkSugg(c))
                 .map(c=>({...c, _score:autoScore(c), _cap:wlCapCheck(c)}))
                 .sort((a,b)=>b._score-a._score);
               const bullSugg = overflow.filter(c=>c.dir==="BULL").slice(0,15);
