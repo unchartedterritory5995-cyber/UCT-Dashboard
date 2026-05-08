@@ -236,15 +236,34 @@ def _date_range_for(tf: str, bars: int) -> tuple[str, str]:
     """Compute (from_date, to_date) ISO strings to fetch ~`bars` worth of
     data. Generous lookback on intraday so partial trading days are
     covered.
+
+    Per-tf caps:
+      - intraday: 2 years (Polygon's cheaper-tier window)
+      - D: 2 years (~500 trading days, enough for 200-bar audits)
+      - W: 6 years (~300 weeks, enough for 200-week audits)
+      - M: 30 years (Polygon goes back ~25y on most tickers; 200 months
+        = ~17y so the cap shouldn't bite for normal audits)
+
+    Earlier the cap was a flat 2-year for all tfs which silently
+    truncated W and M canonical fetches: bars=200 W audit got back
+    only ~100 weeks, audits looked sparse.
     """
     today = datetime.utcnow().date()
-    if tf in ("D", "W", "M"):
-        days = bars * 2 if tf == "D" else (bars * 14 if tf == "W" else bars * 32)
+    if tf == "D":
+        days = bars * 2
+        cap = 730
+    elif tf == "W":
+        days = bars * 8
+        cap = 365 * 6
+    elif tf == "M":
+        days = bars * 35
+        cap = 365 * 30
     else:
         # intraday: 16h/day extended hours, but we may filter to RTH later
         bars_per_day = (16 * 60) // max(int(tf), 1)
         days = max(7, int(bars / max(bars_per_day, 1)) + 3)
-    days = min(days, 730)  # 2-year cap
+        cap = 730
+    days = min(days, cap)
     return (today - timedelta(days=days)).isoformat(), today.isoformat()
 
 
@@ -315,6 +334,23 @@ def fetch_canonical_bars(ticker: str, tf: str, bars: int) -> tuple[list[dict], s
             continue
         if date_tf:
             dt = datetime.utcfromtimestamp(ts_ms / 1000)
+            if tf == "W":
+                # Polygon anchors weekly bars at the SUNDAY before the
+                # trading week (e.g. Sun 5/5/2024 represents the Mon-Fri
+                # 5/6-5/10 trading week). The cache (_resample_weekly /
+                # _resample_weekly_iso) anchors at the first daily bar of
+                # the ISO week, which is the Monday of the trading week
+                # in normal weeks. Shift Sunday -> Monday so the audit
+                # diff aligns the same logical week. Without this the
+                # audit reports bars_compared:0 on every weekly even when
+                # the OHLC values would match exactly.
+                dt = dt + timedelta(days=1)
+            elif tf == "M":
+                # Polygon's monthly bar timestamp is the FIRST trading
+                # day of the month. Cache uses the 1st calendar day of
+                # the month (replace(day=1) in _resample_monthly).
+                # Normalize canonical to day=1 so bars match.
+                dt = dt.replace(day=1)
             t_norm: int = int(dt.strftime("%Y%m%d"))
         else:
             t_norm = int(ts_ms / 1000)
