@@ -1104,7 +1104,10 @@ export default function OptionsFlowDashboard() {
   const [search, setSearch] = useState("");
   const [searchDte, setSearchDte] = useState("All");
   const [convictionDte, setConvictionDte] = useState("All");
-  const [convictionSort, setConvictionSort] = useState("net"); // net, bull, bear, trades
+  const [convictionSort, setConvictionSort] = useState("net");
+  const [convictionPct, setConvictionPct] = useState("All"); // All, 90bull, 80bull, 90bear, 80bear
+  const [convictionActivity, setConvictionActivity] = useState("All"); // All, new, uoa
+  const [convictionExpanded, setConvictionExpanded] = useState(null); // expanded ticker // net, bull, bear, trades
   const [oiSearch, setOiSearch] = useState("");
   const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
   const [leaderDte, setLeaderDte] = useState("All");
@@ -3730,44 +3733,97 @@ export default function OptionsFlowDashboard() {
           </div>
         )}
 
+
         {/* Conviction Board */}
         {tab==="Conviction" && FD && (()=>{
-          // Use cap-filtered clean_confirmed
           const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
           const [convDte, setConvDte] = [convictionDte, setConvictionDte];
           const [cSort, setCSort] = [convictionSort, setConvictionSort];
+          const [cPct, setCPct] = [convictionPct, setConvictionPct];
+          const [cAct, setCAct] = [convictionActivity, setConvictionActivity];
+          const [cExp, setCExp] = [convictionExpanded, setConvictionExpanded];
           const dteF = t => convDte==="All" ? true : convDte==="ST" ? t.DTE>=0&&t.DTE<60 : convDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
           const filtered = cc.filter(dteF);
+          // Get latest 2 trading dates for "New" badge
+          const allDates = [...new Set(cc.map(t=>t.date).filter(Boolean))].sort((a,b)=>{
+            const pa=a.split("/").map(Number), pb=b.split("/").map(Number);
+            const ya=pa.length>=3?(pa[2]<100?pa[2]+2000:pa[2]):2026, yb=pb.length>=3?(pb[2]<100?pb[2]+2000:pb[2]):2026;
+            return new Date(ya,pa[0]-1,pa[1]||1) - new Date(yb,pb[0]-1,pb[1]||1);
+          });
+          const recentDates = new Set(allDates.slice(-2));
+          // Get dates for momentum: last 5 trading days vs prior
+          const last5Dates = new Set(allDates.slice(-5));
+          const priorDates = new Set(allDates.slice(0, -5));
           const tkMap = {};
           filtered.forEach(t => {
-            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{} };
+            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, firstDate:t.date, lastDate:t.date, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set() };
             const tk = tkMap[t.S];
             if (t.D==="BULL") tk.bull += t.P;
             if (t.D==="BEAR") tk.bear += t.P;
             tk.n++;
+            if (t.er) tk.er = true;
+            if (t.uoa) tk.uoa = true;
+            tk.dates.add(t.date);
+            // Momentum: split premium by recent vs prior
+            if (last5Dates.has(t.date)) tk.recentPrem += t.P;
+            if (priorDates.has(t.date)) tk.priorPrem += t.P;
+            // Track first appearance
             const ck = t.CP+"|"+t.K+"|"+t.E;
-            if (!tk.contracts[ck]) tk.contracts[ck] = { cp:t.CP, K:t.K, exp:t.E, hits:0, prem:0, dir:t.D, hasSweep:false, hasBlock:false, askPrem:0, bidPrem:0 };
-            const c = tk.contracts[ck]; c.hits++; c.prem += t.P;
+            if (!tk.contracts[ck]) tk.contracts[ck] = { cp:t.CP, K:t.K, exp:t.E, hits:0, prem:0, dir:t.D, hasSweep:false, hasBlock:false, askPrem:0, bidPrem:0, maxOI:0, vol:0, volOI:0 };
+            const c = tk.contracts[ck]; c.hits++; c.prem += t.P; c.vol += t.V;
             if (t.Ty==="SWP") c.hasSweep = true;
             if (t.Ty==="BLK") c.hasBlock = true;
             if (t.Si==="A"||t.Si==="AA") c.askPrem += t.P;
             if (t.Si==="B"||t.Si==="BB") c.bidPrem += t.P;
+            if (t.OI > c.maxOI) c.maxOI = t.OI;
           });
           Object.values(tkMap).forEach(tk => {
             const sorted = Object.values(tk.contracts).sort((a,b) => b.prem - a.prem);
+            tk.topContracts = sorted.slice(0,3);
             tk.topContract = sorted[0] || null;
             tk.contractCount = Object.keys(tk.contracts).length;
+            // Compute vol/OI for top contract
+            sorted.forEach(c => { c.volOI = c.maxOI > 0 ? c.vol / c.maxOI : 0; });
+            // Bull %
+            const total = tk.bull + tk.bear;
+            tk.bullPct = total > 0 ? Math.round(tk.bull / total * 100) : 50;
+            // Is new? (first appeared in last 2 trading days)
+            const sortedDates = [...tk.dates].sort((a,b)=>{
+              const pa=a.split("/").map(Number), pb=b.split("/").map(Number);
+              const ya=pa.length>=3?(pa[2]<100?pa[2]+2000:pa[2]):2026, yb=pb.length>=3?(pb[2]<100?pb[2]+2000:pb[2]):2026;
+              return new Date(ya,pa[0]-1,pa[1]||1) - new Date(yb,pb[0]-1,pb[1]||1);
+            });
+            tk.isNew = sortedDates.length > 0 && recentDates.has(sortedDates[0]);
+            // Days active
+            tk.daysActive = tk.dates.size;
+            // Momentum: accelerating, steady, fading
+            if (tk.priorPrem > 0) {
+              const ratio = tk.recentPrem / tk.priorPrem;
+              tk.momentum = ratio >= 1.5 ? "accel" : ratio >= 0.5 ? "steady" : "fading";
+            } else {
+              tk.momentum = tk.recentPrem > 0 ? "accel" : "steady";
+            }
           });
-          const allTickers = Object.values(tkMap);
+          let allTickers = Object.values(tkMap);
+          // Conviction % filter
+          if (cPct === "90bull") allTickers = allTickers.filter(t => t.bullPct >= 90);
+          else if (cPct === "80bull") allTickers = allTickers.filter(t => t.bullPct >= 80);
+          else if (cPct === "90bear") allTickers = allTickers.filter(t => t.bullPct <= 10);
+          else if (cPct === "80bear") allTickers = allTickers.filter(t => t.bullPct <= 20);
+          // Activity filter
+          if (cAct === "new") allTickers = allTickers.filter(t => t.isNew);
+          else if (cAct === "uoa") allTickers = allTickers.filter(t => t.uoa);
           // Sort function
           const sortFn = (list, dir) => {
-            const d = dir==="bull" ? 1 : -1;
             return [...list].sort((a,b) => {
-              if (cSort==="net") return d>0 ? (b.bull-b.bear)-(a.bull-a.bear) : (b.bear-b.bull)-(a.bear-a.bull);
+              if (cSort==="net") return dir==="bull" ? (b.bull-b.bear)-(a.bull-a.bear) : (b.bear-b.bull)-(a.bear-a.bull);
               if (cSort==="bull") return b.bull - a.bull;
               if (cSort==="bear") return b.bear - a.bear;
               if (cSort==="trades") return b.n - a.n;
               if (cSort==="contracts") return b.contractCount - a.contractCount;
+              if (cSort==="bullpct") return dir==="bull" ? b.bullPct - a.bullPct : a.bullPct - b.bullPct;
+              if (cSort==="momentum") { const mo={"accel":3,"steady":2,"fading":1}; return (mo[b.momentum]||0)-(mo[a.momentum]||0); }
+              if (cSort==="days") return b.daysActive - a.daysActive;
               return 0;
             });
           };
@@ -3776,54 +3832,74 @@ export default function OptionsFlowDashboard() {
           const stN = cc.filter(t=>t.DTE>=0&&t.DTE<60).length;
           const ltN = cc.filter(t=>t.DTE>=60&&t.DTE<180).length;
           const leN = cc.filter(t=>t.DTE>=180).length;
-          const renderRow = (tk) => {
+          const momIcon = m => m==="accel"?"🟢":m==="fading"?"🔴":"🟡";
+          const renderRow = (tk, idx) => {
             const total = tk.bull + tk.bear;
-            const bullPct = total > 0 ? Math.round(tk.bull/total*100) : 50;
             const net = tk.bull - tk.bear;
             const dir = net > 0 ? "BULL" : "BEAR";
             const dirC = dir==="BULL" ? P.bu : P.be;
             const cap = capBand(tk.mktcap);
             const tc_ = tk.topContract;
-            // Color by C/P + dominant side: ask-side = standard, bid-side = contrarian
             const tcSide = tc_ ? (tc_.askPrem >= tc_.bidPrem ? "ask" : "bid") : "ask";
             let tcC = P.dm;
-            if (tc_) {
-              if (tc_.cp==="C") tcC = tcSide==="ask" ? P.bu : "#ff9800"; // green call on ask, orange call on bid
-              else tcC = tcSide==="ask" ? P.be : "#29b6f6"; // red put on ask, cyan put on bid
-            }
+            if (tc_) { if (tc_.cp==="C") tcC = tcSide==="ask" ? P.bu : "#ff9800"; else tcC = tcSide==="ask" ? P.be : "#29b6f6"; }
+            const isExp = cExp === tk.sym;
             return (
-              <tr key={tk.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
-                onClick={()=>{ setTab("Search"); setSearch(tk.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.sym)||null); setSearchDte("All"); }}>
+              <Fragment key={tk.sym}>
+              <tr style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer", background:isExp?P.ac+"0a":idx<5?dirC+"06":"transparent" }}
+                onClick={()=>{ setCExp(isExp ? null : tk.sym); }}>
                 <td style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:12 }}>
                   {tk.sym}
                   {cap!=="Unknown" && <span style={{ fontSize:7, color:P.dm, marginLeft:4, fontWeight:600 }}>{cap}</span>}
+                  {tk.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff9800"+"22", color:"#ff9800" }}>ER</span>}
+                  {tk.isNew && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:P.ac+"22", color:P.ac }}>NEW</span>}
                 </td>
                 <td style={{ padding:"6px 5px", fontWeight:800, color:P.bu }}>{fmt(tk.bull)}</td>
                 <td style={{ padding:"6px 5px", fontWeight:800, color:P.be }}>{fmt(tk.bear)}</td>
-                <td style={{ padding:"6px 5px", width:80 }}>
+                <td style={{ padding:"6px 5px", width:60 }}>
                   <div style={{ display:"flex", height:4, borderRadius:2, overflow:"hidden", background:P.bd }}>
-                    <div style={{ width:bullPct+"%", background:P.bu }}/><div style={{ width:(100-bullPct)+"%", background:P.be }}/>
+                    <div style={{ width:tk.bullPct+"%", background:P.bu }}/><div style={{ width:(100-tk.bullPct)+"%", background:P.be }}/>
                   </div>
                 </td>
+                <td style={{ padding:"6px 5px", fontWeight:800, fontSize:10, color:tk.bullPct>=80?P.bu:tk.bullPct<=20?P.be:P.dm }}>{tk.bullPct}%</td>
                 <td style={{ padding:"6px 5px", fontWeight:900, color:dirC, fontSize:12 }}>{fmt(Math.abs(net))}</td>
                 <td style={{ padding:"6px 5px", fontSize:9 }}>
-                  {tc_ && (
-                    <span>
-                      <span style={{ color:tcC, fontWeight:800 }}>{tc_.cp==="C"?"C":"P"}</span>
-                      {tcSide==="bid" && <span style={{ fontSize:7, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
-                      <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc_.K}</span>
-                      <span style={{ color:P.ac, marginLeft:3 }}>{tc_.exp}</span>
-                      <span style={{ color:tc_.hits>=10?P.ac:tc_.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc_.hits}x</span>
-                      {tc_.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc_.prem)}</span>}
-                    </span>
-                  )}
+                  {tc_ && (<span>
+                    <span style={{ color:tcC, fontWeight:800 }}>{tc_.cp==="C"?"C":"P"}</span>
+                    {tcSide==="bid" && <span style={{ fontSize:7, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
+                    <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc_.K}</span>
+                    <span style={{ color:P.ac, marginLeft:3 }}>{tc_.exp}</span>
+                    <span style={{ color:tc_.hits>=10?P.ac:tc_.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc_.hits}x</span>
+                    {tc_.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc_.prem)}</span>}
+                  </span>)}
                 </td>
-                <td style={{ padding:"6px 5px", color:P.dm, fontSize:9 }}>{tk.n}</td>
-                <td style={{ padding:"6px 5px", color:P.dm, fontSize:9 }}>{tk.contractCount}</td>
               </tr>
+              {isExp && tk.topContracts.length > 0 && (
+                <tr><td colSpan={7} style={{ padding:"4px 20px 8px", background:"#060e1e" }}>
+                  <div style={{ fontSize:8, color:P.dm, fontWeight:700, marginBottom:4, letterSpacing:1 }}>TOP {Math.min(3,tk.topContracts.length)} CONTRACTS</div>
+                  <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+                    {tk.topContracts.map((c,i) => {
+                      const cSide = c.askPrem >= c.bidPrem ? "ask" : "bid";
+                      const cC = c.cp==="C" ? (cSide==="ask"?P.bu:"#ff9800") : (cSide==="ask"?P.be:"#29b6f6");
+                      return (
+                        <div key={i} style={{ padding:"4px 10px", borderRadius:4, background:P.al, border:"1px solid "+P.bd, fontSize:9, cursor:"pointer" }}
+                          onClick={e=>{ e.stopPropagation(); setTab("Search"); setSearch(tk.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.sym)||null); setSearchDte("All"); }}>
+                          <span style={{ color:cC, fontWeight:800 }}>{c.cp==="C"?"C":"P"}</span>
+                          {cSide==="bid" && <span style={{ fontSize:6, color:cC, fontWeight:700, marginLeft:2 }}>BB</span>}
+                          <span style={{ color:P.wh, fontWeight:700, marginLeft:4 }}>${c.K}</span>
+                          <span style={{ color:P.ac, marginLeft:4 }}>{c.exp}</span>
+                          <span style={{ color:c.hits>=10?P.ac:c.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:6 }}>{c.hits}x</span>
+                          <span style={{ color:premC(c.prem), fontWeight:700, marginLeft:6 }}>{fmt(c.prem)}</span>
+                          {c.volOI>=3 && <span style={{ color:P.ye, marginLeft:4, fontSize:8 }}>{c.volOI.toFixed(1)}x V/OI</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </td></tr>
+              )}
+              </Fragment>
             );
           };
-          // Sortable header
           const sortHdr = (label, key, extraStyle) => (
             <th key={label} onClick={()=>setConvictionSort(key)} style={{
               padding:"4px 5px", textAlign:"left", color:cSort===key?"#e040fb":P.mt, fontSize:8, fontWeight:700,
@@ -3837,32 +3913,26 @@ export default function OptionsFlowDashboard() {
                   <div style={{ width:3, background:"#e040fb", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                   <div>
                     <div style={{ fontSize:13, fontWeight:700, color:"#e040fb", marginBottom:5 }}>Conviction Board</div>
-                    <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Top bullish and bearish tickers ranked by net confirmed premium. Only non-expired, clean flow with confirmed OI. Click any row to drill into Search.</div>
+                    <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Top bullish and bearish tickers ranked by net confirmed premium. Only non-expired, clean flow. Click any row to expand top contracts, click ticker to drill into Search.</div>
                   </div>
                 </div>
               </Card>
-              <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                {[
-                  {k:"All", label:"All", count:filtered.length},
-                  {k:"ST", label:"0–59d", count:stN},
-                  {k:"LT", label:"60–179d", count:ltN},
-                  {k:"LEAPS", label:"180+d", count:leN},
-                ].map(d => {
-                  const active = convDte===d.k;
-                  return (
-                    <button key={d.k} onClick={()=>setConvictionDte(d.k)} style={{
-                      padding:"4px 12px", borderRadius:16, border:"1.5px solid "+(active?"#e040fb":P.bd),
-                      cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
-                      background:active?"#e040fb22":"transparent", color:active?"#e040fb":P.mt,
-                      display:"flex", alignItems:"center", gap:5, transition:"all 0.15s"
-                    }}>
-                      <span>{d.label}</span>
-                      <span style={{ fontSize:8, opacity:0.7 }}>{d.count}</span>
-                    </button>
-                  );
+              {/* Filter rows */}
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                {/* DTE */}
+                {[{k:"All",l:"All",c:filtered.length},{k:"ST",l:"0–59d",c:stN},{k:"LT",l:"60–179d",c:ltN},{k:"LEAPS",l:"180+d",c:leN}].map(d=>{
+                  const active=convDte===d.k;
+                  return <button key={d.k} onClick={()=>setConvictionDte(d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?"#e040fb":P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?"#e040fb22":"transparent", color:active?"#e040fb":P.mt }}>{d.l} <span style={{ fontSize:7, opacity:0.7 }}>{d.c}</span></button>;
                 })}
-                <span style={{ fontSize:9, color:P.dm }}>{bulls.length} bullish · {bears.length} bearish · {allTickers.length} total</span>
+                <span style={{ width:1, height:16, background:P.bd }}/>
+                {/* Activity */}
+                {[{k:"new",l:"🆕 New"},{k:"uoa",l:"UOA"}].map(d=>{
+                  const active=cAct===d.k;
+                  return <button key={d.k} onClick={()=>setConvictionActivity(cAct===d.k?"All":d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?P.ye:P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?P.ye+"22":"transparent", color:active?P.ye:P.mt }}>{d.l}</button>;
+                })}
               </div>
+              <div style={{ fontSize:9, color:P.dm }}>{bulls.length} bullish · {bears.length} bearish · {allTickers.length} total · 🟢 accelerating 🟡 steady 🔴 fading</div>
+              {/* Two-column leaderboard */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -3874,14 +3944,18 @@ export default function OptionsFlowDashboard() {
                       <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Ticker</th>
                       {sortHdr("Bull","bull")}
                       {sortHdr("Bear","bear")}
-                      <th style={{ padding:"4px 5px", width:80 }}/>
+                      <th style={{ padding:"4px 5px", width:60 }}/>
+                      {sortHdr("Bull%","bullpct")}
                       {sortHdr("Net","net")}
                       <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Top Contract</th>
-                      {sortHdr("Trades","trades")}
-                      {sortHdr("#","contracts")}
+                      
+                      
+                      
+                      
                     </tr></thead>
-                    <tbody>{bulls.slice(0,25).map(renderRow)}</tbody>
+                    <tbody>{bulls.slice(0,25).map((tk,i)=>renderRow(tk,i))}</tbody>
                   </table>
+                  {bulls.length>25 && <div style={{ textAlign:"center", marginTop:6 }}><button onClick={()=>{}} style={{ fontSize:9, color:P.dm, background:"transparent", border:"1px solid "+P.bd, borderRadius:4, padding:"3px 12px", cursor:"pointer", fontFamily:"inherit" }}>Show all {bulls.length}</button></div>}
                 </Card>
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -3893,14 +3967,18 @@ export default function OptionsFlowDashboard() {
                       <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Ticker</th>
                       {sortHdr("Bull","bull")}
                       {sortHdr("Bear","bear")}
-                      <th style={{ padding:"4px 5px", width:80 }}/>
+                      <th style={{ padding:"4px 5px", width:60 }}/>
+                      {sortHdr("Bear%","bullpct")}
                       {sortHdr("Net","net")}
                       <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Top Contract</th>
-                      {sortHdr("Trades","trades")}
-                      {sortHdr("#","contracts")}
+                      
+                      
+                      
+                      
                     </tr></thead>
-                    <tbody>{bears.slice(0,25).map(renderRow)}</tbody>
+                    <tbody>{bears.slice(0,25).map((tk,i)=>renderRow(tk,i))}</tbody>
                   </table>
+                  {bears.length>25 && <div style={{ textAlign:"center", marginTop:6 }}><button onClick={()=>{}} style={{ fontSize:9, color:P.dm, background:"transparent", border:"1px solid "+P.bd, borderRadius:4, padding:"3px 12px", cursor:"pointer", fontFamily:"inherit" }}>Show all {bears.length}</button></div>}
                 </Card>
               </div>
             </div>
