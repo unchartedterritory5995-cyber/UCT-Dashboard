@@ -1059,8 +1059,13 @@ def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: 
                 try:
                     if deep:
                         # Deep warm: Massive + yfinance merged for full history.
-                        # Writes directly to disk + memory cache so subsequent
-                        # /api/bars reads see the deep history.
+                        # MUST write to SQLite (the audit's source of truth and
+                        # _get_bars_inner's Layer 2). Earlier revisions wrote
+                        # only to disk_cache + memory; that left SQLite empty
+                        # for any ticker that hadn't been organically browsed,
+                        # so audits showed bars_compared:0 and SWR delta-fetches
+                        # had no last_ts to delta from. Persist to SQLite first
+                        # then write the disk + memory layers as serving caches.
                         if t == 'D':
                             data = _fetch_daily(s, bars_count, deep=True)
                         elif t == 'W':
@@ -1071,6 +1076,19 @@ def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: 
                             data = []
                         if data:
                             ticker_up = s.upper()
+                            try:
+                                _sqlite.put_bars(ticker_up, t, data, date_tf=True)
+                            except Exception as _e:
+                                # Persistence is the load-bearing write; if it
+                                # fails the warm hasn't actually happened. Mark
+                                # this ticker as failed instead of pretending
+                                # success on the back of the disk_cache write.
+                                import logging as _log_w
+                                _log_w.getLogger(__name__).error(
+                                    f"[warm] sqlite put_bars failed {ticker_up} tf={t}: "
+                                    f"{type(_e).__name__}: {_e}"
+                                )
+                                return False
                             payload = {"ticker": ticker_up, "tf": t, "bars": data}
                             try:
                                 disk_cache.put(ticker_up, t, bars_count, payload)
