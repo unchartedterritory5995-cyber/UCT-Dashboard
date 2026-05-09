@@ -74,3 +74,45 @@ def test_transcribe_audio_returns_text_from_sdk():
 def test_transcribe_audio_rejects_empty_blob():
     with pytest.raises(ValueError, match="empty"):
         voice_openai.transcribe_audio(b"", filename="audio.webm")
+
+
+# ── Intent classifier ───────────────────────────────────────────────────────
+
+def test_classify_intent_returns_tool_and_args():
+    fake_msg = MagicMock()
+    fake_msg.content = '{"tool":"get_quote","args":{"symbol":"NVDA"},"narration_template":"{symbol} is at {last}."}'
+    fake_choice = MagicMock(message=fake_msg)
+    fake_completion = MagicMock(choices=[fake_choice])
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = fake_completion
+
+    tools_schema = [{"name": "get_quote", "description": "Get a stock quote",
+                     "parameters": {"type": "object", "properties": {"symbol": {"type": "string"}}}}]
+
+    with patch.object(voice_openai, "_get_client", return_value=fake_client):
+        out = voice_openai.classify_intent("what's NVDA at", tools_schema)
+
+    assert out["tool"] == "get_quote"
+    assert out["args"] == {"symbol": "NVDA"}
+    assert "{last}" in out["narration_template"]
+    fake_client.chat.completions.create.assert_called_once()
+    kwargs = fake_client.chat.completions.create.call_args.kwargs
+    assert kwargs["model"] == "gpt-4o-mini"
+    assert kwargs["response_format"] == {"type": "json_object"}
+
+
+def test_classify_intent_handles_no_match():
+    fake_msg = MagicMock()
+    fake_msg.content = '{"tool":null,"args":{},"narration_template":"Sorry, I can\'t help with that."}'
+    fake_choice = MagicMock(message=fake_msg)
+    fake_completion = MagicMock(choices=[fake_choice])
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = fake_completion
+
+    with patch.object(voice_openai, "_get_client", return_value=fake_client):
+        out = voice_openai.classify_intent("tell me a joke", [])
+
+    assert out["tool"] is None
+    assert "Sorry" in out["narration_template"]

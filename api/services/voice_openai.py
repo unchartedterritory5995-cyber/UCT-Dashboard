@@ -126,3 +126,74 @@ def transcribe_audio(audio_bytes: bytes, *, filename: str = "audio.webm") -> str
     if hasattr(resp, "text"):
         return resp.text.strip()
     return str(resp).strip()
+
+
+# ── Intent classification (gpt-4o-mini) ─────────────────────────────────────
+
+_CLASSIFIER_MODEL = "gpt-4o-mini"
+
+_CLASSIFIER_SYSTEM_PROMPT = """You are an intent classifier for a stock-trading dashboard's voice assistant.
+The user speaks a short query. Choose the single best matching tool from the catalog and extract its arguments.
+
+You MUST respond with a single JSON object of the shape:
+{
+  "tool": "<tool_name>" | null,
+  "args": { ... },
+  "narration_template": "<short spoken response template>"
+}
+
+The narration_template is a sentence the assistant will speak after the tool runs.
+Use {placeholder} markers for values that come from the tool's result.
+Common placeholders include {symbol}, {last}, {direction}, {abs_pct}, {volume}, {count}, {top_movers}, etc.
+Keep narration short — one sentence, max ~25 words.
+Use natural spoken language. Avoid technical jargon. Round numbers reasonably.
+
+If no tool matches, set "tool" to null and write a polite refusal in narration_template (no placeholders).
+"""
+
+
+def classify_intent(transcript: str, tools_schema: list[dict]) -> dict:
+    """
+    Classify a user transcript against a tool catalog.
+    Returns {tool, args, narration_template}.
+    """
+    if not transcript or not transcript.strip():
+        return {"tool": None, "args": {}, "narration_template": "I didn't catch that. Try again?"}
+    if not tools_schema:
+        return {"tool": None, "args": {}, "narration_template": "Sorry, no tools are available right now."}
+
+    catalog_lines = []
+    for t in tools_schema:
+        params = t.get("parameters", {}).get("properties", {})
+        param_str = ", ".join(f"{n}: {p.get('type', 'any')}" for n, p in params.items())
+        catalog_lines.append(f"- {t['name']}({param_str}): {t.get('description', '')}")
+
+    user_msg = (
+        f"Available tools:\n" + "\n".join(catalog_lines) +
+        f"\n\nUser said: {transcript!r}\n\n"
+        "Respond with JSON."
+    )
+
+    client = _get_client()
+    completion = client.chat.completions.create(
+        model=_CLASSIFIER_MODEL,
+        messages=[
+            {"role": "system", "content": _CLASSIFIER_SYSTEM_PROMPT},
+            {"role": "user", "content": user_msg},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.0,
+    )
+
+    import json
+    raw = completion.choices[0].message.content
+    try:
+        out = json.loads(raw)
+    except json.JSONDecodeError:
+        return {"tool": None, "args": {}, "narration_template": "Something went wrong. Try again."}
+
+    return {
+        "tool": out.get("tool"),
+        "args": out.get("args", {}) or {},
+        "narration_template": out.get("narration_template") or "Done.",
+    }
