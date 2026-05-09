@@ -121,3 +121,13 @@ def test_usage_returns_current_month(client):
     assert "cap_seconds" in body
     assert body["mode_a_seconds"] == 0
     assert body["cap_seconds"] > 0
+
+
+def test_tts_blocked_when_disabled(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    # Disable voice in settings
+    client.put("/api/voice/settings", json={"enabled": False})
+    r = client.post("/api/voice/tts", json={"text": "hello"})
+    assert r.status_code == 400
+    assert "disabled" in r.json()["detail"].lower()

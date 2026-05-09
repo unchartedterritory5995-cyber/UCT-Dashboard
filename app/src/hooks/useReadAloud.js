@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { useVoice } from '../context/VoiceContext'
 
 /**
@@ -17,6 +17,7 @@ import { useVoice } from '../context/VoiceContext'
  */
 export default function useReadAloud() {
   const voice = useVoice()
+  const activeBlobUrl = useRef(null)
 
   const play = useCallback(async ({ trackId, label, textProvider, voiceOverride, speedOverride }) => {
     if (voice.trackId === trackId && voice.status === 'playing') {
@@ -62,6 +63,10 @@ export default function useReadAloud() {
       }
       const blob = await r.blob()
       blobUrl = URL.createObjectURL(blob)
+      if (activeBlobUrl.current) {
+        URL.revokeObjectURL(activeBlobUrl.current)
+      }
+      activeBlobUrl.current = blobUrl
     } catch (e) {
       console.error('[useReadAloud] fetch failed', e)
       return

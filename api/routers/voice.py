@@ -77,6 +77,8 @@ def tts(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_
         )
 
     settings = get_voice_settings(user["id"])
+    if not settings.get("enabled", True):
+        raise HTTPException(status_code=400, detail="voice features disabled in settings")
     voice = body.voice or settings["voice"]
     speed = body.speed if body.speed is not None else settings["speed"]
     if voice not in ALLOWED_VOICES:
