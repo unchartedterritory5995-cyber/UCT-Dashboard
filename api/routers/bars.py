@@ -132,12 +132,20 @@ def get_bars(
     """
     try:
         if since:
-            return _get_bars_since_response(ticker, tf, bars, since)
-        return _get_bars_inner(ticker, tf, bars)
+            response = _get_bars_since_response(ticker, tf, bars, since)
+        else:
+            response = _get_bars_inner(ticker, tf, bars)
     except Exception as e:
         import logging, traceback
         logging.getLogger(__name__).error(f"[bars] CRASH {ticker} tf={tf}: {e}\n{traceback.format_exc()}")
-        return JSONResponse(content={"ticker": ticker.upper(), "tf": tf, "bars": []})
+        response = JSONResponse(content={"ticker": ticker.upper(), "tf": tf, "bars": []})
+
+    # Bars data must never be served from a stale browser/CDN cache. Server-side
+    # caching (memory + SQLite + disk) handles correctness; HTTP-layer caching
+    # would re-introduce phantom OHLC bars after a corruption fix ships.
+    response.headers["Cache-Control"] = "no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @router.post("/api/admin/warm-universe")

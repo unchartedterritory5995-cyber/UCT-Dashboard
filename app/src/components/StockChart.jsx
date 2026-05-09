@@ -1945,9 +1945,8 @@ export default function StockChart({
         </div>
       )}
       {loading && (
-        <div className={styles.loading}>
-          <div className={styles.spinner} />
-          <span>Loading {sym} chart…</span>
+        <div className={styles.skeletonOverlay}>
+          <div className={styles.skeletonText}>Loading {sym}…</div>
         </div>
       )}
       {error && (
@@ -1959,7 +1958,7 @@ export default function StockChart({
       <div
         ref={containerRef}
         className={styles.chart}
-        style={{ display: loading || error ? 'none' : 'block' }}
+        style={{ display: error ? 'none' : 'block' }}
       />
       {crosshairData && (
         <div className={styles.legend}>
