@@ -193,6 +193,29 @@ def _start_priority_audit_background(delay_seconds: int = 30) -> None:
     threading.Thread(target=_delayed, daemon=True, name="startup-priority-audit").start()
 
 
+_DEPLOY_SMOKE_FIXTURE = ["QQQ", "SPY", "IWM", "AAPL", "NVDA", "TSLA",
+                         "AMZN", "GOOGL", "META", "MSFT"]
+
+
+def _run_deploy_smoke_now() -> None:
+    """Run a small validation smoke audit ~30s after every deploy."""
+    try:
+        from api.services import bars_audit
+        bars_audit.audit_universe(_DEPLOY_SMOKE_FIXTURE, scope="deploy-smoke")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] deploy smoke failed")
+
+
+def _start_deploy_smoke_background(delay_seconds: int = 30) -> None:
+    """Spawn a daemon thread that runs the deploy smoke after `delay_seconds`."""
+    import threading
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        _run_deploy_smoke_now()
+    threading.Thread(target=_delayed, daemon=True, name="deploy-smoke").start()
+
+
 # Module-level imports for hot tier warm helpers — bound at module scope so
 # tests can patch via `api.main.bars_disk_cache.get` and `api.main.bars_hot_tier.set`.
 from api.services import bars_hot_tier, bars_disk_cache  # noqa: E402
@@ -298,6 +321,16 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] hot tier warm scheduled (~45s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule hot tier warm")
+
+    # Deploy-smoke audit — small fixture run ~30s after every deploy so admins
+    # can verify nothing broke in the chart pipeline without manual operator
+    # intervention. Independent of the priority audit (which depends on
+    # wire_data being pushed); this always runs.
+    try:
+        _start_deploy_smoke_background()
+        logging.getLogger(__name__).info("[startup] deploy smoke audit scheduled")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] failed to schedule deploy smoke")
 
     # Start continuous audit thread (5min/1hr/24hr cadences)
     try:

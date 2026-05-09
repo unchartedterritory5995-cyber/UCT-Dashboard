@@ -40,3 +40,17 @@ def test_resolve_priority_tickers_returns_list():
     for t in tickers:
         assert isinstance(t, str)
         assert t == t.upper()
+
+
+def test_deploy_smoke_runs_audit():
+    with patch("api.services.bars_audit.audit_universe") as mock_audit:
+        api_main._run_deploy_smoke_now()
+    mock_audit.assert_called_once()
+    args, kwargs = mock_audit.call_args
+    assert kwargs.get("scope") == "deploy-smoke"
+
+
+def test_deploy_smoke_handles_audit_exception():
+    with patch("api.services.bars_audit.audit_universe", side_effect=RuntimeError("boom")):
+        # Should not raise
+        api_main._run_deploy_smoke_now()
