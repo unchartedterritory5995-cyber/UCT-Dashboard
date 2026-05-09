@@ -5,6 +5,8 @@ import { Suspense } from 'react'
 import lazy from './utils/lazyWithRetry'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { VoiceProvider } from './context/VoiceContext'
+import AudioPlayerBar from './components/voice/AudioPlayerBar'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
@@ -58,6 +60,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <VoiceProvider>
         {/* Cinematic intro overlay — plays once per session on first dashboard
             visit. Self-unmounts on completion or skip. */}
         <IntroAnimation />
@@ -130,6 +133,8 @@ export default function App() {
           </Routes>
           </Suspense>
         </RouteErrorBoundary>
+        <AudioPlayerBar />
+        </VoiceProvider>
       </AuthProvider>
     </BrowserRouter>
   )
