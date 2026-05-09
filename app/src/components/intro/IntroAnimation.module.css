@@ -11,7 +11,7 @@
   background: #050505;
   overflow: hidden;
   cursor: pointer;
-  animation: overlayFadeOut 0.5s ease-out 8.5s forwards;
+  animation: overlayFadeOut 0.5s ease-out 8.8s forwards;
 }
 .reducedMotion {
   animation: overlayFadeOut 0.4s ease-out 1.2s forwards;
@@ -648,12 +648,12 @@
   100% { opacity: 0; transform: scale(2.2); }
 }
 
-/* Welcome */
-.playing .welcomeVeil { animation: veilIn 0.5s ease-out 4.0s forwards, veilOut 0.5s ease-in 5.4s forwards; }
+/* Welcome (held 0.3s longer for emotional landing) */
+.playing .welcomeVeil { animation: veilIn 0.5s ease-out 4.0s forwards, veilOut 0.5s ease-in 5.7s forwards; }
 @keyframes veilIn { to { opacity: 1; } }
 @keyframes veilOut { to { opacity: 0; } }
 
-.playing .welcome { animation: welcomeIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 4.3s forwards, welcomeOut 0.5s ease-in 5.4s forwards; }
+.playing .welcome { animation: welcomeIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 4.3s forwards, welcomeOut 0.5s ease-in 5.7s forwards; }
 @keyframes welcomeIn {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.94); }
   100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
@@ -662,42 +662,42 @@
   to { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
 }
 
-.playing .compassMini { animation: miniIn 0.7s ease-out 4.2s forwards, miniOut 0.5s ease-in 5.4s forwards; }
+.playing .compassMini { animation: miniIn 0.7s ease-out 4.2s forwards, miniOut 0.5s ease-in 5.7s forwards; }
 @keyframes miniIn { to { opacity: 1; } }
 @keyframes miniOut { to { opacity: 0; } }
 
-/* Brand finale */
-.playing .revealScene { animation: revealSceneIn 0.5s ease-out 5.7s forwards; }
+/* Brand finale (shifted +0.3s after welcome extension) */
+.playing .revealScene { animation: revealSceneIn 0.5s ease-out 6.0s forwards; }
 @keyframes revealSceneIn { to { opacity: 1; } }
 
-.playing .brandStack { animation: brandIn 1.0s cubic-bezier(0.16, 1, 0.3, 1) 5.9s forwards; }
+.playing .brandStack { animation: brandIn 1.0s cubic-bezier(0.16, 1, 0.3, 1) 6.2s forwards; }
 @keyframes brandIn {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
   100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
-.playing .compassMark { animation: compassPop 1.0s cubic-bezier(0.16, 1, 0.3, 1) 5.9s forwards; }
+.playing .compassMark { animation: compassPop 1.0s cubic-bezier(0.16, 1, 0.3, 1) 6.2s forwards; }
 @keyframes compassPop {
   0% { transform: scale(0.7) rotate(-30deg); }
   65% { transform: scale(1.05) rotate(0deg); }
   100% { transform: scale(1) rotate(0deg); }
 }
 
-.playing .ecosystem { animation: ecosystemIn 0.6s ease-out 6.5s forwards; }
+.playing .ecosystem { animation: ecosystemIn 0.6s ease-out 6.8s forwards; }
 @keyframes ecosystemIn { to { opacity: 1; } }
 
-.playing .pill { animation: pillIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 6.9s forwards; }
-.playing .pill:nth-child(2)  { animation-delay: 7.0s; }
-.playing .pill:nth-child(3)  { animation-delay: 7.1s; }
-.playing .pill:nth-child(4)  { animation-delay: 7.2s; }
-.playing .pill:nth-child(5)  { animation-delay: 7.3s; }
-.playing .pill:nth-child(6)  { animation-delay: 7.4s; }
-.playing .pill:nth-child(7)  { animation-delay: 7.5s; }
-.playing .pill:nth-child(8)  { animation-delay: 7.6s; }
-.playing .pill:nth-child(9)  { animation-delay: 7.7s; }
-.playing .pill:nth-child(10) { animation-delay: 7.8s; }
-.playing .pill:nth-child(11) { animation-delay: 7.9s; }
-.playing .pill:nth-child(12) { animation-delay: 8.0s; }
+.playing .pill { animation: pillIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 7.2s forwards; }
+.playing .pill:nth-child(2)  { animation-delay: 7.3s; }
+.playing .pill:nth-child(3)  { animation-delay: 7.4s; }
+.playing .pill:nth-child(4)  { animation-delay: 7.5s; }
+.playing .pill:nth-child(5)  { animation-delay: 7.6s; }
+.playing .pill:nth-child(6)  { animation-delay: 7.7s; }
+.playing .pill:nth-child(7)  { animation-delay: 7.8s; }
+.playing .pill:nth-child(8)  { animation-delay: 7.9s; }
+.playing .pill:nth-child(9)  { animation-delay: 8.0s; }
+.playing .pill:nth-child(10) { animation-delay: 8.1s; }
+.playing .pill:nth-child(11) { animation-delay: 8.2s; }
+.playing .pill:nth-child(12) { animation-delay: 8.3s; }
 @keyframes pillIn { to { opacity: 1; transform: translateY(0); } }
 
 /* ── Mobile breakpoints ── */

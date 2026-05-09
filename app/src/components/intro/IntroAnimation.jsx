@@ -5,7 +5,7 @@ import compassMark from './assets/compass-mark.png'
 import parchmentMark from './assets/parchment-mark.png'
 import styles from './IntroAnimation.module.css'
 
-const TOTAL_RUNTIME_MS = 9000
+const TOTAL_RUNTIME_MS = 9300
 const REDUCED_MOTION_RUNTIME_MS = 1600
 
 export default function IntroAnimation() {
