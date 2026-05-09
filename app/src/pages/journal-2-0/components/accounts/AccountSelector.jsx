@@ -6,9 +6,10 @@
  * "All Accounts" + "+ New Account" link.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSWRConfig } from 'swr'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
+import useJ2AccountComparison from '../../hooks/useJ2AccountComparison'
 import { colorHex } from '../../lib/accountColors'
 import { money } from '../../../../lib/journal-2-0'
 import DeleteAccountModal from './DeleteAccountModal'
@@ -16,7 +17,15 @@ import styles from './AccountSelector.module.css'
 
 export default function AccountSelector({ onNewAccount }) {
   const { accountId, account, accounts, setAccount } = useJ2SelectedAccount()
+  const { accounts: comparison } = useJ2AccountComparison()
   const { mutate } = useSWRConfig()
+  const balanceById = useMemo(() => {
+    const m = {}
+    for (const c of comparison) m[c.id] = c.currentBalance
+    return m
+  }, [comparison])
+  const balanceFor = (a) =>
+    balanceById[a?.id] != null ? balanceById[a.id] : a?.startingBalance
   const [open, setOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -104,7 +113,7 @@ export default function AccountSelector({ onNewAccount }) {
             <span className={styles.name}>{account?.name || '—'}</span>
             {account && (
               <span className={styles.balance}>
-                {money(account.startingBalance)}
+                {money(balanceFor(account))}
               </span>
             )}
           </>
@@ -132,7 +141,7 @@ export default function AccountSelector({ onNewAccount }) {
               />
               <span className={styles.itemName}>{a.name}</span>
               <span className={styles.itemBalance}>
-                {money(a.startingBalance)}
+                {money(balanceFor(a))}
               </span>
             </button>
           ))}
