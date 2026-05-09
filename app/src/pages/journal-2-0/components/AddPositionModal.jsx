@@ -18,6 +18,9 @@ import {
   computeSuggestedTarget,
   computeImpliedRiskPct,
 } from '../lib/disciplineGuards'
+import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
+import useJ2DisciplineState from '../hooks/useJ2DisciplineState'
+import DisciplineLockBanner from './DisciplineLockBanner'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -79,6 +82,10 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   const [errorMsg, setErrorMsg] = useState('')
   const [saving, setSaving] = useState(false)
   const [overrideArmed, setOverrideArmed] = useState(false)
+
+  const { accountId } = useJ2SelectedAccount()
+  const { state: disciplineState } = useJ2DisciplineState(accountId)
+  const [disciplineOverrideArmed, setDisciplineOverrideArmed] = useState(false)
 
   const defaultStop = settings?.defaultStop
   const setups = settings?.setups ?? []
@@ -161,6 +168,13 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   useEffect(() => {
     setOverrideArmed(false)
   }, [shares, entryPrice, stopPrice, side])
+
+  // Reset session-discipline override whenever the underlying lock state
+  // changes (e.g., a no-trade window naturally closes, or a new loss exit
+  // triggers a fresh cooling-off lock). The user must re-arm if it returns.
+  useEffect(() => {
+    if (!disciplineState?.locked) setDisciplineOverrideArmed(false)
+  }, [disciplineState?.locked, disciplineState?.computedAt])
 
   const validate = useCallback(() => {
     if (!symbol.trim()) return 'Symbol is required'
@@ -393,6 +407,11 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
             />
           </label>
 
+          <DisciplineLockBanner
+            state={disciplineState}
+            overrideArmed={disciplineOverrideArmed}
+            onArmOverride={() => setDisciplineOverrideArmed(true)}
+          />
           {overCap && (
             <div
               role="alert"
@@ -434,7 +453,11 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
 
         <div className={styles.footer}>
           <button type="button" className={styles.ghostBtn} onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={saving || (overCap && !overrideArmed)}>
+          <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={
+              saving
+              || (overCap && !overrideArmed)
+              || (disciplineState?.locked && !disciplineOverrideArmed)
+            }>
             {saving ? 'Saving…' : 'Add Position'}
           </button>
         </div>
