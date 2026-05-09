@@ -1,0 +1,28 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  color: #c9a84c;
+  border-radius: 999px;
+  cursor: pointer;
+  font: 12px/1.2 'IBM Plex Sans', system-ui, sans-serif;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.btn:hover {
+  background: rgba(201, 168, 76, 0.18);
+  border-color: rgba(201, 168, 76, 0.5);
+}
+.btn:focus-visible {
+  outline: 2px solid #c9a84c;
+  outline-offset: 1px;
+}
+.sm { padding: 4px 10px; font-size: 11px; }
+.md { padding: 6px 14px; font-size: 13px; }
+.playing {
+  background: rgba(201, 168, 76, 0.25);
+  border-color: rgba(201, 168, 76, 0.7);
+}
+.icon { display: inline-block; min-width: 14px; text-align: center; }
+.text { letter-spacing: 0.5px; }
