@@ -15,12 +15,14 @@ _PASS_RATE_THRESHOLD = 0.95
 
 _lock = threading.RLock()
 _attempts: dict[str, deque] = {}
+_last_state: dict[str, str] = {}
 
 
 def _reset():
     """Test helper -- clear all state."""
     with _lock:
         _attempts.clear()
+        _last_state.clear()
 
 
 def _reset_source(source: str):
@@ -68,7 +70,21 @@ def state(source: str, now: int | None = None) -> str:
         if not dq or len(dq) < _MIN_ATTEMPTS:
             return "ok"
         rate = pass_rate(source, now)
-        return "degraded" if rate < _PASS_RATE_THRESHOLD else "ok"
+        new_state = "degraded" if rate < _PASS_RATE_THRESHOLD else "ok"
+        # Emit alert on first transition to degraded
+        if new_state == "degraded" and _last_state.get(source) != "degraded":
+            try:
+                from api.services import chart_health_alerts
+                chart_health_alerts.emit(
+                    f"source_degraded:{source}",
+                    "warning",
+                    f"Source '{source}' pass rate dropped below 95%",
+                    metadata={"source": source, "pass_rate": round(rate, 3)},
+                )
+            except Exception:
+                pass
+        _last_state[source] = new_state
+        return new_state
 
 
 def is_ok(source: str, now: int | None = None) -> bool:
