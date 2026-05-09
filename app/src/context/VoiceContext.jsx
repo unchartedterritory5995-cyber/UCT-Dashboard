@@ -6,9 +6,12 @@ import { createContext, useContext, useReducer, useRef, useCallback, useMemo } f
  *
  * State shape:
  *   {
- *     status: 'idle' | 'loading' | 'playing' | 'paused' | 'error',
+ *     status: 'idle' | 'loading' | 'playing' | 'paused' | 'listening' | 'thinking' | 'responding' | 'error',
  *     trackId: string | null,    // identifies which ReadAloudButton is "playing"
  *     trackLabel: string | null, // shown in player bar
+ *     mode: 'a' | 'b' | null,   // 'a' = read-aloud, 'b' = one-shot
+ *     transcript: string,        // Mode B: user's spoken input
+ *     narration: string,         // Mode B: generated response text
  *     speed: number,
  *     errorMessage: string | null,
  *   }
@@ -16,8 +19,13 @@ import { createContext, useContext, useReducer, useRef, useCallback, useMemo } f
 
 const initialState = {
   status: 'idle',
+  // Slice 1: TTS read-aloud track
   trackId: null,
   trackLabel: null,
+  // Slice 2: One-shot Mode B
+  mode: null,
+  transcript: '',
+  narration: '',
   speed: 1.0,
   errorMessage: null,
 }
@@ -25,7 +33,11 @@ const initialState = {
 function reducer(state, action) {
   switch (action.type) {
     case 'load':
-      return { ...state, status: 'loading', trackId: action.trackId, trackLabel: action.trackLabel, errorMessage: null }
+      return {
+        ...state, status: 'loading', mode: 'a',
+        trackId: action.trackId, trackLabel: action.trackLabel,
+        errorMessage: null, transcript: '', narration: '',
+      }
     case 'play':
       return { ...state, status: 'playing' }
     case 'pause':
@@ -36,6 +48,15 @@ function reducer(state, action) {
       return { ...state, status: 'error', errorMessage: action.message }
     case 'setSpeed':
       return { ...state, speed: action.speed }
+    case 'b_listening':
+      return { ...initialState, speed: state.speed, status: 'listening', mode: 'b' }
+    case 'b_thinking':
+      return { ...state, status: 'thinking', mode: 'b' }
+    case 'b_responding':
+      return {
+        ...state, status: 'responding', mode: 'b',
+        transcript: action.transcript || '', narration: action.narration || '',
+      }
     default:
       return state
   }
@@ -98,6 +119,11 @@ export function VoiceProvider({ children }) {
     dispatch({ type: 'setSpeed', speed })
   }, [])
 
+  const startListening = useCallback(() => dispatch({ type: 'b_listening' }), [])
+  const startThinking = useCallback(() => dispatch({ type: 'b_thinking' }), [])
+  const startResponding = useCallback(({ transcript, narration }) =>
+    dispatch({ type: 'b_responding', transcript, narration }), [])
+
   const value = useMemo(() => ({
     ...state,
     attachAudio,
@@ -106,7 +132,11 @@ export function VoiceProvider({ children }) {
     resume,
     stop,
     setSpeed,
-  }), [state, attachAudio, playUrl, pause, resume, stop, setSpeed])
+    startListening,
+    startThinking,
+    startResponding,
+  }), [state, attachAudio, playUrl, pause, resume, stop, setSpeed,
+       startListening, startThinking, startResponding])
 
   return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>
 }
