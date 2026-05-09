@@ -299,17 +299,18 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
               <input
                 type="number"
                 min="0.1"
+                max="20"
                 step="0.1"
                 value={defaultRMultipleTarget}
                 onChange={(e) => setDefaultRMultipleTarget(e.target.value)}
                 placeholder="e.g. 2"
                 className={styles.numberInput}
               />
-              <span className={styles.helper}>
-                Display only — Add Position will show a suggested target line
-                computed from entry, stop, and this multiple.
-              </span>
             </label>
+            <p className={styles.helper}>
+              Display only — Add Position will show a suggested target line
+              computed from entry, stop, and this multiple.
+            </p>
 
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Max Risk Per Trade (% of account)</span>
@@ -323,11 +324,11 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
                 placeholder="e.g. 1"
                 className={styles.numberInput}
               />
-              <span className={styles.helper}>
-                Add Position will block save with a red banner when implied
-                $ risk exceeds this cap (Override available).
-              </span>
             </label>
+            <p className={styles.helper}>
+              Add Position will block save with a red banner when implied
+              $ risk exceeds this cap (Override available).
+            </p>
           </section>
 
           {/* 5.2 DEFAULT STOP */}
