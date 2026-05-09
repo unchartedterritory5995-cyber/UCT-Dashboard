@@ -260,7 +260,20 @@ def _process_finnhub_trade(trade):
             "updated_at": time.time(),
         }
         # Record liveness — Finnhub timestamps are ms, _last_seen tracks epoch seconds
-        _last_seen[sym] = int(timestamp / 1000) if timestamp else int(time.time())
+        ts_seconds = int(timestamp / 1000) if timestamp else int(time.time())
+        _last_seen[sym] = ts_seconds
+
+    # Feed realtime_candle (separate lock — no contention with _lock above).
+    # _record_tick is NOT called from this production path, so we hook the
+    # candle state machine directly here. Wrapped in try/except so observability
+    # failures never break tick handling.
+    try:
+        from api.services import realtime_candle
+        actual_size = int(trade_vol) if trade_vol else 1
+        for tf in ("1", "5", "15", "30", "60"):
+            realtime_candle.apply_tick(sym, price=trade_price, ts=ts_seconds, size=actual_size, tf=tf)
+    except Exception:
+        pass  # observability layer; never break tick handling
 
 
 def start_stream():

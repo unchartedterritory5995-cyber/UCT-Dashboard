@@ -71,3 +71,18 @@ def test_record_tick_failure_does_not_break_handler(monkeypatch):
     realtime_stream._record_tick("QQQ", price=700.0, ts=int(time.time()))
     last_seen = realtime_stream.get_last_seen("QQQ")
     assert last_seen is not None  # _last_seen still updated despite candle failure
+
+
+def test_process_finnhub_trade_feeds_realtime_candle():
+    """The production tick path (_process_finnhub_trade) must feed realtime_candle."""
+    from api.services import realtime_candle
+    realtime_candle._reset()
+    # Synthetic Finnhub trade payload — Finnhub uses ms timestamps and
+    # _process_finnhub_trade takes the inner trade dict (not the wrapper message).
+    fake_trade = {"s": "QQQ", "p": 700.0, "t": 1715080800000, "v": 100}
+    realtime_stream._process_finnhub_trade(fake_trade)
+    candle = realtime_candle.get_current("QQQ", "1")
+    assert candle is not None
+    assert candle["c"] == 700.0
+    # Size from the Finnhub `v` field should be propagated (not the size=1 placeholder)
+    assert candle["v"] >= 1
