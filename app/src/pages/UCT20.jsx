@@ -9,6 +9,7 @@ import UCT20Backtest from '../components/tiles/UCT20Backtest'
 import { SkeletonTable } from '../components/Skeleton'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useMobileSWR from '../hooks/useMobileSWR'
+import ReadAloudButton from '../components/voice/ReadAloudButton'
 import styles from './UCT20.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -194,9 +195,30 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
                 target1={item.target_1}
                 target2={item.target_2}
               />
+              <ReadAloudButton
+                trackId={`uct20-pick-${sym}`}
+                label={`UCT 20 — ${sym}`}
+                textProvider={() => {
+                  const desc = item.company_desc || ''
+                  const cat = item.catalyst_text || ''
+                  const action = item.price_action || ''
+                  return `${sym}. ${desc}. Catalyst: ${cat}. Price action: ${action}.`
+                }}
+              >
+                Read
+              </ReadAloudButton>
             </>
           ) : legacyThesis ? (
-            <p className={styles.legacyThesis}>{legacyThesis}</p>
+            <>
+              <p className={styles.legacyThesis}>{legacyThesis}</p>
+              <ReadAloudButton
+                trackId={`uct20-pick-${sym}`}
+                label={`UCT 20 — ${sym}`}
+                textProvider={() => `${sym}. ${legacyThesis}.`}
+              >
+                Read
+              </ReadAloudButton>
+            </>
           ) : null}
         </div>
       )}
@@ -275,6 +297,23 @@ export default function UCT20() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.heading}>UCT 20</h1>
+        <ReadAloudButton
+          trackId="uct20-all-picks"
+          label="UCT 20 picks"
+          textProvider={() => {
+            if (!stocks?.length) return ''
+            return stocks.map((p, i) => {
+              const rank = i + 1
+              const sym = p.ticker ?? p.sym ?? p.symbol ?? ''
+              const setup = p.setup_type || ''
+              const thesis = p.catalyst_text || p.thesis || ''
+              return `Number ${rank}. ${sym}. Setup: ${setup}. ${thesis}.`
+            }).join(' ')
+          }}
+          size="md"
+        >
+          Read all picks
+        </ReadAloudButton>
       </div>
       <TileCard
         title="UCT Leadership 20 — Current Top Stocks"
