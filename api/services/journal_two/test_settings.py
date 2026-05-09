@@ -196,3 +196,46 @@ def _make_payload(
         "breakevenRange": breakeven_range or {"enabled": False, "unit": "$", "value": 0},
         "setups": setups if setups is not None else [],
     }
+
+
+# Re-export _make_payload as _baseline_payload for Phase A tests
+_baseline_payload = _make_payload
+
+
+# ── Phase A — Entry Guard settings ───────────────────────────────────────────
+
+def test_validate_accepts_phase_a_guards():
+    from api.services.journal_two import settings as svc
+    from api.services.journal_two.settings import SettingsValidationError
+    payload = _baseline_payload() | {
+        "defaultSizePct": 5,
+        "defaultRMultipleTarget": 2,
+        "maxRiskPerTradePct": 1,
+    }
+    out = svc.validate_settings_payload(payload)
+    assert out["defaultSizePct"] == 5.0
+    assert out["defaultRMultipleTarget"] == 2.0
+    assert out["maxRiskPerTradePct"] == 1.0
+
+
+def test_validate_phase_a_guards_default_to_none():
+    from api.services.journal_two import settings as svc
+    out = svc.validate_settings_payload(_baseline_payload())
+    assert out["defaultSizePct"] is None
+    assert out["defaultRMultipleTarget"] is None
+    assert out["maxRiskPerTradePct"] is None
+
+
+def test_validate_phase_a_guards_reject_invalid_ranges():
+    from api.services.journal_two import settings as svc
+    from api.services.journal_two.settings import SettingsValidationError
+    base = _baseline_payload()
+    for field, bad_value in [
+        ("defaultSizePct", -1),
+        ("defaultSizePct", 101),
+        ("defaultRMultipleTarget", 0),
+        ("maxRiskPerTradePct", -0.5),
+        ("maxRiskPerTradePct", 100),
+    ]:
+        with pytest.raises(SettingsValidationError):
+            svc.validate_settings_payload(base | {field: bad_value})

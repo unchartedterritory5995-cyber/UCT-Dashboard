@@ -41,6 +41,10 @@ def default_settings_data() -> dict[str, Any]:
         # also opted in. Default off.
         "shareJournalData": False,
         "tradingMode": "both",
+        # Phase A — Entry Guards (nullable = disabled)
+        "defaultSizePct": None,
+        "defaultRMultipleTarget": None,
+        "maxRiskPerTradePct": None,
     }
 
 
@@ -120,6 +124,30 @@ def _validate_setups(setups: Any) -> list[str]:
     return out
 
 
+def _validate_optional_pct(value: Any, field_name: str, *, max_exclusive: float = 100.0) -> float | None:
+    """Optional 0 < x < max_exclusive percent. None/'' = disabled."""
+    if value is None or value == "":
+        return None
+    if not isinstance(value, (int, float)):
+        raise SettingsValidationError(f"{field_name} must be a number or null")
+    f = float(value)
+    if f <= 0 or f >= max_exclusive:
+        raise SettingsValidationError(f"{field_name} must be in (0, {max_exclusive})")
+    return f
+
+
+def _validate_optional_positive(value: Any, field_name: str) -> float | None:
+    """Optional positive number. None/'' = disabled."""
+    if value is None or value == "":
+        return None
+    if not isinstance(value, (int, float)):
+        raise SettingsValidationError(f"{field_name} must be a number or null")
+    f = float(value)
+    if f <= 0:
+        raise SettingsValidationError(f"{field_name} must be > 0")
+    return f
+
+
 def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Reduce a client payload to the canonical shape. Rejects unknown fields
     by ignoring them; required fields must be present and valid."""
@@ -148,6 +176,10 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "setups": _validate_setups(payload.get("setups", [])),
         "shareJournalData": bool(payload.get("shareJournalData", False)),
         "tradingMode": trading_mode,
+        # Phase A
+        "defaultSizePct": _validate_optional_pct(payload.get("defaultSizePct"), "defaultSizePct"),
+        "defaultRMultipleTarget": _validate_optional_positive(payload.get("defaultRMultipleTarget"), "defaultRMultipleTarget"),
+        "maxRiskPerTradePct": _validate_optional_pct(payload.get("maxRiskPerTradePct"), "maxRiskPerTradePct"),
     }
 
 
