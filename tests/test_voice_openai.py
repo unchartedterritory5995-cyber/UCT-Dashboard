@@ -21,7 +21,7 @@ def test_synthesize_returns_bytes_from_sdk():
     assert out == b"chunk1chunk2"
     fake_client.audio.speech.with_streaming_response.create.assert_called_once()
     kwargs = fake_client.audio.speech.with_streaming_response.create.call_args.kwargs
-    assert kwargs["model"] == "tts-1"
+    assert kwargs["model"] == "tts-1-hd"
     assert kwargs["voice"] == "verse"
     assert kwargs["input"] == "hello"
     assert kwargs["speed"] == 1.0

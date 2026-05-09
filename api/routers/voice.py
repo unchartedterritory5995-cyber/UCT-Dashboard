@@ -4,10 +4,10 @@ Future slices add /oneshot, /session_token, /exec, /transcripts, /tools.
 """
 
 import logging
-from io import BytesIO
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
 
 from api.limiter import limiter
 from api.middleware.auth_middleware import requires_voice_access
@@ -25,7 +25,7 @@ from api.services.voice_usage import (
     MODE_A_DEFAULT_CAP_SECONDS,
 )
 from api.services.voice_audio_cache import get_cached, put_cached
-from api.services.voice_openai import synthesize_speech, MAX_INPUT_CHARS
+from api.services.voice_openai import synthesize_speech, synthesize_speech_stream, MAX_INPUT_CHARS
 
 _log = logging.getLogger(__name__)
 
@@ -70,7 +70,6 @@ def tts(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
     if len(text) > MAX_INPUT_CHARS:
-        # Truncation also happens in synthesize_speech, but reject obviously oversize.
         raise HTTPException(
             status_code=400,
             detail=f"text exceeds max length ({MAX_INPUT_CHARS} chars)",
@@ -92,18 +91,35 @@ def tts(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_
     if cached is not None:
         return Response(content=cached, media_type="audio/mpeg")
 
+    # Pre-check OpenAI client config so we can return 503 BEFORE starting the stream.
     try:
-        audio_bytes = synthesize_speech(text, voice=voice, speed=speed)
+        from api.services.voice_openai import _get_client
+        _get_client()
     except RuntimeError as e:
-        # Missing API key etc.
         raise HTTPException(status_code=503, detail=str(e))
-    except Exception as e:  # noqa: BLE001 — bubble OpenAI errors as 502
-        _log.exception("voice synth failed")
-        raise HTTPException(status_code=502, detail=f"TTS failed: {e}")
 
-    put_cached(text, voice, speed, audio_bytes)
-    record_mode_a_seconds(user["id"], _estimate_seconds(text, speed))
-    return Response(content=audio_bytes, media_type="audio/mpeg")
+    accumulated = bytearray()
+    user_id = user["id"]
+
+    def streamer():
+        try:
+            for chunk in synthesize_speech_stream(text, voice=voice, speed=speed):
+                accumulated.extend(chunk)
+                yield chunk
+        except Exception as e:
+            _log.exception("voice synth streaming failed: %s", e)
+            # Stream truncates; browser <audio> shows error. Nothing more we can do mid-stream.
+
+    def on_complete():
+        if accumulated:
+            put_cached(text, voice, speed, bytes(accumulated))
+            record_mode_a_seconds(user_id, _estimate_seconds(text, speed))
+
+    return StreamingResponse(
+        streamer(),
+        media_type="audio/mpeg",
+        background=BackgroundTask(on_complete),
+    )
 
 
 @router.get("/settings")

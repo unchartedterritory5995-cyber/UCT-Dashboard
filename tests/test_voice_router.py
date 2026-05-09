@@ -50,7 +50,12 @@ def test_tts_returns_mp3_for_paid_user(client, tmp_path, monkeypatch):
     monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
     _login(client, plan="pro")
     fake_audio = b"\xFF\xFB\x90\x00FAKEMP3"
-    with patch("api.routers.voice.synthesize_speech", return_value=fake_audio):
+    fake_client = object()
+    with patch("api.services.voice_openai._get_client", return_value=fake_client), \
+         patch(
+             "api.routers.voice.synthesize_speech_stream",
+             side_effect=lambda *a, **k: iter([fake_audio]),
+         ):
         r = client.post("/api/voice/tts", json={"text": "hello world"})
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("audio/mpeg")
@@ -61,7 +66,12 @@ def test_tts_serves_from_cache_on_second_call(client, tmp_path, monkeypatch):
     monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
     _login(client, plan="pro")
     fake_audio = b"\xFF\xFB\x90\x00CACHED"
-    with patch("api.routers.voice.synthesize_speech", return_value=fake_audio) as m:
+    fake_client = object()
+    with patch("api.services.voice_openai._get_client", return_value=fake_client), \
+         patch(
+             "api.routers.voice.synthesize_speech_stream",
+             side_effect=lambda *a, **k: iter([fake_audio]),
+         ) as m:
         r1 = client.post("/api/voice/tts", json={"text": "same text"})
         r2 = client.post("/api/voice/tts", json={"text": "same text"})
     assert r1.status_code == 200 and r2.status_code == 200

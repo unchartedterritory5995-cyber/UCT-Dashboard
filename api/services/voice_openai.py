@@ -17,7 +17,7 @@ _log = logging.getLogger(__name__)
 # OpenAI tts-1 hard limit is ~4096 chars. Stay safely under.
 MAX_INPUT_CHARS = 4000
 
-_TTS_MODEL = "tts-1"
+_TTS_MODEL = "tts-1-hd"
 
 _client = None
 
@@ -31,6 +31,32 @@ def _get_client() -> OpenAI:
             raise RuntimeError("OPENAI_API_KEY is not set")
         _client = OpenAI(api_key=api_key)
     return _client
+
+
+def synthesize_speech_stream(text: str, *, voice: str, speed: float):
+    """
+    Yield MP3 audio chunks as OpenAI streams them. Generator.
+    Used by the /tts router for low-latency client streaming.
+    Does NOT retry mid-stream (retries happen in synthesize_speech which uses
+    this under the hood for the simple bytes-result path).
+    """
+    if not text or not text.strip():
+        raise ValueError("text is empty")
+    if len(text) > MAX_INPUT_CHARS:
+        _log.warning("voice synth: truncating %d -> %d chars", len(text), MAX_INPUT_CHARS)
+        text = text[:MAX_INPUT_CHARS]
+
+    client = _get_client()
+    with client.audio.speech.with_streaming_response.create(
+        model=_TTS_MODEL,
+        voice=voice,
+        input=text,
+        speed=speed,
+        response_format="mp3",
+    ) as resp:
+        for chunk in resp.iter_bytes():
+            if chunk:
+                yield chunk
 
 
 def synthesize_speech(text: str, *, voice: str, speed: float) -> bytes:

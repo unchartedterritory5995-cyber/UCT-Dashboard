@@ -12,8 +12,8 @@ from api.services.auth_db import get_connection
 # 120 min/month default cap. ~$1.80 OpenAI cost. Override via env in future.
 MODE_A_DEFAULT_CAP_SECONDS = 7200
 
-# Cost estimate: $0.015 / minute = $0.00025 / second
-MODE_A_COST_PER_SECOND = 0.00025
+# Cost estimate: $0.030 / minute (tts-1-hd) = $0.000500 / second
+MODE_A_COST_PER_SECOND = 0.00050
 
 
 def _current_year_month() -> str:
