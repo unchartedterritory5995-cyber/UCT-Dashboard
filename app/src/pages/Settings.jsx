@@ -138,6 +138,16 @@ function VoicePanel() {
   const [settings, setSettings] = useState(null)
   const [usage, setUsage] = useState(null)
   const [savingMsg, setSavingMsg] = useState('')
+  const speedSaveTimerRef = useRef(null)
+
+  const debouncedSpeedSave = (newSpeed) => {
+    if (speedSaveTimerRef.current) {
+      clearTimeout(speedSaveTimerRef.current)
+    }
+    speedSaveTimerRef.current = setTimeout(() => {
+      update({ speed: newSpeed })
+    }, 400)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -207,7 +217,13 @@ function VoicePanel() {
           max="2.0"
           step="0.05"
           value={settings.speed}
-          onChange={(e) => update({ speed: parseFloat(e.target.value) })}
+          onChange={(e) => {
+            const newSpeed = parseFloat(e.target.value)
+            // Update UI immediately (no PUT) so slider feels responsive
+            setSettings((s) => ({ ...s, speed: newSpeed }))
+            // Debounce the actual server save
+            debouncedSpeedSave(newSpeed)
+          }}
         />
         <span className={styles.voiceVal}>{settings.speed.toFixed(2)}×</span>
       </div>
