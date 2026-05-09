@@ -14,6 +14,7 @@ import time
 from api.services import bar_validation
 from api.services import bar_quarantine
 from api.services import bar_provenance
+from api.services import bars_hot_tier
 
 # Railway persistent volume mount, falls back to local ./data
 _CACHE_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
@@ -61,7 +62,28 @@ def get(ticker: str, tf: str, bars: int):
     bar in it has been quarantined since write. Filtering quarantined
     bars on read closes the loop with the audit engine: a bad bar that
     slipped through earlier disappears from served data on next access.
+
+    Hot tier is consulted first. Disk hits are promoted into the hot tier
+    on the way out so the next read is sub-millisecond.
     """
+    # Hot tier first — sub-millisecond RAM lookup. Quarantine filter still
+    # runs because quarantine state may have changed since promotion.
+    hot = bars_hot_tier.get(ticker, tf, bars)
+    if hot is not None:
+        try:
+            bad_times = bar_quarantine.quarantined_times(ticker, tf)
+        except Exception:
+            bad_times = set()
+        if bad_times:
+            filtered = [
+                b for b in hot.get("bars", [])
+                if not isinstance(b, dict) or b.get("t") not in bad_times
+            ]
+            if not filtered:
+                return None
+            return {**hot, "bars": filtered}
+        return hot
+
     try:
         p = _path(ticker, tf, bars)
         age = time.time() - os.path.getmtime(p)
@@ -76,6 +98,14 @@ def get(ticker: str, tf: str, bars: int):
             except OSError:
                 pass
             return None
+
+        # Promote into hot tier BEFORE quarantine filter so subsequent
+        # reads benefit from the same lazy-filter path the hot-tier branch
+        # above uses. Non-fatal on any failure.
+        try:
+            bars_hot_tier.set(ticker, tf, bars, data)
+        except Exception:
+            pass
 
         # Filter out any bars that have been quarantined since cache write.
         # Non-dict bars (legacy/sentinel passthrough) are kept as-is — they

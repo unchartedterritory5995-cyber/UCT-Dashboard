@@ -2,7 +2,7 @@ import os
 import json
 import pytest
 
-from api.services import bars_disk_cache, bar_quarantine
+from api.services import bars_disk_cache, bar_quarantine, bars_hot_tier
 
 
 @pytest.fixture
@@ -13,6 +13,9 @@ def tmp_cache(tmp_path, monkeypatch):
     monkeypatch.setattr(bars_disk_cache, "_CACHE_DIR", str(cache_dir))
     monkeypatch.setattr(bar_quarantine, "_DB_PATH", str(db_path))
     bar_quarantine.init_schema()
+    # Hot tier is module-level state — reset between tests so prior runs
+    # don't leak cached payloads into a fresh tmp cache dir.
+    bars_hot_tier._reset()
     return cache_dir
 
 
@@ -94,3 +97,47 @@ def test_get_returns_none_if_all_quarantined(tmp_cache):
     bar_quarantine.add("QQQ", "30", 1715080800, "post-cache failure")
     got = bars_disk_cache.get("QQQ", "30", 100)
     assert got is None
+
+
+def test_get_consults_hot_tier_first(tmp_cache):
+    """If hot tier has the key, disk read is skipped entirely."""
+    from api.services import bars_hot_tier
+    bars_hot_tier._reset()
+    payload = {"bars": [{"t": 100, "o": 1, "h": 2, "l": 1, "c": 1.5, "v": 1000}]}
+    bars_hot_tier.set("QQQ", "30", 100, payload)
+    # No disk file exists — must come from hot tier
+    got = bars_disk_cache.get("QQQ", "30", 100)
+    assert got is not None
+    assert got["bars"][0]["c"] == 1.5
+
+
+def test_disk_hit_promotes_into_hot_tier(tmp_cache):
+    """Disk cache hit pre-loads the hot tier for next time."""
+    from api.services import bars_hot_tier
+    bars_hot_tier._reset()
+    # Bar values must clear validation (wide-bar gate: (h-l)/c <= 30%) so put()
+    # actually writes to disk.
+    payload = {"bars": [{"t": 100, "o": 1.5, "h": 1.6, "l": 1.4, "c": 1.5, "v": 1000}]}
+    bars_disk_cache.put("QQQ", "30", 100, payload)
+    bars_hot_tier._reset()  # ensure hot tier is empty
+    bars_disk_cache.get("QQQ", "30", 100)  # hits disk
+    # Should now be in hot tier
+    assert bars_hot_tier.get("QQQ", "30", 100) is not None
+
+
+def test_quarantined_filter_runs_on_hot_tier_hits(tmp_cache):
+    """Hot tier hit + post-cache quarantine: quarantined bars must still be filtered."""
+    from api.services import bars_hot_tier, bar_quarantine
+    bars_hot_tier._reset()
+    payload = {"bars": [
+        {"t": 100, "o": 1, "h": 2, "l": 1, "c": 1.5, "v": 1000},
+        {"t": 200, "o": 1.5, "h": 3, "l": 1, "c": 2.5, "v": 1100},
+    ]}
+    bars_hot_tier.set("QQQ", "30", 100, payload)
+    # Quarantine bar 100 AFTER it's in hot tier
+    bar_quarantine.add("QQQ", "30", 100, "post-cache audit failure")
+    got = bars_disk_cache.get("QQQ", "30", 100)
+    assert got is not None
+    bar_times = [b["t"] for b in got["bars"]]
+    assert 100 not in bar_times
+    assert 200 in bar_times
