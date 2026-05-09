@@ -26,6 +26,14 @@ from api.services.voice_usage import (
 )
 from api.services.voice_audio_cache import get_cached, put_cached
 from api.services.voice_openai import synthesize_speech, synthesize_speech_stream, MAX_INPUT_CHARS
+from fastapi import UploadFile, File, Form
+from urllib.parse import quote as _urlquote
+from api.services.voice_openai import transcribe_audio
+from api.services.voice_intent import run_oneshot
+from api.services.voice_tools import get_schema_for_context
+from api.services.voice_usage import (
+    record_mode_b_call, is_within_mode_b_cap, MODE_B_DEFAULT_CAP_CALLS,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -156,3 +164,79 @@ def usage_get(user: dict = Depends(requires_voice_access)):
         "cap_seconds": cap if cap != float("inf") else None,
         "uncapped": is_admin,
     }
+
+
+# ── Slice 2: One-Shot (Mode B) ──────────────────────────────────────────────
+
+@router.get("/tools")
+def tools_get(context: str = "global", user: dict = Depends(requires_voice_access)):
+    """Return the tool catalog visible from the given page context."""
+    return {"context": context, "tools": get_schema_for_context(context)}
+
+
+@router.post("/oneshot")
+@limiter.limit("60/minute")
+def oneshot(
+    request: Request,
+    audio: UploadFile = File(...),
+    context: str = Form("global"),
+    user: dict = Depends(requires_voice_access),
+):
+    audio_bytes = audio.file.read() if audio else b""
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="audio is empty")
+
+    settings = get_voice_settings(user["id"])
+    if not settings.get("enabled", True):
+        raise HTTPException(status_code=400, detail="voice features disabled in settings")
+
+    is_admin = user.get("role") == "admin"
+    if not is_within_mode_b_cap(user["id"], is_admin=is_admin):
+        raise HTTPException(status_code=429, detail="monthly voice query cap reached")
+
+    try:
+        from api.services.voice_openai import _get_client
+        _get_client()
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    try:
+        transcript = transcribe_audio(audio_bytes, filename=audio.filename or "audio.webm")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        _log.exception("Whisper failed")
+        raise HTTPException(status_code=502, detail=f"Transcription failed: {e}")
+
+    pipeline = run_oneshot(transcript=transcript, context=context, user=user)
+    narration = pipeline["narration"]
+
+    voice_name = settings["voice"]
+    speed = settings["speed"]
+    accumulated = bytearray()
+    user_id = user["id"]
+
+    def streamer():
+        try:
+            for chunk in synthesize_speech_stream(narration, voice=voice_name, speed=speed):
+                accumulated.extend(chunk)
+                yield chunk
+        except Exception as e:
+            _log.exception("oneshot synth streaming failed: %s", e)
+
+    def on_complete():
+        if accumulated:
+            record_mode_b_call(user_id)
+
+    headers = {
+        "X-Voice-Transcript": _urlquote(transcript[:500]),
+        "X-Voice-Narration": _urlquote(narration[:500]),
+        "X-Voice-Tool": pipeline.get("tool") or "",
+    }
+
+    return StreamingResponse(
+        streamer(),
+        media_type="audio/mpeg",
+        headers=headers,
+        background=BackgroundTask(on_complete),
+    )

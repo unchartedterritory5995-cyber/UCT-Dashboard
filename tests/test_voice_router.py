@@ -141,3 +141,69 @@ def test_tts_blocked_when_disabled(client, tmp_path, monkeypatch):
     r = client.post("/api/voice/tts", json={"text": "hello"})
     assert r.status_code == 400
     assert "disabled" in r.json()["detail"].lower()
+
+
+# ── Oneshot + tools (Slice 2) ──────────────────────────────────────────────
+
+def test_tools_endpoint_requires_auth(client):
+    r = client.get("/api/voice/tools")
+    assert r.status_code == 401
+
+
+def test_tools_endpoint_returns_global_tools(client):
+    _login(client, plan="pro")
+    from api.services import voice_tool_impls  # noqa
+    r = client.get("/api/voice/tools?context=global")
+    assert r.status_code == 200
+    body = r.json()
+    names = {t["name"] for t in body["tools"]}
+    assert "get_quote" in names
+    assert "get_movers" in names
+
+
+def test_oneshot_requires_auth(client):
+    r = client.post("/api/voice/oneshot", files={"audio": ("a.webm", b"FAKE", "audio/webm")})
+    assert r.status_code == 401
+
+
+def test_oneshot_requires_paid(client):
+    _login(client, plan="free")
+    r = client.post("/api/voice/oneshot", files={"audio": ("a.webm", b"FAKE", "audio/webm")})
+    assert r.status_code == 402
+
+
+def test_oneshot_happy_path(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+
+    fake_audio = b"\xFF\xFB\x90\x00FAKEMP3"
+    with patch("api.services.voice_openai._get_client", return_value=object()), \
+         patch("api.routers.voice.transcribe_audio", return_value="what is NVDA at"), \
+         patch("api.routers.voice.run_oneshot", return_value={
+             "tool": "get_quote",
+             "args": {"symbol": "NVDA"},
+             "narration": "NVDA is at 487 dollars, up 2.1 percent.",
+             "raw_result": {"symbol": "NVDA", "last": 487.20, "abs_pct": 2.1},
+         }), \
+         patch("api.routers.voice.synthesize_speech_stream",
+               side_effect=lambda *a, **k: iter([fake_audio])):
+        r = client.post(
+            "/api/voice/oneshot",
+            files={"audio": ("a.webm", b"FAKE-AUDIO", "audio/webm")},
+            data={"context": "global"},
+        )
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("audio/mpeg")
+    assert "NVDA" in r.headers.get("X-Voice-Transcript", "")
+    assert "487" in r.headers.get("X-Voice-Narration", "")
+    assert r.content == fake_audio
+
+
+def test_oneshot_rejects_empty_audio(client):
+    _login(client, plan="pro")
+    r = client.post(
+        "/api/voice/oneshot",
+        files={"audio": ("a.webm", b"", "audio/webm")},
+        data={"context": "global"},
+    )
+    assert r.status_code == 400
