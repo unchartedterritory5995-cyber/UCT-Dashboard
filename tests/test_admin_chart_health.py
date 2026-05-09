@@ -83,3 +83,18 @@ def test_admin_endpoints_require_auth_when_override_cleared():
     client = TestClient(app)
     r = client.get("/api/admin/bars/quarantine/count")
     assert r.status_code in (401, 403)
+
+
+def test_liveness_endpoint(admin_client):
+    fake = {"QQQ": 5, "SPY": 12, "TSLA": 0}
+    with patch("api.routers.admin_chart_health.realtime_stream.get_last_seen_ages", return_value=fake):
+        r = admin_client.get("/api/admin/bars/liveness")
+    assert r.status_code == 200
+    assert r.json() == {"ages": fake}
+
+
+def test_liveness_endpoint_empty(admin_client):
+    with patch("api.routers.admin_chart_health.realtime_stream.get_last_seen_ages", return_value={}):
+        r = admin_client.get("/api/admin/bars/liveness")
+    assert r.status_code == 200
+    assert r.json() == {"ages": {}}

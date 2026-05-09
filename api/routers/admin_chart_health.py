@@ -13,7 +13,7 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
-from api.services import bars_audit, bar_quarantine
+from api.services import bars_audit, bar_quarantine, realtime_stream
 from api.middleware.auth_middleware import require_admin
 
 _logger = logging.getLogger(__name__)
@@ -116,3 +116,10 @@ def quarantine_remove(
 ):
     bar_quarantine.remove(body.ticker, body.tf, body.bar_time)
     return {"ok": True}
+
+
+# ── Liveness endpoint ────────────────────────────────────────────────────────
+
+@router.get("/liveness")
+def liveness(user=Depends(require_admin)):
+    return {"ages": realtime_stream.get_last_seen_ages()}
