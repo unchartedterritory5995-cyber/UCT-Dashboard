@@ -34,3 +34,35 @@ def test_zero_price_fails():
     ok, reasons = validate_bar(bar)
     assert ok is False
     assert any("price" in r.lower() or "zero" in r.lower() for r in reasons)
+
+
+def test_qqq_6_55_phantom_rejected():
+    """The actual bug: QQQ 30min showing 6.55 OHLC when prior close was ~$694."""
+    bar = {"t": 1715080800, "o": 6.55, "h": 6.55, "l": 6.55, "c": 6.55, "v": 56}
+    ok, reasons = validate_bar(bar, prior_close=694.0)
+    assert ok is False
+    assert any("deviation" in r.lower() or "prior" in r.lower() for r in reasons)
+
+
+def test_normal_move_passes():
+    """+2% move from prior close is fine."""
+    bar = {"t": 1715080800, "o": 700.0, "h": 705.0, "l": 698.0, "c": 702.5, "v": 1500000}
+    ok, reasons = validate_bar(bar, prior_close=694.0)
+    assert ok is True
+
+
+def test_split_adjusted_close_passes():
+    """50% drop with no split context is rejected, but if the bar IS at split-adjusted price within 5%, accept."""
+    # NVDA 10:1 split — prior close 1000, new opens at 100 (exactly split-adjusted)
+    bar = {"t": 1715080800, "o": 100.0, "h": 102.0, "l": 99.5, "c": 101.0, "v": 50000000}
+    ok, reasons = validate_bar(bar, prior_close=1000.0, split_ratios=[10.0])
+    assert ok is True
+
+
+def test_low_volume_with_big_move_rejected():
+    """Implausibly low volume + big price move = bad data."""
+    # The QQQ 6.55 had V=56 with implied 99% move
+    bar = {"t": 1715080800, "o": 6.55, "h": 6.55, "l": 6.55, "c": 6.55, "v": 56}
+    ok, reasons = validate_bar(bar, prior_close=694.0)
+    assert ok is False
+    assert any("volume" in r.lower() for r in reasons)
