@@ -1103,6 +1103,9 @@ export default function OptionsFlowDashboard() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [searchDte, setSearchDte] = useState("All");
+  const [batchTickers, setBatchTickers] = useState("");
+  const [batchResults, setBatchResults] = useState(null);
+  const [batchMode, setBatchMode] = useState(false);
   const [convictionDte, setConvictionDte] = useState("All");
   const [convictionSort, setConvictionSort] = useState("net");
   const [convictionPct, setConvictionPct] = useState("All"); // All, 90bull, 80bull, 90bear, 80bear
@@ -4174,6 +4177,132 @@ export default function OptionsFlowDashboard() {
                 </div>
               )}
             </Card>
+            {/* Batch Search */}
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <button onClick={()=>setBatchMode(!batchMode)} style={{ padding:"4px 12px", borderRadius:16, border:"1.5px solid "+(batchMode?P.ac:P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:batchMode?P.ac+"22":"transparent", color:batchMode?P.ac:P.mt }}>
+                📋 Batch Search
+              </button>
+              {batchMode && <span style={{ fontSize:9, color:P.dm }}>Paste tickers or upload a CSV watchlist to scan flow</span>}
+            </div>
+            {batchMode && (
+              <Card>
+                <div style={{ display:"flex", gap:8, alignItems:"flex-start" }}>
+                  <textarea value={batchTickers} onChange={e=>setBatchTickers(e.target.value.toUpperCase())}
+                    placeholder="Paste tickers: AAPL, TSLA, NVDA, META..."
+                    rows={2}
+                    style={{ flex:1, padding:"8px 12px", borderRadius:6, fontSize:11, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", resize:"vertical" }}
+                  />
+                  <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                    <button onClick={()=>{
+                      const tickers = batchTickers.split(/[,\s\n]+/).map(s=>s.trim()).filter(Boolean);
+                      if (!tickers.length || !D.clean_confirmed) return;
+                      const cc = D.clean_confirmed;
+                      const results = tickers.map(sym => {
+                        const trades = cc.filter(t=>t.S===sym);
+                        if (!trades.length) return { sym, found:false };
+                        let bull=0,bear=0,n=0,contracts={},hasSwp=false,hasBlk=false;
+                        trades.forEach(t => {
+                          if(t.D==="BULL") bull+=t.P; if(t.D==="BEAR") bear+=t.P; n++;
+                          if(t.Ty==="SWP") hasSwp=true; if(t.Ty==="BLK") hasBlk=true;
+                          const ck=t.CP+"|"+t.K+"|"+t.E;
+                          if(!contracts[ck]) contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,DTE:t.DTE,askPrem:0,bidPrem:0};
+                          const c=contracts[ck]; c.hits++; c.prem+=t.P;
+                          if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
+                        });
+                        const total=bull+bear; const bullPct=total>0?Math.round(bull/total*100):50;
+                        const sorted=Object.values(contracts).sort((a,b)=>b.prem-a.prem);
+                        const top=sorted[0]||null;
+                        return { sym, found:true, bull, bear, n, bullPct, dir:bull>=bear?"BULL":"BEAR", net:Math.abs(bull-bear), topContract:top, contractCount:sorted.length, hasSwp, hasBlk, mktcap:trades[0]?.mktcap||0 };
+                      });
+                      setBatchResults(results);
+                    }} style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:P.ac, color:P.bg }}>
+                      Scan Flow
+                    </button>
+                    <label style={{ padding:"6px 12px", borderRadius:6, border:"1px solid "+P.bd, cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.mt, textAlign:"center" }}>
+                      Upload CSV
+                      <input type="file" accept=".csv,.txt" style={{ display:"none" }} onChange={e=>{
+                        const file = e.target.files[0]; if(!file) return;
+                        const reader = new FileReader();
+                        reader.onload = ev => {
+                          const text = ev.target.result;
+                          const lines = text.split("\n").filter(l=>l.trim());
+                          if(!lines.length) return;
+                          const headers = lines[0].split(",").map(h=>h.trim().toLowerCase());
+                          const tickerCol = headers.findIndex(h=>["symbol","ticker","sym","stock","name"].includes(h));
+                          if(tickerCol===-1){ setBatchTickers(lines.slice(1).map(l=>l.split(",")[0].trim().toUpperCase().replace(/"/g,"")).filter(Boolean).join(", ")); return; }
+                          const tickers = lines.slice(1).map(l=>{
+                            const cols=l.split(","); return (cols[tickerCol]||"").trim().toUpperCase().replace(/"/g,"");
+                          }).filter(Boolean);
+                          setBatchTickers([...new Set(tickers)].join(", "));
+                        };
+                        reader.readAsText(file);
+                        e.target.value = "";
+                      }}/>
+                    </label>
+                  </div>
+                </div>
+                {batchResults && (
+                  <div style={{ marginTop:10 }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:P.ac, marginBottom:6 }}>
+                      {batchResults.filter(r=>r.found).length} of {batchResults.length} tickers found in flow data
+                    </div>
+                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                      <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                        {["Ticker","","Bull","Bear","","Bull%","Net","Top Contract","Trades","#"].map(h=>(
+                          <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {batchResults.sort((a,b)=>(b.net||0)-(a.net||0)).map(r => {
+                          if (!r.found) return (
+                            <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.4 }}>
+                              <td style={{ padding:"5px", fontWeight:800, color:P.wh }}>{r.sym}</td>
+                              <td colSpan={9} style={{ padding:"5px", color:P.dm, fontSize:9 }}>No flow found</td>
+                            </tr>
+                          );
+                          const dirC = r.dir==="BULL"?P.bu:P.be;
+                          const tc = r.topContract;
+                          const tcSide = tc?(tc.askPrem>=tc.bidPrem?"ask":"bid"):"ask";
+                          let tcC = P.dm;
+                          if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
+                          return (
+                            <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
+                              onClick={()=>{ setSearch(r.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===r.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); }}>
+                              <td style={{ padding:"5px", fontWeight:900, color:P.wh, fontSize:11 }}>
+                                {r.sym}
+                                {capBand(r.mktcap)!=="Unknown" && <span style={{ fontSize:7, color:P.dm, marginLeft:3 }}>{capBand(r.mktcap)}</span>}
+                              </td>
+                              <td style={{ padding:"5px" }}><Tag c={dirC}>{r.dir}</Tag></td>
+                              <td style={{ padding:"5px", fontWeight:800, color:P.bu }}>{fmt(r.bull)}</td>
+                              <td style={{ padding:"5px", fontWeight:800, color:P.be }}>{fmt(r.bear)}</td>
+                              <td style={{ padding:"5px", width:60 }}>
+                                <div style={{ display:"flex", height:4, borderRadius:2, overflow:"hidden", background:P.bd }}>
+                                  <div style={{ width:r.bullPct+"%", background:P.bu }}/><div style={{ width:(100-r.bullPct)+"%", background:P.be }}/>
+                                </div>
+                              </td>
+                              <td style={{ padding:"5px", fontWeight:800, fontSize:10, color:r.bullPct>=80?P.bu:r.bullPct<=20?P.be:P.dm }}>{r.bullPct}%</td>
+                              <td style={{ padding:"5px", fontWeight:900, color:dirC }}>{fmt(r.net)}</td>
+                              <td style={{ padding:"5px", fontSize:9 }}>
+                                {tc && (<span>
+                                  <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
+                                  {tcSide==="bid" && <span style={{ fontSize:7, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
+                                  <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
+                                  <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
+                                  <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc.hits}x</span>
+                                  {tc.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc.prem)}</span>}
+                                </span>)}
+                              </td>
+                              <td style={{ padding:"5px", color:P.dm, fontSize:9 }}>{r.n}</td>
+                              <td style={{ padding:"5px", color:P.dm, fontSize:9 }}>{r.contractCount}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            )}
             {selectedTicker && (() => {
               const tk = selectedTicker;
               // DTE filter for summary cards
