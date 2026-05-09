@@ -138,3 +138,21 @@
   margin-bottom: 16px;
   font-size: 13px;
 }
+
+.livenessSection {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 8px);
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 4px 0 12px 0;
+}
+
+.staleRow td {
+  color: var(--loss);
+}

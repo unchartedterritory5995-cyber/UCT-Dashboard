@@ -6,6 +6,7 @@ export default function ChartHealth() {
   const [quarantineCount, setQuarantineCount] = useState(null)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState(null)
+  const [liveness, setLiveness] = useState({})
 
   async function loadStatus() {
     try {
@@ -20,9 +21,25 @@ export default function ChartHealth() {
     }
   }
 
+  async function loadLiveness() {
+    try {
+      const r = await fetch('/api/admin/bars/liveness', { credentials: 'include' })
+      if (r.ok) {
+        const data = await r.json()
+        setLiveness(data.ages || {})
+      }
+    } catch {}
+  }
+
   useEffect(() => {
     loadStatus()
     const id = setInterval(loadStatus, 10000)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    loadLiveness()
+    const id = setInterval(loadLiveness, 5000)
     return () => clearInterval(id)
   }, [])
 
@@ -116,6 +133,29 @@ export default function ChartHealth() {
           </table>
         </div>
       )}
+
+      <div className={styles.livenessSection}>
+        <h2 className={styles.subheading}>Real-Time Feed Liveness</h2>
+        <p className={styles.muted}>Top 50 most-stale subscribed tickers. Red = &gt;60s old (potential stall during RTH).</p>
+        {Object.keys(liveness).length === 0 ? (
+          <p className={styles.muted}>No tickers subscribed yet.</p>
+        ) : (
+          <table className={styles.table}>
+            <thead><tr><th>Ticker</th><th>Last Tick (s ago)</th></tr></thead>
+            <tbody>
+              {Object.entries(liveness)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 50)
+                .map(([sym, age]) => (
+                  <tr key={sym} className={age > 60 ? styles.staleRow : undefined}>
+                    <td>{sym}</td>
+                    <td>{age}s</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   )
 }
