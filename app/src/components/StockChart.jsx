@@ -594,7 +594,8 @@ export default function StockChart({
   const loading = !bars && !error
 
   // Real-time price streaming for live candle updates
-  const { prices: livePrices } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
+  const { prices: livePrices, staleSymbols } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
+  const isStale = !!(sym && staleSymbols && staleSymbols.has(String(sym).toUpperCase()))
 
   // ── Memoized data transforms (only recompute when bars change) ─────────────
 
@@ -1915,6 +1916,11 @@ export default function StockChart({
   // ── Render ──
   return (
     <div className={`${styles.wrapper} ${className}`} style={{ height }}>
+      {isStale && (
+        <div className={styles.staleIndicator} title="Live feed has paused — last tick is older than expected">
+          ⏸ STALE
+        </div>
+      )}
       {loading && (
         <div className={styles.loading}>
           <div className={styles.spinner} />

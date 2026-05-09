@@ -12,6 +12,7 @@ import useLivePrices from './useLivePrices'
 export default function useRealtimePrices(tickers = []) {
   const [streamPrices, setStreamPrices] = useState({})
   const [connected, setConnected] = useState(false)
+  const [staleSymbols, setStaleSymbols] = useState(() => new Set())
   const esRef = useRef(null)
   const reconnectRef = useRef(null)
   const retryDelayRef = useRef(5000)  // exponential backoff: 5→10→20→40→80→120s
@@ -42,6 +43,37 @@ export default function useRealtimePrices(tickers = []) {
         setStreamPrices(prev => ({ ...prev, ...data }))
       } catch {}
     }
+
+    // Liveness signals from backend (P2-6): per-ticker stale/fresh events.
+    // Backend emits these as named SSE events ("event: stale" / "event: fresh"),
+    // so they bypass es.onmessage and require explicit listeners.
+    es.addEventListener('stale', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (!data?.sym) return
+        const sym = String(data.sym).toUpperCase()
+        setStaleSymbols(prev => {
+          if (prev.has(sym)) return prev
+          const next = new Set(prev)
+          next.add(sym)
+          return next
+        })
+      } catch {}
+    })
+
+    es.addEventListener('fresh', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (!data?.sym) return
+        const sym = String(data.sym).toUpperCase()
+        setStaleSymbols(prev => {
+          if (!prev.has(sym)) return prev
+          const next = new Set(prev)
+          next.delete(sym)
+          return next
+        })
+      } catch {}
+    })
 
     es.onerror = () => {
       setConnected(false)
@@ -87,5 +119,5 @@ export default function useRealtimePrices(tickers = []) {
     return result
   }, [polledPrices, streamPrices, tickerSet])
 
-  return { prices: mergedPrices, isLoading: !connected && isLoading, isStreaming: connected }
+  return { prices: mergedPrices, isLoading: !connected && isLoading, isStreaming: connected, staleSymbols }
 }

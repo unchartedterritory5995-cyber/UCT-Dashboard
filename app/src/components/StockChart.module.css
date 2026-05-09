@@ -125,6 +125,30 @@
   pointer-events: none;
 }
 
+/* Stale-feed indicator (P2-7): pulses amber when SSE backend reports the
+   ticker's tick stream has paused beyond the freshness threshold. */
+.staleIndicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 100;
+  background: rgba(217, 119, 6, 0.9);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+  animation: stale-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes stale-pulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.4; }
+}
+
 @media (max-width: 900px) and (orientation: landscape) {
   .container {
     min-height: 200px;
