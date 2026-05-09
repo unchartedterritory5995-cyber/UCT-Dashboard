@@ -75,3 +75,27 @@ def test_audit_universe_scans_multiple_tickers(tmp_cache, tmp_path, monkeypatch)
     with open(report["report_path"]) as f:
         on_disk = json.load(f)
     assert on_disk["issues_found"] == report["issues_found"]
+
+
+def test_latest_report_returns_highest_run_id(tmp_cache, tmp_path, monkeypatch):
+    """Without numeric sort, lexicographic order would return audit-9 over audit-10."""
+    audits_dir = tmp_path / "audits"
+    audits_dir.mkdir()
+    monkeypatch.setattr(bars_audit, "_AUDIT_DIR", str(audits_dir))
+    monkeypatch.setattr(bars_audit, "_DB_PATH", str(tmp_path / "auth.db"))
+    bars_audit._init_audit_runs_table()
+
+    # Plant 11 fake audit reports so we cross the 9 -> 10 lexicographic boundary
+    for i in range(1, 12):
+        path = audits_dir / f"audit-{i}.json"
+        path.write_text(json.dumps({"run_id": i, "marker": f"run-{i}"}))
+        # Record in DB so latest_report() can find them via SQL ORDER BY id
+        with __import__('sqlite3').connect(bars_audit._DB_PATH) as db:
+            db.execute(
+                "INSERT INTO audit_runs (id, started_at, scope, report_path) VALUES (?, ?, ?, ?)",
+                (i, 1715000000 + i, "test", str(path)),
+            )
+
+    rep = bars_audit.latest_report()
+    assert rep is not None
+    assert rep["run_id"] == 11  # NOT 9 (lexicographic) NOT 1 (FIFO)

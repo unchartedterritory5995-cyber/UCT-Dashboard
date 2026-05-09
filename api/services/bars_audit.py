@@ -135,6 +135,7 @@ def audit_universe(
 ) -> dict:
     """Scan every ticker in `tickers`. Persist report to /data/audits/."""
     _init_audit_runs_table()
+    started_at = int(time.time())
     run_id = _record_audit_run(scope, scope_arg)
     os.makedirs(_AUDIT_DIR, exist_ok=True)
 
@@ -159,7 +160,7 @@ def audit_universe(
 
     report = {
         "run_id": run_id,
-        "started_at": int(time.time()),
+        "started_at": started_at,
         "scope": scope,
         "scope_arg": scope_arg,
         "tickers_scanned": tickers_scanned,
@@ -167,6 +168,7 @@ def audit_universe(
         "issues_found": len(all_issues),
         "by_failure_type": _bucket_by_reason(all_issues),
         "issues": all_issues[:10000],
+        "issues_truncated": len(all_issues) > 10000,
     }
     report_path = os.path.join(_AUDIT_DIR, f"audit-{run_id}.json")
     with open(report_path, "w") as f:
@@ -186,16 +188,21 @@ def _bucket_by_reason(issues: list[dict]) -> dict:
 
 
 def latest_report() -> dict | None:
-    """Return the most recent audit report from disk, or None."""
-    if not os.path.isdir(_AUDIT_DIR):
-        return None
-    files = [f for f in os.listdir(_AUDIT_DIR) if f.startswith("audit-") and f.endswith(".json")]
-    if not files:
-        return None
-    files.sort()
-    p = os.path.join(_AUDIT_DIR, files[-1])
+    """Return the most recent audit report from disk, or None.
+
+    Uses audit_runs table for correct ordering (lexicographic listdir sort
+    breaks once run_id >= 10).
+    """
     try:
-        with open(p) as f:
+        with sqlite3.connect(_DB_PATH, timeout=10.0) as db:
+            row = db.execute(
+                "SELECT report_path FROM audit_runs "
+                "WHERE report_path IS NOT NULL "
+                "ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+        if not row or not row[0]:
+            return None
+        with open(row[0]) as f:
             return json.load(f)
-    except (OSError, json.JSONDecodeError):
+    except (sqlite3.Error, OSError, json.JSONDecodeError):
         return None
