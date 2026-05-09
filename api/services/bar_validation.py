@@ -77,3 +77,48 @@ def validate_bar(
             )
 
     return (len(reasons) == 0), reasons
+
+
+# Expected seconds-between-bars per intraday TF
+_TF_INTERVAL = {
+    "1": 60,
+    "5": 300,
+    "15": 900,
+    "30": 1800,
+    "60": 3600,
+}
+
+
+def validate_series(bars: list[dict], tf: str) -> list[dict]:
+    """Series-level checks. Returns list of issue dicts: {bar_index, reason, bar_time}."""
+    issues: list[dict] = []
+    if not bars:
+        return issues
+
+    seen_ts = set()
+    prev_ts = None
+    interval = _TF_INTERVAL.get(tf)
+
+    for i, bar in enumerate(bars):
+        ts = bar.get("t")
+        if ts is None:
+            issues.append({"bar_index": i, "reason": "missing timestamp", "bar_time": None})
+            continue
+        if ts in seen_ts:
+            issues.append({"bar_index": i, "reason": "duplicate timestamp", "bar_time": ts})
+        seen_ts.add(ts)
+        if prev_ts is not None:
+            if ts < prev_ts:
+                issues.append({"bar_index": i, "reason": "out of order", "bar_time": ts})
+            elif interval is not None:
+                # Gap detection — only meaningful for intraday during RTH
+                gap = ts - prev_ts
+                if gap > interval * 5:
+                    issues.append({
+                        "bar_index": i,
+                        "reason": f"gap {gap}s exceeds 5x expected {interval}s",
+                        "bar_time": ts,
+                    })
+        prev_ts = ts
+
+    return issues

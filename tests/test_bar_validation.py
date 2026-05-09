@@ -66,3 +66,36 @@ def test_low_volume_with_big_move_rejected():
     ok, reasons = validate_bar(bar, prior_close=694.0)
     assert ok is False
     assert any("volume" in r.lower() for r in reasons)
+
+
+from api.services.bar_validation import validate_series
+
+
+def _bar(t, o=100, h=101, l=99, c=100.5, v=10000):
+    return {"t": t, "o": o, "h": h, "l": l, "c": c, "v": v}
+
+
+def test_monotonic_time_ok():
+    bars = [_bar(1000), _bar(2000), _bar(3000)]
+    issues = validate_series(bars, tf="5")
+    assert issues == []
+
+
+def test_duplicate_timestamps_flagged():
+    bars = [_bar(1000), _bar(2000), _bar(2000), _bar(3000)]
+    issues = validate_series(bars, tf="5")
+    assert any("duplicate" in i["reason"].lower() for i in issues)
+
+
+def test_out_of_order_timestamps_flagged():
+    bars = [_bar(1000), _bar(3000), _bar(2000)]
+    issues = validate_series(bars, tf="5")
+    assert any("order" in i["reason"].lower() for i in issues)
+
+
+def test_intraday_gap_during_rth_flagged():
+    """5-min bars with a 30-min gap during RTH should flag."""
+    # 9:35 ET = 1715085300, 10:05 ET = 1715087100 (30 min gap, expected 5 min for tf=5)
+    bars = [_bar(1715085300), _bar(1715087100)]
+    issues = validate_series(bars, tf="5")
+    assert any("gap" in i["reason"].lower() for i in issues)
