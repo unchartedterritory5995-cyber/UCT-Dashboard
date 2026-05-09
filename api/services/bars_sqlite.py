@@ -349,12 +349,32 @@ def _trigger_corruption_recovery() -> None:
     and atomically replace bars.db (which also bumps the epoch, refreshing
     every thread's connection on next use).
 
-    No-op if a recovery is already in flight or if one finished within the
-    last ``_RECOVERY_COOLDOWN_SECONDS``. The cooldown prevents tight loops
-    when R2's snapshot is itself corrupt — every put_bars after install
-    would fail malformed and re-trigger recovery, hammering R2 forever.
+    No-op if a recovery is already in flight, if one finished within the
+    last ``_RECOVERY_COOLDOWN_SECONDS``, or if the recovery is gated off
+    via env var (default OFF — see below).
+
+    GATED 2026-05-08: while the worker prewarmer is broken, the R2 snapshot
+    is itself stale (last upload from worker frozen at some past point).
+    A malformed-image error on the WEB then triggers force_resync, which
+    REPLACES the web's local bars.db with R2's stale snapshot — rolling
+    back hours of fresh data we already wrote correctly. Symptom: large
+    cluster of tickers stuck at the exact same recent timestamp.
+
+    Until the worker is fixed AND R2 sync is switched to per-bar MERGE
+    semantics (INSERT OR IGNORE), default this OFF. With the gate off,
+    malformed-image errors propagate to put_bars callers which log + retry
+    on next request; local data is preserved.
+
+    Set ``R2_RECOVERY_ENABLED=1`` to re-enable when R2 is trustworthy.
     """
     global _recovery_active, _recovery_last_attempt
+    if os.environ.get("R2_RECOVERY_ENABLED", "0") != "1":
+        _logger.warning(
+            "[sqlite] malformed-image detected but R2_RECOVERY_ENABLED!=1; "
+            "skipping force_resync to preserve local data. Set "
+            "R2_RECOVERY_ENABLED=1 to re-enable when R2 snapshot is fresh."
+        )
+        return
     with _recovery_lock:
         now = time.time()
         if _recovery_active:
