@@ -63,3 +63,34 @@ def test_put_rejects_all_corrupt_returns_none(tmp_cache):
     bars_disk_cache.put("QQQ", "30", 100, payload)
     got = bars_disk_cache.get("QQQ", "30", 100)
     assert got is None
+
+
+def test_get_skips_quarantined_bars(tmp_cache):
+    """If a bar gets quarantined AFTER being cached (via audit), get() should skip it."""
+    payload = {
+        "bars": [
+            {"t": 1715080700, "o": 700, "h": 705, "l": 698, "c": 702.5, "v": 1500000},
+            {"t": 1715080800, "o": 702.5, "h": 707, "l": 701, "c": 706, "v": 1100000},
+            {"t": 1715080900, "o": 706, "h": 710, "l": 705, "c": 709, "v": 1300000},
+        ]
+    }
+    bars_disk_cache.put("QQQ", "30", 100, payload)
+    # Audit later flags the middle bar as bad
+    bar_quarantine.add("QQQ", "30", 1715080800, "post-cache audit failure")
+    got = bars_disk_cache.get("QQQ", "30", 100)
+    bar_times = [b["t"] for b in got["bars"]]
+    assert 1715080800 not in bar_times
+    assert 1715080700 in bar_times
+    assert 1715080900 in bar_times
+
+
+def test_get_returns_none_if_all_quarantined(tmp_cache):
+    payload = {
+        "bars": [
+            {"t": 1715080800, "o": 700, "h": 705, "l": 698, "c": 702.5, "v": 1500000},
+        ]
+    }
+    bars_disk_cache.put("QQQ", "30", 100, payload)
+    bar_quarantine.add("QQQ", "30", 1715080800, "post-cache failure")
+    got = bars_disk_cache.get("QQQ", "30", 100)
+    assert got is None

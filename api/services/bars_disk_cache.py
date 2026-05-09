@@ -54,7 +54,13 @@ def get_deep(ticker: str, tf: str, bars: int):
 
 
 def get(ticker: str, tf: str, bars: int):
-    """Return cached payload dict or None if missing/expired/empty."""
+    """Return cached payload dict (with quarantined bars filtered out) or None.
+
+    None is returned when the file is missing, expired, empty, or every
+    bar in it has been quarantined since write. Filtering quarantined
+    bars on read closes the loop with the audit engine: a bad bar that
+    slipped through earlier disappears from served data on next access.
+    """
     try:
         p = _path(ticker, tf, bars)
         age = time.time() - os.path.getmtime(p)
@@ -68,6 +74,23 @@ def get(ticker: str, tf: str, bars: int):
                 os.remove(p)
             except OSError:
                 pass
+            return None
+
+        # Filter out any bars that have been quarantined since cache write.
+        # Non-dict bars (legacy/sentinel passthrough) are kept as-is — they
+        # have no `t` to match against the quarantine table.
+        try:
+            bad_times = bar_quarantine.quarantined_times(ticker, tf)
+        except Exception:
+            bad_times = set()
+        if bad_times:
+            data = dict(data)
+            data["bars"] = [
+                b for b in data["bars"]
+                if not isinstance(b, dict) or b.get("t") not in bad_times
+            ]
+
+        if not data.get("bars"):
             return None
         return data
     except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
