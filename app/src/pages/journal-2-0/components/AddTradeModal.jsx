@@ -15,6 +15,9 @@ import {
 } from '../../../lib/journal-2-0'
 import { computeImpliedRiskPct } from '../lib/disciplineGuards'
 import styles from './ModalShell.module.css'
+import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
+import useJ2DisciplineState from '../hooks/useJ2DisciplineState'
+import DisciplineLockBanner from './DisciplineLockBanner'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -39,6 +42,10 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
   const [saving, setSaving] = useState(false)
   const [overrideArmed, setOverrideArmed] = useState(false)
 
+  const { accountId } = useJ2SelectedAccount()
+  const { state: disciplineState } = useJ2DisciplineState(accountId)
+  const [disciplineOverrideArmed, setDisciplineOverrideArmed] = useState(false)
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
     window.addEventListener('keydown', onKey)
@@ -50,6 +57,11 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
   useEffect(() => {
     setOverrideArmed(false)
   }, [shares, entryPrice, originalStop, side])
+
+  // Reset session-discipline override when the underlying lock state changes.
+  useEffect(() => {
+    if (!disciplineState?.locked) setDisciplineOverrideArmed(false)
+  }, [disciplineState?.locked, disciplineState?.computedAt])
 
   // Live preview of P&L + R-multiple, same pattern as ClosePositionModal.
   const preview = useMemo(() => {
@@ -315,6 +327,11 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
             </div>
           )}
 
+          <DisciplineLockBanner
+            state={disciplineState}
+            overrideArmed={disciplineOverrideArmed}
+            onArmOverride={() => setDisciplineOverrideArmed(true)}
+          />
           {overCap && (
             <div
               role="alert"
@@ -356,7 +373,11 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
 
         <div className={styles.footer}>
           <button type="button" className={styles.ghostBtn} onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={saving || (overCap && !overrideArmed)}>
+          <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={
+              saving
+              || (overCap && !overrideArmed)
+              || (disciplineState?.locked && !disciplineOverrideArmed)
+            }>
             {saving ? 'Saving…' : 'Add Trade'}
           </button>
         </div>
