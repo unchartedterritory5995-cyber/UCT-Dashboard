@@ -1382,6 +1382,93 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     )
 
 
+# ── Multi-source retry on validation failure ────────────────────────────────
+# Public wrapper that fetches from the configured intraday source chain
+# (Massive → FMP → yfinance) and retries the next source whenever the
+# returned payload fails bar-level validation.  Existing callers continue to
+# use _fetch_intraday() directly; routes that opt in to this stricter path
+# (Plan 3) call fetch_with_validation() instead.
+from api.services import bar_validation as _bar_validation
+
+
+def _extract_bars(result):
+    """Normalize a fetch result into an iterable of bar dicts.
+
+    The internal _fetch_intraday_* helpers return ``list[dict]``. Test
+    doubles and future call sites may return a payload-shaped dict
+    ``{"bars": [...], "source": "..."}``. Accept both.
+    """
+    if not result:
+        return None
+    if isinstance(result, dict):
+        return result.get("bars")
+    if isinstance(result, list):
+        return result
+    return None
+
+
+def _payload_passes_validation(result, prior_close=None) -> bool:
+    """Return True if the result exists and every bar passes validation.
+
+    Uses ``prior_close`` as the seeding context for the first bar; subsequent
+    bars chain off the prior bar's close.  Non-dict elements are skipped
+    (defensive — historical payloads have occasionally contained sentinels).
+    """
+    bars = _extract_bars(result)
+    if not bars:
+        return False
+    pc = prior_close
+    for bar in bars:
+        if not isinstance(bar, dict):
+            continue
+        ok, _ = _bar_validation.validate_bar(bar, prior_close=pc)
+        if not ok:
+            return False
+        pc = bar.get("c", pc)
+    return True
+
+
+def fetch_with_validation(
+    ticker: str,
+    tf: str,
+    bars: int,
+    prior_close: float | None = None,
+):
+    """Fetch from primary; if it fails validation, fall back through alternates.
+
+    Order: Massive → FMP (intraday only) → yfinance.  Returns the first
+    payload whose every bar passes validation, or ``None`` if every source
+    yielded corrupt or empty data.  The return shape mirrors whatever the
+    underlying fetch helper returned (typically ``list[dict]``).
+    """
+    # Primary: Massive
+    try:
+        payload = _fetch_intraday_massive(ticker, tf, bars)
+    except Exception:
+        payload = None
+    if _payload_passes_validation(payload, prior_close):
+        return payload
+
+    # FMP — intraday timeframes only
+    if tf in ("1", "5", "15", "30", "60"):
+        try:
+            payload = _fetch_intraday_fmp(ticker, tf, bars)
+        except Exception:
+            payload = None
+        if _payload_passes_validation(payload, prior_close):
+            return payload
+
+    # yfinance fallback (split-adjusted, includes premarket)
+    try:
+        payload = _fetch_intraday_yfinance(ticker, tf, bars)
+    except Exception:
+        payload = None
+    if _payload_passes_validation(payload, prior_close):
+        return payload
+
+    return None
+
+
 # Public API for router + worker consumers.
 __all__ = [
     "_get_bars_inner",
@@ -1401,4 +1488,5 @@ __all__ = [
     "_DEFAULT_WARM_TFS",
     "_bars_warm_pool",
     "_BarsWarmExecutor",
+    "fetch_with_validation",
 ]
