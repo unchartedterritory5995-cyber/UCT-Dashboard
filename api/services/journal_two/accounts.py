@@ -70,6 +70,9 @@ def _default_settings_block() -> dict[str, Any]:
         "setups": [],
         "shareJournalData": False,
         "tradingMode": "both",
+        "defaultSizePct": None,
+        "defaultRMultipleTarget": None,
+        "maxRiskPerTradePct": None,
     }
 
 
@@ -773,6 +776,9 @@ def upsert_account_settings(
                SET account_size = ?, default_stop = ?, position_closing = ?,
                    breakeven_range = ?, setups = ?, share_journal_data = ?,
                    trading_mode = ?,
+                   default_size_pct = ?,
+                   default_r_multiple_target = ?,
+                   max_risk_per_trade_pct = ?,
                    updated_at = ?
              WHERE id = ? AND user_id = ?
             """,
@@ -784,6 +790,9 @@ def upsert_account_settings(
                 json.dumps(full_validated["setups"]),
                 1 if full_validated.get("shareJournalData") else 0,
                 full_validated.get("tradingMode", "both"),
+                full_validated.get("defaultSizePct"),
+                full_validated.get("defaultRMultipleTarget"),
+                full_validated.get("maxRiskPerTradePct"),
                 now, account_id, user_id,
             ),
         )
@@ -894,6 +903,9 @@ def _account_to_settings(acc: dict[str, Any]) -> dict[str, Any]:
             "setups": json.loads(row["setups"]),
             "shareJournalData": bool(row["share_journal_data"]),
             "tradingMode": row["trading_mode"] if "trading_mode" in keys else "both",
+            "defaultSizePct": row["default_size_pct"] if "default_size_pct" in keys else None,
+            "defaultRMultipleTarget": row["default_r_multiple_target"] if "default_r_multiple_target" in keys else None,
+            "maxRiskPerTradePct": row["max_risk_per_trade_pct"] if "max_risk_per_trade_pct" in keys else None,
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
         }
