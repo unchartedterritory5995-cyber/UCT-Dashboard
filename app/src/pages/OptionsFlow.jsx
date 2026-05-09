@@ -4180,7 +4180,7 @@ export default function OptionsFlowDashboard() {
             </Card>
             {/* Batch Search */}
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <button onClick={()=>setBatchMode(!batchMode)} style={{ padding:"4px 12px", borderRadius:16, border:"1.5px solid "+(batchMode?P.ac:P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:batchMode?P.ac+"22":"transparent", color:batchMode?P.ac:P.mt }}>
+              <button onClick={()=>setBatchMode(!batchMode)} style={{ padding:"5px 14px", borderRadius:16, border:"1.5px solid "+(batchMode?"#e040fb":"#e040fb55"), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:batchMode?"#e040fb22":"transparent", color:batchMode?"#e040fb":"#e040fb" }}>
                 📋 Batch Search
               </button>
               {batchMode && <span style={{ fontSize:9, color:P.dm }}>Paste tickers or upload a CSV watchlist to scan flow</span>}
