@@ -130,6 +130,34 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] Auth DB init error (non-fatal): {e}")
 
+    # Chart-health bootstrap: init quarantine + audit schemas synchronously so
+    # the tables exist before any /api/bars handler runs, then spawn a daemon
+    # thread to scan existing cache files for corruption (slow — up to ~18,425
+    # files). The scan must NOT block startup or Railway healthchecks fail.
+    try:
+        from api.services import bar_quarantine, bar_audit_bootstrap, bars_audit
+        bar_quarantine.init_schema()
+        bars_audit._init_audit_runs_table()
+
+        def _bootstrap_scan():
+            try:
+                n = bar_audit_bootstrap.scan_and_quarantine_existing_cache()
+                logging.getLogger(__name__).info(
+                    "[startup] quarantined %d bars from existing cache", n
+                )
+            except Exception as _e:
+                logging.getLogger(__name__).exception(
+                    "[startup] bootstrap scan failed: %s", _e
+                )
+
+        threading.Thread(
+            target=_bootstrap_scan, daemon=True, name="chart-health-bootstrap"
+        ).start()
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            "[startup] chart-health bootstrap failed: %s", e
+        )
+
     # Integrity check BEFORE init_db: if /data/bars.db is malformed (which
     # happens when the previous run was killed mid-write or replaced with
     # stale WAL/SHM sidecars hanging around), every put_bars at runtime
