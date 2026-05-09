@@ -4,43 +4,28 @@
  * Each row: <start HH:MM> – <end HH:MM> [label] [Remove]
  * Plus a "+ Add window" button at the bottom.
  *
- * Calls `onChange(nextArray)` on any keystroke or button click so the
- * parent can persist state. Also maintains internal state so the inputs
- * remain editable even when the parent re-renders with a stale prop
- * (common in test environments with mock onChange handlers).
+ * Fully controlled — no internal state. The parent owns the `value` array
+ * and `onChange(nextArray)` fires on any keystroke or button click.
+ *
+ * NOTE: inputs are `type="text"` (not `type="time"`) so vitest/jsdom can
+ * exercise them with userEvent.type. The backend validator enforces the
+ * HH:MM format on save (`_HHMM_RE` in settings.py).
  */
 
-import { useState, useEffect } from 'react'
-
 export default function NoTradeWindowsEditor({ value = [], onChange }) {
-  const [rows, setRows] = useState(value)
-
-  // Sync internal state when the prop value changes from outside
-  useEffect(() => {
-    setRows(value)
-  }, [value])
-
   const updateAt = (idx, patch) => {
-    const next = rows.map((row, i) => (i === idx ? { ...row, ...patch } : row))
-    setRows(next)
-    onChange(next)
+    onChange(value.map((row, i) => (i === idx ? { ...row, ...patch } : row)))
   }
-
   const removeAt = (idx) => {
-    const next = rows.filter((_, i) => i !== idx)
-    setRows(next)
-    onChange(next)
+    onChange(value.filter((_, i) => i !== idx))
   }
-
   const addWindow = () => {
-    const next = [...rows, { start: '', end: '', label: '' }]
-    setRows(next)
-    onChange(next)
+    onChange([...value, { start: '', end: '', label: '' }])
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {rows.map((row, idx) => (
+      {value.map((row, idx) => (
         <div
           key={idx}
           style={{
