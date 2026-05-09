@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import useLivePrices from './useLivePrices'
+import * as realtimeCandle from '../lib/realtimeCandle'
 
 /**
  * Real-time price streaming via Server-Sent Events.
@@ -72,6 +73,29 @@ export default function useRealtimePrices(tickers = []) {
           next.delete(sym)
           return next
         })
+      } catch {}
+    })
+
+    // P4-6: relay backend candle events into the global realtimeCandle registry.
+    // Existing consumers of `prices` continue to work unchanged — this is purely additive.
+    es.addEventListener('tick', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data?.sym) realtimeCandle.applyTick(data.sym, data.price, data.vol, data.ts)
+      } catch {}
+    })
+
+    es.addEventListener('bar_close', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data?.sym && data?.bar) realtimeCandle.applyBarClose(data.sym, data.tf || "1", data.bar)
+      } catch {}
+    })
+
+    es.addEventListener('bar_correction', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data?.sym && data?.bar) realtimeCandle.applyCorrection(data.sym, data.tf || "1", data.bar)
       } catch {}
     })
 
