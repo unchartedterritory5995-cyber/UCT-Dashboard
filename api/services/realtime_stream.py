@@ -71,6 +71,11 @@ def _record_tick(sym: str, price: float, ts: int) -> None:
     Called from the WS message handler when a trade tick arrives, and exposed
     for tests and any future synthetic tick injection. Complements (does not
     replace) the richer prev_close-aware update in _process_finnhub_trade.
+
+    Also feeds realtime_candle.apply_tick for every intraday timeframe — the
+    candle state machine owns the developing-bar OHLCV that the SSE layer
+    streams to chart clients. Wrapped in try/except so observability failures
+    never break tick handling.
     """
     sym = sym.upper()
     with _lock:
@@ -86,6 +91,18 @@ def _record_tick(sym: str, price: float, ts: int) -> None:
                 "timestamp": int(ts),
                 "updated_at": int(time.time()),
             }
+
+    # Feed realtime_candle (separate lock — no contention with _lock above).
+    # Lazy import avoids any future circular-dep risk if realtime_candle ever
+    # needs to reach back into realtime_stream. size=1 is a placeholder; when
+    # _process_finnhub_trade gains a size-aware path it can call apply_tick
+    # directly with the real trade volume.
+    try:
+        from api.services import realtime_candle
+        for tf in ("1", "5", "15", "30", "60"):
+            realtime_candle.apply_tick(sym, price=price, ts=int(ts), size=1, tf=tf)
+    except Exception:
+        pass  # observability layer; never break tick handling
 
 
 def get_last_seen(sym: str) -> int | None:

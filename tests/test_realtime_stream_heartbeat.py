@@ -42,3 +42,32 @@ def test_stream_status_includes_last_seen_ages():
     status = realtime_stream.get_stream_status()
     assert "last_seen_ages" in status
     assert isinstance(status["last_seen_ages"], dict)
+
+
+def test_record_tick_feeds_realtime_candle():
+    """_record_tick should also feed realtime_candle for every intraday tf."""
+    from api.services import realtime_candle
+    realtime_candle._reset()
+    import time
+    realtime_stream._record_tick("QQQ", price=700.0, ts=int(time.time()))
+    candle_1m = realtime_candle.get_current("QQQ", "1")
+    candle_5m = realtime_candle.get_current("QQQ", "5")
+    candle_60m = realtime_candle.get_current("QQQ", "60")
+    assert candle_1m is not None
+    assert candle_5m is not None
+    assert candle_60m is not None
+    assert candle_1m["c"] == 700.0
+    assert candle_5m["c"] == 700.0
+
+
+def test_record_tick_failure_does_not_break_handler(monkeypatch):
+    """If realtime_candle.apply_tick raises, _record_tick should still work."""
+    from api.services import realtime_candle
+    def boom(*a, **k):
+        raise RuntimeError("simulated failure")
+    monkeypatch.setattr(realtime_candle, "apply_tick", boom)
+    import time
+    # Should not raise
+    realtime_stream._record_tick("QQQ", price=700.0, ts=int(time.time()))
+    last_seen = realtime_stream.get_last_seen("QQQ")
+    assert last_seen is not None  # _last_seen still updated despite candle failure
