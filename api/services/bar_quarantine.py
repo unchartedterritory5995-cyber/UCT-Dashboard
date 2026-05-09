@@ -49,6 +49,13 @@ def add(ticker: str, tf: str, bar_time: int, reason: str, source: Optional[str] 
             "(ticker, tf, bar_time, reason, source, detected_at) VALUES (?, ?, ?, ?, ?, ?)",
             (ticker.upper(), tf, int(bar_time), reason, source, int(time.time())),
         )
+    # Invalidate the read cache so the new quarantine takes effect immediately.
+    # Lazy import avoids circular-import risk (bar_quarantine_cache imports this module).
+    try:
+        from api.services import bar_quarantine_cache
+        bar_quarantine_cache.invalidate(ticker, tf)
+    except Exception:
+        pass
 
 
 def remove(ticker: str, tf: str, bar_time: int) -> None:
@@ -57,6 +64,11 @@ def remove(ticker: str, tf: str, bar_time: int) -> None:
             "DELETE FROM quarantined_bars WHERE ticker=? AND tf=? AND bar_time=?",
             (ticker.upper(), tf, int(bar_time)),
         )
+    try:
+        from api.services import bar_quarantine_cache
+        bar_quarantine_cache.invalidate(ticker, tf)
+    except Exception:
+        pass
 
 
 def is_quarantined(ticker: str, tf: str, bar_time: int) -> bool:

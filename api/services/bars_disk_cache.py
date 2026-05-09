@@ -13,6 +13,7 @@ import time
 
 from api.services import bar_validation
 from api.services import bar_quarantine
+from api.services import bar_quarantine_cache
 from api.services import bar_provenance
 from api.services import bars_hot_tier
 
@@ -71,7 +72,7 @@ def get(ticker: str, tf: str, bars: int):
     hot = bars_hot_tier.get(ticker, tf, bars)
     if hot is not None:
         try:
-            bad_times = bar_quarantine.quarantined_times(ticker, tf)
+            bad_times = bar_quarantine_cache.quarantined_times_cached(ticker, tf)
         except Exception:
             bad_times = set()
         if bad_times:
@@ -111,7 +112,7 @@ def get(ticker: str, tf: str, bars: int):
         # Non-dict bars (legacy/sentinel passthrough) are kept as-is — they
         # have no `t` to match against the quarantine table.
         try:
-            bad_times = bar_quarantine.quarantined_times(ticker, tf)
+            bad_times = bar_quarantine_cache.quarantined_times_cached(ticker, tf)
         except Exception:
             bad_times = set()
         if bad_times:
