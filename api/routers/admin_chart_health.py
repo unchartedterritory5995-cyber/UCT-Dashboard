@@ -13,7 +13,14 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
-from api.services import bars_audit, bar_quarantine, realtime_stream
+from api.services import (
+    bars_audit,
+    bar_quarantine,
+    realtime_stream,
+    bar_provenance,
+    source_circuit_breaker,
+    bar_self_heal,
+)
 from api.middleware.auth_middleware import require_admin
 
 _logger = logging.getLogger(__name__)
@@ -123,3 +130,30 @@ def quarantine_remove(
 @router.get("/liveness")
 def liveness(user=Depends(require_admin)):
     return {"ages": realtime_stream.get_last_seen_ages()}
+
+
+# ── Provenance / source-health / self-heal endpoints ─────────────────────────
+
+@router.get("/provenance")
+def provenance_lookup(ticker: str, tf: str, bar_time: int, user=Depends(require_admin)):
+    return {"provenance": bar_provenance.get(ticker, tf, bar_time)}
+
+
+@router.get("/source-health")
+def source_health(user=Depends(require_admin)):
+    return {
+        "sources": source_circuit_breaker.all_states(),
+        "by_source": bar_provenance.count_by_source(),
+    }
+
+
+class ForceHealRequest(BaseModel):
+    ticker: str
+    tf: str
+    bar_time: int
+    original_source: str = "massive"
+
+
+@router.post("/force-heal")
+def force_heal(body: ForceHealRequest, user=Depends(require_admin)):
+    return bar_self_heal.try_heal(body.ticker, body.tf, body.bar_time, body.original_source)

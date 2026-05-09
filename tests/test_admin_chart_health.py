@@ -98,3 +98,43 @@ def test_liveness_endpoint_empty(admin_client):
         r = admin_client.get("/api/admin/bars/liveness")
     assert r.status_code == 200
     assert r.json() == {"ages": {}}
+
+
+def test_provenance_lookup_endpoint(admin_client):
+    fake = {"ticker": "QQQ", "tf": "30", "bar_time": 1715080800,
+            "source": "massive", "validated_at": 1715000000, "verified_at": None}
+    with patch("api.routers.admin_chart_health.bar_provenance.get", return_value=fake):
+        r = admin_client.get("/api/admin/bars/provenance?ticker=QQQ&tf=30&bar_time=1715080800")
+    assert r.status_code == 200
+    assert r.json()["provenance"]["source"] == "massive"
+
+
+def test_provenance_lookup_returns_null_when_missing(admin_client):
+    with patch("api.routers.admin_chart_health.bar_provenance.get", return_value=None):
+        r = admin_client.get("/api/admin/bars/provenance?ticker=QQQ&tf=30&bar_time=1715080800")
+    assert r.status_code == 200
+    assert r.json()["provenance"] is None
+
+
+def test_source_health_endpoint(admin_client):
+    sources = {"massive": {"attempts": 100, "pass_rate": 0.99, "state": "ok"},
+               "fmp": {"attempts": 30, "pass_rate": 0.85, "state": "degraded"}}
+    by_source = {"massive": 8500, "fmp": 1200}
+    with patch("api.routers.admin_chart_health.source_circuit_breaker.all_states", return_value=sources), \
+         patch("api.routers.admin_chart_health.bar_provenance.count_by_source", return_value=by_source):
+        r = admin_client.get("/api/admin/bars/source-health")
+    body = r.json()
+    assert body["sources"]["massive"]["state"] == "ok"
+    assert body["sources"]["fmp"]["state"] == "degraded"
+    assert body["by_source"]["massive"] == 8500
+
+
+def test_force_heal_endpoint(admin_client):
+    fake_result = {"status": "healed", "new_source": "fmp"}
+    with patch("api.routers.admin_chart_health.bar_self_heal.try_heal", return_value=fake_result):
+        r = admin_client.post(
+            "/api/admin/bars/force-heal",
+            json={"ticker": "QQQ", "tf": "30", "bar_time": 1715080800, "original_source": "massive"},
+        )
+    assert r.status_code == 200
+    assert r.json() == fake_result
