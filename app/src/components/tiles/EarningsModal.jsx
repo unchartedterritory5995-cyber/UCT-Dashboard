@@ -347,6 +347,13 @@ export default function EarningsModal({ row, label, onClose }) {
                 }>
                   {transcript.sentiment?.toUpperCase()}
                 </span>
+              </span>
+            </button>
+            {transcriptOpen && (
+              <div className={styles.transcriptBody}>
+                {transcript.headline && (
+                  <p className={styles.analysisHeadline}>{transcript.headline}</p>
+                )}
                 {(transcript.headline || transcript.bullets?.length > 0) && (
                   <ReadAloudButton
                     trackId={`transcript-${row.sym}`}
@@ -359,13 +366,6 @@ export default function EarningsModal({ row, label, onClose }) {
                   >
                     Read transcript
                   </ReadAloudButton>
-                )}
-              </span>
-            </button>
-            {transcriptOpen && (
-              <div className={styles.transcriptBody}>
-                {transcript.headline && (
-                  <p className={styles.analysisHeadline}>{transcript.headline}</p>
                 )}
                 {transcript.bullets?.length > 0 && (
                   <ul className={styles.watchList}>
