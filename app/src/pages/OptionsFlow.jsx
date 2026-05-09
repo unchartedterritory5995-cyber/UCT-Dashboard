@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 
-// ─── Flow Data loaded dynamically from /api/flow/data (SQLite DB) ─────────────
+// ─── Flow Data loaded dynamically from /flow-data.csv ─────────────────────────
 
 
 // ─── Color Palette ─────────────────────────────────────────────────────────────
@@ -47,7 +47,6 @@ function gradeCluster(c) {
   return "D";
 }
 const GRADE_COLORS = { "A+":"#ffd600", "A":"#ffab00", "B+":"#00e676", "B":"#00b0ff", "C":"#78909c", "D":"#4a5c73" };
-// Pattern detection — detects anomalous flow patterns on a cluster
 function detectPatterns(c) {
   const patterns = [];
   if ((c.ivs||[]).length >= 3) {
@@ -451,7 +450,6 @@ function consistencyTable(trades, n=8) {
 // Recomputes all chart data from a clean_confirmed slice (used by cap filter)
 function buildCharts(cc) {
   const dayMap = {};
-  // Pre-split all trades in one pass into 6 buckets + day map
   const sb=[], sbr=[], lb=[], lbr=[], lpb=[], lpr=[], leapsAll=[];
   let etfCount = 0;
   for (let i = 0; i < cc.length; i++) {
@@ -544,7 +542,6 @@ function buildCharts(cc) {
     const grade = gradeCluster(c);
     const scoreMap = {"A+":600,"A":500,"B+":400,"B":300,"C":200,"D":100};
     // Vol/OI ratio bonus — rewards unusually high activity relative to open interest
-    // 3x+ vol/OI on a mid-cap is far more significant than 0.5x on a mega-cap
     const volOI = c.maxOI > 0 ? c.vol / c.maxOI : 0;
     const voiBonus = Math.min(volOI, 5) * 80; // caps at 5x = +400
     const k = c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
@@ -554,12 +551,10 @@ function buildCharts(cc) {
       strike:"$"+c.K+c.cp, trades, patterns:detectPatterns(c) };
   }).filter(c => {
     if (!c.clean || c.DTE <= 7) return false;
-    // Re-check expiry against today — parse c.exp "M/D" or "M/D/YYYY" at render time
-    // so expired contracts disappear even if DTE in CSV was still positive
     if (c.exp) {
       const p = c.exp.split("/").map(Number);
       const y = p.length >= 3 ? p[2] : (new Date().getMonth()+1 > p[0] ? new Date().getFullYear()+1 : new Date().getFullYear());
-      const expDate = new Date(y, p[0]-1, p[1], 23, 59, 59); // end of expiry day
+      const expDate = new Date(y, p[0]-1, p[1], 23, 59, 59);
       if (expDate < new Date()) return false;
     }
     return true;
@@ -730,7 +725,6 @@ function processFlowData(rows) {
   {
     const mlTrades = rawTrades.filter(t => t.isML && t.S && t.V > 0);
     if (mlTrades.length > 0) {
-      // Build hash map for O(1) lookup instead of O(n) .find()
       const nonMLMap = {};
       rawTrades.forEach((t, idx) => {
         if (t.isML || !t.Ty || !t.S || t.V <= 0) return;
@@ -946,7 +940,7 @@ function processFlowData(rows) {
   // OI Watchlist — cluster ALL trades by strike, rank by Vol/OI ratio
   const watchMap = {};
   filtered.forEach(t => {
-    if (!t.OI || t.OI <= 0 || t.DTE <= 0) return; // skip if no OI data or 0DTE
+    if (!t.OI || t.OI <= 0 || t.DTE <= 0) return;
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!watchMap[k]) watchMap[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, V:0, OI:t.OI, P:0, Si:t.Si, Ty:t.Ty, trades:0,
       hasSweep:false, hasBlock:false, price:0, DTE:t.DTE, dailyOI:{}, dailyVol:{}, mktcap:0 };
@@ -958,7 +952,6 @@ function processFlowData(rows) {
     if (t.mktcap > watchMap[k].mktcap) watchMap[k].mktcap = t.mktcap;
     if (t.Ty === "SWP") watchMap[k].hasSweep = true;
     if (t.Ty === "BLK") watchMap[k].hasBlock = true;
-    // Track OI and volume by date
     const dt = (t.Dt||"").trim();
     if (dt) {
       if (!watchMap[k].dailyOI[dt] || t.OI > watchMap[k].dailyOI[dt]) watchMap[k].dailyOI[dt] = t.OI;
@@ -1031,7 +1024,6 @@ function processFlowData(rows) {
     if (!tickerMap[t.S]) tickerMap[t.S] = { s:t.S, b:0, r:0, n:0, topTrades:[], minTopP:0, consMap:{} };
     const tk = tickerMap[t.S];
     tk.n++; if (t.D==="BULL") tk.b+=t.P; else if (t.D==="BEAR") tk.r+=t.P;
-    // Keep running top 10 by premium (avoid sorting huge arrays)
     if (tk.topTrades.length < 10) {
       tk.topTrades.push(t);
       if (tk.topTrades.length === 10) tk.minTopP = Math.min(...tk.topTrades.map(x=>x.P));
@@ -1106,11 +1098,12 @@ export default function OptionsFlowDashboard() {
   const [batchTickers, setBatchTickers] = useState("");
   const [batchResults, setBatchResults] = useState(null);
   const [batchMode, setBatchMode] = useState(false);
+  const [batchDetail, setBatchDetail] = useState(null);
   const [convictionDte, setConvictionDte] = useState("All");
   const [convictionSort, setConvictionSort] = useState("net");
-  const [convictionPct, setConvictionPct] = useState("All"); // All, 90bull, 80bull, 90bear, 80bear
-  const [convictionActivity, setConvictionActivity] = useState("All"); // All, new, uoa
-  const [convictionExpanded, setConvictionExpanded] = useState(null); // expanded ticker // net, bull, bear, trades
+  const [convictionPct, setConvictionPct] = useState("All");
+  const [convictionActivity, setConvictionActivity] = useState("All");
+  const [convictionExpanded, setConvictionExpanded] = useState(null);
   const [oiSearch, setOiSearch] = useState("");
   const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
   const [leaderDte, setLeaderDte] = useState("All");
@@ -1145,32 +1138,47 @@ export default function OptionsFlowDashboard() {
   const ideaGexDragRef = useRef({ dragging:false, startX:0, startY:0, offX:0, offY:0 });
   const prevNetDeltaRef = useRef(null);
 
-  // ─── Dynamic CSV Loading ─────────────────────────────────────────────
+  // ─── Admin: Drag-and-Drop CSV Upload ──────────────────────────────────
   const [csvText, setCsvText] = useState(null);
-  const [csvLoading, setCsvLoading] = useState(true);
+  const [csvLoading, setCsvLoading] = useState(false);
   const [csvError, setCsvError] = useState(null);
-  const [parsedRows, setParsedRows] = useState(null);
-  const [dateFilter, setDateFilter] = useState("Last1");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [fetchDays, setFetchDays] = useState(1);
-  const [showCal, setShowCal] = useState(false);
-  const [calMonth, setCalMonth] = useState(new Date().getMonth());
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [calStart, setCalStart] = useState(null); // temp start during selection
-  const calRef = useRef(null);
-  const [D, setD] = useState(null);
+  const [dbStatus, setDbStatus] = useState(null); // {type:"ok"|"error", msg:string}
 
-  const csvFile = dataMode === "index"
-    ? (fetchDays === 0 ? "/api/flow/indexes-data?all_data=true" : `/api/flow/indexes-data?days=${fetchDays}`)
-    : (fetchDays === 0 ? "/api/flow/data?all_data=true" : `/api/flow/data?days=${fetchDays}`);
+  // Upload CSV to backend DB for persistence
+  async function uploadToDb(text) {
+    const source = dataMode === "index" ? "indexes" : "stocks";
+    setDbStatus({ type: "loading", msg: "Saving to database..." });
+    try {
+      const resp = await fetch(`/api/flow/upload?source=${source}`, {
+        method: "POST",
+        headers: { "Content-Type": "text/csv" },
+        body: text,
+      });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        setDbStatus({ type: "error", msg: `DB error (${resp.status}): ${errText.slice(0, 200)}` });
+        return;
+      }
+      const data = await resp.json();
+      if (data.status === "ok") {
+        setDbStatus({ type: "ok", msg: `DB: +${data.inserted.toLocaleString()} new rows, ${data.skipped.toLocaleString()} duplicates skipped${data.pruned ? `, ${data.pruned} expired pruned` : ""}` });
+      } else {
+        setDbStatus({ type: "error", msg: "DB error: " + (data.message || "unknown") });
+      }
+    } catch (e) {
+      setDbStatus({ type: "error", msg: "DB upload failed: " + e.message });
+    }
+  }
+  const [parsedRows, setParsedRows] = useState(null);
+  const [dateFilter, setDateFilter] = useState("All");
+  const [D, setD] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
 
   // Extract unique dates from parsed rows
   const availableDates = useMemo(() => {
     if (!parsedRows || parsedRows.length === 0) return [];
     const dateSet = new Set();
     parsedRows.forEach(r => { if (r.date) dateSet.add(r.date.trim()); });
-    // Sort dates chronologically
     return [...dateSet].sort((a, b) => {
       const pa = a.split("/").map(Number);
       const pb = b.split("/").map(Number);
@@ -1182,7 +1190,6 @@ export default function OptionsFlowDashboard() {
     });
   }, [parsedRows]);
 
-  // Format date for pill label: "Mon 4/21"
   const fmtDatePill = (dateStr) => {
     const parts = dateStr.split("/").map(Number);
     const y = parts.length >= 3 ? (parts[2] < 100 ? parts[2] + 2000 : parts[2]) : new Date().getFullYear();
@@ -1191,56 +1198,18 @@ export default function OptionsFlowDashboard() {
     return days[d.getDay()] + " " + parts[0] + "/" + (parts[1] || 1);
   };
 
-  // Convert M/D/YYYY → YYYY-MM-DD for date input
-  const mdyToIso = (mdy) => {
-    const p = mdy.split("/").map(Number);
-    if (p.length < 3) return "";
-    const y = p[2] < 100 ? p[2] + 2000 : p[2];
-    return `${y}-${String(p[0]).padStart(2,"0")}-${String(p[1]).padStart(2,"0")}`;
-  };
-  // Convert YYYY-MM-DD → Date object for comparison
-  const isoToDate = (iso) => { const p = iso.split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); };
-  // Convert M/D/YYYY → Date object for comparison
-  const mdyToDate = (mdy) => { const p = mdy.split("/").map(Number); const y = p.length>=3?(p[2]<100?p[2]+2000:p[2]):new Date().getFullYear(); return new Date(y, p[0]-1, p[1]||1); };
-
-  // Date range boundaries from available dates
-  const dateInputMin = availableDates.length > 0 ? mdyToIso(availableDates[0]) : "";
-  const dateInputMax = availableDates.length > 0 ? mdyToIso(availableDates[availableDates.length-1]) : "";
-
-  // Close calendar on click outside
+  // Auto-set to latest date when CSV has many dates
   useEffect(() => {
-    if (!showCal) return;
-    const handler = (e) => { if (calRef.current && !calRef.current.contains(e.target)) setShowCal(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showCal]);
-
-  // Set of available trading dates as ISO for calendar dot indicators
-  const tradingDaysSet = useMemo(() => new Set(availableDates.map(d => mdyToIso(d))), [availableDates]);
-
-  // Auto-set dateFilter when data loads
-  useEffect(() => {
-    if (availableDates.length > 0 && dateFilter !== "All" && !dateFilter.startsWith("Last") && !availableDates.includes(dateFilter)) {
-      setDateFilter("All");
+    if (availableDates.length > 5 && dateFilter === "All") {
+      setDateFilter(availableDates[availableDates.length - 1]);
     }
   }, [availableDates]);
 
-  // Process data whenever parsedRows or dateFilter or date range changes
+  // Process data whenever parsedRows or dateFilter changes
   useEffect(() => {
     if (!parsedRows || parsedRows.length === 0) return;
-    const t2 = performance.now();
     let filtered;
-    if (dateFrom && dateTo) {
-      // Date range mode
-      const from = isoToDate(dateFrom);
-      const to = isoToDate(dateTo);
-      to.setHours(23,59,59); // include end date fully
-      filtered = parsedRows.filter(r => {
-        if (!r.date) return false;
-        const d = mdyToDate(r.date.trim());
-        return d >= from && d <= to;
-      });
-    } else if (dateFilter === "All") {
+    if (dateFilter === "All") {
       filtered = parsedRows;
     } else if (dateFilter.startsWith("Last")) {
       const n = parseInt(dateFilter.replace("Last",""))||3;
@@ -1252,62 +1221,62 @@ export default function OptionsFlowDashboard() {
     if (filtered.length === 0) { setD(null); return; }
     try {
       const data = processFlowData(filtered);
-      const label = dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFilter;
-      console.log(`[perf] processFlowData (${label}): ${(performance.now()-t2).toFixed(0)}ms (${filtered.length} rows)`);
       setD(data);
     } catch(err) {
       console.error("processFlowData error:", err);
       setCsvError(err.message);
     }
-  }, [parsedRows, dateFilter, dateFrom, dateTo]);
+  }, [parsedRows, dateFilter]);
 
-  useEffect(() => {
-    let cancelled = false;
+  function switchMode(m) {
+    if (dataMode === m) return;
+    setDataMode(m);
+    setD(null); setCsvText(null); setCsvError(null); setParsedRows(null); setDateFilter("All");
+    setSelectedConv(null); setSelectedItem(null); setSelectedTicker(null);
+    setSearch(""); setOiSearch(""); setCapFilter("All"); setTab("Market Read");
+  }
+
+  function handleCSV(text) {
     setCsvLoading(true);
     setCsvError(null);
-    setSelectedConv(null);
-    setSelectedItem(null);
-    setSelectedTicker(null);
-    setSearch("");
-    setOiSearch("");
-    setCapFilter("All");
-    setTab("Market Read");
-    const t0 = performance.now();
+    const trimmed = text.trim();
+    if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
+      setCsvError("Got HTML instead of CSV."); setCsvLoading(false); return;
+    }
+    if (!trimmed.includes(",") || trimmed.length < 100) {
+      setCsvError("File appears empty or invalid (no CSV data found)."); setCsvLoading(false); return;
+    }
+    setTimeout(() => {
+      try {
+        const rows = parseCSV(text);
+        if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
+        setCsvText(text);
+        setParsedRows(rows);
+        setDateFilter("All");
+        // Persist to DB in background
+        uploadToDb(text);
+      } catch(err) {
+        setCsvError(err.message);
+      }
+      setCsvLoading(false);
+    }, 0);
+  }
 
-    fetch(csvFile + "&_t=" + Date.now())
-        .then(res => {
-          console.log(`[perf] CSV fetch: ${(performance.now()-t0).toFixed(0)}ms`);
-          if (!res.ok) throw new Error(`Server returned ${res.status} for ${csvFile}`);
-          const ct = res.headers.get("content-type") || "";
-          if (ct.includes("text/html")) throw new Error(`Got HTML instead of CSV — ${csvFile} not found.`);
-          return res.text();
-        })
-        .then(text => {
-          if (cancelled) return;
-          console.log(`[perf] Downloaded: ${(performance.now()-t0).toFixed(0)}ms (${(text.length/1024).toFixed(0)}KB)`);
-          const trimmed = text.trim();
-          if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
-            throw new Error(`Got HTML instead of CSV — ${csvFile} not found on server.`);
-          }
-          if (!trimmed.includes(",") || trimmed.length < 50) {
-            throw new Error("File appears empty or invalid (no CSV data found).");
-          }
-          setTimeout(() => {
-            if (cancelled) return;
-            try {
-              const t1 = performance.now();
-              const rows = parseCSV(text);
-              console.log(`[perf] CSV parsed: ${(performance.now()-t1).toFixed(0)}ms (${rows.length} rows)`);
-              if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
-              if (!cancelled) { setParsedRows(rows); setCsvLoading(false); }
-            } catch(err) {
-              if (!cancelled) { setCsvError(err.message); setCsvLoading(false); }
-            }
-          }, 0);
-        })
-        .catch(err => { if (!cancelled) { setCsvError(err.message); setCsvLoading(false); } });
-    return () => { cancelled = true; };
-  }, [csvFile]);
+  function onDrop(e) {
+    e.preventDefault(); setDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => handleCSV(ev.target.result);
+    reader.readAsText(file);
+  }
+  function onFileInput(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => handleCSV(ev.target.result);
+    reader.readAsText(file);
+  }
 
 
   // Cap-filtered view: recompute charts using only the selected cap band's clean_confirmed
@@ -1344,7 +1313,7 @@ export default function OptionsFlowDashboard() {
   const [wlDates, setWlDates] = useState([]);
   const [wlEditing, setWlEditing] = useState(null);
   const [wlLoaded, setWlLoaded] = useState(false);
-  const [wlCapPref, setWlCapPref] = useState("No Mega"); // All | No Mega | Mid+Small
+  const [wlCapPref, setWlCapPref] = useState("No Mega");
   const [wlAddBull, setWlAddBull] = useState("");
   const [wlAddBear, setWlAddBear] = useState("");
   const [wlRemoving, setWlRemoving] = useState(null);
@@ -1359,7 +1328,6 @@ export default function OptionsFlowDashboard() {
     const contracts = all.map(i=>({sym:i.sym, cp:i.cp, strike:i.strike, exp:i.exp}));
     try {
       await fetchPrices(contracts);
-      // After prices fetched, update liveOI from priceMap
       const updateList = (list) => list.map(item => {
         const px = getPrice(item.sym, item.cp, item.strike, item.exp);
         if (!px) return item;
@@ -1444,7 +1412,6 @@ export default function OptionsFlowDashboard() {
 
   const wlPopulateUnusual = () => {
     if (!FD || !FD.CONV) return;
-    // Build unusual items same way as Unusual tab
     const unusual = [];
     (FD.CONV||[]).forEach(c => { (c.patterns||[]).forEach(p => { unusual.push({ ...c, anomaly:p.type, source:"pattern" }); }); });
     (FD.CONV||[]).forEach(c => { if (c.volOI >= 10 && c.maxOI > 0 && c.maxOI < 500) unusual.push({ ...c, anomaly:"VOL_OI_EXTREME", source:"voloi" }); });
@@ -1453,10 +1420,8 @@ export default function OptionsFlowDashboard() {
       const thresh = cap==="Small"?500e3:cap==="Mid"?2e6:0;
       if (thresh > 0 && c.prem >= thresh) unusual.push({ ...c, anomaly:"SIZE_VS_CAP", source:"sizecap" });
     });
-    // Dedup by contract
     const seen = new Set();
     const deduped = unusual.filter(u => { const k = u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp; if (seen.has(k)) return false; seen.add(k); return true; });
-    // Dedup by ticker — highest premium per ticker
     const sorted = deduped.sort((a,b) => b.prem - a.prem);
     const tickerSeen = new Set();
     const uniqueTicker = (list) => list.filter(c => { if (tickerSeen.has(c.sym+"|"+c.dir)) return false; tickerSeen.add(c.sym+"|"+c.dir); return true; });
@@ -1482,9 +1447,7 @@ export default function OptionsFlowDashboard() {
     const setInput = side==="bull"?setWlAddBull:setWlAddBear;
     const setList = side==="bull"?setWlBull:setWlBear;
     const list = side==="bull"?wlBull:wlBear;
-    // Check if already exists
     if (list.some(i=>i.sym===input)) { setInput(""); return; }
-    // Try to find in CONV data for auto-population
     const match = FD?.CONV?.find(c=>c.sym===input);
     const item = match ? {
       sym:input, score:autoScore(match), autoScore:autoScore(match), tier:"WATCH",
@@ -1535,12 +1498,10 @@ export default function OptionsFlowDashboard() {
   // Auto-save Top Flow picks when CSV loads — save top 20 per CSV date
   useEffect(() => {
     if (!D || !D.CONV || D.CONV.length === 0) return;
-    // Tag each CONV entry with its CSV date from trades
     const convWithDates = D.CONV.map(c => {
       const trades = c.trades || [];
       const tradeDates = trades.map(t => (t.date || "").trim()).filter(d => d);
       const csvDate = tradeDates.length > 0 ? tradeDates[tradeDates.length - 1] : "";
-      // Convert CSV date (4/28/2026) to ISO (2026-04-28)
       let isoDate = new Date().toISOString().slice(0,10);
       if (csvDate) {
         const parts = csvDate.split("/");
@@ -1552,15 +1513,12 @@ export default function OptionsFlowDashboard() {
       }
       return { ...c, _csvDate: csvDate, _isoDate: isoDate };
     });
-
-    // Group by date, take top 20 per date
     const byDate = {};
     convWithDates.forEach(c => {
       const d = c._isoDate;
       if (!byDate[d]) byDate[d] = [];
       byDate[d].push(c);
     });
-
     const allPicks = [];
     Object.entries(byDate).forEach(([isoDate, entries]) => {
       entries.slice(0, 20).forEach(c => {
@@ -1573,8 +1531,6 @@ export default function OptionsFlowDashboard() {
           cap:capBand(c.mktcap), _dateSaved:isoDate });
       });
     });
-
-    // Populate locally immediately
     const localPicks = allPicks.map(p => ({
       id: `${p.sym}|${p.cp}|${p.strike}|${p.exp}`,
       ...p, dateSaved: p._dateSaved, history: []
@@ -1585,12 +1541,10 @@ export default function OptionsFlowDashboard() {
       const merged = localPicks.map(lp => existingMap[lp.id]
         ? { ...existingMap[lp.id], grade:lp.grade, hits:lp.hits, prem:lp.prem, dir:lp.dir, cap:lp.cap, dateSaved:lp.dateSaved }
         : lp);
-      // Keep existing picks that aren't in the new set
       const newIds = new Set(localPicks.map(p=>p.id));
       const kept = prev.active.filter(a => !newIds.has(a.id));
       return { ...prev, active: [...merged, ...kept] };
     });
-    // Save to backend (deferred)
     setTimeout(() => {
       const savePicks = allPicks.map(({_dateSaved, ...rest}) => ({...rest, dateSaved: _dateSaved}));
       fetch("/api/top-flow/save", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(savePicks) })
@@ -1605,7 +1559,6 @@ export default function OptionsFlowDashboard() {
   // Auto-load market data (deferred — non-critical)
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
   useEffect(() => { if (dataMode === "gex" && gexTicker) fetchGex(gexTicker, gexDte); }, [dataMode, gexTicker, gexDte]);
-
   // Lightweight Charts for GEX tab
   useEffect(() => {
     if (!showGexChart || !gexTicker || !gexData || gexData.error) {
@@ -1631,13 +1584,10 @@ export default function OptionsFlowDashboard() {
         timeScale: { borderColor: "#1a2540", timeVisible: true, secondsVisible: false,
           tickMarkFormatter: (time, tickMarkType) => {
             const d = new Date(time * 1000);
-            const et = d.toLocaleString('en-US', { timeZone: 'America/New_York', month:'numeric', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true });
-            const parts = et.split(', ');
-            const datePart = d.toLocaleString('en-US', { timeZone: 'America/New_York', month:'short', day:'numeric' });
-            const timePart = d.toLocaleString('en-US', { timeZone: 'America/New_York', hour:'numeric', minute:'2-digit', hour12:true });
-            const h = parseInt(d.toLocaleString('en-US', { timeZone: 'America/New_York', hour:'numeric', hour12:false }));
-            if (h <= 10 && parseInt(d.toLocaleString('en-US', { timeZone: 'America/New_York', minute:'numeric' })) <= 30) return datePart;
-            return timePart;
+            const h = parseInt(d.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
+            const m = parseInt(d.toLocaleString('en-US', { timeZone: 'America/New_York', minute: 'numeric' }));
+            if (h <= 10 && m <= 30) return d.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
+            return d.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
           }
         },
         localization: {
@@ -1667,10 +1617,10 @@ export default function OptionsFlowDashboard() {
           const wallMax = Math.max(cw?.gex||0, Math.abs(pw?.gex||0));
           const getLineWeight = (gexVal) => {
             const ratio = wallMax > 0 ? Math.abs(gexVal) / wallMax : 0;
-            if (ratio > 0.8) return { lw:4, ls:0, op:"" };       // wall-level — full opacity
-            if (ratio > 0.5) return { lw:3, ls:0, op:"CC" };     // major — 80% opacity
-            if (ratio > 0.25) return { lw:2, ls:0, op:"80" };    // secondary — 50% opacity
-            return { lw:1, ls:2, op:"59" };                       // minor dashed — 35% opacity
+            if (ratio > 0.8) return { lw:4, ls:0 };  // wall-level
+            if (ratio > 0.5) return { lw:3, ls:0 };  // major
+            if (ratio > 0.25) return { lw:2, ls:0 }; // solid secondary
+            return { lw:1, ls:2 };                    // minor dashed
           };
 
           // Call wall + Put wall
@@ -1682,19 +1632,26 @@ export default function OptionsFlowDashboard() {
             let label, color;
             if (proximity < 0.003) {
               label = "Pin "+fmtG(combined); color = "#e040fb"; // purple — price right at pin
+            } else if (aboveSpot && proximity < 0.02) {
+              label = "Resistance "+fmtG(combined); color = "#c43030"; // metallic silver — contested level, pulling up
             } else if (aboveSpot) {
-              label = "Resistance "+fmtG(combined); color = "#c43030"; // red — level above spot = resistance
+              label = "Resistance "+fmtG(combined); color = "#c43030"; // red — distant resistance
+            } else if (proximity < 0.02) {
+              label = "Support ↑ "+fmtG(combined); color = "#00BCD4"; // metallic silver — contested level, pulling down
             } else {
-              label = "Support ↑ "+fmtG(combined); color = "#00BCD4"; // cyan — level below spot = support
+              label = "Support ↑ "+fmtG(combined); color = "#00BCD4"; // cyan — distant support
             }
             series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
           } else {
             // Different strikes — draw separately
             if (cw) {
               const aboveSpot = cw.strike > sp;
+              const cwProx = Math.abs(cw.strike - sp) / sp;
               let label, color;
               if (aboveSpot) {
                 label = "Ceiling "+fmtG(cw.gex); color = "#c43030"; // red ceiling
+              } else if (cwProx < 0.02) {
+                label = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; // metallic silver — contested, could be support or pull
               } else {
                 label = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; // cyan — cleared, now support
               }
@@ -1702,9 +1659,12 @@ export default function OptionsFlowDashboard() {
             }
             if (pw) {
               const belowSpot = pw.strike < sp;
+              const pwProx = Math.abs(pw.strike - sp) / sp;
               let label, color;
               if (belowSpot) {
                 label = "Bounce "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; // green bounce
+              } else if (pwProx < 0.02) {
+                label = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; // metallic silver — contested, could be resistance or pull
               } else {
                 label = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; // red — broken floor now resistance
               }
@@ -1714,10 +1674,10 @@ export default function OptionsFlowDashboard() {
           // Danger line
           if (zg) series.createPriceLine({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Danger Line" });
 
-          // Secondary levels — thickness/style/opacity scales with $ value
+          // Secondary levels — thickness/style scales with $ value
           const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
 
-          // Above spot — all resistance = red with opacity
+          // Above spot — all resistance = red
           const aboveCandidates = [...(gexData.strikes||[])].filter(s=>s.strike>sp&&!usedStrikes.has(s.strike)).map(s=>{
             const callVal = s.callGex > 0 ? s.callGex : 0;
             const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
@@ -1731,7 +1691,7 @@ export default function OptionsFlowDashboard() {
             series.createPriceLine({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
           });
 
-          // Below spot — all support = green/cyan with opacity
+          // Below spot — all support = green/cyan
           const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
             const callVal = s.callGex > 0 ? s.callGex : 0;
             const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
@@ -2107,42 +2067,51 @@ export default function OptionsFlowDashboard() {
     );
   }
 
-  // ─── Loading / Error / Empty States (AFTER all hooks) ──────────────────
-  if (csvLoading && !D) return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
-      <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #00e676",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
-        <div style={{color:"#7b8fa3",fontSize:13}}>Loading flow data...</div>
-        <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
-      </div>
-    </div>
-  );
-  if (csvError && dataMode !== "gex") return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
-      <div style={{textAlign:"center",maxWidth:400}}>
-        <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
-          {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
-            <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); } }} style={{
-              padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
-              fontSize:14, fontWeight:800, fontFamily:"inherit",
-              background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
-            }}>{label}</button>
-          ))}
-        </div>
-        <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
-        <div style={{color:"#ff1744",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
-        <div style={{color:"#7b8fa3",fontSize:12,marginBottom:16}}>{csvError}</div>
-        <div style={{color:"#4a5c73",fontSize:11}}>No flow data in database. Upload CSV via the admin page to get started.</div>
-        <button onClick={()=>window.location.reload()} style={{marginTop:16,background:"#1a2540",color:"#c8d6e5",border:"1px solid #243352",borderRadius:6,padding:"8px 20px",fontSize:12,cursor:"pointer"}}>Retry</button>
-      </div>
-    </div>
-  );
-  if ((!D || !FD) && dataMode !== "gex") return (
+  // ─── Loading / Error / Upload States (AFTER all hooks) ──────────────
+  if (csvLoading) return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #00e676",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Processing flow data...</div>
         <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
+      </div>
+    </div>
+  );
+  if (!D && dataMode !== "gex") return (
+    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}
+      onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={onDrop}>
+      <div style={{textAlign:"center",maxWidth:460}}>
+        {/* Mode toggle */}
+        <div style={{ display:"flex", justifyContent:"center", marginBottom:20 }}>
+          <div style={{ display:"flex", background:"#111a2e", borderRadius:8, padding:3, border:"1px solid #1a2540" }}>
+            {[["stocks","Stocks"],["index","Indexes / ETF's"]].map(([m,label])=>(
+              <button key={m} onClick={()=>switchMode(m)} style={{
+                padding:"8px 28px", borderRadius:6, border:"none", cursor:"pointer",
+                fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
+                background:dataMode===m?"#0d1321":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73",
+                boxShadow:dataMode===m?"0 2px 8px rgba(0,0,0,0.3)":"none",
+                transition:"all 0.15s"
+              }}>{label}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{fontSize:32,marginBottom:12}}>📂</div>
+        <div style={{color:"#ffab00",fontSize:16,fontWeight:700,marginBottom:8}}>{dataMode==="index"?"Indexes / ETF's Flow":"Options Flow"} — Admin Upload</div>
+        <div style={{color:"#7b8fa3",fontSize:12,marginBottom:20}}>Drag & drop your <strong style={{color:"#ffab00"}}>{dataMode==="index"?"Indexes-data.csv":"flow-data.csv"}</strong> export here, or click to select.</div>
+        <div style={{
+          border:"2px dashed "+(dragOver?"#00e676":"#243352"), borderRadius:12, padding:"40px 20px",
+          background:dragOver?"#00e67610":"#0d1321", transition:"all 0.2s", cursor:"pointer", marginBottom:12
+        }} onClick={()=>document.getElementById("csv-admin-input").click()}>
+          <div style={{fontSize:36,marginBottom:8}}>{dragOver?"📥":"📄"}</div>
+          <div style={{color:dragOver?"#00e676":"#c8d6e5",fontSize:13,fontWeight:600}}>{dragOver?"Drop CSV here":"Click or drag CSV file"}</div>
+          <input id="csv-admin-input" type="file" accept=".csv" style={{display:"none"}} onChange={onFileInput}/>
+        </div>
+        {csvError && (
+          <div style={{marginTop:12}}>
+            <div style={{color:"#ff1744",fontSize:12,fontWeight:700,marginBottom:4}}>Error</div>
+            <div style={{color:"#7b8fa3",fontSize:11}}>{csvError}</div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2203,10 +2172,8 @@ export default function OptionsFlowDashboard() {
             }
             successes++;
           });
-          // Update cache progressively so UI shows results as they come in
           setPriceCache({...newCache});
         } catch(e) { failures += batch.length; }
-        // Delay between batches to avoid rate limiting
         if (b + BATCH_SIZE < unique.length) await new Promise(r => setTimeout(r, BATCH_DELAY));
       }
       if (updated) setPerf(updated);
@@ -2346,7 +2313,7 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
           <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
             {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
-              <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); } }} style={{
+              <button key={m} onClick={()=>switchMode(m)} style={{
                 padding:"8px 28px", borderRadius:6, border:m==="gex"?(dataMode===m?"1px solid #e040fb":"1px solid #e040fb55"):"none", cursor:"pointer",
                 fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
                 background:dataMode===m?(m==="gex"?"#e040fb33":P.cd):"transparent", color:dataMode===m?(m==="gex"?"#e040fb":P.wh):(m==="gex"?"#e040fb":P.mt),
@@ -2357,156 +2324,54 @@ export default function OptionsFlowDashboard() {
           </div>
         </div>
 
-        {/* Date Filter — rolling windows + presets + calendar */}
-        {dataMode !== "gex" && availableDates.length > 0 && (
+        {/* Date Filter — pills for ≤5 dates, dropdown for more */}
+        {dataMode !== "gex" && availableDates.length > 1 && (
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
-            <div style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
-              {[
-                { key:"Last1", label:"1d", days:1 },
-                { key:"Last5", label:"5d", days:5 },
-                { key:"Last20", label:"20d", days:20 },
-                { key:"Last60", label:"60d", days:60 },
-                { key:"Last90", label:"90d", days:90 },
-                { key:"All", label:"All", days:0 },
-              ].map(({key, label, days}) => {
-                const filterKey = days === 0 ? "All" : "Last" + days;
-                const isActive = !dateFrom && !dateTo && dateFilter === filterKey;
-                const needsFetch = days === 0 ? fetchDays !== 0 : days > fetchDays && fetchDays !== 0;
-                return (
-                  <button key={key} onClick={()=>{
-                    if (needsFetch) setFetchDays(days);
-                    setDateFilter(filterKey);
-                    setDateFrom(""); setDateTo(""); setShowCal(false); setCalStart(null);
-                  }} style={{
+            {availableDates.length <= 5 ? (
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:6, padding:2, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center" }}>
+                <button onClick={()=>setDateFilter("All")} style={{
+                  padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit",
+                  background:dateFilter==="All"?P.cd:"transparent", color:dateFilter==="All"?P.ac:P.mt
+                }}>All · {availableDates.length}d</button>
+                {availableDates.map(d=>(
+                  <button key={d} onClick={()=>setDateFilter(d)} style={{
                     padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
-                    fontSize:10, fontWeight:700, fontFamily:"inherit",
-                    background:isActive?P.cd:"transparent",
-                    color:isActive?(key==="All"?P.ac:P.wh):P.mt,
-                    transition:"all 0.15s"
-                  }}>
-                    {label}
-                  </button>
-                );
-              })}
-              <span style={{ width:1, height:16, background:P.bd }}/>
-              <button onClick={()=>{
-                if (!showCal) {
-                  const last = availableDates[availableDates.length-1];
-                  if (last) { const d = mdyToDate(last); setCalMonth(d.getMonth()); setCalYear(d.getFullYear()); }
-                }
-                setShowCal(!showCal); setCalStart(null);
-              }} style={{
-                padding:"5px 12px", borderRadius:4, border:"1px solid "+(dateFrom&&dateTo?P.ac:P.bd),
-                cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
-                background:dateFrom&&dateTo?P.ac+"22":showCal?P.cd:"transparent",
-                color:dateFrom&&dateTo?P.ac:showCal?P.wh:P.mt, transition:"all 0.15s"
-              }}>
-                {dateFrom && dateTo
-                  ? `${dateFrom.slice(5).replace("-","/")} → ${dateTo.slice(5).replace("-","/")}`
-                  : "📅 Dates"}
-              </button>
-              {dateFrom && dateTo && (
-                <button onClick={()=>{ setDateFrom(""); setDateTo(""); setDateFilter("Last1"); setShowCal(false); setCalStart(null); }}
-                  style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}>✕</button>
-              )}
-              <span style={{ fontSize:9, color:P.dm }}>
-                {csvLoading ? "Loading..." : dateFrom && dateTo
-                  ? (() => { const n = availableDates.filter(d => { const iso = mdyToIso(d); return iso >= dateFrom && iso <= dateTo; }).length; return n + " trading day" + (n!==1?"s":""); })()
-                  : (() => { const n = dateFilter.startsWith("Last") ? Math.min(parseInt(dateFilter.replace("Last",""))||1, availableDates.length) : availableDates.length; return n + " trading day" + (n!==1?"s":""); })()}
-              </span>
-
-              {showCal && (
-                <div ref={calRef} style={{
-                  position:"absolute", top:"100%", right:0, marginTop:6, zIndex:999,
-                  background:P.cd, border:"1px solid "+P.bl, borderRadius:10, padding:14,
-                  boxShadow:"0 8px 32px rgba(0,0,0,0.6)", minWidth:290
-                }}>
-                  <div style={{ display:"flex", gap:4, marginBottom:10, flexWrap:"wrap" }}>
-                    {[
-                      { label:"Today", fn:()=>{ const d=availableDates[availableDates.length-1]; if(d){const iso=mdyToIso(d); setDateFrom(iso); setDateTo(iso); if(fetchDays!==0)setFetchDays(0); setShowCal(false);} }},
-                      { label:"This Week", fn:()=>{ const last=availableDates[availableDates.length-1]; if(!last)return; const ld=mdyToDate(last); const mon=new Date(ld); mon.setDate(ld.getDate()-(ld.getDay()||7)+1); setDateFrom(mon.toISOString().slice(0,10)); setDateTo(mdyToIso(last)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
-                      { label:"Last Week", fn:()=>{ const now=new Date(); const mon=new Date(now); mon.setDate(now.getDate()-(now.getDay()||7)+1-7); const fri=new Date(mon); fri.setDate(mon.getDate()+4); setDateFrom(mon.toISOString().slice(0,10)); setDateTo(fri.toISOString().slice(0,10)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
-                      { label:"This Month", fn:()=>{ const now=new Date(); const f=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`; const last=availableDates[availableDates.length-1]; setDateFrom(f); setDateTo(last?mdyToIso(last):now.toISOString().slice(0,10)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
-                      { label:"Last Month", fn:()=>{ const now=new Date(); const pm=new Date(now.getFullYear(), now.getMonth()-1, 1); const f=`${pm.getFullYear()}-${String(pm.getMonth()+1).padStart(2,"0")}-01`; const lm=new Date(pm.getFullYear(), pm.getMonth()+1, 0); const t=`${lm.getFullYear()}-${String(lm.getMonth()+1).padStart(2,"0")}-${String(lm.getDate()).padStart(2,"0")}`; setDateFrom(f); setDateTo(t); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
-                    ].map(p => (
-                      <button key={p.label} onClick={p.fn} style={{
-                        padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bd,
-                        background:"transparent", color:P.mt, fontSize:9, fontWeight:700,
-                        cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s"
-                      }}
-                        onMouseEnter={e=>{e.target.style.background=P.al; e.target.style.color=P.wh;}}
-                        onMouseLeave={e=>{e.target.style.background="transparent"; e.target.style.color=P.mt;}}
-                      >{p.label}</button>
-                    ))}
-                  </div>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                    <button onClick={()=>{ if(calMonth===0){setCalMonth(11);setCalYear(calYear-1);}else setCalMonth(calMonth-1); }}
-                      style={{ background:"transparent", border:"none", color:P.mt, cursor:"pointer", fontSize:14, fontFamily:"inherit", padding:"2px 8px" }}>◀</button>
-                    <span style={{ fontSize:12, fontWeight:700, color:P.wh }}>
-                      {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][calMonth]} {calYear}
-                    </span>
-                    <button onClick={()=>{ if(calMonth===11){setCalMonth(0);setCalYear(calYear+1);}else setCalMonth(calMonth+1); }}
-                      style={{ background:"transparent", border:"none", color:P.mt, cursor:"pointer", fontSize:14, fontFamily:"inherit", padding:"2px 8px" }}>▶</button>
-                  </div>
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:4 }}>
-                    {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>(
-                      <div key={d} style={{ textAlign:"center", fontSize:8, fontWeight:700, color:P.dm, padding:2 }}>{d}</div>
-                    ))}
-                  </div>
-                  {(()=>{
-                    const firstDay = new Date(calYear, calMonth, 1).getDay();
-                    const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
-                    const cells = [];
-                    for (let i=0; i<firstDay; i++) cells.push(null);
-                    for (let d=1; d<=daysInMonth; d++) cells.push(d);
-                    while (cells.length%7!==0) cells.push(null);
-                    return (
-                      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1 }}>
-                        {cells.map((day, i) => {
-                          if (!day) return <div key={i} style={{ padding:4 }}/>;
-                          const iso = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-                          const isTrading = tradingDaysSet.has(iso);
-                          const isWeekend = new Date(calYear, calMonth, day).getDay()%6===0;
-                          const isStart = dateFrom===iso;
-                          const isEnd = dateTo===iso;
-                          const inRange = dateFrom && dateTo && iso>=dateFrom && iso<=dateTo;
-                          return (
-                            <button key={i} onClick={()=>{
-                              if (!calStart) {
-                                setCalStart(iso); setDateFrom(iso); setDateTo("");
-                              } else {
-                                let from=calStart, to=iso;
-                                if (iso < calStart) { from=iso; to=calStart; }
-                                setDateFrom(from); setDateTo(to); setCalStart(null);
-                                if (fetchDays!==0) setFetchDays(0);
-                                setShowCal(false);
-                              }
-                            }} style={{
-                              padding:0, borderRadius:4, border:"none", cursor:"pointer",
-                              fontSize:10, fontWeight:isTrading?700:400, fontFamily:"inherit",
-                              background: isStart||isEnd ? P.ac : inRange ? P.ac+"33" : "transparent",
-                              color: isStart||isEnd ? P.bg : inRange ? P.ac : isTrading ? P.wh : isWeekend ? P.bd : P.dm+"88",
-                              minWidth:32, minHeight:32, display:"flex", alignItems:"center", justifyContent:"center",
-                              position:"relative", transition:"background 0.1s"
-                            }}
-                              onMouseEnter={e=>{ if(!inRange&&!isStart&&!isEnd) e.target.style.background=P.al; }}
-                              onMouseLeave={e=>{ if(!inRange&&!isStart&&!isEnd) e.target.style.background="transparent"; }}
-                            >
-                              {day}
-                              {isTrading && <span style={{ position:"absolute", bottom:2, left:"50%", transform:"translateX(-50%)", width:3, height:3, borderRadius:"50%", background:isStart||isEnd?P.bg:P.ac }}/>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                  <div style={{ marginTop:8, fontSize:9, color:P.dm, textAlign:"center" }}>
-                    {calStart && !dateTo ? "Click end date" : "Click to start selection"}
-                    {" · "}<span style={{ color:P.ac }}>●</span> trading day
-                  </div>
-                </div>
-              )}
-            </div>
+                    fontSize:10, fontWeight:600, fontFamily:"inherit",
+                    background:dateFilter===d?P.cd:"transparent", color:dateFilter===d?P.wh:P.mt
+                  }}>{fmtDatePill(d)}</button>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display:"flex", gap:6, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd }}>
+                {["Last3","Last5"].map(v=>{
+                  const n = parseInt(v.replace("Last",""));
+                  const label = "Last "+n+"d";
+                  return (
+                    <button key={v} onClick={()=>setDateFilter(v)} style={{
+                      padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                      fontSize:10, fontWeight:700, fontFamily:"inherit",
+                      background:dateFilter===v?P.cd:"transparent", color:dateFilter===v?P.ac:P.mt
+                    }}>{label}</button>
+                  );
+                })}
+                <button onClick={()=>setDateFilter("All")} style={{
+                  padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit",
+                  background:dateFilter==="All"?P.cd:"transparent", color:dateFilter==="All"?P.ac:P.mt
+                }}>All {availableDates.length}d</button>
+                <span style={{ width:1, height:16, background:P.bd }}/>
+                <select value={dateFilter.startsWith("Last")||dateFilter==="All"?"":dateFilter}
+                  onChange={e=>e.target.value&&setDateFilter(e.target.value)}
+                  style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit", fontWeight:600, minWidth:120 }}>
+                  <option value="">Select date...</option>
+                  {[...availableDates].reverse().map(d=>(
+                    <option key={d} value={d}>{fmtDatePill(d)}</option>
+                  ))}
+                </select>
+                <span style={{ fontSize:9, color:P.dm }}>{availableDates.length} trading days</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -2751,18 +2616,6 @@ export default function OptionsFlowDashboard() {
                   const firstSupBelow = swingPutsBelow.length > 0 ? swingPutsBelow.sort((a,b)=>b.strike-a.strike)[0] : (putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null);
                   const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
 
-                  // Thin zone detection — gaps where price can accelerate
-                  const allStrikesAbove = [...(gexData.strikes||[])].filter(s => s.strike > sp && (s.callGex > 0 || Math.abs(s.putGex) > 0)).sort((a,b)=>a.strike-b.strike);
-                  const allStrikesBelow = [...(gexData.strikes||[])].filter(s => s.strike < sp && (s.callGex > 0 || Math.abs(s.putGex) > 0)).sort((a,b)=>b.strike-a.strike);
-                  // Thin above: gap between ceiling (or first res) and the next level above it
-                  const ceilingStrike = cwAboveSpot ? cwStrike : (firstResAbove ? firstResAbove.strike : null);
-                  const levelAboveCeiling = ceilingStrike ? allStrikesAbove.find(s => s.strike > ceilingStrike) : null;
-                  const thinAbove = ceilingStrike && (!levelAboveCeiling || (levelAboveCeiling.strike - ceilingStrike) / sp > 0.015);
-                  // Thin below: gap between floor (or first support) and the next level below it
-                  const floorStrike = pwBelowSpot ? pwStrike : (firstSupBelow ? firstSupBelow.strike : null);
-                  const levelBelowFloor = floorStrike ? allStrikesBelow.find(s => s.strike < floorStrike) : null;
-                  const thinBelow = floorStrike && (!levelBelowFloor || (floorStrike - levelBelowFloor.strike) / sp > 0.015);
-
                   let verdictText, verdictIcon, verdictBg, verdictColor;
                   if (pinSetup) {
                     if (cwStrike === pwStrike) {
@@ -2930,8 +2783,8 @@ export default function OptionsFlowDashboard() {
                   const trades = [];
                   const zgNearSpot = zg && Math.abs(sp - zg) / sp < 0.005; // within 0.5%
                   const zgBelowClose = zg && (zg - sp) / sp > -0.01 && zg < sp; // zg just below spot (<1%)
-                  const cwMagnet = !cwAboveSpot; // call wall below spot = support
-                  const pwMagnet = !pwBelowSpot; // put wall above spot = resistance
+                  const cwMagnet = !cwAboveSpot; // call wall below spot = magnet down
+                  const pwMagnet = !pwBelowSpot; // put wall above spot = magnet up
 
                   if (pinSetup) {
                     // Pin setup trades
@@ -2951,8 +2804,6 @@ export default function OptionsFlowDashboard() {
                         trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is support below. Buy dips toward it — "+fmtGex(cwGex+pwGex)+" catches any pullback." });
                       }
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+pinStrike+". Sell rallies above $"+(pinStrike+pinRange*3)+" and buy dips below $"+(pinStrike-pinRange*3)+"." });
-                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin air above the pin — if price breaks above $"+(pinStrike+pinRange*3)+", it can run fast. Join the breakout, don't fade it." });
-                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin air below — if $"+(pinStrike-pinRange*3)+" breaks, price can slice through quickly. Protect downside." });
                     } else {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+pinStrike+" is the pin strike this week — sell weekly premium around it. Iron fly or short straddle with defined risk." });
                       if (pinAboveSpot) {
@@ -2965,8 +2816,6 @@ export default function OptionsFlowDashboard() {
                         trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is weekly support below — "+fmtGex(cwGex+pwGex)+" catches pullbacks. Buy dips toward it." });
                       }
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Use $"+(pinStrike+pinRange*3)+" and $"+(pinStrike-pinRange*3)+" as swing fade levels. Enter on daily closes outside the range, target a snap back to $"+pinStrike+"." });
-                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin resistance above the pin — a daily close above $"+(pinStrike+pinRange*3)+" can run fast. Join the breakout." });
-                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin support below — a daily close below $"+(pinStrike-pinRange*3)+" means fast downside. Cut longs." });
                     }
                   } else if (squeezeSetup) {
                     // Squeeze setup trades
@@ -2975,13 +2824,9 @@ export default function OptionsFlowDashboard() {
                     if (isIntraday) {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+mid+" — sell premium here (iron fly). Profit if price stays between $"+(lo-Math.round(wallSpread))+"–$"+(hi+Math.round(wallSpread))+"." });
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+mid+". Sell rallies above $"+(hi+Math.round(wallSpread*0.5))+" and buy dips below $"+(lo-Math.round(wallSpread*0.5))+"." });
-                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin air above $"+hi+" — if price breaks the ceiling, it can run fast. Don't fade a breakout above $"+(hi+Math.round(wallSpread))+"." });
-                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin air below $"+lo+" — if the floor breaks, price can slice through quickly. Tighten stops." });
                     } else {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+lo+"–$"+hi+" is the weekly range. Sell weekly premium — iron condor with wings outside $"+(lo-Math.round(wallSpread))+" and $"+(hi+Math.round(wallSpread))+"." });
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Swing entries: buy daily closes near $"+lo+", take profits near $"+hi+". Fade daily closes above $"+hi+" back toward $"+mid+"." });
-                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin resistance above $"+hi+" — a daily close above it can run fast. Don't fade, join the move." });
-                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin support below $"+lo+" — a daily close below it means fast downside. Cut longs." });
                     }
                   } else {
                     // Directional trades
@@ -3058,9 +2903,6 @@ export default function OptionsFlowDashboard() {
 
                   // Danger zone
                   const dangerLevel = pwBelowSpot ? pwStrike : Math.round(sp * 0.97);
-                  if (thinBelow && !pinSetup && !squeezeSetup) {
-                    trades.push({ i:"⚠", bg:P.be+"33", c:P.be, t:(isIntraday?"Thin air below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — if support breaks, price can slice through fast. No cushion to slow the drop.":"Thin support below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — a break means fast downside with nothing to catch it.") });
-                  }
                   const cwCloseBelow = cwMagnet && (sp - cwStrike) / sp < 0.02;
                   trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwCloseBelow && !pinSetup && !squeezeSetup ? " Broken support at $"+cwStrike+" would speed up the drop." : "") });
 
@@ -3134,7 +2976,7 @@ export default function OptionsFlowDashboard() {
                           parts.push(isIntraday ? "Both about the same strength — choppy range. "+safetyStr : "Expect a choppy week in this range. Swing the edges. "+safetyStr);
                         }
                       } else if (!cwAboveSpot) {
-                        // CW below = support
+                        // CW below = magnet pulling down
                         const cwProxQR = (sp - cwStrike) / sp;
                         if (cwProxQR < 0.02) {
                           parts.push("Spot just above the massive "+cwStr+" level ("+fmtGex(cwGex)+") — now acting as support below.");
@@ -3149,7 +2991,7 @@ export default function OptionsFlowDashboard() {
                           parts.push((firstResAbove ? "Next resistance at $"+firstResAbove.strike+"." : "Room to run higher.")+" "+(isPositive ? (isIntraday?"Pullbacks toward "+cwStr+" are buying opportunities.":"Buy dips toward "+cwStr+" this week — safety net supports.") : "Safety net off — protect below "+cwStr+"."));
                         }
                       } else if (!pwBelowSpot) {
-                        // PW above = resistance
+                        // PW above = magnet pulling up
                         parts.push("Floor at "+pwStr+" is above current price — pulling price UP.");
                         parts.push(fmtGex(pwGex)+" wants price at "+pwStr+"."+(isIntraday?" Bullish pull.":" Bullish weekly bias — look for entries on dips."));
                       }
@@ -3254,10 +3096,23 @@ export default function OptionsFlowDashboard() {
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
           <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
-          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — MARKET READ</h1>
+          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — ADMIN</h1>
           <span style={{ marginLeft:"auto", fontSize:10, color:P.mt, background:P.al, padding:"3px 10px", borderRadius:4 }}>
             {D.dateRange} · {D.confirmedCount} confirmed of {D.totalTrades} trades
           </span>
+          <button onClick={()=>document.getElementById("csv-reupload").click()}
+            style={{ marginLeft:8, padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:"transparent",
+              color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            ↑ Re-upload CSV
+          </button>
+          <input id="csv-reupload" type="file" accept=".csv" style={{display:"none"}} onChange={onFileInput}/>
+          {dbStatus && (
+            <span style={{ fontSize:9, fontWeight:600, padding:"3px 10px", borderRadius:4, marginLeft:6,
+              background: dbStatus.type==="ok"?P.bu+"22":dbStatus.type==="error"?P.be+"22":P.al,
+              color: dbStatus.type==="ok"?P.bu:dbStatus.type==="error"?P.be:P.ye }}>
+              {dbStatus.msg}
+            </span>
+          )}
         </div>
 
         {/* ── Market Pulse ─────────────────────────────────────────────── */}
@@ -3361,7 +3216,6 @@ export default function OptionsFlowDashboard() {
             );
           })()}
         </div>
-
         {/* Tabs */}
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
@@ -3552,6 +3406,7 @@ export default function OptionsFlowDashboard() {
                 </div>
               </Card>
             )}
+
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
 
             {/* Bull vs Bear Leaderboard */}
@@ -3559,7 +3414,6 @@ export default function OptionsFlowDashboard() {
             <Card title="Flow Leaderboard" sub="Top bullish & bearish tickers by net premium">
               {(()=>{
                 const [lbDte, setLbDte] = [leaderDte, setLeaderDte];
-                // Build per-ticker bull/bear from confirmed trades with DTE filter
                 const dteFilter = t => lbDte==="All" ? true : lbDte==="ST" ? t.DTE<60 : t.DTE>=60;
                 const tkMap = {};
                 (D.clean_confirmed||[]).forEach(t => {
@@ -3759,7 +3613,7 @@ export default function OptionsFlowDashboard() {
           const priorDates = new Set(allDates.slice(0, -5));
           const tkMap = {};
           filtered.forEach(t => {
-            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set() };
+            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set() };
             const tk = tkMap[t.S];
             if (t.D==="BULL") tk.bull += t.P;
             if (t.D==="BEAR") tk.bear += t.P;
@@ -3993,7 +3847,6 @@ export default function OptionsFlowDashboard() {
 
         {/* Top Flow — Master List */}
         {tab==="Top Flow" && (()=>{
-          // Build clusters from ALL clean confirmed trades
           const tfClusters = {};
           (D.clean_confirmed||[]).forEach(t => {
             const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
@@ -4075,7 +3928,6 @@ export default function OptionsFlowDashboard() {
                 </div>
               </div>
             </Card>
-            {/* Filters */}
             <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
               <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
                 {[["All","All DTE"],["ST","0–59d"],["LT","60–179d"],["LEAPS","180+d"]].map(([v,label])=>(
@@ -4097,7 +3949,6 @@ export default function OptionsFlowDashboard() {
               </div>
               <span style={{ fontSize:10, color:P.dm, alignSelf:"center" }}>{ranked.length} contracts</span>
             </div>
-            {/* Table */}
             <Card>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
@@ -4246,11 +4097,9 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:10, fontWeight:700, color:P.ac, marginBottom:6 }}>
                       {batchResults.filter(r=>r.found).length} of {batchResults.length} tickers found in flow data
                     </div>
-                    {/* Top Ideas from batch */}
                     {(()=>{
                       const found = batchResults.filter(r=>r.found && r.net > 0);
                       if (found.length < 2) return null;
-                      // Score each
                       const scored = found.map(r => {
                         let sc = 0;
                         const convPct = r.dir==="BULL" ? r.bullPct : (100-r.bullPct);
@@ -4264,7 +4113,6 @@ export default function OptionsFlowDashboard() {
                           else if (tc.DTE >= 3 && tc.DTE <= 45) sc += 10;
                           else sc += 5;
                         }
-                        // Build reason
                         const reasons = [];
                         if (convPct >= 90) reasons.push(Math.round(convPct)+"% "+r.dir.toLowerCase());
                         if (r.hasSwp && r.hasBlk) reasons.push("sweep+block");
@@ -4285,7 +4133,23 @@ export default function OptionsFlowDashboard() {
                         if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
                         return (
                           <div key={r.sym} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px", borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
-                            onClick={()=>{ setSearch(r.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===r.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); }}>
+                            onClick={()=>{
+                                const cc = D.clean_confirmed||[];
+                                const trades = cc.filter(t=>t.S===r.sym);
+                                const contracts = {};
+                                trades.forEach(t => {
+                                  const ck=t.CP+"|"+t.K+"|"+t.E;
+                                  if(!contracts[ck]) contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,DTE:t.DTE,askPrem:0,bidPrem:0,maxOI:0,hasSweep:false,hasBlock:false,prices:[]};
+                                  const c=contracts[ck]; c.hits++; c.prem+=t.P; c.vol+=t.V;
+                                  if(t.Ty==="SWP") c.hasSweep=true; if(t.Ty==="BLK") c.hasBlock=true;
+                                  if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
+                                  if(t.OI>c.maxOI) c.maxOI=t.OI;
+                                  if(t.price>0) c.prices.push(t.price);
+                                });
+                                Object.values(contracts).forEach(c=>{ c.entry=c.prices.length>0?c.prices.reduce((a,b)=>a+b,0)/c.prices.length:0; c.volOI=c.maxOI>0?c.vol/c.maxOI:0; });
+                                setBatchDetail({sym:r.sym, bull:r.bull, bear:r.bear, bullPct:r.bullPct, dir:r.dir, net:r.net, n:r.n,
+                                  contracts:Object.values(contracts).sort((a,b)=>b.prem-a.prem), mktcap:r.mktcap});
+                              }}>
                             <span style={{ fontSize:10, color:dirC, fontWeight:900, width:16 }}>{i+1}</span>
                             <span style={{ fontWeight:900, color:P.wh, fontSize:12, minWidth:50 }}>{r.sym}</span>
                             <span style={{ fontWeight:800, color:dirC, fontSize:11 }}>{fmt(r.net)}</span>
@@ -4338,7 +4202,23 @@ export default function OptionsFlowDashboard() {
                           if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
                           return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
-                              onClick={()=>{ setSearch(r.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===r.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); }}>
+                              onClick={()=>{
+                                const cc = D.clean_confirmed||[];
+                                const trades = cc.filter(t=>t.S===r.sym);
+                                const contracts = {};
+                                trades.forEach(t => {
+                                  const ck=t.CP+"|"+t.K+"|"+t.E;
+                                  if(!contracts[ck]) contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,DTE:t.DTE,askPrem:0,bidPrem:0,maxOI:0,hasSweep:false,hasBlock:false,prices:[]};
+                                  const c=contracts[ck]; c.hits++; c.prem+=t.P; c.vol+=t.V;
+                                  if(t.Ty==="SWP") c.hasSweep=true; if(t.Ty==="BLK") c.hasBlock=true;
+                                  if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
+                                  if(t.OI>c.maxOI) c.maxOI=t.OI;
+                                  if(t.price>0) c.prices.push(t.price);
+                                });
+                                Object.values(contracts).forEach(c=>{ c.entry=c.prices.length>0?c.prices.reduce((a,b)=>a+b,0)/c.prices.length:0; c.volOI=c.maxOI>0?c.vol/c.maxOI:0; });
+                                setBatchDetail({sym:r.sym, bull:r.bull, bear:r.bear, bullPct:r.bullPct, dir:r.dir, net:r.net, n:r.n,
+                                  contracts:Object.values(contracts).sort((a,b)=>b.prem-a.prem), mktcap:r.mktcap});
+                              }}>
                               <td style={{ padding:"5px", fontWeight:900, color:P.wh, fontSize:11 }}>
                                 {r.sym}
                                 {capBand(r.mktcap)!=="Unknown" && <span style={{ fontSize:7, color:P.dm, marginLeft:3 }}>{capBand(r.mktcap)}</span>}
@@ -4374,9 +4254,83 @@ export default function OptionsFlowDashboard() {
                 )}
               </Card>
             )}
+            {/* Batch Detail Popup */}
+            {batchDetail && (
+              <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.7)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}
+                onClick={()=>setBatchDetail(null)}>
+                <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:12, padding:20, maxWidth:900, width:"90%", maxHeight:"80vh", overflow:"auto" }}
+                  onClick={e=>e.stopPropagation()}>
+                  {(()=>{
+                    const d = batchDetail;
+                    const dirC = d.dir==="BULL"?P.bu:P.be;
+                    return (<>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <span style={{ fontSize:20, fontWeight:900, color:P.wh }}>{d.sym}</span>
+                          <span style={{ fontSize:8, color:P.dm }}>{capBand(d.mktcap)}</span>
+                          <Tag c={dirC}>{d.dir}</Tag>
+                          <span style={{ fontWeight:800, color:dirC, fontSize:14 }}>{fmt(d.net)}</span>
+                          <span style={{ fontWeight:800, color:d.bullPct>=80?P.bu:d.bullPct<=20?P.be:P.dm, fontSize:11 }}>{d.bullPct}% bull</span>
+                        </div>
+                        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                          <button onClick={()=>{ fetchPrices(d.contracts.map(c=>({sym:d.sym,cp:c.cp,strike:c.K,exp:c.exp}))); }} disabled={fetchLoading}
+                            style={{ padding:"6px 14px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
+                            {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}</button>
+                          <button onClick={()=>{ setSearch(d.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===d.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); setBatchDetail(null); }}
+                            style={{ padding:"6px 14px", borderRadius:6, border:"1px solid "+P.bd, cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.mt }}>Open in Search →</button>
+                          <button onClick={()=>setBatchDetail(null)} style={{ padding:"4px 10px", borderRadius:6, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.dm }}>✕</button>
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", gap:16, marginBottom:12, fontSize:10 }}>
+                        <span>Bull: <strong style={{ color:P.bu }}>{fmt(d.bull)}</strong></span>
+                        <span>Bear: <strong style={{ color:P.be }}>{fmt(d.bear)}</strong></span>
+                        <span>Trades: <strong style={{ color:P.wh }}>{d.n}</strong></span>
+                        <span>Contracts: <strong style={{ color:P.wh }}>{d.contracts.length}</strong></span>
+                        {status && <span style={{ color:P.dm }}>{status}</span>}
+                      </div>
+                      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                        <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                          {["C/P","Strike","Exp","DTE","Hits","Vol","OI","Vol/OI","Entry","Now","P&L","Premium","Side"].map(h=>(
+                            <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {d.contracts.slice(0,15).map((c,i) => {
+                            const px = getPrice(d.sym, c.cp, c.K, c.exp);
+                            const now = px ? (px.mark || px.last || px.mid || 0) : 0;
+                            const entry = c.entry || 0;
+                            const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
+                            const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
+                            const cSide = c.askPrem >= c.bidPrem ? "ASK" : "BID";
+                            const sideC = cSide==="ASK" ? P.mt : "#ff9800";
+                            const curOI = px ? px.oi : 0;
+                            return (
+                              <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10" }}>
+                                <td style={{ padding:"4px 5px" }}><Tag c={c.cp==="C"?P.bu:P.be}>{c.cp}</Tag></td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:P.wh }}>${c.K}</td>
+                                <td style={{ padding:"4px 5px", color:P.wh }}>{c.exp}</td>
+                                <td style={{ padding:"4px 5px", color:c.DTE<=7?P.be:c.DTE<=30?P.ye:P.dm }}>{c.DTE}d</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:c.hits>=10?P.ac:c.hits>=5?P.ye:P.dm }}>{c.hits}x</td>
+                                <td style={{ padding:"4px 5px", color:P.dm }}>{c.vol.toLocaleString()}</td>
+                                <td style={{ padding:"4px 5px", color:P.dm }}>{curOI>0?curOI.toLocaleString():c.maxOI.toLocaleString()}</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:c.volOI>=10?P.ac:c.volOI>=3?P.ye:P.dm }}>{c.volOI>0?c.volOI.toFixed(1)+"x":"—"}</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:now>0?P.wh:P.dm }}>{now>0?"$"+now.toFixed(2):"—"}</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:premC(c.prem) }}>{fmt(c.prem)}</td>
+                                <td style={{ padding:"4px 5px", fontSize:9, color:sideC, fontWeight:700 }}>{cSide}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </>);
+                  })()}
+                </div>
+              </div>
+            )}
             {selectedTicker && (() => {
               const tk = selectedTicker;
-              // DTE filter for summary cards
               const dteF = t => searchDte==="All" ? true : searchDte==="ST" ? t.DTE>=0&&t.DTE<60 : searchDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
               const ccAll = (D.clean_confirmed||[]).filter(t => t.S===tk.s);
               const ccTrades = ccAll.filter(dteF);
@@ -4479,7 +4433,7 @@ export default function OptionsFlowDashboard() {
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                 <button onClick={()=>{
                   const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40)
-                    : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).slice(0,100);
+                : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).slice(0,100);
                   fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -4492,7 +4446,6 @@ export default function OptionsFlowDashboard() {
             {(() => {
               const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40)
                 : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).slice(0,100);
-              // Enrich with live OI data
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);
                 const curOI = px ? (px.oi||0) : 0;
@@ -4503,7 +4456,6 @@ export default function OptionsFlowDashboard() {
                 const pctDOI = baseOI > 0 && bestDOI !== 0 ? Math.round(bestDOI / baseOI * 100) : 0;
                 return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI, pctDOI };
               });
-              // Sort
               const getVal = (r, key) => {
                 if (key==="sym") return r.S||"";
                 if (key==="exp") return new Date(r.E||0).getTime();
@@ -4727,7 +4679,6 @@ export default function OptionsFlowDashboard() {
                       const trendC = trend==="↑"?P.bu:trend==="↓"?P.be:P.dm;
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
                       const showSep = activeResult.split > 0 && i === activeResult.split;
-                      // OI: prefer CSV cross-reference, fallback to snapshot history
                       const csvMatch = D?.WATCH?.find(w=>w.S===p.sym&&w.CP===p.cp&&String(w.K)===String(p.strike)&&w.E===p.exp);
                       const oiHist = hist.filter(h=>(h.oi||0)>0);
                       let curOI, prevOI, deltaOI;
@@ -4870,7 +4821,6 @@ export default function OptionsFlowDashboard() {
                 borderBottom:isRemoving?"none":undefined,
                 cursor:"pointer", transition:"all 0.15s" }}
                 onClick={()=>{if(!isRemoving){setWlEditing(isEditing?null:key); setWlRemoving(null);}}}>
-                {/* Ticker + Score */}
                 <div style={{ width:120, flexShrink:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{item.sym}</span>
@@ -4909,7 +4859,6 @@ export default function OptionsFlowDashboard() {
                     })()}
                   </div>
                 </div>
-                {/* Strike/Exp */}
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11, fontWeight:700, color:item.cp==="C"?P.bu:P.be }}>
                     {item.cp==="C"?"CALL":"PUT"} ${item.strike} {item.exp}{item.side&&<span style={{ fontSize:8, fontWeight:800, marginLeft:5, padding:"1px 5px", borderRadius:3, background:item.side==="AA"?P.ac+"22":item.side==="BB"?P.be+"22":P.mt+"22", color:item.side==="AA"?P.ac:item.side==="BB"?P.be:P.mt }}>{item.side}</span>}
@@ -4943,7 +4892,6 @@ export default function OptionsFlowDashboard() {
                     </div>
                   )}
                 </div>
-                {/* Meta + Remove */}
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2, minWidth:50 }}>
                   <Tag c={GRADE_COLORS[item.grade]||P.mt}>{item.grade}</Tag>
                   <span style={{ fontSize:11 }}><span style={{ color:item.hits>=10?P.ac:item.hits>=5?P.ye:P.dm, fontWeight:700 }}>{item.hits}x</span> · <span style={{ color:premC(item.prem), fontWeight:800 }}>{fmt(item.prem)}</span></span>
@@ -4976,7 +4924,6 @@ export default function OptionsFlowDashboard() {
                   );
                 })()}
               </div>
-              {/* Removal reason prompt */}
               {isRemoving && (
                 <div style={{ padding:"8px 10px", background:P.be+"06", border:"1px solid "+P.be+"40", borderTop:"none", borderRadius:"0 0 6px 6px" }}
                   onClick={e=>e.stopPropagation()}>
@@ -5065,7 +5012,6 @@ export default function OptionsFlowDashboard() {
             </div>
             {/* Two-column layout */}
             {(()=>{
-              // Compute DTE and filter
               const getDTE = (item) => {
                 if (!item.exp) return -1;
                 const parts = item.exp.split("/").map(Number);
