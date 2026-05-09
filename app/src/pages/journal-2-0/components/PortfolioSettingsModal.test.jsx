@@ -154,4 +154,31 @@ describe('PortfolioSettingsModal', () => {
     await user.click(backdrop)
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('Phase A guard inputs ship in the save payload', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
+    )
+
+    const sizeInput = screen.getByLabelText(/Default Position Size/i)
+    const rInput = screen.getByLabelText(/Default Target \(R multiple\)/i)
+    const capInput = screen.getByLabelText(/Max Risk Per Trade/i)
+
+    await user.clear(sizeInput)
+    await user.type(sizeInput, '5')
+    await user.clear(rInput)
+    await user.type(rInput, '2')
+    await user.clear(capInput)
+    await user.type(capInput, '1')
+
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.defaultSizePct).toBe(5)
+    expect(payload.defaultRMultipleTarget).toBe(2)
+    expect(payload.maxRiskPerTradePct).toBe(1)
+  })
 })
