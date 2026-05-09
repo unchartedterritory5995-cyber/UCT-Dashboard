@@ -17,6 +17,10 @@ import useJ2Accounts from './useJ2Accounts'
 const STORAGE_KEY = 'uct.j2.selectedAccountId'
 // Sentinel for "all accounts": stored as the literal string "_all_".
 const ALL_ACCOUNTS = '_all_'
+// Custom event so every hook instance in the tab stays in sync when any
+// caller of setAccount changes the selection. (The native `storage` event
+// only fires cross-tab.)
+const CHANGE_EVENT = 'uct:j2:selected-account-changed'
 
 export default function useJ2SelectedAccount() {
   const { accounts, isLoading } = useJ2Accounts()
@@ -25,6 +29,16 @@ export default function useJ2SelectedAccount() {
     if (stored === ALL_ACCOUNTS) return null
     return stored || null
   })
+
+  // Subscribe to in-tab change events fired by any other hook instance.
+  useEffect(() => {
+    const handler = (e) => {
+      const next = e.detail?.id === undefined ? null : e.detail.id
+      setAccountIdState(next)
+    }
+    window.addEventListener(CHANGE_EVENT, handler)
+    return () => window.removeEventListener(CHANGE_EVENT, handler)
+  }, [])
 
   // Once accounts arrive, validate the stored ID — if it doesn't exist
   // anymore, fall back to the first account.
@@ -40,6 +54,7 @@ export default function useJ2SelectedAccount() {
       const firstId = accounts[0].id
       setAccountIdState(firstId)
       localStorage.setItem(STORAGE_KEY, firstId)
+      window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: { id: firstId } }))
     } else if (accountId !== stored) {
       setAccountIdState(stored)
     }
@@ -50,6 +65,7 @@ export default function useJ2SelectedAccount() {
     setAccountIdState(id)
     if (id === null) localStorage.setItem(STORAGE_KEY, ALL_ACCOUNTS)
     else localStorage.setItem(STORAGE_KEY, id)
+    window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: { id } }))
   }, [])
 
   const account = accountId
