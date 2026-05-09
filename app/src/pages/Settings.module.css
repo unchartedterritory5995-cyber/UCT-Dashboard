@@ -310,3 +310,37 @@
   .overlaySelect { font-size: 16px; }
   .opacitySlider { max-width: unset; }
 }
+
+/* ── Voice Panel ── */
+.voiceRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.voiceLabel {
+  min-width: 110px;
+  opacity: 0.85;
+}
+.voiceVal {
+  color: #c9a84c;
+  font-variant-numeric: tabular-nums;
+}
+.voiceMeter {
+  flex: 1 1 auto;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.voiceMeterFill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #c9a84c 70%, #f87171);
+  transition: width 200ms ease;
+}
+.voiceSaveMsg {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 6px;
+}

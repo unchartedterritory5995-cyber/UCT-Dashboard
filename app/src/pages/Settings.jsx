@@ -133,6 +133,106 @@ function AvatarUpload({ user }) {
   )
 }
 
+// ── Voice Panel ──
+function VoicePanel() {
+  const [settings, setSettings] = useState(null)
+  const [usage, setUsage] = useState(null)
+  const [savingMsg, setSavingMsg] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      fetch('/api/voice/settings', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      fetch('/api/voice/usage', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+    ]).then(([s, u]) => {
+      if (cancelled) return
+      setSettings(s)
+      setUsage(u)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  if (!settings) {
+    return <TileCard title="Voice"><div style={{ opacity: 0.7 }}>Voice features require a paid plan.</div></TileCard>
+  }
+
+  const update = async (patch) => {
+    setSavingMsg('Saving…')
+    const r = await fetch('/api/voice/settings', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    if (r.ok) {
+      const next = await r.json()
+      setSettings(next)
+      setSavingMsg('Saved ✓')
+      setTimeout(() => setSavingMsg(''), 1500)
+    } else {
+      setSavingMsg('Save failed')
+    }
+  }
+
+  const VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse']
+  const usedSec = usage?.mode_a_seconds ?? 0
+  const capSec = usage?.cap_seconds ?? null
+  const pct = capSec ? Math.min(100, Math.round((usedSec / capSec) * 100)) : 0
+
+  return (
+    <TileCard title="Voice">
+      <div className={styles.voiceRow}>
+        <label className={styles.voiceLabel}>
+          <input
+            type="checkbox"
+            checked={!!settings.enabled}
+            onChange={(e) => update({ enabled: e.target.checked })}
+          />
+          {' '}Voice features enabled
+        </label>
+      </div>
+
+      <div className={styles.voiceRow}>
+        <span className={styles.voiceLabel}>Voice</span>
+        <select value={settings.voice} onChange={(e) => update({ voice: e.target.value })}>
+          {VOICES.map(v => <option key={v} value={v}>{v}</option>)}
+        </select>
+      </div>
+
+      <div className={styles.voiceRow}>
+        <span className={styles.voiceLabel}>Speed</span>
+        <input
+          type="range"
+          min="0.5"
+          max="2.0"
+          step="0.05"
+          value={settings.speed}
+          onChange={(e) => update({ speed: parseFloat(e.target.value) })}
+        />
+        <span className={styles.voiceVal}>{settings.speed.toFixed(2)}×</span>
+      </div>
+
+      <div className={styles.voiceRow}>
+        <span className={styles.voiceLabel}>This month</span>
+        {usage?.uncapped ? (
+          <span className={styles.voiceVal}>{Math.round(usedSec / 60)} min · uncapped</span>
+        ) : (
+          <>
+            <div className={styles.voiceMeter}>
+              <div className={styles.voiceMeterFill} style={{ width: `${pct}%` }} />
+            </div>
+            <span className={styles.voiceVal}>
+              {Math.round(usedSec / 60)} / {Math.round((capSec || 0) / 60)} min
+            </span>
+          </>
+        )}
+      </div>
+
+      {savingMsg && <div className={styles.voiceSaveMsg}>{savingMsg}</div>}
+    </TileCard>
+  )
+}
+
 // ── Referral Section ──
 // ─── Chart Settings Section ──────────────────────────────────────────────────
 
@@ -850,6 +950,9 @@ export default function Settings() {
             </div>
           </div>
         </TileCard>
+
+        {/* ── Voice ── */}
+        <VoicePanel />
 
         {/* ── Watchlist Digest ── */}
         <TileCard title="Watchlist Digest">
