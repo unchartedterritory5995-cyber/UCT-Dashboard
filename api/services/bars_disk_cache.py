@@ -13,6 +13,7 @@ import time
 
 from api.services import bar_validation
 from api.services import bar_quarantine
+from api.services import bar_provenance
 
 # Railway persistent volume mount, falls back to local ./data
 _CACHE_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
@@ -179,6 +180,7 @@ def put(ticker: str, tf: str, bars: int, payload: dict):
 
     clean_bars: list[dict] = []
     prior_close = None
+    source = payload.get("source") or "unknown"
     for bar in raw_bars:
         # Skip non-dict bars — they can't be validated. In production this
         # never happens; in tests it can be a sentinel value.
@@ -192,6 +194,12 @@ def put(ticker: str, tf: str, bars: int, payload: dict):
         if ok:
             clean_bars.append(bar)
             prior_close = bar.get("c")
+            # Record provenance for the clean bar — observability sidecar.
+            # Must NEVER break the cache write path.
+            try:
+                bar_provenance.record(ticker, tf, int(bar.get("t") or 0), source)
+            except Exception:
+                pass
         else:
             try:
                 bar_quarantine.add(
