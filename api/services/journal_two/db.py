@@ -238,6 +238,10 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_accounts ADD COLUMN default_size_pct REAL",
     "ALTER TABLE j2_accounts ADD COLUMN default_r_multiple_target REAL",
     "ALTER TABLE j2_accounts ADD COLUMN max_risk_per_trade_pct REAL",
+    # Phase B — Session Discipline (nullable scalars + JSON list; null/empty = disabled)
+    "ALTER TABLE j2_accounts ADD COLUMN daily_loss_limit_pct REAL",
+    "ALTER TABLE j2_accounts ADD COLUMN cooling_off_minutes_after_loss INTEGER",
+    "ALTER TABLE j2_accounts ADD COLUMN no_trade_windows_et TEXT NOT NULL DEFAULT '[]'",
 ]
 
 
