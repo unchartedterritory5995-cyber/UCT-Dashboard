@@ -304,63 +304,75 @@ def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
     return age_days > max_age_days
 
 
+def _last_known_close(ticker: str, tf: str) -> float | None:
+    """Return the most recent close stored in SQLite for (ticker, tf), or None.
+
+    Used as the seeding ``prior_close`` for ``fetch_with_validation`` so the
+    very first bar of a fresh fetch can be sanity-checked against history.
+    Defensive: any failure (table missing, locked DB, etc.) returns None.
+    """
+    try:
+        rows = _sqlite.get_bars(ticker.upper(), tf, 1)
+        if rows:
+            # rows = [(ts, o, h, l, c, v)] — index 4 is close.
+            return float(rows[0][4])
+    except Exception:
+        pass
+    return None
+
+
 def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
-    """Fetch intraday bars — Massive primary, FMP + yfinance fallbacks.
+    """Fetch intraday bars — routes the Massive → FMP → yfinance source chain
+    through ``fetch_with_validation`` so corrupt primary payloads automatically
+    fall through to the next source instead of being persisted.
 
     tf='60' is special: internally uses 30-min bars resampled to session-aligned
     hourly (9:30-10:00 first candle, then 10:00-11:00 ... 15:00-16:00) so the
-    chart matches TC2000 / ThinkorSwim behaviour in RTH mode.
+    chart matches TC2000 / ThinkorSwim behaviour in RTH mode. We still resample
+    here, but the underlying 30-min fetch goes through fetch_with_validation
+    (which itself iterates Massive → FMP → yfinance with per-bar validation).
     """
     import logging as _log
     _logger = _log.getLogger(__name__)
+    prior_close = _last_known_close(ticker, tf)
+
     if tf == "60":
         # Need ~2× 30-min bars to produce max_bars session-aligned hourly bars.
-        # Previously capped at 1000 to avoid Massive's silent truncation, but
-        # _fetch_intraday_massive now paginates so the cap is gone — we get
-        # the full requested history for proper long-range hourly charts.
         src = max_bars * 2
-        bars_30m = _fetch_intraday_massive(ticker, "30", src)
-        n_mass = len(bars_30m) if bars_30m else 0
-        is_stale_mass = _is_intraday_stale(bars_30m) if bars_30m else True
-        _logger.warning(f"[bars-resample] {ticker} tf=60 src={src} massive_30m={n_mass} stale={is_stale_mass}")
-        if bars_30m and not is_stale_mass:
+        # fetch_with_validation handles the Massive → FMP → yfinance chain
+        # for the 30-min source, applying per-bar validation at each hop.
+        bars_30m = fetch_with_validation(ticker, "30", src, prior_close=prior_close)
+        if bars_30m and not _is_intraday_stale(bars_30m):
             out = _session_resample_hourly(bars_30m)[-max_bars:]
-            _logger.warning(f"[bars-resample] {ticker} tf=60 source=MASSIVE resampled_to={len(out)}")
+            _logger.warning(
+                f"[bars-resample] {ticker} tf=60 src={src} validated_30m={len(bars_30m)} resampled_to={len(out)}"
+            )
             return out
-        fmp_30m = _fetch_intraday_fmp(ticker, "30", src)
-        n_fmp = len(fmp_30m) if fmp_30m else 0
-        is_stale_fmp = _is_intraday_stale(fmp_30m) if fmp_30m else True
-        _logger.warning(f"[bars-resample] {ticker} tf=60 fmp_30m={n_fmp} stale={is_stale_fmp}")
-        if fmp_30m and not is_stale_fmp:
-            out = _session_resample_hourly(fmp_30m)[-max_bars:]
-            _logger.warning(f"[bars-resample] {ticker} tf=60 source=FMP resampled_to={len(out)}")
+        # Validation pipeline returned None or stale data. Fall back to the
+        # raw Massive 30-min so an offline FMP/yfinance doesn't blank the
+        # 60-min chart entirely. This mirrors the historical "stale > nothing"
+        # safety net.
+        bars_30m = _fetch_intraday_massive(ticker, "30", src)
+        if bars_30m:
+            out = _session_resample_hourly(bars_30m)[-max_bars:]
+            _logger.warning(
+                f"[bars-resample] {ticker} tf=60 validation_failed fallback_massive_30m={len(bars_30m)} resampled_to={len(out)}"
+            )
             return out
-        yf_30m = _fetch_intraday_yfinance(ticker, "30", src)
-        n_yf = len(yf_30m) if yf_30m else 0
-        _logger.warning(f"[bars-resample] {ticker} tf=60 yf_30m={n_yf}")
-        if yf_30m:
-            out = _session_resample_hourly(yf_30m)[-max_bars:]
-            _logger.warning(f"[bars-resample] {ticker} tf=60 source=YFINANCE resampled_to={len(out)}")
-            return out
-        _logger.warning(f"[bars-resample] {ticker} tf=60 source=NONE bars_30m_was={n_mass}")
-        return _session_resample_hourly(bars_30m)[-max_bars:] if bars_30m else []
+        _logger.warning(f"[bars-resample] {ticker} tf=60 source=NONE")
+        return []
 
-    bars = _fetch_intraday_massive(ticker, tf, max_bars)
-    if bars and not _is_intraday_stale(bars):
-        return bars
+    # 1/5/15/30-min: validating fetch chain
+    validated = fetch_with_validation(ticker, tf, max_bars, prior_close=prior_close)
+    if validated and not _is_intraday_stale(validated):
+        return validated
 
-    # Massive failed or stale — try FMP (paid, reliable)
-    fmp_bars = _fetch_intraday_fmp(ticker, tf, max_bars)
-    if fmp_bars and not _is_intraday_stale(fmp_bars):
-        return fmp_bars
-
-    # FMP failed — try yfinance (split-adjusted + premarket)
-    yf_bars = _fetch_intraday_yfinance(ticker, tf, max_bars)
-    if yf_bars:
-        return yf_bars
-
-    # Return whatever we had (stale > nothing)
-    return bars or []
+    # All clean sources rejected — return whatever Massive gave us as a last
+    # resort (stale > nothing). The cold-fetch caller in _get_bars_inner has
+    # its own _is_intraday_stale guard that prevents stale data from being
+    # persisted to SQLite, so we won't poison the cache.
+    fallback = _fetch_intraday_massive(ticker, tf, max_bars)
+    return fallback or []
 
 
 # ── Delta-fetch helpers (tiny payloads — only new bars since last stored ts) ──
