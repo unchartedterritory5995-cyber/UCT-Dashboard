@@ -247,6 +247,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule priority audit: %s", e)
 
+    # Start continuous audit thread (5min/1hr/24hr cadences)
+    try:
+        from api.services import bars_continuous_audit
+        bars_continuous_audit.start()
+        logging.getLogger(__name__).info("[startup] bars_continuous_audit started")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] bars_continuous_audit start failed")
+
     # Start realtime_candle reconciliation worker — runs every 60s in the same
     # event loop as the FastAPI app. Compares the in-memory developing candle
     # to a REST snapshot (fetch_minute_snapshot) and emits bar_correction
