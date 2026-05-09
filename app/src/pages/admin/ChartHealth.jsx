@@ -11,6 +11,9 @@ export default function ChartHealth() {
   const [provLookup, setProvLookup] = useState({ ticker: '', tf: '30', barTime: '' })
   const [provResult, setProvResult] = useState(null)
   const [provError, setProvError] = useState(null)
+  const [quality, setQuality] = useState({})
+  const [alerts, setAlerts] = useState([])
+  const [hotTier, setHotTier] = useState({ size: 0, capacity: 500 })
 
   async function loadStatus() {
     try {
@@ -44,6 +47,48 @@ export default function ChartHealth() {
           sources: data.sources || {},
           by_source: data.by_source || {},
         })
+      }
+    } catch {}
+  }
+
+  async function loadQuality() {
+    try {
+      const r = await fetch('/api/admin/bars/quality', { credentials: 'include' })
+      if (r.ok) {
+        const data = await r.json()
+        setQuality(data.scores || {})
+      }
+    } catch {}
+  }
+
+  async function loadAlerts() {
+    try {
+      const r = await fetch('/api/admin/bars/alerts', { credentials: 'include' })
+      if (r.ok) {
+        const data = await r.json()
+        setAlerts(data.alerts || [])
+      }
+    } catch {}
+  }
+
+  async function loadHotTier() {
+    try {
+      const r = await fetch('/api/admin/bars/hot-tier', { credentials: 'include' })
+      if (r.ok) {
+        const data = await r.json()
+        setHotTier(data || { size: 0, capacity: 500 })
+      }
+    } catch {}
+  }
+
+  async function runSmokeAudit() {
+    try {
+      const r = await fetch('/api/admin/bars/smoke', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (r.ok) {
+        setTimeout(() => { loadStatus(); loadAlerts() }, 3000)
       }
     } catch {}
   }
@@ -89,6 +134,18 @@ export default function ChartHealth() {
   useEffect(() => {
     loadSourceHealth()
     const id = setInterval(loadSourceHealth, 10000)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    loadQuality()
+    loadAlerts()
+    loadHotTier()
+    const id = setInterval(() => {
+      loadQuality()
+      loadAlerts()
+      loadHotTier()
+    }, 30000)
     return () => clearInterval(id)
   }, [])
 
@@ -142,6 +199,9 @@ export default function ChartHealth() {
         </button>
         <button onClick={() => runAudit('universe')} disabled={running}>
           {running ? 'Running…' : 'Run Full Universe Audit (3,685 tickers × 8 TFs)'}
+        </button>
+        <button onClick={runSmokeAudit} disabled={running}>
+          Run Smoke Audit (20 tickers)
         </button>
       </div>
 
@@ -266,6 +326,63 @@ export default function ChartHealth() {
             <div>Verified at</div><div>{provResult.verified_at ? new Date(provResult.verified_at * 1000).toLocaleString() : 'not yet reconciled'}</div>
           </div>
         )}
+      </div>
+
+      {/* Quality Heatmap */}
+      <div className={styles.livenessSection}>
+        <h2 className={styles.subheading}>Per-Ticker Quality Score</h2>
+        <p className={styles.muted}>0-100 composite. Red = &lt;50, Amber = 50-69, Olive = 70-89, Green = 90+.</p>
+        {Object.keys(quality).length === 0 ? (
+          <p className={styles.muted}>No quality data yet — run an audit to populate.</p>
+        ) : (
+          <div className={styles.heatmap}>
+            {Object.entries(quality).sort((a, b) => a[1] - b[1]).map(([sym, score]) => (
+              <div key={sym} className={styles.qualityCell} style={{
+                background: score >= 90 ? '#1d6f3f'
+                          : score >= 70 ? '#7a6614'
+                          : score >= 50 ? '#8b3a16'
+                          : '#5a1414',
+              }}>
+                <div>{sym}</div>
+                <div className={styles.qualityScore}>{score}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Alerts Feed */}
+      <div className={styles.livenessSection}>
+        <h2 className={styles.subheading}>Recent Alerts</h2>
+        <p className={styles.muted}>In-memory queue of operator alerts (10min throttle per key).</p>
+        {alerts.length === 0 ? (
+          <p className={styles.muted}>No alerts.</p>
+        ) : (
+          <table className={styles.table}>
+            <thead><tr><th>Time</th><th>Severity</th><th>Key</th><th>Message</th></tr></thead>
+            <tbody>
+              {alerts.slice(0, 25).map((a, idx) => (
+                <tr key={idx} className={a.severity === 'warning' || a.severity === 'error' ? styles.staleRow : undefined}>
+                  <td>{new Date(a.emitted_at * 1000).toLocaleString()}</td>
+                  <td>{a.severity}</td>
+                  <td>{a.alert_key}</td>
+                  <td>{a.message}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Hot Tier Status */}
+      <div className={styles.livenessSection}>
+        <h2 className={styles.subheading}>Hot Tier Cache</h2>
+        <p className={styles.muted}>Top-priority tickers served from RAM (LRU, capacity 500).</p>
+        <div className={styles.kv}>
+          <div>Size</div><div>{hotTier.size}</div>
+          <div>Capacity</div><div>{hotTier.capacity}</div>
+          <div>Utilization</div><div>{((hotTier.size / hotTier.capacity) * 100).toFixed(0)}%</div>
+        </div>
       </div>
     </div>
   )
