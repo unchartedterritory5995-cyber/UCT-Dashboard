@@ -218,6 +218,26 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     UNIQUE(user_id, pref_key)
 );
 CREATE INDEX IF NOT EXISTS idx_user_preferences_user ON user_preferences(user_id);
+
+CREATE TABLE IF NOT EXISTS voice_settings (
+    user_id                       TEXT PRIMARY KEY REFERENCES users(id),
+    enabled                       INTEGER NOT NULL DEFAULT 1,
+    voice                         TEXT NOT NULL DEFAULT 'verse',
+    speed                         REAL NOT NULL DEFAULT 1.0,
+    retention_days                INTEGER NOT NULL DEFAULT 30,
+    created_at                    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at                    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS voice_usage_monthly (
+    user_id              TEXT NOT NULL REFERENCES users(id),
+    year_month           TEXT NOT NULL,
+    mode_a_seconds       INTEGER NOT NULL DEFAULT 0,
+    mode_b_calls         INTEGER NOT NULL DEFAULT 0,
+    mode_c_seconds       INTEGER NOT NULL DEFAULT 0,
+    estimated_cost_usd   REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, year_month)
+);
 """
 
 
