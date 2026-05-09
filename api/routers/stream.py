@@ -12,7 +12,7 @@ import time
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from api.services import bars_liveness, realtime_stream
+from api.services import bars_liveness, realtime_candle, realtime_stream
 from api.services.realtime_stream import (
     get_realtime_prices, subscribe_tickers, unsubscribe_tickers, get_stream_status
 )
@@ -22,6 +22,48 @@ _logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MAX_SSE_TICKERS = 50  # Finnhub free tier cap; prevents unbounded subscription growth
+
+
+def _build_candle_events(tickers, last_state: dict) -> list[dict]:
+    """Detect candle state changes and produce event dicts.
+
+    Args:
+      tickers: iterable of ticker symbols to check
+      last_state: dict {sym: (t, c, v)} mutated in-place to track current state
+
+    Returns:
+      List of event dicts: {"type": "tick", "sym", "price", "ts", "vol"} or
+                            {"type": "bar_close", "sym", "tf", "bar"}
+    """
+    events: list[dict] = []
+    for sym in tickers:
+        sym_u = sym.upper()
+        cur = realtime_candle.get_current(sym_u, "1")
+        if not cur:
+            continue
+        cur_key = (cur["t"], cur["c"], cur["v"])
+        prev = last_state.get(sym_u)
+        if prev == cur_key:
+            continue
+        # Detect bar boundary close: prev existed and prev_t != cur_t
+        if prev and prev[0] != cur["t"]:
+            # Emit bar_close for the prior bar
+            events.append({
+                "type": "bar_close",
+                "sym": sym_u,
+                "tf": "1",
+                "bar": {"t": prev[0], "c": prev[1], "v": prev[2]},
+            })
+        # Always emit tick on any change
+        events.append({
+            "type": "tick",
+            "sym": sym_u,
+            "price": cur["c"],
+            "ts": cur.get("last_tick_ts"),
+            "vol": cur["v"],
+        })
+        last_state[sym_u] = cur_key
+    return events
 
 
 def _build_stale_events(tickers, now=None):

@@ -247,6 +247,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule priority audit: %s", e)
 
+    # Start realtime_candle reconciliation worker — runs every 60s in the same
+    # event loop as the FastAPI app. Compares the in-memory developing candle
+    # to a REST snapshot (fetch_minute_snapshot) and emits bar_correction
+    # events when WS state disagrees with the authoritative provider.
+    try:
+        from api.services import realtime_candle
+        import asyncio
+        asyncio.create_task(realtime_candle.reconciliation_worker())
+        logging.getLogger(__name__).info("[startup] realtime_candle reconciliation_worker scheduled")
+    except Exception as e:
+        logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
+
     # Integrity check BEFORE init_db: if /data/bars.db is malformed (which
     # happens when the previous run was killed mid-write or replaced with
     # stale WAL/SHM sidecars hanging around), every put_bars at runtime

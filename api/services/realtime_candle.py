@@ -104,3 +104,67 @@ def replace_bar(sym: str, tf: str, corrected: dict) -> None:
 def all_keys() -> list[tuple[str, str]]:
     with _lock:
         return list(_state.keys())
+
+
+import logging
+import asyncio
+
+_logger = logging.getLogger(__name__)
+_correction_queue: asyncio.Queue | None = None
+
+
+def _ensure_queue() -> asyncio.Queue:
+    global _correction_queue
+    if _correction_queue is None:
+        _correction_queue = asyncio.Queue()
+    return _correction_queue
+
+
+def emit_correction_sync(sym: str, tf: str, corrected: dict) -> None:
+    """Enqueue a correction event for the SSE generator. Sync-safe."""
+    try:
+        q = _correction_queue
+        if q is not None:
+            q.put_nowait({"type": "bar_correction", "sym": sym.upper(), "tf": tf, "bar": corrected})
+    except Exception:
+        pass
+
+
+def get_correction_queue():
+    return _ensure_queue()
+
+
+async def reconciliation_worker():
+    """Background task: every 60s, run minute-close reconciliation for all tracked candles.
+
+    For each (ticker, tf="1") tracked, fetch the REST snapshot and reconcile.
+    On disagreement, replace the bar in state and enqueue a bar_correction event.
+    """
+    _ensure_queue()
+    from api.services import bars_fetch, candle_reconcile
+    while True:
+        try:
+            await asyncio.sleep(60)
+            for (sym, tf) in all_keys():
+                if tf != "1":
+                    continue
+                cur = get_current(sym, tf)
+                if not cur:
+                    continue
+                try:
+                    rest_bar = bars_fetch.fetch_minute_snapshot(sym, cur["t"])
+                except Exception:
+                    rest_bar = None
+                decision = candle_reconcile.reconcile(cur, rest_bar)
+                if decision["verdict"] == "correction":
+                    correction = decision["correction"]
+                    replace_bar(sym, tf, correction)
+                    emit_correction_sync(sym, tf, correction)
+                    _logger.info(
+                        "[realtime_candle] %s @ %s reconciled: close_diff=%.4f vol_diff=%.2f",
+                        sym, cur["t"], decision.get("close_diff", 0), decision.get("vol_diff", 0),
+                    )
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            _logger.exception("[realtime_candle] reconciliation_worker iteration failed")
