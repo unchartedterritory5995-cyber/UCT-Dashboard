@@ -64,3 +64,56 @@ def test_dispatch_passes_user_when_tool_accepts_it():
 
     result = voice_tools.dispatch("who", {}, user={"id": "u-42"})
     assert result == {"id": "u-42"}
+
+
+# ── Tool implementations (Slice 2 reads) ────────────────────────────────────
+
+def test_tool_implementations_register_on_import():
+    from api.services import voice_tool_impls  # noqa: F401
+    names = voice_tools.all_tool_names()
+    expected = {
+        "get_quote", "get_movers", "get_breadth", "get_sector_strength",
+        "get_company_info", "compare_tickers",
+    }
+    assert expected.issubset(set(names))
+
+
+def test_get_quote_calls_snapshot(monkeypatch):
+    from api.services import voice_tool_impls
+
+    captured = {}
+    def fake_snapshot(sym):
+        captured["sym"] = sym
+        return {"sym": sym, "last": 487.20, "change_pct": 2.10, "volume": 35_500_000}
+
+    monkeypatch.setattr(voice_tool_impls, "_snapshot", fake_snapshot)
+
+    out = voice_tools.dispatch("get_quote", {"symbol": "nvda"}, user={"id": "u"})
+    assert captured["sym"] == "NVDA"
+    assert out["symbol"] == "NVDA"
+    assert out["last"] == 487.20
+    assert out["direction"] == "up"
+    assert round(out["abs_pct"], 1) == 2.1
+
+
+def test_get_movers_returns_summary(monkeypatch):
+    from api.services import voice_tool_impls
+    monkeypatch.setattr(voice_tool_impls, "_movers", lambda: {
+        "ripping": [{"sym": "AAA", "pct": 12.5}, {"sym": "BBB", "pct": 8.0}],
+        "drilling": [{"sym": "ZZZ", "pct": -7.2}],
+    })
+
+    up = voice_tools.dispatch("get_movers", {"direction": "gainers", "count": 2}, user={"id": "u"})
+    assert "AAA" in up["top_movers"]
+    assert "12" in up["top_movers"]
+
+
+def test_compare_tickers(monkeypatch):
+    from api.services import voice_tool_impls
+
+    snapshots = {"AAPL": {"last": 200, "change_pct": 1.5},
+                 "MSFT": {"last": 400, "change_pct": -0.5}}
+    monkeypatch.setattr(voice_tool_impls, "_snapshot", lambda sym: snapshots[sym])
+
+    out = voice_tools.dispatch("compare_tickers", {"symbols": ["AAPL", "MSFT"]}, user={"id": "u"})
+    assert "AAPL" in out["summary"] and "MSFT" in out["summary"]
