@@ -6,7 +6,7 @@
 
 ## Goal
 
-Build a ~8-second cinematic intro animation that plays the first time a user lands on the public page or signs into the dashboard. The intro reveals the **Uncharted Territory** brand and welcomes the user *to* **UCT Intelligence** (the dashboard product within that brand). It functions as a brand sizzle, a personalized greeting, and a hint at the breadth of the suite — all before the dashboard renders.
+Build a ~8.5-second cinematic intro animation that plays the first time a user lands on the public page or signs into the dashboard. The intro reveals the **Uncharted Territory** brand and welcomes the user *to* **UCT Intelligence** (the dashboard product within that brand). It functions as a brand sizzle, a personalized greeting, and a hint at the breadth of the suite — all before the dashboard renders.
 
 ## Brand language locked in
 
@@ -54,7 +54,7 @@ The personalized greeting moment.
 | 4.3s | Tagline | *Navigate the market, **effectively.*** italic serif gold-toned beneath the rule |
 | 5.4–5.9s | Welcome fades out | Veil + welcome + mini compass all fade |
 
-### Act 3 — Brand Finale (5.7 → 8.1s)
+### Act 3 — Brand Finale (5.7 → 8.5s)
 
 Arrival at the destination. The brand asserts.
 
@@ -64,17 +64,17 @@ Arrival at the destination. The brand asserts.
 | 5.9–6.9s | Compass mark | The red/green compass pops in with rotate(-30deg→0) + scale(0.7→1.05→1) bounce |
 | 5.9–6.9s | UCT INTELLIGENCE wordmark | Big gold-gradient-shimmered Instrument Sans 800/40px/7px tracking |
 | 6.5–7.1s | "— Uncharted Territory —" label | Italic serif gold subtitle with em-dash flourishes, *above* the pills |
-| 6.9–8.1s | 8 capability pills | 4×2 grid, equal-width tabs with centered text, cascade 100ms apart (last pill lands ~8.1s) |
-| 8.1s | Hold | Final frame holds ~600ms for emotional landing before fade-out / handoff |
+| 6.9–8.5s | 12 capability pills | 4×3 grid, equal-width tabs with centered text, cascade 100ms apart (last pill lands ~8.5s) |
+| 8.5s | Hold | Final frame holds ~600ms for emotional landing before fade-out / handoff |
 
-**Pills (4×2 grid, in order):**
+**Pills (4×3 grid, in cascade order):**
 
-| Row 1 | Row 2 |
-|-------|-------|
-| Morning Wire | Theme Tracker |
-| UCT 20 | Trade Journal |
-| AI Intelligence | Setup Library |
-| Live Breadth | Real-Time Stream |
+| Row 1 | Row 2 | Row 3 |
+|-------|-------|-------|
+| Morning Wire | Theme Tracker | Watchlists |
+| UCT 20 | Trade Journal | Scanner |
+| AI Intelligence | Setup Library | Options Flow |
+| Live Breadth | Real-Time Stream | Calendar |
 
 ## Personalization
 
@@ -164,7 +164,7 @@ idle → playing → completing → done
 - The intro plays at viewport-fit (full screen, 16:9 aspect logic adapts to portrait by maintaining vertical centering).
 - Compass mark scales down to 96px on screens < 640px wide.
 - Wordmark scales to `font-size: 28px` (from 40px) on mobile.
-- Pill grid collapses to 2×4 on screens < 540px wide.
+- Pill grid collapses to 2×6 (or 3×4 vertical) on screens < 540px wide.
 - Wax seal medallion hides on screens < 480px wide (would crowd the compass).
 
 ### Performance constraints
