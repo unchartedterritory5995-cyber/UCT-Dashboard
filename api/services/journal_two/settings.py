@@ -40,6 +40,7 @@ def default_settings_data() -> dict[str, Any]:
         # the Journal 2.0 Community tab alongside every other user who
         # also opted in. Default off.
         "shareJournalData": False,
+        "tradingMode": "both",
     }
 
 
@@ -49,6 +50,7 @@ _VALID_STOP_MODES = {"custom", "bar_low_high", "fixed_dollar_risk", "fixed_perce
 _VALID_CLOSING = {"FIFO", "LIFO"}
 _VALID_BE_UNITS = {"$", "%"}
 _VALID_BUFFER_UNITS = {"$", "%"}
+_VALID_TRADING_MODES = {"shares", "options", "both"}
 
 
 class SettingsValidationError(ValueError):
@@ -132,6 +134,12 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if closing not in _VALID_CLOSING:
         raise SettingsValidationError("positionClosing must be 'FIFO' or 'LIFO'")
 
+    trading_mode = payload.get("tradingMode", "both")
+    if trading_mode not in _VALID_TRADING_MODES:
+        raise SettingsValidationError(
+            f"tradingMode must be one of {sorted(_VALID_TRADING_MODES)}"
+        )
+
     return {
         "accountSize": float(account_size),
         "defaultStop": _validate_default_stop(payload.get("defaultStop")),
@@ -139,6 +147,7 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "breakevenRange": _validate_breakeven_range(payload.get("breakevenRange")),
         "setups": _validate_setups(payload.get("setups", [])),
         "shareJournalData": bool(payload.get("shareJournalData", False)),
+        "tradingMode": trading_mode,
     }
 
 

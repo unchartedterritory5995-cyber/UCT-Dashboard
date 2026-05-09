@@ -58,6 +58,10 @@ export default function TradeJournalTab({ settings }) {
   const { accountId: selectedAccountId, accounts } = useJ2SelectedAccount()
   const { mutate } = useSWRConfig()
 
+  const tradingMode = settings?.tradingMode ?? 'both'
+  const showShares = tradingMode !== 'options'
+  const showOptions = tradingMode !== 'shares'
+
   const defaultColumns = useMemo(() => buildTradesColumns(), [])
 
   const {
@@ -266,44 +270,54 @@ export default function TradeJournalTab({ settings }) {
               onClose={() => setPickerOpen(false)}
             />
           </div>
-          <button
-            type="button"
-            className={styles.dangerBtn}
-            onClick={() => setDeleteAllOpen(true)}
-            disabled={trades.length === 0}
-            title={trades.length === 0 ? 'No trades to delete' : 'Delete all trades'}
-          >
-            🗑 Delete All
-          </button>
-          <button
-            type="button"
-            className={styles.ghostBtn}
-            onClick={() => setImportOpen(true)}
-          >
-            ⬆ Import CSV
-          </button>
-          <button
-            type="button"
-            className={styles.primaryBtn}
-            onClick={() => setAddOpen(true)}
-          >
-            + Add Trade
-          </button>
+          {showShares && (
+            <button
+              type="button"
+              className={styles.dangerBtn}
+              onClick={() => setDeleteAllOpen(true)}
+              disabled={trades.length === 0}
+              title={trades.length === 0 ? 'No trades to delete' : 'Delete all trades'}
+            >
+              🗑 Delete All
+            </button>
+          )}
+          {showShares && (
+            <button
+              type="button"
+              className={styles.ghostBtn}
+              onClick={() => setImportOpen(true)}
+            >
+              ⬆ Import CSV
+            </button>
+          )}
+          {showShares && (
+            <button
+              type="button"
+              className={styles.primaryBtn}
+              onClick={() => setAddOpen(true)}
+            >
+              + Add Trade
+            </button>
+          )}
         </div>
       </div>
 
-      {isLoading && trades.length === 0 ? (
-        <div className={styles.loading}>Loading trades…</div>
-      ) : (
-        <TradesTable trades={filteredTrades} visibleColumns={visibleColumns} />
+      {showShares && (
+        isLoading && trades.length === 0 ? (
+          <div className={styles.loading}>Loading trades…</div>
+        ) : (
+          <TradesTable trades={filteredTrades} visibleColumns={visibleColumns} />
+        )
       )}
 
-      <OptionStrategiesSection
-        strategies={closedStrategies}
-        variant="closed"
-        isLoading={stratLoading}
-        error={stratError}
-      />
+      {showOptions && (
+        <OptionStrategiesSection
+          strategies={closedStrategies}
+          variant="closed"
+          isLoading={stratLoading}
+          error={stratError}
+        />
+      )}
 
 
       {addOpen && (

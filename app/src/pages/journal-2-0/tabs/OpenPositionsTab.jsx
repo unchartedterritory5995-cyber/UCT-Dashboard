@@ -79,6 +79,9 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const { mutate } = useSWRConfig()
 
   const accountSize = settings?.accountSize ?? 0
+  const tradingMode = settings?.tradingMode ?? 'both'
+  const showShares = tradingMode !== 'options'
+  const showOptions = tradingMode !== 'shares'
 
   const [addOpen, setAddOpen] = useState(false)
   const [addPrefill, setAddPrefill] = useState(null)  // chart-driven prefill
@@ -246,31 +249,35 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
               onClose={() => setPickerOpen(false)}
             />
           </div>
-          <button
-            type="button"
-            className={styles.primaryBtn}
-            onClick={() => setAddOpen(true)}
-          >
-            + Add Position
-          </button>
+          {showShares && (
+            <button
+              type="button"
+              className={styles.primaryBtn}
+              onClick={() => setAddOpen(true)}
+            >
+              + Add Position
+            </button>
+          )}
         </div>
       </div>
 
-      {isLoading && positions.length === 0 ? (
-        <div className={styles.loading}>Loading positions…</div>
-      ) : (
-        <PositionsTable
-          positions={positions}
-          prices={prices}
-          accountSize={accountSize}
-          visibleColumns={visibleColumns}
-          onEdit={(p) => setEditTarget(p)}
-          onClose={(p) => setCloseTarget(p)}
-          onDelete={handleDeleteRequest}
-        />
+      {showShares && (
+        isLoading && positions.length === 0 ? (
+          <div className={styles.loading}>Loading positions…</div>
+        ) : (
+          <PositionsTable
+            positions={positions}
+            prices={prices}
+            accountSize={accountSize}
+            visibleColumns={visibleColumns}
+            onEdit={(p) => setEditTarget(p)}
+            onClose={(p) => setCloseTarget(p)}
+            onDelete={handleDeleteRequest}
+          />
+        )
       )}
 
-      {!expiredBannerDismissed && (
+      {showOptions && !expiredBannerDismissed && (
         <ExpiredBanner
           strategies={optionStrategies}
           onMarkAll={async (expired) => {
@@ -291,6 +298,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
         />
       )}
 
+      {showOptions && (
       <OptionStrategiesSection
         strategies={optionStrategies}
         variant="open"
@@ -311,6 +319,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
         onClose={(s) => setOptionsCloseTarget(s)}
         onDelete={(s) => setOptionsDeleteTarget(s)}
       />
+      )}
 
 
       {(addOpen || addPrefill) && (

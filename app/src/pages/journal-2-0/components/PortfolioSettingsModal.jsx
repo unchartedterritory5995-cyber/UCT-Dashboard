@@ -81,6 +81,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
   const [shareJournalData, setShareJournalData] = useState(
     !!settings?.shareJournalData,
   )
+  const [tradingMode, setTradingMode] = useState(settings?.tradingMode ?? 'both')
 
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -131,6 +132,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
       },
       setups,
       shareJournalData,
+      tradingMode,
     }
     setSaving(true)
     try {
@@ -153,6 +155,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     beValue,
     setups,
     shareJournalData,
+    tradingMode,
     onSave,
     onClose,
   ])
@@ -216,6 +219,42 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
                 />
               </div>
             </label>
+          </section>
+
+          {/* TRADE TYPES — show/hide options vs shares surfaces per account */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeader}>TRADE TYPES</h3>
+            <p className={styles.helper}>
+              Choose what this account trades. Hides the inactive surface's
+              tabs, forms, and Add buttons throughout Journal 2.0. Existing
+              data is never deleted — switch back to <strong>Both</strong> any
+              time.
+            </p>
+            <div className={styles.radioCards} role="radiogroup" aria-label="Trade types">
+              {[
+                { mode: 'shares', title: 'Shares only', subtitle: 'Equity positions and trades' },
+                { mode: 'options', title: 'Options only', subtitle: 'Multi-leg option strategies' },
+                { mode: 'both', title: 'Both', subtitle: 'Shares + options side-by-side' },
+              ].map((opt) => (
+                <label
+                  key={opt.mode}
+                  className={`${styles.radioCard} ${tradingMode === opt.mode ? styles.radioCardActive : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="tradingMode"
+                    value={opt.mode}
+                    checked={tradingMode === opt.mode}
+                    onChange={() => setTradingMode(opt.mode)}
+                    className={styles.radioInput}
+                  />
+                  <div className={styles.radioBody}>
+                    <div className={styles.radioTitle}>{opt.title}</div>
+                    <div className={styles.radioSubtitle}>{opt.subtitle}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
           </section>
 
           {/* 5.2 DEFAULT STOP */}

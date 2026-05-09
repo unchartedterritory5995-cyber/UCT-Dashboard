@@ -69,6 +69,7 @@ def _default_settings_block() -> dict[str, Any]:
         "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
         "setups": [],
         "shareJournalData": False,
+        "tradingMode": "both",
     }
 
 
@@ -145,8 +146,9 @@ def get_or_migrate_default_account(
                     id, user_id, name, color, broker, starting_balance,
                     account_size, default_stop, position_closing,
                     breakeven_range, setups, share_journal_data,
+                    trading_mode,
                     created_at, updated_at
-                ) VALUES (?, ?, 'Default', 'blue', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, 'Default', 'blue', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     new_id, user_id,
@@ -157,6 +159,7 @@ def get_or_migrate_default_account(
                     json.dumps(block["breakevenRange"]),
                     json.dumps(block["setups"]),
                     1 if block.get("shareJournalData") else 0,
+                    block.get("tradingMode", "both"),
                     now, now,
                 ),
             )
@@ -284,12 +287,14 @@ def create_account(
             ).fetchone()
             if src is None:
                 raise AccountValidationError("copySettingsFrom: account not found")
+            src_keys = src.keys() if hasattr(src, "keys") else []
             settings = {
                 "account_size": float(src["account_size"]),
                 "default_stop": src["default_stop"],
                 "position_closing": src["position_closing"],
                 "breakeven_range": src["breakeven_range"],
                 "setups": src["setups"],
+                "trading_mode": src["trading_mode"] if "trading_mode" in src_keys else "both",
                 # share_journal_data is intentionally NOT copied (privacy default)
             }
         else:
@@ -300,6 +305,7 @@ def create_account(
                 "position_closing": block["positionClosing"],
                 "breakeven_range": json.dumps(block["breakevenRange"]),
                 "setups": json.dumps(block["setups"]),
+                "trading_mode": block.get("tradingMode", "both"),
             }
 
         new_id = str(uuid.uuid4())
@@ -310,8 +316,9 @@ def create_account(
                 id, user_id, name, color, broker, starting_balance,
                 account_size, default_stop, position_closing,
                 breakeven_range, setups, share_journal_data,
+                trading_mode,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
             """,
             (
                 new_id, user_id, validated["name"], validated["color"],
@@ -319,6 +326,7 @@ def create_account(
                 settings["account_size"], settings["default_stop"],
                 settings["position_closing"], settings["breakeven_range"],
                 settings["setups"],
+                settings["trading_mode"],
                 now, now,
             ),
         )
@@ -764,6 +772,7 @@ def upsert_account_settings(
             UPDATE j2_accounts
                SET account_size = ?, default_stop = ?, position_closing = ?,
                    breakeven_range = ?, setups = ?, share_journal_data = ?,
+                   trading_mode = ?,
                    updated_at = ?
              WHERE id = ? AND user_id = ?
             """,
@@ -774,6 +783,7 @@ def upsert_account_settings(
                 json.dumps(full_validated["breakevenRange"]),
                 json.dumps(full_validated["setups"]),
                 1 if full_validated.get("shareJournalData") else 0,
+                full_validated.get("tradingMode", "both"),
                 now, account_id, user_id,
             ),
         )
@@ -871,6 +881,7 @@ def _account_to_settings(acc: dict[str, Any]) -> dict[str, Any]:
         ).fetchone()
         if row is None:
             return None
+        keys = row.keys() if hasattr(row, "keys") else []
         return {
             "id": row["id"],
             "userId": row["user_id"],
@@ -882,6 +893,7 @@ def _account_to_settings(acc: dict[str, Any]) -> dict[str, Any]:
             "breakevenRange": json.loads(row["breakeven_range"]),
             "setups": json.loads(row["setups"]),
             "shareJournalData": bool(row["share_journal_data"]),
+            "tradingMode": row["trading_mode"] if "trading_mode" in keys else "both",
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
         }

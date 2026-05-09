@@ -231,6 +231,9 @@ _PHASE_2_ALTERS = [
     # Per-account so power users can have different rates for different
     # brokers without retyping.
     "ALTER TABLE j2_accounts ADD COLUMN default_fee_per_contract REAL NOT NULL DEFAULT 0",
+    # Per-account trade-type filter: 'shares' | 'options' | 'both'.
+    # Hides the inactive surface's tabs/forms in J2.0 (data still queryable).
+    "ALTER TABLE j2_accounts ADD COLUMN trading_mode TEXT NOT NULL DEFAULT 'both'",
 ]
 
 
