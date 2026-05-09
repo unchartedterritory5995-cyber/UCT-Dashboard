@@ -206,7 +206,6 @@ _baseline_payload = _make_payload
 
 def test_validate_accepts_phase_a_guards():
     from api.services.journal_two import settings as svc
-    from api.services.journal_two.settings import SettingsValidationError
     payload = _baseline_payload() | {
         "defaultSizePct": 5,
         "defaultRMultipleTarget": 2,
