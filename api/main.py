@@ -56,6 +56,7 @@ from api.routers import voice as voice_router
 from api.routers import admin_chart_health as admin_chart_health_router
 from api.flow_router import flow_router
 from api.services.auth_db import init_db as _init_auth_db
+from api.services.voice_audio_cache import purge_expired as _voice_cache_purge
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse as StarletteJSONResponse
 from api.gex_router import router as gex_router
@@ -670,6 +671,9 @@ async def lifespan(app: FastAPI):
                 print(f"[scheduler] Flow DB prune error: {e}")
 
         _scheduler.add_job(_nightly_flow_prune, trigger=CronTrigger(hour=20, minute=0), id="flow_nightly_prune", max_instances=1, replace_existing=True)
+
+        # Voice TTS cache cleanup — daily at 3:30 AM ET.
+        _scheduler.add_job(_voice_cache_purge, trigger=CronTrigger(hour=3, minute=30), id="voice_audio_cache_purge", max_instances=1, replace_existing=True)
 
         _scheduler.start()
         print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
