@@ -13,6 +13,10 @@
 
 import { useState, useCallback, useId, useEffect } from 'react'
 import styles from './ModalShell.module.css'
+import {
+  computeDefaultShares,
+  computeSuggestedTarget,
+} from '../lib/disciplineGuards'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -63,6 +67,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   const [side, setSide] = useState('Long')
   const [entryDate, setEntryDate] = useState(prefill?.entryDate || TODAY_ISO())
   const [shares, setShares] = useState('')
+  const [sharesUserEdited, setSharesUserEdited] = useState(false)
   const [entryPrice, setEntryPrice] = useState(
     prefill?.entryPrice != null ? String(prefill.entryPrice) : '',
   )
@@ -135,6 +140,20 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Auto-prefill shares from settings.defaultSizePct on entryPrice change.
+  // Never overwrites a user-edited value.
+  useEffect(() => {
+    if (sharesUserEdited) return
+    const computed = computeDefaultShares({
+      accountSize: settings?.accountSize,
+      defaultSizePct: settings?.defaultSizePct,
+      entryPrice,
+    })
+    if (computed != null && computed > 0) {
+      setShares(String(computed))
+    }
+  }, [entryPrice, settings?.accountSize, settings?.defaultSizePct, sharesUserEdited])
+
   const validate = useCallback(() => {
     if (!symbol.trim()) return 'Symbol is required'
     const s = Number(shares)
@@ -175,6 +194,13 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
       setSaving(false)
     }
   }, [validate, symbol, side, entryDate, shares, entryPrice, stopPrice, setup, notes, onSave, onClose])
+
+  const suggestedTarget = computeSuggestedTarget({
+    side,
+    entryPrice,
+    stopPrice,
+    rMultiple: settings?.defaultRMultipleTarget,
+  })
 
   const stopSourceBadge =
     defaultStop?.mode === 'custom'
@@ -263,7 +289,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
                 min="0"
                 step="any"
                 value={shares}
-                onChange={(e) => setShares(e.target.value)}
+                onChange={(e) => { setShares(e.target.value); setSharesUserEdited(true) }}
                 onBlur={handleRecomputeStop}
                 className={styles.numberInput}
               />
@@ -317,6 +343,15 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
             </div>
             {stopHelperText && <span className={styles.helper}>{stopHelperText}</span>}
           </label>
+          {suggestedTarget != null && (
+            <p
+              className={styles.helper}
+              style={{ color: 'var(--ut-gold, #c9a84c)', marginTop: 4 }}
+            >
+              Suggested target ({settings.defaultRMultipleTarget}R):{' '}
+              <strong>${suggestedTarget.toFixed(2)}</strong>
+            </p>
+          )}
 
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Setup</span>
