@@ -116,3 +116,45 @@ def test_production_inner_invokes_fetch_with_validation_on_cold_fetch(
     else:
         assert kwargs.get("ticker") == "QQQ"
         assert kwargs.get("tf") == "5"
+
+
+def test_production_path_returns_empty_when_all_sources_corrupt(fresh_quarantine):
+    """When fetch_with_validation rejects every source, _fetch_intraday returns []
+    (NOT raw Massive — that would defeat Plan 1's validation gate).
+
+    Staleness checks last-bar age, not OHLC validity, so a corrupt-but-recent
+    payload (e.g. QQQ 6.55 phantom bar at today's timestamp) would silently
+    get persisted to SQLite and the in-memory cache if we fell back to raw
+    Massive. Returning [] forces the caller to handle the failure explicitly.
+    """
+    corrupt_bars = [
+        {"t": 1715080800, "o": 700, "h": 705, "l": 698, "c": 702, "v": 1500000},
+        {"t": 1715080900, "o": 6.55, "h": 6.55, "l": 6.55, "c": 6.55, "v": 56},
+    ]
+
+    with patch.object(bars_fetch, "_fetch_intraday_massive", return_value=corrupt_bars), \
+         patch.object(bars_fetch, "_fetch_intraday_fmp", return_value=corrupt_bars), \
+         patch.object(bars_fetch, "_fetch_intraday_yfinance", return_value=corrupt_bars), \
+         patch.object(bars_fetch, "_last_known_close", return_value=702.0):
+        result = bars_fetch._fetch_intraday("QQQ", "30", 100)
+
+    # Should return empty, NOT the corrupt raw payload
+    assert result == [], f"Expected [], got {len(result)} corrupt bars"
+
+
+def test_production_path_returns_empty_when_all_sources_corrupt_tf60(fresh_quarantine):
+    """Same guarantee but for the tf=60 branch — when the 30-min source chain
+    fails validation, the resampled hourly path must NOT fall back to raw Massive.
+    """
+    corrupt_bars = [
+        {"t": 1715080800, "o": 700, "h": 705, "l": 698, "c": 702, "v": 1500000},
+        {"t": 1715080900, "o": 6.55, "h": 6.55, "l": 6.55, "c": 6.55, "v": 56},
+    ]
+
+    with patch.object(bars_fetch, "_fetch_intraday_massive", return_value=corrupt_bars), \
+         patch.object(bars_fetch, "_fetch_intraday_fmp", return_value=corrupt_bars), \
+         patch.object(bars_fetch, "_fetch_intraday_yfinance", return_value=corrupt_bars), \
+         patch.object(bars_fetch, "_last_known_close", return_value=702.0):
+        result = bars_fetch._fetch_intraday("QQQ", "60", 100)
+
+    assert result == [], f"Expected [], got {len(result)} corrupt bars from tf=60 path"

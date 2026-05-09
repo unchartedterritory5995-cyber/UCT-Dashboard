@@ -348,18 +348,15 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 f"[bars-resample] {ticker} tf=60 src={src} validated_30m={len(bars_30m)} resampled_to={len(out)}"
             )
             return out
-        # Validation pipeline returned None or stale data. Fall back to the
-        # raw Massive 30-min so an offline FMP/yfinance doesn't blank the
-        # 60-min chart entirely. This mirrors the historical "stale > nothing"
-        # safety net.
-        bars_30m = _fetch_intraday_massive(ticker, "30", src)
-        if bars_30m:
-            out = _session_resample_hourly(bars_30m)[-max_bars:]
-            _logger.warning(
-                f"[bars-resample] {ticker} tf=60 validation_failed fallback_massive_30m={len(bars_30m)} resampled_to={len(out)}"
-            )
-            return out
-        _logger.warning(f"[bars-resample] {ticker} tf=60 source=NONE")
+        # Validation pipeline returned None or stale data. Do NOT fall back
+        # to raw Massive — that would re-admit the exact corrupt payload
+        # Plan 1's validation gate was built to reject (e.g. QQQ 6.55
+        # phantom bars). Staleness checks last-bar age, not OHLC validity,
+        # so corrupt-but-recent bars would silently get persisted to SQLite
+        # and the in-memory cache. Return empty instead.
+        _logger.warning(
+            "[bars] %s 30m: all sources failed validation, returning empty", ticker
+        )
         return []
 
     # 1/5/15/30-min: validating fetch chain
@@ -367,12 +364,16 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     if validated and not _is_intraday_stale(validated):
         return validated
 
-    # All clean sources rejected — return whatever Massive gave us as a last
-    # resort (stale > nothing). The cold-fetch caller in _get_bars_inner has
-    # its own _is_intraday_stale guard that prevents stale data from being
-    # persisted to SQLite, so we won't poison the cache.
-    fallback = _fetch_intraday_massive(ticker, tf, max_bars)
-    return fallback or []
+    # All clean sources rejected — do NOT fall back to raw Massive. That
+    # would re-admit the exact corrupt payload Plan 1's validation gate was
+    # built to reject (e.g. QQQ 6.55 phantom bars). Staleness checks
+    # last-bar age, not OHLC validity, so a corrupt-but-recent payload
+    # would silently get persisted to SQLite and the in-memory cache.
+    # Return empty so the cache is not poisoned.
+    _logger.warning(
+        "[bars] %s tf=%s: all sources failed validation, returning empty", ticker, tf
+    )
+    return []
 
 
 # ── Delta-fetch helpers (tiny payloads — only new bars since last stored ts) ──
