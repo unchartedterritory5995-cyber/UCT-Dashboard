@@ -192,6 +192,50 @@ def _start_priority_audit_background(delay_seconds: int = 30) -> None:
         _run_priority_audit_now()
     threading.Thread(target=_delayed, daemon=True, name="startup-priority-audit").start()
 
+
+# Module-level imports for hot tier warm helpers — bound at module scope so
+# tests can patch via `api.main.bars_disk_cache.get` and `api.main.bars_hot_tier.set`.
+from api.services import bars_hot_tier, bars_disk_cache  # noqa: E402
+
+
+def _warm_hot_tier_now() -> None:
+    """Synchronously pre-load the hot tier with top-priority tickers' bars.
+
+    Used by tests + the background warm helper.
+    """
+    try:
+        tickers = _resolve_priority_tickers()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] hot tier warm: resolve failed")
+        return
+    if not tickers:
+        return
+    # Cap to 500 — capacity of the hot tier
+    tickers = tickers[:500]
+    for sym in tickers:
+        for tf in ("5", "30", "60", "D"):
+            try:
+                payload = bars_disk_cache.get(sym, tf, 5000)
+                if payload:
+                    bars_hot_tier.set(sym, tf, 5000, payload)
+            except Exception:
+                pass
+    try:
+        size = bars_hot_tier.size()
+        logging.getLogger(__name__).info("[startup] hot tier warmed: %d entries", size)
+    except Exception:
+        pass
+
+
+def _start_hot_tier_warm_background(delay_seconds: int = 45) -> None:
+    """Spawn a daemon thread that warms the hot tier after `delay_seconds`."""
+    import threading
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        _warm_hot_tier_now()
+    threading.Thread(target=_delayed, daemon=True, name="hot-tier-warmer").start()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
@@ -246,6 +290,14 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] priority audit scheduled (~30s after boot)")
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule priority audit: %s", e)
+
+    # Hot tier warm — pre-load top-priority tickers' bars into RAM 45s after
+    # boot so the first chart request lands in the hot tier (no disk hop).
+    try:
+        _start_hot_tier_warm_background()
+        logging.getLogger(__name__).info("[startup] hot tier warm scheduled (~45s after boot)")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] failed to schedule hot tier warm")
 
     # Start continuous audit thread (5min/1hr/24hr cadences)
     try:
