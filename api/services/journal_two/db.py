@@ -234,6 +234,10 @@ _PHASE_2_ALTERS = [
     # Per-account trade-type filter: 'shares' | 'options' | 'both'.
     # Hides the inactive surface's tabs/forms in J2.0 (data still queryable).
     "ALTER TABLE j2_accounts ADD COLUMN trading_mode TEXT NOT NULL DEFAULT 'both'",
+    # Phase A — Entry Guards (nullable scalars; null = disabled)
+    "ALTER TABLE j2_accounts ADD COLUMN default_size_pct REAL",
+    "ALTER TABLE j2_accounts ADD COLUMN default_r_multiple_target REAL",
+    "ALTER TABLE j2_accounts ADD COLUMN max_risk_per_trade_pct REAL",
 ]
 
 
