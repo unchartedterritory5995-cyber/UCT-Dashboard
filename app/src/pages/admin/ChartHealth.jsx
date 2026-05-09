@@ -7,6 +7,10 @@ export default function ChartHealth() {
   const [running, setRunning] = useState(false)
   const [error, setError] = useState(null)
   const [liveness, setLiveness] = useState({})
+  const [sourceHealth, setSourceHealth] = useState({ sources: {}, by_source: {} })
+  const [provLookup, setProvLookup] = useState({ ticker: '', tf: '30', barTime: '' })
+  const [provResult, setProvResult] = useState(null)
+  const [provError, setProvError] = useState(null)
 
   async function loadStatus() {
     try {
@@ -31,6 +35,45 @@ export default function ChartHealth() {
     } catch {}
   }
 
+  async function loadSourceHealth() {
+    try {
+      const r = await fetch('/api/admin/bars/source-health', { credentials: 'include' })
+      if (r.ok) {
+        const data = await r.json()
+        setSourceHealth({
+          sources: data.sources || {},
+          by_source: data.by_source || {},
+        })
+      }
+    } catch {}
+  }
+
+  async function lookupProvenance(e) {
+    e?.preventDefault()
+    setProvError(null)
+    setProvResult(null)
+    if (!provLookup.ticker || !provLookup.barTime) {
+      setProvError('Ticker and bar_time required')
+      return
+    }
+    try {
+      const params = new URLSearchParams({
+        ticker: provLookup.ticker,
+        tf: provLookup.tf,
+        bar_time: provLookup.barTime,
+      })
+      const r = await fetch(`/api/admin/bars/provenance?${params}`, { credentials: 'include' })
+      if (r.ok) {
+        const data = await r.json()
+        setProvResult(data.provenance)
+      } else {
+        setProvError(`HTTP ${r.status}`)
+      }
+    } catch (e) {
+      setProvError(String(e))
+    }
+  }
+
   useEffect(() => {
     loadStatus()
     const id = setInterval(loadStatus, 10000)
@@ -40,6 +83,12 @@ export default function ChartHealth() {
   useEffect(() => {
     loadLiveness()
     const id = setInterval(loadLiveness, 5000)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    loadSourceHealth()
+    const id = setInterval(loadSourceHealth, 10000)
     return () => clearInterval(id)
   }, [])
 
@@ -154,6 +203,68 @@ export default function ChartHealth() {
                 ))}
             </tbody>
           </table>
+        )}
+      </div>
+
+      <div className={styles.livenessSection}>
+        <h2 className={styles.subheading}>Source Health</h2>
+        <p className={styles.muted}>Per-source pass rate (1hr rolling). Below 95% with 20+ attempts → degraded.</p>
+        {Object.keys(sourceHealth.sources).length === 0 ? (
+          <p className={styles.muted}>No source attempts recorded yet.</p>
+        ) : (
+          <table className={styles.table}>
+            <thead><tr><th>Source</th><th>State</th><th>Attempts</th><th>Pass Rate</th><th>Bars Cached</th></tr></thead>
+            <tbody>
+              {Object.entries(sourceHealth.sources).map(([source, info]) => (
+                <tr key={source} className={info.state === 'degraded' ? styles.staleRow : undefined}>
+                  <td>{source}</td>
+                  <td>{info.state}</td>
+                  <td>{info.attempts}</td>
+                  <td>{(info.pass_rate * 100).toFixed(1)}%</td>
+                  <td>{sourceHealth.by_source[source] || 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className={styles.livenessSection}>
+        <h2 className={styles.subheading}>Provenance Lookup</h2>
+        <p className={styles.muted}>Find the source that produced a specific cached bar.</p>
+        <form onSubmit={lookupProvenance} className={styles.provForm}>
+          <input
+            type="text"
+            placeholder="Ticker"
+            value={provLookup.ticker}
+            onChange={e => setProvLookup({...provLookup, ticker: e.target.value.toUpperCase()})}
+          />
+          <select value={provLookup.tf} onChange={e => setProvLookup({...provLookup, tf: e.target.value})}>
+            <option value="1">1m</option>
+            <option value="5">5m</option>
+            <option value="15">15m</option>
+            <option value="30">30m</option>
+            <option value="60">1h</option>
+            <option value="D">D</option>
+            <option value="W">W</option>
+            <option value="M">M</option>
+          </select>
+          <input
+            type="number"
+            placeholder="Bar time (epoch s)"
+            value={provLookup.barTime}
+            onChange={e => setProvLookup({...provLookup, barTime: e.target.value})}
+          />
+          <button type="submit">Lookup</button>
+        </form>
+        {provError && <p className={styles.error}>{provError}</p>}
+        {provResult === null && !provError && <p className={styles.muted}>No record yet.</p>}
+        {provResult && (
+          <div className={styles.kv}>
+            <div>Source</div><div>{provResult.source}</div>
+            <div>Validated at</div><div>{new Date(provResult.validated_at * 1000).toLocaleString()}</div>
+            <div>Verified at</div><div>{provResult.verified_at ? new Date(provResult.verified_at * 1000).toLocaleString() : 'not yet reconciled'}</div>
+          </div>
         )}
       </div>
     </div>
