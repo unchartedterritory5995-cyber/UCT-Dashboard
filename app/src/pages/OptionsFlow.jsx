@@ -4246,6 +4246,77 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:10, fontWeight:700, color:P.ac, marginBottom:6 }}>
                       {batchResults.filter(r=>r.found).length} of {batchResults.length} tickers found in flow data
                     </div>
+                    {/* Top Ideas from batch */}
+                    {(()=>{
+                      const found = batchResults.filter(r=>r.found && r.net > 0);
+                      if (found.length < 2) return null;
+                      // Score each
+                      const scored = found.map(r => {
+                        let sc = 0;
+                        const convPct = r.dir==="BULL" ? r.bullPct : (100-r.bullPct);
+                        sc += convPct >= 95 ? 25 : convPct >= 90 ? 20 : convPct >= 80 ? 15 : convPct >= 70 ? 10 : 5;
+                        sc += r.hasSwp && r.hasBlk ? 25 : r.hasSwp ? 15 : 5;
+                        sc += r.net >= 50e6 ? 15 : r.net >= 20e6 ? 12 : r.net >= 5e6 ? 9 : r.net >= 1e6 ? 6 : 3;
+                        const tc = r.topContract;
+                        if (tc) {
+                          sc += tc.hits >= 10 ? 10 : tc.hits >= 5 ? 7 : tc.hits >= 3 ? 4 : 2;
+                          if (tc.DTE >= 7 && tc.DTE <= 30) sc += 15;
+                          else if (tc.DTE >= 3 && tc.DTE <= 45) sc += 10;
+                          else sc += 5;
+                        }
+                        // Build reason
+                        const reasons = [];
+                        if (convPct >= 90) reasons.push(Math.round(convPct)+"% "+r.dir.toLowerCase());
+                        if (r.hasSwp && r.hasBlk) reasons.push("sweep+block");
+                        else if (r.hasSwp) reasons.push("sweep");
+                        if (tc && tc.hits >= 5) reasons.push(tc.hits+"x repeat");
+                        if (tc && tc.DTE <= 14) reasons.push(tc.DTE+"d exp");
+                        if (r.n >= 50) reasons.push(r.n+" trades");
+                        return { ...r, sc, reasons: reasons.join(", ") };
+                      });
+                      const topBull = scored.filter(r=>r.dir==="BULL").sort((a,b)=>b.sc-a.sc).slice(0,5);
+                      const topBear = scored.filter(r=>r.dir==="BEAR").sort((a,b)=>b.sc-a.sc).slice(0,5);
+                      if (!topBull.length && !topBear.length) return null;
+                      const renderIdea = (r, i, side) => {
+                        const dirC = side==="bull"?P.bu:P.be;
+                        const tc = r.topContract;
+                        const tcSide = tc?(tc.askPrem>=tc.bidPrem?"ask":"bid"):"ask";
+                        let tcC = P.dm;
+                        if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
+                        return (
+                          <div key={r.sym} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px", borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
+                            onClick={()=>{ setSearch(r.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===r.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); }}>
+                            <span style={{ fontSize:10, color:dirC, fontWeight:900, width:16 }}>{i+1}</span>
+                            <span style={{ fontWeight:900, color:P.wh, fontSize:12, minWidth:50 }}>{r.sym}</span>
+                            <span style={{ fontWeight:800, color:dirC, fontSize:11 }}>{fmt(r.net)}</span>
+                            <span style={{ fontWeight:800, color:r.bullPct>=80?P.bu:r.bullPct<=20?P.be:P.dm, fontSize:10 }}>{r.dir==="BULL"?r.bullPct:(100-r.bullPct)}%</span>
+                            {tc && <span style={{ fontSize:9 }}>
+                              <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
+                              {tcSide==="bid" && <span style={{ fontSize:7, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 3px", borderRadius:3, background:tcC+"22" }}>BB</span>}
+                              <span style={{ color:P.wh, marginLeft:3 }}>${tc.K}</span>
+                              <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
+                              <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:3 }}>{tc.hits}x</span>
+                            </span>}
+                            <span style={{ fontSize:7, color:P.dm, marginLeft:"auto", maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.reasons}</span>
+                          </div>
+                        );
+                      };
+                      return (
+                        <div style={{ marginBottom:12, padding:"10px 12px", borderRadius:8, background:P.al, border:"1px solid "+P.bd }}>
+                          <div style={{ fontSize:11, fontWeight:800, color:"#e040fb", marginBottom:8, letterSpacing:0.5 }}>⚡ TOP IDEAS FROM YOUR WATCHLIST</div>
+                          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                            {topBull.length > 0 && <div>
+                              <div style={{ fontSize:9, fontWeight:800, color:P.bu, letterSpacing:1, marginBottom:4 }}>▲ BULL ({topBull.length})</div>
+                              {topBull.map((r,i)=>renderIdea(r,i,"bull"))}
+                            </div>}
+                            {topBear.length > 0 && <div>
+                              <div style={{ fontSize:9, fontWeight:800, color:P.be, letterSpacing:1, marginBottom:4 }}>▼ BEAR ({topBear.length})</div>
+                              {topBear.map((r,i)=>renderIdea(r,i,"bear"))}
+                            </div>}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                       <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                         {["Ticker","","Bull","Bear","","Bull%","Net","Top Contract","Trades","#"].map(h=>(
