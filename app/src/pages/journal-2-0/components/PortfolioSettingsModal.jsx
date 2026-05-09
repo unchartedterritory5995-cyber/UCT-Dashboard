@@ -82,6 +82,15 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     !!settings?.shareJournalData,
   )
   const [tradingMode, setTradingMode] = useState(settings?.tradingMode ?? 'both')
+  const [defaultSizePct, setDefaultSizePct] = useState(
+    settings?.defaultSizePct == null ? '' : String(settings.defaultSizePct),
+  )
+  const [defaultRMultipleTarget, setDefaultRMultipleTarget] = useState(
+    settings?.defaultRMultipleTarget == null ? '' : String(settings.defaultRMultipleTarget),
+  )
+  const [maxRiskPerTradePct, setMaxRiskPerTradePct] = useState(
+    settings?.maxRiskPerTradePct == null ? '' : String(settings.maxRiskPerTradePct),
+  )
 
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -133,6 +142,9 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
       setups,
       shareJournalData,
       tradingMode,
+      defaultSizePct: defaultSizePct === '' ? null : Number(defaultSizePct),
+      defaultRMultipleTarget: defaultRMultipleTarget === '' ? null : Number(defaultRMultipleTarget),
+      maxRiskPerTradePct: maxRiskPerTradePct === '' ? null : Number(maxRiskPerTradePct),
     }
     setSaving(true)
     try {
@@ -156,6 +168,9 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     setups,
     shareJournalData,
     tradingMode,
+    defaultSizePct,
+    defaultRMultipleTarget,
+    maxRiskPerTradePct,
     onSave,
     onClose,
   ])
@@ -255,6 +270,64 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
                 </label>
               ))}
             </div>
+          </section>
+
+          {/* ENTRY DEFAULTS & GUARDS — Phase A */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeader}>ENTRY DEFAULTS & GUARDS</h3>
+            <p className={styles.helper}>
+              Auto-fill the Add Position form and warn when implied risk
+              exceeds your cap. Leave any field blank to disable that guard.
+            </p>
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Default Position Size (% of account)</span>
+              <input
+                type="number"
+                min="0.1"
+                max="99.9"
+                step="0.1"
+                value={defaultSizePct}
+                onChange={(e) => setDefaultSizePct(e.target.value)}
+                placeholder="e.g. 5"
+                className={styles.numberInput}
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Default Target (R multiple)</span>
+              <input
+                type="number"
+                min="0.1"
+                step="0.1"
+                value={defaultRMultipleTarget}
+                onChange={(e) => setDefaultRMultipleTarget(e.target.value)}
+                placeholder="e.g. 2"
+                className={styles.numberInput}
+              />
+              <span className={styles.helper}>
+                Display only — Add Position will show a suggested target line
+                computed from entry, stop, and this multiple.
+              </span>
+            </label>
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Max Risk Per Trade (% of account)</span>
+              <input
+                type="number"
+                min="0.05"
+                max="50"
+                step="0.05"
+                value={maxRiskPerTradePct}
+                onChange={(e) => setMaxRiskPerTradePct(e.target.value)}
+                placeholder="e.g. 1"
+                className={styles.numberInput}
+              />
+              <span className={styles.helper}>
+                Add Position will block save with a red banner when implied
+                $ risk exceeds this cap (Override available).
+              </span>
+            </label>
           </section>
 
           {/* 5.2 DEFAULT STOP */}
