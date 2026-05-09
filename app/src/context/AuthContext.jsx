@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { clearIntroSeen } from '../components/intro/introStorage'
 
 const AuthContext = createContext(null)
 
@@ -73,6 +74,7 @@ export function AuthProvider({ children }) {
     await fetch('/api/auth/logout', { method: 'POST' })
     setUser(null)
     setPlan('free')
+    clearIntroSeen()
   }
 
   const startCheckout = async () => {

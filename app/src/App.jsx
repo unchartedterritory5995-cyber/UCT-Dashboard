@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
+import IntroAnimation from './components/intro/IntroAnimation'
 
 const Landing = lazy(() => import('./pages/Landing'))
 const Login = lazy(() => import('./pages/Login'))
@@ -57,6 +58,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        {/* Cinematic intro overlay — plays once per session on first dashboard
+            visit. Self-unmounts on completion or skip. */}
+        <IntroAnimation />
         {/* Global right-click → "+ Add to Portfolio" on every StockChart.
             Skips silently when logged out; only mounts once at app root. */}
         <Suspense fallback={null}>
