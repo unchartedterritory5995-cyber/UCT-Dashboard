@@ -116,6 +116,82 @@ def _seed_cache_from_volume():
     except Exception as e:
         print(f"[startup] Could not load wire_data from volume: {e}")
 
+
+def _resolve_priority_tickers() -> list[str]:
+    """Resolve UCT20 + watchlists + candidates + theme core tier into a deduped sorted ticker list.
+
+    Returns empty list if no subsystems are available (e.g., wire_data not yet pushed).
+    """
+    tickers: set[str] = set()
+
+    # UCT20 + candidates from wire_data
+    try:
+        from api.services import engine
+        wd = engine._load_wire_data() or {}
+        uct20 = wd.get("uct20") or {}
+        for sym in uct20.get("symbols", []) or []:
+            if sym:
+                tickers.add(sym.upper())
+        # Pullback candidates if present
+        candidates = wd.get("candidates") or {}
+        for bucket_name in ("pullback_ma", "remount", "gappers"):
+            bucket = candidates.get(bucket_name) or []
+            for c in bucket:
+                sym = c.get("sym") if isinstance(c, dict) else None
+                if sym:
+                    tickers.add(sym.upper())
+    except Exception:
+        pass
+
+    # Public watchlists
+    try:
+        from api.services import watchlist_service
+        for wl in (watchlist_service.list_public_watchlists() or []):
+            items = wl.get("items", []) if isinstance(wl, dict) else []
+            for item in items:
+                sym = item.get("sym") if isinstance(item, dict) else None
+                if sym:
+                    tickers.add(sym.upper())
+    except Exception:
+        pass
+
+    return sorted(tickers)
+
+
+def _run_priority_audit_now() -> None:
+    """Resolve priority tickers and trigger an audit. Synchronous (for tests).
+
+    Production callers should wrap in a thread (see _start_priority_audit_background).
+    """
+    try:
+        tickers = _resolve_priority_tickers()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] priority resolver failed")
+        return
+    if not tickers:
+        return
+    try:
+        from api.services import bars_audit
+        bars_audit.audit_universe(
+            tickers,
+            tfs=["5", "30", "60", "D"],
+            bars_counts=[5000],
+            parallelism=4,
+            scope="priority",
+        )
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] priority audit run failed")
+
+
+def _start_priority_audit_background(delay_seconds: int = 30) -> None:
+    """Spawn a daemon thread that runs the priority audit after `delay_seconds`."""
+    import threading
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        _run_priority_audit_now()
+    threading.Thread(target=_delayed, daemon=True, name="startup-priority-audit").start()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
@@ -159,6 +235,16 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).exception(
             "[startup] chart-health bootstrap failed: %s", e
         )
+
+    # Fire-and-forget priority audit ~30s after boot so the admin chart-health
+    # dashboard has a baseline run on every redeploy without manual operator
+    # intervention. Helper is a no-op if no priority tickers are resolvable
+    # (e.g. wire_data not yet pushed on a fresh volume).
+    try:
+        _start_priority_audit_background()
+        logging.getLogger(__name__).info("[startup] priority audit scheduled (~30s after boot)")
+    except Exception as e:
+        logging.getLogger(__name__).exception("[startup] failed to schedule priority audit: %s", e)
 
     # Integrity check BEFORE init_db: if /data/bars.db is malformed (which
     # happens when the previous run was killed mid-write or replaced with
