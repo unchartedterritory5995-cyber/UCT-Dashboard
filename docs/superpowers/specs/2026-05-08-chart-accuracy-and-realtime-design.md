@@ -12,6 +12,12 @@
 
 This is the most critical feature of the app. Every architectural decision in this spec serves that mission.
 
+**Scope is non-negotiable.** This is the complete and final build of the chart layer:
+- **Every stock** — full 3,685-ticker cap universe, not a curated subset.
+- **Every timeframe** — all 8 (1m, 5m, 15m, 30m, 1hr, D, W, M), no exceptions.
+- **Every chart surface** — every location in the dashboard where a chart renders (StockChart instances in TickerPopup, DrillModal, ThemeTrackerPage, Watchlists, CustomScan, Journal, UCT20, Screener, Earnings, Catalyst, Calendar, Breadth, OptionsFlow, DarkPool, LeadershipTile, NHNLModal — and any future surface inheriting from `StockChart`).
+- **No partial deliveries.** No "we'll polish that later." Phase 5 is not optional.
+
 ---
 
 ## Problem Statement
