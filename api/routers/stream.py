@@ -12,6 +12,7 @@ import time
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from api.services import bars_liveness, realtime_stream
 from api.services.realtime_stream import (
     get_realtime_prices, subscribe_tickers, unsubscribe_tickers, get_stream_status
 )
@@ -21,6 +22,28 @@ _logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MAX_SSE_TICKERS = 50  # Finnhub free tier cap; prevents unbounded subscription growth
+
+
+def _build_stale_events(tickers, now=None):
+    """Return list of stale event dicts for tickers whose last tick is too old.
+
+    Args:
+      tickers: iterable of ticker symbols
+      now: epoch seconds; defaults to time.time()
+
+    Returns:
+      List of {"type": "stale", "sym": SYM, "last_seen": ts} dicts.
+    """
+    if now is None:
+        now = int(time.time())
+    events = []
+    for sym in tickers:
+        last_seen = realtime_stream.get_last_seen(sym)
+        if last_seen is None:
+            continue
+        if bars_liveness.is_stale(last_seen, tf="1", market_open=None):
+            events.append({"type": "stale", "sym": sym.upper(), "last_seen": last_seen})
+    return events
 
 
 @router.get("/api/stream/prices")
@@ -49,6 +72,10 @@ async def stream_prices(
         heartbeat_interval = 15  # seconds
         last_heartbeat = time.time()
 
+        # Liveness tracking: emit stale/fresh events on transitions only (not steady-state)
+        already_stale: set[str] = set()
+        last_stale_check = 0  # epoch seconds
+
         try:
             while True:
                 # Exit immediately when browser disconnects — prevents zombie coroutines
@@ -63,6 +90,22 @@ async def stream_prices(
                 if prices_now != last_prices and current:
                     last_prices = prices_now
                     yield f"data: {json.dumps(current)}\n\n"
+
+                # Liveness probe: at most once per second, detect stale/fresh transitions
+                now_int = int(time.time())
+                if now_int > last_stale_check:
+                    last_stale_check = now_int
+                    stale_events = _build_stale_events(ticker_list, now=now_int)
+                    currently_stale = {e["sym"] for e in stale_events}
+                    # Emit stale for newly-stale tickers
+                    for e in stale_events:
+                        if e["sym"] not in already_stale:
+                            yield f"event: stale\ndata: {json.dumps(e)}\n\n"
+                            already_stale.add(e["sym"])
+                    # Emit fresh for recovered tickers
+                    for sym in list(already_stale - currently_stale):
+                        yield f"event: fresh\ndata: {json.dumps({'type': 'fresh', 'sym': sym})}\n\n"
+                        already_stale.discard(sym)
 
                 # Heartbeat to keep connection alive through proxies
                 if time.time() - last_heartbeat > heartbeat_interval:
