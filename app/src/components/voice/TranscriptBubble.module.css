@@ -1,0 +1,28 @@
+.bubble {
+  position: fixed;
+  right: 18px;
+  bottom: 86px;
+  z-index: 8001;
+  max-width: min(380px, calc(100vw - 36px));
+  padding: 10px 14px;
+  background: rgba(15, 17, 14, 0.96);
+  color: #e8e6df;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 14px;
+  font: 13px/1.4 'IBM Plex Sans', system-ui, sans-serif;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  animation: rise 200ms ease-out;
+}
+.tag {
+  color: #c9a84c;
+  font-weight: 600;
+  margin-right: 4px;
+}
+.you { margin-bottom: 6px; opacity: 0.9; }
+.assistant {}
+.listening, .thinking { color: #c9a84c; opacity: 0.85; font-style: italic; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
