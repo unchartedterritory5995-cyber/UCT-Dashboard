@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useCallback, useId } from 'react'
 import styles from './PortfolioSettingsModal.module.css'
+import NoTradeWindowsEditor from './NoTradeWindowsEditor'
 
 const STOP_MODES = [
   {
@@ -91,6 +92,15 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
   const [maxRiskPerTradePct, setMaxRiskPerTradePct] = useState(
     settings?.maxRiskPerTradePct == null ? '' : String(settings.maxRiskPerTradePct),
   )
+  const [dailyLossLimitPct, setDailyLossLimitPct] = useState(
+    settings?.dailyLossLimitPct == null ? '' : String(settings.dailyLossLimitPct),
+  )
+  const [coolingOffMinutesAfterLoss, setCoolingOffMinutesAfterLoss] = useState(
+    settings?.coolingOffMinutesAfterLoss == null ? '' : String(settings.coolingOffMinutesAfterLoss),
+  )
+  const [noTradeWindowsET, setNoTradeWindowsET] = useState(
+    Array.isArray(settings?.noTradeWindowsET) ? settings.noTradeWindowsET : [],
+  )
 
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -145,6 +155,9 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
       defaultSizePct: defaultSizePct === '' ? null : Number(defaultSizePct),
       defaultRMultipleTarget: defaultRMultipleTarget === '' ? null : Number(defaultRMultipleTarget),
       maxRiskPerTradePct: maxRiskPerTradePct === '' ? null : Number(maxRiskPerTradePct),
+      dailyLossLimitPct: dailyLossLimitPct === '' ? null : Number(dailyLossLimitPct),
+      coolingOffMinutesAfterLoss: coolingOffMinutesAfterLoss === '' ? null : parseInt(coolingOffMinutesAfterLoss, 10),
+      noTradeWindowsET,
     }
     setSaving(true)
     try {
@@ -171,6 +184,9 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     defaultSizePct,
     defaultRMultipleTarget,
     maxRiskPerTradePct,
+    dailyLossLimitPct,
+    coolingOffMinutesAfterLoss,
+    noTradeWindowsET,
     onSave,
     onClose,
   ])
@@ -328,6 +344,64 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
             <p className={styles.helper}>
               Add Position will block save with a red banner when implied
               $ risk exceeds this cap (Override available).
+            </p>
+          </section>
+
+          {/* SESSION DISCIPLINE — Phase B */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeader}>SESSION DISCIPLINE</h3>
+            <p className={styles.helper}>
+              Lock new trade entries when you've hit a daily loss, just took
+              a losing trade, or are inside a no-trade time window. Each
+              guard is independent — leave any field blank to disable it.
+            </p>
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Daily Loss Limit (% of account)</span>
+              <input
+                type="number"
+                min="0.05"
+                max="50"
+                step="0.05"
+                value={dailyLossLimitPct}
+                onChange={(e) => setDailyLossLimitPct(e.target.value)}
+                placeholder="e.g. 2"
+                className={styles.numberInput}
+              />
+            </label>
+            <p className={styles.helper}>
+              When today's realized P&amp;L drops below this %, Add Position
+              and Add Trade are blocked (Override available).
+            </p>
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Cooling-Off After Loss (minutes)</span>
+              <input
+                type="number"
+                min="1"
+                max="240"
+                step="1"
+                value={coolingOffMinutesAfterLoss}
+                onChange={(e) => setCoolingOffMinutesAfterLoss(e.target.value)}
+                placeholder="e.g. 15"
+                className={styles.numberInput}
+              />
+            </label>
+            <p className={styles.helper}>
+              After any losing trade exit, lock new entries for this many
+              minutes. Forces a walk-away after a loss.
+            </p>
+
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>No-Trade Time Windows (ET)</span>
+              <NoTradeWindowsEditor
+                value={noTradeWindowsET}
+                onChange={setNoTradeWindowsET}
+              />
+            </div>
+            <p className={styles.helper}>
+              Block entries during specific time windows (e.g. lunch chop or
+              the volatile open). Times are 24-hour Eastern.
             </p>
           </section>
 
