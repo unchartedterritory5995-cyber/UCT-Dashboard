@@ -118,6 +118,12 @@ async def stream_prices(
         already_stale: set[str] = set()
         last_stale_check = 0  # epoch seconds
 
+        # Candle event tracking: {sym: (t, c, v)} — last seen state per ticker
+        last_candle_state: dict = {}
+
+        # Correction queue handle (drain once per loop)
+        correction_queue = realtime_candle.get_correction_queue()
+
         try:
             while True:
                 # Exit immediately when browser disconnects — prevents zombie coroutines
@@ -132,6 +138,24 @@ async def stream_prices(
                 if prices_now != last_prices and current:
                     last_prices = prices_now
                     yield f"data: {json.dumps(current)}\n\n"
+
+                # Candle events: tick + bar_close emissions (per-iteration, cheap)
+                candle_events = _build_candle_events(ticker_list, last_candle_state)
+                for ev in candle_events:
+                    if ev["type"] == "tick":
+                        yield f"event: tick\ndata: {json.dumps(ev)}\n\n"
+                    elif ev["type"] == "bar_close":
+                        yield f"event: bar_close\ndata: {json.dumps(ev)}\n\n"
+
+                # Drain bar_correction events from reconciliation worker (non-blocking)
+                try:
+                    while True:
+                        ev = correction_queue.get_nowait()
+                        yield f"event: bar_correction\ndata: {json.dumps(ev)}\n\n"
+                except asyncio.QueueEmpty:
+                    pass
+                except Exception:
+                    pass
 
                 # Liveness probe: at most once per second, detect stale/fresh transitions
                 now_int = int(time.time())
