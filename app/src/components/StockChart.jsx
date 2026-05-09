@@ -11,6 +11,7 @@ import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBars from '../hooks/useRealtimeBars'
+import * as realtimeCandle from '../lib/realtimeCandle'
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import styles from './StockChart.module.css'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
@@ -596,6 +597,11 @@ export default function StockChart({
   // Real-time price streaming for live candle updates
   const { prices: livePrices, staleSymbols } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
   const isStale = !!(sym && staleSymbols && staleSymbols.has(String(sym).toUpperCase()))
+
+  // Bar-correction flash (P4-7): pulses briefly when SSE bar_correction event
+  // fires for the current symbol, signaling minute-close reconciliation
+  // overrode the WS-built bar.
+  const [correctionFlash, setCorrectionFlash] = useState(false)
 
   // ── Memoized data transforms (only recompute when bars change) ─────────────
 
@@ -1913,12 +1919,29 @@ export default function StockChart({
     setSelectedId(null)
   }, [sym, resolvedTf])
 
+  // ── Bar-correction flash subscription (P4-7) ──
+  // Fires the visible "Bar corrected" pill for 2s when minute-close
+  // reconciliation overrides the WS-built bar for this symbol.
+  useEffect(() => {
+    if (!sym) return
+    const unsub = realtimeCandle.onCorrection(sym, () => {
+      setCorrectionFlash(true)
+      setTimeout(() => setCorrectionFlash(false), 2000)
+    })
+    return unsub
+  }, [sym])
+
   // ── Render ──
   return (
     <div className={`${styles.wrapper} ${className}`} style={{ height }}>
       {isStale && (
         <div className={styles.staleIndicator} title="Live feed has paused — last tick is older than expected">
           ⏸ STALE
+        </div>
+      )}
+      {correctionFlash && (
+        <div className={styles.correctionFlash} title="Server corrected this bar after reconciliation">
+          ↻ Bar corrected
         </div>
       )}
       {loading && (

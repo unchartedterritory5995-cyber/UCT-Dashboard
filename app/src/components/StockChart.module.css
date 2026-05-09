@@ -149,6 +149,32 @@
   50% { opacity: 0.4; }
 }
 
+/* Bar-correction flash (P4-7): briefly pulses when minute-close reconciliation
+   overrides the WS-built bar. Positioned to the LEFT of the stale indicator
+   (right: 8px) so the two never overlap. */
+.correctionFlash {
+  position: absolute;
+  top: 8px;
+  right: 110px;
+  z-index: 100;
+  background: rgba(217, 119, 6, 0.85);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+  animation: correction-fade 2s ease-in-out forwards;
+  pointer-events: none;
+}
+
+@keyframes correction-fade {
+  0% { opacity: 0; transform: translateY(-4px); }
+  10% { opacity: 1; transform: translateY(0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 @media (max-width: 900px) and (orientation: landscape) {
   .container {
     min-height: 200px;
