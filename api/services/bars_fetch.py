@@ -1498,6 +1498,27 @@ def fetch_with_validation(
     return None
 
 
+def fetch_minute_snapshot(ticker: str, minute_ts: int) -> dict | None:
+    """Fetch the 1m bar for the given minute timestamp from Massive (primary).
+
+    Used by candle_reconcile at minute boundaries to compare WS-built bars
+    against an authoritative REST snapshot.
+
+    Returns the bar dict or None if unavailable.
+    """
+    try:
+        # Fetch a small window around the target minute (5 bars covers ~5 min)
+        bars = _fetch_intraday_massive(ticker, "1", 5)
+        if not bars:
+            return None
+        for b in bars:
+            if isinstance(b, dict) and b.get("t") == minute_ts:
+                return b
+    except Exception:
+        return None
+    return None
+
+
 # Public API for router + worker consumers.
 __all__ = [
     "_get_bars_inner",
@@ -1518,4 +1539,5 @@ __all__ = [
     "_bars_warm_pool",
     "_BarsWarmExecutor",
     "fetch_with_validation",
+    "fetch_minute_snapshot",
 ]

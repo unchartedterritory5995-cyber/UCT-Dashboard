@@ -34,11 +34,18 @@ def _volume_diff(a: float, b: float) -> float:
 def _fetch_secondary(ticker: str, tf: str, bar_time: int, source: str) -> Optional[dict]:
     """Fetch a single bar from `source` for the given (ticker, tf, bar_time).
 
-    Plan 3 leaves this as a placeholder — Plan 4's fetch_minute_snapshot or
-    a similar single-bar API would be the implementation. For now, returns
-    None (tests patch this).
+    For now uses Massive 1m as the secondary; Plan 4 hooks in once additional
+    sources support single-bar lookup. The `source` argument is currently
+    advisory.
     """
-    return None
+    try:
+        from api.services import bars_fetch
+        if tf == "1":
+            return bars_fetch.fetch_minute_snapshot(ticker, bar_time)
+        # For coarser TFs, return None until a multi-tf single-bar API exists
+        return None
+    except Exception:
+        return None
 
 
 def reconcile_bar(
