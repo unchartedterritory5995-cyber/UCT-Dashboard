@@ -181,4 +181,35 @@ describe('PortfolioSettingsModal', () => {
     expect(payload.defaultRMultipleTarget).toBe(2)
     expect(payload.maxRiskPerTradePct).toBe(1)
   })
+
+  it('Phase B guard inputs ship in the save payload', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
+    )
+
+    const lossInput = screen.getByLabelText(/Daily Loss Limit/i)
+    const coolInput = screen.getByLabelText(/Cooling-Off After Loss/i)
+
+    await user.clear(lossInput); await user.type(lossInput, '2')
+    await user.clear(coolInput); await user.type(coolInput, '15')
+
+    // Add a no-trade window via the editor
+    await user.click(screen.getByRole('button', { name: /add window/i }))
+    const startInput = screen.getByLabelText(/Window 1 start/i)
+    const endInput = screen.getByLabelText(/Window 1 end/i)
+    await user.type(startInput, '11:30')
+    await user.type(endInput, '13:30')
+
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.dailyLossLimitPct).toBe(2)
+    expect(payload.coolingOffMinutesAfterLoss).toBe(15)
+    expect(payload.noTradeWindowsET).toEqual([
+      { start: '11:30', end: '13:30', label: '' },
+    ])
+  })
 })
