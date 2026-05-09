@@ -20,6 +20,9 @@ from api.services import (
     bar_provenance,
     source_circuit_breaker,
     bar_self_heal,
+    bar_quality_score,
+    chart_health_alerts,
+    bars_hot_tier,
 )
 from api.middleware.auth_middleware import require_admin
 
@@ -157,3 +160,41 @@ class ForceHealRequest(BaseModel):
 @router.post("/force-heal")
 def force_heal(body: ForceHealRequest, user=Depends(require_admin)):
     return bar_self_heal.try_heal(body.ticker, body.tf, body.bar_time, body.original_source)
+
+
+# ── Quality / alerts / hot-tier / smoke endpoints ────────────────────────────
+
+@router.get("/quality")
+def quality(tickers: str = "", user=Depends(require_admin)):
+    """Return quality scores for the requested ticker list (comma-separated)."""
+    syms = [s.strip().upper() for s in tickers.split(",") if s.strip()]
+    if not syms:
+        from api import main as api_main
+        try:
+            syms = api_main._resolve_priority_tickers() or []
+        except Exception:
+            syms = []
+    return {"scores": bar_quality_score.compute_universe(syms)}
+
+
+@router.get("/alerts")
+def alerts(user=Depends(require_admin)):
+    return {"alerts": chart_health_alerts.list_recent()}
+
+
+@router.get("/hot-tier")
+def hot_tier_status(user=Depends(require_admin)):
+    return {"size": bars_hot_tier.size(), "capacity": 500}
+
+
+_SMOKE_FIXTURE = ["QQQ", "SPY", "IWM", "DIA", "AAPL", "MSFT", "NVDA", "TSLA",
+                  "AMZN", "GOOGL", "META", "AMD", "AVGO", "BRK.B", "JPM",
+                  "JNJ", "V", "MA", "PG", "XOM"]
+
+
+@router.post("/smoke")
+def smoke_audit(background_tasks: BackgroundTasks, user=Depends(require_admin)):
+    """Run a smoke audit against a curated 20-ticker fixture set."""
+    background_tasks.add_task(
+        bars_audit.audit_universe, _SMOKE_FIXTURE, scope="smoke")
+    return {"status": "started", "fixture_size": len(_SMOKE_FIXTURE)}

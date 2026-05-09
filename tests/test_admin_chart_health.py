@@ -138,3 +138,43 @@ def test_force_heal_endpoint(admin_client):
         )
     assert r.status_code == 200
     assert r.json() == fake_result
+
+
+def test_quality_endpoint_with_explicit_tickers(admin_client):
+    fake = {"QQQ": 95, "SPY": 92}
+    with patch("api.routers.admin_chart_health.bar_quality_score.compute_universe", return_value=fake):
+        r = admin_client.get("/api/admin/bars/quality?tickers=QQQ,SPY")
+    assert r.status_code == 200
+    assert r.json() == {"scores": fake}
+
+
+def test_quality_endpoint_default_priority_tickers(admin_client):
+    fake = {"QQQ": 95}
+    with patch("api.main._resolve_priority_tickers", return_value=["QQQ"]), \
+         patch("api.routers.admin_chart_health.bar_quality_score.compute_universe", return_value=fake):
+        r = admin_client.get("/api/admin/bars/quality")
+    assert r.status_code == 200
+    assert r.json()["scores"] == fake
+
+
+def test_alerts_endpoint(admin_client):
+    fake = [{"alert_key": "x", "severity": "warning", "message": "test", "metadata": {}, "emitted_at": 1700000000}]
+    with patch("api.routers.admin_chart_health.chart_health_alerts.list_recent", return_value=fake):
+        r = admin_client.get("/api/admin/bars/alerts")
+    assert r.status_code == 200
+    assert r.json() == {"alerts": fake}
+
+
+def test_hot_tier_endpoint(admin_client):
+    with patch("api.routers.admin_chart_health.bars_hot_tier.size", return_value=42):
+        r = admin_client.get("/api/admin/bars/hot-tier")
+    assert r.status_code == 200
+    assert r.json() == {"size": 42, "capacity": 500}
+
+
+def test_smoke_endpoint_kicks_off_audit(admin_client):
+    with patch("api.routers.admin_chart_health.bars_audit.audit_universe") as mock_audit:
+        r = admin_client.post("/api/admin/bars/smoke")
+    assert r.status_code == 200
+    assert r.json().get("status") == "started"
+    assert r.json().get("fixture_size") == 20
