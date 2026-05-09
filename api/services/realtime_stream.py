@@ -30,6 +30,9 @@ _ws_connection = None
 _ws_loop = None
 _running = False
 
+# Per-ticker last-tick timestamp (epoch seconds) — feeds liveness probe + stale SSE event
+_last_seen: dict[str, int] = {}
+
 
 _STREAM_FIELDS = {"price", "change_pct", "change", "timestamp", "updated_at"}
 
@@ -58,7 +61,45 @@ def get_stream_status():
         "subscribed_count": len(_subscribed),
         "prices_cached": len(_prices),
         "subscribed_tickers": sorted(_subscribed)[:50],
+        "last_seen_ages": get_last_seen_ages(),
     }
+
+
+def _record_tick(sym: str, price: float, ts: int) -> None:
+    """Record a tick. Updates _last_seen and the existing _prices dict.
+
+    Called from the WS message handler when a trade tick arrives, and exposed
+    for tests and any future synthetic tick injection. Complements (does not
+    replace) the richer prev_close-aware update in _process_finnhub_trade.
+    """
+    sym = sym.upper()
+    with _lock:
+        _last_seen[sym] = int(ts)
+        # Also update _prices so existing /api/stream/prices behavior is preserved
+        if sym in _prices:
+            _prices[sym]["price"] = price
+            _prices[sym]["timestamp"] = int(ts)
+            _prices[sym]["updated_at"] = int(time.time())
+        else:
+            _prices[sym] = {
+                "price": price,
+                "timestamp": int(ts),
+                "updated_at": int(time.time()),
+            }
+
+
+def get_last_seen(sym: str) -> int | None:
+    """Return the most recent tick timestamp (epoch seconds) for sym, or None."""
+    with _lock:
+        return _last_seen.get(sym.upper())
+
+
+def get_last_seen_ages(now: int | None = None) -> dict[str, int]:
+    """Return {ticker: seconds_since_last_tick} for all tracked tickers."""
+    if now is None:
+        now = int(time.time())
+    with _lock:
+        return {sym: now - ts for sym, ts in _last_seen.items()}
 
 
 def subscribe_tickers(tickers):
@@ -201,6 +242,8 @@ def _process_finnhub_trade(trade):
             "timestamp": timestamp,
             "updated_at": time.time(),
         }
+        # Record liveness — Finnhub timestamps are ms, _last_seen tracks epoch seconds
+        _last_seen[sym] = int(timestamp / 1000) if timestamp else int(time.time())
 
 
 def start_stream():
