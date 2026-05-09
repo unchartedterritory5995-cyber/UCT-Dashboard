@@ -73,3 +73,51 @@ def test_tts_rejects_empty_text(client):
     _login(client, plan="pro")
     r = client.post("/api/voice/tts", json={"text": ""})
     assert r.status_code == 400
+
+
+# ── Settings + Usage ────────────────────────────────────────────────────────
+
+def test_settings_get_returns_defaults_for_new_paid_user(client):
+    _login(client, plan="pro")
+    r = client.get("/api/voice/settings")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["voice"] == "verse"
+    assert body["speed"] == 1.0
+    assert body["enabled"] is True
+
+
+def test_settings_put_persists(client):
+    _login(client, plan="pro")
+    r = client.put("/api/voice/settings", json={"voice": "ash", "speed": 1.25})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["voice"] == "ash"
+    assert body["speed"] == 1.25
+    # Re-fetch to confirm
+    r2 = client.get("/api/voice/settings")
+    assert r2.json()["voice"] == "ash"
+
+
+def test_settings_put_rejects_invalid_voice(client):
+    _login(client, plan="pro")
+    r = client.put("/api/voice/settings", json={"voice": "not-real"})
+    assert r.status_code == 400
+
+
+def test_settings_requires_paid(client):
+    _login(client, plan="free")
+    assert client.get("/api/voice/settings").status_code == 402
+    assert client.put("/api/voice/settings", json={"voice": "ash"}).status_code == 402
+
+
+def test_usage_returns_current_month(client):
+    _login(client, plan="pro")
+    r = client.get("/api/voice/usage")
+    assert r.status_code == 200
+    body = r.json()
+    assert "year_month" in body
+    assert "mode_a_seconds" in body
+    assert "cap_seconds" in body
+    assert body["mode_a_seconds"] == 0
+    assert body["cap_seconds"] > 0

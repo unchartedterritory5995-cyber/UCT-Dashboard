@@ -22,6 +22,7 @@ from api.services.voice_usage import (
     record_mode_a_seconds,
     get_monthly_usage,
     is_within_mode_a_cap,
+    MODE_A_DEFAULT_CAP_SECONDS,
 )
 from api.services.voice_audio_cache import get_cached, put_cached
 from api.services.voice_openai import synthesize_speech, MAX_INPUT_CHARS
@@ -37,6 +38,13 @@ class TtsRequest(BaseModel):
     text: str
     voice: str | None = None
     speed: float | None = Field(None, ge=MIN_SPEED, le=MAX_SPEED)
+
+
+class SettingsUpdateRequest(BaseModel):
+    enabled: bool | None = None
+    voice: str | None = None
+    speed: float | None = Field(None, ge=MIN_SPEED, le=MAX_SPEED)
+    retention_days: int | None = Field(None, ge=1, le=3650)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -94,3 +102,39 @@ def tts(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_
     put_cached(text, voice, speed, audio_bytes)
     record_mode_a_seconds(user["id"], _estimate_seconds(text, speed))
     return Response(content=audio_bytes, media_type="audio/mpeg")
+
+
+@router.get("/settings")
+def settings_get(user: dict = Depends(requires_voice_access)):
+    return get_voice_settings(user["id"])
+
+
+@router.put("/settings")
+@limiter.limit("30/minute")
+def settings_put(
+    request: Request,
+    body: SettingsUpdateRequest,
+    user: dict = Depends(requires_voice_access),
+):
+    try:
+        return update_voice_settings(
+            user["id"],
+            enabled=body.enabled,
+            voice=body.voice,
+            speed=body.speed,
+            retention_days=body.retention_days,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/usage")
+def usage_get(user: dict = Depends(requires_voice_access)):
+    is_admin = user.get("role") == "admin"
+    cap = float("inf") if is_admin else MODE_A_DEFAULT_CAP_SECONDS
+    u = get_monthly_usage(user["id"])
+    return {
+        **u,
+        "cap_seconds": cap if cap != float("inf") else None,
+        "uncapped": is_admin,
+    }
