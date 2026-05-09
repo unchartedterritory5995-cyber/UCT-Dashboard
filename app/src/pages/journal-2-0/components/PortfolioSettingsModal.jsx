@@ -346,33 +346,6 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
             )}
           </section>
 
-          {/* 5.3 POSITION CLOSING */}
-          <section className={styles.section}>
-            <h3 className={styles.sectionHeader}>POSITION CLOSING</h3>
-            <div
-              className={styles.pillToggle}
-              role="radiogroup"
-              aria-label="Position closing method"
-            >
-              {['FIFO', 'LIFO'].map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={`${styles.pill} ${closing === mode ? styles.pillActive : ''}`}
-                  onClick={() => setClosing(mode)}
-                  aria-pressed={closing === mode}
-                >
-                  {mode === 'FIFO' ? 'FIFO — First In, First Out' : 'LIFO — Last In, First Out'}
-                </button>
-              ))}
-            </div>
-            <p className={styles.helper}>
-              {closing === 'FIFO'
-                ? 'Oldest positions are closed first when selling same-symbol shares.'
-                : 'Newest positions are closed first when selling same-symbol shares.'}
-            </p>
-          </section>
-
           {/* 5.4 BREAKEVEN RANGE */}
           <section className={styles.section}>
             <h3 className={styles.sectionHeader}>BREAKEVEN RANGE</h3>
@@ -504,6 +477,33 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
                 </span>
               </span>
             </label>
+          </section>
+
+          {/* POSITION CLOSING — kept at the bottom (advanced/rarely-changed) */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeader}>POSITION CLOSING</h3>
+            <div
+              className={styles.pillToggle}
+              role="radiogroup"
+              aria-label="Position closing method"
+            >
+              {['FIFO', 'LIFO'].map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`${styles.pill} ${closing === mode ? styles.pillActive : ''}`}
+                  onClick={() => setClosing(mode)}
+                  aria-pressed={closing === mode}
+                >
+                  {mode === 'FIFO' ? 'FIFO — First In, First Out' : 'LIFO — Last In, First Out'}
+                </button>
+              ))}
+            </div>
+            <p className={styles.helper}>
+              {closing === 'FIFO'
+                ? 'Oldest positions are closed first when selling same-symbol shares.'
+                : 'Newest positions are closed first when selling same-symbol shares.'}
+            </p>
           </section>
 
           {errorMsg && (
