@@ -68,6 +68,54 @@ Open the last tab to try it. All existing Journal tabs behave identically to bef
 
 Hamburger + slide-out drawer (hidden on desktop). Fixed header with page title + AlertBell. Body scroll locked when drawer open. User avatar + name in drawer header.
 
+## Cinematic Intro Animation (LIVE — 2026-05-09)
+
+**Brand identity reveal that plays on every page load.** Mounted at `App.jsx` root inside `<AuthProvider>` so it has access to `useAuth().user.name`. Internal route changes don't remount the App, so it does NOT replay during in-app navigation — only on actual page loads (initial visit, refresh, bookmark hit, post-deploy reload).
+
+### Brand structure
+- **Uncharted Territory** = parent brand (the umbrella identity)
+- **UCT Intelligence** = product / dashboard within Uncharted Territory
+- **Tagline (locked):** *Navigate the market, effectively.*
+- **Compass + candlestick mark** = brand symbol; red/green primary, gold-embossed for premium contexts
+
+### Three-act structure (~9.3s total)
+
+1. **Cartographer (0.0–3.8s)** — parchment world emerges with cross-hatch grid, drifting candle ghosts, coordinate marks. The compass arms ink themselves in (mask-position sweep). Compass-rose backdrop strokes from center outward, bearing tick ring rotates into place with a needle-finds-north wobble. Dotted journey path strokes corner-to-corner with a glowing gold ship marker riding along (SVG SMIL `animateMotion`). Wax seal medallion stamps in bottom-right with serif **UT** monogram + arched "CHARTING THE MARKET" text. Italic-serif map labels: *UCT INTELLIGENCE* (top), *From — Premarket* / *To — Closing Bell* (corners), *"Navigate the market, effectively."* (bottom).
+
+2. **Welcome (4.0–5.7s)** — gold ignition flash burns the parchment away. Personalized **"Welcome, {firstName}."** with gold-shimmered name + hairline rule + tagline beneath. Held 1.4s for emotional landing. Logged-out / nameless fallback: **"Welcome, TRADER."** (all-caps).
+
+3. **Brand Finale (6.0–8.5s)** — compass mark pops in (rotate -30°→0° + scale bounce). **UCT INTELLIGENCE** wordmark with gold-gradient shimmer. *"— Uncharted Territory —"* italic serif subtitle. **12 capability pills** cascade in 4×3 grid: Morning Wire · UCT 20 · AI Intelligence · Live Breadth · Theme Tracker · Trade Journal · Setup Library · Real-Time Stream · Watchlists · Scanner · Options Flow · Calendar.
+
+### Files
+- `app/src/components/intro/IntroAnimation.jsx` — main component (~250 lines)
+- `app/src/components/intro/IntroAnimation.module.css` — all keyframes (~700 lines)
+- `app/src/components/intro/introStorage.js` — `prefersReducedMotion()` helper (storage helpers retained but unused after switching to play-every-load)
+- `app/src/components/intro/assets/compass-mark.png` — Pillow-processed transparent red/green compass (white background → alpha 0)
+- `app/src/components/intro/assets/parchment-mark.png` — aged-paper compass
+
+### Skip behavior
+- ESC / Enter / Space / click anywhere / "Skip" button (top-right) → finishes immediately
+- `prefers-reduced-motion: reduce` → 1.6s static fade with logo + welcome only (no cartographer / brand-finale animation)
+
+### Mobile (< 640px)
+- Compass mark shrinks 130px → 96px
+- UCT INTELLIGENCE wordmark shrinks 40px → 28px
+- 4×3 pill grid collapses to 2×6
+- Wax seal hides
+
+### Personalization
+```js
+const greetingName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'TRADER'
+```
+
+### Spec
+`docs/superpowers/specs/2026-05-08-uct-intelligence-intro-animation-design.md`
+
+### Tech notes
+- Pure CSS keyframes + SVG SMIL motion, **zero new dependencies**
+- ~70KB image assets, ~12KB CSS
+- Uses `Georgia, 'Times New Roman', serif` for cartographer/map decoration ONLY (explicit exception to font-unification rule because these are graphic decoration, not UI text). Welcome line + product wordmark + pills all use Instrument Sans
+
 ## Charts — Lightweight Charts v5
 
 All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key component: `app/src/components/StockChart.jsx`.
