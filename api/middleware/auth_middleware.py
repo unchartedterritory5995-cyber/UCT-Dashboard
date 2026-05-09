@@ -46,3 +46,18 @@ def require_admin(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
+
+
+# ── Voice access ────────────────────────────────────────────────────────────
+
+# Adjust if the actual Stripe plan keys differ. Admins always pass.
+PAID_VOICE_PLANS = {"pro", "premium", "lifetime"}
+
+
+def requires_voice_access(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Dependency: gates voice endpoints to paid plans + admins."""
+    if user.get("role") == "admin":
+        return user
+    if user.get("plan") not in PAID_VOICE_PLANS:
+        raise HTTPException(status_code=402, detail="Voice features require a paid plan")
+    return user
