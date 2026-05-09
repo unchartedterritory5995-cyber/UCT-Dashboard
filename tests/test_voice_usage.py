@@ -50,3 +50,28 @@ def test_admin_uncapped(monkeypatch):
     record_mode_a_seconds(uid, MODE_A_DEFAULT_CAP_SECONDS + 1000)
     # Admin override path
     assert is_within_mode_a_cap(uid, is_admin=True) is True
+
+
+# ── Mode B ──────────────────────────────────────────────────────────────────
+
+def test_record_mode_b_call_increments():
+    from api.services.voice_usage import (
+        record_mode_b_call, get_monthly_usage, MODE_B_DEFAULT_CAP_CALLS,
+    )
+    uid = _make_user()
+    record_mode_b_call(uid)
+    record_mode_b_call(uid)
+    u = get_monthly_usage(uid)
+    assert u["mode_b_calls"] == 2
+
+
+def test_within_mode_b_cap():
+    from api.services.voice_usage import (
+        record_mode_b_call, is_within_mode_b_cap, MODE_B_DEFAULT_CAP_CALLS,
+    )
+    uid = _make_user()
+    assert is_within_mode_b_cap(uid)
+    for _ in range(MODE_B_DEFAULT_CAP_CALLS):
+        record_mode_b_call(uid)
+    assert not is_within_mode_b_cap(uid)
+    assert is_within_mode_b_cap(uid, is_admin=True)

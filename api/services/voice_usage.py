@@ -81,3 +81,42 @@ def is_within_mode_a_cap(
     if is_admin:
         return True
     return get_monthly_usage(user_id)["mode_a_seconds"] < cap_seconds
+
+
+# ── Mode B (one-shot) ───────────────────────────────────────────────────────
+
+# 200 calls/month default. Each call ≈ $0.003 (Whisper + gpt-4o-mini + tts-1-hd).
+# Hard ceiling ~$0.60/user/month.
+MODE_B_DEFAULT_CAP_CALLS = 200
+MODE_B_COST_PER_CALL = 0.003
+
+
+def record_mode_b_call(user_id: str) -> None:
+    """Increment Mode B call count for the current month."""
+    ym = _current_year_month()
+    cost_delta = MODE_B_COST_PER_CALL
+    conn = get_connection()
+    try:
+        conn.execute(
+            """INSERT INTO voice_usage_monthly
+               (user_id, year_month, mode_b_calls, estimated_cost_usd)
+               VALUES (?, ?, 1, ?)
+               ON CONFLICT (user_id, year_month) DO UPDATE SET
+                 mode_b_calls = mode_b_calls + 1,
+                 estimated_cost_usd = estimated_cost_usd + excluded.estimated_cost_usd""",
+            (user_id, ym, cost_delta),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def is_within_mode_b_cap(
+    user_id: str,
+    *,
+    cap_calls: int = MODE_B_DEFAULT_CAP_CALLS,
+    is_admin: bool = False,
+) -> bool:
+    if is_admin:
+        return True
+    return get_monthly_usage(user_id)["mode_b_calls"] < cap_calls
