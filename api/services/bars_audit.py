@@ -76,3 +76,126 @@ def audit_ticker(
         "issues_found": len(issues),
         "issues": issues,
     }
+
+
+import sqlite3
+import time
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+_logger = logging.getLogger(__name__)
+_AUDIT_DIR = os.environ.get("AUDIT_DIR", "/data/audits")
+_DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
+
+
+def _init_audit_runs_table():
+    schema = """
+    CREATE TABLE IF NOT EXISTS audit_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      started_at INTEGER NOT NULL,
+      finished_at INTEGER,
+      scope TEXT NOT NULL,
+      scope_arg TEXT,
+      tickers_scanned INTEGER NOT NULL DEFAULT 0,
+      bars_scanned INTEGER NOT NULL DEFAULT 0,
+      issues_found INTEGER NOT NULL DEFAULT 0,
+      report_path TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_started ON audit_runs(started_at);
+    """
+    with sqlite3.connect(_DB_PATH, timeout=10.0) as db:
+        db.executescript(schema)
+
+
+def _record_audit_run(scope: str, scope_arg: str | None) -> int:
+    with sqlite3.connect(_DB_PATH, timeout=10.0) as db:
+        cur = db.execute(
+            "INSERT INTO audit_runs (started_at, scope, scope_arg) VALUES (?, ?, ?)",
+            (int(time.time()), scope, scope_arg),
+        )
+        return int(cur.lastrowid)
+
+
+def _finish_audit_run(run_id: int, tickers: int, bars: int, issues: int, report_path: str):
+    with sqlite3.connect(_DB_PATH, timeout=10.0) as db:
+        db.execute(
+            "UPDATE audit_runs SET finished_at=?, tickers_scanned=?, bars_scanned=?, "
+            "issues_found=?, report_path=? WHERE id=?",
+            (int(time.time()), tickers, bars, issues, report_path, run_id),
+        )
+
+
+def audit_universe(
+    tickers: list[str],
+    tfs: list[str] = list(_DEFAULT_TFS),
+    bars_counts: list[int] = [5000],
+    parallelism: int = 4,
+    scope: str = "universe",
+    scope_arg: str | None = None,
+) -> dict:
+    """Scan every ticker in `tickers`. Persist report to /data/audits/."""
+    _init_audit_runs_table()
+    run_id = _record_audit_run(scope, scope_arg)
+    os.makedirs(_AUDIT_DIR, exist_ok=True)
+
+    all_issues: list[dict] = []
+    bars_scanned = 0
+    tickers_scanned = 0
+
+    with ThreadPoolExecutor(max_workers=parallelism) as ex:
+        futures = {
+            ex.submit(audit_ticker, t, tuple(tfs), tuple(bars_counts)): t
+            for t in tickers
+        }
+        for fut in as_completed(futures):
+            try:
+                rep = fut.result()
+            except Exception as e:
+                _logger.warning("[bars_audit] %s failed: %s", futures[fut], e)
+                continue
+            tickers_scanned += 1
+            bars_scanned += rep["bars_scanned"]
+            all_issues.extend(rep["issues"])
+
+    report = {
+        "run_id": run_id,
+        "started_at": int(time.time()),
+        "scope": scope,
+        "scope_arg": scope_arg,
+        "tickers_scanned": tickers_scanned,
+        "bars_scanned": bars_scanned,
+        "issues_found": len(all_issues),
+        "by_failure_type": _bucket_by_reason(all_issues),
+        "issues": all_issues[:10000],
+    }
+    report_path = os.path.join(_AUDIT_DIR, f"audit-{run_id}.json")
+    with open(report_path, "w") as f:
+        json.dump(report, f)
+    report["report_path"] = report_path
+
+    _finish_audit_run(run_id, tickers_scanned, bars_scanned, len(all_issues), report_path)
+    return report
+
+
+def _bucket_by_reason(issues: list[dict]) -> dict:
+    buckets: dict[str, int] = {}
+    for i in issues:
+        key = (i.get("reason") or "unknown").split(";")[0].strip()
+        buckets[key] = buckets.get(key, 0) + 1
+    return buckets
+
+
+def latest_report() -> dict | None:
+    """Return the most recent audit report from disk, or None."""
+    if not os.path.isdir(_AUDIT_DIR):
+        return None
+    files = [f for f in os.listdir(_AUDIT_DIR) if f.startswith("audit-") and f.endswith(".json")]
+    if not files:
+        return None
+    files.sort()
+    p = os.path.join(_AUDIT_DIR, files[-1])
+    try:
+        with open(p) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
