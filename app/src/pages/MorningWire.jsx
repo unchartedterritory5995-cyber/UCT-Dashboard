@@ -5,7 +5,15 @@ import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { SkeletonTileContent } from '../components/Skeleton'
+import ReadAloudButton from '../components/voice/ReadAloudButton'
 import styles from './MorningWire.module.css'
+
+function htmlToPlainText(html) {
+  if (!html) return ''
+  const tmp = document.createElement('div')
+  tmp.innerHTML = html
+  return tmp.textContent.replace(/\s+/g, ' ').trim()
+}
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -220,6 +228,14 @@ export default function MorningWire() {
         <div className={styles.titleRow}>
           <span className={styles.wireName}>The Morning Wire</span>
           {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
+          <ReadAloudButton
+            trackId={`morning-wire-${rundown?.date || 'today'}`}
+            label="Morning Wire"
+            textProvider={() => htmlToPlainText(rundown?.html)}
+            size="md"
+          >
+            Read aloud
+          </ReadAloudButton>
         </div>
       </div>
 
