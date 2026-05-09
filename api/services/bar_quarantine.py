@@ -8,7 +8,7 @@ import sqlite3
 import time
 from typing import Optional
 
-_DB_PATH = os.environ.get("AUTH_DB", "/data/auth.db")
+_DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
 
 
 _SCHEMA = """
@@ -26,7 +26,10 @@ CREATE INDEX IF NOT EXISTS idx_quarantine_detected ON quarantined_bars(detected_
 
 
 def _conn():
-    return sqlite3.connect(_DB_PATH, timeout=10.0)
+    c = sqlite3.connect(_DB_PATH, timeout=10.0)
+    c.execute("PRAGMA journal_mode=WAL")
+    c.execute("PRAGMA busy_timeout=2000")
+    return c
 
 
 def init_schema():
@@ -35,6 +38,11 @@ def init_schema():
 
 
 def add(ticker: str, tf: str, bar_time: int, reason: str, source: Optional[str] = None) -> None:
+    """Quarantine a bad bar so it is skipped on subsequent cache reads.
+
+    Re-quarantining the same (ticker, tf, bar_time) refreshes reason/source/detected_at
+    to the latest detection (INSERT OR REPLACE semantics).
+    """
     with _conn() as db:
         db.execute(
             "INSERT OR REPLACE INTO quarantined_bars "

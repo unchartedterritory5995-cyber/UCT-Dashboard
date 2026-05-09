@@ -536,7 +536,7 @@ import sqlite3
 import time
 from typing import Optional
 
-_DB_PATH = os.environ.get("AUTH_DB", "/data/auth.db")
+_DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
 
 
 _SCHEMA = """
@@ -1467,7 +1467,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _logger = logging.getLogger(__name__)
 _AUDIT_DIR = os.environ.get("AUDIT_DIR", "/data/audits")
-_DB_PATH = os.environ.get("AUTH_DB", "/data/auth.db")
+_DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
 
 
 def _init_audit_runs_table():
