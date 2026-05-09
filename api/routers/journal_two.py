@@ -28,6 +28,7 @@ from api.services.journal_two import (
     calendar as calendar_service,
     community as community_service,
     csv_import as csv_import_service,
+    discipline as discipline_service,
     options as options_service,
     playbook as playbook_service,
     positions as positions_service,
@@ -518,6 +519,20 @@ def put_account_settings_route(
         raise HTTPException(status_code=400, detail=str(e))
     except accounts_service.AccountValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/accounts/{account_id}/discipline/state")
+def get_discipline_state(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Return the per-account session-discipline state.
+
+    Includes today's P&L and any active locks (daily loss, cooling-off,
+    no-trade window). Polled by the J2 frontend every 5s while a J2
+    modal is open.
+    """
+    return discipline_service.compute_discipline_state(user["id"], account_id)
 
 
 # ── Playbook / Stock Observation Library (Phase 5) ──────────────────────────
