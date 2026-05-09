@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import TileCard from '../components/TileCard'
+import ReadAloudButton from '../components/voice/ReadAloudButton'
 import styles from './SetupLibrary.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -240,6 +241,31 @@ export default function SetupLibrary() {
                         <PerfBar winRate={perf?.win_rate_pct} />
                         <span className={styles.templateTrades}>
                           {perf?.total_trades ? `${perf.total_trades} trades` : ''}
+                        </span>
+                        <span onClick={e => e.stopPropagation()}>
+                          <ReadAloudButton
+                            trackId={`setup-${t.id || t.name}`}
+                            label={t.name || 'Setup'}
+                            textProvider={() => {
+                              const parts = [
+                                t.name,
+                                t.family ? `Family: ${t.family}.` : '',
+                                t.origin_trader ? `Origin trader: ${t.origin_trader}.` : '',
+                                perf?.win_rate_pct != null
+                                  ? `Win rate: ${perf.win_rate_pct.toFixed(0)} percent.`
+                                  : '',
+                                perf?.total_trades
+                                  ? `Based on ${perf.total_trades} trades.`
+                                  : '',
+                                (t.aliases || []).length > 0
+                                  ? `Also known as: ${t.aliases.join(', ')}.`
+                                  : '',
+                              ]
+                              return parts.filter(Boolean).join(' ')
+                            }}
+                          >
+                            Read
+                          </ReadAloudButton>
                         </span>
                       </div>
                     </div>
