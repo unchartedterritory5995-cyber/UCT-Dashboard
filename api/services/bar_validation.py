@@ -11,14 +11,32 @@ _DEVIATION_THRESHOLD = 0.5
 _SPLIT_TOLERANCE = 0.05
 # Volume floor — below this with a big price move is suspicious for any liquid ticker.
 _LOW_VOLUME_THRESHOLD = 1000
+# Wide-bar gate: H-L > 30% of C is suspicious for liquid tickers.
+_WIDE_BAR_THRESHOLD = 0.3  # H-L > 30% of C is suspicious for liquid tickers
 
 
 def validate_bar(
     bar: dict,
     prior_close: Optional[float] = None,
     split_ratios: Optional[list[float]] = None,
+    wide_bar_threshold: Optional[float] = None,
+    low_volume_threshold: Optional[int] = None,
 ) -> tuple[bool, list[str]]:
-    """Validate a single bar dict. Returns (ok, list_of_failure_reasons)."""
+    """Validate a single bar dict. Returns (ok, list_of_failure_reasons).
+
+    Args:
+        bar: dict with keys t, o, h, l, c, v.
+        prior_close: optional prior bar's close for deviation/low-volume gates.
+        split_ratios: optional list of split ratios (e.g. [10.0]) to permit
+            split-adjusted price deviations.
+        wide_bar_threshold: override for the wide-bar (H-L)/C ratio gate.
+            Defaults to ``_WIDE_BAR_THRESHOLD`` (0.30 = 30%). Pass ``0`` to
+            disable the gate entirely.
+        low_volume_threshold: override for the volume floor used in the
+            low-volume + big-move combo check. Defaults to
+            ``_LOW_VOLUME_THRESHOLD`` (1000). Plan 2 Task 2 will plug per-ticker
+            baselines through this knob.
+    """
     reasons: list[str] = []
     o = bar.get("o")
     h = bar.get("h")
@@ -46,6 +64,13 @@ def validate_bar(
     if l > c:
         reasons.append("L>C")
 
+    # Wide-bar gate (range relative to close)
+    threshold = _WIDE_BAR_THRESHOLD if wide_bar_threshold is None else wide_bar_threshold
+    if threshold > 0 and c is not None and c > 0:
+        ratio = (h - l) / c
+        if ratio > threshold:
+            reasons.append(f"wide-bar range: (h-l)/c = {ratio*100:.1f}% > {threshold*100:.0f}%")
+
     if v < 0:
         reasons.append("negative volume")
 
@@ -71,7 +96,8 @@ def validate_bar(
                 )
 
         # Low-volume + big-move combo (the QQQ 6.55 fingerprint)
-        if v < _LOW_VOLUME_THRESHOLD and deviation > 0.05:
+        low_threshold = _LOW_VOLUME_THRESHOLD if low_volume_threshold is None else low_volume_threshold
+        if v < low_threshold and deviation > 0.05:
             reasons.append(
                 f"implausibly low volume ({v}) with {deviation*100:.1f}% move"
             )
