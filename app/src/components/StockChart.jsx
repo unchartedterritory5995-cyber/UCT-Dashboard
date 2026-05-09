@@ -484,41 +484,25 @@ export default function StockChart({
   // from a previous ticker (before the IDB effect runs) is rejected by the ref
   // check, preventing the cross-ticker mergeDelta corruption described above.
   //
-  // Compute the `since` param ONE BAR BACK from idbSinceRef. The server's
-  // since-filter is strict `>`, so passing the last cached bar's t directly
-  // makes the server skip that bar and never refresh it. The boundary bar
-  // is the currently-developing one (today's daily, this week's weekly, the
-  // last in-progress intraday minute) — without backing off by one, today's
-  // bar gets baked into IDB at whatever intraday-snapshot values it had at
-  // first fetch and stays frozen there even as the actual close moves on.
-  // Symptom this fixes: dashboard chart shows H/C from earlier in the day
-  // for the last several days while Polygon canonical (and TV) show the
-  // final close — a multi-day visual divergence the user kept seeing.
-  // The mergeDelta logic at line ~514 already REPLACES existing bars whose
-  // timestamps appear in the delta, so re-fetching the boundary bar is
-  // safe: the fresh server value wins.
-  const _idbSinceForServer = (() => {
-    const v = idbSinceRef.current
-    if (v == null) return null
-    // Daily/Weekly/Monthly: t is an ISO date string "YYYY-MM-DD". Subtract
-    // 1 day so the most recent cached bar gets re-fetched. (The server
-    // returns calendar-aligned bars regardless, so over-fetching by a
-    // single day is the cheapest, safest way to ensure the boundary bar
-    // refreshes.)
-    if (typeof v === 'string') {
-      try {
-        const d = new Date(v + 'T00:00:00Z')
-        d.setUTCDate(d.getUTCDate() - 1)
-        return d.toISOString().slice(0, 10)
-      } catch { return v }
-    }
-    // Intraday: t is unix seconds. Subtract 1 so the boundary minute bar
-    // gets re-fetched. The mergeDelta logic deduplicates by timestamp.
-    if (typeof v === 'number') return Math.max(0, v - 1)
-    return v
-  })()
+  // For Daily/Weekly/Monthly: ALWAYS full-fetch (no `since`). Payloads are
+  // ~16KB which is trivial, and any prior IDB entry might contain stale
+  // intraday-snapshot OHLC for past days that delta-fetches (server filter
+  // is strict `>` so older bars never re-request) cannot heal. With no
+  // `since`, server returns full set, the merge branch evaluates delta=false
+  // and OVERWRITES the IDB bars array with authoritative server values —
+  // healing every prior-day stale bar in one shot. Symptom this fixes:
+  // dashboard chart shows wrong H/C for past days (intraday peeks frozen
+  // into IDB at whatever moment the user first opened the chart that day).
+  //
+  // For intraday: keep delta-fetch (payloads can be 400KB+ at 5000 bars)
+  // but back off `since` by one second so the boundary bar gets re-fetched.
+  // mergeDelta deduplicates by timestamp; fresh server value wins.
+  let _sinceParam = null
+  if (isIntraday && typeof idbSinceRef.current === 'number') {
+    _sinceParam = Math.max(0, idbSinceRef.current - 1)
+  }
   const swrUrl = (sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
-    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_idbSinceForServer != null ? `&since=${encodeURIComponent(String(_idbSinceForServer))}` : ''}`
+    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`
     : null
 
   const { data, error, mutate } = useSWR(
