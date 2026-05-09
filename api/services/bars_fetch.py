@@ -1420,25 +1420,40 @@ def _extract_bars(result):
     return None
 
 
-def _payload_passes_validation(result, prior_close=None) -> bool:
-    """Return True if the result exists and every bar passes validation.
+_PARTIAL_VALIDATION_THRESHOLD = 0.5  # accept payload if ≥50% of bars validate
 
-    Uses ``prior_close`` as the seeding context for the first bar; subsequent
-    bars chain off the prior bar's close.  Non-dict elements are skipped
-    (defensive — historical payloads have occasionally contained sentinels).
+
+def _payload_passes_validation(result, prior_close=None) -> bool:
+    """Return True if the payload exists and at least 50% of its bars validate.
+
+    Per-bar validation + quarantine still happens at cache write — the bad
+    bars are filtered there. This function only decides whether to fall
+    through to an alternate source. A few invalid bars (earnings gaps,
+    splits, halts) shouldn't force a 5s+ alt-source fetch.
+
+    ``prior_close`` seeds the first bar's chained-context check; on subsequent
+    bars, ``pc`` only advances when the bar validates so a corrupt bar can't
+    drag the reference close (matches what bars_disk_cache.put() does).
+    Non-dict elements are skipped (defensive against sentinels in legacy
+    payloads).
     """
     bars = _extract_bars(result)
     if not bars:
         return False
     pc = prior_close
+    valid = 0
+    total = 0
     for bar in bars:
         if not isinstance(bar, dict):
-            continue
+            continue  # skip sentinels
+        total += 1
         ok, _ = _bar_validation.validate_bar(bar, prior_close=pc)
-        if not ok:
-            return False
-        pc = bar.get("c", pc)
-    return True
+        if ok:
+            valid += 1
+            pc = bar.get("c", pc)
+    if total == 0:
+        return False
+    return (valid / total) >= _PARTIAL_VALIDATION_THRESHOLD
 
 
 def fetch_with_validation(
