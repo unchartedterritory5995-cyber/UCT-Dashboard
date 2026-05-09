@@ -1,6 +1,7 @@
 // app/src/components/tiles/EarningsModal.jsx
 import { useEffect, useState } from 'react'
 import TickerPopup from '../TickerPopup'
+import ReadAloudButton from '../voice/ReadAloudButton'
 import styles from './EarningsModal.module.css'
 
 function fmtEps(v) {
@@ -346,6 +347,19 @@ export default function EarningsModal({ row, label, onClose }) {
                 }>
                   {transcript.sentiment?.toUpperCase()}
                 </span>
+                {(transcript.headline || transcript.bullets?.length > 0) && (
+                  <ReadAloudButton
+                    trackId={`transcript-${row.sym}`}
+                    label={`${row.sym} earnings transcript`}
+                    textProvider={() => {
+                      const headline = transcript.headline || ''
+                      const bullets = (transcript.bullets || []).join('. ')
+                      return `${headline}. ${bullets}`
+                    }}
+                  >
+                    Read transcript
+                  </ReadAloudButton>
+                )}
               </span>
             </button>
             {transcriptOpen && (
