@@ -96,3 +96,33 @@ def synthesize_speech(text: str, *, voice: str, speed: float) -> bytes:
             raise
     assert last_err is not None
     raise last_err
+
+
+# ── Whisper STT ─────────────────────────────────────────────────────────────
+
+_WHISPER_MODEL = "whisper-1"
+MAX_AUDIO_BYTES = 25 * 1024 * 1024  # OpenAI Whisper limit
+
+
+def transcribe_audio(audio_bytes: bytes, *, filename: str = "audio.webm") -> str:
+    """
+    Transcribe an audio blob via OpenAI Whisper.
+    Returns the text. Raises ValueError if blob is empty / too large.
+    """
+    if not audio_bytes:
+        raise ValueError("audio is empty")
+    if len(audio_bytes) > MAX_AUDIO_BYTES:
+        raise ValueError(f"audio exceeds {MAX_AUDIO_BYTES} bytes")
+
+    client = _get_client()
+    import io
+    buf = io.BytesIO(audio_bytes)
+    buf.name = filename
+    resp = client.audio.transcriptions.create(
+        model=_WHISPER_MODEL,
+        file=buf,
+        response_format="text",
+    )
+    if hasattr(resp, "text"):
+        return resp.text.strip()
+    return str(resp).strip()

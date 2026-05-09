@@ -51,3 +51,26 @@ def test_synthesize_rejects_empty_text():
         voice_openai.synthesize_speech("", voice="verse", speed=1.0)
     with pytest.raises(ValueError, match="empty"):
         voice_openai.synthesize_speech("   ", voice="verse", speed=1.0)
+
+
+# ── Whisper ─────────────────────────────────────────────────────────────────
+
+def test_transcribe_audio_returns_text_from_sdk():
+    fake_resp = MagicMock()
+    fake_resp.text = "what is NVDA at right now"
+
+    fake_client = MagicMock()
+    fake_client.audio.transcriptions.create.return_value = fake_resp
+
+    with patch.object(voice_openai, "_get_client", return_value=fake_client):
+        out = voice_openai.transcribe_audio(b"FAKE-WEBM", filename="audio.webm")
+
+    assert out == "what is NVDA at right now"
+    fake_client.audio.transcriptions.create.assert_called_once()
+    kwargs = fake_client.audio.transcriptions.create.call_args.kwargs
+    assert kwargs["model"] == "whisper-1"
+
+
+def test_transcribe_audio_rejects_empty_blob():
+    with pytest.raises(ValueError, match="empty"):
+        voice_openai.transcribe_audio(b"", filename="audio.webm")
