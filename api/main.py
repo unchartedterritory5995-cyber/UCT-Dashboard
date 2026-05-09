@@ -213,9 +213,10 @@ async def lifespan(app: FastAPI):
     # thread to scan existing cache files for corruption (slow — up to ~18,425
     # files). The scan must NOT block startup or Railway healthchecks fail.
     try:
-        from api.services import bar_quarantine, bar_audit_bootstrap, bars_audit
+        from api.services import bar_quarantine, bar_audit_bootstrap, bars_audit, bar_provenance
         bar_quarantine.init_schema()
         bars_audit._init_audit_runs_table()
+        bar_provenance.init_schema()
 
         def _bootstrap_scan():
             try:
