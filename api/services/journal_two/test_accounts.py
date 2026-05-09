@@ -532,3 +532,33 @@ def test_phase_a_guards_roundtrip(db_conn):
     assert fresh["defaultSizePct"] == 5.0
     assert fresh["defaultRMultipleTarget"] == 2.0
     assert fresh["maxRiskPerTradePct"] == 1.0
+
+
+def test_phase_b_guards_roundtrip(db_conn):
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, upsert_account_settings,
+        get_account_settings,
+    )
+    user_id = "u_phase_b_roundtrip"
+    account = get_or_migrate_default_account(user_id, conn=db_conn)
+    payload = {
+        "accountSize": 100_000,
+        "defaultStop": {"mode": "custom"},
+        "positionClosing": "FIFO",
+        "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
+        "setups": [],
+        "shareJournalData": False,
+        "tradingMode": "both",
+        "dailyLossLimitPct": 2,
+        "coolingOffMinutesAfterLoss": 15,
+        "noTradeWindowsET": [{"start": "11:30", "end": "13:30", "label": "Lunch"}],
+    }
+    saved = upsert_account_settings(user_id, account["id"], payload, conn=db_conn)
+    assert saved["dailyLossLimitPct"] == 2.0
+    assert saved["coolingOffMinutesAfterLoss"] == 15
+    assert saved["noTradeWindowsET"] == [{"start": "11:30", "end": "13:30", "label": "Lunch"}]
+
+    fresh = get_account_settings(user_id, account["id"], conn=db_conn)
+    assert fresh["dailyLossLimitPct"] == 2.0
+    assert fresh["coolingOffMinutesAfterLoss"] == 15
+    assert fresh["noTradeWindowsET"] == [{"start": "11:30", "end": "13:30", "label": "Lunch"}]

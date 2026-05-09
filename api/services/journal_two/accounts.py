@@ -73,6 +73,10 @@ def _default_settings_block() -> dict[str, Any]:
         "defaultSizePct": None,
         "defaultRMultipleTarget": None,
         "maxRiskPerTradePct": None,
+        # Phase B — Session Discipline
+        "dailyLossLimitPct": None,
+        "coolingOffMinutesAfterLoss": None,
+        "noTradeWindowsET": [],
     }
 
 
@@ -779,6 +783,9 @@ def upsert_account_settings(
                    default_size_pct = ?,
                    default_r_multiple_target = ?,
                    max_risk_per_trade_pct = ?,
+                   daily_loss_limit_pct = ?,
+                   cooling_off_minutes_after_loss = ?,
+                   no_trade_windows_et = ?,
                    updated_at = ?
              WHERE id = ? AND user_id = ?
             """,
@@ -793,6 +800,9 @@ def upsert_account_settings(
                 full_validated.get("defaultSizePct"),
                 full_validated.get("defaultRMultipleTarget"),
                 full_validated.get("maxRiskPerTradePct"),
+                full_validated.get("dailyLossLimitPct"),
+                full_validated.get("coolingOffMinutesAfterLoss"),
+                json.dumps(full_validated.get("noTradeWindowsET", [])),
                 now, account_id, user_id,
             ),
         )
@@ -906,6 +916,9 @@ def _account_to_settings(acc: dict[str, Any]) -> dict[str, Any]:
             "defaultSizePct": row["default_size_pct"] if "default_size_pct" in keys else None,
             "defaultRMultipleTarget": row["default_r_multiple_target"] if "default_r_multiple_target" in keys else None,
             "maxRiskPerTradePct": row["max_risk_per_trade_pct"] if "max_risk_per_trade_pct" in keys else None,
+            "dailyLossLimitPct": row["daily_loss_limit_pct"] if "daily_loss_limit_pct" in keys else None,
+            "coolingOffMinutesAfterLoss": row["cooling_off_minutes_after_loss"] if "cooling_off_minutes_after_loss" in keys else None,
+            "noTradeWindowsET": json.loads(row["no_trade_windows_et"]) if "no_trade_windows_et" in keys else [],
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
         }
