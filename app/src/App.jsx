@@ -7,6 +7,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { VoiceProvider } from './context/VoiceContext'
 import AudioPlayerBar from './components/voice/AudioPlayerBar'
+import FloatingOrb from './components/voice/FloatingOrb'
+import TranscriptBubble from './components/voice/TranscriptBubble'
+import usePushToTalkHotkey from './hooks/usePushToTalkHotkey'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
@@ -47,6 +50,17 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
 const VerifyPending = lazy(() => import('./pages/VerifyPending'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+
+/** Global voice UI — must render inside VoiceProvider */
+function VoiceMounts() {
+  usePushToTalkHotkey({ context: 'global' })
+  return (
+    <>
+      <FloatingOrb context="global" />
+      <TranscriptBubble />
+    </>
+  )
+}
 
 /** Show Landing only if NOT logged in; otherwise redirect to dashboard */
 function PublicOnly({ children }) {
@@ -133,6 +147,7 @@ export default function App() {
           </Routes>
           </Suspense>
         </RouteErrorBoundary>
+        <VoiceMounts />
         <AudioPlayerBar />
         </VoiceProvider>
       </AuthProvider>
