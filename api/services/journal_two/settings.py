@@ -17,6 +17,7 @@ positions.py / trades.py at read/write time, not here.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -45,6 +46,10 @@ def default_settings_data() -> dict[str, Any]:
         "defaultSizePct": None,
         "defaultRMultipleTarget": None,
         "maxRiskPerTradePct": None,
+        # Phase B — Session Discipline (null/empty = disabled)
+        "dailyLossLimitPct": None,
+        "coolingOffMinutesAfterLoss": None,
+        "noTradeWindowsET": [],
     }
 
 
@@ -148,6 +153,48 @@ def _validate_optional_positive(value: Any, field_name: str) -> float | None:
     return f
 
 
+_HHMM_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+
+
+def _validate_optional_positive_int(value: Any, field_name: str) -> int | None:
+    """Optional positive integer. None/'' = disabled. Rejects bool subclass and floats."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise SettingsValidationError(f"{field_name} must be a positive integer or null")
+    if value <= 0:
+        raise SettingsValidationError(f"{field_name} must be > 0")
+    return value
+
+
+def _validate_no_trade_windows(value: Any) -> list[dict[str, str]]:
+    """List of {start: 'HH:MM', end: 'HH:MM', label?}. Empty list = disabled.
+    No overnight windows allowed in v1 (end must be strictly after start)."""
+    if value is None or value == "":
+        return []
+    if not isinstance(value, list):
+        raise SettingsValidationError("noTradeWindowsET must be a list")
+    out: list[dict[str, str]] = []
+    for i, w in enumerate(value):
+        if not isinstance(w, dict):
+            raise SettingsValidationError(f"noTradeWindowsET[{i}] must be an object")
+        start = w.get("start")
+        end = w.get("end")
+        label = w.get("label", "")
+        if not isinstance(start, str) or not _HHMM_RE.match(start):
+            raise SettingsValidationError(f"noTradeWindowsET[{i}].start must be HH:MM (24-hour)")
+        if not isinstance(end, str) or not _HHMM_RE.match(end):
+            raise SettingsValidationError(f"noTradeWindowsET[{i}].end must be HH:MM (24-hour)")
+        if not isinstance(label, str):
+            raise SettingsValidationError(f"noTradeWindowsET[{i}].label must be a string")
+        if start >= end:
+            raise SettingsValidationError(
+                f"noTradeWindowsET[{i}]: end must be after start (overnight windows not supported in v1)"
+            )
+        out.append({"start": start, "end": end, "label": label.strip()})
+    return out
+
+
 def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Reduce a client payload to the canonical shape. Rejects unknown fields
     by ignoring them; required fields must be present and valid."""
@@ -180,6 +227,12 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "defaultSizePct": _validate_optional_pct(payload.get("defaultSizePct"), "defaultSizePct"),
         "defaultRMultipleTarget": _validate_optional_positive(payload.get("defaultRMultipleTarget"), "defaultRMultipleTarget"),
         "maxRiskPerTradePct": _validate_optional_pct(payload.get("maxRiskPerTradePct"), "maxRiskPerTradePct"),
+        # Phase B
+        "dailyLossLimitPct": _validate_optional_pct(payload.get("dailyLossLimitPct"), "dailyLossLimitPct"),
+        "coolingOffMinutesAfterLoss": _validate_optional_positive_int(
+            payload.get("coolingOffMinutesAfterLoss"), "coolingOffMinutesAfterLoss",
+        ),
+        "noTradeWindowsET": _validate_no_trade_windows(payload.get("noTradeWindowsET", [])),
     }
 
 

@@ -238,3 +238,51 @@ def test_validate_phase_a_guards_reject_invalid_ranges():
     ]:
         with pytest.raises(SettingsValidationError):
             svc.validate_settings_payload(base | {field: bad_value})
+
+
+# ── Phase B — Session Discipline settings ────────────────────────────────────
+
+def test_validate_accepts_phase_b_guards():
+    from api.services.journal_two import settings as svc
+    payload = _baseline_payload() | {
+        "dailyLossLimitPct": 2,
+        "coolingOffMinutesAfterLoss": 15,
+        "noTradeWindowsET": [
+            {"start": "11:30", "end": "13:30", "label": "Lunch chop"},
+            {"start": "09:30", "end": "09:45"},
+        ],
+    }
+    out = svc.validate_settings_payload(payload)
+    assert out["dailyLossLimitPct"] == 2.0
+    assert out["coolingOffMinutesAfterLoss"] == 15
+    assert out["noTradeWindowsET"] == [
+        {"start": "11:30", "end": "13:30", "label": "Lunch chop"},
+        {"start": "09:30", "end": "09:45", "label": ""},
+    ]
+
+
+def test_validate_phase_b_guards_default_to_none_or_empty():
+    from api.services.journal_two import settings as svc
+    out = svc.validate_settings_payload(_baseline_payload())
+    assert out["dailyLossLimitPct"] is None
+    assert out["coolingOffMinutesAfterLoss"] is None
+    assert out["noTradeWindowsET"] == []
+
+
+def test_validate_phase_b_guards_reject_invalid():
+    from api.services.journal_two import settings as svc
+    from api.services.journal_two.settings import SettingsValidationError
+    base = _baseline_payload()
+    invalid = [
+        {"dailyLossLimitPct": -1},                                    # negative
+        {"dailyLossLimitPct": 100},                                   # >=100 (uses _validate_optional_pct)
+        {"coolingOffMinutesAfterLoss": 0},                            # not > 0
+        {"coolingOffMinutesAfterLoss": 1.5},                          # not integer
+        {"noTradeWindowsET": "11:30-13:30"},                          # not a list
+        {"noTradeWindowsET": [{"start": "25:00", "end": "13:00"}]},   # invalid HH:MM (hour 25)
+        {"noTradeWindowsET": [{"start": "11:30", "end": "11:30"}]},   # zero-length window
+        {"noTradeWindowsET": [{"start": "13:00", "end": "11:00"}]},   # end before start (no overnight in v1)
+    ]
+    for bad in invalid:
+        with pytest.raises(SettingsValidationError):
+            svc.validate_settings_payload(base | bad)
