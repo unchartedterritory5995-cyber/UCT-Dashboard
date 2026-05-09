@@ -13,6 +13,7 @@ import {
   moneySigned,
   rMultiple as fmtR,
 } from '../../../lib/journal-2-0'
+import { computeImpliedRiskPct } from '../lib/disciplineGuards'
 import styles from './ModalShell.module.css'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
@@ -36,12 +37,19 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
 
   const [errorMsg, setErrorMsg] = useState('')
   const [saving, setSaving] = useState(false)
+  const [overrideArmed, setOverrideArmed] = useState(false)
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  // Reset override on any change to the inputs that drive risk —
+  // prevents arming the override and then editing risk up silently.
+  useEffect(() => {
+    setOverrideArmed(false)
+  }, [shares, entryPrice, originalStop, side])
 
   // Live preview of P&L + R-multiple, same pattern as ClosePositionModal.
   const preview = useMemo(() => {
@@ -115,6 +123,16 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
     validate, symbol, side, shares, entryPrice, entryDate, exitPrice, exitDate,
     originalStop, setupVal, notes, onSave, onClose,
   ])
+
+  const impliedRiskPct = computeImpliedRiskPct({
+    accountSize: settings?.accountSize,
+    shares,
+    entryPrice,
+    stopPrice: originalStop,
+    side,
+  })
+  const cap = settings?.maxRiskPerTradePct
+  const overCap = cap != null && impliedRiskPct != null && impliedRiskPct > cap
 
   return (
     <div
@@ -297,12 +315,48 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
             </div>
           )}
 
+          {overCap && (
+            <div
+              role="alert"
+              style={{
+                margin: '0 0 12px',
+                padding: '10px 14px',
+                background: 'rgba(239,68,68,0.12)',
+                border: '1px solid var(--loss, #ef4444)',
+                borderRadius: 8,
+                color: 'var(--loss, #ef4444)',
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
+              <strong>Over risk cap.</strong>{' '}
+              Implied risk <strong>{impliedRiskPct.toFixed(2)}%</strong> exceeds
+              your cap of <strong>{cap}%</strong>.{' '}
+              {overrideArmed
+                ? 'Override armed — Save will commit anyway.'
+                : (
+                  <button
+                    type="button"
+                    onClick={() => setOverrideArmed(true)}
+                    style={{
+                      marginLeft: 6, padding: '2px 10px',
+                      background: 'transparent',
+                      border: '1px solid var(--loss, #ef4444)',
+                      color: 'var(--loss, #ef4444)',
+                      borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                    }}
+                  >
+                    Override
+                  </button>
+                )}
+            </div>
+          )}
           {errorMsg && <div className={styles.errorBanner} role="alert">{errorMsg}</div>}
         </div>
 
         <div className={styles.footer}>
           <button type="button" className={styles.ghostBtn} onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={saving}>
+          <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={saving || (overCap && !overrideArmed)}>
             {saving ? 'Saving…' : 'Add Trade'}
           </button>
         </div>
