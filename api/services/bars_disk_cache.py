@@ -11,6 +11,9 @@ import json
 import os
 import time
 
+from api.services import bar_validation
+from api.services import bar_quarantine
+
 # Railway persistent volume mount, falls back to local ./data
 _CACHE_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
 
@@ -117,8 +120,8 @@ def purge_empty():
         return 0
 
 
-def put(ticker: str, tf: str, bars: int, payload: dict):
-    """Write payload to disk cache. Non-fatal on any failure."""
+def _atomic_write(payload: dict, ticker: str, tf: str, bars: int) -> None:
+    """Atomic disk write — tmp file then os.replace. Non-fatal on failure."""
     try:
         os.makedirs(_CACHE_DIR, exist_ok=True)
         p = _path(ticker, tf, bars)
@@ -128,6 +131,62 @@ def put(ticker: str, tf: str, bars: int, payload: dict):
         os.replace(tmp, p)  # Atomic write
     except Exception:
         pass
+
+
+def put(ticker: str, tf: str, bars: int, payload: dict):
+    """Validate every bar; cache only clean bars; quarantine corrupt ones.
+
+    Non-fatal on any failure. Empty payloads (no bars) and payloads where
+    every bar fails validation are NOT cached — they should retry, not
+    serve corrupt charts.
+
+    Backward-compat: if NO bar in the payload is a dict (e.g. internal
+    test seeds using sentinel ints), the payload is written through
+    unchanged without validation. Production payloads from bars_fetch.py
+    always contain dict bars.
+    """
+    raw_bars = payload.get("bars") or []
+    if not raw_bars:
+        return
+
+    # Backward-compat passthrough: pure-sentinel seeds skip validation.
+    if not any(isinstance(b, dict) for b in raw_bars):
+        _atomic_write(payload, ticker, tf, bars)
+        return
+
+    clean_bars: list[dict] = []
+    prior_close = None
+    for bar in raw_bars:
+        # Skip non-dict bars — they can't be validated. In production this
+        # never happens; in tests it can be a sentinel value.
+        if not isinstance(bar, dict):
+            continue
+        try:
+            ok, reasons = bar_validation.validate_bar(bar, prior_close=prior_close)
+        except Exception:
+            # Validation must never break the write path
+            ok, reasons = False, ["validator raised"]
+        if ok:
+            clean_bars.append(bar)
+            prior_close = bar.get("c")
+        else:
+            try:
+                bar_quarantine.add(
+                    ticker, tf, int(bar.get("t") or 0),
+                    "; ".join(reasons),
+                    source=payload.get("source"),
+                )
+            except Exception:
+                # Quarantine table issues must never break the cache write path
+                pass
+
+    if not clean_bars:
+        return  # don't cache empty
+
+    safe_payload = dict(payload)
+    safe_payload["bars"] = clean_bars
+    safe_payload["validated_at"] = int(time.time())
+    _atomic_write(safe_payload, ticker, tf, bars)
 
 
 def delete(ticker: str, tf: str | None = None) -> int:
