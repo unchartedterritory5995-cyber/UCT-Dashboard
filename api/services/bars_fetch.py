@@ -1453,31 +1453,47 @@ def fetch_with_validation(
     payload whose every bar passes validation, or ``None`` if every source
     yielded corrupt or empty data.  The return shape mirrors whatever the
     underlying fetch helper returned (typically ``list[dict]``).
+
+    Per-source circuit breaker (Plan 3 Task 3): each source is gated on its
+    rolling 1-hour pass-rate.  When a source has been silently producing
+    corrupt or empty payloads, it gets marked ``degraded`` and skipped here
+    so the next source in the chain takes over.  Auto-recovers when the
+    rolling window shows 95%+ pass rate again.
     """
+    from api.services import source_circuit_breaker as _scb
+
     # Primary: Massive
-    try:
-        payload = _fetch_intraday_massive(ticker, tf, bars)
-    except Exception:
-        payload = None
-    if _payload_passes_validation(payload, prior_close):
-        return payload
+    if _scb.is_ok("massive"):
+        try:
+            payload = _fetch_intraday_massive(ticker, tf, bars)
+            valid = _payload_passes_validation(payload, prior_close)
+            _scb.record_attempt("massive", success=valid)
+            if valid:
+                return payload
+        except Exception:
+            _scb.record_attempt("massive", success=False)
 
     # FMP — intraday timeframes only
-    if tf in ("1", "5", "15", "30", "60"):
+    if tf in ("1", "5", "15", "30", "60") and _scb.is_ok("fmp"):
         try:
             payload = _fetch_intraday_fmp(ticker, tf, bars)
+            valid = _payload_passes_validation(payload, prior_close)
+            _scb.record_attempt("fmp", success=valid)
+            if valid:
+                return payload
         except Exception:
-            payload = None
-        if _payload_passes_validation(payload, prior_close):
-            return payload
+            _scb.record_attempt("fmp", success=False)
 
     # yfinance fallback (split-adjusted, includes premarket)
-    try:
-        payload = _fetch_intraday_yfinance(ticker, tf, bars)
-    except Exception:
-        payload = None
-    if _payload_passes_validation(payload, prior_close):
-        return payload
+    if _scb.is_ok("yfinance"):
+        try:
+            payload = _fetch_intraday_yfinance(ticker, tf, bars)
+            valid = _payload_passes_validation(payload, prior_close)
+            _scb.record_attempt("yfinance", success=valid)
+            if valid:
+                return payload
+        except Exception:
+            _scb.record_attempt("yfinance", success=False)
 
     return None
 

@@ -75,3 +75,32 @@ def test_fetch_returns_none_when_all_sources_fail(fresh_quarantine):
          patch.object(bars_fetch, "_fetch_intraday_yfinance", return_value=corrupt):
         result = bars_fetch.fetch_with_validation("QQQ", "30", 100, prior_close=694.0)
         assert result is None
+
+
+def test_breaker_skips_degraded_source(fresh_quarantine):
+    """Force massive to degraded; fetch_with_validation should skip it."""
+    from api.services import source_circuit_breaker as scb
+    scb._reset()
+    try:
+        # Force massive to degraded
+        for _ in range(25):
+            scb.record_attempt("massive", success=False)
+        assert scb.state("massive") == "degraded"
+
+        fmp_clean = [{"t": 1715080800, "o": 700, "h": 705, "l": 698, "c": 702, "v": 1500000}]
+        massive_called = []
+        def massive_spy(*a, **k):
+            massive_called.append(1)
+            return [{"t": 1715080800, "o": 6.55, "h": 6.55, "l": 6.55, "c": 6.55, "v": 56}]
+
+        with patch.object(bars_fetch, "_fetch_intraday_massive", side_effect=massive_spy), \
+             patch.object(bars_fetch, "_fetch_intraday_fmp", return_value=fmp_clean):
+            result = bars_fetch.fetch_with_validation("QQQ", "30", 100, prior_close=702.0)
+
+        # Massive should have been skipped (state=degraded)
+        assert len(massive_called) == 0
+        # FMP returns the clean data
+        bars = result if isinstance(result, list) else (result or {}).get("bars", [])
+        assert any(b.get("c") == 702 for b in bars)
+    finally:
+        scb._reset()
