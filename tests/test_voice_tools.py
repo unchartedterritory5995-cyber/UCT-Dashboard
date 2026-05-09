@@ -117,3 +117,33 @@ def test_compare_tickers(monkeypatch):
 
     out = voice_tools.dispatch("compare_tickers", {"symbols": ["AAPL", "MSFT"]}, user={"id": "u"})
     assert "AAPL" in out["summary"] and "MSFT" in out["summary"]
+
+
+def test_tool_set_2_registers():
+    from api.services import voice_tool_impls  # noqa
+    names = set(voice_tools.all_tool_names())
+    expected = {"get_news", "get_earnings_today", "get_theme_status",
+                "get_options_flow", "get_dark_pool", "get_economic_calendar"}
+    assert expected.issubset(names)
+
+
+def test_get_news_returns_headline_summary(monkeypatch):
+    from api.services import voice_tool_impls
+    monkeypatch.setattr(voice_tool_impls, "_news", lambda symbol=None: [
+        {"headline": "Apple beats earnings"},
+        {"headline": "Microsoft cloud revenue up"},
+    ])
+    out = voice_tools.dispatch("get_news", {"count": 2}, user={"id": "u"})
+    assert "Apple" in out["headlines"] or "earnings" in out["headlines"]
+    assert out["count"] == 2
+
+
+def test_get_earnings_today(monkeypatch):
+    from api.services import voice_tool_impls
+    monkeypatch.setattr(voice_tool_impls, "_earnings_today", lambda: [
+        {"sym": "AAPL", "session": "AMC"},
+        {"sym": "GOOGL", "session": "AMC"},
+    ])
+    out = voice_tools.dispatch("get_earnings_today", {}, user={"id": "u"})
+    assert "AAPL" in out["tickers"]
+    assert out["count"] == 2
