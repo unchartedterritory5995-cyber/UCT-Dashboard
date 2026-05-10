@@ -85,7 +85,7 @@ export function computeBB(bars, period = 20, stdDev = 2) {
     const avg = sum / period
     let sqSum = 0
     for (let j = i - period + 1; j <= i; j++) sqSum += (bars[j].c - avg) ** 2
-    const std = Math.sqrt(sqSum / (period - 1))
+    const std = Math.sqrt(sqSum / period)
     const t = bars[i].t
     upper.push({ time: t, value: parseFloat((avg + stdDev * std).toFixed(4)) })
     middle.push({ time: t, value: parseFloat(avg.toFixed(4)) })
