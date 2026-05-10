@@ -77,6 +77,8 @@ def _default_settings_block() -> dict[str, Any]:
         "dailyLossLimitPct": None,
         "coolingOffMinutesAfterLoss": None,
         "noTradeWindowsET": [],
+        "aPlusSetups": [],
+        "aPlusRiskMultiplier": None,
     }
 
 
@@ -786,6 +788,8 @@ def upsert_account_settings(
                    daily_loss_limit_pct = ?,
                    cooling_off_minutes_after_loss = ?,
                    no_trade_windows_et = ?,
+                   a_plus_setups = ?,
+                   a_plus_risk_multiplier = ?,
                    updated_at = ?
              WHERE id = ? AND user_id = ?
             """,
@@ -803,6 +807,8 @@ def upsert_account_settings(
                 full_validated.get("dailyLossLimitPct"),
                 full_validated.get("coolingOffMinutesAfterLoss"),
                 json.dumps(full_validated.get("noTradeWindowsET", [])),
+                json.dumps(full_validated.get("aPlusSetups", [])),
+                full_validated.get("aPlusRiskMultiplier"),
                 now, account_id, user_id,
             ),
         )
@@ -919,6 +925,8 @@ def _account_to_settings(acc: dict[str, Any]) -> dict[str, Any]:
             "dailyLossLimitPct": row["daily_loss_limit_pct"] if "daily_loss_limit_pct" in keys else None,
             "coolingOffMinutesAfterLoss": row["cooling_off_minutes_after_loss"] if "cooling_off_minutes_after_loss" in keys else None,
             "noTradeWindowsET": json.loads(row["no_trade_windows_et"]) if "no_trade_windows_et" in keys else [],
+            "aPlusSetups": json.loads(row["a_plus_setups"]) if "a_plus_setups" in keys else [],
+            "aPlusRiskMultiplier": row["a_plus_risk_multiplier"] if "a_plus_risk_multiplier" in keys else None,
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
         }

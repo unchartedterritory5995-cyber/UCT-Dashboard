@@ -562,3 +562,30 @@ def test_phase_b_guards_roundtrip(db_conn):
     assert fresh["dailyLossLimitPct"] == 2.0
     assert fresh["coolingOffMinutesAfterLoss"] == 15
     assert fresh["noTradeWindowsET"] == [{"start": "11:30", "end": "13:30", "label": "Lunch"}]
+
+
+def test_phase_c_guards_roundtrip(db_conn):
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, upsert_account_settings,
+        get_account_settings,
+    )
+    user_id = "u_phase_c_roundtrip"
+    account = get_or_migrate_default_account(user_id, conn=db_conn)
+    payload = {
+        "accountSize": 100_000,
+        "defaultStop": {"mode": "custom"},
+        "positionClosing": "FIFO",
+        "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
+        "setups": ["Bull Flag", "Pullback"],
+        "shareJournalData": False,
+        "tradingMode": "both",
+        "aPlusSetups": ["Bull Flag"],
+        "aPlusRiskMultiplier": 1.5,
+    }
+    saved = upsert_account_settings(user_id, account["id"], payload, conn=db_conn)
+    assert saved["aPlusSetups"] == ["Bull Flag"]
+    assert saved["aPlusRiskMultiplier"] == 1.5
+
+    fresh = get_account_settings(user_id, account["id"], conn=db_conn)
+    assert fresh["aPlusSetups"] == ["Bull Flag"]
+    assert fresh["aPlusRiskMultiplier"] == 1.5
