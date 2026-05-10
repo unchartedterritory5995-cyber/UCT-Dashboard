@@ -40,6 +40,7 @@ from api.services.voice_session_service import (
     create_session as _create_voice_session, end_session as _end_voice_session,
     append_transcript, session_belongs_to_user,
 )
+from api.services.voice_dispatch import run_tool
 
 _log = logging.getLogger(__name__)
 
@@ -254,6 +255,12 @@ class SessionTokenRequest(BaseModel):
     context: str = "global"
 
 
+class ExecRequest(BaseModel):
+    session_id: int
+    tool: str
+    args: dict = {}
+
+
 _REALTIME_INSTRUCTIONS = (
     "You are UCT Intelligence, a voice trading assistant inside a stock-market "
     "dashboard. You can see the user's available tools and call them to look up "
@@ -304,3 +311,21 @@ def session_token(
         "voice": settings["voice"],
         "tools": tools_schema,
     }
+
+
+@router.post("/exec")
+@limiter.limit("120/minute")
+def exec_tool(
+    request: Request,
+    body: ExecRequest,
+    user: dict = Depends(requires_voice_access),
+):
+    if not session_belongs_to_user(body.session_id, user["id"]):
+        raise HTTPException(status_code=403, detail="session not owned by user")
+
+    return run_tool(
+        session_id=body.session_id,
+        user_id=user["id"],
+        tool_name=body.tool,
+        args=body.args or {},
+    )

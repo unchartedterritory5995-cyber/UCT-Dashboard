@@ -247,3 +247,44 @@ def test_session_token_blocks_when_cap_exceeded(client):
     with patch("api.routers.voice.mint_realtime_session", return_value=fake_mint):
         r = client.post("/api/voice/session_token", json={"context": "global"})
     assert r.status_code == 429
+
+
+def test_exec_requires_paid(client):
+    _login(client, plan="free")
+    r = client.post("/api/voice/exec", json={"session_id": 1, "tool": "get_quote", "args": {}})
+    assert r.status_code == 402
+
+
+def test_exec_runs_tool_and_returns_envelope(client):
+    _login(client, plan="pro")
+    from api.services.voice_session_service import create_session
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").fetchone()
+        uid = row["id"]
+    finally:
+        conn.close()
+    sid = create_session(user_id=uid, mode="c", source="orb", page_context="global")
+
+    with patch("api.routers.voice.run_tool", return_value={
+        "ok": True, "tool": "get_quote", "result": {"symbol": "NVDA", "last": 487.20},
+    }):
+        r = client.post("/api/voice/exec", json={
+            "session_id": sid, "tool": "get_quote", "args": {"symbol": "NVDA"},
+        })
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["result"]["symbol"] == "NVDA"
+
+
+def test_exec_rejects_session_owned_by_another_user(client):
+    _login(client, plan="pro")
+    from api.services.auth_service import create_user
+    from api.services.voice_session_service import create_session
+    other = create_user(f"other_{__import__('uuid').uuid4()}@example.com", "p")
+    sid = create_session(user_id=other["id"], mode="c", source="orb", page_context="global")
+
+    r = client.post("/api/voice/exec", json={"session_id": sid, "tool": "get_quote", "args": {}})
+    assert r.status_code == 403
