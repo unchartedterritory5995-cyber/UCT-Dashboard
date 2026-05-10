@@ -84,7 +84,8 @@ def test_get_quote_calls_snapshot(monkeypatch):
     captured = {}
     def fake_snapshot(sym):
         captured["sym"] = sym
-        return {"sym": sym, "last": 487.20, "change_pct": 2.10, "volume": 35_500_000}
+        # Real Massive shape: close, change_pct, change, vwap
+        return {"close": 487.20, "change_pct": 2.10, "change": 10.0, "vwap": 480.5}
 
     monkeypatch.setattr(voice_tool_impls, "_snapshot", fake_snapshot)
 
@@ -111,8 +112,10 @@ def test_get_movers_returns_summary(monkeypatch):
 def test_compare_tickers(monkeypatch):
     from api.services import voice_tool_impls
 
-    snapshots = {"AAPL": {"last": 200, "change_pct": 1.5},
-                 "MSFT": {"last": 400, "change_pct": -0.5}}
+    snapshots = {
+        "AAPL": {"close": 200, "change_pct": 1.5, "change": 3.0, "vwap": 199},
+        "MSFT": {"close": 400, "change_pct": -0.5, "change": -2.0, "vwap": 401},
+    }
     monkeypatch.setattr(voice_tool_impls, "_snapshot", lambda sym: snapshots[sym])
 
     out = voice_tools.dispatch("compare_tickers", {"symbols": ["AAPL", "MSFT"]}, user={"id": "u"})

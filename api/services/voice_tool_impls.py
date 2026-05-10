@@ -275,17 +275,16 @@ if not isinstance(_vt._REGISTRY, _SelfHealingRegistry):
 def _get_quote(symbol: str) -> dict:
     sym = (symbol or "").upper().strip()
     if not sym:
-        return {"symbol": "", "last": 0, "direction": "flat", "abs_pct": 0, "volume": 0}
+        return {"symbol": "", "last": 0, "direction": "flat", "abs_pct": 0}
     snap = _snapshot(sym) or {}
-    last = float(snap.get("last") or 0)
+    last = float(snap.get("close") or 0)
     chg = float(snap.get("change_pct") or 0)
     direction = "up" if chg > 0 else "down" if chg < 0 else "flat"
     return {
         "symbol": sym,
-        "last": last,
+        "last": round(last, 2),
         "direction": direction,
         "abs_pct": abs(round(chg, 2)),
-        "volume": int(snap.get("volume") or 0),
     }
 
 
@@ -336,12 +335,12 @@ def _get_sector_strength(count: int = 3) -> dict:
 
 def _get_company_info(symbol: str) -> dict:
     sym = (symbol or "").upper().strip()
-    snap = _snapshot(sym) or {}
     return {
         "symbol": sym,
-        "sector": snap.get("sector") or "unknown",
-        "industry": snap.get("industry") or "unknown",
-        "market_cap_b": round(float(snap.get("market_cap") or 0) / 1e9, 1),
+        "sector": "not available",
+        "industry": "not available",
+        "market_cap_b": 0,
+        "note": "company-info data source not yet wired",
     }
 
 
@@ -353,7 +352,7 @@ def _compare_tickers(symbols: list[str]) -> dict:
     for s in syms:
         snap = _snapshot(s) or {}
         chg = round(float(snap.get("change_pct") or 0), 1)
-        last = float(snap.get("last") or 0)
+        last = float(snap.get("close") or 0)
         direction = "up" if chg > 0 else "down" if chg < 0 else "flat"
         parts.append(f"{s} at {last:.2f}, {direction} {abs(chg)} percent")
     return {"summary": "; ".join(parts), "count": len(syms)}
