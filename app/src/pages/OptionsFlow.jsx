@@ -4197,7 +4197,7 @@ export default function OptionsFlowDashboard() {
                     <button onClick={()=>{
                       const tickers = batchTickers.split(/[,\s\n]+/).map(s=>s.trim()).filter(Boolean);
                       if (!tickers.length || !D.clean_confirmed) return;
-                      const cc = D.clean_confirmed;
+                      const cc = capFilter==="All" ? D.clean_confirmed : (D.clean_confirmed||[]).filter(t=>capBand(t.mktcap)===capFilter);
                       const results = tickers.map(sym => {
                         const trades = cc.filter(t=>t.S===sym);
                         if (!trades.length) return { sym, found:false };
@@ -4287,7 +4287,7 @@ export default function OptionsFlowDashboard() {
                         return (
                           <div key={r.sym} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px", borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
                             onClick={()=>{
-                              const cc = D.clean_confirmed||[];
+                              const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t=>capBand(t.mktcap)===capFilter);
                               const trades = cc.filter(t=>t.S===r.sym);
                               const contracts = {};
                               trades.forEach(t => {
@@ -4356,7 +4356,7 @@ export default function OptionsFlowDashboard() {
                           return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
                               onClick={()=>{
-                                const cc = D.clean_confirmed||[];
+                                const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t=>capBand(t.mktcap)===capFilter);
                                 const trades = cc.filter(t=>t.S===r.sym);
                                 const contracts = {};
                                 trades.forEach(t => {
