@@ -17,11 +17,15 @@ from api.services.auth_db import get_connection
 def create_user(email: str, password: str, display_name: str = None) -> dict:
     user_id = str(uuid.uuid4())
     password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    # Use millisecond-precision timestamp so ORDER BY created_at DESC is deterministic
+    # even when two users are created within the same calendar second (e.g. in tests).
+    created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
     conn = get_connection()
     try:
         conn.execute(
-            "INSERT INTO users (id, email, password_hash, display_name) VALUES (?, ?, ?, ?)",
-            (user_id, email.lower().strip(), password_hash, display_name),
+            "INSERT INTO users (id, email, password_hash, display_name, created_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (user_id, email.lower().strip(), password_hash, display_name, created_at),
         )
         conn.commit()
         return {"id": user_id, "email": email.lower().strip(), "display_name": display_name, "role": "member"}

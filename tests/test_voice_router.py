@@ -207,3 +207,43 @@ def test_oneshot_rejects_empty_audio(client):
         data={"context": "global"},
     )
     assert r.status_code == 400
+
+
+# ── Realtime endpoints (Slice 4) ───────────────────────────────────────────
+
+def test_session_token_requires_paid(client):
+    _login(client, plan="free")
+    r = client.post("/api/voice/session_token", json={"context": "global"})
+    assert r.status_code == 402
+
+
+def test_session_token_returns_ephemeral_secret(client):
+    _login(client, plan="pro")
+    fake_mint = {"session_id": "sess_x", "client_secret": "ek_secret",
+                 "expires_at": 9999999999, "model": "gpt-realtime"}
+    with patch("api.routers.voice.mint_realtime_session", return_value=fake_mint):
+        r = client.post("/api/voice/session_token", json={"context": "global"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["client_secret"] == "ek_secret"
+    assert body["model"] == "gpt-realtime"
+    assert "session_id" in body
+    assert "openai_session_id" in body
+
+
+def test_session_token_blocks_when_cap_exceeded(client):
+    _login(client, plan="pro")
+    from api.services.voice_usage import record_mode_c_seconds, MODE_C_DEFAULT_CAP_SECONDS
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").fetchone()
+        uid = row["id"]
+    finally:
+        conn.close()
+    record_mode_c_seconds(uid, MODE_C_DEFAULT_CAP_SECONDS)
+
+    fake_mint = {"session_id": "sess_x", "client_secret": "ek", "expires_at": 0, "model": "x"}
+    with patch("api.routers.voice.mint_realtime_session", return_value=fake_mint):
+        r = client.post("/api/voice/session_token", json={"context": "global"})
+    assert r.status_code == 429

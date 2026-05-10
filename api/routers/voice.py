@@ -33,6 +33,12 @@ from api.services.voice_intent import run_oneshot
 from api.services.voice_tools import get_schema_for_context
 from api.services.voice_usage import (
     record_mode_b_call, is_within_mode_b_cap, MODE_B_DEFAULT_CAP_CALLS,
+    record_mode_c_seconds, is_within_mode_c_cap, MODE_C_DEFAULT_CAP_SECONDS,
+)
+from api.services.voice_openai import mint_realtime_session
+from api.services.voice_session_service import (
+    create_session as _create_voice_session, end_session as _end_voice_session,
+    append_transcript, session_belongs_to_user,
 )
 
 _log = logging.getLogger(__name__)
@@ -240,3 +246,61 @@ def oneshot(
         headers=headers,
         background=BackgroundTask(on_complete),
     )
+
+
+# ── Slice 4: Realtime (Mode C) ─────────────────────────────────────────────
+
+class SessionTokenRequest(BaseModel):
+    context: str = "global"
+
+
+_REALTIME_INSTRUCTIONS = (
+    "You are UCT Intelligence, a voice trading assistant inside a stock-market "
+    "dashboard. You can see the user's available tools and call them to look up "
+    "real-time data. Be concise and natural. Round numbers reasonably. Never "
+    "invent prices or data — if a tool fails, say so and offer to try a different "
+    "approach. Avoid disclaimers; the user is an experienced trader. Speak like "
+    "a sharp colleague, not a chatbot."
+)
+
+
+@router.post("/session_token")
+@limiter.limit("10/minute")
+def session_token(
+    request: Request,
+    body: SessionTokenRequest,
+    user: dict = Depends(requires_voice_access),
+):
+    settings = get_voice_settings(user["id"])
+    if not settings.get("enabled", True):
+        raise HTTPException(status_code=400, detail="voice features disabled in settings")
+
+    is_admin = user.get("role") == "admin"
+    if not is_within_mode_c_cap(user["id"], is_admin=is_admin):
+        raise HTTPException(status_code=429, detail="monthly conversation cap reached")
+
+    tools_schema = get_schema_for_context(body.context or "global")
+
+    try:
+        mint = mint_realtime_session(
+            voice=settings["voice"],
+            tools=tools_schema,
+            instructions=_REALTIME_INSTRUCTIONS,
+        )
+    except Exception as e:  # noqa: BLE001
+        _log.exception("realtime session mint failed")
+        raise HTTPException(status_code=502, detail=f"Realtime session mint failed: {e}")
+
+    sess_db_id = _create_voice_session(
+        user_id=user["id"], mode="c", source="orb", page_context=body.context or "global",
+    )
+
+    return {
+        "session_id": sess_db_id,
+        "openai_session_id": mint["session_id"],
+        "client_secret": mint["client_secret"],
+        "expires_at": mint["expires_at"],
+        "model": mint["model"],
+        "voice": settings["voice"],
+        "tools": tools_schema,
+    }
