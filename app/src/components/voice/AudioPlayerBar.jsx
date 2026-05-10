@@ -19,8 +19,14 @@ export default function AudioPlayerBar() {
   useEffect(() => {
     const el = audioRef.current
     if (!el) return
-    const onEnded = () => voice.stop()
-    const onError = () => voice.stop()
+    const onEnded = () => {
+      try { if (el.srcObject) el.srcObject = null } catch {}
+      voice.stop()
+    }
+    const onError = () => {
+      try { if (el.srcObject) el.srcObject = null } catch {}
+      voice.stop()
+    }
     el.addEventListener('ended', onEnded)
     el.addEventListener('error', onError)
     return () => {

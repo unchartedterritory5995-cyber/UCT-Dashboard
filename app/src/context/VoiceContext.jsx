@@ -130,6 +130,23 @@ export function VoiceProvider({ children }) {
     }
   }, [state.speed])
 
+  const playStream = useCallback(async ({ stream, trackId, trackLabel }) => {
+    dispatch({ type: 'load', trackId, trackLabel })
+    const el = audioRef.current
+    if (!el) {
+      dispatch({ type: 'error', message: 'Audio element not ready' })
+      return
+    }
+    try {
+      el.srcObject = stream
+      el.playbackRate = 1.0
+      await el.play()
+      dispatch({ type: 'play' })
+    } catch (err) {
+      dispatch({ type: 'error', message: err.message || 'Stream playback failed' })
+    }
+  }, [])
+
   const pause = useCallback(() => {
     audioRef.current?.pause()
     dispatch({ type: 'pause' })
@@ -177,12 +194,12 @@ export function VoiceProvider({ children }) {
 
   const value = useMemo(() => ({
     ...state,
-    attachAudio, playUrl, pause, resume, stop, setSpeed,
+    attachAudio, playUrl, playStream, pause, resume, stop, setSpeed,
     startListening, startThinking, startResponding,
     beginRealtime, realtimeConnected, realtimeUserTurn,
     realtimeAssistantPartial, realtimeAssistantDone,
     realtimeDisconnect, realtimeError,
-  }), [state, attachAudio, playUrl, pause, resume, stop, setSpeed,
+  }), [state, attachAudio, playUrl, playStream, pause, resume, stop, setSpeed,
        startListening, startThinking, startResponding,
        beginRealtime, realtimeConnected, realtimeUserTurn,
        realtimeAssistantPartial, realtimeAssistantDone,
