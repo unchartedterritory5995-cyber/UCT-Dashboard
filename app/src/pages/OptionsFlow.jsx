@@ -4314,7 +4314,6 @@ export default function OptionsFlowDashboard() {
                               <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
                               <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:3 }}>{tc.hits}x</span>
                             </span>}
-                            <span style={{ fontSize:7, color:P.dm, marginLeft:"auto", maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.reasons}</span>
                           </div>
                         );
                       };
