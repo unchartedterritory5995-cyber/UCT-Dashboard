@@ -27,7 +27,18 @@ const initialState = {
   transcript: '',
   narration: '',
   speed: 1.0,
+  // Slice 4: Realtime conversational mode (Mode C)
+  realtimeSessionId: null,
+  realtimeOpenaiSessionId: null,
+  rollingTranscript: [],
+  partialAssistant: '',
   errorMessage: null,
+}
+
+function appendTurn(rolling, role, text) {
+  if (!text) return rolling
+  const next = [...rolling, { role, text }]
+  return next.slice(-10)
 }
 
 function reducer(state, action) {
@@ -57,6 +68,34 @@ function reducer(state, action) {
         ...state, status: 'responding', mode: 'b',
         transcript: action.transcript || '', narration: action.narration || '',
       }
+    // Mode C (Slice 4)
+    case 'c_connecting':
+      return { ...initialState, speed: state.speed, status: 'connecting', mode: 'c' }
+    case 'c_connected':
+      return {
+        ...state, status: 'connected', mode: 'c',
+        realtimeSessionId: action.sessionId,
+        realtimeOpenaiSessionId: action.openaiSessionId,
+      }
+    case 'c_user_turn':
+      return {
+        ...state, status: 'speaking_user', mode: 'c',
+        transcript: action.text || '',
+        rollingTranscript: appendTurn(state.rollingTranscript, 'user', action.text),
+      }
+    case 'c_assistant_partial':
+      return { ...state, status: 'speaking_assistant', mode: 'c',
+               partialAssistant: (state.partialAssistant || '') + (action.delta || '') }
+    case 'c_assistant_done':
+      return {
+        ...state, mode: 'c', partialAssistant: '',
+        narration: action.text || '',
+        rollingTranscript: appendTurn(state.rollingTranscript, 'assistant', action.text),
+      }
+    case 'c_disconnect':
+      return { ...initialState, speed: state.speed }
+    case 'c_error':
+      return { ...state, status: 'error', mode: 'c', errorMessage: action.message }
     default:
       return state
   }
@@ -124,19 +163,30 @@ export function VoiceProvider({ children }) {
   const startResponding = useCallback(({ transcript, narration }) =>
     dispatch({ type: 'b_responding', transcript, narration }), [])
 
+  const beginRealtime = useCallback(() => dispatch({ type: 'c_connecting' }), [])
+  const realtimeConnected = useCallback(({ sessionId, openaiSessionId }) =>
+    dispatch({ type: 'c_connected', sessionId, openaiSessionId }), [])
+  const realtimeUserTurn = useCallback((text) =>
+    dispatch({ type: 'c_user_turn', text }), [])
+  const realtimeAssistantPartial = useCallback((delta) =>
+    dispatch({ type: 'c_assistant_partial', delta }), [])
+  const realtimeAssistantDone = useCallback((text) =>
+    dispatch({ type: 'c_assistant_done', text }), [])
+  const realtimeDisconnect = useCallback(() => dispatch({ type: 'c_disconnect' }), [])
+  const realtimeError = useCallback((message) => dispatch({ type: 'c_error', message }), [])
+
   const value = useMemo(() => ({
     ...state,
-    attachAudio,
-    playUrl,
-    pause,
-    resume,
-    stop,
-    setSpeed,
-    startListening,
-    startThinking,
-    startResponding,
+    attachAudio, playUrl, pause, resume, stop, setSpeed,
+    startListening, startThinking, startResponding,
+    beginRealtime, realtimeConnected, realtimeUserTurn,
+    realtimeAssistantPartial, realtimeAssistantDone,
+    realtimeDisconnect, realtimeError,
   }), [state, attachAudio, playUrl, pause, resume, stop, setSpeed,
-       startListening, startThinking, startResponding])
+       startListening, startThinking, startResponding,
+       beginRealtime, realtimeConnected, realtimeUserTurn,
+       realtimeAssistantPartial, realtimeAssistantDone,
+       realtimeDisconnect, realtimeError])
 
   return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>
 }
