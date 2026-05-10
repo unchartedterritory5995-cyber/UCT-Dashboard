@@ -4314,12 +4314,36 @@ export default function OptionsFlowDashboard() {
                               <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
                               <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:3 }}>{tc.hits}x</span>
                             </span>}
+                            {(()=>{
+                              const px = tc ? getPrice(r.sym, tc.cp, tc.K, tc.exp) : null;
+                              const now = px ? (px.mark||px.last||px.mid||0) : 0;
+                              const entry = tc && tc.prem > 0 && tc.hits > 0 ? tc.prem / tc.hits / 100 : 0;
+                              const pnl = now > 0 && entry > 0 ? (now-entry)/entry*100 : 0;
+                              if (now <= 0) return null;
+                              return <span style={{ marginLeft:"auto", fontSize:9 }}>
+                                <span style={{ color:P.dm }}>${now.toFixed(2)}</span>
+                                <span style={{ color:pnl>0?P.bu:pnl<0?P.be:P.dm, fontWeight:800, marginLeft:4 }}>{pnl>=0?"+":""}{pnl.toFixed(1)}%</span>
+                              </span>;
+                            })()}
                           </div>
                         );
                       };
                       return (
                         <div style={{ marginBottom:12, padding:"10px 12px", borderRadius:8, background:P.al, border:"1px solid "+P.bd }}>
-                          <div style={{ fontSize:11, fontWeight:800, color:"#e040fb", marginBottom:8, letterSpacing:0.5 }}>⚡ TOP IDEAS FROM YOUR WATCHLIST</div>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                            <div style={{ fontSize:11, fontWeight:800, color:"#e040fb", letterSpacing:0.5 }}>⚡ TOP IDEAS FROM YOUR WATCHLIST</div>
+                            <button onClick={()=>{
+                              const allContracts = [];
+                              [...topBull,...topBear].forEach(r => {
+                                if(r.topContract) allContracts.push({sym:r.sym, cp:r.topContract.cp, strike:r.topContract.K, exp:r.topContract.exp});
+                              });
+                              if(allContracts.length) fetchPrices(allContracts);
+                            }} disabled={fetchLoading}
+                              style={{ padding:"5px 12px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                                fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
+                              {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}
+                            </button>
+                          </div>
                           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                             {topBull.length > 0 && <div>
                               <div style={{ fontSize:9, fontWeight:800, color:P.bu, letterSpacing:1, marginBottom:4 }}>▲ BULL ({topBull.length})</div>
