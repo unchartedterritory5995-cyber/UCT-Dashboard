@@ -242,6 +242,9 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_accounts ADD COLUMN daily_loss_limit_pct REAL",
     "ALTER TABLE j2_accounts ADD COLUMN cooling_off_minutes_after_loss INTEGER",
     "ALTER TABLE j2_accounts ADD COLUMN no_trade_windows_et TEXT NOT NULL DEFAULT '[]'",
+    # Phase C — Setup-Aware Coaching (A+ whitelist + multiplier; null/empty = disabled)
+    "ALTER TABLE j2_accounts ADD COLUMN a_plus_setups TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE j2_accounts ADD COLUMN a_plus_risk_multiplier REAL",
 ]
 
 
