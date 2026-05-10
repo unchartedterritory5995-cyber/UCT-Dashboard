@@ -18,7 +18,7 @@ Spec §5, audit §4.3.
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
 
 from api.middleware.auth_middleware import get_current_user
@@ -33,6 +33,7 @@ from api.services.journal_two import (
     playbook as playbook_service,
     positions as positions_service,
     settings as settings_service,
+    setup_stats as setup_stats_service,
     trades as trades_service,
 )
 
@@ -533,6 +534,16 @@ def get_discipline_state(
     modal is open.
     """
     return discipline_service.compute_discipline_state(user["id"], account_id)
+
+
+@router.get("/accounts/{account_id}/setup-stats")
+def get_setup_stats_route(
+    account_id: str,
+    setup: str = Query(...),
+    user: dict = Depends(get_current_user),
+):
+    """Per-setup historical performance for the live coaching panel."""
+    return setup_stats_service.get_setup_stats(user["id"], account_id, setup)
 
 
 # ── Playbook / Stock Observation Library (Phase 5) ──────────────────────────
