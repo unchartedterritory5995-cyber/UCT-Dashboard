@@ -4206,12 +4206,14 @@ export default function OptionsFlowDashboard() {
                           if(t.D==="BULL") bull+=t.P; if(t.D==="BEAR") bear+=t.P; n++;
                           if(t.Ty==="SWP") hasSwp=true; if(t.Ty==="BLK") hasBlk=true;
                           const ck=t.CP+"|"+t.K+"|"+t.E;
-                          if(!contracts[ck]) contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,DTE:t.DTE,askPrem:0,bidPrem:0};
+                          if(!contracts[ck]) contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,DTE:t.DTE,askPrem:0,bidPrem:0,prices:[]};
                           const c=contracts[ck]; c.hits++; c.prem+=t.P;
                           if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
+                          if(t.price>0) c.prices.push(t.price);
                         });
                         const total=bull+bear; const bullPct=total>0?Math.round(bull/total*100):50;
                         const sorted=Object.values(contracts).sort((a,b)=>b.prem-a.prem);
+                        sorted.forEach(c=>{ c.entry = c.prices.length>0 ? c.prices.sort((a,b)=>a-b)[Math.floor(c.prices.length/2)] : 0; });
                         const top=sorted[0]||null;
                         return { sym, found:true, bull, bear, n, bullPct, dir:bull>=bear?"BULL":"BEAR", net:Math.abs(bull-bear), topContract:top, contractCount:sorted.length, hasSwp, hasBlk, mktcap:trades[0]?.mktcap||0 };
                       });
@@ -4317,12 +4319,13 @@ export default function OptionsFlowDashboard() {
                             {(()=>{
                               const px = tc ? getPrice(r.sym, tc.cp, tc.K, tc.exp) : null;
                               const now = px ? (px.mark||px.last||px.mid||0) : 0;
-                              const entry = tc && tc.prem > 0 && tc.hits > 0 ? tc.prem / tc.hits / 100 : 0;
-                              const pnl = now > 0 && entry > 0 ? (now-entry)/entry*100 : 0;
                               if (now <= 0) return null;
+                              const entry = tc.entry || 0;
+                              const pnl = now > 0 && entry > 0 ? (now-entry)/entry*100 : 0;
                               return <span style={{ marginLeft:"auto", fontSize:9 }}>
-                                <span style={{ color:P.dm }}>${now.toFixed(2)}</span>
-                                <span style={{ color:pnl>0?P.bu:pnl<0?P.be:P.dm, fontWeight:800, marginLeft:4 }}>{pnl>=0?"+":""}{pnl.toFixed(1)}%</span>
+                                {entry > 0 && <span style={{ color:P.dm }}>${entry.toFixed(2)} → </span>}
+                                <span style={{ color:P.wh, fontWeight:700 }}>${now.toFixed(2)}</span>
+                                {entry > 0 && <span style={{ color:pnl>0?P.bu:pnl<0?P.be:P.dm, fontWeight:800, marginLeft:4 }}>{pnl>=0?"+":""}{pnl.toFixed(1)}%</span>}
                               </span>;
                             })()}
                           </div>
