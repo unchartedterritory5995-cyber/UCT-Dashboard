@@ -288,3 +288,45 @@ def test_exec_rejects_session_owned_by_another_user(client):
 
     r = client.post("/api/voice/exec", json={"session_id": sid, "tool": "get_quote", "args": {}})
     assert r.status_code == 403
+
+
+def test_transcript_appends(client):
+    _login(client, plan="pro")
+    from api.services.voice_session_service import create_session, get_transcripts
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").fetchone()
+        uid = row["id"]
+    finally:
+        conn.close()
+    sid = create_session(user_id=uid, mode="c", source="orb", page_context="global")
+
+    r = client.post("/api/voice/transcript", json={
+        "session_id": sid, "role": "user", "text": "what's NVDA at",
+    })
+    assert r.status_code == 200
+    rows = get_transcripts(sid)
+    assert len(rows) == 1
+    assert rows[0]["role"] == "user"
+
+
+def test_session_end_records_duration(client):
+    _login(client, plan="pro")
+    from api.services.voice_session_service import create_session, get_session
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").fetchone()
+        uid = row["id"]
+    finally:
+        conn.close()
+    sid = create_session(user_id=uid, mode="c", source="orb", page_context="global")
+
+    r = client.post("/api/voice/session/end", json={
+        "session_id": sid, "duration_seconds": 17,
+    })
+    assert r.status_code == 200
+    s = get_session(sid)
+    assert s["status"] == "closed"
+    assert s["duration_seconds"] == 17

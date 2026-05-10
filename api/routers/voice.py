@@ -329,3 +329,47 @@ def exec_tool(
         tool_name=body.tool,
         args=body.args or {},
     )
+
+
+class TranscriptRequest(BaseModel):
+    session_id: int
+    role: str
+    text: str
+
+
+class SessionEndRequest(BaseModel):
+    session_id: int
+    duration_seconds: int
+
+
+@router.post("/transcript")
+@limiter.limit("180/minute")
+def transcript_post(
+    request: Request,
+    body: TranscriptRequest,
+    user: dict = Depends(requires_voice_access),
+):
+    if not session_belongs_to_user(body.session_id, user["id"]):
+        raise HTTPException(status_code=403, detail="session not owned by user")
+    if body.role not in {"user", "assistant", "tool"}:
+        raise HTTPException(status_code=400, detail="invalid role")
+    append_transcript(body.session_id, role=body.role, text=body.text or "")
+    return {"ok": True}
+
+
+@router.post("/session/end")
+@limiter.limit("60/minute")
+def session_end_post(
+    request: Request,
+    body: SessionEndRequest,
+    user: dict = Depends(requires_voice_access),
+):
+    if not session_belongs_to_user(body.session_id, user["id"]):
+        raise HTTPException(status_code=403, detail="session not owned by user")
+    duration = max(0, int(body.duration_seconds or 0))
+    estimated_cost = duration * 0.005
+    _end_voice_session(body.session_id, duration_seconds=duration,
+                       estimated_cost_usd=estimated_cost)
+    if duration > 0:
+        record_mode_c_seconds(user["id"], duration)
+    return {"ok": True, "duration_seconds": duration}
