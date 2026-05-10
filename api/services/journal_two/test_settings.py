@@ -286,3 +286,41 @@ def test_validate_phase_b_guards_reject_invalid():
     for bad in invalid:
         with pytest.raises(SettingsValidationError):
             svc.validate_settings_payload(base | bad)
+
+
+# ── Phase C — Setup-Aware Coaching settings ──────────────────────────────────
+
+def test_validate_accepts_phase_c_guards():
+    from api.services.journal_two import settings as svc
+    payload = _baseline_payload() | {
+        "setups": ["Bull Flag", "Pullback", "Breakout"],
+        "aPlusSetups": ["Bull Flag", "Pullback"],
+        "aPlusRiskMultiplier": 1.5,
+    }
+    out = svc.validate_settings_payload(payload)
+    assert out["aPlusSetups"] == ["Bull Flag", "Pullback"]
+    assert out["aPlusRiskMultiplier"] == 1.5
+
+
+def test_validate_phase_c_guards_default_to_empty_or_none():
+    from api.services.journal_two import settings as svc
+    out = svc.validate_settings_payload(_baseline_payload())
+    assert out["aPlusSetups"] == []
+    assert out["aPlusRiskMultiplier"] is None
+
+
+def test_validate_phase_c_guards_reject_invalid():
+    from api.services.journal_two import settings as svc
+    from api.services.journal_two.settings import SettingsValidationError
+    base = _baseline_payload()
+    invalid = [
+        {"aPlusSetups": "Bull Flag"},                      # not a list
+        {"aPlusSetups": [123, "ok"]},                      # non-string entry
+        {"aPlusRiskMultiplier": 0},                        # not > 1
+        {"aPlusRiskMultiplier": 1},                        # not > 1 (must elevate)
+        {"aPlusRiskMultiplier": -0.5},                     # negative
+        {"aPlusRiskMultiplier": 11},                       # cap at 10x
+    ]
+    for bad in invalid:
+        with pytest.raises(SettingsValidationError):
+            svc.validate_settings_payload(base | bad)

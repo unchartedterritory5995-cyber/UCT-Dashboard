@@ -50,6 +50,9 @@ def default_settings_data() -> dict[str, Any]:
         "dailyLossLimitPct": None,
         "coolingOffMinutesAfterLoss": None,
         "noTradeWindowsET": [],
+        # Phase C — Setup-Aware Coaching
+        "aPlusSetups": [],
+        "aPlusRiskMultiplier": None,
     }
 
 
@@ -195,6 +198,46 @@ def _validate_no_trade_windows(value: Any) -> list[dict[str, str]]:
     return out
 
 
+def _validate_string_list(value: Any, field_name: str) -> list[str]:
+    """Optional list of unique non-empty strings. None/'' = empty list. Trims whitespace."""
+    if value is None or value == "":
+        return []
+    if not isinstance(value, list):
+        raise SettingsValidationError(f"{field_name} must be a list")
+    out: list[str] = []
+    seen: set[str] = set()
+    for s in value:
+        if not isinstance(s, str):
+            raise SettingsValidationError(f"{field_name} entries must be strings")
+        stripped = s.strip()
+        if not stripped or stripped in seen:
+            continue
+        seen.add(stripped)
+        out.append(stripped)
+    return out
+
+
+def _validate_optional_multiplier(
+    value: Any,
+    field_name: str,
+    *,
+    min_exclusive: float = 1.0,
+    max_inclusive: float = 10.0,
+) -> float | None:
+    """Optional multiplier > min_exclusive and <= max_inclusive. None/'' = disabled.
+    Rejects bool subclass."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise SettingsValidationError(f"{field_name} must be a number or null")
+    f = float(value)
+    if f <= min_exclusive or f > max_inclusive:
+        raise SettingsValidationError(
+            f"{field_name} must be in ({min_exclusive}, {max_inclusive}]"
+        )
+    return f
+
+
 def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Reduce a client payload to the canonical shape. Rejects unknown fields
     by ignoring them; required fields must be present and valid."""
@@ -233,6 +276,11 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
             payload.get("coolingOffMinutesAfterLoss"), "coolingOffMinutesAfterLoss",
         ),
         "noTradeWindowsET": _validate_no_trade_windows(payload.get("noTradeWindowsET", [])),
+        # Phase C
+        "aPlusSetups": _validate_string_list(payload.get("aPlusSetups", []), "aPlusSetups"),
+        "aPlusRiskMultiplier": _validate_optional_multiplier(
+            payload.get("aPlusRiskMultiplier"), "aPlusRiskMultiplier",
+        ),
     }
 
 
