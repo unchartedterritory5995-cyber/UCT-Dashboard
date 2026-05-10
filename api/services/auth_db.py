@@ -238,6 +238,31 @@ CREATE TABLE IF NOT EXISTS voice_usage_monthly (
     estimated_cost_usd   REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id, year_month)
 );
+
+CREATE TABLE IF NOT EXISTS voice_sessions (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id            TEXT NOT NULL REFERENCES users(id),
+    mode               TEXT NOT NULL,
+    source             TEXT,
+    started_at         TIMESTAMP NOT NULL,
+    ended_at           TIMESTAMP,
+    duration_seconds   INTEGER,
+    status             TEXT NOT NULL,
+    page_context       TEXT,
+    estimated_cost_usd REAL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_sessions_user ON voice_sessions(user_id, started_at DESC);
+
+CREATE TABLE IF NOT EXISTS voice_transcripts (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id   INTEGER NOT NULL REFERENCES voice_sessions(id) ON DELETE CASCADE,
+    role         TEXT NOT NULL,
+    text         TEXT NOT NULL,
+    timestamp    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_transcripts_session ON voice_transcripts(session_id, timestamp);
 """
 
 
