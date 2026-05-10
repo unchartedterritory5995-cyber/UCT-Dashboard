@@ -75,3 +75,26 @@ def test_within_mode_b_cap():
         record_mode_b_call(uid)
     assert not is_within_mode_b_cap(uid)
     assert is_within_mode_b_cap(uid, is_admin=True)
+
+
+# ── Mode C ──────────────────────────────────────────────────────────────────
+
+def test_record_mode_c_seconds_accumulates():
+    from api.services.voice_usage import (
+        record_mode_c_seconds, get_monthly_usage, MODE_C_DEFAULT_CAP_SECONDS,
+    )
+    uid = _make_user()
+    record_mode_c_seconds(uid, 30)
+    record_mode_c_seconds(uid, 45)
+    assert get_monthly_usage(uid)["mode_c_seconds"] == 75
+
+
+def test_within_mode_c_cap():
+    from api.services.voice_usage import (
+        record_mode_c_seconds, is_within_mode_c_cap, MODE_C_DEFAULT_CAP_SECONDS,
+    )
+    uid = _make_user()
+    assert is_within_mode_c_cap(uid)
+    record_mode_c_seconds(uid, MODE_C_DEFAULT_CAP_SECONDS)
+    assert not is_within_mode_c_cap(uid)
+    assert is_within_mode_c_cap(uid, is_admin=True)

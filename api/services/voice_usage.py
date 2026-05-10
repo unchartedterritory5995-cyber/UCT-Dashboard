@@ -120,3 +120,43 @@ def is_within_mode_b_cap(
     if is_admin:
         return True
     return get_monthly_usage(user_id)["mode_b_calls"] < cap_calls
+
+
+# ── Mode C (realtime conversation) ──────────────────────────────────────────
+
+# 100 minutes/month default. ~$30/user/month max.
+MODE_C_DEFAULT_CAP_SECONDS = 6000
+MODE_C_COST_PER_SECOND = 0.005
+
+
+def record_mode_c_seconds(user_id: str, seconds: int) -> None:
+    """Add Mode C seconds for the current calendar month."""
+    if seconds <= 0:
+        return
+    ym = _current_year_month()
+    cost_delta = seconds * MODE_C_COST_PER_SECOND
+    conn = get_connection()
+    try:
+        conn.execute(
+            """INSERT INTO voice_usage_monthly
+               (user_id, year_month, mode_c_seconds, estimated_cost_usd)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT (user_id, year_month) DO UPDATE SET
+                 mode_c_seconds = mode_c_seconds + excluded.mode_c_seconds,
+                 estimated_cost_usd = estimated_cost_usd + excluded.estimated_cost_usd""",
+            (user_id, ym, int(seconds), cost_delta),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def is_within_mode_c_cap(
+    user_id: str,
+    *,
+    cap_seconds: int = MODE_C_DEFAULT_CAP_SECONDS,
+    is_admin: bool = False,
+) -> bool:
+    if is_admin:
+        return True
+    return get_monthly_usage(user_id)["mode_c_seconds"] < cap_seconds
