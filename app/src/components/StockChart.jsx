@@ -1931,6 +1931,108 @@ export default function StockChart({
     return unsub
   }, [sym])
 
+  // ── Tick-by-tick developing-candle update via realtimeCandle registry ──
+  // (Plan 4 / Goal 3) — drive series.update() on every SSE tick instead of
+  // waiting for the 2s REST poll cycle. Coexists with the REST-driven live-
+  // price effect above (line ~851) as a SAFETY FALLBACK; both paths write to
+  // the same series and the latest write wins. SSE will dominate when the
+  // stream is connected (target: tick-to-pixel <200ms); REST keeps the chart
+  // alive when SSE drops or for tickers not in the WS subscription set.
+  //
+  // The registry stores tf="1" only (built from raw ticks). For:
+  //   - resolvedTf="1": use registry candle directly.
+  //   - resolvedTf in {5,15,30,60}: use the registry's latest tick price to
+  //     update the developing bar tracked in liveBarRef (set by the REST/AM
+  //     paths). We extend h/l and update close, mirroring the same logic the
+  //     REST effect uses, but firing at SSE cadence.
+  useEffect(() => {
+    if (!sym) return
+    if (!candleSeriesRef.current) return
+    if (replayMode) return
+    if (cs.heikinAshi) return
+    const isIntradayTf = ['1', '5', '15', '30', '60'].includes(resolvedTf)
+    if (!isIntradayTf) return
+
+    const useOhlc = isOhlcType(cs.chartType)
+
+    const update = () => {
+      if (!candleSeriesRef.current) return
+      const candle = realtimeCandle.getCandle(sym, '1')
+      if (!candle) return
+      const price = candle.c
+      if (!Number.isFinite(price) || price <= 0) return
+      // Sanity bound vs last known close — protects against bad ticks.
+      const lastClose = lastBarRef.current?.close
+      if (lastClose && lastClose > 0 && Math.abs(price - lastClose) / lastClose > 0.5) return
+
+      try {
+        if (resolvedTf === '1') {
+          // Registry's 1m candle IS the developing bar. Apply it directly,
+          // but offset to ET like all other series timestamps.
+          const tSec = candle.t + _ET_OFFSET
+          if (useOhlc) {
+            candleSeriesRef.current.update({
+              time: tSec,
+              open: candle.o,
+              high: candle.h,
+              low: candle.l,
+              close: candle.c,
+            })
+          } else {
+            candleSeriesRef.current.update({ time: tSec, value: candle.c })
+          }
+          if (volumeSeriesRef.current) {
+            volumeSeriesRef.current.update({
+              time: tSec,
+              value: candle.v || 0,
+              color: candle.c >= candle.o ? cs.volume.upColor : cs.volume.downColor,
+            })
+          }
+          // Sync trackers so REST path stays consistent
+          if (liveBarRef.current && liveBarRef.current.time === tSec) {
+            liveBarRef.current = {
+              time: tSec, open: candle.o, high: candle.h, low: candle.l, close: candle.c,
+            }
+          }
+          if (lastBarRef.current && lastBarRef.current.time === tSec) {
+            lastBarRef.current = { ...lastBarRef.current, open: candle.o, high: candle.h, low: candle.l, close: candle.c }
+          }
+        } else {
+          // 5/15/30/60 — registry only has 1m bars, so use its latest price
+          // to extend the developing bar's h/l and update close. Bar's `t`
+          // comes from liveBarRef (set by REST/AM paths).
+          const lb = liveBarRef.current
+          const last = lastBarRef.current
+          if (!lb || !last || lb.time !== last.time) return
+          const newHigh = Math.max(lb.high, price)
+          const newLow = Math.min(lb.low, price)
+          liveBarRef.current = { ...lb, high: newHigh, low: newLow, close: price }
+          const updated = {
+            time: last.time,
+            open: last.open,
+            high: newHigh,
+            low: newLow,
+            close: price,
+          }
+          if (useOhlc) {
+            candleSeriesRef.current.update(updated)
+          } else {
+            candleSeriesRef.current.update({ time: last.time, value: price })
+          }
+          lastBarRef.current = { ...updated, volume: last.volume }
+        }
+      } catch (e) {
+        if (e?.message) console.warn('[StockChart] registry tick update error:', e.message)
+      }
+    }
+
+    // Fire once on subscribe in case a tick already landed before mount,
+    // then subscribe to future ticks.
+    update()
+    const unsub = realtimeCandle.subscribe(sym, update)
+    return unsub
+  }, [sym, resolvedTf, replayMode, cs.heikinAshi, cs.chartType, cs.volume.upColor, cs.volume.downColor])
+
   // ── Render ──
   return (
     <div className={`${styles.wrapper} ${className}`} style={{ height }}>
