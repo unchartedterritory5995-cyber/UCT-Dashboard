@@ -116,3 +116,33 @@ def test_classify_intent_handles_no_match():
 
     assert out["tool"] is None
     assert "Sorry" in out["narration_template"]
+
+
+# ── Realtime session minting ────────────────────────────────────────────────
+
+def test_mint_realtime_session_returns_client_secret():
+    fake_session = MagicMock()
+    fake_session.id = "sess_abc123"
+    fake_session.client_secret = MagicMock(value="ek_xyz999", expires_at=1234567890)
+
+    fake_client = MagicMock()
+    fake_client.beta.realtime.sessions.create.return_value = fake_session
+
+    tools_schema = [{"name": "get_quote", "description": "d",
+                     "parameters": {"type": "object", "properties": {}}}]
+
+    with patch.object(voice_openai, "_get_client", return_value=fake_client):
+        out = voice_openai.mint_realtime_session(
+            voice="verse",
+            tools=tools_schema,
+            instructions="be helpful",
+        )
+
+    assert out["session_id"] == "sess_abc123"
+    assert out["client_secret"] == "ek_xyz999"
+    assert out["expires_at"] == 1234567890
+    fake_client.beta.realtime.sessions.create.assert_called_once()
+    kwargs = fake_client.beta.realtime.sessions.create.call_args.kwargs
+    assert kwargs["voice"] == "verse"
+    assert kwargs["instructions"] == "be helpful"
+    assert isinstance(kwargs["tools"], list)

@@ -197,3 +197,56 @@ def classify_intent(transcript: str, tools_schema: list[dict]) -> dict:
         "args": out.get("args", {}) or {},
         "narration_template": out.get("narration_template") or "Done.",
     }
+
+
+# ── Realtime session minting ────────────────────────────────────────────────
+
+import os as _os
+
+REALTIME_MODEL = _os.environ.get("OPENAI_REALTIME_MODEL", "gpt-realtime")
+
+
+def mint_realtime_session(
+    *,
+    voice: str,
+    tools: list[dict],
+    instructions: str,
+    model: str | None = None,
+) -> dict:
+    """
+    Create an ephemeral Realtime session via the OpenAI SDK.
+    Returns {session_id, client_secret, expires_at, model}.
+
+    The browser uses client_secret as Bearer auth in the WebRTC SDP exchange.
+    """
+    client = _get_client()
+    tool_specs = []
+    for t in tools or []:
+        tool_specs.append({
+            "type": "function",
+            "name": t["name"],
+            "description": t.get("description", ""),
+            "parameters": t.get("parameters") or {"type": "object", "properties": {}},
+        })
+
+    session = client.beta.realtime.sessions.create(
+        model=model or REALTIME_MODEL,
+        voice=voice,
+        modalities=["audio", "text"],
+        instructions=instructions,
+        tools=tool_specs,
+        tool_choice="auto",
+        turn_detection={"type": "server_vad", "threshold": 0.5},
+        input_audio_transcription={"model": "whisper-1"},
+    )
+
+    secret_obj = getattr(session, "client_secret", None)
+    secret_value = getattr(secret_obj, "value", None) if secret_obj else None
+    expires_at = getattr(secret_obj, "expires_at", None) if secret_obj else None
+
+    return {
+        "session_id": session.id,
+        "client_secret": secret_value,
+        "expires_at": expires_at,
+        "model": model or REALTIME_MODEL,
+    }
