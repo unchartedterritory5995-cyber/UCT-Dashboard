@@ -341,6 +341,271 @@ def _exec_compare_setups(*, user_id, account_id, args, conn=None) -> dict:
     return {"setup_a": a, "setup_b": b, "days": days}
 
 
+# ── Action tools (preview + execute halves) ──────────────────────────────────
+
+
+def _tag_trade_preview(*, user_id, account_id, args, conn=None) -> dict:
+    trade_id = args.get("trade_id")
+    mistake = args.get("mistake_tags") or []
+    emotion = args.get("emotion_tags") or []
+    row = (conn or get_connection()).execute(
+        "SELECT symbol, exit_date FROM j2_trades WHERE id = ? AND user_id = ?",
+        (trade_id, user_id),
+    ).fetchone()
+    if row is None:
+        return {"narration": f"Trade {trade_id} not found.", "contextual_warnings": [],
+                "confirm_label": "Confirm", "elevated": False, "error": "not_found"}
+    pieces = []
+    if mistake:
+        pieces.append(f"mistake tags {mistake}")
+    if emotion:
+        pieces.append(f"emotion tags {emotion}")
+    parts = " and ".join(pieces) or "tags"
+    return {
+        "narration": f"Add {parts} to your {row['symbol']} trade from {row['exit_date'][:10]}.",
+        "contextual_warnings": [], "confirm_label": "Confirm", "elevated": False,
+    }
+
+
+def _tag_trade_execute(*, user_id, account_id, args, conn=None) -> dict:
+    trade_id = args.get("trade_id")
+    mistake = args.get("mistake_tags") or []
+    emotion = args.get("emotion_tags") or []
+    c = conn or get_connection()
+    row = c.execute(
+        "SELECT mistake_tags, emotion_tags FROM j2_trades WHERE id = ? AND user_id = ?",
+        (trade_id, user_id),
+    ).fetchone()
+    if row is None:
+        return {"ok": False, "error": "trade not found"}
+    try:
+        existing_m = json.loads(row["mistake_tags"] or "[]")
+    except (TypeError, json.JSONDecodeError):
+        existing_m = []
+    try:
+        existing_e = json.loads(row["emotion_tags"] or "[]")
+    except (TypeError, json.JSONDecodeError):
+        existing_e = []
+    new_m = list(dict.fromkeys(existing_m + mistake))
+    new_e = list(dict.fromkeys(existing_e + emotion))
+    c.execute(
+        "UPDATE j2_trades SET mistake_tags = ?, emotion_tags = ? WHERE id = ? AND user_id = ?",
+        (json.dumps(new_m), json.dumps(new_e), trade_id, user_id),
+    )
+    c.commit()
+    return {"ok": True, "summary": "Tags added."}
+
+
+def _set_weekly_focus_preview(*, user_id, account_id, args, conn=None) -> dict:
+    return {"narration": f"Set this week's focus to: \"{args.get('text', '')}\"",
+            "contextual_warnings": [], "confirm_label": "Set focus", "elevated": False}
+
+
+def _set_weekly_focus_execute(*, user_id, account_id, args, conn=None) -> dict:
+    text = (args.get("text") or "")[:500]
+    c = conn or get_connection()
+    row = c.execute(
+        """SELECT id, metadata FROM j2_coach_outputs
+           WHERE user_id = ? AND account_id = ? AND output_type = 'weekly_review'
+           ORDER BY created_at DESC LIMIT 1""",
+        (user_id, account_id),
+    ).fetchone()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if row is None:
+        import uuid as _uuid
+        review_id = str(_uuid.uuid4())
+        meta = {"week_start": datetime.now(timezone.utc).date().isoformat(),
+                "this_weeks_focus": text, "key_observations": []}
+        c.execute(
+            """INSERT INTO j2_coach_outputs
+               (id, user_id, account_id, output_type, body, summary, metadata, forgotten, created_at)
+               VALUES (?, ?, ?, 'weekly_review', '', '', ?, 0, ?)""",
+            (review_id, user_id, account_id, json.dumps(meta), now_iso),
+        )
+    else:
+        try:
+            meta = json.loads(row["metadata"] or "{}")
+        except (TypeError, json.JSONDecodeError):
+            meta = {}
+        meta["this_weeks_focus"] = text
+        c.execute(
+            "UPDATE j2_coach_outputs SET metadata = ? WHERE id = ?",
+            (json.dumps(meta), row["id"]),
+        )
+    c.commit()
+    return {"ok": True, "summary": "Focus set."}
+
+
+def _mute_setup_preview(*, user_id, account_id, args, conn=None) -> dict:
+    setup = args.get("setup_name")
+    until = args.get("until_date") or (date.today() + timedelta(days=14)).isoformat()
+    return {"narration": f"Mute {setup} until {until}. Pre-trade verdict will reject entries on this setup until then.",
+            "contextual_warnings": [], "confirm_label": "Mute setup", "elevated": False,
+            "resolved_args": {"setup_name": setup, "until_date": until}}
+
+
+def _mute_setup_execute(*, user_id, account_id, args, conn=None) -> dict:
+    setup = args.get("setup_name")
+    until = args.get("until_date") or (date.today() + timedelta(days=14)).isoformat()
+    c = conn or get_connection()
+    row = c.execute("SELECT muted_setups FROM j2_accounts WHERE id = ? AND user_id = ?",
+                    (account_id, user_id)).fetchone()
+    try:
+        current = json.loads(row["muted_setups"]) if row else []
+    except (TypeError, json.JSONDecodeError):
+        current = []
+    current = [m for m in current if m.get("setup_name") != setup]
+    current.append({"setup_name": setup, "until_date": until})
+    c.execute("UPDATE j2_accounts SET muted_setups = ? WHERE id = ? AND user_id = ?",
+              (json.dumps(current), account_id, user_id))
+    c.commit()
+    return {"ok": True, "summary": f"Muted {setup} until {until}."}
+
+
+def _unmute_setup_preview(*, user_id, account_id, args, conn=None) -> dict:
+    return {"narration": f"Unmute {args.get('setup_name')}.",
+            "contextual_warnings": [], "confirm_label": "Unmute", "elevated": False}
+
+
+def _unmute_setup_execute(*, user_id, account_id, args, conn=None) -> dict:
+    setup = args.get("setup_name")
+    c = conn or get_connection()
+    row = c.execute("SELECT muted_setups FROM j2_accounts WHERE id = ? AND user_id = ?",
+                    (account_id, user_id)).fetchone()
+    try:
+        current = json.loads(row["muted_setups"]) if row else []
+    except (TypeError, json.JSONDecodeError):
+        current = []
+    current = [m for m in current if m.get("setup_name") != setup]
+    c.execute("UPDATE j2_accounts SET muted_setups = ? WHERE id = ? AND user_id = ?",
+              (json.dumps(current), account_id, user_id))
+    c.commit()
+    return {"ok": True, "summary": f"Unmuted {setup}."}
+
+
+def _set_a_plus_setups_preview(*, user_id, account_id, args, conn=None) -> dict:
+    add = args.get("add") or []
+    remove = args.get("remove") or []
+    return {"narration": f"Update A+ setups — add {add}, remove {remove}.",
+            "contextual_warnings": [], "confirm_label": "Update A+ list", "elevated": False}
+
+
+def _set_a_plus_setups_execute(*, user_id, account_id, args, conn=None) -> dict:
+    add = args.get("add") or []
+    remove = args.get("remove") or []
+    c = conn or get_connection()
+    row = c.execute("SELECT a_plus_setups FROM j2_accounts WHERE id = ? AND user_id = ?",
+                    (account_id, user_id)).fetchone()
+    try:
+        current = json.loads(row["a_plus_setups"]) if row else []
+    except (TypeError, json.JSONDecodeError):
+        current = []
+    for s in add:
+        if s not in current:
+            current.append(s)
+    current = [s for s in current if s not in remove]
+    c.execute("UPDATE j2_accounts SET a_plus_setups = ? WHERE id = ? AND user_id = ?",
+              (json.dumps(current), account_id, user_id))
+    c.commit()
+    return {"ok": True, "summary": "A+ list updated."}
+
+
+# Mapping from camelCase API field → snake_case j2_accounts column
+_DISCIPLINE_FIELD_MAP = {
+    "maxRiskPerTradePct": "max_risk_per_trade_pct",
+    "dailyLossLimitPct": "daily_loss_limit_pct",
+    "coolingOffMinutesAfterLoss": "cooling_off_minutes_after_loss",
+    "aPlusRiskMultiplier": "a_plus_risk_multiplier",
+}
+
+
+def _update_discipline_setting_preview(*, user_id, account_id, args, conn=None) -> dict:
+    field = args.get("field")
+    new_value = args.get("value")
+    settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
+    current = settings.get(field)
+    warnings: list[str] = []
+    loosening = False
+    if field in {"maxRiskPerTradePct", "dailyLossLimitPct"} and current is not None and new_value > current:
+        loosening = True
+    if field == "coolingOffMinutesAfterLoss" and current is not None and new_value < current:
+        loosening = True
+    if loosening:
+        breach_count = _count_recent_breaches(conn or get_connection(), user_id, account_id, field, current, 30)
+        if breach_count > 0:
+            warnings.append(f"You've breached the current {field}={current} {breach_count} times in the last 30 days.")
+        warnings.append(f"This change weakens the guardrail from {current} to {new_value}.")
+    confirm_label = (
+        "Yes, raise the cap" if (field == "maxRiskPerTradePct" and loosening) else
+        "Yes, raise the loss limit" if (field == "dailyLossLimitPct" and loosening) else
+        "Yes, change it" if loosening else
+        f"Set {field}"
+    )
+    return {
+        "narration": f"Change {field} from {current} to {new_value}.",
+        "contextual_warnings": warnings,
+        "confirm_label": confirm_label,
+        "elevated": loosening,
+    }
+
+
+def _count_recent_breaches(conn, user_id, account_id, field, current_value, days) -> int:
+    if current_value is None or field != "maxRiskPerTradePct":
+        return 0
+    start, end = _trades_range_to_iso(days)
+    trades = coach_data_assembler._trades_in_range(conn, user_id, account_id, start, end)
+    settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
+    account_size = float(settings.get("accountSize") or 0)
+    if account_size <= 0:
+        return 0
+    count = 0
+    for t in trades:
+        shares = float(t.get("shares") or 0)
+        entry = float(t.get("entry_price") or 0)
+        stop = float(t.get("original_stop") or 0)
+        if shares <= 0 or entry <= 0 or stop <= 0:
+            continue
+        risk_pct = (shares * abs(entry - stop) / account_size) * 100.0
+        if risk_pct > float(current_value):
+            count += 1
+    return count
+
+
+def _update_discipline_setting_execute(*, user_id, account_id, args, conn=None) -> dict:
+    field = args.get("field")
+    value = args.get("value")
+    if field not in _DISCIPLINE_FIELD_MAP:
+        return {"ok": False, "error": f"field must be one of {sorted(_DISCIPLINE_FIELD_MAP.keys())}"}
+    column = _DISCIPLINE_FIELD_MAP[field]
+    c = conn or get_connection()
+    c.execute(f"UPDATE j2_accounts SET {column} = ? WHERE id = ? AND user_id = ?",
+              (value, account_id, user_id))
+    c.commit()
+    return {"ok": True, "summary": f"{field} set to {value}."}
+
+
+def _schedule_paper_only_day_preview(*, user_id, account_id, args, conn=None) -> dict:
+    return {"narration": f"Mark {args.get('date')} as paper-only.",
+            "contextual_warnings": [], "confirm_label": "Schedule paper day", "elevated": False}
+
+
+def _schedule_paper_only_day_execute(*, user_id, account_id, args, conn=None) -> dict:
+    d = args.get("date")
+    c = conn or get_connection()
+    row = c.execute("SELECT paper_only_days FROM j2_accounts WHERE id = ? AND user_id = ?",
+                    (account_id, user_id)).fetchone()
+    try:
+        current = json.loads(row["paper_only_days"]) if row else []
+    except (TypeError, json.JSONDecodeError):
+        current = []
+    current = [x for x in current if x.get("date") != d]
+    current.append({"date": d, "reason": "compass_chat"})
+    c.execute("UPDATE j2_accounts SET paper_only_days = ? WHERE id = ? AND user_id = ?",
+              (json.dumps(current), account_id, user_id))
+    c.commit()
+    return {"ok": True, "summary": f"Marked {d} paper-only."}
+
+
 TOOLS: dict[str, dict[str, Any]] = {
     "list_recent_trades": {
         "name": "list_recent_trades",
@@ -517,6 +782,98 @@ TOOLS.update({
                 "days": {"type": "integer", "default": 180},
             },
             "required": ["setup_a", "setup_b"],
+        },
+    },
+})
+
+TOOLS.update({
+    "tag_trade": {
+        "name": "tag_trade",
+        "description": "Append mistake and/or emotion tags to a closed trade. Requires the trade id.",
+        "requires_confirm": True,
+        "executor": _tag_trade_execute, "preview": _tag_trade_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "trade_id": {"type": "string"},
+                "mistake_tags": {"type": "array", "items": {"type": "string"}},
+                "emotion_tags": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["trade_id"],
+        },
+    },
+    "set_weekly_focus": {
+        "name": "set_weekly_focus",
+        "description": "Set this week's focus — a short directive the next Weekly Review reads back.",
+        "requires_confirm": True,
+        "executor": _set_weekly_focus_execute, "preview": _set_weekly_focus_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {"text": {"type": "string", "maxLength": 500}},
+            "required": ["text"],
+        },
+    },
+    "mute_setup": {
+        "name": "mute_setup",
+        "description": "Mute a setup for a period — Pre-Trade Verdict will reject entries.",
+        "requires_confirm": True,
+        "executor": _mute_setup_execute, "preview": _mute_setup_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "setup_name": {"type": "string"},
+                "until_date": {"type": "string", "format": "date"},
+            },
+            "required": ["setup_name"],
+        },
+    },
+    "unmute_setup": {
+        "name": "unmute_setup",
+        "description": "Remove a setup from the muted list.",
+        "requires_confirm": True,
+        "executor": _unmute_setup_execute, "preview": _unmute_setup_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {"setup_name": {"type": "string"}},
+            "required": ["setup_name"],
+        },
+    },
+    "set_a_plus_setups": {
+        "name": "set_a_plus_setups",
+        "description": "Add or remove setups from the A+ whitelist.",
+        "requires_confirm": True,
+        "executor": _set_a_plus_setups_execute, "preview": _set_a_plus_setups_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "add": {"type": "array", "items": {"type": "string"}},
+                "remove": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+    },
+    "update_discipline_setting": {
+        "name": "update_discipline_setting",
+        "description": "Update one of: maxRiskPerTradePct, dailyLossLimitPct, coolingOffMinutesAfterLoss, aPlusRiskMultiplier. Loosening triggers elevated warning with breach data.",
+        "requires_confirm": True,
+        "executor": _update_discipline_setting_execute, "preview": _update_discipline_setting_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "field": {"type": "string", "enum": ["maxRiskPerTradePct", "dailyLossLimitPct", "coolingOffMinutesAfterLoss", "aPlusRiskMultiplier"]},
+                "value": {"type": "number"},
+            },
+            "required": ["field", "value"],
+        },
+    },
+    "schedule_paper_only_day": {
+        "name": "schedule_paper_only_day",
+        "description": "Mark a date as paper-only. Pre-Trade Verdict will reject live entries on that day.",
+        "requires_confirm": True,
+        "executor": _schedule_paper_only_day_execute, "preview": _schedule_paper_only_day_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {"date": {"type": "string", "format": "date"}},
+            "required": ["date"],
         },
     },
 })

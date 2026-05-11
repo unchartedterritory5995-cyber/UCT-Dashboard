@@ -342,3 +342,158 @@ def test_compare_setups_returns_side_by_side(db_conn):
     assert "setup_a" in result
     assert "setup_b" in result
     assert result["setup_a"]["setup"] == "Bull Flag"
+
+
+# ── Action tools ─────────────────────────────────────────────────────────────
+
+
+def test_tag_trade_preview_returns_narration(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    trade_id = str(uuid.uuid4())
+    db_conn.execute(
+        """INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares,
+           entry_price, entry_date, exit_price, exit_date, original_stop, setup,
+           notes, pnl_dollar, pnl_percent, r_multiple, hold_days, result,
+           context_at_entry, created_at, account_id, mistake_tags, emotion_tags, fees)
+           VALUES (?, 'u_chat', ?, 'NVDA', 'Long', 100, 200.0,
+           '2026-05-11T18:00:00+00:00', 205.0, '2026-05-11T20:00:00+00:00',
+           198.0, 'Bull Flag', NULL, 500, 2.5, 2.0, 0, 'Win',
+           '{}', '2026-05-11T20:00:00+00:00', ?, '[]', '[]', 0)""",
+        (trade_id, str(uuid.uuid4()), acc["id"]),
+    )
+    db_conn.commit()
+    preview = tools.TOOLS["tag_trade"]["preview"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"trade_id": trade_id, "mistake_tags": ["FOMO"]}, conn=db_conn,
+    )
+    assert "narration" in preview
+    assert "NVDA" in preview["narration"] or "trade" in preview["narration"].lower()
+
+
+def test_tag_trade_execute_appends_tags(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    trade_id = str(uuid.uuid4())
+    db_conn.execute(
+        """INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares,
+           entry_price, entry_date, exit_price, exit_date, original_stop, setup,
+           notes, pnl_dollar, pnl_percent, r_multiple, hold_days, result,
+           context_at_entry, created_at, account_id, mistake_tags, emotion_tags, fees)
+           VALUES (?, 'u_chat', ?, 'NVDA', 'Long', 100, 200.0,
+           '2026-05-11T18:00:00+00:00', 205.0, '2026-05-11T20:00:00+00:00',
+           198.0, 'Bull Flag', NULL, 500, 2.5, 2.0, 0, 'Win',
+           '{}', '2026-05-11T20:00:00+00:00', ?, '[]', '[]', 0)""",
+        (trade_id, str(uuid.uuid4()), acc["id"]),
+    )
+    db_conn.commit()
+    result = tools.TOOLS["tag_trade"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"trade_id": trade_id, "mistake_tags": ["FOMO"], "emotion_tags": ["rushed"]},
+        conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute(
+        "SELECT mistake_tags, emotion_tags FROM j2_trades WHERE id = ?", (trade_id,),
+    ).fetchone()
+    assert "FOMO" in row["mistake_tags"]
+    assert "rushed" in row["emotion_tags"]
+
+
+def test_set_weekly_focus_writes_to_metadata(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    result = tools.TOOLS["set_weekly_focus"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"text": "Skip Pullbacks until Friday."}, conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute(
+        "SELECT metadata FROM j2_coach_outputs WHERE user_id = ? AND output_type = 'weekly_review' ORDER BY created_at DESC LIMIT 1",
+        ("u_chat",),
+    ).fetchone()
+    meta = json.loads(row["metadata"])
+    assert "Skip Pullbacks" in (meta.get("this_weeks_focus") or "")
+
+
+def test_mute_setup_appends_to_account_list(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    result = tools.TOOLS["mute_setup"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"setup_name": "Pullback", "until_date": "2026-05-25"}, conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute("SELECT muted_setups FROM j2_accounts WHERE id = ?", (acc["id"],)).fetchone()
+    muted = json.loads(row["muted_setups"])
+    assert any(m["setup_name"] == "Pullback" for m in muted)
+
+
+def test_unmute_setup_removes_from_list(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET muted_setups = ? WHERE id = ?",
+        (json.dumps([{"setup_name": "Pullback", "until_date": "2026-05-25"}]), acc["id"]),
+    )
+    db_conn.commit()
+    result = tools.TOOLS["unmute_setup"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={"setup_name": "Pullback"}, conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute("SELECT muted_setups FROM j2_accounts WHERE id = ?", (acc["id"],)).fetchone()
+    muted = json.loads(row["muted_setups"])
+    assert not any(m["setup_name"] == "Pullback" for m in muted)
+
+
+def test_set_a_plus_setups_adds_and_removes(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    result = tools.TOOLS["set_a_plus_setups"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"add": ["High Tight Flag"], "remove": []}, conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute("SELECT a_plus_setups FROM j2_accounts WHERE id = ?", (acc["id"],)).fetchone()
+    a_plus = json.loads(row["a_plus_setups"])
+    assert "High Tight Flag" in a_plus
+
+
+def test_update_discipline_preview_includes_warnings(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    preview = tools.TOOLS["update_discipline_setting"]["preview"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"field": "maxRiskPerTradePct", "value": 2.5}, conn=db_conn,
+    )
+    # Even without a current value set, preview should return the shape
+    assert isinstance(preview.get("contextual_warnings"), list)
+    assert "confirm_label" in preview
+    assert "elevated" in preview
+
+
+def test_update_discipline_execute_changes_setting(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    result = tools.TOOLS["update_discipline_setting"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"field": "maxRiskPerTradePct", "value": 1.0}, conn=db_conn,
+    )
+    assert result["ok"] is True
+    settings = tools.TOOLS["get_account_settings"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={}, conn=db_conn,
+    )["settings"]
+    assert float(settings["maxRiskPerTradePct"]) == 1.0
+
+
+def test_schedule_paper_only_day_appends_to_list(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    result = tools.TOOLS["schedule_paper_only_day"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"date": "2026-05-15"}, conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute("SELECT paper_only_days FROM j2_accounts WHERE id = ?", (acc["id"],)).fetchone()
+    days = json.loads(row["paper_only_days"])
+    assert any(d["date"] == "2026-05-15" for d in days)
