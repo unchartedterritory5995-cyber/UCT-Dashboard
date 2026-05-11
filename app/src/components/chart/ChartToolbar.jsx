@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import ColorPicker from './ColorPicker'
 import ComparisonPicker from './ComparisonPicker'
+import IndicatorAlertPopover from './IndicatorAlertPopover'
 import styles from './ChartToolbar.module.css'
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
@@ -607,10 +608,12 @@ export default function ChartToolbar({
   const [showWidths, setShowWidths] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
+  const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
   const colorRef = useRef(null)
   const widthRef = useRef(null)
   const settingsRef = useRef(null)
   const compareRef = useRef(null)
+  const alertRef = useRef(null)
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -630,6 +633,18 @@ export default function ChartToolbar({
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [comparePopoverOpen])
+
+  // Click-outside handler for indicator alert popover
+  useEffect(() => {
+    if (!alertPopoverOpen) return
+    function onClickOutside(e) {
+      if (alertRef.current && !alertRef.current.contains(e.target)) {
+        setAlertPopoverOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [alertPopoverOpen])
 
   // ── Countdown to bar close ──
   const INTRADAY_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
@@ -796,6 +811,25 @@ export default function ChartToolbar({
             )}
           </div>
         )}
+
+        {/* Indicator alerts (🔔) */}
+        <div ref={alertRef} className={styles.compareContainer}>
+          <button
+            className={`${styles.btn} ${alertPopoverOpen ? styles.active : ''}`}
+            onClick={() => setAlertPopoverOpen(o => !o)}
+            title={currentSym ? 'Indicator alerts' : 'Select a symbol to set alerts'}
+            aria-label="Indicator alerts"
+            disabled={!currentSym}
+          >
+            <span style={{ fontSize: 13, lineHeight: 1 }}>🔔</span>
+          </button>
+          {alertPopoverOpen && currentSym && (
+            <IndicatorAlertPopover
+              sym={currentSym}
+              onClose={() => setAlertPopoverOpen(false)}
+            />
+          )}
+        </div>
 
         {/* Chart settings */}
         {chartSettings && onUpdateSettings && (

@@ -1,0 +1,192 @@
+/* app/src/components/chart/IndicatorAlertPopover.module.css */
+.popover {
+  position: absolute;
+  top: 40px;
+  right: 8px;
+  width: 320px;
+  max-height: calc(100vh - 80px);
+  background: var(--bg-elevated, #1f1f1f);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.title {
+  font-weight: 600;
+  color: var(--text-heading, #f0f0f0);
+  letter-spacing: 0.5px;
+}
+.sym {
+  margin-left: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--ut-gold, #c9a84c);
+  font-size: 12px;
+}
+.close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #888);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.close:hover {
+  color: var(--text-heading, #f0f0f0);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.label {
+  color: var(--text-muted, #888);
+  font-size: 11px;
+  width: 70px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.select,
+.input {
+  flex: 1;
+  background: var(--bg-surface, #161616);
+  color: var(--text, #e5e5e5);
+  border: 1px solid var(--border, #2a2a2a);
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  min-width: 0;
+}
+.select:focus,
+.input:focus {
+  outline: none;
+  border-color: var(--ut-gold, #c9a84c);
+}
+
+.addBtn {
+  background: var(--ut-gold, #c9a84c);
+  color: #000;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.addBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.listHeader {
+  font-size: 10px;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.empty {
+  color: var(--text-muted, #888);
+  font-size: 12px;
+  text-align: center;
+  padding: 12px 0;
+  font-style: italic;
+}
+
+.alertRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--bg-surface, #161616);
+  border: 1px solid transparent;
+}
+.alertRow.inactive {
+  opacity: 0.5;
+}
+.alertRow.triggered {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.alertMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.alertText {
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--text-heading, #f0f0f0);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.alertSub {
+  font-size: 10px;
+  color: var(--text-muted, #888);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.trigCheck {
+  color: #22c55e;
+  font-weight: 700;
+}
+
+.toggle,
+.remove {
+  background: transparent;
+  border: 1px solid var(--border, #2a2a2a);
+  color: var(--text-muted, #888);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+.toggle:hover {
+  color: var(--text-heading, #f0f0f0);
+  border-color: var(--ut-gold, #c9a84c);
+}
+.toggle.on {
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+.remove:hover {
+  color: var(--loss, #f55);
+  border-color: rgba(255, 85, 85, 0.4);
+}
