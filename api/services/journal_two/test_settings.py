@@ -324,3 +324,44 @@ def test_validate_phase_c_guards_reject_invalid():
     for bad in invalid:
         with pytest.raises(SettingsValidationError):
             svc.validate_settings_payload(base | bad)
+
+
+# ── Phase D — Regime-Aware Sizing ────────────────────────────────────────────
+
+def test_validate_accepts_phase_d_regime_multipliers():
+    from api.services.journal_two import settings as svc
+    payload = _baseline_payload() | {
+        "regimeSizeMultipliers": {"green": 1.0, "amber": 0.75, "orange": 0.5, "red": 0},
+    }
+    out = svc.validate_settings_payload(payload)
+    assert out["regimeSizeMultipliers"] == {"green": 1.0, "amber": 0.75, "orange": 0.5, "red": 0.0}
+
+
+def test_validate_phase_d_partial_multipliers():
+    from api.services.journal_two import settings as svc
+    out = svc.validate_settings_payload(_baseline_payload() | {
+        "regimeSizeMultipliers": {"orange": 0.5, "red": 0},
+    })
+    assert out["regimeSizeMultipliers"] == {"orange": 0.5, "red": 0.0}
+
+
+def test_validate_phase_d_defaults_to_empty_dict():
+    from api.services.journal_two import settings as svc
+    out = svc.validate_settings_payload(_baseline_payload())
+    assert out["regimeSizeMultipliers"] == {}
+
+
+def test_validate_phase_d_rejects_invalid():
+    from api.services.journal_two import settings as svc
+    from api.services.journal_two.settings import SettingsValidationError
+    base = _baseline_payload()
+    invalid = [
+        {"regimeSizeMultipliers": "green"},                       # not a dict
+        {"regimeSizeMultipliers": {"foo": 1.0}},                  # unknown key
+        {"regimeSizeMultipliers": {"green": -0.1}},               # negative
+        {"regimeSizeMultipliers": {"green": 5.1}},                # >5x
+        {"regimeSizeMultipliers": {"green": "1.0"}},              # string
+    ]
+    for bad in invalid:
+        with pytest.raises(SettingsValidationError):
+            svc.validate_settings_payload(base | bad)

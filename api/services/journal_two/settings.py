@@ -53,6 +53,8 @@ def default_settings_data() -> dict[str, Any]:
         # Phase C — Setup-Aware Coaching
         "aPlusSetups": [],
         "aPlusRiskMultiplier": None,
+        # Phase D — Regime-Aware Sizing
+        "regimeSizeMultipliers": {},
     }
 
 
@@ -238,6 +240,31 @@ def _validate_optional_multiplier(
     return f
 
 
+_VALID_REGIME_KEYS = {"green", "amber", "orange", "red"}
+
+
+def _validate_regime_multipliers(value: Any) -> dict[str, float]:
+    """Object with optional green/amber/orange/red keys, values in [0, 5].
+    None/empty = {} (disabled). Unknown keys are rejected. Rejects bool."""
+    if value is None or value == "":
+        return {}
+    if not isinstance(value, dict):
+        raise SettingsValidationError("regimeSizeMultipliers must be an object")
+    out: dict[str, float] = {}
+    for k, v in value.items():
+        if k not in _VALID_REGIME_KEYS:
+            raise SettingsValidationError(
+                f"regimeSizeMultipliers: unknown regime '{k}' (must be one of {sorted(_VALID_REGIME_KEYS)})"
+            )
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise SettingsValidationError(f"regimeSizeMultipliers.{k} must be a number")
+        f = float(v)
+        if f < 0 or f > 5:
+            raise SettingsValidationError(f"regimeSizeMultipliers.{k} must be in [0, 5]")
+        out[k] = f
+    return out
+
+
 def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Reduce a client payload to the canonical shape. Rejects unknown fields
     by ignoring them; required fields must be present and valid."""
@@ -281,6 +308,8 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "aPlusRiskMultiplier": _validate_optional_multiplier(
             payload.get("aPlusRiskMultiplier"), "aPlusRiskMultiplier",
         ),
+        # Phase D
+        "regimeSizeMultipliers": _validate_regime_multipliers(payload.get("regimeSizeMultipliers", {})),
     }
 
 
