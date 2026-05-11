@@ -240,4 +240,26 @@ describe('PortfolioSettingsModal', () => {
     expect(payload.aPlusSetups).toEqual(['Bull Flag'])
     expect(payload.aPlusRiskMultiplier).toBe(1.5)
   })
+
+  it('Phase D regime multipliers ship in the save payload', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
+    )
+
+    const greenInputEl = screen.getByLabelText(/GREEN/i)
+    await user.clear(greenInputEl)
+    await user.type(greenInputEl, '1.0')
+
+    const orangeInputEl = screen.getByLabelText(/ORANGE/i)
+    await user.clear(orangeInputEl)
+    await user.type(orangeInputEl, '0.5')
+
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.regimeSizeMultipliers).toEqual({ green: 1.0, orange: 0.5 })
+  })
 })
