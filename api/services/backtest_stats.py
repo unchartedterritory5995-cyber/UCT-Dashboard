@@ -105,7 +105,7 @@ def compute_stats(trades: list[dict], equity_curve: list[dict]) -> dict:
     gross_losses = abs(sum(d for d in pnl_dollars if d < 0))
 
     if gross_losses == 0:
-        profit_factor = float('inf') if gross_wins > 0 else 0.0
+        profit_factor = 999.0 if gross_wins > 0 else 0.0
     else:
         profit_factor = round(gross_wins / gross_losses, 4)
 
