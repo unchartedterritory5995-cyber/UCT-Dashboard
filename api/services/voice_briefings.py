@@ -200,15 +200,23 @@ def pre_trade_check(*, symbol: str, user_id: str) -> dict:
 
 
 def post_trade_review(*, symbol: str, user_id: str) -> dict:
-    """Recap the most recent trade for a symbol."""
+    """Recap the most recent trade for a symbol. Reads from j2_trades
+    (close-trade history)."""
     sym = (symbol or "").upper().strip()
     if not sym:
         return {"narration": "I need a ticker to look up.", "sections": []}
 
+    entries: list[dict] = []
     try:
-        from api.services.journal_service import list_entries
-        result = list_entries(user_id, filters={"sym": sym}, limit=20) or {}
-        entries = result.get("trades") or []
+        from api.services.journal_two import trades as j2_trades
+        from api.services.journal_two import accounts as j2_accounts
+        account_id = j2_accounts.get_or_migrate_default_account(user_id)["id"]
+        rows = j2_trades.list_trades_for_user(user_id, account_id=account_id) or []
+        for r in rows:
+            if (r.get("symbol") or "").upper() == sym:
+                entries.append(r)
+                if len(entries) >= 20:
+                    break
     except Exception:
         entries = []
 
@@ -218,13 +226,17 @@ def post_trade_review(*, symbol: str, user_id: str) -> dict:
             "sections": [],
         }
 
-    entries_sorted = sorted(entries, key=lambda e: e.get("entry_date") or "", reverse=True)
+    # Already in newest-entry-first order from list_trades_for_user, but
+    # re-sort by exitDate to pick the most recent CLOSE specifically.
+    entries_sorted = sorted(entries, key=lambda e: e.get("exitDate") or "", reverse=True)
     last = entries_sorted[0]
-    entry = last.get("entry_price")
-    exitp = last.get("exit_price")
-    pnl_pct = last.get("pnl_pct")
-    status = last.get("status") or "open"
+    entry = last.get("entryPrice")
+    exitp = last.get("exitPrice")
+    # j2_trades stores pnlPercent as a fraction (e.g. 0.052 = 5.2%).
+    pnl_fraction = last.get("pnlPercent")
+    pnl_pct = (pnl_fraction * 100) if pnl_fraction is not None else None
     setup = last.get("setup") or ""
+    status = "closed"  # j2_trades only ever holds closed trades
 
     sections = [f"Your most recent {sym} trade — setup {setup or 'unspecified'}, status {status}."]
     if entry:
