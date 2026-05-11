@@ -53,7 +53,7 @@ Build a **chart pattern intelligence engine** that detects classical, candlestic
 
 ## 3. Pattern Catalog (~70 detectors across all phases)
 
-### 3.1 Classical chart patterns (~18)
+### 3.1 Classical chart patterns (~20)
 
 | Pattern | Direction | Typical TF | Phase |
 |---|---|---|---|
@@ -68,16 +68,18 @@ Build a **chart pattern intelligence engine** that detects classical, candlestic
 | Rounded base, Rounded top | Reversal | W–M | 4 |
 | Triple top, Triple bottom | Reversal | D–W | 4 |
 
-### 3.2 Candlestick patterns (~20)
+### 3.2 Candlestick patterns (~23)
 
 | Pattern | Bars | Phase |
 |---|---|---|
 | Doji (standard, gravestone, dragonfly, long-legged) | 1 | 3 |
-| Hammer, Hanging man, Shooting star, Inverted hammer | 1 | 3 |
+| Hammer, Hanging man, Shooting star | 1 | 3 |
+| Inverted hammer | 1 | Post-launch |
 | Bullish/bearish engulfing, Piercing, Dark cloud cover | 2 | 3 |
-| Harami (bull/bear), Tweezer top/bottom | 2 | 3 |
+| Harami (bull/bear) | 2 | 3 |
+| Tweezer top/bottom | 2 | Post-launch |
 | Morning star, Evening star, Three white soldiers, Three black crows | 3 | 3 |
-| Three inside up/down, Abandoned baby | 3 | 3 |
+| Three inside up/down, Abandoned baby | 3 | Post-launch |
 
 ### 3.3 UCT setup patterns (~25 from existing setup_library)
 
@@ -93,12 +95,12 @@ The highest-value detectors — they encode UCT trading philosophy already in th
 | Cup with Handle (UCT variant) | Continuation | 2 |
 | U&R (Undercut & Rally) | Reversal | 2 |
 | Remount | Continuation | 2 |
-| Gap-and-Go, BGU, EMA Crossback, 20EMA Hold | Continuation | 4 |
-| Stage 2 entry, Stage 4 breakdown | Trend transition | 4 |
-| Powerplay, Box Theory, Base-on-Base | Continuation | 4 |
-| Late-stage climax, 7-Week Short Rule | Distribution/Top | 4 |
-| Oops Reversal, Red-to-Green, Go Signal, HVC | Reversal | 4 |
-| Opening Range Breakout/Breakdown, 30min Pivot, Mean Reversion L/S | Intraday | 4 |
+| Gap-and-Go, BGU, EMA Crossback, 20EMA Hold | Continuation | Post-launch |
+| Stage 2 entry, Stage 4 breakdown | Trend transition | Post-launch |
+| Powerplay, Box Theory, Base-on-Base | Continuation | Post-launch |
+| Late-stage climax, 7-Week Short Rule | Distribution/Top | Post-launch |
+| Oops Reversal, Red-to-Green, Go Signal, HVC | Reversal | Post-launch |
+| Opening Range Breakout/Breakdown, 30min Pivot, Mean Reversion L/S | Intraday | Post-launch |
 
 ### 3.4 Structure patterns (~8 — enrichment layer)
 
@@ -378,7 +380,7 @@ Two surfaces ship as part of Phase 1. They validate the engine and do real user-
 
 ### 7.1 Chart Overlay
 
-- **Trigger:** Toolbar gear → "Show patterns" toggle. Default OFF until Phase 1 validates accuracy.
+- **Trigger:** Toolbar gear → "Show patterns" toggle. Default OFF until Phase 7 (Gates 4-5 pass and engine earns its place).
 - **Render:** Each `Detection` from `/api/patterns/{sym}?tf=...` becomes an SVG overlay on top of the chart canvas. New overlay layer is peer to existing `ChartDrawingOverlay.jsx` — never collides with user drawings.
 - **Shape renderers:**
   - `trendline_pair` → two parallel/converging lines (flags, wedges, channels, triangles)
@@ -542,7 +544,7 @@ Seven phases. Each ships independently. Each runs through Gates 1-3 before next 
 | Phase | Scope | Detectors added | Gates | ETA |
 |---|---|---|---|---|
 | **0 — Foundation** | Engine skeleton, types, all primitives (pivots/trendlines/volume/geometry/context), memory schema, REST API contracts, 1 pilot detector (bull flag), basic test harness. E2E plumbing: detect → store → API → chart overlay renders one pattern. | bull_flag | 1 | ~1 wk |
-| **1 — Classical core** | 8 more classical detectors. Per-detector fixture libraries. Confidence v1. False-positive sweep against universe. | bear_flag, pennant, falling_wedge, rising_wedge, head_shoulders, inverse_h&s, double_top, double_bottom, cup_handle | 1, 2 | ~2 wk |
+| **1 — Classical core** | 10 more classical detectors. Per-detector fixture libraries. Confidence v1. False-positive sweep against universe. | bear_flag, pennant, falling_wedge, rising_wedge, head_shoulders, inverse_h&s, double_top, double_bottom, cup_handle, inverse_cup_handle | 1, 2 | ~2 wk |
 | **2 — UCT setups + structure** | 8 highest-value UCT setups + 4 structure detectors. The "edge" patterns specific to UCT trading style. | vcp, high_tight_flag, episodic_pivot, peg, flat_base_uct, u_and_r, remount, cup_handle_uct + swing_pivots, support_resistance, major_trendlines, stage_analysis | 1, 2 | ~2 wk |
 | **3 — Candlestick library** | 15 candlestick detectors. Ride on top of existing detections (engulfing in a flag = much higher conviction). | doji_variants, hammer, hanging_man, shooting_star, engulfing×2, piercing, dark_cloud, harami×2, morning_star, evening_star, three_soldiers, three_crows | 1 | ~1.5 wk |
 | **4 — Remaining classical + structure** | Fill out the catalog: triangles, rectangles, channels, rounded bases, volume profile, A/D detection. | asc_triangle, desc_triangle, sym_triangle, rectangle, channel, rounded_base, rounded_top, triple_top, triple_bottom, volume_nodes, accumulation_distribution, range_detection, 52w_proximity | 1, 2 | ~1.5 wk |
@@ -562,6 +564,9 @@ These are independent. Each its own future spec. None blocks the others.
 - **Alert system on pattern emergence** — pattern type + symbol + min confidence triggers in-app + email + Discord notification.
 - **Journal auto-tagging** — trades log auto-detects which pattern was active at entry and pre-populates the setup field.
 - **Pattern-specific backtest hookup** — Backtester gets a new strategy template family: "every X pattern detection, take the trade." Per-pattern realized expectancy.
+- **Catalog expansion** — remaining detectors from the catalog become live as engine stability proves out:
+  - ~17 UCT setups: Gap-and-Go, BGU, EMA Crossback, 20EMA Hold, Stage 2 entry, Stage 4 breakdown, Powerplay, Box Theory, Base-on-Base, Late-stage climax, 7-Week Short Rule, Oops Reversal, Red-to-Green, Go Signal, HVC, ORB/ORD, 30min Pivot, Mean Reversion L/S
+  - ~8 less-common candlesticks: Inverted hammer, Tweezer top/bottom, Three inside up/down, Abandoned baby
 
 ---
 
@@ -597,7 +602,7 @@ The system is "elite-level" if:
 1. **Detection accuracy:** ≥85% operator-accept rate sustained over 5 trading days in shadow mode (Gate 5).
 2. **Confidence calibration:** within ±5% of y=x line across confidence bins (Gate 4).
 3. **Performance:** all per-symbol queries <300ms p99; universe scans <8s.
-4. **Coverage breadth:** ≥45 detectors live across all 4 categories by Phase 7.
+4. **Coverage breadth:** ≥50 detectors live across all 4 categories by Phase 7 (Phase 0+1+2+3+4 total).
 5. **Learning loop:** `pattern_stats` populated with ≥1,000 resolved samples per major pattern within 90 days of launch.
 6. **Application integration:** chart overlay + scanner both ship and demonstrate the engine to internal users.
 7. **Operator trust:** Patrick (the user) trusts the system enough to act on detections without manual verification.
