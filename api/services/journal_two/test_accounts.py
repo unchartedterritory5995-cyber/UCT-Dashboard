@@ -689,3 +689,23 @@ def test_trader_profile_roundtrip(db_conn):
     db_conn.commit()
     settings = get_account_settings(user_id, account["id"], conn=db_conn)
     assert settings.get("traderProfile") == "# Test profile\n\nSome content."
+
+
+def test_compass_enabled_roundtrip(db_conn):
+    from api.services.journal_two import accounts as accounts_service
+    user_id = "u_compass_toggle"
+    account = accounts_service.get_or_migrate_default_account(user_id, conn=db_conn)
+    payload = {
+        "accountSize": 100_000,
+        "defaultStop": {"mode": "custom"},
+        "positionClosing": "FIFO",
+        "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
+        "setups": [],
+        "shareJournalData": False,
+        "tradingMode": "both",
+        "compassEnabled": False,
+    }
+    saved = accounts_service.upsert_account_settings(user_id, account["id"], payload, conn=db_conn)
+    assert saved["compassEnabled"] is False
+    fresh = accounts_service.get_account_settings(user_id, account["id"], conn=db_conn)
+    assert fresh["compassEnabled"] is False

@@ -987,6 +987,13 @@ def generate_coach_weekly_review(
     payload: dict | None = None,
     user: dict = Depends(get_current_user),
 ):
+    # Compass-enabled gate
+    settings_check = accounts_service.get_account_settings(user["id"], account_id)
+    if settings_check is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not settings_check.get("compassEnabled", True):
+        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+
     week_start = (payload or {}).get("weekStart") or _most_recent_closed_monday()
     try:
         return coach_service.generate_weekly_review(

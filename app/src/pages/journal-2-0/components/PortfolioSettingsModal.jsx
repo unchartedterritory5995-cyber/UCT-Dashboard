@@ -143,6 +143,9 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
   const [staleHoldDaysThreshold, setStaleHoldDaysThreshold] = useState(
     settings?.staleHoldDaysThreshold == null ? '' : String(settings.staleHoldDaysThreshold),
   )
+  const [compassEnabled, setCompassEnabled] = useState(
+    settings?.compassEnabled !== false,   // default true when undefined
+  )
 
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -252,6 +255,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
       lossStreakThreshold: lossStreakThreshold === '' ? null : parseInt(lossStreakThreshold, 10),
       winStreakThreshold: winStreakThreshold === '' ? null : parseInt(winStreakThreshold, 10),
       staleHoldDaysThreshold: staleHoldDaysThreshold === '' ? null : parseInt(staleHoldDaysThreshold, 10),
+      compassEnabled,
     }
     setSaving(true)
     try {
@@ -289,6 +293,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     lossStreakThreshold,
     winStreakThreshold,
     staleHoldDaysThreshold,
+    compassEnabled,
     onSave,
     onClose,
   ])
@@ -993,6 +998,45 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
                 ? 'Oldest positions are closed first when selling same-symbol shares.'
                 : 'Newest positions are closed first when selling same-symbol shares.'}
             </p>
+          </section>
+
+          {/* COMPASS — Phase G toggle */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeader}>COMPASS</h3>
+            <p className={styles.helper}>
+              The AI trading coach for this account. When off, no new weekly
+              reviews can be generated — but existing reviews and the Trader
+              Profile remain accessible.
+            </p>
+            <label
+              className={styles.field}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: 10,
+                padding: '10px 12px',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={compassEnabled}
+                onChange={(e) => setCompassEnabled(e.target.checked)}
+                style={{ accentColor: 'var(--ut-gold)', marginTop: 3 }}
+              />
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ color: 'var(--text-bright)', fontWeight: 500 }}>
+                  Enable Compass (AI Coach) for this account
+                </span>
+                <span className={styles.helper}>
+                  Generates weekly reviews of your closed trades + maintains a
+                  Trader Profile.
+                </span>
+              </span>
+            </label>
           </section>
 
           {errorMsg && (

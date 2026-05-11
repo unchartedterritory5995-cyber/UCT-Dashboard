@@ -9,6 +9,7 @@ import { useState } from 'react'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2CoachReviews from '../hooks/useJ2CoachReviews'
 import useJ2TraderProfile from '../hooks/useJ2TraderProfile'
+import useJ2Settings from '../hooks/useJ2Settings'
 import CompassReview from '../components/CompassReview'
 import TraderProfileEditor from '../components/TraderProfileEditor'
 
@@ -28,6 +29,7 @@ function mostRecentClosedMondayISO() {
 
 export default function CompassTab() {
   const { accountId } = useJ2SelectedAccount()
+  const { settings } = useJ2Settings()
   const { reviews, isLoading, error, generate, regenerate, feedback, forget } = useJ2CoachReviews(accountId)
   const { profile, save: saveProfile, refresh: refreshProfile } = useJ2TraderProfile(accountId)
   const [generating, setGenerating] = useState(false)
@@ -37,6 +39,19 @@ export default function CompassTab() {
     return (
       <div style={{ padding: 24, color: 'var(--text-muted)' }}>
         Select a single account to view Compass reviews.
+      </div>
+    )
+  }
+
+  const compassEnabled = settings?.compassEnabled !== false
+  if (!compassEnabled) {
+    return (
+      <div style={{ padding: 24, color: 'var(--text-muted)' }}>
+        <h1 style={{ fontSize: 22, marginBottom: 8 }}>Compass</h1>
+        <p style={{ fontSize: 13 }}>
+          Compass is disabled for this account. Re-enable it in
+          <strong> Settings → COMPASS</strong> to generate new weekly reviews.
+        </p>
       </div>
     )
   }

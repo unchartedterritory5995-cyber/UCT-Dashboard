@@ -279,6 +279,7 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_accounts ADD COLUMN stale_hold_days_threshold INTEGER",
     # Phase G — Compass (Coach Core + Weekly Review)
     "ALTER TABLE j2_accounts ADD COLUMN trader_profile TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE j2_accounts ADD COLUMN compass_enabled INTEGER NOT NULL DEFAULT 1",
 ]
 
 

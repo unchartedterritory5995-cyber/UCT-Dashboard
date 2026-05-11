@@ -62,6 +62,8 @@ def default_settings_data() -> dict[str, Any]:
         "lossStreakThreshold": None,
         "winStreakThreshold": None,
         "staleHoldDaysThreshold": None,
+        # Phase G — Compass
+        "compassEnabled": True,
     }
 
 
@@ -334,6 +336,8 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "staleHoldDaysThreshold": _validate_optional_positive_int(
             payload.get("staleHoldDaysThreshold"), "staleHoldDaysThreshold",
         ),
+        # Phase G
+        "compassEnabled": bool(payload.get("compassEnabled", True)),
     }
 
 

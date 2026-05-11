@@ -86,6 +86,7 @@ def _default_settings_block() -> dict[str, Any]:
         "winStreakThreshold": None,
         "staleHoldDaysThreshold": None,
         "traderProfile": "",
+        "compassEnabled": True,
     }
 
 
@@ -811,7 +812,7 @@ def get_account_settings(
                 return None
         else:
             acc = get_or_migrate_default_account(user_id, conn=conn)
-        return _account_to_settings(acc)
+        return _account_to_settings(acc, conn=conn)
     finally:
         if owned:
             conn.close()
@@ -861,6 +862,7 @@ def upsert_account_settings(
                    loss_streak_threshold = ?,
                    win_streak_threshold = ?,
                    stale_hold_days_threshold = ?,
+                   compass_enabled = ?,
                    updated_at = ?
              WHERE id = ? AND user_id = ?
             """,
@@ -886,12 +888,13 @@ def upsert_account_settings(
                 full_validated.get("lossStreakThreshold"),
                 full_validated.get("winStreakThreshold"),
                 full_validated.get("staleHoldDaysThreshold"),
+                1 if full_validated.get("compassEnabled", True) else 0,
                 now, account_id, user_id,
             ),
         )
         conn.commit()
         acc = get_account(user_id, account_id, conn=conn)
-        return _account_to_settings(acc)
+        return _account_to_settings(acc, conn=conn)
     finally:
         if owned:
             conn.close()
@@ -969,14 +972,18 @@ def update_goals(
             conn.close()
 
 
-def _account_to_settings(acc: dict[str, Any]) -> dict[str, Any]:
+def _account_to_settings(acc: dict[str, Any], *, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     """Translate a j2_accounts row to the canonical settings shape that
-    PortfolioSettingsModal + downstream services expect."""
+    PortfolioSettingsModal + downstream services expect.
+
+    Accepts an optional `conn` to reuse the caller's transaction context.
+    When called without `conn`, opens its own connection."""
     if acc is None:
         return None
     # Re-fetch the full row to get the settings columns (acc was built from
     # _row_to_account which strips them — separation of concerns).
-    conn = get_connection()
+    owned = conn is None
+    conn = conn or get_connection()
     try:
         row = conn.execute(
             "SELECT * FROM j2_accounts WHERE id = ?", (acc["id"],)
@@ -1011,8 +1018,10 @@ def _account_to_settings(acc: dict[str, Any]) -> dict[str, Any]:
             "winStreakThreshold": row["win_streak_threshold"] if "win_streak_threshold" in keys else None,
             "staleHoldDaysThreshold": row["stale_hold_days_threshold"] if "stale_hold_days_threshold" in keys else None,
             "traderProfile": row["trader_profile"] if "trader_profile" in keys else "",
+            "compassEnabled": bool(row["compass_enabled"]) if "compass_enabled" in keys else True,
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
         }
     finally:
-        conn.close()
+        if owned:
+            conn.close()
