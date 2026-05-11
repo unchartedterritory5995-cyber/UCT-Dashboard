@@ -21,6 +21,7 @@ import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, 
 import ScreenshotPopover from './chart/ScreenshotPopover'
 import { matchShortcut } from './chart/keyboardShortcuts'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
+import PositionPanel from './chart/PositionPanel'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -612,10 +613,34 @@ export default function StockChart({
     if (activeTool !== 'position') return
     const { entry, stop, target } = positionTool
     const e = parseFloat(entry), s = parseFloat(stop), t = parseFloat(target)
-    if (e > 0) positionPriceLines.current.push(cs2.createPriceLine({ price: e, color: '#60a5fa', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: 'Entry' }))
-    if (s > 0) positionPriceLines.current.push(cs2.createPriceLine({ price: s, color: '#f87171', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Stop' }))
-    if (t > 0) positionPriceLines.current.push(cs2.createPriceLine({ price: t, color: '#4ade80', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Target' }))
-  }, [activeTool, positionTool])
+    const acct = parseFloat(cs.positionCalc?.accountSize) || 0
+    const riskPct = parseFloat(cs.positionCalc?.riskPct) || 0
+    const riskPerShare = (e > 0 && s > 0) ? Math.abs(e - s) : 0
+    const rewardPerShare = (e > 0 && t > 0) ? Math.abs(t - e) : 0
+    const maxRisk = (acct * riskPct) / 100
+    const shares = riskPerShare > 0 ? Math.floor(maxRisk / riskPerShare) : 0
+    const rrRatio = riskPerShare > 0 ? rewardPerShare / riskPerShare : 0
+    const entryTitle = shares > 0 ? `Entry · ${shares.toLocaleString()} sh` : 'Entry'
+    const stopTitle = (shares > 0 && riskPerShare > 0) ? `Stop · -$${Math.round(shares * riskPerShare).toLocaleString()}` : 'Stop'
+    const targetTitle = (shares > 0 && rewardPerShare > 0)
+      ? `Target · +$${Math.round(shares * rewardPerShare).toLocaleString()} · 1:${rrRatio.toFixed(2)}R`
+      : 'Target'
+    if (e > 0) positionPriceLines.current.push(cs2.createPriceLine({ price: e, color: '#60a5fa', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: entryTitle }))
+    if (s > 0) positionPriceLines.current.push(cs2.createPriceLine({ price: s, color: '#f87171', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: stopTitle }))
+    if (t > 0) positionPriceLines.current.push(cs2.createPriceLine({ price: t, color: '#4ade80', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: targetTitle }))
+  }, [activeTool, positionTool, cs.positionCalc?.accountSize, cs.positionCalc?.riskPct])
+
+  // ── Cleanup position lines on tool deactivation/unmount ──
+  useEffect(() => {
+    return () => {
+      const cs2 = candleSeriesRef.current
+      if (!cs2) return
+      for (const pl of positionPriceLines.current) {
+        try { cs2.removePriceLine(pl) } catch {}
+      }
+      positionPriceLines.current = []
+    }
+  }, [])
 
   // ── Position tool: auto-populate entry from last bar close when activated ──
   useEffect(() => {
@@ -2975,68 +3000,22 @@ export default function StockChart({
             />
           )}
           {activeTool === 'position' && (
-            <div style={{
-              position: 'absolute', right: 8, top: 40, zIndex: 20,
-              background: 'rgba(26,28,23,0.95)', border: '1px solid #3a3d2e',
-              borderRadius: 6, padding: '10px 12px', width: 200,
-              fontSize: 11, color: '#c8c4b0',
-            }}>
-              <div style={{ fontWeight: 600, marginBottom: 8, color: '#e8e4d0' }}>Position Tool</div>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                {['long', 'short'].map(d => (
-                  <button key={d} onClick={() => setPositionTool(p => ({ ...p, direction: d }))}
-                    style={{
-                      flex: 1, padding: '2px 0', fontSize: 10, cursor: 'pointer', borderRadius: 3,
-                      background: positionTool.direction === d ? (d === 'long' ? '#1a4a2e' : '#4a1a1a') : 'transparent',
-                      border: `1px solid ${d === 'long' ? '#4ade80' : '#f87171'}`,
-                      color: d === 'long' ? '#4ade80' : '#f87171',
-                    }}>
-                    {d.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-              {[['entry', '#60a5fa', 'Entry $'], ['stop', '#f87171', 'Stop $'], ['target', '#4ade80', 'Target $']].map(([field, color, label]) => (
-                <div key={field} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <span style={{ color, minWidth: 40 }}>{label}</span>
-                  <input type="number" step="0.01" value={positionTool[field]}
-                    onChange={ev => setPositionTool(p => ({ ...p, [field]: ev.target.value }))}
-                    style={{
-                      flex: 1, background: '#2a2d1e', border: '1px solid #3a3d2e', borderRadius: 3,
-                      color: '#e8e4d0', padding: '2px 4px', fontSize: 11, width: '100%',
-                    }} />
-                </div>
-              ))}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <span style={{ minWidth: 40 }}>Risk $</span>
-                <input type="number" value={positionTool.risk}
-                  onChange={ev => setPositionTool(p => ({ ...p, risk: parseFloat(ev.target.value) || 200 }))}
-                  style={{
-                    flex: 1, background: '#2a2d1e', border: '1px solid #3a3d2e', borderRadius: 3,
-                    color: '#e8e4d0', padding: '2px 4px', fontSize: 11, width: '100%',
-                  }} />
-              </div>
-              {(() => {
-                const e = parseFloat(positionTool.entry), s = parseFloat(positionTool.stop), t = parseFloat(positionTool.target), r = positionTool.risk
-                const riskPerShare = Math.abs(e - s)
-                const rewardPerShare = Math.abs(t - e)
-                const shares = riskPerShare > 0 ? Math.floor(r / riskPerShare) : 0
-                const rr = riskPerShare > 0 ? (rewardPerShare / riskPerShare).toFixed(2) : '—'
-                const profit = shares * rewardPerShare
-                if (!e || !s) return null
-                return (
-                  <div style={{ borderTop: '1px solid #3a3d2e', paddingTop: 8, lineHeight: 1.7 }}>
-                    <div>R:R <span style={{ color: '#c9a84c', fontWeight: 600 }}>{rr}</span></div>
-                    <div>Shares <span style={{ color: '#e8e4d0' }}>{shares.toLocaleString()}</span></div>
-                    <div>Risk <span style={{ color: '#f87171' }}>${r.toFixed(0)}</span></div>
-                    {t > 0 && <div>Profit <span style={{ color: '#4ade80' }}>${profit.toFixed(0)}</span></div>}
-                  </div>
-                )
-              })()}
-              <button onClick={() => setPositionTool({ entry: '', stop: '', target: '', risk: positionTool.risk, direction: positionTool.direction })}
-                style={{ marginTop: 8, width: '100%', padding: '3px 0', fontSize: 10, cursor: 'pointer', background: 'transparent', border: '1px solid #3a3d2e', borderRadius: 3, color: '#706b5e' }}>
-                Clear
-              </button>
-            </div>
+            <PositionPanel
+              entry={positionTool.entry}
+              stop={positionTool.stop}
+              target={positionTool.target}
+              accountSize={cs.positionCalc?.accountSize ?? 50000}
+              riskPct={cs.positionCalc?.riskPct ?? 1}
+              onChange={({ entry, stop, target }) => setPositionTool(p => ({ ...p, entry, stop, target }))}
+              onConfigChange={({ accountSize, riskPct }) =>
+                handleUpdateChartSettings({
+                  ...cs,
+                  positionCalc: { accountSize, riskPct },
+                })
+              }
+              onClear={() => setPositionTool(p => ({ ...p, entry: '', stop: '', target: '' }))}
+              onClose={() => setActiveTool(null)}
+            />
           )}
         </>
       )}

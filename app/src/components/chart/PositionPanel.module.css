@@ -1,0 +1,156 @@
+/* app/src/components/chart/PositionPanel.module.css — Elite position sizing overlay */
+
+.panel {
+  position: absolute;
+  top: 50px;
+  right: 16px;
+  width: 240px;
+  background: rgba(26, 28, 23, 0.97);
+  border: 1px solid #3a3d2e;
+  border-radius: 8px;
+  padding: 12px;
+  z-index: 100;
+  font-size: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  color: #c8c4b0;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.title {
+  font-weight: 600;
+  color: #e8e4d0;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.close {
+  background: transparent;
+  border: none;
+  color: #706b5e;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.close:hover {
+  color: #e8e4d0;
+}
+
+.priceGroup,
+.configGroup,
+.calcGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.priceGroup label,
+.configGroup label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.priceGroup input,
+.configGroup input {
+  flex: 1;
+  background: #2a2d1e;
+  color: #e8e4d0;
+  border: 1px solid #3a3d2e;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.priceGroup input:focus,
+.configGroup input:focus {
+  outline: none;
+  border-color: #c9a84c;
+}
+
+.priceLabel {
+  width: 50px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.configGroup label > span:first-child {
+  width: 70px;
+  font-size: 11px;
+  color: #706b5e;
+}
+
+.calcGroup {
+  padding-top: 10px;
+  border-top: 1px solid #3a3d2e;
+}
+
+.calcRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.calcLabel {
+  color: #706b5e;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.calcValue {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  color: #e8e4d0;
+  font-size: 12px;
+}
+
+.long {
+  color: #4ade80;
+}
+
+.short {
+  color: #f87171;
+}
+
+.invalid {
+  color: #706b5e;
+}
+
+.riskValue {
+  color: #f87171;
+}
+
+.rewardValue {
+  color: #4ade80;
+}
+
+.clearBtn {
+  width: 100%;
+  padding: 5px 0;
+  font-size: 10px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid #3a3d2e;
+  border-radius: 3px;
+  color: #706b5e;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.clearBtn:hover {
+  color: #e8e4d0;
+  border-color: #706b5e;
+}

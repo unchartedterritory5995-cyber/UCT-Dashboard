@@ -71,6 +71,11 @@ export const CHART_DEFAULTS = {
 
   theme: 'dark', // 'dark' | 'light'
 
+  positionCalc: {
+    accountSize: 50000,   // user's account in $
+    riskPct: 1,           // % of account to risk per trade (default 1%)
+  },
+
   preset: 'classic',
 }
 
@@ -226,6 +231,7 @@ export function mergeChartSettings(userSettings) {
     markers: { ...CHART_DEFAULTS.markers, ...(parsed.markers || {}) },
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     theme: parsed?.theme === 'light' ? 'light' : 'dark',
+    positionCalc: { ...CHART_DEFAULTS.positionCalc, ...(parsed.positionCalc || {}) },
     preset: parsed.preset || 'classic',
   }
 }
