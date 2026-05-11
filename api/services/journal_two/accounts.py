@@ -82,6 +82,9 @@ def _default_settings_block() -> dict[str, Any]:
         "regimeSizeMultipliers": {},
         "mistakeTags": [],
         "emotionTags": [],
+        "lossStreakThreshold": None,
+        "winStreakThreshold": None,
+        "staleHoldDaysThreshold": None,
     }
 
 
@@ -796,6 +799,9 @@ def upsert_account_settings(
                    regime_size_multipliers = ?,
                    mistake_tags = ?,
                    emotion_tags = ?,
+                   loss_streak_threshold = ?,
+                   win_streak_threshold = ?,
+                   stale_hold_days_threshold = ?,
                    updated_at = ?
              WHERE id = ? AND user_id = ?
             """,
@@ -818,6 +824,9 @@ def upsert_account_settings(
                 json.dumps(full_validated.get("regimeSizeMultipliers", {})),
                 json.dumps(full_validated.get("mistakeTags", [])),
                 json.dumps(full_validated.get("emotionTags", [])),
+                full_validated.get("lossStreakThreshold"),
+                full_validated.get("winStreakThreshold"),
+                full_validated.get("staleHoldDaysThreshold"),
                 now, account_id, user_id,
             ),
         )
@@ -939,6 +948,9 @@ def _account_to_settings(acc: dict[str, Any]) -> dict[str, Any]:
             "regimeSizeMultipliers": json.loads(row["regime_size_multipliers"]) if "regime_size_multipliers" in keys else {},
             "mistakeTags": json.loads(row["mistake_tags"]) if "mistake_tags" in keys else [],
             "emotionTags": json.loads(row["emotion_tags"]) if "emotion_tags" in keys else [],
+            "lossStreakThreshold": row["loss_streak_threshold"] if "loss_streak_threshold" in keys else None,
+            "winStreakThreshold": row["win_streak_threshold"] if "win_streak_threshold" in keys else None,
+            "staleHoldDaysThreshold": row["stale_hold_days_threshold"] if "stale_hold_days_threshold" in keys else None,
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
         }
