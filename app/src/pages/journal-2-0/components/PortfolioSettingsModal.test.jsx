@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import PortfolioSettingsModal from './PortfolioSettingsModal'
 
@@ -101,7 +101,11 @@ describe('PortfolioSettingsModal', () => {
     )
     const input = screen.getByPlaceholderText('New setup name')
     await user.type(input, 'Pullback')
-    await user.click(screen.getByRole('button', { name: 'Add' }))
+    // There are now multiple "Add" buttons (setups / mistakes / emotions) — target
+    // the one in the TRADE SETUPS addRow by querying within its closest container.
+    const setupsSection = input.closest('div')
+    const { getByRole: getByRoleLocal } = within(setupsSection)
+    await user.click(getByRoleLocal('button', { name: 'Add' }))
     // 'Pullback' appears in both TRADE SETUPS chips and SETUP-AWARE COACHING toggles
     expect(screen.getAllByText('Pullback').length).toBeGreaterThan(0)
 

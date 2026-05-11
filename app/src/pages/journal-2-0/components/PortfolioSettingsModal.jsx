@@ -30,6 +30,19 @@ const STOP_MODES = [
   },
 ]
 
+const STANDARD_MISTAKES = [
+  'overtrading', 'FOMO', 'chasing', 'early_exit', 'late_entry',
+  'no_stop', 'oversized', 'countertrend', 'revenge', 'ignored_thesis',
+  'added_to_loser', 'cut_winner', 'broke_loss_rule', 'broke_size_rule',
+  'broke_checklist', 'boredom', 'hesitation',
+]
+
+const STANDARD_EMOTIONS = [
+  'confident', 'anxious', 'greedy', 'fearful', 'calm', 'frustrated',
+  'euphoric', 'bored', 'disciplined', 'impulsive', 'patient', 'rushed',
+  'focused', 'distracted', 'revenge-driven',
+]
+
 /**
  * Build a canonical defaultStop object from the form's working values.
  */
@@ -117,6 +130,11 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     }
   })
 
+  const [mistakeTags, setMistakeTags] = useState(settings?.mistakeTags ?? [])
+  const [emotionTags, setEmotionTags] = useState(settings?.emotionTags ?? [])
+  const [newMistake, setNewMistake] = useState('')
+  const [newEmotion, setNewEmotion] = useState('')
+
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -143,6 +161,46 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
 
   const removeSetup = useCallback((s) => {
     setSetups((prev) => prev.filter((x) => x !== s))
+  }, [])
+
+  const addMistake = useCallback(() => {
+    const s = newMistake.trim()
+    if (!s) return
+    if (mistakeTags.includes(s)) { setNewMistake(''); return }
+    setMistakeTags((prev) => [...prev, s])
+    setNewMistake('')
+  }, [newMistake, mistakeTags])
+
+  const removeMistake = useCallback((s) => {
+    setMistakeTags((prev) => prev.filter((x) => x !== s))
+  }, [])
+
+  const seedMistakes = useCallback(() => {
+    setMistakeTags((prev) => {
+      const next = [...prev]
+      for (const s of STANDARD_MISTAKES) if (!next.includes(s)) next.push(s)
+      return next
+    })
+  }, [])
+
+  const addEmotion = useCallback(() => {
+    const s = newEmotion.trim()
+    if (!s) return
+    if (emotionTags.includes(s)) { setNewEmotion(''); return }
+    setEmotionTags((prev) => [...prev, s])
+    setNewEmotion('')
+  }, [newEmotion, emotionTags])
+
+  const removeEmotion = useCallback((s) => {
+    setEmotionTags((prev) => prev.filter((x) => x !== s))
+  }, [])
+
+  const seedEmotions = useCallback(() => {
+    setEmotionTags((prev) => {
+      const next = [...prev]
+      for (const s of STANDARD_EMOTIONS) if (!next.includes(s)) next.push(s)
+      return next
+    })
   }, [])
 
   const handleSave = useCallback(async () => {
@@ -180,6 +238,8 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
           .filter(([, v]) => v !== '')
           .map(([k, v]) => [k, Number(v)])
       ),
+      mistakeTags,
+      emotionTags,
     }
     setSaving(true)
     try {
@@ -212,6 +272,8 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     aPlusSetups,
     aPlusRiskMultiplier,
     regimeSizeMultipliers,
+    mistakeTags,
+    emotionTags,
     onSave,
     onClose,
   ])
@@ -528,6 +590,94 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
                 </label>
               ))}
             </div>
+          </section>
+
+          {/* MISTAKES TAXONOMY — Phase E */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeader}>MISTAKES TAXONOMY</h3>
+            <p className={styles.helper}>
+              Tag closed trades with the mistakes you made. Build your own
+              list, or seed the standard 17 to start.
+            </p>
+            <div className={styles.addRow}>
+              <input
+                type="text"
+                value={newMistake}
+                onChange={(e) => setNewMistake(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); addMistake() }
+                }}
+                className={styles.textInput}
+                placeholder="New mistake tag"
+                aria-label="New mistake tag"
+              />
+              <button type="button" className={styles.addBtn} onClick={addMistake} disabled={!newMistake.trim()}>
+                Add
+              </button>
+              <button
+                type="button"
+                className={styles.addBtn}
+                onClick={seedMistakes}
+                style={{ marginLeft: 8 }}
+                aria-label="Seed standard 17 mistakes"
+              >
+                + Seed standard 17
+              </button>
+            </div>
+            {mistakeTags.length > 0 && (
+              <div className={styles.chips} role="list" aria-label="Mistake tags">
+                {mistakeTags.map((s) => (
+                  <span key={s} className={styles.chip} role="listitem">
+                    {s}
+                    <button type="button" className={styles.chipClose} onClick={() => removeMistake(s)} aria-label={`Remove ${s}`}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* EMOTIONS TAXONOMY — Phase E */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeader}>EMOTIONS TAXONOMY</h3>
+            <p className={styles.helper}>
+              Tag closed trades with the emotional state you traded in. Build
+              your own list, or seed the standard 15 to start.
+            </p>
+            <div className={styles.addRow}>
+              <input
+                type="text"
+                value={newEmotion}
+                onChange={(e) => setNewEmotion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); addEmotion() }
+                }}
+                className={styles.textInput}
+                placeholder="New emotion tag"
+                aria-label="New emotion tag"
+              />
+              <button type="button" className={styles.addBtn} onClick={addEmotion} disabled={!newEmotion.trim()}>
+                Add
+              </button>
+              <button
+                type="button"
+                className={styles.addBtn}
+                onClick={seedEmotions}
+                style={{ marginLeft: 8 }}
+                aria-label="Seed standard 15 emotions"
+              >
+                + Seed standard 15
+              </button>
+            </div>
+            {emotionTags.length > 0 && (
+              <div className={styles.chips} role="list" aria-label="Emotion tags">
+                {emotionTags.map((s) => (
+                  <span key={s} className={styles.chip} role="listitem">
+                    {s}
+                    <button type="button" className={styles.chipClose} onClick={() => removeEmotion(s)} aria-label={`Remove ${s}`}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* 5.2 DEFAULT STOP */}
