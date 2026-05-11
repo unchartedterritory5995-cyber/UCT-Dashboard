@@ -263,6 +263,28 @@ CREATE TABLE IF NOT EXISTS voice_transcripts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_voice_transcripts_session ON voice_transcripts(session_id, timestamp);
+
+CREATE TABLE IF NOT EXISTS user_voice_facts (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     TEXT NOT NULL REFERENCES users(id),
+    category    TEXT NOT NULL DEFAULT 'general',
+    text        TEXT NOT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_voice_facts_user ON user_voice_facts(user_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS voice_session_summaries (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      INTEGER NOT NULL REFERENCES voice_sessions(id) ON DELETE CASCADE,
+    user_id         TEXT NOT NULL REFERENCES users(id),
+    summary_text    TEXT NOT NULL,
+    key_topics_json TEXT,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_summaries_user ON voice_session_summaries(user_id, created_at DESC);
 """
 
 
