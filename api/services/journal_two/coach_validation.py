@@ -42,10 +42,6 @@ _NON_TICKER_WORDS = frozenset({
 _TICKER_RE = re.compile(r"\b([A-Z]{2,5})\b")
 
 
-def _strip_sign(token: str) -> str:
-    return token.lstrip("+-").lstrip()
-
-
 def _to_float(token: str) -> float | None:
     """Parse a number string ('+1.4', '-$1,200', '2.4') to float."""
     s = token.replace("$", "").replace(",", "").rstrip("R%").lstrip("+")
@@ -96,6 +92,14 @@ def _data_symbols(data: dict) -> set[str]:
         s = p.get("symbol")
         if isinstance(s, str):
             out.add(s.upper())
+    # Symbols mentioned in arc descriptions (Task 3 produces strings like
+    # "3 consecutive losses on Bull Flag (TSLA, NVDA, CRWD)"). The arcs are
+    # legitimate references the validator must accept.
+    for arc in data.get("recent_arcs") or []:
+        if isinstance(arc, str):
+            for tok in _TICKER_RE.findall(arc):
+                if tok not in _NON_TICKER_WORDS:
+                    out.add(tok)
     return out
 
 
@@ -174,11 +178,15 @@ def validate_eod_output(body: str, data: dict) -> dict[str, Any]:
         if line.lstrip().startswith("#"):
             flags.append("markdown header present (forbidden in EOD)")
             break
-    # Bullet points (lines starting with `- ` or `* `)
+    # Bullet points (lines starting with `- ` or `* `) and numbered lists (`1. `, `1) `)
+    _NUMBERED_LIST_RE = re.compile(r"^\d+[.)]\s")
     for line in body.splitlines():
         stripped = line.lstrip()
         if stripped.startswith("- ") or stripped.startswith("* "):
             flags.append("bullet point present (forbidden in EOD)")
+            break
+        if _NUMBERED_LIST_RE.match(stripped):
+            flags.append("numbered list present (forbidden in EOD)")
             break
     # Question count: must be exactly 1
     n_questions = body.count("?")

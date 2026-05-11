@@ -109,6 +109,20 @@ def test_validator_ignores_common_uppercase_words():
     assert result["passed"] is True, result["flags"]
 
 
+def test_validator_accepts_symbols_referenced_in_recent_arcs():
+    """Tickers named in arc strings must not be flagged as unverified."""
+    from api.services.journal_two import coach_validation as cv
+    data = _sample_data()
+    data["recent_arcs"] = ["3 consecutive losses on Bull Flag (TSLA, CRWD)"]
+    body = (
+        "Today the FOMO entry on NVDA was -1.4R; AAPL recovered with +2.1R. "
+        "The losing streak on TSLA and CRWD this week is the bigger pattern — "
+        "what was different about today's AAPL Pullback?"
+    )
+    result = cv.validate_eod_output(body, data)
+    assert result["passed"] is True, result["flags"]
+
+
 # ── Format compliance ─────────────────────────────────────────────────────────
 
 def test_validator_flags_markdown_headers():
@@ -132,6 +146,17 @@ def test_validator_flags_bullet_points():
     result = cv.validate_eod_output(body, _sample_data())
     assert result["passed"] is False
     assert any("bullet" in f.lower() for f in result["flags"])
+
+
+def test_validator_flags_numbered_list():
+    from api.services.journal_two import coach_validation as cv
+    body = (
+        "Today's takeaways:\n1. NVDA was -1.4R\n2. AAPL was +2.1R\n"
+        "What was different about the Pullback?"
+    )
+    result = cv.validate_eod_output(body, _sample_data())
+    assert result["passed"] is False
+    assert any("list" in f.lower() or "numbered" in f.lower() for f in result["flags"])
 
 
 def test_validator_flags_missing_question():
@@ -166,6 +191,16 @@ def test_validator_flags_yes_no_question():
     )
     result = cv.validate_eod_output(body, _sample_data())
     assert result["passed"] is False
+    assert any("yes/no" in f.lower() or "yes-no" in f.lower() for f in result["flags"])
+
+
+def test_validator_flags_yes_no_when_question_is_entire_body():
+    """Body with no preceding period/newline still detects yes/no opener."""
+    from api.services.journal_two import coach_validation as cv
+    body = "Did you size up too aggressively on the NVDA entry?"
+    result = cv.validate_eod_output(body, _sample_data())
+    # This will fail on yes/no AND on symbol grounding (NVDA is fine), but it's
+    # the yes/no flag we care about here.
     assert any("yes/no" in f.lower() or "yes-no" in f.lower() for f in result["flags"])
 
 
