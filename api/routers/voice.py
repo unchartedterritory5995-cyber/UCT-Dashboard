@@ -4,7 +4,7 @@ Future slices add /oneshot, /session_token, /exec, /transcripts, /tools.
 """
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
@@ -41,7 +41,9 @@ from api.services.voice_session_service import (
     append_transcript, session_belongs_to_user,
 )
 from api.services.voice_dispatch import run_tool
-from api.services.voice_memory_service import build_memory_context
+from api.services.voice_memory_service import build_memory_context, add_summary
+from api.services.voice_session_service import get_transcripts as _get_session_transcripts
+from api.services.voice_summarizer import summarize_transcripts
 
 _log = logging.getLogger(__name__)
 
@@ -373,6 +375,7 @@ def transcript_post(
 def session_end_post(
     request: Request,
     body: SessionEndRequest,
+    background_tasks: BackgroundTasks,
     user: dict = Depends(requires_voice_access),
 ):
     if not session_belongs_to_user(body.session_id, user["id"]):
@@ -383,4 +386,28 @@ def session_end_post(
                        estimated_cost_usd=estimated_cost)
     if duration > 0:
         record_mode_c_seconds(user["id"], duration)
+
+    # Schedule background summarization (non-blocking)
+    background_tasks.add_task(_summarize_session_background, body.session_id, user["id"])
+
     return {"ok": True, "duration_seconds": duration}
+
+
+def _summarize_session_background(session_id: int, user_id: str) -> None:
+    """Runs after /session/end returns. Best-effort; failures are logged but swallowed."""
+    try:
+        transcripts = _get_session_transcripts(session_id) or []
+        roles = {t.get("role") for t in transcripts}
+        if "user" not in roles or "assistant" not in roles:
+            return
+        result = summarize_transcripts(transcripts)
+        summary = result.get("summary") or ""
+        if not summary.strip():
+            return
+        add_summary(
+            session_id=session_id, user_id=user_id,
+            summary_text=summary,
+            key_topics=result.get("key_topics") or [],
+        )
+    except Exception as e:  # noqa: BLE001
+        _log.warning("session summarization failed for %s: %s", session_id, e)
