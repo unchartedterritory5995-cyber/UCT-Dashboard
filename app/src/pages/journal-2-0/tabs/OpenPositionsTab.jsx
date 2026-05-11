@@ -13,6 +13,8 @@ import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Positions from '../hooks/useJ2Positions'
 import useJ2OptionStrategies from '../hooks/useJ2OptionStrategies'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
+import useJ2Nudges from '../hooks/useJ2Nudges'
+import NudgesBanner from '../components/NudgesBanner'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
 import OptionStrategiesSection from '../components/options/OptionStrategiesSection'
 import AddOptionStrategyModal from '../components/options/AddOptionStrategyModal'
@@ -65,6 +67,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
     refresh: refreshOptions,
   } = useJ2OptionStrategies({ status: 'open' })
   const { accountId: selectedAccountId, account: selectedAccount, accounts } = useJ2SelectedAccount()
+  const { nudges: nudgesState } = useJ2Nudges(selectedAccountId)
   const {
     columns,
     visibleColumns,
@@ -177,6 +180,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
 
   return (
     <div className={styles.wrap}>
+      <NudgesBanner accountId={selectedAccountId} state={nudgesState} />
       {/* §7.1 — stats header */}
       <div className={styles.statsBar}>
         <div className={styles.statGroup}>
