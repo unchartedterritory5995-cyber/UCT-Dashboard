@@ -41,6 +41,7 @@ from api.services.voice_session_service import (
     append_transcript, session_belongs_to_user,
 )
 from api.services.voice_dispatch import run_tool
+from api.services.voice_memory_service import build_memory_context
 
 _log = logging.getLogger(__name__)
 
@@ -288,11 +289,21 @@ def session_token(
 
     tools_schema = get_schema_for_context(body.context or "global")
 
+    memory_context = build_memory_context(user["id"])
+    session_instructions = _REALTIME_INSTRUCTIONS
+    if memory_context:
+        session_instructions = (
+            _REALTIME_INSTRUCTIONS
+            + "\n\n=== USER CONTEXT ===\n"
+            + memory_context
+            + "\n=== END USER CONTEXT ==="
+        )
+
     try:
         mint = mint_realtime_session(
             voice=settings["voice"],
             tools=tools_schema,
-            instructions=_REALTIME_INSTRUCTIONS,
+            instructions=session_instructions,
         )
     except Exception as e:  # noqa: BLE001
         _log.exception("realtime session mint failed")

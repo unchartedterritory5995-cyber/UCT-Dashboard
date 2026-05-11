@@ -330,3 +330,28 @@ def test_session_end_records_duration(client):
     s = get_session(sid)
     assert s["status"] == "closed"
     assert s["duration_seconds"] == 17
+
+
+def test_session_token_injects_user_memory(client):
+    _login(client, plan="pro")
+    from api.services.auth_db import get_connection
+    from api.services.voice_memory_service import add_fact
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").fetchone()
+        uid = row["id"]
+    finally:
+        conn.close()
+    add_fact(uid, text="I trade small caps under $5B", category="style")
+
+    captured_instructions = {}
+
+    def fake_mint(*, voice, tools, instructions, model=None):
+        captured_instructions["text"] = instructions
+        return {"session_id": "sess_x", "client_secret": "ek_x",
+                "expires_at": 0, "model": "gpt-realtime"}
+
+    with patch("api.routers.voice.mint_realtime_session", side_effect=fake_mint):
+        r = client.post("/api/voice/session_token", json={"context": "global"})
+    assert r.status_code == 200
+    assert "small caps" in captured_instructions["text"]
