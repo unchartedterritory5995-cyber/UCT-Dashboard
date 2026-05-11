@@ -1,0 +1,112 @@
+/**
+ * View + edit the Compass Trader Profile (markdown blob).
+ *
+ * Props:
+ *   profile: string (markdown)
+ *   onSave(next: string): Promise<void>
+ *   onClear(): Promise<void>
+ */
+
+import { useState } from 'react'
+
+export default function TraderProfileEditor({ profile, onSave, onClear }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(profile || '')
+  const [saving, setSaving] = useState(false)
+
+  const startEdit = () => {
+    setDraft(profile || '')
+    setEditing(true)
+  }
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await onSave(draft)
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const clear = async () => {
+    if (!window.confirm('Clear the Trader Profile? Compass will rebuild from scratch on next review.')) return
+    await onClear()
+  }
+
+  return (
+    <section
+      style={{
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        padding: '12px 16px',
+        margin: '16px 0',
+        background: 'var(--bg-elevated, rgba(255,255,255,0.02))',
+      }}
+    >
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0, fontSize: 14, color: 'var(--ut-gold, #c9a84c)' }}>
+          Compass's notes on you
+        </h3>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {!editing && (
+            <>
+              <button type="button" onClick={startEdit} style={btn()}>Edit</button>
+              <button type="button" onClick={clear} style={btn('var(--loss, #ef4444)')}>Clear</button>
+            </>
+          )}
+          {editing && (
+            <>
+              <button type="button" onClick={() => setEditing(false)} style={btn()} disabled={saving}>
+                Cancel
+              </button>
+              <button type="button" onClick={save} style={btn('var(--ut-gold, #c9a84c)')} disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            </>
+          )}
+        </div>
+      </header>
+      {editing ? (
+        <textarea
+          aria-label="Trader Profile"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          style={{
+            width: '100%', minHeight: 280, marginTop: 8, padding: 10,
+            background: 'var(--bg)', color: 'var(--text-bright)',
+            border: '1px solid var(--border)', borderRadius: 6,
+            fontFamily: 'var(--font-mono, monospace)', fontSize: 12,
+            lineHeight: 1.5,
+          }}
+        />
+      ) : profile ? (
+        <pre
+          style={{
+            whiteSpace: 'pre-wrap', marginTop: 8, padding: 10,
+            background: 'transparent', color: 'var(--text-bright)',
+            border: '1px dashed var(--border)', borderRadius: 6,
+            fontFamily: 'var(--font-mono, monospace)', fontSize: 12,
+            lineHeight: 1.5,
+          }}
+        >{profile}</pre>
+      ) : (
+        <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
+          Compass hasn't built a profile yet — generate your first weekly review and it'll start.
+        </p>
+      )}
+    </section>
+  )
+}
+
+function btn(color) {
+  return {
+    padding: '4px 10px',
+    fontSize: 11,
+    background: 'transparent',
+    color: color || 'var(--text-bright)',
+    border: `1px solid ${color || 'var(--border)'}`,
+    borderRadius: 6,
+    cursor: 'pointer',
+  }
+}
