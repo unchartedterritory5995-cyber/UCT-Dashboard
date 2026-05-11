@@ -260,6 +260,30 @@ def _start_hot_tier_warm_background(delay_seconds: int = 45) -> None:
         _warm_hot_tier_now()
     threading.Thread(target=_delayed, daemon=True, name="hot-tier-warmer").start()
 
+
+def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
+    """Pre-compute RS rankings ~120s after startup so first user request is hot.
+
+    The compute reads 6 months of daily bars for the cap_universe (~3,685
+    tickers) and takes ~17s cold. Delaying 120s lets the hot-tier warm,
+    priority audit, and deploy smoke run first so this doesn't compete with
+    other startup workers for bar I/O.
+    """
+    import threading
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        try:
+            from api.services import rs_ranking
+            rankings = rs_ranking.compute_rs_scores()
+            logging.getLogger(__name__).info(
+                "[startup] rs-rankings warmed: %d entries", len(rankings)
+            )
+        except Exception:
+            logging.getLogger(__name__).exception("[startup] rs-rankings warm failed")
+    threading.Thread(target=_delayed, daemon=True, name="rs-rankings-warmer").start()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
@@ -322,6 +346,17 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] hot tier warm scheduled (~45s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule hot tier warm")
+
+    # RS rankings warm — compute IBD-style relative strength rankings for the
+    # cap_universe (~3,685 tickers) 120s after boot so the first
+    # /api/rs-rankings request after a redeploy hits the cache instead of
+    # taking ~17s. Staggered after hot-tier warm and priority audit to avoid
+    # contending for bar I/O during startup.
+    try:
+        _start_rs_rankings_warm_background()
+        logging.getLogger(__name__).info("[startup] rs-rankings warm scheduled (~120s after boot)")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] failed to schedule rs-rankings warm")
 
     # Deploy-smoke audit — small fixture run ~30s after every deploy so admins
     # can verify nothing broke in the chart pipeline without manual operator
