@@ -525,3 +525,36 @@ def test_delete_all_trades_empty_returns_zero(db_conn):
     from api.services.journal_two import trades as svc
 
     assert svc.delete_all_trades("u1", conn=db_conn) == 0
+
+
+# ═══ Phase E: mistake_tags + emotion_tags round-trip ═════════════════════════
+
+
+def test_close_position_with_tags_survives_round_trip(db_conn):
+    """Tags passed at close time should be persisted and returned by list_trades."""
+    from api.services.journal_two import trades as svc
+
+    pid = _seed_yss(db_conn, "u1")
+    result = svc.close_position(
+        user_id="u1",
+        position_id=pid,
+        payload={
+            "shares": 100,
+            "exitPrice": 34.50,
+            "exitDate": "2026-04-10T00:00:00Z",
+            "mistakeTags": ["fomo"],
+            "emotionTags": ["euphoric"],
+        },
+        settings=SETTINGS_BE_20,
+        conn=db_conn,
+    )
+    # Inline return shape exposes tags immediately
+    trade = result["trade"]
+    assert trade["mistakeTags"] == ["fomo"]
+    assert trade["emotionTags"] == ["euphoric"]
+
+    # Re-read from DB via list_trades_for_user — tags must survive the round-trip
+    trades = svc.list_trades_for_user("u1", conn=db_conn)
+    assert len(trades) == 1
+    assert trades[0]["mistakeTags"] == ["fomo"]
+    assert trades[0]["emotionTags"] == ["euphoric"]

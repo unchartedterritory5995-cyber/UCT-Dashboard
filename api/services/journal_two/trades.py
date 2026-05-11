@@ -33,6 +33,21 @@ class CloseValidationError(ValueError):
     """Raised when close payload fails §10 validation."""
 
 
+def _normalize_string_list(value, field_name: str) -> list[str]:
+    """Coerce a payload tag list to list[str]. None/missing → []."""
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(f"{field_name} must be a list")
+    out: list[str] = []
+    for s in value:
+        if isinstance(s, str) and s.strip():
+            stripped = s.strip()
+            if stripped not in out:
+                out.append(stripped)
+    return out
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -88,6 +103,8 @@ def _validate_close_payload(position: dict[str, Any], payload: dict[str, Any]) -
         "exit_date": exit_dt.astimezone(timezone.utc).isoformat(),
         "notes": notes if isinstance(notes, str) else None,
         "fees": fees,
+        "mistake_tags": _normalize_string_list(payload.get("mistakeTags"), "mistakeTags"),
+        "emotion_tags": _normalize_string_list(payload.get("emotionTags"), "emotionTags"),
     }
 
 
@@ -153,8 +170,9 @@ def close_position(
                     entry_price, entry_date, exit_price, exit_date,
                     original_stop, setup, notes, pnl_dollar, pnl_percent,
                     r_multiple, hold_days, result, context_at_entry,
-                    account_id, fees, created_at, regime
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    account_id, fees, created_at, regime,
+                    mistake_tags, emotion_tags
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     trade_id,
@@ -180,6 +198,8 @@ def close_position(
                     normalized.get("fees", 0.0),
                     now,
                     regime_service.get_current_regime().get("regime"),
+                    json.dumps(normalized["mistake_tags"]),
+                    json.dumps(normalized["emotion_tags"]),
                 ),
             )
 
@@ -241,6 +261,8 @@ def close_position(
                 "result": derived["result"],
                 "contextAtEntry": position["contextAtEntry"],
                 "createdAt": now,
+                "mistakeTags": normalized["mistake_tags"],
+                "emotionTags": normalized["emotion_tags"],
             },
             "position": _row_to_position(updated_row),
         }
@@ -350,6 +372,8 @@ def _validate_manual_trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "setup": setup.strip() if isinstance(setup, str) and setup.strip() else None,
         "notes": notes if isinstance(notes, str) else None,
         "fees": fees,
+        "mistake_tags": _normalize_string_list(payload.get("mistakeTags"), "mistakeTags"),
+        "emotion_tags": _normalize_string_list(payload.get("emotionTags"), "emotionTags"),
     }
 
 
@@ -395,8 +419,9 @@ def create_trade_manual(
                 entry_price, entry_date, exit_price, exit_date,
                 original_stop, setup, notes, pnl_dollar, pnl_percent,
                 r_multiple, hold_days, result, context_at_entry,
-                account_id, fees, created_at, regime
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                account_id, fees, created_at, regime,
+                mistake_tags, emotion_tags
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 trade_id,
@@ -422,6 +447,8 @@ def create_trade_manual(
                 validated.get("fees", 0.0),
                 now,
                 regime_service.get_current_regime().get("regime"),
+                json.dumps(validated["mistake_tags"]),
+                json.dumps(validated["emotion_tags"]),
             ),
         )
         conn.commit()
@@ -447,6 +474,8 @@ def create_trade_manual(
             "result": derived["result"],
             "contextAtEntry": context,
             "createdAt": now,
+            "mistakeTags": validated["mistake_tags"],
+            "emotionTags": validated["emotion_tags"],
         }
     finally:
         if owned_conn:
@@ -523,8 +552,9 @@ def bulk_insert_trades(
                         entry_price, entry_date, exit_price, exit_date,
                         original_stop, setup, notes, pnl_dollar, pnl_percent,
                         r_multiple, hold_days, result, context_at_entry,
-                        account_id, fees, created_at, regime
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        account_id, fees, created_at, regime,
+                        mistake_tags, emotion_tags
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         trade_id,
@@ -550,6 +580,8 @@ def bulk_insert_trades(
                         float(pt.get("fees") or 0),
                         now,
                         regime_service.get_current_regime().get("regime"),
+                        '[]',
+                        '[]',
                     ),
                 )
                 inserted += 1
@@ -615,6 +647,8 @@ def _row_to_trade(row: sqlite3.Row) -> dict[str, Any]:
         "result": row["result"],
         "contextAtEntry": json.loads(row["context_at_entry"]),
         "createdAt": row["created_at"],
+        "mistakeTags": json.loads(row["mistake_tags"]) if "mistake_tags" in keys and row["mistake_tags"] else [],
+        "emotionTags": json.loads(row["emotion_tags"]) if "emotion_tags" in keys and row["emotion_tags"] else [],
     }
 
 
@@ -635,7 +669,7 @@ def list_trades_for_user(
                        entry_price, entry_date, exit_price, exit_date,
                        original_stop, setup, notes, pnl_dollar, pnl_percent,
                        r_multiple, hold_days, result, context_at_entry,
-                       account_id, created_at
+                       account_id, fees, created_at, mistake_tags, emotion_tags
                   FROM j2_trades
                  WHERE user_id = ? AND account_id = ?
                  ORDER BY entry_date DESC, created_at DESC
@@ -649,7 +683,7 @@ def list_trades_for_user(
                        entry_price, entry_date, exit_price, exit_date,
                        original_stop, setup, notes, pnl_dollar, pnl_percent,
                        r_multiple, hold_days, result, context_at_entry,
-                       account_id, created_at
+                       account_id, fees, created_at, mistake_tags, emotion_tags
                   FROM j2_trades
                  WHERE user_id = ?
                  ORDER BY entry_date DESC, created_at DESC
