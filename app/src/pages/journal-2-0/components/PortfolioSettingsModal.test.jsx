@@ -214,4 +214,30 @@ describe('PortfolioSettingsModal', () => {
       { start: '11:30', end: '13:30', label: '' },
     ])
   })
+
+  it('Phase C A+ inputs ship in the save payload', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    const settingsWithSetups = { ...baseSettings, setups: ['Bull Flag', 'Pullback'] }
+    render(
+      <PortfolioSettingsModal settings={settingsWithSetups} onSave={onSave} onClose={vi.fn()} />,
+    )
+
+    // Tag "Bull Flag" as A+ via the chip toggle. The chip is a button with aria-pressed.
+    // Use getAllByRole to disambiguate from any other "Bull Flag" element on screen.
+    const chips = screen.getAllByRole('button', { name: /Bull Flag/i, pressed: false })
+    // The first un-pressed Bull Flag button is the A+ chip (other appearances are not buttons or are already pressed).
+    await user.click(chips[0])
+
+    const multInput = screen.getByLabelText(/A\+ Risk Multiplier/i)
+    await user.clear(multInput)
+    await user.type(multInput, '1.5')
+
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.aPlusSetups).toEqual(['Bull Flag'])
+    expect(payload.aPlusRiskMultiplier).toBe(1.5)
+  })
 })
