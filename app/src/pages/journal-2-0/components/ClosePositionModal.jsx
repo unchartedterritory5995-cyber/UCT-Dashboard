@@ -10,10 +10,11 @@
 import { useState, useCallback, useEffect, useId, useMemo } from 'react'
 import styles from './ModalShell.module.css'
 import { activeStop, positionPnlDollar, tradeRMultiple, money, moneySigned, rMultiple } from '../../../lib/journal-2-0'
+import TagChipPicker from './TagChipPicker'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
-export default function ClosePositionModal({ position, currentPrice, onSave, onClose }) {
+export default function ClosePositionModal({ position, currentPrice, onSave, onClose, settings }) {
   const titleId = useId()
   const [sharesToClose, setSharesToClose] = useState(String(position.shares))
   const [exitPrice, setExitPrice] = useState(
@@ -22,6 +23,8 @@ export default function ClosePositionModal({ position, currentPrice, onSave, onC
   const [exitDate, setExitDate] = useState(TODAY_ISO())
   const [notes, setNotes] = useState('')
   const [fees, setFees] = useState('')
+  const [selectedMistakes, setSelectedMistakes] = useState([])
+  const [selectedEmotions, setSelectedEmotions] = useState([])
   const [errorMsg, setErrorMsg] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -71,6 +74,8 @@ export default function ClosePositionModal({ position, currentPrice, onSave, onC
         exitDate,
         notes: notes.trim() || null,
         fees: fees === '' ? 0 : Number(fees),
+        mistakeTags: selectedMistakes,
+        emotionTags: selectedEmotions,
       })
       onClose?.()
     } catch (e) {
@@ -78,7 +83,7 @@ export default function ClosePositionModal({ position, currentPrice, onSave, onC
     } finally {
       setSaving(false)
     }
-  }, [validate, sharesToClose, exitPrice, exitDate, notes, onSave, onClose])
+  }, [validate, sharesToClose, exitPrice, exitDate, notes, selectedMistakes, selectedEmotions, onSave, onClose])
 
   return (
     <div
@@ -165,6 +170,24 @@ export default function ClosePositionModal({ position, currentPrice, onSave, onC
               rows={2}
             />
           </label>
+
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>Mistakes (optional)</span>
+            <TagChipPicker
+              available={settings?.mistakeTags || []}
+              selected={selectedMistakes}
+              onChange={setSelectedMistakes}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>Emotions (optional)</span>
+            <TagChipPicker
+              available={settings?.emotionTags || []}
+              selected={selectedEmotions}
+              onChange={setSelectedEmotions}
+            />
+          </div>
 
           {preview && (
             <div className={styles.infoBanner}>

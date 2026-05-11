@@ -20,6 +20,7 @@ import useJ2DisciplineState from '../hooks/useJ2DisciplineState'
 import DisciplineLockBanner from './DisciplineLockBanner'
 import useJ2SetupStats from '../hooks/useJ2SetupStats'
 import SetupStatsPanel from './SetupStatsPanel'
+import TagChipPicker from './TagChipPicker'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -39,6 +40,8 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
   const [setupVal, setSetupVal] = useState('')
   const [notes, setNotes] = useState('')
   const [fees, setFees] = useState('')
+  const [selectedMistakes, setSelectedMistakes] = useState([])
+  const [selectedEmotions, setSelectedEmotions] = useState([])
 
   const [errorMsg, setErrorMsg] = useState('')
   const [saving, setSaving] = useState(false)
@@ -126,6 +129,8 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
         setup: setupVal.trim() || null,
         notes: notes.trim() || null,
         fees: fees === '' ? 0 : Number(fees),
+        mistakeTags: selectedMistakes,
+        emotionTags: selectedEmotions,
         contextAtEntry: {},
       })
       onClose?.()
@@ -136,7 +141,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
     }
   }, [
     validate, symbol, side, shares, entryPrice, entryDate, exitPrice, exitDate,
-    originalStop, setupVal, notes, onSave, onClose,
+    originalStop, setupVal, notes, selectedMistakes, selectedEmotions, onSave, onClose,
   ])
 
   const impliedRiskPct = computeImpliedRiskPct({
@@ -329,6 +334,24 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
               rows={2}
             />
           </label>
+
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>Mistakes (optional)</span>
+            <TagChipPicker
+              available={settings?.mistakeTags || []}
+              selected={selectedMistakes}
+              onChange={setSelectedMistakes}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>Emotions (optional)</span>
+            <TagChipPicker
+              available={settings?.emotionTags || []}
+              selected={selectedEmotions}
+              onChange={setSelectedEmotions}
+            />
+          </div>
 
           {preview && (
             <div className={styles.infoBanner}>

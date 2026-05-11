@@ -367,6 +367,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           currentPrice={prices[closeTarget.symbol]?.price}
           onSave={(payload) => handleClose(closeTarget, payload)}
           onClose={() => setCloseTarget(null)}
+          settings={settings}
         />
       )}
 
