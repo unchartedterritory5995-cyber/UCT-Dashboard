@@ -236,12 +236,7 @@ def mint_realtime_session(
         instructions=instructions,
         tools=tool_specs,
         tool_choice="auto",
-        turn_detection={
-            "type": "server_vad",
-            "threshold": 0.3,            # lower = more sensitive to speech (was 0.5 — cut off users)
-            "prefix_padding_ms": 300,    # keep 300ms before the speech start
-            "silence_duration_ms": 700,  # require 700ms silence to end the turn
-        },
+        turn_detection={"type": "server_vad", "threshold": 0.5},
         input_audio_transcription={"model": "whisper-1"},
     )
 
