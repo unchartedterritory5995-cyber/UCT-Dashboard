@@ -400,6 +400,12 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
               onChange={e => update('logScale', e.target.checked)} />
             Log Scale
           </label>
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.countdown ?? false}
+              onChange={e => onUpdateSettings({ ...cs, countdown: e.target.checked, preset: 'custom' })} />
+            Countdown to bar close
+          </label>
         </div>
       </div>
 
@@ -433,6 +439,15 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
                 onUpdateSettings(next)
               }} />
             Dividends
+          </label>
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.markers?.news ?? false}
+              onChange={e => {
+                const next = { ...cs, markers: { ...cs.markers, news: e.target.checked }, preset: 'custom' }
+                onUpdateSettings(next)
+              }} />
+            News markers
           </label>
         </div>
       </div>

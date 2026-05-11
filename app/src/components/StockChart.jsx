@@ -13,6 +13,7 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
+import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { normalizeToPctChange } from './chart/comparisonUtils'
@@ -277,6 +278,44 @@ export default function StockChart({
       revalidateOnFocus: false,
     }
   )
+
+  // ── News markers — /api/chart-news ──
+  const showNews = !!cs.markers?.news
+  const { data: newsData } = useSWR(
+    showNews && sym ? `/api/chart-news/${encodeURIComponent(sym)}?days=60` : null,
+    (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { news: [] }),
+    {
+      dedupingInterval: 30 * 60 * 1000,  // 30 minutes
+      revalidateOnFocus: false,
+    }
+  )
+  const newsMarkers = useMemo(() => {
+    if (!showNews || !newsData?.news) return []
+    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    // News timestamps are unix seconds; LW Charts expects ET-offset for intraday and date strings for daily/weekly.
+    return newsData.news.map(n => {
+      const tsRaw = typeof n.time_published === 'number' ? n.time_published : Number(n.time_published)
+      if (!Number.isFinite(tsRaw)) return null
+      // For daily/weekly, convert to YYYY-MM-DD date string in ET so it aligns with daily bars
+      let time
+      if (isDailyWeekly) {
+        time = new Date(tsRaw * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      } else {
+        time = tsRaw + _ET_OFFSET
+      }
+      return {
+        time,
+        position: 'aboveBar',
+        color: '#3b82f6',
+        shape: 'circle',
+        text: 'N',
+        size: 0.8,
+        id: `news-${tsRaw}`,
+        _newsData: n,
+        _tsRaw: tsRaw,
+      }
+    }).filter(Boolean)
+  }, [showNews, newsData, resolvedTf])
   const chartEventMarkers = useMemo(() => {
     // Only show event markers on daily/weekly — intraday bars don't line up with quarter dates
     const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
@@ -334,8 +373,21 @@ export default function StockChart({
   // markers/priceLines below so consumers (e.g. TradeDrawer) keep working.
   const j2 = useJ2ChartMarkers(sym, resolvedTf)
   const mergedMarkers = useMemo(
-    () => [...(markers || []), ...(j2.markers || []), ...chartEventMarkers],
-    [markers, j2.markers, chartEventMarkers],
+    () => {
+      const all = [...(markers || []), ...(j2.markers || []), ...chartEventMarkers, ...newsMarkers]
+      // Lightweight Charts requires markers sorted ascending by time. Daily/weekly
+      // use date strings (sortable lexicographically), intraday uses unix seconds.
+      return all.sort((a, b) => {
+        const ta = a?.time
+        const tb = b?.time
+        if (ta == null && tb == null) return 0
+        if (ta == null) return -1
+        if (tb == null) return 1
+        if (typeof ta === 'number' && typeof tb === 'number') return ta - tb
+        return String(ta).localeCompare(String(tb))
+      })
+    },
+    [markers, j2.markers, chartEventMarkers, newsMarkers],
   )
   const mergedPriceLines = useMemo(
     () => [...(priceLines || []), ...(j2.priceLines || [])],
@@ -762,6 +814,17 @@ export default function StockChart({
       : sessionBars,
     [sessionBars, replayMode, replayIndex]
   )
+
+  // ── Countdown to bar close — last bar start time + tf-seconds ──
+  const currentBarStart = useMemo(() => {
+    if (!filteredBars?.length) return null
+    const last = filteredBars[filteredBars.length - 1]
+    return typeof last?.t === 'number' ? last.t : null
+  }, [filteredBars])
+  const countdownTfSec = useMemo(() => {
+    const map = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600, 'D': 23400, 'W': null, 'M': null }
+    return map[resolvedTf] || null
+  }, [resolvedTf])
 
   // ── Drawing tool + TF keyboard shortcuts ──
   // (Moved from above sessionBars/replay state declarations to fix a TDZ
@@ -2205,6 +2268,33 @@ export default function StockChart({
     return () => el.removeEventListener('contextmenu', handler)
   }, [onBarContextMenu, bars, sym, resolvedTf])
 
+  // ── News marker click handler ──
+  // Lightweight Charts doesn't expose a direct marker-click event, so we
+  // subscribe to all clicks and match the clicked time against news markers
+  // with a tolerance of half a bar. On match → open the article URL.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !newsMarkers?.length) return
+    const tfSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'D' ? 23400 : 86400)
+    const handler = (param) => {
+      if (!param || param.time == null) return
+      // Compare based on time-type alignment (number vs string).
+      const matching = newsMarkers.find(m => {
+        if (typeof m.time === 'number' && typeof param.time === 'number') {
+          return Math.abs(m.time - param.time) < tfSec * 0.5
+        }
+        return String(m.time) === String(param.time)
+      })
+      if (matching?._newsData?.url) {
+        window.open(matching._newsData.url, '_blank', 'noopener,noreferrer')
+      }
+    }
+    chart.subscribeClick(handler)
+    return () => {
+      try { chart.unsubscribeClick(handler) } catch {}
+    }
+  }, [newsMarkers, resolvedTf])
+
   // ── Volume Profile canvas overlay ──
   useEffect(() => {
     const canvas = vpCanvasRef.current
@@ -2382,6 +2472,11 @@ export default function StockChart({
       {correctionFlash && (
         <div className={styles.correctionFlash} title="Server corrected this bar after reconciliation">
           ↻ Bar corrected
+        </div>
+      )}
+      {cs.countdown && countdownTfSec && currentBarStart && (
+        <div className={styles.countdownPosition}>
+          <CountdownTimer barStartTime={currentBarStart} tfSeconds={countdownTfSec} />
         </div>
       )}
       {enabledComparisons.length > 0 && (

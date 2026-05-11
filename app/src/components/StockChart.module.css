@@ -255,6 +255,15 @@
   100% { opacity: 0; }
 }
 
+/* Countdown timer overlay — positioned bottom-right of the chart */
+.countdownPosition {
+  position: absolute;
+  bottom: 40px;
+  right: 16px;
+  z-index: 40;
+  pointer-events: none;
+}
+
 @media (max-width: 900px) and (orientation: landscape) {
   .container {
     min-height: 200px;
