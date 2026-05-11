@@ -307,17 +307,28 @@ def session_token(
     body: SessionTokenRequest,
     user: dict = Depends(requires_voice_access),
 ):
-    settings = get_voice_settings(user["id"])
+    import time as _time
+    uid = user["id"]
+    _t0 = _time.time()
+    _log.info("[session_token] start user=%s", uid)
+
+    settings = get_voice_settings(uid)
+    _log.info("[session_token] +%.0fms settings loaded", (_time.time() - _t0) * 1000)
     if not settings.get("enabled", True):
         raise HTTPException(status_code=400, detail="voice features disabled in settings")
 
     is_admin = user.get("role") == "admin"
-    if not is_within_mode_c_cap(user["id"], is_admin=is_admin):
+    if not is_within_mode_c_cap(uid, is_admin=is_admin):
         raise HTTPException(status_code=429, detail="monthly conversation cap reached")
+    _log.info("[session_token] +%.0fms cap check ok", (_time.time() - _t0) * 1000)
 
     tools_schema = get_schema_for_context(body.context or "global")
+    _log.info("[session_token] +%.0fms %d tools loaded",
+              (_time.time() - _t0) * 1000, len(tools_schema))
 
-    memory_context = build_memory_context(user["id"])
+    memory_context = build_memory_context(uid)
+    _log.info("[session_token] +%.0fms memory context %d chars",
+              (_time.time() - _t0) * 1000, len(memory_context))
     session_instructions = _REALTIME_INSTRUCTIONS
     if memory_context:
         session_instructions = (
@@ -327,19 +338,42 @@ def session_token(
             + "\n=== END USER CONTEXT ==="
         )
 
+    # Run the OpenAI mint with a hard timeout so we fail fast instead of letting
+    # Cloudflare wait 30s for nothing.
+    import concurrent.futures as _cf
+    _log.info("[session_token] +%.0fms calling OpenAI mint...", (_time.time() - _t0) * 1000)
     try:
-        mint = mint_realtime_session(
-            voice=settings["voice"],
-            tools=tools_schema,
-            instructions=session_instructions,
-        )
+        with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(
+                mint_realtime_session,
+                voice=settings["voice"],
+                tools=tools_schema,
+                instructions=session_instructions,
+            )
+            try:
+                mint = fut.result(timeout=15)
+            except _cf.TimeoutError:
+                _log.warning("[session_token] +%.0fms OpenAI mint timed out",
+                             (_time.time() - _t0) * 1000)
+                raise HTTPException(
+                    status_code=504,
+                    detail="OpenAI Realtime session mint timed out after 15s",
+                )
+    except HTTPException:
+        raise
     except Exception as e:  # noqa: BLE001
-        _log.exception("realtime session mint failed")
+        _log.exception("[session_token] +%.0fms mint failed",
+                       (_time.time() - _t0) * 1000)
         raise HTTPException(status_code=502, detail=f"Realtime session mint failed: {e}")
 
+    _log.info("[session_token] +%.0fms mint succeeded: %s",
+              (_time.time() - _t0) * 1000, mint.get("session_id"))
+
     sess_db_id = _create_voice_session(
-        user_id=user["id"], mode="c", source="orb", page_context=body.context or "global",
+        user_id=uid, mode="c", source="orb", page_context=body.context or "global",
     )
+    _log.info("[session_token] +%.0fms returning sess_id=%s",
+              (_time.time() - _t0) * 1000, sess_db_id)
 
     return {
         "session_id": sess_db_id,
