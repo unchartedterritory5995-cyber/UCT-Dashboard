@@ -248,6 +248,11 @@ _PHASE_2_ALTERS = [
     # Phase D — Regime-Aware Sizing
     "ALTER TABLE j2_accounts ADD COLUMN regime_size_multipliers TEXT NOT NULL DEFAULT '{}'",
     "ALTER TABLE j2_trades ADD COLUMN regime TEXT",
+    # Phase E — Mistakes + Emotions taxonomy
+    "ALTER TABLE j2_accounts ADD COLUMN mistake_tags TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE j2_accounts ADD COLUMN emotion_tags TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE j2_trades ADD COLUMN mistake_tags TEXT",
+    "ALTER TABLE j2_trades ADD COLUMN emotion_tags TEXT",
 ]
 
 
