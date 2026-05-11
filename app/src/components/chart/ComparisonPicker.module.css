@@ -1,0 +1,133 @@
+/* app/src/components/chart/ComparisonPicker.module.css */
+.popover {
+  position: absolute;
+  top: 40px;
+  right: 8px;
+  width: 280px;
+  background: var(--bg-elevated, #1f1f1f);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 1000;
+  font-size: 13px;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.title {
+  font-weight: 600;
+  color: var(--text-heading, #f0f0f0);
+  letter-spacing: 0.5px;
+}
+.close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #888);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.close:hover { color: var(--text-heading, #f0f0f0); }
+.form {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.input {
+  flex: 1;
+  background: var(--bg-surface, #161616);
+  color: var(--text, #e5e5e5);
+  border: 1px solid var(--border, #2a2a2a);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.addBtn {
+  background: var(--ut-gold, #c9a84c);
+  color: #000;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+}
+.addBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.popular {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.popularBtn {
+  background: var(--bg-surface, #161616);
+  color: var(--text-muted, #888);
+  border: 1px solid var(--border, #2a2a2a);
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.popularBtn:hover {
+  background: var(--bg-elevated, #1f1f1f);
+  color: var(--text, #e5e5e5);
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.empty {
+  color: var(--text-muted, #888);
+  font-size: 12px;
+  text-align: center;
+  padding: 16px 0;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--bg-surface, #161616);
+}
+.colorPicker {
+  width: 24px;
+  height: 24px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.sym {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  color: var(--text-heading, #f0f0f0);
+}
+.remove {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #888);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+.remove:hover {
+  color: var(--loss, #f55);
+}
