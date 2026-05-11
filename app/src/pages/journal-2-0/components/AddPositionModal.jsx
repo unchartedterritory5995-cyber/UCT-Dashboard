@@ -23,6 +23,7 @@ import useJ2DisciplineState from '../hooks/useJ2DisciplineState'
 import DisciplineLockBanner from './DisciplineLockBanner'
 import useJ2SetupStats from '../hooks/useJ2SetupStats'
 import SetupStatsPanel from './SetupStatsPanel'
+import useJ2CurrentRegime from '../hooks/useJ2CurrentRegime'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -90,6 +91,11 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   const [disciplineOverrideArmed, setDisciplineOverrideArmed] = useState(false)
   const { stats: setupStats } = useJ2SetupStats(accountId, setup)
 
+  const { regime: regimeData } = useJ2CurrentRegime()
+  const currentRegime = regimeData?.regime
+  const regimeMult = (settings?.regimeSizeMultipliers || {})[currentRegime]
+  const regimeMultActive = currentRegime != null && regimeMult != null && regimeMult !== 1
+
   const defaultStop = settings?.defaultStop
   const setups = settings?.setups ?? []
   const symbolLocked = !!prefill?.symbol
@@ -153,18 +159,22 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   }, [])
 
   // Auto-prefill shares from settings.defaultSizePct on entryPrice change.
-  // Never overwrites a user-edited value.
+  // Scales by regime multiplier when configured. Never overwrites a user-edited value.
   useEffect(() => {
     if (sharesUserEdited) return
+    const baseSizePct = settings?.defaultSizePct
+    const scaledSizePct = (baseSizePct != null && regimeMult != null)
+      ? baseSizePct * regimeMult
+      : baseSizePct
     const computed = computeDefaultShares({
       accountSize: settings?.accountSize,
-      defaultSizePct: settings?.defaultSizePct,
+      defaultSizePct: scaledSizePct,
       entryPrice,
     })
     if (computed != null && computed > 0) {
       setShares(String(computed))
     }
-  }, [entryPrice, settings?.accountSize, settings?.defaultSizePct, sharesUserEdited])
+  }, [entryPrice, settings?.accountSize, settings?.defaultSizePct, regimeMult, sharesUserEdited])
 
   // Any change to risk-driving inputs resets the override so a user
   // can't arm-then-edit-up risk silently.
@@ -417,6 +427,23 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
             />
           </label>
 
+          {regimeMultActive && (
+            <div
+              style={{
+                margin: '0 0 12px',
+                padding: '8px 12px',
+                background: 'rgba(201, 168, 76, 0.08)',
+                border: '1px solid rgba(201, 168, 76, 0.35)',
+                borderRadius: 6,
+                color: 'var(--text-bright)',
+                fontSize: 12,
+              }}
+            >
+              🎯 Regime is <strong>{currentRegime.toUpperCase()}</strong>.
+              Default size scaled to <strong>{Math.round(regimeMult * 100)}%</strong>
+              {regimeMult === 0 && ' — no size prefilled. Override by typing shares manually.'}
+            </div>
+          )}
           <DisciplineLockBanner
             state={disciplineState}
             overrideArmed={disciplineOverrideArmed}
