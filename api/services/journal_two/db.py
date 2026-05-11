@@ -253,6 +253,10 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_accounts ADD COLUMN emotion_tags TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE j2_trades ADD COLUMN mistake_tags TEXT",
     "ALTER TABLE j2_trades ADD COLUMN emotion_tags TEXT",
+    # Phase F — Streak nudges + stale-hold thresholds (nullable; null = use defaults)
+    "ALTER TABLE j2_accounts ADD COLUMN loss_streak_threshold INTEGER",
+    "ALTER TABLE j2_accounts ADD COLUMN win_streak_threshold INTEGER",
+    "ALTER TABLE j2_accounts ADD COLUMN stale_hold_days_threshold INTEGER",
 ]
 
 
