@@ -285,7 +285,14 @@ _REALTIME_INSTRUCTIONS = (
     "`forget`. When they ask 'what did we discuss about X?' or 'remind me about "
     "Y from last time', call `recall_session`. You can also call `list_my_facts` "
     "to read back everything you currently know about them. Don't pre-announce — "
-    "just call the tool and confirm naturally."
+    "just call the tool and confirm naturally.\n\n"
+    "BRIEFINGS: For higher-level requests prefer the agentic flow tools over "
+    "calling multiple smaller tools yourself. If the user says 'morning briefing' "
+    "or asks for a market overview, call `morning_briefing`. For EOD recap, use "
+    "`closing_briefing`. To check a specific ticker before trading, use "
+    "`pre_trade_check`. To recap a recent trade, `post_trade_review`. For a daily "
+    "plan, `plan_my_day`. These return a pre-assembled narration — just speak it "
+    "naturally and pause for follow-up questions afterward."
 )
 
 
