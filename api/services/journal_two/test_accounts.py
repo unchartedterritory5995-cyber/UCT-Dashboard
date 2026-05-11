@@ -613,3 +613,30 @@ def test_phase_d_regime_multipliers_roundtrip(db_conn):
 
     fresh = get_account_settings(user_id, account["id"], conn=db_conn)
     assert fresh["regimeSizeMultipliers"] == {"green": 1.0, "amber": 0.75, "orange": 0.5, "red": 0.0}
+
+
+def test_phase_e_taxonomies_roundtrip(db_conn):
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, upsert_account_settings,
+        get_account_settings,
+    )
+    user_id = "u_phase_e_roundtrip"
+    account = get_or_migrate_default_account(user_id, conn=db_conn)
+    payload = {
+        "accountSize": 100_000,
+        "defaultStop": {"mode": "custom"},
+        "positionClosing": "FIFO",
+        "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
+        "setups": [],
+        "shareJournalData": False,
+        "tradingMode": "both",
+        "mistakeTags": ["fomo", "chasing"],
+        "emotionTags": ["greedy", "anxious"],
+    }
+    saved = upsert_account_settings(user_id, account["id"], payload, conn=db_conn)
+    assert saved["mistakeTags"] == ["fomo", "chasing"]
+    assert saved["emotionTags"] == ["greedy", "anxious"]
+
+    fresh = get_account_settings(user_id, account["id"], conn=db_conn)
+    assert fresh["mistakeTags"] == ["fomo", "chasing"]
+    assert fresh["emotionTags"] == ["greedy", "anxious"]
