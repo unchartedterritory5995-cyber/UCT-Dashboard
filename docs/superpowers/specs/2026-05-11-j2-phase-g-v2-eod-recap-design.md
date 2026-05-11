@@ -27,8 +27,14 @@ EOD recaps obey the Compass voice principles already encoded in `COMPASS_SYSTEM_
 - **Prose paragraphs only.** No headers, no bullets, no emojis.
 - **Opening line: the punch line of the day** — the single most-notable observation. Not the P&L number unless it's the actual headline.
 - **Body: 1-2 specific observations** from today's trades. Cite trades by symbol when relevant ("the late entry on NVDA cost you 1.4R"). Reference mistake/emotion tags when the user applied them. Calibrated language ("looks like", "the data suggests") — never absolute.
+- **Multi-day arc references when applicable** — Compass weaves in patterns the trader has been exhibiting across multiple days when the assembler surfaces them ("third consecutive Bull Flag loss," "second day above the daily-loss limit"). See §3 for what the assembler computes.
 - **One closing sentence about open positions** if any are held overnight. Awareness only — no recommendations. ("You're carrying 3 overnight — biggest is +1.8R on AAPL; two are flat.")
-- **Exactly one reflective question** at the end. Specific to the day's pattern. ("What was different about today's first trade vs the second?")
+- **Exactly one reflective question** at the end. The question is the most-important content in the recap and is held to an explicit rubric:
+  - MUST reference a specific data point from today (a trade, a tag, an exit time, a setup, a P&L number). Generic emotional check-ins ("how are you feeling?") are forbidden.
+  - MUST NOT be answerable yes/no.
+  - MUST ask about a *pattern* across at least two data points (today's trades, today vs yesterday, or today vs the week's focus) — not a re-litigation of a single decision.
+  - Good examples (encoded in the system prompt): "What changed between the first NVDA entry that worked and the second that gave it back?" / "When you sized up after the morning win, what were you assuming that the afternoon proved wrong?" / "You took two Bull Flags today; the data is now 5 wins and 8 losses on that setup this quarter — what's the case for taking the 14th?"
+  - Bad examples (also encoded): "How did you feel about today?" / "Did you stick to your plan?" / "Want to keep trading Bull Flags?"
 - **No "Today's focus" or directive asks** — that's the Weekly Review's job. EOD is reflective, not prescriptive.
 
 **Empty-day handling:**
@@ -50,8 +56,13 @@ A new `assemble_day(user_id, account_id, day_iso, conn)` function in `coach_data
             {"day": "2026-05-09", "summary": str},
         ],
         "last_weekly_summary": str,         # from last weekly_review row
-        "this_weeks_focus": str | None,     # extracted from last weekly review's key_observations metadata
+        "this_weeks_focus": str | None,     # structured field from last weekly review's metadata
     },
+    "recent_arcs": [                        # 0-3 multi-day patterns (see §3.1)
+        "3rd consecutive loss on Bull Flag (today's CRWD, Tuesday's NVDA, Monday's TSLA)",
+        "second day this week exceeding the 1% risk cap",
+        ...
+    ],
     "today": {
         "date": "2026-05-11",
         "trades": [trade dict, ...],        # closed trades today (full detail, mistake_tags, emotion_tags, regime)
@@ -98,7 +109,24 @@ A new `assemble_day(user_id, account_id, day_iso, conn)` function in `coach_data
 - Open positions: `j2_positions WHERE closed_at IS NULL AND user_id=? AND account_id=?`.
 - Live unrealized R: use existing `useLivePrices` data path on the backend if available; otherwise leave `unrealized_r` as `null` (Compass will say "current marks not available").
 - Discipline events: reuse `_discipline_events(conn, user_id, account_id, start, end)` with `start=today_00:00`, `end=today+1_00:00`.
-- This week's focus: regex-extract from last weekly review's body (look for the "This week's focus" section), fall back to `null` if not parseable.
+- This week's focus: **read directly from the last weekly review's `metadata.this_weeks_focus` structured field** (no regex parsing). Weekly review generation is amended to write this as a discrete metadata field at write time (parsed once, by the post-generation extractor, from Compass's output structure). If absent, fall back to `null`.
+
+### 3.1 Recent arcs (the multi-day pattern surface)
+
+Single-day debriefs are commodity AI. The defining elite move is multi-day pattern detection — surfacing the **arcs** that only a continuous trade journal can see. The assembler computes a `recent_arcs: list[str]` field, where each entry is a structured one-line observation. Compass weaves these into the recap when present.
+
+Concrete arc detectors (deterministic, run by the assembler — no LLM):
+
+- **Consecutive setup losses** — "3rd consecutive loss on Bull Flag (today's CRWD, Tuesday's NVDA, Monday's TSLA)."
+- **Consecutive discipline-cap breaches** — "second day this week exceeding the 1% risk cap (yesterday on AAPL, today on META)."
+- **Cumulative daily-loss-limit threshold approached** — "the week's total drawdown (-2.4%) is now within 0.5% of your weekly comfort range based on prior performance."
+- **Repeated mistake tag** — "fourth time this week the `FOMO` tag is on a trade — the prior three were losses."
+- **Days since last winning trade** — "today is the 3rd day in a row with no closing winner."
+- **Regime-mismatch streak** — "third trade taken in an ORANGE regime when your `regimeSizeMultipliers` say 0.6x; sizing was full each time."
+
+The assembler caps `recent_arcs` at 3 entries — the most-significant ones — so the prompt stays focused. If no arcs are detected, the field is an empty list; Compass treats absence as "no pattern worth naming."
+
+Each detector is a small, testable function in `coach_data_assembler.py`. Adding a new arc detector in the future is a single function + a single test, no orchestrator changes.
 
 ---
 
@@ -136,16 +164,40 @@ Synchronous (blocks ~10-30s). Returns the recap dict (mirrors weekly's return sh
 
 ### 4.3 Orchestrator (`coach.generate_eod_recap`)
 
-Mirrors `generate_weekly_review`:
+Mirrors `generate_weekly_review` plus a new post-generation validation pass:
 
 1. Idempotency check: existing `j2_coach_outputs WHERE output_type='eod_recap' AND user_id=? AND account_id=? AND json_extract(metadata, '$.day') = ? AND forgotten = 0` → return existing if found.
 2. Assemble data via `coach_data_assembler.assemble_day(...)`.
 3. Build user message via `coach_prompts.assemble_eod_user_message(data)`.
 4. Call `client.write_eod_recap(system_prompt=COMPASS_SYSTEM_PROMPT, user_message=...)`. (Note: extends `CoachClientProto` with a third method — see §5.)
-5. Persist to `j2_coach_outputs` with `output_type='eod_recap'`, `metadata={"day": day_iso}`.
-6. Return the persisted dict.
+5. **Post-generation validation pass (`coach_validation.validate_eod_output`)** — see §4.4.
+6. Persist to `j2_coach_outputs` with `output_type='eod_recap'`, `metadata={"day": day_iso, "validation": {...}}` (validation summary embedded).
+7. Return the persisted dict.
 
 **No profile-update call.** EOD does not write to `j2_accounts.trader_profile`. Weekly remains the sole profile writer.
+
+### 4.4 Post-generation validation (the elite reliability move)
+
+A single hallucinated R-multiple or invented trade symbol destroys trust. Principles-in-the-prompt alone are insufficient — at production scale they fail occasionally. The orchestrator runs an output validation pass after the LLM call and retries with corrective context if checks fail. New service module: `coach_validation.py`.
+
+The validator checks:
+
+**A. Numeric grounding.** Extract every numeric token from the Compass output that looks like a trade metric (regex matches for `R-multiples` like `+1.4R` / `-1R`, `dollar amounts` like `$420` / `-$1,200`, `percentages` like `2.4%`, `share counts`, `price levels`). For each, verify it appears (within rounding tolerance — 1 decimal place) in the injected data. Numbers that don't appear are flagged.
+
+**B. Symbol grounding.** Extract uppercase ticker-like tokens (2-5 chars, all caps, word-boundary). Each must appear in either today's trades, today's open positions, or the trader profile. Unknown symbols are flagged.
+
+**C. Tag grounding.** Mistake/emotion tags Compass references (matched against the account's configured mistake/emotion tag lists from settings) must have been applied to at least one trade in the recent context. Compass cannot invent that "you tagged today's NVDA with FOMO" if it didn't.
+
+**D. Format compliance.** Word count ≤400, exactly one `?` in the body (the reflective question), no markdown headers (`#`/`##`/`###`), no bullet points (`-` at line start), no emoji.
+
+**E. Question rubric** (best-effort, lighter touch). Confirms the question isn't a yes/no pattern (regex check for common yes/no openings: `Did you`, `Were you`, `Is it`, `Are you`, `Have you`, `Was it`). Doesn't enforce the data-point reference rule programmatically — that's the prompt's job — but flags missing question mark.
+
+**Retry policy:**
+- 0 violations → persist with `validation.passed = true`.
+- 1+ violations → retry once with a corrective user-message addendum: "Your prior draft contained these unverified claims: [list]. Rewrite the recap using only the data I gave you. Specifically, replace each unverified value or symbol with a verified one or omit the sentence entirely. Do not invent."
+- After 1 retry, if violations remain → persist anyway, but stamp `validation.passed = false`, `validation.flags = [...]` into metadata. The frontend reads this and renders a small "⚠ Compass made unverified claims — review carefully" badge on the recap. The trader gets to decide whether to forget/regenerate; they're not silently lied to.
+
+**Why this matters for elite:** the difference between "AI feature with the occasional unverifiable claim" and "trusted coach" is exactly this guardrail. The trader can look at any number Compass quotes and know the assembler injected it. That's the foundation of trust.
 
 ---
 
@@ -222,13 +274,27 @@ If the user has multiple accounts with unread EODs, banner says "🧭 Compass wr
 
 ## 7. Memory Integration with Weekly Review
 
-The Weekly Review's prompt currently retrieves the last 3 weekly review summaries. Phase G v2 extends `coach_data_assembler.assemble_week` to ALSO retrieve EOD recap summaries from the current week and inject them as a "Daily notes from this week" block in the Weekly Review user message.
+Two changes to `assemble_week` and to the Weekly Review orchestrator:
 
-Implementation: in `assemble_week`, add a query for `j2_coach_outputs WHERE output_type='eod_recap' AND user_id=? AND account_id=? AND metadata.day BETWEEN week_start AND week_end ORDER BY day ASC`. Inject each as `{day, summary}` in a new `weekly_eod_context` field. The Weekly prompt's system prompt is updated to acknowledge this context exists ("if `weekly_eod_context` is present, use it to ground patterns you've already named in daily notes — refine, don't re-state").
+**7.1 EOD context injection into Weekly prompts.** The Weekly Review's prompt currently retrieves the last 3 weekly review summaries. Phase G v2 extends `assemble_week` to ALSO retrieve EOD recap summaries from the current week and inject them as a `weekly_eod_context` field — a list of `{day, summary}` for each EOD in [week_start, week_end].
+
+Implementation: in `assemble_week`, add a query for `j2_coach_outputs WHERE output_type='eod_recap' AND user_id=? AND account_id=? AND json_extract(metadata, '$.day') BETWEEN ? AND ? ORDER BY metadata->>'$.day' ASC`. The Weekly prompt's system prompt is updated to acknowledge this context ("if `weekly_eod_context` is present, use it to ground patterns you've already named in daily notes — refine, don't re-state").
 
 This is the principal value-add of EOD beyond standalone debriefs: each EOD acts as a "draft observation" that the Weekly Review consolidates.
 
-EOD recaps DO NOT update `trader_profile`. Only Weekly Reviews update it. This keeps the profile stable + reduces the per-EOD cost.
+**7.2 Structured `this_weeks_focus` on the Weekly Review row.** Currently the EOD assembler would have to regex-parse the weekly review's body to extract "this week's focus." Phase G v2 amends the Weekly Review orchestrator to extract this discretely at write time. After the Weekly Review LLM call returns, a small extractor (`coach_validation.extract_this_weeks_focus(body)`) finds the `## This week's focus` section (with tolerant header matching: case-insensitive, with or without colon, with or without emoji) and stores its content as a discrete metadata field:
+
+```json
+{
+  "week_start": "2026-05-04",
+  "key_observations": [...],
+  "this_weeks_focus": "Skip Pullback setups entirely. You're -3.1R YTD..."
+}
+```
+
+The EOD assembler reads `memory.this_weeks_focus` directly from metadata. No regex parsing at read time. If extraction fails at write time (Compass deviated from the format), the field is `null` and the EOD assembler treats absence gracefully.
+
+**7.3 EOD recaps DO NOT update `trader_profile`.** Only Weekly Reviews update it. This keeps the profile stable + reduces per-EOD cost.
 
 ---
 
@@ -264,9 +330,11 @@ EOD recaps never sync to the Community tab. Compass enable toggle (per Phase G v
 
 | Path | Action | Role |
 |---|---|---|
-| `api/services/journal_two/coach_prompts.py` | Modify | Add Section 6 (EOD format spec) to `COMPASS_SYSTEM_PROMPT`. Add `assemble_eod_user_message(data)` helper. |
-| `api/services/journal_two/coach_data_assembler.py` | Modify | Add `assemble_day(user_id, account_id, day_iso, conn)` function. Add `weekly_eod_context` retrieval in `assemble_week`. |
-| `api/services/journal_two/coach.py` | Modify | Add `generate_eod_recap` orchestrator. Add `write_eod_recap` method on `AnthropicClient`. Add `list_eod_recaps`, `get_eod_recap`, `set_eod_viewed` helpers. |
+| `api/services/journal_two/coach_prompts.py` | Modify | Add Section 6 (EOD format spec, including the reflective-question rubric with good/bad examples) to `COMPASS_SYSTEM_PROMPT`. Add `assemble_eod_user_message(data)` helper. |
+| `api/services/journal_two/coach_data_assembler.py` | Modify | Add `assemble_day(user_id, account_id, day_iso, conn)` function. Add 6 multi-day arc detectors (consecutive setup losses, repeated mistake tag, regime mismatch streak, etc.). Add `weekly_eod_context` retrieval in `assemble_week`. |
+| `api/services/journal_two/coach_validation.py` | **Create** | `validate_eod_output(body, data) → {passed, flags}`. `extract_this_weeks_focus(body) → str | None`. Numeric + symbol + tag grounding + format compliance checks. Light-touch question rubric. |
+| `api/services/journal_two/test_coach_validation.py` | **Create** | Tests: hallucinated number is flagged; invented symbol is flagged; correct output passes; this_weeks_focus extraction handles header variants. |
+| `api/services/journal_two/coach.py` | Modify | Add `generate_eod_recap` orchestrator with the validation pass + 1-retry corrective loop. Add `write_eod_recap` method on `AnthropicClient`. Add `list_eod_recaps`, `get_eod_recap`, `set_eod_viewed` helpers. Amend `generate_weekly_review` to write `this_weeks_focus` to metadata via `coach_validation.extract_this_weeks_focus`. |
 | `api/services/journal_two/test_coach.py` | Modify | New tests: EOD idempotency, no-activity skip, fake-client integration. |
 | `api/services/journal_two/test_coach_data_assembler.py` | Modify | New tests: `assemble_day` shape, today filter, this-week's-focus extraction, `weekly_eod_context` retrieval. |
 | `api/routers/journal_two.py` | Modify | 7 new endpoints under `/coach/eod-recaps/*`. |
@@ -286,21 +354,35 @@ EOD recaps never sync to the Community tab. Compass enable toggle (per Phase G v
 ## 10. Cost Estimate
 
 Per EOD recap call (estimated):
-- System prompt cached: ~2900 tokens at $0.30 / 1M cached → $0.0009.
-- User message (today's data + memory): ~1500-3000 tokens uncached at $3/M → $0.005-0.009.
+- System prompt cached: ~3300 tokens (v2 size with the EOD section + reflective-question rubric + good/bad examples) at $0.30 / 1M cached → $0.001.
+- User message (today's data + memory + arcs): ~2000-3500 tokens uncached at $3/M → $0.006-0.011.
 - Output: ~400 tokens at $15/M → $0.006.
-- **Total per recap: ~$0.012 - $0.015.**
+- **Total per recap (no validation retry): ~$0.013 - $0.018.**
 
-Per account per month (22 trading days, active every day):
-- 22 × $0.013 = **~$0.28/account/month**.
+Validation retry budget: ~15-20% of recaps are expected to trigger one retry during the first few weeks while the prompt is being tuned, dropping to <5% once the system prompt is stable. With retry:
+- Worst-case retry: roughly doubles the call cost (system prompt cached, user message recached as part of the conversation continuation but the addendum is small). **Per-retry incremental cost: ~$0.010**.
+- Per-recap-with-retry: ~$0.025.
 
-For 10 active accounts: ~$2.80/month total Compass cost from EOD alone (on top of Weekly's $1-2). Combined v1+v2 Compass cost is comfortably under $5/account/month for typical activity.
+Per account per month (22 trading days, active every day, with 10% retry rate):
+- 22 × ($0.015 × 1.10) = **~$0.36/account/month**.
 
-If a particular user's data scope is huge (50+ closed trades a day on an HFT-style account), per-recap cost could approach $0.05. Daily ceiling: $1.10/day. Still tractable.
+For 10 active accounts: ~$3.60/month total Compass cost from EOD alone (on top of Weekly's $1-2). Combined v1+v2 Compass cost is comfortably under $6/account/month for typical activity — well within the user's stated cost ceiling.
+
+If a particular user's data scope is huge (50+ closed trades a day on an HFT-style account), per-recap cost could approach $0.06 with retry. Daily ceiling: $1.30/day. Still tractable.
 
 ---
 
-## 11. Out of Scope (Future v3 slices)
+## 11. Out of Scope (Future v3+ slices)
+
+**Elite enhancements deferred to v3 polish:**
+
+- **Visible feedback adjustment loop.** When the trader marks recaps unhelpful, the next Weekly Review explicitly tells them how Compass adjusted ("You flagged 2 recaps as generic last week; I've tightened to focus on specific trade examples"). Closes the trust loop and shows Compass is responsive, not just a passive feed. Requires adjustment-tracking in the prompt assembly + UX surfacing.
+- **One-shot "Ask Compass about this →" follow-up per recap.** Below each EOD, an inline input lets the trader type one follow-up question; Compass returns a 1-2 sentence answer stored in the recap's metadata. Hard cap of one follow-up per recap so this doesn't become full chat — that's v4 (the Conversational Coach tab).
+- **Quality metrics dashboard.** 👍/👎 rates per output type, regeneration rate, time-to-read after notification. Per-account adjustment signals fed back into prompt tuning.
+- **Graduated banner escalation.** First-day banner is gentle; if unread for 2+ days, banner color shifts; if unread for 3+ days, Compass enters quiet mode and stops generating until the trader re-engages. Coach respects the relationship — pushing too hard kills the habit.
+- **Compass milestone moments.** "First month review," anniversary notes, multi-week pattern callouts when the trader has put in enough volume for trends to be statistically meaningful.
+
+**Standard deferred features:**
 
 - **Email delivery** via Resend. Adds markdown→HTML rendering for email-friendly format.
 - **Audio TTS** rendering (use existing voice infra).
@@ -308,6 +390,8 @@ If a particular user's data scope is huge (50+ closed trades a day on an HFT-sty
 - **Per-trade narration mode** — currently Compass picks 1-2 observations; a future toggle could expand to one-paragraph-per-trade.
 - **EOD updating Trader Profile** — currently only Weekly writes the profile; daily update could be added if profile drift becomes a real problem.
 - **Snooze / mute EOD** — if a user wants Compass to skip Tuesdays for a stretch.
+- **Vacation mode** — "I'm away for N days, pause Compass" without disabling the account.
+- **Shareable recap links** — opt-in, UUID-gated read-only URL so a trader can send a recap to a mentor.
 
 ---
 
@@ -316,9 +400,11 @@ If a particular user's data scope is huge (50+ closed trades a day on an HFT-sty
 - Auto-generation at 4:30pm ET on Mon-Fri produces a recap for every active account that traded today.
 - A user opening the dashboard at 5pm ET sees the cross-tab banner.
 - Clicking through opens the Compass tab with today's recap pre-loaded; banner dismisses; `viewed_at` is set.
-- The recap is in the Compass voice, references at least one specific trade by symbol, ends with one reflective question, mentions overnight holdings when present.
+- The recap is in the Compass voice, references at least one specific trade by symbol, ends with one reflective question that obeys the §2 rubric (specific data point, not yes/no, asks about a pattern), mentions overnight holdings when present.
+- **Numeric grounding holds**: every number in the recap (R-multiples, dollar amounts, percentages) appears in the injected data. The validation pass rejects + retries on hallucination; if a recap ships with `validation.passed=false`, the frontend renders the "⚠ unverified claims" badge.
+- **Multi-day arcs surface when detected**: when the assembler flags a real arc (3rd consecutive Bull Flag loss, repeated mistake tag, regime mismatch streak), Compass weaves the arc into the recap by name. Standalone-feeling debriefs on days when arcs exist count as a quality regression.
 - The following Weekly Review references at least one daily observation from the week's EOD recaps ("the FOMO pattern Compass flagged Tuesday and Thursday is concentrated in your Bull Flag entries").
-- Manual generation works in the Compass tab CTA, returns within 30s.
+- Manual generation works in the Compass tab CTA, returns within 30s (95th percentile) — including a validation-retry budget.
 - An account with `compass_enabled = false` is skipped by the scheduler and rejected by the manual endpoint.
 - Empty-activity days do not write empty rows.
 
@@ -330,6 +416,8 @@ If a particular user's data scope is huge (50+ closed trades a day on an HFT-sty
 - **Live-price availability for unrealized R.** UCT has live-price infra (15s polling, WebSocket stream). The EOD scheduler runs at 4:30pm — right after market close — so prices should be fresh. But the assembler should handle gracefully when the price snapshot is missing or stale.
 - **Cross-account batching at scale.** Sequential generation for ~10 accounts is fine. For 100+ accounts, the batch could exceed 5-10 minutes. v3 polish item: parallelize with a bounded ThreadPoolExecutor.
 - **System prompt growth.** Adding Section 6 brings the prompt to ~2900 tokens. We're still well under the practical cache size cap (~10K is safe). At ~5K we might want to start splitting per-surface system prompts.
-- **The `this_weeks_focus` extraction is regex-based** (looks for the "## This week's focus" header in last weekly review body). If Compass occasionally produces a slightly different header (e.g., misses the colon, adds emoji), the extraction fails silently. Mitigation: log the extraction outcome; fall back to `null` (Compass handles that case in the prompt).
+- **`this_weeks_focus` extraction at Weekly-Review-write-time still uses a tolerant matcher** (case-insensitive, with/without colon, with/without emoji), but if Compass entirely omits the section, the field is null and the EOD assembler degrades gracefully. The system prompt's Weekly Review section already mandates this section as "always one to two asks, never zero" — that constraint plus a structured extractor with tolerance handles the common cases.
+- **Validation retry rate is empirical.** The 10% target retry rate is an estimate; if real-world rates climb to 30%+, that's a signal to tighten the system prompt's numeric/symbol-grounding language. The validation flags themselves become the training signal for prompt iteration. v3 polish: a weekly synthesizer that reports "Compass hallucinated N numeric tokens this week — these are the patterns" to help engineers tune the prompt.
+- **Numeric extraction regex coverage.** The validator regex must match the formats Compass actually writes (`+1.4R`, `-1R`, `$420`, `2.4%`, `1,200 shares`). Missing a format = false-negative on the grounding check. Tests cover the common shapes; new shapes get added when discovered.
 - **The Weekly Review's prompt now includes daily EOD context.** Cache invalidation is fine (system prompt is the cached portion; user message is fresh). But the Weekly's token budget per generation grows by ~5 × 200 = 1000 tokens of EOD memory. Per-Weekly cost goes up slightly. Acceptable.
 - **No test for the scheduler integration itself.** Unit tests cover the orchestrator + assembler with FakeClient. The scheduler is tested via manual smoke (the implementation plan should call this out).
