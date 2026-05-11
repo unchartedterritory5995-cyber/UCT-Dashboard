@@ -172,3 +172,102 @@ def test_includes_recent_coach_memory(db_conn):
     assert len(data["memory"]) == 2
     assert data["memory"][0]["summary"] == "Last week summary"
     assert data["memory"][0]["key_observations"] == ["obs A", "obs B"]
+
+
+def test_discipline_events_count_a_plus_taken_and_breaches(db_conn):
+    """When the user has maxRiskPerTradePct=1% and aPlusSetups=['Bull Flag'],
+    a Bull Flag trade with 2% risk should still count as a breach (1.5x mult
+    = 1.5% effective cap), and the trade should be counted as a_plus_taken."""
+    from api.services.journal_two import coach_data_assembler as assembler
+    from api.services.journal_two import accounts as accounts_service
+    acc = _seed_account(db_conn)
+    # Configure settings
+    payload = {
+        "accountSize": 100_000,
+        "defaultStop": {"mode": "custom"},
+        "positionClosing": "FIFO",
+        "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
+        "setups": ["Bull Flag"],
+        "shareJournalData": False,
+        "tradingMode": "both",
+        "maxRiskPerTradePct": 1,
+        "aPlusSetups": ["Bull Flag"],
+        "aPlusRiskMultiplier": 1.5,
+    }
+    accounts_service.upsert_account_settings("u_coach", acc["id"], payload, conn=db_conn)
+    # Insert a Bull Flag trade with 2% risk:
+    # 100 sh × ($100 - $80) = $2000 risk = 2% of $100k. Cap is 1% × 1.5 = 1.5%.
+    # 2% > 1.5% → breach.
+    _insert_trade(
+        db_conn, user_id="u_coach", account_id=acc["id"],
+        exit_iso="2026-05-05T20:00:00+00:00",
+        setup="Bull Flag", side="Long",
+        shares=100, entry_price=100.0, original_stop=80.0,
+        result="Win", pnl_dollar=500, r_multiple=2.5,
+    )
+    data = assembler.assemble_week(
+        user_id="u_coach", account_id=acc["id"], week_start="2026-05-04", conn=db_conn,
+    )
+    de = data["week"]["discipline_events"]
+    assert de["a_plus_taken"] == 1
+    assert de["risk_cap_breaches"] == 1
+    assert de["risk_cap_overrides"] == 1
+
+
+def test_discipline_events_daily_loss_lockouts(db_conn):
+    """3 losing trades on the same day summing to -3% (vs 2% limit) should
+    trigger 1 daily_loss_lockout (one breached day)."""
+    from api.services.journal_two import coach_data_assembler as assembler
+    from api.services.journal_two import accounts as accounts_service
+    acc = _seed_account(db_conn)
+    accounts_service.upsert_account_settings("u_coach", acc["id"], {
+        "accountSize": 100_000,
+        "defaultStop": {"mode": "custom"},
+        "positionClosing": "FIFO",
+        "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
+        "setups": [],
+        "shareJournalData": False,
+        "tradingMode": "both",
+        "dailyLossLimitPct": 2,
+    }, conn=db_conn)
+    for _ in range(3):
+        _insert_trade(
+            db_conn, user_id="u_coach", account_id=acc["id"],
+            exit_iso="2026-05-05T20:00:00+00:00",
+            result="Loss", pnl_dollar=-1000, r_multiple=-1.0,
+        )
+    data = assembler.assemble_week(
+        user_id="u_coach", account_id=acc["id"], week_start="2026-05-04", conn=db_conn,
+    )
+    assert data["week"]["discipline_events"]["daily_loss_lockouts"] == 1
+
+
+def test_discipline_events_cooling_off_counts_losing_trades(db_conn):
+    """Each Loss trade in the week is a cooling-off-candidate when the
+    setting is enabled. 2 losses in the week → cooling_off_fires=2."""
+    from api.services.journal_two import coach_data_assembler as assembler
+    from api.services.journal_two import accounts as accounts_service
+    acc = _seed_account(db_conn)
+    accounts_service.upsert_account_settings("u_coach", acc["id"], {
+        "accountSize": 100_000,
+        "defaultStop": {"mode": "custom"},
+        "positionClosing": "FIFO",
+        "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
+        "setups": [],
+        "shareJournalData": False,
+        "tradingMode": "both",
+        "coolingOffMinutesAfterLoss": 15,
+    }, conn=db_conn)
+    _insert_trade(db_conn, user_id="u_coach", account_id=acc["id"],
+                  exit_iso="2026-05-05T20:00:00+00:00", result="Loss",
+                  pnl_dollar=-100, r_multiple=-1.0)
+    _insert_trade(db_conn, user_id="u_coach", account_id=acc["id"],
+                  exit_iso="2026-05-07T20:00:00+00:00", result="Loss",
+                  pnl_dollar=-100, r_multiple=-1.0)
+    _insert_trade(db_conn, user_id="u_coach", account_id=acc["id"],
+                  exit_iso="2026-05-06T20:00:00+00:00", result="Win",
+                  pnl_dollar=200, r_multiple=2.0)
+    data = assembler.assemble_week(
+        user_id="u_coach", account_id=acc["id"], week_start="2026-05-04", conn=db_conn,
+    )
+    assert data["week"]["discipline_events"]["cooling_off_fires"] == 2

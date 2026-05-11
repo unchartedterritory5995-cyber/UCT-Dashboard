@@ -271,17 +271,90 @@ def _regime_by_day(trades: list[dict]) -> list[dict]:
 
 
 def _discipline_events(conn, user_id, account_id, start, end) -> dict:
-    """Phase B events aren't independently logged in v1; we infer some from
-    settings + trade volume. For v1 we expose zeros and a count of trades
-    closed within daily-loss-lockout windows is left for a later polish.
+    """Infer Phase A-F discipline events for the week. These are derived
+    from existing trade data + account settings — there is no separate
+    event-log table in v1.
+
+    - risk_cap_breaches: trades where actual $-risk-as-%-of-account exceeded
+      the configured cap (per the trade's setup, accounting for A+ elevation).
+    - risk_cap_overrides: same count (every breach IS an override).
+    - a_plus_taken: trades whose setup is in the user's aPlusSetups list.
+    - daily_loss_lockouts: # days where realized P&L within the week
+      breached the user's dailyLossLimitPct.
+    - cooling_off_fires: # losing trades in the week (proxy: each loss
+      is a candidate to trigger cooling-off when the setting is enabled).
+    - no_trade_window_blocks: not directly observable from trade data;
+      reported as 0 until a future polish introduces a discipline-events
+      log table.
     """
+    settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
+    account_size = float(settings.get("accountSize") or 0)
+    cap_pct = settings.get("maxRiskPerTradePct")
+    a_plus_setups = set(settings.get("aPlusSetups") or [])
+    a_plus_mult = float(settings.get("aPlusRiskMultiplier") or 1.0)
+    daily_loss_pct = settings.get("dailyLossLimitPct")
+    cooling_off_min = settings.get("coolingOffMinutesAfterLoss")
+
+    start_iso = start.isoformat()
+    end_iso = end.isoformat()
+    rows = conn.execute(
+        """
+        SELECT shares, entry_price, original_stop, side, setup, result,
+               pnl_dollar, exit_date
+          FROM j2_trades
+         WHERE user_id = ? AND account_id = ?
+           AND exit_date >= ? AND exit_date < ?
+        """,
+        (user_id, account_id, start_iso, end_iso),
+    ).fetchall()
+
+    a_plus_taken = 0
+    risk_cap_breaches = 0
+    cooling_off_fires = 0
+    # Day → cumulative pnl
+    daily_pnl: dict[str, float] = {}
+
+    for r in rows:
+        setup = r["setup"] or ""
+        if setup in a_plus_setups:
+            a_plus_taken += 1
+        # Risk cap check (only when both cap configured and we can compute)
+        if cap_pct is not None and account_size > 0:
+            shares = float(r["shares"] or 0)
+            entry = float(r["entry_price"] or 0)
+            stop = r["original_stop"]
+            if shares > 0 and entry > 0 and stop is not None:
+                stop_f = float(stop)
+                per_share_risk = (entry - stop_f) if (r["side"] or "Long") == "Long" else (stop_f - entry)
+                if per_share_risk > 0:
+                    dollar_risk = shares * per_share_risk
+                    risk_pct = (dollar_risk / account_size) * 100.0
+                    effective_cap = float(cap_pct) * (a_plus_mult if setup in a_plus_setups else 1.0)
+                    if risk_pct > effective_cap:
+                        risk_cap_breaches += 1
+        # Cooling-off candidate
+        if cooling_off_min is not None and (r["result"] or "") == "Loss":
+            cooling_off_fires += 1
+        # Day P&L bucket
+        try:
+            d = r["exit_date"][:10]   # ISO date prefix
+        except Exception:
+            d = None
+        if d:
+            daily_pnl[d] = daily_pnl.get(d, 0.0) + float(r["pnl_dollar"] or 0)
+
+    daily_loss_lockouts = 0
+    if daily_loss_pct is not None and account_size > 0:
+        threshold = -float(daily_loss_pct) * account_size / 100.0
+        daily_loss_lockouts = sum(1 for v in daily_pnl.values() if v <= threshold)
+
     return {
-        "risk_cap_breaches": 0,
-        "risk_cap_overrides": 0,
-        "daily_loss_lockouts": 0,
-        "cooling_off_fires": 0,
+        "risk_cap_breaches": risk_cap_breaches,
+        "risk_cap_overrides": risk_cap_breaches,
+        "daily_loss_lockouts": daily_loss_lockouts,
+        "cooling_off_fires": cooling_off_fires,
         "no_trade_window_blocks": 0,
-        "a_plus_taken": 0,
+        "a_plus_taken": a_plus_taken,
     }
 
 
