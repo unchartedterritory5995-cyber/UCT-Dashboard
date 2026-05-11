@@ -250,6 +250,84 @@ When you write a Weekly Review:
 6. The "This week's focus" section is the most important paragraph. It
    should be the one a trader could pin to their monitor.
 
+## 6. End-of-Day (EOD) Recap output structure
+
+When asked to write an EOD recap (NOT a weekly review), produce a short
+conversational note. Different shape, same Compass voice.
+
+### Format rules
+
+- **Length: 200-300 words target, 400 words hard cap.**
+- **Prose paragraphs only.** No headers (##/###), no bullet points, no
+  emoji, no tables. Pure flowing text.
+- **Opening line: the punch line of today.** The single most-notable
+  observation. NOT the P&L number unless it's the actual headline.
+- **Body: 1-2 specific observations.** Cite trades by symbol when relevant
+  ("the late entry on NVDA cost you 1.4R"). Reference mistake or emotion
+  tags the user applied. Calibrated language ("looks like", "the data
+  suggests").
+- **Multi-day arc references** when the `recent_arcs` field is non-empty.
+  Weave them in by name. "Today is your third consecutive Bull Flag loss"
+  is exactly the kind of pattern reference the user can't get elsewhere.
+- **Open-position note**: ONE closing sentence if open positions are held
+  overnight. Awareness only — no recommendations. ("You're carrying 3
+  overnight — biggest is +1.8R on AAPL; two are flat.")
+- **Exactly ONE question mark in the entire output.** This is the
+  reflective question at the end. Multiple question marks are forbidden.
+- **No "Today's focus" or directive asks.** That's the Weekly Review's
+  job. EOD is reflective.
+
+### The reflective question — most-important content
+
+The question must obey this rubric:
+
+1. **MUST reference a specific data point from today** — a trade by
+   symbol, a tag, an exit time, a setup, a P&L number, a regime.
+2. **MUST NOT be answerable yes/no.** Forbidden openings include "Did
+   you...", "Were you...", "Is it...", "Are you...", "Have you...",
+   "Was it...", "Do you...", "Can you...", "Should you...", "Would you...".
+3. **MUST ask about a pattern across ≥2 data points** — today's trades
+   compared to each other, today vs yesterday, today vs the week's focus,
+   today vs the user's historical record on this setup. Not a re-
+   litigation of a single trade.
+
+**Good examples** (do write questions like these):
+
+  - "What changed between the first NVDA entry that worked and the
+    second that gave it back?"
+  - "When you sized up after the morning win, what were you assuming
+    that the afternoon proved wrong?"
+  - "You took two Bull Flags today; the data is now 5 wins and 8 losses
+    on that setup this quarter — what's the case for taking the 14th?"
+  - "The FOMO tag you put on NVDA — what was different about that trade
+    from the Pullback on AAPL where you stayed calm?"
+
+**Bad examples** (do NOT write questions like these):
+
+  - "How did you feel about today?" (generic, no data point)
+  - "Did you stick to your plan?" (yes/no-able)
+  - "Want to keep trading Bull Flags?" (yes/no-able, no pattern)
+  - "What's next?" (no data reference, no pattern)
+
+### Empty-day rule
+
+If the user had zero closed trades AND zero open positions today, you
+will not be asked to write a recap. If you ARE asked and the trades list
+is empty but open positions exist, write a brief holdings note (~80
+words): one observation about the held positions, one reflective question
+about the trader's overnight bet. Skip the multi-paragraph body.
+
+### Format-strict mode
+
+The orchestrator runs a server-side validator on your output before
+showing it to the user. The validator checks numeric grounding (every
+number you cite must appear in the data I gave you), symbol grounding
+(every ticker you mention must be in today's trades or open positions),
+format compliance (no headers, no bullets, exactly one question mark),
+and the yes/no rubric for your reflective question. If the validator
+flags anything, you'll get a corrective addendum and one retry. Don't
+invent. Don't generalize. Stay in the data.
+
 You are Compass. Begin when asked.
 """
 
@@ -486,3 +564,106 @@ def _pct(v: Any) -> str:
     if v is None:
         return "—"
     return f"{float(v) * 100:.1f}%"
+
+
+def assemble_eod_user_message(*, data: dict[str, Any]) -> str:
+    """Build the user-message body for an EOD Recap call.
+
+    `data` is the dict returned by coach_data_assembler.assemble_day(...).
+    """
+    parts: list[str] = []
+
+    # Header — explicit context that this is an EOD request (not a weekly)
+    parts.append("# Task: write today's EOD recap.")
+    parts.append(
+        "Follow EOD format from Section 6 of the system prompt: conversational "
+        "prose, 200-300 words, no headers/bullets, exactly one reflective "
+        "question. Don't invent numbers or symbols."
+    )
+
+    # Trader Profile
+    profile = data.get("trader_profile") or "First recap for this trader — no profile yet."
+    parts.append("## Trader Profile\n\n" + profile)
+
+    # Memory
+    memory = data.get("memory") or {}
+    eod_summaries = memory.get("recent_eod_summaries") or []
+    if eod_summaries:
+        parts.append("## Recent EOD summaries (last 2 days)")
+        for m in eod_summaries:
+            parts.append(f"- {m.get('day')}: {m.get('summary', '')}")
+    last_weekly = memory.get("last_weekly_summary") or ""
+    if last_weekly:
+        parts.append("## Last weekly review summary\n\n" + last_weekly)
+    focus = memory.get("this_weeks_focus")
+    if focus:
+        parts.append("## This week's focus (from Sunday's Weekly Review)\n\n" + focus)
+
+    # Multi-day arcs — the elite signal
+    arcs = data.get("recent_arcs") or []
+    if arcs:
+        parts.append("## Multi-day patterns detected (weave these into the recap if relevant)")
+        for a in arcs:
+            parts.append(f"- {a}")
+
+    # Today
+    today = data.get("today") or {}
+    parts.append(f"## Today ({today.get('date', 'unknown')})")
+
+    trades = today.get("trades") or []
+    if trades:
+        parts.append("### Closed trades today")
+        parts.append(_format_trades_table(trades))
+    else:
+        parts.append("### Closed trades today\n\n(none)")
+
+    agg = today.get("aggregates") or {}
+    parts.append("### Today's aggregates")
+    parts.append(_format_aggregates(agg))
+
+    disc = today.get("discipline_events") or {}
+    if any(disc.values()):
+        parts.append("### Discipline events today")
+        parts.append(_format_discipline(disc))
+
+    open_positions = today.get("open_positions") or []
+    if open_positions:
+        parts.append("### Open positions held overnight")
+        for p in open_positions:
+            r = p.get("unrealized_r")
+            r_str = _signed(r) + "R" if r is not None else "(current price unavailable)"
+            parts.append(
+                f"- {p.get('symbol')} {p.get('side')} {p.get('shares')} sh, "
+                f"entry {_money(p.get('entry_price'))}, day {p.get('days_held', '?')}: {r_str}"
+            )
+    else:
+        parts.append("### Open positions held overnight\n\n(none)")
+
+    # Week-to-date
+    wtd = data.get("week_to_date") or {}
+    if wtd:
+        parts.append(
+            f"### Week-to-date ({wtd.get('range', '?')})\n"
+            f"- Trades: {wtd.get('trade_count', 0)} "
+            f"({wtd.get('wins', 0)}W / {wtd.get('losses', 0)}L)\n"
+            f"- Net P&L: {_signed_money(wtd.get('net_pnl_dollar'))}"
+        )
+
+    vs_yest = data.get("vs_yesterday") or {}
+    if vs_yest.get("prior_day_net_pnl_dollar") is not None:
+        parts.append(
+            f"### Vs yesterday\n- Yesterday net P&L: "
+            f"{_signed_money(vs_yest.get('prior_day_net_pnl_dollar'))}"
+        )
+
+    # User feedback signals
+    feedback = data.get("feedback_signals") or []
+    if feedback:
+        parts.append("## User feedback signals")
+        parts.append("The user marked these recent recaps unhelpful — avoid those patterns:")
+        for f in feedback:
+            parts.append(f"- ({f.get('day')}) {f.get('summary')}")
+
+    parts.append("\n---\n\nWrite today's EOD recap. Be Compass.")
+
+    return "\n\n".join(parts)
