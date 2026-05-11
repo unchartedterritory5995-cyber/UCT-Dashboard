@@ -35,7 +35,8 @@ describe('PortfolioSettingsModal', () => {
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
     )
-    expect(screen.getByText('Breakout')).toBeInTheDocument()
+    // 'Breakout' appears in both TRADE SETUPS chips and SETUP-AWARE COACHING toggles
+    expect(screen.getAllByText('Breakout').length).toBeGreaterThan(0)
   })
 
   it('calls onSave with canonical payload on Save Settings click', async () => {
@@ -101,7 +102,8 @@ describe('PortfolioSettingsModal', () => {
     const input = screen.getByPlaceholderText('New setup name')
     await user.type(input, 'Pullback')
     await user.click(screen.getByRole('button', { name: 'Add' }))
-    expect(screen.getByText('Pullback')).toBeInTheDocument()
+    // 'Pullback' appears in both TRADE SETUPS chips and SETUP-AWARE COACHING toggles
+    expect(screen.getAllByText('Pullback').length).toBeGreaterThan(0)
 
     await user.click(screen.getByRole('button', { name: 'Save Settings' }))
     const payload = onSave.mock.calls[0][0]

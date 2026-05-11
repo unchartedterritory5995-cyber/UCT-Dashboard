@@ -101,6 +101,12 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
   const [noTradeWindowsET, setNoTradeWindowsET] = useState(
     Array.isArray(settings?.noTradeWindowsET) ? settings.noTradeWindowsET : [],
   )
+  const [aPlusSetups, setAPlusSetups] = useState(
+    Array.isArray(settings?.aPlusSetups) ? settings.aPlusSetups : [],
+  )
+  const [aPlusRiskMultiplier, setAPlusRiskMultiplier] = useState(
+    settings?.aPlusRiskMultiplier == null ? '' : String(settings.aPlusRiskMultiplier),
+  )
 
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -158,6 +164,8 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
       dailyLossLimitPct: dailyLossLimitPct === '' ? null : Number(dailyLossLimitPct),
       coolingOffMinutesAfterLoss: coolingOffMinutesAfterLoss === '' ? null : parseInt(coolingOffMinutesAfterLoss, 10),
       noTradeWindowsET,
+      aPlusSetups,
+      aPlusRiskMultiplier: aPlusRiskMultiplier === '' ? null : Number(aPlusRiskMultiplier),
     }
     setSaving(true)
     try {
@@ -187,6 +195,8 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     dailyLossLimitPct,
     coolingOffMinutesAfterLoss,
     noTradeWindowsET,
+    aPlusSetups,
+    aPlusRiskMultiplier,
     onSave,
     onClose,
   ])
@@ -402,6 +412,69 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
             <p className={styles.helper}>
               Block entries during specific time windows (e.g. lunch chop or
               the volatile open). Times are 24-hour Eastern.
+            </p>
+          </section>
+
+          {/* SETUP-AWARE COACHING — Phase C */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeader}>SETUP-AWARE COACHING</h3>
+            <p className={styles.helper}>
+              Mark setups as <strong>A+</strong> to allow them to exceed your
+              Max Risk Per Trade cap by the multiplier below. Forces you to
+              commit ahead of time which patterns deserve full size.
+            </p>
+
+            {setups.length === 0 ? (
+              <p className={styles.helper}>
+                Add some setups in the TRADE SETUPS section above first.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '4px 0 8px' }}>
+                {setups.map((s) => {
+                  const active = aPlusSetups.includes(s)
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        setAPlusSetups((prev) =>
+                          prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
+                        )
+                      }}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: 12,
+                        background: active ? 'var(--ut-gold, #c9a84c)' : 'transparent',
+                        color: active ? 'var(--bg, #000)' : 'var(--text-bright)',
+                        border: `1px solid ${active ? 'var(--ut-gold, #c9a84c)' : 'var(--border)'}`,
+                        borderRadius: 999,
+                        cursor: 'pointer',
+                      }}
+                      aria-pressed={active}
+                    >
+                      {active ? '★ ' : ''}{s}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>A+ Risk Multiplier</span>
+              <input
+                type="number"
+                min="1.05"
+                max="10"
+                step="0.05"
+                value={aPlusRiskMultiplier}
+                onChange={(e) => setAPlusRiskMultiplier(e.target.value)}
+                placeholder="e.g. 1.5"
+                className={styles.numberInput}
+              />
+            </label>
+            <p className={styles.helper}>
+              Effective cap on an A+ setup = Max Risk Per Trade × this
+              multiplier. Leave blank to keep all setups at the same cap.
             </p>
           </section>
 
