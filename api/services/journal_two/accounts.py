@@ -85,6 +85,7 @@ def _default_settings_block() -> dict[str, Any]:
         "lossStreakThreshold": None,
         "winStreakThreshold": None,
         "staleHoldDaysThreshold": None,
+        "traderProfile": "",
     }
 
 
@@ -951,6 +952,7 @@ def _account_to_settings(acc: dict[str, Any]) -> dict[str, Any]:
             "lossStreakThreshold": row["loss_streak_threshold"] if "loss_streak_threshold" in keys else None,
             "winStreakThreshold": row["win_streak_threshold"] if "win_streak_threshold" in keys else None,
             "staleHoldDaysThreshold": row["stale_hold_days_threshold"] if "stale_hold_days_threshold" in keys else None,
+            "traderProfile": row["trader_profile"] if "trader_profile" in keys else "",
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
         }

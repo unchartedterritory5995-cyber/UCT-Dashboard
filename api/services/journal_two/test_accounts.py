@@ -670,3 +670,22 @@ def test_phase_f_thresholds_roundtrip(db_conn):
     assert fresh["lossStreakThreshold"] == 4
     assert fresh["winStreakThreshold"] == 7
     assert fresh["staleHoldDaysThreshold"] == 45
+
+
+def test_trader_profile_roundtrip(db_conn):
+    """Settings doesn't expose trader_profile via PortfolioSettingsModal (the
+    Coach writes it directly), but _account_to_settings should still surface
+    it so the Coach can read it back."""
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, get_account_settings,
+    )
+    user_id = "u_coach_profile"
+    account = get_or_migrate_default_account(user_id, conn=db_conn)
+    # Direct DB write — emulates the Coach's path
+    db_conn.execute(
+        "UPDATE j2_accounts SET trader_profile = ? WHERE id = ?",
+        ("# Test profile\n\nSome content.", account["id"]),
+    )
+    db_conn.commit()
+    settings = get_account_settings(user_id, account["id"], conn=db_conn)
+    assert settings.get("traderProfile") == "# Test profile\n\nSome content."
