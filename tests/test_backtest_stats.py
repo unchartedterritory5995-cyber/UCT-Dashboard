@@ -31,11 +31,12 @@ def test_profit_factor():
     assert abs(stats['profit_factor'] - 2.0) < 0.01
 
 
-def test_profit_factor_no_losses_is_inf():
+def test_profit_factor_no_losses_caps_at_999():
+    """JSON cannot serialize Infinity, so all-winners caps profit_factor at 999."""
     trades = [{'pnl_$': 100, 'pnl_pct': 1}]
     curve = [{"t": i, "equity": 10000} for i in range(2)]
     stats = compute_stats(trades, curve)
-    assert stats['profit_factor'] == float('inf')
+    assert stats['profit_factor'] == 999.0
 
 
 def test_max_drawdown():
