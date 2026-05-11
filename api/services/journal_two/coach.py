@@ -229,7 +229,6 @@ def _generate_weekly_review_inner(
         (account_id,),
     ).fetchone()
     current_profile: str = (acc_row["trader_profile"] if acc_row else "") or ""
-    data["current_trader_profile"] = current_profile
 
     # ------------------------------------------------------------------
     # 4. Build prompts and call LLM for the weekly review
@@ -294,10 +293,10 @@ def _generate_weekly_review_inner(
                 """,
                 (pu_id, user_id, account_id, updated_profile, pu_metadata, now_iso),
             )
-            # Update j2_accounts.trader_profile
+            # Update j2_accounts.trader_profile (scoped by user_id for defense-in-depth)
             conn.execute(
-                "UPDATE j2_accounts SET trader_profile = ? WHERE id = ?",
-                (updated_profile, account_id),
+                "UPDATE j2_accounts SET trader_profile = ? WHERE id = ? AND user_id = ?",
+                (updated_profile, account_id, user_id),
             )
             conn.commit()
     except Exception:

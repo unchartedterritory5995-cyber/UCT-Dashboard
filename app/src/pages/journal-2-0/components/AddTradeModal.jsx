@@ -141,7 +141,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
     }
   }, [
     validate, symbol, side, shares, entryPrice, entryDate, exitPrice, exitDate,
-    originalStop, setupVal, notes, selectedMistakes, selectedEmotions, onSave, onClose,
+    originalStop, setupVal, notes, fees, selectedMistakes, selectedEmotions, onSave, onClose,
   ])
 
   const impliedRiskPct = computeImpliedRiskPct({

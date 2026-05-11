@@ -142,10 +142,11 @@ def _validate_setups(setups: Any) -> list[str]:
 
 
 def _validate_optional_pct(value: Any, field_name: str, *, max_exclusive: float = 100.0) -> float | None:
-    """Optional 0 < x < max_exclusive percent. None/'' = disabled."""
+    """Optional 0 < x < max_exclusive percent. None/'' = disabled.
+    Rejects bool subclass (which would silently pass int isinstance check)."""
     if value is None or value == "":
         return None
-    if not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise SettingsValidationError(f"{field_name} must be a number or null")
     f = float(value)
     if f <= 0 or f >= max_exclusive:
@@ -153,15 +154,18 @@ def _validate_optional_pct(value: Any, field_name: str, *, max_exclusive: float 
     return f
 
 
-def _validate_optional_positive(value: Any, field_name: str) -> float | None:
-    """Optional positive number. None/'' = disabled."""
+def _validate_optional_positive(value: Any, field_name: str, *, max_inclusive: float | None = None) -> float | None:
+    """Optional positive number. None/'' = disabled. Rejects bool subclass.
+    Optional `max_inclusive` upper bound (used by callers that want a sanity cap)."""
     if value is None or value == "":
         return None
-    if not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise SettingsValidationError(f"{field_name} must be a number or null")
     f = float(value)
     if f <= 0:
         raise SettingsValidationError(f"{field_name} must be > 0")
+    if max_inclusive is not None and f > max_inclusive:
+        raise SettingsValidationError(f"{field_name} must be ≤ {max_inclusive}")
     return f
 
 
@@ -302,7 +306,7 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "tradingMode": trading_mode,
         # Phase A
         "defaultSizePct": _validate_optional_pct(payload.get("defaultSizePct"), "defaultSizePct"),
-        "defaultRMultipleTarget": _validate_optional_positive(payload.get("defaultRMultipleTarget"), "defaultRMultipleTarget"),
+        "defaultRMultipleTarget": _validate_optional_positive(payload.get("defaultRMultipleTarget"), "defaultRMultipleTarget", max_inclusive=20.0),
         "maxRiskPerTradePct": _validate_optional_pct(payload.get("maxRiskPerTradePct"), "maxRiskPerTradePct"),
         # Phase B
         "dailyLossLimitPct": _validate_optional_pct(payload.get("dailyLossLimitPct"), "dailyLossLimitPct"),

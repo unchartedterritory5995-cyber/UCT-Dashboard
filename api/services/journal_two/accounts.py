@@ -295,7 +295,16 @@ def create_account(
                 f"An account named '{validated['name']}' already exists"
             )
 
-        # Settings to seed
+        # Settings to seed. Carry every Phase A–G column from the source
+        # account so a copied account doesn't silently lose user-configured
+        # guards, taxonomies, and multipliers. share_journal_data and
+        # trader_profile are intentionally NOT copied (privacy + per-account
+        # coach memory).
+        def _src(src_row, col, default):
+            if src_row is None:
+                return default
+            return src_row[col] if col in src_keys else default
+
         if copy_from:
             src = conn.execute(
                 "SELECT * FROM j2_accounts WHERE id = ? AND user_id = ?",
@@ -310,8 +319,28 @@ def create_account(
                 "position_closing": src["position_closing"],
                 "breakeven_range": src["breakeven_range"],
                 "setups": src["setups"],
-                "trading_mode": src["trading_mode"] if "trading_mode" in src_keys else "both",
-                # share_journal_data is intentionally NOT copied (privacy default)
+                "trading_mode": _src(src, "trading_mode", "both"),
+                # Phase A
+                "default_size_pct": _src(src, "default_size_pct", None),
+                "default_r_multiple_target": _src(src, "default_r_multiple_target", None),
+                "max_risk_per_trade_pct": _src(src, "max_risk_per_trade_pct", None),
+                # Phase B
+                "daily_loss_limit_pct": _src(src, "daily_loss_limit_pct", None),
+                "cooling_off_minutes_after_loss": _src(src, "cooling_off_minutes_after_loss", None),
+                "no_trade_windows_et": _src(src, "no_trade_windows_et", "[]"),
+                # Phase C
+                "a_plus_setups": _src(src, "a_plus_setups", "[]"),
+                "a_plus_risk_multiplier": _src(src, "a_plus_risk_multiplier", None),
+                # Phase D
+                "regime_size_multipliers": _src(src, "regime_size_multipliers", "{}"),
+                # Phase E
+                "mistake_tags": _src(src, "mistake_tags", "[]"),
+                "emotion_tags": _src(src, "emotion_tags", "[]"),
+                # Phase F
+                "loss_streak_threshold": _src(src, "loss_streak_threshold", None),
+                "win_streak_threshold": _src(src, "win_streak_threshold", None),
+                "stale_hold_days_threshold": _src(src, "stale_hold_days_threshold", None),
+                # share_journal_data, trader_profile: intentionally NOT copied
             }
         else:
             block = _default_settings_block()
@@ -322,6 +351,21 @@ def create_account(
                 "breakeven_range": json.dumps(block["breakevenRange"]),
                 "setups": json.dumps(block["setups"]),
                 "trading_mode": block.get("tradingMode", "both"),
+                # All Phase A–F defaults are None/empty in _default_settings_block
+                "default_size_pct": None,
+                "default_r_multiple_target": None,
+                "max_risk_per_trade_pct": None,
+                "daily_loss_limit_pct": None,
+                "cooling_off_minutes_after_loss": None,
+                "no_trade_windows_et": "[]",
+                "a_plus_setups": "[]",
+                "a_plus_risk_multiplier": None,
+                "regime_size_multipliers": "{}",
+                "mistake_tags": "[]",
+                "emotion_tags": "[]",
+                "loss_streak_threshold": None,
+                "win_streak_threshold": None,
+                "stale_hold_days_threshold": None,
             }
 
         new_id = str(uuid.uuid4())
@@ -333,8 +377,16 @@ def create_account(
                 account_size, default_stop, position_closing,
                 breakeven_range, setups, share_journal_data,
                 trading_mode,
+                default_size_pct, default_r_multiple_target, max_risk_per_trade_pct,
+                daily_loss_limit_pct, cooling_off_minutes_after_loss, no_trade_windows_et,
+                a_plus_setups, a_plus_risk_multiplier,
+                regime_size_multipliers,
+                mistake_tags, emotion_tags,
+                loss_streak_threshold, win_streak_threshold, stale_hold_days_threshold,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?,
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                      ?, ?)
             """,
             (
                 new_id, user_id, validated["name"], validated["color"],
@@ -343,6 +395,12 @@ def create_account(
                 settings["position_closing"], settings["breakeven_range"],
                 settings["setups"],
                 settings["trading_mode"],
+                settings["default_size_pct"], settings["default_r_multiple_target"], settings["max_risk_per_trade_pct"],
+                settings["daily_loss_limit_pct"], settings["cooling_off_minutes_after_loss"], settings["no_trade_windows_et"],
+                settings["a_plus_setups"], settings["a_plus_risk_multiplier"],
+                settings["regime_size_multipliers"],
+                settings["mistake_tags"], settings["emotion_tags"],
+                settings["loss_streak_threshold"], settings["win_streak_threshold"], settings["stale_hold_days_threshold"],
                 now, now,
             ),
         )
