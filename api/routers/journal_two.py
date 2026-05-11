@@ -32,6 +32,7 @@ from api.services.journal_two import (
     options as options_service,
     playbook as playbook_service,
     positions as positions_service,
+    regime as regime_service,
     settings as settings_service,
     setup_stats as setup_stats_service,
     trades as trades_service,
@@ -544,6 +545,15 @@ def get_setup_stats_route(
 ):
     """Per-setup historical performance for the live coaching panel."""
     return setup_stats_service.get_setup_stats(user["id"], account_id, setup)
+
+
+@router.get("/regime")
+def get_current_regime_route(
+    user: dict = Depends(get_current_user),
+):
+    """Current UCT regime label + score. Unaffected by account; cached
+    in the wire_data layer at the engine push cadence."""
+    return regime_service.get_current_regime()
 
 
 # ── Playbook / Stock Observation Library (Phase 5) ──────────────────────────
