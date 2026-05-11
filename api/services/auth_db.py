@@ -398,6 +398,78 @@ def init_db():
         # Journal v2 migration
         _migrate_journal_v2(conn)
 
+        # ─── Pattern Recognition (Phase 0) ────────────────────────────────
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS pattern_detections (
+              id            TEXT PRIMARY KEY,
+              sym           TEXT NOT NULL,
+              tf            TEXT NOT NULL,
+              pattern_id    TEXT NOT NULL,
+              category      TEXT NOT NULL,
+              direction     TEXT NOT NULL,
+              start_t       INTEGER NOT NULL,
+              end_t         INTEGER NOT NULL,
+              confidence    REAL NOT NULL,
+              quality_json  TEXT NOT NULL,
+              geometry_json TEXT NOT NULL,
+              levels_json   TEXT NOT NULL,
+              context_json  TEXT NOT NULL,
+              narrative_json TEXT NOT NULL,
+              status        TEXT NOT NULL,
+              detected_at   INTEGER NOT NULL,
+              last_seen_at  INTEGER NOT NULL,
+              hash_key      TEXT NOT NULL UNIQUE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_pd_sym_tf   ON pattern_detections(sym, tf);
+            CREATE INDEX IF NOT EXISTS idx_pd_pattern  ON pattern_detections(pattern_id);
+            CREATE INDEX IF NOT EXISTS idx_pd_status   ON pattern_detections(status);
+
+            CREATE TABLE IF NOT EXISTS pattern_outcomes (
+              detection_id  TEXT PRIMARY KEY REFERENCES pattern_detections(id),
+              entry_hit     INTEGER NOT NULL DEFAULT 0,
+              entry_hit_t   INTEGER,
+              stop_hit      INTEGER NOT NULL DEFAULT 0,
+              stop_hit_t    INTEGER,
+              target_hit    INTEGER NOT NULL DEFAULT 0,
+              target_hit_t  INTEGER,
+              mfe_pct       REAL,
+              mae_pct       REAL,
+              bars_to_resolve INTEGER,
+              resolved_at   INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS pattern_stats (
+              pattern_id    TEXT NOT NULL,
+              tf            TEXT NOT NULL,
+              regime_bucket TEXT NOT NULL,
+              n_total       INTEGER NOT NULL DEFAULT 0,
+              n_resolved    INTEGER NOT NULL DEFAULT 0,
+              n_entry_hit   INTEGER NOT NULL DEFAULT 0,
+              n_target_hit  INTEGER NOT NULL DEFAULT 0,
+              n_stop_hit    INTEGER NOT NULL DEFAULT 0,
+              avg_mfe_pct   REAL,
+              avg_mae_pct   REAL,
+              median_bars   INTEGER,
+              hit_rate      REAL,
+              expectancy_R  REAL,
+              last_updated  INTEGER NOT NULL,
+              PRIMARY KEY (pattern_id, tf, regime_bucket)
+            );
+
+            CREATE TABLE IF NOT EXISTS pattern_feedback (
+              id            INTEGER PRIMARY KEY AUTOINCREMENT,
+              detection_id  TEXT NOT NULL REFERENCES pattern_detections(id),
+              user_id       TEXT NOT NULL,
+              rating        TEXT NOT NULL,
+              note          TEXT,
+              created_at    INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_pf_detection ON pattern_feedback(detection_id);
+        """)
+        conn.commit()
+        print("[patterns] Schema initialized (4 tables)")
+
         print(f"[auth] Database ready at {_DB_PATH}")
     finally:
         conn.close()
