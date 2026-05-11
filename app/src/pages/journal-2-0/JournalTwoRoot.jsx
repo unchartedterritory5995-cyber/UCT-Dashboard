@@ -93,7 +93,7 @@ export default function JournalTwoRoot() {
   return (
     <div className={styles.root}>
       <div className={styles.header}>
-        <h1 className={styles.heading}>Journal 2.0</h1>
+        <h1 className={styles.heading}>Trade Journal</h1>
         <div className={styles.headerRight}>
           <button
             type="button"
