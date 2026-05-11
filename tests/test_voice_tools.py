@@ -258,3 +258,40 @@ def test_pre_trade_check_tool(monkeypatch):
 
     out = voice_tools.dispatch("pre_trade_check", {"symbol": "NVDA"}, user={"id": "u-1"})
     assert "NVDA" in out["narration"]
+
+
+# ── Write tools (Slice 5) ──────────────────────────────────────────────────
+
+def test_write_tools_register():
+    from api.services import voice_tool_impls  # noqa
+    names = set(voice_tools.all_tool_names())
+    expected = {
+        "create_position", "close_position", "update_position",
+        "add_daily_note", "log_mistake", "confirm_action",
+    }
+    assert expected.issubset(names)
+
+
+def test_create_position_tool_returns_preview():
+    from api.services.auth_db import init_db
+    from api.services.auth_service import create_user
+    init_db()
+    uid = create_user(f"cp_{__import__('uuid').uuid4()}@example.com", "p")["id"]
+
+    out = voice_tools.dispatch(
+        "create_position",
+        {"account": "Swing", "symbol": "NVDA", "shares": 100,
+         "entry": 200.20, "stop": 199.10},
+        user={"id": uid},
+    )
+    assert "action_id" in out
+    assert "NVDA" in out["narration"]
+    assert "Confirm" in out["narration"]
+
+
+def test_confirm_action_rejects_unknown_id():
+    out = voice_tools.dispatch(
+        "confirm_action", {"action_id": "garbage.not-a-real-token"},
+        user={"id": "u-1"},
+    )
+    assert out["ok"] is False

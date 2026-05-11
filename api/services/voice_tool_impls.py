@@ -217,6 +217,89 @@ def _recall_session(*, user, query: str) -> dict:
     return {"recall_text": "; ".join(lines)[:1500], "count": len(rows)}
 
 
+# ── Write tools (Slice 5) ──────────────────────────────────────────────────
+
+
+def _create_position(*, user, account: str = "default", symbol: str = "",
+                     shares=None, entry=None, stop=None, target=None,
+                     setup: str = "", notes: str = "") -> dict:
+    from api.services.voice_write_tools import preview_create_position
+    try:
+        return preview_create_position(
+            user_id=user["id"], account=account, symbol=symbol,
+            shares=shares, entry=entry, stop=stop, target=target,
+            setup=setup, notes=notes,
+        )
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+
+
+def _close_position(*, user, symbol: str = "", exit=None,
+                    partial: bool = False, account: str = "") -> dict:
+    from api.services.voice_write_tools import preview_close_position
+    try:
+        return preview_close_position(
+            user_id=user["id"], symbol=symbol, exit=exit,
+            partial=partial, account=account,
+        )
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+
+
+def _update_position(*, user, symbol: str = "", field: str = "", value=None) -> dict:
+    from api.services.voice_write_tools import preview_update_position
+    try:
+        return preview_update_position(
+            user_id=user["id"], symbol=symbol, field=field, value=value,
+        )
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+
+
+def _add_daily_note(*, user, text: str = "", emotion: str = "", date: str = "") -> dict:
+    from api.services.voice_write_tools import preview_add_daily_note
+    try:
+        return preview_add_daily_note(
+            user_id=user["id"], text=text, emotion=emotion, date=date,
+        )
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+
+
+def _log_mistake(*, user, mistake_type: str = "", text: str = "", symbol: str = "") -> dict:
+    from api.services.voice_write_tools import preview_log_mistake
+    try:
+        return preview_log_mistake(
+            user_id=user["id"], mistake_type=mistake_type, text=text, symbol=symbol,
+        )
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+
+
+def _confirm_action(*, user, action_id: str = "") -> dict:
+    from api.services.voice_action_signer import (
+        consume_action, ActionInvalid, ActionExpired, ActionReplayed,
+    )
+    from api.services.voice_write_tools import run_confirm
+    try:
+        payload = consume_action(action_id)
+    except ActionInvalid as e:
+        return {"ok": False, "error": f"invalid confirmation: {e}"}
+    except ActionExpired as e:
+        return {"ok": False, "error": f"confirmation expired: {e}"}
+    except ActionReplayed as e:
+        return {"ok": False, "error": f"already confirmed: {e}"}
+
+    if payload.get("user_id") != user.get("id"):
+        return {"ok": False, "error": "user mismatch"}
+
+    raw_args = payload.get("args")
+    if not raw_args:
+        return {"ok": False, "error": "action payload missing args"}
+
+    return run_confirm(payload["tool"], raw_args)
+
+
 # ── Agentic flows (Slice 6) ────────────────────────────────────────────────
 
 
@@ -420,6 +503,80 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_plan_my_day)
+
+    _vt.voice_tool(
+        name="create_position",
+        description="Open a new position in the user's journal. ALWAYS reads back the parsed trade and waits for user confirmation via `confirm_action`. Call this when the user says 'open a position', 'log a trade', 'I just bought X', etc.",
+        parameters={
+            "account": {"type": "string"},
+            "symbol": {"type": "string"},
+            "shares": {"type": "integer"},
+            "entry": {"type": "number"},
+            "stop": {"type": "number"},
+            "target": {"type": "number"},
+            "setup": {"type": "string"},
+            "notes": {"type": "string"},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_create_position)
+
+    _vt.voice_tool(
+        name="close_position",
+        description="Close an open position. Requires user confirmation via `confirm_action`.",
+        parameters={
+            "symbol": {"type": "string"},
+            "exit": {"type": "number"},
+            "partial": {"type": "boolean"},
+            "account": {"type": "string"},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_close_position)
+
+    _vt.voice_tool(
+        name="update_position",
+        description="Adjust stop, target, or notes on an open position.",
+        parameters={
+            "symbol": {"type": "string"},
+            "field": {"type": "string", "enum": ["stop", "target", "notes", "stop_price", "target_price"]},
+            "value": {},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_update_position)
+
+    _vt.voice_tool(
+        name="add_daily_note",
+        description="Add a quick journal note for today.",
+        parameters={
+            "text": {"type": "string"},
+            "emotion": {"type": "string"},
+            "date": {"type": "string"},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_add_daily_note)
+
+    _vt.voice_tool(
+        name="log_mistake",
+        description="Log a trading mistake (overtrading, FOMO, broke risk rule, etc.).",
+        parameters={
+            "mistake_type": {"type": "string"},
+            "text": {"type": "string"},
+            "symbol": {"type": "string"},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_log_mistake)
+
+    _vt.voice_tool(
+        name="confirm_action",
+        description="Confirm a pending write. The user must say 'yes' or 'confirm' before you call this. Use the action_id from the preview response.",
+        parameters={"action_id": {"type": "string"}},
+        contexts=["global"],
+        wants_user=True,
+    )(_confirm_action)
 
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────
