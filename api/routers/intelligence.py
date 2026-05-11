@@ -223,15 +223,39 @@ def get_risk_summary(
     user: dict = Depends(get_current_user),
 ):
     """Get portfolio risk summary from open journal positions."""
-    from api.services import journal_service
+    from api.services.journal_two import positions as j2_positions
+    from api.services.journal_two import accounts as j2_accounts
 
-    result = journal_service.list_entries(
-        user["id"],
-        filters={"status": "open"},
-        limit=50,
-        offset=0,
-    )
-    open_trades = result.get("entries", [])
+    # Resolve the user's Default account (intelligence engine treats one
+    # user = one trader). Per-account settings give us accountSize so
+    # we can derive size_pct = shares × entry / accountSize.
+    default_acc = j2_accounts.get_or_migrate_default_account(user["id"])
+    account_id = default_acc["id"]
+    settings = j2_accounts.get_account_settings(user["id"], account_id) or {}
+    account_size = float(settings.get("accountSize") or 0)
+
+    j2_open = j2_positions.list_open_positions(user["id"], account_id=account_id) or []
+
+    # Map J2 open positions → the dict shape calculate_portfolio_heat /
+    # check_sector_concentration / exposure-sum were built for (J1
+    # snake_case). Sector enrichment isn't on j2_positions; downstream
+    # consumers treat missing sector as None.
+    open_trades = []
+    for p in j2_open:
+        shares = float(p.get("shares") or 0)
+        entry = float(p.get("entryPrice") or 0)
+        stop = float(p.get("stopPrice") or 0)
+        size_dollar = shares * entry
+        size_pct = (size_dollar / account_size * 100.0) if account_size > 0 else 0.0
+        open_trades.append({
+            "sym": (p.get("symbol") or "").upper(),
+            "direction": (p.get("side") or "Long").lower(),
+            "size_pct": round(size_pct, 2),
+            "entry_price": entry,
+            "stop_price": stop,
+            "shares": shares,
+            "setup": p.get("setup"),
+        })
 
     uct = _get_api()
     if not uct:

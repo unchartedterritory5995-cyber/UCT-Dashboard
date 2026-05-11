@@ -141,9 +141,10 @@ def export_journal_for_brain(
     if not secret or authorization != f"Bearer {secret}":
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    from api.services import journal_service
+    from api.services.journal_two import trades as j2_trades
+    from api.services.journal_two import accounts as j2_accounts
     from api.services.auth_service import get_auth_connection
-    from datetime import date, timedelta
+    from datetime import date, timedelta, datetime
 
     # Resolve user_id
     auth_conn = get_auth_connection()
@@ -176,50 +177,74 @@ def export_journal_for_brain(
     user_id = user["id"]
     date_from = (date.today() - timedelta(days=days)).isoformat()
 
-    result = journal_service.list_entries(
-        user_id,
-        filters={"status": "closed", "date_from": date_from},
-        limit=500,
-        offset=0,
-    )
+    # Source from J2: get user's default account, fetch closed trades,
+    # filter to status=closed and entry_date >= date_from. (J2 doesn't
+    # expose date_from / limit kwargs on list_trades_for_user, so we
+    # filter + slice client-side.)
+    default_acc = j2_accounts.get_or_migrate_default_account(user_id)
+    account_id = default_acc["id"]
 
-    trades = result.get("entries", [])
+    all_trades = j2_trades.list_trades_for_user(user_id, account_id=account_id) or []
+    # Closed-only + within lookback window. J2 entryDate is ISO date
+    # ("YYYY-MM-DD") or full ISO timestamp; lexical compare is correct
+    # for both because date_from is plain "YYYY-MM-DD".
+    rows = [
+        t for t in all_trades
+        if t.get("exitDate")  # closed trades have exitDate set
+        and (t.get("entryDate") or "") >= date_from
+    ][:500]
 
-    # Flatten to essential fields for intelligence engine
+    # Map J2 camelCase → J1 snake_case export shape (intelligence engine
+    # contract). Fields J2 doesn't track emit None so consumers can fall
+    # back rather than the field disappearing.
     export = []
-    for t in trades:
+    for t in rows:
+        side = (t.get("side") or "").lower()  # Long → "long", Short → "short"
+        mistake_tags = t.get("mistakeTags") or []
+        emotion_tags = t.get("emotionTags") or []
+        pnl_percent = t.get("pnlPercent")
+        # J2 stores pnlPercent as a fraction (0.05 = 5%); J1 contract
+        # was a percent number (5.0).
+        pnl_pct_out = pnl_percent * 100.0 if pnl_percent is not None else None
+
+        entry_date = t.get("entryDate") or ""
+        try:
+            day_of_week = datetime.strptime(entry_date[:10], "%Y-%m-%d").strftime("%A") if entry_date else None
+        except ValueError:
+            day_of_week = None
+
         export.append({
             "id": t.get("id"),
-            "sym": t.get("sym"),
-            "direction": t.get("direction"),
+            "sym": t.get("symbol"),
+            "direction": side,
             "setup": t.get("setup"),
-            "entry_date": t.get("entry_date"),
-            "exit_date": t.get("exit_date"),
-            "entry_price": t.get("entry_price"),
-            "exit_price": t.get("exit_price"),
-            "stop_price": t.get("stop_price"),
-            "pnl_pct": t.get("pnl_pct"),
-            "pnl_dollar": t.get("pnl_dollar"),
-            "realized_r": t.get("realized_r"),
-            "size_pct": t.get("size_pct"),
+            "entry_date": entry_date,
+            "exit_date": t.get("exitDate"),
+            "entry_price": t.get("entryPrice"),
+            "exit_price": t.get("exitPrice"),
+            "stop_price": t.get("originalStop"),
+            "pnl_pct": pnl_pct_out,
+            "pnl_dollar": t.get("pnlDollar"),
+            "realized_r": t.get("rMultiple"),
+            "size_pct": None,  # J2 doesn't track this; consumer should fall back
             "shares": t.get("shares"),
-            "process_score": t.get("process_score"),
-            "ps_setup": t.get("ps_setup"),
-            "ps_entry": t.get("ps_entry"),
-            "ps_exit": t.get("ps_exit"),
-            "ps_sizing": t.get("ps_sizing"),
-            "ps_stop": t.get("ps_stop"),
-            "mistake_tags": t.get("mistake_tags"),
-            "emotion_tags": t.get("emotion_tags"),
-            "review_status": t.get("review_status"),
-            "thesis": t.get("thesis"),
-            "lesson": t.get("lesson"),
-            "confidence": t.get("confidence"),
-            "entry_time": t.get("entry_time"),
-            "exit_time": t.get("exit_time"),
-            "session": t.get("session"),
-            "day_of_week": t.get("day_of_week"),
-            "holding_minutes": t.get("holding_minutes"),
+            "process_score": None,
+            "ps_setup": None,
+            "ps_entry": None,
+            "ps_exit": None,
+            "ps_sizing": None,
+            "ps_stop": None,
+            "mistake_tags": ",".join(mistake_tags) if mistake_tags else None,
+            "emotion_tags": ",".join(emotion_tags) if emotion_tags else None,
+            "review_status": None,
+            "thesis": None,
+            "lesson": None,
+            "confidence": None,
+            "entry_time": None,
+            "exit_time": None,
+            "session": None,
+            "day_of_week": day_of_week,
+            "holding_minutes": None,
         })
 
     # Mistake summary
