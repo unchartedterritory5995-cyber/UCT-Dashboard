@@ -19,6 +19,8 @@ import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
 import ScreenshotPopover from './chart/ScreenshotPopover'
+import { matchShortcut } from './chart/keyboardShortcuts'
+import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -267,6 +269,35 @@ export default function StockChart({
 
   // ── Chart settings from user preferences ──
   const cs = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
+
+  // ── Theme colors (light / dark) layered over user chart settings ──
+  // Returns layout/grid/crosshair/candle colors based on cs.theme. Used in
+  // chartOpts below and re-applied via useEffect when theme changes.
+  const themeColors = useMemo(() => {
+    if (cs.theme === 'light') {
+      return {
+        background: '#ffffff',
+        textColor: '#1f2937',
+        gridColor: '#e5e7eb',
+        borderColor: '#d1d5db',
+        crosshairColor: '#6b7280',
+        candleUp: '#10b981',
+        candleDown: '#ef4444',
+      }
+    }
+    return {
+      background: cs.background,
+      textColor: cs.textColor,
+      gridColor: cs.grid?.color,
+      borderColor: cs.grid?.color,
+      crosshairColor: cs.crosshair?.color,
+      candleUp: cs.candles?.upColor,
+      candleDown: cs.candles?.downColor,
+    }
+  }, [cs.theme, cs.background, cs.textColor, cs.grid?.color, cs.crosshair?.color, cs.candles?.upColor, cs.candles?.downColor])
+
+  // ── Keyboard help overlay state ──
+  const [helpOpen, setHelpOpen] = useState(false)
 
   // ── Chart event markers (earnings + splits + dividends) — /api/chart/markers ──
   const markersEnabled = cs.markers?.earnings || cs.markers?.splits || cs.markers?.dividends
@@ -826,51 +857,102 @@ export default function StockChart({
     return map[resolvedTf] || null
   }, [resolvedTf])
 
-  // ── Drawing tool + TF keyboard shortcuts ──
-  // (Moved from above sessionBars/replay state declarations to fix a TDZ
-  // ReferenceError — see the comment higher up the file.)
+  // ── Unified keyboard shortcut handler ──
+  // Uses matchShortcut() from chart/keyboardShortcuts.js as the single source
+  // of truth. Covers timeframes, drawing tools, display toggles, indicator
+  // toggles, replay controls, and the help overlay. Replaces the older
+  // hand-rolled handler that lived here previously.
   useEffect(() => {
-    if (!showDrawingTools && !onTfChange && !replayMode) return
-    const TF_KEYS = { '1': '1', '5': '5', 'd': 'D', 'w': 'W' }
-    const TOOL_KEYS = { t: 'trendline', h: 'horizontal', r: 'rect', f: 'fib', x: 'text', m: 'measure', p: 'position' }
-    const handler = (e) => {
-      // Skip if user is typing in an input
-      const tag = document.activeElement?.tagName?.toLowerCase()
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') return
-      if (document.activeElement?.isContentEditable) return
-      const key = e.key.toLowerCase()
-      // Replay shortcuts — checked first
-      if (replayMode) {
-        if (e.key === ' ') { e.preventDefault(); setReplayPlaying(p => !p); return }
-        if (e.key === 'ArrowLeft') {
-          e.preventDefault()
-          setReplayPlaying(false)
-          setReplayIndex(i => Math.max(0, (i ?? 0) - 1))
-          return
-        }
-        if (e.key === 'ArrowRight') {
-          e.preventDefault()
-          setReplayPlaying(false)
-          setReplayIndex(i => Math.min((sessionBars?.length || 1) - 1, (i ?? 0) + 1))
-          return
-        }
+    const onKey = (e) => {
+      // Ignore when typing in inputs/textareas/contentEditable
+      const target = e.target
+      if (target) {
+        const tag = target.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+        if (target.isContentEditable) return
       }
-      // TF shortcuts (1=1min, 5=5min, d=daily, w=weekly)
-      if (onTfChange) {
-        const tfKey = TF_KEYS[key]
-        if (tfKey) { e.preventDefault(); onTfChange(tfKey); return }
+
+      const cmd = matchShortcut(e)
+      if (!cmd) return
+
+      if (cmd === 'help') {
+        e.preventDefault()
+        setHelpOpen(true)
+        return
       }
-      // Drawing tool shortcuts
-      if (showDrawingTools) {
-        if (e.key === 'Escape') { setActiveTool(null); return }
-        if (key === 'v') { setActiveTool(t => t === 'cursor' ? null : 'cursor'); return }
-        const tool = TOOL_KEYS[key]
-        if (tool) { e.preventDefault(); setActiveTool(t => t === tool ? null : tool) }
+
+      if (cmd.startsWith('tf:')) {
+        const tf = cmd.slice(3)
+        if (typeof onTfChange === 'function') {
+          e.preventDefault()
+          onTfChange(tf)
+        }
+        return
+      }
+
+      if (cmd.startsWith('tool:')) {
+        if (!showDrawingTools) return
+        const tool = cmd.slice(5)
+        e.preventDefault()
+        if (tool === 'cursor') {
+          // Escape / V — clear active tool (returns to default cursor)
+          setActiveTool(null)
+        } else {
+          setActiveTool(t => t === tool ? null : tool)
+        }
+        return
+      }
+
+      if (cmd.startsWith('toggle:')) {
+        const target = cmd.slice(7)
+        e.preventDefault()
+        const updateField = (key, value) => {
+          handleUpdateChartSettings({ ...cs, [key]: value, preset: 'custom' })
+        }
+        const updateIndicator = (key) => {
+          const next = {
+            ...cs.indicators,
+            [key]: { ...(cs.indicators?.[key] || {}), enabled: !cs.indicators?.[key]?.enabled },
+          }
+          handleUpdateChartSettings({ ...cs, indicators: next, preset: 'custom' })
+        }
+        switch (target) {
+          case 'ha': updateField('heikinAshi', !cs.heikinAshi); break
+          case 'log': updateField('logScale', !cs.logScale); break
+          case 'theme': updateField('theme', cs.theme === 'light' ? 'dark' : 'light'); break
+          case 'countdown': updateField('countdown', !cs.countdown); break
+          case 'rsi': updateIndicator('rsi'); break
+          case 'macd': updateIndicator('macd'); break
+          case 'bb': updateIndicator('bb'); break
+          default: break
+        }
+        return
+      }
+
+      if (cmd.startsWith('replay:')) {
+        if (!replayMode) return
+        const action = cmd.slice(7)
+        e.preventDefault()
+        switch (action) {
+          case 'playpause':
+            setReplayPlaying(p => !p)
+            break
+          case 'back':
+            setReplayPlaying(false)
+            setReplayIndex(i => Math.max(0, (i ?? 0) - 1))
+            break
+          case 'forward':
+            setReplayPlaying(false)
+            setReplayIndex(i => Math.min((sessionBars?.length || 1) - 1, (i ?? 0) + 1))
+            break
+          default: break
+        }
+        return
       }
     }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [showDrawingTools, setActiveTool, onTfChange, replayMode, sessionBars?.length])
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [cs, onTfChange, showDrawingTools, replayMode, sessionBars?.length, handleUpdateChartSettings])
 
   // ── Replay auto-advance interval ──
   useEffect(() => {
@@ -1319,26 +1401,26 @@ export default function StockChart({
     // ── Create or update chart instance ──
     const chartOpts = {
       layout: {
-        background: { type: ColorType.Solid, color: cs.background },
-        textColor: cs.textColor,
+        background: { type: ColorType.Solid, color: themeColors.background },
+        textColor: themeColors.textColor,
         fontFamily: "'Instrument Sans', sans-serif",
         fontSize: 10,
       },
       grid: {
-        vertLines: { color: cs.grid.visible ? cs.grid.color : 'transparent' },
-        horzLines: { color: cs.grid.visible ? cs.grid.color : 'transparent' },
+        vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
+        horzLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
       },
       crosshair: {
         mode: 0,
-        vertLine: { color: cs.crosshair.color, width: 1, style: cs.crosshair.style, labelBackgroundColor: cs.background },
-        horzLine: { color: cs.crosshair.color, width: 1, style: cs.crosshair.style, labelBackgroundColor: cs.background },
+        vertLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
+        horzLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
       },
       rightPriceScale: {
-        borderColor: cs.grid.color,
+        borderColor: themeColors.borderColor,
         scaleMargins: computePaneMargins(cs, showVolume && volData.length > 0).main,
       },
       timeScale: {
-        borderColor: cs.grid.color,
+        borderColor: themeColors.borderColor,
         timeVisible: true,
         secondsVisible: false,
         rightOffset: 8,
@@ -2728,6 +2810,7 @@ export default function StockChart({
           )}
         </>
       )}
+      <KeyboardHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   )
 }

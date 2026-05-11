@@ -63,6 +63,8 @@ export const CHART_DEFAULTS = {
   markers: { earnings: false, splits: false, dividends: false, news: false },
   countdown: false,
 
+  theme: 'dark', // 'dark' | 'light'
+
   preset: 'classic',
 }
 
@@ -211,6 +213,7 @@ export function mergeChartSettings(userSettings) {
       : CHART_DEFAULTS.comparisonSymbols,
     markers: { ...CHART_DEFAULTS.markers, ...(parsed.markers || {}) },
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
+    theme: parsed?.theme === 'light' ? 'light' : 'dark',
     preset: parsed.preset || 'classic',
   }
 }
