@@ -271,3 +271,139 @@ def test_discipline_events_cooling_off_counts_losing_trades(db_conn):
         user_id="u_coach", account_id=acc["id"], week_start="2026-05-04", conn=db_conn,
     )
     assert data["week"]["discipline_events"]["cooling_off_fires"] == 2
+
+
+# ── Phase G v2: assemble_day + arcs ────────────────────────────────────────
+
+
+def test_assemble_day_empty_returns_skeleton(db_conn):
+    from api.services.journal_two import coach_data_assembler as assembler
+    acc = _seed_account(db_conn)
+    data = assembler.assemble_day(
+        user_id="u_coach", account_id=acc["id"], day_iso="2026-05-11", conn=db_conn,
+    )
+    assert data["today"]["date"] == "2026-05-11"
+    assert data["today"]["trades"] == []
+    assert data["today"]["aggregates"]["trade_count"] == 0
+    assert data["today"]["open_positions"] == []
+    assert data["recent_arcs"] == []
+
+
+def test_assemble_day_includes_today_trades(db_conn):
+    from api.services.journal_two import coach_data_assembler as assembler
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_coach", account_id=acc["id"],
+                  exit_iso="2026-05-11T20:00:00+00:00", setup="Bull Flag",
+                  r_multiple=1.5, result="Win")
+    _insert_trade(db_conn, user_id="u_coach", account_id=acc["id"],
+                  exit_iso="2026-05-10T20:00:00+00:00", setup="Bull Flag",
+                  r_multiple=-1.0, result="Loss")
+    data = assembler.assemble_day(
+        user_id="u_coach", account_id=acc["id"], day_iso="2026-05-11", conn=db_conn,
+    )
+    assert data["today"]["aggregates"]["trade_count"] == 1
+    assert len(data["today"]["trades"]) == 1
+    assert data["today"]["trades"][0]["setup"] == "Bull Flag"
+
+
+def test_arc_consecutive_setup_losses(db_conn):
+    """Three Bull Flag losses on consecutive trading days should produce one arc."""
+    from api.services.journal_two import coach_data_assembler as assembler
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_coach", account_id=acc["id"],
+                  exit_iso="2026-05-07T20:00:00+00:00", setup="Bull Flag",
+                  symbol="TSLA", result="Loss", r_multiple=-1.0, pnl_dollar=-100)
+    _insert_trade(db_conn, user_id="u_coach", account_id=acc["id"],
+                  exit_iso="2026-05-08T20:00:00+00:00", setup="Bull Flag",
+                  symbol="NVDA", result="Loss", r_multiple=-1.0, pnl_dollar=-100)
+    _insert_trade(db_conn, user_id="u_coach", account_id=acc["id"],
+                  exit_iso="2026-05-11T20:00:00+00:00", setup="Bull Flag",
+                  symbol="CRWD", result="Loss", r_multiple=-1.0, pnl_dollar=-100)
+    data = assembler.assemble_day(
+        user_id="u_coach", account_id=acc["id"], day_iso="2026-05-11", conn=db_conn,
+    )
+    arcs = data["recent_arcs"]
+    assert any("3" in a and "Bull Flag" in a for a in arcs), arcs
+
+
+def test_arc_repeated_mistake_tag(db_conn):
+    """Three FOMO-tagged trades in the rolling window should produce an arc."""
+    from api.services.journal_two import coach_data_assembler as assembler
+    acc = _seed_account(db_conn)
+    import json
+    for day in ("2026-05-07", "2026-05-08", "2026-05-11"):
+        _insert_trade(
+            db_conn, user_id="u_coach", account_id=acc["id"],
+            exit_iso=f"{day}T20:00:00+00:00",
+            mistake_tags=json.dumps(["FOMO"]),
+            result="Loss", r_multiple=-1.0, pnl_dollar=-100,
+        )
+    data = assembler.assemble_day(
+        user_id="u_coach", account_id=acc["id"], day_iso="2026-05-11", conn=db_conn,
+    )
+    arcs = data["recent_arcs"]
+    assert any("FOMO" in a for a in arcs), arcs
+
+
+def test_arc_days_since_last_winner(db_conn):
+    """Three days in a row with no winner should produce an arc."""
+    from api.services.journal_two import coach_data_assembler as assembler
+    acc = _seed_account(db_conn)
+    for day in ("2026-05-07", "2026-05-08", "2026-05-11"):
+        _insert_trade(
+            db_conn, user_id="u_coach", account_id=acc["id"],
+            exit_iso=f"{day}T20:00:00+00:00",
+            result="Loss", r_multiple=-1.0, pnl_dollar=-100,
+        )
+    data = assembler.assemble_day(
+        user_id="u_coach", account_id=acc["id"], day_iso="2026-05-11", conn=db_conn,
+    )
+    arcs = data["recent_arcs"]
+    assert any("no closing winner" in a.lower() or "no winner" in a.lower() for a in arcs), arcs
+
+
+def test_arc_cap_at_3(db_conn):
+    """When more than 3 arcs could be reported, only the top 3 surface."""
+    from api.services.journal_two import coach_data_assembler as assembler
+    acc = _seed_account(db_conn)
+    import json
+    # Make it look like every arc fires
+    for day in ("2026-05-07", "2026-05-08", "2026-05-11"):
+        _insert_trade(
+            db_conn, user_id="u_coach", account_id=acc["id"],
+            exit_iso=f"{day}T20:00:00+00:00", setup="Bull Flag",
+            mistake_tags=json.dumps(["FOMO"]),
+            result="Loss", r_multiple=-1.0, pnl_dollar=-100,
+            regime="ORANGE",
+        )
+    data = assembler.assemble_day(
+        user_id="u_coach", account_id=acc["id"], day_iso="2026-05-11", conn=db_conn,
+    )
+    assert len(data["recent_arcs"]) <= 3
+
+
+def test_assemble_week_now_includes_weekly_eod_context(db_conn):
+    """Phase G v2 amends assemble_week to inject EOD summaries from the week."""
+    from api.services.journal_two import coach_data_assembler as assembler
+    import json, uuid
+    acc = _seed_account(db_conn)
+    # Seed an EOD recap from this week
+    db_conn.execute(
+        """
+        INSERT INTO j2_coach_outputs
+            (id, user_id, account_id, output_type, body, summary, metadata, created_at)
+        VALUES (?, ?, ?, 'eod_recap', ?, ?, ?, ?)
+        """,
+        (
+            str(uuid.uuid4()), "u_coach", acc["id"],
+            "Tuesday's full body", "Tuesday's summary",
+            json.dumps({"day": "2026-05-05"}),
+            "2026-05-05T20:00:00+00:00",
+        ),
+    )
+    db_conn.commit()
+    data = assembler.assemble_week(
+        user_id="u_coach", account_id=acc["id"], week_start="2026-05-04", conn=db_conn,
+    )
+    weo = data.get("weekly_eod_context") or []
+    assert any(e.get("day") == "2026-05-05" for e in weo), weo

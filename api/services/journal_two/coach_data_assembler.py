@@ -69,6 +69,11 @@ def assemble_week(
         vs_last = _vs_last_week(aggregates, _aggregate_trades(prior_trades))
         feedback_signals = _feedback_signals(conn, user_id, account_id)
 
+        # Phase G v2: pull EOD summaries from this week for the Weekly prompt.
+        weekly_eod_context = _eod_summaries_in_week(
+            conn, user_id, account_id, week_start, week_end_str,
+        )
+
         return {
             "trader_profile": trader_profile,
             "memory": memory,
@@ -83,6 +88,7 @@ def assemble_week(
                 "vs_last_week": vs_last,
             },
             "feedback_signals": feedback_signals,
+            "weekly_eod_context": weekly_eod_context,
         }
     finally:
         if owned:
@@ -393,3 +399,306 @@ def _feedback_signals(conn, user_id, account_id) -> list[dict]:
             meta = {}
         out.append({"week_start": meta.get("week_start"), "summary": r["summary"]})
     return out
+
+
+def _eod_summaries_in_week(
+    conn: sqlite3.Connection, user_id: str, account_id: str,
+    week_start: str, week_end: str,
+) -> list[dict]:
+    """Return EOD recap summaries from this week (used by Weekly Review prompt)."""
+    rows = conn.execute(
+        """
+        SELECT summary, metadata FROM j2_coach_outputs
+         WHERE user_id = ? AND account_id = ?
+           AND output_type = 'eod_recap' AND forgotten = 0
+           AND json_extract(metadata, '$.day') BETWEEN ? AND ?
+         ORDER BY json_extract(metadata, '$.day') ASC
+        """,
+        (user_id, account_id, week_start, week_end),
+    ).fetchall()
+    out = []
+    for r in rows:
+        try:
+            meta = json.loads(r["metadata"]) if r["metadata"] else {}
+        except (TypeError, json.JSONDecodeError):
+            meta = {}
+        out.append({"day": meta.get("day"), "summary": r["summary"] or ""})
+    return out
+
+
+# ── Phase G v2: assemble_day + multi-day arc detection ──────────────────────
+
+
+def assemble_day(
+    *,
+    user_id: str,
+    account_id: str,
+    day_iso: str,           # "YYYY-MM-DD" — the trader's calendar day in ET
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Build the structured payload for an EOD Recap prompt.
+
+    Mirrors `assemble_week` but scoped to a single ET calendar day plus
+    week-to-date + multi-day arc detection.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        from datetime import time
+        from zoneinfo import ZoneInfo
+
+        et = ZoneInfo("America/New_York")
+        day_date = datetime.fromisoformat(day_iso).date()
+        day_start_et = datetime.combine(day_date, time(0, 0), tzinfo=et)
+        day_end_et = day_start_et + timedelta(days=1)
+        day_start_utc = day_start_et.astimezone(timezone.utc)
+        day_end_utc = day_end_et.astimezone(timezone.utc)
+
+        # Trader profile
+        trader_profile = _read_trader_profile(conn, user_id, account_id)
+
+        # Memory — last 2 EOD summaries + last weekly summary + this_weeks_focus
+        eod_summaries = _recent_eod_summaries(conn, user_id, account_id, limit=2, before_day=day_iso)
+        last_weekly = _last_weekly_summary_and_focus(conn, user_id, account_id)
+
+        # Today's trades + aggregates
+        trades = _trades_in_range(conn, user_id, account_id, day_start_utc, day_end_utc)
+        aggregates = _aggregate_trades(trades)
+
+        # Today's discipline events
+        discipline_events = _discipline_events(
+            conn, user_id, account_id, day_start_utc, day_end_utc,
+        )
+
+        # Open positions
+        open_positions = _open_positions(conn, user_id, account_id)
+
+        # Week-to-date
+        wtd_start = day_start_et - timedelta(days=day_start_et.weekday())
+        wtd_trades = _trades_in_range(
+            conn, user_id, account_id,
+            wtd_start.astimezone(timezone.utc),
+            day_end_utc,
+        )
+        wtd_agg = _aggregate_trades(wtd_trades)
+
+        # Vs yesterday
+        yesterday_et = day_start_et - timedelta(days=1)
+        y_trades = _trades_in_range(
+            conn, user_id, account_id,
+            yesterday_et.astimezone(timezone.utc),
+            day_start_utc,
+        )
+        prior_day_net = _aggregate_trades(y_trades).get("net_pnl_dollar", 0.0)
+
+        # Multi-day arcs
+        rolling_window = _trades_in_range(
+            conn, user_id, account_id,
+            (day_start_et - timedelta(days=10)).astimezone(timezone.utc),
+            day_end_utc,
+        )
+        recent_arcs = _detect_recent_arcs(rolling_window, today_date=day_date)
+
+        feedback_signals = _eod_feedback_signals(conn, user_id, account_id)
+
+        return {
+            "trader_profile": trader_profile,
+            "memory": {
+                "recent_eod_summaries": eod_summaries,
+                "last_weekly_summary": last_weekly.get("summary", ""),
+                "this_weeks_focus": last_weekly.get("this_weeks_focus"),
+            },
+            "today": {
+                "date": day_iso,
+                "trades": trades,
+                "aggregates": aggregates,
+                "discipline_events": discipline_events,
+                "open_positions": open_positions,
+            },
+            "week_to_date": {
+                "range": f"{wtd_start.date().isoformat()} to {day_iso}",
+                "trade_count": wtd_agg.get("trade_count", 0),
+                "net_pnl_dollar": wtd_agg.get("net_pnl_dollar", 0.0),
+                "wins": wtd_agg.get("wins", 0),
+                "losses": wtd_agg.get("losses", 0),
+            },
+            "vs_yesterday": {
+                "prior_day_net_pnl_dollar": prior_day_net,
+            },
+            "recent_arcs": recent_arcs,
+            "feedback_signals": feedback_signals,
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
+def _recent_eod_summaries(
+    conn: sqlite3.Connection, user_id: str, account_id: str, *,
+    limit: int, before_day: str,
+) -> list[dict]:
+    """Return the last N EOD recap summaries for this account, excluding the
+    recap for `before_day` itself."""
+    rows = conn.execute(
+        """
+        SELECT summary, metadata FROM j2_coach_outputs
+         WHERE user_id = ? AND account_id = ?
+           AND output_type = 'eod_recap' AND forgotten = 0
+           AND json_extract(metadata, '$.day') < ?
+         ORDER BY created_at DESC LIMIT ?
+        """,
+        (user_id, account_id, before_day, limit),
+    ).fetchall()
+    out: list[dict] = []
+    for r in rows:
+        try:
+            meta = json.loads(r["metadata"]) if r["metadata"] else {}
+        except (TypeError, json.JSONDecodeError):
+            meta = {}
+        out.append({"day": meta.get("day"), "summary": r["summary"] or ""})
+    return out
+
+
+def _last_weekly_summary_and_focus(
+    conn: sqlite3.Connection, user_id: str, account_id: str,
+) -> dict:
+    """Return {summary, this_weeks_focus} from the most recent weekly_review."""
+    row = conn.execute(
+        """
+        SELECT summary, metadata FROM j2_coach_outputs
+         WHERE user_id = ? AND account_id = ?
+           AND output_type = 'weekly_review' AND forgotten = 0
+         ORDER BY created_at DESC LIMIT 1
+        """,
+        (user_id, account_id),
+    ).fetchone()
+    if row is None:
+        return {"summary": "", "this_weeks_focus": None}
+    try:
+        meta = json.loads(row["metadata"]) if row["metadata"] else {}
+    except (TypeError, json.JSONDecodeError):
+        meta = {}
+    return {
+        "summary": row["summary"] or "",
+        "this_weeks_focus": meta.get("this_weeks_focus"),
+    }
+
+
+def _open_positions(conn: sqlite3.Connection, user_id: str, account_id: str) -> list[dict]:
+    """Open positions (closed_at IS NULL) for this account."""
+    rows = conn.execute(
+        """
+        SELECT symbol, side, shares, entry_price, stop_price, entry_date
+          FROM j2_positions
+         WHERE user_id = ? AND account_id = ? AND closed_at IS NULL
+         ORDER BY entry_date ASC
+        """,
+        (user_id, account_id),
+    ).fetchall()
+    out: list[dict] = []
+    for r in rows:
+        try:
+            entry_dt = datetime.fromisoformat(str(r["entry_date"]).replace("Z", "+00:00"))
+            days_held = (datetime.now(timezone.utc) - entry_dt).days
+        except Exception:
+            days_held = None
+        out.append({
+            "symbol": r["symbol"],
+            "side": r["side"],
+            "shares": float(r["shares"]) if r["shares"] is not None else None,
+            "entry_price": float(r["entry_price"]) if r["entry_price"] is not None else None,
+            "stop_price": float(r["stop_price"]) if r["stop_price"] is not None else None,
+            "entry_date": r["entry_date"],
+            "days_held": days_held,
+            "unrealized_r": None,        # v2: live price integration deferred
+            "current_price": None,
+        })
+    return out
+
+
+def _eod_feedback_signals(conn, user_id, account_id) -> list[dict]:
+    """Recent EOD recaps the user marked unhelpful."""
+    rows = conn.execute(
+        """
+        SELECT summary, metadata FROM j2_coach_outputs
+         WHERE user_id = ? AND account_id = ?
+           AND output_type = 'eod_recap'
+           AND feedback = 'unhelpful' AND forgotten = 0
+         ORDER BY created_at DESC LIMIT 3
+        """,
+        (user_id, account_id),
+    ).fetchall()
+    out = []
+    for r in rows:
+        try:
+            meta = json.loads(r["metadata"]) if r["metadata"] else {}
+        except (TypeError, json.JSONDecodeError):
+            meta = {}
+        out.append({"day": meta.get("day"), "summary": r["summary"]})
+    return out
+
+
+# ── Arc detectors ──────────────────────────────────────────────────────────
+
+
+def _detect_recent_arcs(rolling_window_trades: list[dict], *, today_date) -> list[str]:
+    """Run all arc detectors, cap at 3, sort by significance."""
+    arcs: list[tuple[int, str]] = []   # (priority, text)
+
+    # ── Detector A: consecutive setup losses ──
+    if rolling_window_trades:
+        recent = rolling_window_trades[-10:]
+        if recent and recent[-1]["result"] == "Loss":
+            setup = recent[-1].get("setup")
+            streak_syms: list[str] = []
+            for t in reversed(recent):
+                if t.get("setup") == setup and t.get("result") == "Loss":
+                    streak_syms.append(t.get("symbol") or "?")
+                else:
+                    break
+            if len(streak_syms) >= 3 and setup:
+                streak_syms_quote = ", ".join(streak_syms[::-1])
+                arcs.append((10, f"{len(streak_syms)} consecutive losses on {setup} ({streak_syms_quote})"))
+
+    # ── Detector B: repeated mistake tag (rolling 7 days) ──
+    from collections import Counter
+    tag_count: Counter[str] = Counter()
+    for t in rolling_window_trades[-15:]:
+        for tag in t.get("mistake_tags") or []:
+            tag_count[tag] += 1
+    for tag, n in tag_count.most_common(2):
+        if n >= 3:
+            arcs.append((8, f"the `{tag}` mistake tag has appeared on {n} trades in the last 7 days"))
+
+    # ── Detector C: days since last winner ──
+    days_back = 0
+    seen_winner = False
+    for t in reversed(rolling_window_trades):
+        if t.get("result") == "Win":
+            seen_winner = True
+            break
+        days_back += 1
+    if not seen_winner and days_back >= 3:
+        arcs.append((6, f"{days_back} most-recent trades with no closing winner"))
+
+    # ── Detector D: cumulative drawdown approach ──
+    last_5 = rolling_window_trades[-15:]
+    five_day_pnl = sum(t.get("pnl_dollar") or 0 for t in last_5 if t.get("exit_date"))
+    if five_day_pnl <= -1000:
+        arcs.append((5, f"net P&L over the last several days is {_signed_money_str(five_day_pnl)}"))
+
+    # ── Detector E: regime-mismatch streak ──
+    hostile_regimes = [t for t in rolling_window_trades[-10:] if t.get("regime") in ("ORANGE", "RED")]
+    if len(hostile_regimes) >= 3:
+        arcs.append((4, f"{len(hostile_regimes)} of your recent trades were taken in ORANGE/RED regime"))
+
+    # (Detector F: consecutive discipline-cap breaches — deferred; needs accountSize injection.)
+
+    arcs.sort(key=lambda x: -x[0])
+    return [text for _, text in arcs[:3]]
+
+
+def _signed_money_str(v: float) -> str:
+    if v >= 0:
+        return f"+${v:.0f}"
+    return f"-${abs(v):.0f}"
