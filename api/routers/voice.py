@@ -362,9 +362,17 @@ def session_token(
     except HTTPException:
         raise
     except Exception as e:  # noqa: BLE001
-        _log.exception("[session_token] +%.0fms mint failed",
-                       (_time.time() - _t0) * 1000)
-        raise HTTPException(status_code=502, detail=f"Realtime session mint failed: {e}")
+        # Put the exception class + message right in the log line so we don't
+        # have to scroll the traceback to diagnose.
+        _log.error(
+            "[session_token] +%.0fms mint failed: %s: %s",
+            (_time.time() - _t0) * 1000, type(e).__name__, e,
+        )
+        _log.exception("[session_token] full traceback")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Realtime session mint failed: {type(e).__name__}: {e}",
+        )
 
     _log.info("[session_token] +%.0fms mint succeeded: %s",
               (_time.time() - _t0) * 1000, mint.get("session_id"))
