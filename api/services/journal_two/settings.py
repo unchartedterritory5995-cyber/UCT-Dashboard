@@ -58,6 +58,10 @@ def default_settings_data() -> dict[str, Any]:
         # Phase E — Mistakes + Emotions taxonomy
         "mistakeTags": [],
         "emotionTags": [],
+        # Phase F — Nudges thresholds
+        "lossStreakThreshold": None,
+        "winStreakThreshold": None,
+        "staleHoldDaysThreshold": None,
     }
 
 
@@ -316,6 +320,16 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
         # Phase E
         "mistakeTags": _validate_string_list(payload.get("mistakeTags", []), "mistakeTags"),
         "emotionTags": _validate_string_list(payload.get("emotionTags", []), "emotionTags"),
+        # Phase F
+        "lossStreakThreshold": _validate_optional_positive_int(
+            payload.get("lossStreakThreshold"), "lossStreakThreshold",
+        ),
+        "winStreakThreshold": _validate_optional_positive_int(
+            payload.get("winStreakThreshold"), "winStreakThreshold",
+        ),
+        "staleHoldDaysThreshold": _validate_optional_positive_int(
+            payload.get("staleHoldDaysThreshold"), "staleHoldDaysThreshold",
+        ),
     }
 
 

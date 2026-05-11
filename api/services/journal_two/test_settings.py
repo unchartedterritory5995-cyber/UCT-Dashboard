@@ -385,3 +385,26 @@ def test_validate_phase_e_defaults_to_empty_lists():
     out = svc.validate_settings_payload(_baseline_payload())
     assert out["mistakeTags"] == []
     assert out["emotionTags"] == []
+
+
+# ── Phase F — Nudges thresholds ──────────────────────────────────────────────
+
+def test_validate_accepts_phase_f_thresholds():
+    from api.services.journal_two import settings as svc
+    payload = _baseline_payload() | {
+        "lossStreakThreshold": 3,
+        "winStreakThreshold": 5,
+        "staleHoldDaysThreshold": 30,
+    }
+    out = svc.validate_settings_payload(payload)
+    assert out["lossStreakThreshold"] == 3
+    assert out["winStreakThreshold"] == 5
+    assert out["staleHoldDaysThreshold"] == 30
+
+
+def test_validate_phase_f_thresholds_default_to_none():
+    from api.services.journal_two import settings as svc
+    out = svc.validate_settings_payload(_baseline_payload())
+    assert out["lossStreakThreshold"] is None
+    assert out["winStreakThreshold"] is None
+    assert out["staleHoldDaysThreshold"] is None
