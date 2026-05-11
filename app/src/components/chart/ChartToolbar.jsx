@@ -382,6 +382,87 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <ColorPicker value={cs.indicators?.volumeProfile?.color ?? 'rgba(120,160,100,0.25)'}
             onChange={v => updateIndicator('volumeProfile', 'color', v)} />
         </div>
+
+        {/* MFI — Money Flow Index */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.mfi?.enabled ?? false}
+            onChange={e => updateIndicator('mfi', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>MFI</span>
+          <input type="number" className={styles.sPeriodInput}
+            value={cs.indicators?.mfi?.period ?? 14} min={2} max={100}
+            onChange={e => updateIndicator('mfi', 'period', e.target.value)} title="Period" />
+          <ColorPicker value={cs.indicators?.mfi?.color ?? '#c084fc'}
+            onChange={v => updateIndicator('mfi', 'color', v)} />
+        </div>
+
+        {/* CCI — Commodity Channel Index */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.cci?.enabled ?? false}
+            onChange={e => updateIndicator('cci', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>CCI</span>
+          <input type="number" className={styles.sPeriodInput}
+            value={cs.indicators?.cci?.period ?? 20} min={2} max={200}
+            onChange={e => updateIndicator('cci', 'period', e.target.value)} title="Period" />
+          <ColorPicker value={cs.indicators?.cci?.color ?? '#fbbf24'}
+            onChange={v => updateIndicator('cci', 'color', v)} />
+        </div>
+
+        {/* Williams %R */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.williamsR?.enabled ?? false}
+            onChange={e => updateIndicator('williamsR', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>Williams %R</span>
+          <input type="number" className={styles.sPeriodInput}
+            value={cs.indicators?.williamsR?.period ?? 14} min={2} max={100}
+            onChange={e => updateIndicator('williamsR', 'period', e.target.value)} title="Period" />
+          <ColorPicker value={cs.indicators?.williamsR?.color ?? '#60a5fa'}
+            onChange={v => updateIndicator('williamsR', 'color', v)} />
+        </div>
+
+        {/* ADX / DMI */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.adx?.enabled ?? false}
+            onChange={e => updateIndicator('adx', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>ADX</span>
+          <input type="number" className={styles.sPeriodInput}
+            value={cs.indicators?.adx?.period ?? 14} min={2} max={100}
+            onChange={e => updateIndicator('adx', 'period', e.target.value)} title="Period" />
+          <div className={styles.sMiniPeriodGroup}>
+            <ColorPicker value={cs.indicators?.adx?.adxColor ?? '#e5e7eb'}
+              onChange={v => updateIndicator('adx', 'adxColor', v)} title="ADX" />
+            <ColorPicker value={cs.indicators?.adx?.plusDIColor ?? '#22c55e'}
+              onChange={v => updateIndicator('adx', 'plusDIColor', v)} title="+DI" />
+            <ColorPicker value={cs.indicators?.adx?.minusDIColor ?? '#ef4444'}
+              onChange={v => updateIndicator('adx', 'minusDIColor', v)} title="-DI" />
+          </div>
+        </div>
+
+        {/* OBV — On-Balance Volume */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.obv?.enabled ?? false}
+            onChange={e => updateIndicator('obv', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>OBV</span>
+          <ColorPicker value={cs.indicators?.obv?.color ?? '#9ca3af'}
+            onChange={v => updateIndicator('obv', 'color', v)} />
+        </div>
+
+        {/* Donchian Channels */}
+        <div className={styles.sOverlayRow}>
+          <input type="checkbox"
+            checked={cs.indicators?.donchian?.enabled ?? false}
+            onChange={e => updateIndicator('donchian', 'enabled', e.target.checked)} />
+          <span className={styles.sIndicatorLabel}>Donchian</span>
+          <input type="number" className={styles.sPeriodInput}
+            value={cs.indicators?.donchian?.period ?? 20} min={2} max={200}
+            onChange={e => updateIndicator('donchian', 'period', e.target.value)} title="Period" />
+          <ColorPicker value={cs.indicators?.donchian?.color ?? 'rgba(96,165,250,0.5)'}
+            onChange={v => updateIndicator('donchian', 'color', v)} />
+        </div>
       </div>
 
       {/* Display Options */}

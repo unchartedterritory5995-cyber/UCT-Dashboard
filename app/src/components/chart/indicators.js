@@ -190,6 +190,189 @@ export function computeIchimoku(bars, tenkanPeriod = 9, kijunPeriod = 26, senkou
   return { tenkan, kijun, spanA, spanB, chikou }
 }
 
+// ─── Money Flow Index (MFI) ──────────────────────────────────────────────────
+// Typical price = (h + l + c) / 3
+// Money flow = typical * volume
+// Positive money flow accumulates when typical[i] > typical[i-1]; negative when <.
+// MFI = 100 - (100 / (1 + PMF_sum / NMF_sum)) over the rolling `period`.
+
+export function computeMFI(bars, period = 14) {
+  if (!bars || bars.length < period + 1) return []
+  // Pre-compute typical price and raw money flow for every bar
+  const tp = new Array(bars.length)
+  const flow = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) {
+    tp[i] = (bars[i].h + bars[i].l + bars[i].c) / 3
+    flow[i] = tp[i] * (bars[i].v || 0)
+  }
+  const result = []
+  // First MFI value lands at bars[period] (needs `period` directional flows starting at i=1)
+  for (let i = period; i < bars.length; i++) {
+    let pmf = 0, nmf = 0
+    for (let j = i - period + 1; j <= i; j++) {
+      if (tp[j] > tp[j - 1])      pmf += flow[j]
+      else if (tp[j] < tp[j - 1]) nmf += flow[j]
+    }
+    let mfi
+    if (nmf === 0) mfi = 100
+    else mfi = 100 - 100 / (1 + pmf / nmf)
+    result.push({ time: bars[i].t, value: parseFloat(mfi.toFixed(2)) })
+  }
+  return result
+}
+
+// ─── Commodity Channel Index (CCI) ───────────────────────────────────────────
+// Typical = (h + l + c) / 3
+// SMA over `period` of typical
+// MAD = mean(|typical - SMA|) over period
+// CCI = (typical - SMA) / (0.015 * MAD)
+
+export function computeCCI(bars, period = 20) {
+  if (!bars || bars.length < period) return []
+  const tp = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) tp[i] = (bars[i].h + bars[i].l + bars[i].c) / 3
+  const result = []
+  for (let i = period - 1; i < bars.length; i++) {
+    let sum = 0
+    for (let j = i - period + 1; j <= i; j++) sum += tp[j]
+    const sma = sum / period
+    let mad = 0
+    for (let j = i - period + 1; j <= i; j++) mad += Math.abs(tp[j] - sma)
+    mad /= period
+    const cci = mad === 0 ? 0 : (tp[i] - sma) / (0.015 * mad)
+    result.push({ time: bars[i].t, value: parseFloat(cci.toFixed(2)) })
+  }
+  return result
+}
+
+// ─── Williams %R ─────────────────────────────────────────────────────────────
+// HH = max(high) over period, LL = min(low) over period
+// %R = -100 * (HH - close) / (HH - LL)
+// Range is [-100, 0]; -20 is overbought, -80 oversold.
+
+export function computeWilliamsR(bars, period = 14) {
+  if (!bars || bars.length < period) return []
+  const result = []
+  for (let i = period - 1; i < bars.length; i++) {
+    let hh = -Infinity, ll = Infinity
+    for (let j = i - period + 1; j <= i; j++) {
+      if (bars[j].h > hh) hh = bars[j].h
+      if (bars[j].l < ll) ll = bars[j].l
+    }
+    const range = hh - ll
+    const r = range === 0 ? 0 : -100 * (hh - bars[i].c) / range
+    result.push({ time: bars[i].t, value: parseFloat(r.toFixed(2)) })
+  }
+  return result
+}
+
+// ─── Average Directional Index (ADX / DMI) ───────────────────────────────────
+// +DM = h[i] - h[i-1]  (if positive AND greater than l[i-1] - l[i], else 0)
+// -DM = l[i-1] - l[i]  (if positive AND greater than h[i] - h[i-1], else 0)
+// TR  = max(h-l, |h - c[i-1]|, |l - c[i-1]|)
+// Wilder smoothing of +DM, -DM, TR over `period`
+// +DI = 100 * smoothed_+DM / smoothed_TR
+// -DI = 100 * smoothed_-DM / smoothed_TR
+// DX  = 100 * |+DI - -DI| / (+DI + -DI)
+// ADX = Wilder-smoothed DX over `period`
+// First ADX value lands at bars[2*period - 1].
+
+export function computeADX(bars, period = 14) {
+  const empty = { adx: [], plusDI: [], minusDI: [] }
+  if (!bars || bars.length < 2 * period) return empty
+  // Step 1: per-bar +DM, -DM, TR (starting at i=1)
+  const plusDM  = new Array(bars.length).fill(0)
+  const minusDM = new Array(bars.length).fill(0)
+  const tr      = new Array(bars.length).fill(0)
+  for (let i = 1; i < bars.length; i++) {
+    const up   = bars[i].h - bars[i - 1].h
+    const down = bars[i - 1].l - bars[i].l
+    plusDM[i]  = (up > down && up > 0)   ? up   : 0
+    minusDM[i] = (down > up && down > 0) ? down : 0
+    tr[i] = Math.max(
+      bars[i].h - bars[i].l,
+      Math.abs(bars[i].h - bars[i - 1].c),
+      Math.abs(bars[i].l - bars[i - 1].c),
+    )
+  }
+  // Step 2: Wilder-smooth +DM, -DM, TR. Seed = sum of first `period` values (indices 1..period).
+  let sPlus = 0, sMinus = 0, sTR = 0
+  for (let i = 1; i <= period; i++) { sPlus += plusDM[i]; sMinus += minusDM[i]; sTR += tr[i] }
+  // After seeding, first +DI/-DI/DX value corresponds to bars[period]
+  const plusDI = [], minusDI = [], dxValues = []
+  const pushDI = (idx) => {
+    const pdi = sTR === 0 ? 0 : 100 * sPlus / sTR
+    const mdi = sTR === 0 ? 0 : 100 * sMinus / sTR
+    const sum = pdi + mdi
+    const dx = sum === 0 ? 0 : 100 * Math.abs(pdi - mdi) / sum
+    plusDI.push({ time: bars[idx].t, value: parseFloat(pdi.toFixed(2)) })
+    minusDI.push({ time: bars[idx].t, value: parseFloat(mdi.toFixed(2)) })
+    dxValues.push({ time: bars[idx].t, value: dx })
+  }
+  pushDI(period)
+  for (let i = period + 1; i < bars.length; i++) {
+    sPlus  = sPlus  - sPlus  / period + plusDM[i]
+    sMinus = sMinus - sMinus / period + minusDM[i]
+    sTR    = sTR    - sTR    / period + tr[i]
+    pushDI(i)
+  }
+  // Step 3: Wilder-smooth DX over `period` to get ADX.
+  // First ADX value seeds at sum of first `period` DX values → corresponds to bars[2*period - 1].
+  if (dxValues.length < period) return { adx: [], plusDI, minusDI }
+  let adx = 0
+  for (let i = 0; i < period; i++) adx += dxValues[i].value
+  adx /= period
+  const adxOut = [{ time: dxValues[period - 1].time, value: parseFloat(adx.toFixed(2)) }]
+  for (let i = period; i < dxValues.length; i++) {
+    adx = (adx * (period - 1) + dxValues[i].value) / period
+    adxOut.push({ time: dxValues[i].time, value: parseFloat(adx.toFixed(2)) })
+  }
+  return { adx: adxOut, plusDI, minusDI }
+}
+
+// ─── On-Balance Volume (OBV) ────────────────────────────────────────────────
+// OBV[0] = 0
+// OBV[i] = OBV[i-1] + v[i] if c[i] > c[i-1]
+//        = OBV[i-1] - v[i] if c[i] < c[i-1]
+//        = OBV[i-1]        otherwise
+
+export function computeOBV(bars) {
+  if (!bars?.length) return []
+  const result = [{ time: bars[0].t, value: 0 }]
+  let obv = 0
+  for (let i = 1; i < bars.length; i++) {
+    const v = bars[i].v || 0
+    if (bars[i].c > bars[i - 1].c)      obv += v
+    else if (bars[i].c < bars[i - 1].c) obv -= v
+    result.push({ time: bars[i].t, value: obv })
+  }
+  return result
+}
+
+// ─── Donchian Channels ───────────────────────────────────────────────────────
+// upper  = highest high over `period`
+// lower  = lowest  low  over `period`
+// middle = (upper + lower) / 2
+
+export function computeDonchian(bars, period = 20) {
+  const empty = { upper: [], middle: [], lower: [] }
+  if (!bars || bars.length < period) return empty
+  const upper = [], middle = [], lower = []
+  for (let i = period - 1; i < bars.length; i++) {
+    let hi = -Infinity, lo = Infinity
+    for (let j = i - period + 1; j <= i; j++) {
+      if (bars[j].h > hi) hi = bars[j].h
+      if (bars[j].l < lo) lo = bars[j].l
+    }
+    const mid = (hi + lo) / 2
+    const t = bars[i].t
+    upper.push({  time: t, value: parseFloat(hi.toFixed(4)) })
+    middle.push({ time: t, value: parseFloat(mid.toFixed(4)) })
+    lower.push({  time: t, value: parseFloat(lo.toFixed(4)) })
+  }
+  return { upper, middle, lower }
+}
+
 export function computeParabolicSAR(bars, step = 0.02, maxStep = 0.2) {
   if (!bars || bars.length < 2) return []
   const result = []

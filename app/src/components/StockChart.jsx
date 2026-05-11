@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings } from './chart/chartDefaults'
-import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku } from './chart/indicators'
+import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartToolbar from './chart/ChartToolbar'
@@ -115,11 +115,16 @@ function computePaneMargins(cs, hasVolume) {
   // Define all possible sub-panes in stacking order (bottom of chart → top)
   // Each entry: key (used in returned object), enabled flag, base height fraction
   const PANES = [
-    { key: 'atr',    enabled: !!ind.atr?.enabled,   baseH: 0.13 },
-    { key: 'macd',   enabled: !!ind.macd?.enabled,  baseH: 0.17 },
-    { key: 'stoch',  enabled: !!ind.stoch?.enabled, baseH: 0.15 },
-    { key: 'rsi',    enabled: !!ind.rsi?.enabled,   baseH: 0.15 },
-    { key: 'volume', enabled: hasVolume,             baseH: 0.15 },
+    { key: 'obv',       enabled: !!ind.obv?.enabled,       baseH: 0.13 },
+    { key: 'atr',       enabled: !!ind.atr?.enabled,       baseH: 0.13 },
+    { key: 'adx',       enabled: !!ind.adx?.enabled,       baseH: 0.15 },
+    { key: 'macd',      enabled: !!ind.macd?.enabled,      baseH: 0.17 },
+    { key: 'cci',       enabled: !!ind.cci?.enabled,       baseH: 0.15 },
+    { key: 'williamsR', enabled: !!ind.williamsR?.enabled, baseH: 0.15 },
+    { key: 'mfi',       enabled: !!ind.mfi?.enabled,       baseH: 0.15 },
+    { key: 'stoch',     enabled: !!ind.stoch?.enabled,     baseH: 0.15 },
+    { key: 'rsi',       enabled: !!ind.rsi?.enabled,       baseH: 0.15 },
+    { key: 'volume',    enabled: hasVolume,                baseH: 0.15 },
   ]
   const active = PANES.filter(p => p.enabled)
   const totalBase = active.reduce((s, p) => s + p.baseH, 0)
@@ -457,6 +462,16 @@ export default function StockChart({
   const macdLineRef   = useRef(null)
   const macdSignalRef = useRef(null)
   const macdHistRef   = useRef(null)
+  const mfiSeriesRef       = useRef(null)
+  const cciSeriesRef       = useRef(null)
+  const williamsRSeriesRef = useRef(null)
+  const adxSeriesRef       = useRef(null)
+  const adxPlusDIRef       = useRef(null)
+  const adxMinusDIRef      = useRef(null)
+  const obvSeriesRef       = useRef(null)
+  const donchianUpperRef   = useRef(null)
+  const donchianMiddleRef  = useRef(null)
+  const donchianLowerRef   = useRef(null)
   const priceLineRefs = useRef([])
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
   const lastBarRef = useRef(null)
@@ -1033,6 +1048,24 @@ export default function StockChart({
     const ichimokuRaw = ind.ichimoku?.enabled
       ? computeIchimoku(filteredBars)
       : { tenkan: [], kijun: [], spanA: [], spanB: [], chikou: [] }
+    const mfiRaw = ind.mfi?.enabled
+      ? computeMFI(filteredBars, ind.mfi.period)
+      : []
+    const cciRaw = ind.cci?.enabled
+      ? computeCCI(filteredBars, ind.cci.period)
+      : []
+    const williamsRRaw = ind.williamsR?.enabled
+      ? computeWilliamsR(filteredBars, ind.williamsR.period)
+      : []
+    const adxRaw = ind.adx?.enabled
+      ? computeADX(filteredBars, ind.adx.period)
+      : { adx: [], plusDI: [], minusDI: [] }
+    const obvRaw = ind.obv?.enabled
+      ? computeOBV(filteredBars)
+      : []
+    const donchianRaw = ind.donchian?.enabled
+      ? computeDonchian(filteredBars, ind.donchian.period)
+      : { upper: [], middle: [], lower: [] }
     return {
       rsi: rsiRaw,
       bb: {
@@ -1063,6 +1096,20 @@ export default function StockChart({
         spanA:  ichimokuRaw.spanA.map(p  => ({ time: adjustTime(p.time), value: p.value })),
         spanB:  ichimokuRaw.spanB.map(p  => ({ time: adjustTime(p.time), value: p.value })),
         chikou: ichimokuRaw.chikou.map(p => ({ time: adjustTime(p.time), value: p.value })),
+      },
+      mfi:       mfiRaw.map(p       => ({ time: adjustTime(p.time), value: p.value })),
+      cci:       cciRaw.map(p       => ({ time: adjustTime(p.time), value: p.value })),
+      williamsR: williamsRRaw.map(p => ({ time: adjustTime(p.time), value: p.value })),
+      adx: {
+        adx:     adxRaw.adx.map(p     => ({ time: adjustTime(p.time), value: p.value })),
+        plusDI:  adxRaw.plusDI.map(p  => ({ time: adjustTime(p.time), value: p.value })),
+        minusDI: adxRaw.minusDI.map(p => ({ time: adjustTime(p.time), value: p.value })),
+      },
+      obv: obvRaw.map(p => ({ time: adjustTime(p.time), value: p.value })),
+      donchian: {
+        upper:  donchianRaw.upper.map(p  => ({ time: adjustTime(p.time), value: p.value })),
+        middle: donchianRaw.middle.map(p => ({ time: adjustTime(p.time), value: p.value })),
+        lower:  donchianRaw.lower.map(p  => ({ time: adjustTime(p.time), value: p.value })),
       },
     }
   }, [filteredBars, cs.indicators, resolvedTf, adjustTime])
@@ -1840,6 +1887,188 @@ export default function StockChart({
     } else {
       for (const ref of [ichimokuTenkanRef, ichimokuKijunRef, ichimokuSpanARef, ichimokuSpanBRef, ichimokuChikouRef]) {
         if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
+      }
+    }
+
+    // ── MFI sub-pane (0-100, 80/20 reference lines) ──
+    if (indicatorData.mfi.length) {
+      const mfiColor = cs.indicators?.mfi?.color || '#c084fc'
+      if (!mfiSeriesRef.current) {
+        mfiSeriesRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'mfi',
+          color: mfiColor,
+          lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        })
+        chart.priceScale('mfi').applyOptions({
+          borderVisible: false,
+          scaleMargins: paneMargins.mfi || { top: 0.82, bottom: 0 },
+          autoScale: false,
+          minimum: 0,
+          maximum: 100,
+        })
+        mfiSeriesRef.current.createPriceLine({ price: 80, color: 'rgba(192,132,252,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
+        mfiSeriesRef.current.createPriceLine({ price: 20, color: 'rgba(192,132,252,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
+      } else {
+        mfiSeriesRef.current.applyOptions({ color: mfiColor })
+        chart.priceScale('mfi').applyOptions({ scaleMargins: paneMargins.mfi || { top: 0.82, bottom: 0 } })
+      }
+      mfiSeriesRef.current.setData(indicatorData.mfi)
+    } else if (mfiSeriesRef.current) {
+      try { chart.removeSeries(mfiSeriesRef.current) } catch {}
+      mfiSeriesRef.current = null
+    }
+
+    // ── CCI sub-pane (±300 typical, +100/0/-100 reference lines) ──
+    if (indicatorData.cci.length) {
+      const cciColor = cs.indicators?.cci?.color || '#fbbf24'
+      if (!cciSeriesRef.current) {
+        cciSeriesRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'cci',
+          color: cciColor,
+          lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        })
+        chart.priceScale('cci').applyOptions({
+          borderVisible: false,
+          scaleMargins: paneMargins.cci || { top: 0.82, bottom: 0 },
+          autoScale: true,
+        })
+        cciSeriesRef.current.createPriceLine({ price:  100, color: 'rgba(251,191,36,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
+        cciSeriesRef.current.createPriceLine({ price:    0, color: 'rgba(251,191,36,0.2)', lineWidth: 1, lineStyle: 3, axisLabelVisible: false })
+        cciSeriesRef.current.createPriceLine({ price: -100, color: 'rgba(251,191,36,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
+      } else {
+        cciSeriesRef.current.applyOptions({ color: cciColor })
+        chart.priceScale('cci').applyOptions({ scaleMargins: paneMargins.cci || { top: 0.82, bottom: 0 } })
+      }
+      cciSeriesRef.current.setData(indicatorData.cci)
+    } else if (cciSeriesRef.current) {
+      try { chart.removeSeries(cciSeriesRef.current) } catch {}
+      cciSeriesRef.current = null
+    }
+
+    // ── Williams %R sub-pane (-100..0, -20/-80 reference lines) ──
+    if (indicatorData.williamsR.length) {
+      const wrColor = cs.indicators?.williamsR?.color || '#60a5fa'
+      if (!williamsRSeriesRef.current) {
+        williamsRSeriesRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'williamsR',
+          color: wrColor,
+          lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        })
+        chart.priceScale('williamsR').applyOptions({
+          borderVisible: false,
+          scaleMargins: paneMargins.williamsR || { top: 0.82, bottom: 0 },
+          autoScale: false,
+          minimum: -100,
+          maximum: 0,
+        })
+        williamsRSeriesRef.current.createPriceLine({ price: -20, color: 'rgba(96,165,250,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
+        williamsRSeriesRef.current.createPriceLine({ price: -80, color: 'rgba(96,165,250,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
+      } else {
+        williamsRSeriesRef.current.applyOptions({ color: wrColor })
+        chart.priceScale('williamsR').applyOptions({ scaleMargins: paneMargins.williamsR || { top: 0.82, bottom: 0 } })
+      }
+      williamsRSeriesRef.current.setData(indicatorData.williamsR)
+    } else if (williamsRSeriesRef.current) {
+      try { chart.removeSeries(williamsRSeriesRef.current) } catch {}
+      williamsRSeriesRef.current = null
+    }
+
+    // ── ADX/DMI sub-pane (ADX + +DI + -DI) ──
+    const adxCfg = cs.indicators?.adx
+    const adxD = indicatorData.adx
+    if (adxD.adx.length) {
+      if (!adxSeriesRef.current) {
+        adxSeriesRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'adx',
+          color: adxCfg?.adxColor || '#e5e7eb',
+          lineWidth: 2,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        })
+        adxPlusDIRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'adx',
+          color: adxCfg?.plusDIColor || '#22c55e',
+          lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        })
+        adxMinusDIRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'adx',
+          color: adxCfg?.minusDIColor || '#ef4444',
+          lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        })
+        chart.priceScale('adx').applyOptions({
+          borderVisible: false,
+          scaleMargins: paneMargins.adx || { top: 0.80, bottom: 0 },
+          autoScale: false,
+          minimum: 0,
+          maximum: 100,
+        })
+        adxSeriesRef.current.createPriceLine({ price: 25, color: 'rgba(229,231,235,0.3)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
+      } else {
+        adxSeriesRef.current.applyOptions({  color: adxCfg?.adxColor     || '#e5e7eb' })
+        adxPlusDIRef.current.applyOptions({  color: adxCfg?.plusDIColor  || '#22c55e' })
+        adxMinusDIRef.current.applyOptions({ color: adxCfg?.minusDIColor || '#ef4444' })
+        chart.priceScale('adx').applyOptions({ scaleMargins: paneMargins.adx || { top: 0.80, bottom: 0 } })
+      }
+      adxSeriesRef.current.setData(adxD.adx)
+      adxPlusDIRef.current.setData(adxD.plusDI)
+      adxMinusDIRef.current.setData(adxD.minusDI)
+    } else {
+      for (const ref of [adxSeriesRef, adxPlusDIRef, adxMinusDIRef]) {
+        if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
+      }
+    }
+
+    // ── OBV sub-pane (cumulative, autoscale — values can be huge) ──
+    if (indicatorData.obv.length) {
+      const obvColor = cs.indicators?.obv?.color || '#9ca3af'
+      if (!obvSeriesRef.current) {
+        obvSeriesRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'obv',
+          color: obvColor,
+          lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        })
+        chart.priceScale('obv').applyOptions({
+          borderVisible: false,
+          scaleMargins: paneMargins.obv || { top: 0.86, bottom: 0 },
+          autoScale: true,
+        })
+      } else {
+        obvSeriesRef.current.applyOptions({ color: obvColor })
+        chart.priceScale('obv').applyOptions({ scaleMargins: paneMargins.obv || { top: 0.86, bottom: 0 } })
+      }
+      obvSeriesRef.current.setData(indicatorData.obv)
+    } else if (obvSeriesRef.current) {
+      try { chart.removeSeries(obvSeriesRef.current) } catch {}
+      obvSeriesRef.current = null
+    }
+
+    // ── Donchian Channels (3 LineSeries on main price scale, like BB) ──
+    const donchianColor = cs.indicators?.donchian?.color || 'rgba(96,165,250,0.5)'
+    const DONCHIAN_BANDS = [
+      { ref: donchianUpperRef,  data: indicatorData.donchian.upper,  style: 0 },
+      { ref: donchianMiddleRef, data: indicatorData.donchian.middle, style: 3 },
+      { ref: donchianLowerRef,  data: indicatorData.donchian.lower,  style: 0 },
+    ]
+    for (const { ref, data, style } of DONCHIAN_BANDS) {
+      if (data.length) {
+        if (!ref.current) {
+          ref.current = chart.addSeries(LineSeries, {
+            color: donchianColor, lineWidth: 1, lineStyle: style,
+            priceLineVisible: false, lastValueVisible: false,
+            crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
+          })
+        } else {
+          ref.current.applyOptions({ color: donchianColor })
+        }
+        ref.current.setData(data)
+      } else if (ref.current) {
+        try { chart.removeSeries(ref.current) } catch {}
+        ref.current = null
       }
     }
 
