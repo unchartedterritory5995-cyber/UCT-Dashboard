@@ -214,12 +214,24 @@ def mint_realtime_session(
     model: str | None = None,
 ) -> dict:
     """
-    Create an ephemeral Realtime session via the OpenAI SDK.
-    Returns {session_id, client_secret, expires_at, model}.
+    Create an ephemeral Realtime session via direct HTTP to OpenAI's
+    /v1/realtime/sessions endpoint.
 
-    The browser uses client_secret as Bearer auth in the WebRTC SDP exchange.
+    We bypass the OpenAI Python SDK's `client.beta.realtime.sessions.create`
+    path because the SDK we're pinned to sends `OpenAI-Beta: realtime` which
+    the production API now rejects with:
+        BadRequestError: Unknown beta requested: 'realtime'
+    OpenAI moved Realtime out of that beta program. We try multiple header
+    variants (no beta first, then `realtime=v1`) and use the first that 200s.
+
+    Returns {session_id, client_secret, expires_at, model}.
     """
-    client = _get_client()
+    import httpx
+
+    api_key = _os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not set")
+
     tool_specs = []
     for t in tools or []:
         tool_specs.append({
@@ -229,24 +241,54 @@ def mint_realtime_session(
             "parameters": t.get("parameters") or {"type": "object", "properties": {}},
         })
 
-    session = client.beta.realtime.sessions.create(
-        model=model or REALTIME_MODEL,
-        voice=voice,
-        modalities=["audio", "text"],
-        instructions=instructions,
-        tools=tool_specs,
-        tool_choice="auto",
-        turn_detection={"type": "server_vad", "threshold": 0.5},
-        input_audio_transcription={"model": "whisper-1"},
-    )
-
-    secret_obj = getattr(session, "client_secret", None)
-    secret_value = getattr(secret_obj, "value", None) if secret_obj else None
-    expires_at = getattr(secret_obj, "expires_at", None) if secret_obj else None
-
-    return {
-        "session_id": session.id,
-        "client_secret": secret_value,
-        "expires_at": expires_at,
+    payload = {
         "model": model or REALTIME_MODEL,
+        "voice": voice,
+        "modalities": ["audio", "text"],
+        "instructions": instructions,
+        "tools": tool_specs,
+        "tool_choice": "auto",
+        "turn_detection": {"type": "server_vad", "threshold": 0.5},
+        "input_audio_transcription": {"model": "whisper-1"},
     }
+
+    base_headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    # Try, in order: no beta header (stable), realtime=v1, realtime (legacy)
+    last_err: str | None = None
+    for beta_value in (None, "realtime=v1", "realtime"):
+        headers = dict(base_headers)
+        if beta_value:
+            headers["OpenAI-Beta"] = beta_value
+        try:
+            resp = httpx.post(
+                "https://api.openai.com/v1/realtime/sessions",
+                json=payload,
+                headers=headers,
+                timeout=10.0,
+            )
+        except Exception as e:  # noqa: BLE001
+            last_err = f"transport: {type(e).__name__}: {e}"
+            continue
+        if resp.status_code == 200:
+            data = resp.json()
+            secret = data.get("client_secret") or {}
+            if not isinstance(secret, dict):
+                secret = {}
+            return {
+                "session_id": data.get("id"),
+                "client_secret": secret.get("value"),
+                "expires_at": secret.get("expires_at"),
+                "model": model or REALTIME_MODEL,
+            }
+        # Capture the error body for the next iteration / final raise
+        body = resp.text[:300] if resp.text else ""
+        last_err = f"HTTP {resp.status_code} (beta={beta_value!r}): {body}"
+        # On 4xx other than 400-invalid_beta, no point retrying with a different
+        # header — credentials/account issues will fail the same way every time.
+        if resp.status_code in (401, 403, 404):
+            break
+
+    raise RuntimeError(f"Realtime session mint failed: {last_err}")

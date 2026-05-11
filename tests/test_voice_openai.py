@@ -120,29 +120,71 @@ def test_classify_intent_handles_no_match():
 
 # ── Realtime session minting ────────────────────────────────────────────────
 
-def test_mint_realtime_session_returns_client_secret():
-    fake_session = MagicMock()
-    fake_session.id = "sess_abc123"
-    fake_session.client_secret = MagicMock(value="ek_xyz999", expires_at=1234567890)
+def test_mint_realtime_session_returns_client_secret(monkeypatch):
+    """mint_realtime_session calls /v1/realtime/sessions directly via httpx."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
 
-    fake_client = MagicMock()
-    fake_client.beta.realtime.sessions.create.return_value = fake_session
+    fake_response = MagicMock()
+    fake_response.status_code = 200
+    fake_response.json.return_value = {
+        "id": "sess_abc123",
+        "client_secret": {"value": "ek_xyz999", "expires_at": 1234567890},
+    }
+
+    captured = {}
+    def fake_post(url, json=None, headers=None, timeout=None):
+        captured["url"] = url
+        captured["json"] = json
+        captured["headers"] = headers
+        return fake_response
+
+    import httpx
+    monkeypatch.setattr(httpx, "post", fake_post)
 
     tools_schema = [{"name": "get_quote", "description": "d",
                      "parameters": {"type": "object", "properties": {}}}]
 
-    with patch.object(voice_openai, "_get_client", return_value=fake_client):
-        out = voice_openai.mint_realtime_session(
-            voice="verse",
-            tools=tools_schema,
-            instructions="be helpful",
-        )
+    out = voice_openai.mint_realtime_session(
+        voice="verse", tools=tools_schema, instructions="be helpful",
+    )
 
     assert out["session_id"] == "sess_abc123"
     assert out["client_secret"] == "ek_xyz999"
     assert out["expires_at"] == 1234567890
-    fake_client.beta.realtime.sessions.create.assert_called_once()
-    kwargs = fake_client.beta.realtime.sessions.create.call_args.kwargs
-    assert kwargs["voice"] == "verse"
-    assert kwargs["instructions"] == "be helpful"
-    assert isinstance(kwargs["tools"], list)
+    assert captured["url"] == "https://api.openai.com/v1/realtime/sessions"
+    assert captured["headers"]["Authorization"] == "Bearer sk-fake"
+    assert captured["json"]["voice"] == "verse"
+    assert captured["json"]["instructions"] == "be helpful"
+    assert isinstance(captured["json"]["tools"], list)
+
+
+def test_mint_realtime_session_retries_with_beta_header_on_400(monkeypatch):
+    """If the no-beta call returns 400 (e.g. account requires beta header),
+    fall through to retry with OpenAI-Beta: realtime=v1."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
+
+    response_400 = MagicMock()
+    response_400.status_code = 400
+    response_400.text = '{"error":{"code":"invalid_beta"}}'
+
+    response_200 = MagicMock()
+    response_200.status_code = 200
+    response_200.json.return_value = {
+        "id": "sess_after_retry",
+        "client_secret": {"value": "ek_retry", "expires_at": 0},
+    }
+
+    calls = []
+    def fake_post(url, json=None, headers=None, timeout=None):
+        calls.append(headers.get("OpenAI-Beta"))
+        return response_400 if len(calls) == 1 else response_200
+
+    import httpx
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    out = voice_openai.mint_realtime_session(
+        voice="verse", tools=[], instructions="x",
+    )
+    assert out["session_id"] == "sess_after_retry"
+    assert calls[0] is None
+    assert calls[1] == "realtime=v1"
