@@ -25,6 +25,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import calculations as calc
+from api.services.journal_two import regime as regime_service
 from api.services.journal_two.positions import _row_to_position
 
 
@@ -152,8 +153,8 @@ def close_position(
                     entry_price, entry_date, exit_price, exit_date,
                     original_stop, setup, notes, pnl_dollar, pnl_percent,
                     r_multiple, hold_days, result, context_at_entry,
-                    account_id, fees, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    account_id, fees, created_at, regime
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     trade_id,
@@ -178,6 +179,7 @@ def close_position(
                     position.get("accountId"),  # inherit from parent position
                     normalized.get("fees", 0.0),
                     now,
+                    regime_service.get_current_regime().get("regime"),
                 ),
             )
 
@@ -393,8 +395,8 @@ def create_trade_manual(
                 entry_price, entry_date, exit_price, exit_date,
                 original_stop, setup, notes, pnl_dollar, pnl_percent,
                 r_multiple, hold_days, result, context_at_entry,
-                account_id, fees, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                account_id, fees, created_at, regime
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 trade_id,
@@ -419,6 +421,7 @@ def create_trade_manual(
                 account_id,
                 validated.get("fees", 0.0),
                 now,
+                regime_service.get_current_regime().get("regime"),
             ),
         )
         conn.commit()
@@ -520,8 +523,8 @@ def bulk_insert_trades(
                         entry_price, entry_date, exit_price, exit_date,
                         original_stop, setup, notes, pnl_dollar, pnl_percent,
                         r_multiple, hold_days, result, context_at_entry,
-                        account_id, fees, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        account_id, fees, created_at, regime
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         trade_id,
@@ -546,6 +549,7 @@ def bulk_insert_trades(
                         account_id,
                         float(pt.get("fees") or 0),
                         now,
+                        regime_service.get_current_regime().get("regime"),
                     ),
                 )
                 inserted += 1
