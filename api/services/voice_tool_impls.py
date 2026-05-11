@@ -172,6 +172,51 @@ def _get_economic_calendar() -> dict:
     return {"events": "; ".join(p for p in parts if p), "count": len(parts)}
 
 
+# ── Memory tools (Slice 8) ──────────────────────────────────────────────────
+
+
+def _remember(*, user, fact: str, category: str = "general") -> dict:
+    from api.services.voice_memory_service import add_fact
+    fact = (fact or "").strip()
+    if not fact:
+        return {"ok": False, "error": "fact text is required"}
+    try:
+        fid = add_fact(user["id"], text=fact, category=category or "general")
+        return {"ok": True, "fact_id": fid, "text": fact}
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+
+
+def _forget(*, user, query: str) -> dict:
+    from api.services.voice_memory_service import delete_facts_matching
+    q = (query or "").strip()
+    if not q:
+        return {"ok": False, "removed": 0, "error": "query is required"}
+    removed = delete_facts_matching(user["id"], q)
+    return {"ok": True, "removed": removed}
+
+
+def _list_my_facts(*, user) -> dict:
+    from api.services.voice_memory_service import list_facts
+    facts = list_facts(user["id"], limit=50)
+    if not facts:
+        return {"facts_text": "I don't have any saved facts about you yet.", "count": 0}
+    lines = [f"[{f.get('category')}] {f.get('text')}" for f in facts]
+    return {"facts_text": "; ".join(lines)[:1500], "count": len(facts)}
+
+
+def _recall_session(*, user, query: str) -> dict:
+    from api.services.voice_memory_service import search_summaries
+    q = (query or "").strip()
+    if not q:
+        return {"recall_text": "I need a topic or keyword to search past conversations.", "count": 0}
+    rows = search_summaries(user["id"], query=q, limit=5)
+    if not rows:
+        return {"recall_text": f"I don't have any past conversations matching '{q}'.", "count": 0}
+    lines = [f"{r.get('summary_text')}" for r in rows]
+    return {"recall_text": "; ".join(lines)[:1500], "count": len(rows)}
+
+
 def _register_all() -> None:
     """Register (or re-register) all Slice 2 tools into the registry."""
 
@@ -272,6 +317,41 @@ def _register_all() -> None:
         parameters={},
         contexts=["global"],
     )(_get_economic_calendar)
+
+    _vt.voice_tool(
+        name="remember",
+        description="Save a fact about the user (preference, account alias, trading style, etc.) for future conversations. Call this when the user explicitly says 'remember that...' or states a clear preference you should keep.",
+        parameters={
+            "fact": {"type": "string", "description": "The fact to remember, in the user's words."},
+            "category": {"type": "string", "enum": ["preference", "account_alias", "style", "fact", "general"]},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_remember)
+
+    _vt.voice_tool(
+        name="forget",
+        description="Remove saved facts matching a topic or keyword. Call this when the user says 'forget...' or asks you to stop remembering something.",
+        parameters={"query": {"type": "string", "description": "Topic or keyword to match."}},
+        contexts=["global"],
+        wants_user=True,
+    )(_forget)
+
+    _vt.voice_tool(
+        name="list_my_facts",
+        description="Read back everything you currently remember about the user.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_list_my_facts)
+
+    _vt.voice_tool(
+        name="recall_session",
+        description="Search past conversation summaries for a topic. Call this when the user asks 'what did we discuss about X?' or 'remind me what I said about Y'.",
+        parameters={"query": {"type": "string"}},
+        contexts=["global"],
+        wants_user=True,
+    )(_recall_session)
 
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────

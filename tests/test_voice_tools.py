@@ -150,3 +150,76 @@ def test_get_earnings_today(monkeypatch):
     out = voice_tools.dispatch("get_earnings_today", {}, user={"id": "u"})
     assert "AAPL" in out["tickers"]
     assert out["count"] == 2
+
+
+# ── Memory tools (Slice 8) ──────────────────────────────────────────────────
+
+def test_memory_tools_register():
+    from api.services import voice_tool_impls  # noqa
+    names = set(voice_tools.all_tool_names())
+    expected = {"remember", "forget", "list_my_facts", "recall_session"}
+    assert expected.issubset(names)
+
+
+def test_remember_tool_persists_fact():
+    from api.services.auth_db import init_db
+    from api.services.auth_service import create_user
+    init_db()
+    uid = create_user(f"r_{__import__('uuid').uuid4()}@example.com", "p")["id"]
+
+    out = voice_tools.dispatch(
+        "remember",
+        {"fact": "I trade small caps under $5B", "category": "style"},
+        user={"id": uid},
+    )
+    assert out["ok"] is True
+
+    from api.services.voice_memory_service import list_facts
+    facts = list_facts(uid)
+    assert any("small caps" in f["text"] for f in facts)
+
+
+def test_forget_tool_removes_matching():
+    from api.services.auth_db import init_db
+    from api.services.auth_service import create_user
+    from api.services.voice_memory_service import add_fact, list_facts
+    init_db()
+    uid = create_user(f"f_{__import__('uuid').uuid4()}@example.com", "p")["id"]
+    add_fact(uid, text="I trade options on weekends", category="style")
+    add_fact(uid, text="My main account is Swing", category="account_alias")
+
+    out = voice_tools.dispatch("forget", {"query": "options"}, user={"id": uid})
+    assert out["removed"] >= 1
+
+    facts = list_facts(uid)
+    assert not any("options" in f["text"] for f in facts)
+
+
+def test_list_my_facts_tool():
+    from api.services.auth_db import init_db
+    from api.services.auth_service import create_user
+    from api.services.voice_memory_service import add_fact
+    init_db()
+    uid = create_user(f"l_{__import__('uuid').uuid4()}@example.com", "p")["id"]
+    add_fact(uid, text="I prefer dollar amounts over percentages", category="preference")
+
+    out = voice_tools.dispatch("list_my_facts", {}, user={"id": uid})
+    assert "dollar amounts" in out["facts_text"]
+    assert out["count"] >= 1
+
+
+def test_recall_session_tool():
+    from api.services.auth_db import init_db
+    from api.services.auth_service import create_user
+    from api.services.voice_session_service import create_session
+    from api.services.voice_memory_service import add_summary
+    init_db()
+    uid = create_user(f"rs_{__import__('uuid').uuid4()}@example.com", "p")["id"]
+    sid = create_session(user_id=uid, mode="c", source="orb", page_context="global")
+    add_summary(session_id=sid, user_id=uid,
+                summary_text="Discussed NVDA earnings setup",
+                key_topics=["NVDA", "earnings"])
+
+    out = voice_tools.dispatch("recall_session", {"query": "NVDA"}, user={"id": uid})
+    assert "NVDA" in out["recall_text"]
+    assert out["count"] >= 1
