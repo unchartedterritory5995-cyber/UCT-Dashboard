@@ -96,12 +96,12 @@ All other major endpoints (themes, breadth, calendar, candidates, options flow s
 | `/api/flow/stats` | ✅ 200 | 203 ms | 445k rows summary |
 | `/api/flow/dates` | ✅ 200 | 98 ms | list of available dates |
 | `/api/top-flow/history` | ✅ 200 | 96 ms | 105 KB active flow positions |
-| `/api/top-flow/snapshot` | 🟠 200 | 69 ms | **Returns HTML SPA fallback — endpoint method mismatch?** |
+| `/api/top-flow/snapshot` | ✅ N/A | — | **Resolved 2026-05-11: POST-only by design (write endpoint). GET intentionally falls through to SPA. Reads use `/history`.** |
 | `/api/gex/data` | ⚠️ 422 | 67 ms | Requires `?ticker=` param — fine, but caller-facing |
 
 **Defects:**
 - Flow data 25 MB / 15s (P1)
-- top-flow/snapshot returns HTML — investigate (P2)
+- ~~top-flow/snapshot returns HTML — investigate (P2)~~ **Resolved 2026-05-11**: endpoint is POST-only by design (write trigger). GET falls through to SPA as expected. Reads via `GET /api/top-flow/history`. Router + handler docstrings updated to document this clearly.
 
 ### Earnings + Transcripts
 
@@ -184,13 +184,15 @@ Fix paths:
 - Or: integrate alternative source (Seeking Alpha API? AlphaVantage?)
 - Or: remove from feature list as "premium-only" + show in UI as "Available on Pro tier"
 
-**6. `/api/top-flow/snapshot` returns HTML**
+**6. ~~`/api/top-flow/snapshot` returns HTML~~ — RESOLVED 2026-05-11**
 
-Either:
-- Route doesn't exist as GET (only POST/PUT?)
-- Method handler dispatching wrong
+Root cause: scenario A — endpoint is POST-only by design. `api/top_flow_router.py` registers `@router.post("/snapshot")` (manual trigger to record a new price snapshot for active picks). There is no GET handler, so anonymous GETs fall through the FastAPI route table and hit the React SPA catch-all, returning `index.html` (~2 KB). The OpenAPI spec correctly lists only `POST /api/top-flow/snapshot`.
 
-Investigate `api/routers/top_flow.py` (or wherever) — what methods does `/snapshot` accept?
+Resolution: documentation only — no behavioral change needed.
+- POST `/api/top-flow/snapshot` = write (record new snapshot, fires background task)
+- GET `/api/top-flow/history` = read (returns all active + archived picks with daily history)
+
+Router module docstring + handler docstring in `api/top_flow_router.py` updated to make this contract explicit so future audits don't re-flag it.
 
 ### 🟡 P3 — Data density / UX polish (backlog)
 

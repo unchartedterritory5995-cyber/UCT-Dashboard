@@ -1,9 +1,12 @@
 """
 top_flow_router.py — API routes for Top Flow performance tracker.
 
-POST /api/top-flow/save   — auto-called by frontend when CSV loads (saves picks)
-GET  /api/top-flow/history — returns all active + archived picks with daily history
-POST /api/top-flow/snapshot — manual trigger to snapshot current prices
+POST /api/top-flow/save     — auto-called by frontend when CSV loads (saves picks)
+GET  /api/top-flow/history  — returns all active + archived picks with daily history (READ snapshots here)
+POST /api/top-flow/snapshot — WRITE-only: manual trigger to record a new price snapshot for active picks.
+                              Returns 202-style {"status": "started"} immediately and runs in a background task.
+                              There is intentionally no GET handler — anonymous GETs fall through to the SPA
+                              and return the index.html shell. To read the most recent snapshot, use /history.
 """
 
 from fastapi import APIRouter
@@ -41,6 +44,15 @@ def get_history():
 
 @router.post("/snapshot")
 async def trigger_snapshot():
+    """Trigger a new price snapshot for all active top-flow picks.
+
+    POST-only by design — this is a write/side-effect endpoint that records a
+    point-in-time price observation. To READ the latest snapshot or full
+    history, GET /api/top-flow/history instead.
+
+    A GET against /api/top-flow/snapshot will fall through to the React SPA
+    catch-all and return index.html (this is expected, not a bug).
+    """
     import asyncio
     from api.top_flow_tracker import snapshot_prices
 
