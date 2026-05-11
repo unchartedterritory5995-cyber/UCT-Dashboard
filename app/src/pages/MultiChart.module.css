@@ -154,3 +154,11 @@
 /* Placeholder classes for LayoutPicker — full styles arrive in Task 6 */
 .layoutPicker {}
 .layoutBtnLabel {}
+
+/* Placeholder classes for MultiChartCell — full styles arrive in Task 6 */
+.cell {}
+.cellHeader {}
+.cellSymbol {}
+.cellTfSelect {}
+.cellRemove {}
+.cellChart {}
