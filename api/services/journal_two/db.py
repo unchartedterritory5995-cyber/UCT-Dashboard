@@ -222,6 +222,29 @@ CREATE TABLE IF NOT EXISTS j2_coach_outputs (
 );
 CREATE INDEX IF NOT EXISTS idx_j2_coach_outputs_lookup
     ON j2_coach_outputs(user_id, account_id, output_type, created_at DESC);
+
+-- Phase G v3: Compass Chat — persistent message log for the AI Coach
+-- conversation surface. Supports multi-turn chat, tool call/result
+-- round-trips, compaction summaries, and per-message forgetting.
+CREATE TABLE IF NOT EXISTS j2_chat_messages (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL,
+    account_id      TEXT NOT NULL,
+    role            TEXT NOT NULL CHECK(role IN ('user','assistant','tool','summary')),
+    content         TEXT,
+    tool_calls      TEXT,
+    tool_results    TEXT,
+    parent_id       TEXT,
+    metadata        TEXT,
+    created_at      TEXT NOT NULL,
+    forgotten       INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_j2_chat_account
+    ON j2_chat_messages(user_id, account_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_j2_chat_parent
+    ON j2_chat_messages(parent_id);
 """
 
 
@@ -280,6 +303,11 @@ _PHASE_2_ALTERS = [
     # Phase G — Compass (Coach Core + Weekly Review)
     "ALTER TABLE j2_accounts ADD COLUMN trader_profile TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE j2_accounts ADD COLUMN compass_enabled INTEGER NOT NULL DEFAULT 1",
+    # Compass Chat (Phase G v3) — per-account muted setups + paper-only days.
+    # Consumed by mute_setup / schedule_paper_only_day tools, and by the
+    # future Pre-Trade Verdict surface.
+    "ALTER TABLE j2_accounts ADD COLUMN muted_setups TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE j2_accounts ADD COLUMN paper_only_days TEXT NOT NULL DEFAULT '[]'",
 ]
 
 
