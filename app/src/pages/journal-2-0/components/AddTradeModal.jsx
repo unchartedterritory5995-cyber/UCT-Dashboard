@@ -18,6 +18,8 @@ import styles from './ModalShell.module.css'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2DisciplineState from '../hooks/useJ2DisciplineState'
 import DisciplineLockBanner from './DisciplineLockBanner'
+import useJ2SetupStats from '../hooks/useJ2SetupStats'
+import SetupStatsPanel from './SetupStatsPanel'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -45,6 +47,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
   const { accountId } = useJ2SelectedAccount()
   const { state: disciplineState } = useJ2DisciplineState(accountId)
   const [disciplineOverrideArmed, setDisciplineOverrideArmed] = useState(false)
+  const { stats: setupStats } = useJ2SetupStats(accountId, setupVal)
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -143,7 +146,13 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
     stopPrice: originalStop,
     side,
   })
-  const cap = settings?.maxRiskPerTradePct
+  const baseCap = settings?.maxRiskPerTradePct
+  const isAPlus = !!setupVal && (settings?.aPlusSetups || []).includes(setupVal)
+  const multiplier = settings?.aPlusRiskMultiplier
+  const effectiveCap = (baseCap != null && isAPlus && multiplier != null && multiplier > 1)
+    ? baseCap * multiplier
+    : baseCap
+  const cap = effectiveCap
   const overCap = cap != null && impliedRiskPct != null && impliedRiskPct > cap
 
   return (
@@ -293,6 +302,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
                 {setups.map((s) => (<option key={s} value={s}>{s}</option>))}
               </select>
             </label>
+            <SetupStatsPanel stats={setupStats} isAPlus={isAPlus} />
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Fees / Commissions</span>
               <div className={styles.prefixInput}>
@@ -348,7 +358,12 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
             >
               <strong>Over risk cap.</strong>{' '}
               Implied risk <strong>{impliedRiskPct.toFixed(2)}%</strong> exceeds
-              your cap of <strong>{cap}%</strong>.{' '}
+              your cap of <strong>{cap}%</strong>
+              {isAPlus && multiplier != null && (
+                <span style={{ opacity: 0.85 }}>
+                  {' '}(A+ elevated from {baseCap}% × {multiplier})
+                </span>
+              )}.{' '}
               {overrideArmed
                 ? 'Override armed — Save will commit anyway.'
                 : (
