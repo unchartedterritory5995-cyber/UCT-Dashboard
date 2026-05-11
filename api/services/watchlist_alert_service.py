@@ -171,6 +171,67 @@ def _deliver_alert(alert: dict, current_price: float):
         _logger.warning("Discord delivery failed: %s", e)
 
 
+def deliver_alert_payload(
+    user_id: str,
+    sym: str,
+    title: str,
+    message: str,
+    source: str = "indicator_alert",
+    extra_data: dict | None = None,
+) -> None:
+    """Public delivery hook reusable by other alert systems (e.g. indicator alerts).
+
+    Mirrors the multi-channel delivery in ``_deliver_alert`` but accepts a
+    generic title/message instead of price-alert specifics. Each channel is
+    isolated in its own try/except so a single failure does not block the
+    others. Safe to call from a background thread (no Flask/FastAPI context
+    is required).
+    """
+    data = {"symbol": sym, "source": source}
+    if extra_data:
+        data.update(extra_data)
+
+    # 1. AlertBell (in-app)
+    try:
+        add_alert(
+            source,
+            title,
+            message,
+            severity="warning",
+            data=data,
+        )
+    except Exception as e:
+        _logger.warning("AlertBell delivery failed: %s", e)
+
+    # 2. Email
+    try:
+        email = _get_user_email(user_id)
+        if email:
+            html = _wrap_html(f"""
+                <h2 style="color:#c9a84c;font-size:16px;margin:0 0 16px;">{title}</h2>
+                <p style="color:#e8e0d0;font-size:14px;margin:0 0 16px;">{message}</p>
+                <p style="color:#6b6a60;font-size:12px;margin:0;">
+                    Manage your alerts from the chart toolbar.
+                </p>
+            """)
+            send_email(email, f"UCT Alert: {title}", html)
+    except Exception as e:
+        _logger.warning("Email delivery failed: %s", e)
+
+    # 3. Discord
+    try:
+        from api.services.alerts import _fire_discord
+        _fire_discord({
+            "type": source,
+            "severity": "warning",
+            "title": title,
+            "message": message,
+            "timestamp": datetime.now(timezone.utc).isoformat()[:16],
+        })
+    except Exception as e:
+        _logger.warning("Discord delivery failed: %s", e)
+
+
 def run_alert_check(price_data: dict):
     """Run alert check in background thread. Skips if already checking."""
     if not price_data:
