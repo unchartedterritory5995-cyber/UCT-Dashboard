@@ -6,6 +6,9 @@ import lazy from './utils/lazyWithRetry'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { VoiceProvider } from './context/VoiceContext'
+import { useVoice } from './context/VoiceContext'
+import useRealtimeSession from './hooks/useRealtimeSession'
+import useWakeWord from './hooks/useWakeWord'
 import AudioPlayerBar from './components/voice/AudioPlayerBar'
 import FloatingOrb from './components/voice/FloatingOrb'
 import TranscriptBubble from './components/voice/TranscriptBubble'
@@ -53,7 +56,10 @@ const NotFound = lazy(() => import('./pages/NotFound'))
 
 /** Global voice UI — must render inside VoiceProvider */
 function VoiceMounts() {
+  const { wakeEnabled } = useVoice()
+  const { connect } = useRealtimeSession()
   usePushToTalkHotkey({ context: 'global' })
+  useWakeWord({ enabled: wakeEnabled, onWake: () => connect('global') })
   return (
     <>
       <FloatingOrb context="global" />
