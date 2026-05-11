@@ -300,6 +300,36 @@ def _confirm_action(*, user, action_id: str = "") -> dict:
     return run_confirm(payload["tool"], raw_args)
 
 
+# ── Self-Q&A (Slice 7) ─────────────────────────────────────────────────────
+
+
+def _get_my_pnl(*, user, period: str = "week") -> dict:
+    from api.services.voice_self_qa import get_my_pnl
+    return get_my_pnl(user_id=user["id"], period=period)
+
+
+def _get_my_setup_performance(*, user, setup: str = "") -> dict:
+    from api.services.voice_self_qa import get_my_setup_performance
+    return get_my_setup_performance(user_id=user["id"], setup=setup)
+
+
+def _get_my_recent_mistakes(*, user, days: int = 30) -> dict:
+    from api.services.voice_self_qa import get_my_recent_mistakes
+    return get_my_recent_mistakes(user_id=user["id"], days=days)
+
+
+def _get_my_psychology(*, user, period: str = "month") -> dict:
+    from api.services.voice_self_qa import get_my_psychology
+    return get_my_psychology(user_id=user["id"], period=period)
+
+
+def _find_my_trades(*, user, symbol: str = "", status: str = "",
+                    setup: str = "", days: int = 30) -> dict:
+    from api.services.voice_self_qa import find_my_trades
+    return find_my_trades(user_id=user["id"], symbol=symbol, status=status,
+                          setup=setup, days=days)
+
+
 # ── Agentic flows (Slice 6) ────────────────────────────────────────────────
 
 
@@ -577,6 +607,51 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_confirm_action)
+
+    _vt.voice_tool(
+        name="get_my_pnl",
+        description="Get the user's trading P&L for a period (today, week, month, ytd). Call when they ask 'how did I do this week' / 'what's my P&L' / etc.",
+        parameters={"period": {"type": "string", "enum": ["today", "week", "month", "ytd", "year", "all"]}},
+        contexts=["global"],
+        wants_user=True,
+    )(_get_my_pnl)
+
+    _vt.voice_tool(
+        name="get_my_setup_performance",
+        description="Best/worst setups for the user, or stats for one specific setup. Call when they ask 'what's my best setup' / 'how does my VCP perform' / etc.",
+        parameters={"setup": {"type": "string", "description": "Optional — specific setup name."}},
+        contexts=["global"],
+        wants_user=True,
+    )(_get_my_setup_performance)
+
+    _vt.voice_tool(
+        name="get_my_recent_mistakes",
+        description="Recurring mistakes from the user's journal. Call when they ask 'what mistakes have I been making' / 'show recent mistakes'.",
+        parameters={"days": {"type": "integer", "description": "Lookback window in days, default 30."}},
+        contexts=["global"],
+        wants_user=True,
+    )(_get_my_recent_mistakes)
+
+    _vt.voice_tool(
+        name="get_my_psychology",
+        description="Process score + emotional state summary. Call when they ask 'how's my process / discipline' or 'when do I trade best'.",
+        parameters={"period": {"type": "string", "enum": ["week", "month", "quarter", "year"]}},
+        contexts=["global"],
+        wants_user=True,
+    )(_get_my_psychology)
+
+    _vt.voice_tool(
+        name="find_my_trades",
+        description="Search the user's journal for trades matching a symbol, status, setup, or date range.",
+        parameters={
+            "symbol": {"type": "string"},
+            "status": {"type": "string", "enum": ["open", "closed", ""]},
+            "setup": {"type": "string"},
+            "days": {"type": "integer"},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_find_my_trades)
 
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────

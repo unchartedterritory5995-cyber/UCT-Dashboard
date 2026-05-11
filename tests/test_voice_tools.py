@@ -295,3 +295,22 @@ def test_confirm_action_rejects_unknown_id():
         user={"id": "u-1"},
     )
     assert out["ok"] is False
+
+
+# ── Self-Q&A (Slice 7) ─────────────────────────────────────────────────────
+
+def test_self_qa_tools_register():
+    from api.services import voice_tool_impls  # noqa
+    names = set(voice_tools.all_tool_names())
+    expected = {"get_my_pnl", "get_my_setup_performance", "get_my_recent_mistakes",
+                "get_my_psychology", "find_my_trades"}
+    assert expected.issubset(names)
+
+
+def test_get_my_pnl_tool(monkeypatch):
+    from api.services import voice_self_qa
+    monkeypatch.setattr(voice_self_qa, "_stats_for_period", lambda uid, p: {
+        "trade_count": 5, "total_pnl_pct": 3.2, "win_rate": 0.6,
+    })
+    out = voice_tools.dispatch("get_my_pnl", {"period": "week"}, user={"id": "u-1"})
+    assert "5" in out["narration"] or "3.2" in out["narration"]
