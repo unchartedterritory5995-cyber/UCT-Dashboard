@@ -343,48 +343,76 @@ def list_weekly_reviews(user_id: str, account_id: str, *, conn=None) -> list[dic
             _conn.close()
 
 
-def get_weekly_review(review_id: str, *, conn=None) -> dict | None:
-    """Return a single weekly review row by *review_id*, or None if not found."""
+def get_weekly_review(review_id: str, *, user_id: str | None = None, conn=None) -> dict | None:
+    """Return a single weekly review row by *review_id*, or None if not found.
+    When *user_id* is provided, scopes the lookup so users can't read each
+    other's reviews even with a guessed UUID."""
     _conn, _should_close = _get_conn(conn)
     try:
-        row = _conn.execute(
-            """
-            SELECT id, body, summary, metadata, feedback, created_at
-              FROM j2_coach_outputs
-             WHERE id = ? AND forgotten = 0
-             LIMIT 1
-            """,
-            (review_id,),
-        ).fetchone()
+        if user_id is not None:
+            row = _conn.execute(
+                """
+                SELECT id, body, summary, metadata, feedback, created_at
+                  FROM j2_coach_outputs
+                 WHERE id = ? AND user_id = ? AND forgotten = 0
+                 LIMIT 1
+                """,
+                (review_id, user_id),
+            ).fetchone()
+        else:
+            row = _conn.execute(
+                """
+                SELECT id, body, summary, metadata, feedback, created_at
+                  FROM j2_coach_outputs
+                 WHERE id = ? AND forgotten = 0
+                 LIMIT 1
+                """,
+                (review_id,),
+            ).fetchone()
         return _row_to_dict(row) if row else None
     finally:
         if _should_close:
             _conn.close()
 
 
-def set_feedback(review_id: str, feedback: str, *, conn=None) -> None:
-    """Attach user feedback text to a review row."""
+def set_feedback(review_id: str, feedback: str, *, user_id: str | None = None, conn=None) -> int:
+    """Attach user feedback text to a review row. Returns the number of rows
+    affected (0 if not found / not owned)."""
     _conn, _should_close = _get_conn(conn)
     try:
-        _conn.execute(
-            "UPDATE j2_coach_outputs SET feedback = ? WHERE id = ?",
-            (feedback, review_id),
-        )
+        if user_id is not None:
+            cur = _conn.execute(
+                "UPDATE j2_coach_outputs SET feedback = ? WHERE id = ? AND user_id = ?",
+                (feedback, review_id, user_id),
+            )
+        else:
+            cur = _conn.execute(
+                "UPDATE j2_coach_outputs SET feedback = ? WHERE id = ?",
+                (feedback, review_id),
+            )
         _conn.commit()
+        return cur.rowcount
     finally:
         if _should_close:
             _conn.close()
 
 
-def forget_review(review_id: str, *, conn=None) -> None:
-    """Soft-delete a review row (sets forgotten = 1)."""
+def forget_review(review_id: str, *, user_id: str | None = None, conn=None) -> int:
+    """Soft-delete a review row (sets forgotten = 1). Returns rowcount."""
     _conn, _should_close = _get_conn(conn)
     try:
-        _conn.execute(
-            "UPDATE j2_coach_outputs SET forgotten = 1 WHERE id = ?",
-            (review_id,),
-        )
+        if user_id is not None:
+            cur = _conn.execute(
+                "UPDATE j2_coach_outputs SET forgotten = 1 WHERE id = ? AND user_id = ?",
+                (review_id, user_id),
+            )
+        else:
+            cur = _conn.execute(
+                "UPDATE j2_coach_outputs SET forgotten = 1 WHERE id = ?",
+                (review_id,),
+            )
         _conn.commit()
+        return cur.rowcount
     finally:
         if _should_close:
             _conn.close()

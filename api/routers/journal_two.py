@@ -975,7 +975,7 @@ def get_coach_weekly_review(
     review_id: str,
     user: dict = Depends(get_current_user),
 ):
-    r = coach_service.get_weekly_review(review_id=review_id)
+    r = coach_service.get_weekly_review(review_id=review_id, user_id=user["id"])
     if not r:
         raise HTTPException(status_code=404, detail="Review not found")
     return r
@@ -1002,13 +1002,13 @@ def regenerate_coach_weekly_review(
     review_id: str,
     user: dict = Depends(get_current_user),
 ):
-    existing = coach_service.get_weekly_review(review_id=review_id)
+    existing = coach_service.get_weekly_review(review_id=review_id, user_id=user["id"])
     if not existing:
         raise HTTPException(status_code=404, detail="Review not found")
     # week_start lives inside the metadata JSON blob
     week_start = (existing.get("metadata") or {}).get("week_start") or _most_recent_closed_monday()
     # v1: forget the existing, then regenerate. Caller treats as replacement.
-    coach_service.forget_review(review_id=review_id)
+    coach_service.forget_review(review_id=review_id, user_id=user["id"])
     try:
         return coach_service.generate_weekly_review(
             user_id=user["id"], account_id=account_id,
@@ -1028,10 +1028,10 @@ def feedback_coach_weekly_review(
     feedback = (payload or {}).get("feedback")
     if feedback not in ("helpful", "unhelpful"):
         raise HTTPException(status_code=400, detail="feedback must be 'helpful' or 'unhelpful'")
-    existing = coach_service.get_weekly_review(review_id=review_id)
+    existing = coach_service.get_weekly_review(review_id=review_id, user_id=user["id"])
     if not existing:
         raise HTTPException(status_code=404, detail="Review not found")
-    coach_service.set_feedback(review_id=review_id, feedback=feedback)
+    coach_service.set_feedback(review_id=review_id, feedback=feedback, user_id=user["id"])
     return {"ok": True}
 
 
@@ -1041,10 +1041,10 @@ def forget_coach_weekly_review(
     review_id: str,
     user: dict = Depends(get_current_user),
 ):
-    existing = coach_service.get_weekly_review(review_id=review_id)
+    existing = coach_service.get_weekly_review(review_id=review_id, user_id=user["id"])
     if not existing:
         raise HTTPException(status_code=404, detail="Review not found")
-    coach_service.forget_review(review_id=review_id)
+    coach_service.forget_review(review_id=review_id, user_id=user["id"])
     return {"ok": True}
 
 
