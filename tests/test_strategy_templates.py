@@ -61,4 +61,4 @@ def test_signals_have_required_fields():
     bars = [_bar(i * 86400, c, c+1, c-1, c) for i, c in enumerate(closes)]
     signals = generate_rsi_mean_reversion_signals(bars)
     for s in signals:
-        assert 't' in s and 'kind' in s and 'side' in s and 'price' in s
+        assert 't' in s and 'kind' in s and 'side' in s and 'price' in s and 'reason' in s

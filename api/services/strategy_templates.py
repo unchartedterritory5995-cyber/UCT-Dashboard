@@ -128,7 +128,7 @@ def _line_crosses_below(
 # ---------------------------------------------------------------------------
 
 def generate_rsi_mean_reversion_signals(
-    bars: list[dict],
+    bars: list[dict[str, Any]],
     period: int = 14,
 ) -> list[dict[str, Any]]:
     """Buy when RSI(period) crosses above 30. Sell when RSI crosses above 70.
@@ -164,7 +164,7 @@ def generate_rsi_mean_reversion_signals(
 # ---------------------------------------------------------------------------
 
 def generate_macd_crossover_signals(
-    bars: list[dict],
+    bars: list[dict[str, Any]],
     fast: int = 12,
     slow: int = 26,
     signal: int = 9,
@@ -204,7 +204,7 @@ def generate_macd_crossover_signals(
 # ---------------------------------------------------------------------------
 
 def generate_bb_breakout_signals(
-    bars: list[dict],
+    bars: list[dict[str, Any]],
     period: int = 20,
     stddev: float = 2.0,
 ) -> list[dict[str, Any]]:
@@ -233,11 +233,9 @@ def generate_bb_breakout_signals(
         if not position_open and _line_crosses_above(prev_c, prev_u, curr_c, curr_u):
             signals.append(_signal(t, "entry", price, "Close broke above upper Bollinger Band"))
             position_open = True
-        elif position_open and prev_m is not None and curr_m is not None:
-            # Exit when close drops below the middle band (SMA)
-            if prev_c >= prev_m and curr_c < curr_m:
-                signals.append(_signal(t, "exit", price, "Close dropped below middle band"))
-                position_open = False
+        elif position_open and middle[i] is not None and curr_c < middle[i]:
+            signals.append(_signal(t, "exit", price, "Close dropped below middle band"))
+            position_open = False
 
     return signals
 
@@ -247,7 +245,7 @@ def generate_bb_breakout_signals(
 # ---------------------------------------------------------------------------
 
 def generate_ma_crossover_signals(
-    bars: list[dict],
+    bars: list[dict[str, Any]],
     fast: int = 50,
     slow: int = 200,
 ) -> list[dict[str, Any]]:
