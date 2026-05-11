@@ -75,11 +75,14 @@ async def upload_flow(request: Request):
 async def get_flow_data(request: Request):
     """
     Serve stock flow data as CSV.
-    ?days=30 (default 20) — last N trading days
-    ?all_data=true — all available data
+    ?days=N (default 1) — last N trading days. Default lowered from 20 → 1
+        because a 20-day default payload is ~25MB / ~15s and the UI only
+        renders a single day on initial load. Callers that want more must
+        opt in via ?days=N (max 365) or ?all_data=true.
+    ?all_data=true — all available data (heavy; opt-in only)
     """
     try:
-        days_str = request.query_params.get("days", "20")
+        days_str = request.query_params.get("days", "1")
         all_data = request.query_params.get("all_data", "false").lower() == "true"
         days = int(days_str)
         if days < 1:
@@ -87,7 +90,7 @@ async def get_flow_data(request: Request):
         if days > 365:
             days = 365
     except (ValueError, TypeError):
-        days = 20
+        days = 1
         all_data = False
 
     try:
@@ -104,9 +107,12 @@ async def get_flow_data(request: Request):
 
 @flow_router.get("/indexes-data")
 async def get_indexes_data(request: Request):
-    """Serve indexes/ETF flow data as CSV."""
+    """Serve indexes/ETF flow data as CSV.
+    ?days=N (default 1) — same rationale as /data: keep default payloads
+    small. Callers that want more must opt in via ?days=N or ?all_data=true.
+    """
     try:
-        days_str = request.query_params.get("days", "20")
+        days_str = request.query_params.get("days", "1")
         all_data = request.query_params.get("all_data", "false").lower() == "true"
         days = int(days_str)
         if days < 1:
@@ -114,7 +120,7 @@ async def get_indexes_data(request: Request):
         if days > 365:
             days = 365
     except (ValueError, TypeError):
-        days = 20
+        days = 1
         all_data = False
 
     try:
