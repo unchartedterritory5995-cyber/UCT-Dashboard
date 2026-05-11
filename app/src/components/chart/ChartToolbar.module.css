@@ -443,3 +443,22 @@
   cursor: pointer;
 }
 .replayExit:hover { background: rgba(248, 113, 113, 0.1); }
+
+/* ── Compare button + badge ── */
+.compareContainer {
+  position: relative;
+  display: inline-block;
+}
+.compareBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--ut-gold, #c9a84c);
+  color: #000;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  line-height: 1;
+  pointer-events: none;
+}

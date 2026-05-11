@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import ColorPicker from './ColorPicker'
+import ComparisonPicker from './ComparisonPicker'
 import styles from './ChartToolbar.module.css'
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
@@ -491,9 +492,30 @@ export default function ChartToolbar({
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const colorRef = useRef(null)
   const widthRef = useRef(null)
   const settingsRef = useRef(null)
+  const compareRef = useRef(null)
+
+  // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
+  const cs = chartSettings
+  const updateComparisons = useCallback((arr) => {
+    if (!onUpdateSettings || !cs) return
+    onUpdateSettings({ ...cs, comparisonSymbols: arr, preset: 'custom' })
+  }, [cs, onUpdateSettings])
+
+  // Click-outside handler for compare popover
+  useEffect(() => {
+    if (!comparePopoverOpen) return
+    function onClickOutside(e) {
+      if (compareRef.current && !compareRef.current.contains(e.target)) {
+        setComparePopoverOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [comparePopoverOpen])
 
   // ── Countdown to bar close ──
   const INTRADAY_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
@@ -621,6 +643,30 @@ export default function ChartToolbar({
           >
             {ICONS.replay}
           </button>
+        )}
+
+        {/* Compare symbols */}
+        {chartSettings && onUpdateSettings && (
+          <div ref={compareRef} className={styles.compareContainer}>
+            <button
+              className={`${styles.btn} ${comparePopoverOpen ? styles.active : ''}`}
+              onClick={() => setComparePopoverOpen(o => !o)}
+              title="Compare symbols"
+              aria-label="Compare symbols"
+            >
+              <span style={{ fontSize: 13, lineHeight: 1 }}>⇄</span>
+              {(cs?.comparisonSymbols?.length > 0) && (
+                <span className={styles.compareBadge}>{cs.comparisonSymbols.length}</span>
+              )}
+            </button>
+            {comparePopoverOpen && (
+              <ComparisonPicker
+                comparisons={cs?.comparisonSymbols || []}
+                onUpdate={updateComparisons}
+                onClose={() => setComparePopoverOpen(false)}
+              />
+            )}
+          </div>
         )}
 
         {/* Chart settings */}
