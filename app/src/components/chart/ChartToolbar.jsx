@@ -407,6 +407,19 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
             Countdown to bar close
           </label>
         </div>
+        <div className={styles.sRow} style={{ marginTop: 6 }}>
+          <label className={styles.sCheck} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>Theme</span>
+            <select
+              className={styles.sMiniSelect}
+              value={cs.theme || 'dark'}
+              onChange={e => onUpdateSettings({ ...cs, theme: e.target.value, preset: 'custom' })}
+            >
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       {/* Chart Markers */}
@@ -507,6 +520,7 @@ export default function ChartToolbar({
   onReplayStep = null,
   onReplayIndexChange = null,
   onReplaySpeedChange = null,
+  onShowHelp = null,
 }) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -650,6 +664,19 @@ export default function ChartToolbar({
         {onScreenshot && (
           <button className={styles.btn} onClick={onScreenshot} title="Download chart as PNG">
             {ICONS.camera}
+          </button>
+        )}
+
+        {/* ── Help (keyboard shortcuts) ── */}
+        {onShowHelp && (
+          <button
+            className={styles.btn}
+            onClick={() => onShowHelp?.()}
+            title="Keyboard shortcuts (press ?)"
+            aria-label="Show keyboard shortcuts"
+            style={{ fontSize: 12, fontWeight: 700 }}
+          >
+            ?
           </button>
         )}
 

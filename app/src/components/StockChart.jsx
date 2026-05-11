@@ -2700,6 +2700,7 @@ export default function StockChart({
             showExtended={isIntraday ? showExtended : null}
             onToggleExtended={isIntraday ? handleToggleExtended : null}
             onScreenshot={() => setScreenshotPopoverOpen(true)}
+            onShowHelp={() => setHelpOpen(true)}
             tf={resolvedTf}
             currentSym={sym}
             compareSymbol={compareSymbol}
