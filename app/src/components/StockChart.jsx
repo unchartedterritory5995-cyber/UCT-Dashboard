@@ -16,6 +16,8 @@ import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import styles from './StockChart.module.css'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { normalizeToPctChange } from './chart/comparisonUtils'
+import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
+import ScreenshotPopover from './chart/ScreenshotPopover'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -406,22 +408,94 @@ export default function StockChart({
   const handleUpdateChartSettings = useCallback((newSettings) => {
     setPref('chart_settings', JSON.stringify(newSettings))
   }, [setPref])
-  const handleScreenshot = useCallback(() => {
+
+  // ── Screenshot + Share state ──
+  const [screenshotPopoverOpen, setScreenshotPopoverOpen] = useState(false)
+  const lastPriceRef = useRef(null)
+  const lastChangePctRef = useRef(null)
+
+  const handleDownload = useCallback(async () => {
     if (!chartRef.current) return
     try {
-      const imageData = chartRef.current.takeScreenshot()
-      const canvas = document.createElement('canvas')
-      canvas.width = imageData.width
-      canvas.height = imageData.height
-      canvas.getContext('2d').putImageData(imageData, 0, 0)
-      const link = document.createElement('a')
-      link.download = `${sym || 'chart'}-${new Date().toISOString().slice(0, 10)}.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
+      const blob = await composeScreenshot(chartRef.current, {
+        sym, tf: resolvedTf, price: lastPriceRef.current, changePct: lastChangePctRef.current,
+      })
+      const filename = `${sym || 'chart'}-${resolvedTf}-${new Date().toISOString().slice(0, 10)}.png`
+      downloadBlob(blob, filename)
     } catch (err) {
       console.warn('Screenshot failed:', err)
     }
-  }, [sym])
+  }, [sym, resolvedTf])
+
+  const handleCopyImage = useCallback(async () => {
+    if (!chartRef.current) return false
+    try {
+      const blob = await composeScreenshot(chartRef.current, {
+        sym, tf: resolvedTf, price: lastPriceRef.current, changePct: lastChangePctRef.current,
+      })
+      return await copyBlobToClipboard(blob)
+    } catch (err) {
+      console.warn('Copy failed:', err)
+      return false
+    }
+  }, [sym, resolvedTf])
+
+  const handleCopyShareUrl = useCallback(() => {
+    const state = {
+      sym,
+      tf: resolvedTf,
+      chartType: cs.chartType,
+      heikinAshi: cs.heikinAshi,
+      logScale: cs.logScale,
+      indicators: {
+        rsi: { enabled: cs.indicators?.rsi?.enabled },
+        macd: { enabled: cs.indicators?.macd?.enabled },
+        bb: { enabled: cs.indicators?.bb?.enabled },
+        vwap: { enabled: cs.indicators?.vwap?.enabled },
+      },
+      comparisonSymbols: cs.comparisonSymbols || [],
+      markers: cs.markers || {},
+    }
+    const encoded = chartStateToUrl(state)
+    const url = `${window.location.origin}${window.location.pathname}?state=${encoded}`
+    try {
+      navigator.clipboard.writeText(url)
+    } catch {}
+  }, [sym, resolvedTf, cs])
+
+  // ── Apply share-URL chart state on mount ──
+  // Reads ?state=<encoded> once on mount. If absent, skips silently.
+  // If parse fails, logs warning and skips. NEVER includes `cs` in deps —
+  // would re-fire and overwrite user-driven changes.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const encoded = params.get('state')
+      if (!encoded) return
+      const decoded = urlToChartState(encoded)
+      if (!decoded) return
+      const next = {
+        ...cs,
+        ...(decoded.chartType ? { chartType: decoded.chartType } : {}),
+        ...(typeof decoded.heikinAshi === 'boolean' ? { heikinAshi: decoded.heikinAshi } : {}),
+        ...(typeof decoded.logScale === 'boolean' ? { logScale: decoded.logScale } : {}),
+        ...(decoded.indicators ? { indicators: { ...cs.indicators, ...decoded.indicators } } : {}),
+        ...(decoded.comparisonSymbols ? { comparisonSymbols: decoded.comparisonSymbols } : {}),
+        ...(decoded.markers ? { markers: { ...cs.markers, ...decoded.markers } } : {}),
+        preset: 'custom',
+      }
+      handleUpdateChartSettings(next)
+      if (decoded.sym && decoded.sym !== sym && typeof onSymbolChange === 'function') {
+        onSymbolChange(decoded.sym)
+      }
+      if (decoded.tf && decoded.tf !== resolvedTf && typeof onTfChange === 'function') {
+        onTfChange(decoded.tf)
+      }
+    } catch (err) {
+      console.warn('Failed to apply share URL state:', err)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
 
   // ── Position tool price lines ──
@@ -620,6 +694,22 @@ export default function StockChart({
   // Real-time price streaming for live candle updates
   const { prices: livePrices, staleSymbols } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
   const isStale = !!(sym && staleSymbols && staleSymbols.has(String(sym).toUpperCase()))
+
+  // Keep lastPriceRef / lastChangePctRef in sync for screenshot composition.
+  // Prefers live stream values; falls back to last bar close / intra-bar change.
+  useEffect(() => {
+    const live = sym ? livePrices[sym] : null
+    if (live && Number.isFinite(live.price)) {
+      lastPriceRef.current = live.price
+    } else if (lastBarRef.current && Number.isFinite(lastBarRef.current.close)) {
+      lastPriceRef.current = lastBarRef.current.close
+    }
+    if (live && Number.isFinite(live.change_pct)) {
+      lastChangePctRef.current = live.change_pct
+    } else if (lastBarRef.current && Number.isFinite(lastBarRef.current.open) && Number.isFinite(lastBarRef.current.close) && lastBarRef.current.open) {
+      lastChangePctRef.current = ((lastBarRef.current.close - lastBarRef.current.open) / lastBarRef.current.open) * 100
+    }
+  }, [livePrices, sym])
 
   // Bar-correction flash (P4-7): pulses briefly when SSE bar_correction event
   // fires for the current symbol, signaling minute-close reconciliation
@@ -2354,7 +2444,7 @@ export default function StockChart({
             onUpdateSettings={handleUpdateChartSettings}
             showExtended={isIntraday ? showExtended : null}
             onToggleExtended={isIntraday ? handleToggleExtended : null}
-            onScreenshot={handleScreenshot}
+            onScreenshot={() => setScreenshotPopoverOpen(true)}
             tf={resolvedTf}
             currentSym={sym}
             compareSymbol={compareSymbol}
@@ -2384,6 +2474,14 @@ export default function StockChart({
             }}
             onReplaySpeedChange={setReplaySpeed}
           />
+          {screenshotPopoverOpen && (
+            <ScreenshotPopover
+              onDownload={handleDownload}
+              onCopy={handleCopyImage}
+              onShare={handleCopyShareUrl}
+              onClose={() => setScreenshotPopoverOpen(false)}
+            />
+          )}
           {activeTool === 'position' && (
             <div style={{
               position: 'absolute', right: 8, top: 40, zIndex: 20,
