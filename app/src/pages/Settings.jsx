@@ -9,6 +9,7 @@ import useTagColors from '../hooks/useTagColors'
 import useTickerTags from '../hooks/useTickerTags'
 import { ALERT_SOUNDS, previewSound } from '../utils/alertSound'
 import VoiceMemoryPanel from '../components/voice/VoiceMemoryPanel'
+import { useVoice } from '../context/VoiceContext'
 import styles from './Settings.module.css'
 
 const TF_OPTIONS = [
@@ -140,6 +141,15 @@ function VoicePanel() {
   const [usage, setUsage] = useState(null)
   const [savingMsg, setSavingMsg] = useState('')
   const speedSaveTimerRef = useRef(null)
+  const { wakeEnabled, setWakeEnabled } = useVoice()
+
+  useEffect(() => {
+    try {
+      const persisted = localStorage.getItem('voice.wakeEnabled') === '1'
+      if (persisted) setWakeEnabled(true)
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const debouncedSpeedSave = (newSpeed) => {
     if (speedSaveTimerRef.current) {
@@ -200,6 +210,20 @@ function VoicePanel() {
             onChange={(e) => update({ enabled: e.target.checked })}
           />
           {' '}Voice features enabled
+        </label>
+      </div>
+
+      <div className={styles.voiceRow}>
+        <label className={styles.voiceLabel}>
+          <input
+            type="checkbox"
+            checked={!!wakeEnabled}
+            onChange={(e) => {
+              setWakeEnabled(e.target.checked)
+              try { localStorage.setItem('voice.wakeEnabled', e.target.checked ? '1' : '0') } catch {}
+            }}
+          />
+          {' '}Wake word ("Hey Bumblebee") — hands-free activation
         </label>
       </div>
 
