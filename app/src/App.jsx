@@ -35,6 +35,7 @@ const DarkPool = lazy(() => import('./pages/DarkPool'))
 const PostMarket = lazy(() => import('./pages/PostMarket'))
 const ModelBook = lazy(() => import('./pages/ModelBook'))
 const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
+const Backtester = lazy(() => import('./pages/Backtester'))
 const Journal = lazy(() => import('./pages/journal/JournalPage'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
@@ -135,6 +136,7 @@ export default function App() {
                 <Route path="/post-market" element={<PostMarket />} />
                 <Route path="/model-book" element={<ModelBook />} />
                 <Route path="/setup-library" element={<SetupLibrary />} />
+                <Route path="/backtester" element={<Backtester />} />
                 <Route path="/journal" element={<Journal />} />
                 <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />
                 <Route path="/journal-2-0/report" element={<J2ReportPage />} />
