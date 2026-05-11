@@ -230,3 +230,115 @@ def test_get_setup_stats_returns_per_setup_breakdown(db_conn):
     assert isinstance(result["setups"], list)
     setups = {s["setup"]: s for s in result["setups"]}
     assert "Bull Flag" in setups
+
+
+def test_analyze_time_of_day_buckets_by_hour(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    # 14:00 ET trades (win) and 15:00 ET trades (loss)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-11T18:00:00+00:00",
+                  entry_date="2026-05-11T18:00:00+00:00",  # 14:00 ET
+                  result="Win", r_multiple=2.0, pnl_dollar=200)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-11T19:00:00+00:00",
+                  entry_date="2026-05-11T19:00:00+00:00",  # 15:00 ET
+                  result="Loss", r_multiple=-1.0, pnl_dollar=-100)
+    result = tools.TOOLS["analyze_time_of_day"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={"days": 30}, conn=db_conn,
+    )
+    assert "buckets" in result
+    assert isinstance(result["buckets"], dict)
+
+
+def test_analyze_day_of_week_returns_weekday_buckets(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-11T20:00:00+00:00",
+                  entry_date="2026-05-11T18:00:00+00:00",  # Mon
+                  result="Win", r_multiple=1.0)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-12T20:00:00+00:00",
+                  entry_date="2026-05-12T18:00:00+00:00",  # Tue
+                  result="Loss", r_multiple=-1.0)
+    result = tools.TOOLS["analyze_day_of_week"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={"days": 30}, conn=db_conn,
+    )
+    assert "buckets" in result
+
+
+def test_analyze_hold_duration_returns_winner_loser_compare(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    # Winners with 4-day holds, losers with 1-day holds (classic "cutting winners")
+    for _ in range(3):
+        _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                      exit_iso="2026-05-11T20:00:00+00:00",
+                      hold_days=4, result="Win", r_multiple=2.0)
+    for _ in range(3):
+        _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                      exit_iso="2026-05-11T20:00:00+00:00",
+                      hold_days=1, result="Loss", r_multiple=-1.0)
+    result = tools.TOOLS["analyze_hold_duration"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={"days": 90}, conn=db_conn,
+    )
+    assert result["winners"]["avg_days"] == 4.0
+    assert result["losers"]["avg_days"] == 1.0
+    assert result["hint"] in {"cutting_winners_short", "holding_losers", "balanced"}
+
+
+def test_analyze_sequence_returns_post_outcome_stats(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    for day in ("2026-05-04", "2026-05-05", "2026-05-06", "2026-05-07"):
+        result_type = "Win" if day == "2026-05-04" else "Loss"
+        _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                      exit_iso=f"{day}T20:00:00+00:00",
+                      result=result_type, r_multiple=1.5 if result_type == "Win" else -1.0,
+                      pnl_dollar=150 if result_type == "Win" else -100)
+    result = tools.TOOLS["analyze_sequence"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"prior_outcome": "Win", "n": 3}, conn=db_conn,
+    )
+    assert "trade_count" in result
+
+
+def test_analyze_sizing_curve_runs_without_error(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-11T20:00:00+00:00",
+                  shares=100, entry_price=100.0, original_stop=98.0,
+                  r_multiple=1.0, pnl_dollar=100, result="Win")
+    result = tools.TOOLS["analyze_sizing_curve"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={"days": 180}, conn=db_conn,
+    )
+    assert "buckets" in result
+
+
+def test_analyze_correlation_returns_dict(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    result = tools.TOOLS["analyze_correlation"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={}, conn=db_conn,
+    )
+    assert "open_positions_overlap" in result
+
+
+def test_compare_setups_returns_side_by_side(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-11T20:00:00+00:00",
+                  setup="Bull Flag", r_multiple=2.0, result="Win", pnl_dollar=200)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-11T20:00:00+00:00",
+                  setup="Pullback", r_multiple=-1.0, result="Loss", pnl_dollar=-100)
+    result = tools.TOOLS["compare_setups"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"setup_a": "Bull Flag", "setup_b": "Pullback"}, conn=db_conn,
+    )
+    assert "setup_a" in result
+    assert "setup_b" in result
+    assert result["setup_a"]["setup"] == "Bull Flag"

@@ -203,6 +203,144 @@ def _exec_find_arcs(*, user_id, account_id, args, conn=None) -> dict:
     return {"arcs": arcs}
 
 
+def _exec_analyze_time_of_day(*, user_id, account_id, args, conn=None) -> dict:
+    days = int(args.get("days", 180))
+    start, end = _trades_range_to_iso(days)
+    trades = coach_data_assembler._trades_in_range(conn or get_connection(), user_id, account_id, start, end)
+    if args.get("setup"):
+        trades = [t for t in trades if t.get("setup") == args["setup"]]
+    if args.get("symbol"):
+        sym = args["symbol"].upper()
+        trades = [t for t in trades if (t.get("symbol") or "").upper() == sym]
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    buckets: dict[str, list[dict]] = {}
+    for t in trades:
+        try:
+            d = datetime.fromisoformat(str(t.get("entry_date")).replace("Z", "+00:00"))
+            key = f"{d.astimezone(et).hour:02d}:00"
+        except Exception:
+            continue
+        buckets.setdefault(key, []).append(t)
+    out_buckets = {k: coach_data_assembler._aggregate_trades(v) for k, v in buckets.items()}
+    return {"buckets": out_buckets, "days": days}
+
+
+def _exec_analyze_day_of_week(*, user_id, account_id, args, conn=None) -> dict:
+    days = int(args.get("days", 180))
+    start, end = _trades_range_to_iso(days)
+    trades = coach_data_assembler._trades_in_range(conn or get_connection(), user_id, account_id, start, end)
+    if args.get("setup"):
+        trades = [t for t in trades if t.get("setup") == args["setup"]]
+    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    buckets: dict[str, list[dict]] = {}
+    for t in trades:
+        try:
+            d = datetime.fromisoformat(str(t.get("entry_date")).replace("Z", "+00:00"))
+            key = weekdays[d.weekday()]
+        except Exception:
+            continue
+        buckets.setdefault(key, []).append(t)
+    out = {k: coach_data_assembler._aggregate_trades(v) for k, v in buckets.items()}
+    return {"buckets": out, "days": days}
+
+
+def _exec_analyze_hold_duration(*, user_id, account_id, args, conn=None) -> dict:
+    days = int(args.get("days", 180))
+    start, end = _trades_range_to_iso(days)
+    trades = coach_data_assembler._trades_in_range(conn or get_connection(), user_id, account_id, start, end)
+    if args.get("setup"):
+        trades = [t for t in trades if t.get("setup") == args["setup"]]
+    winners = [t for t in trades if t.get("result") == "Win"]
+    losers = [t for t in trades if t.get("result") == "Loss"]
+
+    def _stats(group: list[dict]) -> dict:
+        if not group:
+            return {"count": 0, "avg_days": None, "median_days": None}
+        holds = sorted(float(t.get("hold_days") or 0) for t in group)
+        avg = sum(holds) / len(holds)
+        median = holds[len(holds) // 2]
+        return {"count": len(group), "avg_days": round(avg, 1), "median_days": round(median, 1)}
+
+    w = _stats(winners)
+    l = _stats(losers)
+    hint = "balanced"
+    if w["avg_days"] and l["avg_days"]:
+        if l["avg_days"] < w["avg_days"] * 0.5:
+            hint = "cutting_winners_short"
+        elif l["avg_days"] > w["avg_days"] * 1.5:
+            hint = "holding_losers"
+    return {"winners": w, "losers": l, "hint": hint, "days": days}
+
+
+def _exec_analyze_sequence(*, user_id, account_id, args, conn=None) -> dict:
+    prior_outcome = args.get("prior_outcome", "Win")
+    n = int(args.get("n", 3))
+    days = int(args.get("days", 180))
+    start, end = _trades_range_to_iso(days)
+    trades = coach_data_assembler._trades_in_range(conn or get_connection(), user_id, account_id, start, end)
+    trades.sort(key=lambda t: t.get("exit_date") or "")
+    captured: list[dict] = []
+    for i, t in enumerate(trades):
+        if t.get("result") == prior_outcome:
+            captured.extend(trades[i + 1:i + 1 + n])
+    agg = coach_data_assembler._aggregate_trades(captured)
+    return {"prior_outcome": prior_outcome, "n": n, **agg}
+
+
+def _exec_analyze_sizing_curve(*, user_id, account_id, args, conn=None) -> dict:
+    days = int(args.get("days", 180))
+    start, end = _trades_range_to_iso(days)
+    trades = coach_data_assembler._trades_in_range(conn or get_connection(), user_id, account_id, start, end)
+    settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
+    account_size = float(settings.get("accountSize") or 0)
+    if account_size <= 0:
+        return {"buckets": [], "note": "account size not configured"}
+    rows: list[dict] = []
+    for t in trades:
+        shares = float(t.get("shares") or 0)
+        entry = float(t.get("entry_price") or 0)
+        stop = float(t.get("original_stop") or 0)
+        if shares <= 0 or entry <= 0 or stop <= 0:
+            continue
+        per_share = abs(entry - stop)
+        risk_pct = (shares * per_share / account_size) * 100.0
+        rows.append({"risk_pct": risk_pct, **t})
+    buckets: dict[str, list[dict]] = {}
+    for r in rows:
+        band = int(r["risk_pct"] // 0.5) * 0.5
+        key = f"{band:.1f}-{band + 0.5:.1f}%"
+        buckets.setdefault(key, []).append(r)
+    out = []
+    for k, group in sorted(buckets.items()):
+        agg = coach_data_assembler._aggregate_trades(group)
+        out.append({"band": k, **agg})
+    return {"buckets": out, "days": days, "account_size": account_size}
+
+
+def _exec_analyze_correlation(*, user_id, account_id, args, conn=None) -> dict:
+    positions = coach_data_assembler._open_positions(conn or get_connection(), user_id, account_id)
+    return {"open_positions_overlap": {"sector": None, "theme": None}, "open_count": len(positions),
+            "note": "Sector/theme enrichment not wired yet — v1 returns counts only."}
+
+
+def _exec_compare_setups(*, user_id, account_id, args, conn=None) -> dict:
+    setup_a = args.get("setup_a")
+    setup_b = args.get("setup_b")
+    days = int(args.get("days", 180))
+    start, end = _trades_range_to_iso(days)
+    trades = coach_data_assembler._trades_in_range(conn or get_connection(), user_id, account_id, start, end)
+
+    def _stats_for_setup(setup_name: str) -> dict:
+        group = [t for t in trades if t.get("setup") == setup_name]
+        agg = coach_data_assembler._aggregate_trades(group)
+        return {"setup": setup_name, **agg}
+
+    a = _stats_for_setup(setup_a)
+    b = _stats_for_setup(setup_b)
+    return {"setup_a": a, "setup_b": b, "days": days}
+
+
 TOOLS: dict[str, dict[str, Any]] = {
     "list_recent_trades": {
         "name": "list_recent_trades",
@@ -292,3 +430,93 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
     },
 }
+
+TOOLS.update({
+    "analyze_time_of_day": {
+        "name": "analyze_time_of_day",
+        "description": "Bucket trades by hour-of-entry (ET) and return per-hour win rate and R.",
+        "requires_confirm": False,
+        "executor": _exec_analyze_time_of_day,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "setup": {"type": "string"},
+                "symbol": {"type": "string"},
+                "days": {"type": "integer", "default": 180, "minimum": 7, "maximum": 730},
+            },
+        },
+    },
+    "analyze_day_of_week": {
+        "name": "analyze_day_of_week",
+        "description": "Bucket trades by weekday (Mon–Sun) and return per-day win rate and R.",
+        "requires_confirm": False,
+        "executor": _exec_analyze_day_of_week,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "setup": {"type": "string"},
+                "days": {"type": "integer", "default": 180, "minimum": 7, "maximum": 730},
+            },
+        },
+    },
+    "analyze_hold_duration": {
+        "name": "analyze_hold_duration",
+        "description": "Compare winners' vs losers' hold durations — surfaces cutting-winners-short or holding-losers patterns.",
+        "requires_confirm": False,
+        "executor": _exec_analyze_hold_duration,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "setup": {"type": "string"},
+                "days": {"type": "integer", "default": 180, "minimum": 7, "maximum": 730},
+            },
+        },
+    },
+    "analyze_sequence": {
+        "name": "analyze_sequence",
+        "description": "Aggregate the N trades that follow each Win (or Loss) — reveals revenge-trading or overconfidence patterns.",
+        "requires_confirm": False,
+        "executor": _exec_analyze_sequence,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "prior_outcome": {"type": "string", "enum": ["Win", "Loss"]},
+                "n": {"type": "integer", "default": 3, "minimum": 1, "maximum": 10},
+                "days": {"type": "integer", "default": 180},
+            },
+            "required": ["prior_outcome"],
+        },
+    },
+    "analyze_sizing_curve": {
+        "name": "analyze_sizing_curve",
+        "description": "Bucket trades by per-trade risk % and return P&L by bucket. Reveals optimal position-size band.",
+        "requires_confirm": False,
+        "executor": _exec_analyze_sizing_curve,
+        "input_schema": {
+            "type": "object",
+            "properties": {"days": {"type": "integer", "default": 180}},
+        },
+    },
+    "analyze_correlation": {
+        "name": "analyze_correlation",
+        "description": "Inspect open-position correlations (sector / theme overlap). v1 returns counts only.",
+        "requires_confirm": False,
+        "executor": _exec_analyze_correlation,
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    "compare_setups": {
+        "name": "compare_setups",
+        "description": "Side-by-side stats for two named setups.",
+        "requires_confirm": False,
+        "executor": _exec_compare_setups,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "setup_a": {"type": "string"},
+                "setup_b": {"type": "string"},
+                "days": {"type": "integer", "default": 180},
+            },
+            "required": ["setup_a", "setup_b"],
+        },
+    },
+})
