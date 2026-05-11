@@ -1,0 +1,14 @@
+{
+  "name": "sample_for_loader_test",
+  "category": "test",
+  "bars": [
+    {"t": 1700000000, "o": 100, "h": 101, "l": 99, "c": 100, "v": 1000},
+    {"t": 1700086400, "o": 100, "h": 102, "l": 99, "c": 101, "v": 1100}
+  ],
+  "expected": {
+    "fires": true,
+    "min_confidence": 60.0,
+    "max_confidence": 100.0,
+    "geometry_shape": "trendline_pair"
+  }
+}
