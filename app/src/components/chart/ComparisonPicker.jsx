@@ -8,9 +8,10 @@ const MAX_COMPARISONS = 5;
 const POPULAR_TICKERS = ['QQQ', 'SPY', 'IWM', 'DIA', 'NDX', 'VIX', 'BTC-USD'];
 
 
-export default function ComparisonPicker({ comparisons, onUpdate, onClose }) {
+export default function ComparisonPicker({ comparisons, onUpdate, onClose, currentSym = null }) {
   const [search, setSearch] = useState('');
   const inputRef = useRef(null);
+  const ownSym = currentSym ? String(currentSym).toUpperCase() : null;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -19,6 +20,7 @@ export default function ComparisonPicker({ comparisons, onUpdate, onClose }) {
   function addComparison(sym) {
     const clean = String(sym || '').trim().toUpperCase();
     if (!clean) return;
+    if (ownSym && clean === ownSym) return; // can't compare a symbol against itself
     if (comparisons.length >= MAX_COMPARISONS) return;
     if (comparisons.some(c => c.sym === clean)) return; // dedup
     const color = pickComparisonColor(comparisons.length);
@@ -69,7 +71,7 @@ export default function ComparisonPicker({ comparisons, onUpdate, onClose }) {
 
       {remaining > 0 && (
         <div className={styles.popular}>
-          {POPULAR_TICKERS.filter(t => !comparisons.some(c => c.sym === t)).slice(0, 6).map(t => (
+          {POPULAR_TICKERS.filter(t => !comparisons.some(c => c.sym === t) && t !== ownSym).slice(0, 6).map(t => (
             <button key={t} className={styles.popularBtn} onClick={() => addComparison(t)}>
               {t}
             </button>

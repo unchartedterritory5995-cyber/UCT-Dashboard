@@ -2356,6 +2356,7 @@ export default function StockChart({
             onToggleExtended={isIntraday ? handleToggleExtended : null}
             onScreenshot={handleScreenshot}
             tf={resolvedTf}
+            currentSym={sym}
             compareSymbol={compareSymbol}
             onCompareChange={onCompareChange}
             replayMode={replayMode}

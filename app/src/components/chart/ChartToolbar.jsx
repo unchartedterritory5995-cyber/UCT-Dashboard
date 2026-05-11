@@ -478,6 +478,7 @@ export default function ChartToolbar({
   showExtended, onToggleExtended,
   onScreenshot,
   tf = null,
+  currentSym = null,
   compareSymbol = null,
   onCompareChange = null,
   replayMode = false,
@@ -664,6 +665,7 @@ export default function ChartToolbar({
                 comparisons={cs?.comparisonSymbols || []}
                 onUpdate={updateComparisons}
                 onClose={() => setComparePopoverOpen(false)}
+                currentSym={currentSym}
               />
             )}
           </div>
