@@ -1,12 +1,11 @@
 import { useEffect } from 'react'
-import useOneShot from './useOneShot'
+import useRealtimeSession from './useRealtimeSession'
 
 /**
- * Global Cmd/Ctrl+Shift+V hotkey that triggers a one-shot voice query.
- * Mounted once near the App root.
+ * Cmd/Ctrl+Shift+V global hotkey: starts (or ends) a Realtime conversation.
  */
 export default function usePushToTalkHotkey({ context = 'global' } = {}) {
-  const { start } = useOneShot()
+  const { connect, disconnect, isConnected } = useRealtimeSession()
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -14,10 +13,10 @@ export default function usePushToTalkHotkey({ context = 'global' } = {}) {
       const modifier = isMac ? e.metaKey : e.ctrlKey
       if (modifier && e.shiftKey && e.code === 'KeyV') {
         e.preventDefault()
-        start(context)
+        if (isConnected) disconnect(); else connect(context)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [start, context])
+  }, [connect, disconnect, isConnected, context])
 }
