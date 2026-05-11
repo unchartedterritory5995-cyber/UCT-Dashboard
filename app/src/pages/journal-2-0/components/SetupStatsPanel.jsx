@@ -14,6 +14,8 @@ const fmtMoney = (x) => x == null ? '—' : (
   x >= 0 ? `+$${Math.abs(x).toFixed(0)}` : `-$${Math.abs(x).toFixed(0)}`
 )
 
+import styles from './AlertBanner.module.css'
+
 const LETTER_COLOR = {
   W: 'var(--profit, #22c55e)',
   L: 'var(--loss, #ef4444)',
@@ -27,16 +29,8 @@ export default function SetupStatsPanel({ stats, isAPlus = false }) {
 
   return (
     <div
-      style={{
-        margin: '6px 0 4px',
-        padding: '8px 10px',
-        background: 'rgba(201, 168, 76, 0.08)',
-        border: '1px solid rgba(201, 168, 76, 0.35)',
-        borderRadius: 6,
-        fontSize: 12,
-        lineHeight: 1.5,
-        color: 'var(--text-bright)',
-      }}
+      className={styles.info}
+      style={{ margin: '6px 0 4px', fontSize: 12 }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
         <strong style={{ color: 'var(--ut-gold, #c9a84c)' }}>Your record on {setup}</strong>

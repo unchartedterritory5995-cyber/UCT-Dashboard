@@ -1,0 +1,60 @@
+/* Shared alert/info banner styles for J2 surfaces.
+   Two base variants:
+     .alert   — red, role="alert"-style box for blocks and breaches
+     .info    — gold-tinted box for coaching hints and CTAs
+   Tighter sub-variant for inline strips:
+     .alertSm — compact .alert (less padding) */
+
+.alert,
+.alertSm,
+.info {
+  margin: 0 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.alert {
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid var(--loss, #ef4444);
+  color: var(--loss, #ef4444);
+}
+
+.alertSm {
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid var(--loss, #ef4444);
+  color: var(--loss, #ef4444);
+}
+
+.info {
+  padding: 8px 12px;
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  color: var(--text-bright);
+}
+
+/* Override button inside an alert — outlined in the loss color */
+.alertOverrideBtn {
+  margin-left: 6px;
+  padding: 2px 10px;
+  background: transparent;
+  border: 1px solid var(--loss, #ef4444);
+  color: var(--loss, #ef4444);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* CTA-style button used inside info banners */
+.infoCtaBtn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--ut-gold, #c9a84c);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}

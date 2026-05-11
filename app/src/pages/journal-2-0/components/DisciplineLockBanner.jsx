@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useState } from 'react'
+import styles from './AlertBanner.module.css'
 
 const ICON_BY_TYPE = {
   daily_loss: '🛑',
@@ -48,16 +49,7 @@ export default function DisciplineLockBanner({ state, overrideArmed, onArmOverri
   return (
     <div
       role="alert"
-      style={{
-        margin: '0 0 12px',
-        padding: '10px 14px',
-        background: 'rgba(239,68,68,0.12)',
-        border: '1px solid var(--loss, #ef4444)',
-        borderRadius: 8,
-        color: 'var(--loss, #ef4444)',
-        fontSize: 13,
-        lineHeight: 1.5,
-      }}
+      className={styles.alert}
     >
       <div style={{ fontWeight: 600, marginBottom: 4 }}>
         🚫 Trade entry locked
@@ -81,13 +73,7 @@ export default function DisciplineLockBanner({ state, overrideArmed, onArmOverri
           <button
             type="button"
             onClick={onArmOverride}
-            style={{
-              padding: '2px 10px',
-              background: 'transparent',
-              border: '1px solid var(--loss, #ef4444)',
-              color: 'var(--loss, #ef4444)',
-              borderRadius: 6, fontSize: 12, cursor: 'pointer',
-            }}
+            className={styles.alertOverrideBtn}
           >
             Override
           </button>

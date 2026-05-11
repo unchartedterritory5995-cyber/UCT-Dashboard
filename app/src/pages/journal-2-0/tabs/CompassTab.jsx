@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import bannerStyles from '../components/AlertBanner.module.css'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2CoachReviews from '../hooks/useJ2CoachReviews'
 import useJ2TraderProfile from '../hooks/useJ2TraderProfile'
@@ -89,20 +90,15 @@ export default function CompassTab() {
       </p>
 
       {errorMsg && (
-        <div role="alert" style={{ margin: '12px 0', padding: '8px 12px', background: 'rgba(239,68,68,0.12)', border: '1px solid var(--loss, #ef4444)', borderRadius: 6, color: 'var(--loss, #ef4444)' }}>
+        <div role="alert" className={bannerStyles.alertSm} style={{ margin: '12px 0' }}>
           {errorMsg}
         </div>
       )}
 
       {!haveCurrent && (
         <div
-          style={{
-            margin: '16px 0', padding: '14px 18px',
-            background: 'rgba(201,168,76,0.10)',
-            border: '1px solid rgba(201,168,76,0.5)',
-            borderRadius: 8,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}
+          className={bannerStyles.info}
+          style={{ margin: '16px 0', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
         >
           <span style={{ fontSize: 13 }}>
             No review yet for the week of <strong>{expectedWeek}</strong>.
@@ -111,11 +107,7 @@ export default function CompassTab() {
             type="button"
             onClick={() => onGenerate(expectedWeek)}
             disabled={generating}
-            style={{
-              padding: '6px 14px', fontSize: 12, fontWeight: 600,
-              background: 'var(--ut-gold, #c9a84c)', color: '#000',
-              border: 'none', borderRadius: 6, cursor: 'pointer',
-            }}
+            className={bannerStyles.infoCtaBtn}
           >
             {generating ? 'Compass is reviewing your week…' : 'Generate this week\'s review →'}
           </button>

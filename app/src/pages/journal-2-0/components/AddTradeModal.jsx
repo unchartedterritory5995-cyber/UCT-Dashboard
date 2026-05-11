@@ -15,6 +15,7 @@ import {
 } from '../../../lib/journal-2-0'
 import { computeImpliedRiskPct } from '../lib/disciplineGuards'
 import styles from './ModalShell.module.css'
+import bannerStyles from './AlertBanner.module.css'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2DisciplineState from '../hooks/useJ2DisciplineState'
 import DisciplineLockBanner from './DisciplineLockBanner'
@@ -366,19 +367,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
             onArmOverride={() => setDisciplineOverrideArmed(true)}
           />
           {overCap && (
-            <div
-              role="alert"
-              style={{
-                margin: '0 0 12px',
-                padding: '10px 14px',
-                background: 'rgba(239,68,68,0.12)',
-                border: '1px solid var(--loss, #ef4444)',
-                borderRadius: 8,
-                color: 'var(--loss, #ef4444)',
-                fontSize: 13,
-                lineHeight: 1.5,
-              }}
-            >
+            <div role="alert" className={bannerStyles.alert}>
               <strong>Over risk cap.</strong>{' '}
               Implied risk <strong>{impliedRiskPct.toFixed(2)}%</strong> exceeds
               your cap of <strong>{cap}%</strong>
@@ -393,13 +382,7 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
                   <button
                     type="button"
                     onClick={() => setOverrideArmed(true)}
-                    style={{
-                      marginLeft: 6, padding: '2px 10px',
-                      background: 'transparent',
-                      border: '1px solid var(--loss, #ef4444)',
-                      color: 'var(--loss, #ef4444)',
-                      borderRadius: 6, fontSize: 12, cursor: 'pointer',
-                    }}
+                    className={bannerStyles.alertOverrideBtn}
                   >
                     Override
                   </button>
