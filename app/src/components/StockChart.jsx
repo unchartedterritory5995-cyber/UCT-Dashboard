@@ -259,12 +259,15 @@ export default function StockChart({
   // ── Chart settings from user preferences ──
   const cs = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
 
-  // ── Chart event markers (earnings + splits) — fetched from /api/chart/markers ──
-  const markersEnabled = cs.markers?.earnings || cs.markers?.splits
+  // ── Chart event markers (earnings + splits + dividends) — /api/chart/markers ──
+  const markersEnabled = cs.markers?.earnings || cs.markers?.splits || cs.markers?.dividends
   const { data: markersData } = useSWR(
-    markersEnabled && sym ? `/api/chart/markers/${encodeURIComponent(sym)}` : null,
+    markersEnabled && sym ? `/api/chart/markers/${encodeURIComponent(sym)}?days=730` : null,
     fetcher,
-    { dedupingInterval: 21_600_000 }  // 6 hours — markers don't change often
+    {
+      dedupingInterval: 43_200_000,  // 12 hours — matches backend cache TTL
+      revalidateOnFocus: false,
+    }
   )
   const chartEventMarkers = useMemo(() => {
     // Only show event markers on daily/weekly — intraday bars don't line up with quarter dates
@@ -274,12 +277,15 @@ export default function StockChart({
     if (cs.markers?.earnings && Array.isArray(markersData.earnings)) {
       for (const e of markersData.earnings) {
         if (!e.date) continue
+        const surpTxt = (e.surprise != null && Number.isFinite(+e.surprise))
+          ? ` ${(+e.surprise >= 0 ? '+' : '')}${(+e.surprise).toFixed(1)}%`
+          : ''
         eventMarkers.push({
           time: e.date,
           position: 'belowBar',
           color: e.beat === true ? '#4ade80' : e.beat === false ? '#f87171' : '#94a3b8',
           shape: e.beat === true ? 'arrowUp' : e.beat === false ? 'arrowDown' : 'circle',
-          text: 'E',
+          text: `E${surpTxt}`,
           size: 1,
         })
       }
@@ -290,9 +296,24 @@ export default function StockChart({
         eventMarkers.push({
           time: s.date,
           position: 'aboveBar',
-          color: '#60a5fa',
+          color: '#f59e0b',
           shape: 'square',
-          text: s.ratio || 'S',
+          text: s.ratio ? `S ${s.ratio}` : 'S',
+          size: 1,
+        })
+      }
+    }
+    if (cs.markers?.dividends && Array.isArray(markersData.dividends)) {
+      for (const d of markersData.dividends) {
+        if (!d.date || d.amount == null) continue
+        const amt = Number(d.amount)
+        if (!Number.isFinite(amt)) continue
+        eventMarkers.push({
+          time: d.date,
+          position: 'belowBar',
+          color: '#3b82f6',
+          shape: 'arrowUp',
+          text: `D $${amt.toFixed(2)}`,
           size: 1,
         })
       }

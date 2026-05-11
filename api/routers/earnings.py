@@ -234,7 +234,24 @@ def earnings_analysis(request: Request, sym: str):
 
 
 @router.get("/api/chart/markers/{ticker}")
-def chart_markers_endpoint(ticker: str):
-    """Earnings beat/miss history + stock splits for chart annotation."""
+@router.get("/api/chart-markers/{ticker}")
+def chart_markers_endpoint(ticker: str, days: int = 730):
+    """Earnings beat/miss history + stock splits + dividends for chart annotation.
+
+    `days` filters output to events within the last N calendar days
+    (1 ≤ days ≤ 3650). The underlying fetch always pulls a 5-year window
+    so the per-ticker cache entry serves both short and long ranges; we
+    only post-filter the cached result here.
+    """
+    from datetime import date, timedelta
     from api.services.earnings_estimates import get_chart_markers
-    return get_chart_markers(ticker.upper())
+
+    days = max(1, min(int(days or 730), 3650))
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+
+    raw = get_chart_markers(ticker.upper()) or {}
+    return {
+        "earnings":  [e for e in (raw.get("earnings")  or []) if (e.get("date") or "") >= cutoff],
+        "splits":    [s for s in (raw.get("splits")    or []) if (s.get("date") or "") >= cutoff],
+        "dividends": [d for d in (raw.get("dividends") or []) if (d.get("date") or "") >= cutoff],
+    }

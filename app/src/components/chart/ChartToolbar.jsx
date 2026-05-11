@@ -424,6 +424,15 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
               }} />
             Splits
           </label>
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.markers?.dividends ?? false}
+              onChange={e => {
+                const next = { ...cs, markers: { ...cs.markers, dividends: e.target.checked }, preset: 'custom' }
+                onUpdateSettings(next)
+              }} />
+            Dividends
+          </label>
         </div>
       </div>
 

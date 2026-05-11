@@ -59,7 +59,7 @@ export const CHART_DEFAULTS = {
   },
   heikinAshi: false,
   logScale:   false,
-  markers: { earnings: false, splits: false },
+  markers: { earnings: false, splits: false, dividends: false },
 
   preset: 'classic',
 }

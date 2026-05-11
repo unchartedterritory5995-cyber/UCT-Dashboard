@@ -11,7 +11,8 @@ from api.services.cache import cache
 
 _logger = logging.getLogger(__name__)
 
-_CACHE_TTL = 21_600  # 6 hours
+_CACHE_TTL = 21_600  # 6 hours (used by get_earnings_intel)
+_MARKERS_CACHE_TTL = 43_200  # 12 hours (used by get_chart_markers)
 _TIMEOUT = 6  # seconds per Finnhub request
 
 
@@ -107,25 +108,37 @@ def get_earnings_intel(ticker: str) -> dict | None:
 
 
 def get_chart_markers(ticker: str) -> dict:
-    """Return earnings beat/miss history and stock splits for chart annotation.
+    """Return earnings, stock splits, and dividends for chart annotation.
 
     Returns:
         {
-          "earnings": [{"date": "2024-11-01", "beat": true, "surprise": 3.2}, ...],
-          "splits":   [{"date": "2020-08-28", "ratio": "4:1"}, ...]
+          "earnings":  [{"date": "2024-11-01", "beat": true, "surprise": 3.2,
+                         "eps_actual": 1.5, "eps_estimate": 1.4}, ...],
+          "splits":    [{"date": "2020-08-28", "ratio": "4:1",
+                         "from_factor": 1, "to_factor": 4}, ...],
+          "dividends": [{"date": "2026-03-15", "amount": 0.85}, ...]
         }
-    Keys with no data return empty lists. Never raises.
+    Each section is independently wrapped in try/except — a failing source
+    returns an empty list for that section but doesn't fail the whole call.
+    Cached 12 h per ticker. Never raises.
     """
+    ticker = ticker.upper()
+    cache_key = f"chart_markers_{ticker}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    result = {"earnings": [], "splits": [], "dividends": []}
+
+    from datetime import date, timedelta
+    today = date.today()
+    # 5-year lookback covers the 2-year default request comfortably and lets a
+    # single cache entry serve longer-range chart views too.
+    from_date = (today - timedelta(days=365 * 5)).strftime("%Y-%m-%d")
+    to_date   = today.strftime("%Y-%m-%d")
+
+    # ── Earnings history (last 16 quarters ≈ 4 years) ─────────────────────────
     try:
-        ticker = ticker.upper()
-        cache_key = f"chart_markers_{ticker}"
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return cached
-
-        result = {"earnings": [], "splits": []}
-
-        # ── Earnings history (last 16 quarters ≈ 4 years) ─────────────────────
         eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": 16})
         if isinstance(eps_raw, list):
             for q in eps_raw:
@@ -139,13 +152,14 @@ def get_chart_markers(ticker: str) -> dict:
                     "date": str(date_str)[:10],
                     "beat": beat,
                     "surprise": q.get("surprisePercent"),
+                    "eps_actual": actual,
+                    "eps_estimate": estimate,
                 })
+    except Exception as exc:
+        _logger.warning("get_chart_markers earnings failed for %s: %s", ticker, exc)
 
-        # ── Stock splits (last 5 years) ───────────────────────────────────────
-        from datetime import date, timedelta
-        today = date.today()
-        from_date = (today - timedelta(days=365 * 5)).strftime("%Y-%m-%d")
-        to_date   = today.strftime("%Y-%m-%d")
+    # ── Stock splits (last 5 years) ──────────────────────────────────────────
+    try:
         splits_raw = _fh_get("/stock/split", {"symbol": ticker, "from": from_date, "to": to_date})
         if isinstance(splits_raw, list):
             for s in splits_raw:
@@ -156,10 +170,35 @@ def get_chart_markers(ticker: str) -> dict:
                     result["splits"].append({
                         "date": str(date_str)[:10],
                         "ratio": f"{from_f}:{to_f}",
+                        "from_factor": from_f,
+                        "to_factor": to_f,
                     })
-
-        cache.set(cache_key, result, ttl=_CACHE_TTL)
-        return result
     except Exception as exc:
-        _logger.warning("get_chart_markers failed for %s: %s", ticker, exc)
-        return {"earnings": [], "splits": []}
+        _logger.warning("get_chart_markers splits failed for %s: %s", ticker, exc)
+
+    # ── Dividends (last 5 years) ─────────────────────────────────────────────
+    try:
+        div_raw = _fh_get(
+            "/stock/dividend",
+            {"symbol": ticker, "from": from_date, "to": to_date},
+        )
+        if isinstance(div_raw, list):
+            for d in div_raw:
+                # Finnhub returns ex-date in "date" and amount in "amount".
+                date_str = d.get("date") or d.get("payDate") or d.get("recordDate")
+                amount   = d.get("amount") or d.get("dividend")
+                if date_str is None or amount is None:
+                    continue
+                try:
+                    amount_f = float(amount)
+                except (TypeError, ValueError):
+                    continue
+                result["dividends"].append({
+                    "date": str(date_str)[:10],
+                    "amount": amount_f,
+                })
+    except Exception as exc:
+        _logger.warning("get_chart_markers dividends failed for %s: %s", ticker, exc)
+
+    cache.set(cache_key, result, ttl=_MARKERS_CACHE_TTL)
+    return result
