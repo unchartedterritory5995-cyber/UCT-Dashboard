@@ -97,5 +97,12 @@ def theme_correlation_endpoint(n: int = Query(default=40, ge=2, le=80), lookback
     from api.services.theme_correlation import get_theme_correlation
     result = get_theme_correlation(n=n, lookback=lookback)
     if result is None:
-        return {"error": "unavailable"}
-    return result
+        return {
+            "status": "unavailable",
+            "reason": "Theme ETF bar data not yet warmed; correlation will be available once SQLite cache populates.",
+            "retry_after_sec": 600,
+            "labels": [],
+            "names": [],
+            "matrix": [],
+        }
+    return {"status": "ok", **result}

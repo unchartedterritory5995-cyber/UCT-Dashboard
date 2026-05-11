@@ -69,27 +69,43 @@ def _fetch_daily_closes(ticker: str, lookback: int) -> Optional[list[tuple[int, 
     """Fetch daily close prices for a ticker.
 
     Tries (in order):
-      1. Disk bars cache at /data/bars_cache/{ticker}_D_5000.json
-      2. Disk bars cache at /data/bars_cache/{ticker}_D_500.json  (older warm entries)
+      1. SQLite bar store (primary, per Plan 5 hot-tier architecture)
+      2. Legacy disk bars cache at /data/bars_cache/{ticker}_D_{N}.json
       3. Massive REST API via get_agg_bars()
 
-    Returns list of (timestamp_ms, close) sorted ascending, or None on failure.
+    Returns list of (timestamp, close) sorted ascending, or None on failure.
+    Timestamp is whatever the source provides (int for SQLite, may be str for
+    disk cache — caller treats opaquely for inner-join only).
     """
-    from api.services import bars_disk_cache as disk_cache
+    # 1. Primary: SQLite bar store
+    try:
+        from api.services import bars_sqlite as _sqlite
+        rows = _sqlite.get_bars(ticker.upper(), "D", lookback + 10)
+        if rows and len(rows) >= max(10, lookback // 2):
+            # rows are (ts, o, h, l, c, v) tuples
+            pairs = [(r[0], r[4]) for r in rows if r[0] and r[4]]
+            if len(pairs) >= max(10, lookback // 2):
+                return pairs[-(lookback + 5):]
+    except Exception as e:
+        _logger.debug("theme_correlation: sqlite read failed for %s: %s", ticker, e)
 
-    # Try common bar-count cache files
-    for bar_count in (5000, 500, 1000, 8000):
-        try:
-            cached = disk_cache.get(ticker, "D", bar_count)
-            if cached and cached.get("bars"):
-                bars = cached["bars"]
-                pairs = [(b["t"], b["c"]) for b in bars if b.get("t") and b.get("c")]
-                if len(pairs) >= lookback:
-                    return pairs[-(lookback + 5):]  # slight buffer
-        except Exception:
-            pass
+    # 2. Legacy disk cache (kept for resilience)
+    try:
+        from api.services import bars_disk_cache as disk_cache
+        for bar_count in (5000, 500, 1000, 8000):
+            try:
+                cached = disk_cache.get(ticker, "D", bar_count)
+                if cached and cached.get("bars"):
+                    bars = cached["bars"]
+                    pairs = [(b["t"], b["c"]) for b in bars if b.get("t") and b.get("c")]
+                    if len(pairs) >= lookback:
+                        return pairs[-(lookback + 5):]
+            except Exception:
+                pass
+    except Exception:
+        pass
 
-    # Fallback: fetch directly from Massive REST API
+    # 3. Fallback: Massive REST API
     try:
         from api.services.massive import get_agg_bars
         to_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -98,9 +114,10 @@ def _fetch_daily_closes(ticker: str, lookback: int) -> Optional[list[tuple[int, 
         bars = get_agg_bars(ticker, from_date, to_date)
         if bars:
             pairs = [(b["t"], b["c"]) for b in bars if b.get("t") and b.get("c")]
-            return pairs
+            if len(pairs) >= max(10, lookback // 2):
+                return pairs
     except Exception as e:
-        _logger.debug("theme_correlation: failed to fetch %s: %s", ticker, e)
+        _logger.debug("theme_correlation: massive REST failed for %s: %s", ticker, e)
 
     return None
 
