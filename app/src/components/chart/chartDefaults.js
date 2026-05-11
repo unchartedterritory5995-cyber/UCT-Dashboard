@@ -60,7 +60,8 @@ export const CHART_DEFAULTS = {
   heikinAshi: false,
   logScale:   false,
   comparisonSymbols: [], // Array<{ sym: string, color: string, enabled: boolean }>
-  markers: { earnings: false, splits: false, dividends: false },
+  markers: { earnings: false, splits: false, dividends: false, news: false },
+  countdown: false,
 
   preset: 'classic',
 }
@@ -209,6 +210,7 @@ export function mergeChartSettings(userSettings) {
       ? parsed.comparisonSymbols
       : CHART_DEFAULTS.comparisonSymbols,
     markers: { ...CHART_DEFAULTS.markers, ...(parsed.markers || {}) },
+    countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     preset: parsed.preset || 'classic',
   }
 }
