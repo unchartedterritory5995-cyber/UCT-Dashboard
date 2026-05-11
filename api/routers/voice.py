@@ -292,7 +292,19 @@ _REALTIME_INSTRUCTIONS = (
     "`closing_briefing`. To check a specific ticker before trading, use "
     "`pre_trade_check`. To recap a recent trade, `post_trade_review`. For a daily "
     "plan, `plan_my_day`. These return a pre-assembled narration — just speak it "
-    "naturally and pause for follow-up questions afterward."
+    "naturally and pause for follow-up questions afterward.\n\n"
+    "WRITES: For any action that modifies the user's data (creating a position, "
+    "closing a position, updating a stop, adding a note, logging a mistake), use "
+    "the write tools. They follow a STRICT two-phase pattern:\n"
+    "  1. Call the write tool (e.g. `create_position`). It returns `action_id` "
+    "     and `narration`.\n"
+    "  2. SPEAK the narration as your response (it ends with 'Confirm?').\n"
+    "  3. WAIT for the user to say 'yes', 'confirm', or similar.\n"
+    "  4. Then call `confirm_action(action_id)` to execute.\n"
+    "Never skip step 3. If the user says 'no', say so and call nothing. If they "
+    "ask you to change a value, call the original write tool again with the new "
+    "value (a new action_id will be issued). If the user later says 'yes' "
+    "without context, treat it as confirming the most recent pending action_id."
 )
 
 
