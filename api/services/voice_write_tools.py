@@ -13,10 +13,30 @@ Each confirm function:
 """
 
 import logging
+from datetime import date as _date
 
 from api.services.voice_action_signer import sign_action
 
 _log = logging.getLogger(__name__)
+
+
+def _today_iso() -> str:
+    return _date.today().isoformat()
+
+
+def _find_open_entry_by_symbol(user_id: str, sym: str) -> dict | None:
+    """Find the most recent open journal entry for a given symbol."""
+    try:
+        from api.services.journal_service import list_entries
+    except ImportError:
+        return None
+    result = list_entries(
+        user_id,
+        filters={"sym": sym.upper(), "status": "open"},
+        limit=10,
+    ) or {}
+    trades = result.get("trades") or []
+    return trades[0] if trades else None
 
 
 # ── Shared sanity checks ───────────────────────────────────────────────────
@@ -88,18 +108,25 @@ def confirm_create_position(payload_args: dict) -> dict:
         return {"ok": False, "error": "journal service not available"}
 
     try:
-        entry_id = create_entry(
-            user_id=payload_args["user_id"],
-            sym=payload_args["symbol"],
-            direction="long",
-            setup=payload_args.get("setup") or "",
-            entry_price=payload_args["entry"],
-            stop_price=payload_args["stop"],
-            target_price=payload_args.get("target"),
-            status="open",
-            notes=payload_args.get("notes") or "",
-        )
-        return {"ok": True, "entry_id": entry_id, "summary": "Position logged."}
+        data = {
+            "sym": payload_args["symbol"],
+            "direction": "long",
+            "status": "open",
+            "setup": payload_args.get("setup") or "",
+            "entry_price": payload_args["entry"],
+            "stop_price": payload_args["stop"],
+            "target_price": payload_args.get("target"),
+            "notes": payload_args.get("notes") or "",
+            "account": payload_args.get("account") or "default",
+            "entry_date": _today_iso(),
+            "asset_class": "equity",
+        }
+        entry = create_entry(payload_args["user_id"], data)
+        return {
+            "ok": True,
+            "entry_id": entry.get("id") if entry else None,
+            "summary": "Position logged.",
+        }
     except Exception as e:  # noqa: BLE001
         _log.exception("confirm_create_position failed")
         return {"ok": False, "error": str(e)}
@@ -128,18 +155,25 @@ def preview_close_position(*, user_id: str, symbol: str, exit, partial: bool = F
 
 def confirm_close_position(payload_args: dict) -> dict:
     try:
-        from api.services.journal_service import close_entry_by_symbol
-    except (ImportError, AttributeError):
-        return {"ok": False, "error": "close API not available"}
+        from api.services.journal_service import update_entry
+    except ImportError:
+        return {"ok": False, "error": "journal service not available"}
+
+    sym = payload_args["symbol"]
+    entry = _find_open_entry_by_symbol(payload_args["user_id"], sym)
+    if not entry:
+        return {"ok": False, "error": f"no open position found for {sym}"}
+
     try:
-        result = close_entry_by_symbol(
-            user_id=payload_args["user_id"],
-            sym=payload_args["symbol"],
-            exit_price=payload_args["exit"],
-            partial=payload_args.get("partial", False),
-        )
-        return {"ok": True, "summary": "Closed.", "result": result}
+        update_entry(payload_args["user_id"], entry["id"], {
+            "status": "closed",
+            "exit_price": payload_args["exit"],
+            "exit_date": _today_iso(),
+        })
+        return {"ok": True, "summary": f"{sym} closed at {payload_args['exit']}.",
+                "entry_id": entry["id"]}
     except Exception as e:  # noqa: BLE001
+        _log.exception("confirm_close_position failed")
         return {"ok": False, "error": str(e)}
 
 
@@ -173,18 +207,23 @@ def preview_update_position(*, user_id: str, symbol: str, field: str, value) -> 
 
 def confirm_update_position(payload_args: dict) -> dict:
     try:
-        from api.services.journal_service import update_entry_field_by_symbol
-    except (ImportError, AttributeError):
-        return {"ok": False, "error": "update API not available"}
+        from api.services.journal_service import update_entry
+    except ImportError:
+        return {"ok": False, "error": "journal service not available"}
+
+    sym = payload_args["symbol"]
+    entry = _find_open_entry_by_symbol(payload_args["user_id"], sym)
+    if not entry:
+        return {"ok": False, "error": f"no open position found for {sym}"}
+
     try:
-        update_entry_field_by_symbol(
-            user_id=payload_args["user_id"],
-            sym=payload_args["symbol"],
-            field=payload_args["field"],
-            value=payload_args["value"],
-        )
-        return {"ok": True, "summary": "Updated."}
+        update_entry(payload_args["user_id"], entry["id"], {
+            payload_args["field"]: payload_args["value"],
+        })
+        return {"ok": True, "summary": f"{sym} {payload_args['field']} updated.",
+                "entry_id": entry["id"]}
     except Exception as e:  # noqa: BLE001
+        _log.exception("confirm_update_position failed")
         return {"ok": False, "error": str(e)}
 
 
@@ -207,19 +246,32 @@ def preview_add_daily_note(*, user_id: str, text: str, emotion: str = "",
 
 
 def confirm_add_daily_note(payload_args: dict) -> dict:
+    """Append a voice-captured note to today's daily journal (midday_notes field)."""
     try:
-        from api.services.daily_journal_service import add_daily_note
-    except (ImportError, AttributeError):
-        return {"ok": False, "error": "daily journal API not available"}
+        from api.services.daily_journal_service import get_or_create_daily, update_daily
+    except ImportError:
+        return {"ok": False, "error": "daily journal service not available"}
+
+    user_id = payload_args["user_id"]
+    date_iso = payload_args.get("date") or _today_iso()
+    new_text = payload_args["text"]
+    emotion = (payload_args.get("emotion") or "").strip()
+
     try:
-        add_daily_note(
-            user_id=payload_args["user_id"],
-            text=payload_args["text"],
-            emotion=payload_args.get("emotion") or None,
-            date=payload_args.get("date") or None,
-        )
-        return {"ok": True, "summary": "Note added."}
+        # Append rather than overwrite — preserve any existing notes
+        existing = get_or_create_daily(user_id, date_iso) or {}
+        prev = (existing.get("midday_notes") or "").strip()
+        appended = f"{prev}\n\n{new_text}".strip() if prev else new_text
+        if emotion:
+            appended = f"{appended}  [feeling: {emotion}]"
+        update_data = {"midday_notes": appended}
+        if emotion:
+            # Also stash emotion separately if the field exists
+            update_data["emotional_state"] = emotion
+        update_daily(user_id, date_iso, update_data)
+        return {"ok": True, "summary": f"Note added to {date_iso} journal."}
     except Exception as e:  # noqa: BLE001
+        _log.exception("confirm_add_daily_note failed")
         return {"ok": False, "error": str(e)}
 
 
@@ -245,19 +297,49 @@ def preview_log_mistake(*, user_id: str, mistake_type: str, text: str,
 
 
 def confirm_log_mistake(payload_args: dict) -> dict:
+    """
+    Log a mistake. Strategy:
+    1. If a symbol is given AND an open journal entry for it exists, append
+       the mistake to that entry's mistake_tags + notes.
+    2. Otherwise, write the mistake to today's daily journal `did_poorly` field
+       (the natural home for self-coaching mistake notes).
+    """
+    user_id = payload_args["user_id"]
+    mt = payload_args["mistake_type"]
+    text = payload_args.get("text") or ""
+    sym = (payload_args.get("symbol") or "").upper().strip()
+    mistake_line = f"{mt}: {text}" if text else mt
+
+    # Strategy 1: attach to an existing open entry if user named a symbol
+    if sym:
+        entry = _find_open_entry_by_symbol(user_id, sym)
+        if entry:
+            try:
+                from api.services.journal_service import update_entry
+                prev_tags = (entry.get("mistake_tags") or "").strip()
+                new_tags = ",".join(t for t in [prev_tags, mt] if t)
+                prev_notes = (entry.get("notes") or "").strip()
+                new_notes = f"{prev_notes}\n\nMistake: {mistake_line}".strip() if prev_notes else f"Mistake: {mistake_line}"
+                update_entry(user_id, entry["id"], {
+                    "mistake_tags": new_tags,
+                    "notes": new_notes,
+                })
+                return {"ok": True, "summary": f"Mistake tagged on {sym} entry.",
+                        "entry_id": entry["id"]}
+            except Exception as e:  # noqa: BLE001
+                _log.exception("confirm_log_mistake: update_entry failed; falling through to daily")
+
+    # Strategy 2: write to today's daily journal "did_poorly"
     try:
-        from api.services.journal_service import log_mistake_entry
-    except (ImportError, AttributeError):
-        return {"ok": False, "error": "mistake-logging API not available"}
-    try:
-        log_mistake_entry(
-            user_id=payload_args["user_id"],
-            mistake_type=payload_args["mistake_type"],
-            text=payload_args["text"],
-            symbol=payload_args.get("symbol") or "",
-        )
-        return {"ok": True, "summary": "Mistake logged."}
+        from api.services.daily_journal_service import get_or_create_daily, update_daily
+        date_iso = _today_iso()
+        existing = get_or_create_daily(user_id, date_iso) or {}
+        prev = (existing.get("did_poorly") or "").strip()
+        appended = f"{prev}\n{mistake_line}".strip() if prev else mistake_line
+        update_daily(user_id, date_iso, {"did_poorly": appended})
+        return {"ok": True, "summary": "Mistake logged in today's journal."}
     except Exception as e:  # noqa: BLE001
+        _log.exception("confirm_log_mistake: daily fallback failed")
         return {"ok": False, "error": str(e)}
 
 

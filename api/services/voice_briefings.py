@@ -207,8 +207,8 @@ def post_trade_review(*, symbol: str, user_id: str) -> dict:
 
     try:
         from api.services.journal_service import list_entries
-        entries = [e for e in (list_entries(user_id) or [])
-                   if (e.get("sym") or "").upper() == sym]
+        result = list_entries(user_id, filters={"sym": sym}, limit=20) or {}
+        entries = result.get("trades") or []
     except Exception:
         entries = []
 

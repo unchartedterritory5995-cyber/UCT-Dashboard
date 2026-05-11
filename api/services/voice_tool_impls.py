@@ -32,16 +32,30 @@ def _breadth() -> dict:
 
 
 def _sector_flow() -> list[dict]:
-    """Return list of {sector, change_pct} sorted by strength.
-    Falls back to themes leaders if no dedicated endpoint."""
+    """Return list of {sector, change_pct (float)} sorted by strength.
+    Falls back to themes leaders if no dedicated endpoint.
+    change_pct is always parsed to a float so callers can compare numerically."""
+    def _to_float(v) -> float:
+        if v is None:
+            return 0.0
+        if isinstance(v, (int, float)):
+            return float(v)
+        s = str(v).strip().replace("%", "").replace("+", "")
+        try:
+            return float(s)
+        except ValueError:
+            return 0.0
+
     try:
         from api.services.rs_ranking import get_sector_strength as _sec
-        return _sec() or []
+        raw = _sec() or []
+        return [{"sector": s.get("sector") or s.get("name"),
+                 "change_pct": _to_float(s.get("change_pct") or s.get("pct"))} for s in raw]
     except (ImportError, AttributeError):
         from api.services.engine import get_themes
         themes = get_themes() or {}
         leaders = (themes.get("leaders") or [])[:5]
-        return [{"sector": t.get("name"), "change_pct": t.get("pct", 0)} for t in leaders]
+        return [{"sector": t.get("name"), "change_pct": _to_float(t.get("pct"))} for t in leaders]
 
 
 # ── Indirections (set 2) ────────────────────────────────────────────────────

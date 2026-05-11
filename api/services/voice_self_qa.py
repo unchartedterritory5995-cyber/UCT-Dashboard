@@ -19,39 +19,93 @@ _log = logging.getLogger(__name__)
 
 # ── Indirections — monkeypatchable in tests ────────────────────────────────
 
+def _date_from_for_period(period: str) -> str | None:
+    """Convert a period name to an ISO date_from string (None = no filter)."""
+    period = (period or "").lower()
+    if period in {"all", "year"}:
+        return None
+    from datetime import date, timedelta
+    today = date.today()
+    if period == "today":
+        return today.isoformat()
+    if period == "week":
+        return (today - timedelta(days=7)).isoformat()
+    if period == "month":
+        return (today - timedelta(days=30)).isoformat()
+    if period == "ytd":
+        return date(today.year, 1, 1).isoformat()
+    return None
+
+
 def _stats_for_period(user_id: str, period: str) -> dict:
-    """Return aggregate trading stats for the given period."""
+    """Return aggregate stats. Normalizes get_stats's shape to what our
+    narration code expects: {trade_count, total_pnl_pct, total_pnl_dollar,
+    win_rate, best_trade, worst_trade}."""
     try:
-        from api.services.journal_service import get_stats_for_period
-        return get_stats_for_period(user_id, period) or {}
-    except (ImportError, AttributeError):
-        try:
-            from api.services.journal_service import get_stats
-            return get_stats(user_id) or {}
-        except (ImportError, AttributeError):
-            return {}
+        from api.services.journal_service import get_stats
+    except ImportError:
+        return {}
+    date_from = _date_from_for_period(period)
+    raw = get_stats(user_id, date_from=date_from) or {}
+
+    # get_stats returns various aggregate keys — normalize.
+    out = {
+        "trade_count": int(raw.get("total_trades") or raw.get("trade_count") or 0),
+        "total_pnl_pct": raw.get("total_pnl_pct") or raw.get("avg_pnl_pct"),
+        "total_pnl_dollar": raw.get("total_pnl_dollar") or raw.get("net_pnl"),
+        "win_rate": raw.get("win_rate"),
+        "best_trade": (raw.get("best_trade") or {}).get("sym") if isinstance(raw.get("best_trade"), dict) else raw.get("best_trade"),
+        "worst_trade": (raw.get("worst_trade") or {}).get("sym") if isinstance(raw.get("worst_trade"), dict) else raw.get("worst_trade"),
+    }
+    return out
 
 
 def _setup_breakdown(user_id: str) -> list[dict]:
-    """Return per-setup performance breakdown."""
+    """Per-setup performance breakdown. Uses get_analytics(group_by='setup')."""
     try:
-        from api.services.journal_analytics import group_by_setup
-        return group_by_setup(user_id) or []
-    except (ImportError, AttributeError):
-        try:
-            from api.services.journal_service import setup_performance
-            return setup_performance(user_id) or []
-        except (ImportError, AttributeError):
-            return []
+        from api.services.journal_analytics import get_analytics
+    except ImportError:
+        return []
+    data = get_analytics(user_id, group_by="setup") or {}
+    buckets = data.get("buckets") or data.get("rows") or []
+    out = []
+    for b in buckets:
+        if not isinstance(b, dict):
+            continue
+        out.append({
+            "setup": b.get("key") or b.get("setup") or "unknown",
+            "trade_count": int(b.get("trade_count") or b.get("count") or 0),
+            "win_rate": b.get("win_rate"),
+            "avg_pnl_pct": b.get("avg_pnl_pct"),
+            "expectancy": b.get("expectancy"),
+        })
+    return out
 
 
 def _recent_mistakes(user_id: str, days: int = 30) -> list[dict]:
-    """Return aggregate of recent mistakes (mistake_type → count)."""
+    """Aggregate mistake_tags across the user's journal entries in the period."""
     try:
-        from api.services.journal_insights import recent_mistakes
-        return recent_mistakes(user_id, days=days) or []
-    except (ImportError, AttributeError):
+        from api.services.journal_service import list_entries
+    except ImportError:
         return []
+    date_from = _date_from_for_period("month") if days == 30 else None
+    if days != 30:
+        from datetime import date, timedelta
+        date_from = (date.today() - timedelta(days=days)).isoformat()
+
+    result = list_entries(user_id, filters={"date_from": date_from} if date_from else {},
+                          limit=500) or {}
+    entries = result.get("trades") or []
+    counts: dict[str, int] = {}
+    for e in entries:
+        tags = (e.get("mistake_tags") or "").strip()
+        if not tags:
+            continue
+        for t in tags.split(","):
+            t = t.strip().lower()
+            if t:
+                counts[t] = counts.get(t, 0) + 1
+    return [{"mistake_type": k, "count": v} for k, v in sorted(counts.items(), key=lambda x: -x[1])]
 
 
 def _psychology_trend(user_id: str, days: int = 90) -> dict:
@@ -64,22 +118,23 @@ def _psychology_trend(user_id: str, days: int = 90) -> dict:
 
 def _find_trades(user_id: str, *, symbol: str = "", status: str = "",
                  setup: str = "", days: int = 30) -> list[dict]:
+    """Filtered trade search using list_entries (returns {trades:[], total})."""
     try:
         from api.services.journal_service import list_entries
-        entries = list_entries(user_id) or []
-        out = []
-        sym = symbol.upper().strip()
-        for e in entries:
-            if sym and (e.get("sym") or "").upper() != sym:
-                continue
-            if status and (e.get("status") or "") != status:
-                continue
-            if setup and (e.get("setup") or "") != setup:
-                continue
-            out.append(e)
-        return out[:20]
-    except (ImportError, AttributeError):
+    except ImportError:
         return []
+    filters: dict = {}
+    if symbol:
+        filters["sym"] = symbol.upper().strip()
+    if status:
+        filters["status"] = status
+    if setup:
+        filters["setup"] = setup
+    if days:
+        from datetime import date, timedelta
+        filters["date_from"] = (date.today() - timedelta(days=int(days))).isoformat()
+    result = list_entries(user_id, filters=filters, limit=20) or {}
+    return result.get("trades") or []
 
 
 # ── Tools ──────────────────────────────────────────────────────────────────
