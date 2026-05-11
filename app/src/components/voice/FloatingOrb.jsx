@@ -1,50 +1,59 @@
 import { useVoice } from '../../context/VoiceContext'
-import useOneShot from '../../hooks/useOneShot'
+import useRealtimeSession from '../../hooks/useRealtimeSession'
 import styles from './FloatingOrb.module.css'
 
 /**
- * Bottom-right always-present voice orb.
+ * Floating mic orb. Click → starts a Realtime conversation. Click again → ends it.
  *
  * - Idle: gold mic icon
- * - Listening: pulsing red ring + dot icon
- * - Thinking: spinning border + ellipsis icon
- * - Responding: solid green ring + speaker icon
- *
- * Click to start; click again while listening to stop early.
+ * - Connecting: spinning border + ellipsis
+ * - Connected (idle within session): solid green ring + waveform icon
+ * - User speaking: pulsing red ring
+ * - Assistant speaking: glowing green ring
  */
 export default function FloatingOrb({ context = 'global' }) {
   const voice = useVoice()
-  const { start } = useOneShot()
+  const { connect, disconnect } = useRealtimeSession()
 
-  // Hide when busy with a non-Mode-B activity (e.g. read-aloud playing)
-  if (voice.mode === 'a' && voice.status === 'playing') {
-    return null
-  }
+  if (voice.mode === 'a' && voice.status === 'playing') return null
 
   const status = voice.status
-  const stateClass =
-    status === 'listening' ? styles.listening :
-    status === 'thinking' ? styles.thinking :
-    status === 'responding' ? styles.responding :
-    styles.idle
+  let stateClass = styles.idle
+  let icon = '🎤'
+  let label = 'Tap to start a conversation'
 
-  const icon =
-    status === 'listening' ? '●' :
-    status === 'thinking' ? '…' :
-    status === 'responding' ? '🔊' :
-    '🎤'
+  if (voice.mode === 'c') {
+    if (status === 'connecting') {
+      stateClass = styles.thinking
+      icon = '…'
+      label = 'Connecting…'
+    } else if (status === 'connected') {
+      stateClass = styles.responding
+      icon = '◉'
+      label = 'Connected — say something'
+    } else if (status === 'speaking_user') {
+      stateClass = styles.listening
+      icon = '●'
+      label = 'Listening…'
+    } else if (status === 'speaking_assistant' || status === 'playing' || status === 'loading') {
+      stateClass = styles.responding
+      icon = '🔊'
+      label = 'Speaking — tap to stop'
+    } else if (status === 'error') {
+      stateClass = styles.idle
+      icon = '⚠'
+      label = `Error: ${voice.errorMessage || 'unknown'}`
+    }
+  }
 
-  const label =
-    status === 'listening' ? 'Listening — tap to stop' :
-    status === 'thinking' ? 'Thinking…' :
-    status === 'responding' ? 'Responding' :
-    'Tap to ask'
+  const inSession = voice.mode === 'c' && status !== 'idle' && status !== 'error'
+  const onClick = () => (inSession ? disconnect() : connect(context))
 
   return (
     <button
       type="button"
       className={`${styles.orb} ${stateClass}`}
-      onClick={() => start(context)}
+      onClick={onClick}
       aria-label={label}
       title={label}
     >
