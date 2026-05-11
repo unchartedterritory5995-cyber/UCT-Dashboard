@@ -59,6 +59,7 @@ export const CHART_DEFAULTS = {
   },
   heikinAshi: false,
   logScale:   false,
+  comparisonSymbols: [], // Array<{ sym: string, color: string, enabled: boolean }>
   markers: { earnings: false, splits: false, dividends: false },
 
   preset: 'classic',
@@ -204,6 +205,9 @@ export function mergeChartSettings(userSettings) {
     },
     heikinAshi: parsed.heikinAshi ?? CHART_DEFAULTS.heikinAshi,
     logScale:   parsed.logScale   ?? CHART_DEFAULTS.logScale,
+    comparisonSymbols: Array.isArray(parsed?.comparisonSymbols)
+      ? parsed.comparisonSymbols
+      : CHART_DEFAULTS.comparisonSymbols,
     markers: { ...CHART_DEFAULTS.markers, ...(parsed.markers || {}) },
     preset: parsed.preset || 'classic',
   }
