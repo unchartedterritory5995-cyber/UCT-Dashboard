@@ -142,6 +142,30 @@
   font-weight: 600;
 }
 
+/* ── Multi-symbol comparison legend (top-left overlay) ──
+   Renders one row of color-coded sym+% chips when any comparison
+   overlay is active. Positioned below the chart toolbar (which lives
+   at ~top: 8px). Pointer events off so it doesn't steal hover. */
+.comparisonLegend {
+  position: absolute;
+  top: 50px;
+  left: 16px;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 11px;
+  pointer-events: none;
+}
+.legendItem {
+  font-weight: 600;
+}
+
 /* ── Attribution (Apache 2.0 requirement) ── */
 .attribution {
   position: absolute;

@@ -15,6 +15,7 @@ import * as realtimeCandle from '../lib/realtimeCandle'
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import styles from './StockChart.module.css'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
+import { normalizeToPctChange } from './chart/comparisonUtils'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -356,6 +357,7 @@ export default function StockChart({
   const atrSeriesRef  = useRef(null)
   const sarSeriesRef  = useRef(null)
   const compareSeriesRef = useRef(null)
+  const comparisonSeriesRefs = useRef(new Map()) // sym -> LineSeries (multi-symbol comparison overlays)
   const vpCanvasRef = useRef(null)
   const ichimokuTenkanRef = useRef(null)
   const ichimokuKijunRef  = useRef(null)
@@ -853,6 +855,52 @@ export default function StockChart({
     }
     return result
   }, [compareData, filteredBars, adjustTime])
+
+  // ── Multi-symbol comparison overlays (cs.comparisonSymbols) ──
+  // Independent of legacy single-symbol compareSymbol. Each enabled comparison
+  // is fetched in parallel, normalized to % change from first valid close, and
+  // drawn on a dedicated 'comparison' price scale (left side).
+  const enabledComparisons = useMemo(
+    () => (cs.comparisonSymbols || []).filter(c => c && c.enabled && c.sym),
+    [cs.comparisonSymbols]
+  )
+  // Stable cache key: sorted sym list + tf + barCount. Sorted so reorder doesn't refetch.
+  const comparisonsKey = useMemo(
+    () => enabledComparisons.map(c => String(c.sym).toUpperCase()).sort().join(',') || null,
+    [enabledComparisons]
+  )
+  const { data: comparisonsData } = useSWR(
+    comparisonsKey ? ['comparison-bars', comparisonsKey, resolvedTf, barCount] : null,
+    async () => {
+      const syms = enabledComparisons.map(c => String(c.sym).toUpperCase())
+      const results = await Promise.allSettled(
+        syms.map(s =>
+          fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${barCount}`)
+            .then(r => (r.ok ? r.json() : { bars: [] }))
+            .catch(() => ({ bars: [] }))
+        )
+      )
+      const out = {}
+      results.forEach((r, i) => {
+        out[syms[i]] = r.status === 'fulfilled' ? (r.value?.bars || []) : []
+      })
+      return out
+    },
+    { revalidateOnFocus: false, dedupingInterval: 15_000 }
+  )
+
+  // Per-enabled-comparison normalized {time, value} points with adjustTime applied.
+  const comparisonSeries = useMemo(() => {
+    if (!comparisonsData) return []
+    return enabledComparisons.map(c => {
+      const symKey = String(c.sym).toUpperCase()
+      const rawBars = comparisonsData[symKey] || []
+      const points = normalizeToPctChange(
+        rawBars.map(b => ({ t: adjustTime(b.t), c: b.c }))
+      )
+      return { sym: symKey, color: c.color, points }
+    })
+  }, [comparisonsData, enabledComparisons, adjustTime])
 
   // Reset all live tracking refs on symbol or timeframe change.
   // CRITICAL: latestLiveRef must also be cleared — without it, a leftover live
@@ -1671,6 +1719,107 @@ export default function StockChart({
     updateChart()
   }, [updateChart])
 
+  // ── Multi-symbol comparison overlays — add/remove series ──
+  // Uses left-side 'comparison' price scale (independent of right price + 'compare' scale).
+  // Runs whenever `comparisonSeries` changes (sym list, fetched data, or colors).
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+
+    const map = comparisonSeriesRefs.current
+    const wanted = new Set(comparisonSeries.map(s => s.sym))
+
+    // Remove series no longer wanted
+    for (const [sym, series] of map.entries()) {
+      if (!wanted.has(sym)) {
+        try { chart.removeSeries(series) } catch {}
+        map.delete(sym)
+      }
+    }
+
+    // Add or update wanted series
+    for (const cmp of comparisonSeries) {
+      let series = map.get(cmp.sym)
+      if (!series) {
+        try {
+          series = chart.addSeries(LineSeries, {
+            priceScaleId: 'left',
+            color: cmp.color,
+            lineWidth: 2,
+            lastValueVisible: true,
+            priceLineVisible: false,
+            crosshairMarkerVisible: true,
+            crosshairMarkerRadius: 3,
+            title: cmp.sym,
+          })
+          map.set(cmp.sym, series)
+        } catch {
+          continue
+        }
+      } else {
+        try { series.applyOptions({ color: cmp.color }) } catch {}
+      }
+      try { series.setData(cmp.points) } catch {}
+    }
+
+    // Toggle left price scale visibility based on whether any comparisons are active
+    try {
+      if (wanted.size > 0) {
+        chart.priceScale('left').applyOptions({
+          visible: true,
+          scaleMargins: { top: 0.1, bottom: 0.1 },
+          borderVisible: false,
+        })
+      } else {
+        chart.priceScale('left').applyOptions({ visible: false })
+      }
+    } catch {}
+  }, [comparisonSeries])
+
+  // ── Multi-symbol comparison overlays — cleanup on unmount ──
+  useEffect(() => {
+    return () => {
+      const chart = chartRef.current
+      const map = comparisonSeriesRefs.current
+      if (chart) {
+        for (const series of map.values()) {
+          try { chart.removeSeries(series) } catch {}
+        }
+      }
+      map.clear()
+    }
+  }, [])
+
+  // ── Multi-symbol comparison overlays — live tick subscription ──
+  // For each enabled comparison sym, subscribe to its realtimeCandle stream and
+  // compute fresh % change vs the base close (first valid bar in the fetched series).
+  useEffect(() => {
+    if (!enabledComparisons.length || !comparisonsData) return
+    const unsubs = []
+    for (const c of enabledComparisons) {
+      const symKey = String(c.sym).toUpperCase()
+      const rawBars = comparisonsData[symKey] || []
+      // Find first valid close (mirrors normalizeToPctChange base logic)
+      let baseClose = null
+      for (const b of rawBars) {
+        if (b?.c != null && Number.isFinite(b.c)) { baseClose = b.c; break }
+      }
+      if (!baseClose) continue
+      const unsub = realtimeCandle.subscribe(symKey, () => {
+        const candle = realtimeCandle.getCandle(symKey, '1')
+        if (!candle || !Number.isFinite(candle.c)) return
+        const series = comparisonSeriesRefs.current.get(symKey)
+        if (!series) return
+        const pct = ((candle.c - baseClose) / baseClose) * 100
+        try {
+          series.update({ time: adjustTime(candle.t), value: pct })
+        } catch {}
+      })
+      unsubs.push(unsub)
+    }
+    return () => { for (const u of unsubs) { try { u() } catch {} } }
+  }, [enabledComparisons, comparisonsData, adjustTime])
+
   // ── Crosshair legend: subscribe to hover events ──
   useEffect(() => {
     const chart = chartRef.current
@@ -2065,6 +2214,21 @@ export default function StockChart({
       {correctionFlash && (
         <div className={styles.correctionFlash} title="Server corrected this bar after reconciliation">
           ↻ Bar corrected
+        </div>
+      )}
+      {enabledComparisons.length > 0 && (
+        <div className={styles.comparisonLegend}>
+          <span className={styles.legendLabel}>vs {sym}:</span>
+          {comparisonSeries.map(s => {
+            const last = s.points && s.points.length ? s.points[s.points.length - 1] : null
+            const pct = last?.value
+            const valid = Number.isFinite(pct)
+            return (
+              <span key={s.sym} className={styles.legendItem} style={{ color: s.color }}>
+                {s.sym} {valid ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : '—'}
+              </span>
+            )
+          })}
         </div>
       )}
       {loading && (
