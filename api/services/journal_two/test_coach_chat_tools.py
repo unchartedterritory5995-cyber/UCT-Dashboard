@@ -1,0 +1,232 @@
+"""Tests for the chat tool catalog."""
+from __future__ import annotations
+import importlib, json, os, sqlite3, tempfile, uuid
+import pytest
+
+
+@pytest.fixture
+def db_conn(monkeypatch):
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
+    from api.services import auth_db
+    importlib.reload(auth_db)
+    auth_db.init_db()
+    conn = sqlite3.connect(tmp.name)
+    conn.row_factory = sqlite3.Row
+    yield conn
+    conn.close()
+    os.unlink(tmp.name)
+
+
+def _seed_account(db_conn, user_id="u_chat"):
+    from api.services.journal_two import accounts as accounts_service
+    return accounts_service.get_or_migrate_default_account(user_id, conn=db_conn)
+
+
+def _insert_trade(conn, *, user_id, account_id, exit_iso, **kwargs):
+    """Closed-trade insert helper (mirrors test_coach_data_assembler.py)."""
+    defaults = dict(
+        symbol="TEST", side="Long", shares=100,
+        entry_price=100.0, entry_date=exit_iso,
+        exit_price=105.0, exit_date=exit_iso,
+        original_stop=95.0, setup="Bull Flag", notes=None,
+        pnl_dollar=500.0, pnl_percent=5.0, r_multiple=1.0,
+        hold_days=2, result="Win", context_at_entry="{}",
+        created_at=exit_iso, mistake_tags="[]", emotion_tags="[]",
+        fees=0, regime=None,
+    )
+    defaults.update(kwargs)
+    conn.execute(
+        """INSERT INTO j2_trades (
+            id, user_id, position_id, symbol, side, shares,
+            entry_price, entry_date, exit_price, exit_date,
+            original_stop, setup, notes, pnl_dollar, pnl_percent,
+            r_multiple, hold_days, result, context_at_entry,
+            created_at, account_id, mistake_tags, emotion_tags, fees, regime
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (str(uuid.uuid4()), user_id, str(uuid.uuid4()),
+         defaults["symbol"], defaults["side"], defaults["shares"],
+         defaults["entry_price"], defaults["entry_date"],
+         defaults["exit_price"], defaults["exit_date"],
+         defaults["original_stop"], defaults["setup"], defaults["notes"],
+         defaults["pnl_dollar"], defaults["pnl_percent"], defaults["r_multiple"],
+         defaults["hold_days"], defaults["result"], defaults["context_at_entry"],
+         defaults["created_at"], account_id, defaults["mistake_tags"],
+         defaults["emotion_tags"], defaults["fees"], defaults["regime"]),
+    )
+    conn.commit()
+
+
+def test_tools_dict_exposes_expected_entries():
+    from api.services.journal_two import coach_chat_tools as tools
+    expected_read = {"list_recent_trades", "get_aggregates", "get_open_positions",
+                     "get_trader_profile", "get_recent_recaps", "get_account_settings",
+                     "get_setup_stats", "find_arcs"}
+    assert expected_read.issubset(tools.TOOLS.keys()), f"missing: {expected_read - tools.TOOLS.keys()}"
+    for name in expected_read:
+        spec = tools.TOOLS[name]
+        assert spec["requires_confirm"] is False
+        assert callable(spec["executor"])
+        assert "input_schema" in spec
+
+
+def test_list_recent_trades_returns_filtered_trades(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-11T20:00:00+00:00",
+                  symbol="NVDA", setup="Bull Flag", result="Win")
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-10T20:00:00+00:00",
+                  symbol="AAPL", setup="Pullback", result="Loss")
+    result = tools.TOOLS["list_recent_trades"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={"days": 7}, conn=db_conn,
+    )
+    assert result["count"] == 2
+    assert len(result["trades"]) == 2
+
+
+def test_list_recent_trades_filters_by_setup(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-11T20:00:00+00:00",
+                  symbol="NVDA", setup="Bull Flag", result="Win")
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-10T20:00:00+00:00",
+                  symbol="AAPL", setup="Pullback", result="Loss")
+    result = tools.TOOLS["list_recent_trades"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={"days": 7, "setup": "Bull Flag"}, conn=db_conn,
+    )
+    assert result["count"] == 1
+    assert result["trades"][0]["symbol"] == "NVDA"
+
+
+def test_get_aggregates_period_week_returns_summary(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-11T20:00:00+00:00",
+                  pnl_dollar=400, r_multiple=2.0, result="Win")
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-12T20:00:00+00:00",
+                  pnl_dollar=-200, r_multiple=-1.0, result="Loss")
+    result = tools.TOOLS["get_aggregates"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={"period": "week"}, conn=db_conn,
+    )
+    assert result["aggregates"]["trade_count"] == 2
+    assert result["aggregates"]["wins"] == 1
+    assert result["aggregates"]["losses"] == 1
+
+
+def test_get_aggregates_with_breakdown_by_setup(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-11T20:00:00+00:00",
+                  setup="Bull Flag", r_multiple=1.5, result="Win")
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-12T20:00:00+00:00",
+                  setup="Pullback", r_multiple=-1.0, result="Loss")
+    result = tools.TOOLS["get_aggregates"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"period": "week", "breakdown_by": "setup"}, conn=db_conn,
+    )
+    setups = {b["key"]: b for b in result["breakdown"]}
+    assert "Bull Flag" in setups
+    assert "Pullback" in setups
+
+
+def test_get_trader_profile_returns_account_blob(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET trader_profile = ? WHERE id = ?",
+        ("# Trader Profile\n\nDisciplined Long-only trader.", acc["id"]),
+    )
+    db_conn.commit()
+    result = tools.TOOLS["get_trader_profile"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={}, conn=db_conn,
+    )
+    assert "Disciplined" in result["profile_markdown"]
+
+
+def test_get_account_settings_returns_dict(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    result = tools.TOOLS["get_account_settings"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={}, conn=db_conn,
+    )
+    assert isinstance(result["settings"], dict)
+
+
+def test_get_open_positions_returns_only_open(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        """INSERT INTO j2_positions (id, user_id, symbol, side, entry_date,
+           shares, original_shares, entry_price, stop_price, breakeven_stop,
+           raise_to_breakeven, setup, notes, context_at_entry, account_id,
+           created_at, updated_at, closed_at)
+           VALUES (?, 'u_chat', 'NVDA', 'Long', '2026-05-10T14:00:00+00:00',
+           100, 100, 200.0, 195.0, NULL, 0, 'Bull Flag', NULL, '{}', ?,
+           '2026-05-10T14:00:00+00:00', '2026-05-10T14:00:00+00:00', NULL)""",
+        (str(uuid.uuid4()), acc["id"]),
+    )
+    db_conn.commit()
+    result = tools.TOOLS["get_open_positions"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={}, conn=db_conn,
+    )
+    assert result["count"] == 1
+    assert result["positions"][0]["symbol"] == "NVDA"
+
+
+def test_get_recent_recaps_returns_eod_and_weekly(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    for kind, day in (("eod_recap", "2026-05-11"), ("weekly_review", "2026-05-04")):
+        db_conn.execute(
+            """INSERT INTO j2_coach_outputs
+               (id, user_id, account_id, output_type, body, summary, metadata, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (str(uuid.uuid4()), "u_chat", acc["id"], kind,
+             f"{kind} body", f"{kind} summary",
+             json.dumps({"day": day, "week_start": day}),
+             f"{day}T20:00:00+00:00"),
+        )
+    db_conn.commit()
+    result = tools.TOOLS["get_recent_recaps"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={"kind": "all"}, conn=db_conn,
+    )
+    assert result["count"] == 2
+
+
+def test_find_arcs_uses_assembler_detectors(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    for day, sym in (("2026-05-07", "TSLA"), ("2026-05-08", "NVDA"), ("2026-05-11", "CRWD")):
+        _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                      exit_iso=f"{day}T20:00:00+00:00", setup="Bull Flag",
+                      symbol=sym, result="Loss", r_multiple=-1.0, pnl_dollar=-100)
+    result = tools.TOOLS["find_arcs"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={"lookback_days": 10}, conn=db_conn,
+    )
+    assert any("Bull Flag" in arc for arc in result["arcs"])
+
+
+def test_get_setup_stats_returns_per_setup_breakdown(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    for r, setup in ((2.1, "Bull Flag"), (-1.0, "Pullback"), (1.5, "Bull Flag")):
+        _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                      exit_iso="2026-05-10T20:00:00+00:00",
+                      setup=setup, r_multiple=r,
+                      result="Win" if r > 0 else "Loss",
+                      pnl_dollar=r * 100)
+    result = tools.TOOLS["get_setup_stats"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={}, conn=db_conn,
+    )
+    assert isinstance(result["setups"], list)
+    setups = {s["setup"]: s for s in result["setups"]}
+    assert "Bull Flag" in setups
