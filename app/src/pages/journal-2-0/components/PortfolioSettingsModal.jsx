@@ -107,6 +107,15 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
   const [aPlusRiskMultiplier, setAPlusRiskMultiplier] = useState(
     settings?.aPlusRiskMultiplier == null ? '' : String(settings.aPlusRiskMultiplier),
   )
+  const [regimeSizeMultipliers, setRegimeSizeMultipliers] = useState(() => {
+    const seed = settings?.regimeSizeMultipliers || {}
+    return {
+      green: seed.green == null ? '' : String(seed.green),
+      amber: seed.amber == null ? '' : String(seed.amber),
+      orange: seed.orange == null ? '' : String(seed.orange),
+      red: seed.red == null ? '' : String(seed.red),
+    }
+  })
 
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -166,6 +175,11 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
       noTradeWindowsET,
       aPlusSetups,
       aPlusRiskMultiplier: aPlusRiskMultiplier === '' ? null : Number(aPlusRiskMultiplier),
+      regimeSizeMultipliers: Object.fromEntries(
+        Object.entries(regimeSizeMultipliers)
+          .filter(([, v]) => v !== '')
+          .map(([k, v]) => [k, Number(v)])
+      ),
     }
     setSaving(true)
     try {
@@ -197,6 +211,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     noTradeWindowsET,
     aPlusSetups,
     aPlusRiskMultiplier,
+    regimeSizeMultipliers,
     onSave,
     onClose,
   ])
@@ -476,6 +491,43 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
               Effective cap on an A+ setup = Max Risk Per Trade × this
               multiplier. Leave blank to keep all setups at the same cap.
             </p>
+          </section>
+
+          {/* REGIME-AWARE SIZING — Phase D */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeader}>REGIME-AWARE SIZING</h3>
+            <p className={styles.helper}>
+              Auto-scale Default Position Size based on UCT regime. Multiplier
+              of <code>0.5</code> = 50% normal size, <code>0</code> = skip
+              entries in that regime. Leave blank to skip scaling for any
+              regime.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, margin: '8px 0' }}>
+              {[
+                { key: 'green', label: 'GREEN', tint: '#22c55e', placeholder: '1.0' },
+                { key: 'amber', label: 'AMBER', tint: '#fbbf24', placeholder: '0.75' },
+                { key: 'orange', label: 'ORANGE', tint: '#fb923c', placeholder: '0.5' },
+                { key: 'red', label: 'RED', tint: '#ef4444', placeholder: '0' },
+              ].map(({ key, label, tint, placeholder }) => (
+                <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 90 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, color: tint }}>
+                    {label}
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.05"
+                    value={regimeSizeMultipliers[key]}
+                    onChange={(e) =>
+                      setRegimeSizeMultipliers((prev) => ({ ...prev, [key]: e.target.value }))
+                    }
+                    placeholder={placeholder}
+                    className={styles.numberInput}
+                  />
+                </label>
+              ))}
+            </div>
           </section>
 
           {/* 5.2 DEFAULT STOP */}
