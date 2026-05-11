@@ -150,3 +150,7 @@
   overflow: hidden;
   position: relative;
 }
+
+/* Placeholder classes for LayoutPicker — full styles arrive in Task 6 */
+.layoutPicker {}
+.layoutBtnLabel {}
