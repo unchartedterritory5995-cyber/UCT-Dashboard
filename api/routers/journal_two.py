@@ -1055,6 +1055,118 @@ def forget_coach_weekly_review(
     return {"ok": True}
 
 
+# ── Phase G v2: EOD recaps ──────────────────────────────────────────────────
+
+
+@router.get("/accounts/{account_id}/coach/eod-recaps")
+def list_coach_eod_recaps(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+):
+    return {"recaps": coach_service.list_eod_recaps(
+        user_id=user["id"], account_id=account_id,
+    )}
+
+
+@router.get("/accounts/{account_id}/coach/eod-recaps/{recap_id}")
+def get_coach_eod_recap(
+    account_id: str,
+    recap_id: str,
+    user: dict = Depends(get_current_user),
+):
+    r = coach_service.get_eod_recap(recap_id, user_id=user["id"])
+    if not r:
+        raise HTTPException(status_code=404, detail="Recap not found")
+    return r
+
+
+@router.post("/accounts/{account_id}/coach/eod-recaps/generate")
+def generate_coach_eod_recap(
+    account_id: str,
+    payload: dict | None = None,
+    user: dict = Depends(get_current_user),
+):
+    # Compass-enabled gate
+    settings_check = accounts_service.get_account_settings(user["id"], account_id)
+    if settings_check is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not settings_check.get("compassEnabled", True):
+        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+
+    # Default day = today ET
+    from datetime import datetime as _dt
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    day = (payload or {}).get("day") or _dt.now(et).date().isoformat()
+    try:
+        return coach_service.generate_eod_recap(
+            user_id=user["id"], account_id=account_id, day=day,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.post("/accounts/{account_id}/coach/eod-recaps/{recap_id}/regenerate")
+def regenerate_coach_eod_recap(
+    account_id: str,
+    recap_id: str,
+    user: dict = Depends(get_current_user),
+):
+    existing = coach_service.get_eod_recap(recap_id, user_id=user["id"])
+    if not existing:
+        raise HTTPException(status_code=404, detail="Recap not found")
+    day = (existing.get("metadata") or {}).get("day")
+    coach_service.forget_review(review_id=recap_id, user_id=user["id"])
+    try:
+        return coach_service.generate_eod_recap(
+            user_id=user["id"], account_id=account_id, day=day,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.post("/accounts/{account_id}/coach/eod-recaps/{recap_id}/feedback")
+def feedback_coach_eod_recap(
+    account_id: str,
+    recap_id: str,
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    feedback = (payload or {}).get("feedback")
+    if feedback not in ("helpful", "unhelpful"):
+        raise HTTPException(status_code=400, detail="feedback must be 'helpful' or 'unhelpful'")
+    existing = coach_service.get_eod_recap(recap_id, user_id=user["id"])
+    if not existing:
+        raise HTTPException(status_code=404, detail="Recap not found")
+    coach_service.set_feedback(review_id=recap_id, feedback=feedback, user_id=user["id"])
+    return {"ok": True}
+
+
+@router.post("/accounts/{account_id}/coach/eod-recaps/{recap_id}/forget")
+def forget_coach_eod_recap(
+    account_id: str,
+    recap_id: str,
+    user: dict = Depends(get_current_user),
+):
+    existing = coach_service.get_eod_recap(recap_id, user_id=user["id"])
+    if not existing:
+        raise HTTPException(status_code=404, detail="Recap not found")
+    coach_service.forget_review(review_id=recap_id, user_id=user["id"])
+    return {"ok": True}
+
+
+@router.post("/accounts/{account_id}/coach/eod-recaps/{recap_id}/viewed")
+def viewed_coach_eod_recap(
+    account_id: str,
+    recap_id: str,
+    user: dict = Depends(get_current_user),
+):
+    n = coach_service.mark_eod_viewed(recap_id, user_id=user["id"])
+    if n == 0:
+        raise HTTPException(status_code=404, detail="Recap not found")
+    return {"ok": True}
+
+
 @router.get("/accounts/{account_id}/coach/profile")
 def get_coach_profile(
     account_id: str,
