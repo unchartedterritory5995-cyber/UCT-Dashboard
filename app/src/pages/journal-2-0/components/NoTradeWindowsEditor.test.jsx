@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import NoTradeWindowsEditor from './NoTradeWindowsEditor'
 
@@ -38,8 +38,7 @@ describe('NoTradeWindowsEditor', () => {
     ])
   })
 
-  it('changing a field calls onChange with updated list', async () => {
-    const user = userEvent.setup()
+  it('changing a field calls onChange with updated list', () => {
     const onLatest = vi.fn()
     render(
       <Stateful
@@ -48,8 +47,7 @@ describe('NoTradeWindowsEditor', () => {
       />,
     )
     const startInput = screen.getByDisplayValue('11:30')
-    await user.clear(startInput)
-    await user.type(startInput, '12:00')
+    fireEvent.change(startInput, { target: { value: '12:00' } })
     const lastCall = onLatest.mock.calls[onLatest.mock.calls.length - 1][0]
     expect(lastCall[0].start).toBe('12:00')
   })

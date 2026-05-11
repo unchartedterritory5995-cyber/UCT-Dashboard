@@ -7,9 +7,8 @@
  * Fully controlled — no internal state. The parent owns the `value` array
  * and `onChange(nextArray)` fires on any keystroke or button click.
  *
- * NOTE: inputs are `type="text"` (not `type="time"`) so vitest/jsdom can
- * exercise them with userEvent.type. The backend validator enforces the
- * HH:MM format on save (`_HHMM_RE` in settings.py).
+ * Native `<input type="time">` for mobile-friendly UX. Tests use
+ * fireEvent.change to bypass jsdom segment-typing limitations.
  */
 
 export default function NoTradeWindowsEditor({ value = [], onChange }) {
@@ -36,22 +35,18 @@ export default function NoTradeWindowsEditor({ value = [], onChange }) {
           }}
         >
           <input
-            type="text"
+            type="time"
             aria-label={`Window ${idx + 1} start`}
             value={row.start}
             onChange={(e) => updateAt(idx, { start: e.target.value })}
-            placeholder="HH:MM"
-            pattern="[0-9]{2}:[0-9]{2}"
             style={{ minWidth: 100 }}
           />
           <span style={{ color: 'var(--text-muted)' }}>–</span>
           <input
-            type="text"
+            type="time"
             aria-label={`Window ${idx + 1} end`}
             value={row.end}
             onChange={(e) => updateAt(idx, { end: e.target.value })}
-            placeholder="HH:MM"
-            pattern="[0-9]{2}:[0-9]{2}"
             style={{ minWidth: 100 }}
           />
           <input
