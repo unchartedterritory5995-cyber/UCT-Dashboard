@@ -266,4 +266,26 @@ describe('PortfolioSettingsModal', () => {
     const payload = onSave.mock.calls[0][0]
     expect(payload.regimeSizeMultipliers).toEqual({ green: 1.0, orange: 0.5 })
   })
+
+  it('Phase E seeded mistake taxonomy ships in the save payload', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
+    )
+
+    // Click the "Seed standard 17" button in the MISTAKES TAXONOMY section
+    await user.click(screen.getByRole('button', { name: /Seed standard 17 mistakes/i }))
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.mistakeTags).toEqual(expect.arrayContaining([
+      'overtrading', 'FOMO', 'chasing', 'early_exit', 'late_entry',
+      'no_stop', 'oversized', 'countertrend', 'revenge', 'ignored_thesis',
+      'added_to_loser', 'cut_winner', 'broke_loss_rule', 'broke_size_rule',
+      'broke_checklist', 'boredom', 'hesitation',
+    ]))
+    expect(payload.mistakeTags.length).toBe(17)
+  })
 })
