@@ -202,6 +202,26 @@ CREATE INDEX IF NOT EXISTS idx_j2_playbook_user_symbol
     ON j2_playbook_entries(user_id, symbol);
 CREATE INDEX IF NOT EXISTS idx_j2_playbook_user_status
     ON j2_playbook_entries(user_id, status);
+
+-- Phase G: Compass outputs — log of every AI Coach generation (weekly
+-- reviews, future EOD recaps, future pre-trade verdicts, future chat
+-- turns, profile updates). Used for memory retrieval, feedback loop,
+-- and audit.
+CREATE TABLE IF NOT EXISTS j2_coach_outputs (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    account_id  TEXT NOT NULL,
+    output_type TEXT NOT NULL
+                CHECK(output_type IN ('weekly_review','eod_recap','pre_trade_verdict','chat_turn','profile_update')),
+    body        TEXT NOT NULL,
+    summary     TEXT,
+    metadata    TEXT NOT NULL DEFAULT '{}',
+    feedback    TEXT,
+    forgotten   INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_coach_outputs_lookup
+    ON j2_coach_outputs(user_id, account_id, output_type, created_at DESC);
 """
 
 
@@ -257,6 +277,8 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_accounts ADD COLUMN loss_streak_threshold INTEGER",
     "ALTER TABLE j2_accounts ADD COLUMN win_streak_threshold INTEGER",
     "ALTER TABLE j2_accounts ADD COLUMN stale_hold_days_threshold INTEGER",
+    # Phase G — Compass (Coach Core + Weekly Review)
+    "ALTER TABLE j2_accounts ADD COLUMN trader_profile TEXT NOT NULL DEFAULT ''",
 ]
 
 
