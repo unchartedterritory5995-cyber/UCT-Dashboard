@@ -5,7 +5,7 @@ Workflow:
   - preview() returns sign_action(tool, args, user_id) as the action_id
   - confirm(action_id) calls verify_action() then consume_action()
   - Replay is prevented via an in-memory consumed-set (cleared at restart)
-  - 60-second TTL prevents stale tokens
+  - 3-minute TTL prevents stale tokens (lets users pause + confirm naturally)
 
 IMPORTANT: The signed payload includes the FULL args (not just a hash) so
 that confirm_action can re-derive what to execute without needing a
@@ -24,7 +24,7 @@ import secrets
 import time
 
 
-TTL_SECONDS = 60
+TTL_SECONDS = 180
 
 
 _FALLBACK_SECRET = secrets.token_bytes(32)
