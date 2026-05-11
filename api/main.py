@@ -917,11 +917,62 @@ async def lifespan(app: FastAPI):
         # Voice TTS cache cleanup — daily at 3:30 AM ET.
         _scheduler.add_job(_voice_cache_purge, trigger=CronTrigger(hour=3, minute=30), id="voice_audio_cache_purge", max_instances=1, replace_existing=True)
 
+        # Compass EOD recap — auto-generate at 4:30 PM ET, Mon-Fri.
+        # Iterates every j2_account with compass_enabled=1 and calls
+        # coach.generate_eod_recap. Skips accounts with no activity.
+        def _compass_eod_job():
+            import os as _os
+            if not _os.environ.get("ANTHROPIC_API_KEY"):
+                print("[scheduler] Compass EOD: ANTHROPIC_API_KEY missing — skipping batch")
+                return
+
+            try:
+                from datetime import datetime as _dt
+                from api.services.auth_db import get_connection as _get_conn
+                from api.services.journal_two import coach as _coach
+
+                et = ZoneInfo("America/New_York")
+                today_iso = _dt.now(et).date().isoformat()
+
+                conn = _get_conn()
+                try:
+                    rows = conn.execute(
+                        "SELECT id, user_id FROM j2_accounts WHERE compass_enabled = 1",
+                    ).fetchall()
+                    print(f"[scheduler] Compass EOD batch: {len(rows)} eligible accounts on {today_iso}")
+                    for row in rows:
+                        account_id = row["id"]
+                        user_id = row["user_id"]
+                        try:
+                            result = _coach.generate_eod_recap(
+                                user_id=user_id, account_id=account_id, day=today_iso,
+                                conn=conn,
+                            )
+                            if result.get("skipped"):
+                                print(f"[scheduler] EOD skipped for account {account_id}: {result.get('reason')}")
+                            else:
+                                print(f"[scheduler] EOD generated for account {account_id} (id={result.get('id')})")
+                        except Exception as job_err:  # noqa: BLE001
+                            print(f"[scheduler] EOD generation failed for account {account_id}: {job_err}")
+                finally:
+                    conn.close()
+            except Exception as e:  # noqa: BLE001
+                print(f"[scheduler] Compass EOD batch error: {e}")
+
+        _scheduler.add_job(
+            _compass_eod_job,
+            trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=30),
+            id="compass_eod_recap",
+            max_instances=1,
+            replace_existing=True,
+        )
+
         _scheduler.start()
         print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled — daily at 3:00 AM ET")
         print("[startup] Churn risk check scheduled — daily at 9:00 AM ET")
         print("[startup] MRR snapshot scheduled — daily at 11:59 PM ET")
+        print("[startup] Compass EOD recap scheduled — Mon-Fri at 4:30 PM ET")
     else:
         print("[startup] APScheduler skipped — lock held by another uvicorn worker (multi-worker mode)")
 
