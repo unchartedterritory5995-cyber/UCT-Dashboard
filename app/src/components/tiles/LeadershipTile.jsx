@@ -13,7 +13,12 @@ const fetcher = url => fetch(url).then(r => r.json())
 export default function LeadershipTile() {
   const { data: rows, error, mutate } = useMobileSWR('/api/leadership', fetcher, { refreshInterval: 30000, marketHoursOnly: true })
   const [expandedIdx, setExpandedIdx] = useState(null)
-  const stocks = Array.isArray(rows) ? rows.slice(0, 20) : []
+  // Accept both the new wrapped shape and the legacy raw-array shape.
+  const rawStocks = Array.isArray(rows)
+    ? rows
+    : Array.isArray(rows?.stocks) ? rows.stocks : []
+  const stocks = rawStocks.slice(0, 20)
+  const leadershipStatus = (rows && !Array.isArray(rows)) ? rows.status : null
 
   const allTickers = useMemo(() =>
     stocks.map(item => item.ticker ?? item.sym ?? item.symbol).filter(Boolean),
@@ -32,7 +37,11 @@ export default function LeadershipTile() {
       ) : !rows ? (
         <SkeletonTable rows={5} cols={3} />
       ) : stocks.length === 0 ? (
-        <p className={styles.loading}>No data — run Morning Wire engine</p>
+        <p className={styles.loading}>
+          {leadershipStatus === 'stale'
+            ? 'Leadership data is stale. Next refresh: 7:35 AM ET.'
+            : 'Leadership refreshes daily at 7:35 AM ET. Check back after.'}
+        </p>
       ) : (
         <div className={styles.list}>
           {stocks.map((item, i) => {

@@ -50,11 +50,43 @@ async def test_themes_endpoint():
 
 @pytest.mark.asyncio
 async def test_leadership_endpoint():
-    with patch("api.routers.engine_data.get_leadership", return_value=MOCK_LEADERSHIP):
+    with patch("api.routers.engine_data.get_leadership", return_value=MOCK_LEADERSHIP), \
+         patch("api.routers.engine_data._load_wire_data", return_value={"date": "2099-01-01"}):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             r = await ac.get("/api/leadership")
     assert r.status_code == 200
-    assert isinstance(r.json(), list)
+    body = r.json()
+    assert isinstance(body, dict)
+    assert isinstance(body["stocks"], list)
+    assert body["stocks"][0]["sym"] == "NVDA"
+    assert body["status"] in ("fresh", "stale", "no_data")
+    assert "last_updated" in body
+
+
+@pytest.mark.asyncio
+async def test_leadership_endpoint_no_data():
+    with patch("api.routers.engine_data.get_leadership", return_value=[]), \
+         patch("api.routers.engine_data._load_wire_data", return_value=None):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            r = await ac.get("/api/leadership")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["stocks"] == []
+    assert body["status"] == "no_data"
+    assert body["last_updated"] is None
+
+
+@pytest.mark.asyncio
+async def test_leadership_endpoint_stale():
+    # Wire data exists but is older than 26h → status should be stale
+    with patch("api.routers.engine_data.get_leadership", return_value=[]), \
+         patch("api.routers.engine_data._load_wire_data", return_value={"date": "2000-01-01"}):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            r = await ac.get("/api/leadership")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "stale"
+    assert body["last_updated"] == "2000-01-01"
 
 
 @pytest.mark.asyncio

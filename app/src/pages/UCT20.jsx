@@ -240,7 +240,14 @@ export default function UCT20() {
     mutate('/api/rs-rankings'),
   ]), [mutate])
 
-  const stocks = Array.isArray(rows) ? rows.slice(0, 20) : []
+  // Accept both the new wrapped shape ({ stocks, status, last_updated }) and
+  // the legacy raw-array shape so older cached responses don't blank the page.
+  const rawStocks = Array.isArray(rows)
+    ? rows
+    : Array.isArray(rows?.stocks) ? rows.stocks : []
+  const leadershipStatus = (rows && !Array.isArray(rows)) ? rows.status : null
+  const leadershipUpdated = (rows && !Array.isArray(rows)) ? rows.last_updated : null
+  const stocks = rawStocks.slice(0, 20)
 
   // Extract all tickers for live pricing
   const allTickers = useMemo(() =>
@@ -315,6 +322,11 @@ export default function UCT20() {
           Read all picks
         </ReadAloudButton>
       </div>
+      {leadershipStatus === 'stale' && stocks.length > 0 && (
+        <div className={styles.staleBanner}>
+          Last updated: {leadershipUpdated || 'unknown'} — data may be older than 26 hours. Refreshing soon.
+        </div>
+      )}
       <TileCard
         title="UCT Leadership 20 — Current Top Stocks"
         actions={
@@ -331,7 +343,23 @@ export default function UCT20() {
         {!rows ? (
           <SkeletonTable rows={8} cols={3} />
         ) : stocks.length === 0 ? (
-          <p className={styles.loading}>No leadership data yet. Run the Morning Wire engine to populate.</p>
+          <div className={styles.emptyState}>
+            {leadershipStatus === 'stale' ? (
+              <>
+                <p className={styles.emptyStateTitle}>Leadership data is stale</p>
+                <p className={styles.emptyStateBody}>
+                  Last updated: {leadershipUpdated || 'unknown'}. The next refresh runs at 7:35 AM ET.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className={styles.emptyStateTitle}>Leadership data not yet available</p>
+                <p className={styles.emptyStateBody}>
+                  The UCT 20 refreshes daily at 7:35 AM ET after the morning wire push. Check back after.
+                </p>
+              </>
+            )}
+          </div>
         ) : (
           <div className={styles.list}>
             {stocks.map((item, i) => {

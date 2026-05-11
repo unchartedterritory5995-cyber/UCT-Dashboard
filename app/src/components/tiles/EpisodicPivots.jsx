@@ -9,7 +9,12 @@ const fetcher = url => fetch(url).then(r => r.json())
 export default function EpisodicPivots({ data: propData }) {
   const { data: fetched } = useSWR(propData !== undefined ? null : '/api/leadership', fetcher)
   const raw = propData !== undefined ? propData : fetched
-  const data = Array.isArray(raw) ? raw.slice(0, 6) : []
+  // Accept both the new wrapped shape ({ stocks, status, last_updated }) and
+  // the legacy raw-array shape.
+  const list = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.stocks) ? raw.stocks : []
+  const data = list.slice(0, 6)
 
   if (raw === null) return <TileCard title="Episodic Pivots"><SkeletonTileContent lines={3} /></TileCard>
 
