@@ -248,7 +248,11 @@ export default function useRealtimeSession() {
     }, HEARTBEAT_MS)
   }, [voice, disconnect, endSessionOnServer, cleanup, onChannelMessage, resetSilenceTimer])
 
-  useEffect(() => () => { disconnect() }, [disconnect])
+  // Stable unmount-only cleanup. Ref pattern avoids re-firing the effect on
+  // every voice-state change (which would cause an infinite disconnect loop).
+  const disconnectRef = useRef(null)
+  disconnectRef.current = disconnect
+  useEffect(() => () => { disconnectRef.current?.() }, [])
 
   return {
     connect,
