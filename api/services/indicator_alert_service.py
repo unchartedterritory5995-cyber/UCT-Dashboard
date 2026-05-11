@@ -20,7 +20,7 @@ _DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS indicator_alerts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
+  user_id TEXT NOT NULL,
   sym TEXT NOT NULL,
   indicator TEXT NOT NULL,
   condition TEXT NOT NULL,
@@ -78,7 +78,7 @@ _COLS = (
 
 
 def create(
-    user_id: int,
+    user_id: str,
     sym: str,
     indicator: str,
     condition: str,
@@ -96,7 +96,7 @@ def create(
             "active, trigger_count, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?)",
             (
-                int(user_id),
+                str(user_id),
                 sym.upper(),
                 indicator,
                 condition,
@@ -118,11 +118,11 @@ def get(alert_id: int) -> Optional[dict]:
     return _row_to_dict(row) if row else None
 
 
-def list_for_user(user_id: int) -> list[dict]:
+def list_for_user(user_id: str) -> list[dict]:
     with _conn() as db:
         rows = db.execute(
             f"SELECT {_COLS} FROM indicator_alerts WHERE user_id=? ORDER BY created_at DESC",
-            (int(user_id),),
+            (str(user_id),),
         ).fetchall()
     return [_row_to_dict(r) for r in rows]
 

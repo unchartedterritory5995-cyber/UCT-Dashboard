@@ -55,6 +55,7 @@ from api.routers import transcripts as transcripts_router
 from api.routers import voice as voice_router
 from api.routers import admin_chart_health as admin_chart_health_router
 from api.routers import chart_news as chart_news_router
+from api.routers import indicator_alerts as indicator_alerts_router
 from api.flow_router import flow_router
 from api.services.auth_db import init_db as _init_auth_db
 from api.services.voice_audio_cache import purge_expired as _voice_cache_purge
@@ -328,6 +329,18 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).exception(
             "[startup] chart-health bootstrap failed: %s", e
         )
+
+    # Indicator alerts: init schema + start the background evaluator. The
+    # evaluator polls active alerts every 60s, reads bars from the persistent
+    # SQLite store (no remote fetch in-loop), and dispatches triggered alerts
+    # through the existing watchlist-alert delivery pipeline.
+    try:
+        from api.services import indicator_alert_service, indicator_alert_evaluator
+        indicator_alert_service.init_schema()
+        indicator_alert_evaluator.start_evaluator(interval_sec=60)
+        logging.getLogger(__name__).info("[startup] indicator alert evaluator started")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] indicator alert evaluator failed to start")
 
     # Fire-and-forget priority audit ~30s after boot so the admin chart-health
     # dashboard has a baseline run on every redeploy without manual operator
@@ -1001,6 +1014,7 @@ app.include_router(transcripts_router.router)
 app.include_router(voice_router.router)
 app.include_router(admin_chart_health_router.router)
 app.include_router(chart_news_router.router)
+app.include_router(indicator_alerts_router.router)
 app.include_router(gex_router)
 app.include_router(watchlist_router)
 app.include_router(flow_router)
