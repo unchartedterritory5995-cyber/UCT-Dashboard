@@ -134,6 +134,15 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
   const [emotionTags, setEmotionTags] = useState(settings?.emotionTags ?? [])
   const [newMistake, setNewMistake] = useState('')
   const [newEmotion, setNewEmotion] = useState('')
+  const [lossStreakThreshold, setLossStreakThreshold] = useState(
+    settings?.lossStreakThreshold == null ? '' : String(settings.lossStreakThreshold),
+  )
+  const [winStreakThreshold, setWinStreakThreshold] = useState(
+    settings?.winStreakThreshold == null ? '' : String(settings.winStreakThreshold),
+  )
+  const [staleHoldDaysThreshold, setStaleHoldDaysThreshold] = useState(
+    settings?.staleHoldDaysThreshold == null ? '' : String(settings.staleHoldDaysThreshold),
+  )
 
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -240,6 +249,9 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
       ),
       mistakeTags,
       emotionTags,
+      lossStreakThreshold: lossStreakThreshold === '' ? null : parseInt(lossStreakThreshold, 10),
+      winStreakThreshold: winStreakThreshold === '' ? null : parseInt(winStreakThreshold, 10),
+      staleHoldDaysThreshold: staleHoldDaysThreshold === '' ? null : parseInt(staleHoldDaysThreshold, 10),
     }
     setSaving(true)
     try {
@@ -274,6 +286,9 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     regimeSizeMultipliers,
     mistakeTags,
     emotionTags,
+    lossStreakThreshold,
+    winStreakThreshold,
+    staleHoldDaysThreshold,
     onSave,
     onClose,
   ])
@@ -678,6 +693,57 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
                 ))}
               </div>
             )}
+          </section>
+
+          {/* NUDGES THRESHOLDS — Phase F */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionHeader}>NUDGES THRESHOLDS</h3>
+            <p className={styles.helper}>
+              Tune when the advisory nudges appear at the top of Open
+              Positions. Leave blank to use defaults (3 / 5 / 30).
+            </p>
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Loss Streak Trigger (consecutive losses today)</span>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                step="1"
+                value={lossStreakThreshold}
+                onChange={(e) => setLossStreakThreshold(e.target.value)}
+                placeholder="3"
+                className={styles.numberInput}
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Win Streak Trigger (consecutive winners)</span>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                step="1"
+                value={winStreakThreshold}
+                onChange={(e) => setWinStreakThreshold(e.target.value)}
+                placeholder="5"
+                className={styles.numberInput}
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Stale Hold Threshold (days)</span>
+              <input
+                type="number"
+                min="1"
+                max="365"
+                step="1"
+                value={staleHoldDaysThreshold}
+                onChange={(e) => setStaleHoldDaysThreshold(e.target.value)}
+                placeholder="30"
+                className={styles.numberInput}
+              />
+            </label>
           </section>
 
           {/* 5.2 DEFAULT STOP */}

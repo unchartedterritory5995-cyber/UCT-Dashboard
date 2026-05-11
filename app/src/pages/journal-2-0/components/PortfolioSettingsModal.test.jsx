@@ -288,4 +288,27 @@ describe('PortfolioSettingsModal', () => {
     ]))
     expect(payload.mistakeTags.length).toBe(17)
   })
+
+  it('Phase F nudge thresholds ship in the save payload', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
+    )
+
+    const lossInput = screen.getByLabelText(/Loss Streak Trigger/i)
+    const winInput = screen.getByLabelText(/Win Streak Trigger/i)
+    const staleInput = screen.getByLabelText(/Stale Hold Threshold/i)
+
+    await user.clear(lossInput); await user.type(lossInput, '4')
+    await user.clear(winInput); await user.type(winInput, '7')
+    await user.clear(staleInput); await user.type(staleInput, '45')
+
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.lossStreakThreshold).toBe(4)
+    expect(payload.winStreakThreshold).toBe(7)
+    expect(payload.staleHoldDaysThreshold).toBe(45)
+  })
 })
