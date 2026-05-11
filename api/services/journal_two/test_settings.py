@@ -365,3 +365,23 @@ def test_validate_phase_d_rejects_invalid():
     for bad in invalid:
         with pytest.raises(SettingsValidationError):
             svc.validate_settings_payload(base | bad)
+
+
+# ── Phase E — Mistakes + Emotions taxonomy ───────────────────────────────────
+
+def test_validate_accepts_phase_e_taxonomies():
+    from api.services.journal_two import settings as svc
+    payload = _baseline_payload() | {
+        "mistakeTags": ["fomo", "chasing", "fomo"],   # dupe should be deduped
+        "emotionTags": ["greedy", "anxious"],
+    }
+    out = svc.validate_settings_payload(payload)
+    assert out["mistakeTags"] == ["fomo", "chasing"]
+    assert out["emotionTags"] == ["greedy", "anxious"]
+
+
+def test_validate_phase_e_defaults_to_empty_lists():
+    from api.services.journal_two import settings as svc
+    out = svc.validate_settings_payload(_baseline_payload())
+    assert out["mistakeTags"] == []
+    assert out["emotionTags"] == []

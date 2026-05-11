@@ -55,6 +55,9 @@ def default_settings_data() -> dict[str, Any]:
         "aPlusRiskMultiplier": None,
         # Phase D — Regime-Aware Sizing
         "regimeSizeMultipliers": {},
+        # Phase E — Mistakes + Emotions taxonomy
+        "mistakeTags": [],
+        "emotionTags": [],
     }
 
 
@@ -310,6 +313,9 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
         ),
         # Phase D
         "regimeSizeMultipliers": _validate_regime_multipliers(payload.get("regimeSizeMultipliers", {})),
+        # Phase E
+        "mistakeTags": _validate_string_list(payload.get("mistakeTags", []), "mistakeTags"),
+        "emotionTags": _validate_string_list(payload.get("emotionTags", []), "emotionTags"),
     }
 
 
