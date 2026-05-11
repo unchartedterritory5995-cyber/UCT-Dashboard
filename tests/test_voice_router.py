@@ -355,3 +355,41 @@ def test_session_token_injects_user_memory(client):
         r = client.post("/api/voice/session_token", json={"context": "global"})
     assert r.status_code == 200
     assert "small caps" in captured_instructions["text"]
+
+
+# ── Memory endpoints ───────────────────────────────────────────────────────
+
+def test_memory_facts_get_empty(client):
+    _login(client, plan="pro")
+    r = client.get("/api/voice/memory/facts")
+    assert r.status_code == 200
+    assert r.json() == {"facts": []}
+
+
+def test_memory_facts_post_and_list(client):
+    _login(client, plan="pro")
+    r = client.post("/api/voice/memory/facts",
+                    json={"text": "I trade small caps", "category": "style"})
+    assert r.status_code == 200
+    fid = r.json()["id"]
+    r2 = client.get("/api/voice/memory/facts")
+    body = r2.json()
+    assert any(f["id"] == fid for f in body["facts"])
+
+
+def test_memory_fact_delete(client):
+    _login(client, plan="pro")
+    r = client.post("/api/voice/memory/facts",
+                    json={"text": "some fact", "category": "general"})
+    fid = r.json()["id"]
+    r2 = client.delete(f"/api/voice/memory/facts/{fid}")
+    assert r2.status_code == 200
+    r3 = client.get("/api/voice/memory/facts")
+    assert all(f["id"] != fid for f in r3.json()["facts"])
+
+
+def test_memory_summaries_get_empty(client):
+    _login(client, plan="pro")
+    r = client.get("/api/voice/memory/summaries")
+    assert r.status_code == 200
+    assert r.json() == {"summaries": []}

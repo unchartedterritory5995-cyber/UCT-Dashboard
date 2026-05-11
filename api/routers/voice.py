@@ -41,7 +41,14 @@ from api.services.voice_session_service import (
     append_transcript, session_belongs_to_user,
 )
 from api.services.voice_dispatch import run_tool
-from api.services.voice_memory_service import build_memory_context, add_summary
+from api.services.voice_memory_service import (
+    build_memory_context, add_summary,
+    add_fact as _mem_add_fact,
+    list_facts as _mem_list_facts,
+    delete_fact as _mem_delete_fact,
+    list_summaries as _mem_list_summaries,
+    ALLOWED_CATEGORIES as _MEM_CATEGORIES,
+)
 from api.services.voice_session_service import get_transcripts as _get_session_transcripts
 from api.services.voice_summarizer import summarize_transcripts
 
@@ -411,3 +418,47 @@ def _summarize_session_background(session_id: int, user_id: str) -> None:
         )
     except Exception as e:  # noqa: BLE001
         _log.warning("session summarization failed for %s: %s", session_id, e)
+
+
+# ── Memory endpoints ───────────────────────────────────────────────────────
+
+class FactCreate(BaseModel):
+    text: str
+    category: str = "general"
+
+
+@router.get("/memory/facts")
+def memory_facts_get(user: dict = Depends(requires_voice_access)):
+    return {"facts": _mem_list_facts(user["id"])}
+
+
+@router.post("/memory/facts")
+@limiter.limit("30/minute")
+def memory_facts_post(
+    request: Request,
+    body: FactCreate,
+    user: dict = Depends(requires_voice_access),
+):
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+    category = body.category if body.category in _MEM_CATEGORIES else "general"
+    try:
+        fid = _mem_add_fact(user["id"], text=text, category=category)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"id": fid, "text": text, "category": category}
+
+
+@router.delete("/memory/facts/{fact_id}")
+def memory_fact_delete(
+    fact_id: int,
+    user: dict = Depends(requires_voice_access),
+):
+    _mem_delete_fact(fact_id, user_id=user["id"])
+    return {"ok": True}
+
+
+@router.get("/memory/summaries")
+def memory_summaries_get(user: dict = Depends(requires_voice_access)):
+    return {"summaries": _mem_list_summaries(user["id"], limit=20)}
