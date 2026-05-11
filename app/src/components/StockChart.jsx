@@ -2369,6 +2369,11 @@ export default function StockChart({
   // ── Render ──
   return (
     <div className={`${styles.wrapper} ${className}`} style={{ height }}>
+      {replayMode && sessionBars?.length > 0 && (
+        <div className={styles.replayBadge} title="Time Machine — historical replay active">
+          ⏮ REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%
+        </div>
+      )}
       {isStale && (
         <div className={styles.staleIndicator} title="Live feed has paused — last tick is older than expected">
           ⏸ STALE
@@ -2526,6 +2531,8 @@ export default function StockChart({
             replayPlaying={replayPlaying}
             replaySpeed={replaySpeed}
             replayDate={replayMode && filteredBars?.length ? filteredBars[filteredBars.length - 1]?.t : null}
+            replayIndex={replayIndex ?? 0}
+            replayTotal={sessionBars?.length || 0}
             onReplayToggle={() => {
               if (replayMode) {
                 setReplayMode(false)
@@ -2544,6 +2551,11 @@ export default function StockChart({
                 const max = (sessionBars?.length || 1) - 1
                 return Math.max(0, Math.min(max, (i ?? 0) + dir))
               })
+            }}
+            onReplayIndexChange={idx => {
+              setReplayPlaying(false)
+              const max = (sessionBars?.length || 1) - 1
+              setReplayIndex(Math.max(0, Math.min(max, idx)))
             }}
             onReplaySpeedChange={setReplaySpeed}
           />

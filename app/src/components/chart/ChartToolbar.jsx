@@ -485,9 +485,12 @@ export default function ChartToolbar({
   replayPlaying = false,
   replaySpeed = 1,
   replayDate = null,
+  replayIndex = 0,
+  replayTotal = 0,
   onReplayToggle = null,
   onReplayPlayPause = null,
   onReplayStep = null,
+  onReplayIndexChange = null,
   onReplaySpeedChange = null,
 }) {
   const [showColors, setShowColors] = useState(false)
@@ -769,6 +772,11 @@ export default function ChartToolbar({
     {/* ── Replay controls bar ── */}
     {replayMode && (
       <div className={styles.replayBar}>
+        <button
+          className={styles.replayBtn}
+          onClick={() => onReplayIndexChange?.(0)}
+          title="Restart from beginning"
+        >⏮</button>
         <button className={styles.replayBtn} onClick={() => onReplayStep?.(-10)} title="Back 10">«</button>
         <button className={styles.replayBtn} onClick={() => onReplayStep?.(-1)} title="Back 1">‹</button>
         <button className={`${styles.replayBtn} ${styles.replayPlay}`} onClick={onReplayPlayPause}>
@@ -776,6 +784,22 @@ export default function ChartToolbar({
         </button>
         <button className={styles.replayBtn} onClick={() => onReplayStep?.(1)} title="Fwd 1">›</button>
         <button className={styles.replayBtn} onClick={() => onReplayStep?.(10)} title="Fwd 10">»</button>
+        <button
+          className={styles.replayBtn}
+          onClick={() => onReplayIndexChange?.(Math.max(0, (replayTotal || 1) - 1))}
+          title="Skip to end"
+        >⏭</button>
+        {replayTotal > 1 && (
+          <input
+            type="range"
+            min={0}
+            max={Math.max(0, replayTotal - 1)}
+            value={Math.min(replayIndex || 0, Math.max(0, replayTotal - 1))}
+            onChange={e => onReplayIndexChange?.(parseInt(e.target.value, 10))}
+            className={styles.replaySlider}
+            title="Scrub timeline"
+          />
+        )}
         {replayDate && <span className={styles.replayDate}>{formatReplayDate(replayDate)}</span>}
         <div className={styles.replaySpeeds}>
           {[1, 5, 20].map(s => (

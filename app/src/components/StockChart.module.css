@@ -179,6 +179,32 @@
   pointer-events: none;
 }
 
+/* Replay / Time Machine badge — shown in top-left of chart while replay mode is active.
+   Gold-bordered to match the brand accent and signal "managed/active mode" to the user. */
+.replayBadge {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  z-index: 100;
+  background: rgba(201, 168, 76, 0.18);
+  border: 1px solid var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  letter-spacing: 1.5px;
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(201, 168, 76, 0.25);
+  animation: replay-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes replay-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(201, 168, 76, 0.25); }
+  50% { box-shadow: 0 0 14px rgba(201, 168, 76, 0.55); }
+}
+
 /* Stale-feed indicator (P2-7): pulses amber when SSE backend reports the
    ticker's tick stream has paused beyond the freshness threshold. */
 .staleIndicator {

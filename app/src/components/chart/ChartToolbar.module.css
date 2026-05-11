@@ -420,6 +420,38 @@
   color: #93c5fd;
   margin: 0 8px;
 }
+.replaySlider {
+  flex: 1;
+  min-width: 120px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(96, 165, 250, 0.18);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  margin: 0 6px;
+}
+.replaySlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.85);
+  cursor: pointer;
+  box-shadow: 0 0 4px rgba(96, 165, 250, 0.6);
+}
+.replaySlider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.85);
+  cursor: pointer;
+  box-shadow: 0 0 4px rgba(96, 165, 250, 0.6);
+}
 .replaySpeeds { display: flex; gap: 3px; margin: 0 4px; }
 .replaySpeedBtn {
   background: transparent;
