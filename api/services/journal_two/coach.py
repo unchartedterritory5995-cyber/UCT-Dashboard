@@ -21,6 +21,7 @@ from typing import Protocol, runtime_checkable
 from api.services.journal_two import accounts as accounts_service
 from api.services.journal_two import coach_data_assembler
 from api.services.journal_two import coach_prompts
+from api.services.journal_two import coach_validation
 from api.services.journal_two import db as j2_db
 
 
@@ -32,6 +33,7 @@ from api.services.journal_two import db as j2_db
 class CoachClientProto(Protocol):
     def write_review(self, *, system_prompt: str, user_message: str) -> dict: ...
     def write_profile_update(self, *, system_prompt: str, user_message: str) -> dict: ...
+    def write_eod_recap(self, *, system_prompt: str, user_message: str) -> dict: ...
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +103,29 @@ class AnthropicClient:
         )
         text = msg.content[0].text if msg.content else ""
         return {"updated_profile": text.strip()}
+
+    # ------------------------------------------------------------------
+    # EOD Recap
+    # ------------------------------------------------------------------
+
+    def write_eod_recap(self, *, system_prompt: str, user_message: str) -> dict:
+        """Call Claude to produce an EOD recap. Different temperature + lower max_tokens than weekly."""
+        msg = self._client.messages.create(
+            model=self.DEFAULT_MODEL,
+            max_tokens=1200,
+            temperature=0.5,
+            system=[
+                {
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+            messages=[{"role": "user", "content": user_message}],
+        )
+        body = msg.content[0].text if msg.content else ""
+        summary = _extract_first_paragraph(body)
+        return {"body": body, "summary": summary, "key_observations": []}
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +279,7 @@ def _generate_weekly_review_inner(
         {
             "week_start": week_start,
             "key_observations": key_observations,
+            "this_weeks_focus": coach_validation.extract_this_weeks_focus(body),
         }
     )
 
@@ -415,3 +441,222 @@ def forget_review(review_id: str, *, user_id: str | None = None, conn=None) -> i
     finally:
         if _should_close:
             _conn.close()
+
+
+# ---------------------------------------------------------------------------
+# EOD Recap (Phase G v2)
+# ---------------------------------------------------------------------------
+
+
+def generate_eod_recap(
+    *,
+    user_id: str,
+    account_id: str,
+    day: str,                  # "YYYY-MM-DD" ET calendar date
+    client: CoachClientProto | None = None,
+    conn=None,
+) -> dict:
+    """Generate (or return existing) EOD recap for one (account, day).
+
+    Idempotent on (user_id, account_id, day). Runs a post-generation
+    validation pass; retries once with corrective context on flag, then
+    persists with `validation.passed=False` if still failing.
+
+    Returns either the stored recap dict OR {"skipped": True, "reason": "..."}
+    if no activity to recap.
+    """
+    _conn, _should_close = _get_conn(conn)
+    try:
+        # 1. Idempotency check
+        existing = _conn.execute(
+            """
+            SELECT id, body, summary, metadata, feedback, created_at
+              FROM j2_coach_outputs
+             WHERE user_id = ? AND account_id = ?
+               AND output_type = 'eod_recap' AND forgotten = 0
+               AND json_extract(metadata, '$.day') = ?
+             LIMIT 1
+            """,
+            (user_id, account_id, day),
+        ).fetchone()
+        if existing:
+            return _row_to_eod_dict(existing)
+
+        # 2. Assemble data
+        data = coach_data_assembler.assemble_day(
+            user_id=user_id, account_id=account_id, day_iso=day, conn=_conn,
+        )
+
+        # 3. Activity check — skip if nothing to recap
+        today = data.get("today") or {}
+        n_closed = (today.get("aggregates") or {}).get("trade_count", 0)
+        n_open = len(today.get("open_positions") or [])
+        if n_closed == 0 and n_open == 0:
+            return {"skipped": True, "reason": "no_activity"}
+
+        # 4. Build user message
+        user_message = coach_prompts.assemble_eod_user_message(data=data)
+
+        # 5. Call Compass (with up to 1 retry on validation failure)
+        active_client = client or AnthropicClient()
+        attempts: list[dict] = []
+        validation: dict = {"passed": False, "flags": []}
+        body = ""
+        summary = ""
+        for attempt_idx in range(2):
+            if attempt_idx == 0:
+                msg = user_message
+            else:
+                msg = _retry_user_message(
+                    user_message, attempts[-1]["body"], attempts[-1]["validation"]["flags"],
+                )
+            response = active_client.write_eod_recap(
+                system_prompt=coach_prompts.COMPASS_SYSTEM_PROMPT,
+                user_message=msg,
+            )
+            body = response.get("body", "") or ""
+            summary = response.get("summary") or _extract_first_paragraph(body)
+            validation = coach_validation.validate_eod_output(body, data)
+            attempts.append({"body": body, "validation": validation})
+            if validation["passed"]:
+                break
+
+        # 6. Persist
+        recap_id = str(uuid.uuid4())
+        now_iso = datetime.now(timezone.utc).isoformat()
+        metadata = {
+            "day": day,
+            "validation": validation,
+            "attempts": len(attempts),
+        }
+        _conn.execute(
+            """
+            INSERT INTO j2_coach_outputs
+                (id, user_id, account_id, output_type, body, summary, metadata,
+                 feedback, forgotten, created_at)
+            VALUES (?, ?, ?, 'eod_recap', ?, ?, ?, NULL, 0, ?)
+            """,
+            (recap_id, user_id, account_id, body, summary,
+             json.dumps(metadata), now_iso),
+        )
+        _conn.commit()
+
+        return {
+            "id": recap_id,
+            "body": body,
+            "summary": summary,
+            "metadata": metadata,
+            "feedback": None,
+            "created_at": now_iso,
+            "day": day,
+            "validation": validation,
+        }
+    finally:
+        if _should_close:
+            _conn.close()
+
+
+def _retry_user_message(original: str, failed_body: str, flags: list[str]) -> str:
+    """Build the corrective addendum for retry attempts."""
+    flag_list = "\n".join(f"  - {f}" for f in flags)
+    return (
+        original
+        + "\n\n---\n\n"
+        + "## Your prior draft was flagged by the validator:\n\n"
+        + f"```\n{failed_body}\n```\n\n"
+        + f"## Validation flags:\n{flag_list}\n\n"
+        + "Rewrite the EOD recap. Use ONLY values and symbols that appear in "
+        + "the data I gave you. Replace each flagged value with a verified one "
+        + "or omit the sentence entirely. If the reflective question was "
+        + "yes/no-able, rewrite it to reference a specific pattern across "
+        + "≥2 data points. Maintain the conversational note format — no "
+        + "headers, no bullets, exactly one question."
+    )
+
+
+def list_eod_recaps(
+    *, user_id: str, account_id: str, conn=None,
+) -> list[dict]:
+    _conn, _should_close = _get_conn(conn)
+    try:
+        rows = _conn.execute(
+            """
+            SELECT id, body, summary, metadata, feedback, created_at FROM j2_coach_outputs
+             WHERE user_id = ? AND account_id = ?
+               AND output_type = 'eod_recap' AND forgotten = 0
+             ORDER BY created_at DESC
+            """,
+            (user_id, account_id),
+        ).fetchall()
+        return [_row_to_eod_dict(r) for r in rows]
+    finally:
+        if _should_close:
+            _conn.close()
+
+
+def get_eod_recap(recap_id: str, *, user_id: str | None = None, conn=None) -> dict | None:
+    _conn, _should_close = _get_conn(conn)
+    try:
+        if user_id is not None:
+            row = _conn.execute(
+                """
+                SELECT id, body, summary, metadata, feedback, created_at
+                  FROM j2_coach_outputs
+                 WHERE id = ? AND user_id = ?
+                   AND output_type = 'eod_recap' AND forgotten = 0
+                """,
+                (recap_id, user_id),
+            ).fetchone()
+        else:
+            row = _conn.execute(
+                "SELECT id, body, summary, metadata, feedback, created_at "
+                "FROM j2_coach_outputs WHERE id = ? AND output_type = 'eod_recap' AND forgotten = 0",
+                (recap_id,),
+            ).fetchone()
+        return _row_to_eod_dict(row) if row else None
+    finally:
+        if _should_close:
+            _conn.close()
+
+
+def mark_eod_viewed(recap_id: str, *, user_id: str, conn=None) -> int:
+    _conn, _should_close = _get_conn(conn)
+    try:
+        row = _conn.execute(
+            "SELECT metadata FROM j2_coach_outputs WHERE id = ? AND user_id = ?",
+            (recap_id, user_id),
+        ).fetchone()
+        if row is None:
+            return 0
+        try:
+            meta = json.loads(row["metadata"]) if row["metadata"] else {}
+        except (TypeError, json.JSONDecodeError):
+            meta = {}
+        meta["viewed_at"] = datetime.now(timezone.utc).isoformat()
+        cur = _conn.execute(
+            "UPDATE j2_coach_outputs SET metadata = ? WHERE id = ? AND user_id = ?",
+            (json.dumps(meta), recap_id, user_id),
+        )
+        _conn.commit()
+        return cur.rowcount
+    finally:
+        if _should_close:
+            _conn.close()
+
+
+def _row_to_eod_dict(row) -> dict:
+    try:
+        meta = json.loads(row["metadata"]) if row["metadata"] else {}
+    except (TypeError, json.JSONDecodeError):
+        meta = {}
+    keys = row.keys() if hasattr(row, "keys") else []
+    return {
+        "id": row["id"],
+        "body": row["body"],
+        "summary": row["summary"] or "",
+        "metadata": meta,
+        "feedback": row["feedback"] if "feedback" in keys else None,
+        "created_at": row["created_at"],
+        "day": meta.get("day"),
+        "validation": meta.get("validation", {"passed": True, "flags": []}),
+    }
