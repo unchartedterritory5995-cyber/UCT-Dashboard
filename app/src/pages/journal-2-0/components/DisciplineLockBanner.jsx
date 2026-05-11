@@ -13,6 +13,8 @@
  *   onArmOverride: () => void
  */
 
+import { useEffect, useState } from 'react'
+
 const ICON_BY_TYPE = {
   daily_loss: '🛑',
   cooling_off: '⏳',
@@ -30,7 +32,18 @@ function fmtCountdown(unlockAt) {
 }
 
 export default function DisciplineLockBanner({ state, overrideArmed, onArmOverride }) {
-  if (!state || !state.locked || !state.reasons || state.reasons.length === 0) return null
+  const isLocked = !!(state && state.locked && state.reasons && state.reasons.length > 0)
+
+  // Tick once per second while locked so countdowns re-render smoothly
+  // between the parent's 5s SWR polls. Cleared on unmount or when unlocked.
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (!isLocked) return undefined
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [isLocked])
+
+  if (!isLocked) return null
 
   return (
     <div
