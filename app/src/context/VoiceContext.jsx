@@ -32,6 +32,7 @@ const initialState = {
   realtimeOpenaiSessionId: null,
   rollingTranscript: [],
   partialAssistant: '',
+  wakeEnabled: false,
   errorMessage: null,
 }
 
@@ -96,6 +97,8 @@ function reducer(state, action) {
       return { ...initialState, speed: state.speed }
     case 'c_error':
       return { ...state, status: 'error', mode: 'c', errorMessage: action.message }
+    case 'set_wake_enabled':
+      return { ...state, wakeEnabled: !!action.enabled }
     default:
       return state
   }
@@ -192,6 +195,9 @@ export function VoiceProvider({ children }) {
   const realtimeDisconnect = useCallback(() => dispatch({ type: 'c_disconnect' }), [])
   const realtimeError = useCallback((message) => dispatch({ type: 'c_error', message }), [])
 
+  const setWakeEnabled = useCallback((enabled) =>
+    dispatch({ type: 'set_wake_enabled', enabled }), [])
+
   const value = useMemo(() => ({
     ...state,
     attachAudio, playUrl, playStream, pause, resume, stop, setSpeed,
@@ -199,11 +205,12 @@ export function VoiceProvider({ children }) {
     beginRealtime, realtimeConnected, realtimeUserTurn,
     realtimeAssistantPartial, realtimeAssistantDone,
     realtimeDisconnect, realtimeError,
+    setWakeEnabled,
   }), [state, attachAudio, playUrl, playStream, pause, resume, stop, setSpeed,
        startListening, startThinking, startResponding,
        beginRealtime, realtimeConnected, realtimeUserTurn,
        realtimeAssistantPartial, realtimeAssistantDone,
-       realtimeDisconnect, realtimeError])
+       realtimeDisconnect, realtimeError, setWakeEnabled])
 
   return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>
 }
