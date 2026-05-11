@@ -1,0 +1,335 @@
+# Journal 2.0 Coaching Layer — Phase G v2 Design: EOD Recap
+
+**Status:** spec, awaiting user review.
+**Initiative:** J2.0 Coaching Layer (Phase G v2 — second Compass surface).
+**Predecessor:** Phase G v1 (Coach Core + Weekly Review) shipped 2026-05-11 at master `abff4d3`.
+
+---
+
+## 1. Goal
+
+Add a second Compass surface — a daily end-of-day recap of the trader's closed trades + a brief comment on what they're still holding overnight. Auto-generated at 4:30pm ET on trading days via the existing APScheduler instance, with a manual fallback CTA on the Compass tab. The recap is a short conversational note (200-300 words) in the Compass voice already established in v1, surfaces in the Compass tab alongside Weekly Reviews, and feeds into Weekly Review memory.
+
+**Why this surface next:**
+- Architectural reuse: same async orchestrator pattern as Weekly Review; lowest-risk extension of Coach Core.
+- Daily iteration cycle on Compass quality — every trading day generates one, so quality improvements compound quickly.
+- Establishes the "Compass remembers what happened yesterday" memory pattern that future surfaces (pre-trade verdict, chat) will lean on.
+
+**Explicitly OUT of scope for v2:** pre-trade verdict, conversational chat, multi-agent committee, RAG, user-configurable persona, email delivery, audio TTS, EOD updating Trader Profile (Weekly Review remains the sole profile-writer).
+
+---
+
+## 2. Output Structure + Voice
+
+EOD recaps obey the Compass voice principles already encoded in `COMPASS_SYSTEM_PROMPT`. A new section appended to that prompt defines the EOD-specific format. Compass writes:
+
+- **200-300 words target, 400-word hard cap.**
+- **Prose paragraphs only.** No headers, no bullets, no emojis.
+- **Opening line: the punch line of the day** — the single most-notable observation. Not the P&L number unless it's the actual headline.
+- **Body: 1-2 specific observations** from today's trades. Cite trades by symbol when relevant ("the late entry on NVDA cost you 1.4R"). Reference mistake/emotion tags when the user applied them. Calibrated language ("looks like", "the data suggests") — never absolute.
+- **One closing sentence about open positions** if any are held overnight. Awareness only — no recommendations. ("You're carrying 3 overnight — biggest is +1.8R on AAPL; two are flat.")
+- **Exactly one reflective question** at the end. Specific to the day's pattern. ("What was different about today's first trade vs the second?")
+- **No "Today's focus" or directive asks** — that's the Weekly Review's job. EOD is reflective, not prescriptive.
+
+**Empty-day handling:**
+- 0 closes AND 0 open positions → no generation. Compass tab shows "No activity today — Compass is taking the day off."
+- 0 closes + at least 1 open position → generate a brief holdings note (~80 words). One observation about the positions, one reflective question. No body about closed-trade patterns (there were none).
+
+---
+
+## 3. Data Scope
+
+A new `assemble_day(user_id, account_id, day_iso, conn)` function in `coach_data_assembler.py` produces this dict (mirrors the shape of `assemble_week` but daily-scoped):
+
+```python
+{
+    "trader_profile": str,                  # j2_accounts.trader_profile markdown
+    "memory": {
+        "recent_eod_summaries": [           # last 2 EOD recaps (this account)
+            {"day": "2026-05-10", "summary": str},
+            {"day": "2026-05-09", "summary": str},
+        ],
+        "last_weekly_summary": str,         # from last weekly_review row
+        "this_weeks_focus": str | None,     # extracted from last weekly review's key_observations metadata
+    },
+    "today": {
+        "date": "2026-05-11",
+        "trades": [trade dict, ...],        # closed trades today (full detail, mistake_tags, emotion_tags, regime)
+        "aggregates": {                     # today-only
+            "trade_count": int,
+            "wins": int, "losses": int, "bes": int,
+            "win_rate": float | None,
+            "avg_r": float | None,
+            "net_pnl_dollar": float,
+            "net_pnl_pct": float,
+        },
+        "discipline_events": {              # reuse Phase A-F polish: today-only
+            "risk_cap_breaches": int, "risk_cap_overrides": int,
+            "daily_loss_lockouts": int,     # always 0 or 1 for a single day
+            "cooling_off_fires": int,
+            "no_trade_window_blocks": int,
+            "a_plus_taken": int,
+        },
+        "open_positions": [                 # j2_positions WHERE closed_at IS NULL
+            {
+                "symbol": str, "side": str, "shares": float,
+                "entry_price": float, "stop_price": float,
+                "entry_date": str, "days_held": int,
+                "unrealized_r": float | None,   # computed via live price snapshot if available; null if not
+                "current_price": float | None,
+            }, ...
+        ],
+    },
+    "week_to_date": {
+        "range": "2026-05-11 to 2026-05-11",  # Monday to today
+        "trade_count": int,
+        "net_pnl_dollar": float,
+        "wins": int, "losses": int,
+    },
+    "vs_yesterday": {
+        "prior_day_net_pnl_dollar": float,  # if any yesterday trades
+    },
+    "feedback_signals": [{day, summary}],   # last few EOD recaps user marked unhelpful (avoid those patterns)
+}
+```
+
+**Source mapping:**
+- Trades: `j2_trades` filtered by `exit_date` in [today_00:00 ET, today+1 00:00 ET) UTC.
+- Open positions: `j2_positions WHERE closed_at IS NULL AND user_id=? AND account_id=?`.
+- Live unrealized R: use existing `useLivePrices` data path on the backend if available; otherwise leave `unrealized_r` as `null` (Compass will say "current marks not available").
+- Discipline events: reuse `_discipline_events(conn, user_id, account_id, start, end)` with `start=today_00:00`, `end=today+1_00:00`.
+- This week's focus: regex-extract from last weekly review's body (look for the "This week's focus" section), fall back to `null` if not parseable.
+
+---
+
+## 4. Generation Flow
+
+Two paths, both routing to the same orchestrator function `coach.generate_eod_recap(user_id, account_id, day, *, client, conn)`.
+
+### 4.1 Scheduled auto-generation (4:30pm ET weekdays)
+
+- Existing APScheduler instance in `api/main.py` lifespan (already running for the COT scheduler — reuse, do not create a second scheduler).
+- New cron trigger: Monday–Friday at 16:30 America/New_York.
+- Job (`_compass_eod_job`) does:
+  1. Read `os.environ.get("ANTHROPIC_API_KEY")`. If missing, log a warning and exit.
+  2. Open a connection. Query `SELECT id, user_id FROM j2_accounts WHERE compass_enabled = 1`.
+  3. For each `(account_id, user_id)`:
+     - Compute today's ET date.
+     - Check if any `j2_trades.exit_date` row OR `j2_positions WHERE closed_at IS NULL` exists for this account.
+     - If neither → skip.
+     - Else → call `coach.generate_eod_recap(user_id, account_id, day=today_et_iso)`.
+     - Catch + log exceptions per-account so one failure doesn't block the rest.
+  4. Close the connection.
+
+Sequential execution. At ~3-10s/recap × N accounts, the batch takes <2 minutes for the foreseeable user base. No queue, no parallelism in v2.
+
+### 4.2 Manual generation (Compass tab CTA)
+
+New endpoint:
+
+```
+POST /api/j2/accounts/{account_id}/coach/eod-recaps/generate
+  body: { day?: "YYYY-MM-DD" }  # defaults to today_et_iso()
+```
+
+Synchronous (blocks ~10-30s). Returns the recap dict (mirrors weekly's return shape). Calls the same orchestrator. Idempotent — if a recap with `day=requested_day` already exists for this account, returns it without re-calling Anthropic.
+
+### 4.3 Orchestrator (`coach.generate_eod_recap`)
+
+Mirrors `generate_weekly_review`:
+
+1. Idempotency check: existing `j2_coach_outputs WHERE output_type='eod_recap' AND user_id=? AND account_id=? AND json_extract(metadata, '$.day') = ? AND forgotten = 0` → return existing if found.
+2. Assemble data via `coach_data_assembler.assemble_day(...)`.
+3. Build user message via `coach_prompts.assemble_eod_user_message(data)`.
+4. Call `client.write_eod_recap(system_prompt=COMPASS_SYSTEM_PROMPT, user_message=...)`. (Note: extends `CoachClientProto` with a third method — see §5.)
+5. Persist to `j2_coach_outputs` with `output_type='eod_recap'`, `metadata={"day": day_iso}`.
+6. Return the persisted dict.
+
+**No profile-update call.** EOD does not write to `j2_accounts.trader_profile`. Weekly remains the sole profile writer.
+
+---
+
+## 5. Storage + API + Client Wrapper
+
+**Storage:** no new tables, no new columns. `j2_coach_outputs.output_type` already enumerates `eod_recap` per the v1 schema CHECK constraint.
+
+**API endpoints** (new, under `/api/j2/accounts/{id}/coach/`):
+
+```
+GET    /eod-recaps                     list (id, day, summary, feedback, created_at, viewed_at)
+GET    /eod-recaps/{recap_id}          single recap body + metadata
+POST   /eod-recaps/generate            { day? } → blocking 10-30s
+POST   /eod-recaps/{recap_id}/regen    1/day rate-limited; forget + re-generate
+POST   /eod-recaps/{recap_id}/feedback { feedback: 'helpful'|'unhelpful' }
+POST   /eod-recaps/{recap_id}/forget   soft-delete
+POST   /eod-recaps/{recap_id}/viewed   marks metadata.viewed_at; clears the in-app banner
+```
+
+All behind `get_current_user`. Service-layer functions scope by `user_id`.
+
+**Client wrapper** (`AnthropicClient` in `coach.py`):
+
+Add a third method `write_eod_recap(system_prompt, user_message) -> {body, summary, key_observations}`. Same prompt-caching pattern as `write_review`. Temperature 0.5 (slightly more variation in voice than Weekly's 0.4 since the EOD is more conversational). Max tokens 1200 (cap matches the 400-word hard cap with headroom).
+
+**System prompt:** the EOD format spec is appended as Section 6 of `COMPASS_SYSTEM_PROMPT` (an additional ~400 tokens). Cached the same way as the rest of the prompt. Adding it doesn't bust the cache for Weekly Review prompts because the entire system prompt is cached as one block — Anthropic charges the same per-token-cached cost whether the prompt is 2500 or 2900 tokens.
+
+---
+
+## 6. Frontend Integration
+
+**Compass tab layout grows:**
+
+The tab currently shows: `[generate weekly CTA] → [list of weekly reviews] → [Trader Profile editor]`. v2 inserts a new "Daily Recaps" section between the weekly CTA and the weekly list.
+
+```
+🧭 Compass
+
+[banner: "No review yet for the week of YYYY-MM-DD" + Generate CTA]   ← existing
+
+## Daily Recaps   ← NEW
+[if today's recap not yet generated AND today is a trading day:
+   small inline CTA "Generate today's recap →"]
+- Mon May 12 — "<summary line>"  [👍 👎 Regen 🗑]
+- Fri May 9  — "<summary line>"  [👍 👎 Regen 🗑]
+- Thu May 8  — "<summary line>"  [👍 👎 Regen 🗑]
+[Show last 7 days inline; "View older" link expands]
+
+## Weekly Reviews   ← existing
+[list of weekly reviews]
+
+## Compass's notes on you   ← existing Trader Profile editor
+```
+
+**In-J2-app banner (cross-tab):** when an EOD recap exists for today and `metadata.viewed_at` is null, the J2 root shell renders a dismissible gold strip above the nested-tab bar:
+
+> 🧭 Compass wrapped today's session — read it →
+
+Click → routes to Compass tab, fires `POST /coach/eod-recaps/{id}/viewed`, banner disappears.
+
+Dismissing the banner (×) also marks viewed.
+
+If the user has multiple accounts with unread EODs, banner says "🧭 Compass wrapped today's session in 2 accounts — read →" and links to the Account selector.
+
+**New components:**
+- `app/src/pages/journal-2-0/components/EODRecap.jsx` — single-recap render. Same markdown helper as `CompassReview` (extract `renderMarkdown` to a shared util in v2 so EOD + Weekly both use it).
+- `app/src/pages/journal-2-0/components/EODRecapBanner.jsx` — the cross-tab notification strip.
+
+**New hooks:**
+- `app/src/pages/journal-2-0/hooks/useJ2EODRecaps.js` — SWR over `/eod-recaps` + generate/regenerate/feedback/forget/viewed actions.
+- `app/src/pages/journal-2-0/hooks/useJ2UnviewedEOD.js` — small hook that returns the most recent unread EOD recap for the current account (used by the banner).
+
+---
+
+## 7. Memory Integration with Weekly Review
+
+The Weekly Review's prompt currently retrieves the last 3 weekly review summaries. Phase G v2 extends `coach_data_assembler.assemble_week` to ALSO retrieve EOD recap summaries from the current week and inject them as a "Daily notes from this week" block in the Weekly Review user message.
+
+Implementation: in `assemble_week`, add a query for `j2_coach_outputs WHERE output_type='eod_recap' AND user_id=? AND account_id=? AND metadata.day BETWEEN week_start AND week_end ORDER BY day ASC`. Inject each as `{day, summary}` in a new `weekly_eod_context` field. The Weekly prompt's system prompt is updated to acknowledge this context exists ("if `weekly_eod_context` is present, use it to ground patterns you've already named in daily notes — refine, don't re-state").
+
+This is the principal value-add of EOD beyond standalone debriefs: each EOD acts as a "draft observation" that the Weekly Review consolidates.
+
+EOD recaps DO NOT update `trader_profile`. Only Weekly Reviews update it. This keeps the profile stable + reduces the per-EOD cost.
+
+---
+
+## 8. Trust & Error Paths
+
+### 8.1 No-hallucination contract
+
+Same as v1: Compass uses only data injected. The EOD section of the system prompt restates this explicitly for the conversational form ("you have only today's data, the open-position snapshot, and the week-to-date totals — never invent numbers, dates, or symbols").
+
+A unit test feeds a sample `assemble_day` dict into a `FakeClient` that returns a known body, then asserts numeric tokens in the body appear in the input.
+
+### 8.2 Failure modes
+
+- **Anthropic API failure (scheduled path):** the per-account try/except logs the error and continues. The user can manually regenerate later from the Compass tab.
+- **Anthropic API failure (manual path):** returns 503 to frontend with a readable detail (same pattern as v1).
+- **Anthropic key missing:** scheduler logs "Compass EOD scheduler disabled: ANTHROPIC_API_KEY not set" once at app startup. Manual endpoint returns 503.
+- **No closed trades AND no open positions:** orchestrator returns `{"skipped": true, "reason": "no_activity"}` without writing a row. Manual CTA on the Compass tab shows the empty state.
+- **Compass disabled per-account:** scheduler skips that account; manual endpoint returns 403.
+- **Idempotency race:** scheduler + manual triggered simultaneously for same (account, day) — both reach the orchestrator; the SECOND one's idempotency check finds the first's just-written row and returns it. Last writer never wins because the orchestrator's INSERT-then-return path is atomic per connection.
+- **Live-price unavailability for unrealized R:** open-position section reports prices as `null`; Compass's prompt instructs "if `current_price` is null, omit the position's R from the holdings sentence — say 'a few open positions overnight' instead."
+
+### 8.3 Feedback loop
+
+Reuses Phase G v1's pattern. `👍`/`👎`/`forget` endpoints scoped by user_id (same security model as Weekly). Feedback marked unhelpful gets injected into future EOD prompts via `feedback_signals` in the user message.
+
+### 8.4 Privacy
+
+EOD recaps never sync to the Community tab. Compass enable toggle (per Phase G v1) gates auto-generation AND manual endpoint identically.
+
+---
+
+## 9. Implementation File Map
+
+| Path | Action | Role |
+|---|---|---|
+| `api/services/journal_two/coach_prompts.py` | Modify | Add Section 6 (EOD format spec) to `COMPASS_SYSTEM_PROMPT`. Add `assemble_eod_user_message(data)` helper. |
+| `api/services/journal_two/coach_data_assembler.py` | Modify | Add `assemble_day(user_id, account_id, day_iso, conn)` function. Add `weekly_eod_context` retrieval in `assemble_week`. |
+| `api/services/journal_two/coach.py` | Modify | Add `generate_eod_recap` orchestrator. Add `write_eod_recap` method on `AnthropicClient`. Add `list_eod_recaps`, `get_eod_recap`, `set_eod_viewed` helpers. |
+| `api/services/journal_two/test_coach.py` | Modify | New tests: EOD idempotency, no-activity skip, fake-client integration. |
+| `api/services/journal_two/test_coach_data_assembler.py` | Modify | New tests: `assemble_day` shape, today filter, this-week's-focus extraction, `weekly_eod_context` retrieval. |
+| `api/routers/journal_two.py` | Modify | 7 new endpoints under `/coach/eod-recaps/*`. |
+| `api/main.py` | Modify | Register the APScheduler EOD cron job in the lifespan handler. |
+| `app/src/pages/journal-2-0/hooks/useJ2EODRecaps.js` | Create | SWR + actions. |
+| `app/src/pages/journal-2-0/hooks/useJ2UnviewedEOD.js` | Create | Banner-state hook. |
+| `app/src/pages/journal-2-0/components/EODRecap.jsx` | Create | Single-recap render. |
+| `app/src/pages/journal-2-0/components/EODRecap.test.jsx` | Create | Vitest cases. |
+| `app/src/pages/journal-2-0/components/EODRecapBanner.jsx` | Create | Cross-tab notification strip. |
+| `app/src/pages/journal-2-0/tabs/CompassTab.jsx` | Modify | Insert "Daily Recaps" section between weekly CTA and weekly list. |
+| `app/src/pages/journal-2-0/JournalTwoRoot.jsx` | Modify | Mount `EODRecapBanner` above nested tab bar. |
+| `app/src/pages/journal-2-0/components/CompassReview.jsx` | Modify | Extract `renderMarkdown` helper to a shared util (`lib/coachMarkdown.js`) so EODRecap can reuse it. |
+| `app/src/pages/journal-2-0/lib/coachMarkdown.js` | Create | Shared minimal-markdown renderer. |
+
+---
+
+## 10. Cost Estimate
+
+Per EOD recap call (estimated):
+- System prompt cached: ~2900 tokens at $0.30 / 1M cached → $0.0009.
+- User message (today's data + memory): ~1500-3000 tokens uncached at $3/M → $0.005-0.009.
+- Output: ~400 tokens at $15/M → $0.006.
+- **Total per recap: ~$0.012 - $0.015.**
+
+Per account per month (22 trading days, active every day):
+- 22 × $0.013 = **~$0.28/account/month**.
+
+For 10 active accounts: ~$2.80/month total Compass cost from EOD alone (on top of Weekly's $1-2). Combined v1+v2 Compass cost is comfortably under $5/account/month for typical activity.
+
+If a particular user's data scope is huge (50+ closed trades a day on an HFT-style account), per-recap cost could approach $0.05. Daily ceiling: $1.10/day. Still tractable.
+
+---
+
+## 11. Out of Scope (Future v3 slices)
+
+- **Email delivery** via Resend. Adds markdown→HTML rendering for email-friendly format.
+- **Audio TTS** rendering (use existing voice infra).
+- **Mobile push notification** when EOD lands.
+- **Per-trade narration mode** — currently Compass picks 1-2 observations; a future toggle could expand to one-paragraph-per-trade.
+- **EOD updating Trader Profile** — currently only Weekly writes the profile; daily update could be added if profile drift becomes a real problem.
+- **Snooze / mute EOD** — if a user wants Compass to skip Tuesdays for a stretch.
+
+---
+
+## 12. Success Criteria
+
+- Auto-generation at 4:30pm ET on Mon-Fri produces a recap for every active account that traded today.
+- A user opening the dashboard at 5pm ET sees the cross-tab banner.
+- Clicking through opens the Compass tab with today's recap pre-loaded; banner dismisses; `viewed_at` is set.
+- The recap is in the Compass voice, references at least one specific trade by symbol, ends with one reflective question, mentions overnight holdings when present.
+- The following Weekly Review references at least one daily observation from the week's EOD recaps ("the FOMO pattern Compass flagged Tuesday and Thursday is concentrated in your Bull Flag entries").
+- Manual generation works in the Compass tab CTA, returns within 30s.
+- An account with `compass_enabled = false` is skipped by the scheduler and rejected by the manual endpoint.
+- Empty-activity days do not write empty rows.
+
+---
+
+## 13. Risks + Open Items
+
+- **APScheduler cron registration timing.** The COT scheduler already runs; we need to add the EOD job alongside it without disrupting the existing schedule. Plan task should verify the scheduler instance is reused (not duplicated).
+- **Live-price availability for unrealized R.** UCT has live-price infra (15s polling, WebSocket stream). The EOD scheduler runs at 4:30pm — right after market close — so prices should be fresh. But the assembler should handle gracefully when the price snapshot is missing or stale.
+- **Cross-account batching at scale.** Sequential generation for ~10 accounts is fine. For 100+ accounts, the batch could exceed 5-10 minutes. v3 polish item: parallelize with a bounded ThreadPoolExecutor.
+- **System prompt growth.** Adding Section 6 brings the prompt to ~2900 tokens. We're still well under the practical cache size cap (~10K is safe). At ~5K we might want to start splitting per-surface system prompts.
+- **The `this_weeks_focus` extraction is regex-based** (looks for the "## This week's focus" header in last weekly review body). If Compass occasionally produces a slightly different header (e.g., misses the colon, adds emoji), the extraction fails silently. Mitigation: log the extraction outcome; fall back to `null` (Compass handles that case in the prompt).
+- **The Weekly Review's prompt now includes daily EOD context.** Cache invalidation is fine (system prompt is the cached portion; user message is fresh). But the Weekly's token budget per generation grows by ~5 × 200 = 1000 tokens of EOD memory. Per-Weekly cost goes up slightly. Acceptable.
+- **No test for the scheduler integration itself.** Unit tests cover the orchestrator + assembler with FakeClient. The scheduler is tested via manual smoke (the implementation plan should call this out).
