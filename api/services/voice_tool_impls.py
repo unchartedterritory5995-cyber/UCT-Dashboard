@@ -584,7 +584,7 @@ def _register_all() -> None:
         parameters={
             "symbol": {"type": "string"},
             "field": {"type": "string", "enum": ["stop", "target", "notes", "stop_price", "target_price"]},
-            "value": {},
+            "value": {"type": "string", "description": "New value. Numeric for stop/target; free text for notes."},
         },
         contexts=["global"],
         wants_user=True,
