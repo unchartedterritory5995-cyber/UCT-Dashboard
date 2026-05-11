@@ -255,6 +255,11 @@ export default function StockChart({
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
   onCompareChange = null,   // callback(sym) — parent manages compareSymbol state
+  // ── Optional multi-chart sync hooks (additive — all behavior unchanged when absent) ──
+  onCrosshairMove = null,   // (payload: {time, price}) => void — fires when local user hovers chart
+  onTimeRangeChange = null, // (payload: {from, to}) => void — fires when visible time range changes
+  externalCrosshair = null, // {time, price} | null — render external crosshair from sync context
+  externalTimeRange = null, // {from, to} | null — apply external time range from sync context
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -2014,6 +2019,19 @@ export default function StockChart({
         ichimokuTenkan, ichimokuKijun,
         compare: compareValue,
       })
+
+      // ── Multi-chart sync: report crosshair to parent (Task 5) ──
+      // Guard above (`if (!param.point) return`) ensures this only fires when
+      // the user is actively hovering THIS chart with the mouse. External
+      // `setCrosshairPosition` calls don't trigger `param.point`, so this
+      // can't self-fire in a loop when the parent sync context dispatches an
+      // external crosshair back to this same chart.
+      if (typeof onCrosshairMove === 'function' && param.time) {
+        onCrosshairMove({
+          time: param.time,
+          price: candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null,
+        })
+      }
     }
 
     chart.subscribeCrosshairMove(handler)
@@ -2022,7 +2040,62 @@ export default function StockChart({
     return () => {
       try { chart.unsubscribeCrosshairMove(handler) } catch {}
     }
-  }, [updateChart, resolvedOverlays, overlayData, indicatorData, comparisonData, livePrices, sym])
+  }, [updateChart, resolvedOverlays, overlayData, indicatorData, comparisonData, livePrices, sym, onCrosshairMove])
+
+  // ── Multi-chart sync: report visible time-range changes to parent (Task 5 Step 3) ──
+  // No-op when onTimeRangeChange is absent. Uses Lightweight Charts'
+  // subscribeVisibleTimeRangeChange so we report in time-space (not logical-space),
+  // which means cells with differing bar counts can still align.
+  useEffect(() => {
+    if (!chartRef.current || typeof onTimeRangeChange !== 'function') return
+    const ts = chartRef.current.timeScale()
+    const handler = (range) => {
+      if (range) onTimeRangeChange({ from: range.from, to: range.to })
+    }
+    try { ts.subscribeVisibleTimeRangeChange(handler) } catch { return }
+    return () => {
+      try { ts.unsubscribeVisibleTimeRangeChange(handler) } catch {}
+    }
+  }, [onTimeRangeChange])
+
+  // ── Multi-chart sync: apply external time range from parent (Task 5 Step 4) ──
+  // No-op when externalTimeRange is null. Wrapped in try/catch because
+  // setVisibleRange will throw if the range falls outside the loaded data.
+  useEffect(() => {
+    if (!chartRef.current || !externalTimeRange) return
+    try {
+      chartRef.current.timeScale().setVisibleRange({
+        from: externalTimeRange.from,
+        to: externalTimeRange.to,
+      })
+    } catch {}
+  }, [externalTimeRange])
+
+  // ── Multi-chart sync: render external crosshair from parent (Task 5 Step 5) ──
+  // No-op when externalCrosshair is null. Uses Lightweight Charts v5's
+  // setCrosshairPosition / clearCrosshairPosition API. Wrapped in try/catch
+  // so charts on older LWC versions silently skip rather than crash.
+  // Critical: this API does NOT trigger `param.point` on the subscribed
+  // crosshair handler, so the local-report effect above won't re-fire and
+  // create an infinite loop.
+  useEffect(() => {
+    if (!chartRef.current || !candleSeriesRef.current) return
+    if (!externalCrosshair?.time) {
+      try { chartRef.current.clearCrosshairPosition() } catch {}
+      return
+    }
+    try {
+      const priceVal =
+        externalCrosshair.price?.close ??
+        externalCrosshair.price?.value ??
+        (typeof externalCrosshair.price === 'number' ? externalCrosshair.price : 0)
+      chartRef.current.setCrosshairPosition(
+        priceVal,
+        externalCrosshair.time,
+        candleSeriesRef.current,
+      )
+    } catch {}
+  }, [externalCrosshair])
 
   // ── Right-click on a bar → fire callback or dispatch global event ──
   // Behavior:
