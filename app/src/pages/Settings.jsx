@@ -8,6 +8,7 @@ import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart
 import useTagColors from '../hooks/useTagColors'
 import useTickerTags from '../hooks/useTickerTags'
 import { ALERT_SOUNDS, previewSound } from '../utils/alertSound'
+import VoiceMemoryPanel from '../components/voice/VoiceMemoryPanel'
 import styles from './Settings.module.css'
 
 const TF_OPTIONS = [
@@ -969,6 +970,11 @@ export default function Settings() {
 
         {/* ── Voice ── */}
         <VoicePanel />
+
+        {/* ── Voice Memory ── */}
+        <TileCard title="Voice Memory">
+          <VoiceMemoryPanel />
+        </TileCard>
 
         {/* ── Watchlist Digest ── */}
         <TileCard title="Watchlist Digest">
