@@ -29,6 +29,7 @@ from api.services.journal_two import (
     community as community_service,
     csv_import as csv_import_service,
     discipline as discipline_service,
+    nudges as nudges_service,
     options as options_service,
     playbook as playbook_service,
     positions as positions_service,
@@ -535,6 +536,15 @@ def get_discipline_state(
     modal is open.
     """
     return discipline_service.compute_discipline_state(user["id"], account_id)
+
+
+@router.get("/accounts/{account_id}/nudges")
+def get_nudges_route(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Phase F: loss/win streak counts + stale-position count + thresholds."""
+    return nudges_service.get_nudges_state(user["id"], account_id)
 
 
 @router.get("/accounts/{account_id}/setup-stats")
