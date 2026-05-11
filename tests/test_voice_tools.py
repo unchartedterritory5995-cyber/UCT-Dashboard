@@ -223,3 +223,38 @@ def test_recall_session_tool():
     out = voice_tools.dispatch("recall_session", {"query": "NVDA"}, user={"id": uid})
     assert "NVDA" in out["recall_text"]
     assert out["count"] >= 1
+
+
+# ── Agentic flows (Slice 6) ────────────────────────────────────────────────
+
+def test_agentic_flows_register():
+    from api.services import voice_tool_impls  # noqa
+    names = set(voice_tools.all_tool_names())
+    expected = {"morning_briefing", "closing_briefing", "pre_trade_check",
+                "post_trade_review", "plan_my_day"}
+    assert expected.issubset(names)
+
+
+def test_morning_briefing_tool_returns_narration(monkeypatch):
+    from api.services import voice_tool_impls, voice_briefings  # noqa
+
+    monkeypatch.setattr(voice_briefings, "_get_breadth", lambda: {
+        "breadth_score": 75, "advancing": 320, "declining": 180, "market_phase": "uptrend"})
+    monkeypatch.setattr(voice_briefings, "_get_themes", lambda: {"leaders": [
+        {"name": "Semis", "pct": "+2.5%"}]})
+    monkeypatch.setattr(voice_briefings, "_get_earnings", lambda: {"bmo": [{"sym": "AAPL"}], "amc": []})
+
+    out = voice_tools.dispatch("morning_briefing", {}, user={"id": "u-1"})
+    assert "narration" in out
+    assert len(out["narration"]) > 0
+
+
+def test_pre_trade_check_tool(monkeypatch):
+    from api.services import voice_tool_impls, voice_briefings  # noqa
+    monkeypatch.setattr(voice_briefings, "_get_snapshot",
+                        lambda sym: {"close": 487.2, "change_pct": 2.1})
+    monkeypatch.setattr(voice_briefings, "_get_breadth", lambda: {"market_phase": "uptrend"})
+    monkeypatch.setattr(voice_briefings, "_get_themes", lambda: {})
+
+    out = voice_tools.dispatch("pre_trade_check", {"symbol": "NVDA"}, user={"id": "u-1"})
+    assert "NVDA" in out["narration"]

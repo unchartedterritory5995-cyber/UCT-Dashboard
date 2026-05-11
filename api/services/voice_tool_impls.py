@@ -217,6 +217,34 @@ def _recall_session(*, user, query: str) -> dict:
     return {"recall_text": "; ".join(lines)[:1500], "count": len(rows)}
 
 
+# ── Agentic flows (Slice 6) ────────────────────────────────────────────────
+
+
+def _morning_briefing(*, user) -> dict:
+    from api.services.voice_briefings import morning_briefing
+    return morning_briefing(user_id=user["id"])
+
+
+def _closing_briefing(*, user) -> dict:
+    from api.services.voice_briefings import closing_briefing
+    return closing_briefing(user_id=user["id"])
+
+
+def _pre_trade_check(*, user, symbol: str) -> dict:
+    from api.services.voice_briefings import pre_trade_check
+    return pre_trade_check(symbol=symbol or "", user_id=user["id"])
+
+
+def _post_trade_review(*, user, symbol: str) -> dict:
+    from api.services.voice_briefings import post_trade_review
+    return post_trade_review(symbol=symbol or "", user_id=user["id"])
+
+
+def _plan_my_day(*, user) -> dict:
+    from api.services.voice_briefings import plan_my_day
+    return plan_my_day(user_id=user["id"])
+
+
 def _register_all() -> None:
     """Register (or re-register) all Slice 2 tools into the registry."""
 
@@ -352,6 +380,46 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_recall_session)
+
+    _vt.voice_tool(
+        name="morning_briefing",
+        description="Comprehensive morning market briefing — regime, leading themes, today's earnings, and overall posture. Call this when the user says 'morning briefing' or 'what's the morning look like' or similar.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_morning_briefing)
+
+    _vt.voice_tool(
+        name="closing_briefing",
+        description="End-of-day market recap — top performers, weakest names, breadth, what's on deck tomorrow. Call this when the user asks 'how did the market close?' or 'eod recap' or similar.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_closing_briefing)
+
+    _vt.voice_tool(
+        name="pre_trade_check",
+        description="Quick briefing on a specific ticker before entering a trade — current quote, broader market context, and theme alignment. Call this when the user asks 'check NVDA before I trade it' or 'pre-trade briefing on X'.",
+        parameters={"symbol": {"type": "string", "description": "Ticker symbol."}},
+        contexts=["global"],
+        wants_user=True,
+    )(_pre_trade_check)
+
+    _vt.voice_tool(
+        name="post_trade_review",
+        description="Recap the user's most recent trade for a given ticker, with entry, exit, P&L, and setup type. Call this when the user asks 'how did my NVDA trade go?' or 'recap my last X trade'.",
+        parameters={"symbol": {"type": "string"}},
+        contexts=["global"],
+        wants_user=True,
+    )(_post_trade_review)
+
+    _vt.voice_tool(
+        name="plan_my_day",
+        description="Briefing for what's likely to matter today — earnings, regime, leading themes, and a closing line. Call this when the user says 'plan my day' or 'what should I focus on'.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_plan_my_day)
 
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────
