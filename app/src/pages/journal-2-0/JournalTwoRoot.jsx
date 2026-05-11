@@ -10,6 +10,10 @@ import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Settings from './hooks/useJ2Settings'
+import useJ2SelectedAccount from './hooks/useJ2SelectedAccount'
+import useJ2UnviewedEOD from './hooks/useJ2UnviewedEOD'
+import useJ2EODRecaps from './hooks/useJ2EODRecaps'
+import EODRecapBanner from './components/EODRecapBanner'
 import PortfolioSettingsModal from './components/PortfolioSettingsModal'
 import OpenPositionsTab from './tabs/OpenPositionsTab'
 import TradeJournalTab from './tabs/TradeJournalTab'
@@ -39,6 +43,9 @@ const NESTED_TABS = [
 
 export default function JournalTwoRoot() {
   const { settings, isLoading, error, save, accountName, isAllAccounts } = useJ2Settings()
+  const { accountId } = useJ2SelectedAccount()
+  const { unviewed } = useJ2UnviewedEOD(accountId)
+  const { markViewed } = useJ2EODRecaps(accountId)
   const [searchParams, setSearchParams] = useSearchParams()
   const [showSettings, setShowSettings] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -124,6 +131,19 @@ export default function JournalTwoRoot() {
         <div className={styles.errorBanner} role="alert">
           Failed to load Journal 2.0 settings: {String(error.message || error)}
         </div>
+      )}
+
+      {unviewed && (
+        <EODRecapBanner
+          day={unviewed.day || unviewed.metadata?.day}
+          onClick={async () => {
+            setNestedTab('compass')
+            try { await markViewed(unviewed.id) } catch { /* swallow */ }
+          }}
+          onDismiss={async () => {
+            try { await markViewed(unviewed.id) } catch { /* swallow */ }
+          }}
+        />
       )}
 
       <div className={styles.nestedTabBar} role="tablist" aria-label="Journal 2.0 views">

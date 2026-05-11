@@ -11,7 +11,9 @@ import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2CoachReviews from '../hooks/useJ2CoachReviews'
 import useJ2TraderProfile from '../hooks/useJ2TraderProfile'
 import useJ2Settings from '../hooks/useJ2Settings'
+import useJ2EODRecaps from '../hooks/useJ2EODRecaps'
 import CompassReview from '../components/CompassReview'
+import EODRecap from '../components/EODRecap'
 import TraderProfileEditor from '../components/TraderProfileEditor'
 
 function mostRecentClosedMondayISO() {
@@ -28,10 +30,22 @@ function mostRecentClosedMondayISO() {
   return monday.toISOString().slice(0, 10)
 }
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export default function CompassTab() {
   const { accountId } = useJ2SelectedAccount()
   const { settings } = useJ2Settings()
   const { reviews, isLoading, error, generate, regenerate, feedback, forget } = useJ2CoachReviews(accountId)
+  const {
+    recaps: eodRecaps,
+    isLoading: eodLoading,
+    generate: generateEod,
+    regenerate: regenerateEod,
+    feedback: eodFeedback,
+    forget: forgetEod,
+  } = useJ2EODRecaps(accountId)
   const { profile, save: saveProfile, refresh: refreshProfile } = useJ2TraderProfile(accountId)
   const [generating, setGenerating] = useState(false)
   const [errorMsg, setErrorMsg] = useState(null)
@@ -113,6 +127,83 @@ export default function CompassTab() {
           </button>
         </div>
       )}
+
+      <section style={{ marginTop: 24 }}>
+        <h2 style={{ fontSize: 16, color: 'var(--ut-gold, #c9a84c)', marginBottom: 8 }}>
+          Daily Recaps
+        </h2>
+
+        {(() => {
+          const today = todayISO()
+          const haveToday = eodRecaps.some((r) => (r.day || r.metadata?.day) === today)
+          if (!haveToday) {
+            return (
+              <div
+                style={{
+                  margin: '8px 0',
+                  padding: '10px 14px',
+                  background: 'rgba(201,168,76,0.06)',
+                  border: '1px solid rgba(201,168,76,0.3)',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                <span>No recap yet for today ({today}).</span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setErrorMsg(null)
+                    setGenerating(true)
+                    try {
+                      const out = await generateEod()
+                      if (out?.skipped) {
+                        setErrorMsg('No activity today — Compass took the day off.')
+                      }
+                    } catch (e) {
+                      setErrorMsg(String(e.message || e))
+                    } finally {
+                      setGenerating(false)
+                    }
+                  }}
+                  disabled={generating}
+                  style={{
+                    padding: '4px 12px', fontSize: 12, fontWeight: 600,
+                    background: 'var(--ut-gold, #c9a84c)', color: '#000',
+                    border: 'none', borderRadius: 4, cursor: 'pointer',
+                  }}
+                >
+                  {generating ? 'Working…' : "Generate today's recap →"}
+                </button>
+              </div>
+            )
+          }
+          return null
+        })()}
+
+        {eodLoading && eodRecaps.length === 0 && (
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading recaps…</p>
+        )}
+
+        {eodRecaps.slice(0, 7).map((r) => (
+          <EODRecap
+            key={r.id}
+            recap={r}
+            onFeedback={(v) => eodFeedback(r.id, v)}
+            onRegenerate={async () => {
+              try {
+                await regenerateEod(r.id)
+              } catch (e) {
+                setErrorMsg(String(e.message || e))
+              }
+            }}
+            onForget={() => forgetEod(r.id)}
+          />
+        ))}
+      </section>
 
       {isLoading && reviews.length === 0 && (
         <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading reviews…</p>
