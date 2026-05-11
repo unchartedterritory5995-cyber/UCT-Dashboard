@@ -61,6 +61,26 @@ def _earnings_today() -> list[dict]:
     return (e.get("bmo") or []) + (e.get("amc") or [])
 
 
+def _themes() -> dict:
+    """Return {leaders: [...], laggards: [...], period}. Each item has
+    `name` (str), `pct` (str like '+2.50%'), `ticker` (str)."""
+    from api.services.engine import get_themes
+    return get_themes() or {}
+
+
+def _parse_pct(value) -> float:
+    """Parse a pct that may be a string like '+2.50%' or '-1.3%' or a number."""
+    if value is None:
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip().replace("%", "").replace("+", "")
+    try:
+        return float(s)
+    except ValueError:
+        return 0.0
+
+
 def _theme_performance() -> dict:
     from api.services.theme_performance import get_theme_performance
     return get_theme_performance() or {}
@@ -113,15 +133,15 @@ def _get_earnings_today() -> dict:
 
 def _get_theme_status(count: int = 3) -> dict:
     count = max(1, min(5, int(count or 3)))
-    perf = _theme_performance()
-    leaders = (perf.get("leaders") or [])[:count]
+    themes = _themes()
+    leaders = (themes.get("leaders") or [])[:count]
     if not leaders:
         return {"top_themes": "no theme data available", "count": 0}
-    parts = [
-        f"{t.get('name')} {('up' if (t.get('pct') or 0) >= 0 else 'down')} "
-        f"{abs(round(t.get('pct') or 0, 1))} percent"
-        for t in leaders
-    ]
+    parts = []
+    for t in leaders:
+        pct = _parse_pct(t.get("pct"))
+        direction = "up" if pct >= 0 else "down"
+        parts.append(f"{t.get('name')} {direction} {abs(round(pct, 1))} percent")
     return {"top_themes": ", ".join(parts), "count": len(parts)}
 
 
