@@ -245,6 +245,9 @@ _PHASE_2_ALTERS = [
     # Phase C — Setup-Aware Coaching (A+ whitelist + multiplier; null/empty = disabled)
     "ALTER TABLE j2_accounts ADD COLUMN a_plus_setups TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE j2_accounts ADD COLUMN a_plus_risk_multiplier REAL",
+    # Phase D — Regime-Aware Sizing
+    "ALTER TABLE j2_accounts ADD COLUMN regime_size_multipliers TEXT NOT NULL DEFAULT '{}'",
+    "ALTER TABLE j2_trades ADD COLUMN regime TEXT",
 ]
 
 
