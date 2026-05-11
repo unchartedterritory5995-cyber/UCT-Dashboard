@@ -26,6 +26,7 @@ from api.services.journal_two import (
     accounts as accounts_service,
     analytics as analytics_service,
     calendar as calendar_service,
+    coach as coach_service,
     community as community_service,
     csv_import as csv_import_service,
     discipline as discipline_service,
@@ -40,6 +41,21 @@ from api.services.journal_two import (
 )
 
 router = APIRouter(prefix="/api/j2", tags=["journal-2-0"])
+
+
+def _most_recent_closed_monday() -> str:
+    """Return the most recent fully-closed Monday-Friday week as ISO Monday date."""
+    from datetime import datetime, timedelta, timezone
+    now = datetime.now(timezone.utc).date()
+    # weekday(): Mon=0 ... Fri=4 ... Sat=5 Sun=6
+    wd = now.weekday()
+    if wd >= 5:  # Sat or Sun: this week's Friday has closed
+        days_back_to_friday = wd - 4
+    else:        # Mon-Fri: prior week's Friday is the most recent close
+        days_back_to_friday = wd + 3
+    most_recent_friday = now - timedelta(days=days_back_to_friday)
+    monday = most_recent_friday - timedelta(days=4)
+    return monday.isoformat()
 
 
 # ── Settings ─────────────────────────────────────────────────────────────────
@@ -941,3 +957,127 @@ def get_calendar_attachment(
     return FileResponse(path)
 
 
+# ── Phase G: Compass ─────────────────────────────────────────────────────────
+
+@router.get("/accounts/{account_id}/coach/weekly-reviews")
+def list_coach_weekly_reviews(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+):
+    return {"reviews": coach_service.list_weekly_reviews(
+        user_id=user["id"], account_id=account_id,
+    )}
+
+
+@router.get("/accounts/{account_id}/coach/weekly-reviews/{review_id}")
+def get_coach_weekly_review(
+    account_id: str,
+    review_id: str,
+    user: dict = Depends(get_current_user),
+):
+    r = coach_service.get_weekly_review(review_id=review_id)
+    if not r:
+        raise HTTPException(status_code=404, detail="Review not found")
+    return r
+
+
+@router.post("/accounts/{account_id}/coach/weekly-reviews/generate")
+def generate_coach_weekly_review(
+    account_id: str,
+    payload: dict | None = None,
+    user: dict = Depends(get_current_user),
+):
+    week_start = (payload or {}).get("weekStart") or _most_recent_closed_monday()
+    try:
+        return coach_service.generate_weekly_review(
+            user_id=user["id"], account_id=account_id, week_start=week_start,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.post("/accounts/{account_id}/coach/weekly-reviews/{review_id}/regenerate")
+def regenerate_coach_weekly_review(
+    account_id: str,
+    review_id: str,
+    user: dict = Depends(get_current_user),
+):
+    existing = coach_service.get_weekly_review(review_id=review_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Review not found")
+    # week_start lives inside the metadata JSON blob
+    week_start = (existing.get("metadata") or {}).get("week_start") or _most_recent_closed_monday()
+    # v1: forget the existing, then regenerate. Caller treats as replacement.
+    coach_service.forget_review(review_id=review_id)
+    try:
+        return coach_service.generate_weekly_review(
+            user_id=user["id"], account_id=account_id,
+            week_start=week_start,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.post("/accounts/{account_id}/coach/weekly-reviews/{review_id}/feedback")
+def feedback_coach_weekly_review(
+    account_id: str,
+    review_id: str,
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    feedback = (payload or {}).get("feedback")
+    if feedback not in ("helpful", "unhelpful"):
+        raise HTTPException(status_code=400, detail="feedback must be 'helpful' or 'unhelpful'")
+    existing = coach_service.get_weekly_review(review_id=review_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Review not found")
+    coach_service.set_feedback(review_id=review_id, feedback=feedback)
+    return {"ok": True}
+
+
+@router.post("/accounts/{account_id}/coach/weekly-reviews/{review_id}/forget")
+def forget_coach_weekly_review(
+    account_id: str,
+    review_id: str,
+    user: dict = Depends(get_current_user),
+):
+    existing = coach_service.get_weekly_review(review_id=review_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Review not found")
+    coach_service.forget_review(review_id=review_id)
+    return {"ok": True}
+
+
+@router.get("/accounts/{account_id}/coach/profile")
+def get_coach_profile(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+):
+    settings = accounts_service.get_account_settings(user["id"], account_id)
+    if not settings:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return {"profile": settings.get("traderProfile") or ""}
+
+
+@router.put("/accounts/{account_id}/coach/profile")
+def put_coach_profile(
+    account_id: str,
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    profile = (payload or {}).get("profile")
+    if not isinstance(profile, str):
+        raise HTTPException(status_code=400, detail="profile must be a string")
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "UPDATE j2_accounts SET trader_profile = ? WHERE id = ? AND user_id = ?",
+            (profile, account_id, user["id"]),
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Account not found")
+        return {"profile": profile}
+    finally:
+        conn.close()
