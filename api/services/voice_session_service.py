@@ -33,7 +33,16 @@ def create_session(*, user_id: str, mode: str, source: str = "orb",
 
 def end_session(session_id: int, *, duration_seconds: int,
                 status: str = "closed", estimated_cost_usd: float = 0.0) -> None:
-    """Mark a session ended with its observed duration."""
+    """Mark a session ended with its observed duration. If
+    estimated_cost_usd is 0 (default), compute it from duration via
+    voice_cost_service so we always have a cost number stamped."""
+    # Compute cost if caller didn't provide one
+    if estimated_cost_usd <= 0:
+        try:
+            from api.services.voice_cost_service import estimate_mode_c_cost
+            estimated_cost_usd = estimate_mode_c_cost(int(duration_seconds))
+        except Exception:
+            estimated_cost_usd = 0.0
     conn = get_connection()
     try:
         conn.execute(

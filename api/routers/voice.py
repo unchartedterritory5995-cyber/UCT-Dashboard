@@ -366,6 +366,13 @@ def insights_scan(
     return {"queued": n}
 
 
+@router.get("/cost")
+def cost_summary(user: dict = Depends(requires_voice_access)):
+    """Estimated voice cost for the current calendar month + projection."""
+    from api.services.voice_cost_service import get_monthly_cost_summary
+    return get_monthly_cost_summary(user["id"])
+
+
 @router.get("/reward/scoreboard")
 def reward_scoreboard(
     days: int = 30,

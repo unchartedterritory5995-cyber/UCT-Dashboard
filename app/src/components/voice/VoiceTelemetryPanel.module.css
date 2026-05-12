@@ -270,3 +270,38 @@
   background: rgba(74, 222, 128, 0.18);
   border-color: rgba(74, 222, 128, 0.6);
 }
+
+/* Cost banner */
+.costBanner {
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  background: rgba(74, 222, 128, 0.06);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: 6px;
+}
+.costRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.costStat {
+  padding: 0;
+}
+.costLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 2px;
+}
+.costValue {
+  font-size: 18px;
+  font-weight: 700;
+  color: #86efac;
+}
+.costNote {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.4;
+}

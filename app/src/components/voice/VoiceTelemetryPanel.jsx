@@ -20,6 +20,7 @@ export default function VoiceTelemetryPanel() {
   const [patterns, setPatterns] = useState([])
   const [agentStats, setAgentStats] = useState([])
   const [variantStats, setVariantStats] = useState([])
+  const [costSummary, setCostSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -27,13 +28,14 @@ export default function VoiceTelemetryPanel() {
     setLoading(true)
     setError(null)
     try {
-      const [statsR, corrR, fbR, patR, agentR, rewardR] = await Promise.all([
+      const [statsR, corrR, fbR, patR, agentR, rewardR, costR] = await Promise.all([
         fetch('/api/voice/tool-call-stats', { credentials: 'include' }),
         fetch('/api/voice/feedback/corrections', { credentials: 'include' }),
         fetch('/api/voice/feedback', { credentials: 'include' }),
         fetch('/api/voice/failure-patterns', { credentials: 'include' }),
         fetch('/api/voice/agents/stats?days=30', { credentials: 'include' }),
         fetch('/api/voice/reward/scoreboard?days=30', { credentials: 'include' }),
+        fetch('/api/voice/cost', { credentials: 'include' }),
       ])
       if (statsR.ok) setStats(await statsR.json())
       if (corrR.ok) {
@@ -55,6 +57,9 @@ export default function VoiceTelemetryPanel() {
       if (rewardR.ok) {
         const j = await rewardR.json()
         setVariantStats(j.rows || [])
+      }
+      if (costR.ok) {
+        setCostSummary(await costR.json())
       }
     } catch (e) {
       setError(e?.message || 'Failed to load telemetry')
@@ -105,6 +110,43 @@ export default function VoiceTelemetryPanel() {
       </p>
 
       {error && <div className={styles.error}>{error}</div>}
+
+      {/* Cost banner ── */}
+      {costSummary && (
+        <div className={styles.costBanner}>
+          <div className={styles.costRow}>
+            <div className={styles.costStat}>
+              <div className={styles.costLabel}>Month-to-date</div>
+              <div className={styles.costValue}>
+                ${costSummary.month_to_date_usd.toFixed(2)}
+              </div>
+            </div>
+            <div className={styles.costStat}>
+              <div className={styles.costLabel}>Projected month</div>
+              <div className={`${styles.costValue} ${costSummary.projected_month_usd > 50 ? styles.statBad : ''}`}>
+                ${costSummary.projected_month_usd.toFixed(2)}
+              </div>
+            </div>
+            <div className={styles.costStat}>
+              <div className={styles.costLabel}>Daily rate</div>
+              <div className={styles.costValue}>
+                ${costSummary.daily_rate_usd.toFixed(2)}/day
+              </div>
+            </div>
+            <div className={styles.costStat}>
+              <div className={styles.costLabel}>Realtime minutes</div>
+              <div className={styles.costValue}>
+                {costSummary.breakdown.mode_c_realtime.minutes}
+              </div>
+            </div>
+          </div>
+          <div className={styles.costNote}>
+            Estimates use OpenAI list pricing (gpt-realtime $0.30/min avg,
+            tts-1-hd $0.03/1k chars). Actuals on the OpenAI dashboard
+            may vary by ±20%.
+          </div>
+        </div>
+      )}
 
       {/* Failure patterns banner ── */}
       {patterns.length > 0 && (
