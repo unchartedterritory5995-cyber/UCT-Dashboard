@@ -912,6 +912,38 @@ async def lifespan(app: FastAPI):
 
         _scheduler.add_job(_nightly_bar_refresh, trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=15), id="bars_nightly_refresh", max_instances=1, replace_existing=True)
 
+        # Voice Batch 11a — proactive market watcher. Scans every 30 min
+        # during market hours; users with voice access get queued
+        # insights they'll hear at the start of their next session.
+        def _voice_proactive_scan():
+            try:
+                from api.services.auth_db import get_connection as _gc
+                from api.services.voice_proactive_service import (
+                    scan_for_opportunities, maybe_emit_regime_shift,
+                )
+                conn = _gc()
+                try:
+                    rows = conn.execute(
+                        """SELECT DISTINCT vs.user_id FROM voice_settings vs
+                           WHERE vs.enabled = 1"""
+                    ).fetchall()
+                finally:
+                    conn.close()
+                for r in rows:
+                    uid = r["user_id"]
+                    try:
+                        scan_for_opportunities(uid)
+                        maybe_emit_regime_shift(uid)
+                    except Exception as e:
+                        print(f"[voice_proactive] scan user={uid} failed: {e}")
+            except Exception as e:
+                print(f"[voice_proactive] outer error: {e}")
+        _scheduler.add_job(_voice_proactive_scan,
+                           trigger=CronTrigger(day_of_week="mon-fri",
+                                               hour="9-15", minute="*/30"),
+                           id="voice_proactive_scan",
+                           max_instances=1, replace_existing=True)
+
         # Nightly flow DB prune — remove expired contracts (buffer_days=1)
         def _nightly_flow_prune():
             try:

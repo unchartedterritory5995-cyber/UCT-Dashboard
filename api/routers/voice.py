@@ -198,6 +198,48 @@ def agents_get(user: dict = Depends(requires_voice_access)):
     return {"agents": list_agents()}
 
 
+@router.get("/insights")
+def insights_list(user: dict = Depends(requires_voice_access)):
+    """All proactive insights (delivered + pending + dismissed) for the user."""
+    from api.services.voice_proactive_service import list_history
+    return {"insights": list_history(user["id"], limit=100)}
+
+
+@router.get("/insights/pending")
+def insights_pending(user: dict = Depends(requires_voice_access)):
+    """Only undelivered + undismissed insights."""
+    from api.services.voice_proactive_service import list_pending_insights
+    return {"insights": list_pending_insights(user["id"], limit=20)}
+
+
+@router.post("/insights/{insight_id}/dismiss")
+@limiter.limit("60/minute")
+def insights_dismiss(
+    request: Request,
+    insight_id: int,
+    user: dict = Depends(requires_voice_access),
+):
+    from api.services.voice_proactive_service import dismiss
+    ok = dismiss(insight_id, user["id"])
+    return {"ok": ok}
+
+
+@router.post("/insights/scan")
+@limiter.limit("3/minute")
+def insights_scan(
+    request: Request,
+    user: dict = Depends(requires_voice_access),
+):
+    """Trigger an on-demand scan (debug/testing). The scheduler runs this
+    every 30 min during market hours automatically."""
+    from api.services.voice_proactive_service import (
+        scan_for_opportunities, maybe_emit_regime_shift,
+    )
+    n = scan_for_opportunities(user["id"])
+    n += maybe_emit_regime_shift(user["id"])
+    return {"queued": n}
+
+
 @router.get("/agents/stats")
 def agents_stats(
     days: int = 30,
@@ -428,9 +470,38 @@ def session_token(
         except Exception as e:
             _log.warning("[session_token] regime injection failed: %s", e)
 
+    # Pull pending proactive insights (Batch 11a) — gets injected and marked
+    # delivered so the assistant surfaces them at session start.
+    insight_lines = []
+    if ctx != "train_me":
+        try:
+            from api.services.voice_proactive_service import (
+                list_pending_insights, mark_delivered,
+            )
+            insights = list_pending_insights(uid, limit=5)
+            if insights:
+                for i in insights:
+                    sym = (i.get("symbol") or "").upper()
+                    prefix = f"[{i.get('kind')}{(' ' + sym) if sym else ''}]"
+                    insight_lines.append(
+                        f"  - {prefix} {i.get('headline')}"
+                        + (f" — {i.get('body')}" if i.get('body') else '')
+                    )
+                mark_delivered([i["id"] for i in insights])
+        except Exception as e:
+            _log.warning("[session_token] proactive insight inject failed: %s", e)
+
     session_instructions = base_instructions
     if regime_line:
         session_instructions = session_instructions + "\n\n" + regime_line
+    if insight_lines:
+        session_instructions = session_instructions + (
+            "\n\n=== PROACTIVE INSIGHTS FOR THIS SESSION ===\n"
+            "Surface these briefly at the start of the conversation IF "
+            "relevant. Don't force them if the user opens with a specific "
+            "question.\n" + "\n".join(insight_lines)
+            + "\n=== END INSIGHTS ==="
+        )
     if memory_context:
         session_instructions = (
             session_instructions

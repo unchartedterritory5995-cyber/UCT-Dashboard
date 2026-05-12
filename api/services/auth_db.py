@@ -341,6 +341,22 @@ CREATE TABLE IF NOT EXISTS voice_scratchpad (
 );
 
 CREATE INDEX IF NOT EXISTS idx_voice_scratchpad_session ON voice_scratchpad(session_id);
+
+CREATE TABLE IF NOT EXISTS voice_proactive_insights (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id       TEXT NOT NULL REFERENCES users(id),
+    kind          TEXT NOT NULL,
+    symbol        TEXT,
+    headline      TEXT NOT NULL,
+    body          TEXT,
+    importance    INTEGER NOT NULL DEFAULT 5,
+    delivered_at  TIMESTAMP,
+    dismissed_at  TIMESTAMP,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_proactive_user_undelivered ON voice_proactive_insights(user_id, delivered_at);
+CREATE INDEX IF NOT EXISTS idx_voice_proactive_user_recent ON voice_proactive_insights(user_id, created_at DESC);
 """
 
 
