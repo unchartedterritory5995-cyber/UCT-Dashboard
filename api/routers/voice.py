@@ -463,12 +463,18 @@ def session_token(
     # Inject current market regime (Batch 9b). Skipped for train_me since
     # that context shouldn't reason about market state.
     regime_line = ""
+    temporal_line = ""
     if ctx != "train_me":
         try:
             from api.services.voice_regime_classifier import build_regime_prompt_line
             regime_line = build_regime_prompt_line()
         except Exception as e:
             _log.warning("[session_token] regime injection failed: %s", e)
+        try:
+            from api.services.voice_temporal_awareness import build_temporal_prompt_line
+            temporal_line = build_temporal_prompt_line(uid)
+        except Exception as e:
+            _log.warning("[session_token] temporal injection failed: %s", e)
 
     # Pull pending proactive insights (Batch 11a) — gets injected and marked
     # delivered so the assistant surfaces them at session start.
@@ -492,6 +498,8 @@ def session_token(
             _log.warning("[session_token] proactive insight inject failed: %s", e)
 
     session_instructions = base_instructions
+    if temporal_line:
+        session_instructions = session_instructions + "\n\n" + temporal_line
     if regime_line:
         session_instructions = session_instructions + "\n\n" + regime_line
     if insight_lines:

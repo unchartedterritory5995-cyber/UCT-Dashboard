@@ -629,6 +629,15 @@ def _get_time_of_day_pattern() -> dict:
     return get_time_of_day_pattern()
 
 
+# ── Batch 11b: Temporal awareness ───────────────────────────────────────────
+
+def _get_market_context(*, user) -> dict:
+    """Comprehensive temporal context — session state + data freshness +
+    user's typical schedule."""
+    from api.services.voice_temporal_awareness import get_market_context
+    return get_market_context(user_id=user["id"])
+
+
 # ── Batch 10a: Agent routing ────────────────────────────────────────────────
 
 def _route_to_agent(target: str = "", reason: str = "") -> dict:
@@ -1480,6 +1489,14 @@ def _register_all() -> None:
         parameters={},
         contexts=["global"],
     )(_get_time_of_day_pattern)
+
+    _vt.voice_tool(
+        name="get_market_context",
+        description="Comprehensive temporal context — current market session state (pre-market / RTH / after-hours / closed), data freshness (how stale is the morning wire), the user's typical voice-session schedule. Use to anchor every reasoning task; never recommend intraday setups when market is closed, never quote stale data as current.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_get_market_context)
 
     _vt.voice_tool(
         name="route_to_agent",
