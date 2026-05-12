@@ -1282,6 +1282,23 @@ TOOLS.update({
     },
 })
 
+def _exec_check_active_interventions(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services.journal_two import interventions as iv
+    return {"interventions": iv.evaluate_interventions(
+        user_id=user_id, account_id=account_id, conn=conn,
+    )}
+
+
+TOOLS.update({
+    "check_active_interventions": {
+        "name": "check_active_interventions",
+        "description": "Check which Compass intervention rules are currently active (e.g., rapid_fire_trading, daily_loss_approach, loss_streak, cooling_off_active). Use this at the start of a turn when the trader seems to be making decisions under pressure or asks 'should I take this?'.",
+        "requires_confirm": False,
+        "executor": _exec_check_active_interventions,
+        "input_schema": {"type": "object", "properties": {}},
+    },
+})
+
 TOOLS.update({
     "propose_account_settings": {
         "name": "propose_account_settings",

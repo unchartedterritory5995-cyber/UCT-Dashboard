@@ -895,3 +895,37 @@ def test_pre_trade_verdict_tool_invokes_ptv(db_conn):
     )
     assert result["label"] == "SKIP"
     assert result["source"] == "hard_check"
+
+
+def test_check_active_interventions_returns_active_list(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    from api.services.journal_two import interventions as iv
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET account_size = 100000, daily_loss_limit_pct = 3, cooling_off_minutes_after_loss = 30 WHERE id = ?",
+        (acc["id"],),
+    )
+    db_conn.commit()
+    # Seed a recent loss to trigger cooling_off_active
+    now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+    delta = __import__("datetime").timedelta
+    db_conn.execute(
+        """INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares,
+           entry_price, entry_date, exit_price, exit_date, original_stop, setup,
+           notes, pnl_dollar, pnl_percent, r_multiple, hold_days, result,
+           context_at_entry, created_at, account_id, mistake_tags, emotion_tags, fees)
+           VALUES (?, 'u_chat', ?, 'NVDA', 'Long', 100, 100, ?, 95, ?, 99,
+           'Pullback', NULL, -200, -0.2, -1.0, 0, 'Loss', '{}', ?, ?, '[]', '[]', 0)""",
+        (str(uuid.uuid4()), str(uuid.uuid4()),
+         (now - delta(minutes=10)).isoformat(),
+         (now - delta(minutes=10)).isoformat(),
+         (now - delta(minutes=10)).isoformat(), acc["id"]),
+    )
+    db_conn.commit()
+    iv.evaluate_interventions(user_id="u_chat", account_id=acc["id"], conn=db_conn)
+    result = tools.TOOLS["check_active_interventions"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={}, conn=db_conn,
+    )
+    assert "interventions" in result
+    rules = [i["rule"] for i in result["interventions"]]
+    assert "cooling_off_active" in rules

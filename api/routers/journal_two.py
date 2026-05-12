@@ -1467,3 +1467,32 @@ def forget_trade_review(
         raise HTTPException(status_code=404, detail="Review not found")
     tr.forget_review(review_id, user_id=user["id"])
     return {"ok": True}
+
+
+@router.get("/accounts/{account_id}/coach/interventions/active")
+def list_active_interventions(
+    account_id: str,
+    evaluate: bool = True,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import interventions as iv
+    if evaluate:
+        return {"interventions": iv.evaluate_interventions(
+            user_id=user["id"], account_id=account_id,
+        )}
+    return {"interventions": iv.list_active(
+        user_id=user["id"], account_id=account_id,
+    )}
+
+
+@router.post("/accounts/{account_id}/coach/interventions/{intervention_id}/dismiss")
+def dismiss_intervention(
+    account_id: str,
+    intervention_id: str,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import interventions as iv
+    n = iv.dismiss_intervention(intervention_id=intervention_id, user_id=user["id"])
+    if n == 0:
+        raise HTTPException(status_code=404, detail="Intervention not found")
+    return {"ok": True}
