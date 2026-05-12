@@ -629,6 +629,14 @@ def _get_time_of_day_pattern() -> dict:
     return get_time_of_day_pattern()
 
 
+# ── Batch 10a: Agent routing ────────────────────────────────────────────────
+
+def _route_to_agent(target: str = "", reason: str = "") -> dict:
+    """Hand the conversation off to a specialist agent."""
+    from api.services.voice_agents import route_to_agent_tool
+    return route_to_agent_tool(target=target, reason=reason)
+
+
 # ── Batch 9c: Position-sizing engine ────────────────────────────────────────
 
 def _calc_position_size(account_size: float = 0, risk_pct: float = 1.0,
@@ -1472,6 +1480,16 @@ def _register_all() -> None:
         parameters={},
         contexts=["global"],
     )(_get_time_of_day_pattern)
+
+    _vt.voice_tool(
+        name="route_to_agent",
+        description="Hand off to a specialist agent. Targets: analyst (markets + setups), risk_officer (sizing + trade approval — has veto authority), coach (discipline + journal review + psychology), scout (opportunity surfacing). Use when the user's question is outside your specialty — e.g. analyst routes trade-entry intent to risk_officer; scout routes deep analysis to analyst.",
+        parameters={
+            "target": {"type": "string", "enum": ["analyst", "risk_officer", "coach", "scout"]},
+            "reason": {"type": "string", "description": "Brief reason for the handoff."},
+        },
+        contexts=["global"],
+    )(_route_to_agent)
 
     _vt.voice_tool(
         name="recall_relevant",

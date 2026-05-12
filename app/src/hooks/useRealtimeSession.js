@@ -277,6 +277,16 @@ export default function useRealtimeSession() {
           busAddIndicator(action.indicator)
         } else if (action.type === 'change_chart_type' && action.chartType) {
           busChangeChartType(action.chartType)
+        } else if (action.type === 'switch_agent' && action.agent_id) {
+          // Defer briefly so the model's narration completes, then end the
+          // session and emit an event App.jsx can use to start a new one
+          // in the target agent's context.
+          setTimeout(() => {
+            disconnect().catch(() => {})
+            window.dispatchEvent(new CustomEvent('uct:voice:switch-agent', {
+              detail: { agent_id: action.agent_id, reason: action.reason },
+            }))
+          }, 1500)
         }
       } catch (e) {
         console.error('[voice] client_action dispatch failed', e)

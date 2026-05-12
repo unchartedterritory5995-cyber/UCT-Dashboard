@@ -47,7 +47,34 @@ def voice_tool(
 
 
 def get_schema_for_context(context: str) -> list[dict]:
-    """Return JSON-schema dicts for all tools available in the given context."""
+    """Return JSON-schema dicts for all tools available in the given context.
+
+    Agent contexts (analyst, risk_officer, coach, scout) are resolved via
+    voice_agents.AGENTS — each agent has a tool_allowlist that filters the
+    global catalog down to that agent's allowed set.
+    """
+    # Agent contexts — apply allowlist
+    try:
+        from api.services.voice_agents import get_agent
+        agent = get_agent(context)
+    except Exception:
+        agent = None
+    if agent:
+        allowed = agent.get("tool_allowlist") or set()
+        out = []
+        for entry in _REGISTRY.values():
+            if entry["name"] in allowed:
+                out.append({
+                    "name": entry["name"],
+                    "description": entry["description"],
+                    "parameters": {
+                        "type": "object",
+                        "properties": entry["parameters"],
+                    },
+                })
+        return out
+
+    # Standard context match (global, train_me, etc.)
     out = []
     for entry in _REGISTRY.values():
         if context in entry["contexts"]:

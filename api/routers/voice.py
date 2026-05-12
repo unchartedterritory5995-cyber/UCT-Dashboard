@@ -191,6 +191,13 @@ def tools_get(context: str = "global", user: dict = Depends(requires_voice_acces
     return {"context": context, "tools": get_schema_for_context(context)}
 
 
+@router.get("/agents")
+def agents_get(user: dict = Depends(requires_voice_access)):
+    """Return the list of specialist agents the user can start a session with."""
+    from api.services.voice_agents import list_agents
+    return {"agents": list_agents()}
+
+
 @router.post("/oneshot")
 @limiter.limit("60/minute")
 def oneshot(
@@ -385,7 +392,20 @@ def session_token(
     _log.info("[session_token] +%.0fms memory context %d chars",
               (_time.time() - _t0) * 1000, len(memory_context))
 
-    base_instructions = _TRAIN_ME_INSTRUCTIONS if ctx == "train_me" else _REALTIME_INSTRUCTIONS
+    # Resolve agent if ctx names one of the specialists (Batch 10a)
+    agent_def = None
+    try:
+        from api.services.voice_agents import get_agent
+        agent_def = get_agent(ctx)
+    except Exception:
+        agent_def = None
+
+    if ctx == "train_me":
+        base_instructions = _TRAIN_ME_INSTRUCTIONS
+    elif agent_def:
+        base_instructions = agent_def["system_prompt"]
+    else:
+        base_instructions = _REALTIME_INSTRUCTIONS
 
     # Inject current market regime (Batch 9b). Skipped for train_me since
     # that context shouldn't reason about market state.
@@ -416,7 +436,7 @@ def session_token(
         with _cf.ThreadPoolExecutor(max_workers=1) as ex:
             fut = ex.submit(
                 mint_realtime_session,
-                voice=settings["voice"],
+                voice=(agent_def["voice"] if agent_def else settings["voice"]),
                 tools=tools_schema,
                 instructions=session_instructions,
             )

@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 // Auto-reload on stale-chunk 404 after Railway redeploys (new asset hashes
 // land while user has old HTML loaded). Wraps React.lazy with a one-shot
 // retry that hard-reloads the page instead of hanging on a missing chunk.
@@ -61,6 +61,18 @@ function VoiceMounts() {
   const { connect } = useRealtimeSession()
   usePushToTalkHotkey({ context: 'global' })
   useWakeWord({ enabled: wakeEnabled, onWake: () => connect('global') })
+  // Batch 10a: when an agent emits route_to_agent, start a fresh session
+  // in the target agent's context.
+  useEffect(() => {
+    const onSwitch = (e) => {
+      const target = e?.detail?.agent_id
+      if (target) {
+        setTimeout(() => connect(target), 300)
+      }
+    }
+    window.addEventListener('uct:voice:switch-agent', onSwitch)
+    return () => window.removeEventListener('uct:voice:switch-agent', onSwitch)
+  }, [connect])
   return (
     <>
       <FloatingOrb context="global" />

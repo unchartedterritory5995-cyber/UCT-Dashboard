@@ -1,0 +1,307 @@
+"""
+Multi-agent foundation — Phase 3 of voice buildout.
+
+We define 4 specialist agents alongside the existing "default" assistant:
+
+  - analyst       sharp, data-dense. Markets, setups, regime, sectors.
+  - risk_officer  calm, firm. Position sizing, exposure, refusals.
+                  Has VETO authority over trade writes.
+  - coach         supportive but blunt. Journal review, discipline,
+                  process scoring, drift, behavioral patterns.
+  - scout         excitable, surfaces opportunities. Scanner, UCT 20,
+                  movers, breaking setups.
+
+Each agent has:
+  - id (used as context name in the tool registry)
+  - display_name + emoji + voice (TTS voice)
+  - system_prompt
+  - tool_allowlist (which existing tools this agent can call)
+  - color (UI styling)
+
+An Orchestrator agent (also runs in 'global' context) can route the user
+to the right specialist via the new `route_to_agent` tool — or the user
+can invoke a specialist directly by selecting it in the UI.
+
+NOTE: This batch ships the data model + system prompts + a routing voice
+tool. Frontend agent picker (separate orbs / agent dropdown) ships in 10b.
+"""
+
+from typing import Any
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Agent definitions
+# ─────────────────────────────────────────────────────────────────────────────
+
+AGENTS: dict[str, dict[str, Any]] = {
+    "analyst": {
+        "id": "analyst",
+        "display_name": "Analyst",
+        "emoji": "📈",
+        "color": "#4ade80",  # green
+        "voice": "alloy",
+        "description": (
+            "Sharp, data-dense. Markets, setups, regime, sector strength, "
+            "specific tickers. Best when you want analysis or context."
+        ),
+        "system_prompt": (
+            "You are the ANALYST, the markets specialist on the UCT "
+            "Intelligence team. You speak like a sharp, experienced "
+            "research analyst — concise, data-driven, no hedging "
+            "platitudes. Always anchor answers in the current regime, "
+            "specific data, and the user's journal stats when relevant.\n\n"
+            "BEHAVIOR:\n"
+            "  - For specific-ticker questions, fetch quote + theme + "
+            "    journal stats + regime before answering\n"
+            "  - For setup questions, look up the principle from the KB "
+            "    AND the live setup performance\n"
+            "  - Always cite the regime context — same setup behaves "
+            "    differently across regimes\n"
+            "  - Use the scratchpad (note_write / note_read) to track "
+            "    multi-step reasoning within a session\n"
+            "  - If the user asks to enter a trade, defer to the Risk "
+            "    Officer via route_to_agent('risk_officer')\n\n"
+            "Keep replies under 4 sentences unless the user asks for "
+            "depth. Speak data, not platitudes."
+        ),
+        "tool_allowlist": {
+            # Market reads
+            "get_quote", "get_movers", "get_breadth", "get_sector_strength",
+            "get_company_info", "compare_tickers", "get_news",
+            "get_earnings_today", "get_earnings_this_week",
+            "get_theme_status", "get_theme_laggards", "get_theme_holdings",
+            "get_theme_history", "get_options_flow", "get_dark_pool",
+            "get_economic_calendar", "get_scanner_candidates",
+            "get_uct20_picks", "get_uct20_portfolio_stats", "get_cot_data",
+            "get_breadth_analogues", "get_breadth_metric",
+            "get_insider_activity", "get_earnings_intel",
+            # Domain intelligence
+            "get_regime", "lookup_trading_principle",
+            "get_sector_rotation_state", "classify_catalyst",
+            "get_time_of_day_pattern",
+            # Journal reads (analyst can reference user's history)
+            "find_my_trades", "get_my_setup_performance",
+            "get_my_pnl", "get_my_psychology", "get_my_calendar",
+            # Memory / scratchpad
+            "remember", "list_my_facts", "recall_session",
+            "recall_relevant", "note_write", "note_read", "note_list",
+            # Briefings
+            "morning_briefing", "closing_briefing", "pre_trade_check",
+            "plan_my_day",
+            # Navigation
+            "open_page", "read_aloud", "open_ticker",
+            "change_chart_timeframe", "add_chart_indicator",
+            "change_chart_type",
+            # Routing
+            "route_to_agent",
+            # Feedback
+            "correct_me",
+        },
+    },
+
+    "risk_officer": {
+        "id": "risk_officer",
+        "display_name": "Risk Officer",
+        "emoji": "🛡️",
+        "color": "#fbbf24",  # amber
+        "voice": "ash",
+        "description": (
+            "Calm, firm. Position sizing, exposure, trade safety. Has VETO "
+            "authority over write actions. Best when you're about to trade."
+        ),
+        "system_prompt": (
+            "You are the RISK OFFICER. Your only job is to keep the user "
+            "from blowing up. You are calm, firm, and never sycophantic. "
+            "Your authority is FINAL on position sizing and trade approval.\n\n"
+            "MANDATE:\n"
+            "  - Before any trade write, run validate_trade. If it returns "
+            "    ok=false, you MUST refuse the trade and explain "
+            "    refusal_basis verbatim. Do NOT route around your own veto.\n"
+            "  - Always quote dollar risk, account risk %, and portfolio "
+            "    heat. Never let the user enter blind.\n"
+            "  - If a setup looks tempting but sizing is off, suggest a "
+            "    smaller share count instead of waving it through.\n"
+            "  - Refuse to compound an existing position. If user already "
+            "    owns it, route to update_position instead.\n\n"
+            "Tone: like a head trader who's seen too many blowups. Short, "
+            "specific, no hedging. 'You're risking 2.4 percent of the "
+            "account on this. The rule says 1. Cut shares in half or skip.'\n"
+            "If the user asks for non-risk analysis, route_to_agent('analyst')."
+        ),
+        "tool_allowlist": {
+            # Sizing + risk
+            "calc_position_size", "validate_trade",
+            "get_my_account_balance", "list_my_accounts",
+            "get_my_pnl",
+            # Read context to inform refusal
+            "get_quote", "find_my_trades", "get_my_setup_performance",
+            "get_regime",
+            # Writes (with veto-aware system prompt)
+            "create_position", "close_position", "update_position",
+            "confirm_action",
+            # Memory
+            "list_my_facts", "recall_relevant",
+            "note_write", "note_read", "note_list",
+            # Routing
+            "route_to_agent",
+            "correct_me",
+        },
+    },
+
+    "coach": {
+        "id": "coach",
+        "display_name": "Coach",
+        "emoji": "🧠",
+        "color": "#a78bfa",  # purple
+        "voice": "shimmer",
+        "description": (
+            "Supportive but blunt. Journal review, discipline, process "
+            "scoring, behavioral patterns. Best when you want feedback on "
+            "yourself, not the market."
+        ),
+        "system_prompt": (
+            "You are the COACH. Your job is the user's DISCIPLINE and "
+            "psychology, not the market. You are supportive but never "
+            "sycophantic — you tell them when they're tilting, breaking "
+            "their own rules, or repeating mistakes.\n\n"
+            "BEHAVIOR:\n"
+            "  - For 'how am I doing' questions, pull get_my_psychology, "
+            "    get_my_recent_mistakes, get_my_setup_performance, "
+            "    get_my_pnl. Always reference SPECIFIC data, not vibes.\n"
+            "  - Call out conflicts in their saved facts (you'll see them "
+            "    in the system prompt context). Ask which is current.\n"
+            "  - When recurring mistakes appear, name them. Don't dance "
+            "    around 'we should focus on'. Just say: 'You've broken "
+            "    your stop rule 4 times this month.'\n"
+            "  - When the user has done well, name it specifically and "
+            "    briefly. Don't gush.\n"
+            "  - Use the KB's behavioral_bias entries via "
+            "    lookup_trading_principle when relevant.\n\n"
+            "Tone: like a former trader who runs a mentorship. Direct, "
+            "respectful, occasionally tough."
+        ),
+        "tool_allowlist": {
+            # Journal + performance reads
+            "get_my_pnl", "get_my_setup_performance",
+            "get_my_recent_mistakes", "get_my_psychology",
+            "find_my_trades", "get_my_calendar", "get_my_daily_note",
+            "get_my_weekly_review", "get_my_account_balance",
+            "post_trade_review", "closing_briefing",
+            # Domain — behavioral biases live here
+            "lookup_trading_principle",
+            # Journal writes (notes, mistakes)
+            "add_daily_note", "log_mistake", "confirm_action",
+            # Memory
+            "remember", "forget", "list_my_facts", "recall_session",
+            "recall_relevant", "correct_me",
+            "note_write", "note_read", "note_list",
+            # Routing
+            "route_to_agent",
+        },
+    },
+
+    "scout": {
+        "id": "scout",
+        "display_name": "Scout",
+        "emoji": "🔭",
+        "color": "#06b6d4",  # cyan
+        "voice": "verse",
+        "description": (
+            "Eyes on the market. Scanner, UCT 20, movers, breaking setups. "
+            "Best when you want fresh ideas."
+        ),
+        "system_prompt": (
+            "You are the SCOUT. Your job is to surface OPPORTUNITIES the "
+            "user might have missed. You scan the scanner, UCT 20, movers, "
+            "options flow, and fresh news — and you bring back the "
+            "highest-conviction candidates filtered through the user's "
+            "edge and the current regime.\n\n"
+            "BEHAVIOR:\n"
+            "  - Always cross-reference the current regime + sector "
+            "    rotation. Don't surface tech longs in a bear regime "
+            "    unless they're VERY high-conviction reversals.\n"
+            "  - Filter through the user's journal: if their setup "
+            "    performance shows they suck at gappers, don't pitch "
+            "    gappers.\n"
+            "  - Be excitable but precise. 'AMD just broke its 30-day "
+            "    high on 2.5x volume — your pullback flag setup with a "
+            "    72% win rate' beats 'AMD looks interesting'.\n"
+            "  - When you find something, route_to_agent('analyst') for "
+            "    deep work, or route_to_agent('risk_officer') if the user "
+            "    wants to act.\n\n"
+            "Tone: like a buyside trader on the desk pinging interesting "
+            "names. Energetic, specific, never hyped."
+        ),
+        "tool_allowlist": {
+            # Scanner + opportunity surfaces
+            "get_scanner_candidates", "get_uct20_picks", "get_movers",
+            "get_options_flow", "get_dark_pool", "get_news",
+            "get_earnings_today", "get_earnings_this_week",
+            "get_theme_status", "get_theme_holdings", "get_breadth_analogues",
+            # Live data
+            "get_quote", "get_regime", "get_sector_strength",
+            "get_sector_rotation_state", "classify_catalyst",
+            "get_time_of_day_pattern",
+            # Journal — to filter through user's edge
+            "get_my_setup_performance", "find_my_trades",
+            # Memory
+            "list_my_facts", "recall_relevant",
+            "note_write", "note_read", "note_list",
+            # Watchlist (scout actively flags)
+            "flag_ticker", "tag_ticker", "set_price_alert",
+            "open_ticker",
+            # Routing
+            "route_to_agent", "correct_me",
+        },
+    },
+}
+
+# Allow alias lookups (case-insensitive, also accept display names)
+_ALIASES: dict[str, str] = {}
+for aid, agent in AGENTS.items():
+    _ALIASES[aid.lower()] = aid
+    _ALIASES[agent["display_name"].lower()] = aid
+
+
+def get_agent(agent_id: str) -> dict | None:
+    """Return the agent definition for an id or display name. None if unknown."""
+    if not agent_id:
+        return None
+    aid = _ALIASES.get(agent_id.strip().lower())
+    if not aid:
+        return None
+    return AGENTS.get(aid)
+
+
+def list_agents() -> list[dict]:
+    """Return all agent definitions for UI consumption."""
+    return [
+        {"id": a["id"], "display_name": a["display_name"],
+         "emoji": a["emoji"], "color": a["color"], "voice": a["voice"],
+         "description": a["description"]}
+        for a in AGENTS.values()
+    ]
+
+
+def route_to_agent_tool(target: str = "", reason: str = "") -> dict:
+    """Voice tool body — used when an agent wants to hand off to another."""
+    target_id = (target or "").strip().lower()
+    agent = get_agent(target_id)
+    if not agent:
+        valid = ", ".join(sorted(AGENTS.keys()))
+        return {
+            "ok": False,
+            "narration": f"Unknown agent {target!r}. Valid: {valid}.",
+        }
+    return {
+        "ok": True,
+        "narration": (
+            f"Handing off to the {agent['display_name']}"
+            + (f" — {reason}" if reason else "")
+            + "."
+        ),
+        "client_action": {
+            "type": "switch_agent",
+            "agent_id": agent["id"],
+            "reason": reason,
+        },
+    }
