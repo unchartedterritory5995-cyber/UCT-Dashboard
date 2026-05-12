@@ -1014,7 +1014,7 @@ function processFlowData(rows) {
   }
   const convSyms = new Set(CONV.map(c=>c.sym));
   const PERF_INIT = [
-    ...buildPerfItems("Conviction", clean_confirmed.filter(t=>convSyms.has(t.S)), 6),
+    ...buildPerfItems("Alpha", clean_confirmed.filter(t=>convSyms.has(t.S)), 6),
     ...buildPerfItems("Short Bull", _st.filter(t=>t.D==="BULL"), 3),
     ...buildPerfItems("Short Bear", _st.filter(t=>t.D==="BEAR"), 3),
     ...buildPerfItems("Long Bull", _lt.filter(t=>t.D==="BULL"), 3),
@@ -1089,7 +1089,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Top Flow","Conviction","Search","OI Check","Tracker","Watchlist"];
+const TABS = ["Market Read","Top Flow","Alpha","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -3366,10 +3366,10 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Conviction"?"#c9a84c":t==="Watchlist"?P.ac:P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Conviction"?"1px solid #c9a84c55":"1px solid transparent"), cursor:"pointer",
-              fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Conviction")?800:600, fontFamily:"inherit",
-              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Conviction"?"#c9a84c33":P.ac+"22"):"transparent",
-              color:tab===t?(t==="Watchlist"?P.ac:t==="Conviction"?"#c9a84c":P.wh):(t==="Watchlist"?P.ac:t==="Conviction"?"#c9a84c":P.mt)
+              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Alpha"?"#c9a84c":t==="Watchlist"?P.ac:P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Alpha"?"1px solid #c9a84c55":"1px solid transparent"), cursor:"pointer",
+              fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Alpha")?800:600, fontFamily:"inherit",
+              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Alpha"?"#c9a84c33":P.ac+"22"):"transparent",
+              color:tab===t?(t==="Watchlist"?P.ac:t==="Alpha"?"#c9a84c":P.wh):(t==="Watchlist"?P.ac:t==="Alpha"?"#c9a84c":P.mt)
             }}>{t}</button>
           ))}
         </div>
@@ -3736,8 +3736,8 @@ export default function OptionsFlowDashboard() {
         )}
 
 
-        {/* Conviction Board */}
-        {tab==="Conviction" && FD && (()=>{
+        {/* Alpha Board */}
+        {tab==="Alpha" && FD && (()=>{
           const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
           const [convDte, setConvDte] = [convictionDte, setConvictionDte];
           const [cSort, setCSort] = [convictionSort, setConvictionSort];
@@ -3918,7 +3918,7 @@ export default function OptionsFlowDashboard() {
                 <div style={{ display:"flex", gap:14, alignItems:"center" }}>
                   <div style={{ width:3, background:"#c9a84c", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                   <div>
-                    <div style={{ fontSize:13, fontWeight:700, color:"#c9a84c", marginBottom:5 }}>Conviction Board</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#c9a84c", marginBottom:5 }}>Alpha Board</div>
                     <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Top bullish and bearish tickers ranked by net confirmed premium. Only non-expired, clean flow. Click any row to expand top contracts, click ticker to drill into Search.</div>
                   </div>
                 </div>
