@@ -84,6 +84,8 @@ def _row_to_detection(row) -> dict:
         "direction": row["direction"],
         "start_t": row["start_t"],
         "end_t": row["end_t"],
+        # pivot_ts not stored in Phase 0 schema; Phase 5 will rehydrate from
+        # geometry.anchors if UI animation needs them.
         "pivot_ts": [],
         "geometry": json.loads(row["geometry_json"]),
         "levels": json.loads(row["levels_json"]),

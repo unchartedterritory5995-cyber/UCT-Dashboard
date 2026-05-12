@@ -23,7 +23,7 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
-from api.services.pattern_engine.primitives.geometry import parallel_score
+from api.services.pattern_engine.primitives.geometry import channel_width_parallel_score
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_pair_parallel
 from api.services.pattern_engine.types import Bar, Detection
@@ -80,33 +80,6 @@ def detect_bull_flag(bars: List[Bar], context: dict) -> List[Detection]:
     return detections
 
 
-def _channel_parallel_score(upper_line, lower_line, flag_high: float, flag_low: float) -> float:
-    """How parallel is the (upper, lower) channel pair?
-
-    Computes channel width at both endpoints and returns
-    min(width_left, width_right) / max(width_left, width_right) — score in [0,1].
-    A pair of trendlines that maintain constant separation are parallel.
-    Robust for near-flat channels where regression slopes can flip sign on noise.
-    """
-    u_left  = upper_line["p1"]["price"]
-    u_right = upper_line["p2"]["price"]
-    l_left  = lower_line["p1"]["price"]
-    l_right = lower_line["p2"]["price"]
-
-    width_left  = u_left  - l_left
-    width_right = u_right - l_right
-
-    if width_left <= 0 or width_right <= 0:
-        return 0.0
-
-    flag_range = max(flag_high - flag_low, 1e-9)
-    # Both lines must remain within the flag's actual data envelope (sanity check).
-    if max(width_left, width_right) > flag_range * 2.0:
-        return 0.0
-
-    return min(width_left, width_right) / max(width_left, width_right)
-
-
 def _candidate_pole_tops(bars: List[Bar], pivots) -> list[tuple[int, dict]]:
     """Yield (bar_index, pivot) for each swing-high pivot in the recent window."""
     high_pivots = [p for p in pivots if p["type"] == "high"]
@@ -160,7 +133,7 @@ def _try_extract_pattern(bars, pivots, pole_top_idx: int, pole_top) -> Optional[
     if flag_bars_count < _MIN_FLAG_BARS or flag_bars_count > _MAX_FLAG_BARS:
         return None
 
-    flag_bars = bars[pole_top_idx + 1: pole_top_idx + 1 + flag_bars_count + 1]
+    flag_bars = bars[pole_top_idx + 1:]
     if not flag_bars:
         return None
 
@@ -178,7 +151,7 @@ def _try_extract_pattern(bars, pivots, pole_top_idx: int, pole_top) -> Optional[
                     for i, b in enumerate(flag_bars)]
     upper_line, lower_line = fit_pair_parallel(upper_pivots, lower_pivots)
 
-    par_score = _channel_parallel_score(upper_line, lower_line, flag_high, flag_low)
+    par_score = channel_width_parallel_score(upper_line, lower_line, flag_high, flag_low)
     if par_score < _MIN_PARALLEL_SCORE:
         return None
 

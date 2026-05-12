@@ -94,6 +94,46 @@ def parallel_score(line_a: Line, line_b: Line) -> float:
     return min(abs_a, abs_b) / max(abs_a, abs_b)
 
 
+def channel_width_parallel_score(
+    upper_line: Line,
+    lower_line: Line,
+    high: float,
+    low: float,
+) -> float:
+    """Channel parallelism via width-preservation ratio.
+
+    Computes channel width at both endpoints and returns
+    min(width_left, width_right) / max(width_left, width_right) — score in [0,1].
+    A pair of trendlines that maintain constant separation are parallel.
+
+    Robust for near-flat channels where regression slopes can flip sign on noise,
+    which makes `parallel_score` unreliable. Use this for channel/flag/wedge
+    parallelism checks; use `parallel_score` for general line comparisons.
+
+    Args:
+      upper_line, lower_line: Trendline dicts (must have `p1`, `p2` Anchor keys).
+      high, low: the actual data envelope (e.g. highest/lowest price in the
+                 region) — used as a sanity check to reject lines that drift
+                 beyond the data they're supposed to bound.
+    """
+    u_left  = upper_line["p1"]["price"]
+    u_right = upper_line["p2"]["price"]
+    l_left  = lower_line["p1"]["price"]
+    l_right = lower_line["p2"]["price"]
+
+    width_left  = u_left  - l_left
+    width_right = u_right - l_right
+
+    if width_left <= 0 or width_right <= 0:
+        return 0.0
+
+    data_range = max(high - low, 1e-9)
+    if max(width_left, width_right) > data_range * 2.0:
+        return 0.0
+
+    return min(width_left, width_right) / max(width_left, width_right)
+
+
 def polynomial_fit(xs: list[float], ys: list[float], degree: int) -> list[float]:
     """Fit a polynomial of given degree; returns coefficients [c_n, ..., c_1, c_0].
 
