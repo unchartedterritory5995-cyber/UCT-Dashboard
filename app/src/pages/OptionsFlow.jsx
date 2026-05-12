@@ -3473,7 +3473,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ display:"flex", gap:14, alignItems:"center" }}>
                     <div style={{ width:3, background:`linear-gradient(180deg, ${P.bu}, ${P.ac}, ${P.bu})`, borderRadius:2, alignSelf:"stretch", flexShrink:0, opacity:0.3 }} />
                     <div style={{ flex:1 }}>
-                      <div style={{ fontSize:10, fontWeight:600, color:P.dm, letterSpacing:1.5, textTransform:"uppercase", marginBottom:6 }}>Flow Intelligence — {capLabel}</div>
+                      <div style={{ fontSize:11, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase", marginBottom:6 }}>Flow Intelligence</div>
                       <div style={{ fontSize:12, color:P.wh, lineHeight:1.8 }}>
                         <span>Net flow is </span>
                         <span style={{ fontWeight:900, color:netC }}>{netDir}</span>
@@ -3483,7 +3483,9 @@ export default function OptionsFlowDashboard() {
                         <span style={{ fontWeight:800, color:P.be }}>{fmt(totalBear)}</span>
                         <span> bear across </span>
                         <span style={{ fontWeight:700, color:P.wh }}>{allTk.length}</span>
-                        <span> tickers ({bullCount} bullish, {bearCount} bearish). </span>
+                        <span> tickers ({bullCount} bullish, {bearCount} bearish).</span>
+                      </div>
+                      <div style={{ fontSize:12, color:P.wh, lineHeight:1.8 }}>
                         {topBull.length > 0 && <>
                           <span>Top bullish names: </span>
                           {topBull.map((t,i) => <span key={t.sym}>
