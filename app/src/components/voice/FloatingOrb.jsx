@@ -10,6 +10,10 @@ import styles from './FloatingOrb.module.css'
  * - Connected (idle within session): solid green ring + waveform icon
  * - User speaking: pulsing red ring
  * - Assistant speaking: glowing green ring
+ *
+ * The small graduation-cap button next to the orb opens Train Me mode —
+ * a restricted session where every utterance becomes a remembered fact
+ * or correction.
  */
 export default function FloatingOrb({ context = 'global' }) {
   const voice = useVoice()
@@ -47,17 +51,41 @@ export default function FloatingOrb({ context = 'global' }) {
   }
 
   const inSession = voice.mode === 'c' && status !== 'idle' && status !== 'error'
+  const inTrainMode = inSession && voice.sessionContext === 'train_me'
   const onClick = () => (inSession ? disconnect() : connect(context))
+  const onTrainClick = () => {
+    if (inSession) {
+      disconnect()
+    } else {
+      connect('train_me')
+    }
+  }
 
   return (
-    <button
-      type="button"
-      className={`${styles.orb} ${stateClass}`}
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-    >
-      <span className={styles.icon}>{icon}</span>
-    </button>
+    <div className={styles.orbCluster}>
+      <button
+        type="button"
+        className={`${styles.orb} ${stateClass} ${inTrainMode ? styles.training : ''}`}
+        onClick={onClick}
+        aria-label={label}
+        title={inTrainMode ? 'In Train Me mode — tap to exit' : label}
+      >
+        <span className={styles.icon}>{icon}</span>
+      </button>
+      {!inSession && (
+        <button
+          type="button"
+          className={styles.trainBtn}
+          onClick={onTrainClick}
+          aria-label="Train Me — teach the assistant a preference"
+          title="Train Me — teach me a preference or correction"
+        >
+          🎓
+        </button>
+      )}
+      {inTrainMode && (
+        <div className={styles.trainBadge}>Training</div>
+      )}
+    </div>
   )
 }

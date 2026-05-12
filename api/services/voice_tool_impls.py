@@ -709,7 +709,7 @@ def _register_all() -> None:
             "fact": {"type": "string", "description": "The fact to remember, in the user's words."},
             "category": {"type": "string", "enum": ["preference", "account_alias", "style", "fact", "general"]},
         },
-        contexts=["global"],
+        contexts=["global", "train_me"],
         wants_user=True,
     )(_remember)
 
@@ -717,7 +717,7 @@ def _register_all() -> None:
         name="forget",
         description="Remove saved facts matching a topic or keyword. Call this when the user says 'forget...' or asks you to stop remembering something.",
         parameters={"query": {"type": "string", "description": "Topic or keyword to match."}},
-        contexts=["global"],
+        contexts=["global", "train_me"],
         wants_user=True,
     )(_forget)
 
@@ -725,7 +725,7 @@ def _register_all() -> None:
         name="list_my_facts",
         description="Read back everything you currently remember about the user.",
         parameters={},
-        contexts=["global"],
+        contexts=["global", "train_me"],
         wants_user=True,
     )(_list_my_facts)
 
@@ -1174,7 +1174,7 @@ def _register_all() -> None:
             "what_was_wrong": {"type": "string", "description": "Brief description of what you got wrong (optional)."},
             "what_was_right": {"type": "string", "description": "The correct answer or preference to remember."},
         },
-        contexts=["global"],
+        contexts=["global", "train_me"],
         wants_user=True,
     )(_correct_me)
 

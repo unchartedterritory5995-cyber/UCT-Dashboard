@@ -34,6 +34,9 @@ const initialState = {
   partialAssistant: '',
   wakeEnabled: false,
   errorMessage: null,
+  // Batch 6b: which context the active Mode C session was started in.
+  // 'global' = normal conversation, 'train_me' = restricted teaching mode.
+  sessionContext: null,
 }
 
 function appendTurn(rolling, role, text) {
@@ -71,7 +74,8 @@ function reducer(state, action) {
       }
     // Mode C (Slice 4)
     case 'c_connecting':
-      return { ...initialState, speed: state.speed, status: 'connecting', mode: 'c' }
+      return { ...initialState, speed: state.speed, status: 'connecting',
+               mode: 'c', sessionContext: action.context || 'global' }
     case 'c_connected':
       return {
         ...state, status: 'connected', mode: 'c',
@@ -183,7 +187,9 @@ export function VoiceProvider({ children }) {
   const startResponding = useCallback(({ transcript, narration }) =>
     dispatch({ type: 'b_responding', transcript, narration }), [])
 
-  const beginRealtime = useCallback(() => dispatch({ type: 'c_connecting' }), [])
+  const beginRealtime = useCallback(
+    (context = 'global') => dispatch({ type: 'c_connecting', context }), [],
+  )
   const realtimeConnected = useCallback(({ sessionId, openaiSessionId }) =>
     dispatch({ type: 'c_connected', sessionId, openaiSessionId }), [])
   const realtimeUserTurn = useCallback((text) =>

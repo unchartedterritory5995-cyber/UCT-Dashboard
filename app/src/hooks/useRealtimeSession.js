@@ -314,7 +314,7 @@ export default function useRealtimeSession() {
       return
     }
 
-    voice.beginRealtime()
+    voice.beginRealtime(context)
 
     let tokenResp
     try {

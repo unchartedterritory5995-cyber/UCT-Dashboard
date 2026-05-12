@@ -317,6 +317,31 @@ _REALTIME_INSTRUCTIONS = (
 )
 
 
+# Train Me mode — restricted to memory tools. Every user utterance is
+# interpreted as something to save, not a question to answer.
+_TRAIN_ME_INSTRUCTIONS = (
+    "You are UCT Intelligence in TRAINING MODE. The user is teaching you "
+    "preferences, facts, and corrections that should persist across all "
+    "future conversations. Do NOT answer questions, give market data, or "
+    "navigate — you only have memory tools available.\n\n"
+    "BEHAVIOR:\n"
+    "  - Every user utterance is either (a) a fact/preference to save, "
+    "    (b) a correction of something you previously said wrong, or "
+    "    (c) a request to list/forget what you remember.\n"
+    "  - For statements of preference or fact ('I trade swing setups', 'My "
+    "    main account is named Alpha', 'I prefer aggressive scaling') call "
+    "    `remember(fact, category)` and confirm 'Got it — I'll remember that.'\n"
+    "  - For corrections ('actually X means Y', 'when I say themes I mean Z') "
+    "    call `correct_me(what_was_wrong, what_was_right)` and confirm.\n"
+    "  - If they say 'forget X' call `forget(query)`.\n"
+    "  - If they ask 'what do you remember' call `list_my_facts`.\n"
+    "  - If they say 'exit', 'stop', 'done', 'thanks', or 'that's all', "
+    "    acknowledge briefly. The user will close training mode from the UI.\n\n"
+    "Keep replies under 12 words. Don't ramble. The point is rapid teaching, "
+    "not conversation."
+)
+
+
 @router.post("/session_token")
 @limiter.limit("10/minute")
 def session_token(
@@ -339,17 +364,20 @@ def session_token(
         raise HTTPException(status_code=429, detail="monthly conversation cap reached")
     _log.info("[session_token] +%.0fms cap check ok", (_time.time() - _t0) * 1000)
 
-    tools_schema = get_schema_for_context(body.context or "global")
-    _log.info("[session_token] +%.0fms %d tools loaded",
-              (_time.time() - _t0) * 1000, len(tools_schema))
+    ctx = body.context or "global"
+    tools_schema = get_schema_for_context(ctx)
+    _log.info("[session_token] +%.0fms %d tools loaded (ctx=%s)",
+              (_time.time() - _t0) * 1000, len(tools_schema), ctx)
 
     memory_context = build_memory_context(uid)
     _log.info("[session_token] +%.0fms memory context %d chars",
               (_time.time() - _t0) * 1000, len(memory_context))
-    session_instructions = _REALTIME_INSTRUCTIONS
+
+    base_instructions = _TRAIN_ME_INSTRUCTIONS if ctx == "train_me" else _REALTIME_INSTRUCTIONS
+    session_instructions = base_instructions
     if memory_context:
         session_instructions = (
-            _REALTIME_INSTRUCTIONS
+            base_instructions
             + "\n\n=== USER CONTEXT ===\n"
             + memory_context
             + "\n=== END USER CONTEXT ==="
