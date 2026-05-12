@@ -30,6 +30,7 @@ from api.services.pattern_engine.detectors.uct import vcp as _vcp  # noqa: F401
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _high_tight_flag  # noqa: F401
 from api.services.pattern_engine.detectors.uct import episodic_pivot as _episodic_pivot  # noqa: F401
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _power_earnings_gap  # noqa: F401
+from api.services.pattern_engine.detectors.uct import flat_base as _flat_base  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -127,6 +128,12 @@ _PATTERN_METADATA = {
         "category": "uct",
         "direction": "bullish",
         "description": "Significant gap-up (>=4%) on 3x+ volume that holds with tight post-gap consolidation. Bonde's signature post-earnings continuation setup.",
+    },
+    "flat_base": {
+        "name": "Flat Base Breakout",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Tight horizontal consolidation (<=12% depth) after a 25%+ prior advance, with drying volume. O'Neil/Stockbee continuation pattern.",
     },
 }
 
