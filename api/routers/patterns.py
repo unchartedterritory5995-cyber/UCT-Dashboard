@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 # Importing the detector modules triggers self-registration with the registry.
 from api.services.pattern_engine.detectors.classical import bull_flag as _bull_flag  # noqa: F401
+from api.services.pattern_engine.detectors.classical import bear_flag as _bear_flag  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -29,6 +30,12 @@ _PATTERN_METADATA = {
         "category": "classical",
         "direction": "bullish",
         "description": "Sharp advance (pole) followed by tight parallel-channel pullback (flag). Continuation pattern.",
+    },
+    "bear_flag": {
+        "name": "Bear Flag",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "Sharp decline (pole) followed by tight parallel-channel rally (flag). Continuation pattern.",
     },
 }
 
