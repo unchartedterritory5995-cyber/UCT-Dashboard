@@ -1518,3 +1518,12 @@ def dismiss_profile_suggestion(
     if n == 0:
         raise HTTPException(status_code=404, detail="Suggestion not found")
     return {"ok": True}
+
+
+@router.get("/accounts/{account_id}/coach/overview")
+def coach_overview(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import overview as ov
+    return ov.get_overview(user_id=user["id"], account_id=account_id)
