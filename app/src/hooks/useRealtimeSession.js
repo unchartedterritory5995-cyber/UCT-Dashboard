@@ -6,7 +6,7 @@ import {
   responseCreateEvent,
 } from '../utils/realtimeEventHandlers'
 
-const SILENCE_TIMEOUT_MS = 8_000
+const SILENCE_TIMEOUT_MS = 60_000
 const HEARTBEAT_MS = 30_000
 
 /**
