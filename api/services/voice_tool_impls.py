@@ -145,18 +145,9 @@ def _get_earnings_today() -> dict:
     return {"tickers": ", ".join(syms), "count": len(syms)}
 
 
-def _get_theme_status(count: int = 3) -> dict:
-    count = max(1, min(5, int(count or 3)))
-    themes = _themes()
-    leaders = (themes.get("leaders") or [])[:count]
-    if not leaders:
-        return {"top_themes": "no theme data available", "count": 0}
-    parts = []
-    for t in leaders:
-        pct = _parse_pct(t.get("pct"))
-        direction = "up" if pct >= 0 else "down"
-        parts.append(f"{t.get('name')} {direction} {abs(round(pct, 1))} percent")
-    return {"top_themes": ", ".join(parts), "count": len(parts)}
+def _get_theme_status(period: str = "", count: int = 3) -> dict:
+    from api.services.voice_market_tools import get_theme_status
+    return get_theme_status(period=period or None, count=count)
 
 
 def _get_options_flow(symbol: str = "", count: int = 3) -> dict:
@@ -436,6 +427,68 @@ def _cancel_alert(*, user, symbol: str) -> dict:
     return cancel_alert(symbol=symbol or "", user_id=user["id"])
 
 
+# ── Batch 2: market read wrappers ───────────────────────────────────────────
+
+def _get_theme_laggards(period: str = "", count: int = 3) -> dict:
+    from api.services.voice_market_tools import get_theme_laggards
+    return get_theme_laggards(period=period or None, count=count)
+
+
+def _get_theme_holdings(theme: str = "", count: int = 6) -> dict:
+    from api.services.voice_market_tools import get_theme_holdings
+    return get_theme_holdings(theme=theme, count=count)
+
+
+def _get_theme_history(theme: str = "", period: str = "") -> dict:
+    from api.services.voice_market_tools import get_theme_history
+    return get_theme_history(theme=theme, period=period or None)
+
+
+def _get_scanner_candidates(type: str = "", count: int = 5) -> dict:
+    from api.services.voice_market_tools import get_scanner_candidates
+    return get_scanner_candidates(type=type or None, count=count)
+
+
+def _get_uct20_picks(count: int = 5) -> dict:
+    from api.services.voice_market_tools import get_uct20_picks
+    return get_uct20_picks(count=count)
+
+
+def _get_uct20_portfolio_stats() -> dict:
+    from api.services.voice_market_tools import get_uct20_portfolio_stats
+    return get_uct20_portfolio_stats()
+
+
+def _get_cot_data(symbol: str = "", weeks: int = 4) -> dict:
+    from api.services.voice_market_tools import get_cot_data
+    return get_cot_data(symbol=symbol, weeks=weeks)
+
+
+def _get_breadth_analogues(count: int = 3) -> dict:
+    from api.services.voice_market_tools import get_breadth_analogues
+    return get_breadth_analogues(count=count)
+
+
+def _get_breadth_metric(metric: str = "", days: int = 30) -> dict:
+    from api.services.voice_market_tools import get_breadth_metric
+    return get_breadth_metric(metric=metric, days=days)
+
+
+def _get_insider_activity(symbol: str = "", count: int = 5) -> dict:
+    from api.services.voice_market_tools import get_insider_activity
+    return get_insider_activity(symbol=symbol, count=count)
+
+
+def _get_earnings_intel(symbol: str = "") -> dict:
+    from api.services.voice_market_tools import get_earnings_intel
+    return get_earnings_intel(symbol=symbol)
+
+
+def _get_earnings_this_week(count: int = 8) -> dict:
+    from api.services.voice_market_tools import get_earnings_this_week
+    return get_earnings_this_week(count=count)
+
+
 def _register_all() -> None:
     """Register (or re-register) all Slice 2 tools into the registry."""
 
@@ -466,8 +519,11 @@ def _register_all() -> None:
 
     _vt.voice_tool(
         name="get_sector_strength",
-        description="Get the strongest sectors right now, ranked by recent relative strength.",
-        parameters={"count": {"type": "integer", "description": "How many sectors to include (default 3)."}},
+        description="Get the strongest sectors right now, ranked by recent relative strength. Accepts a period.",
+        parameters={
+            "period": {"type": "string", "description": "Today, 1W, 1M, or 3M. Defaults to today's snapshot."},
+            "count": {"type": "integer", "description": "How many sectors (default 3, max 8)."},
+        },
         contexts=["global"],
     )(_get_sector_strength)
 
@@ -505,10 +561,43 @@ def _register_all() -> None:
 
     _vt.voice_tool(
         name="get_theme_status",
-        description="Get the strongest themes right now (e.g. Semis, AI, Crypto).",
-        parameters={"count": {"type": "integer", "description": "How many leading themes (default 3)."}},
+        description="Get the strongest themes for a given period (Today, 1W, 1M, 3M). Default 1W. Call when user says 'what themes are leading today' or 'which themes are hot this month'.",
+        parameters={
+            "period": {"type": "string", "description": "Today, 1W, 1M, or 3M. Default 1W."},
+            "count": {"type": "integer", "description": "How many leading themes (default 3, max 8)."},
+        },
         contexts=["global"],
     )(_get_theme_status)
+
+    _vt.voice_tool(
+        name="get_theme_laggards",
+        description="Get the weakest themes for a given period (Today, 1W, 1M, 3M).",
+        parameters={
+            "period": {"type": "string", "description": "Today, 1W, 1M, or 3M. Default 1W."},
+            "count": {"type": "integer"},
+        },
+        contexts=["global"],
+    )(_get_theme_laggards)
+
+    _vt.voice_tool(
+        name="get_theme_holdings",
+        description="List the top stock holdings inside a theme. Call when user says 'what's in AI theme' or 'show me semi holdings'.",
+        parameters={
+            "theme": {"type": "string", "description": "Theme name or ETF ticker."},
+            "count": {"type": "integer", "description": "How many holdings (default 6, max 15)."},
+        },
+        contexts=["global"],
+    )(_get_theme_holdings)
+
+    _vt.voice_tool(
+        name="get_theme_history",
+        description="Get a single theme's return over a specific period.",
+        parameters={
+            "theme": {"type": "string"},
+            "period": {"type": "string", "description": "Today, 1W, 1M, or 3M."},
+        },
+        contexts=["global"],
+    )(_get_theme_history)
 
     _vt.voice_tool(
         name="get_options_flow",
@@ -834,6 +923,83 @@ def _register_all() -> None:
         wants_user=True,
     )(_cancel_alert)
 
+    # ── Batch 2: market data deep reads ─────────────────────────────────────
+
+    _vt.voice_tool(
+        name="get_scanner_candidates",
+        description="List top scanner candidates from the UCT scanner. Type ∈ {pullback, remount, gapper}. Call when user says 'what's the scanner showing' or 'show me pullback candidates'.",
+        parameters={
+            "type": {"type": "string", "description": "pullback | remount | gapper. Default pullback."},
+            "count": {"type": "integer", "description": "How many candidates (default 5, max 15)."},
+        },
+        contexts=["global"],
+    )(_get_scanner_candidates)
+
+    _vt.voice_tool(
+        name="get_uct20_picks",
+        description="Read the current UCT 20 leadership list — top-ranked stocks managed by the morning wire engine.",
+        parameters={"count": {"type": "integer", "description": "How many (default 5, max 20)."}},
+        contexts=["global"],
+    )(_get_uct20_picks)
+
+    _vt.voice_tool(
+        name="get_uct20_portfolio_stats",
+        description="Read the UCT 20 model portfolio's overall stats — NAV, total return, open position count.",
+        parameters={},
+        contexts=["global"],
+    )(_get_uct20_portfolio_stats)
+
+    _vt.voice_tool(
+        name="get_cot_data",
+        description="Recent CFTC Commitments of Traders positioning for a futures symbol (CL, GC, ES, NQ, etc.).",
+        parameters={
+            "symbol": {"type": "string", "description": "Futures symbol — CL, GC, ES, NQ, NG, ZB, DX, BTC, etc."},
+            "weeks": {"type": "integer", "description": "How many weeks of history (default 4, max 12)."},
+        },
+        contexts=["global"],
+    )(_get_cot_data)
+
+    _vt.voice_tool(
+        name="get_breadth_analogues",
+        description="Find historical days with breadth patterns most similar to today, with their forward returns.",
+        parameters={"count": {"type": "integer", "description": "How many analogues (default 3, max 5)."}},
+        contexts=["global"],
+    )(_get_breadth_analogues)
+
+    _vt.voice_tool(
+        name="get_breadth_metric",
+        description="Historical value of a specific breadth metric (e.g. pct_above_50sma, new_highs, breadth_score) — latest plus N-day average.",
+        parameters={
+            "metric": {"type": "string"},
+            "days": {"type": "integer", "description": "Lookback window (default 30, max 365)."},
+        },
+        contexts=["global"],
+    )(_get_breadth_metric)
+
+    _vt.voice_tool(
+        name="get_insider_activity",
+        description="Recent insider transactions (buys vs sells) for a ticker.",
+        parameters={
+            "symbol": {"type": "string"},
+            "count": {"type": "integer", "description": "Transactions to summarize (default 5, max 10)."},
+        },
+        contexts=["global"],
+    )(_get_insider_activity)
+
+    _vt.voice_tool(
+        name="get_earnings_intel",
+        description="Analyst consensus and price target for a ticker (Finnhub).",
+        parameters={"symbol": {"type": "string"}},
+        contexts=["global"],
+    )(_get_earnings_intel)
+
+    _vt.voice_tool(
+        name="get_earnings_this_week",
+        description="Tickers reporting earnings before the bell and after close for the week.",
+        parameters={"count": {"type": "integer", "description": "How many per bucket (default 8, max 20)."}},
+        contexts=["global"],
+    )(_get_earnings_this_week)
+
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────
 
@@ -901,17 +1067,9 @@ def _get_breadth() -> dict:
     }
 
 
-def _get_sector_strength(count: int = 3) -> dict:
-    count = max(1, min(5, int(count or 3)))
-    sectors = (_sector_flow() or [])[:count]
-    if not sectors:
-        return {"top_sectors": "no sector data available", "count": 0}
-    parts = [
-        f"{s.get('sector')} {('up' if (s.get('change_pct') or 0) >= 0 else 'down')} "
-        f"{abs(round(s.get('change_pct') or 0, 1))} percent"
-        for s in sectors
-    ]
-    return {"top_sectors": ", ".join(parts), "count": len(parts)}
+def _get_sector_strength(period: str = "", count: int = 3) -> dict:
+    from api.services.voice_market_tools import get_sector_strength
+    return get_sector_strength(period=period or None, count=count)
 
 
 def _get_company_info(symbol: str) -> dict:
