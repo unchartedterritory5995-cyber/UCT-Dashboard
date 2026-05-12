@@ -20,6 +20,7 @@ from api.services.pattern_engine.detectors.classical import bear_flag as _bear_f
 from api.services.pattern_engine.detectors.classical import pennant as _pennant  # noqa: F401
 from api.services.pattern_engine.detectors.classical import falling_wedge as _falling_wedge  # noqa: F401
 from api.services.pattern_engine.detectors.classical import rising_wedge as _rising_wedge  # noqa: F401
+from api.services.pattern_engine.detectors.classical import head_shoulders as _head_shoulders  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -57,6 +58,12 @@ _PATTERN_METADATA = {
         "category": "classical",
         "direction": "bearish",
         "description": "Both trendlines slope up, converging upward. Bearish reversal pattern.",
+    },
+    "head_shoulders": {
+        "name": "Head and Shoulders",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "Three peaks with the middle (head) highest. Neckline connects the two troughs. Bearish reversal pattern.",
     },
 }
 
