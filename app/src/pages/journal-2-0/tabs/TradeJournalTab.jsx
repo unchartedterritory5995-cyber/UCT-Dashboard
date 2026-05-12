@@ -13,6 +13,7 @@ import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Trades from '../hooks/useJ2Trades'
 import useJ2OptionStrategies from '../hooks/useJ2OptionStrategies'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
+import TradeDrawer from '../components/TradeDrawer'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
 import useJ2Filters from '../hooks/useJ2Filters'
 import OptionStrategiesSection from '../components/options/OptionStrategiesSection'
@@ -82,6 +83,9 @@ export default function TradeJournalTab({ settings }) {
   )
 
   const summary = useMemo(() => summaryStats(filteredTrades), [filteredTrades])
+
+  // Trade detail drawer
+  const [drawerTrade, setDrawerTrade] = useState(null)
 
   // Toolbar modals
   const [addOpen, setAddOpen] = useState(false)
@@ -306,7 +310,13 @@ export default function TradeJournalTab({ settings }) {
         isLoading && trades.length === 0 ? (
           <div className={styles.loading}>Loading trades…</div>
         ) : (
-          <TradesTable trades={filteredTrades} visibleColumns={visibleColumns} />
+          <TradesTable
+            trades={filteredTrades}
+            visibleColumns={visibleColumns}
+            onRowAction={(action, trade) => {
+              if (action === 'open') setDrawerTrade(trade)
+            }}
+          />
         )
       )}
 
@@ -354,6 +364,12 @@ export default function TradeJournalTab({ settings }) {
         message={toast?.message}
         tone={toast?.tone}
         onDismiss={() => setToast(null)}
+      />
+
+      <TradeDrawer
+        trade={drawerTrade}
+        accountId={selectedAccountId}
+        onClose={() => setDrawerTrade(null)}
       />
     </div>
   )
