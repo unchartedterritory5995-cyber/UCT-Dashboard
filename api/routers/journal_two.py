@@ -16,10 +16,11 @@ Endpoints landing per phase:
 Spec §5, audit §4.3.
 """
 
+import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from api.middleware.auth_middleware import get_current_user
 from api.services.journal_two import (
@@ -27,6 +28,7 @@ from api.services.journal_two import (
     analytics as analytics_service,
     calendar as calendar_service,
     coach as coach_service,
+    coach_chat as coach_chat_service,
     community as community_service,
     csv_import as csv_import_service,
     discipline as discipline_service,
@@ -1165,6 +1167,112 @@ def viewed_coach_eod_recap(
     if n == 0:
         raise HTTPException(status_code=404, detail="Recap not found")
     return {"ok": True}
+
+
+# ── Phase G v3: Compass Chat ────────────────────────────────────────────────
+
+
+def _sse_format(event: dict) -> str:
+    return f"data: {json.dumps(event)}\n\n"
+
+
+@router.post("/accounts/{account_id}/coach/chat/stream")
+def chat_stream(
+    account_id: str,
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    msg = (payload or {}).get("message", "").strip()
+    if not msg:
+        raise HTTPException(status_code=400, detail="message required")
+    settings_check = accounts_service.get_account_settings(user["id"], account_id)
+    if settings_check is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not settings_check.get("compassEnabled", True):
+        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+
+    def _gen():
+        for event in coach_chat_service.handle_user_turn(
+            user_id=user["id"], account_id=account_id, user_message=msg,
+        ):
+            yield _sse_format(event)
+    return StreamingResponse(_gen(), media_type="text/event-stream")
+
+
+@router.post("/accounts/{account_id}/coach/chat/confirm")
+def chat_confirm(
+    account_id: str,
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    message_id = (payload or {}).get("message_id")
+    tool_call_id = (payload or {}).get("tool_call_id")
+    if not message_id or not tool_call_id:
+        raise HTTPException(status_code=400, detail="message_id and tool_call_id required")
+
+    def _gen():
+        for event in coach_chat_service.confirm_pending_action(
+            user_id=user["id"], account_id=account_id,
+            message_id=message_id, tool_call_id=tool_call_id,
+        ):
+            yield _sse_format(event)
+    return StreamingResponse(_gen(), media_type="text/event-stream")
+
+
+@router.post("/accounts/{account_id}/coach/chat/cancel")
+def chat_cancel(
+    account_id: str,
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    message_id = (payload or {}).get("message_id")
+    tool_call_id = (payload or {}).get("tool_call_id")
+    if not message_id or not tool_call_id:
+        raise HTTPException(status_code=400, detail="message_id and tool_call_id required")
+
+    def _gen():
+        for event in coach_chat_service.cancel_pending_action(
+            user_id=user["id"], account_id=account_id,
+            message_id=message_id, tool_call_id=tool_call_id,
+        ):
+            yield _sse_format(event)
+    return StreamingResponse(_gen(), media_type="text/event-stream")
+
+
+@router.get("/accounts/{account_id}/coach/chat/messages")
+def chat_list_messages(
+    account_id: str,
+    limit: int = 50,
+    before_id: str | None = None,
+    user: dict = Depends(get_current_user),
+):
+    return coach_chat_service.list_messages(
+        user_id=user["id"], account_id=account_id,
+        limit=max(1, min(int(limit), 200)),
+        before_id=before_id,
+    )
+
+
+@router.post("/accounts/{account_id}/coach/chat/forget")
+def chat_forget(
+    account_id: str,
+    payload: dict | None = None,
+    user: dict = Depends(get_current_user),
+):
+    body = payload or {}
+    return coach_chat_service.forget_message(
+        user_id=user["id"], account_id=account_id,
+        message_id=body.get("message_id"),
+        all=bool(body.get("all", False)),
+    )
+
+
+@router.get("/accounts/{account_id}/coach/chat/status")
+def chat_status(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+):
+    return coach_chat_service.get_chat_status(user_id=user["id"], account_id=account_id)
 
 
 @router.get("/accounts/{account_id}/coach/profile")
