@@ -704,11 +704,22 @@ def session_token(
         except Exception as e:
             _log.warning("[session_token] proactive insight inject failed: %s", e)
 
+    # Batch 13f: confidence calibration block — rules + per-session caveats
+    confidence_block = ""
+    if ctx != "train_me":
+        try:
+            from api.services.voice_confidence_calibration import build_confidence_block
+            confidence_block = build_confidence_block(uid)
+        except Exception as e:
+            _log.warning("[session_token] confidence block failed: %s", e)
+
     session_instructions = base_instructions
     if temporal_line:
         session_instructions = session_instructions + "\n\n" + temporal_line
     if regime_line:
         session_instructions = session_instructions + "\n\n" + regime_line
+    if confidence_block:
+        session_instructions = session_instructions + "\n\n" + confidence_block
     if insight_lines:
         session_instructions = session_instructions + (
             "\n\n=== PROACTIVE INSIGHTS FOR THIS SESSION ===\n"
