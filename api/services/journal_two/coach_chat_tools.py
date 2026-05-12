@@ -1253,6 +1253,86 @@ TOOLS.update({
     },
 })
 
+def _exec_list_pending_profile_suggestions(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services.journal_two import profile_suggestions as ps
+    return ps.list_pending(user_id=user_id, account_id=account_id, conn=conn)
+
+
+def _update_trader_profile_preview(*, user_id, account_id, args, conn=None) -> dict:
+    new_profile = (args.get("trader_profile") or "")[:8000]
+    return {
+        "narration": f"Update your Trader Profile with a refinement ({len(new_profile)} chars).",
+        "contextual_warnings": [], "confirm_label": "Save refinement", "elevated": False,
+        "profile_excerpt": new_profile[:300] + ("…" if len(new_profile) > 300 else ""),
+    }
+
+
+def _update_trader_profile_execute(*, user_id, account_id, args, conn=None) -> dict:
+    new_profile = (args.get("trader_profile") or "").strip()
+    if not new_profile:
+        return {"ok": False, "error": "trader_profile required"}
+    c = conn or get_connection()
+    c.execute(
+        "UPDATE j2_accounts SET trader_profile = ? WHERE id = ? AND user_id = ?",
+        (new_profile, account_id, user_id),
+    )
+    c.commit()
+    return {"ok": True, "summary": "Trader profile updated."}
+
+
+def _resolve_profile_suggestion_preview(*, user_id, account_id, args, conn=None) -> dict:
+    return {
+        "narration": "Mark this profile suggestion as resolved (no further action needed).",
+        "contextual_warnings": [], "confirm_label": "Mark resolved", "elevated": False,
+    }
+
+
+def _resolve_profile_suggestion_execute(*, user_id, account_id, args, conn=None) -> dict:
+    sid = args.get("suggestion_id")
+    if not sid:
+        return {"ok": False, "error": "suggestion_id required"}
+    from api.services.journal_two import profile_suggestions as ps
+    n = ps.resolve_suggestion(sid, user_id=user_id, conn=conn)
+    if n == 0:
+        return {"ok": False, "error": "suggestion not found"}
+    return {"ok": True, "summary": "Suggestion resolved."}
+
+
+TOOLS.update({
+    "list_pending_profile_suggestions": {
+        "name": "list_pending_profile_suggestions",
+        "description": "List pending profile-refinement suggestions auto-created when the trader marked a recap unhelpful. Use this at the start of a chat turn to see if there's accumulated feedback to address.",
+        "requires_confirm": False,
+        "executor": _exec_list_pending_profile_suggestions,
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    "update_trader_profile": {
+        "name": "update_trader_profile",
+        "description": "Save a refined Trader Profile. Use this AFTER the trader has confirmed the new profile content in chat. The user gets a Confirm card to review the change.",
+        "requires_confirm": True,
+        "executor": _update_trader_profile_execute,
+        "preview": _update_trader_profile_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {"trader_profile": {"type": "string"}},
+            "required": ["trader_profile"],
+        },
+    },
+    "resolve_profile_suggestion": {
+        "name": "resolve_profile_suggestion",
+        "description": "Mark a profile suggestion as resolved (used after Compass has discussed it with the trader and applied any update_trader_profile changes).",
+        "requires_confirm": True,
+        "executor": _resolve_profile_suggestion_execute,
+        "preview": _resolve_profile_suggestion_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {"suggestion_id": {"type": "string"}},
+            "required": ["suggestion_id"],
+        },
+    },
+})
+
+
 def _exec_pre_trade_verdict(*, user_id, account_id, args, conn=None) -> dict:
     from api.services.journal_two import pre_trade_verdict as ptv
     return ptv.generate_verdict(

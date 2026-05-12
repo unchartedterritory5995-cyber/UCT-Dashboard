@@ -1496,3 +1496,25 @@ def dismiss_intervention(
     if n == 0:
         raise HTTPException(status_code=404, detail="Intervention not found")
     return {"ok": True}
+
+
+@router.get("/accounts/{account_id}/coach/profile-suggestions")
+def list_profile_suggestions(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import profile_suggestions as ps
+    return ps.list_pending(user_id=user["id"], account_id=account_id)
+
+
+@router.post("/accounts/{account_id}/coach/profile-suggestions/{suggestion_id}/dismiss")
+def dismiss_profile_suggestion(
+    account_id: str,
+    suggestion_id: str,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import profile_suggestions as ps
+    n = ps.dismiss_suggestion(suggestion_id, user_id=user["id"])
+    if n == 0:
+        raise HTTPException(status_code=404, detail="Suggestion not found")
+    return {"ok": True}
