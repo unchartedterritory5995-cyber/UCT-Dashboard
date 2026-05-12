@@ -8,10 +8,14 @@ import urllib.request
 
 
 _BASE = os.environ.get("UCT_API_BASE", "https://uctintelligence.com")
+_UA = "UCT-Verify-Phase/1.0 (Mozilla/5.0 compatible)"
 
 
 def _get(path: str) -> tuple[int, dict | str]:
-    req = urllib.request.Request(f"{_BASE}{path}", headers={"Accept": "application/json"})
+    req = urllib.request.Request(
+        f"{_BASE}{path}",
+        headers={"Accept": "application/json", "User-Agent": _UA},
+    )
     try:
         with urllib.request.urlopen(req, timeout=15) as r:
             body = r.read().decode("utf-8")
@@ -27,7 +31,7 @@ def _post(path: str, payload: dict) -> tuple[int, dict | str]:
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         f"{_BASE}{path}", data=data, method="POST",
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        headers={"Content-Type": "application/json", "Accept": "application/json", "User-Agent": _UA},
     )
     try:
         with urllib.request.urlopen(req, timeout=15) as r:
