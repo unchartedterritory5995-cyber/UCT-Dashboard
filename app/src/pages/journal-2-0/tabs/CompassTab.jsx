@@ -18,6 +18,7 @@ import TraderProfileEditor from '../components/TraderProfileEditor'
 import CompassChat from '../components/CompassChat'
 import useInterventions from '../hooks/useInterventions'
 import InterventionBanner from '../components/InterventionBanner'
+import useProfileSuggestions from '../hooks/useProfileSuggestions'
 
 function mostRecentClosedMondayISO() {
   const now = new Date()
@@ -40,6 +41,7 @@ function todayISO() {
 export default function CompassTab() {
   const { accountId } = useJ2SelectedAccount()
   const { interventions, dismiss: dismissIntervention } = useInterventions(accountId)
+  const { suggestions: profileSuggestions, dismiss: dismissSuggestion } = useProfileSuggestions(accountId)
   const { settings } = useJ2Settings()
   const { reviews, isLoading, error, generate, regenerate, feedback, forget } = useJ2CoachReviews(accountId)
   const {
@@ -111,6 +113,34 @@ export default function CompassTab() {
         interventions={interventions}
         onDismiss={dismissIntervention}
       />
+
+      {profileSuggestions.length > 0 && (
+        <div style={{
+          margin: '8px 0', padding: '10px 14px',
+          background: 'rgba(201,168,76,0.08)',
+          border: '1px solid rgba(201,168,76,0.5)',
+          borderRadius: 6,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          gap: 10,
+        }}>
+          <div style={{ fontSize: 12 }}>
+            <strong style={{ color: 'var(--ut-gold, #c9a84c)' }}>🧭 Compass wants to refine its understanding of you.</strong>
+            <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+              {profileSuggestions.length} pending suggestion{profileSuggestions.length === 1 ? '' : 's'} from your recent feedback. Start a chat to walk through them.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => profileSuggestions.forEach((s) => dismissSuggestion(s.id))}
+            style={{
+              padding: '4px 12px', fontSize: 11,
+              background: 'transparent', color: 'var(--text-muted)',
+              border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer',
+            }}
+          >Dismiss all</button>
+        </div>
+      )}
+
       <CompassChat accountId={accountId} />
 
       {errorMsg && (
