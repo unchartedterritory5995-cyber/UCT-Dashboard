@@ -6,10 +6,10 @@ import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tool
 
 // ─── Color Palette ─────────────────────────────────────────────────────────────
 const P = {
-  bg:"#06090f", cd:"#0d1321", al:"#111a2e", bd:"#1a2540", bl:"#243352",
-  bu:"#00e676", be:"#ff1744", ac:"#ffab00", tx:"#c8d6e5", dm:"#7b8fa3",
-  mt:"#4a5c73", wh:"#f0f4f8", ye:"#ffd600", ma:"#e040fb", sw:"#00b0ff",
-  bk:"#b388ff", uc:"#78909c"
+  bg:"#0e0f0d", cd:"#1a1c17", al:"#22251e", bd:"#2e3127", bl:"#3a3d32",
+  bu:"#3cb868", be:"#e74c3c", ac:"#c9a84c", tx:"#a8a290", dm:"#706b5e",
+  mt:"#a8a290", wh:"#e0dac8", ye:"#c9a84c", ma:"#c9a84c", sw:"#6ba3be",
+  bk:"#6ba3be", uc:"#706b5e"
 };
 
 // ─── Formatting ────────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ function fK(n) {
 }
 function tc(t) { return t === "SWP" ? P.sw : P.bk; }
 function premC(n) {
-  if (n >= 5e6) return "#00e676";   // $5M+ = bright green
+  if (n >= 5e6) return "#3cb868";   // $5M+ = bright green
   if (n >= 1e6) return "#66ff99";   // $1M+ = green
   if (n >= 500e3) return "#ffab00"; // $500K+ = gold
   if (n >= 100e3) return "#f0f4f8"; // $100K+ = white
@@ -46,7 +46,7 @@ function gradeCluster(c) {
   if ((hasSweep && !clean) || (hasBlock && oiExceeded)) return "C";
   return "D";
 }
-const GRADE_COLORS = { "A+":"#ffd600", "A":"#ffab00", "B+":"#00e676", "B":"#00b0ff", "C":"#78909c", "D":"#4a5c73" };
+const GRADE_COLORS = { "A+":"#c9a84c", "A":"#ffab00", "B+":"#3cb868", "B":"#6ba3be", "C":"#78909c", "D":"#4a5c73" };
 // Pattern detection — detects anomalous flow patterns on a cluster
 function detectPatterns(c) {
   const patterns = [];
@@ -1682,7 +1682,7 @@ export default function OptionsFlowDashboard() {
             const aboveSpot = cw.strike > sp;
             let label, color;
             if (proximity < 0.003) {
-              label = "Pin "+fmtG(combined); color = "#e040fb"; // purple — price right at pin
+              label = "Pin "+fmtG(combined); color = "#c9a84c"; // purple — price right at pin
             } else if (aboveSpot) {
               label = "Resistance "+fmtG(combined); color = "#c43030"; // red — level above spot = resistance
             } else {
@@ -1937,8 +1937,8 @@ export default function OptionsFlowDashboard() {
           <div style={{ padding:"12px 14px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}>
               <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#ff6d00", display:"inline-block", flexShrink:0 }}>{""}</span> Vol</span>
-              <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#00b0ff", display:"inline-block", flexShrink:0 }}>{""}</span> OI</span>
-              <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:14, height:3, borderRadius:2, background:"#d4a5ff", display:"inline-block", flexShrink:0 }}>{""}</span> Contract Price</span>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#6ba3be", display:"inline-block", flexShrink:0 }}>{""}</span> OI</span>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:14, height:3, borderRadius:2, background:"#c9a84c", display:"inline-block", flexShrink:0 }}>{""}</span> Contract Price</span>
             </div>
             <div style={{ width:"100%", height:160 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -1948,7 +1948,7 @@ export default function OptionsFlowDashboard() {
                     interval={trimmed.length>15?"preserveStartEnd":trimmed.length>10?1:0}
                     angle={-45} textAnchor="end" height={32}
                     tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
-                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:9, fill:"#d4a5ff" }}
+                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:9, fill:"#c9a84c" }}
                     tickFormatter={v=>"$"+v.toFixed(1)} width={36} domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
                   <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:9, fill:"#7b8fa3" }}
                     tickFormatter={v=>fK(v)} width={42} />
@@ -1956,9 +1956,9 @@ export default function OptionsFlowDashboard() {
                     formatter={(val,name)=>{ if(name==="price") return ["$"+val.toFixed(2),"Price"]; if(name==="vol") return [fK(val),"Volume"]; return [val.toLocaleString(),"OI"]; }}
                     labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
                   <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
-                  <Bar yAxisId="voloi" dataKey="oi" fill="#00b0ff" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
-                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#d4a5ff" strokeWidth={2} strokeOpacity={0.5}
-                    dot={{ r:4, fill:"#d4a5ff", stroke:"#0d1525", strokeWidth:1.5 }} connectNulls />
+                  <Bar yAxisId="voloi" dataKey="oi" fill="#6ba3be" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
+                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#c9a84c" strokeWidth={2} strokeOpacity={0.5}
+                    dot={{ r:4, fill:"#c9a84c", stroke:"#0d1525", strokeWidth:1.5 }} connectNulls />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -2112,7 +2112,7 @@ export default function OptionsFlowDashboard() {
   if (csvLoading && !D) return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #00e676",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
+        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Loading flow data...</div>
         <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
       </div>
@@ -2131,7 +2131,7 @@ export default function OptionsFlowDashboard() {
           ))}
         </div>
         <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
-        <div style={{color:"#ff1744",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
+        <div style={{color:"#e74c3c",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
         <div style={{color:"#7b8fa3",fontSize:12,marginBottom:16}}>{csvError}</div>
         <div style={{color:"#4a5c73",fontSize:11}}>No flow data in database. Upload CSV via the admin page to get started.</div>
         <button onClick={()=>window.location.reload()} style={{marginTop:16,background:"#1a2540",color:"#c8d6e5",border:"1px solid #243352",borderRadius:6,padding:"8px 20px",fontSize:12,cursor:"pointer"}}>Retry</button>
@@ -2141,7 +2141,7 @@ export default function OptionsFlowDashboard() {
   if ((!D || !FD) && dataMode !== "gex") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #00e676",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
+        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Processing flow data...</div>
         <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
       </div>
@@ -2348,9 +2348,9 @@ export default function OptionsFlowDashboard() {
           <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
             {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
               <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); } }} style={{
-                padding:"8px 28px", borderRadius:6, border:m==="gex"?(dataMode===m?"1px solid #e040fb":"1px solid #e040fb55"):"none", cursor:"pointer",
+                padding:"8px 28px", borderRadius:6, border:m==="gex"?(dataMode===m?"1px solid #c9a84c":"1px solid #c9a84c55"):"none", cursor:"pointer",
                 fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
-                background:dataMode===m?(m==="gex"?"#e040fb33":P.cd):"transparent", color:dataMode===m?(m==="gex"?"#e040fb":P.wh):(m==="gex"?"#e040fb":P.mt),
+                background:dataMode===m?(m==="gex"?"#c9a84c33":P.cd):"transparent", color:dataMode===m?(m==="gex"?"#c9a84c":P.wh):(m==="gex"?"#c9a84c":P.mt),
                 boxShadow:dataMode===m?("0 2px 8px rgba(0,0,0,0.3)"):"none",
                 transition:"all 0.15s"
               }}>{label}</button>
@@ -2532,9 +2532,9 @@ export default function OptionsFlowDashboard() {
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
               <div style={{ display:"flex", gap:14, alignItems:"center" }}>
-                <div style={{ width:3, background:"#e040fb", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
+                <div style={{ width:3, background:"#c9a84c", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:"#e040fb", marginBottom:5 }}>Gamma Exposure (GEX)</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#c9a84c", marginBottom:5 }}>Gamma Exposure (GEX)</div>
                   <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Shows where big options activity creates price levels. Ceiling = price struggles above. Floor = price bounces here. Danger line = below this, drops get faster.</div>
                 </div>
               </div>
@@ -2549,14 +2549,14 @@ export default function OptionsFlowDashboard() {
                   placeholder="Enter ticker (SPY, NVDA, etc)"
                   style={{ flex:1, padding:"8px 14px", borderRadius:6, fontSize:12, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }} />
                 <button onClick={()=>setGexTicker(gexInput.trim())}
-                  style={{ padding:"8px 18px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", background:"#e040fb", color:P.bg }}>
+                  style={{ padding:"8px 18px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", background:"#c9a84c", color:P.bg }}>
                   Load
                 </button>
               </div>
               <div style={{ display:"flex", gap:4 }}>
                 {quickTickers.map(t=>(
                   <button key={t} onClick={()=>{ setGexInput(t); setGexTicker(t); }}
-                    style={{ padding:"6px 12px", borderRadius:4, border:"1px solid "+P.bl, background:gexTicker===t?("#e040fb22"):P.al, color:gexTicker===t?"#e040fb":P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                    style={{ padding:"6px 12px", borderRadius:4, border:"1px solid "+P.bl, background:gexTicker===t?("#c9a84c22"):P.al, color:gexTicker===t?"#c9a84c":P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                     {t}
                   </button>
                 ))}
@@ -2609,7 +2609,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:18, fontWeight:900, color:P.be }}>{gexData.putWall ? "$"+gexData.putWall.strike : "—"}</div>
                     <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""} floor</div>
                   </div>
-                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #e040fb" }}>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #c9a84c" }}>
                     <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
                     <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.zeroGamma && gexData.spot < gexData.zeroGamma ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
@@ -2649,9 +2649,9 @@ export default function OptionsFlowDashboard() {
                     {showGexChart ? "✕ Hide Chart" : "📈 Chart with Levels"}
                   </button>
                   <button onClick={()=>setShowGexSummary(!showGexSummary)} style={{
-                    padding:"10px 28px", borderRadius:6, border:"1px solid #e040fb", cursor:"pointer",
+                    padding:"10px 28px", borderRadius:6, border:"1px solid #c9a84c", cursor:"pointer",
                     fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5,
-                    background:showGexSummary?"#e040fb22":"transparent", color:"#e040fb"
+                    background:showGexSummary?"#c9a84c22":"transparent", color:"#c9a84c"
                   }}>
                     {showGexSummary ? "✕ Hide Summary" : "🔮 Generate Summary"}
                   </button>
@@ -2854,12 +2854,12 @@ export default function OptionsFlowDashboard() {
                       const pwMagnetHere = !pwBelowSpot;
                       cwEntry.label = fmtGex(cwGex+pwGex) + " ceiling + floor" + (pwMagnetHere ? " · resistance" : "");
                       cwEntry.tag = !cwAboveSpot ? "support ↑" : pwMagnetHere ? "resistance" : "ceiling + floor";
-                      cwEntry.tagBg = pwMagnetHere ? "#e040fb22" : "#00BCD422";
-                      cwEntry.tagColor = pwMagnetHere ? "#e040fb" : "#00BCD4";
+                      cwEntry.tagBg = pwMagnetHere ? "#c9a84c22" : "#00BCD422";
+                      cwEntry.tagColor = pwMagnetHere ? "#c9a84c" : "#00BCD4";
                       if (pwMagnetHere && !cwEntry.showMagnet) cwEntry.magnetColor = P.bu;
                       cwEntry.showMagnet = pwMagnetHere;
                       cwEntry.isPW = true;
-                      cwEntry.border = "1px solid #e040fb";
+                      cwEntry.border = "1px solid #c9a84c";
                       cwEntry.fillPct = 95;
                     }
                   } else if (!allLevels.find(l => l.strike === pwStrike)) {
@@ -3072,7 +3072,7 @@ export default function OptionsFlowDashboard() {
                   return (
                   <div style={{ background:P.cd, borderRadius:10, padding:16, border:"1px solid "+P.bd, marginTop:4 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                      <span style={{ fontSize:13, fontWeight:700, color:"#e040fb", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
+                      <span style={{ fontSize:13, fontWeight:700, color:"#c9a84c", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
                     <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:belowDangerLine?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:belowDangerLine?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
@@ -3164,7 +3164,7 @@ export default function OptionsFlowDashboard() {
 
                       return parts.length > 0 ? (
                         <div style={{ background:P.al, borderRadius:6, padding:"10px 14px", marginBottom:10, lineHeight:1.6 }}>
-                          <div style={{ fontSize:10, fontWeight:700, color:"#e040fb", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Quick Read</div>
+                          <div style={{ fontSize:10, fontWeight:700, color:"#c9a84c", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Quick Read</div>
                           <div style={{ fontSize:12, color:P.wh }}>{parts.join(" ")}</div>
                         </div>
                       ) : null;
@@ -3367,10 +3367,10 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Conviction"?"#e040fb":t==="Watchlist"?P.ac:P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Conviction"?"1px solid #e040fb55":"1px solid transparent"), cursor:"pointer",
+              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Conviction"?"#c9a84c":t==="Watchlist"?P.ac:P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Conviction"?"1px solid #c9a84c55":"1px solid transparent"), cursor:"pointer",
               fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Conviction")?800:600, fontFamily:"inherit",
-              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Conviction"?"#e040fb33":P.ac+"22"):"transparent",
-              color:tab===t?(t==="Watchlist"?P.ac:t==="Conviction"?"#e040fb":P.wh):(t==="Watchlist"?P.ac:t==="Conviction"?"#e040fb":P.mt)
+              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Conviction"?"#c9a84c33":P.ac+"22"):"transparent",
+              color:tab===t?(t==="Watchlist"?P.ac:t==="Conviction"?"#c9a84c":P.wh):(t==="Watchlist"?P.ac:t==="Conviction"?"#c9a84c":P.mt)
             }}>{t}</button>
           ))}
         </div>
@@ -3910,7 +3910,7 @@ export default function OptionsFlowDashboard() {
           };
           const sortHdr = (label, key, extraStyle) => (
             <th key={label} onClick={()=>setConvictionSort(key)} style={{
-              padding:"4px 5px", textAlign:"left", color:cSort===key?"#e040fb":P.mt, fontSize:8, fontWeight:700,
+              padding:"4px 5px", textAlign:"left", color:cSort===key?"#c9a84c":P.mt, fontSize:8, fontWeight:700,
               cursor:"pointer", userSelect:"none", transition:"color 0.15s", ...extraStyle
             }}>{label}{cSort===key?" ▼":""}</th>
           );
@@ -3918,9 +3918,9 @@ export default function OptionsFlowDashboard() {
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               <Card>
                 <div style={{ display:"flex", gap:14, alignItems:"center" }}>
-                  <div style={{ width:3, background:"#e040fb", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
+                  <div style={{ width:3, background:"#c9a84c", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                   <div>
-                    <div style={{ fontSize:13, fontWeight:700, color:"#e040fb", marginBottom:5 }}>Conviction Board</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#c9a84c", marginBottom:5 }}>Conviction Board</div>
                     <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Top bullish and bearish tickers ranked by net confirmed premium. Only non-expired, clean flow. Click any row to expand top contracts, click ticker to drill into Search.</div>
                   </div>
                 </div>
@@ -3930,7 +3930,7 @@ export default function OptionsFlowDashboard() {
                 {/* DTE */}
                 {[{k:"All",l:"All",c:filtered.length},{k:"ST",l:"0–59d",c:stN},{k:"LT",l:"60–179d",c:ltN},{k:"LEAPS",l:"180+d",c:leN}].map(d=>{
                   const active=convDte===d.k;
-                  return <button key={d.k} onClick={()=>setConvictionDte(d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?"#e040fb":P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?"#e040fb22":"transparent", color:active?"#e040fb":P.mt }}>{d.l} <span style={{ fontSize:7, opacity:0.7 }}>{d.c}</span></button>;
+                  return <button key={d.k} onClick={()=>setConvictionDte(d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?"#c9a84c":P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?"#c9a84c22":"transparent", color:active?"#c9a84c":P.mt }}>{d.l} <span style={{ fontSize:7, opacity:0.7 }}>{d.c}</span></button>;
                 })}
                 <span style={{ width:1, height:16, background:P.bd }}/>
                 {/* Activity */}
@@ -4115,7 +4115,7 @@ export default function OptionsFlowDashboard() {
                     const pnl = now > 0 && r.entry > 0 ? (now - r.entry) / r.entry * 100 : 0;
                     const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
                     const dirC = r.dir==="BULL" ? P.bu : P.be;
-                    const dteBandC = r.dteBand==="ST"?"#ff6d00":r.dteBand==="LT"?"#00b0ff":"#e040fb";
+                    const dteBandC = r.dteBand==="ST"?"#ff6d00":r.dteBand==="LT"?"#6ba3be":"#c9a84c";
                     const pick = topFlowPicks.active.find(p=>p.sym===r.sym&&p.cp===r.cp&&parseFloat(p.strike)===parseFloat(r.K)&&p.exp===r.exp);
                     const hist = pick ? (pick.history||[]) : [];
                     const allPx = [...hist.map(h=>h.price), now].filter(v=>v>0);
@@ -4132,7 +4132,7 @@ export default function OptionsFlowDashboard() {
                         onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                         onMouseLeave={e=>e.currentTarget.style.background=i<3?(P.ac+"06"):"transparent"}>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:i<3?P.ac:P.dm, fontSize:12 }}>{i+1}</td>
-                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff174433", color:"#ff1744", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#e040fb22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#00e67622":"#29b6f622", color:p.type==="IV_SURGE"?"#e040fb":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#00e676":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622", color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
@@ -4180,7 +4180,7 @@ export default function OptionsFlowDashboard() {
             </Card>
             {/* Batch Search */}
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <button onClick={()=>setBatchMode(!batchMode)} style={{ padding:"5px 14px", borderRadius:16, border:"1.5px solid "+(batchMode?"#e040fb":"#e040fb55"), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:batchMode?"#e040fb22":"transparent", color:batchMode?"#e040fb":"#e040fb" }}>
+              <button onClick={()=>setBatchMode(!batchMode)} style={{ padding:"5px 14px", borderRadius:16, border:"1.5px solid "+(batchMode?"#c9a84c":"#c9a84c55"), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:batchMode?"#c9a84c22":"transparent", color:batchMode?"#c9a84c":"#c9a84c" }}>
                 📋 Batch Search
               </button>
               {batchMode && <span style={{ fontSize:9, color:P.dm }}>Paste tickers or upload a CSV watchlist to scan flow</span>}
@@ -4334,7 +4334,7 @@ export default function OptionsFlowDashboard() {
                       return (
                         <div style={{ marginBottom:12, padding:"10px 12px", borderRadius:8, background:P.al, border:"1px solid "+P.bd }}>
                           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                            <div style={{ fontSize:11, fontWeight:800, color:"#e040fb", letterSpacing:0.5 }}>⚡ TOP IDEAS FROM YOUR WATCHLIST</div>
+                            <div style={{ fontSize:11, fontWeight:800, color:"#c9a84c", letterSpacing:0.5 }}>⚡ TOP IDEAS FROM YOUR WATCHLIST</div>
                             <button onClick={()=>{
                               const allContracts = [];
                               [...topBull,...topBear].forEach(r => {
@@ -4732,7 +4732,7 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.firstOI>0?r.firstOI.toLocaleString():"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.wh, fontWeight:700 }}>{(r.displayLastOI||r.lastOI)>0?(r.displayLastOI||r.lastOI).toLocaleString():"—"}{r.curOI>0&&<span style={{ fontSize:7, color:P.ac, marginLeft:2 }}>live</span>}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>
-                        <td style={{ padding:"5px 4px", fontWeight:700, fontSize:10, color:r.pctDOI>=500?"#00e676":r.pctDOI>=100?P.bu:r.pctDOI>=50?P.ye:r.pctDOI>0?P.dm:r.pctDOI<0?P.be:P.mt }}>{r.pctDOI!==0?(r.pctDOI>0?"+":"")+r.pctDOI.toLocaleString()+"%":"—"}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:700, fontSize:10, color:r.pctDOI>=500?"#3cb868":r.pctDOI>=100?P.bu:r.pctDOI>=50?P.ye:r.pctDOI>0?P.dm:r.pctDOI<0?P.be:P.mt }}>{r.pctDOI!==0?(r.pctDOI>0?"+":"")+r.pctDOI.toLocaleString()+"%":"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.firstDate||"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
                       </tr>
@@ -4900,7 +4900,7 @@ export default function OptionsFlowDashboard() {
                           style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff174433", color:"#ff1744", verticalAlign:"super" }}>EXIT</span>}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
@@ -4948,7 +4948,7 @@ export default function OptionsFlowDashboard() {
                       const wasExit = peakOI>=100 && lastOI>0 && (peakOI-lastOI)/peakOI*100>=30;
                       return (
                         <tr key={p.id||i} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.7 }}>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{wasExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff174433", color:"#ff1744", verticalAlign:"super" }}>EXIT</span>}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{wasExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}</td>
                           <td style={{ padding:"5px 5px", color:P.dm }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
@@ -4974,7 +4974,7 @@ export default function OptionsFlowDashboard() {
         {/* Watchlist */}
         {tab==="Watchlist" && (() => {
           const TIERS = ["FULL","HALF","PAPER MAX","PAPER","WATCH","POST-ER","DQ"];
-          const tierC = (t) => t==="FULL"?"#00e676":t==="HALF"?"#ff9800":t==="PAPER MAX"?"#e040fb":t==="PAPER"?"#29b6f6":t==="WATCH"?"#78909c":t==="POST-ER"?"#ff6d00":"#616161";
+          const tierC = (t) => t==="FULL"?"#3cb868":t==="HALF"?"#ff9800":t==="PAPER MAX"?"#c9a84c":t==="PAPER"?"#29b6f6":t==="WATCH"?"#78909c":t==="POST-ER"?"#ff6d00":"#616161";
           const scoreC = (s) => s>=9?P.bu:s>=7?"#ff9800":s>=5?P.ye:P.be;
 
           const REMOVE_REASONS = ["Dirty flow","Arb/Hedge","Deep ITM/OTM","Low conviction","Already moved","Bad R/R","Mega cap noise","Other"];
@@ -5025,12 +5025,12 @@ export default function OptionsFlowDashboard() {
                       const _curOI = _oiH.length>0 ? _oiH[_oiH.length-1].oi : 0;
                       const _peakOI = _oiH.length>0 ? Math.max(..._oiH.map(h=>h.oi)) : 0;
                       const _isExit = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
-                      return _isExit ? <span style={{ fontSize:7, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#ff174433", color:"#ff1744" }}>EXIT</span> : null;
+                      return _isExit ? <span style={{ fontSize:7, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c" }}>EXIT</span> : null;
                     })()}
                     {(()=>{ const conv = FD?.CONV?.find(c=>c.sym===item.sym&&c.cp===item.cp&&String(c.K)===String(item.strike)&&c.exp===item.exp);
                       return (conv?.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:2,
-                        background:p.type==="IV_SURGE"?"#e040fb22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#00e67622":"#29b6f622",
-                        color:p.type==="IV_SURGE"?"#e040fb":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#00e676":"#29b6f6"
+                        background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622",
+                        color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6"
                       }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>);
                     })()}
                   </div>
@@ -5172,7 +5172,7 @@ export default function OptionsFlowDashboard() {
                     ⟳ Auto-Fill from Scanner
                   </button>
                   <button onClick={wlPopulateUnusual}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #e040fb60", background:"transparent", color:"#e040fb", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #c9a84c60", background:"transparent", color:"#c9a84c", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     ⟳ Fill from Unusual
                   </button>
                   <button onClick={wlSave}
