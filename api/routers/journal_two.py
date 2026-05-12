@@ -1374,3 +1374,96 @@ def pre_trade_verdict(
     return ptv_service.generate_verdict(
         user_id=user["id"], account_id=account_id, params=payload or {},
     )
+
+
+# ── Trade Reviews (Per-Trade Post-Mortem) ────────────────────────────────────
+
+
+@router.get("/accounts/{account_id}/coach/trade-reviews")
+def list_trade_reviews(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import trade_review as tr
+    return tr.list_reviews(user_id=user["id"], account_id=account_id)
+
+
+@router.get("/accounts/{account_id}/coach/trade-reviews/{review_id}")
+def get_trade_review(
+    account_id: str,
+    review_id: str,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import trade_review as tr
+    r = tr.get_review(review_id, user_id=user["id"])
+    if not r:
+        raise HTTPException(status_code=404, detail="Review not found")
+    return r
+
+
+@router.post("/accounts/{account_id}/coach/trade-reviews/generate")
+def generate_trade_review(
+    account_id: str,
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import trade_review as tr
+    settings_check = accounts_service.get_account_settings(user["id"], account_id)
+    if settings_check is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not settings_check.get("compassEnabled", True):
+        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+    trade_id = (payload or {}).get("trade_id")
+    if not trade_id:
+        raise HTTPException(status_code=400, detail="trade_id required")
+    return tr.generate_review(
+        user_id=user["id"], account_id=account_id, trade_id=trade_id,
+    )
+
+
+@router.post("/accounts/{account_id}/coach/trade-reviews/{review_id}/regenerate")
+def regenerate_trade_review(
+    account_id: str,
+    review_id: str,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import trade_review as tr
+    existing = tr.get_review(review_id, user_id=user["id"])
+    if not existing:
+        raise HTTPException(status_code=404, detail="Review not found")
+    return tr.generate_review(
+        user_id=user["id"], account_id=account_id,
+        trade_id=existing["trade_id"], regenerate=True,
+    )
+
+
+@router.post("/accounts/{account_id}/coach/trade-reviews/{review_id}/feedback")
+def feedback_trade_review(
+    account_id: str,
+    review_id: str,
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import trade_review as tr
+    feedback = (payload or {}).get("feedback")
+    if feedback not in ("helpful", "unhelpful"):
+        raise HTTPException(status_code=400, detail="feedback must be 'helpful' or 'unhelpful'")
+    existing = tr.get_review(review_id, user_id=user["id"])
+    if not existing:
+        raise HTTPException(status_code=404, detail="Review not found")
+    tr.set_feedback(review_id, feedback=feedback, user_id=user["id"])
+    return {"ok": True}
+
+
+@router.post("/accounts/{account_id}/coach/trade-reviews/{review_id}/forget")
+def forget_trade_review(
+    account_id: str,
+    review_id: str,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import trade_review as tr
+    existing = tr.get_review(review_id, user_id=user["id"])
+    if not existing:
+        raise HTTPException(status_code=404, detail="Review not found")
+    tr.forget_review(review_id, user_id=user["id"])
+    return {"ok": True}
