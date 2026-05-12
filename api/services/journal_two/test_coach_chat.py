@@ -530,3 +530,18 @@ def test_redo_onboarding_preserves_prior_responses(db_conn):
     assert row["onboarding_session_id"] != old_sid
     assert int(row["onboarded"]) == 0
     assert int(row["onboarding_mode"]) == 1
+
+
+def test_get_chat_status_returns_onboarding_flags(db_conn):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET onboarded = 1, onboarding_mode = 0 WHERE id = ?",
+        (acc["id"],),
+    )
+    db_conn.commit()
+    status = coach_chat.get_chat_status(
+        user_id="u_chat", account_id=acc["id"], conn=db_conn,
+    )
+    assert status["onboarded"] is True
+    assert status["onboarding_mode"] is False

@@ -172,10 +172,16 @@ def get_chat_status(*, user_id: str, account_id: str, conn=None) -> dict:
             "SELECT COUNT(*) AS n FROM j2_chat_messages WHERE user_id = ? AND account_id = ? AND forgotten = 0",
             (user_id, account_id),
         ).fetchone()
+        acc_row = _conn.execute(
+            "SELECT onboarded, onboarding_mode FROM j2_accounts WHERE id = ? AND user_id = ?",
+            (account_id, user_id),
+        ).fetchone()
         return {
             "enabled": enabled,
             "rate_limit_remaining": rate["remaining"],
             "conversation_message_count": count_row["n"],
+            "onboarded": bool(acc_row and int(acc_row["onboarded"] or 0)),
+            "onboarding_mode": bool(acc_row and int(acc_row["onboarding_mode"] or 0)),
         }
     finally:
         if _close:

@@ -144,19 +144,55 @@ export default function useJ2CoachChat(accountId) {
     await refreshMessages()
   }, [accountId, refreshMessages])
 
+  const startOnboarding = useCallback(() => {
+    if (!accountId) return
+    return consumeStream(
+      `/api/j2/accounts/${accountId}/coach/chat/start_onboarding`,
+      {},
+    )
+  }, [accountId, consumeStream])
+
+  const skipOnboarding = useCallback(async () => {
+    if (!accountId) return
+    await fetch(`/api/j2/accounts/${accountId}/coach/chat/skip_onboarding`, {
+      method: 'POST', credentials: 'include',
+    })
+    await refreshStatus()
+    await refreshMessages()
+  }, [accountId, refreshStatus, refreshMessages])
+
+  const redoOnboarding = useCallback(() => {
+    if (!accountId) return
+    return consumeStream(
+      `/api/j2/accounts/${accountId}/coach/chat/redo_onboarding`,
+      {},
+    )
+  }, [accountId, consumeStream])
+
   return {
     messages: messagesData?.messages ?? [],
-    status: status ?? { enabled: true, rate_limit_remaining: 200, conversation_message_count: 0 },
+    status: status ?? {
+      enabled: true,
+      rate_limit_remaining: 200,
+      conversation_message_count: 0,
+      onboarded: false,
+      onboarding_mode: false,
+    },
     isLoading,
     error: error || streamError,
     isStreaming,
     streamingTokens,
     pendingAction,
+    isOnboarding: !!status?.onboarding_mode,
+    needsOnboarding: status?.onboarded === false && status?.onboarding_mode === false,
     send,
     confirm,
     cancel,
     forget,
     forgetAll,
+    startOnboarding,
+    skipOnboarding,
+    redoOnboarding,
     refresh: refreshMessages,
   }
 }
