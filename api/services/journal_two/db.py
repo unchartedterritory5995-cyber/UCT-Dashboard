@@ -282,6 +282,25 @@ CREATE TABLE IF NOT EXISTS j2_verdicts (
 
 CREATE INDEX IF NOT EXISTS idx_j2_verdicts_account
     ON j2_verdicts(user_id, account_id, created_at);
+
+CREATE TABLE IF NOT EXISTS j2_trade_reviews (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    account_id  TEXT NOT NULL,
+    trade_id    TEXT NOT NULL,
+    body        TEXT NOT NULL,
+    summary     TEXT,
+    metadata    TEXT NOT NULL DEFAULT '{}',
+    feedback    TEXT,
+    forgotten   INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    UNIQUE(user_id, trade_id) ON CONFLICT REPLACE
+);
+
+CREATE INDEX IF NOT EXISTS idx_j2_trade_reviews_trade
+    ON j2_trade_reviews(trade_id);
+CREATE INDEX IF NOT EXISTS idx_j2_trade_reviews_account
+    ON j2_trade_reviews(user_id, account_id, created_at);
 """
 
 
