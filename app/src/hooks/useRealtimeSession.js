@@ -218,17 +218,29 @@ export default function useRealtimeSession() {
     try {
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
-      const sdpResponse = await fetch(
-        `https://api.openai.com/v1/realtime?model=${encodeURIComponent(tokenResp.model)}`,
-        {
-          method: 'POST',
-          body: offer.sdp,
-          headers: {
-            'Authorization': `Bearer ${tokenResp.client_secret}`,
-            'Content-Type': 'application/sdp',
-          },
-        }
+      // Try GA WebRTC endpoint first, fall back to legacy beta path.
+      // GA: POST /v1/realtime/calls?model=...
+      // Legacy: POST /v1/realtime?model=... (needs OpenAI-Beta: realtime=v1)
+      const sdpHeaders = {
+        'Authorization': `Bearer ${tokenResp.client_secret}`,
+        'Content-Type': 'application/sdp',
+      }
+      let sdpResponse = await fetch(
+        `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(tokenResp.model)}`,
+        { method: 'POST', body: offer.sdp, headers: sdpHeaders }
       )
+      if (!sdpResponse.ok && (sdpResponse.status === 404 || sdpResponse.status === 400)) {
+        const gaErr = await sdpResponse.text()
+        console.warn('[realtime] GA SDP exchange failed, trying legacy', sdpResponse.status, gaErr)
+        sdpResponse = await fetch(
+          `https://api.openai.com/v1/realtime?model=${encodeURIComponent(tokenResp.model)}`,
+          {
+            method: 'POST',
+            body: offer.sdp,
+            headers: { ...sdpHeaders, 'OpenAI-Beta': 'realtime=v1' },
+          }
+        )
+      }
       if (!sdpResponse.ok) {
         const errText = await sdpResponse.text()
         throw new Error(`SDP exchange failed: ${sdpResponse.status} ${errText}`)
