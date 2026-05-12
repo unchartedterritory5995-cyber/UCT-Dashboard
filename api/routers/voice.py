@@ -410,6 +410,29 @@ def session_trace(
     return trace
 
 
+class ExplainRequest(BaseModel):
+    session_id: int
+    turn_text: str | None = None
+
+
+@router.post("/explain")
+@limiter.limit("30/minute")
+def explain(
+    request: Request,
+    body: ExplainRequest,
+    user: dict = Depends(requires_voice_access),
+):
+    """Structured 'why did you say that' for a specific session/turn.
+    Returns the variant in use, tools called before the response,
+    user facts + corrections in play."""
+    from api.services.voice_explainability import explain_turn
+    return explain_turn(
+        user_id=user["id"],
+        session_id=int(body.session_id),
+        turn_text=body.turn_text,
+    )
+
+
 @router.get("/agents/stats")
 def agents_stats(
     days: int = 30,
