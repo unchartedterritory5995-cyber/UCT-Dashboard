@@ -66,9 +66,18 @@ export default function VoiceTelemetryPanel() {
     <div className={styles.panel}>
       <div className={styles.header}>
         <h3 className={styles.title}>Voice telemetry</h3>
-        <button type="button" onClick={refresh} className={styles.refresh} disabled={loading}>
-          {loading ? '...' : 'Refresh'}
-        </button>
+        <div className={styles.headerActions}>
+          <a
+            href="/api/voice/transcripts/export?format=txt"
+            className={styles.exportBtn}
+            title="Download all voice transcripts as plain text"
+          >
+            Download transcripts
+          </a>
+          <button type="button" onClick={refresh} className={styles.refresh} disabled={loading}>
+            {loading ? '...' : 'Refresh'}
+          </button>
+        </div>
       </div>
       <p className={styles.subtitle}>
         Tool reliability, recent failures, and durable corrections you've

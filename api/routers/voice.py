@@ -627,3 +627,54 @@ def failure_patterns(user: dict = Depends(requires_voice_access)):
     Telemetry pane and gets injected into the model's instructions."""
     from api.services.voice_feedback_service import detect_failure_patterns
     return {"patterns": detect_failure_patterns(user["id"])}
+
+
+@router.get("/transcripts/export")
+def transcripts_export(
+    format: str = "txt",
+    limit: int = 100,
+    user: dict = Depends(requires_voice_access),
+):
+    """Download every voice session transcript as plain text or JSON."""
+    from api.services.voice_session_service import list_sessions
+    sessions = list_sessions(user["id"], limit=max(1, min(500, int(limit))))
+
+    transcripts_by_session = []
+    for s in sessions:
+        turns = _get_session_transcripts(s["id"])
+        transcripts_by_session.append({
+            "session_id": s["id"],
+            "mode": s.get("mode"),
+            "started_at": s.get("started_at"),
+            "ended_at": s.get("ended_at"),
+            "duration_seconds": s.get("duration_seconds"),
+            "turns": turns,
+        })
+
+    fmt = (format or "txt").lower()
+    if fmt == "json":
+        import json as _json
+        body = _json.dumps({"sessions": transcripts_by_session}, indent=2)
+        return Response(
+            content=body,
+            media_type="application/json",
+            headers={"Content-Disposition": "attachment; filename=voice_transcripts.json"},
+        )
+
+    # Plain-text format
+    lines = []
+    for s in transcripts_by_session:
+        started = s.get("started_at") or ""
+        lines.append(f"━━━ Session {s['session_id']} — {s.get('mode')} — {started} ━━━")
+        for t in s.get("turns") or []:
+            role = t.get("role", "?").upper()
+            ts = (t.get("timestamp") or "")[:19]
+            text = t.get("text") or ""
+            lines.append(f"[{ts}] {role}: {text}")
+        lines.append("")
+    body = "\n".join(lines) if lines else "No voice transcripts yet.\n"
+    return Response(
+        content=body,
+        media_type="text/plain",
+        headers={"Content-Disposition": "attachment; filename=voice_transcripts.txt"},
+    )
