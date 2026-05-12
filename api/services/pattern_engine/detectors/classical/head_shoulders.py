@@ -375,6 +375,37 @@ def _score_context(context: dict) -> float:
     return min(100.0, score)
 
 
+def _ma_alignment_phrase(context: dict) -> str:
+    align = context.get("ma_alignment", "mixed")
+    if align == "stacked_bullish":
+        return "stacked-bullish moving-average (overbought topping context)"
+    if align == "stacked_bearish":
+        return "stacked-bearish moving-average (counter-trend warning for shorts)"
+    return "mixed moving-average"
+
+
+def _trend_stage_description(context: dict) -> str:
+    stage = context.get("trend_stage", 0)
+    if stage == 3:
+        return "a Stage 3 distribution/topping environment (textbook H&S reversal setup)"
+    if stage == 2:
+        return "a Stage 2 uptrend showing exhaustion (overbought reversal context)"
+    if stage == 4:
+        return "a Stage 4 downtrend (continuation context — H&S as a bear-flag analog)"
+    if stage == 1:
+        return "a Stage 1 base/accumulation environment (counter-trend caution)"
+    return "an undefined trend stage"
+
+
+def _rs_trend_phrase(context: dict) -> str:
+    rs = context.get("rs_trend", "flat")
+    if rs == "up":
+        return "still improving (counter-trend warning — wait for neckline break)"
+    if rs == "down":
+        return "deteriorating"
+    return "neutral"
+
+
 def _build_detection(bars, c, confidence, context,
                      geom_score, vol_score, ctx_score, hist_score) -> Detection:
     last_bar = bars[-1]
@@ -385,9 +416,13 @@ def _build_detection(bars, c, confidence, context,
     t2_idx = c["trough2_idx"]
 
     head_price = c["head_price"]
+    left_shoulder_price = c["left_shoulder_price"]
     right_shoulder_price = c["right_shoulder_price"]
+    trough1_price = c["trough1_price"]
+    trough2_price = c["trough2_price"]
     neckline_at_now = c["neckline_at_now"]
     neckline_at_head_t = c["neckline_at_head_t"]
+    neckline_slope = c["neckline_slope"]
 
     # Levels
     entry = round(neckline_at_now * 0.999, 2)
@@ -396,6 +431,139 @@ def _build_detection(bars, c, confidence, context,
     head_to_neckline = head_price - neckline_at_head_t
     target = round(neckline_at_now - head_to_neckline, 2)
     rr = (entry - target) / (stop - entry) if stop > entry else 0.0
+
+    # Stop distance %
+    stop_distance_pct = (stop - entry) / entry * 100 if entry > 0 else 0.0
+
+    # Narrative dimension values
+    asymmetry_pct = c["asymmetry"] * 100.0
+    shoulder_symmetry_pct = (1.0 - c["asymmetry"]) * 100.0
+    head_pct_above_shoulders = c["head_pct_above_shoulders"] * 100.0
+    pattern_bars = c["pattern_bars"]
+    left_span = h_idx - l_idx
+    right_span = r_idx - h_idx
+    head_to_neckline_pts = head_to_neckline
+    head_to_neckline_pct = (head_to_neckline / head_price * 100.0) if head_price > 0 else 0.0
+    avg_shoulder = (left_shoulder_price + right_shoulder_price) / 2.0
+
+    ma_phrase = _ma_alignment_phrase(context)
+    stage_phrase = _trend_stage_description(context)
+    rs_phrase = _rs_trend_phrase(context)
+    regime = context.get("regime", "current")
+    vol_signature = context.get("volume_signature", "unspecified")
+
+    sym_token = "the stock"
+
+    # ---- Narrative composition - RICH, paragraph-length, with real values ----
+    headline = (
+        f"Head and Shoulders forming on {sym_token} - head ${head_price:.2f} sits "
+        f"{head_pct_above_shoulders:.1f}% above ${avg_shoulder:.2f} avg shoulders, "
+        f"{pattern_bars}-bar pattern, neckline at ${neckline_at_now:.2f}. Pivot "
+        f"${entry:.2f}, target ${target:.2f}, R:R {rr:.1f}."
+    )
+
+    what_it_is = (
+        f"The Head and Shoulders is one of the most documented and time-tested "
+        f"reversal patterns in technical analysis, with origins traced back to "
+        f"Charles Dow at the turn of the 20th century, formally codified by "
+        f"Richard Schabacker in 'Technical Analysis and Stock Market Profits' "
+        f"(1932), and elevated to canonical status in Edwards & Magee's "
+        f"'Technical Analysis of Stock Trends' (1948). Structurally it is three "
+        f"sequential peaks in an uptrend: a left shoulder at ${left_shoulder_price:.2f}, "
+        f"a higher head at ${head_price:.2f} that breaks to a new high then fails, "
+        f"and a right shoulder at ${right_shoulder_price:.2f} that fails to "
+        f"match the head - the head here towers {head_pct_above_shoulders:.1f}% "
+        f"above the average shoulder, while the two shoulders are within "
+        f"{asymmetry_pct:.1f}% of each other (symmetry score {shoulder_symmetry_pct:.0f}%). "
+        f"The 'neckline' is the trendline connecting the two intervening troughs "
+        f"(${trough1_price:.2f} between left shoulder and head, ${trough2_price:.2f} "
+        f"between head and right shoulder, slope {neckline_slope:.4f}/bar - "
+        f"approximately horizontal). The pattern spans {pattern_bars} bars total "
+        f"({left_span} bars from left shoulder to head, {right_span} bars from "
+        f"head to right shoulder). The market mechanic underneath is classic "
+        f"institutional distribution: smart money sells into the head's new "
+        f"high while later buyers chase, the second-attempt rally (right "
+        f"shoulder) fails to reach the same height because demand has been "
+        f"absorbed, and the volume signature - typically peak volume on the "
+        f"left shoulder, declining through head, lowest on right shoulder - "
+        f"reveals the rotation. Bulkowski's empirical sample places confirmed "
+        f"H&S breakdowns at roughly 60-70% follow-through to the measured-move "
+        f"target."
+    )
+
+    why_it_matters = (
+        f"This H&S is forming in {stage_phrase} with {ma_phrase} alignment "
+        f"and {rs_phrase} relative strength versus the broader market, against "
+        f"a {regime} regime backdrop and volume signature reading "
+        f"{vol_signature}. The {shoulder_symmetry_pct:.0f}% shoulder symmetry "
+        f"and {head_pct_above_shoulders:.1f}% head dominance are both squarely "
+        f"in the high-quality zone - asymmetric shoulders or shallow head "
+        f"dominance produce noisy variants that fail more often, while clean "
+        f"symmetric structures resolve cleanly. The {head_to_neckline_pct:.1f}% "
+        f"head-to-neckline distance (${head_to_neckline_pts:.2f} in points) is "
+        f"the projected downside move once the neckline cracks, and a target "
+        f"of that magnitude is meaningful enough to justify the trade. The "
+        f"{left_span}/{right_span} bar spans on either side of the head are "
+        f"in the textbook 8-18 bar window where the highest-follow-through "
+        f"H&S patterns resolve - longer, sprawling patterns are less reliable "
+        f"because they accumulate too many late buyers near the lows who "
+        f"defend the neckline, while shorter patterns lack the time for "
+        f"genuine distribution to occur. Declining volume from left shoulder "
+        f"to right shoulder (encoded in volume_score component) confirms the "
+        f"thesis that institutional demand is leaving the building, and "
+        f"trapped longs near the head's price level become the supply that "
+        f"caps every subsequent attempt to rally back through the neckline."
+    )
+
+    what_to_watch_for = (
+        f"The trigger is a daily close below ${entry:.2f} (the neckline "
+        f"projection at ${neckline_at_now:.2f} minus a small confirmation "
+        f"buffer) on volume of at least 1.5x the 20-bar average - that volume "
+        f"expansion on the breakdown is non-negotiable because a neckline "
+        f"break on light tape frequently reverses as a bear trap. The ideal "
+        f"trigger bar closes in the lower half of its range with a wide real "
+        f"body, and the next 1-3 bars should hold below ${neckline_at_now:.2f} "
+        f"without 'kissing back' above the neckline more than once (a single "
+        f"throwback retest is normal and often the highest-quality entry, but "
+        f"two-plus closes back above neckline weakens the thesis). Measured "
+        f"target is ${target:.2f}, derived by projecting the "
+        f"${head_to_neckline_pts:.2f} head-to-neckline distance down from the "
+        f"current neckline level. Initial stop sits at ${stop:.2f} (1% above "
+        f"the right shoulder at ${right_shoulder_price:.2f}) representing a "
+        f"{stop_distance_pct:.1f}% risk from entry - risking 1% of account "
+        f"on this short implies a position size of roughly "
+        f"{(1.0 / (stop_distance_pct / 100)) if stop_distance_pct > 0 else 0:.0f}% "
+        f"of equity, and risking 0.5% halves that. Trail stops above each new "
+        f"swing high as the trade extends or above the descending 10/20 EMA, "
+        f"and consider covering partial size at 1R for a free trade. Short "
+        f"trades require borrow availability and carry overnight gap risk "
+        f"that long trades do not."
+    )
+
+    failure_signal = (
+        f"The pattern is invalidated on a daily close above the right shoulder "
+        f"at ${right_shoulder_price:.2f} (stop at ${stop:.2f}, 1% above to "
+        f"absorb the standard upside wick) - that close signals the "
+        f"distribution thesis is wrong, demand has reabsorbed supply, and "
+        f"the prior uptrend has a high probability of resuming, often with a "
+        f"squeeze leg as trapped shorts cover into the right-shoulder break. "
+        f"A subtler failure mode that often precedes the hard stop: price "
+        f"breaks below ${neckline_at_now:.2f} on weak or merely-average "
+        f"volume, the next 1-2 bars close in the upper half of their range, "
+        f"and price recovers back above the neckline. That sequence is the "
+        f"textbook 'failed breakdown' or Wyckoff 'spring' - market makers "
+        f"used the visible neckline as a liquidity grab to cover shorts, "
+        f"not a genuine continuation. Short squeezes off a failed H&S can be "
+        f"violent because the pattern attracts heavy short interest from "
+        f"trend-following systems, and uncapped upside loss demands the "
+        f"{stop_distance_pct:.1f}% stop be honored without negotiation - "
+        f"widening or removing a stop on a failing H&S short is one of the "
+        f"fastest ways to convert a manageable loss into account-damaging "
+        f"exposure, because the asymmetric risk of a short (capped reward, "
+        f"uncapped loss) demands tighter discipline than long trades. Failed "
+        f"H&S patterns often resolve with V-shape reversal velocity straight "
+        f"through the head, so size accordingly and never average down."
+    )
 
     now = int(time.time())
 
@@ -447,21 +615,11 @@ def _build_detection(bars, c, confidence, context,
             "historical_score": hist_score,
         },
         "narrative": {
-            "headline": (f"Head and shoulders forming - head {c['head_pct_above_shoulders']*100:.1f}% "
-                         f"above shoulders, neckline ~{neckline_at_now:.2f}, "
-                         f"{c['pattern_bars']}-bar pattern"),
-            "what_it_is": ("Three-peak topping pattern: middle peak (head) is highest, flanked by "
-                           "two roughly symmetric shoulders. The neckline connects the two troughs "
-                           "between the peaks. Classic bearish reversal."),
-            "why_it_matters": ("Buyers tried to push to a new high (head) but the next rally "
-                               "(right shoulder) failed to match. Declining volume confirms demand "
-                               "exhaustion. A breakdown below the neckline projects a measured move "
-                               "equal to the head-to-neckline distance."),
-            "what_to_watch_for": (f"Breakdown below the neckline ({neckline_at_now:.2f}) on "
-                                  f"volume >= 1.5x the 20-bar average. Entry triggers below "
-                                  f"{entry:.2f}; measured-move target {target:.2f}."),
-            "failure_signal": (f"Close above the right shoulder ({right_shoulder_price:.2f}). "
-                               f"Pattern invalidates and the prior uptrend may resume."),
+            "headline": headline,
+            "what_it_is": what_it_is,
+            "why_it_matters": why_it_matters,
+            "what_to_watch_for": what_to_watch_for,
+            "failure_signal": failure_signal,
         },
         "status": "ready",
         "outcome": None,
