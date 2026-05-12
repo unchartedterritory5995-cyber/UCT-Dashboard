@@ -1,0 +1,60 @@
+{
+  "name": "short_series",
+  "category": "negative",
+  "expected": {
+    "fires": false
+  },
+  "context": {
+    "trend_stage": 2,
+    "rs_trend": "up",
+    "ma_alignment": "stacked_bullish",
+    "volume_signature": "neutral",
+    "regime": "bullish",
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": null
+  },
+  "bars": [
+    {
+      "t": 1700000000,
+      "o": 50.28,
+      "h": 50.54,
+      "l": 49.65,
+      "c": 49.71,
+      "v": 1146.0
+    },
+    {
+      "t": 1700086400,
+      "o": 50.71,
+      "h": 51.47,
+      "l": 50.4,
+      "c": 51.23,
+      "v": 1150.0
+    },
+    {
+      "t": 1700172800,
+      "o": 51.84,
+      "h": 52.16,
+      "l": 51.74,
+      "c": 51.9,
+      "v": 929.0
+    },
+    {
+      "t": 1700259200,
+      "o": 52.84,
+      "h": 53.53,
+      "l": 52.55,
+      "c": 53.21,
+      "v": 917.0
+    },
+    {
+      "t": 1700345600,
+      "o": 54.25,
+      "h": 54.34,
+      "l": 53.84,
+      "c": 54.01,
+      "v": 976.0
+    }
+  ]
+}

@@ -34,6 +34,7 @@ from api.services.pattern_engine.detectors.uct import flat_base as _flat_base  #
 from api.services.pattern_engine.detectors.uct import u_and_r as _u_and_r  # noqa: F401
 from api.services.pattern_engine.detectors.uct import remount as _remount  # noqa: F401
 from api.services.pattern_engine.detectors.uct import cup_handle_uct as _cup_handle_uct  # noqa: F401
+from api.services.pattern_engine.detectors.structure import swing_pivots as _swing_pivots  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -155,6 +156,12 @@ _PATTERN_METADATA = {
         "category": "uct",
         "direction": "bullish",
         "description": "O'Neil CAN SLIM cup-with-handle with strict institutional filters: 30%+ prior advance, tight 30-65 bar cup <=35% depth, tight handle. Highest-conviction continuation.",
+    },
+    "swing_pivots": {
+        "name": "Swing Pivot Map",
+        "category": "structure",
+        "direction": "neutral",
+        "description": "Significant swing-high and swing-low pivots in the recent 60-bar window. Structural reference levels for entries, stops, and analysis.",
     },
 }
 
