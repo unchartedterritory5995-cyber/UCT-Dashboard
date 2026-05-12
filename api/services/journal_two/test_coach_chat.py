@@ -373,3 +373,36 @@ def test_audit_assistant_message_flags_unverified_numbers(db_conn):
     meta = json.loads(row["metadata"] or "{}")
     assert "audit_flags" in meta
     assert any("99.9" in f for f in meta["audit_flags"])
+
+
+def test_handle_user_turn_appends_section_8_when_onboarding_mode(db_conn):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET onboarding_mode = 1 WHERE id = ?", (acc["id"],),
+    )
+    db_conn.commit()
+    client = FakeChatClient(stream_scripts=[
+        [{"type": "text", "text": "Hi. Let's start."}, {"type": "message_stop"}],
+    ])
+    list(coach_chat.handle_user_turn(
+        user_id="u_chat", account_id=acc["id"],
+        user_message="hello", client=client, conn=db_conn,
+    ))
+    assert client.calls, "No model call recorded"
+    sp = client.calls[-1]["system_prompt"]
+    assert "Onboarding interview mode" in sp
+
+
+def test_handle_user_turn_does_not_append_section_8_when_not_onboarding(db_conn):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    client = FakeChatClient(stream_scripts=[
+        [{"type": "text", "text": "Hi."}, {"type": "message_stop"}],
+    ])
+    list(coach_chat.handle_user_turn(
+        user_id="u_chat", account_id=acc["id"],
+        user_message="hello", client=client, conn=db_conn,
+    ))
+    sp = client.calls[-1]["system_prompt"]
+    assert "Onboarding interview mode" not in sp

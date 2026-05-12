@@ -306,7 +306,14 @@ def handle_user_turn(
 
         for _iter in range(MAX_LOOPS):
             messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
+            row = _conn.execute(
+                "SELECT onboarding_mode FROM j2_accounts WHERE id = ? AND user_id = ?",
+                (account_id, user_id),
+            ).fetchone()
+            onboarding = bool(row and row["onboarding_mode"])
             system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
+            if onboarding:
+                system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
 
             assistant_text = ""
             tool_uses: list[dict] = []
@@ -505,12 +512,20 @@ def confirm_pending_action(
                "summary": _summarize_tool_result(tc["name"], result)}
 
         # Re-invoke model for acknowledgement
+        row = _conn.execute(
+            "SELECT onboarding_mode FROM j2_accounts WHERE id = ? AND user_id = ?",
+            (account_id, user_id),
+        ).fetchone()
+        onboarding = bool(row and row["onboarding_mode"])
+        system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
+        if onboarding:
+            system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
         active_client = client or AnthropicChatClient()
         tools_param = _build_anthropic_tools_param()
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
         ack_text = ""
         with active_client.start_stream(
-            system_prompt=coach_prompts.COMPASS_SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             messages=messages, tools=tools_param,
         ) as stream:
             for ev in stream:
@@ -682,12 +697,20 @@ def cancel_pending_action(
             parent_id=message_id, conn=_conn,
         )
 
+        row = _conn.execute(
+            "SELECT onboarding_mode FROM j2_accounts WHERE id = ? AND user_id = ?",
+            (account_id, user_id),
+        ).fetchone()
+        onboarding = bool(row and row["onboarding_mode"])
+        system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
+        if onboarding:
+            system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
         active_client = client or AnthropicChatClient()
         tools_param = _build_anthropic_tools_param()
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
         ack_text = ""
         with active_client.start_stream(
-            system_prompt=coach_prompts.COMPASS_SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             messages=messages, tools=tools_param,
         ) as stream:
             for ev in stream:
