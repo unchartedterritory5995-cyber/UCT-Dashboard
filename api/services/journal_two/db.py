@@ -301,6 +301,22 @@ CREATE INDEX IF NOT EXISTS idx_j2_trade_reviews_trade
     ON j2_trade_reviews(trade_id);
 CREATE INDEX IF NOT EXISTS idx_j2_trade_reviews_account
     ON j2_trade_reviews(user_id, account_id, created_at);
+
+CREATE TABLE IF NOT EXISTS j2_interventions (
+    id           TEXT PRIMARY KEY,
+    user_id      TEXT NOT NULL,
+    account_id   TEXT NOT NULL,
+    rule         TEXT NOT NULL,
+    severity     TEXT NOT NULL CHECK(severity IN ('info','warning','danger')),
+    message      TEXT NOT NULL,
+    factors      TEXT NOT NULL DEFAULT '[]',
+    fired_at     TEXT NOT NULL,
+    cooldown_until TEXT NOT NULL,
+    dismissed_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_j2_interventions_active
+    ON j2_interventions(user_id, account_id, rule, cooldown_until);
 """
 
 
