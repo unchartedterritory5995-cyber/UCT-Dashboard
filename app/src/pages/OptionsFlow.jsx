@@ -3428,7 +3428,120 @@ export default function OptionsFlowDashboard() {
         {/* Market Read */}
         {tab==="Market Read" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            {/* Sector / Ticker Breakdown */}
+            {/* Flow Intelligence Summary */}
+            {FD && D.clean_confirmed && (()=>{
+              const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
+              if (!cc.length) return null;
+              let totalBull=0, totalBear=0;
+              const tkMap = {};
+              cc.forEach(t => {
+                if (t.D==="BULL") totalBull+=t.P; if (t.D==="BEAR") totalBear+=t.P;
+                if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0 };
+                const tk = tkMap[t.S];
+                if (t.D==="BULL") tk.bull+=t.P; if (t.D==="BEAR") tk.bear+=t.P; tk.n++;
+              });
+              const allTk = Object.values(tkMap);
+              const bullCount = allTk.filter(t=>t.bull>t.bear).length;
+              const bearCount = allTk.filter(t=>t.bear>t.bull).length;
+              const totalPrem = totalBull + totalBear;
+              const bullPct = totalPrem > 0 ? Math.round(totalBull/totalPrem*100) : 50;
+              const netDir = totalBull >= totalBear ? "BULLISH" : "BEARISH";
+              const netC = totalBull >= totalBear ? P.bu : P.be;
+              const topBull = allTk.filter(t=>t.bull>t.bear).sort((a,b)=>(b.bull-b.bear)-(a.bull-a.bear)).slice(0,3);
+              const topBear = allTk.filter(t=>t.bear>t.bull).sort((a,b)=>(b.bear-b.bull)-(a.bear-a.bull)).slice(0,3);
+              const capLabel = capFilter==="All" ? "All Caps" : capFilter;
+              // Flow velocity: today vs average
+              const allDates = [...new Set(cc.map(t=>t.Dt).filter(Boolean))];
+              const latestDate = allDates.length > 0 ? allDates.sort((a,b)=>{
+                const pa=a.split("/").map(Number), pb=b.split("/").map(Number);
+                const ya=pa.length>=3?(pa[2]<100?pa[2]+2000:pa[2]):2026, yb=pb.length>=3?(pb[2]<100?pb[2]+2000:pb[2]):2026;
+                return new Date(yb,pb[0]-1,pb[1]||1) - new Date(ya,pa[0]-1,pa[1]||1);
+              })[0] : null;
+              const todayTrades = latestDate ? cc.filter(t=>t.Dt===latestDate) : [];
+              const todayPrem = todayTrades.reduce((a,t)=>a+t.P,0);
+              const todayCount = todayTrades.length;
+              const avgDailyPrem = allDates.length > 1 ? totalPrem / allDates.length : 0;
+              const avgDailyCount = allDates.length > 1 ? cc.length / allDates.length : 0;
+              const velRatio = avgDailyPrem > 0 ? todayPrem / avgDailyPrem : 0;
+              const velLabel = velRatio >= 1.5 ? "elevated" : velRatio >= 0.8 ? "normal" : "quiet";
+              const velC = velRatio >= 1.5 ? P.ac : velRatio >= 0.8 ? P.wh : P.dm;
+              // Earnings callout
+              const erTickers = [...new Set(cc.filter(t=>t.er).map(t=>t.S))];
+              const erTop = erTickers.slice(0,5);
+              return (
+                <Card>
+                  <div style={{ display:"flex", gap:14, alignItems:"center" }}>
+                    <div style={{ width:3, background:`linear-gradient(180deg, ${P.bu}, ${P.ac}, ${P.bu})`, borderRadius:2, alignSelf:"stretch", flexShrink:0, opacity:0.3 }} />
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:10, fontWeight:600, color:P.dm, letterSpacing:1.5, textTransform:"uppercase", marginBottom:6 }}>Flow Intelligence — {capLabel}</div>
+                      <div style={{ fontSize:12, color:P.wh, lineHeight:1.8 }}>
+                        <span>Net flow is </span>
+                        <span style={{ fontWeight:900, color:netC }}>{netDir}</span>
+                        <span> with </span>
+                        <span style={{ fontWeight:800, color:P.bu }}>{fmt(totalBull)}</span>
+                        <span> bull vs </span>
+                        <span style={{ fontWeight:800, color:P.be }}>{fmt(totalBear)}</span>
+                        <span> bear across </span>
+                        <span style={{ fontWeight:700, color:P.wh }}>{allTk.length}</span>
+                        <span> tickers ({bullCount} bullish, {bearCount} bearish). </span>
+                        {topBull.length > 0 && <>
+                          <span>Top bullish names: </span>
+                          {topBull.map((t,i) => <span key={t.sym}>
+                            <span style={{ fontWeight:800, color:P.bu }}>{t.sym}</span>
+                            <span style={{ color:P.dm }}> ({fmt(t.bull-t.bear)})</span>
+                            {i < topBull.length-1 && ", "}
+                          </span>)}
+                          <span>. </span>
+                        </>}
+                        {topBear.length > 0 && <>
+                          <span>Top bearish: </span>
+                          {topBear.map((t,i) => <span key={t.sym}>
+                            <span style={{ fontWeight:800, color:P.be }}>{t.sym}</span>
+                            <span style={{ color:P.dm }}> ({fmt(t.bear-t.bull)})</span>
+                            {i < topBear.length-1 && ", "}
+                          </span>)}
+                          <span>.</span>
+                        </>}
+                      </div>
+                      {/* Flow Velocity */}
+                      {latestDate && avgDailyPrem > 0 && (
+                        <div style={{ fontSize:11, color:P.mt, lineHeight:1.8, marginTop:4 }}>
+                          <span style={{ fontWeight:700, color:P.dm, letterSpacing:0.5 }}>FLOW VELOCITY: </span>
+                          <span>Latest session </span>
+                          <span style={{ fontWeight:800, color:velC }}>{fmt(todayPrem)}</span>
+                          <span> across </span>
+                          <span style={{ fontWeight:700, color:P.wh }}>{todayCount}</span>
+                          <span> trades vs {allDates.length}d avg </span>
+                          <span style={{ fontWeight:700, color:P.wh }}>{fmt(avgDailyPrem)}</span>
+                          <span> / </span>
+                          <span style={{ fontWeight:700, color:P.wh }}>{Math.round(avgDailyCount)}</span>
+                          <span> trades — </span>
+                          <span style={{ fontWeight:800, color:velC }}>{velLabel}</span>
+                          <span>.</span>
+                        </div>
+                      )}
+                      {/* Earnings Callout */}
+                      {erTop.length > 0 && (
+                        <div style={{ fontSize:11, color:P.mt, lineHeight:1.8, marginTop:2 }}>
+                          <span style={{ fontWeight:700, color:P.dm, letterSpacing:0.5 }}>EARNINGS FLOW: </span>
+                          <span>{erTickers.length} ticker{erTickers.length>1?"s":""} with upcoming earnings have active flow: </span>
+                          {erTop.map((sym,i) => <span key={sym}>
+                            <span style={{ fontWeight:800, color:P.ac }}>{sym}</span>
+                            {i < erTop.length-1 && ", "}
+                          </span>)}
+                          {erTickers.length > 5 && <span style={{ color:P.dm }}> +{erTickers.length-5} more</span>}
+                          <span>.</span>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ textAlign:"center", flexShrink:0, padding:"0 10px" }}>
+                      <div style={{ fontSize:28, fontWeight:900, color:netC, fontVariantNumeric:"tabular-nums" }}>{bullPct}%</div>
+                      <div style={{ fontSize:8, fontWeight:600, color:P.dm, letterSpacing:1, textTransform:"uppercase" }}>Bull Flow</div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })()}
             {FD.SECTORS.length > 0 && (
               <Card title={FD.sectorTickerMode?(FD.sectorIsETF?"ETF Flow":"Ticker Flow"):"Sector Flow"} sub={FD.sectorTickerMode?"Confirmed premium by ticker":"Confirmed premium by sector"}>
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:6 }}>
