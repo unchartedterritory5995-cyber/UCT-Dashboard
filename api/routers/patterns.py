@@ -23,6 +23,7 @@ from api.services.pattern_engine.detectors.classical import rising_wedge as _ris
 from api.services.pattern_engine.detectors.classical import head_shoulders as _head_shoulders  # noqa: F401
 from api.services.pattern_engine.detectors.classical import inverse_head_shoulders as _inverse_head_shoulders  # noqa: F401
 from api.services.pattern_engine.detectors.classical import double_top as _double_top  # noqa: F401
+from api.services.pattern_engine.detectors.classical import double_bottom as _double_bottom  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -78,6 +79,12 @@ _PATTERN_METADATA = {
         "category": "classical",
         "direction": "bearish",
         "description": "Two peaks at similar heights with a retrace trough between. Bearish reversal pattern.",
+    },
+    "double_bottom": {
+        "name": "Double Bottom",
+        "category": "classical",
+        "direction": "bullish",
+        "description": "Two troughs at similar lows with a rally peak between. Bullish reversal pattern.",
     },
 }
 
