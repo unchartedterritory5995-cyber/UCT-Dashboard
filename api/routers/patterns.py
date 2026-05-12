@@ -29,6 +29,7 @@ from api.services.pattern_engine.detectors.classical import inverse_cup_handle a
 from api.services.pattern_engine.detectors.uct import vcp as _vcp  # noqa: F401
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _high_tight_flag  # noqa: F401
 from api.services.pattern_engine.detectors.uct import episodic_pivot as _episodic_pivot  # noqa: F401
+from api.services.pattern_engine.detectors.uct import power_earnings_gap as _power_earnings_gap  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -120,6 +121,12 @@ _PATTERN_METADATA = {
         "category": "uct",
         "direction": "bullish",
         "description": "A single bar of 2x+ range and volume that breaks out of a multi-week base. Bonde's signature regime-change signal.",
+    },
+    "power_earnings_gap": {
+        "name": "Power Earnings Gap (PEG)",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Significant gap-up (>=4%) on 3x+ volume that holds with tight post-gap consolidation. Bonde's signature post-earnings continuation setup.",
     },
 }
 
