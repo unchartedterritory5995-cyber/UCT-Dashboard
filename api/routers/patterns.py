@@ -28,6 +28,7 @@ from api.services.pattern_engine.detectors.classical import cup_handle as _cup_h
 from api.services.pattern_engine.detectors.classical import inverse_cup_handle as _inverse_cup_handle  # noqa: F401
 from api.services.pattern_engine.detectors.uct import vcp as _vcp  # noqa: F401
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _high_tight_flag  # noqa: F401
+from api.services.pattern_engine.detectors.uct import episodic_pivot as _episodic_pivot  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -113,6 +114,12 @@ _PATTERN_METADATA = {
         "category": "uct",
         "direction": "bullish",
         "description": "Near-vertical 90%+ advance followed by tight orderly consolidation. The rarest, most explosive continuation pattern (O'Neil / Bonde).",
+    },
+    "episodic_pivot": {
+        "name": "Episodic Pivot",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "A single bar of 2x+ range and volume that breaks out of a multi-week base. Bonde's signature regime-change signal.",
     },
 }
 
