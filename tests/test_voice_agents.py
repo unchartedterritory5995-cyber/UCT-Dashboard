@@ -5,8 +5,21 @@ from api.services import voice_agents as va
 from api.services import voice_tools
 
 
-def test_four_specialists_defined():
-    assert set(va.AGENTS.keys()) == {"analyst", "risk_officer", "coach", "scout"}
+def test_five_agents_defined():
+    """4 specialists + 1 orchestrator (Batch 10d)."""
+    assert set(va.AGENTS.keys()) == {
+        "orchestrator", "analyst", "risk_officer", "coach", "scout",
+    }
+
+
+def test_orchestrator_has_route_tool():
+    """Orchestrator's primary action is routing."""
+    assert "route_to_agent" in va.AGENTS["orchestrator"]["tool_allowlist"]
+
+
+def test_orchestrator_does_not_get_create_position():
+    """Orchestrator routes; it doesn't write trades."""
+    assert "create_position" not in va.AGENTS["orchestrator"]["tool_allowlist"]
 
 
 def test_each_agent_has_required_fields():
@@ -47,7 +60,7 @@ def test_get_agent_unknown_returns_none():
 
 def test_list_agents_returns_safe_dicts():
     out = va.list_agents()
-    assert len(out) == 4
+    assert len(out) == 5  # orchestrator + 4 specialists
     for a in out:
         assert set(a.keys()) == {
             "id", "display_name", "emoji", "color", "voice", "description"
