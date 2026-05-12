@@ -36,6 +36,7 @@ from api.services.pattern_engine.detectors.uct import remount as _remount  # noq
 from api.services.pattern_engine.detectors.uct import cup_handle_uct as _cup_handle_uct  # noqa: F401
 from api.services.pattern_engine.detectors.structure import swing_pivots as _swing_pivots  # noqa: F401
 from api.services.pattern_engine.detectors.structure import support_resistance as _support_resistance  # noqa: F401
+from api.services.pattern_engine.detectors.structure import major_trendlines as _major_trendlines  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -169,6 +170,12 @@ _PATTERN_METADATA = {
         "category": "structure",
         "direction": "neutral",
         "description": "Horizontal price level confirmed by >=2 swing-pivot touches within a 2% band. Emit one Detection per active level.",
+    },
+    "major_trendlines": {
+        "name": "Major Trendline",
+        "category": "structure",
+        "direction": "neutral",
+        "description": "Auto-detected rising support or falling resistance trendline with >=3 touches + validity >=0.6. Emit one Detection per active trendline.",
     },
 }
 
