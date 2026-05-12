@@ -1,5 +1,6 @@
 import { useVoice } from '../../context/VoiceContext'
 import useRealtimeSession from '../../hooks/useRealtimeSession'
+import AgentPicker from './AgentPicker'
 import styles from './FloatingOrb.module.css'
 
 /**
@@ -83,8 +84,12 @@ export default function FloatingOrb({ context = 'global' }) {
           🎓
         </button>
       )}
+      {!inSession && <AgentPicker />}
       {inTrainMode && (
         <div className={styles.trainBadge}>Training</div>
+      )}
+      {inSession && voice.sessionContext && voice.sessionContext !== 'global' && voice.sessionContext !== 'train_me' && (
+        <div className={styles.agentBadge}>{voice.sessionContext.replace('_', ' ')}</div>
       )}
     </div>
   )
