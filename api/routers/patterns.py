@@ -19,6 +19,7 @@ from api.services.pattern_engine.detectors.classical import bull_flag as _bull_f
 from api.services.pattern_engine.detectors.classical import bear_flag as _bear_flag  # noqa: F401
 from api.services.pattern_engine.detectors.classical import pennant as _pennant  # noqa: F401
 from api.services.pattern_engine.detectors.classical import falling_wedge as _falling_wedge  # noqa: F401
+from api.services.pattern_engine.detectors.classical import rising_wedge as _rising_wedge  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -50,6 +51,12 @@ _PATTERN_METADATA = {
         "category": "classical",
         "direction": "bullish",
         "description": "Both trendlines slope down, converging downward. Bullish reversal/continuation pattern.",
+    },
+    "rising_wedge": {
+        "name": "Rising Wedge",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "Both trendlines slope up, converging upward. Bearish reversal pattern.",
     },
 }
 
