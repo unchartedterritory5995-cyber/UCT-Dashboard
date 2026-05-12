@@ -37,6 +37,7 @@ from api.services.pattern_engine.detectors.uct import cup_handle_uct as _cup_han
 from api.services.pattern_engine.detectors.structure import swing_pivots as _swing_pivots  # noqa: F401
 from api.services.pattern_engine.detectors.structure import support_resistance as _support_resistance  # noqa: F401
 from api.services.pattern_engine.detectors.structure import major_trendlines as _major_trendlines  # noqa: F401
+from api.services.pattern_engine.detectors.structure import stage_analysis as _stage_analysis  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -176,6 +177,12 @@ _PATTERN_METADATA = {
         "category": "structure",
         "direction": "neutral",
         "description": "Auto-detected rising support or falling resistance trendline with >=3 touches + validity >=0.6. Emit one Detection per active trendline.",
+    },
+    "stage_analysis": {
+        "name": "Weinstein Stage Analysis",
+        "category": "structure",
+        "direction": "neutral",
+        "description": "Classifies the chart's current stage in Weinstein's 4-stage cycle (basing, advance, distribution, decline). Foundational context for every other pattern.",
     },
 }
 
