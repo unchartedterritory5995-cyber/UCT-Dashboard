@@ -65,16 +65,23 @@ export default function VoiceTelemetryPanel() {
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <h3 className={styles.title}>Voice telemetry</h3>
+        <h3 className={styles.title} id="voice-telemetry-title">Voice telemetry</h3>
         <div className={styles.headerActions}>
           <a
             href="/api/voice/transcripts/export?format=txt"
             className={styles.exportBtn}
+            aria-label="Download all voice transcripts as a plain-text file"
             title="Download all voice transcripts as plain text"
           >
             Download transcripts
           </a>
-          <button type="button" onClick={refresh} className={styles.refresh} disabled={loading}>
+          <button
+            type="button"
+            onClick={refresh}
+            className={styles.refresh}
+            disabled={loading}
+            aria-label={loading ? 'Refreshing voice telemetry' : 'Refresh voice telemetry'}
+          >
             {loading ? '...' : 'Refresh'}
           </button>
         </div>

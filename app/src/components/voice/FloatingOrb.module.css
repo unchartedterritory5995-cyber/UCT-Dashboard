@@ -95,3 +95,11 @@
   text-transform: uppercase;
   pointer-events: none;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .listening { animation: none; }
+  .thinking { animation: none; }
+  .responding { box-shadow: 0 0 4px rgba(74, 222, 128, 0.4); }
+  .trainBtn { transition: none; }
+  .trainBadge { animation: none; }
+}

@@ -43,12 +43,17 @@ function FeedbackButtons({ turnText, sessionId }) {
   if (showInput) {
     return (
       <div className={styles.fbInputWrap}>
+        <label htmlFor="voice-correction-input" className={styles.fbInputLabel}>
+          What's the correct answer?
+        </label>
         <input
+          id="voice-correction-input"
           type="text"
           className={styles.fbInput}
-          placeholder="What's the right answer?"
+          placeholder="Type the right answer, Enter to save, Esc to cancel"
           value={correction}
           autoFocus
+          aria-label="Correction text"
           onChange={(e) => setCorrection(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && correction.trim()) {
@@ -64,22 +69,24 @@ function FeedbackButtons({ turnText, sessionId }) {
   }
 
   return (
-    <div className={styles.fbButtons}>
+    <div className={styles.fbButtons} role="group" aria-label="Rate this response">
       <button
         type="button"
         className={styles.fbBtn}
         title="Good answer"
+        aria-label="Good answer — thumbs up"
         onClick={() => submit('up')}
       >
-        👍
+        <span aria-hidden="true">👍</span>
       </button>
       <button
         type="button"
         className={styles.fbBtn}
         title="Bad answer — tell me what was right"
+        aria-label="Bad answer — open correction input"
         onClick={() => { setShowInput(true); submit('down') }}
       >
-        👎
+        <span aria-hidden="true">👎</span>
       </button>
     </div>
   )
