@@ -19,6 +19,8 @@ import CompassChat from '../components/CompassChat'
 import useInterventions from '../hooks/useInterventions'
 import InterventionBanner from '../components/InterventionBanner'
 import useProfileSuggestions from '../hooks/useProfileSuggestions'
+import useCompassOverview from '../hooks/useCompassOverview'
+import CompassOverview from '../components/CompassOverview'
 
 function mostRecentClosedMondayISO() {
   const now = new Date()
@@ -53,6 +55,7 @@ export default function CompassTab() {
     forget: forgetEod,
   } = useJ2EODRecaps(accountId)
   const { profile, save: saveProfile, refresh: refreshProfile } = useJ2TraderProfile(accountId)
+  const { overview } = useCompassOverview(accountId)
   const [generating, setGenerating] = useState(false)
   const [errorMsg, setErrorMsg] = useState(null)
 
@@ -108,6 +111,8 @@ export default function CompassTab() {
         Your trading coach. Generates a weekly review of your closed trades,
         what worked, what didn't, and what to focus on next.
       </p>
+
+      <CompassOverview overview={overview} />
 
       <InterventionBanner
         interventions={interventions}
