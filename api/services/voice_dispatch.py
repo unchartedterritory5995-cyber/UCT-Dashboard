@@ -19,12 +19,13 @@ _log = logging.getLogger(__name__)
 
 
 def _audit(user_id: str, tool_name: str, args: dict, ok: bool,
-           error: str | None, latency_ms: int, session_id: int | None) -> None:
+           error: str | None, latency_ms: int, session_id: int | None,
+           result: object | None = None) -> None:
     """Fire-and-forget tool-call audit. Never raises."""
     try:
         from api.services.voice_feedback_service import record_tool_call
         record_tool_call(
-            user_id, tool_name=tool_name, args=args,
+            user_id, tool_name=tool_name, args=args, result=result,
             ok=ok, error=error, latency_ms=latency_ms, session_id=session_id,
         )
     except Exception as e:  # noqa: BLE001
@@ -93,7 +94,7 @@ def run_tool(
     inner_err = result.get("error") if isinstance(result, dict) else None
 
     _audit(user_id, tool_name, safe_args, inner_ok, inner_err,
-           latency_ms, session_id)
+           latency_ms, session_id, result=result)
 
     # Annotate graceful failures with a recovery hint so the model knows
     # what to try next instead of going silent.

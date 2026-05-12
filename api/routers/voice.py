@@ -366,6 +366,31 @@ def insights_scan(
     return {"queued": n}
 
 
+@router.get("/hallucinations")
+def hallucinations_list(
+    limit: int = 50,
+    user: dict = Depends(requires_voice_access),
+):
+    """Recent hallucination flags (numeric claims that didn't match tool sources)."""
+    from api.services.voice_hallucination_audit import list_recent_flags
+    return {"flags": list_recent_flags(user["id"], limit=max(1, min(200, int(limit))))}
+
+
+@router.post("/hallucinations/audit/{session_id}")
+@limiter.limit("10/minute")
+def hallucinations_audit_one(
+    request: Request,
+    session_id: int,
+    user: dict = Depends(requires_voice_access),
+):
+    """Run the audit on a specific session on demand."""
+    from api.services.voice_hallucination_audit import audit_session
+    from api.services.voice_session_service import session_belongs_to_user
+    if not session_belongs_to_user(session_id, user["id"]):
+        raise HTTPException(status_code=403, detail="session not owned by user")
+    return audit_session(session_id, user["id"])
+
+
 @router.get("/cost")
 def cost_summary(user: dict = Depends(requires_voice_access)):
     """Estimated voice cost for the current calendar month + projection."""
@@ -870,8 +895,22 @@ def session_end_post(
 
     # Schedule background summarization (non-blocking)
     background_tasks.add_task(_summarize_session_background, body.session_id, user["id"])
+    # Schedule hallucination audit (P7) — non-blocking
+    background_tasks.add_task(_audit_session_background, body.session_id, user["id"])
 
     return {"ok": True, "duration_seconds": duration}
+
+
+def _audit_session_background(session_id: int, user_id: str) -> None:
+    """Run hallucination audit after session end. Best-effort."""
+    try:
+        from api.services.voice_hallucination_audit import audit_session
+        result = audit_session(session_id, user_id)
+        if result["suspect_count"] > 0:
+            _log.info("[hallucination_audit] session=%s flagged=%d",
+                       session_id, result["suspect_count"])
+    except Exception as e:  # noqa: BLE001
+        _log.warning("hallucination audit failed for %s: %s", session_id, e)
 
 
 def _summarize_session_background(session_id: int, user_id: str) -> None:

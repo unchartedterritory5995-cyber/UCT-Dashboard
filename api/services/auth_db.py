@@ -306,6 +306,7 @@ CREATE TABLE IF NOT EXISTS voice_tool_calls (
     session_id   INTEGER REFERENCES voice_sessions(id) ON DELETE SET NULL,
     tool_name    TEXT NOT NULL,
     args_json    TEXT,
+    result_json  TEXT,
     ok           INTEGER NOT NULL,
     error        TEXT,
     latency_ms   INTEGER,

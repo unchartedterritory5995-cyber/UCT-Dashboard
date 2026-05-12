@@ -7,6 +7,7 @@ assistant carries forward what the user has explicitly taught it.
 """
 
 import logging
+from typing import Any
 from datetime import datetime, timezone, timedelta
 
 from api.services.auth_db import get_connection
@@ -116,25 +117,41 @@ def record_tool_call(
     tool_name: str,
     args: dict | None,
     ok: bool,
+    result: Any | None = None,
     error: str | None = None,
     latency_ms: int | None = None,
     session_id: int | None = None,
 ) -> None:
-    """Log a tool dispatch — fire-and-forget. Failures here never bubble."""
+    """Log a tool dispatch — fire-and-forget. Failures here never bubble.
+
+    result (P7): the tool's full output is stored so the hallucination
+    audit can compare assistant claims to source data. Capped at 8KB to
+    avoid bloat on huge briefings.
+    """
     import json
     try:
         args_json = json.dumps(args) if args else None
     except (TypeError, ValueError):
         args_json = None
+    try:
+        result_json = json.dumps(result)[:8000] if result is not None else None
+    except (TypeError, ValueError):
+        result_json = None
     conn = get_connection()
     try:
+        # Migrate: ensure result_json column exists for older DBs
+        try:
+            conn.execute("ALTER TABLE voice_tool_calls ADD COLUMN result_json TEXT")
+            conn.commit()
+        except Exception:
+            pass  # already exists
         conn.execute(
             """
             INSERT INTO voice_tool_calls
-              (user_id, session_id, tool_name, args_json, ok, error, latency_ms)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+              (user_id, session_id, tool_name, args_json, result_json, ok, error, latency_ms)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (user_id, session_id, tool_name, args_json,
+            (user_id, session_id, tool_name, args_json, result_json,
              1 if ok else 0, (error or "")[:500], latency_ms),
         )
         conn.commit()
