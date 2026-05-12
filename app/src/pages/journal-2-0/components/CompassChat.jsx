@@ -21,6 +21,8 @@ export default function CompassChat({ accountId }) {
   const {
     messages, status, isStreaming, streamingTokens, pendingAction,
     error, send, confirm, cancel, forgetAll,
+    isOnboarding, needsOnboarding,
+    startOnboarding, skipOnboarding, redoOnboarding,
   } = useJ2CoachChat(accountId)
   const [input, setInput] = useState('')
   const scrollerRef = useRef(null)
@@ -77,7 +79,7 @@ export default function CompassChat({ accountId }) {
         marginBottom: 6, paddingBottom: 6, borderBottom: '1px solid var(--border)',
       }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ut-gold, #c9a84c)' }}>
-          🧭 Talk to Compass
+          {isOnboarding ? '🧭 Onboarding interview' : '🧭 Talk to Compass'}
         </div>
         <div style={{ position: 'relative' }}>
           <button
@@ -105,6 +107,23 @@ export default function CompassChat({ accountId }) {
                   color: 'var(--text-bright)', cursor: 'pointer',
                 }}
               >Clear conversation</button>
+              {status?.onboarded && !isOnboarding && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('This starts a fresh interview. Your existing profile stays unless you complete the new one. Continue?')) {
+                      setShowMenu(false)
+                      redoOnboarding && redoOnboarding()
+                    }
+                  }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '8px 12px', fontSize: 12,
+                    background: 'transparent', border: 'none',
+                    color: 'var(--text-bright)', cursor: 'pointer',
+                  }}
+                >Redo onboarding</button>
+              )}
             </div>
           )}
         </div>
@@ -113,7 +132,43 @@ export default function CompassChat({ accountId }) {
       <div ref={scrollerRef} style={{
         maxHeight: 480, overflowY: 'auto', padding: '4px 2px', minHeight: 80,
       }}>
-        {!hasContent && (
+        {!hasContent && needsOnboarding && (
+          <div style={{ textAlign: 'center', padding: '24px 8px', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: 32, marginBottom: 6 }}>🧭</div>
+            <div style={{ fontSize: 14, marginBottom: 4 }}>
+              <strong style={{ color: 'var(--text-bright)' }}>Welcome to Compass.</strong>
+            </div>
+            <div style={{ fontSize: 12, marginBottom: 14, lineHeight: 1.6 }}>
+              Before we start coaching, I'd like to interview you for a few minutes<br/>
+              so I can be useful to you.
+            </div>
+            <button
+              type="button"
+              onClick={() => startOnboarding && startOnboarding()}
+              style={{
+                padding: '10px 18px', fontSize: 13, fontWeight: 600,
+                background: 'var(--ut-gold, #c9a84c)', color: '#000',
+                border: 'none', borderRadius: 6, cursor: 'pointer',
+              }}
+            >
+              🧭 Start onboarding interview
+            </button>
+            <div style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={() => skipOnboarding && skipOnboarding()}
+                style={{
+                  fontSize: 11, color: 'var(--text-muted)', background: 'none',
+                  border: 'none', cursor: 'pointer', textDecoration: 'underline',
+                }}
+              >
+                Skip and start chatting →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!hasContent && !needsOnboarding && (
           <div style={{ textAlign: 'center', padding: '24px 8px', color: 'var(--text-muted)' }}>
             <div style={{ fontSize: 24, marginBottom: 6 }}>🧭</div>
             <div style={{ fontSize: 13, marginBottom: 4 }}>
@@ -142,9 +197,11 @@ export default function CompassChat({ accountId }) {
           </div>
         )}
 
-        {messages.map((m) => (
-          <ChatMessage key={m.id} message={m} toolResults={toolResults} />
-        ))}
+        {messages
+          .filter((m) => m.content !== '[BEGIN_ONBOARDING_INTERVIEW]')
+          .map((m) => (
+            <ChatMessage key={m.id} message={m} toolResults={toolResults} />
+          ))}
 
         {isStreaming && streamingTokens && (
           <ChatMessage
