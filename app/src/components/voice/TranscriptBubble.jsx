@@ -7,7 +7,84 @@ import styles from './TranscriptBubble.module.css'
  *
  * Mode B: shows {You: ..., UCT: ...} for the current one-shot exchange.
  * Mode C: shows the last 2-3 turns of the live conversation (user + assistant).
+ *
+ * Each assistant turn gets thumbs up/down controls. Thumbs-down opens an
+ * inline correction input that POSTs to /api/voice/feedback. The correction
+ * gets injected into the assistant's instructions on the next session, so
+ * mistakes don't repeat.
  */
+
+function FeedbackButtons({ turnText, sessionId }) {
+  const [submitted, setSubmitted] = useState(null) // 'up' | 'down' | 'correction'
+  const [showInput, setShowInput] = useState(false)
+  const [correction, setCorrection] = useState('')
+
+  const submit = async (rating, correction_text = null) => {
+    try {
+      await fetch('/api/voice/feedback', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rating, session_id: sessionId, turn_text: turnText,
+          correction_text,
+        }),
+      })
+      setSubmitted(correction_text ? 'correction' : rating)
+    } catch (e) {
+      console.error('[feedback] submit failed', e)
+    }
+  }
+
+  if (submitted === 'up') return <span className={styles.fbAck}>Thanks</span>
+  if (submitted === 'correction') return <span className={styles.fbAck}>Got it</span>
+  if (submitted === 'down' && !showInput) return <span className={styles.fbAck}>Noted</span>
+
+  if (showInput) {
+    return (
+      <div className={styles.fbInputWrap}>
+        <input
+          type="text"
+          className={styles.fbInput}
+          placeholder="What's the right answer?"
+          value={correction}
+          autoFocus
+          onChange={(e) => setCorrection(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && correction.trim()) {
+              submit('down', correction.trim())
+              setShowInput(false)
+            } else if (e.key === 'Escape') {
+              setShowInput(false)
+            }
+          }}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.fbButtons}>
+      <button
+        type="button"
+        className={styles.fbBtn}
+        title="Good answer"
+        onClick={() => submit('up')}
+      >
+        👍
+      </button>
+      <button
+        type="button"
+        className={styles.fbBtn}
+        title="Bad answer — tell me what was right"
+        onClick={() => { setShowInput(true); submit('down') }}
+      >
+        👎
+      </button>
+    </div>
+  )
+}
+
 export default function TranscriptBubble() {
   const voice = useVoice()
   const [visible, setVisible] = useState(false)
@@ -49,6 +126,7 @@ export default function TranscriptBubble() {
         {voice.narration && (
           <div className={styles.assistant}>
             <span className={styles.tag}>UCT:</span> {voice.narration}
+            <FeedbackButtons turnText={voice.narration} sessionId={null} />
           </div>
         )}
       </div>
@@ -64,6 +142,9 @@ export default function TranscriptBubble() {
       {recent.map((turn, i) => (
         <div key={i} className={turn.role === 'user' ? styles.you : styles.assistant}>
           <span className={styles.tag}>{turn.role === 'user' ? 'You:' : 'UCT:'}</span> {turn.text}
+          {turn.role === 'assistant' && (
+            <FeedbackButtons turnText={turn.text} sessionId={voice.realtimeSessionId} />
+          )}
         </div>
       ))}
       {voice.partialAssistant && voice.status === 'speaking_assistant' && (

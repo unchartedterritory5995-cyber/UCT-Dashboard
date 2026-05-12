@@ -285,6 +285,36 @@ CREATE TABLE IF NOT EXISTS voice_session_summaries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_voice_summaries_user ON voice_session_summaries(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS voice_feedback (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         TEXT NOT NULL REFERENCES users(id),
+    session_id      INTEGER REFERENCES voice_sessions(id) ON DELETE SET NULL,
+    rating          TEXT NOT NULL CHECK (rating IN ('up', 'down')),
+    turn_text       TEXT,
+    correction_text TEXT,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_feedback_user ON voice_feedback(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_voice_feedback_correction ON voice_feedback(user_id, correction_text)
+    WHERE correction_text IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS voice_tool_calls (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      TEXT NOT NULL REFERENCES users(id),
+    session_id   INTEGER REFERENCES voice_sessions(id) ON DELETE SET NULL,
+    tool_name    TEXT NOT NULL,
+    args_json    TEXT,
+    ok           INTEGER NOT NULL,
+    error        TEXT,
+    latency_ms   INTEGER,
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_tool_calls_user ON voice_tool_calls(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_voice_tool_calls_failures ON voice_tool_calls(user_id, ok, created_at DESC)
+    WHERE ok = 0;
 """
 
 

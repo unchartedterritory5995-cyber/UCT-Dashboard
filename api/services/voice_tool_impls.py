@@ -541,6 +541,30 @@ def _get_my_option_strategies(*, user, status: str = "", count: int = 5) -> dict
     )
 
 
+# ── Batch 5: feedback / training ────────────────────────────────────────────
+
+def _correct_me(*, user, what_was_wrong: str = "", what_was_right: str = "") -> dict:
+    """Persist a user correction. Voice can call this directly when the user
+    says 'no, you got that wrong — X means Y'."""
+    from api.services.voice_feedback_service import record_feedback
+    wrong = (what_was_wrong or "").strip()
+    right = (what_was_right or "").strip()
+    if not right:
+        return {"ok": False,
+                "narration": "What's the correct answer? Tell me how I should have responded."}
+    text = right if not wrong else f"When asked about {wrong}: {right}"
+    record_feedback(
+        user["id"], rating="down",
+        turn_text=wrong or None,
+        correction_text=text,
+    )
+    return {
+        "ok": True,
+        "narration": "Got it — I'll remember that going forward.",
+        "correction": text,
+    }
+
+
 def _register_all() -> None:
     """Register (or re-register) all Slice 2 tools into the registry."""
 
@@ -1140,6 +1164,19 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_get_my_option_strategies)
+
+    # ── Batch 5: feedback / training ────────────────────────────────────────
+
+    _vt.voice_tool(
+        name="correct_me",
+        description="Persist a durable correction. Call when the user says 'no, you got that wrong' or 'actually X means Y' or 'remember that I prefer Z' — corrections are injected into your future sessions' instructions.",
+        parameters={
+            "what_was_wrong": {"type": "string", "description": "Brief description of what you got wrong (optional)."},
+            "what_was_right": {"type": "string", "description": "The correct answer or preference to remember."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_correct_me)
 
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────

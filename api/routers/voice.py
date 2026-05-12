@@ -523,3 +523,54 @@ def memory_fact_delete(
 @router.get("/memory/summaries")
 def memory_summaries_get(user: dict = Depends(requires_voice_access)):
     return {"summaries": _mem_list_summaries(user["id"], limit=20)}
+
+
+# ── Batch 5: feedback / training ────────────────────────────────────────────
+
+class FeedbackCreate(BaseModel):
+    rating: str  # 'up' | 'down'
+    session_id: int | None = None
+    turn_text: str | None = None
+    correction_text: str | None = None
+
+
+@router.post("/feedback")
+@limiter.limit("60/minute")
+def feedback_post(
+    request: Request,
+    body: FeedbackCreate,
+    user: dict = Depends(requires_voice_access),
+):
+    from api.services.voice_feedback_service import record_feedback
+    if body.rating not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="rating must be 'up' or 'down'")
+    try:
+        fb = record_feedback(
+            user["id"],
+            rating=body.rating,
+            session_id=body.session_id,
+            turn_text=(body.turn_text or None),
+            correction_text=(body.correction_text or None),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return fb
+
+
+@router.get("/feedback")
+def feedback_list(user: dict = Depends(requires_voice_access)):
+    from api.services.voice_feedback_service import list_feedback
+    return {"feedback": list_feedback(user["id"], limit=200)}
+
+
+@router.get("/feedback/corrections")
+def corrections_list(user: dict = Depends(requires_voice_access)):
+    from api.services.voice_feedback_service import list_corrections
+    return {"corrections": list_corrections(user["id"], limit=50)}
+
+
+@router.get("/tool-call-stats")
+def tool_call_stats(user: dict = Depends(requires_voice_access)):
+    """Per-tool success/failure counts and recent failures — debugging pane."""
+    from api.services.voice_feedback_service import get_tool_call_stats
+    return get_tool_call_stats(user["id"], limit=50)

@@ -206,8 +206,13 @@ def build_memory_context(user_id: str) -> str:
     """
     facts = list_facts(user_id, limit=MAX_FACTS_INJECTED)
     summaries = list_summaries(user_id, limit=MAX_SUMMARIES_INJECTED)
+    try:
+        from api.services.voice_feedback_service import list_corrections
+        corrections = list_corrections(user_id)
+    except Exception:  # noqa: BLE001
+        corrections = []
 
-    if not facts and not summaries:
+    if not facts and not summaries and not corrections:
         return ""
 
     parts: list[str] = []
@@ -227,6 +232,17 @@ def build_memory_context(user_id: str) -> str:
             topic_str = f" (topics: {', '.join(topics[:5])})" if topics else ""
             txt = s.get("summary_text") or ""
             parts.append(f"  - {txt}{topic_str}")
+
+    # Append durable corrections (Batch 5 — feedback loop). Reuses the list
+    # fetched at the top so we don't double-query.
+    if corrections:
+        if parts:
+            parts.append("")
+        parts.append("Corrections the user has previously given you (apply these going forward):")
+        for c in corrections:
+            txt = c.get("correction_text")
+            if txt:
+                parts.append(f"  - {txt}")
 
     out = "\n".join(parts)
     if len(out) > MAX_MEMORY_CHARS:
