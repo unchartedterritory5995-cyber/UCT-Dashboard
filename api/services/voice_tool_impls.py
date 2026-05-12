@@ -489,6 +489,18 @@ def _get_earnings_this_week(count: int = 8) -> dict:
     return get_earnings_this_week(count=count)
 
 
+# ── Batch 3: client-action wrappers (navigate / read-aloud) ────────────────
+
+def _open_page(name: str = "") -> dict:
+    from api.services.voice_client_action_tools import open_page
+    return open_page(name=name)
+
+
+def _read_aloud(content: str = "") -> dict:
+    from api.services.voice_client_action_tools import read_aloud
+    return read_aloud(content=content)
+
+
 def _register_all() -> None:
     """Register (or re-register) all Slice 2 tools into the registry."""
 
@@ -999,6 +1011,26 @@ def _register_all() -> None:
         parameters={"count": {"type": "integer", "description": "How many per bucket (default 8, max 20)."}},
         contexts=["global"],
     )(_get_earnings_this_week)
+
+    # ── Batch 3: client-action tools (navigate / read-aloud) ────────────────
+
+    _vt.voice_tool(
+        name="open_page",
+        description="Navigate the dashboard to a named page. Call when the user says 'open journal', 'take me to themes', 'go to the scanner', etc.",
+        parameters={
+            "name": {"type": "string", "description": "Page name — Journal, Watchlists, Themes, Breadth, Calendar, Scanner, Morning Wire, UCT 20, Settings, etc."},
+        },
+        contexts=["global"],
+    )(_open_page)
+
+    _vt.voice_tool(
+        name="read_aloud",
+        description="Play TTS playback of a known piece of dashboard content. Call when the user says 'read the morning wire', 'read me the transcript', 'play the daily note', etc.",
+        parameters={
+            "content": {"type": "string", "description": "What to read — morning wire, earnings transcript, UCT 20 picks, setup library, daily note, morning briefing, closing briefing."},
+        },
+        contexts=["global"],
+    )(_read_aloud)
 
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────

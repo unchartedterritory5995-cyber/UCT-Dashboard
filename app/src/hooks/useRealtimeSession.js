@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useVoice } from '../context/VoiceContext'
+import useReadAloud from './useReadAloud'
 import {
   parseRealtimeEvent,
   functionCallOutputEvent,
@@ -17,8 +19,145 @@ const HEARTBEAT_MS = 30_000
  *   const { connect, disconnect, isConnected } = useRealtimeSession()
  *   <button onClick={() => connect('global')}>Talk</button>
  */
+function stripHtml(html) {
+  if (!html) return ''
+  const tmp = document.createElement('div')
+  tmp.innerHTML = html
+  return (tmp.textContent || tmp.innerText || '').trim()
+}
+
+// Map a normalized content key (from voice_client_action_tools) to a
+// fetch-and-narrate plan. Each entry returns { trackId, label, textProvider }.
+function buildReadAloudPlan(contentKey) {
+  const key = (contentKey || '').toLowerCase()
+
+  // Morning Wire (rundown HTML)
+  if (key.includes('wire') || key.includes('rundown') || key === 'morning wire') {
+    return {
+      trackId: 'voice-morning-wire',
+      label: 'Morning Wire',
+      textProvider: async () => {
+        const r = await fetch('/api/rundown', { credentials: 'include' })
+        if (!r.ok) return ''
+        const data = await r.json()
+        return stripHtml(data.html || data.rundown_html || '')
+      },
+    }
+  }
+
+  // UCT 20 picks
+  if (key.includes('uct') || key.includes('leadership') || key.includes('picks')) {
+    return {
+      trackId: 'voice-uct20-picks',
+      label: 'UCT 20 Picks',
+      textProvider: async () => {
+        const r = await fetch('/api/leadership', { credentials: 'include' })
+        if (!r.ok) return ''
+        const rows = await r.json()
+        if (!Array.isArray(rows) || rows.length === 0) {
+          return "There are no UCT 20 picks loaded right now."
+        }
+        const parts = rows.slice(0, 10).map((p, i) =>
+          `${i + 1}. ${p.sym || p.symbol || '?'} — ${p.company || p.name || ''}. ${p.thesis || ''}`.trim()
+        )
+        return parts.join('. ')
+      },
+    }
+  }
+
+  // Daily note (today)
+  if (key.includes('daily note') || key.includes("today's note") || key === 'my note') {
+    return {
+      trackId: 'voice-daily-note',
+      label: "Today's Daily Note",
+      textProvider: async () => {
+        const today = new Date().toISOString().slice(0, 10)
+        const r = await fetch(`/api/journal/daily/${today}`, { credentials: 'include' })
+        if (!r.ok) return ''
+        const d = await r.json()
+        const fields = [
+          ['Premarket thesis', d.premarket_thesis],
+          ['Focus list', d.focus_list],
+          ['Risk plan', d.risk_plan],
+          ['Emotional state', d.emotional_state],
+          ['Midday notes', d.midday_notes],
+          ['EOD recap', d.eod_recap],
+          ['What I did well', d.did_well],
+          ['What I did poorly', d.did_poorly],
+          ['Learned', d.learned],
+          ['Tomorrow focus', d.tomorrow_focus],
+        ].filter(([, v]) => v && String(v).trim())
+        if (fields.length === 0) return "Your daily note is empty for today."
+        return fields.map(([l, v]) => `${l}: ${v}.`).join(' ')
+      },
+    }
+  }
+
+  // Weekly review
+  if (key.includes('weekly') || key.includes('week recap')) {
+    return {
+      trackId: 'voice-weekly-review',
+      label: 'Weekly Review',
+      textProvider: async () => {
+        const today = new Date()
+        const day = today.getDay()
+        const monday = new Date(today)
+        monday.setDate(today.getDate() - ((day + 6) % 7))
+        const weekStart = monday.toISOString().slice(0, 10)
+        const r = await fetch(`/api/journal/weekly/${weekStart}`, { credentials: 'include' })
+        if (!r.ok) return ''
+        const d = await r.json()
+        const parts = [
+          d.reflection, d.key_lessons, d.next_week_focus,
+        ].filter(v => v && String(v).trim())
+        return parts.length ? parts.join('. ') : "Your weekly review is empty."
+      },
+    }
+  }
+
+  // Morning briefing / closing briefing — call the voice briefing tool, narrate the result
+  if (key.includes('morning brief') || key.includes('brief me')) {
+    return {
+      trackId: 'voice-morning-brief',
+      label: 'Morning Briefing',
+      textProvider: async () => {
+        const r = await fetch('/api/voice/oneshot', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: 'give me the morning briefing' }),
+        })
+        if (!r.ok) return ''
+        const j = await r.json()
+        return j.narration || j.text || ''
+      },
+    }
+  }
+  if (key.includes('closing brief') || key.includes('eod recap') || key.includes('closing recap')) {
+    return {
+      trackId: 'voice-closing-brief',
+      label: 'Closing Briefing',
+      textProvider: async () => {
+        const r = await fetch('/api/voice/oneshot', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: 'give me the closing briefing' }),
+        })
+        if (!r.ok) return ''
+        const j = await r.json()
+        return j.narration || j.text || ''
+      },
+    }
+  }
+
+  return null
+}
+
 export default function useRealtimeSession() {
   const voice = useVoice()
+  const navigate = useNavigate()
+  const readAloud = useReadAloud()
   const pcRef = useRef(null)
   const dcRef = useRef(null)
   const localStreamRef = useRef(null)
@@ -100,12 +239,35 @@ export default function useRealtimeSession() {
       result = { ok: false, error: e?.message || 'fetch failed' }
     }
 
+    // Client-side actions (navigate, read-aloud) are dispatched locally
+    // before we feed the result back to the model. The model still sees a
+    // success result so it can narrate "opening journal" naturally.
+    if (result && result.client_action) {
+      try {
+        const action = result.client_action
+        if (action.type === 'navigate' && action.path) {
+          navigate(action.path)
+        } else if (action.type === 'read_aloud' && action.content) {
+          const plan = buildReadAloudPlan(action.content)
+          if (plan) {
+            readAloud.play(plan).catch((e) =>
+              console.error('[voice] read_aloud play failed', e)
+            )
+          } else {
+            console.warn('[voice] no read-aloud plan for content', action.content)
+          }
+        }
+      } catch (e) {
+        console.error('[voice] client_action dispatch failed', e)
+      }
+    }
+
     const dc = dcRef.current
     if (dc?.readyState === 'open') {
       dc.send(JSON.stringify(functionCallOutputEvent({ call_id, output: result })))
       dc.send(JSON.stringify(responseCreateEvent()))
     }
-  }, [])
+  }, [navigate, readAloud])
 
   const onChannelMessage = useCallback((event) => {
     const parsed = parseRealtimeEvent(event.data)
