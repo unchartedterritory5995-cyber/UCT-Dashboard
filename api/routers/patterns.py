@@ -26,6 +26,7 @@ from api.services.pattern_engine.detectors.classical import double_top as _doubl
 from api.services.pattern_engine.detectors.classical import double_bottom as _double_bottom  # noqa: F401
 from api.services.pattern_engine.detectors.classical import cup_handle as _cup_handle  # noqa: F401
 from api.services.pattern_engine.detectors.classical import inverse_cup_handle as _inverse_cup_handle  # noqa: F401
+from api.services.pattern_engine.detectors.uct import vcp as _vcp  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -99,6 +100,12 @@ _PATTERN_METADATA = {
         "category": "classical",
         "direction": "bearish",
         "description": "Inverted rounded dome followed by a small failing rally (handle). Bearish reversal pattern.",
+    },
+    "vcp": {
+        "name": "Volatility Contraction Pattern (VCP)",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Successive shallower pullbacks with drying volume into a tight pivot. Minervini's signature institutional accumulation pattern.",
     },
 }
 
