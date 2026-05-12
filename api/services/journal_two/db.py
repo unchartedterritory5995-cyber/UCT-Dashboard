@@ -317,6 +317,21 @@ CREATE TABLE IF NOT EXISTS j2_interventions (
 
 CREATE INDEX IF NOT EXISTS idx_j2_interventions_active
     ON j2_interventions(user_id, account_id, rule, cooldown_until);
+
+CREATE TABLE IF NOT EXISTS j2_profile_suggestions (
+    id            TEXT PRIMARY KEY,
+    user_id       TEXT NOT NULL,
+    account_id    TEXT NOT NULL,
+    source_type   TEXT NOT NULL CHECK(source_type IN ('weekly_review','eod_recap','trade_review','chat')),
+    source_id     TEXT NOT NULL,
+    suggestion    TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','resolved','dismissed')),
+    created_at    TEXT NOT NULL,
+    resolved_at   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_j2_profile_suggestions_pending
+    ON j2_profile_suggestions(user_id, account_id, status, created_at);
 """
 
 

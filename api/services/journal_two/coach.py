@@ -416,6 +416,27 @@ def set_feedback(review_id: str, feedback: str, *, user_id: str | None = None, c
                 (feedback, review_id),
             )
         _conn.commit()
+
+        # Active feedback trimming: 'unhelpful' creates a profile suggestion
+        if feedback == "unhelpful" and cur.rowcount > 0:
+            try:
+                # Look up the row's account_id and body for context
+                row = _conn.execute(
+                    "SELECT account_id, body, output_type FROM j2_coach_outputs WHERE id = ?",
+                    (review_id,),
+                ).fetchone()
+                if row and user_id and row["account_id"]:
+                    from api.services.journal_two import profile_suggestions as ps
+                    ps.auto_create_from_unhelpful_feedback(
+                        user_id=user_id, account_id=row["account_id"],
+                        source_type=row["output_type"] or "weekly_review",
+                        source_id=review_id,
+                        source_body=row["body"] or "",
+                        conn=_conn,
+                    )
+            except Exception:
+                pass  # Best-effort — feedback succeeded
+
         return cur.rowcount
     finally:
         if _should_close:
