@@ -24,6 +24,7 @@ from api.services.pattern_engine.detectors.classical import head_shoulders as _h
 from api.services.pattern_engine.detectors.classical import inverse_head_shoulders as _inverse_head_shoulders  # noqa: F401
 from api.services.pattern_engine.detectors.classical import double_top as _double_top  # noqa: F401
 from api.services.pattern_engine.detectors.classical import double_bottom as _double_bottom  # noqa: F401
+from api.services.pattern_engine.detectors.classical import cup_handle as _cup_handle  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -85,6 +86,12 @@ _PATTERN_METADATA = {
         "category": "classical",
         "direction": "bullish",
         "description": "Two troughs at similar lows with a rally peak between. Bullish reversal pattern.",
+    },
+    "cup_handle": {
+        "name": "Cup with Handle",
+        "category": "classical",
+        "direction": "bullish",
+        "description": "Rounded U-shaped consolidation (cup) followed by tight pullback (handle). Bullish continuation pattern (O'Neil).",
     },
 }
 
