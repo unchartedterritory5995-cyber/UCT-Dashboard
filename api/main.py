@@ -726,6 +726,15 @@ async def lifespan(app: FastAPI):
     from api.services.theme_performance import load_persisted_on_startup
     load_persisted_on_startup()
 
+    # Voice Batch 9a: seed Trading KB embeddings (idempotent — only embeds
+    # new entries since last run).
+    try:
+        from api.services.voice_kb_service import seed_on_startup as _kb_seed
+        import threading as _t
+        _t.Thread(target=_kb_seed, daemon=True, name="voice-kb-seed").start()
+    except Exception as e:
+        print(f"[startup] Voice KB seed scheduling failed (non-fatal): {e}")
+
     from api.services.realtime_stream import start_stream
     try:
         start_stream()

@@ -653,6 +653,30 @@ def embeddings_reindex(
     return counts
 
 
+@router.post("/kb/reindex")
+@limiter.limit("3/minute")
+def kb_reindex(
+    request: Request,
+    force: bool = False,
+    user: dict = Depends(requires_voice_access),
+):
+    """Reseed the shared Trading Knowledge Base. force=true wipes and re-embeds."""
+    from api.services.voice_kb_service import index_corpus
+    counts = index_corpus(force=force)
+    return counts
+
+
+@router.get("/kb/search")
+def kb_search(
+    q: str = "",
+    k: int = 3,
+    user: dict = Depends(requires_voice_access),
+):
+    """Search the Trading KB directly (debug endpoint)."""
+    from api.services.voice_kb_service import lookup
+    return {"query": q, "hits": lookup(q, k=max(1, min(10, int(k))))}
+
+
 @router.get("/embeddings/search")
 def embeddings_search(
     q: str = "",

@@ -9,6 +9,9 @@ app/node_modules/
 *.egg-info/
 .pytest_cache/
 data/
+# Voice KB corpus is version-controlled — deploys with the code
+!api/data/voice_kb/
+!api/data/voice_kb/**
 *.json.bak
 backups/
 .superpowers/

@@ -612,6 +612,37 @@ def _note_list(*, user) -> dict:
     }
 
 
+# ── Batch 9a: Trading Knowledge Base lookup ────────────────────────────────
+
+def _lookup_trading_principle(query: str = "", count: int = 3) -> dict:
+    """Look up curated trading wisdom — position sizing, setup definitions,
+    behavioral biases, regime playbooks, microstructure. Use this whenever
+    you'd benefit from established trading principles rather than just data."""
+    from api.services.voice_kb_service import lookup
+    q = (query or "").strip()
+    if not q:
+        return {"ok": False,
+                "narration": "What topic? E.g. position sizing, flag breakouts, regime."}
+    try:
+        n = max(1, min(8, int(count or 3)))
+    except (TypeError, ValueError):
+        n = 3
+    hits = lookup(q, k=n)
+    if not hits:
+        return {"ok": True,
+                "narration": f"Nothing in the knowledge base on {q!r}.",
+                "hits": []}
+    parts = []
+    for h in hits[:3]:
+        parts.append(f"{h['title']}: {(h['text'] or '')[:240]}")
+    return {
+        "ok": True,
+        "narration": " | ".join(parts)[:800],
+        "hits": hits,
+        "count": len(hits),
+    }
+
+
 # ── Batch 8a: RAG retrieval ─────────────────────────────────────────────────
 
 def _recall_relevant(*, user, query: str = "", kind: str = "", count: int = 5) -> dict:
@@ -1309,6 +1340,16 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_list_voice_settings)
+
+    _vt.voice_tool(
+        name="lookup_trading_principle",
+        description="Look up curated trading wisdom from a vetted knowledge base — position sizing, setup definitions (flags, VCP, episodic pivots, ORB, etc.), behavioral biases, regime playbooks, microstructure rules. Use this whenever the user asks a question that benefits from established trading principles vs raw data ('how should I size this', 'what does a high tight flag look like', 'is this a bull or bear regime', 'why am I tilting').",
+        parameters={
+            "query": {"type": "string", "description": "Topic, setup name, or concept."},
+            "count": {"type": "integer", "description": "How many principles to return (default 3, max 8)."},
+        },
+        contexts=["global"],
+    )(_lookup_trading_principle)
 
     _vt.voice_tool(
         name="recall_relevant",
