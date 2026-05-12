@@ -281,6 +281,133 @@ def scan_for_opportunities(user_id: str) -> int:
     return queued
 
 
+def scan_premarket(user_id: str) -> int:
+    """
+    Pre-market specific scan (run 7-9:30am ET). Emphasizes:
+      - Overnight gappers on the user's flagged list
+      - Earnings-day tickers on watchlist
+      - Major macro events about to happen
+    """
+    queued = 0
+    flagged = _flagged_symbols(user_id)
+    if not flagged:
+        return 0
+
+    # Pull movers — at 7-9am these are pre-market gappers
+    try:
+        from api.services.massive import get_movers
+        movers = get_movers() or {}
+    except Exception:
+        movers = {}
+
+    rip = movers.get("ripping") or []
+    drill = movers.get("drilling") or []
+
+    for m in (rip + drill):
+        sym = (m.get("sym") or "").upper()
+        pct = m.get("pct") or 0
+        if not sym or sym not in flagged:
+            continue
+        try:
+            pct_val = float(pct)
+        except (TypeError, ValueError):
+            continue
+        if abs(pct_val) < 3:
+            continue
+
+        importance = 7
+        if abs(pct_val) >= 8:
+            importance = 9
+        direction = "up" if pct_val > 0 else "down"
+        rid = add_insight(
+            user_id,
+            kind="watchlist_alert",
+            symbol=sym,
+            headline=f"{sym} gapping {direction} {abs(pct_val):.1f}% in pre-market",
+            body=f"On your flagged list. Reaction at the open — check premarket VWAP for context.",
+            importance=importance,
+        )
+        if rid:
+            queued += 1
+
+    # Earnings-day check: tickers reporting today + on watchlist
+    try:
+        from api.services.engine import get_earnings
+        e = get_earnings() or {}
+        today_syms = set()
+        for bucket in (e.get("bmo") or []):
+            s = (bucket.get("sym") or "").upper()
+            if s:
+                today_syms.add(s)
+        overlap = today_syms & flagged
+        for sym in overlap:
+            rid = add_insight(
+                user_id,
+                kind="watchlist_alert",
+                symbol=f"{sym}:earnings",  # distinct cooldown key from gap insight
+                headline=f"{sym} reports earnings before the open",
+                body="On your flagged list. Review pre-market reaction at the open.",
+                importance=8,
+            )
+            if rid:
+                queued += 1
+    except Exception:
+        pass
+
+    _log.info("[voice_proactive] premarket user=%s queued=%d", user_id, queued)
+    return queued
+
+
+def scan_after_hours(user_id: str) -> int:
+    """
+    After-hours specific scan (run 16:30-20:00 ET). Emphasizes:
+      - AH movers on watchlist (most often = earnings reactions)
+      - Sets up next-morning briefing context
+    """
+    queued = 0
+    flagged = _flagged_symbols(user_id)
+    if not flagged:
+        return 0
+
+    try:
+        from api.services.massive import get_movers
+        movers = get_movers() or {}
+    except Exception:
+        movers = {}
+
+    rip = movers.get("ripping") or []
+    drill = movers.get("drilling") or []
+    for m in (rip + drill):
+        sym = (m.get("sym") or "").upper()
+        pct = m.get("pct") or 0
+        if not sym or sym not in flagged:
+            continue
+        try:
+            pct_val = float(pct)
+        except (TypeError, ValueError):
+            continue
+        if abs(pct_val) < 4:
+            continue
+
+        importance = 7
+        if abs(pct_val) >= 10:
+            importance = 9
+        direction = "up" if pct_val > 0 else "down"
+        rid = add_insight(
+            user_id,
+            kind="watchlist_alert",
+            symbol=f"{sym}:ah",  # AH cooldown key
+            headline=f"{sym} moving {direction} {abs(pct_val):.1f}% after-hours",
+            body=f"On your flagged list. AH moves often retrace at the open — but the headline (probably earnings) matters more than the print.",
+            importance=importance,
+        )
+        if rid:
+            queued += 1
+
+    _log.info("[voice_proactive] after_hours user=%s queued=%d", user_id, queued)
+    return queued
+
+
 def maybe_emit_regime_shift(user_id: str) -> int:
     """
     Detect if the regime has flipped since the user's most recent session

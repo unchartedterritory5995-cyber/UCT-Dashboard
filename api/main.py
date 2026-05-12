@@ -912,15 +912,19 @@ async def lifespan(app: FastAPI):
 
         _scheduler.add_job(_nightly_bar_refresh, trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=15), id="bars_nightly_refresh", max_instances=1, replace_existing=True)
 
-        # Voice Batch 11a — proactive market watcher. Scans every 30 min
-        # during market hours; users with voice access get queued
-        # insights they'll hear at the start of their next session.
-        def _voice_proactive_scan():
+        # Voice proactive watcher (Batches 11a, 11c, P5).
+        # Three time windows, each with its own scan profile:
+        #   premarket 7-9am ET (every 15 min): overnight gappers + earnings
+        #   RTH 9:30-16 ET (every 30 min): full setup scan + drift
+        #   AH 16:30-20 ET (every 30 min): earnings reactions
+        def _voice_window_scan(window: str):
             try:
                 from api.services.auth_db import get_connection as _gc
                 from api.services.voice_proactive_service import (
                     scan_for_opportunities, maybe_emit_regime_shift,
+                    scan_premarket, scan_after_hours,
                 )
+                from api.services.voice_drift_detector import emit_drift_insights
                 conn = _gc()
                 try:
                     rows = conn.execute(
@@ -929,21 +933,37 @@ async def lifespan(app: FastAPI):
                     ).fetchall()
                 finally:
                     conn.close()
-                from api.services.voice_drift_detector import emit_drift_insights
                 for r in rows:
                     uid = r["user_id"]
                     try:
-                        scan_for_opportunities(uid)
-                        maybe_emit_regime_shift(uid)
-                        emit_drift_insights(uid)
+                        if window == "premarket":
+                            scan_premarket(uid)
+                            maybe_emit_regime_shift(uid)
+                        elif window == "rth":
+                            scan_for_opportunities(uid)
+                            maybe_emit_regime_shift(uid)
+                            emit_drift_insights(uid)
+                        elif window == "after_hours":
+                            scan_after_hours(uid)
                     except Exception as e:
-                        print(f"[voice_proactive] scan user={uid} failed: {e}")
+                        print(f"[voice_proactive] {window} user={uid} failed: {e}")
             except Exception as e:
-                print(f"[voice_proactive] outer error: {e}")
-        _scheduler.add_job(_voice_proactive_scan,
+                print(f"[voice_proactive] {window} outer error: {e}")
+
+        _scheduler.add_job(lambda: _voice_window_scan("premarket"),
+                           trigger=CronTrigger(day_of_week="mon-fri",
+                                               hour="7-9", minute="*/15"),
+                           id="voice_proactive_premarket",
+                           max_instances=1, replace_existing=True)
+        _scheduler.add_job(lambda: _voice_window_scan("rth"),
                            trigger=CronTrigger(day_of_week="mon-fri",
                                                hour="9-15", minute="*/30"),
                            id="voice_proactive_scan",
+                           max_instances=1, replace_existing=True)
+        _scheduler.add_job(lambda: _voice_window_scan("after_hours"),
+                           trigger=CronTrigger(day_of_week="mon-fri",
+                                               hour="16-20", minute="*/30"),
+                           id="voice_proactive_after_hours",
                            max_instances=1, replace_existing=True)
 
         # Nightly flow DB prune — remove expired contracts (buffer_days=1)
