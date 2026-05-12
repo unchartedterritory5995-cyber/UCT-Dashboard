@@ -32,6 +32,7 @@ from api.services.pattern_engine.detectors.uct import episodic_pivot as _episodi
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _power_earnings_gap  # noqa: F401
 from api.services.pattern_engine.detectors.uct import flat_base as _flat_base  # noqa: F401
 from api.services.pattern_engine.detectors.uct import u_and_r as _u_and_r  # noqa: F401
+from api.services.pattern_engine.detectors.uct import remount as _remount  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -141,6 +142,12 @@ _PATTERN_METADATA = {
         "category": "uct",
         "direction": "bullish",
         "description": "Brief close below key support followed by immediate rally back above + follow-through. Brian Shannon's bear-trap reversal setup.",
+    },
+    "remount": {
+        "name": "Remount",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Stock reclaims a key level (20EMA, 50SMA, or prior pivot) after 5-30 bars below + follow-through. Bonde's failed-breakdown reversal.",
     },
 }
 
