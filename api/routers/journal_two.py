@@ -1354,3 +1354,23 @@ def chat_redo_onboarding(
         ):
             yield _sse_format(event)
     return StreamingResponse(_gen(), media_type="text/event-stream")
+
+
+# ── Pre-Trade Verdict ────────────────────────────────────────────────────────
+
+
+@router.post("/accounts/{account_id}/coach/pre-trade-verdict")
+def pre_trade_verdict(
+    account_id: str,
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import pre_trade_verdict as ptv_service
+    settings_check = accounts_service.get_account_settings(user["id"], account_id)
+    if settings_check is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not settings_check.get("compassEnabled", True):
+        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+    return ptv_service.generate_verdict(
+        user_id=user["id"], account_id=account_id, params=payload or {},
+    )

@@ -876,3 +876,22 @@ def test_compare_setups_includes_confidence(db_conn):
         args={"setup_a": "Bull Flag", "setup_b": "Pullback"}, conn=db_conn,
     )
     assert "confidence" in result
+
+
+def test_pre_trade_verdict_tool_invokes_ptv(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET account_size = 100000, max_risk_per_trade_pct = 1 WHERE id = ?",
+        (acc["id"],),
+    )
+    db_conn.commit()
+    # Risk = 100 * 20 / 100000 = 2% > cap of 1% → hard check SKIP
+    result = tools.TOOLS["pre_trade_verdict"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"symbol": "NVDA", "side": "Long", "shares": 100,
+              "entry_price": 200.0, "stop_price": 180.0, "setup": "Bull Flag"},
+        conn=db_conn,
+    )
+    assert result["label"] == "SKIP"
+    assert result["source"] == "hard_check"

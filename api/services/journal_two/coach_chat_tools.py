@@ -1253,6 +1253,35 @@ TOOLS.update({
     },
 })
 
+def _exec_pre_trade_verdict(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services.journal_two import pre_trade_verdict as ptv
+    return ptv.generate_verdict(
+        user_id=user_id, account_id=account_id, params=args, conn=conn,
+    )
+
+
+TOOLS.update({
+    "pre_trade_verdict": {
+        "name": "pre_trade_verdict",
+        "description": "Run a pre-trade verdict on a proposed trade. Returns GO/HOLD/SKIP + paragraph + factors. Use this when the trader asks 'can I take this trade?' or similar.",
+        "requires_confirm": False,
+        "executor": _exec_pre_trade_verdict,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "symbol": {"type": "string"},
+                "side": {"type": "string", "enum": ["Long", "Short"]},
+                "shares": {"type": "number"},
+                "entry_price": {"type": "number"},
+                "stop_price": {"type": "number"},
+                "target_price": {"type": "number"},
+                "setup": {"type": "string"},
+            },
+            "required": ["symbol", "side", "shares", "entry_price", "stop_price"],
+        },
+    },
+})
+
 TOOLS.update({
     "propose_account_settings": {
         "name": "propose_account_settings",
