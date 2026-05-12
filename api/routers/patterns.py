@@ -33,6 +33,7 @@ from api.services.pattern_engine.detectors.uct import power_earnings_gap as _pow
 from api.services.pattern_engine.detectors.uct import flat_base as _flat_base  # noqa: F401
 from api.services.pattern_engine.detectors.uct import u_and_r as _u_and_r  # noqa: F401
 from api.services.pattern_engine.detectors.uct import remount as _remount  # noqa: F401
+from api.services.pattern_engine.detectors.uct import cup_handle_uct as _cup_handle_uct  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -148,6 +149,12 @@ _PATTERN_METADATA = {
         "category": "uct",
         "direction": "bullish",
         "description": "Stock reclaims a key level (20EMA, 50SMA, or prior pivot) after 5-30 bars below + follow-through. Bonde's failed-breakdown reversal.",
+    },
+    "cup_handle_uct": {
+        "name": "Cup-with-Handle (UCT Strict)",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "O'Neil CAN SLIM cup-with-handle with strict institutional filters: 30%+ prior advance, tight 30-65 bar cup <=35% depth, tight handle. Highest-conviction continuation.",
     },
 }
 
