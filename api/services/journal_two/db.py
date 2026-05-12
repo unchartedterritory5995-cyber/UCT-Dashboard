@@ -245,6 +245,20 @@ CREATE INDEX IF NOT EXISTS idx_j2_chat_account
 
 CREATE INDEX IF NOT EXISTS idx_j2_chat_parent
     ON j2_chat_messages(parent_id);
+
+CREATE TABLE IF NOT EXISTS j2_onboarding_responses (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    account_id  TEXT NOT NULL,
+    session_id  TEXT NOT NULL,
+    category    TEXT NOT NULL,
+    question    TEXT NOT NULL,
+    answer      TEXT NOT NULL,
+    asked_at    TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_j2_onboarding_session
+    ON j2_onboarding_responses(account_id, session_id, asked_at);
 """
 
 
@@ -308,6 +322,10 @@ _PHASE_2_ALTERS = [
     # future Pre-Trade Verdict surface.
     "ALTER TABLE j2_accounts ADD COLUMN muted_setups TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE j2_accounts ADD COLUMN paper_only_days TEXT NOT NULL DEFAULT '[]'",
+    # Compass Onboarding (Phase G v4) — interview state + session id
+    "ALTER TABLE j2_accounts ADD COLUMN onboarded INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE j2_accounts ADD COLUMN onboarding_mode INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE j2_accounts ADD COLUMN onboarding_session_id TEXT",
 ]
 
 
