@@ -214,15 +214,12 @@ def mint_realtime_session(
     model: str | None = None,
 ) -> dict:
     """
-    Create an ephemeral Realtime session via direct HTTP to OpenAI's
-    /v1/realtime/sessions endpoint.
+    Mint an ephemeral Realtime client secret.
 
-    We bypass the OpenAI Python SDK's `client.beta.realtime.sessions.create`
-    path because the SDK we're pinned to sends `OpenAI-Beta: realtime` which
-    the production API now rejects with:
-        BadRequestError: Unknown beta requested: 'realtime'
-    OpenAI moved Realtime out of that beta program. We try multiple header
-    variants (no beta first, then `realtime=v1`) and use the first that 200s.
+    Tries the GA endpoint first (POST /v1/realtime/client_secrets, no beta
+    header, nested `session` payload), then falls back to the legacy beta
+    endpoint (POST /v1/realtime/sessions with OpenAI-Beta: realtime=v1).
+    All attempt errors are aggregated so we can see why each leg failed.
 
     Returns {session_id, client_secret, expires_at, model}.
     """
@@ -231,6 +228,8 @@ def mint_realtime_session(
     api_key = _os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
+
+    resolved_model = model or REALTIME_MODEL
 
     tool_specs = []
     for t in tools or []:
@@ -241,8 +240,52 @@ def mint_realtime_session(
             "parameters": t.get("parameters") or {"type": "object", "properties": {}},
         })
 
-    payload = {
-        "model": model or REALTIME_MODEL,
+    base_headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    # ── Attempt 1: GA endpoint (no beta) ──
+    # POST /v1/realtime/client_secrets with body {"session": {...}}
+    ga_payload = {
+        "session": {
+            "type": "realtime",
+            "model": resolved_model,
+            "instructions": instructions,
+            "audio": {
+                "output": {"voice": voice},
+                "input": {"transcription": {"model": "whisper-1"}},
+            },
+            "tools": tool_specs,
+            "tool_choice": "auto",
+        }
+    }
+    attempts: list[str] = []
+    try:
+        resp = httpx.post(
+            "https://api.openai.com/v1/realtime/client_secrets",
+            json=ga_payload, headers=base_headers, timeout=10.0,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            # GA shape: {"value": "ek_...", "expires_at": ..., "session": {"id": "..."}}
+            session_obj = data.get("session") or {}
+            return {
+                "session_id": session_obj.get("id") or data.get("id"),
+                "client_secret": data.get("value"),
+                "expires_at": data.get("expires_at"),
+                "model": resolved_model,
+            }
+        attempts.append(
+            f"GA /client_secrets HTTP {resp.status_code}: {(resp.text or '')[:300]}"
+        )
+    except Exception as e:  # noqa: BLE001
+        attempts.append(f"GA /client_secrets transport: {type(e).__name__}: {e}")
+
+    # ── Attempt 2: legacy beta endpoint ──
+    # POST /v1/realtime/sessions with flat payload + OpenAI-Beta: realtime=v1
+    legacy_payload = {
+        "model": resolved_model,
         "voice": voice,
         "modalities": ["audio", "text"],
         "instructions": instructions,
@@ -251,26 +294,20 @@ def mint_realtime_session(
         "turn_detection": {"type": "server_vad", "threshold": 0.5},
         "input_audio_transcription": {"model": "whisper-1"},
     }
-
-    base_headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    # Try, in order: no beta header (stable), realtime=v1, realtime (legacy)
-    last_err: str | None = None
-    for beta_value in (None, "realtime=v1", "realtime"):
+    for beta_value in ("realtime=v1", None):
         headers = dict(base_headers)
         if beta_value:
             headers["OpenAI-Beta"] = beta_value
         try:
             resp = httpx.post(
                 "https://api.openai.com/v1/realtime/sessions",
-                json=payload,
-                headers=headers,
-                timeout=10.0,
+                json=legacy_payload, headers=headers, timeout=10.0,
             )
         except Exception as e:  # noqa: BLE001
-            last_err = f"transport: {type(e).__name__}: {e}"
+            attempts.append(
+                f"legacy /sessions (beta={beta_value!r}) transport: "
+                f"{type(e).__name__}: {e}"
+            )
             continue
         if resp.status_code == 200:
             data = resp.json()
@@ -281,14 +318,13 @@ def mint_realtime_session(
                 "session_id": data.get("id"),
                 "client_secret": secret.get("value"),
                 "expires_at": secret.get("expires_at"),
-                "model": model or REALTIME_MODEL,
+                "model": resolved_model,
             }
-        # Capture the error body for the next iteration / final raise
-        body = resp.text[:300] if resp.text else ""
-        last_err = f"HTTP {resp.status_code} (beta={beta_value!r}): {body}"
-        # On 4xx other than 400-invalid_beta, no point retrying with a different
-        # header — credentials/account issues will fail the same way every time.
-        if resp.status_code in (401, 403, 404):
-            break
+        attempts.append(
+            f"legacy /sessions (beta={beta_value!r}) HTTP {resp.status_code}: "
+            f"{(resp.text or '')[:300]}"
+        )
 
-    raise RuntimeError(f"Realtime session mint failed: {last_err}")
+    raise RuntimeError(
+        "Realtime session mint failed. Attempts:\n  - " + "\n  - ".join(attempts)
+    )

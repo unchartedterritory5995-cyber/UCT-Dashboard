@@ -120,64 +120,62 @@ def test_classify_intent_handles_no_match():
 
 # ── Realtime session minting ────────────────────────────────────────────────
 
-def test_mint_realtime_session_returns_client_secret(monkeypatch):
-    """mint_realtime_session calls /v1/realtime/sessions directly via httpx."""
+def test_mint_realtime_session_uses_ga_endpoint_first(monkeypatch):
+    """First attempt is POST /v1/realtime/client_secrets with nested session payload."""
     monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
 
-    fake_response = MagicMock()
-    fake_response.status_code = 200
-    fake_response.json.return_value = {
-        "id": "sess_abc123",
-        "client_secret": {"value": "ek_xyz999", "expires_at": 1234567890},
-    }
-
-    captured = {}
-    def fake_post(url, json=None, headers=None, timeout=None):
-        captured["url"] = url
-        captured["json"] = json
-        captured["headers"] = headers
-        return fake_response
-
-    import httpx
-    monkeypatch.setattr(httpx, "post", fake_post)
-
-    tools_schema = [{"name": "get_quote", "description": "d",
-                     "parameters": {"type": "object", "properties": {}}}]
-
-    out = voice_openai.mint_realtime_session(
-        voice="verse", tools=tools_schema, instructions="be helpful",
-    )
-
-    assert out["session_id"] == "sess_abc123"
-    assert out["client_secret"] == "ek_xyz999"
-    assert out["expires_at"] == 1234567890
-    assert captured["url"] == "https://api.openai.com/v1/realtime/sessions"
-    assert captured["headers"]["Authorization"] == "Bearer sk-fake"
-    assert captured["json"]["voice"] == "verse"
-    assert captured["json"]["instructions"] == "be helpful"
-    assert isinstance(captured["json"]["tools"], list)
-
-
-def test_mint_realtime_session_retries_with_beta_header_on_400(monkeypatch):
-    """If the no-beta call returns 400 (e.g. account requires beta header),
-    fall through to retry with OpenAI-Beta: realtime=v1."""
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
-
-    response_400 = MagicMock()
-    response_400.status_code = 400
-    response_400.text = '{"error":{"code":"invalid_beta"}}'
-
-    response_200 = MagicMock()
-    response_200.status_code = 200
-    response_200.json.return_value = {
-        "id": "sess_after_retry",
-        "client_secret": {"value": "ek_retry", "expires_at": 0},
+    ga_response = MagicMock()
+    ga_response.status_code = 200
+    ga_response.json.return_value = {
+        "value": "ek_ga_999",
+        "expires_at": 1234567890,
+        "session": {"id": "sess_ga_abc"},
     }
 
     calls = []
     def fake_post(url, json=None, headers=None, timeout=None):
-        calls.append(headers.get("OpenAI-Beta"))
-        return response_400 if len(calls) == 1 else response_200
+        calls.append({"url": url, "json": json, "headers": headers})
+        return ga_response
+
+    import httpx
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    out = voice_openai.mint_realtime_session(
+        voice="verse", tools=[{"name": "get_quote", "description": "d",
+                               "parameters": {"type": "object", "properties": {}}}],
+        instructions="be helpful",
+    )
+
+    assert out["session_id"] == "sess_ga_abc"
+    assert out["client_secret"] == "ek_ga_999"
+    assert out["expires_at"] == 1234567890
+    assert len(calls) == 1
+    assert calls[0]["url"] == "https://api.openai.com/v1/realtime/client_secrets"
+    assert "OpenAI-Beta" not in calls[0]["headers"]
+    session = calls[0]["json"]["session"]
+    assert session["type"] == "realtime"
+    assert session["instructions"] == "be helpful"
+    assert session["audio"]["output"]["voice"] == "verse"
+
+
+def test_mint_realtime_session_falls_back_to_legacy_endpoint(monkeypatch):
+    """If GA /client_secrets fails, fall back to legacy /sessions with beta header."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
+
+    ga_fail = MagicMock(status_code=404, text='{"error":"not found"}')
+    legacy_ok = MagicMock()
+    legacy_ok.status_code = 200
+    legacy_ok.json.return_value = {
+        "id": "sess_legacy",
+        "client_secret": {"value": "ek_legacy", "expires_at": 0},
+    }
+
+    calls = []
+    def fake_post(url, json=None, headers=None, timeout=None):
+        calls.append({"url": url, "beta": headers.get("OpenAI-Beta")})
+        if url.endswith("/client_secrets"):
+            return ga_fail
+        return legacy_ok
 
     import httpx
     monkeypatch.setattr(httpx, "post", fake_post)
@@ -185,6 +183,28 @@ def test_mint_realtime_session_retries_with_beta_header_on_400(monkeypatch):
     out = voice_openai.mint_realtime_session(
         voice="verse", tools=[], instructions="x",
     )
-    assert out["session_id"] == "sess_after_retry"
-    assert calls[0] is None
-    assert calls[1] == "realtime=v1"
+    assert out["session_id"] == "sess_legacy"
+    assert out["client_secret"] == "ek_legacy"
+    assert calls[0]["url"].endswith("/client_secrets")
+    assert calls[1]["url"].endswith("/sessions")
+    assert calls[1]["beta"] == "realtime=v1"
+
+
+def test_mint_realtime_session_aggregates_all_errors(monkeypatch):
+    """When every attempt fails, the error message includes all of them."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        resp = MagicMock()
+        resp.status_code = 400
+        resp.text = f'{{"error":"bad {url[-15:]}"}}'
+        return resp
+
+    import httpx
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(RuntimeError) as exc:
+        voice_openai.mint_realtime_session(voice="verse", tools=[], instructions="x")
+    msg = str(exc.value)
+    assert "GA /client_secrets" in msg
+    assert "legacy /sessions" in msg
