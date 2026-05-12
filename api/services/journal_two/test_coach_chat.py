@@ -321,3 +321,55 @@ def test_confirm_unknown_tool_call_returns_error_event(db_conn):
     ))
     types = [e.get("type") for e in events]
     assert "error" in types
+
+
+# ── Summarization + hallucination audit ─────────────────────────────────────
+
+
+def test_estimate_tokens_returns_positive_int():
+    from api.services.journal_two import coach_chat
+    n = coach_chat._estimate_tokens([{"role": "user", "content": "hello world"}])
+    assert isinstance(n, int)
+    assert n > 0
+
+
+def test_maybe_summarize_inserts_summary_row_when_oversized(db_conn, monkeypatch):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    monkeypatch.setattr(coach_chat, "SUMMARIZE_THRESHOLD_TOKENS", 100)  # force trigger
+
+    class FakeSummaryClient:
+        def summarize(self, *, text: str) -> str:
+            return "earlier the user discussed bull flag losses"
+
+    for i in range(20):
+        coach_chat.append_message(user_id="u_chat", account_id=acc["id"],
+                                  role="user", content="x" * 50, conn=db_conn)
+    inserted = coach_chat._maybe_summarize(
+        user_id="u_chat", account_id=acc["id"],
+        summary_client=FakeSummaryClient(), conn=db_conn,
+    )
+    assert inserted is True
+    row = db_conn.execute(
+        "SELECT content, role FROM j2_chat_messages WHERE role = 'summary'"
+    ).fetchone()
+    assert row is not None
+    assert "bull flag" in row["content"]
+
+
+def test_audit_assistant_message_flags_unverified_numbers(db_conn):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    asst_id = coach_chat.append_message(
+        user_id="u_chat", account_id=acc["id"],
+        role="assistant", content="You're 99.9R on Bull Flags this quarter.",
+        conn=db_conn,
+    )
+    # No tools were called and no trades exist — the 99.9R claim is unverified
+    coach_chat._audit_assistant_message(message_id=asst_id, conn=db_conn)
+    row = db_conn.execute(
+        "SELECT metadata FROM j2_chat_messages WHERE id = ?", (asst_id,),
+    ).fetchone()
+    meta = json.loads(row["metadata"] or "{}")
+    assert "audit_flags" in meta
+    assert any("99.9" in f for f in meta["audit_flags"])

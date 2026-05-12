@@ -292,6 +292,11 @@ def handle_user_turn(
                    "message": "Daily chat limit reached.", "reset_at_utc": "midnight UTC"}
             return
 
+        try:
+            _maybe_summarize(user_id=user_id, account_id=account_id, conn=_conn)
+        except Exception:
+            pass
+
         append_message(user_id=user_id, account_id=account_id,
                        role="user", content=user_message, conn=_conn)
 
@@ -333,6 +338,10 @@ def handle_user_turn(
                 tool_calls=tool_calls_json if tool_calls_json else None,
                 conn=_conn,
             )
+            try:
+                _audit_assistant_message(message_id=asst_id, conn=_conn)
+            except Exception:
+                pass
 
             if not tool_uses:
                 yield {"type": "complete", "message_id": asst_id}
@@ -514,7 +523,130 @@ def confirm_pending_action(
             user_id=user_id, account_id=account_id,
             role="assistant", content=ack_text or None, conn=_conn,
         )
+        try:
+            _audit_assistant_message(message_id=ack_id, conn=_conn)
+        except Exception:
+            pass
         yield {"type": "complete", "message_id": ack_id}
+    finally:
+        if _close:
+            _conn.close()
+
+
+# ── Summarization + hallucination audit ────────────────────────────────────
+
+SUMMARIZE_THRESHOLD_TOKENS = 80_000
+
+
+def _estimate_tokens(messages: list[dict]) -> int:
+    """Quick token estimate: len(JSON) / 3.5. Good enough for sliding-window
+    detection without a tokenizer dependency."""
+    payload = json.dumps(messages, default=str)
+    return max(1, int(len(payload) / 3.5))
+
+
+def _maybe_summarize(*, user_id: str, account_id: str, summary_client=None, conn=None) -> bool:
+    """If history exceeds the threshold, summarize the oldest 30% of
+    non-summary messages into a single 'summary' row and mark them
+    forgotten. Returns True if summarization happened."""
+    _conn, _close = _get_conn(conn)
+    try:
+        messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
+        if _estimate_tokens(messages) < SUMMARIZE_THRESHOLD_TOKENS:
+            return False
+        rows = list_messages(user_id=user_id, account_id=account_id, limit=200, conn=_conn)["messages"]
+        non_summary = [r for r in rows if r["role"] != "summary"]
+        cut = max(1, int(len(non_summary) * 0.3))
+        to_summarize = non_summary[:cut]
+        if not to_summarize:
+            return False
+        text_blob = "\n".join(
+            f"[{r['role']}] {r.get('content') or ''}"
+            for r in to_summarize
+        )
+        summary_text = (summary_client or _DefaultSummaryClient()).summarize(text=text_blob)
+        append_message(
+            user_id=user_id, account_id=account_id,
+            role="summary", content=summary_text, conn=_conn,
+        )
+        ids = [r["id"] for r in to_summarize]
+        if ids:
+            _conn.execute(
+                "UPDATE j2_chat_messages SET forgotten = 1 WHERE id IN (" +
+                ",".join("?" * len(ids)) + ")",
+                ids,
+            )
+            _conn.commit()
+        return True
+    finally:
+        if _close:
+            _conn.close()
+
+
+class _DefaultSummaryClient:
+    def summarize(self, *, text: str) -> str:
+        import anthropic
+        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=600,
+            temperature=0.2,
+            system="You compress trading-coach conversations. Preserve any user-stated focus, behavioral commitments, or Compass observations of trader patterns. Drop tool-call mechanics. ≤500 tokens.",
+            messages=[{"role": "user", "content": text}],
+        )
+        return msg.content[0].text if msg.content else ""
+
+
+def _audit_assistant_message(*, message_id: str, conn=None) -> dict:
+    """Hallucination audit. Re-uses coach_validation's numeric/symbol grounding
+    against the data Compass actually had access to in the surrounding turn.
+    Non-blocking — writes flags to metadata."""
+    from api.services.journal_two import coach_validation as cv
+    _conn, _close = _get_conn(conn)
+    try:
+        row = _conn.execute(
+            "SELECT id, user_id, account_id, content, tool_calls, parent_id, created_at "
+            "FROM j2_chat_messages WHERE id = ?",
+            (message_id,),
+        ).fetchone()
+        if row is None or row["content"] is None:
+            return {"passed": True, "flags": []}
+        data = {"today": {"trades": [], "open_positions": []}, "recent_arcs": []}
+        tool_rows = _conn.execute(
+            """SELECT tool_results FROM j2_chat_messages
+               WHERE user_id = ? AND account_id = ? AND role = 'tool'
+                 AND created_at <= ? AND forgotten = 0
+               ORDER BY created_at DESC LIMIT 5""",
+            (row["user_id"], row["account_id"], row["created_at"]),
+        ).fetchall()
+        for tr in tool_rows:
+            try:
+                results = json.loads(tr["tool_results"] or "[]")
+            except (TypeError, json.JSONDecodeError):
+                continue
+            for r in results:
+                result_obj = r.get("result") or {}
+                trades = (result_obj.get("trades") or [])
+                positions = (result_obj.get("positions") or [])
+                data["today"]["trades"].extend(trades)
+                data["today"]["open_positions"].extend(positions)
+                if "arcs" in result_obj:
+                    data["recent_arcs"].extend(result_obj["arcs"])
+        result = cv.validate_eod_output(row["content"], data)
+        try:
+            existing_meta = json.loads(_conn.execute(
+                "SELECT metadata FROM j2_chat_messages WHERE id = ?", (message_id,),
+            ).fetchone()["metadata"] or "{}")
+        except (TypeError, json.JSONDecodeError):
+            existing_meta = {}
+        existing_meta["audit_flags"] = result["flags"]
+        existing_meta["audit_passed"] = result["passed"]
+        _conn.execute(
+            "UPDATE j2_chat_messages SET metadata = ? WHERE id = ?",
+            (json.dumps(existing_meta), message_id),
+        )
+        _conn.commit()
+        return result
     finally:
         if _close:
             _conn.close()
@@ -568,6 +700,10 @@ def cancel_pending_action(
             user_id=user_id, account_id=account_id,
             role="assistant", content=ack_text or None, conn=_conn,
         )
+        try:
+            _audit_assistant_message(message_id=ack_id, conn=_conn)
+        except Exception:
+            pass
         yield {"type": "complete", "message_id": ack_id}
     finally:
         if _close:
