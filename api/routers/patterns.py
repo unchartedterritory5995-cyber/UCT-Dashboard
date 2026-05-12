@@ -22,6 +22,7 @@ from api.services.pattern_engine.detectors.classical import falling_wedge as _fa
 from api.services.pattern_engine.detectors.classical import rising_wedge as _rising_wedge  # noqa: F401
 from api.services.pattern_engine.detectors.classical import head_shoulders as _head_shoulders  # noqa: F401
 from api.services.pattern_engine.detectors.classical import inverse_head_shoulders as _inverse_head_shoulders  # noqa: F401
+from api.services.pattern_engine.detectors.classical import double_top as _double_top  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -71,6 +72,12 @@ _PATTERN_METADATA = {
         "category": "classical",
         "direction": "bullish",
         "description": "Three troughs with the middle (head) lowest. Neckline connects the two peaks. Bullish reversal pattern.",
+    },
+    "double_top": {
+        "name": "Double Top",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "Two peaks at similar heights with a retrace trough between. Bearish reversal pattern.",
     },
 }
 
