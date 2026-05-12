@@ -9,6 +9,7 @@ import useTagColors from '../hooks/useTagColors'
 import useTickerTags from '../hooks/useTickerTags'
 import { ALERT_SOUNDS, previewSound } from '../utils/alertSound'
 import VoiceMemoryPanel from '../components/voice/VoiceMemoryPanel'
+import VoiceTelemetryPanel from '../components/voice/VoiceTelemetryPanel'
 import { useVoice } from '../context/VoiceContext'
 import styles from './Settings.module.css'
 
@@ -998,6 +999,11 @@ export default function Settings() {
         {/* ── Voice Memory ── */}
         <TileCard title="Voice Memory">
           <VoiceMemoryPanel />
+        </TileCard>
+
+        {/* ── Voice Telemetry ── */}
+        <TileCard title="Voice Telemetry">
+          <VoiceTelemetryPanel />
         </TileCard>
 
         {/* ── Watchlist Digest ── */}
