@@ -966,6 +966,32 @@ async def lifespan(app: FastAPI):
                            id="voice_proactive_after_hours",
                            max_instances=1, replace_existing=True)
 
+        # Voice P8 — nightly memory consolidation. Dedupes facts, flags
+        # stale ones, surfaces summary compression candidates.
+        def _voice_nightly_consolidate():
+            try:
+                from api.services.auth_db import get_connection as _gc
+                from api.services.voice_active_learning import consolidate_memory
+                conn = _gc()
+                try:
+                    rows = conn.execute(
+                        """SELECT DISTINCT user_id FROM voice_settings
+                            WHERE enabled = 1"""
+                    ).fetchall()
+                finally:
+                    conn.close()
+                for r in rows:
+                    try:
+                        consolidate_memory(r["user_id"])
+                    except Exception as e:
+                        print(f"[voice_consolidate] user={r['user_id']} failed: {e}")
+            except Exception as e:
+                print(f"[voice_consolidate] outer error: {e}")
+        _scheduler.add_job(_voice_nightly_consolidate,
+                           trigger=CronTrigger(hour=3, minute=30),
+                           id="voice_nightly_consolidate",
+                           max_instances=1, replace_existing=True)
+
         # Nightly flow DB prune — remove expired contracts (buffer_days=1)
         def _nightly_flow_prune():
             try:

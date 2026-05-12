@@ -366,6 +366,31 @@ def insights_scan(
     return {"queued": n}
 
 
+@router.get("/learning/gaps")
+def learning_gaps(user: dict = Depends(requires_voice_access)):
+    """Knowledge gaps — slots the assistant doesn't have info on yet."""
+    from api.services.voice_active_learning import detect_knowledge_gaps
+    return {"gaps": detect_knowledge_gaps(user["id"])}
+
+
+@router.get("/learning/ticker-obsessions")
+def learning_obsessions(user: dict = Depends(requires_voice_access)):
+    """Tickers the user mentions frequently but hasn't told us about."""
+    from api.services.voice_active_learning import detect_ticker_obsessions
+    return {"obsessions": detect_ticker_obsessions(user["id"])}
+
+
+@router.post("/learning/consolidate")
+@limiter.limit("3/minute")
+def learning_consolidate(
+    request: Request,
+    user: dict = Depends(requires_voice_access),
+):
+    """Run memory consolidation NOW (also runs nightly via scheduler)."""
+    from api.services.voice_active_learning import consolidate_memory
+    return consolidate_memory(user["id"])
+
+
 @router.get("/hallucinations")
 def hallucinations_list(
     limit: int = 50,
@@ -745,6 +770,16 @@ def session_token(
         except Exception as e:
             _log.warning("[session_token] confidence block failed: %s", e)
 
+    # P8: active learning — surface knowledge gaps so the model can
+    # naturally ask about them when an opening appears
+    gap_block = ""
+    if ctx != "train_me":
+        try:
+            from api.services.voice_active_learning import build_gap_prompt_line
+            gap_block = build_gap_prompt_line(uid)
+        except Exception as e:
+            _log.warning("[session_token] gap block failed: %s", e)
+
     session_instructions = base_instructions
     if temporal_line:
         session_instructions = session_instructions + "\n\n" + temporal_line
@@ -752,6 +787,8 @@ def session_token(
         session_instructions = session_instructions + "\n\n" + regime_line
     if confidence_block:
         session_instructions = session_instructions + "\n\n" + confidence_block
+    if gap_block:
+        session_instructions = session_instructions + "\n\n" + gap_block
     if insight_lines:
         session_instructions = session_instructions + (
             "\n\n=== PROACTIVE INSIGHTS FOR THIS SESSION ===\n"
