@@ -121,15 +121,29 @@ def _get_account_settings(user_id: str, account_id: str | None) -> dict:
 
 def _current_portfolio_risk(user_id: str, account_id: str | None) -> dict:
     """Sum dollar risk of every open position. Risk per position =
-    shares × (entry - stop) for longs, mirror for shorts."""
+    shares × (entry - stop) for longs, mirror for shorts. Also aggregates
+    by sector via theme_db so correlation checks have data."""
     try:
         from api.services.journal_two import positions as j2_positions
         opens = j2_positions.list_open_positions(user_id, account_id=account_id) or []
     except Exception:
-        return {"total_risk": 0.0, "open_count": 0, "by_symbol": {}}
+        return {"total_risk": 0.0, "open_count": 0, "by_symbol": {},
+                "by_sector": {}}
 
     total = 0.0
     by_symbol: dict[str, float] = {}
+    by_sector: dict[str, float] = {}
+
+    # Pull sector membership for each open symbol
+    try:
+        from api.services.theme_db import get_themes_for_ticker
+        sector_lookup = {
+            (p.get("symbol") or "").upper(): get_themes_for_ticker(p.get("symbol") or "")
+            for p in opens if p.get("symbol")
+        }
+    except Exception:
+        sector_lookup = {}
+
     for p in opens:
         entry = p.get("entry_price")
         stop = p.get("stop_price")
@@ -144,11 +158,36 @@ def _current_portfolio_risk(user_id: str, account_id: str | None) -> dict:
             continue
         total += risk
         by_symbol[sym] = by_symbol.get(sym, 0.0) + risk
+
+        # Attribute risk to sector(s). If a ticker belongs to multiple
+        # sectors, count it in each — concentrated tickers should worry
+        # us in EVERY sector lens they hit, not be split.
+        themes = sector_lookup.get(sym) or []
+        seen_sectors: set[str] = set()
+        for t in themes:
+            sname = (t.get("sector_name") or "").strip()
+            if not sname or sname in seen_sectors:
+                continue
+            seen_sectors.add(sname)
+            by_sector[sname] = by_sector.get(sname, 0.0) + risk
+
     return {
         "total_risk": round(total, 2),
         "open_count": len(opens),
         "by_symbol": {k: round(v, 2) for k, v in by_symbol.items()},
+        "by_sector": {k: round(v, 2) for k, v in by_sector.items()},
     }
+
+
+def _sectors_for_symbol(sym: str) -> set[str]:
+    """Return distinct sector names for a ticker via theme_db."""
+    try:
+        from api.services.theme_db import get_themes_for_ticker
+        themes = get_themes_for_ticker(sym) or []
+    except Exception:
+        return set()
+    return {(t.get("sector_name") or "").strip()
+            for t in themes if t.get("sector_name")}
 
 
 def validate_trade(
@@ -239,6 +278,28 @@ def validate_trade(
             f"(would compound — close or update existing)"
         )
 
+    # Rule 5: sector correlation (P6). Sum existing risk in the proposed
+    # symbol's sectors and verify adding this trade wouldn't blow past the
+    # 2x-per-trade cap on any one sector.
+    sector_breach: list[str] = []
+    sectors = _sectors_for_symbol(sym)
+    if sectors:
+        max_sector_risk_pct = max_risk_pct * 2.5  # 2.5x per-trade cap
+        for sec in sectors:
+            existing = current.get("by_sector", {}).get(sec, 0.0)
+            new_sector_risk = existing + actual_dollar_risk
+            new_sector_pct = (new_sector_risk / account_size * 100.0
+                              if account_size > 0 else 0.0)
+            if new_sector_pct > max_sector_risk_pct:
+                sector_breach.append(
+                    f"{sec} sector concentration would hit "
+                    f"{new_sector_pct:.2f}% (max {max_sector_risk_pct:.2f}%)"
+                )
+    if sector_breach:
+        refusal_basis.append(
+            "sector concentration: " + "; ".join(sector_breach[:2])
+        )
+
     ok = len(refusal_basis) == 0
 
     return {
@@ -254,6 +315,14 @@ def validate_trade(
             if account_size > 0 else 0.0, 3,
         ),
         "portfolio_heat_after": round(portfolio_heat_after, 3),
+        "sectors": sorted(sectors),
+        "sector_risk_after": {
+            sec: round(
+                (current.get("by_sector", {}).get(sec, 0.0) + actual_dollar_risk)
+                / account_size * 100.0, 3,
+            ) if account_size > 0 else 0.0
+            for sec in sectors
+        },
         "account_size": account_size,
         "max_risk_pct": max_risk_pct,
         "account_name": settings["account_name"],
@@ -262,5 +331,6 @@ def validate_trade(
             "max_risk_per_trade_pct": max_risk_pct,
             "absolute_max_per_trade_pct": ABSOLUTE_MAX_RISK_PER_TRADE_PCT,
             "max_portfolio_heat_pct": ABSOLUTE_MAX_PORTFOLIO_HEAT_PCT,
+            "max_sector_pct": max_risk_pct * 2.5,
         },
     }

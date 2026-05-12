@@ -166,6 +166,51 @@ def test_validate_refuses_inverted_stop(monkeypatch):
     assert out["ok"] is False
 
 
+def test_validate_refuses_sector_concentration(monkeypatch):
+    """If user already has heavy semiconductor exposure, refuse a 4th."""
+    uid = _user()
+    monkeypatch.setattr(vps, "_get_account_settings", lambda u, a: {
+        "account_id": None, "account_name": "Test",
+        "account_size": 100_000.0, "max_risk_pct": 1.0,
+    })
+    # Existing $2300 risk in Semis sector (already over 2.5×1% = 2.5%)
+    monkeypatch.setattr(vps, "_current_portfolio_risk", lambda u, a: {
+        "total_risk": 2300.0, "open_count": 3,
+        "by_symbol": {"NVDA": 800.0, "AMD": 800.0, "AVGO": 700.0},
+        "by_sector": {"Semiconductors": 2300.0},
+    })
+    monkeypatch.setattr(vps, "_sectors_for_symbol",
+                         lambda s: {"Semiconductors"})
+    out = vps.validate_trade(
+        user_id=uid, symbol="TSM",
+        entry=200, stop=195, shares=100,  # adds $500 more semi risk
+    )
+    assert out["ok"] is False
+    assert any("Semiconductors" in r and "sector" in r.lower()
+                for r in out["refusal_basis"])
+
+
+def test_validate_allows_diversified_trade(monkeypatch):
+    """Same risk amount but a different sector should pass."""
+    uid = _user()
+    monkeypatch.setattr(vps, "_get_account_settings", lambda u, a: {
+        "account_id": None, "account_name": "Test",
+        "account_size": 100_000.0, "max_risk_pct": 1.0,
+    })
+    monkeypatch.setattr(vps, "_current_portfolio_risk", lambda u, a: {
+        "total_risk": 2300.0, "open_count": 3,
+        "by_symbol": {"NVDA": 800.0, "AMD": 800.0, "AVGO": 700.0},
+        "by_sector": {"Semiconductors": 2300.0},
+    })
+    monkeypatch.setattr(vps, "_sectors_for_symbol",
+                         lambda s: {"Healthcare"})  # different sector
+    out = vps.validate_trade(
+        user_id=uid, symbol="UNH",
+        entry=400, stop=395, shares=100,  # $500 healthcare risk
+    )
+    assert out["ok"] is True
+
+
 def test_validate_reports_account_state(monkeypatch):
     """Output should always include account_size, max_risk_pct, portfolio_heat."""
     uid = _user()
