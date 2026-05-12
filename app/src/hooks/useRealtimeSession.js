@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useVoice } from '../context/VoiceContext'
 import useReadAloud from './useReadAloud'
 import {
+  openTicker as busOpenTicker,
+  changeTimeframe as busChangeTimeframe,
+  addIndicator as busAddIndicator,
+  changeChartType as busChangeChartType,
+} from '../utils/chartBus'
+import {
   parseRealtimeEvent,
   functionCallOutputEvent,
   responseCreateEvent,
@@ -263,6 +269,14 @@ export default function useRealtimeSession() {
             key: 'uct.j2.selectedAccountId',
             newValue: action.account_id,
           }))
+        } else if (action.type === 'open_ticker' && action.symbol) {
+          busOpenTicker(action.symbol)
+        } else if (action.type === 'change_chart_timeframe' && action.timeframe) {
+          busChangeTimeframe(action.timeframe)
+        } else if (action.type === 'add_chart_indicator' && action.indicator) {
+          busAddIndicator(action.indicator)
+        } else if (action.type === 'change_chart_type' && action.chartType) {
+          busChangeChartType(action.chartType)
         }
       } catch (e) {
         console.error('[voice] client_action dispatch failed', e)

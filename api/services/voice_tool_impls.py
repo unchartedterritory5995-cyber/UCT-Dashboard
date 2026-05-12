@@ -501,6 +501,28 @@ def _read_aloud(content: str = "") -> dict:
     return read_aloud(content=content)
 
 
+# ── Batch 7c: chart actions (client_action via global chartBus) ─────────────
+
+def _open_ticker(symbol: str = "") -> dict:
+    from api.services.voice_client_action_tools import open_ticker
+    return open_ticker(symbol=symbol)
+
+
+def _change_chart_timeframe(timeframe: str = "") -> dict:
+    from api.services.voice_client_action_tools import change_chart_timeframe
+    return change_chart_timeframe(timeframe=timeframe)
+
+
+def _add_chart_indicator(name: str = "") -> dict:
+    from api.services.voice_client_action_tools import add_chart_indicator
+    return add_chart_indicator(name=name)
+
+
+def _change_chart_type(chart_type: str = "") -> dict:
+    from api.services.voice_client_action_tools import change_chart_type
+    return change_chart_type(chart_type=chart_type)
+
+
 # ── Batch 4: journal deep reads ─────────────────────────────────────────────
 
 def _get_my_calendar(*, user, month: str = "") -> dict:
@@ -1210,6 +1232,36 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_list_voice_settings)
+
+    # ── Batch 7c: chart actions (dispatched via client chartBus) ───────────
+
+    _vt.voice_tool(
+        name="open_ticker",
+        description="Open the TickerPopup chart modal for a symbol. Call when user says 'open NVDA' or 'show me AAPL'.",
+        parameters={"symbol": {"type": "string"}},
+        contexts=["global"],
+    )(_open_ticker)
+
+    _vt.voice_tool(
+        name="change_chart_timeframe",
+        description="Switch the current chart's timeframe. Accepts 5min/30min/1hr/Daily/Weekly/Monthly and aliases like 'one hour' or 'D'.",
+        parameters={"timeframe": {"type": "string"}},
+        contexts=["global"],
+    )(_change_chart_timeframe)
+
+    _vt.voice_tool(
+        name="add_chart_indicator",
+        description="Add an indicator/overlay to the current chart. Supported: VWAP, AVWAP, MA9/20/50/200, EMA9/20/50, RSI, MACD, Bollinger Bands.",
+        parameters={"name": {"type": "string"}},
+        contexts=["global"],
+    )(_add_chart_indicator)
+
+    _vt.voice_tool(
+        name="change_chart_type",
+        description="Switch chart type — candles, hollow, bars, line, or area.",
+        parameters={"chart_type": {"type": "string"}},
+        contexts=["global"],
+    )(_change_chart_type)
 
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────

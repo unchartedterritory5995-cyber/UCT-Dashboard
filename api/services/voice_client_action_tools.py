@@ -131,3 +131,62 @@ def read_aloud(*, content: str) -> dict:
         "narration": f"Reading {k}.",
         "client_action": {"type": "read_aloud", "content": k},
     }
+
+
+# ── Chart actions (Batch 7c) — dispatched via global chartBus on the client ──
+
+def open_ticker(*, symbol: str) -> dict:
+    """Open the TickerPopup modal for a symbol from anywhere in the app."""
+    sym = (symbol or "").strip().upper()
+    if not sym:
+        return {"ok": False, "narration": "Which ticker?"}
+    return {
+        "ok": True,
+        "narration": f"Opening {sym}.",
+        "client_action": {"type": "open_ticker", "symbol": sym},
+    }
+
+
+def change_chart_timeframe(*, timeframe: str) -> dict:
+    """Flip the current chart's timeframe (5m / 30m / 1h / D / W / M)."""
+    if not timeframe:
+        return {"ok": False, "narration": "Switch to which timeframe?"}
+    return {
+        "ok": True,
+        "narration": f"Switching to {timeframe}.",
+        "client_action": {"type": "change_chart_timeframe", "timeframe": timeframe},
+    }
+
+
+_INDICATOR_ALIASES = {
+    "v-wap": "vwap", "anchored vwap": "avwap", "anchored": "avwap",
+    "fifty moving average": "ma50", "200 moving average": "ma200",
+    "200 day": "ma200", "50 day": "ma50",
+    "bollinger": "bb", "bollinger bands": "bb",
+    "macd": "macd", "rsi": "rsi",
+}
+
+
+def add_chart_indicator(*, name: str) -> dict:
+    """Add an overlay/indicator to the current chart."""
+    raw = (name or "").strip().lower()
+    if not raw:
+        return {"ok": False, "narration": "Which indicator? VWAP, 50 MA, RSI, MACD…"}
+    resolved = _INDICATOR_ALIASES.get(raw, raw.replace(" ", ""))
+    return {
+        "ok": True,
+        "narration": f"Adding {resolved}.",
+        "client_action": {"type": "add_chart_indicator", "indicator": resolved},
+    }
+
+
+def change_chart_type(*, chart_type: str) -> dict:
+    """Switch chart type (candles / hollow / bars / line / area)."""
+    raw = (chart_type or "").strip().lower()
+    if not raw:
+        return {"ok": False, "narration": "Which chart type? Candles, line, or area?"}
+    return {
+        "ok": True,
+        "narration": f"Switching to {raw}.",
+        "client_action": {"type": "change_chart_type", "chartType": raw},
+    }
