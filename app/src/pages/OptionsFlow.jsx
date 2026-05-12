@@ -382,8 +382,7 @@ function capBand(mktcap) {
   if (!mktcap || mktcap <= 0) return "Unknown";
   if (mktcap >= 500e9) return "Mega";
   if (mktcap >= 10e9)  return "Large";
-  if (mktcap >= 2e9)   return "Mid";
-  return "Small";
+  return "Mid-Small";
 }
 function filterByCap(trades, cap) {
   if (!cap || cap === "All") return trades;
@@ -1451,7 +1450,7 @@ export default function OptionsFlowDashboard() {
     (FD.CONV||[]).forEach(c => { if (c.volOI >= 10 && c.maxOI > 0 && c.maxOI < 500) unusual.push({ ...c, anomaly:"VOL_OI_EXTREME", source:"voloi" }); });
     (FD.CONV||[]).forEach(c => {
       const cap = capBand(c.mktcap);
-      const thresh = cap==="Small"?500e3:cap==="Mid"?2e6:0;
+      const thresh = cap==="Mid-Small"?500e3:0;
       if (thresh > 0 && c.prem >= thresh) unusual.push({ ...c, anomaly:"SIZE_VS_CAP", source:"sizecap" });
     });
     // Dedup by contract
@@ -3377,17 +3376,16 @@ export default function OptionsFlowDashboard() {
 
         {/* Global Cap Filter */}
         {FD && (()=>{
-          const caps = ["All","Mega","Large","Mid","Small"];
-          const capColors = { Mega:"#ffd700", Large:"#00e5ff", Mid:"#69f0ae", Small:"#ff8a65", All:P.wh };
+          const caps = ["All","Mega","Large","Mid-Small"];
+          const capColors = { Mega:"#c9a84c", Large:"#6ba3be", "Mid-Small":"#a8a290", All:P.wh };
           const capDescriptions = {
             Mega:  "$500B+ · SPY-weight movers",
             Large: "$10B–$500B · institutional conviction plays",
-            Mid:   "$2B–$10B · directional bets, less noise",
-            Small: "Under $2B · high-risk, high-conviction small name flow",
+            "Mid-Small": "Under $10B · directional bets, high-conviction small name flow",
           };
           const capThresh = {
             Mega: t=>capBand(t.mktcap)==="Mega", Large: t=>capBand(t.mktcap)==="Large",
-            Mid: t=>capBand(t.mktcap)==="Mid", Small: t=>capBand(t.mktcap)==="Small"
+            "Mid-Small": t=>capBand(t.mktcap)==="Mid-Small"
           };
           return (
             <div style={{ marginBottom:10 }}>
