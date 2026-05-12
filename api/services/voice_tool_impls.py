@@ -372,6 +372,70 @@ def _plan_my_day(*, user) -> dict:
     return plan_my_day(user_id=user["id"])
 
 
+# ── Batch 1: watchlist / tag / alert wrappers ───────────────────────────────
+
+def _flag_ticker(*, user, symbol: str) -> dict:
+    from api.services.voice_watchlist_tools import flag_ticker
+    return flag_ticker(symbol=symbol or "", user_id=user["id"])
+
+
+def _unflag_ticker(*, user, symbol: str) -> dict:
+    from api.services.voice_watchlist_tools import unflag_ticker
+    return unflag_ticker(symbol=symbol or "", user_id=user["id"])
+
+
+def _tag_ticker(*, user, symbol: str, color: str) -> dict:
+    from api.services.voice_watchlist_tools import tag_ticker
+    return tag_ticker(symbol=symbol or "", color=color or "", user_id=user["id"])
+
+
+def _untag_ticker(*, user, symbol: str) -> dict:
+    from api.services.voice_watchlist_tools import untag_ticker
+    return untag_ticker(symbol=symbol or "", user_id=user["id"])
+
+
+def _list_my_tags(*, user) -> dict:
+    from api.services.voice_watchlist_tools import list_my_tags
+    return list_my_tags(user_id=user["id"])
+
+
+def _add_to_watchlist(*, user, symbol: str, list_name: str) -> dict:
+    from api.services.voice_watchlist_tools import add_to_watchlist
+    return add_to_watchlist(
+        symbol=symbol or "", list_name=list_name or "", user_id=user["id"]
+    )
+
+
+def _remove_from_watchlist(*, user, symbol: str, list_name: str) -> dict:
+    from api.services.voice_watchlist_tools import remove_from_watchlist
+    return remove_from_watchlist(
+        symbol=symbol or "", list_name=list_name or "", user_id=user["id"]
+    )
+
+
+def _list_my_watchlists(*, user) -> dict:
+    from api.services.voice_watchlist_tools import list_my_watchlists
+    return list_my_watchlists(user_id=user["id"])
+
+
+def _set_price_alert(*, user, symbol: str, target_price, direction: str) -> dict:
+    from api.services.voice_watchlist_tools import set_price_alert
+    return set_price_alert(
+        symbol=symbol or "", target_price=target_price,
+        direction=direction or "", user_id=user["id"],
+    )
+
+
+def _list_my_alerts(*, user) -> dict:
+    from api.services.voice_watchlist_tools import list_my_alerts
+    return list_my_alerts(user_id=user["id"])
+
+
+def _cancel_alert(*, user, symbol: str) -> dict:
+    from api.services.voice_watchlist_tools import cancel_alert
+    return cancel_alert(symbol=symbol or "", user_id=user["id"])
+
+
 def _register_all() -> None:
     """Register (or re-register) all Slice 2 tools into the registry."""
 
@@ -666,6 +730,109 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_find_my_trades)
+
+    # ── Batch 1: watchlist / tag / alert tools (single-step writes) ─────────
+
+    _vt.voice_tool(
+        name="flag_ticker",
+        description="Add a ticker to the user's flagged watchlist. Call when user says 'flag NVDA' or 'mark X as flagged'. Single-step write — no confirmation needed.",
+        parameters={"symbol": {"type": "string", "description": "Ticker to flag."}},
+        contexts=["global"],
+        wants_user=True,
+    )(_flag_ticker)
+
+    _vt.voice_tool(
+        name="unflag_ticker",
+        description="Remove a ticker from the user's flagged watchlist.",
+        parameters={"symbol": {"type": "string"}},
+        contexts=["global"],
+        wants_user=True,
+    )(_unflag_ticker)
+
+    _vt.voice_tool(
+        name="tag_ticker",
+        description="Apply a color tag to a ticker. Colors: green, blue, orange, red, purple, gold, teal. Call when user says 'tag NVDA gold' or 'mark TSLA red'.",
+        parameters={
+            "symbol": {"type": "string"},
+            "color": {"type": "string", "description": "One of: green, blue, orange, red, purple, gold, teal."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_tag_ticker)
+
+    _vt.voice_tool(
+        name="untag_ticker",
+        description="Remove the color tag from a ticker.",
+        parameters={"symbol": {"type": "string"}},
+        contexts=["global"],
+        wants_user=True,
+    )(_untag_ticker)
+
+    _vt.voice_tool(
+        name="list_my_tags",
+        description="Read back the user's tagged tickers, grouped by color.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_list_my_tags)
+
+    _vt.voice_tool(
+        name="add_to_watchlist",
+        description="Add a ticker to a named watchlist (the user must already own a list by that name). Fuzzy name matching on the user's lists.",
+        parameters={
+            "symbol": {"type": "string"},
+            "list_name": {"type": "string", "description": "Name of the watchlist."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_add_to_watchlist)
+
+    _vt.voice_tool(
+        name="remove_from_watchlist",
+        description="Remove a ticker from one of the user's watchlists.",
+        parameters={
+            "symbol": {"type": "string"},
+            "list_name": {"type": "string"},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_remove_from_watchlist)
+
+    _vt.voice_tool(
+        name="list_my_watchlists",
+        description="Read back the names and sizes of the user's watchlists.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_list_my_watchlists)
+
+    _vt.voice_tool(
+        name="set_price_alert",
+        description="Create a price alert. Direction must be 'above' or 'below'. Call when user says 'alert me if NVDA hits 200' or 'tell me when TSLA breaks 250'.",
+        parameters={
+            "symbol": {"type": "string"},
+            "target_price": {"type": "number"},
+            "direction": {"type": "string", "enum": ["above", "below"]},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_set_price_alert)
+
+    _vt.voice_tool(
+        name="list_my_alerts",
+        description="Read back the user's active price alerts.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_list_my_alerts)
+
+    _vt.voice_tool(
+        name="cancel_alert",
+        description="Cancel the most recent active price alert for a given symbol.",
+        parameters={"symbol": {"type": "string"}},
+        contexts=["global"],
+        wants_user=True,
+    )(_cancel_alert)
 
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────
