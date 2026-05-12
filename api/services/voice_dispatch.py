@@ -47,7 +47,10 @@ def run_tool(
     _t0 = time.monotonic()
 
     try:
-        result = dispatch(tool_name, safe_args, user={"id": user_id})
+        result = dispatch(
+            tool_name, safe_args,
+            user={"id": user_id, "session_id": session_id},
+        )
     except KeyError as e:
         msg = f"tool {tool_name!r} not found"
         _log.warning(msg)

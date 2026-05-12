@@ -329,6 +329,18 @@ CREATE TABLE IF NOT EXISTS voice_embeddings (
 
 CREATE INDEX IF NOT EXISTS idx_voice_embeddings_user_kind ON voice_embeddings(user_id, kind);
 CREATE INDEX IF NOT EXISTS idx_voice_embeddings_source ON voice_embeddings(kind, source_id);
+
+CREATE TABLE IF NOT EXISTS voice_scratchpad (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id   INTEGER REFERENCES voice_sessions(id) ON DELETE CASCADE,
+    user_id      TEXT NOT NULL REFERENCES users(id),
+    key          TEXT NOT NULL,
+    value        TEXT NOT NULL,
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(session_id, key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_scratchpad_session ON voice_scratchpad(session_id);
 """
 
 

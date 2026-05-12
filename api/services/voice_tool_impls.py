@@ -575,6 +575,43 @@ def _list_voice_settings(*, user) -> dict:
     return list_voice_settings(user_id=user["id"])
 
 
+# ── Batch 8b: scratchpad (per-session working memory) ──────────────────────
+
+def _note_write(*, user, key: str = "", value: str = "") -> dict:
+    """Save a key/value pair to this session's scratchpad."""
+    from api.services.voice_scratchpad_service import write_note
+    try:
+        out = write_note(
+            user_id=user["id"], session_id=user.get("session_id"),
+            key=key, value=value,
+        )
+    except ValueError as e:
+        return {"ok": False, "narration": str(e)}
+    return {"ok": True, "narration": f"Noted {out['key']}.", **out}
+
+
+def _note_read(*, user, key: str = "") -> dict:
+    from api.services.voice_scratchpad_service import read_note
+    v = read_note(session_id=user.get("session_id"), key=key)
+    if v is None:
+        return {"ok": False, "narration": f"No note saved under {key!r}."}
+    return {"ok": True, "narration": v, "key": key, "value": v}
+
+
+def _note_list(*, user) -> dict:
+    from api.services.voice_scratchpad_service import list_notes
+    notes = list_notes(session_id=user.get("session_id"))
+    if not notes:
+        return {"ok": True, "narration": "Scratchpad is empty.", "notes": []}
+    keys = [n["key"] for n in notes]
+    return {
+        "ok": True,
+        "narration": "Scratchpad keys: " + ", ".join(keys) + ".",
+        "notes": notes,
+        "count": len(notes),
+    }
+
+
 # ── Batch 8a: RAG retrieval ─────────────────────────────────────────────────
 
 def _recall_relevant(*, user, query: str = "", kind: str = "", count: int = 5) -> dict:
@@ -1284,6 +1321,35 @@ def _register_all() -> None:
         contexts=["global", "train_me"],
         wants_user=True,
     )(_recall_relevant)
+
+    # ── Batch 8b: scratchpad ───────────────────────────────────────────────
+
+    _vt.voice_tool(
+        name="note_write",
+        description="Save a key/value pair to this session's working memory. Use when you've fetched data via several tools and want to reference it later in the same conversation without re-fetching. Example: after pulling NVDA quote, sector, and journal stats, write notes 'nvda_quote'='at 200, up 2%', 'nvda_sector'='semis leading', 'nvda_history'='you went 11-3 on flag breakouts'.",
+        parameters={
+            "key": {"type": "string", "description": "Short identifier."},
+            "value": {"type": "string", "description": "Content to remember (max 4000 chars)."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_note_write)
+
+    _vt.voice_tool(
+        name="note_read",
+        description="Read back a value you previously wrote to the session scratchpad.",
+        parameters={"key": {"type": "string"}},
+        contexts=["global"],
+        wants_user=True,
+    )(_note_read)
+
+    _vt.voice_tool(
+        name="note_list",
+        description="List all keys currently in this session's scratchpad.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_note_list)
 
     # ── Batch 7c: chart actions (dispatched via client chartBus) ───────────
 

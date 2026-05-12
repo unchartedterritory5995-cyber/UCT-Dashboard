@@ -46,6 +46,12 @@ def end_session(session_id: int, *, duration_seconds: int,
         conn.commit()
     finally:
         conn.close()
+    # Wipe scratchpad — it's working memory, not durable
+    try:
+        from api.services.voice_scratchpad_service import clear_session
+        clear_session(session_id=session_id)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def append_transcript(session_id: int, *, role: str, text: str) -> None:
