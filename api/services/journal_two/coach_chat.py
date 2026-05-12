@@ -429,3 +429,146 @@ def _summarize_tool_result(tool_name: str, result: dict) -> str:
     if tool_name == "find_arcs":
         return f"{len(result.get('arcs', []))} arc(s)"
     return "ok"
+
+
+# ── Pending-action confirm / cancel ─────────────────────────────────────────
+
+
+def _find_pending_tool_call(conn, *, message_id: str, tool_call_id: str) -> dict | None:
+    row = conn.execute(
+        "SELECT tool_calls FROM j2_chat_messages WHERE id = ?", (message_id,),
+    ).fetchone()
+    if row is None or not row["tool_calls"]:
+        return None
+    try:
+        calls = json.loads(row["tool_calls"])
+    except (TypeError, json.JSONDecodeError):
+        return None
+    for tc in calls:
+        if tc.get("id") == tool_call_id:
+            return tc
+    return None
+
+
+def confirm_pending_action(
+    *,
+    user_id: str,
+    account_id: str,
+    message_id: str,
+    tool_call_id: str,
+    client=None,
+    conn=None,
+):
+    """Execute a pending action, persist its result, then re-invoke the
+    model for an acknowledgement. Generator yields events."""
+    from api.services.journal_two import coach_chat_tools as cct
+    from api.services.journal_two import coach_prompts
+
+    _conn, _close = _get_conn(conn)
+    try:
+        tc = _find_pending_tool_call(_conn, message_id=message_id, tool_call_id=tool_call_id)
+        if tc is None or tc.get("status") != "pending_confirm":
+            yield {"type": "error", "code": "no_pending_action",
+                   "message": "Tool call not found or no longer pending."}
+            return
+        spec = cct.TOOLS.get(tc["name"])
+        if spec is None or not spec["requires_confirm"]:
+            yield {"type": "error", "code": "invalid_tool",
+                   "message": f"Tool {tc['name']} is not a confirmable action."}
+            return
+
+        try:
+            result = spec["executor"](
+                user_id=user_id, account_id=account_id,
+                args=tc.get("args") or {}, conn=_conn,
+            )
+        except Exception as e:  # noqa: BLE001
+            result = {"ok": False, "error": str(e)}
+
+        _mark_tool_call_status(_conn, message_id, tool_call_id, "confirmed")
+        append_message(
+            user_id=user_id, account_id=account_id,
+            role="tool",
+            tool_results=[{"tool_call_id": tool_call_id, "result": result}],
+            parent_id=message_id, conn=_conn,
+        )
+        yield {"type": "tool_call", "name": tc["name"], "args": tc.get("args") or {},
+               "summary": _summarize_tool_result(tc["name"], result)}
+
+        # Re-invoke model for acknowledgement
+        active_client = client or AnthropicChatClient()
+        tools_param = _build_anthropic_tools_param()
+        messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
+        ack_text = ""
+        with active_client.start_stream(
+            system_prompt=coach_prompts.COMPASS_SYSTEM_PROMPT,
+            messages=messages, tools=tools_param,
+        ) as stream:
+            for ev in stream:
+                etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)
+                if etype == "text":
+                    text = ev.get("text") if isinstance(ev, dict) else getattr(ev, "text", "")
+                    ack_text += text
+                    yield {"type": "token", "text": text}
+        ack_id = append_message(
+            user_id=user_id, account_id=account_id,
+            role="assistant", content=ack_text or None, conn=_conn,
+        )
+        yield {"type": "complete", "message_id": ack_id}
+    finally:
+        if _close:
+            _conn.close()
+
+
+def cancel_pending_action(
+    *,
+    user_id: str,
+    account_id: str,
+    message_id: str,
+    tool_call_id: str,
+    client=None,
+    conn=None,
+):
+    """User clicked Cancel. Mark cancelled; model acknowledges briefly."""
+    from api.services.journal_two import coach_prompts
+
+    _conn, _close = _get_conn(conn)
+    try:
+        tc = _find_pending_tool_call(_conn, message_id=message_id, tool_call_id=tool_call_id)
+        if tc is None or tc.get("status") != "pending_confirm":
+            yield {"type": "error", "code": "no_pending_action",
+                   "message": "Tool call not found or no longer pending."}
+            return
+
+        _mark_tool_call_status(_conn, message_id, tool_call_id, "cancelled")
+        append_message(
+            user_id=user_id, account_id=account_id,
+            role="tool",
+            tool_results=[{"tool_call_id": tool_call_id,
+                           "result": {"ok": False, "cancelled": True,
+                                      "reason": "user_cancelled"}}],
+            parent_id=message_id, conn=_conn,
+        )
+
+        active_client = client or AnthropicChatClient()
+        tools_param = _build_anthropic_tools_param()
+        messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
+        ack_text = ""
+        with active_client.start_stream(
+            system_prompt=coach_prompts.COMPASS_SYSTEM_PROMPT,
+            messages=messages, tools=tools_param,
+        ) as stream:
+            for ev in stream:
+                etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)
+                if etype == "text":
+                    text = ev.get("text") if isinstance(ev, dict) else getattr(ev, "text", "")
+                    ack_text += text
+                    yield {"type": "token", "text": text}
+        ack_id = append_message(
+            user_id=user_id, account_id=account_id,
+            role="assistant", content=ack_text or None, conn=_conn,
+        )
+        yield {"type": "complete", "message_id": ack_id}
+    finally:
+        if _close:
+            _conn.close()

@@ -238,3 +238,86 @@ def test_handle_user_turn_kill_switch_returns_disabled(db_conn, monkeypatch):
     assert "error" in types
     n = db_conn.execute("SELECT COUNT(*) AS n FROM j2_chat_messages").fetchone()["n"]
     assert n == 0
+
+
+# ── Confirm + cancel pending actions ────────────────────────────────────────
+
+
+def test_confirm_pending_action_executes_and_acknowledges(db_conn):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    coach_chat.append_message(user_id="u_chat", account_id=acc["id"],
+                              role="user", content="mute pullbacks", conn=db_conn)
+    asst_id = coach_chat.append_message(
+        user_id="u_chat", account_id=acc["id"],
+        role="assistant", content=None,
+        tool_calls=[{"id": "tu_x", "name": "mute_setup",
+                     "args": {"setup_name": "Pullback", "until_date": "2026-05-25"},
+                     "status": "pending_confirm"}],
+        conn=db_conn,
+    )
+    client = FakeChatClient(stream_scripts=[
+        [{"type": "text", "text": "Done. Muted Pullback until 2026-05-25."},
+         {"type": "message_stop"}],
+    ])
+    events = list(coach_chat.confirm_pending_action(
+        user_id="u_chat", account_id=acc["id"],
+        message_id=asst_id, tool_call_id="tu_x",
+        client=client, conn=db_conn,
+    ))
+    # Mutation visible
+    row = db_conn.execute("SELECT muted_setups FROM j2_accounts WHERE id = ?", (acc["id"],)).fetchone()
+    muted = json.loads(row["muted_setups"])
+    assert any(m["setup_name"] == "Pullback" for m in muted)
+    # Acknowledgement turn persisted
+    ack_rows = db_conn.execute(
+        "SELECT content FROM j2_chat_messages WHERE role = 'assistant' ORDER BY created_at DESC LIMIT 1"
+    ).fetchall()
+    assert "Done" in ack_rows[0]["content"]
+
+
+def test_cancel_pending_action_marks_cancelled(db_conn):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    coach_chat.append_message(user_id="u_chat", account_id=acc["id"],
+                              role="user", content="mute pullbacks", conn=db_conn)
+    asst_id = coach_chat.append_message(
+        user_id="u_chat", account_id=acc["id"],
+        role="assistant", content=None,
+        tool_calls=[{"id": "tu_y", "name": "mute_setup",
+                     "args": {"setup_name": "Pullback"}, "status": "pending_confirm"}],
+        conn=db_conn,
+    )
+    client = FakeChatClient(stream_scripts=[
+        [{"type": "text", "text": "Got it, didn't mute."}, {"type": "message_stop"}],
+    ])
+    events = list(coach_chat.cancel_pending_action(
+        user_id="u_chat", account_id=acc["id"],
+        message_id=asst_id, tool_call_id="tu_y",
+        client=client, conn=db_conn,
+    ))
+    # No mutation
+    row = db_conn.execute("SELECT muted_setups FROM j2_accounts WHERE id = ?", (acc["id"],)).fetchone()
+    muted = json.loads(row["muted_setups"])
+    assert all(m["setup_name"] != "Pullback" for m in muted)
+    # Status updated
+    asst_row = db_conn.execute("SELECT tool_calls FROM j2_chat_messages WHERE id = ?", (asst_id,)).fetchone()
+    calls = json.loads(asst_row["tool_calls"])
+    assert calls[0]["status"] == "cancelled"
+
+
+def test_confirm_unknown_tool_call_returns_error_event(db_conn):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    asst_id = coach_chat.append_message(
+        user_id="u_chat", account_id=acc["id"],
+        role="assistant", content="hi", conn=db_conn,
+    )
+    client = FakeChatClient(stream_scripts=[])
+    events = list(coach_chat.confirm_pending_action(
+        user_id="u_chat", account_id=acc["id"],
+        message_id=asst_id, tool_call_id="missing",
+        client=client, conn=db_conn,
+    ))
+    types = [e.get("type") for e in events]
+    assert "error" in types
