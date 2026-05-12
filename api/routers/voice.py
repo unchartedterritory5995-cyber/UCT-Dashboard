@@ -386,10 +386,23 @@ def session_token(
               (_time.time() - _t0) * 1000, len(memory_context))
 
     base_instructions = _TRAIN_ME_INSTRUCTIONS if ctx == "train_me" else _REALTIME_INSTRUCTIONS
+
+    # Inject current market regime (Batch 9b). Skipped for train_me since
+    # that context shouldn't reason about market state.
+    regime_line = ""
+    if ctx != "train_me":
+        try:
+            from api.services.voice_regime_classifier import build_regime_prompt_line
+            regime_line = build_regime_prompt_line()
+        except Exception as e:
+            _log.warning("[session_token] regime injection failed: %s", e)
+
     session_instructions = base_instructions
+    if regime_line:
+        session_instructions = session_instructions + "\n\n" + regime_line
     if memory_context:
         session_instructions = (
-            base_instructions
+            session_instructions
             + "\n\n=== USER CONTEXT ===\n"
             + memory_context
             + "\n=== END USER CONTEXT ==="

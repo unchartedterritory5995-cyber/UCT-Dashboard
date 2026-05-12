@@ -612,6 +612,15 @@ def _note_list(*, user) -> dict:
     }
 
 
+# ── Batch 9b: Regime classifier ─────────────────────────────────────────────
+
+def _get_regime(fresh: bool = False) -> dict:
+    """Current market regime — synthesizes breadth, VIX, McClellan, MA breadth
+    into one canonical label with reasons."""
+    from api.services.voice_regime_classifier import get_current_regime
+    return get_current_regime(fresh=bool(fresh))
+
+
 # ── Batch 9a: Trading Knowledge Base lookup ────────────────────────────────
 
 def _lookup_trading_principle(query: str = "", count: int = 3) -> dict:
@@ -1350,6 +1359,15 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_lookup_trading_principle)
+
+    _vt.voice_tool(
+        name="get_regime",
+        description="Current market regime — one of bull_trend, bull_correction, distribution, chop, bear_trend — plus confidence and the breadth/VIX/MA signals driving the call. Always check this before recommending a setup; the same setup behaves very differently across regimes. Use lookup_trading_principle with the regime name for the playbook.",
+        parameters={
+            "fresh": {"type": "boolean", "description": "Force a fresh classification, bypassing the 15-min cache."},
+        },
+        contexts=["global"],
+    )(_get_regime)
 
     _vt.voice_tool(
         name="recall_relevant",
