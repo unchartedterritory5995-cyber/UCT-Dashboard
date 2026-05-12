@@ -25,6 +25,8 @@ import DisciplineLockBanner from './DisciplineLockBanner'
 import useJ2SetupStats from '../hooks/useJ2SetupStats'
 import SetupStatsPanel from './SetupStatsPanel'
 import useJ2CurrentRegime from '../hooks/useJ2CurrentRegime'
+import usePreTradeVerdict from '../hooks/usePreTradeVerdict'
+import PreTradeVerdictCard from './PreTradeVerdictCard'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -88,6 +90,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   const [overrideArmed, setOverrideArmed] = useState(false)
 
   const { accountId } = useJ2SelectedAccount()
+  const { run: runVerdict, verdict, isLoading: verdictLoading, error: verdictError, reset: resetVerdict } = usePreTradeVerdict(accountId)
   const { state: disciplineState } = useJ2DisciplineState(accountId)
   const [disciplineOverrideArmed, setDisciplineOverrideArmed] = useState(false)
   const { stats: setupStats } = useJ2SetupStats(accountId, setup)
@@ -101,11 +104,16 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   const setups = settings?.setups ?? []
   const symbolLocked = !!prefill?.symbol
 
+  const handleClose = useCallback(() => {
+    resetVerdict()
+    onClose?.()
+  }, [resetVerdict, onClose])
+
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    const onKey = (e) => { if (e.key === 'Escape') handleClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [handleClose])
 
   // Stop prefill on blur of shares/entryPrice/side — but never overwrite a
   // user-typed stop.
@@ -280,7 +288,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   return (
     <div
       className={styles.backdrop}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose?.() }}
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose() }}
       role="presentation"
     >
       <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby={titleId}>
@@ -288,7 +296,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
           <h2 id={titleId} className={styles.title}>
             {prefill?.symbol ? `Add ${prefill.symbol} to Portfolio` : 'Add Position'}
           </h2>
-          <button type="button" className={styles.xBtn} onClick={onClose} aria-label="Close">×</button>
+          <button type="button" className={styles.xBtn} onClick={handleClose} aria-label="Close">×</button>
         </div>
         {accountName && (
           <div style={{
@@ -466,15 +474,39 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
           {errorMsg && <div className={styles.errorBanner} role="alert">{errorMsg}</div>}
         </div>
 
-        <div className={styles.footer}>
-          <button type="button" className={styles.ghostBtn} onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={
-              saving
-              || (overCap && !overrideArmed)
-              || (disciplineState?.locked && !disciplineOverrideArmed)
-            }>
-            {saving ? 'Saving…' : 'Add Position'}
+        <div className={styles.footer} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          <PreTradeVerdictCard verdict={verdict} isLoading={verdictLoading} error={verdictError} />
+          <button
+            type="button"
+            onClick={() => runVerdict({
+              symbol: (symbol || '').toUpperCase(),
+              side: side || 'Long',
+              shares: Number(shares) || 0,
+              entry_price: Number(entryPrice) || 0,
+              stop_price: Number(stopPrice) || 0,
+              setup: setup || undefined,
+            })}
+            disabled={verdictLoading || !symbol || !shares || !entryPrice || !stopPrice}
+            style={{
+              width: '100%', padding: '8px 14px', fontSize: 12, fontWeight: 600,
+              background: 'rgba(201,168,76,0.10)', color: 'var(--ut-gold, #c9a84c)',
+              border: '1px solid rgba(201,168,76,0.5)', borderRadius: 6,
+              cursor: verdictLoading ? 'wait' : 'pointer',
+              margin: '0 0 6px',
+            }}
+          >
+            {verdictLoading ? '🧭 Compass is thinking…' : '🧭 Check with Compass'}
           </button>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button type="button" className={styles.ghostBtn} onClick={handleClose} disabled={saving}>Cancel</button>
+            <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={
+                saving
+                || (overCap && !overrideArmed)
+                || (disciplineState?.locked && !disciplineOverrideArmed)
+              }>
+              {saving ? 'Saving…' : 'Add Position'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
