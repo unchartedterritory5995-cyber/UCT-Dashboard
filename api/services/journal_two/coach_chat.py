@@ -20,7 +20,7 @@ def _get_conn(conn=None):
     if conn is not None:
         return conn, False
     import sqlite3 as _sq
-    path = os.environ.get("AUTH_DB_PATH", j2_db.DEFAULT_DB_PATH)
+    path = os.environ.get("AUTH_DB_PATH") or "/data/auth.db"
     c = _sq.connect(path)
     c.row_factory = _sq.Row
     return c, True

@@ -160,7 +160,7 @@ def _get_conn(conn=None):
         return conn, False  # (conn, should_close)
     import sqlite3 as _sqlite3
 
-    path = os.environ.get("AUTH_DB_PATH", j2_db.DEFAULT_DB_PATH)
+    path = os.environ.get("AUTH_DB_PATH") or "/data/auth.db"
     c = _sqlite3.connect(path)
     c.row_factory = _sqlite3.Row
     return c, True
