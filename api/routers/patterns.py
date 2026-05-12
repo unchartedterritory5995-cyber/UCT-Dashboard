@@ -27,6 +27,7 @@ from api.services.pattern_engine.detectors.classical import double_bottom as _do
 from api.services.pattern_engine.detectors.classical import cup_handle as _cup_handle  # noqa: F401
 from api.services.pattern_engine.detectors.classical import inverse_cup_handle as _inverse_cup_handle  # noqa: F401
 from api.services.pattern_engine.detectors.uct import vcp as _vcp  # noqa: F401
+from api.services.pattern_engine.detectors.uct import high_tight_flag as _high_tight_flag  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -106,6 +107,12 @@ _PATTERN_METADATA = {
         "category": "uct",
         "direction": "bullish",
         "description": "Successive shallower pullbacks with drying volume into a tight pivot. Minervini's signature institutional accumulation pattern.",
+    },
+    "high_tight_flag": {
+        "name": "High Tight Flag (Powerplay)",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Near-vertical 90%+ advance followed by tight orderly consolidation. The rarest, most explosive continuation pattern (O'Neil / Bonde).",
     },
 }
 
