@@ -276,6 +276,80 @@ def vision_upload(
     return describe_chart(image_b64=b64, symbol=(symbol or None), regime=regime)
 
 
+class DocumentIngestText(BaseModel):
+    title: str
+    text: str
+
+
+@router.get("/documents")
+def documents_list(user: dict = Depends(requires_voice_access)):
+    from api.services.voice_document_service import list_user_documents
+    return {"documents": list_user_documents(user["id"])}
+
+
+@router.post("/documents/ingest-text")
+@limiter.limit("10/minute")
+def documents_ingest_text(
+    request: Request,
+    body: DocumentIngestText,
+    user: dict = Depends(requires_voice_access),
+):
+    """Ingest a plain-text document for RAG. For PDFs, use /documents/upload."""
+    from api.services.voice_document_service import ingest_text
+    if not body.title.strip() or not body.text.strip():
+        raise HTTPException(status_code=400, detail="title and text required")
+    return ingest_text(user["id"], title=body.title, text=body.text,
+                       source_type="text")
+
+
+@router.post("/documents/upload")
+@limiter.limit("5/minute")
+def documents_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    title: str = Form(""),
+    user: dict = Depends(requires_voice_access),
+):
+    """Upload a PDF (or text file) for RAG ingestion."""
+    from api.services.voice_document_service import ingest_pdf_bytes, ingest_text
+    raw = file.file.read() if file else b""
+    if not raw:
+        raise HTTPException(status_code=400, detail="empty file")
+    if len(raw) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="file too large (max 10MB)")
+    filename = (file.filename or "untitled").rsplit(".", 1)[0]
+    doc_title = (title or filename).strip() or "Untitled"
+    if (file.filename or "").lower().endswith(".pdf"):
+        return ingest_pdf_bytes(user["id"], title=doc_title, pdf_bytes=raw)
+    try:
+        text = raw.decode("utf-8", errors="ignore")
+    except Exception:
+        raise HTTPException(status_code=400, detail="could not decode file as utf-8")
+    return ingest_text(user["id"], title=doc_title, text=text, source_type="text")
+
+
+@router.delete("/documents/{doc_id}")
+def documents_delete(
+    doc_id: int,
+    user: dict = Depends(requires_voice_access),
+):
+    from api.services.voice_document_service import delete_document
+    ok = delete_document(user["id"], doc_id)
+    return {"ok": ok}
+
+
+@router.get("/documents/search")
+def documents_search(
+    q: str = "",
+    doc_id: int | None = None,
+    k: int = 5,
+    user: dict = Depends(requires_voice_access),
+):
+    from api.services.voice_document_service import search_doc
+    return {"query": q, "doc_id": doc_id,
+            "hits": search_doc(user["id"], q, doc_id=doc_id, k=max(1, min(20, int(k))))}
+
+
 @router.post("/insights/scan")
 @limiter.limit("3/minute")
 def insights_scan(

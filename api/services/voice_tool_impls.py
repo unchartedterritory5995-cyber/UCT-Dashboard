@@ -659,6 +659,53 @@ def _detect_drift(*, user) -> dict:
 
 # ── Batch 12a: Chart vision (multi-modal) ───────────────────────────────────
 
+def _ask_document(*, user, query: str = "", doc_id: int = 0, count: int = 4) -> dict:
+    """Query the user's uploaded documents (PDFs, transcripts, notes) via RAG."""
+    from api.services.voice_document_service import search_doc, list_user_documents
+    q = (query or "").strip()
+    if not q:
+        return {"ok": False, "narration": "What do you want to know about your documents?"}
+    target_doc = doc_id if doc_id and doc_id > 0 else None
+    if target_doc is None:
+        # Default: query the most recent doc
+        docs = list_user_documents(user["id"], limit=1)
+        if not docs:
+            return {"ok": False,
+                    "narration": "You haven't uploaded any documents yet."}
+        target_doc = docs[0]["id"]
+    hits = search_doc(user["id"], q, doc_id=target_doc,
+                       k=max(1, min(10, int(count or 4))))
+    if not hits:
+        return {"ok": True,
+                "narration": f"No matching content in your doc for {q!r}.",
+                "hits": [], "doc_id": target_doc}
+    snippet = "\n".join(f"({h['score']}) {h['text'][:200]}" for h in hits[:3])
+    return {
+        "ok": True,
+        "narration": (f"From your doc — {hits[0]['text'][:400]}"),
+        "hits": hits,
+        "doc_id": target_doc,
+        "count": len(hits),
+        "context": snippet,
+    }
+
+
+def _list_my_documents(*, user) -> dict:
+    """List all documents the user has uploaded."""
+    from api.services.voice_document_service import list_user_documents
+    docs = list_user_documents(user["id"])
+    if not docs:
+        return {"ok": True, "narration": "You haven't uploaded any documents.",
+                "documents": [], "count": 0}
+    summary = ", ".join(f"#{d['id']} {d['title'][:40]}" for d in docs[:5])
+    return {
+        "ok": True,
+        "narration": f"You have {len(docs)} documents — {summary}",
+        "documents": docs,
+        "count": len(docs),
+    }
+
+
 def _describe_chart(image_url: str = "", symbol: str = "") -> dict:
     """Vision API call on a chart screenshot. Caller passes image_url."""
     from api.services.voice_chart_vision import describe_chart
@@ -1553,6 +1600,26 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_describe_chart)
+
+    _vt.voice_tool(
+        name="ask_document",
+        description="Query the user's uploaded documents (PDFs, transcripts, research notes) via RAG. Returns the most relevant passages. If doc_id is omitted, queries the most recently uploaded doc. Use when the user uploaded something and asks a question about it.",
+        parameters={
+            "query": {"type": "string", "description": "What to look for in the document."},
+            "doc_id": {"type": "integer", "description": "Optional specific doc id; defaults to most recent."},
+            "count": {"type": "integer", "description": "How many passages to return (default 4, max 10)."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_ask_document)
+
+    _vt.voice_tool(
+        name="list_my_documents",
+        description="Read back the documents the user has uploaded (id, title, source_type, chunk_count).",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_list_my_documents)
 
     _vt.voice_tool(
         name="route_to_agent",

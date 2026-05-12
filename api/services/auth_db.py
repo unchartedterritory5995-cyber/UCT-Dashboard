@@ -357,6 +357,18 @@ CREATE TABLE IF NOT EXISTS voice_proactive_insights (
 
 CREATE INDEX IF NOT EXISTS idx_voice_proactive_user_undelivered ON voice_proactive_insights(user_id, delivered_at);
 CREATE INDEX IF NOT EXISTS idx_voice_proactive_user_recent ON voice_proactive_insights(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS voice_documents (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     TEXT NOT NULL REFERENCES users(id),
+    title       TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    char_count  INTEGER NOT NULL DEFAULT 0,
+    chunk_count INTEGER NOT NULL DEFAULT 0,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_documents_user ON voice_documents(user_id, created_at DESC);
 """
 
 

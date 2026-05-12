@@ -24,7 +24,7 @@ _log = logging.getLogger(__name__)
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIM = 1536
-KINDS = frozenset(["fact", "summary", "journal_entry", "transcript", "kb_chunk"])
+KINDS = frozenset(["fact", "summary", "journal_entry", "transcript", "kb_chunk", "doc"])
 
 # Max chars per embedding chunk. text-embedding-3-small handles 8191 tokens
 # (~32k chars) but shorter is cleaner for retrieval signal.
