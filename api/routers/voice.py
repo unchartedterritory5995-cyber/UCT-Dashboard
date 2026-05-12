@@ -366,6 +366,16 @@ def insights_scan(
     return {"queued": n}
 
 
+@router.get("/reward/scoreboard")
+def reward_scoreboard(
+    days: int = 30,
+    user: dict = Depends(requires_voice_access),
+):
+    """Per-prompt-variant feedback aggregates over the last N days for this user."""
+    from api.services.voice_reward_model import variant_scoreboard
+    return {"days": days, "rows": variant_scoreboard(user["id"], days=max(1, min(365, int(days))))}
+
+
 @router.get("/agents/stats")
 def agents_stats(
     days: int = 30,
@@ -686,6 +696,17 @@ def session_token(
     sess_db_id = _create_voice_session(
         user_id=uid, mode="c", source="orb", page_context=body.context or "global",
     )
+    # Batch 13a: tag the session with the prompt variant in use.
+    # For now there's just one variant — "v1" — but the infrastructure is
+    # in place for A/B testing in 13b.
+    try:
+        from api.services.voice_reward_model import record_variant
+        # Variant id = agent name when in a specialist context, else "v1"
+        variant_id = ctx if (ctx and ctx not in ("global", "train_me")) else "v1"
+        record_variant(sess_db_id, uid, variant_id=variant_id, agent_ctx=ctx)
+    except Exception as e:
+        _log.warning("[session_token] variant record failed: %s", e)
+
     _log.info("[session_token] +%.0fms returning sess_id=%s",
               (_time.time() - _t0) * 1000, sess_db_id)
 

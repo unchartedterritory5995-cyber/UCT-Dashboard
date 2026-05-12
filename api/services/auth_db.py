@@ -369,6 +369,21 @@ CREATE TABLE IF NOT EXISTS voice_documents (
 );
 
 CREATE INDEX IF NOT EXISTS idx_voice_documents_user ON voice_documents(user_id, created_at DESC);
+
+-- Per-session prompt variant tracking. We pick a system_prompt variant
+-- at mint time and write it here so feedback aggregations can attribute
+-- thumbs back to the right variant.
+CREATE TABLE IF NOT EXISTS voice_prompt_variants (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  INTEGER NOT NULL REFERENCES voice_sessions(id) ON DELETE CASCADE,
+    user_id     TEXT NOT NULL REFERENCES users(id),
+    variant_id  TEXT NOT NULL,
+    agent_ctx   TEXT,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(session_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_prompt_variants_user ON voice_prompt_variants(user_id, variant_id, created_at DESC);
 """
 
 
