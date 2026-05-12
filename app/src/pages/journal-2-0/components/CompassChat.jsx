@@ -9,6 +9,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import useJ2CoachChat from '../hooks/useJ2CoachChat'
 import ChatMessage from './ChatMessage'
 import ChatActionCard from './ChatActionCard'
+import VoiceInputButton from './VoiceInputButton'
 
 const SUGGESTED_PROMPTS = [
   'How am I doing this week?',
@@ -27,6 +28,13 @@ export default function CompassChat({ accountId }) {
   const [input, setInput] = useState('')
   const scrollerRef = useRef(null)
   const [showMenu, setShowMenu] = useState(false)
+  const [ttsEnabled, setTtsEnabled] = useState(() => {
+    try { return localStorage.getItem('compassTtsEnabled') === 'true' } catch { return false }
+  })
+  const [autoSubmitVoice, setAutoSubmitVoice] = useState(() => {
+    try { return localStorage.getItem('compassVoiceAutoSubmit') === 'true' } catch { return false }
+  })
+  const lastSpokenIdRef = useRef(null)
 
   useEffect(() => {
     const el = scrollerRef.current
@@ -36,6 +44,33 @@ export default function CompassChat({ accountId }) {
       el.scrollTop = el.scrollHeight
     }
   }, [messages.length, streamingTokens])
+
+  useEffect(() => {
+    try { localStorage.setItem('compassTtsEnabled', String(ttsEnabled)) } catch {}
+  }, [ttsEnabled])
+
+  useEffect(() => {
+    try { localStorage.setItem('compassVoiceAutoSubmit', String(autoSubmitVoice)) } catch {}
+  }, [autoSubmitVoice])
+
+  useEffect(() => {
+    if (!ttsEnabled) return
+    if (typeof window === 'undefined') return
+    if (!window.speechSynthesis) return
+    const lastAssistant = [...messages].reverse().find(
+      (m) => m.role === 'assistant' && m.content,
+    )
+    if (!lastAssistant) return
+    if (lastAssistant.id === lastSpokenIdRef.current) return
+    lastSpokenIdRef.current = lastAssistant.id
+    try {
+      window.speechSynthesis.cancel()
+      const utterance = new window.SpeechSynthesisUtterance(lastAssistant.content)
+      utterance.rate = 1.0
+      utterance.pitch = 1.0
+      window.speechSynthesis.speak(utterance)
+    } catch { /* ignore */ }
+  }, [messages, ttsEnabled])
 
   const toolResults = useMemo(() => {
     const out = {}
@@ -124,6 +159,30 @@ export default function CompassChat({ accountId }) {
                   }}
                 >Redo onboarding</button>
               )}
+              <button
+                type="button"
+                onClick={() => { setTtsEnabled((v) => !v) }}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '8px 12px', fontSize: 12,
+                  background: 'transparent', border: 'none',
+                  color: 'var(--text-bright)', cursor: 'pointer',
+                }}
+              >
+                {ttsEnabled ? '🔊 Speaking replies (click to mute)' : '🔇 Speak Compass replies'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAutoSubmitVoice((v) => !v) }}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '8px 12px', fontSize: 12,
+                  background: 'transparent', border: 'none',
+                  color: 'var(--text-bright)', cursor: 'pointer',
+                }}
+              >
+                {autoSubmitVoice ? '⚡ Voice auto-submits (click to disable)' : '📝 Voice fills input (click to auto-submit)'}
+              </button>
             </div>
           )}
         </div>
@@ -245,11 +304,23 @@ export default function CompassChat({ accountId }) {
         />
         <div style={{ display: 'flex', justifyContent: 'space-between',
                        alignItems: 'center', marginTop: 6 }}>
-          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-            {limitHit
-              ? '⛔ Daily limit reached'
-              : `${status?.rate_limit_remaining ?? 200} messages remaining today`}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <VoiceInputButton
+              onTranscript={(text) => {
+                if (autoSubmitVoice) {
+                  onSubmit(text)
+                } else {
+                  setInput(text)
+                }
+              }}
+              disabled={composerDisabled}
+            />
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+              {limitHit
+                ? '⛔ Daily limit reached'
+                : `${status?.rate_limit_remaining ?? 200} left today`}
+            </span>
+          </div>
           <button
             type="button"
             onClick={() => onSubmit()}
