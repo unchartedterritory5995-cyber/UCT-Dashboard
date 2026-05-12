@@ -138,3 +138,67 @@ def test_memory_context_injects_corrections():
     from api.services.voice_memory_service import build_memory_context
     ctx = build_memory_context(uid)
     assert "always include the period" in ctx
+
+
+# ── Batch 7a: failure pattern detection ────────────────────────────────────
+
+def test_detect_failure_patterns_threshold_met():
+    uid = _user()
+    # 5 failures, 5 successes for tool X → 50% rate, above 30% threshold
+    for _ in range(5):
+        vfs.record_tool_call(uid, tool_name="bad_tool", args=None, ok=False, error="boom")
+    for _ in range(5):
+        vfs.record_tool_call(uid, tool_name="bad_tool", args=None, ok=True)
+    patterns = vfs.detect_failure_patterns(uid)
+    names = [p["tool_name"] for p in patterns]
+    assert "bad_tool" in names
+    bad = [p for p in patterns if p["tool_name"] == "bad_tool"][0]
+    assert bad["failure_rate"] >= 0.30
+    assert bad["failures_in_window"] >= 3
+    assert len(bad["sample_errors"]) > 0
+
+
+def test_detect_failure_patterns_below_min_calls():
+    """Too few calls → not surfaced even if failure rate is 100%."""
+    uid = _user()
+    for _ in range(2):
+        vfs.record_tool_call(uid, tool_name="rare_tool", args=None, ok=False, error="x")
+    patterns = vfs.detect_failure_patterns(uid, min_calls=5)
+    assert not any(p["tool_name"] == "rare_tool" for p in patterns)
+
+
+def test_detect_failure_patterns_below_threshold():
+    """High success rate → not surfaced."""
+    uid = _user()
+    for _ in range(10):
+        vfs.record_tool_call(uid, tool_name="reliable_tool", args=None, ok=True)
+    vfs.record_tool_call(uid, tool_name="reliable_tool", args=None, ok=False, error="rare")
+    patterns = vfs.detect_failure_patterns(uid)
+    assert not any(p["tool_name"] == "reliable_tool" for p in patterns)
+
+
+def test_detect_failure_patterns_sorted_worst_first():
+    uid = _user()
+    # tool A: 80% failure
+    for _ in range(8):
+        vfs.record_tool_call(uid, tool_name="A", args=None, ok=False, error="x")
+    for _ in range(2):
+        vfs.record_tool_call(uid, tool_name="A", args=None, ok=True)
+    # tool B: 40% failure
+    for _ in range(4):
+        vfs.record_tool_call(uid, tool_name="B", args=None, ok=False, error="x")
+    for _ in range(6):
+        vfs.record_tool_call(uid, tool_name="B", args=None, ok=True)
+    patterns = vfs.detect_failure_patterns(uid)
+    names = [p["tool_name"] for p in patterns]
+    assert names.index("A") < names.index("B")
+
+
+def test_memory_context_injects_failure_patterns():
+    uid = _user()
+    for _ in range(5):
+        vfs.record_tool_call(uid, tool_name="get_quote", args=None, ok=False, error="x")
+    from api.services.voice_memory_service import build_memory_context
+    ctx = build_memory_context(uid)
+    assert "get_quote" in ctx
+    assert "failing" in ctx.lower() or "failure rate" in ctx.lower()

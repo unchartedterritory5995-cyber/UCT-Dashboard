@@ -207,12 +207,16 @@ def build_memory_context(user_id: str) -> str:
     facts = list_facts(user_id, limit=MAX_FACTS_INJECTED)
     summaries = list_summaries(user_id, limit=MAX_SUMMARIES_INJECTED)
     try:
-        from api.services.voice_feedback_service import list_corrections
+        from api.services.voice_feedback_service import (
+            list_corrections, detect_failure_patterns,
+        )
         corrections = list_corrections(user_id)
+        failure_patterns = detect_failure_patterns(user_id)
     except Exception:  # noqa: BLE001
         corrections = []
+        failure_patterns = []
 
-    if not facts and not summaries and not corrections:
+    if not facts and not summaries and not corrections and not failure_patterns:
         return ""
 
     parts: list[str] = []
@@ -243,6 +247,19 @@ def build_memory_context(user_id: str) -> str:
             txt = c.get("correction_text")
             if txt:
                 parts.append(f"  - {txt}")
+
+    # Append failure patterns (Batch 7a). Tells the model which tools have
+    # been unreliable lately so it can pick alternates or ask up front.
+    if failure_patterns:
+        if parts:
+            parts.append("")
+        parts.append("Tools that have been failing for this user lately — prefer alternates or ask a clarifying question before calling:")
+        for p in failure_patterns[:5]:
+            pct = int(round(p["failure_rate"] * 100))
+            parts.append(
+                f"  - {p['tool_name']}: {pct}% failure rate "
+                f"({p['failures_in_window']}/{p['total_in_window']} recent calls)"
+            )
 
     out = "\n".join(parts)
     if len(out) > MAX_MEMORY_CHARS:

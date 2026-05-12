@@ -17,6 +17,7 @@ export default function VoiceTelemetryPanel() {
   const [stats, setStats] = useState(null)
   const [corrections, setCorrections] = useState([])
   const [recentFeedback, setRecentFeedback] = useState([])
+  const [patterns, setPatterns] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -24,10 +25,11 @@ export default function VoiceTelemetryPanel() {
     setLoading(true)
     setError(null)
     try {
-      const [statsR, corrR, fbR] = await Promise.all([
+      const [statsR, corrR, fbR, patR] = await Promise.all([
         fetch('/api/voice/tool-call-stats', { credentials: 'include' }),
         fetch('/api/voice/feedback/corrections', { credentials: 'include' }),
         fetch('/api/voice/feedback', { credentials: 'include' }),
+        fetch('/api/voice/failure-patterns', { credentials: 'include' }),
       ])
       if (statsR.ok) setStats(await statsR.json())
       if (corrR.ok) {
@@ -37,6 +39,10 @@ export default function VoiceTelemetryPanel() {
       if (fbR.ok) {
         const j = await fbR.json()
         setRecentFeedback((j.feedback || []).slice(0, 15))
+      }
+      if (patR.ok) {
+        const j = await patR.json()
+        setPatterns(j.patterns || [])
       }
     } catch (e) {
       setError(e?.message || 'Failed to load telemetry')
@@ -71,6 +77,29 @@ export default function VoiceTelemetryPanel() {
       </p>
 
       {error && <div className={styles.error}>{error}</div>}
+
+      {/* Failure patterns banner ── */}
+      {patterns.length > 0 && (
+        <div className={styles.patternBanner}>
+          <div className={styles.patternHeader}>
+            ⚠ Pattern{patterns.length === 1 ? '' : 's'} detected — the assistant
+            has been told to avoid these tools or ask first
+          </div>
+          <ul className={styles.patternList}>
+            {patterns.map((p) => (
+              <li key={p.tool_name} className={styles.patternItem}>
+                <span className={styles.patternName}>{p.tool_name}</span>
+                <span className={styles.patternRate}>
+                  {Math.round(p.failure_rate * 100)}% failing
+                </span>
+                <span className={styles.patternDetail}>
+                  ({p.failures_in_window}/{p.total_in_window} recent calls)
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Overall ── */}
       <div className={styles.statRow}>

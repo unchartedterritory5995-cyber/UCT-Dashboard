@@ -619,3 +619,11 @@ def tool_call_stats(user: dict = Depends(requires_voice_access)):
     """Per-tool success/failure counts and recent failures — debugging pane."""
     from api.services.voice_feedback_service import get_tool_call_stats
     return get_tool_call_stats(user["id"], limit=50)
+
+
+@router.get("/failure-patterns")
+def failure_patterns(user: dict = Depends(requires_voice_access)):
+    """Tools with high recent failure rates — surfaces as a banner in the
+    Telemetry pane and gets injected into the model's instructions."""
+    from api.services.voice_feedback_service import detect_failure_patterns
+    return {"patterns": detect_failure_patterns(user["id"])}

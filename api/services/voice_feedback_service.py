@@ -144,6 +144,82 @@ def record_tool_call(
         conn.close()
 
 
+def detect_failure_patterns(
+    user_id: str,
+    *,
+    window: int = 20,
+    min_calls: int = 5,
+    failure_threshold: float = 0.30,
+) -> list[dict]:
+    """
+    Surface tools that are misbehaving for this user. A "pattern" is a tool
+    that:
+      - has been called >= `min_calls` times in the last `window` invocations
+      - has a failure rate >= `failure_threshold`
+
+    Returns one entry per offending tool, newest-failure-first within each.
+    """
+    conn = get_connection()
+    try:
+        # Per-tool window stats over the last N calls per tool
+        rows = conn.execute(
+            """
+            WITH ranked AS (
+              SELECT tool_name, ok, error,
+                     ROW_NUMBER() OVER (
+                       PARTITION BY tool_name
+                       ORDER BY id DESC
+                     ) AS rn
+                FROM voice_tool_calls
+               WHERE user_id = ?
+            )
+            SELECT tool_name,
+                   COUNT(*)         AS total,
+                   SUM(ok)          AS success,
+                   SUM(1 - ok)      AS failures
+              FROM ranked
+             WHERE rn <= ?
+             GROUP BY tool_name
+            HAVING total >= ?
+            """,
+            (user_id, window, min_calls),
+        ).fetchall()
+
+        patterns = []
+        for r in rows:
+            total = r["total"] or 0
+            failures = r["failures"] or 0
+            rate = failures / total if total else 0.0
+            if rate < failure_threshold:
+                continue
+            # Pull sample errors for context (most recent 3)
+            sample = conn.execute(
+                """
+                SELECT error, args_json, created_at
+                  FROM voice_tool_calls
+                 WHERE user_id = ? AND tool_name = ? AND ok = 0
+                 ORDER BY id DESC LIMIT 3
+                """,
+                (user_id, r["tool_name"]),
+            ).fetchall()
+            patterns.append({
+                "tool_name": r["tool_name"],
+                "total_in_window": total,
+                "failures_in_window": failures,
+                "failure_rate": round(rate, 3),
+                "sample_errors": [
+                    {"error": s["error"], "args_json": s["args_json"],
+                     "created_at": s["created_at"]}
+                    for s in sample
+                ],
+            })
+        # Worst first
+        patterns.sort(key=lambda p: p["failure_rate"], reverse=True)
+        return patterns
+    finally:
+        conn.close()
+
+
 def get_tool_call_stats(user_id: str, limit: int = 100) -> dict:
     """Return per-tool success/failure counts and recent failures."""
     conn = get_connection()
