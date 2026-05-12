@@ -501,6 +501,46 @@ def _read_aloud(content: str = "") -> dict:
     return read_aloud(content=content)
 
 
+# ── Batch 4: journal deep reads ─────────────────────────────────────────────
+
+def _get_my_calendar(*, user, month: str = "") -> dict:
+    from api.services.voice_journal_tools import get_my_calendar
+    return get_my_calendar(month=month or None, user_id=user["id"])
+
+
+def _get_my_daily_note(*, user, date: str = "") -> dict:
+    from api.services.voice_journal_tools import get_my_daily_note
+    return get_my_daily_note(date=date or None, user_id=user["id"])
+
+
+def _get_my_weekly_review(*, user) -> dict:
+    from api.services.voice_journal_tools import get_my_weekly_review
+    return get_my_weekly_review(user_id=user["id"])
+
+
+def _get_my_account_balance(*, user, account_name: str = "") -> dict:
+    from api.services.voice_journal_tools import get_my_account_balance
+    return get_my_account_balance(account_name=account_name or None,
+                                  user_id=user["id"])
+
+
+def _switch_account(*, user, account_name: str = "") -> dict:
+    from api.services.voice_journal_tools import switch_account
+    return switch_account(account_name=account_name or "", user_id=user["id"])
+
+
+def _list_my_accounts(*, user) -> dict:
+    from api.services.voice_journal_tools import list_my_accounts
+    return list_my_accounts(user_id=user["id"])
+
+
+def _get_my_option_strategies(*, user, status: str = "", count: int = 5) -> dict:
+    from api.services.voice_journal_tools import get_my_option_strategies
+    return get_my_option_strategies(
+        status=status or None, count=count, user_id=user["id"],
+    )
+
+
 def _register_all() -> None:
     """Register (or re-register) all Slice 2 tools into the registry."""
 
@@ -1031,6 +1071,75 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_read_aloud)
+
+    # ── Batch 4: journal deep reads ─────────────────────────────────────────
+
+    _vt.voice_tool(
+        name="get_my_calendar",
+        description="Read the user's Journal 2.0 monthly trade calendar summary — active days, wins, losses, net P&L. Call when user says 'what's my calendar look like' or 'how was last month'.",
+        parameters={
+            "month": {"type": "string", "description": "Month name ('May'), 'this month', 'last month', or YYYY-MM. Defaults to current month."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_get_my_calendar)
+
+    _vt.voice_tool(
+        name="get_my_daily_note",
+        description="Read back the user's structured daily note (prep / mid-day / recap) for a date.",
+        parameters={
+            "date": {"type": "string", "description": "Date string — 'today', 'yesterday', or YYYY-MM-DD."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_get_my_daily_note)
+
+    _vt.voice_tool(
+        name="get_my_weekly_review",
+        description="Read this ISO week's trade aggregate — wins, losses, net P&L.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_get_my_weekly_review)
+
+    _vt.voice_tool(
+        name="get_my_account_balance",
+        description="Read back the closed-trade equity balance for one of the user's J2 accounts. Defaults to the active account.",
+        parameters={
+            "account_name": {"type": "string", "description": "Optional account display name."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_get_my_account_balance)
+
+    _vt.voice_tool(
+        name="switch_account",
+        description="Switch the active Journal 2.0 account. Call when user says 'switch to my swing account' or 'change to day trading'.",
+        parameters={
+            "account_name": {"type": "string", "description": "Display name of the target account."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_switch_account)
+
+    _vt.voice_tool(
+        name="list_my_accounts",
+        description="Read back the user's Journal 2.0 accounts.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_list_my_accounts)
+
+    _vt.voice_tool(
+        name="get_my_option_strategies",
+        description="List the user's logged option strategies, optionally filtered by status.",
+        parameters={
+            "status": {"type": "string", "enum": ["open", "closed", ""]},
+            "count": {"type": "integer", "description": "How many (default 5, max 15)."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_get_my_option_strategies)
 
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────

@@ -239,9 +239,10 @@ export default function useRealtimeSession() {
       result = { ok: false, error: e?.message || 'fetch failed' }
     }
 
-    // Client-side actions (navigate, read-aloud) are dispatched locally
-    // before we feed the result back to the model. The model still sees a
-    // success result so it can narrate "opening journal" naturally.
+    // Client-side actions (navigate, read-aloud, switch-account) are
+    // dispatched locally before we feed the result back to the model.
+    // The model still sees a success result so it can narrate "opening
+    // journal" or "switched to swing" naturally.
     if (result && result.client_action) {
       try {
         const action = result.client_action
@@ -256,6 +257,12 @@ export default function useRealtimeSession() {
           } else {
             console.warn('[voice] no read-aloud plan for content', action.content)
           }
+        } else if (action.type === 'switch_account' && action.account_id) {
+          localStorage.setItem('uct.j2.selectedAccountId', action.account_id)
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'uct.j2.selectedAccountId',
+            newValue: action.account_id,
+          }))
         }
       } catch (e) {
         console.error('[voice] client_action dispatch failed', e)
