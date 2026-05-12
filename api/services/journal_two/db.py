@@ -259,6 +259,29 @@ CREATE TABLE IF NOT EXISTS j2_onboarding_responses (
 
 CREATE INDEX IF NOT EXISTS idx_j2_onboarding_session
     ON j2_onboarding_responses(account_id, session_id, asked_at);
+
+CREATE TABLE IF NOT EXISTS j2_verdicts (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL,
+    account_id      TEXT NOT NULL,
+    symbol          TEXT NOT NULL,
+    side            TEXT NOT NULL,
+    shares          REAL,
+    entry_price     REAL,
+    stop_price      REAL,
+    target_price    REAL,
+    setup           TEXT,
+    risk_pct        REAL,
+    label           TEXT NOT NULL CHECK(label IN ('GO','HOLD','SKIP','ERROR')),
+    paragraph       TEXT NOT NULL,
+    factors         TEXT NOT NULL DEFAULT '[]',
+    source          TEXT NOT NULL CHECK(source IN ('hard_check','llm')),
+    hard_check_failed TEXT,
+    created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_j2_verdicts_account
+    ON j2_verdicts(user_id, account_id, created_at);
 """
 
 
