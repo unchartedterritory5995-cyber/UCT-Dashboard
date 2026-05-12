@@ -979,3 +979,120 @@ TOOLS.update({
         },
     },
 })
+
+
+def _propose_account_settings_preview(*, user_id, account_id, args, conn=None) -> dict:
+    pieces = []
+    if "maxRiskPerTradePct" in args and args["maxRiskPerTradePct"] is not None:
+        pieces.append(f"max risk per trade {args['maxRiskPerTradePct']}%")
+    if "dailyLossLimitPct" in args and args["dailyLossLimitPct"] is not None:
+        pieces.append(f"daily loss limit {args['dailyLossLimitPct']}%")
+    if "coolingOffMinutesAfterLoss" in args and args["coolingOffMinutesAfterLoss"] is not None:
+        pieces.append(f"cooling-off {args['coolingOffMinutesAfterLoss']} min after each loss")
+    if args.get("aPlusSetups"):
+        pieces.append("A+ setups: " + ", ".join(args["aPlusSetups"]))
+    if not pieces:
+        return {"narration": "No settings to update.", "contextual_warnings": [],
+                "confirm_label": "Confirm", "elevated": False}
+    return {
+        "narration": "Set " + "; ".join(pieces) + ".",
+        "contextual_warnings": [], "confirm_label": "Apply settings", "elevated": False,
+    }
+
+
+def _propose_account_settings_execute(*, user_id, account_id, args, conn=None) -> dict:
+    c = conn or get_connection()
+    field_map = {
+        "maxRiskPerTradePct": "max_risk_per_trade_pct",
+        "dailyLossLimitPct": "daily_loss_limit_pct",
+        "coolingOffMinutesAfterLoss": "cooling_off_minutes_after_loss",
+    }
+    updates = []
+    values: list = []
+    for camel, snake in field_map.items():
+        if camel in args and args[camel] is not None:
+            updates.append(f"{snake} = ?")
+            values.append(args[camel])
+    if args.get("aPlusSetups"):
+        updates.append("a_plus_setups = ?")
+        values.append(json.dumps(args["aPlusSetups"]))
+    if not updates:
+        return {"ok": False, "error": "no fields supplied"}
+    values.extend([account_id, user_id])
+    c.execute(
+        f"UPDATE j2_accounts SET {', '.join(updates)} WHERE id = ? AND user_id = ?",
+        values,
+    )
+    c.commit()
+    return {"ok": True, "summary": f"Updated {len(updates)} setting(s)."}
+
+
+def _complete_onboarding_preview(*, user_id, account_id, args, conn=None) -> dict:
+    profile = args.get("trader_profile") or ""
+    focus = args.get("this_weeks_focus") or ""
+    excerpt = profile[:200] + ("..." if len(profile) > 200 else "")
+    bits = [f"Save your trader profile ({len(profile)} chars)."]
+    if focus:
+        bits.append(f"Set this week's focus to: \"{focus}\"")
+    return {
+        "narration": " ".join(bits),
+        "contextual_warnings": [],
+        "confirm_label": "Save profile",
+        "elevated": False,
+        "profile_excerpt": excerpt,
+    }
+
+
+def _complete_onboarding_execute(*, user_id, account_id, args, conn=None) -> dict:
+    profile = args.get("trader_profile") or ""
+    focus = (args.get("this_weeks_focus") or "").strip()
+    if not profile.strip():
+        return {"ok": False, "error": "trader_profile is required"}
+    c = conn or get_connection()
+    c.execute(
+        """UPDATE j2_accounts
+           SET trader_profile = ?, onboarded = 1, onboarding_mode = 0
+           WHERE id = ? AND user_id = ?""",
+        (profile, account_id, user_id),
+    )
+    if focus:
+        # Reuse the existing set_weekly_focus executor for consistency.
+        _set_weekly_focus_execute(user_id=user_id, account_id=account_id,
+                                  args={"text": focus}, conn=c)
+    c.commit()
+    return {"ok": True, "summary": "Onboarding complete. Profile saved."}
+
+
+TOOLS.update({
+    "propose_account_settings": {
+        "name": "propose_account_settings",
+        "description": "Propose initial discipline settings (max risk, daily loss limit, cooling-off, A+ setups) inferred from interview answers. Trader sees a preview card; one Confirm applies all supplied fields atomically.",
+        "requires_confirm": True,
+        "executor": _propose_account_settings_execute,
+        "preview": _propose_account_settings_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "maxRiskPerTradePct": {"type": "number"},
+                "dailyLossLimitPct": {"type": "number"},
+                "coolingOffMinutesAfterLoss": {"type": "integer"},
+                "aPlusSetups": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+    },
+    "complete_onboarding": {
+        "name": "complete_onboarding",
+        "description": "Finalize the onboarding interview. Writes the trader_profile markdown, sets onboarded=1, exits onboarding_mode, optionally seeds this_weeks_focus.",
+        "requires_confirm": True,
+        "executor": _complete_onboarding_execute,
+        "preview": _complete_onboarding_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "trader_profile": {"type": "string"},
+                "this_weeks_focus": {"type": "string"},
+            },
+            "required": ["trader_profile"],
+        },
+    },
+})

@@ -592,3 +592,138 @@ def test_record_onboarding_answer_marked_no_confirm_required(db_conn):
     from api.services.journal_two import coach_chat_tools as tools
     spec = tools.TOOLS["record_onboarding_answer"]
     assert spec["requires_confirm"] is False
+
+
+# ── propose_account_settings (preview/confirm) ──────────────────────────────
+
+
+def test_propose_account_settings_preview_describes_changes(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    preview = tools.TOOLS["propose_account_settings"]["preview"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"maxRiskPerTradePct": 1.0, "dailyLossLimitPct": 3.0,
+              "aPlusSetups": ["Bull Flag"]},
+        conn=db_conn,
+    )
+    assert "narration" in preview
+    assert "1.0" in preview["narration"] or "1%" in preview["narration"]
+    assert "Bull Flag" in preview["narration"]
+    assert preview["elevated"] is False
+    assert "confirm_label" in preview
+
+
+def test_propose_account_settings_execute_writes_all_fields(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    result = tools.TOOLS["propose_account_settings"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"maxRiskPerTradePct": 1.0, "dailyLossLimitPct": 3.0,
+              "coolingOffMinutesAfterLoss": 30,
+              "aPlusSetups": ["Bull Flag", "Pullback"]},
+        conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute(
+        "SELECT max_risk_per_trade_pct, daily_loss_limit_pct, "
+        "cooling_off_minutes_after_loss, a_plus_setups "
+        "FROM j2_accounts WHERE id = ?",
+        (acc["id"],),
+    ).fetchone()
+    assert float(row["max_risk_per_trade_pct"]) == 1.0
+    assert float(row["daily_loss_limit_pct"]) == 3.0
+    assert int(row["cooling_off_minutes_after_loss"]) == 30
+    a_plus = json.loads(row["a_plus_setups"])
+    assert "Bull Flag" in a_plus
+    assert "Pullback" in a_plus
+
+
+def test_propose_account_settings_partial_fields_only_updates_supplied(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET max_risk_per_trade_pct = ?, daily_loss_limit_pct = ? WHERE id = ?",
+        (2.0, 5.0, acc["id"]),
+    )
+    db_conn.commit()
+    result = tools.TOOLS["propose_account_settings"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"maxRiskPerTradePct": 1.0},
+        conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute(
+        "SELECT max_risk_per_trade_pct, daily_loss_limit_pct FROM j2_accounts WHERE id = ?",
+        (acc["id"],),
+    ).fetchone()
+    assert float(row["max_risk_per_trade_pct"]) == 1.0
+    assert float(row["daily_loss_limit_pct"]) == 5.0   # unchanged
+
+
+# ── complete_onboarding (preview/confirm — terminal) ────────────────────────
+
+
+def test_complete_onboarding_preview_returns_profile_excerpt(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    profile = "# Trader Profile — Patrick\n\n## Identity\n3yr swing trader.\n"
+    preview = tools.TOOLS["complete_onboarding"]["preview"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"trader_profile": profile, "this_weeks_focus": "Skip Pullbacks."},
+        conn=db_conn,
+    )
+    assert "narration" in preview
+    assert "profile" in preview["narration"].lower()
+
+
+def test_complete_onboarding_execute_writes_all_state(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET onboarding_mode = 1, onboarding_session_id = 'sess_x' WHERE id = ?",
+        (acc["id"],),
+    )
+    db_conn.commit()
+    profile = "# Trader Profile — Patrick\n\nDeep swing trader."
+    result = tools.TOOLS["complete_onboarding"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"trader_profile": profile, "this_weeks_focus": "Sit on hands first 30 min."},
+        conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute(
+        "SELECT trader_profile, onboarded, onboarding_mode FROM j2_accounts WHERE id = ?",
+        (acc["id"],),
+    ).fetchone()
+    assert "Deep swing trader" in row["trader_profile"]
+    assert int(row["onboarded"]) == 1
+    assert int(row["onboarding_mode"]) == 0
+    focus_row = db_conn.execute(
+        "SELECT metadata FROM j2_coach_outputs WHERE user_id = ? AND output_type = 'weekly_review'",
+        ("u_chat",),
+    ).fetchone()
+    assert focus_row is not None
+    meta = json.loads(focus_row["metadata"])
+    assert "Sit on hands" in (meta.get("this_weeks_focus") or "")
+
+
+def test_complete_onboarding_execute_without_focus(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET onboarding_mode = 1, onboarding_session_id = 'sess_x' WHERE id = ?",
+        (acc["id"],),
+    )
+    db_conn.commit()
+    result = tools.TOOLS["complete_onboarding"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"trader_profile": "# Profile"},
+        conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute(
+        "SELECT onboarded, onboarding_mode FROM j2_accounts WHERE id = ?",
+        (acc["id"],),
+    ).fetchone()
+    assert int(row["onboarded"]) == 1
+    assert int(row["onboarding_mode"]) == 0
