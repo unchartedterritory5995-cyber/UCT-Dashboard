@@ -401,6 +401,68 @@ def _score_context(context: dict, direction: str) -> float:
     return min(100.0, score)
 
 
+def _ma_alignment_phrase(context: dict, direction: str) -> str:
+    align = context.get("ma_alignment", "mixed")
+    if align == "stacked_bullish":
+        return ("fully stacked-bullish moving-average" if direction == "bullish"
+                else "stacked-bullish moving-average (counter-trend caution)")
+    if align == "stacked_bearish":
+        return ("fully stacked-bearish moving-average" if direction == "bearish"
+                else "stacked-bearish moving-average (counter-trend caution)")
+    return "mixed moving-average"
+
+
+def _trend_stage_description(context: dict, direction: str) -> str:
+    stage = context.get("trend_stage", 0)
+    if direction == "bullish":
+        if stage == 2:
+            return "a confirmed Stage 2 uptrend"
+        if stage == 1:
+            return "a Stage 1 base/accumulation environment"
+        if stage == 3:
+            return "a Stage 3 distribution environment (caution against longs)"
+        if stage == 4:
+            return "a Stage 4 downtrend environment (counter-trend long, lower odds)"
+    else:
+        if stage == 4:
+            return "a confirmed Stage 4 downtrend"
+        if stage == 3:
+            return "a Stage 3 distribution top (roll-over forming)"
+        if stage == 2:
+            return "a Stage 2 uptrend environment (counter-trend short, lower odds)"
+        if stage == 1:
+            return "a Stage 1 base environment (counter-trend caution)"
+    return "an undefined trend stage"
+
+
+def _rs_trend_phrase(context: dict, direction: str) -> str:
+    rs = context.get("rs_trend", "flat")
+    if direction == "bullish":
+        if rs == "up":
+            return "improving"
+        if rs == "down":
+            return "deteriorating (counter-trend warning)"
+    else:
+        if rs == "up":
+            return "improving (counter-trend warning)"
+        if rs == "down":
+            return "deteriorating"
+    return "neutral"
+
+
+def _pennant_volume_ratio(bars: List[Bar], c: dict) -> float:
+    """Return pennant avg volume / pole avg volume."""
+    pole = bars[c["pole_base_idx"]: c["pole_apex_idx"] + 1]
+    pennant = c["pennant_bars"]
+    if not pole or not pennant:
+        return 1.0
+    pole_avg = sum(b["v"] for b in pole) / len(pole)
+    pennant_avg = sum(b["v"] for b in pennant) / len(pennant)
+    if pole_avg <= 0:
+        return 1.0
+    return pennant_avg / pole_avg
+
+
 def _build_detection(bars, c, confidence, context, direction,
                      geom_score, vol_score, ctx_score, hist_score) -> Detection:
     last_bar = bars[-1]
@@ -413,46 +475,241 @@ def _build_detection(bars, c, confidence, context, direction,
     pennant_high = c["pennant_high"]
     pennant_low = c["pennant_low"]
 
+    # Narrative-shared values
+    pole_pct_pct = c["pole_pct"] * 100.0
+    pole_bars = c["pole_bars"]
+    pennant_count = c["pennant_count"]
+    apex_bars_ahead = float(c["apex_bars_ahead"])
+    width_ratio = c["width_ratio"]
+    pole_height = c["pole_height"]
+    pole_base_price = c["pole_base_price"]
+    pole_apex_price = c["pole_apex_price"]
+    pennant_vol_ratio = _pennant_volume_ratio(bars, c)
+    pennant_vol_pct = pennant_vol_ratio * 100.0
+    regime = context.get("regime", "current")
+    vol_signature = context.get("volume_signature", "unspecified")
+    ma_phrase = _ma_alignment_phrase(context, direction)
+    stage_phrase = _trend_stage_description(context, direction)
+    rs_phrase = _rs_trend_phrase(context, direction)
+
+    sym_token = "the stock"
+
     if direction == "bullish":
         entry = round(upper_at_now * 1.001, 2)
         stop = round(pennant_low * 0.99, 2)
         target = round(pole_apex_bar["c"] + c["pole_height"], 2)
         rr = (target - entry) / (entry - stop) if entry > stop else 0.0
+        stop_distance_pct = (entry - stop) / entry * 100 if entry > 0 else 0.0
         entry_condition = f"close > {entry:.2f} on volume > 1.5x 20-bar avg"
         stop_basis = "pennant_low_minus_1pct"
         pattern_name = "Bullish Pennant"
-        headline = (f"Bullish pennant forming - {c['pole_pct']*100:.1f}% pole, "
-                    f"{c['pennant_count']}-bar converging consolidation, "
-                    f"apex {c['apex_bars_ahead']:.0f} bars ahead")
-        what_it_is = ("A sharp advance (pole) followed by a small, converging triangle "
-                      "consolidation. Classic continuation pattern.")
-        why_it_matters = (f"Buyers and sellers tighten into the apex. Volume contracted into "
-                          f"the consolidation, suggesting accumulation. A breakout above the "
-                          f"upper line projects a measured move equal to the pole height.")
-        what_to_watch_for = (f"Breakout above the upper trendline ({upper_at_now:.2f}) on volume "
-                             f">= 1.5x the 20-bar average. Entry triggers above {entry:.2f}.")
-        failure_signal = (f"Close below the pennant low ({pennant_low:.2f}). Pattern invalidates "
-                          f"and the prior advance is at risk.")
+
+        headline = (
+            f"Bullish Pennant forming on {sym_token} - {pole_pct_pct:.1f}% pole "
+            f"over {pole_bars} bars, {pennant_count}-bar converging triangle "
+            f"(width ratio {width_ratio:.2f}), apex {apex_bars_ahead:.0f} bars "
+            f"ahead. Pivot ${upper_at_now:.2f}, target ${target:.2f}, R:R {rr:.1f}."
+        )
+
+        what_it_is = (
+            f"The Bullish Pennant is a continuation pattern documented by Schabacker "
+            f"in 1932 and formalized by Edwards & Magee in 'Technical Analysis of "
+            f"Stock Trends' (1948). Structurally it pairs a sharp advance (the pole - "
+            f"here a {pole_pct_pct:.1f}% surge from ${pole_base_price:.2f} to "
+            f"${pole_apex_price:.2f} over {pole_bars} bars) with a small symmetrical "
+            f"triangle consolidation whose upper and lower trendlines CONVERGE - "
+            f"this is the geometric distinction from a bull flag, where the channel "
+            f"is parallel. Here the channel width has contracted to "
+            f"{width_ratio:.2f} of its start value across {pennant_count} bars, "
+            f"with the apex projecting {apex_bars_ahead:.0f} bars into the future "
+            f"and pennant volume drying to {pennant_vol_pct:.0f}% of pole average. "
+            f"The mechanic: supply and demand approach equilibrium inside the "
+            f"triangle as range compresses, both sides 'agreeing' on price within "
+            f"an ever-tightening band. That equilibrium is unstable by definition - "
+            f"the moment one side overpowers the other, the resolution is sudden "
+            f"and frequently violent because there is no overhead supply or "
+            f"underhead demand to absorb it. Pennants are the chart language of "
+            f"coiled springs, and the closer to apex without breakout, the more "
+            f"imminent the resolution becomes."
+        )
+
+        why_it_matters = (
+            f"This pennant is forming in {stage_phrase} with {ma_phrase} alignment "
+            f"and {rs_phrase} relative strength versus the broader market. The "
+            f"{regime} regime sets the macro backdrop and volume reads as "
+            f"{vol_signature}. The {pole_pct_pct:.1f}% pole over {pole_bars} bars "
+            f"is a meaningful demand impulse that does not appear randomly - "
+            f"institutional sponsorship arrived with intent, and the resulting "
+            f"{pennant_count}-bar coil is not stagnation but pause. Width ratio of "
+            f"{width_ratio:.2f} indicates substantial convergence; pennants where "
+            f"the triangle squeezes below 0.40 of starting width typically resolve "
+            f"with the highest follow-through because the energy compression is "
+            f"greatest. The apex {apex_bars_ahead:.0f} bars ahead is a critical "
+            f"timing variable - 5-15 bars ahead is the textbook sweet spot where "
+            f"resolution is imminent but not desperate, while 1-2 bars from apex "
+            f"often produces apex-breakout failures (the move dies at the point "
+            f"of compression) and >20 bars suggests the pattern is still too early. "
+            f"Volume contracting to {pennant_vol_pct:.0f}% of pole average is the "
+            f"key confirmation that supply is exhausting itself. Historically, "
+            f"clean bullish pennants produce measured-move follow-through 55-65% "
+            f"of the time when they break on volume within the apex window."
+        )
+
+        what_to_watch_for = (
+            f"The trigger is a daily close above ${entry:.2f} (current upper "
+            f"trendline at ${upper_at_now:.2f} plus a small confirmation buffer) "
+            f"on volume of at least 1.5x the 20-bar average - the volume surge "
+            f"is non-negotiable, because breakouts on average or weak volume "
+            f"frequently die at the apex or fade back into the triangle. The "
+            f"ideal trigger bar fires BEFORE the apex (with at least 2-3 bars of "
+            f"runway remaining), closes in the upper half of its range, and is "
+            f"followed by 1-3 bars that hold above ${upper_at_now:.2f} without "
+            f"re-entering the triangle. Measured target is ${target:.2f}, derived "
+            f"by projecting the pole height of ${pole_height:.2f} up from the "
+            f"pole-apex close at ${pole_apex_bar['c']:.2f}. Initial stop at "
+            f"${stop:.2f} sits 1% below the pennant low at ${pennant_low:.2f}, "
+            f"representing a {stop_distance_pct:.1f}% risk distance - so risking "
+            f"1% of account on this trade implies roughly "
+            f"{(1.0 / (stop_distance_pct / 100)) if stop_distance_pct > 0 else 0:.0f}% "
+            f"of equity, and risking 0.5% halves that. Trail stops below each new "
+            f"swing low or under the 10/20 EMA as the trade extends, and consider "
+            f"scaling out partial size at 1R for a free trade."
+        )
+
+        failure_signal = (
+            f"The pattern is invalidated on a daily close below the pennant low "
+            f"at ${pennant_low:.2f} (stop set at ${stop:.2f}, ~1% below the "
+            f"structural low to absorb the standard shake-out wick). Critically, "
+            f"the riskiest failure mode for pennants is the 'apex failure' - "
+            f"price drifts to within 1-2 bars of the apex without resolving "
+            f"either direction, then breaks down on light volume as the energy "
+            f"dissipates. A subtler failure: the breakout fires above "
+            f"${upper_at_now:.2f} on weak volume, the next 1-2 bars close in the "
+            f"lower half of their range, and price slips back into the triangle. "
+            f"This is the textbook Wyckoff 'upthrust' or false breakout where "
+            f"market makers used the visible level for liquidity rather than as "
+            f"a genuine continuation. The {stop_distance_pct:.1f}% stop distance "
+            f"must be honored without negotiation - widening a stop on a pennant "
+            f"that's failing is one of the fastest ways to convert a small loss "
+            f"into a damaging one, because failed coils often resolve with as "
+            f"much velocity downward as the pole had upward. A failed bullish "
+            f"pennant often retests the pole base near ${pole_base_price:.2f} "
+            f"or breaks deeper into prior support, so sizing discipline matters "
+            f"more than entry timing on this setup."
+        )
     else:
         entry = round(lower_at_now * 0.999, 2)
         stop = round(pennant_high * 1.01, 2)
         target = round(pole_apex_bar["c"] - c["pole_height"], 2)
         rr = (entry - target) / (stop - entry) if stop > entry else 0.0
+        stop_distance_pct = (stop - entry) / entry * 100 if entry > 0 else 0.0
         entry_condition = f"close < {entry:.2f} on volume > 1.5x 20-bar avg"
         stop_basis = "pennant_high_plus_1pct"
         pattern_name = "Bearish Pennant"
-        headline = (f"Bearish pennant forming - {c['pole_pct']*100:.1f}% pole, "
-                    f"{c['pennant_count']}-bar converging consolidation, "
-                    f"apex {c['apex_bars_ahead']:.0f} bars ahead")
-        what_it_is = ("A sharp decline (pole) followed by a small, converging triangle "
-                      "consolidation. Classic continuation pattern in a downtrend.")
-        why_it_matters = (f"Buyers and sellers tighten into the apex. Volume contracted into "
-                          f"the consolidation, suggesting distribution. A breakdown below the "
-                          f"lower line projects a measured move equal to the pole height.")
-        what_to_watch_for = (f"Breakdown below the lower trendline ({lower_at_now:.2f}) on "
-                             f"volume >= 1.5x the 20-bar average. Entry triggers below {entry:.2f}.")
-        failure_signal = (f"Close above the pennant high ({pennant_high:.2f}). Pattern "
-                          f"invalidates and the prior decline may be reversing.")
+
+        headline = (
+            f"Bearish Pennant forming on {sym_token} - {pole_pct_pct:.1f}% "
+            f"decline pole over {pole_bars} bars, {pennant_count}-bar converging "
+            f"triangle (width ratio {width_ratio:.2f}), apex {apex_bars_ahead:.0f} "
+            f"bars ahead. Pivot ${lower_at_now:.2f}, target ${target:.2f}, R:R {rr:.1f}."
+        )
+
+        what_it_is = (
+            f"The Bearish Pennant is the inverse of its bullish cousin and a "
+            f"continuation pattern documented since Schabacker (1932) and "
+            f"canonized by Edwards & Magee in 'Technical Analysis of Stock Trends' "
+            f"(1948). It pairs a sharp downward pole - here a {pole_pct_pct:.1f}% "
+            f"decline from ${pole_base_price:.2f} to ${pole_apex_price:.2f} over "
+            f"{pole_bars} bars - with a small symmetrical triangle consolidation "
+            f"whose upper and lower trendlines CONVERGE (geometric distinction "
+            f"from a bear flag, where the channel runs parallel). The triangle "
+            f"width has contracted to {width_ratio:.2f} of its starting value "
+            f"across {pennant_count} bars, with the apex projecting "
+            f"{apex_bars_ahead:.0f} bars into the future and pennant volume "
+            f"drying to {pennant_vol_pct:.0f}% of pole average. The mechanic: "
+            f"supply and demand approach equilibrium inside the triangle as range "
+            f"compresses - short-covering bounces inside the upper trendline meet "
+            f"continuing distribution that defends each lower-high, while patient "
+            f"sellers add into rallies and dip-buyers cover into weakness. That "
+            f"equilibrium is unstable by definition, and the closer to apex "
+            f"without breakdown, the more imminent the resolution becomes. "
+            f"Pennants in downtrends are coiled-spring continuations: the moment "
+            f"demand fails to defend the lower line, the slide resumes with the "
+            f"same velocity that produced the pole."
+        )
+
+        why_it_matters = (
+            f"This pennant is forming in {stage_phrase} with {ma_phrase} alignment "
+            f"and {rs_phrase} relative strength versus the broader market, against "
+            f"a {regime} regime backdrop and volume reading {vol_signature}. The "
+            f"{pole_pct_pct:.1f}% pole over {pole_bars} bars is a meaningful "
+            f"supply impulse, frequently tied to a fundamental catalyst that "
+            f"flipped the narrative (earnings miss, guidance cut, sector rotation, "
+            f"regulatory setback) - distribution arrived with intent and the "
+            f"resulting {pennant_count}-bar coil is not stabilization but pause. "
+            f"Width ratio of {width_ratio:.2f} indicates substantial convergence; "
+            f"bearish pennants where the triangle squeezes below 0.40 of starting "
+            f"width tend to break with the cleanest follow-through because the "
+            f"energy compression is highest. The apex {apex_bars_ahead:.0f} bars "
+            f"ahead is a critical timing variable - 5-15 bars ahead is the "
+            f"textbook sweet spot where resolution is imminent but not desperate, "
+            f"while 1-2 bars from apex frequently produces apex-failure outcomes "
+            f"(the move dies at the point of compression). Volume contracting to "
+            f"{pennant_vol_pct:.0f}% of pole average is the key tell that demand "
+            f"is anemic; rallies inside the triangle on dying volume are the "
+            f"chart language of trapped longs hoping for an exit, not new buyers "
+            f"arriving. Historically, clean bearish pennants produce measured-move "
+            f"follow-through 55-65% of the time when they break on volume within "
+            f"the apex window."
+        )
+
+        what_to_watch_for = (
+            f"The trigger is a daily close below ${entry:.2f} (current lower "
+            f"trendline at ${lower_at_now:.2f} minus a small confirmation buffer) "
+            f"on volume of at least 1.5x the 20-bar average - the volume "
+            f"expansion on the breakdown is non-negotiable, because breaks on "
+            f"light volume frequently reverse back into the triangle as a bear "
+            f"trap. The ideal trigger bar fires BEFORE the apex (with at least "
+            f"2-3 bars of runway remaining), closes in the lower half of its "
+            f"range, and is followed by 1-3 bars that hold below "
+            f"${lower_at_now:.2f} without re-entering the triangle. Measured "
+            f"target is ${target:.2f}, derived by projecting the pole height of "
+            f"${pole_height:.2f} down from the pole-apex close at "
+            f"${pole_apex_bar['c']:.2f}. Initial stop at ${stop:.2f} sits 1% "
+            f"above the pennant high at ${pennant_high:.2f}, representing a "
+            f"{stop_distance_pct:.1f}% risk distance - so risking 1% of account "
+            f"on this short implies roughly "
+            f"{(1.0 / (stop_distance_pct / 100)) if stop_distance_pct > 0 else 0:.0f}% "
+            f"of equity. Trail stops above each new swing high or above the "
+            f"descending 10/20 EMA, and consider covering partial size at 1R for "
+            f"a free trade. Remember short trades require borrow availability "
+            f"and carry overnight gap risk that long trades do not."
+        )
+
+        failure_signal = (
+            f"The pattern is invalidated on a daily close above the pennant "
+            f"high at ${pennant_high:.2f} (stop set at ${stop:.2f}, ~1% above "
+            f"the structural high to absorb the standard upside wick) - that "
+            f"close signals the distribution thesis is wrong and demand has "
+            f"overwhelmed sellers, frequently setting up a bear-trap squeeze "
+            f"toward the pole base near ${pole_base_price:.2f}. The riskiest "
+            f"failure mode for pennants is the 'apex failure' - price drifts to "
+            f"within 1-2 bars of the apex without resolving either direction, "
+            f"then breaks up on light short-covering volume as the compressed "
+            f"energy dissipates. A subtler failure: the breakdown fires below "
+            f"${lower_at_now:.2f} on weak volume, the next 1-2 bars close in "
+            f"the upper half of their range, and price recovers back into the "
+            f"triangle - the Wyckoff 'spring' that market makers use to grab "
+            f"short-side liquidity before squeezing higher. Short squeezes can "
+            f"be violent and uncapped to the upside, so the {stop_distance_pct:.1f}% "
+            f"stop must be honored without negotiation - widening or removing a "
+            f"stop on a bear pennant that's failing is one of the fastest ways "
+            f"to take a manageable loss and turn it into an account-damaging "
+            f"one, because the asymmetric risk profile of a short (capped "
+            f"reward, uncapped loss) demands tighter discipline than long "
+            f"trades. Failed bear pennants often resolve with V-shape reversal "
+            f"velocity, so size accordingly."
+        )
 
     now = int(time.time())
 

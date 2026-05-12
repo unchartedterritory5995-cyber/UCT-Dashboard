@@ -44,3 +44,29 @@ def test_fixture_battery_has_minimum_coverage():
     assert len(pos) >= 5, f"need >=5 positive fixtures, have {len(pos)}"
     assert len(neg) >= 8, f"need >=8 negative fixtures, have {len(neg)}"
     assert len(edge) >= 2, f"need >=2 edge fixtures, have {len(edge)}"
+
+
+def test_narrative_richness():
+    """Each narrative body field must contain Phase 2-depth paragraph content."""
+    fixtures = load_all_fixtures("bear_flag", include_internal=False)
+    pos = [f for f in fixtures if f.category == "positive"]
+    assert pos, "no positive fixtures found"
+
+    fixture = pos[0]
+    ctx = fixture.context if fixture.context is not None else build_context(fixture.bars, sym="TEST")
+    detections = detect_bear_flag(fixture.bars, ctx)
+    assert detections, f"positive fixture {fixture.name} did not fire"
+    d = max(detections, key=lambda x: x["confidence"])
+
+    narrative = d["narrative"]
+    assert "headline" in narrative
+    assert len(narrative["headline"]) >= 90, (
+        f"narrative.headline too short ({len(narrative['headline'])} chars): "
+        f"{narrative['headline']!r}"
+    )
+    for field in ("what_it_is", "why_it_matters", "what_to_watch_for", "failure_signal"):
+        assert field in narrative, f"missing narrative.{field}"
+        text = narrative[field]
+        assert len(text) >= 700, (
+            f"narrative.{field} too short ({len(text)} chars): {text[:120]!r}..."
+        )
