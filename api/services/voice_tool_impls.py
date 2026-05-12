@@ -638,6 +638,25 @@ def _get_market_context(*, user) -> dict:
     return get_market_context(user_id=user["id"])
 
 
+# ── Batch 11c: Drift detection ──────────────────────────────────────────────
+
+def _detect_drift(*, user) -> dict:
+    """Compute drift findings now (vs the cached proactive insights)."""
+    from api.services.voice_drift_detector import detect_drift
+    findings = detect_drift(user["id"])
+    if not findings:
+        return {"ok": True, "narration": "No drift detected — you're on baseline.",
+                "findings": [], "count": 0}
+    return {
+        "ok": True,
+        "narration": "Drift detected — " + "; ".join(
+            f["headline"] for f in findings[:3]
+        ),
+        "findings": findings,
+        "count": len(findings),
+    }
+
+
 # ── Batch 10a: Agent routing ────────────────────────────────────────────────
 
 def _route_to_agent(target: str = "", reason: str = "") -> dict:
@@ -1497,6 +1516,14 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_get_market_context)
+
+    _vt.voice_tool(
+        name="detect_drift",
+        description="Run drift detection NOW on the user's recent journal trades. Returns findings: win rate drops, growing losses, recurring mistakes, position size creep, overtrading. Coach: call this when reviewing the user's performance; Risk Officer: call this before approving more aggressive sizing.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_detect_drift)
 
     _vt.voice_tool(
         name="route_to_agent",

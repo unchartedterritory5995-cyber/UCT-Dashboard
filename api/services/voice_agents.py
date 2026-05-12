@@ -180,6 +180,10 @@ AGENTS: dict[str, dict[str, Any]] = {
             "calc_position_size", "validate_trade",
             "get_my_account_balance", "list_my_accounts",
             "get_my_pnl",
+            # Drift — risk officer should know if user is degrading
+            "detect_drift",
+            # Temporal — never approve trades when market is closed/AH
+            "get_market_context",
             # Read context to inform refusal
             "get_quote", "find_my_trades", "get_my_setup_performance",
             "get_regime",
@@ -236,6 +240,8 @@ AGENTS: dict[str, dict[str, Any]] = {
             "post_trade_review", "closing_briefing",
             # Domain — behavioral biases live here
             "lookup_trading_principle",
+            # Drift / temporal awareness — Coach's core tools
+            "detect_drift", "get_market_context",
             # Journal writes (notes, mistakes)
             "add_daily_note", "log_mistake", "confirm_action",
             # Memory

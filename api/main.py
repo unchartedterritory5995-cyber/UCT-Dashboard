@@ -929,11 +929,13 @@ async def lifespan(app: FastAPI):
                     ).fetchall()
                 finally:
                     conn.close()
+                from api.services.voice_drift_detector import emit_drift_insights
                 for r in rows:
                     uid = r["user_id"]
                     try:
                         scan_for_opportunities(uid)
                         maybe_emit_regime_shift(uid)
+                        emit_drift_insights(uid)
                     except Exception as e:
                         print(f"[voice_proactive] scan user={uid} failed: {e}")
             except Exception as e:
