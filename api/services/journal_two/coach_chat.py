@@ -731,3 +731,179 @@ def cancel_pending_action(
     finally:
         if _close:
             _conn.close()
+
+
+# -- Onboarding entry points (Phase G v4) ------------------------------------
+
+
+_ONBOARDING_SENTINEL = "[BEGIN_ONBOARDING_INTERVIEW]"
+
+
+def start_onboarding(
+    *,
+    user_id: str,
+    account_id: str,
+    client=None,
+    conn=None,
+):
+    """Begin (or resume) the onboarding interview. Generator yields chat events."""
+    import uuid as _uuid
+
+    _conn, _close = _get_conn(conn)
+    try:
+        row = _conn.execute(
+            "SELECT onboarded, onboarding_mode, onboarding_session_id FROM j2_accounts WHERE id = ? AND user_id = ?",
+            (account_id, user_id),
+        ).fetchone()
+        if row is None:
+            yield {"type": "error", "code": "no_account", "message": "Account not found."}
+            return
+        if int(row["onboarded"] or 0):
+            yield {"type": "error", "code": "already_onboarded",
+                   "message": "Already onboarded. Use redo_onboarding to start fresh."}
+            return
+
+        # If already mid-onboarding, reuse session. Otherwise begin a new one.
+        if int(row["onboarding_mode"] or 0) and row["onboarding_session_id"]:
+            pass  # resume
+        else:
+            new_sid = str(_uuid.uuid4())
+            _conn.execute(
+                """UPDATE j2_accounts
+                   SET onboarding_mode = 1, onboarding_session_id = ?
+                   WHERE id = ? AND user_id = ?""",
+                (new_sid, account_id, user_id),
+            )
+            _conn.commit()
+
+        # Persist sentinel user message that triggers Compass's interview opener
+        append_message(
+            user_id=user_id, account_id=account_id,
+            role="user", content=_ONBOARDING_SENTINEL, conn=_conn,
+        )
+
+        # Inline stream (don't call handle_user_turn -- it would persist
+        # ANOTHER user message). Build prompt + tools, then stream.
+        from api.services.journal_two import coach_chat_tools as cct
+        from api.services.journal_two import coach_prompts
+
+        system_prompt = (
+            coach_prompts.COMPASS_SYSTEM_PROMPT + "\n\n"
+            + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
+        )
+        active_client = client or AnthropicChatClient()
+        tools_param = _build_anthropic_tools_param()
+        messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
+        assistant_text = ""
+        tool_uses: list[dict] = []
+        with active_client.start_stream(
+            system_prompt=system_prompt, messages=messages, tools=tools_param,
+        ) as stream:
+            for ev in stream:
+                etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)
+                if etype == "text":
+                    text = ev.get("text") if isinstance(ev, dict) else getattr(ev, "text", "")
+                    assistant_text += text
+                    yield {"type": "token", "text": text}
+                elif etype == "tool_use":
+                    tu = {
+                        "id": ev.get("id") if isinstance(ev, dict) else getattr(ev, "id", None),
+                        "name": ev.get("name") if isinstance(ev, dict) else getattr(ev, "name", None),
+                        "args": (ev.get("input") if isinstance(ev, dict)
+                                 else getattr(ev, "input", {})) or {},
+                    }
+                    tool_uses.append(tu)
+
+        tool_calls_json = [{"id": tu["id"], "name": tu["name"], "args": tu["args"], "status": "pending"} for tu in tool_uses] or None
+        asst_id = append_message(
+            user_id=user_id, account_id=account_id,
+            role="assistant", content=assistant_text or None,
+            tool_calls=tool_calls_json, conn=_conn,
+        )
+
+        # Dispatch any tool_uses Compass emitted in its opener
+        for tu in tool_uses:
+            spec = cct.TOOLS.get(tu["name"])
+            if spec is None:
+                continue
+            if spec["requires_confirm"]:
+                preview = spec["preview"](
+                    user_id=user_id, account_id=account_id, args=tu["args"], conn=_conn,
+                )
+                _mark_tool_call_status(_conn, asst_id, tu["id"], "pending_confirm")
+                yield {"type": "tool_call_pending", "tool_call_id": tu["id"],
+                       "name": tu["name"], "args": tu["args"],
+                       "preview": preview, "message_id": asst_id}
+            else:
+                try:
+                    result = spec["executor"](
+                        user_id=user_id, account_id=account_id, args=tu["args"], conn=_conn,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    result = {"error": str(e)}
+                yield {"type": "tool_call", "name": tu["name"], "args": tu["args"],
+                       "summary": _summarize_tool_result(tu["name"], result)}
+                append_message(
+                    user_id=user_id, account_id=account_id,
+                    role="tool",
+                    tool_results=[{"tool_call_id": tu["id"], "result": result}],
+                    parent_id=asst_id, conn=_conn,
+                )
+                _mark_tool_call_status(_conn, asst_id, tu["id"], "confirmed")
+        yield {"type": "complete", "message_id": asst_id}
+    finally:
+        if _close:
+            _conn.close()
+
+
+def skip_onboarding(*, user_id: str, account_id: str, conn=None) -> dict:
+    """Mark the account as onboarded with no profile. Sync (no SSE)."""
+    _conn, _close = _get_conn(conn)
+    try:
+        _conn.execute(
+            "UPDATE j2_accounts SET onboarded = 1, onboarding_mode = 0 WHERE id = ? AND user_id = ?",
+            (account_id, user_id),
+        )
+        _conn.commit()
+        return {"ok": True, "summary": "Onboarding skipped."}
+    finally:
+        if _close:
+            _conn.close()
+
+
+def redo_onboarding(
+    *,
+    user_id: str,
+    account_id: str,
+    client=None,
+    conn=None,
+):
+    """Restart the interview with a new session_id. Old responses preserved."""
+    import uuid as _uuid
+
+    _conn, _close = _get_conn(conn)
+    try:
+        row = _conn.execute(
+            "SELECT onboarded FROM j2_accounts WHERE id = ? AND user_id = ?",
+            (account_id, user_id),
+        ).fetchone()
+        if row is None:
+            yield {"type": "error", "code": "no_account", "message": "Account not found."}
+            return
+        new_sid = str(_uuid.uuid4())
+        _conn.execute(
+            """UPDATE j2_accounts
+               SET onboarded = 0, onboarding_mode = 1, onboarding_session_id = ?
+               WHERE id = ? AND user_id = ?""",
+            (new_sid, account_id, user_id),
+        )
+        _conn.commit()
+    finally:
+        if _close:
+            _conn.close()
+
+    # Delegate to start_onboarding for the actual streaming
+    for event in start_onboarding(
+        user_id=user_id, account_id=account_id, client=client, conn=conn,
+    ):
+        yield event

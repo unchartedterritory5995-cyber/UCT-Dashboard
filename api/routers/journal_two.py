@@ -1308,3 +1308,49 @@ def put_coach_profile(
         return {"profile": profile}
     finally:
         conn.close()
+
+
+@router.post("/accounts/{account_id}/coach/chat/start_onboarding")
+def chat_start_onboarding(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+):
+    settings_check = accounts_service.get_account_settings(user["id"], account_id)
+    if settings_check is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not settings_check.get("compassEnabled", True):
+        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+
+    def _gen():
+        for event in coach_chat_service.start_onboarding(
+            user_id=user["id"], account_id=account_id,
+        ):
+            yield _sse_format(event)
+    return StreamingResponse(_gen(), media_type="text/event-stream")
+
+
+@router.post("/accounts/{account_id}/coach/chat/skip_onboarding")
+def chat_skip_onboarding(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+):
+    return coach_chat_service.skip_onboarding(user_id=user["id"], account_id=account_id)
+
+
+@router.post("/accounts/{account_id}/coach/chat/redo_onboarding")
+def chat_redo_onboarding(
+    account_id: str,
+    user: dict = Depends(get_current_user),
+):
+    settings_check = accounts_service.get_account_settings(user["id"], account_id)
+    if settings_check is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not settings_check.get("compassEnabled", True):
+        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+
+    def _gen():
+        for event in coach_chat_service.redo_onboarding(
+            user_id=user["id"], account_id=account_id,
+        ):
+            yield _sse_format(event)
+    return StreamingResponse(_gen(), media_type="text/event-stream")

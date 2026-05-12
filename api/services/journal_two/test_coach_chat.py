@@ -406,3 +406,127 @@ def test_handle_user_turn_does_not_append_section_8_when_not_onboarding(db_conn)
     ))
     sp = client.calls[-1]["system_prompt"]
     assert "Onboarding interview mode" not in sp
+
+
+# ── Onboarding entry points ──────────────────────────────────────────────────
+
+
+def test_start_onboarding_assigns_session_and_sets_mode(db_conn):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    client = FakeChatClient(stream_scripts=[
+        [{"type": "text", "text": "Welcome. Let's begin."}, {"type": "message_stop"}],
+    ])
+    list(coach_chat.start_onboarding(
+        user_id="u_chat", account_id=acc["id"],
+        client=client, conn=db_conn,
+    ))
+    row = db_conn.execute(
+        "SELECT onboarding_mode, onboarding_session_id, onboarded FROM j2_accounts WHERE id = ?",
+        (acc["id"],),
+    ).fetchone()
+    assert int(row["onboarding_mode"]) == 1
+    assert row["onboarding_session_id"] is not None
+    assert int(row["onboarded"]) == 0
+    user_rows = db_conn.execute(
+        "SELECT content FROM j2_chat_messages WHERE user_id = ? AND role = 'user'",
+        ("u_chat",),
+    ).fetchall()
+    assert any("BEGIN_ONBOARDING_INTERVIEW" in (r["content"] or "") for r in user_rows)
+
+
+def test_start_onboarding_rejects_when_already_onboarded(db_conn):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET onboarded = 1 WHERE id = ?", (acc["id"],),
+    )
+    db_conn.commit()
+    client = FakeChatClient(stream_scripts=[])
+    events = list(coach_chat.start_onboarding(
+        user_id="u_chat", account_id=acc["id"],
+        client=client, conn=db_conn,
+    ))
+    types = [e.get("type") for e in events]
+    assert "error" in types
+
+
+def test_start_onboarding_resume_reuses_existing_session(db_conn):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        """UPDATE j2_accounts
+           SET onboarding_mode = 1, onboarding_session_id = 'existing_sess'
+           WHERE id = ?""",
+        (acc["id"],),
+    )
+    db_conn.commit()
+    client = FakeChatClient(stream_scripts=[
+        [{"type": "text", "text": "Welcome back. Picking up."}, {"type": "message_stop"}],
+    ])
+    list(coach_chat.start_onboarding(
+        user_id="u_chat", account_id=acc["id"],
+        client=client, conn=db_conn,
+    ))
+    row = db_conn.execute(
+        "SELECT onboarding_session_id FROM j2_accounts WHERE id = ?",
+        (acc["id"],),
+    ).fetchone()
+    assert row["onboarding_session_id"] == "existing_sess"
+
+
+def test_skip_onboarding_marks_onboarded_silent(db_conn):
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    result = coach_chat.skip_onboarding(
+        user_id="u_chat", account_id=acc["id"], conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute(
+        "SELECT onboarded, onboarding_mode FROM j2_accounts WHERE id = ?",
+        (acc["id"],),
+    ).fetchone()
+    assert int(row["onboarded"]) == 1
+    assert int(row["onboarding_mode"]) == 0
+    n = db_conn.execute(
+        "SELECT COUNT(*) AS n FROM j2_chat_messages WHERE user_id = ?", ("u_chat",),
+    ).fetchone()["n"]
+    assert n == 0
+
+
+def test_redo_onboarding_preserves_prior_responses(db_conn):
+    from api.services.journal_two import coach_chat
+    import uuid as _uuid
+    acc = _seed_account(db_conn)
+    old_sid = "old_sess"
+    db_conn.execute(
+        "UPDATE j2_accounts SET onboarded = 1, onboarding_session_id = ? WHERE id = ?",
+        (old_sid, acc["id"]),
+    )
+    db_conn.execute(
+        """INSERT INTO j2_onboarding_responses
+           (id, user_id, account_id, session_id, category, question, answer, asked_at)
+           VALUES (?, 'u_chat', ?, ?, 'identity', 'Q', 'A', '2026-05-12T10:00:00+00:00')""",
+        (str(_uuid.uuid4()), acc["id"], old_sid),
+    )
+    db_conn.commit()
+
+    client = FakeChatClient(stream_scripts=[
+        [{"type": "text", "text": "Fresh start. Let's go."}, {"type": "message_stop"}],
+    ])
+    list(coach_chat.redo_onboarding(
+        user_id="u_chat", account_id=acc["id"],
+        client=client, conn=db_conn,
+    ))
+    old_count = db_conn.execute(
+        "SELECT COUNT(*) AS n FROM j2_onboarding_responses WHERE session_id = ?",
+        (old_sid,),
+    ).fetchone()["n"]
+    assert old_count == 1
+    row = db_conn.execute(
+        "SELECT onboarding_session_id, onboarded, onboarding_mode FROM j2_accounts WHERE id = ?",
+        (acc["id"],),
+    ).fetchone()
+    assert row["onboarding_session_id"] != old_sid
+    assert int(row["onboarded"]) == 0
+    assert int(row["onboarding_mode"]) == 1
