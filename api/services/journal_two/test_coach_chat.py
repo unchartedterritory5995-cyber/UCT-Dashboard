@@ -575,3 +575,44 @@ def test_validate_chat_output_flags_unverified_R(db_conn):
     result = cv.validate_chat_output(body, data)
     assert result["passed"] is False
     assert any("9.9" in f for f in result["flags"])
+
+
+def test_handle_user_turn_appends_regime_context_when_available(db_conn, monkeypatch):
+    """When regime service returns a regime, it gets injected into the system prompt."""
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+
+    # Monkey-patch the regime service to return a known regime
+    from api.services.journal_two import regime as regime_service
+    monkeypatch.setattr(regime_service, "get_current_regime",
+                        lambda: {"regime": "AMBER", "exposure_pct": 65})
+
+    client = FakeChatClient(stream_scripts=[
+        [{"type": "text", "text": "Hi."}, {"type": "message_stop"}],
+    ])
+    list(coach_chat.handle_user_turn(
+        user_id="u_chat", account_id=acc["id"],
+        user_message="hello", client=client, conn=db_conn,
+    ))
+    sp = client.calls[-1]["system_prompt"]
+    assert "AMBER" in sp
+    assert "Live market context" in sp
+
+
+def test_handle_user_turn_skips_regime_context_when_unavailable(db_conn, monkeypatch):
+    """If regime service errors or returns nothing, no regime context is appended."""
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+
+    from api.services.journal_two import regime as regime_service
+    monkeypatch.setattr(regime_service, "get_current_regime", lambda: None)
+
+    client = FakeChatClient(stream_scripts=[
+        [{"type": "text", "text": "Hi."}, {"type": "message_stop"}],
+    ])
+    list(coach_chat.handle_user_turn(
+        user_id="u_chat", account_id=acc["id"],
+        user_message="hello", client=client, conn=db_conn,
+    ))
+    sp = client.calls[-1]["system_prompt"]
+    assert "Live market context" not in sp

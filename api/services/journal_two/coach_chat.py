@@ -26,6 +26,25 @@ def _get_conn(conn=None):
     return c, True
 
 
+def _current_regime_context() -> str:
+    """Returns a one-line system-prompt addendum describing today's market regime.
+    Returns empty string if unavailable (graceful degradation)."""
+    try:
+        from api.services.journal_two import regime as regime_service
+        info = regime_service.get_current_regime() or {}
+        r = info.get("regime")
+        exp = info.get("exposure_pct") or info.get("score")
+        if not r:
+            return ""
+        ctx = f"\n\n[Live market context: today's regime is {r}"
+        if exp is not None:
+            ctx += f" (exposure score {exp})"
+        ctx += ". Factor this into your coaching where relevant.]"
+        return ctx
+    except Exception:
+        return ""
+
+
 def append_message(
     *,
     user_id: str,
@@ -320,6 +339,7 @@ def handle_user_turn(
             system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
             if onboarding:
                 system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
+            system_prompt += _current_regime_context()
 
             assistant_text = ""
             tool_uses: list[dict] = []
@@ -526,6 +546,7 @@ def confirm_pending_action(
         system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
         if onboarding:
             system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
+        system_prompt += _current_regime_context()
         active_client = client or AnthropicChatClient()
         tools_param = _build_anthropic_tools_param()
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
@@ -711,6 +732,7 @@ def cancel_pending_action(
         system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
         if onboarding:
             system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
+        system_prompt += _current_regime_context()
         active_client = client or AnthropicChatClient()
         tools_param = _build_anthropic_tools_param()
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
@@ -797,6 +819,7 @@ def start_onboarding(
             coach_prompts.COMPASS_SYSTEM_PROMPT + "\n\n"
             + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
         )
+        system_prompt += _current_regime_context()
         active_client = client or AnthropicChatClient()
         tools_param = _build_anthropic_tools_param()
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
