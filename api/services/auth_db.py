@@ -315,6 +315,20 @@ CREATE TABLE IF NOT EXISTS voice_tool_calls (
 CREATE INDEX IF NOT EXISTS idx_voice_tool_calls_user ON voice_tool_calls(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_voice_tool_calls_failures ON voice_tool_calls(user_id, ok, created_at DESC)
     WHERE ok = 0;
+
+CREATE TABLE IF NOT EXISTS voice_embeddings (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      TEXT NOT NULL REFERENCES users(id),
+    kind         TEXT NOT NULL,
+    source_id    INTEGER,
+    text         TEXT NOT NULL,
+    embedding    BLOB NOT NULL,
+    model        TEXT NOT NULL,
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_embeddings_user_kind ON voice_embeddings(user_id, kind);
+CREATE INDEX IF NOT EXISTS idx_voice_embeddings_source ON voice_embeddings(kind, source_id);
 """
 
 

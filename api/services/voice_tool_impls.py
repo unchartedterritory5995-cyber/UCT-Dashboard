@@ -575,6 +575,46 @@ def _list_voice_settings(*, user) -> dict:
     return list_voice_settings(user_id=user["id"])
 
 
+# ── Batch 8a: RAG retrieval ─────────────────────────────────────────────────
+
+def _recall_relevant(*, user, query: str = "", kind: str = "", count: int = 5) -> dict:
+    """Semantic search over the user's facts + summaries + indexed content.
+    Returns the top-K most relevant hits with similarity scores."""
+    from api.services.voice_embeddings_service import search
+    q = (query or "").strip()
+    if not q:
+        return {"ok": False,
+                "narration": "What should I recall? Give me a topic or keyword."}
+    try:
+        n = max(1, min(15, int(count or 5)))
+    except (TypeError, ValueError):
+        n = 5
+    k = kind.strip() if kind else None
+    if k and k not in ("fact", "summary", "journal_entry", "transcript", "kb_chunk"):
+        k = None
+    try:
+        hits = search(user["id"], q, k=n, kind=k)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "narration": "Recall failed.", "error": str(e)}
+    if not hits:
+        return {"ok": True,
+                "narration": f"Nothing relevant to {q!r} in your memory.",
+                "hits": []}
+    top_lines = []
+    for h in hits[:5]:
+        snippet = (h["text"] or "")[:150]
+        score = h["score"]
+        top_lines.append(f"[{h['kind']} score={score}] {snippet}")
+    return {
+        "ok": True,
+        "narration": "Most relevant — " + " | ".join(top_lines)[:600],
+        "hits": [{"kind": h["kind"], "text": h["text"],
+                  "score": h["score"], "source_id": h["source_id"]}
+                 for h in hits],
+        "count": len(hits),
+    }
+
+
 # ── Batch 5: feedback / training ────────────────────────────────────────────
 
 def _correct_me(*, user, what_was_wrong: str = "", what_was_right: str = "") -> dict:
@@ -1232,6 +1272,18 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_list_voice_settings)
+
+    _vt.voice_tool(
+        name="recall_relevant",
+        description="Semantic search over EVERYTHING you've saved about this user — facts, past session summaries, journal entries, indexed knowledge. Call when the user asks 'what do you remember about X', 'have we talked about Y', or whenever you'd benefit from past context on a topic that the recent-N injection might have missed.",
+        parameters={
+            "query": {"type": "string", "description": "Topic or keyword to search for."},
+            "kind": {"type": "string", "description": "Optional filter: fact, summary, journal_entry, transcript, kb_chunk."},
+            "count": {"type": "integer", "description": "How many hits (default 5, max 15)."},
+        },
+        contexts=["global", "train_me"],
+        wants_user=True,
+    )(_recall_relevant)
 
     # ── Batch 7c: chart actions (dispatched via client chartBus) ───────────
 

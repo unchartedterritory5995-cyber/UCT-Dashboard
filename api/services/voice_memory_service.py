@@ -12,8 +12,11 @@ into the Realtime session's `instructions` at session-token mint time.
 """
 
 import json
+import logging
 from datetime import datetime, timezone
 from api.services.auth_db import get_connection
+
+_log = logging.getLogger(__name__)
 
 
 MAX_MEMORY_CHARS = 2000
@@ -99,9 +102,17 @@ def add_fact(user_id: str, *, text: str, category: str = "general") -> int:
             (user_id, category, text, _now(), _now()),
         )
         conn.commit()
-        return cur.lastrowid
+        fact_id = cur.lastrowid
     finally:
         conn.close()
+    # Batch 8a: index for RAG retrieval. Fire-and-forget — if it fails the
+    # fact is still saved and will be backfilled on next reindex pass.
+    try:
+        from api.services.voice_embeddings_service import index_text
+        index_text(user_id, kind="fact", source_id=fact_id, text=text)
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[memory] fact embed failed: %s", e)
+    return fact_id
 
 
 def list_facts(user_id: str, *, limit: int = 100) -> list[dict]:
@@ -159,6 +170,11 @@ def delete_fact(fact_id: int, *, user_id: str) -> None:
         conn.commit()
     finally:
         conn.close()
+    try:
+        from api.services.voice_embeddings_service import delete_source
+        delete_source(kind="fact", source_id=fact_id)
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[memory] fact embed-delete failed: %s", e)
 
 
 def delete_facts_matching(user_id: str, query: str) -> int:
@@ -194,9 +210,16 @@ def add_summary(*, session_id: int, user_id: str, summary_text: str,
             (session_id, user_id, summary_text, topics_json, _now()),
         )
         conn.commit()
-        return cur.lastrowid
+        summary_id = cur.lastrowid
     finally:
         conn.close()
+    # Batch 8a: index for RAG retrieval.
+    try:
+        from api.services.voice_embeddings_service import index_text
+        index_text(user_id, kind="summary", source_id=summary_id, text=summary_text)
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[memory] summary embed failed: %s", e)
+    return summary_id
 
 
 def list_summaries(user_id: str, *, limit: int = 20) -> list[dict]:

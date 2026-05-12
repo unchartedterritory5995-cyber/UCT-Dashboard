@@ -629,6 +629,33 @@ def failure_patterns(user: dict = Depends(requires_voice_access)):
     return {"patterns": detect_failure_patterns(user["id"])}
 
 
+@router.post("/embeddings/reindex")
+@limiter.limit("5/minute")
+def embeddings_reindex(
+    request: Request,
+    user: dict = Depends(requires_voice_access),
+):
+    """Backfill embeddings for the user's facts + summaries. Idempotent."""
+    from api.services.voice_embeddings_service import reindex_user
+    counts = reindex_user(user["id"])
+    return counts
+
+
+@router.get("/embeddings/search")
+def embeddings_search(
+    q: str = "",
+    kind: str = "",
+    k: int = 5,
+    user: dict = Depends(requires_voice_access),
+):
+    """Debug endpoint — semantic search over the user's embeddings."""
+    from api.services.voice_embeddings_service import search
+    target_kind = kind if kind in ("fact", "summary", "journal_entry",
+                                   "transcript", "kb_chunk") else None
+    hits = search(user["id"], q, k=max(1, min(50, int(k))), kind=target_kind)
+    return {"query": q, "kind": target_kind, "hits": hits}
+
+
 @router.get("/transcripts/export")
 def transcripts_export(
     format: str = "txt",
