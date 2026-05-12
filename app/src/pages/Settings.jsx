@@ -11,6 +11,7 @@ import { ALERT_SOUNDS, previewSound } from '../utils/alertSound'
 import VoiceMemoryPanel from '../components/voice/VoiceMemoryPanel'
 import VoiceTelemetryPanel from '../components/voice/VoiceTelemetryPanel'
 import VoiceSessionsPanel from '../components/voice/VoiceSessionsPanel'
+import VoiceDocumentsPanel from '../components/voice/VoiceDocumentsPanel'
 import { useVoice } from '../context/VoiceContext'
 import styles from './Settings.module.css'
 
@@ -1010,6 +1011,11 @@ export default function Settings() {
         {/* ── Voice Session History ── */}
         <TileCard title="Voice Session History">
           <VoiceSessionsPanel />
+        </TileCard>
+
+        {/* ── Voice Documents ── */}
+        <TileCard title="Voice Documents">
+          <VoiceDocumentsPanel />
         </TileCard>
 
         {/* ── Watchlist Digest ── */}
