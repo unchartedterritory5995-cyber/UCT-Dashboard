@@ -386,6 +386,30 @@ def reward_variants(
     return {"context": context, "variants": list_variants(context)}
 
 
+@router.get("/sessions")
+def sessions_list(
+    limit: int = 50,
+    user: dict = Depends(requires_voice_access),
+):
+    """Recent Mode C sessions for the user, newest-first, with summary stats."""
+    from api.services.voice_trace_service import list_recent_sessions
+    return {"sessions": list_recent_sessions(user["id"], limit=max(1, min(200, int(limit))))}
+
+
+@router.get("/sessions/{session_id}/trace")
+def session_trace(
+    session_id: int,
+    user: dict = Depends(requires_voice_access),
+):
+    """Full turn-by-turn trace for one session — metadata, variant,
+    transcripts, tool calls, feedback, scratchpad."""
+    from api.services.voice_trace_service import get_trace
+    trace = get_trace(session_id, user["id"])
+    if not trace:
+        raise HTTPException(status_code=404, detail="session not found")
+    return trace
+
+
 @router.get("/agents/stats")
 def agents_stats(
     days: int = 30,
