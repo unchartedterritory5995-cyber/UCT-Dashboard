@@ -126,6 +126,8 @@ AGENTS: dict[str, dict[str, Any]] = {
             "get_regime", "lookup_trading_principle",
             "get_sector_rotation_state", "classify_catalyst",
             "get_time_of_day_pattern",
+            # Multi-modal — analyst reads charts
+            "describe_chart",
             # Journal reads (analyst can reference user's history)
             "find_my_trades", "get_my_setup_performance",
             "get_my_pnl", "get_my_psychology", "get_my_calendar",
@@ -295,6 +297,8 @@ AGENTS: dict[str, dict[str, Any]] = {
             "get_quote", "get_regime", "get_sector_strength",
             "get_sector_rotation_state", "classify_catalyst",
             "get_time_of_day_pattern",
+            # Multi-modal — scout reads charts to confirm setups
+            "describe_chart",
             # Journal — to filter through user's edge
             "get_my_setup_performance", "find_my_trades",
             # Memory

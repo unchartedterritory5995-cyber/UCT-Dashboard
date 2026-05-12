@@ -224,6 +224,58 @@ def insights_dismiss(
     return {"ok": ok}
 
 
+class VisionDescribeRequest(BaseModel):
+    image_url: str | None = None
+    image_b64: str | None = None
+    symbol: str | None = None
+    regime: str | None = None
+
+
+@router.post("/vision/describe")
+@limiter.limit("20/minute")
+def vision_describe(
+    request: Request,
+    body: VisionDescribeRequest,
+    user: dict = Depends(requires_voice_access),
+):
+    """GPT-4o vision pass on a chart image. Pass image_url OR image_b64."""
+    from api.services.voice_chart_vision import describe_chart
+    if not body.image_url and not body.image_b64:
+        raise HTTPException(status_code=400, detail="image_url or image_b64 required")
+    return describe_chart(
+        image_url=body.image_url, image_b64=body.image_b64,
+        symbol=body.symbol, regime=body.regime,
+    )
+
+
+@router.post("/vision/upload")
+@limiter.limit("10/minute")
+def vision_upload(
+    request: Request,
+    image: UploadFile = File(...),
+    symbol: str = Form(""),
+    user: dict = Depends(requires_voice_access),
+):
+    """Upload a chart screenshot for analysis (multipart). Returns same shape
+    as /vision/describe."""
+    import base64
+    from api.services.voice_chart_vision import describe_chart
+    raw = image.file.read() if image else b""
+    if not raw:
+        raise HTTPException(status_code=400, detail="empty image")
+    # Cap at 5 MB to keep tokens reasonable
+    if len(raw) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="image too large (max 5MB)")
+    b64 = base64.b64encode(raw).decode("ascii")
+    regime = None
+    try:
+        from api.services.voice_regime_classifier import get_current_regime
+        regime = (get_current_regime() or {}).get("regime")
+    except Exception:
+        pass
+    return describe_chart(image_b64=b64, symbol=(symbol or None), regime=regime)
+
+
 @router.post("/insights/scan")
 @limiter.limit("3/minute")
 def insights_scan(

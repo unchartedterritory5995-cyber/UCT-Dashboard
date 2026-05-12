@@ -657,6 +657,25 @@ def _detect_drift(*, user) -> dict:
     }
 
 
+# ── Batch 12a: Chart vision (multi-modal) ───────────────────────────────────
+
+def _describe_chart(image_url: str = "", symbol: str = "") -> dict:
+    """Vision API call on a chart screenshot. Caller passes image_url."""
+    from api.services.voice_chart_vision import describe_chart
+    if not image_url:
+        return {"ok": False,
+                "narration": "I need an image URL or screenshot to analyze."}
+    regime = None
+    try:
+        from api.services.voice_regime_classifier import get_current_regime
+        regime = (get_current_regime() or {}).get("regime")
+    except Exception:
+        pass
+    return describe_chart(
+        image_url=image_url, symbol=symbol or None, regime=regime,
+    )
+
+
 # ── Batch 10a: Agent routing ────────────────────────────────────────────────
 
 def _route_to_agent(target: str = "", reason: str = "") -> dict:
@@ -1524,6 +1543,16 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_detect_drift)
+
+    _vt.voice_tool(
+        name="describe_chart",
+        description="GPT-4o vision analysis on a chart screenshot. Returns structured read: pattern detected, key levels (entry/stop/target), recommendation (READY/WATCH/SKIP), confidence, regime fit. Use when the user shares a chart URL or asks 'what do you see on this chart' after uploading.",
+        parameters={
+            "image_url": {"type": "string", "description": "Public URL to the chart image (PNG/JPG)."},
+            "symbol": {"type": "string", "description": "Optional ticker for context."},
+        },
+        contexts=["global"],
+    )(_describe_chart)
 
     _vt.voice_tool(
         name="route_to_agent",
