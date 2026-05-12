@@ -25,6 +25,7 @@ from api.services.pattern_engine.detectors.classical import inverse_head_shoulde
 from api.services.pattern_engine.detectors.classical import double_top as _double_top  # noqa: F401
 from api.services.pattern_engine.detectors.classical import double_bottom as _double_bottom  # noqa: F401
 from api.services.pattern_engine.detectors.classical import cup_handle as _cup_handle  # noqa: F401
+from api.services.pattern_engine.detectors.classical import inverse_cup_handle as _inverse_cup_handle  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -92,6 +93,12 @@ _PATTERN_METADATA = {
         "category": "classical",
         "direction": "bullish",
         "description": "Rounded U-shaped consolidation (cup) followed by tight pullback (handle). Bullish continuation pattern (O'Neil).",
+    },
+    "inverse_cup_handle": {
+        "name": "Inverse Cup with Handle",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "Inverted rounded dome followed by a small failing rally (handle). Bearish reversal pattern.",
     },
 }
 
