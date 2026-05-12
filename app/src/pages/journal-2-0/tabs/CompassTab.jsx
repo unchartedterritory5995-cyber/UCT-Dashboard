@@ -15,6 +15,7 @@ import useJ2EODRecaps from '../hooks/useJ2EODRecaps'
 import CompassReview from '../components/CompassReview'
 import EODRecap from '../components/EODRecap'
 import TraderProfileEditor from '../components/TraderProfileEditor'
+import CompassChat from '../components/CompassChat'
 
 function mostRecentClosedMondayISO() {
   const now = new Date()
@@ -102,6 +103,8 @@ export default function CompassTab() {
         Your trading coach. Generates a weekly review of your closed trades,
         what worked, what didn't, and what to focus on next.
       </p>
+
+      <CompassChat accountId={accountId} />
 
       {errorMsg && (
         <div role="alert" className={bannerStyles.alertSm} style={{ margin: '12px 0' }}>
