@@ -541,6 +541,18 @@ def _get_my_option_strategies(*, user, status: str = "", count: int = 5) -> dict
     )
 
 
+# ── Batch 6d: settings writes ────────────────────────────────────────────────
+
+def _change_voice_setting(*, user, field: str = "", value=None) -> dict:
+    from api.services.voice_settings_tools import change_voice_setting
+    return change_voice_setting(field=field or "", value=value, user_id=user["id"])
+
+
+def _list_voice_settings(*, user) -> dict:
+    from api.services.voice_settings_tools import list_voice_settings
+    return list_voice_settings(user_id=user["id"])
+
+
 # ── Batch 5: feedback / training ────────────────────────────────────────────
 
 def _correct_me(*, user, what_was_wrong: str = "", what_was_right: str = "") -> dict:
@@ -1177,6 +1189,27 @@ def _register_all() -> None:
         contexts=["global", "train_me"],
         wants_user=True,
     )(_correct_me)
+
+    # ── Batch 6d: settings writes ───────────────────────────────────────────
+
+    _vt.voice_tool(
+        name="change_voice_setting",
+        description="Change one of the user's voice settings. Call when user says 'switch your voice to alloy', 'speak faster', 'set speed to 1.25', 'disable voice'.",
+        parameters={
+            "field": {"type": "string", "enum": ["voice", "speed", "enabled"]},
+            "value": {"type": "string", "description": "Voice name (alloy, ash, ballad, coral, echo, sage, shimmer, verse) for field=voice; number or named speed (normal/faster/slower) for field=speed; yes/no for field=enabled."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_change_voice_setting)
+
+    _vt.voice_tool(
+        name="list_voice_settings",
+        description="Read back the user's current voice settings — voice, speed, enabled state.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_list_voice_settings)
 
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────
