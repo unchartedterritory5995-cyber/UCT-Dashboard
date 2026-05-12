@@ -497,3 +497,98 @@ def test_schedule_paper_only_day_appends_to_list(db_conn):
     row = db_conn.execute("SELECT paper_only_days FROM j2_accounts WHERE id = ?", (acc["id"],)).fetchone()
     days = json.loads(row["paper_only_days"])
     assert any(d["date"] == "2026-05-15" for d in days)
+
+
+# ── Onboarding tools (read + silent action) ─────────────────────────────────
+
+
+def test_get_onboarding_progress_empty_session(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET onboarding_session_id = ? WHERE id = ?",
+        ("sess_1", acc["id"]),
+    )
+    db_conn.commit()
+    result = tools.TOOLS["get_onboarding_progress"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={}, conn=db_conn,
+    )
+    assert result["session_id"] == "sess_1"
+    assert result["questions_asked"] == 0
+    assert set(result["categories_remaining"]) == {
+        "identity", "account", "style", "setups", "sizing",
+        "strengths", "weaknesses", "psychology", "process", "goals",
+    }
+    assert result["categories_covered"] == []
+
+
+def test_get_onboarding_progress_with_some_answers(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET onboarding_session_id = ? WHERE id = ?",
+        ("sess_2", acc["id"]),
+    )
+    for i, cat in enumerate(["identity", "style", "style"]):
+        db_conn.execute(
+            """INSERT INTO j2_onboarding_responses
+               (id, user_id, account_id, session_id, category, question, answer, asked_at)
+               VALUES (?, 'u_chat', ?, 'sess_2', ?, ?, ?, ?)""",
+            (str(uuid.uuid4()), acc["id"], cat, f"Q{i}", f"A{i}", f"2026-05-12T1{i}:00:00+00:00"),
+        )
+    db_conn.commit()
+    result = tools.TOOLS["get_onboarding_progress"]["executor"](
+        user_id="u_chat", account_id=acc["id"], args={}, conn=db_conn,
+    )
+    assert result["questions_asked"] == 3
+    assert set(result["categories_covered"]) == {"identity", "style"}
+    assert "identity" not in result["categories_remaining"]
+    assert "style" not in result["categories_remaining"]
+
+
+def test_record_onboarding_answer_inserts_row(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET onboarding_session_id = ? WHERE id = ?",
+        ("sess_3", acc["id"]),
+    )
+    db_conn.commit()
+    result = tools.TOOLS["record_onboarding_answer"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"category": "identity", "question": "Years trading?", "answer": "3 years"},
+        conn=db_conn,
+    )
+    assert result["ok"] is True
+    row = db_conn.execute(
+        "SELECT category, question, answer, session_id FROM j2_onboarding_responses WHERE account_id = ?",
+        (acc["id"],),
+    ).fetchone()
+    assert row["category"] == "identity"
+    assert row["question"] == "Years trading?"
+    assert row["answer"] == "3 years"
+    assert row["session_id"] == "sess_3"
+
+
+def test_record_onboarding_answer_rejects_unknown_category(db_conn):
+    from api.services.journal_two import coach_chat_tools as tools
+    acc = _seed_account(db_conn)
+    db_conn.execute(
+        "UPDATE j2_accounts SET onboarding_session_id = ? WHERE id = ?",
+        ("sess_4", acc["id"]),
+    )
+    db_conn.commit()
+    result = tools.TOOLS["record_onboarding_answer"]["executor"](
+        user_id="u_chat", account_id=acc["id"],
+        args={"category": "BAD_CAT", "question": "Q", "answer": "A"},
+        conn=db_conn,
+    )
+    assert result["ok"] is False
+    assert "category" in result.get("error", "").lower()
+
+
+def test_record_onboarding_answer_marked_no_confirm_required(db_conn):
+    """Silent archive write — should NOT require_confirm in the catalog."""
+    from api.services.journal_two import coach_chat_tools as tools
+    spec = tools.TOOLS["record_onboarding_answer"]
+    assert spec["requires_confirm"] is False

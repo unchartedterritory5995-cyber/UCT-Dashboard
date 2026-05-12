@@ -786,6 +786,108 @@ TOOLS.update({
     },
 })
 
+# ── Onboarding tools ────────────────────────────────────────────────────────
+
+
+_ONBOARDING_CATEGORIES = (
+    "identity", "account", "style", "setups", "sizing",
+    "strengths", "weaknesses", "psychology", "process", "goals",
+)
+
+
+def _get_current_session_id(conn, user_id: str, account_id: str) -> str | None:
+    row = conn.execute(
+        "SELECT onboarding_session_id FROM j2_accounts WHERE id = ? AND user_id = ?",
+        (account_id, user_id),
+    ).fetchone()
+    if row is None:
+        return None
+    return row["onboarding_session_id"]
+
+
+def _exec_get_onboarding_progress(*, user_id, account_id, args, conn=None) -> dict:
+    c = conn or get_connection()
+    sid = _get_current_session_id(c, user_id, account_id)
+    if sid is None:
+        return {
+            "session_id": None,
+            "started_at": None,
+            "questions_asked": 0,
+            "categories_covered": [],
+            "categories_remaining": list(_ONBOARDING_CATEGORIES),
+        }
+    rows = c.execute(
+        """SELECT category, asked_at FROM j2_onboarding_responses
+           WHERE user_id = ? AND account_id = ? AND session_id = ?
+           ORDER BY asked_at ASC""",
+        (user_id, account_id, sid),
+    ).fetchall()
+    covered: list[str] = []
+    seen: set[str] = set()
+    for r in rows:
+        if r["category"] not in seen:
+            seen.add(r["category"])
+            covered.append(r["category"])
+    remaining = [cat for cat in _ONBOARDING_CATEGORIES if cat not in seen]
+    started_at = rows[0]["asked_at"] if rows else None
+    return {
+        "session_id": sid,
+        "started_at": started_at,
+        "questions_asked": len(rows),
+        "categories_covered": covered,
+        "categories_remaining": remaining,
+    }
+
+
+def _exec_record_onboarding_answer(*, user_id, account_id, args, conn=None) -> dict:
+    import uuid as _uuid
+    category = args.get("category")
+    question = (args.get("question") or "").strip()
+    answer = (args.get("answer") or "").strip()
+    if category not in _ONBOARDING_CATEGORIES:
+        return {"ok": False, "error": f"unknown category: {category}"}
+    if not question or not answer:
+        return {"ok": False, "error": "question and answer required"}
+    c = conn or get_connection()
+    sid = _get_current_session_id(c, user_id, account_id)
+    if sid is None:
+        return {"ok": False, "error": "no active onboarding session"}
+    c.execute(
+        """INSERT INTO j2_onboarding_responses
+           (id, user_id, account_id, session_id, category, question, answer, asked_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (str(_uuid.uuid4()), user_id, account_id, sid, category,
+         question, answer, datetime.now(timezone.utc).isoformat()),
+    )
+    c.commit()
+    return {"ok": True, "summary": f"Logged {category} answer."}
+
+
+TOOLS.update({
+    "get_onboarding_progress": {
+        "name": "get_onboarding_progress",
+        "description": "Returns which onboarding categories have been answered in the current session and how many questions have been asked.",
+        "requires_confirm": False,
+        "executor": _exec_get_onboarding_progress,
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    "record_onboarding_answer": {
+        "name": "record_onboarding_answer",
+        "description": "Record a question + the trader's answer to the onboarding archive. Silent write — does NOT require user confirmation. Call this after each substantive answer.",
+        "requires_confirm": False,
+        "executor": _exec_record_onboarding_answer,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "enum": list(_ONBOARDING_CATEGORIES)},
+                "question": {"type": "string"},
+                "answer": {"type": "string"},
+            },
+            "required": ["category", "question", "answer"],
+        },
+    },
+})
+
 TOOLS.update({
     "tag_trade": {
         "name": "tag_trade",
