@@ -1,0 +1,214 @@
+.panel {
+  padding: 20px;
+  background: var(--color-surface, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.badge {
+  background: rgba(74, 222, 128, 0.18);
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  color: #86efac;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.headerActions {
+  display: inline-flex;
+  gap: 6px;
+}
+.scanBtn {
+  background: rgba(201, 168, 76, 0.18);
+  border: 1px solid rgba(201, 168, 76, 0.5);
+  color: #c9a84c;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.scanBtn:disabled, .refresh:disabled { opacity: 0.4; cursor: default; }
+.scanBtn:hover:not(:disabled) {
+  background: rgba(201, 168, 76, 0.30);
+}
+.refresh {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.subtitle {
+  margin: 0 0 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.error {
+  padding: 8px 12px;
+  background: rgba(180, 130, 20, 0.12);
+  border: 1px solid rgba(180, 130, 20, 0.45);
+  color: #fbbf24;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.filterBtn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+.filterActive {
+  background: rgba(201, 168, 76, 0.18);
+  border-color: rgba(201, 168, 76, 0.6);
+  color: #c9a84c;
+}
+
+.empty {
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #888;
+  border-radius: 4px;
+  align-items: start;
+}
+.rowDismissed {
+  opacity: 0.4;
+}
+
+.rowEmoji {
+  font-size: 20px;
+  text-align: center;
+}
+
+.rowBody {
+  min-width: 0;
+}
+
+.rowTop {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.rowKind {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+.rowSymbol {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #c9a84c;
+  background: rgba(201, 168, 76, 0.10);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.rowImportance {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+}
+.rowDate {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-left: auto;
+}
+.rowHeadline {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+.rowText {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.4;
+}
+.rowFooter {
+  margin-top: 6px;
+  font-size: 10px;
+}
+.statusPending {
+  color: #86efac;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.statusDelivered {
+  color: rgba(255, 255, 255, 0.5);
+}
+.statusDismissed {
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+}
+.dismissBtn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.6);
+  border-radius: 3px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.dismissBtn:hover {
+  background: rgba(239, 68, 68, 0.10);
+  border-color: rgba(239, 68, 68, 0.30);
+  color: #fca5a5;
+}

@@ -12,6 +12,7 @@ import VoiceMemoryPanel from '../components/voice/VoiceMemoryPanel'
 import VoiceTelemetryPanel from '../components/voice/VoiceTelemetryPanel'
 import VoiceSessionsPanel from '../components/voice/VoiceSessionsPanel'
 import VoiceDocumentsPanel from '../components/voice/VoiceDocumentsPanel'
+import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
 import { useVoice } from '../context/VoiceContext'
 import styles from './Settings.module.css'
 
@@ -1016,6 +1017,11 @@ export default function Settings() {
         {/* ── Voice Documents ── */}
         <TileCard title="Voice Documents">
           <VoiceDocumentsPanel />
+        </TileCard>
+
+        {/* ── Voice Proactive Insights ── */}
+        <TileCard title="Voice Insights Inbox">
+          <VoiceInsightsPanel />
         </TileCard>
 
         {/* ── Watchlist Digest ── */}
