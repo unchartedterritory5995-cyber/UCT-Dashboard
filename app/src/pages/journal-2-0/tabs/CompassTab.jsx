@@ -16,6 +16,8 @@ import CompassReview from '../components/CompassReview'
 import EODRecap from '../components/EODRecap'
 import TraderProfileEditor from '../components/TraderProfileEditor'
 import CompassChat from '../components/CompassChat'
+import useInterventions from '../hooks/useInterventions'
+import InterventionBanner from '../components/InterventionBanner'
 
 function mostRecentClosedMondayISO() {
   const now = new Date()
@@ -37,6 +39,7 @@ function todayISO() {
 
 export default function CompassTab() {
   const { accountId } = useJ2SelectedAccount()
+  const { interventions, dismiss: dismissIntervention } = useInterventions(accountId)
   const { settings } = useJ2Settings()
   const { reviews, isLoading, error, generate, regenerate, feedback, forget } = useJ2CoachReviews(accountId)
   const {
@@ -104,6 +107,10 @@ export default function CompassTab() {
         what worked, what didn't, and what to focus on next.
       </p>
 
+      <InterventionBanner
+        interventions={interventions}
+        onDismiss={dismissIntervention}
+      />
       <CompassChat accountId={accountId} />
 
       {errorMsg && (

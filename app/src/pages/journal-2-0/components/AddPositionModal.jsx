@@ -27,6 +27,8 @@ import SetupStatsPanel from './SetupStatsPanel'
 import useJ2CurrentRegime from '../hooks/useJ2CurrentRegime'
 import usePreTradeVerdict from '../hooks/usePreTradeVerdict'
 import PreTradeVerdictCard from './PreTradeVerdictCard'
+import useInterventions from '../hooks/useInterventions'
+import InterventionBanner from './InterventionBanner'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -96,6 +98,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   const { stats: setupStats } = useJ2SetupStats(accountId, setup)
 
   const { regime: regimeData } = useJ2CurrentRegime()
+  const { interventions, dismiss: dismissIntervention } = useInterventions(accountId)
   const currentRegime = regimeData?.regime
   const regimeMult = (settings?.regimeSizeMultipliers || {})[currentRegime]
   const regimeMultActive = currentRegime != null && regimeMult != null && regimeMult !== 1
@@ -309,6 +312,10 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
         )}
 
         <div className={styles.body}>
+          <InterventionBanner
+            interventions={interventions}
+            onDismiss={dismissIntervention}
+          />
           <div className={styles.grid2}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Symbol *</span>
