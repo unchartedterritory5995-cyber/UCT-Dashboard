@@ -180,3 +180,252 @@ def get_chat_status(*, user_id: str, account_id: str, conn=None) -> dict:
     finally:
         if _close:
             _conn.close()
+
+
+# ── Anthropic streaming + turn handler ─────────────────────────────────────
+
+
+class AnthropicChatClient:
+    """Thin streaming wrapper. Returns an event iterator compatible with the
+    orchestrator's expectations."""
+    DEFAULT_MODEL = "claude-sonnet-4-6"
+
+    def __init__(self, api_key: str | None = None):
+        import anthropic
+        key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not key:
+            raise RuntimeError("ANTHROPIC_API_KEY not set")
+        self._client = anthropic.Anthropic(api_key=key)
+
+    def start_stream(self, *, system_prompt: str, messages: list, tools: list):
+        return self._client.messages.stream(
+            model=self.DEFAULT_MODEL,
+            max_tokens=2000,
+            temperature=0.4,
+            system=[{"type": "text", "text": system_prompt,
+                     "cache_control": {"type": "ephemeral"}}],
+            messages=messages,
+            tools=tools,
+        )
+
+
+def _build_anthropic_tools_param() -> list[dict]:
+    from api.services.journal_two import coach_chat_tools as cct
+    return [
+        {
+            "name": spec["name"],
+            "description": spec["description"],
+            "input_schema": spec["input_schema"],
+        }
+        for spec in cct.TOOLS.values()
+    ]
+
+
+def _reconstruct_messages(
+    *, user_id: str, account_id: str, conn,
+) -> list[dict]:
+    """Pull non-forgotten messages and translate into Anthropic messages-API
+    shape (alternating user/assistant; tool calls + results inlined)."""
+    rows = list_messages(user_id=user_id, account_id=account_id, limit=200, conn=conn)["messages"]
+    out: list[dict] = []
+    pending_tool_results: list[dict] = []
+
+    def _flush_tool_results():
+        nonlocal pending_tool_results
+        if pending_tool_results:
+            out.append({"role": "user", "content": pending_tool_results})
+            pending_tool_results = []
+
+    for r in rows:
+        if r["role"] == "user":
+            _flush_tool_results()
+            out.append({"role": "user", "content": r["content"] or ""})
+        elif r["role"] == "assistant":
+            _flush_tool_results()
+            blocks: list = []
+            if r["content"]:
+                blocks.append({"type": "text", "text": r["content"]})
+            for tc in (r["tool_calls"] or []):
+                blocks.append({
+                    "type": "tool_use", "id": tc["id"],
+                    "name": tc["name"], "input": tc.get("args", {}),
+                })
+            out.append({"role": "assistant", "content": blocks or [{"type": "text", "text": ""}]})
+        elif r["role"] == "tool":
+            for tr in (r["tool_results"] or []):
+                pending_tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tr["tool_call_id"],
+                    "content": json.dumps(tr["result"]),
+                })
+        elif r["role"] == "summary":
+            out.append({"role": "user",
+                        "content": f"[Earlier in this conversation, summarized: {r['content'] or ''}]"})
+    _flush_tool_results()
+    return out
+
+
+def handle_user_turn(
+    *,
+    user_id: str,
+    account_id: str,
+    user_message: str,
+    client=None,
+    conn=None,
+):
+    """Generator yielding event dicts.
+
+    Events: 'token', 'tool_call', 'tool_call_pending', 'complete', 'error'.
+    """
+    from api.services.journal_two import coach_chat_tools as cct
+    from api.services.journal_two import coach_prompts
+
+    if os.environ.get("COMPASS_CHAT_ENABLED", "true").lower() == "false":
+        yield {"type": "error", "code": "disabled", "message": "Compass chat is disabled."}
+        return
+
+    _conn, _close = _get_conn(conn)
+    try:
+        rl = get_rate_limit_info(user_id=user_id, account_id=account_id, conn=_conn)
+        if rl["remaining"] <= 0:
+            yield {"type": "error", "code": "rate_limited",
+                   "message": "Daily chat limit reached.", "reset_at_utc": "midnight UTC"}
+            return
+
+        append_message(user_id=user_id, account_id=account_id,
+                       role="user", content=user_message, conn=_conn)
+
+        active_client = client or AnthropicChatClient()
+        tools_param = _build_anthropic_tools_param()
+        MAX_LOOPS = 8
+
+        for _iter in range(MAX_LOOPS):
+            messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
+            system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
+
+            assistant_text = ""
+            tool_uses: list[dict] = []
+            with active_client.start_stream(
+                system_prompt=system_prompt, messages=messages, tools=tools_param,
+            ) as stream:
+                for ev in stream:
+                    etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)
+                    if etype == "text":
+                        text = ev.get("text") if isinstance(ev, dict) else getattr(ev, "text", "")
+                        assistant_text += text
+                        yield {"type": "token", "text": text}
+                    elif etype == "tool_use":
+                        tu = {
+                            "id": ev.get("id") if isinstance(ev, dict) else getattr(ev, "id", None),
+                            "name": ev.get("name") if isinstance(ev, dict) else getattr(ev, "name", None),
+                            "args": (ev.get("input") if isinstance(ev, dict)
+                                     else getattr(ev, "input", {})) or {},
+                        }
+                        tool_uses.append(tu)
+                    elif etype == "message_stop":
+                        pass
+
+            tool_calls_json = [{"id": tu["id"], "name": tu["name"], "args": tu["args"],
+                                "status": "pending"} for tu in tool_uses]
+            asst_id = append_message(
+                user_id=user_id, account_id=account_id,
+                role="assistant", content=assistant_text or None,
+                tool_calls=tool_calls_json if tool_calls_json else None,
+                conn=_conn,
+            )
+
+            if not tool_uses:
+                yield {"type": "complete", "message_id": asst_id}
+                return
+
+            inline_results: list[dict] = []
+            had_pending_action = False
+            for tu in tool_uses:
+                spec = cct.TOOLS.get(tu["name"])
+                if spec is None:
+                    inline_results.append({
+                        "tool_call_id": tu["id"],
+                        "result": {"error": f"unknown tool: {tu['name']}"},
+                    })
+                    continue
+                if spec["requires_confirm"]:
+                    had_pending_action = True
+                    preview = spec["preview"](
+                        user_id=user_id, account_id=account_id,
+                        args=tu["args"], conn=_conn,
+                    )
+                    _mark_tool_call_status(_conn, asst_id, tu["id"], "pending_confirm")
+                    yield {
+                        "type": "tool_call_pending",
+                        "tool_call_id": tu["id"], "name": tu["name"], "args": tu["args"],
+                        "preview": preview, "message_id": asst_id,
+                    }
+                else:
+                    try:
+                        result = spec["executor"](
+                            user_id=user_id, account_id=account_id,
+                            args=tu["args"], conn=_conn,
+                        )
+                    except Exception as e:  # noqa: BLE001
+                        result = {"error": str(e)}
+                    yield {"type": "tool_call", "name": tu["name"],
+                           "args": tu["args"],
+                           "summary": _summarize_tool_result(tu["name"], result)}
+                    inline_results.append({"tool_call_id": tu["id"], "result": result})
+                    _mark_tool_call_status(_conn, asst_id, tu["id"], "confirmed")
+
+            if inline_results:
+                append_message(
+                    user_id=user_id, account_id=account_id,
+                    role="tool", tool_results=inline_results,
+                    parent_id=asst_id, conn=_conn,
+                )
+
+            if had_pending_action:
+                yield {"type": "complete", "message_id": asst_id,
+                       "awaiting_confirm": True}
+                return
+
+            # Loop back with tool results in history.
+            continue
+
+        yield {"type": "error", "code": "loop_limit_exceeded",
+               "message": "Compass tool-use loop exceeded max iterations."}
+    finally:
+        if _close:
+            _conn.close()
+
+
+def _mark_tool_call_status(conn, assistant_msg_id: str, tool_call_id: str, status: str) -> None:
+    row = conn.execute(
+        "SELECT tool_calls FROM j2_chat_messages WHERE id = ?", (assistant_msg_id,),
+    ).fetchone()
+    if row is None or not row["tool_calls"]:
+        return
+    try:
+        calls = json.loads(row["tool_calls"])
+    except (TypeError, json.JSONDecodeError):
+        return
+    for tc in calls:
+        if tc.get("id") == tool_call_id:
+            tc["status"] = status
+    conn.execute(
+        "UPDATE j2_chat_messages SET tool_calls = ? WHERE id = ?",
+        (json.dumps(calls), assistant_msg_id),
+    )
+    conn.commit()
+
+
+def _summarize_tool_result(tool_name: str, result: dict) -> str:
+    if isinstance(result, dict) and "error" in result:
+        return f"error: {result['error']}"
+    if tool_name == "list_recent_trades":
+        return f"{result.get('count', 0)} trades"
+    if tool_name == "get_aggregates":
+        agg = result.get("aggregates", {})
+        return f"{agg.get('trade_count', 0)} trades, ${agg.get('net_pnl_dollar', 0):.0f} net"
+    if tool_name == "get_open_positions":
+        return f"{result.get('count', 0)} open"
+    if tool_name == "find_arcs":
+        return f"{len(result.get('arcs', []))} arc(s)"
+    return "ok"
