@@ -612,6 +612,41 @@ def _note_list(*, user) -> dict:
     }
 
 
+# ── Batch 9c: Position-sizing engine ────────────────────────────────────────
+
+def _calc_position_size(account_size: float = 0, risk_pct: float = 1.0,
+                        entry: float = 0, stop: float = 0,
+                        side: str = "long") -> dict:
+    """Pure-math sizing calculator. No user state."""
+    from api.services.voice_position_sizing import calc_position_size
+    try:
+        return calc_position_size(
+            account_size=float(account_size or 0),
+            risk_pct=float(risk_pct or 1.0),
+            entry=float(entry or 0), stop=float(stop or 0),
+            side=(side or "long").lower(),
+        )
+    except (TypeError, ValueError) as e:
+        return {"ok": False, "reason": str(e), "shares": 0}
+
+
+def _validate_trade(*, user, symbol: str = "", entry: float = 0,
+                     stop: float = 0, shares: int = 0,
+                     side: str = "long") -> dict:
+    """Validate a planned trade against the user's rules. Returns whether
+    it passes + refusal_basis if not + suggested sizing."""
+    from api.services.voice_position_sizing import validate_trade
+    try:
+        return validate_trade(
+            user_id=user["id"], symbol=symbol or "",
+            entry=float(entry or 0), stop=float(stop or 0),
+            shares=int(shares or 0), side=(side or "long").lower(),
+        )
+    except (TypeError, ValueError) as e:
+        return {"ok": False, "reason": str(e),
+                "refusal_basis": [str(e)], "suggested_shares": 0}
+
+
 # ── Batch 9b: Regime classifier ─────────────────────────────────────────────
 
 def _get_regime(fresh: bool = False) -> dict:
@@ -1368,6 +1403,33 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_get_regime)
+
+    _vt.voice_tool(
+        name="calc_position_size",
+        description="Pure-math sizing calculator — given account size, risk %, entry, stop, returns the right number of shares. Use this whenever the user asks 'how many shares should I buy' or 'how do I size this' for a specific account size other than their own.",
+        parameters={
+            "account_size": {"type": "number"},
+            "risk_pct": {"type": "number", "description": "Risk percent per trade (e.g. 1.0 for 1%)."},
+            "entry": {"type": "number"},
+            "stop": {"type": "number"},
+            "side": {"type": "string", "enum": ["long", "short"]},
+        },
+        contexts=["global"],
+    )(_calc_position_size)
+
+    _vt.voice_tool(
+        name="validate_trade",
+        description="Run a planned trade against the USER's risk rules — account size, max risk per trade, current portfolio heat, existing positions. Returns ok/refusal_basis. This is the RISK OFFICER check — call BEFORE preview_create_position. If it returns ok=false, do NOT proceed; speak the refusal_basis to the user and either resize or skip the trade.",
+        parameters={
+            "symbol": {"type": "string"},
+            "entry": {"type": "number"},
+            "stop": {"type": "number"},
+            "shares": {"type": "integer"},
+            "side": {"type": "string", "enum": ["long", "short"]},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_validate_trade)
 
     _vt.voice_tool(
         name="recall_relevant",

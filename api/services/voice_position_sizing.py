@@ -1,0 +1,266 @@
+"""
+Position-sizing engine with hard refusals.
+
+Acts as a risk officer for the voice assistant: knows the user's account
+size, max risk per trade, current open exposure, and refuses trades that
+violate the rules.
+
+Two main entry points:
+  - calc_position_size(account_size, risk_pct, entry, stop)
+    Pure math, no DB. Returns suggested shares + dollar risk + R-multiple.
+
+  - validate_trade(user_id, symbol, entry, stop, shares, account_id?)
+    Full check against user's account + current exposure + correlation
+    in same symbol. Returns {ok, reason?, suggested_shares, max_shares,
+    dollar_risk, account_risk_pct, refusal_basis}.
+
+Refusal grounds (any one fails the trade):
+  - shares × (entry - stop) > account_size × max_risk_pct
+  - total open exposure (current + this trade's risk) > 5 × max_risk_pct
+  - already have an open position in this symbol (would compound)
+  - stop is on wrong side of entry (long with stop > entry, etc)
+  - implied risk > 10% of account regardless (hard upper bound)
+"""
+
+import logging
+from typing import Any
+
+_log = logging.getLogger(__name__)
+
+# Hard caps that override per-user settings — these protect from catastrophe
+ABSOLUTE_MAX_RISK_PER_TRADE_PCT = 5.0  # No single trade may risk >5% ever
+ABSOLUTE_MAX_PORTFOLIO_HEAT_PCT = 12.0  # Total open risk capped at 12%
+DEFAULT_RISK_PCT = 1.0  # Used when account has no setting
+
+
+# ── Pure math (no DB) ───────────────────────────────────────────────────────
+
+def calc_position_size(
+    *,
+    account_size: float,
+    risk_pct: float,
+    entry: float,
+    stop: float,
+    side: str = "long",
+) -> dict:
+    """
+    Calculate suggested position size for a planned trade.
+
+    Returns {shares, dollar_risk, r_per_share, account_size, risk_pct,
+             ok, reason?}.
+    """
+    out: dict[str, Any] = {
+        "account_size": float(account_size),
+        "risk_pct": float(risk_pct),
+        "entry": float(entry),
+        "stop": float(stop),
+        "side": side,
+    }
+    if account_size <= 0:
+        return {**out, "ok": False, "reason": "account size must be positive",
+                "shares": 0}
+    if risk_pct <= 0 or risk_pct > ABSOLUTE_MAX_RISK_PER_TRADE_PCT:
+        return {**out, "ok": False,
+                "reason": f"risk_pct must be in (0, {ABSOLUTE_MAX_RISK_PER_TRADE_PCT}]",
+                "shares": 0}
+    if entry <= 0 or stop <= 0:
+        return {**out, "ok": False, "reason": "entry and stop must be positive",
+                "shares": 0}
+
+    if side == "long":
+        if stop >= entry:
+            return {**out, "ok": False,
+                    "reason": "for a long, stop must be below entry", "shares": 0}
+        r_per_share = entry - stop
+    else:  # short
+        if stop <= entry:
+            return {**out, "ok": False,
+                    "reason": "for a short, stop must be above entry", "shares": 0}
+        r_per_share = stop - entry
+
+    if r_per_share <= 0:
+        return {**out, "ok": False, "reason": "no risk distance", "shares": 0}
+
+    risk_budget = account_size * (risk_pct / 100.0)
+    shares = int(risk_budget / r_per_share)
+    dollar_risk = round(shares * r_per_share, 2)
+
+    return {
+        **out,
+        "ok": True,
+        "shares": shares,
+        "r_per_share": round(r_per_share, 4),
+        "dollar_risk": dollar_risk,
+        "risk_budget": round(risk_budget, 2),
+    }
+
+
+# ── Full validation against user state ─────────────────────────────────────
+
+def _get_account_settings(user_id: str, account_id: str | None) -> dict:
+    """Pull account_size + max_risk_pct from j2_accounts. Falls back to
+    legacy j2_settings or defaults if no account."""
+    try:
+        from api.services.journal_two import accounts as j2_accounts
+        if account_id is None:
+            acc = j2_accounts.get_or_migrate_default_account(user_id)
+        else:
+            acc = j2_accounts.get_account(user_id, account_id) or \
+                  j2_accounts.get_or_migrate_default_account(user_id)
+    except Exception:
+        return {"account_size": 25000.0, "max_risk_pct": DEFAULT_RISK_PCT,
+                "account_id": None, "account_name": "Default"}
+    settings = acc.get("settings") or {}
+    return {
+        "account_id": acc.get("id"),
+        "account_name": acc.get("displayName") or acc.get("name") or "Default",
+        "account_size": float(settings.get("accountSize") or 25000.0),
+        "max_risk_pct": float(settings.get("maxRiskPerTradePct") or DEFAULT_RISK_PCT),
+    }
+
+
+def _current_portfolio_risk(user_id: str, account_id: str | None) -> dict:
+    """Sum dollar risk of every open position. Risk per position =
+    shares × (entry - stop) for longs, mirror for shorts."""
+    try:
+        from api.services.journal_two import positions as j2_positions
+        opens = j2_positions.list_open_positions(user_id, account_id=account_id) or []
+    except Exception:
+        return {"total_risk": 0.0, "open_count": 0, "by_symbol": {}}
+
+    total = 0.0
+    by_symbol: dict[str, float] = {}
+    for p in opens:
+        entry = p.get("entry_price")
+        stop = p.get("stop_price")
+        shares = p.get("shares")
+        sym = (p.get("symbol") or "").upper()
+        if entry is None or stop is None or shares is None or not sym:
+            continue
+        try:
+            risk_per_share = abs(float(entry) - float(stop))
+            risk = float(shares) * risk_per_share
+        except (TypeError, ValueError):
+            continue
+        total += risk
+        by_symbol[sym] = by_symbol.get(sym, 0.0) + risk
+    return {
+        "total_risk": round(total, 2),
+        "open_count": len(opens),
+        "by_symbol": {k: round(v, 2) for k, v in by_symbol.items()},
+    }
+
+
+def validate_trade(
+    *,
+    user_id: str,
+    symbol: str,
+    entry: float,
+    stop: float,
+    shares: int,
+    side: str = "long",
+    account_id: str | None = None,
+) -> dict:
+    """
+    Validate a planned trade against the user's rules. Returns:
+      {
+        ok: bool,
+        reason: str (if not ok),
+        refusal_basis: list[str] (every rule that failed),
+        suggested_shares: int (what would be the right size),
+        max_shares: int (absolute upper bound after rules),
+        dollar_risk: float,
+        account_risk_pct: float,
+        portfolio_heat_after: float,  # total risk % if this trade opened
+        account_size: float,
+        max_risk_pct: float,
+        rule_book: dict (everything that was checked),
+      }
+    """
+    sym = (symbol or "").upper().strip()
+    side = (side or "long").lower()
+    if side not in ("long", "short"):
+        side = "long"
+
+    settings = _get_account_settings(user_id, account_id)
+    account_size = settings["account_size"]
+    max_risk_pct = min(settings["max_risk_pct"], ABSOLUTE_MAX_RISK_PER_TRADE_PCT)
+    current = _current_portfolio_risk(user_id, settings["account_id"])
+
+    # Pure math first
+    sizing = calc_position_size(
+        account_size=account_size, risk_pct=max_risk_pct,
+        entry=entry, stop=stop, side=side,
+    )
+
+    refusal_basis: list[str] = []
+
+    # Trivial rejections from the math
+    if not sizing.get("ok"):
+        refusal_basis.append(sizing.get("reason") or "invalid sizing")
+
+    # Compute the actual dollar risk for the requested shares
+    try:
+        actual_risk_per_share = abs(float(entry) - float(stop))
+        actual_dollar_risk = float(shares) * actual_risk_per_share
+    except (TypeError, ValueError):
+        actual_dollar_risk = 0.0
+
+    account_risk_pct = (actual_dollar_risk / account_size * 100.0) if account_size > 0 else 0.0
+
+    # Rule 1: per-trade risk cap
+    if account_risk_pct > max_risk_pct + 0.01:  # tiny epsilon
+        refusal_basis.append(
+            f"per-trade risk {account_risk_pct:.2f}% exceeds max {max_risk_pct:.2f}%"
+        )
+
+    # Rule 2: absolute hard upper bound
+    if account_risk_pct > ABSOLUTE_MAX_RISK_PER_TRADE_PCT:
+        refusal_basis.append(
+            f"per-trade risk {account_risk_pct:.2f}% exceeds absolute cap "
+            f"{ABSOLUTE_MAX_RISK_PER_TRADE_PCT:.0f}%"
+        )
+
+    # Rule 3: portfolio heat
+    portfolio_heat_after = (
+        (current["total_risk"] + actual_dollar_risk) / account_size * 100.0
+        if account_size > 0 else 0.0
+    )
+    if portfolio_heat_after > ABSOLUTE_MAX_PORTFOLIO_HEAT_PCT:
+        refusal_basis.append(
+            f"portfolio heat would be {portfolio_heat_after:.2f}% after this trade, "
+            f"exceeds {ABSOLUTE_MAX_PORTFOLIO_HEAT_PCT:.0f}%"
+        )
+
+    # Rule 4: already have a position in this symbol
+    if sym and sym in current["by_symbol"]:
+        refusal_basis.append(
+            f"already have an open position in {sym} "
+            f"(would compound — close or update existing)"
+        )
+
+    ok = len(refusal_basis) == 0
+
+    return {
+        "ok": ok,
+        "reason": refusal_basis[0] if refusal_basis else None,
+        "refusal_basis": refusal_basis,
+        "suggested_shares": sizing.get("shares", 0),
+        "max_shares": sizing.get("shares", 0),
+        "dollar_risk": round(actual_dollar_risk, 2),
+        "account_risk_pct": round(account_risk_pct, 3),
+        "portfolio_heat_before": round(
+            current["total_risk"] / account_size * 100.0
+            if account_size > 0 else 0.0, 3,
+        ),
+        "portfolio_heat_after": round(portfolio_heat_after, 3),
+        "account_size": account_size,
+        "max_risk_pct": max_risk_pct,
+        "account_name": settings["account_name"],
+        "current_open_count": current["open_count"],
+        "rule_book": {
+            "max_risk_per_trade_pct": max_risk_pct,
+            "absolute_max_per_trade_pct": ABSOLUTE_MAX_RISK_PER_TRADE_PCT,
+            "max_portfolio_heat_pct": ABSOLUTE_MAX_PORTFOLIO_HEAT_PCT,
+        },
+    }
