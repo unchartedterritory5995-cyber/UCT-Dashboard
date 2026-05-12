@@ -203,6 +203,15 @@ def _exec_find_arcs(*, user_id, account_id, args, conn=None) -> dict:
     return {"arcs": arcs}
 
 
+def _confidence_for(n: int) -> str:
+    """Sample-size confidence: <5 = low, 5-19 = medium, 20+ = high."""
+    if n < 5:
+        return "low"
+    if n < 20:
+        return "medium"
+    return "high"
+
+
 def _exec_analyze_time_of_day(*, user_id, account_id, args, conn=None) -> dict:
     days = int(args.get("days", 180))
     start, end = _trades_range_to_iso(days)
@@ -223,7 +232,8 @@ def _exec_analyze_time_of_day(*, user_id, account_id, args, conn=None) -> dict:
             continue
         buckets.setdefault(key, []).append(t)
     out_buckets = {k: coach_data_assembler._aggregate_trades(v) for k, v in buckets.items()}
-    return {"buckets": out_buckets, "days": days}
+    n = sum(len(v) for v in buckets.values())
+    return {"buckets": out_buckets, "days": days, "confidence": _confidence_for(n)}
 
 
 def _exec_analyze_day_of_week(*, user_id, account_id, args, conn=None) -> dict:
@@ -242,7 +252,8 @@ def _exec_analyze_day_of_week(*, user_id, account_id, args, conn=None) -> dict:
             continue
         buckets.setdefault(key, []).append(t)
     out = {k: coach_data_assembler._aggregate_trades(v) for k, v in buckets.items()}
-    return {"buckets": out, "days": days}
+    n = sum(len(v) for v in buckets.values())
+    return {"buckets": out, "days": days, "confidence": _confidence_for(n)}
 
 
 def _exec_analyze_hold_duration(*, user_id, account_id, args, conn=None) -> dict:
@@ -270,7 +281,8 @@ def _exec_analyze_hold_duration(*, user_id, account_id, args, conn=None) -> dict
             hint = "cutting_winners_short"
         elif l["avg_days"] > w["avg_days"] * 1.5:
             hint = "holding_losers"
-    return {"winners": w, "losers": l, "hint": hint, "days": days}
+    n = w["count"] + l["count"]
+    return {"winners": w, "losers": l, "hint": hint, "days": days, "confidence": _confidence_for(n)}
 
 
 def _exec_analyze_sequence(*, user_id, account_id, args, conn=None) -> dict:
@@ -285,7 +297,8 @@ def _exec_analyze_sequence(*, user_id, account_id, args, conn=None) -> dict:
         if t.get("result") == prior_outcome:
             captured.extend(trades[i + 1:i + 1 + n])
     agg = coach_data_assembler._aggregate_trades(captured)
-    return {"prior_outcome": prior_outcome, "n": n, **agg}
+    trade_count = agg.get("trade_count", 0)
+    return {"prior_outcome": prior_outcome, "n": n, **agg, "confidence": _confidence_for(trade_count)}
 
 
 def _exec_analyze_sizing_curve(*, user_id, account_id, args, conn=None) -> dict:
@@ -315,13 +328,15 @@ def _exec_analyze_sizing_curve(*, user_id, account_id, args, conn=None) -> dict:
     for k, group in sorted(buckets.items()):
         agg = coach_data_assembler._aggregate_trades(group)
         out.append({"band": k, **agg})
-    return {"buckets": out, "days": days, "account_size": account_size}
+    return {"buckets": out, "days": days, "account_size": account_size, "confidence": _confidence_for(len(rows))}
 
 
 def _exec_analyze_correlation(*, user_id, account_id, args, conn=None) -> dict:
     positions = coach_data_assembler._open_positions(conn or get_connection(), user_id, account_id)
-    return {"open_positions_overlap": {"sector": None, "theme": None}, "open_count": len(positions),
-            "note": "Sector/theme enrichment not wired yet — v1 returns counts only."}
+    open_count = len(positions)
+    return {"open_positions_overlap": {"sector": None, "theme": None}, "open_count": open_count,
+            "note": "Sector/theme enrichment not wired yet — v1 returns counts only.",
+            "confidence": _confidence_for(open_count)}
 
 
 def _exec_compare_setups(*, user_id, account_id, args, conn=None) -> dict:
@@ -338,7 +353,129 @@ def _exec_compare_setups(*, user_id, account_id, args, conn=None) -> dict:
 
     a = _stats_for_setup(setup_a)
     b = _stats_for_setup(setup_b)
-    return {"setup_a": a, "setup_b": b, "days": days}
+    n = a.get("trade_count", 0) + b.get("trade_count", 0)
+    return {"setup_a": a, "setup_b": b, "days": days, "confidence": _confidence_for(n)}
+
+
+def _exec_get_trade_by_id(*, user_id, account_id, args, conn=None) -> dict:
+    trade_id = args.get("trade_id")
+    if not trade_id:
+        return {"error": "trade_id required"}
+    c = conn or get_connection()
+    row = c.execute(
+        """SELECT id, symbol, side, shares, entry_price, exit_price, entry_date, exit_date,
+                  original_stop, setup, notes, pnl_dollar, pnl_percent, r_multiple,
+                  hold_days, result, mistake_tags, emotion_tags, regime
+           FROM j2_trades WHERE id = ? AND user_id = ?""",
+        (trade_id, user_id),
+    ).fetchone()
+    if row is None:
+        return {"error": f"trade {trade_id} not found"}
+    out = dict(row)
+    try:
+        out["mistake_tags"] = json.loads(out.get("mistake_tags") or "[]")
+        out["emotion_tags"] = json.loads(out.get("emotion_tags") or "[]")
+    except (TypeError, json.JSONDecodeError):
+        pass
+    return {"trade": out}
+
+
+def _record_trade_lesson_preview(*, user_id, account_id, args, conn=None) -> dict:
+    trade_id = args.get("trade_id")
+    lesson = (args.get("lesson") or "")[:1000]
+    c = conn or get_connection()
+    row = c.execute(
+        "SELECT symbol, exit_date FROM j2_trades WHERE id = ? AND user_id = ?",
+        (trade_id, user_id),
+    ).fetchone()
+    if row is None:
+        return {"narration": f"Trade {trade_id} not found.", "contextual_warnings": [],
+                "confirm_label": "Confirm", "elevated": False}
+    return {
+        "narration": f"Append lesson to your {row['symbol']} trade ({row['exit_date'][:10]}): \"{lesson[:120]}{'...' if len(lesson) > 120 else ''}\"",
+        "contextual_warnings": [], "confirm_label": "Save lesson", "elevated": False,
+    }
+
+
+def _record_trade_lesson_execute(*, user_id, account_id, args, conn=None) -> dict:
+    trade_id = args.get("trade_id")
+    lesson = (args.get("lesson") or "").strip()
+    if not trade_id or not lesson:
+        return {"ok": False, "error": "trade_id and lesson required"}
+    c = conn or get_connection()
+    row = c.execute(
+        "SELECT notes FROM j2_trades WHERE id = ? AND user_id = ?",
+        (trade_id, user_id),
+    ).fetchone()
+    if row is None:
+        return {"ok": False, "error": "trade not found"}
+    prev = (row["notes"] or "").strip()
+    stamp = datetime.now(timezone.utc).date().isoformat()
+    appended = f"{prev}\n\n[Compass lesson {stamp}]: {lesson}".strip() if prev else f"[Compass lesson {stamp}]: {lesson}"
+    c.execute(
+        "UPDATE j2_trades SET notes = ? WHERE id = ? AND user_id = ?",
+        (appended, trade_id, user_id),
+    )
+    c.commit()
+    return {"ok": True, "summary": "Lesson saved to trade notes."}
+
+
+def _exec_search_conversation(*, user_id, account_id, args, conn=None) -> dict:
+    query = (args.get("query") or "").strip()
+    limit = int(args.get("limit", 10))
+    if not query:
+        return {"matches": [], "count": 0}
+    c = conn or get_connection()
+    # Simple LIKE search on content; case-insensitive
+    rows = c.execute(
+        """SELECT id, role, content, created_at FROM j2_chat_messages
+           WHERE user_id = ? AND account_id = ?
+             AND role IN ('user', 'assistant', 'summary')
+             AND forgotten = 0
+             AND content IS NOT NULL
+             AND lower(content) LIKE lower(?)
+           ORDER BY created_at DESC LIMIT ?""",
+        (user_id, account_id, f"%{query}%", limit),
+    ).fetchall()
+    out = []
+    for r in rows:
+        snippet = (r["content"] or "")[:300]
+        out.append({"id": r["id"], "role": r["role"], "snippet": snippet, "created_at": r["created_at"]})
+    return {"matches": out, "count": len(out), "query": query}
+
+
+def _exec_check_profile_divergence(*, user_id, account_id, args, conn=None) -> dict:
+    """Compare claimed risk-per-trade in profile vs actual recent trades.
+    Surfaces drift Compass might want to flag."""
+    c = conn or get_connection()
+    days = int(args.get("days", 30))
+    settings = accounts_service.get_account_settings(user_id, account_id, conn=c) or {}
+    claimed_risk_pct = settings.get("maxRiskPerTradePct")
+    account_size = float(settings.get("accountSize") or 0)
+    divergences = []
+    if claimed_risk_pct is not None and account_size > 0:
+        start, end = _trades_range_to_iso(days)
+        trades = coach_data_assembler._trades_in_range(c, user_id, account_id, start, end)
+        actual_risk_pcts = []
+        for t in trades:
+            shares = float(t.get("shares") or 0)
+            entry = float(t.get("entry_price") or 0)
+            stop = float(t.get("original_stop") or 0)
+            if shares <= 0 or entry <= 0 or stop <= 0:
+                continue
+            actual = (shares * abs(entry - stop) / account_size) * 100.0
+            actual_risk_pcts.append(actual)
+        if actual_risk_pcts:
+            avg_actual = sum(actual_risk_pcts) / len(actual_risk_pcts)
+            if avg_actual > float(claimed_risk_pct) * 1.3:
+                divergences.append({
+                    "field": "risk_per_trade",
+                    "claimed": float(claimed_risk_pct),
+                    "actual_avg": round(avg_actual, 2),
+                    "n_trades": len(actual_risk_pcts),
+                    "note": f"Profile says {claimed_risk_pct}% risk per trade; last {len(actual_risk_pcts)} trades averaged {avg_actual:.1f}%.",
+                })
+    return {"divergences": divergences, "checked_days": days}
 
 
 # ── Action tools (preview + execute halves) ──────────────────────────────────
@@ -1062,6 +1199,59 @@ def _complete_onboarding_execute(*, user_id, account_id, args, conn=None) -> dic
     c.commit()
     return {"ok": True, "summary": "Onboarding complete. Profile saved."}
 
+
+TOOLS.update({
+    "get_trade_by_id": {
+        "name": "get_trade_by_id",
+        "description": "Fetch one specific trade by its id. Use this when the user references a specific trade or you want full details after listing.",
+        "requires_confirm": False,
+        "executor": _exec_get_trade_by_id,
+        "input_schema": {
+            "type": "object",
+            "properties": {"trade_id": {"type": "string"}},
+            "required": ["trade_id"],
+        },
+    },
+    "record_trade_lesson": {
+        "name": "record_trade_lesson",
+        "description": "Append a coaching lesson to a specific trade's notes field. Use this when the user wants to capture an insight about a specific trade for future review.",
+        "requires_confirm": True,
+        "executor": _record_trade_lesson_execute,
+        "preview": _record_trade_lesson_preview,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "trade_id": {"type": "string"},
+                "lesson": {"type": "string", "maxLength": 1000},
+            },
+            "required": ["trade_id", "lesson"],
+        },
+    },
+    "search_conversation": {
+        "name": "search_conversation",
+        "description": "Search your past chat messages for keywords. Useful when the user asks 'what did we discuss about X last week' or you need to recall an earlier commitment.",
+        "requires_confirm": False,
+        "executor": _exec_search_conversation,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "limit": {"type": "integer", "default": 10, "maximum": 50},
+            },
+            "required": ["query"],
+        },
+    },
+    "check_profile_divergence": {
+        "name": "check_profile_divergence",
+        "description": "Compare what the trader's profile claims about their style/rules vs what their actual recent trades show. Surfaces drift Compass should flag to the trader.",
+        "requires_confirm": False,
+        "executor": _exec_check_profile_divergence,
+        "input_schema": {
+            "type": "object",
+            "properties": {"days": {"type": "integer", "default": 30, "minimum": 7, "maximum": 180}},
+        },
+    },
+})
 
 TOOLS.update({
     "propose_account_settings": {

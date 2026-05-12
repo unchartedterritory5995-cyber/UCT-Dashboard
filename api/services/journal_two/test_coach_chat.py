@@ -545,3 +545,33 @@ def test_get_chat_status_returns_onboarding_flags(db_conn):
     )
     assert status["onboarded"] is True
     assert status["onboarding_mode"] is False
+
+
+def test_validate_chat_output_only_checks_numeric_and_symbol(db_conn):
+    """Chat validator allows headers, bullets, multiple questions, no question marks."""
+    from api.services.journal_two import coach_validation as cv
+    # Chat-style multi-paragraph response with headers, bullets, no terminal question
+    body = ("## Your trading\n\n"
+            "Here's the breakdown:\n"
+            "- Bull Flag: +2.0R\n"
+            "- Pullback: -1.0R\n\n"
+            "Solid week.")
+    data = {
+        "today": {
+            "trades": [{"symbol": "NVDA", "r_multiple": 2.0}, {"symbol": "AAPL", "r_multiple": -1.0}],
+            "open_positions": [],
+        },
+        "recent_arcs": [],
+    }
+    result = cv.validate_chat_output(body, data)
+    # Numeric values 2.0 and -1.0 are in data, no symbols cited
+    assert result["passed"] is True
+
+
+def test_validate_chat_output_flags_unverified_R(db_conn):
+    from api.services.journal_two import coach_validation as cv
+    body = "Your Bull Flag was +9.9R this quarter."
+    data = {"today": {"trades": [], "open_positions": []}, "recent_arcs": []}
+    result = cv.validate_chat_output(body, data)
+    assert result["passed"] is False
+    assert any("9.9" in f for f in result["flags"])

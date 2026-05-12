@@ -210,6 +210,44 @@ def validate_eod_output(body: str, data: dict) -> dict[str, Any]:
     return {"passed": len(flags) == 0, "flags": flags}
 
 
+def validate_chat_output(body: str, data: dict) -> dict:
+    """Lighter validator for chat outputs. Only checks numeric + symbol grounding.
+    No format compliance (chat can use headers/bullets); no question-mark rules
+    (chat is conversational, not reflective)."""
+    flags: list[str] = []
+    if not isinstance(body, str) or not body.strip():
+        return {"passed": True, "flags": []}  # empty chat turn = no flags
+
+    data_numbers = _data_numbers(data)
+    for tok in _R_MULTIPLE_RE.findall(body):
+        val = _to_float(tok + "R")
+        if val is None:
+            continue
+        if not _matches_within_tolerance(val, data_numbers):
+            flags.append(f"unverified R-multiple: {tok}R")
+    for tok in _DOLLAR_RE.findall(body):
+        val = _to_float(tok)
+        if val is None:
+            continue
+        if not _matches_within_tolerance(val, data_numbers) and not _matches_within_tolerance(abs(val), data_numbers):
+            flags.append(f"unverified dollar amount: {tok}")
+    for tok in _PERCENT_RE.findall(body):
+        val = _to_float(tok + "%")
+        if val is None:
+            continue
+        if not _matches_within_tolerance(val, data_numbers):
+            flags.append(f"unverified percentage: {tok}%")
+
+    data_symbols = _data_symbols(data)
+    for tok in _TICKER_RE.findall(body):
+        if tok in _NON_TICKER_WORDS:
+            continue
+        if tok not in data_symbols:
+            flags.append(f"unverified symbol: {tok}")
+
+    return {"passed": len(flags) == 0, "flags": flags}
+
+
 # ── this_weeks_focus extractor ──────────────────────────────────────────────
 
 _FOCUS_HEADER_RE = re.compile(

@@ -653,7 +653,7 @@ def _audit_assistant_message(*, message_id: str, conn=None) -> dict:
                 data["today"]["open_positions"].extend(positions)
                 if "arcs" in result_obj:
                     data["recent_arcs"].extend(result_obj["arcs"])
-        result = cv.validate_eod_output(row["content"], data)
+        result = cv.validate_chat_output(row["content"], data)
         try:
             existing_meta = json.loads(_conn.execute(
                 "SELECT metadata FROM j2_chat_messages WHERE id = ?", (message_id,),
