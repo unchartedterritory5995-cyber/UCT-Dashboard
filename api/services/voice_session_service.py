@@ -117,6 +117,68 @@ def get_transcripts(session_id: int) -> list[dict]:
         conn.close()
 
 
+def get_agent_stats(user_id: str, *, days: int = 30) -> list[dict]:
+    """
+    Aggregate Mode C sessions grouped by page_context (which holds the
+    agent_id for specialist sessions: analyst, risk_officer, coach,
+    scout, global, train_me). Returns one row per context with session
+    count, total duration, average duration.
+
+    For risk_officer, additionally counts how many trades were refused
+    by the validator during sessions in that bucket.
+    """
+    from datetime import datetime, timezone, timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=max(1, int(days)))).isoformat()
+
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT page_context,
+                   COUNT(*)              AS session_count,
+                   SUM(duration_seconds) AS total_duration_s,
+                   AVG(duration_seconds) AS avg_duration_s,
+                   MAX(started_at)       AS last_used_at
+              FROM voice_sessions
+             WHERE user_id = ? AND mode = 'c'
+               AND started_at >= ?
+             GROUP BY page_context
+             ORDER BY session_count DESC
+            """,
+            (user_id, cutoff),
+        ).fetchall()
+
+        # Risk-officer-specific: count validate_trade calls that returned
+        # ok=False during sessions where page_context = 'risk_officer'.
+        refusals = conn.execute(
+            """
+            SELECT COUNT(*) FROM voice_tool_calls
+             WHERE user_id = ?
+               AND tool_name = 'validate_trade'
+               AND ok = 0
+               AND created_at >= ?
+            """,
+            (user_id, cutoff),
+        ).fetchone()[0]
+
+        out = []
+        for r in rows:
+            ctx = r["page_context"] or "global"
+            row_data = {
+                "context": ctx,
+                "session_count": r["session_count"] or 0,
+                "total_duration_seconds": int(r["total_duration_s"] or 0),
+                "avg_duration_seconds": round(float(r["avg_duration_s"] or 0), 1),
+                "last_used_at": r["last_used_at"],
+            }
+            if ctx == "risk_officer":
+                row_data["trade_refusals"] = int(refusals or 0)
+            out.append(row_data)
+        return out
+    finally:
+        conn.close()
+
+
 def session_belongs_to_user(session_id: int, user_id: str) -> bool:
     """Authorization helper — confirm a session id is owned by the given user."""
     conn = get_connection()

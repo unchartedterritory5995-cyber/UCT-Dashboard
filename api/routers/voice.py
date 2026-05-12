@@ -198,6 +198,17 @@ def agents_get(user: dict = Depends(requires_voice_access)):
     return {"agents": list_agents()}
 
 
+@router.get("/agents/stats")
+def agents_stats(
+    days: int = 30,
+    user: dict = Depends(requires_voice_access),
+):
+    """Per-agent session aggregates over the last N days. Includes
+    trade_refusals on the risk_officer row."""
+    from api.services.voice_session_service import get_agent_stats
+    return {"days": days, "rows": get_agent_stats(user["id"], days=max(1, min(365, int(days))))}
+
+
 @router.post("/oneshot")
 @limiter.limit("60/minute")
 def oneshot(

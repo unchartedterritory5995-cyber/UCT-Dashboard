@@ -18,6 +18,7 @@ export default function VoiceTelemetryPanel() {
   const [corrections, setCorrections] = useState([])
   const [recentFeedback, setRecentFeedback] = useState([])
   const [patterns, setPatterns] = useState([])
+  const [agentStats, setAgentStats] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -25,11 +26,12 @@ export default function VoiceTelemetryPanel() {
     setLoading(true)
     setError(null)
     try {
-      const [statsR, corrR, fbR, patR] = await Promise.all([
+      const [statsR, corrR, fbR, patR, agentR] = await Promise.all([
         fetch('/api/voice/tool-call-stats', { credentials: 'include' }),
         fetch('/api/voice/feedback/corrections', { credentials: 'include' }),
         fetch('/api/voice/feedback', { credentials: 'include' }),
         fetch('/api/voice/failure-patterns', { credentials: 'include' }),
+        fetch('/api/voice/agents/stats?days=30', { credentials: 'include' }),
       ])
       if (statsR.ok) setStats(await statsR.json())
       if (corrR.ok) {
@@ -43,6 +45,10 @@ export default function VoiceTelemetryPanel() {
       if (patR.ok) {
         const j = await patR.json()
         setPatterns(j.patterns || [])
+      }
+      if (agentR.ok) {
+        const j = await agentR.json()
+        setAgentStats(j.rows || [])
       }
     } catch (e) {
       setError(e?.message || 'Failed to load telemetry')
@@ -140,6 +146,46 @@ export default function VoiceTelemetryPanel() {
           </div>
         </div>
       </div>
+
+      {/* Per-agent usage ── */}
+      {agentStats.length > 0 && (
+        <div className={styles.section}>
+          <h4 className={styles.sectionTitle}>Agent usage — last 30 days</h4>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Agent</th>
+                <th>Sessions</th>
+                <th>Total time</th>
+                <th>Avg time</th>
+                <th>Extra</th>
+              </tr>
+            </thead>
+            <tbody>
+              {agentStats.map((r) => {
+                const total = r.total_duration_seconds || 0
+                const mins = Math.round(total / 60)
+                const avgSec = Math.round(r.avg_duration_seconds || 0)
+                return (
+                  <tr key={r.context}>
+                    <td className={styles.toolName}>
+                      {r.context.replace('_', ' ')}
+                    </td>
+                    <td>{r.session_count}</td>
+                    <td>{mins >= 1 ? `${mins}m` : `${total}s`}</td>
+                    <td>{avgSec}s</td>
+                    <td>
+                      {r.context === 'risk_officer' && r.trade_refusals !== undefined
+                        ? `${r.trade_refusals} trade refusals`
+                        : ''}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Per-tool breakdown ── */}
       {byTool.length > 0 && (
