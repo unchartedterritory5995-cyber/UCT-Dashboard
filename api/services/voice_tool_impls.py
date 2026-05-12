@@ -1702,6 +1702,63 @@ def _register_all() -> None:
         contexts=["global"],
     )(_change_chart_type)
 
+    # ── Polish P9: Deep API/tool access expansion ──────────────────────────
+    from api.services import voice_deep_data_tools as _dd
+
+    _vt.voice_tool(
+        name="get_bar_summary",
+        description="Recent OHLC bar stats from the local bars cache — last close, change percent, window high/low, distance from high, volume vs average, 20-bar SMA. No live API call. Call when user asks 'how has X been trading this week' or 'what's NVDA's range'.",
+        parameters={
+            "symbol": {"type": "string", "description": "Ticker symbol."},
+            "timeframe": {"type": "string", "description": "D, W, M, 5, 15, 30, 60. Default D."},
+            "lookback": {"type": "integer", "description": "How many bars (default 20, max 250)."},
+        },
+        contexts=["global"],
+    )(_dd.get_bar_summary)
+
+    _vt.voice_tool(
+        name="get_pattern_detection",
+        description="List active chart pattern detections for a symbol on a timeframe — bull flag, VCP, head and shoulders, double bottom, etc. Filter by minimum confidence percent.",
+        parameters={
+            "symbol": {"type": "string"},
+            "timeframe": {"type": "string", "description": "D, W, 60, etc. Default D."},
+            "min_confidence": {"type": "number", "description": "0-100. Default 50."},
+            "count": {"type": "integer", "description": "Max patterns to return (default 5, max 10)."},
+        },
+        contexts=["global"],
+    )(_dd.get_pattern_detection)
+
+    _vt.voice_tool(
+        name="get_trade_detail",
+        description="Full attribution for a single trade from the user's Journal 2.0 — entry, exit, P&L, R multiple, hold days, setup, mistakes, emotions. Accepts either trade_id OR symbol (returns most recent for that symbol).",
+        parameters={
+            "trade_id": {"type": "string", "description": "Optional trade id."},
+            "symbol": {"type": "string", "description": "Optional ticker — most-recent trade for symbol."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_dd.get_trade_detail)
+
+    _vt.voice_tool(
+        name="get_recent_alerts",
+        description="List recently fired in-app alerts (regime change, scanner hit, stop hit, breadth alerts, etc.). Optionally filter by severity: info, warning, critical.",
+        parameters={
+            "count": {"type": "integer", "description": "How many to return (default 5, max 20)."},
+            "severity": {"type": "string", "description": "Optional filter: info, warning, critical."},
+        },
+        contexts=["global"],
+    )(_dd.get_recent_alerts)
+
+    _vt.voice_tool(
+        name="get_breadth_history",
+        description="Time series for one breadth metric over N days — breadth_score, uct_exposure, pct_above_50sma, vix, new_52w_highs/lows, etc. Returns latest value, delta vs window start, average, min/max, and full series.",
+        parameters={
+            "metric": {"type": "string", "description": "Metric key or alias (breadth, score, exposure, above 50, vix, new highs, etc.)."},
+            "days": {"type": "integer", "description": "Lookback (default 30, max 365)."},
+        },
+        contexts=["global"],
+    )(_dd.get_breadth_history)
+
 
 # ── Patch _REGISTRY so clear() re-registers these tools automatically ───────
 

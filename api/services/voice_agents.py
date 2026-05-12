@@ -128,6 +128,9 @@ AGENTS: dict[str, dict[str, Any]] = {
             "get_time_of_day_pattern",
             # Multi-modal — analyst reads charts
             "describe_chart",
+            # P9: deep data reads
+            "get_bar_summary", "get_pattern_detection",
+            "get_breadth_history", "get_recent_alerts",
             # Journal reads (analyst can reference user's history)
             "find_my_trades", "get_my_setup_performance",
             "get_my_pnl", "get_my_psychology", "get_my_calendar",
@@ -189,6 +192,8 @@ AGENTS: dict[str, dict[str, Any]] = {
             # Read context to inform refusal
             "get_quote", "find_my_trades", "get_my_setup_performance",
             "get_regime",
+            # P9: bar summary lets risk officer size off recent ATR/range
+            "get_bar_summary",
             # Writes (with veto-aware system prompt)
             "create_position", "close_position", "update_position",
             "confirm_action",
@@ -240,6 +245,8 @@ AGENTS: dict[str, dict[str, Any]] = {
             "find_my_trades", "get_my_calendar", "get_my_daily_note",
             "get_my_weekly_review", "get_my_account_balance",
             "post_trade_review", "closing_briefing",
+            # P9: trade attribution + recent alerts inform coaching
+            "get_trade_detail", "get_recent_alerts",
             # Domain — behavioral biases live here
             "lookup_trading_principle",
             # Drift / temporal awareness — Coach's core tools
@@ -293,6 +300,8 @@ AGENTS: dict[str, dict[str, Any]] = {
             "get_options_flow", "get_dark_pool", "get_news",
             "get_earnings_today", "get_earnings_this_week",
             "get_theme_status", "get_theme_holdings", "get_breadth_analogues",
+            # P9: pattern detection + bar summary help scout confirm setups
+            "get_pattern_detection", "get_bar_summary", "get_recent_alerts",
             # Live data
             "get_quote", "get_regime", "get_sector_strength",
             "get_sector_rotation_state", "classify_catalyst",
