@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "description": "Causal model — what actually moves stocks. Sector rotation paths by regime, news catalyst taxonomy with typical magnitudes, time-of-day patterns. Used by voice tools to reason about WHY things move, not just observe THAT they moved.",
+  "sector_rotation": {
+    "description": "Four-stage business cycle rotation (Stovall / Murphy framework). At any given point, certain sectors typically lead while others lag.",
+    "stages": {
+      "early_bull": {
+        "description": "Just past a market low — early expansion. Rates falling or low, sentiment recovering.",
+        "leading": ["Financials", "Consumer Discretionary", "Industrials", "Transports", "Small caps"],
+        "lagging": ["Utilities", "Staples", "Healthcare"],
+        "regime_signal": "bull_trend with rising breadth from low base"
+      },
+      "mid_bull": {
+        "description": "Mid-cycle expansion — earnings growing, broad participation.",
+        "leading": ["Technology", "Communications", "Industrials", "Materials"],
+        "lagging": ["Utilities", "Staples"],
+        "regime_signal": "bull_trend with sustained breadth above 60%"
+      },
+      "late_bull": {
+        "description": "Late-cycle — economy strong, inflation pressure, Fed tightening risk. Quality leadership narrows.",
+        "leading": ["Energy", "Materials", "Industrial commodities", "Mega-cap quality"],
+        "lagging": ["Small caps", "Speculative growth"],
+        "regime_signal": "distribution or late bull_trend with narrowing leadership"
+      },
+      "bear": {
+        "description": "Contraction — earnings falling, defensive rotation.",
+        "leading": ["Staples", "Utilities", "Healthcare", "Gold"],
+        "lagging": ["Discretionary", "Financials", "Tech", "Small caps"],
+        "regime_signal": "bear_trend"
+      },
+      "early_recovery": {
+        "description": "Bear ending — first signs of breadth thrust.",
+        "leading": ["Financials", "Discretionary", "Small caps", "High-beta tech"],
+        "lagging": ["Defensives"],
+        "regime_signal": "bull_trend after extended bear_trend"
+      }
+    }
+  },
+  "catalyst_taxonomy": {
+    "description": "News and event catalysts ranked by typical price impact and persistence. Magnitudes are rules-of-thumb; actual moves vary by name and regime.",
+    "catalysts": [
+      {
+        "id": "earnings_beat_raise",
+        "title": "Earnings beat with raised guidance",
+        "patterns": ["beats and raises", "beat top and bottom, raised", "raised guidance", "raises guidance", "guides higher", "raised fy"],
+        "typical_move_pct": [5, 15],
+        "persistence_days": 30,
+        "notes": "The strongest single catalyst. Gap usually holds and trends for weeks. Watch for institutional accumulation in first 3-5 days."
+      },
+      {
+        "id": "earnings_beat_inline_guide",
+        "title": "Earnings beat with in-line guidance",
+        "patterns": ["beats but maintains", "EPS beat revenue beat"],
+        "typical_move_pct": [1, 5],
+        "persistence_days": 5,
+        "notes": "Mildly positive but the lack of guidance raise often fades the initial pop within days."
+      },
+      {
+        "id": "earnings_miss",
+        "title": "Earnings miss",
+        "patterns": ["misses EPS", "missed estimates", "below expectations"],
+        "typical_move_pct": [-15, -3],
+        "persistence_days": 60,
+        "notes": "Most punishing in late-cycle. Misses tend to compound — stocks often have 2-3 down legs over weeks."
+      },
+      {
+        "id": "guidance_cut",
+        "title": "Forward guidance cut",
+        "patterns": ["lowered guidance", "cut outlook", "warns of"],
+        "typical_move_pct": [-20, -8],
+        "persistence_days": 90,
+        "notes": "Cuts predict future cuts. Avoid catching the falling knife — wait for a base."
+      },
+      {
+        "id": "analyst_upgrade",
+        "title": "Analyst upgrade",
+        "patterns": ["upgraded to buy", "raised price target"],
+        "typical_move_pct": [0.5, 4],
+        "persistence_days": 3,
+        "notes": "Usually a 1-day pop that fades. Tier-1 firms (Goldman, MS, JPM) have bigger impact than tier-3. Multiple-firm upgrades in a week are more durable."
+      },
+      {
+        "id": "analyst_downgrade",
+        "title": "Analyst downgrade",
+        "patterns": ["downgraded to sell", "cut to underperform"],
+        "typical_move_pct": [-4, -1],
+        "persistence_days": 3,
+        "notes": "Usually fades. Multiple downgrades together signal real change."
+      },
+      {
+        "id": "fda_approval",
+        "title": "FDA drug approval",
+        "patterns": ["FDA approves", "approval granted"],
+        "typical_move_pct": [10, 50],
+        "persistence_days": 30,
+        "notes": "Binary biotech event. Small caps can double; large caps less. Tends to gap-and-go."
+      },
+      {
+        "id": "fda_rejection",
+        "title": "FDA rejection / CRL",
+        "patterns": ["complete response letter", "FDA declined", "CRL"],
+        "typical_move_pct": [-40, -10],
+        "persistence_days": 60,
+        "notes": "Devastating for small biotechs. Hard to recover without a re-submission."
+      },
+      {
+        "id": "ma_target",
+        "title": "Acquisition target announced",
+        "patterns": ["to be acquired", "definitive agreement to buy", "takeover offer"],
+        "typical_move_pct": [10, 50],
+        "persistence_days": 90,
+        "notes": "Stock pins near deal price after the initial gap. Spread captures arbitrage premium. Risk: deal break."
+      },
+      {
+        "id": "ma_acquirer",
+        "title": "Acquirer in announced deal",
+        "patterns": ["agreed to acquire"],
+        "typical_move_pct": [-7, 2],
+        "persistence_days": 30,
+        "notes": "Acquirers usually sell off (dilution + integration risk) unless deal is highly accretive."
+      },
+      {
+        "id": "split_announcement",
+        "title": "Stock split announcement",
+        "patterns": ["stock split", "split announcement"],
+        "typical_move_pct": [2, 8],
+        "persistence_days": 30,
+        "notes": "Historically priced in fast; modern splits often spark momentum into the split date."
+      },
+      {
+        "id": "dividend_change",
+        "title": "Dividend increase or initiation",
+        "patterns": ["raised dividend", "initiated dividend"],
+        "typical_move_pct": [0.5, 3],
+        "persistence_days": 5,
+        "notes": "Small persistent positive — signals capital return commitment. Income funds buy."
+      },
+      {
+        "id": "buyback_announcement",
+        "title": "Buyback authorization",
+        "patterns": ["buyback authorization", "share repurchase"],
+        "typical_move_pct": [1, 5],
+        "persistence_days": 10,
+        "notes": "Mildly positive. Size of buyback as % of market cap matters more than the headline."
+      },
+      {
+        "id": "ceo_departure",
+        "title": "CEO/CFO unexpected departure",
+        "patterns": ["resigns", "steps down", "stepping down"],
+        "typical_move_pct": [-15, -2],
+        "persistence_days": 30,
+        "notes": "Sharp initial sell-off unless replacement is highly regarded. Don't catch the knife day 1."
+      },
+      {
+        "id": "fraud_investigation",
+        "title": "Regulatory/fraud investigation",
+        "patterns": ["SEC investigation", "DOJ probe", "subpoena"],
+        "typical_move_pct": [-30, -8],
+        "persistence_days": 365,
+        "notes": "Often the first chapter of a multi-year decline. Survival of these names is rare. Avoid completely."
+      },
+      {
+        "id": "fed_pivot",
+        "title": "Fed pivot to easier policy",
+        "patterns": ["Fed cuts", "dovish pivot", "rate cut"],
+        "typical_move_pct": [1, 4],
+        "persistence_days": 60,
+        "notes": "Broad market impact — small caps + financials + rate-sensitive sectors benefit most. First cut often marks a regime change."
+      },
+      {
+        "id": "fed_hawkish",
+        "title": "Fed hawkish surprise",
+        "patterns": ["Fed hikes", "hawkish", "higher for longer"],
+        "typical_move_pct": [-3, -0.5],
+        "persistence_days": 30,
+        "notes": "Hurts long-duration assets first (tech, growth, biotech)."
+      }
+    ]
+  },
+  "time_of_day": {
+    "description": "Intraday timing patterns affecting trade quality and reversal frequency.",
+    "patterns": [
+      {
+        "window": "09:30-10:00 ET",
+        "label": "Opening drive",
+        "behavior": "Highest volume of day, widest spreads. Overnight orders clear. Setups can reverse 30-60 min in. Best for high-conviction breakouts, not exploration."
+      },
+      {
+        "window": "10:00-11:30 ET",
+        "label": "Morning continuation",
+        "behavior": "If opening drive holds, trends often extend in this window. Best entries for swing setups."
+      },
+      {
+        "window": "11:30-14:00 ET",
+        "label": "Lunch chop",
+        "behavior": "Volume drops, ranges contract. Most intraday strategies underperform. Wait or take partials."
+      },
+      {
+        "window": "14:00-15:30 ET",
+        "label": "Afternoon trend",
+        "behavior": "Volume rebuilds. Trend days resume direction; reversal days fail their morning move."
+      },
+      {
+        "window": "15:30-16:00 ET",
+        "label": "MOC / close",
+        "behavior": "Institutional rebalancing. MOC imbalance feeds visible at 3:50. Heavy MOC buy/sell can spike or dump prices in last 10 minutes."
+      },
+      {
+        "window": "16:00-20:00 ET",
+        "label": "After-hours",
+        "behavior": "Earnings releases. Spreads 3-10x wider. Moves can be exaggerated or reverse fully by next open. AH lows often retest at the cash open."
+      }
+    ]
+  }
+}

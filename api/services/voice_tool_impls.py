@@ -612,6 +612,23 @@ def _note_list(*, user) -> dict:
     }
 
 
+# ── Batch 9d: Causal model ──────────────────────────────────────────────────
+
+def _get_sector_rotation_state(regime: str = "") -> dict:
+    from api.services.voice_causal_model import get_sector_rotation_state
+    return get_sector_rotation_state(regime=regime or None)
+
+
+def _classify_catalyst(text: str = "") -> dict:
+    from api.services.voice_causal_model import classify_catalyst
+    return classify_catalyst(text=text)
+
+
+def _get_time_of_day_pattern() -> dict:
+    from api.services.voice_causal_model import get_time_of_day_pattern
+    return get_time_of_day_pattern()
+
+
 # ── Batch 9c: Position-sizing engine ────────────────────────────────────────
 
 def _calc_position_size(account_size: float = 0, risk_pct: float = 1.0,
@@ -1430,6 +1447,31 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_validate_trade)
+
+    _vt.voice_tool(
+        name="get_sector_rotation_state",
+        description="Which sectors typically lead vs lag given the current (or specified) market regime. Use to anchor sector-themed recommendations to the cycle stage — e.g. financials and discretionary lead in early bull, energy and materials in late bull, staples and utilities in bear.",
+        parameters={
+            "regime": {"type": "string", "description": "Optional override — bull_trend, bull_correction, distribution, chop, bear_trend. Defaults to live classifier."},
+        },
+        contexts=["global"],
+    )(_get_sector_rotation_state)
+
+    _vt.voice_tool(
+        name="classify_catalyst",
+        description="Given a news headline or description, identify the catalyst type (earnings beat, FDA approval, analyst upgrade, M&A, guidance cut, etc.) and return its typical magnitude + persistence + tactical notes. Use BEFORE recommending a trade on news to anchor expectations on what this kind of catalyst usually does.",
+        parameters={
+            "text": {"type": "string", "description": "Headline or news snippet."},
+        },
+        contexts=["global"],
+    )(_classify_catalyst)
+
+    _vt.voice_tool(
+        name="get_time_of_day_pattern",
+        description="What intraday behavior is typical RIGHT NOW (US/Eastern). Six buckets: opening drive, morning continuation, lunch chop, afternoon trend, MOC window, after-hours. Use to filter setup recommendations — e.g. don't recommend ORB at 1pm.",
+        parameters={},
+        contexts=["global"],
+    )(_get_time_of_day_pattern)
 
     _vt.voice_tool(
         name="recall_relevant",
