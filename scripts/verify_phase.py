@@ -16,8 +16,16 @@ import os
 import sys
 import time
 
-# Make sibling packages importable when run as `python scripts/verify_phase.py`
+# Force UTF-8 stdout/stderr for emoji output on Windows (cp1252 default).
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+# Make sibling packages + repo root importable when run as `python scripts/verify_phase.py`
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from verify_phase_checks import (
     test_suite, inventory, schema, api_smoke, fixture_battery,
