@@ -23,6 +23,61 @@ MAX_SUMMARIES_INJECTED = 5
 ALLOWED_CATEGORIES = {"preference", "account_alias", "style", "fact", "general"}
 
 
+# Batch 7e: pairs of opposing terms that hint at a contradiction.
+_OPPOSING_TERMS = [
+    ("swing", "day trade"),
+    ("swing", "scalp"),
+    ("long-only", "short"),
+    ("only long", "only short"),
+    ("aggressive", "conservative"),
+    ("small cap", "large cap"),
+    ("small caps", "large caps"),
+    ("micro cap", "large cap"),
+    ("options", "no options"),
+    ("crypto", "no crypto"),
+    ("manual", "automated"),
+    ("morning", "afternoon"),
+    ("intraday", "swing"),
+]
+
+
+def _detect_fact_conflicts(facts: list[dict]) -> list[dict]:
+    """
+    Surface pairs of facts whose texts contain opposing terms — strong signal
+    that the user has updated a preference but the old fact is still injected.
+
+    Returns a list of {fact_a, fact_b} dicts, newer fact's id higher than
+    older's. Empty if no conflicts.
+    """
+    out: list[dict] = []
+    seen_pairs: set[tuple[int, int]] = set()
+    for a in facts:
+        text_a = (a.get("text") or "").lower()
+        if not text_a:
+            continue
+        for b in facts:
+            if a is b:
+                continue
+            text_b = (b.get("text") or "").lower()
+            if not text_b:
+                continue
+            for term_x, term_y in _OPPOSING_TERMS:
+                if term_x in text_a and term_y in text_b:
+                    ids = tuple(sorted([a.get("id", 0), b.get("id", 0)]))
+                    if ids in seen_pairs:
+                        continue
+                    seen_pairs.add(ids)
+                    out.append({
+                        "fact_a": a.get("text"),
+                        "fact_b": b.get("text"),
+                        "id_a": a.get("id"),
+                        "id_b": b.get("id"),
+                        "opposing_terms": [term_x, term_y],
+                    })
+                    break
+    return out
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -216,6 +271,10 @@ def build_memory_context(user_id: str) -> str:
         corrections = []
         failure_patterns = []
 
+    # Detect facts that may contradict each other so the model can ask
+    # the user which is current instead of silently believing both.
+    conflicts = _detect_fact_conflicts(facts)
+
     if not facts and not summaries and not corrections and not failure_patterns:
         return ""
 
@@ -260,6 +319,16 @@ def build_memory_context(user_id: str) -> str:
                 f"  - {p['tool_name']}: {pct}% failure rate "
                 f"({p['failures_in_window']}/{p['total_in_window']} recent calls)"
             )
+
+    # Append conflict warnings (Batch 7e). When two saved facts look like
+    # they contradict, the model should ask which is current rather than
+    # silently believing both.
+    if conflicts:
+        if parts:
+            parts.append("")
+        parts.append("Possible contradictions in remembered facts — ASK the user which is current before relying on any of these:")
+        for c in conflicts[:5]:
+            parts.append(f"  - {c['fact_a']!r}  vs  {c['fact_b']!r}")
 
     out = "\n".join(parts)
     if len(out) > MAX_MEMORY_CHARS:
