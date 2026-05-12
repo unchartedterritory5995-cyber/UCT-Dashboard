@@ -19,6 +19,7 @@ export default function VoiceTelemetryPanel() {
   const [recentFeedback, setRecentFeedback] = useState([])
   const [patterns, setPatterns] = useState([])
   const [agentStats, setAgentStats] = useState([])
+  const [variantStats, setVariantStats] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -26,12 +27,13 @@ export default function VoiceTelemetryPanel() {
     setLoading(true)
     setError(null)
     try {
-      const [statsR, corrR, fbR, patR, agentR] = await Promise.all([
+      const [statsR, corrR, fbR, patR, agentR, rewardR] = await Promise.all([
         fetch('/api/voice/tool-call-stats', { credentials: 'include' }),
         fetch('/api/voice/feedback/corrections', { credentials: 'include' }),
         fetch('/api/voice/feedback', { credentials: 'include' }),
         fetch('/api/voice/failure-patterns', { credentials: 'include' }),
         fetch('/api/voice/agents/stats?days=30', { credentials: 'include' }),
+        fetch('/api/voice/reward/scoreboard?days=30', { credentials: 'include' }),
       ])
       if (statsR.ok) setStats(await statsR.json())
       if (corrR.ok) {
@@ -49,6 +51,10 @@ export default function VoiceTelemetryPanel() {
       if (agentR.ok) {
         const j = await agentR.json()
         setAgentStats(j.rows || [])
+      }
+      if (rewardR.ok) {
+        const j = await rewardR.json()
+        setVariantStats(j.rows || [])
       }
     } catch (e) {
       setError(e?.message || 'Failed to load telemetry')
@@ -146,6 +152,41 @@ export default function VoiceTelemetryPanel() {
           </div>
         </div>
       </div>
+
+      {/* Prompt-variant scoreboard ── */}
+      {variantStats.length > 0 && (
+        <div className={styles.section}>
+          <h4 className={styles.sectionTitle}>Prompt variant performance — last 30 days</h4>
+          <p className={styles.note}>
+            Each variant is auto-rotated. Best-scoring variants get more
+            traffic; 20% of sessions explore alternatives.
+          </p>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Variant</th>
+                <th>Sessions</th>
+                <th>👍</th>
+                <th>👎</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {variantStats.map((r) => (
+                <tr key={r.variant_id}>
+                  <td className={styles.toolName}>{r.variant_id}</td>
+                  <td>{r.total_sessions}</td>
+                  <td>{r.thumbs_up}</td>
+                  <td>{r.thumbs_down}</td>
+                  <td className={r.score !== null && r.score < 0.5 ? styles.bad : ''}>
+                    {r.score === null ? '—' : `${Math.round(r.score * 100)}%`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Per-agent usage ── */}
       {agentStats.length > 0 && (

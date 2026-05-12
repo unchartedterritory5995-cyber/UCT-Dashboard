@@ -376,6 +376,16 @@ def reward_scoreboard(
     return {"days": days, "rows": variant_scoreboard(user["id"], days=max(1, min(365, int(days))))}
 
 
+@router.get("/reward/variants")
+def reward_variants(
+    context: str = "global",
+    user: dict = Depends(requires_voice_access),
+):
+    """List the prompt variants available for a context + their descriptions."""
+    from api.services.voice_prompt_registry import list_variants
+    return {"context": context, "variants": list_variants(context)}
+
+
 @router.get("/agents/stats")
 def agents_stats(
     days: int = 30,
@@ -596,6 +606,20 @@ def session_token(
     else:
         base_instructions = _REALTIME_INSTRUCTIONS
 
+    # Batch 13b: choose a prompt variant via epsilon-greedy and append its
+    # suffix. The variant_id flows into voice_prompt_variants below.
+    chosen_variant = "v1"
+    try:
+        from api.services.voice_prompt_registry import (
+            select_variant, get_prompt_suffix,
+        )
+        chosen_variant = select_variant(ctx, user_id=uid)
+        suffix = get_prompt_suffix(ctx, chosen_variant)
+        if suffix:
+            base_instructions = base_instructions + suffix
+    except Exception as e:
+        _log.warning("[session_token] variant selection failed: %s", e)
+
     # Inject current market regime (Batch 9b). Skipped for train_me since
     # that context shouldn't reason about market state.
     regime_line = ""
@@ -696,14 +720,11 @@ def session_token(
     sess_db_id = _create_voice_session(
         user_id=uid, mode="c", source="orb", page_context=body.context or "global",
     )
-    # Batch 13a: tag the session with the prompt variant in use.
-    # For now there's just one variant — "v1" — but the infrastructure is
-    # in place for A/B testing in 13b.
+    # Batch 13a/13b: tag the session with the prompt variant in use.
+    # chosen_variant was set above by the prompt registry.
     try:
         from api.services.voice_reward_model import record_variant
-        # Variant id = agent name when in a specialist context, else "v1"
-        variant_id = ctx if (ctx and ctx not in ("global", "train_me")) else "v1"
-        record_variant(sess_db_id, uid, variant_id=variant_id, agent_ctx=ctx)
+        record_variant(sess_db_id, uid, variant_id=chosen_variant, agent_ctx=ctx)
     except Exception as e:
         _log.warning("[session_token] variant record failed: %s", e)
 
