@@ -53,7 +53,7 @@ def run_tool(
         _log.warning(msg)
         _audit(user_id, tool_name, safe_args, False, msg,
                int((time.monotonic() - _t0) * 1000), session_id)
-        return {"ok": False, "tool": tool_name, "error": msg}
+        return _failure_envelope(tool_name, msg, dispatch_error=msg)
     except (ValueError, TypeError) as e:
         msg = f"tool {tool_name} failed: {e}"
         _log.warning(msg)
@@ -61,7 +61,7 @@ def run_tool(
             append_transcript(session_id, role="tool", text=f"{tool_name}: ERROR — {e}")
         _audit(user_id, tool_name, safe_args, False, str(e),
                int((time.monotonic() - _t0) * 1000), session_id)
-        return {"ok": False, "tool": tool_name, "error": str(e)}
+        return _failure_envelope(tool_name, str(e))
     except Exception as e:  # noqa: BLE001
         msg = f"tool {tool_name} unexpected error: {e}"
         _log.exception(msg)
@@ -69,7 +69,7 @@ def run_tool(
             append_transcript(session_id, role="tool", text=f"{tool_name}: ERROR — {e}")
         _audit(user_id, tool_name, safe_args, False, str(e),
                int((time.monotonic() - _t0) * 1000), session_id)
-        return {"ok": False, "tool": tool_name, "error": str(e)}
+        return _failure_envelope(tool_name, str(e))
 
     latency_ms = int((time.monotonic() - _t0) * 1000)
 
@@ -92,4 +92,21 @@ def run_tool(
     _audit(user_id, tool_name, safe_args, inner_ok, inner_err,
            latency_ms, session_id)
 
+    # Annotate graceful failures with a recovery hint so the model knows
+    # what to try next instead of going silent.
+    if isinstance(result, dict) and not inner_ok:
+        from api.services.voice_recovery import annotate_failure
+        result = annotate_failure(tool_name, result)
+
     return {"ok": True, "tool": tool_name, "result": result}
+
+
+def _failure_envelope(tool_name: str, error: str,
+                      dispatch_error: str | None = None) -> dict:
+    """Build the outer envelope for hard dispatch failures (exceptions)."""
+    from api.services.voice_recovery import annotate_failure
+    inner = annotate_failure(
+        tool_name, {"ok": False, "error": error}, dispatch_error=dispatch_error,
+    )
+    return {"ok": False, "tool": tool_name, "error": error,
+            "recovery_hint": inner.get("recovery_hint")}
