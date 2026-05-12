@@ -35,6 +35,7 @@ from api.services.pattern_engine.detectors.uct import u_and_r as _u_and_r  # noq
 from api.services.pattern_engine.detectors.uct import remount as _remount  # noqa: F401
 from api.services.pattern_engine.detectors.uct import cup_handle_uct as _cup_handle_uct  # noqa: F401
 from api.services.pattern_engine.detectors.structure import swing_pivots as _swing_pivots  # noqa: F401
+from api.services.pattern_engine.detectors.structure import support_resistance as _support_resistance  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -162,6 +163,12 @@ _PATTERN_METADATA = {
         "category": "structure",
         "direction": "neutral",
         "description": "Significant swing-high and swing-low pivots in the recent 60-bar window. Structural reference levels for entries, stops, and analysis.",
+    },
+    "support_resistance": {
+        "name": "Support / Resistance Level",
+        "category": "structure",
+        "direction": "neutral",
+        "description": "Horizontal price level confirmed by >=2 swing-pivot touches within a 2% band. Emit one Detection per active level.",
     },
 }
 
