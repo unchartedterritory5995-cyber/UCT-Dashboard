@@ -8,7 +8,9 @@ import { mergeChartSettings } from './chart/chartDefaults'
 import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
+import PatternOverlay from './chart/PatternOverlay'
 import ChartToolbar from './chart/ChartToolbar'
+import { usePatternDetections } from '../hooks/usePatternDetections'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
@@ -512,6 +514,14 @@ export default function StockChart({
   const handleUpdateChartSettings = useCallback((newSettings) => {
     setPref('chart_settings', JSON.stringify(newSettings))
   }, [setPref])
+
+  // ── Pattern overlay state (Phase 5 Task 1) ──
+  // Default OFF until Task 4 wires the toolbar toggle. Hard-code to `true` locally for smoke tests,
+  // then revert before commit.
+  const [showPatterns, setShowPatterns] = useState(false)
+  // eslint-disable-next-line no-unused-vars -- consumed when Task 3 side panel lands
+  const [activeDetection, setActiveDetection] = useState(null)
+  const { detections: patternDetections } = usePatternDetections(sym, resolvedTf, showPatterns, 50)
 
   // ── Screenshot + Share state ──
   const [screenshotPopoverOpen, setScreenshotPopoverOpen] = useState(false)
@@ -2918,6 +2928,16 @@ export default function StockChart({
         ref={vpCanvasRef}
         style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 2 }}
       />
+      {bars?.length > 0 && (
+        <PatternOverlay
+          chart={chartRef.current}
+          series={candleSeriesRef.current}
+          containerRef={containerRef}
+          detections={patternDetections}
+          enabled={showPatterns}
+          onDetectionClick={setActiveDetection}
+        />
+      )}
       {showDrawingTools && bars?.length > 0 && (
         <>
           <ChartDrawingOverlay
