@@ -393,15 +393,24 @@ function sum(arr) { return arr.reduce((a,t)=>a+t.P,0); }
 // ─── Theme Map ────────────────────────────────────────────────────────────────
 // Tickers can belong to multiple themes. Themes aggregate flow across sectors.
 const THEMES_DEF = {
-  "AI": ["NVDA","MSFT","GOOGL","GOOG","META","AMZN","CRM","PLTR","AI","SNOW","DDOG","MDB","PATH","UPST","SOUN","BBAI","IONQ","SMCI","ARM","DELL","HPE","NOW","ORCL","IBM","ADBE","WDAY","HUBS","DOCN","NET","ANET","ESTC","GTLB","S","CFLT","APP","GRAB","DUOL","ZS","CRWD","PANW"],
-  "Semiconductors": ["NVDA","AMD","INTC","AVGO","QCOM","MU","MRVL","TSM","ASML","LRCX","AMAT","KLAC","ON","MCHP","TXN","ARM","SMCI","ADI","NXPI","SWKS","GFS","MPWR","WOLF","CRUS","ALGM","ACLS","RMBS","SYNA"],
-  "Bitcoin / Crypto": ["MSTR","COIN","RIOT","MARA","CLSK","BITF","HUT","IBIT","BITO","GBTC","ETHE","BTBT","CIFR","CORZ","WULF","IREN","COIN","SQ","HOOD"],
-  "AI Power / Nuclear": ["VST","CEG","NRG","TLN","OKLO","SMR","NNE","GEV","POWL","ETN","BN","BWXT","LEU","UEC","CCJ","DNN"],
+  "Semiconductors": ["NVDA","AMD","INTC","AVGO","QCOM","MU","MRVL","TSM","ASML","LRCX","AMAT","KLAC","ON","MCHP","TXN","ARM","SMCI","ADI","NXPI","SWKS","GFS","MPWR","WOLF","CRUS","ALGM","ACLS","RMBS","SYNA","CDNS","SNPS","CRDO","AMKR"],
+  "Software": ["CRM","PLTR","AI","SNOW","DDOG","MDB","PATH","SOUN","BBAI","NOW","ORCL","IBM","ADBE","WDAY","HUBS","DOCN","ESTC","GTLB","CFLT","APP","GRAB","DUOL"],
+  "AI Infra": ["CRWV","NBIS","IREN","CIFR","WULF","CORZ","VRT","EQIX","DLR","DELL","HPE","ANET"],
+  "Crypto": ["MSTR","COIN","RIOT","MARA","CLSK","BITF","HUT","IBIT","BITO","GBTC","ETHE","BTBT","SQ","HOOD"],
+  "Nuclear": ["VST","CEG","NRG","TLN","OKLO","SMR","NNE","GEV","POWL","ETN","BN","BWXT","LEU","UEC","CCJ","DNN"],
   "China": ["BABA","JD","PDD","NIO","LI","XPEV","BIDU","KWEB","FXI","BILI","TME","FUTU","TCOM","WB","TAL","YMM","VNET","MNSO","ZTO","TIGR","HUYA","IQ","QFIN","FINV"],
-  "EV": ["TSLA","RIVN","LCID","NIO","LI","XPEV","CHPT","QS","BLNK","GOEV","PTRA","WKHS","FFIE","VFS","PSNY"],
-  "Defense": ["LMT","RTX","NOC","GD","BA","LHX","HII","KTOS","RKLB","PLTR","LDOS","BAH","MRCY","AVAV","TDG"],
+  "EV": ["TSLA","RIVN","LCID","CHPT","QS","BLNK","GOEV","PTRA","WKHS","FFIE","VFS","PSNY","F","GM"],
+  "Defense": ["LMT","RTX","NOC","GD","BA","LHX","HII","KTOS","RKLB","LDOS","BAH","MRCY","AVAV","TDG","AXON","RCAT"],
   "Biotech": ["MRNA","PFE","ABBV","BMY","GILD","AMGN","BIIB","REGN","VRTX","LLY","NVO","AZN","MRK","JNJ","SGEN","ALNY","CRSP","NTLA","BEAM","EDIT","EXAS","DXCM","ISRG","ILMN","VKTX","ALT","GPCR","TERN","VTYX","ROCL","ZEAL"],
-  "Cybersecurity": ["CRWD","PANW","ZS","FTNT","S","NET","CYBR","TENB","QLYS","RPD","VRNS","SAIL","OKTA"],
+  "Cybersecurity": ["CRWD","PANW","ZS","FTNT","S","NET","CYBR","TENB","QLYS","RPD","VRNS","SAIL","OKTA","RBRK"],
+  "Financials": ["JPM","GS","BAC","WFC","MS","C","USB","PNC","SCHW","COF","AXP","V","MA","PYPL","BLK","ICE","CME","SPGI","MCO","FIS","FISV","GPN","UPST","SOFI","AFRM","NU","TOST"],
+  "Energy": ["XOM","CVX","OXY","COP","SLB","HAL","DVN","EOG","MPC","VLO","PSX","FANG","MRO","APA","HES","BKR","AR","EQT","RRC","CTRA"],
+  "Metal Miners": ["NEM","GOLD","AEM","FNV","WPM","AG","PAAS","HL","CDE","SSRM","RGLD","KGC","BTG","AGI","MAG","SVM","EXK","FSM","GFI","AU","HMY"],
+  "Solar": ["ENPH","SEDG","FSLR","RUN","NOVA","MAXN","ARRY","CSIQ","JKS","SPWR","TAN","SHLS","GNRC"],
+  "Quantum": ["IONQ","RGTI","QUBT","ARQQ","QBTS"],
+  "Retail": ["WMT","TGT","COST","HD","LOW","DG","DLTR","LULU","NKE","TJX","ROST","FIVE","BBY","M","KSS","BURL","GPS","ANF","AEO"],
+  "Airlines": ["UAL","DAL","AAL","LUV","JBLU","ALK","SAVE","HA","SKYW","ALGT"],
+  "Homebuilders": ["DHI","LEN","NVR","PHM","TOL","KBH","TMHC","MTH","MHO","CCS","GRBK","LGIH","MDC","TPH","BZH"],
 };
 // Reverse lookup: ticker → [theme1, theme2, ...]
 const THEME_LOOKUP = {};
