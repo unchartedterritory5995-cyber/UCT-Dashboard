@@ -701,7 +701,16 @@ def session_token(
     _log.info("[session_token] +%.0fms %d tools loaded (ctx=%s)",
               (_time.time() - _t0) * 1000, len(tools_schema), ctx)
 
-    memory_context = build_memory_context(uid)
+    # Phase 2-A unification: pull the unified Compass × Voice memory view
+    # (voice facts + Compass trader_profile markdown). Falls back to the
+    # voice-only build_memory_context on any error so this is safe.
+    try:
+        from api.services.trader_memory import build_unified_memory_context
+        unified = build_unified_memory_context(uid)
+        memory_context = unified if unified else build_memory_context(uid)
+    except Exception as e:
+        _log.warning("[session_token] unified memory failed, falling back: %s", e)
+        memory_context = build_memory_context(uid)
     _log.info("[session_token] +%.0fms memory context %d chars",
               (_time.time() - _t0) * 1000, len(memory_context))
 
@@ -945,6 +954,10 @@ def session_end_post(
     background_tasks.add_task(_summarize_session_background, body.session_id, user["id"])
     # Schedule hallucination audit (P7) — non-blocking
     background_tasks.add_task(_audit_session_background, body.session_id, user["id"])
+    # Phase 2-B unification: bridge voice session into Compass chat thread
+    # so the Compass tab sees what was said in voice. Non-blocking.
+    background_tasks.add_task(_bridge_session_to_compass_thread,
+                              body.session_id, user["id"])
 
     return {"ok": True, "duration_seconds": duration}
 
@@ -959,6 +972,54 @@ def _audit_session_background(session_id: int, user_id: str) -> None:
                        session_id, result["suspect_count"])
     except Exception as e:  # noqa: BLE001
         _log.warning("hallucination audit failed for %s: %s", session_id, e)
+
+
+def _bridge_session_to_compass_thread(session_id: int, user_id: str) -> None:
+    """Phase 2-B unification: after a voice session ends, post a Compass-
+    authored summary message into the user's Compass chat thread.
+
+    This makes the Compass tab show voice conversations alongside text
+    chat — both feed one continuous thread per the unification spec.
+    Best-effort; never raises.
+    """
+    try:
+        transcripts = _get_session_transcripts(session_id) or []
+        # Only bridge real conversations (user spoke + Compass replied)
+        roles = {t.get("role") for t in transcripts}
+        if "user" not in roles or "assistant" not in roles:
+            return
+
+        # Build a compact summary: first user turn + last assistant turn.
+        user_turns = [t for t in transcripts if t.get("role") == "user"]
+        asst_turns = [t for t in transcripts if t.get("role") == "assistant"]
+        if not user_turns or not asst_turns:
+            return
+        opener = (user_turns[0].get("text") or "")[:300]
+        closer = (asst_turns[-1].get("text") or "")[:600]
+        turn_count = len(user_turns) + len(asst_turns)
+
+        body = (
+            f"🎙️ Voice session — {turn_count} turn{'s' if turn_count != 1 else ''}.\n\n"
+            f"**You opened:** {opener.strip()}\n\n"
+            f"**Compass closed:** {closer.strip()}"
+        )
+
+        from api.services.trader_memory import get_default_account_id
+        from api.services.journal_two.coach_chat import append_message
+        account_id = get_default_account_id(user_id)
+        if not account_id:
+            return
+        append_message(
+            user_id=user_id,
+            account_id=account_id,
+            role="assistant",
+            content=body,
+            metadata={"source": "voice_session", "session_id": session_id,
+                      "turn_count": turn_count, "bridge_version": 1},
+        )
+    except Exception as e:  # noqa: BLE001
+        _log.warning("voice→compass thread bridge failed for %s: %s",
+                     session_id, e)
 
 
 def _summarize_session_background(session_id: int, user_id: str) -> None:

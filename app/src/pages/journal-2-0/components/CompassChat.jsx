@@ -5,11 +5,13 @@
  * Hidden entirely when status.enabled = false. Composer disabled when rate
  * limit exhausted.
  */
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useContext } from 'react'
 import useJ2CoachChat from '../hooks/useJ2CoachChat'
 import ChatMessage from './ChatMessage'
 import ChatActionCard from './ChatActionCard'
 import VoiceInputButton from './VoiceInputButton'
+import { VoiceContext } from '../../../context/VoiceContext'
+import useRealtimeSession from '../../../hooks/useRealtimeSession'
 
 const SUGGESTED_PROMPTS = [
   'How am I doing this week?',
@@ -25,6 +27,15 @@ export default function CompassChat({ accountId }) {
     isOnboarding, needsOnboarding,
     startOnboarding, skipOnboarding, redoOnboarding,
   } = useJ2CoachChat(accountId)
+  // Phase 2-C unification: full Realtime voice session from Compass tab.
+  // The session writes its transcript to the same Compass thread via the
+  // P2-B bridge in api/routers/voice.py::_bridge_session_to_compass_thread,
+  // so anything the user says in voice shows up in this chat on the next
+  // refresh. The button is hidden when no VoiceProvider is mounted (e.g.
+  // in component tests rendered without the global app shell).
+  const voice = useContext(VoiceContext)
+  const inVoiceSession = !!voice
+    && voice.mode === 'c' && voice.status !== 'idle' && voice.status !== 'error'
   const [input, setInput] = useState('')
   const scrollerRef = useRef(null)
   const [showMenu, setShowMenu] = useState(false)
@@ -315,6 +326,12 @@ export default function CompassChat({ accountId }) {
               }}
               disabled={composerDisabled}
             />
+            {voice && (
+              <TalkToCompassButton
+                inVoiceSession={inVoiceSession}
+                disabled={composerDisabled && !inVoiceSession}
+              />
+            )}
             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
               {limitHit
                 ? '⛔ Daily limit reached'
@@ -335,5 +352,42 @@ export default function CompassChat({ accountId }) {
         </div>
       </div>
     </section>
+  )
+}
+
+
+/**
+ * TalkToCompassButton — sub-component so the realtime-session hook is only
+ * instantiated when the parent has a VoiceProvider in scope. The hook is
+ * imported eagerly but only mounted from within this child, which itself
+ * is only rendered when VoiceContext has a non-null value.
+ */
+function TalkToCompassButton({ inVoiceSession, disabled }) {
+  // This component is only rendered when VoiceContext has a non-null value,
+  // so it is safe to call useRealtimeSession (which depends on useVoice).
+  const { connect, disconnect } = useRealtimeSession()
+  return (
+    <button
+      type="button"
+      onClick={() => (inVoiceSession ? disconnect() : connect('compass'))}
+      disabled={disabled}
+      title={inVoiceSession
+        ? 'Tap to end the voice conversation'
+        : 'Open a full voice conversation with Compass'}
+      style={{
+        padding: '4px 10px', fontSize: 11, fontWeight: 600,
+        background: inVoiceSession ? 'var(--ut-gold, #c9a84c)' : 'transparent',
+        color: inVoiceSession ? '#000' : 'var(--ut-gold, #c9a84c)',
+        border: '1px solid var(--ut-gold, #c9a84c)',
+        borderRadius: 4,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.4 : 1,
+      }}
+      aria-label={inVoiceSession
+        ? 'End voice conversation'
+        : 'Start voice conversation with Compass'}
+    >
+      {inVoiceSession ? '◉ End call' : '🧭 Talk'}
+    </button>
   )
 }

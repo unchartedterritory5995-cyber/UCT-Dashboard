@@ -108,7 +108,10 @@ function reducer(state, action) {
   }
 }
 
-const VoiceContext = createContext(null)
+// Named export so callers that want to read the context without throwing
+// when no provider is mounted can use useContext(VoiceContext) directly.
+// (useVoice() below still throws — that's the strict accessor.)
+export const VoiceContext = createContext(null)
 
 export function VoiceProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState)
