@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { fileURLToPath } from 'node:url'
 
 export default defineConfig({
   plugins: [react()],
@@ -24,6 +25,18 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: './src/test-setup.js'
-  }
+    setupFiles: './src/test-setup.js',
+    server: {
+      deps: {
+        // Alias the broken @picovoice/porcupine-web package to our test stub
+        // (its package.json exports don't resolve under vitest's resolver).
+        inline: [/@picovoice\/porcupine-web/],
+      },
+    },
+    alias: {
+      '@picovoice/porcupine-web': fileURLToPath(
+        new URL('./src/test-stubs/porcupine-web.js', import.meta.url)
+      ),
+    },
+  },
 })
