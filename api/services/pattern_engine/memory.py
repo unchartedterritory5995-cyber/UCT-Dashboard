@@ -5,18 +5,21 @@ Responsibilities:
   - get_active_detections(sym, tf, pattern_ids=None): query for chart overlay
   - get_detection_by_id(id)
   - record_feedback(detection_id, user_id, rating, note=None)
-  - track_outcomes(): Phase 7 stub (returns 0 in Phase 0)
-  - recompute_stats(): Phase 7 stub (returns 0 in Phase 0)
+  - track_outcomes(): walks forward bars to resolve open detections
+  - recompute_stats(): aggregates outcomes into pattern_stats
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import time
 from typing import Optional
 
 from api.services.auth_db import get_connection
 from api.services.pattern_engine.types import Detection
+
+logger = logging.getLogger(__name__)
 
 
 _VALID_FEEDBACK_RATINGS = {"great", "good", "miss", "wrong"}
@@ -158,11 +161,240 @@ def record_feedback(detection_id: str, user_id: str, rating: str, note: Optional
 
 
 def track_outcomes(lookback_hours: int = 48) -> int:
-    """Stub. Phase 7 wires this up to walk forward bars and resolve open
-    detections (entry hit / stop hit / target hit). Phase 0 does nothing."""
-    return 0
+    """Walk forward bars to resolve open detections.
+
+    For each detection with status in ("forming", "ready", "triggered") detected
+    within the last lookback_hours:
+      1. Fetch bars from bars_sqlite since the detection's end_t
+      2. Walk chronologically — check if entry hit, stop hit, target hit
+      3. Track MFE / MAE along the way
+      4. Update pattern_outcomes
+      5. Flip status to completed (target hit) | failed (stop hit) | expired (>30 days)
+
+    Returns the number of detections processed.
+    """
+    conn = get_connection()
+    try:
+        cutoff = int(time.time()) - lookback_hours * 3600
+        rows = conn.execute("""
+            SELECT id, sym, tf, status, levels_json, detected_at, end_t
+            FROM pattern_detections
+            WHERE status IN ('forming', 'ready', 'triggered')
+              AND detected_at >= ?
+        """, (cutoff,)).fetchall()
+    finally:
+        conn.close()
+
+    processed = 0
+    for row in rows:
+        try:
+            outcome = _resolve_outcome(row)
+            if outcome:
+                _store_outcome(row["id"], outcome)
+                _update_status(row["id"], outcome["new_status"])
+                processed += 1
+        except Exception as e:
+            logger.warning("track_outcomes: failed to resolve %s: %s", row["id"], e)
+
+    return processed
+
+
+def _resolve_outcome(detection_row) -> Optional[dict]:
+    """Walk forward bars; return outcome dict if pattern resolved, else None."""
+    from api.services import bars_sqlite
+
+    levels = json.loads(detection_row["levels_json"])
+    entry = levels.get("entry")
+    stop = levels.get("stop")
+    target = levels.get("target_primary")
+
+    if entry is None or stop is None or target is None:
+        return None  # Structure detector or incomplete levels
+
+    # Fetch bars after the detection's end_t
+    # bars_sqlite.get_bars_since returns rows (ts, o, h, l, c, v)
+    bars = bars_sqlite.get_bars_since(detection_row["sym"], detection_row["tf"], detection_row["end_t"])
+    if not bars:
+        return None
+
+    is_long = target > entry
+
+    entry_hit = False
+    entry_hit_t = None
+    stop_hit = False
+    stop_hit_t = None
+    target_hit = False
+    target_hit_t = None
+    mfe = 0.0
+    mae = 0.0
+    bars_processed = 0
+
+    for bar in bars:
+        bars_processed += 1
+        t, o, h, l, c, v = bar
+
+        # Has entry triggered yet?
+        if not entry_hit:
+            if is_long and h >= entry:
+                entry_hit = True
+                entry_hit_t = t
+            elif not is_long and l <= entry:
+                entry_hit = True
+                entry_hit_t = t
+
+        # Once in trade, track stop / target / MFE / MAE
+        if entry_hit:
+            if is_long:
+                fav = (h - entry) / entry * 100
+                adv = (entry - l) / entry * 100
+                if l <= stop:
+                    stop_hit = True
+                    stop_hit_t = t
+                    break
+                if h >= target:
+                    target_hit = True
+                    target_hit_t = t
+                    break
+            else:
+                fav = (entry - l) / entry * 100
+                adv = (h - entry) / entry * 100
+                if h >= stop:
+                    stop_hit = True
+                    stop_hit_t = t
+                    break
+                if l <= target:
+                    target_hit = True
+                    target_hit_t = t
+                    break
+            mfe = max(mfe, fav)
+            mae = max(mae, adv)
+
+    # Determine new status
+    if target_hit:
+        new_status = "completed"
+    elif stop_hit:
+        new_status = "failed"
+    elif bars_processed >= 30 * 7:  # ~30 trading days
+        new_status = "expired"
+    else:
+        return None  # Still open — re-check later
+
+    return {
+        "entry_hit": int(entry_hit),
+        "entry_hit_t": entry_hit_t,
+        "stop_hit": int(stop_hit),
+        "stop_hit_t": stop_hit_t,
+        "target_hit": int(target_hit),
+        "target_hit_t": target_hit_t,
+        "mfe_pct": round(mfe, 4),
+        "mae_pct": round(mae, 4),
+        "bars_to_resolve": bars_processed,
+        "resolved_at": int(time.time()),
+        "new_status": new_status,
+    }
+
+
+def _store_outcome(detection_id: str, outcome: dict) -> None:
+    conn = get_connection()
+    try:
+        conn.execute("""
+            INSERT INTO pattern_outcomes (
+                detection_id, entry_hit, entry_hit_t, stop_hit, stop_hit_t,
+                target_hit, target_hit_t, mfe_pct, mae_pct,
+                bars_to_resolve, resolved_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(detection_id) DO UPDATE SET
+                entry_hit = excluded.entry_hit,
+                entry_hit_t = excluded.entry_hit_t,
+                stop_hit = excluded.stop_hit,
+                stop_hit_t = excluded.stop_hit_t,
+                target_hit = excluded.target_hit,
+                target_hit_t = excluded.target_hit_t,
+                mfe_pct = excluded.mfe_pct,
+                mae_pct = excluded.mae_pct,
+                bars_to_resolve = excluded.bars_to_resolve,
+                resolved_at = excluded.resolved_at
+        """, (
+            detection_id,
+            outcome["entry_hit"], outcome["entry_hit_t"],
+            outcome["stop_hit"], outcome["stop_hit_t"],
+            outcome["target_hit"], outcome["target_hit_t"],
+            outcome["mfe_pct"], outcome["mae_pct"],
+            outcome["bars_to_resolve"], outcome["resolved_at"]
+        ))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _update_status(detection_id: str, new_status: str) -> None:
+    conn = get_connection()
+    try:
+        conn.execute(
+            "UPDATE pattern_detections SET status = ? WHERE id = ?",
+            (new_status, detection_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def recompute_stats() -> int:
-    """Stub. Phase 7 aggregates pattern_outcomes into pattern_stats nightly."""
-    return 0
+    """Aggregate outcomes into pattern_stats by (pattern_id, tf, regime_bucket).
+
+    Returns the number of (pattern, tf, regime) rows written.
+    """
+    conn = get_connection()
+    try:
+        # Clear existing stats (full rebuild)
+        conn.execute("DELETE FROM pattern_stats")
+
+        rows = conn.execute("""
+            SELECT pd.pattern_id, pd.tf,
+                   COALESCE(json_extract(pd.context_json, '$.regime'), 'unknown') AS regime,
+                   COUNT(*) AS n_total,
+                   COUNT(po.detection_id) AS n_resolved,
+                   SUM(COALESCE(po.entry_hit, 0)) AS n_entry,
+                   SUM(COALESCE(po.target_hit, 0)) AS n_target,
+                   SUM(COALESCE(po.stop_hit, 0)) AS n_stop,
+                   AVG(po.mfe_pct) AS avg_mfe,
+                   AVG(po.mae_pct) AS avg_mae,
+                   AVG(po.bars_to_resolve) AS median_bars
+            FROM pattern_detections pd
+            LEFT JOIN pattern_outcomes po ON po.detection_id = pd.id
+            GROUP BY pd.pattern_id, pd.tf, regime
+        """).fetchall()
+
+        now = int(time.time())
+        written = 0
+        for row in rows:
+            n_resolved = row["n_resolved"] or 0
+            if n_resolved == 0:
+                hit_rate = 0.0
+                expectancy = 0.0
+            else:
+                hit_rate = (row["n_target"] or 0) / n_resolved
+                # Assume 1R risk per trade; expectancy = (hit_rate * avg_win) - (loss_rate * avg_loss)
+                # Approximate as hit_rate*2 - (1-hit_rate)*1 for 2R reward, 1R risk
+                expectancy = hit_rate * 2.0 - (1.0 - hit_rate) * 1.0
+
+            conn.execute("""
+                INSERT INTO pattern_stats (
+                    pattern_id, tf, regime_bucket,
+                    n_total, n_resolved, n_entry_hit, n_target_hit, n_stop_hit,
+                    avg_mfe_pct, avg_mae_pct, median_bars,
+                    hit_rate, expectancy_R, last_updated
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                row["pattern_id"], row["tf"], row["regime"],
+                row["n_total"], row["n_resolved"],
+                row["n_entry"] or 0, row["n_target"] or 0, row["n_stop"] or 0,
+                row["avg_mfe"], row["avg_mae"], int(row["median_bars"] or 0),
+                round(hit_rate, 4), round(expectancy, 4), now
+            ))
+            written += 1
+
+        conn.commit()
+        return written
+    finally:
+        conn.close()
