@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { to: '/theme-tracker',  label: 'Theme Tracker',  icon: '🎯' },
   { to: '/calendar',       label: 'Calendar',        icon: '📅' },
   { to: '/screener',     label: 'Screener',      icon: '⚡' },
+  { to: '/patterns',     label: 'Patterns',      icon: '🎯' },
   { to: '/options-flow', label: 'Options Flow',  icon: '📊' },
   { to: '/dark-pool',    label: 'Dark Pool',     icon: '🌊' },
   { to: '/post-market',  label: 'Post Market',   icon: '🌙' },
@@ -32,7 +33,7 @@ const NAV_ITEMS = [
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
-const FREE_PAGES = ['/dashboard', '/breadth', '/theme-tracker', '/calendar', '/watchlists']
+const FREE_PAGES = ['/dashboard', '/breadth', '/theme-tracker', '/calendar', '/watchlists', '/patterns']
 
 export default function NavBar() {
   const { user, plan } = useAuth()

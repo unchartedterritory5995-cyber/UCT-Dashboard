@@ -1,10 +1,14 @@
 // app/src/components/MobileNav.jsx — Full-screen drawer nav for mobile
 import { useState, useEffect, useCallback } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
+import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
 import AlertBell from './AlertBell'
 import useKeyboardVisible from '../hooks/useKeyboardVisible'
 import styles from './MobileNav.module.css'
+
+const fetcher = (url) =>
+  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
 const NAV_SECTIONS = [
   {
@@ -22,6 +26,7 @@ const NAV_SECTIONS = [
       { to: '/theme-tracker',  label: 'Theme Tracker',  icon: '\uD83C\uDFAF' },
       { to: '/calendar',       label: 'Calendar',       icon: '\uD83D\uDCC5' },
       { to: '/screener',       label: 'Screener',       icon: '\u26A1' },
+      { to: '/patterns',       label: 'Patterns',       icon: '\uD83C\uDFAF' },
     ],
   },
   {
@@ -52,7 +57,7 @@ const NAV_SECTIONS = [
   },
 ]
 
-const FREE_PAGES = ['/dashboard', '/breadth', '/theme-tracker', '/calendar', '/watchlists']
+const FREE_PAGES = ['/dashboard', '/breadth', '/theme-tracker', '/calendar', '/watchlists', '/patterns']
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
@@ -74,6 +79,14 @@ export default function MobileNav() {
   const { user, plan } = useAuth()
   const isAdmin = user?.role === 'admin'
   const showAll = plan === 'pro' || isAdmin
+
+  // P5-K: Compass unread count mirrors NavBar — visible on mobile too.
+  const { data: pending } = useSWR(
+    user ? '/api/voice/insights/pending' : null,
+    fetcher,
+    { refreshInterval: 30_000, revalidateOnFocus: true },
+  )
+  const compassUnread = pending?.insights?.length || 0
 
   // Get current page title for header
   const currentItem = ALL_ITEMS.find(i => location.pathname.startsWith(i.to))

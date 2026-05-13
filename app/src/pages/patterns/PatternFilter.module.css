@@ -1,0 +1,134 @@
+.filterBar {
+  background: #15161a;
+  border: 1px solid #2a2723;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: flex-end;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.groupLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #a8a290;
+}
+
+.chipRow,
+.typeChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  background: #0e0f0d;
+  border: 1px solid #2f2c27;
+  border-radius: 999px;
+  color: #d6d0c2;
+  padding: 5px 12px;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip:hover { border-color: #c9a84c; color: #e8e3d4; }
+.chipActive {
+  background: rgba(201, 168, 76, 0.18);
+  border-color: #c9a84c;
+  color: #c9a84c;
+}
+
+.select {
+  background: #0e0f0d;
+  border: 1px solid #2f2c27;
+  border-radius: 6px;
+  color: #e8e3d4;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  min-width: 110px;
+  outline: none;
+}
+.select:focus { border-color: #c9a84c; }
+
+.slider {
+  width: 220px;
+  accent-color: #c9a84c;
+}
+
+.resetBtn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid #2f2c27;
+  color: #a8a290;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.resetBtn:hover { border-color: #c9a84c; color: #c9a84c; }
+
+.typesGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #2a2723;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.typeChip {
+  background: #0e0f0d;
+  border: 1px solid #2f2c27;
+  border-radius: 999px;
+  color: #d6d0c2;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.typeChip:hover { border-color: #c9a84c; }
+.typeChipActive {
+  background: rgba(201, 168, 76, 0.18);
+  border-color: #c9a84c;
+  color: #c9a84c;
+}
+
+.dir_bullish.typeChipActive {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: #10b981;
+  color: #10b981;
+}
+.dir_bearish.typeChipActive {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+@media (max-width: 640px) {
+  .row { gap: 12px; }
+  .slider { width: 100%; }
+  .resetBtn { margin-left: 0; }
+  .typesGroup { max-height: 140px; }
+}

@@ -1,0 +1,61 @@
+/* ── Patterns page ──────────────────────────────────────────────────── */
+
+.page {
+  padding: 20px 24px 40px;
+  color: #d6d0c2;
+  background: #0e0f0d;
+  min-height: calc(100vh - 60px);
+}
+
+.header { margin-bottom: 16px; }
+.title {
+  font-family: var(--font-display, 'Instrument Serif', serif);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ut-gold, #c9a84c);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+}
+.subtitle {
+  color: #a8a290;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+/* ── Status panels ── */
+.loading,
+.empty,
+.error {
+  margin-top: 24px;
+  padding: 28px 20px;
+  background: #15161a;
+  border: 1px solid #2a2723;
+  border-radius: 8px;
+  text-align: center;
+  color: #a8a290;
+  font-size: 14px;
+}
+.error { border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; }
+.emptyHint {
+  font-size: 12px;
+  color: #706b5e;
+  margin-top: 8px;
+}
+
+/* ── Result grid ── */
+.grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .page { padding: 16px 14px 32px; }
+  .title { font-size: 22px; letter-spacing: 1.4px; }
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}

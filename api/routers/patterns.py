@@ -67,6 +67,10 @@ from api.services.pattern_engine.detectors.candlestick import three_white_soldie
 from api.services.pattern_engine.detectors.candlestick import three_black_crows as _three_black_crows  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
+from api.services.auth_db import get_connection
+from api.services.cache import cache
+import json
+import time
 
 
 router = APIRouter(prefix="/api/patterns", tags=["patterns"])
@@ -391,6 +395,120 @@ def list_types():
             "description": meta.get("description", ""),
         })
     return {"patterns": out}
+
+
+_SCAN_TTL = 300  # 5 minutes
+_RECENT_WINDOW_SECS = 7 * 24 * 60 * 60  # 7 days
+
+
+def _slim_detection(row) -> dict:
+    """Return a slim detection payload for scanner results.
+
+    Includes only the fields the scanner UI needs — full levels (trimmed),
+    narrative headline (no body), and core identifiers.
+    """
+    try:
+        levels = json.loads(row["levels_json"] or "{}")
+    except Exception:
+        levels = {}
+    try:
+        narrative = json.loads(row["narrative_json"] or "{}")
+    except Exception:
+        narrative = {}
+
+    pattern_id = row["pattern_id"]
+    meta = _PATTERN_METADATA.get(pattern_id, {})
+    pattern_name = meta.get("name", pattern_id.replace("_", " ").title())
+
+    return {
+        "id": row["id"],
+        "sym": row["sym"],
+        "tf": row["tf"],
+        "pattern_id": pattern_id,
+        "pattern_name": pattern_name,
+        "category": row["category"],
+        "direction": row["direction"],
+        "confidence": row["confidence"],
+        "status": row["status"],
+        "levels": {
+            "entry": levels.get("entry"),
+            "stop": levels.get("stop"),
+            "target": levels.get("target_primary"),
+            "target_primary": levels.get("target_primary"),
+            "risk_reward": levels.get("risk_reward"),
+        },
+        "narrative": {"headline": narrative.get("headline", "")},
+        "detected_at": row["detected_at"],
+        "last_seen_at": row["last_seen_at"],
+    }
+
+
+@router.get("/scan")
+def scan_universe(
+    types: Optional[str] = Query(default=None, description="comma-separated pattern_ids"),
+    tf: str = Query(default="D"),
+    min_conf: float = Query(default=70.0, ge=50.0, le=100.0),
+    category: Optional[str] = Query(default=None, description="filter to classical/candlestick/uct/structure"),
+    limit: int = Query(default=100, le=500),
+):
+    """Universe scan for active detections matching filters.
+
+    Returns detections from ``pattern_detections`` where:
+      - status in ("forming", "ready", "triggered")
+      - confidence >= min_conf
+      - tf matches
+      - pattern_id in types (if specified)
+      - category matches (if specified)
+      - detected_at >= now - 7 days (recent only)
+    Ordered by detected_at DESC, confidence DESC. Capped at limit.
+    """
+    cache_key = f"pattern_scan:{tf}:{types or 'all'}:{min_conf}:{category or 'all'}:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    pattern_ids = [t.strip() for t in types.split(",") if t.strip()] if types else None
+    recent_cutoff = int(time.time()) - _RECENT_WINDOW_SECS
+
+    conn = get_connection()
+    try:
+        sql = """
+            SELECT * FROM pattern_detections
+            WHERE tf = ?
+              AND status IN ('forming', 'ready', 'triggered')
+              AND confidence >= ?
+              AND detected_at >= ?
+        """
+        params: list = [tf, min_conf, recent_cutoff]
+        if pattern_ids:
+            placeholders = ",".join(["?"] * len(pattern_ids))
+            sql += f" AND pattern_id IN ({placeholders})"
+            params.extend(pattern_ids)
+        if category:
+            sql += " AND category = ?"
+            params.append(category)
+        sql += " ORDER BY detected_at DESC, confidence DESC LIMIT ?"
+        params.append(int(limit))
+
+        rows = conn.execute(sql, params).fetchall()
+        detections = [_slim_detection(r) for r in rows]
+    finally:
+        conn.close()
+
+    payload = {
+        "detections": detections,
+        "count": len(detections),
+        "filters": {
+            "tf": tf,
+            "types": pattern_ids,
+            "min_conf": min_conf,
+            "category": category,
+            "limit": limit,
+        },
+        "cached_at": int(time.time()),
+    }
+    cache.set(cache_key, payload, _SCAN_TTL)
+    return payload
 
 
 @router.get("/{sym}")
