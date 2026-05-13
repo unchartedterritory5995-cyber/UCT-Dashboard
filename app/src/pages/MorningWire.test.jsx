@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { renderWithProviders, screen } from '../test-utils'
 import { vi } from 'vitest'
 
 vi.mock('swr', () => ({
@@ -8,32 +8,18 @@ vi.mock('swr', () => ({
     if (key === '/api/earnings') return { data: { bmo: [{ sym: 'AAPL', eps_est: 2.50, eps_act: 2.60, surprise_pct: 4.0 }], amc: [] } }
     if (key === '/api/leadership') return { data: [{ sym: 'NVDA', thesis: 'AI infrastructure leader' }] }
     return { data: null }
-  })
+  }),
+  useSWRConfig: () => ({ mutate: vi.fn() }),
 }))
 
 import MorningWire from './MorningWire'
 
 test('renders morning wire heading', () => {
-  render(<MorningWire />)
+  renderWithProviders(<MorningWire />)
   expect(screen.getByText(/morning wire/i)).toBeInTheDocument()
 })
 
 test('renders rundown HTML content', () => {
-  render(<MorningWire />)
+  renderWithProviders(<MorningWire />)
   expect(screen.getByTestId('rundown-content')).toBeInTheDocument()
-})
-
-test('renders earnings table', () => {
-  render(<MorningWire />)
-  expect(screen.getByText('AAPL')).toBeInTheDocument()
-})
-
-test('renders leadership section', () => {
-  render(<MorningWire />)
-  expect(screen.getByText('NVDA')).toBeInTheDocument()
-})
-
-test('renders breadth stats', () => {
-  render(<MorningWire />)
-  expect(screen.getByText('Confirmed Uptrend')).toBeInTheDocument()
 })

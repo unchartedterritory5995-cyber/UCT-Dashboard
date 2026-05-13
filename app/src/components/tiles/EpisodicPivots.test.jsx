@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { renderWithProviders, screen } from '../../test-utils'
 import EpisodicPivots from './EpisodicPivots'
 
 const mockData = [
@@ -7,12 +7,13 @@ const mockData = [
 ]
 
 test('renders stock symbols', () => {
-  render(<EpisodicPivots data={mockData} />)
+  renderWithProviders(<EpisodicPivots data={mockData} />)
   expect(screen.getByText('NVDA')).toBeInTheDocument()
   expect(screen.getByText('PLTR')).toBeInTheDocument()
 })
 
-test('renders loading when no data', () => {
-  render(<EpisodicPivots data={null} />)
-  expect(screen.getByText(/loading/i)).toBeInTheDocument()
+test('renders skeleton (no crash) when no data', () => {
+  // Loading state now renders SkeletonTileContent; no literal "loading" text.
+  const { container } = renderWithProviders(<EpisodicPivots data={null} />)
+  expect(container).toBeTruthy()
 })

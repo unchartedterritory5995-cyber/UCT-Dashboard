@@ -1,9 +1,27 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { renderWithProviders, screen, fireEvent } from '../../test-utils'
 import { vi } from 'vitest'
 import FuturesStrip from './FuturesStrip'
 
 vi.mock('swr', () => ({
   default: () => ({ data: undefined, error: undefined }),
+  useSWRConfig: () => ({ mutate: vi.fn() }),
+  preload: vi.fn(),
+}))
+
+// FuturesStrip's clickable cells embed TickerPopup, whose onClick handler
+// prefetches bars via SWR's preload. Stub the helper out so we don't fire
+// /api/bars/* fetches under jsdom.
+vi.mock('../../utils/prefetchBars', () => ({
+  prefetchAllTimeframes: vi.fn(),
+  prefetchBars: vi.fn(),
+  prefetchBar: vi.fn(),
+  default: vi.fn(),
+}))
+
+// StockChart is lazily imported inside the modal; stub it to avoid booting
+// Lightweight Charts in tests.
+vi.mock('../StockChart', () => ({
+  default: () => <div data-testid="stock-chart-stub" />,
 }))
 
 const mockData = {
@@ -20,7 +38,7 @@ const mockData = {
 }
 
 test('renders all 6 symbols', () => {
-  render(<FuturesStrip data={mockData} />)
+  renderWithProviders(<FuturesStrip data={mockData} />)
   expect(screen.getByText('QQQ')).toBeInTheDocument()
   expect(screen.getByText('SPY')).toBeInTheDocument()
   expect(screen.getByText('IWM')).toBeInTheDocument()
@@ -30,25 +48,25 @@ test('renders all 6 symbols', () => {
 })
 
 test('renders prices', () => {
-  render(<FuturesStrip data={mockData} />)
+  renderWithProviders(<FuturesStrip data={mockData} />)
   expect(screen.getByText('495.79')).toBeInTheDocument()
   expect(screen.getByText('+0.50%')).toBeInTheDocument()
   expect(screen.getByText('67,105')).toBeInTheDocument()
 })
 
 test('renders loading when no data', () => {
-  render(<FuturesStrip data={null} />)
+  renderWithProviders(<FuturesStrip data={null} />)
   expect(screen.getByText(/loading/i)).toBeInTheDocument()
 })
 
 test('clicking QQQ cell opens chart modal', () => {
-  render(<FuturesStrip data={mockData} />)
+  renderWithProviders(<FuturesStrip data={mockData} />)
   fireEvent.click(screen.getByTestId('ticker-QQQ'))
   expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
 })
 
 test('clicking BTC cell opens chart modal', () => {
-  render(<FuturesStrip data={mockData} />)
+  renderWithProviders(<FuturesStrip data={mockData} />)
   fireEvent.click(screen.getByTestId('ticker-BTC'))
   expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
 })

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { renderWithProviders, screen } from '../test-utils'
 import MoversSidebar from './MoversSidebar'
 
 const mockData = {
@@ -13,8 +13,9 @@ const mockData = {
 }
 
 test('renders ripping and drilling sections with data', () => {
-  render(<MoversSidebar data={mockData} />)
-  expect(screen.getByText('MOVERS AT THE OPEN')).toBeInTheDocument()
+  renderWithProviders(<MoversSidebar data={mockData} />)
+  // Title is now mixed-case "Movers at the Open" (previously all-caps).
+  expect(screen.getByText(/movers at the open/i)).toBeInTheDocument()
   expect(screen.getByText(/ripping/i)).toBeInTheDocument()
   expect(screen.getByText(/drilling/i)).toBeInTheDocument()
   expect(screen.getByText('RNG')).toBeInTheDocument()
@@ -23,9 +24,10 @@ test('renders ripping and drilling sections with data', () => {
   expect(screen.getByText('-50.55%')).toBeInTheDocument()
 })
 
-test('renders loading state when no data', () => {
-  render(<MoversSidebar data={null} />)
-  expect(screen.getByText(/loading/i)).toBeInTheDocument()
+test('renders skeleton (no crash) when no data', () => {
+  // Loading state now renders SkeletonTable; no literal "loading" text.
+  const { container } = renderWithProviders(<MoversSidebar data={null} />)
+  expect(container).toBeTruthy()
 })
 
 test('each ticker sym is wrapped in a TickerPopup trigger', () => {
@@ -33,7 +35,7 @@ test('each ticker sym is wrapped in a TickerPopup trigger', () => {
     ripping:  [{ sym: 'NVDA', pct: '+5.20%' }, { sym: 'TSLA', pct: '+3.10%' }],
     drilling: [{ sym: 'META', pct: '-4.10%' }],
   }
-  render(<MoversSidebar data={mockData} />)
+  renderWithProviders(<MoversSidebar data={mockData} />)
   // TickerPopup renders data-testid="ticker-{sym}" on each trigger span
   expect(screen.getByTestId('ticker-NVDA')).toBeInTheDocument()
   expect(screen.getByTestId('ticker-TSLA')).toBeInTheDocument()

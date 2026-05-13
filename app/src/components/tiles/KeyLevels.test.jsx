@@ -1,12 +1,15 @@
-import { render, screen } from '@testing-library/react'
+import { renderWithProviders, screen } from '../../test-utils'
 import KeyLevels from './KeyLevels'
 
-test('renders default ticker label', () => {
-  render(<KeyLevels />)
-  expect(screen.getAllByText(/QQQ/i).length).toBeGreaterThan(0)
+// KeyLevels has been deferred — currently renders a "Coming Soon" placeholder.
+// Old assertions for ticker label / chart embed don't apply.
+
+test('renders Key Levels title', () => {
+  renderWithProviders(<KeyLevels />)
+  expect(screen.getByText(/key levels/i)).toBeInTheDocument()
 })
 
-test('renders chart embed area', () => {
-  render(<KeyLevels />)
-  expect(screen.getByTestId('key-levels-chart')).toBeInTheDocument()
+test('renders Coming Soon placeholder', () => {
+  renderWithProviders(<KeyLevels />)
+  expect(screen.getByText(/coming soon/i)).toBeInTheDocument()
 })

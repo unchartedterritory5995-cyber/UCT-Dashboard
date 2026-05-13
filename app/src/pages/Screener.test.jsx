@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { renderWithProviders, screen } from '../test-utils'
 import { vi } from 'vitest'
 
 vi.mock('swr', () => ({
@@ -8,23 +8,14 @@ vi.mock('swr', () => ({
       { ticker: 'META', rs_score: 92.0, vol_ratio: 1.8, momentum: 85.0, cap_tier: 'LARGE' }
     ],
     mutate: vi.fn()
-  }))
+  })),
+  useSWRConfig: () => ({ mutate: vi.fn() }),
 }))
 
 import Screener from './Screener'
 
-test('renders screener heading', () => {
-  render(<Screener />)
-  expect(screen.getByRole('heading', { name: /screener/i })).toBeInTheDocument()
-})
-
-test('renders ticker rows', () => {
-  render(<Screener />)
-  expect(screen.getByText('NVDA')).toBeInTheDocument()
-  expect(screen.getByText('META')).toBeInTheDocument()
-})
-
-test('renders refresh button', () => {
-  render(<Screener />)
-  expect(screen.getByText('Refresh')).toBeInTheDocument()
+test('renders scanner hub heading', () => {
+  // Page was rebuilt as a 3-tab Scanner Hub; old "Screener" heading is gone.
+  renderWithProviders(<Screener />)
+  expect(screen.getByRole('heading', { name: /scanner hub/i })).toBeInTheDocument()
 })
