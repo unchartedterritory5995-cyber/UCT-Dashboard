@@ -1,0 +1,129 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 2px;
+}
+
+.interventionBanner {
+  padding: 8px 12px;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.interventionLink {
+  color: #fbbf24;
+  text-decoration: underline;
+  font-weight: 700;
+}
+
+.interventionLink:hover {
+  color: #fcd34d;
+}
+
+.focusBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: rgba(201, 168, 76, 0.06);
+  border-left: 3px solid var(--ut-gold, #c9a84c);
+  border-radius: 4px;
+}
+
+.focusLabel {
+  font-size: 10px;
+  color: var(--ut-gold, #c9a84c);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.focusBody {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-bright);
+}
+
+.empty {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+}
+
+.emptyTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+
+.emptySub {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.recentLine {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.recentLabel {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 10px;
+}
+
+.recentText {
+  color: var(--text-bright);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.talkBtn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--ut-gold, #c9a84c);
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.talkBtn:hover {
+  opacity: 0.92;
+}
+
+.talkBtnActive {
+  background: transparent;
+  color: var(--ut-gold, #c9a84c);
+  border: 1px solid var(--ut-gold, #c9a84c);
+}
+
+.compassTabLink {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.compassTabLink:hover {
+  color: var(--ut-gold, #c9a84c);
+}

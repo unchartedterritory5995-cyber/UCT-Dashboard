@@ -8,6 +8,7 @@ import ThemeTracker from '../components/tiles/ThemeTracker'
 import CatalystFlow from '../components/tiles/CatalystFlow'
 import LeadershipTile from '../components/tiles/LeadershipTile'
 import NewsFeed from '../components/tiles/NewsFeed'
+import CompassTodayTile from '../components/tiles/CompassTodayTile'
 import MoversSidebar from '../components/MoversSidebar'
 import TileCard from '../components/TileCard'
 import styles from './Dashboard.module.css'
@@ -68,6 +69,12 @@ export default function Dashboard() {
 
         {/* Intraday pulse — only renders when brain has pushed an update */}
         <IntradayPulse />
+
+        {/* P4-H unification: Compass status surface on the main dashboard.
+            Visible at first login glance — today's focus + interventions + CTA. */}
+        <div className={styles.compassRow}>
+          <CompassTodayTile />
+        </div>
 
         {/* ── Desktop layout (hidden on mobile) ──────────────────────────── */}
         <div className={styles.desktopOnly}>

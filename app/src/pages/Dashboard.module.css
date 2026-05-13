@@ -14,6 +14,7 @@
   gap: var(--space-md);
 }
 .row1 { width: 100%; }
+.compassRow { width: 100%; }
 .row2 {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
