@@ -90,9 +90,76 @@ def add_insight(
              headline[:300], (body or "")[:1500], importance),
         )
         conn.commit()
-        return cur.lastrowid
+        insight_id = cur.lastrowid
     finally:
         conn.close()
+
+    # P4-C unification: mirror the insight into the Compass chat thread so
+    # the user has a permanent record even if they never open voice / have
+    # proactive_speak off. Best-effort; never raises.
+    try:
+        _post_insight_to_compass_thread(
+            user_id=user_id, kind=kind, headline=headline,
+            body=body, symbol=symbol, importance=importance,
+            insight_id=insight_id,
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+    return insight_id
+
+
+def _post_insight_to_compass_thread(
+    *, user_id: str, kind: str, headline: str,
+    body: str | None, symbol: str | None, importance: int,
+    insight_id: int | None,
+) -> None:
+    """Best-effort: post a Compass-authored message reflecting a proactive
+    insight into the user's Compass chat thread."""
+    try:
+        from api.services.trader_memory import get_default_account_id
+        from api.services.journal_two.coach_chat import append_message
+    except Exception:
+        return
+    account_id = get_default_account_id(user_id)
+    if not account_id:
+        return
+
+    sym = (symbol or "").strip().upper()
+    head = (headline or "").strip()
+    bod = (body or "").strip()
+    # Emoji by kind so the chat surface reads at a glance
+    emoji = {
+        "regime_shift": "🌐",
+        "watchlist_alert": "⚑",
+        "scanner_match": "🔭",
+        "mistake_pattern": "🧠",
+        "drift_warning": "📉",
+    }.get(kind, "🧭")
+    sym_tag = f" — {sym}" if sym else ""
+
+    content_lines = [f"{emoji} **{head}**{sym_tag}"]
+    if bod:
+        content_lines.append("")
+        content_lines.append(bod)
+    content = "\n".join(content_lines)
+
+    try:
+        append_message(
+            user_id=user_id,
+            account_id=account_id,
+            role="assistant",
+            content=content,
+            metadata={
+                "source": "proactive_daemon",
+                "insight_id": insight_id,
+                "kind": kind,
+                "symbol": sym or None,
+                "importance": importance,
+            },
+        )
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def list_pending_insights(user_id: str, *, limit: int = 5) -> list[dict]:
