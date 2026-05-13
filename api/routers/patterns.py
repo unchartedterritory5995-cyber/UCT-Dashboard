@@ -26,6 +26,14 @@ from api.services.pattern_engine.detectors.classical import double_top as _doubl
 from api.services.pattern_engine.detectors.classical import double_bottom as _double_bottom  # noqa: F401
 from api.services.pattern_engine.detectors.classical import cup_handle as _cup_handle  # noqa: F401
 from api.services.pattern_engine.detectors.classical import inverse_cup_handle as _inverse_cup_handle  # noqa: F401
+from api.services.pattern_engine.detectors.classical import ascending_triangle as _ascending_triangle  # noqa: F401
+from api.services.pattern_engine.detectors.classical import descending_triangle as _descending_triangle  # noqa: F401
+from api.services.pattern_engine.detectors.classical import symmetrical_triangle as _symmetrical_triangle  # noqa: F401
+from api.services.pattern_engine.detectors.classical import rectangle as _rectangle  # noqa: F401
+from api.services.pattern_engine.detectors.classical import channel as _channel  # noqa: F401
+from api.services.pattern_engine.detectors.classical import rounded_base as _rounded_base  # noqa: F401
+from api.services.pattern_engine.detectors.classical import rounded_top as _rounded_top  # noqa: F401
+from api.services.pattern_engine.detectors.classical import triple_top as _triple_top  # noqa: F401
 from api.services.pattern_engine.detectors.uct import vcp as _vcp  # noqa: F401
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _high_tight_flag  # noqa: F401
 from api.services.pattern_engine.detectors.uct import episodic_pivot as _episodic_pivot  # noqa: F401
@@ -125,6 +133,54 @@ _PATTERN_METADATA = {
         "category": "classical",
         "direction": "bearish",
         "description": "Inverted rounded dome followed by a small failing rally (handle). Bearish reversal pattern.",
+    },
+    "ascending_triangle": {
+        "name": "Ascending Triangle",
+        "category": "classical",
+        "direction": "bullish",
+        "description": "Flat resistance top + rising support trendline converging. Bullish continuation breakout pattern (Edwards & Magee).",
+    },
+    "descending_triangle": {
+        "name": "Descending Triangle",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "Flat support bottom + falling resistance trendline. Bearish continuation breakdown pattern.",
+    },
+    "symmetrical_triangle": {
+        "name": "Symmetrical Triangle",
+        "category": "classical",
+        "direction": "neutral",
+        "description": "Both upper + lower trendlines converging toward apex. Direction follows breakout side.",
+    },
+    "rectangle": {
+        "name": "Rectangle / Trading Range",
+        "category": "classical",
+        "direction": "neutral",
+        "description": "Sideways consolidation bounded by flat support + flat resistance. Continuation in prior trend direction (Wyckoff / Schabacker).",
+    },
+    "channel": {
+        "name": "Channel",
+        "category": "classical",
+        "direction": "neutral",
+        "description": "Parallel trendlines defining a sustained sloped or horizontal channel. Direction follows slope (ascending=bullish, descending=bearish, horizontal=range).",
+    },
+    "rounded_base": {
+        "name": "Rounded Base",
+        "category": "classical",
+        "direction": "bullish",
+        "description": "Slow U-shaped consolidation over 30-120 bars without a handle. Wyckoff accumulation / O'Neil saucer with platform.",
+    },
+    "rounded_top": {
+        "name": "Rounded Top",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "Slow inverted-U distribution pattern. Wyckoff distribution / O'Neil saucer top.",
+    },
+    "triple_top": {
+        "name": "Triple Top",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "3 peaks at similar prices with 2 retrace troughs. Stronger version of double top - supply is overwhelming demand at the level.",
     },
     "vcp": {
         "name": "Volatility Contraction Pattern (VCP)",
