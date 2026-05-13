@@ -109,6 +109,118 @@ def _cot_catchup_background():
         print(f"[startup] COT catch-up refresh failed: {e}")
 
 
+# ── Pattern engine learning-loop jobs (Phase 6) ─────────────────────────────
+# Scheduled by APScheduler alongside the existing COT scheduler. All three
+# wrappers catch every exception and log/print — a failed pattern job must
+# NEVER crash the FastAPI app or trip the Railway healthcheck.
+
+def _run_patterns_track_outcomes():
+    """APScheduler job: resolve open pattern detections (entry/stop/target hits)."""
+    _plog = logging.getLogger(__name__)
+    try:
+        from api.services.pattern_engine.memory import track_outcomes
+        n = track_outcomes(lookback_hours=72)
+        _plog.info("[patterns] track_outcomes: resolved %d detections", n)
+        print(f"[patterns] track_outcomes: resolved {n} detections")
+    except Exception as e:
+        _plog.exception("[patterns] track_outcomes failed: %s", e)
+        print(f"[patterns] track_outcomes failed: {e}")
+
+
+def _run_patterns_recompute_stats():
+    """APScheduler job: aggregate outcomes into pattern_stats nightly."""
+    _plog = logging.getLogger(__name__)
+    try:
+        from api.services.pattern_engine.memory import recompute_stats
+        n = recompute_stats()
+        _plog.info("[patterns] recompute_stats: updated %d stat rows", n)
+        print(f"[patterns] recompute_stats: updated {n} stat rows")
+    except Exception as e:
+        _plog.exception("[patterns] recompute_stats failed: %s", e)
+        print(f"[patterns] recompute_stats failed: {e}")
+
+
+def _run_patterns_universe_scan():
+    """APScheduler job: scan the universe with all 50 detectors, store detections.
+
+    Populates pattern_detections so the admin dashboard /admin/patterns has data
+    for Gate 5 operator review.
+    """
+    _plog = logging.getLogger(__name__)
+    try:
+        from api.services import bars_sqlite
+        from api.services.pattern_engine import detect_all
+        from api.services.pattern_engine import memory
+        from api.services.pattern_engine.primitives.context import build_context
+        # Importing patterns router triggers detector registration:
+        from api.routers import patterns as _patterns  # noqa: F401
+
+        # Resolve the cap_universe path. Primary: relative to this file
+        # (api/main.py → api/data/cap_universe.json). Fallback: cwd-relative.
+        universe_path = os.path.join(
+            os.path.dirname(__file__), "data", "cap_universe.json"
+        )
+        if not os.path.exists(universe_path):
+            universe_path = os.path.join("api", "data", "cap_universe.json")
+        if not os.path.exists(universe_path):
+            _plog.warning(
+                "[patterns] universe_scan: cap_universe.json not found at %s",
+                universe_path,
+            )
+            print(f"[patterns] universe_scan: cap_universe.json not found at {universe_path}")
+            return
+
+        with open(universe_path) as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            tickers = [t for t in data if isinstance(t, str)]
+        else:
+            tickers = data.get("tickers", []) if isinstance(data, dict) else []
+
+        scan_limit = 500
+        timeframes = ["D"]
+        scanned = 0
+        stored = 0
+
+        for sym in tickers[:scan_limit]:
+            for tf in timeframes:
+                try:
+                    bars = bars_sqlite.get_bars(sym, tf, 200)
+                except Exception as bars_err:
+                    _plog.debug("[patterns] get_bars failed for %s %s: %s", sym, tf, bars_err)
+                    continue
+                if not bars or len(bars) < 30:
+                    continue
+                bars_list = [
+                    {"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
+                    for r in bars
+                ]
+                try:
+                    ctx = build_context(bars_list, sym=sym)
+                    detections = detect_all(bars_list, ctx)
+                    for d in detections:
+                        d["sym"] = sym
+                        d["tf"] = tf
+                        try:
+                            memory.store_detection(d)
+                            stored += 1
+                        except Exception as store_err:
+                            # Individual store failures shouldn't stop the scan
+                            _plog.debug("[patterns] store failed for %s: %s", sym, store_err)
+                    scanned += 1
+                except Exception as scan_err:
+                    _plog.debug("[patterns] scan failed for %s %s: %s", sym, tf, scan_err)
+
+        _plog.info(
+            "[patterns] universe_scan: scanned %d symbol-TFs, stored %d detections",
+            scanned, stored,
+        )
+        print(f"[patterns] universe_scan: scanned {scanned} symbol-TFs, stored {stored} detections")
+    except Exception as e:
+        _plog.exception("[patterns] universe_scan failed: %s", e)
+        print(f"[patterns] universe_scan failed: {e}")
+
+
 def _seed_cache_from_volume():
     if not os.path.exists(PERSISTENT_WIRE_DATA_FILE):
         return
@@ -844,6 +956,7 @@ async def lifespan(app: FastAPI):
     if acquire_scheduler_lock():
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger
+        from apscheduler.triggers.interval import IntervalTrigger
         from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens, record_mrr_snapshot
         _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
         _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
@@ -1077,12 +1190,44 @@ async def lifespan(app: FastAPI):
             replace_existing=True,
         )
 
+        # ── Pattern engine learning-loop jobs (Phase 6) ─────────────────────
+        # Three jobs that close the detect → outcome → stats loop and keep
+        # the admin verification dashboard populated:
+        #   1. Outcome tracker — every 4h, walks forward bars to resolve open
+        #      detections.
+        #   2. Stats recompute — nightly at 6 AM UTC, aggregates outcomes
+        #      into pattern_stats.
+        #   3. Universe scan — hourly, runs all 50 detectors against the
+        #      top 500 tickers of cap_universe.json on Daily TF.
+        _scheduler.add_job(
+            _run_patterns_track_outcomes,
+            trigger=IntervalTrigger(hours=4),
+            id="patterns_track_outcomes",
+            max_instances=1,
+            replace_existing=True,
+        )
+        _scheduler.add_job(
+            _run_patterns_recompute_stats,
+            trigger=CronTrigger(hour=6, minute=0, timezone="UTC"),
+            id="patterns_recompute_stats",
+            max_instances=1,
+            replace_existing=True,
+        )
+        _scheduler.add_job(
+            _run_patterns_universe_scan,
+            trigger=IntervalTrigger(hours=1),
+            id="patterns_universe_scan",
+            max_instances=1,
+            replace_existing=True,
+        )
+
         _scheduler.start()
         print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled — daily at 3:00 AM ET")
         print("[startup] Churn risk check scheduled — daily at 9:00 AM ET")
         print("[startup] MRR snapshot scheduled — daily at 11:59 PM ET")
         print("[startup] Compass EOD recap scheduled — Mon-Fri at 4:30 PM ET")
+        print("[startup] Pattern engine jobs scheduled — outcomes (4h interval), stats (06:00 UTC daily), universe scan (1h interval)")
     else:
         print("[startup] APScheduler skipped — lock held by another uvicorn worker (multi-worker mode)")
 
