@@ -179,21 +179,21 @@ export default function BreadthCharts() {
 
     return {
       backgroundColor: 'transparent',
-      textStyle: { color: '#e2e8f0' },
+      textStyle: { color: '#e0dac8' },
       legend: {
         top: 8,
         data: selected.map(key => LABEL_MAP[key] ?? key),
-        textStyle: { color: '#cbd5e1', fontSize: 12 },
+        textStyle: { color: '#a8a290', fontSize: 12 },
         icon: 'circle',
         itemWidth: 8,
         itemHeight: 8,
       },
       tooltip: {
         trigger: 'axis',
-        axisPointer: { type: 'cross', crossStyle: { color: '#475569' } },
-        backgroundColor: '#1e293b',
-        borderColor: '#334155',
-        textStyle: { color: '#e2e8f0', fontSize: 12 },
+        axisPointer: { type: 'cross', crossStyle: { color: '#3a3d32' } },
+        backgroundColor: '#22251e',
+        borderColor: '#2e3127',
+        textStyle: { color: '#e0dac8', fontSize: 12 },
         formatter(params) {
           if (!params.length) return ''
           const date = params[0].axisValue
@@ -206,17 +206,17 @@ export default function BreadthCharts() {
                 : p.value[1]
               return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${p.seriesName}: <b>${val}</b>`
             })
-          return `<div style="font-size:11px;color:#94a3b8;margin-bottom:4px">${date}</div>` + lines.join('<br/>')
+          return `<div style="font-size:11px;color:#706b5e;margin-bottom:4px">${date}</div>` + lines.join('<br/>')
         },
       },
       grid: { left: 64, right: 64, top: 48, bottom: 56 },
       xAxis: {
         type: 'category',
         boundaryGap: false,
-        axisLine: { lineStyle: { color: '#334155' } },
-        axisTick: { lineStyle: { color: '#334155' } },
+        axisLine: { lineStyle: { color: '#2e3127' } },
+        axisTick: { lineStyle: { color: '#2e3127' } },
         axisLabel: {
-          color: '#94a3b8',
+          color: '#706b5e',
           fontSize: 11,
           formatter: v => v.slice(5).replace('-', '/'),
         },
@@ -225,16 +225,16 @@ export default function BreadthCharts() {
       yAxis: [
         {
           type: 'value',
-          axisLine: { lineStyle: { color: '#334155' } },
+          axisLine: { lineStyle: { color: '#2e3127' } },
           axisTick: { show: false },
-          axisLabel: { color: '#94a3b8', fontSize: 11 },
-          splitLine: { lineStyle: { color: '#1e293b' } },
+          axisLabel: { color: '#706b5e', fontSize: 11 },
+          splitLine: { lineStyle: { color: '#22251e' } },
         },
         {
           type: 'value',
-          axisLine: { lineStyle: { color: '#334155' } },
+          axisLine: { lineStyle: { color: '#2e3127' } },
           axisTick: { show: false },
-          axisLabel: { color: '#94a3b8', fontSize: 11 },
+          axisLabel: { color: '#706b5e', fontSize: 11 },
           splitLine: { show: false },
         },
       ],
@@ -244,10 +244,10 @@ export default function BreadthCharts() {
           type: 'slider',
           bottom: 4,
           height: 22,
-          fillerColor: 'rgba(96,165,250,0.10)',
-          borderColor: '#334155',
-          handleStyle: { color: '#60a5fa' },
-          textStyle: { color: '#94a3b8' },
+          fillerColor: 'rgba(201,168,76,0.10)',
+          borderColor: '#2e3127',
+          handleStyle: { color: '#c9a84c' },
+          textStyle: { color: '#706b5e' },
         },
       ],
       series,

@@ -30,9 +30,10 @@
   gap: 5px;
   padding: 5px 12px;
   border-radius: 20px;
-  border: 1px solid #334155;
-  background: #1e293b;
-  color: #cbd5e1;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--font-sans);
   font-size: 12px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
@@ -40,15 +41,15 @@
 }
 
 .groupBtn:hover {
-  background: #253347;
-  border-color: #475569;
-  color: #e2e8f0;
+  background: var(--bg-hover);
+  border-color: var(--border-accent);
+  color: var(--text-bright);
 }
 
 .groupBtnActive {
-  background: #1e3a5f;
-  border-color: #3b82f6;
-  color: #93c5fd;
+  background: var(--ut-gold-dim);
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
 }
 
 .badge {
@@ -59,8 +60,8 @@
   height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: #3b82f6;
-  color: #fff;
+  background: var(--ut-gold);
+  color: #000;
   font-size: 10px;
   font-weight: 600;
   line-height: 1;
@@ -76,17 +77,18 @@
   flex-wrap: wrap;
   gap: 6px 16px;
   padding: 10px 14px;
-  border-radius: 8px;
-  background: #0f172a;
-  border: 1px solid #1e293b;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
 }
 
 .metricItem {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-family: var(--font-sans);
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text);
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
@@ -94,13 +96,13 @@
 }
 
 .metricItem:hover {
-  color: #e2e8f0;
+  color: var(--text-bright);
 }
 
 .metricItem input[type="checkbox"] {
   width: 13px;
   height: 13px;
-  accent-color: #3b82f6;
+  accent-color: var(--ut-gold);
   cursor: pointer;
 }
 
@@ -109,7 +111,7 @@
   width: 100%;
   padding-bottom: 8px;
   margin-bottom: 2px;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid var(--border);
 }
 
 .extremesBtn {
@@ -118,9 +120,10 @@
   gap: 5px;
   padding: 4px 12px;
   border-radius: 20px;
-  border: 1px solid #78350f;
-  background: rgba(120, 53, 15, 0.20);
-  color: #fbbf24;
+  border: 1px solid var(--ut-gold-glow);
+  background: var(--ut-gold-dim);
+  color: var(--ut-gold);
+  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
@@ -130,15 +133,15 @@
 }
 
 .extremesBtn:hover {
-  background: rgba(120, 53, 15, 0.35);
-  border-color: #d97706;
+  background: var(--ut-gold-glow);
+  border-color: var(--ut-gold);
 }
 
 .extremesBtnActive {
-  background: rgba(120, 53, 15, 0.45);
-  border-color: #f59e0b;
-  color: #fde68a;
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.25);
+  background: var(--ut-gold-glow);
+  border-color: var(--ut-gold);
+  color: var(--text-heading);
+  box-shadow: 0 0 6px var(--ut-gold-glow);
 }
 
 /* ── Date row ──────────────────────────────────────────────────────────────── */
@@ -153,16 +156,18 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  font-family: var(--font-sans);
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
 .dateInput {
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  color: #e2e8f0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font-family: var(--font-sans);
   font-size: 12px;
   padding: 4px 8px;
   height: 30px;
@@ -174,20 +179,21 @@
 
 .dateInput:hover,
 .dateInput:focus {
-  border-color: #60a5fa;
+  border-color: var(--ut-gold);
 }
 
 .rowCount {
+  font-family: var(--font-sans);
   font-size: 11px;
-  color: #475569;
+  color: var(--text-muted);
   margin-left: 4px;
 }
 
 /* ── Chart ─────────────────────────────────────────────────────────────────── */
 .chartWrap {
-  border-radius: 8px;
-  background: #0f172a;
-  border: 1px solid #1e293b;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   overflow: hidden;
   min-height: 120px;
   display: flex;
@@ -196,7 +202,8 @@
 }
 
 .placeholder {
-  color: #475569;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
   font-size: 13px;
   padding: 40px 20px;
   text-align: center;
