@@ -457,10 +457,9 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
             f"?v=152&f={_qf}&o={order}&auth={token}"
         )
         try:
-            req = urllib.request.Request(url, headers=_headers)
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                text = resp.read().decode("utf-8", errors="replace")
-            reader = csv.DictReader(io.StringIO(text))
+            r = httpx.get(url, headers=_headers, timeout=15.0)
+            r.raise_for_status()
+            reader = csv.DictReader(io.StringIO(r.text))
             return list(reader)
         except Exception:
             return []

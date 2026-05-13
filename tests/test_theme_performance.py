@@ -91,8 +91,44 @@ def test_compute_returns_empty_bars():
         assert result[key] is None
 
 
+def _run_computation_and_capture(MOCK_WIRE, FAKE_BARS):
+    """Drive _run_computation synchronously, capture the dict it persists.
+
+    get_theme_performance() is a non-blocking wrapper that defers to a
+    background thread + disk cache. Tests target the inner builder.
+
+    Test isolation: a prior test (e.g. one that hit get_theme_performance
+    via TestClient) may have spawned a background compute thread still
+    running real wire_data. We wait for it to finish before patching,
+    then track call_args from our synchronous call only.
+    """
+    import time
+    from api.services import theme_performance as tp
+
+    # Wait for any inflight background computation from a prior test
+    deadline = time.monotonic() + 5.0
+    while tp._computing and time.monotonic() < deadline:
+        time.sleep(0.05)
+
+    with patch("api.services.theme_performance._load_wire_data", return_value=MOCK_WIRE), \
+         patch("api.services.theme_performance.get_agg_bars", return_value=FAKE_BARS), \
+         patch("api.services.theme_performance._save_to_disk"), \
+         patch("api.services.theme_performance.cache") as mock_cache:
+        # Snapshot the call count before our sync run so we ignore any
+        # late-arriving writes from a different code path.
+        before = len(mock_cache.set.call_args_list)
+        tp._run_computation()
+        new_calls = mock_cache.set.call_args_list[before:]
+        result = None
+        for call in new_calls:
+            if call.args and call.args[0] == tp._CACHE_KEY:
+                result = call.args[1]
+                break
+    return result
+
+
 def test_build_theme_performance_shape():
-    """get_theme_performance returns correct shape with mocked data."""
+    """_run_computation produces correct shape with mocked data."""
     MOCK_WIRE = {
         "themes": {
             "UFO": {
@@ -108,22 +144,18 @@ def test_build_theme_performance_shape():
         }
     }
     FAKE_BARS = [{"t": 1700000000000 + i * 86400000, "c": float(100 + i)} for i in range(300)]
+    result = _run_computation_and_capture(MOCK_WIRE, FAKE_BARS)
 
-    with patch("api.services.theme_performance._load_wire_data", return_value=MOCK_WIRE), \
-         patch("api.services.theme_performance.get_agg_bars", return_value=FAKE_BARS), \
-         patch("api.services.theme_performance.cache") as mock_cache:
-        mock_cache.get.return_value = None  # no cached value
-
-        from api.services.theme_performance import get_theme_performance
-        result = get_theme_performance()
-
+    assert result is not None
     assert "themes" in result
-    assert len(result["themes"]) == 1
-    theme = result["themes"][0]
-    assert theme["name"] == "Space"
-    assert theme["ticker"] == "UFO"
-    assert len(theme["holdings"]) == 2
-    holding = theme["holdings"][0]
+    # UCT20 is auto-injected by the service whenever wire data exists,
+    # so the result contains UFO + UCT20.
+    themes_by_ticker = {t["ticker"]: t for t in result["themes"]}
+    assert "UFO" in themes_by_ticker
+    ufo = themes_by_ticker["UFO"]
+    assert ufo["name"] == "Space"
+    assert len(ufo["holdings"]) == 2
+    holding = ufo["holdings"][0]
     assert holding["sym"] == "RKLB"
     assert "returns" in holding
     for period in ("1d", "1w", "1m", "3m", "1y", "ytd"):
@@ -131,14 +163,9 @@ def test_build_theme_performance_shape():
 
 
 def test_build_theme_performance_no_wire_data():
-    """get_theme_performance returns empty themes when wire_data unavailable."""
-    with patch("api.services.theme_performance._load_wire_data", return_value=None), \
-         patch("api.services.theme_performance.cache") as mock_cache:
-        mock_cache.get.return_value = None
-
-        from api.services.theme_performance import get_theme_performance
-        result = get_theme_performance()
-
+    """_run_computation persists empty themes when wire_data unavailable."""
+    result = _run_computation_and_capture(MOCK_WIRE=None, FAKE_BARS=[])
+    assert result is not None
     assert result["themes"] == []
 
 
@@ -182,15 +209,9 @@ def test_uct20_pulls_from_leadership():
         ]
     }
     FAKE_BARS = [{"t": 1700000000000 + i * 86400000, "c": float(100 + i)} for i in range(300)]
+    result = _run_computation_and_capture(MOCK_WIRE, FAKE_BARS)
 
-    with patch("api.services.theme_performance._load_wire_data", return_value=MOCK_WIRE), \
-         patch("api.services.theme_performance.get_agg_bars", return_value=FAKE_BARS), \
-         patch("api.services.theme_performance.cache") as mock_cache:
-        mock_cache.get.return_value = None
-
-        from api.services.theme_performance import get_theme_performance
-        result = get_theme_performance()
-
+    assert result is not None
     themes = {t["ticker"]: t for t in result["themes"]}
     assert "UCT20" in themes
     syms = [h["sym"] for h in themes["UCT20"]["holdings"]]
@@ -221,15 +242,9 @@ def test_excluded_themes_not_in_output():
         }
     }
     FAKE_BARS = [{"t": 1700000000000 + i * 86400000, "c": float(100 + i)} for i in range(10)]
+    result = _run_computation_and_capture(MOCK_WIRE, FAKE_BARS)
 
-    with patch("api.services.theme_performance._load_wire_data", return_value=MOCK_WIRE), \
-         patch("api.services.theme_performance.get_agg_bars", return_value=FAKE_BARS), \
-         patch("api.services.theme_performance.cache") as mock_cache:
-        mock_cache.get.return_value = None
-
-        from api.services.theme_performance import get_theme_performance
-        result = get_theme_performance()
-
+    assert result is not None
     tickers = [t["ticker"] for t in result["themes"]]
     assert "UFO" in tickers
     assert "URA" not in tickers

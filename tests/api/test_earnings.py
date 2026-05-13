@@ -47,15 +47,24 @@ async def test_earnings_analysis_finds_amc_tonight_row():
 
 
 @pytest.mark.asyncio
-async def test_earnings_analysis_sym_not_found_passes_none_row():
-    """When sym isn't in any bucket, row=None is passed (Pending/cold state)."""
+async def test_earnings_analysis_sym_not_found_routes_to_preview():
+    """When sym isn't in any bucket, the router treats it as pending/cold
+    state and routes to _generate_earnings_preview with a synthesized
+    minimal row ({"sym": sym}). The older `analysis with row=None` path
+    was replaced when the preview pipeline shipped."""
     with patch("api.routers.earnings.get_earnings", return_value={"bmo": [], "amc": [], "amc_tonight": []}), \
-         patch("api.routers.earnings._generate_earnings_analysis", return_value=MOCK_ANALYSIS) as mock_gen:
+         patch("api.routers.earnings._generate_earnings_preview", return_value=MOCK_PREVIEW) as mock_prev, \
+         patch("api.routers.earnings._generate_earnings_analysis") as mock_anal:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             r = await ac.get("/api/earnings-analysis/UNKNOWN")
     assert r.status_code == 200
-    call_args = mock_gen.call_args
-    assert call_args[0][1] is None  # row=None when sym not found
+    # Preview path is used; analysis path is NOT
+    mock_prev.assert_called_once()
+    mock_anal.assert_not_called()
+    call_args = mock_prev.call_args
+    assert call_args[0][0] == "UNKNOWN"
+    # Router synthesizes a minimal row so the preview function never gets None
+    assert call_args[0][1] == {"sym": "UNKNOWN"}
 
 
 MOCK_PENDING_ROW = {

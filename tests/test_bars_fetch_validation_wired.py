@@ -56,27 +56,36 @@ def isolated_caches(tmp_path, monkeypatch):
 
 def test_production_path_falls_through_when_primary_corrupt(fresh_quarantine):
     """Verify fetch_with_validation runs the Massive → FMP fallback when Massive
-    returns a corrupt payload.  This is the public guarantee of fetch_with_validation
-    that the wiring depends on."""
+    returns a majority-corrupt payload.  This is the public guarantee of
+    fetch_with_validation that the wiring depends on.
+
+    Threshold: payload is accepted if ≥50% of bars validate. To force
+    fallthrough, more than half the bars must be corrupt. (Per-bar filtering
+    of any remaining bad bars happens later at the disk-cache write step.)
+    """
+    # 3 corrupt out of 4 bars → 25% valid, below the 50% threshold → fallthrough
     massive_corrupt = [
-        {"t": 1715080800, "o": 700, "h": 705, "l": 698, "c": 702, "v": 1500000},
-        # The QQQ 6.55 phantom: huge deviation + low volume → fails validation
+        {"t": 1715080800, "o": 700,  "h": 705,  "l": 698,  "c": 702,  "v": 1500000},
         {"t": 1715080900, "o": 6.55, "h": 6.55, "l": 6.55, "c": 6.55, "v": 56},
+        {"t": 1715081000, "o": 6.40, "h": 6.40, "l": 6.40, "c": 6.40, "v": 32},
+        {"t": 1715081100, "o": 6.30, "h": 6.30, "l": 6.30, "c": 6.30, "v": 48},
     ]
     fmp_clean = [
         {"t": 1715080800, "o": 700, "h": 705, "l": 698, "c": 702, "v": 1500000},
         {"t": 1715080900, "o": 702, "h": 707, "l": 701, "c": 706, "v": 1100000},
+        {"t": 1715081000, "o": 706, "h": 708, "l": 704, "c": 707, "v": 1000000},
+        {"t": 1715081100, "o": 707, "h": 710, "l": 706, "c": 709, "v": 1200000},
     ]
 
     with patch.object(bars_fetch, "_fetch_intraday_massive", return_value=massive_corrupt) as mm, \
          patch.object(bars_fetch, "_fetch_intraday_fmp", return_value=fmp_clean) as mf:
         result = bars_fetch.fetch_with_validation("QQQ", "30", 100, prior_close=702.0)
 
-    # Result should contain FMP's clean bars, not Massive's corrupt
+    # Result should contain FMP's clean bars, not Massive's corrupt majority
     assert result is not None
     bars = result if isinstance(result, list) else result.get("bars", [])
     closes = [b.get("c") for b in bars]
-    assert 6.55 not in closes  # corrupt was filtered out
+    assert 6.55 not in closes  # corrupt was filtered out via fallthrough
     assert mm.called
     # FMP should have been called as fallback
     assert mf.called

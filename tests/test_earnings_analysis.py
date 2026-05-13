@@ -44,11 +44,11 @@ def _make_finnhub_mock(items=None):
 
 class TestYoYEpsGrowth:
     def setup_method(self):
-        cache.invalidate("earnings_analysis_TEST")
+        cache.invalidate("earnings_analysis_v2_TEST")
 
     def _run(self, quarters, row=None):
         av_data = _mock_av_response(quarters)
-        with patch.object(engine, "_av_get", return_value=av_data), \
+        with patch.object(engine, "_fetch_quarterly_history", return_value=quarters), \
              patch.object(engine, "_with_retry", return_value=[]), \
              patch.object(engine, "_get_anthropic_client") as mock_ac:
             mock_ac.return_value.messages.create.return_value = _mock_anthropic_analysis()
@@ -88,11 +88,10 @@ class TestYoYEpsGrowth:
 
 class TestBeatStreak:
     def setup_method(self):
-        cache.invalidate("earnings_analysis_TEST")
+        cache.invalidate("earnings_analysis_v2_TEST")
 
     def _run(self, quarters):
-        av_data = _mock_av_response(quarters)
-        with patch.object(engine, "_av_get", return_value=av_data), \
+        with patch.object(engine, "_fetch_quarterly_history", return_value=quarters), \
              patch.object(engine, "_with_retry", return_value=[]), \
              patch.object(engine, "_get_anthropic_client") as mock_ac:
             mock_ac.return_value.messages.create.return_value = _mock_anthropic_analysis()
@@ -128,10 +127,11 @@ class TestBeatStreak:
 
 class TestGracefulDegradation:
     def setup_method(self):
-        cache.invalidate("earnings_analysis_TEST")
+        cache.invalidate("earnings_analysis_v2_TEST")
 
     def test_av_failure_returns_none_fields(self):
-        with patch.object(engine, "_av_get", side_effect=RuntimeError("AV down")), \
+        """Empty quarterly history → degrade gracefully with None EPS/streak fields."""
+        with patch.object(engine, "_fetch_quarterly_history", return_value=[]), \
              patch.object(engine, "_with_retry", return_value=[]), \
              patch.object(engine, "_get_anthropic_client") as mock_ac:
             mock_ac.return_value.messages.create.return_value = _mock_anthropic_analysis()
@@ -142,7 +142,7 @@ class TestGracefulDegradation:
 
     def test_finnhub_dict_response_returns_empty_news(self):
         """Finnhub returning error dict (not list) should yield empty news."""
-        with patch.object(engine, "_av_get", return_value={"quarterlyEarnings": []}), \
+        with patch.object(engine, "_fetch_quarterly_history", return_value=[]), \
              patch.object(engine, "_with_retry", return_value={"error": "Invalid token"}), \
              patch.object(engine, "_get_anthropic_client") as mock_ac:
             mock_ac.return_value.messages.create.return_value = _mock_anthropic_analysis()
@@ -154,7 +154,7 @@ class TestGracefulDegradation:
         row = {"verdict": "beat", "reported_eps": 1.60, "eps_estimate": 1.50,
                "surprise_pct": "+6.7%", "rev_actual": 14000, "rev_estimate": 13500,
                "rev_surprise_pct": "+3.7%", "change_pct": 5.2}
-        with patch.object(engine, "_av_get", return_value={"quarterlyEarnings": []}), \
+        with patch.object(engine, "_fetch_quarterly_history", return_value=[]), \
              patch.object(engine, "_with_retry", return_value=[]), \
              patch.object(engine, "_get_anthropic_client", side_effect=RuntimeError("API key missing")):
             result = engine._generate_earnings_analysis("TEST", row)
@@ -162,7 +162,7 @@ class TestGracefulDegradation:
 
     def test_pending_row_skips_ai(self):
         """row=None (pending) should return analysis=None without calling Anthropic."""
-        with patch.object(engine, "_av_get", return_value={"quarterlyEarnings": []}), \
+        with patch.object(engine, "_fetch_quarterly_history", return_value=[]), \
              patch.object(engine, "_with_retry", return_value=[]), \
              patch.object(engine, "_get_anthropic_client") as mock_ac:
             result = engine._generate_earnings_analysis("TEST", None)
@@ -170,13 +170,13 @@ class TestGracefulDegradation:
         assert result["analysis"] is None
 
     def test_av_rate_limit_response_logged_not_silenced(self):
-        """AV rate-limit Note response raises, degrades to None fields."""
-        with patch.object(engine, "_av_get", side_effect=RuntimeError("AV rate limit hit")), \
+        """AV rate-limit / fetch failure: empty quarters returned, degrade gracefully."""
+        with patch.object(engine, "_fetch_quarterly_history", return_value=[]), \
              patch.object(engine, "_with_retry", return_value=[]), \
              patch.object(engine, "_get_anthropic_client") as mock_ac:
             mock_ac.return_value.messages.create.return_value = _mock_anthropic_analysis()
             result = engine._generate_earnings_analysis("TEST", None)
-        # Should degrade gracefully — no crash, but also no AV data
+        # Should degrade gracefully — no crash, but also no quarterly data
         assert result["yoy_eps_growth"] is None
         assert result["beat_streak"] is None
 
@@ -191,11 +191,12 @@ class TestCacheBehaviour:
         """Cache hit must return immediately without any I/O."""
         cached_data = {"sym": "CACHED", "analysis": "cached", "yoy_eps_growth": None,
                        "beat_streak": None, "news": []}
-        cache.set("earnings_analysis_CACHED", cached_data, ttl=300)
-        with patch.object(engine, "_av_get") as mock_av, \
+        # _generate_earnings_analysis uses cache key f"earnings_analysis_v2_{sym}"
+        cache.set("earnings_analysis_v2_CACHED", cached_data, ttl=300)
+        with patch.object(engine, "_fetch_quarterly_history") as mock_fetch, \
              patch.object(engine, "_with_retry") as mock_retry:
             result = engine._generate_earnings_analysis("CACHED", None)
-        mock_av.assert_not_called()
+        mock_fetch.assert_not_called()
         mock_retry.assert_not_called()
         assert result["analysis"] == "cached"
 
@@ -223,20 +224,19 @@ class TestGenerateEarningsPreview:
     }
 
     def setup_method(self):
-        cache.invalidate("earnings_preview_PL")
+        cache.invalidate("earnings_preview_v2_PL")
 
     def _run(self, av_quarters=None, fh_news=None, ai_response=None, row=None):
         if av_quarters is None:
             av_quarters = _make_quarters([
                 (0.10, 0.08), (0.08, 0.09), (0.06, 0.07), (0.05, 0.06), (0.04, 0.05)
             ])
-        av_data = _mock_av_response(av_quarters)
         ai_msg = ai_response if ai_response is not None else _mock_preview_response()
         fh_items = fh_news if fh_news is not None else []
         if row is None:
             row = self.PENDING_ROW
 
-        with patch.object(engine, "_av_get", return_value=av_data), \
+        with patch.object(engine, "_fetch_quarterly_history", return_value=av_quarters), \
              patch.object(engine, "_with_retry", return_value=fh_items), \
              patch.object(engine, "_get_anthropic_client") as mock_ac:
             mock_ac.return_value.messages.create.return_value = ai_msg
@@ -257,8 +257,8 @@ class TestGenerateEarningsPreview:
         assert isinstance(result["news"], list)
 
     def test_preview_graceful_av_failure(self):
-        """AV timeout: beat fields are empty strings/lists; AI call still runs."""
-        with patch.object(engine, "_av_get", side_effect=Exception("timeout")), \
+        """Empty quarterly history: beat fields are empty/None; AI call still runs."""
+        with patch.object(engine, "_fetch_quarterly_history", return_value=[]), \
              patch.object(engine, "_with_retry", return_value=[]), \
              patch.object(engine, "_get_anthropic_client") as mock_ac:
             mock_ac.return_value.messages.create.return_value = _mock_preview_response()
@@ -272,9 +272,10 @@ class TestGenerateEarningsPreview:
 
     def test_preview_graceful_finnhub_failure(self):
         """Finnhub failure: news is empty list; preview still generated."""
-        with patch.object(engine, "_av_get", return_value=_mock_av_response(_make_quarters([
-                (0.10, 0.08), (0.08, 0.09), (0.06, 0.07), (0.05, 0.06), (0.04, 0.05)
-             ]))), \
+        quarters = _make_quarters([
+            (0.10, 0.08), (0.08, 0.09), (0.06, 0.07), (0.05, 0.06), (0.04, 0.05)
+        ])
+        with patch.object(engine, "_fetch_quarterly_history", return_value=quarters), \
              patch.object(engine, "_with_retry", side_effect=Exception("finnhub down")), \
              patch.object(engine, "_get_anthropic_client") as mock_ac:
             mock_ac.return_value.messages.create.return_value = _mock_preview_response()
@@ -287,22 +288,23 @@ class TestGenerateEarningsPreview:
 
     def test_preview_graceful_ai_failure(self):
         """Claude failure: preview_text and bullets are empty; data fields still populated."""
-        with patch.object(engine, "_av_get", return_value=_mock_av_response(_make_quarters([
-                (0.10, 0.08), (0.08, 0.09), (0.06, 0.07), (0.05, 0.06), (0.04, 0.05)
-             ]))), \
+        quarters = _make_quarters([
+            (0.10, 0.08), (0.08, 0.09), (0.06, 0.07), (0.05, 0.06), (0.04, 0.05)
+        ])
+        with patch.object(engine, "_fetch_quarterly_history", return_value=quarters), \
              patch.object(engine, "_with_retry", return_value=[]), \
              patch.object(engine, "_get_anthropic_client") as mock_ac:
             mock_ac.return_value.messages.create.side_effect = Exception("api error")
             result = engine._generate_earnings_preview("PL", self.PENDING_ROW)
         assert result["preview_text"] == ""
         assert result["preview_bullets"] == []
-        # Data fields still populated — AV succeeded so yoy_eps_growth is a real value, not "N/A"
+        # Data fields still populated — quarterly data succeeded so yoy_eps_growth is real
         assert result["yoy_eps_growth"] == "+150.0%"
         assert result["beat_streak"] == "Beat 1 of last 4"
         assert len(result["beat_history"]) == 4
 
     def test_preview_uses_separate_cache_key(self):
-        """Cache must be written to earnings_preview_SYM, not earnings_analysis_SYM."""
+        """Cache must be written to earnings_preview_v2_SYM, not earnings_analysis_v2_SYM."""
         self._run()
-        assert cache.get("earnings_preview_PL") is not None
-        assert cache.get("earnings_analysis_PL") is None
+        assert cache.get("earnings_preview_v2_PL") is not None
+        assert cache.get("earnings_analysis_v2_PL") is None

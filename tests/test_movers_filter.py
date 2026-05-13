@@ -22,21 +22,22 @@ def _make_csv(*rows):
     return buf.getvalue()
 
 
-def _mock_urlopen_factory(gainers_csv: str, losers_csv: str):
-    """Return a context-manager mock for urllib.request.urlopen."""
-    import contextlib
-
+def _mock_httpx_get_factory(gainers_csv: str, losers_csv: str):
+    """Return a mock for httpx.get that alternates between gainers and losers
+    CSVs (matches the order=-change / order=change call sequence in
+    _fetch_finviz_movers_live)."""
     call_count = {"n": 0}
 
-    @contextlib.contextmanager
-    def _mock_urlopen(req, timeout=15):
+    def _mock_httpx_get(url, **kwargs):
         text = gainers_csv if call_count["n"] == 0 else losers_csv
         call_count["n"] += 1
         mock_resp = MagicMock()
-        mock_resp.read.return_value = text.encode("utf-8")
-        yield mock_resp
+        mock_resp.text = text
+        mock_resp.status_code = 200
+        mock_resp.raise_for_status = MagicMock()
+        return mock_resp
 
-    return _mock_urlopen
+    return _mock_httpx_get
 
 
 # ── _fetch_finviz_movers_live ──────────────────────────────────────────────────
@@ -50,7 +51,7 @@ def test_finviz_movers_parses_gainers_and_losers():
 
     with patch("api.services.massive.os.environ.get", return_value="fake_token"), \
          patch("api.services.massive._is_leveraged_etf", return_value=False), \
-         patch("api.services.massive.urllib.request.urlopen", side_effect=_mock_urlopen_factory(gainers, losers)):
+         patch("api.services.massive.httpx.get", side_effect=_mock_httpx_get_factory(gainers, losers)):
         ripping, drilling = _fetch_finviz_movers_live()
 
     rip_syms = [r["sym"] for r in ripping]
@@ -75,7 +76,7 @@ def test_finviz_movers_excludes_leveraged_etfs():
     losers  = _make_csv()
 
     with patch("api.services.massive.os.environ.get", return_value="fake_token"), \
-         patch("api.services.massive.urllib.request.urlopen", side_effect=_mock_urlopen_factory(gainers, losers)):
+         patch("api.services.massive.httpx.get", side_effect=_mock_httpx_get_factory(gainers, losers)):
         ripping, drilling = _fetch_finviz_movers_live()
 
     rip_syms = [r["sym"] for r in ripping]
@@ -103,7 +104,7 @@ def test_finviz_movers_caps_at_12():
 
     with patch("api.services.massive.os.environ.get", return_value="fake_token"), \
          patch("api.services.massive._is_leveraged_etf", return_value=False), \
-         patch("api.services.massive.urllib.request.urlopen", side_effect=_mock_urlopen_factory(gainers, losers)):
+         patch("api.services.massive.httpx.get", side_effect=_mock_httpx_get_factory(gainers, losers)):
         ripping, drilling = _fetch_finviz_movers_live()
 
     assert len(ripping)  <= 12
@@ -117,6 +118,7 @@ def test_gap_filter_excludes_sub_3pct():
     from api.services.massive import get_movers
     from api.services.cache import cache
     cache.invalidate("movers")
+    cache.invalidate("movers_discovery")
 
     # Must be sorted descending (gainers) / ascending (losers) — Finviz sort order
     gainers = _make_csv(("NVDA", 5.2), ("TSLA", 3.0), ("AAPL", 1.5))
@@ -124,7 +126,7 @@ def test_gap_filter_excludes_sub_3pct():
 
     with patch("api.services.massive.os.environ.get", return_value="fake_token"), \
          patch("api.services.massive._is_leveraged_etf", return_value=False), \
-         patch("api.services.massive.urllib.request.urlopen", side_effect=_mock_urlopen_factory(gainers, losers)):
+         patch("api.services.massive.httpx.get", side_effect=_mock_httpx_get_factory(gainers, losers)):
         result = get_movers()
 
     rip = [r["sym"] for r in result["ripping"]]
@@ -142,13 +144,14 @@ def test_gap_filter_empty_when_nothing_qualifies():
     from api.services.massive import get_movers
     from api.services.cache import cache
     cache.invalidate("movers")
+    cache.invalidate("movers_discovery")
 
     gainers = _make_csv(("AAPL", 0.5), ("MSFT", 1.2))
     losers  = _make_csv(("GOOG", -0.3), ("META", -2.9))
 
     with patch("api.services.massive.os.environ.get", return_value="fake_token"), \
          patch("api.services.massive._is_leveraged_etf", return_value=False), \
-         patch("api.services.massive.urllib.request.urlopen", side_effect=_mock_urlopen_factory(gainers, losers)):
+         patch("api.services.massive.httpx.get", side_effect=_mock_httpx_get_factory(gainers, losers)):
         result = get_movers()
 
     assert result["ripping"]  == []
@@ -160,6 +163,7 @@ def test_engine_movers_listed_first():
     from api.services.massive import get_movers
     from api.services.cache import cache
     cache.invalidate("movers")
+    cache.invalidate("movers_discovery")
     cache.set("wire_data", {
         "movers": {
             "rippers": [{"sym": "ENGINE_TOP", "pct": "+20.00%"}],
@@ -173,7 +177,7 @@ def test_engine_movers_listed_first():
     try:
         with patch("api.services.massive.os.environ.get", return_value="fake_token"), \
              patch("api.services.massive._is_leveraged_etf", return_value=False), \
-             patch("api.services.massive.urllib.request.urlopen", side_effect=_mock_urlopen_factory(gainers, losers)):
+             patch("api.services.massive.httpx.get", side_effect=_mock_httpx_get_factory(gainers, losers)):
             result = get_movers()
 
         rip = [r["sym"] for r in result["ripping"]]
@@ -182,3 +186,4 @@ def test_engine_movers_listed_first():
     finally:
         cache.invalidate("wire_data")
         cache.invalidate("movers")
+        cache.invalidate("movers_discovery")
