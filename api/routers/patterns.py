@@ -34,6 +34,7 @@ from api.services.pattern_engine.detectors.classical import channel as _channel 
 from api.services.pattern_engine.detectors.classical import rounded_base as _rounded_base  # noqa: F401
 from api.services.pattern_engine.detectors.classical import rounded_top as _rounded_top  # noqa: F401
 from api.services.pattern_engine.detectors.classical import triple_top as _triple_top  # noqa: F401
+from api.services.pattern_engine.detectors.classical import triple_bottom as _triple_bottom  # noqa: F401
 from api.services.pattern_engine.detectors.uct import vcp as _vcp  # noqa: F401
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _high_tight_flag  # noqa: F401
 from api.services.pattern_engine.detectors.uct import episodic_pivot as _episodic_pivot  # noqa: F401
@@ -46,6 +47,8 @@ from api.services.pattern_engine.detectors.structure import swing_pivots as _swi
 from api.services.pattern_engine.detectors.structure import support_resistance as _support_resistance  # noqa: F401
 from api.services.pattern_engine.detectors.structure import major_trendlines as _major_trendlines  # noqa: F401
 from api.services.pattern_engine.detectors.structure import stage_analysis as _stage_analysis  # noqa: F401
+from api.services.pattern_engine.detectors.structure import volume_profile_nodes as _volume_profile_nodes  # noqa: F401
+from api.services.pattern_engine.detectors.structure import accumulation_distribution as _accumulation_distribution  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import doji as _doji  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import hammer as _hammer  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import hanging_man as _hanging_man  # noqa: F401
@@ -182,6 +185,12 @@ _PATTERN_METADATA = {
         "direction": "bearish",
         "description": "3 peaks at similar prices with 2 retrace troughs. Stronger version of double top - supply is overwhelming demand at the level.",
     },
+    "triple_bottom": {
+        "name": "Triple Bottom",
+        "category": "classical",
+        "direction": "bullish",
+        "description": "3 troughs at similar prices with 2 rally peaks between. Stronger version of double bottom - demand absorbing supply at the level.",
+    },
     "vcp": {
         "name": "Volatility Contraction Pattern (VCP)",
         "category": "uct",
@@ -253,6 +262,18 @@ _PATTERN_METADATA = {
         "category": "structure",
         "direction": "neutral",
         "description": "Classifies the chart's current stage in Weinstein's 4-stage cycle (basing, advance, distribution, decline). Foundational context for every other pattern.",
+    },
+    "volume_profile_nodes": {
+        "name": "Volume Profile Node",
+        "category": "structure",
+        "direction": "neutral",
+        "description": "High-volume (HVN) or low-volume (LVN) price levels from the 60-bar volume profile. Magnetic reference levels (HVN) and acceleration zones (LVN). Steidlmayer Market Profile.",
+    },
+    "accumulation_distribution": {
+        "name": "Accumulation/Distribution Phase",
+        "category": "structure",
+        "direction": "neutral",
+        "description": "Williams A/D classification: accumulation (bullish institutional buying) / distribution (bearish selling) / neutral. Includes price-A/D divergence detection. Wyckoff cycle analysis.",
     },
     "doji": {
         "name": "Doji",
