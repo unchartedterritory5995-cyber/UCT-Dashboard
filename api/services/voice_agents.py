@@ -338,13 +338,18 @@ AGENTS: dict[str, dict[str, Any]] = {
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _compass_tool_union() -> set[str]:
-    """Union of all specialist tool allowlists."""
+    """Union of all specialist tool allowlists + Compass-only tools."""
     out: set[str] = set()
     for agent in AGENTS.values():
         out.update(agent.get("tool_allowlist") or set())
     # `route_to_agent` was a multi-agent routing tool. Compass doesn't route
     # — it IS all the agents — so we drop it.
     out.discard("route_to_agent")
+    # P4-E: conversational queries against the proactive daemon. These
+    # are Compass-only tools (the old specialists didn't exist when the
+    # daemon shipped).
+    out.add("whats_my_focus_today")
+    out.add("what_compass_noticed")
     return out
 
 

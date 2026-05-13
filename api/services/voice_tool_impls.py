@@ -363,6 +363,124 @@ def _plan_my_day(*, user) -> dict:
     return plan_my_day(user_id=user["id"])
 
 
+# ── P4-E: conversational queries against the proactive daemon ────────────
+
+def _whats_my_focus_today(*, user) -> dict:
+    """Read-only — return today's focus message composition. Will compose
+    fresh if today's hasn't been posted yet; otherwise echoes the posted
+    version from the insights log."""
+    from api.services.voice_daily_focus import compose_daily_focus
+    from api.services.voice_proactive_service import list_history
+    uid = user["id"]
+    # Prefer the already-posted version (consistent with what the user
+    # heard / saw in their thread)
+    hist = list_history(uid, limit=20) or []
+    today_focus = next(
+        (h for h in hist if h.get("kind") == "daily_focus"
+         and _is_today_iso_et(h.get("created_at"))),
+        None,
+    )
+    if today_focus:
+        return {
+            "ok": True,
+            "narration": f"Today's focus, posted earlier. {today_focus.get('body', '')}",
+            "source": "posted",
+            "headline": today_focus.get("headline"),
+            "body": today_focus.get("body"),
+            "created_at": today_focus.get("created_at"),
+        }
+    # No focus posted yet (maybe pre-7:30 AM, weekend, or skipped) —
+    # compose one live
+    fresh = compose_daily_focus(uid)
+    if not fresh:
+        return {
+            "ok": True,
+            "narration": "Nothing notable for today's focus yet — regime, "
+                         "flagged-list gappers, and your earnings calendar are quiet.",
+            "source": "fresh",
+            "headline": None, "body": "",
+        }
+    return {
+        "ok": True,
+        "narration": f"Today's focus, just composed. {fresh.get('body', '')}",
+        "source": "fresh",
+        "headline": fresh.get("headline"),
+        "body": fresh.get("body"),
+        "regime": fresh.get("regime"),
+        "gappers_count": len(fresh.get("gappers") or []),
+        "earnings_count": len(fresh.get("earnings") or []),
+        "interventions": fresh.get("interventions"),
+    }
+
+
+def _what_compass_noticed(*, user, hours: int = 24) -> dict:
+    """List today's proactive daemon insights the user might have missed.
+    Returns headlines + symbols + importance, newest first."""
+    from datetime import datetime, timedelta, timezone
+    from api.services.voice_proactive_service import list_history
+    uid = user["id"]
+    h = max(1, min(168, int(hours or 24)))
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=h)
+    cutoff_iso = cutoff.isoformat()
+    hist = list_history(uid, limit=100) or []
+    fresh = [
+        ins for ins in hist
+        if (ins.get("created_at") or "") >= cutoff_iso
+    ]
+    if not fresh:
+        return {
+            "ok": True,
+            "narration": f"No insights fired in the last {h} hours.",
+            "count": 0, "insights": [],
+        }
+    # Newest highest-importance first
+    fresh.sort(
+        key=lambda i: (i.get("importance") or 0, i.get("created_at") or ""),
+        reverse=True,
+    )
+    short = [{
+        "id": i.get("id"),
+        "kind": i.get("kind"),
+        "symbol": i.get("symbol"),
+        "headline": i.get("headline"),
+        "importance": i.get("importance"),
+        "created_at": i.get("created_at"),
+    } for i in fresh[:10]]
+    head = fresh[0]
+    sym_str = f" — {head.get('symbol')}" if head.get("symbol") else ""
+    narration = (
+        f"{len(fresh)} insight{'s' if len(fresh) != 1 else ''} "
+        f"in the last {h} hours. Most important: "
+        f"{head.get('headline')}{sym_str}."
+    )
+    return {
+        "ok": True, "narration": narration,
+        "count": len(fresh), "insights": short,
+    }
+
+
+def _is_today_iso_et(iso_str: str | None) -> bool:
+    """Helper: does an ISO datetime fall on today's ET date?"""
+    if not iso_str:
+        return False
+    try:
+        from datetime import datetime, timezone
+        from zoneinfo import ZoneInfo
+        # Most rows are stored as 'YYYY-MM-DD HH:MM:SS' UTC without tz suffix
+        if "T" not in iso_str and iso_str.count("-") >= 2:
+            # SQLite CURRENT_TIMESTAMP format
+            dt = datetime.strptime(iso_str.split(".")[0], "%Y-%m-%d %H:%M:%S")
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+        et = ZoneInfo("America/New_York")
+        return dt.astimezone(et).date() == datetime.now(et).date()
+    except Exception:
+        return False
+
+
 # ── Batch 1: watchlist / tag / alert wrappers ───────────────────────────────
 
 def _flag_ticker(*, user, symbol: str) -> dict:
@@ -1081,6 +1199,25 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_plan_my_day)
+
+    # P4-E: conversational queries against the proactive daemon
+    _vt.voice_tool(
+        name="whats_my_focus_today",
+        description="Get today's Compass-composed focus message: regime, flagged-list gappers, earnings on watchlist, and any active tilt interventions. Call when the user asks 'what's my focus today', 'what do I need to watch', 'what did you set up for me'.",
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_whats_my_focus_today)
+
+    _vt.voice_tool(
+        name="what_compass_noticed",
+        description="List recent proactive insights from the daemon — regime flips, tilt detections, drift warnings, gapper alerts, scanner matches. Call when the user asks 'what did you notice', 'what's been happening', 'catch me up'.",
+        parameters={
+            "hours": {"type": "integer", "description": "Lookback window (default 24, max 168 = 1 week)."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_what_compass_noticed)
 
     _vt.voice_tool(
         name="create_position",
