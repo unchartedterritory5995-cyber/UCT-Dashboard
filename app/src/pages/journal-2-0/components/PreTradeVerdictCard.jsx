@@ -47,12 +47,29 @@ export default function PreTradeVerdictCard({ verdict, isLoading, error }) {
             && voice.status !== 'idle'
             && voice.status !== 'error') return
 
-        const text = `Compass verdict: ${verdict.label}. ${verdict.paragraph}`
+        // Urgent variant for refusals: distinct prefix + 10% faster delivery
+        // (still well inside [0.5, 2.0]). HOLD gets a softer prefix at normal
+        // speed. GO stays neutral.
+        let prefix
+        let speed
+        if (verdict.label === 'SKIP') {
+          prefix = 'Hold up. Compass says SKIP.'
+          speed = 1.1
+        } else if (verdict.label === 'HOLD') {
+          prefix = 'Heads up. Compass says HOLD.'
+          speed = undefined
+        } else {
+          prefix = `Compass verdict: ${verdict.label}.`
+          speed = undefined
+        }
+        const text = `${prefix} ${verdict.paragraph}`
+        const ttsBody = { text }
+        if (speed !== undefined) ttsBody.speed = speed
         const ttsResp = await fetch('/api/voice/tts', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify(ttsBody),
         })
         if (!ttsResp.ok || cancelled) return
         const blob = await ttsResp.blob()
