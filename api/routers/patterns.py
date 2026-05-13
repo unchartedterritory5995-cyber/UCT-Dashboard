@@ -49,6 +49,8 @@ from api.services.pattern_engine.detectors.structure import major_trendlines as 
 from api.services.pattern_engine.detectors.structure import stage_analysis as _stage_analysis  # noqa: F401
 from api.services.pattern_engine.detectors.structure import volume_profile_nodes as _volume_profile_nodes  # noqa: F401
 from api.services.pattern_engine.detectors.structure import accumulation_distribution as _accumulation_distribution  # noqa: F401
+from api.services.pattern_engine.detectors.structure import range_detection as _range_detection  # noqa: F401
+from api.services.pattern_engine.detectors.structure import proximity_52w as _proximity_52w  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import doji as _doji  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import hammer as _hammer  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import hanging_man as _hanging_man  # noqa: F401
@@ -274,6 +276,18 @@ _PATTERN_METADATA = {
         "category": "structure",
         "direction": "neutral",
         "description": "Williams A/D classification: accumulation (bullish institutional buying) / distribution (bearish selling) / neutral. Includes price-A/D divergence detection. Wyckoff cycle analysis.",
+    },
+    "range_detection": {
+        "name": "Trading Range",
+        "category": "structure",
+        "direction": "neutral",
+        "description": "Active consolidation range with bounded high + low. Wyckoff trading-range structure. Pre-breakout coiling.",
+    },
+    "52w_proximity": {
+        "name": "52-Week Proximity",
+        "category": "structure",
+        "direction": "neutral",
+        "description": "Distance from 52-week high/low. Top-level momentum filter (O'Neil CAN SLIM 'N' = new highs). Near-high = strong stock; near-low = weak / potential reversal.",
     },
     "doji": {
         "name": "Doji",
