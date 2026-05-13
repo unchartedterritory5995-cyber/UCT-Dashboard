@@ -1066,6 +1066,7 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
             msg = client.messages.create(
                 model=_EARNINGS_AI_MODEL,
                 max_tokens=_EARNINGS_AI_MAX_TOKENS,
+                metadata={"user_id": "earnings_analysis:global"},
                 messages=[{"role": "user", "content": prompt}],
             )
             raw = msg.content[0].text.strip()
@@ -1405,6 +1406,7 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
         msg = client.messages.create(
             model=_EARNINGS_AI_MODEL,
             max_tokens=_EARNINGS_PREVIEW_AI_MAX_TOKENS,
+            metadata={"user_id": "earnings_preview:global"},
             messages=[{"role": "user", "content": prompt}],
         )
         raw = msg.content[0].text.strip()

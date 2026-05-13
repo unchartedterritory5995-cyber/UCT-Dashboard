@@ -368,6 +368,7 @@ def get_key_quotes(sym: str) -> Optional[list]:
         msg = client.messages.create(
             model=_EARNINGS_AI_MODEL,
             max_tokens=600,
+            metadata={"user_id": "earnings_enrichment:global"},
             messages=[{"role": "user", "content": prompt}],
         )
         raw = msg.content[0].text.strip()

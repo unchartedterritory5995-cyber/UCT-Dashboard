@@ -135,6 +135,7 @@ async def market_narrative():
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=250,
+            metadata={"user_id": "market_narrative:global"},
             system="You are a financial news writer. Respond with ONLY 2-3 concise sentences. No preamble. No search commentary. No disclaimers. No 'based on my search' or 'I found'. Just the market summary as if writing a Bloomberg terminal flash.",
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=[{

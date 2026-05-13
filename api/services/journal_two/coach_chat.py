@@ -222,11 +222,13 @@ class AnthropicChatClient:
             raise RuntimeError("ANTHROPIC_API_KEY not set")
         self._client = anthropic.Anthropic(api_key=key)
 
-    def start_stream(self, *, system_prompt: str, messages: list, tools: list):
+    def start_stream(self, *, system_prompt: str, messages: list, tools: list,
+                     user_id: str = "unknown"):
         return self._client.messages.stream(
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
             temperature=0.4,
+            metadata={"user_id": f"compass_chat:{user_id}"},
             system=[{"type": "text", "text": system_prompt,
                      "cache_control": {"type": "ephemeral"}}],
             messages=messages,
@@ -345,6 +347,7 @@ def handle_user_turn(
             tool_uses: list[dict] = []
             with active_client.start_stream(
                 system_prompt=system_prompt, messages=messages, tools=tools_param,
+                user_id=user_id,
             ) as stream:
                 for ev in stream:
                     etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)
@@ -554,6 +557,7 @@ def confirm_pending_action(
         with active_client.start_stream(
             system_prompt=system_prompt,
             messages=messages, tools=tools_param,
+            user_id=user_id,
         ) as stream:
             for ev in stream:
                 etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)
@@ -606,7 +610,7 @@ def _maybe_summarize(*, user_id: str, account_id: str, summary_client=None, conn
             f"[{r['role']}] {r.get('content') or ''}"
             for r in to_summarize
         )
-        summary_text = (summary_client or _DefaultSummaryClient()).summarize(text=text_blob)
+        summary_text = (summary_client or _DefaultSummaryClient()).summarize(text=text_blob, user_id=user_id)
         append_message(
             user_id=user_id, account_id=account_id,
             role="summary", content=summary_text, conn=_conn,
@@ -626,13 +630,14 @@ def _maybe_summarize(*, user_id: str, account_id: str, summary_client=None, conn
 
 
 class _DefaultSummaryClient:
-    def summarize(self, *, text: str) -> str:
+    def summarize(self, *, text: str, user_id: str = "unknown") -> str:
         import anthropic
         client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
         msg = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=600,
             temperature=0.2,
+            metadata={"user_id": f"compass_chat_summary:{user_id}"},
             system="You compress trading-coach conversations. Preserve any user-stated focus, behavioral commitments, or Compass observations of trader patterns. Drop tool-call mechanics. ≤500 tokens.",
             messages=[{"role": "user", "content": text}],
         )
@@ -740,6 +745,7 @@ def cancel_pending_action(
         with active_client.start_stream(
             system_prompt=system_prompt,
             messages=messages, tools=tools_param,
+            user_id=user_id,
         ) as stream:
             for ev in stream:
                 etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)
@@ -827,6 +833,7 @@ def start_onboarding(
         tool_uses: list[dict] = []
         with active_client.start_stream(
             system_prompt=system_prompt, messages=messages, tools=tools_param,
+            user_id=user_id,
         ) as stream:
             for ev in stream:
                 etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)

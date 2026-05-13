@@ -30,10 +30,10 @@ class FakeClient:
         self.observations = observations
         self.updated_profile = updated_profile
         self.calls: list[dict] = []
-    def write_review(self, *, system_prompt, user_message):
+    def write_review(self, *, system_prompt, user_message, **_kw):
         self.calls.append({"kind": "review", "system": system_prompt, "user": user_message})
         return {"body": self.review_body, "summary": self.summary, "key_observations": self.observations}
-    def write_profile_update(self, *, system_prompt, user_message):
+    def write_profile_update(self, *, system_prompt, user_message, **_kw):
         self.calls.append({"kind": "profile", "system": system_prompt, "user": user_message})
         return {"updated_profile": self.updated_profile}
 
@@ -83,15 +83,15 @@ class FakeEODClient:
             raise RuntimeError("FakeEODClient ran out of responses")
         return self.responses.pop(0)
 
-    def write_review(self, *, system_prompt, user_message):
+    def write_review(self, *, system_prompt, user_message, **_kw):
         self.calls.append({"kind": "review", "user": user_message})
         return self._pop()
 
-    def write_profile_update(self, *, system_prompt, user_message):
+    def write_profile_update(self, *, system_prompt, user_message, **_kw):
         self.calls.append({"kind": "profile", "user": user_message})
         return {"updated_profile": self.updated_profile}
 
-    def write_eod_recap(self, *, system_prompt, user_message):
+    def write_eod_recap(self, *, system_prompt, user_message, **_kw):
         self.calls.append({"kind": "eod", "user": user_message})
         return self._pop()
 

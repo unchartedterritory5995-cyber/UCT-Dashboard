@@ -31,9 +31,9 @@ from api.services.journal_two import db as j2_db
 
 @runtime_checkable
 class CoachClientProto(Protocol):
-    def write_review(self, *, system_prompt: str, user_message: str) -> dict: ...
-    def write_profile_update(self, *, system_prompt: str, user_message: str) -> dict: ...
-    def write_eod_recap(self, *, system_prompt: str, user_message: str) -> dict: ...
+    def write_review(self, *, system_prompt: str, user_message: str, user_id: str = "unknown") -> dict: ...
+    def write_profile_update(self, *, system_prompt: str, user_message: str, user_id: str = "unknown") -> dict: ...
+    def write_eod_recap(self, *, system_prompt: str, user_message: str, user_id: str = "unknown") -> dict: ...
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ class AnthropicClient:
     # Review generation
     # ------------------------------------------------------------------
 
-    def write_review(self, *, system_prompt: str, user_message: str) -> dict:
+    def write_review(self, *, system_prompt: str, user_message: str, user_id: str = "unknown") -> dict:
         """Call Claude to produce a weekly review.
 
         Returns dict with keys: body, summary, key_observations.
@@ -66,6 +66,7 @@ class AnthropicClient:
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
             temperature=0.4,
+            metadata={"user_id": f"compass_weekly_review:{user_id}"},
             system=[
                 {
                     "type": "text",
@@ -83,7 +84,7 @@ class AnthropicClient:
     # Profile update
     # ------------------------------------------------------------------
 
-    def write_profile_update(self, *, system_prompt: str, user_message: str) -> dict:
+    def write_profile_update(self, *, system_prompt: str, user_message: str, user_id: str = "unknown") -> dict:
         """Call Claude to update the trader profile narrative.
 
         Returns dict with key: updated_profile.
@@ -92,6 +93,7 @@ class AnthropicClient:
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
             temperature=0.3,
+            metadata={"user_id": f"compass_profile_update:{user_id}"},
             system=[
                 {
                     "type": "text",
@@ -108,12 +110,13 @@ class AnthropicClient:
     # EOD Recap
     # ------------------------------------------------------------------
 
-    def write_eod_recap(self, *, system_prompt: str, user_message: str) -> dict:
+    def write_eod_recap(self, *, system_prompt: str, user_message: str, user_id: str = "unknown") -> dict:
         """Call Claude to produce an EOD recap. Different temperature + lower max_tokens than weekly."""
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=1200,
             temperature=0.5,
+            metadata={"user_id": f"compass_eod_recap:{user_id}"},
             system=[
                 {
                     "type": "text",
@@ -264,6 +267,7 @@ def _generate_weekly_review_inner(
     review_result = client.write_review(
         system_prompt=system_prompt,
         user_message=user_message,
+        user_id=user_id,
     )
 
     body: str = review_result.get("body", "")
@@ -304,6 +308,7 @@ def _generate_weekly_review_inner(
         profile_result = client.write_profile_update(
             system_prompt=coach_prompts.PROFILE_UPDATE_SYSTEM_PROMPT,
             user_message=profile_message,
+            user_id=user_id,
         )
         updated_profile: str = profile_result.get("updated_profile", "").strip()
 
@@ -534,6 +539,7 @@ def generate_eod_recap(
             response = active_client.write_eod_recap(
                 system_prompt=coach_prompts.COMPASS_SYSTEM_PROMPT,
                 user_message=msg,
+                user_id=user_id,
             )
             body = response.get("body", "") or ""
             summary = response.get("summary") or _extract_first_paragraph(body)

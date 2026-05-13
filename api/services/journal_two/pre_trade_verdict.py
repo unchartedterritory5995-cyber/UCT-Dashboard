@@ -31,11 +31,13 @@ class AnthropicVerdictClient:
             raise RuntimeError("ANTHROPIC_API_KEY not set")
         self._client = anthropic.Anthropic(api_key=key)
 
-    def write_verdict(self, *, system_prompt: str, user_message: str) -> dict:
+    def write_verdict(self, *, system_prompt: str, user_message: str,
+                      user_id: str = "unknown") -> dict:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=600,
             temperature=0.3,
+            metadata={"user_id": f"compass_pre_trade_verdict:{user_id}"},
             system=[{"type": "text", "text": system_prompt,
                      "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_message}],
@@ -277,7 +279,7 @@ def _llm_verdict(
     parts.append("Return your verdict as JSON only — no surrounding text.")
     user_message = "\n".join(parts)
 
-    response = client.write_verdict(system_prompt=prompt, user_message=user_message)
+    response = client.write_verdict(system_prompt=prompt, user_message=user_message, user_id=user_id)
     raw = response.get("body", "").strip()
 
     parsed = None

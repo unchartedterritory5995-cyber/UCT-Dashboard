@@ -30,7 +30,7 @@ class FakeChatClient:
         self.stream_scripts = list(stream_scripts)
         self.calls = []
 
-    def start_stream(self, *, system_prompt: str, messages: list, tools: list):
+    def start_stream(self, *, system_prompt: str, messages: list, tools: list, **_kw):
         self.calls.append({"system_prompt": system_prompt, "messages": messages, "tools": tools})
         if not self.stream_scripts:
             raise RuntimeError("FakeChatClient out of stream scripts")
@@ -339,7 +339,7 @@ def test_maybe_summarize_inserts_summary_row_when_oversized(db_conn, monkeypatch
     monkeypatch.setattr(coach_chat, "SUMMARIZE_THRESHOLD_TOKENS", 100)  # force trigger
 
     class FakeSummaryClient:
-        def summarize(self, *, text: str) -> str:
+        def summarize(self, *, text: str, **_kw) -> str:
             return "earlier the user discussed bull flag losses"
 
     for i in range(20):

@@ -150,6 +150,7 @@ def _analyze_transcript(symbol: str, text: str, quarter: int | None, year: int |
         msg = client.messages.create(
             model=_TRANSCRIPT_AI_MODEL,
             max_tokens=_TRANSCRIPT_AI_MAX_TOKENS,
+            metadata={"user_id": "transcript_summary:global"},
             messages=[{"role": "user", "content": prompt}],
         )
         raw = msg.content[0].text.strip()

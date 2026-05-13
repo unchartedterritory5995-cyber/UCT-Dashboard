@@ -27,11 +27,13 @@ class AnthropicReviewClient:
             raise RuntimeError("ANTHROPIC_API_KEY not set")
         self._client = anthropic.Anthropic(api_key=key)
 
-    def write_review(self, *, system_prompt: str, user_message: str) -> dict:
+    def write_review(self, *, system_prompt: str, user_message: str,
+                     user_id: str = "unknown") -> dict:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=600,
             temperature=0.4,
+            metadata={"user_id": f"compass_trade_review:{user_id}"},
             system=[{"type": "text", "text": system_prompt,
                      "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_message}],
@@ -155,6 +157,7 @@ def generate_review(
         active_client = client or AnthropicReviewClient()
         response = active_client.write_review(
             system_prompt=system_prompt, user_message=user_message,
+            user_id=user_id,
         )
         body = (response.get("body") or "").strip()
         summary = body[:200] if body else ""

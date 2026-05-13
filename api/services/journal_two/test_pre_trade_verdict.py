@@ -134,7 +134,7 @@ class FakeVerdictClient:
         self.response_text = response_text
         self.calls = []
 
-    def write_verdict(self, *, system_prompt, user_message):
+    def write_verdict(self, *, system_prompt, user_message, **_kw):
         self.calls.append({"system_prompt": system_prompt, "user_message": user_message})
         return {"body": self.response_text}
 

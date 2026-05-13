@@ -124,6 +124,7 @@ def debug_earnings_sources(sym: str):
             msg = client.messages.create(
                 model="claude-haiku-4-5",
                 max_tokens=20,
+                metadata={"user_id": "earnings_ping_test:global"},
                 messages=[{"role": "user", "content": "Say 'pong' and nothing else."}],
             )
             out["anthropic"] = f"OK: {msg.content[0].text[:50]}"

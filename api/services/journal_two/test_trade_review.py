@@ -64,7 +64,7 @@ class FakeReviewClient:
         self.body = body
         self.calls = []
 
-    def write_review(self, *, system_prompt, user_message):
+    def write_review(self, *, system_prompt, user_message, **_kw):
         self.calls.append({"system_prompt": system_prompt, "user_message": user_message})
         return {"body": self.body}
 
