@@ -350,6 +350,8 @@ def _compass_tool_union() -> set[str]:
     # daemon shipped).
     out.add("whats_my_focus_today")
     out.add("what_compass_noticed")
+    # P5-D: backtest-on-demand over the user's journal.
+    out.add("analyze_setup_in_period")
     return out
 
 

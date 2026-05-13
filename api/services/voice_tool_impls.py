@@ -363,6 +363,25 @@ def _plan_my_day(*, user) -> dict:
     return plan_my_day(user_id=user["id"])
 
 
+# ── P5-D: backtest-on-demand ──────────────────────────────────────────────
+
+def _analyze_setup_in_period(
+    *, user, setup: str = "", days: int = 0,
+    start_date: str = "", end_date: str = "", regime: str = "",
+) -> dict:
+    """Aggregate closed trades over a date range with optional setup +
+    regime filters. Returns win rate, avg R, profit factor, by-month."""
+    from api.services.voice_backtest import analyze_setup_in_period
+    return analyze_setup_in_period(
+        user["id"],
+        setup=setup or None,
+        days=int(days) if days else None,
+        start_date=start_date or None,
+        end_date=end_date or None,
+        regime=regime or None,
+    )
+
+
 # ── P4-E: conversational queries against the proactive daemon ────────────
 
 def _whats_my_focus_today(*, user) -> dict:
@@ -1199,6 +1218,21 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_plan_my_day)
+
+    # P5-D: backtest-on-demand over the user's journal
+    _vt.voice_tool(
+        name="analyze_setup_in_period",
+        description="Backtest a setup over a date range. Filters closed trades by setup name (Bull Flag, Pullback, VCP, etc.) + optional regime label (GREEN/AMBER/ORANGE/RED) + date window. Returns trade count, win rate, avg R, profit factor, by-month breakdown. Call when the user asks 'how did X setup do in [period]', 'what's my win rate on Y this quarter', 'how do I perform in AMBER regime'.",
+        parameters={
+            "setup":      {"type": "string", "description": "Setup name to filter (e.g. 'Bull Flag'). Omit for all setups."},
+            "days":       {"type": "integer", "description": "Relative lookback in days (e.g. 90 for last quarter). Use this OR start_date/end_date."},
+            "start_date": {"type": "string",  "description": "ISO YYYY-MM-DD start. Used with end_date."},
+            "end_date":   {"type": "string",  "description": "ISO YYYY-MM-DD end. Defaults to today."},
+            "regime":     {"type": "string",  "description": "Optional regime filter: GREEN, AMBER, ORANGE, or RED."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_analyze_setup_in_period)
 
     # P4-E: conversational queries against the proactive daemon
     _vt.voice_tool(
