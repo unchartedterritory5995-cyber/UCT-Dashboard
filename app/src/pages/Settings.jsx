@@ -351,7 +351,7 @@ function VoicePanel() {
               try { localStorage.setItem('voice.wakeEnabled', e.target.checked ? '1' : '0') } catch {}
             }}
           />
-          {' '}Wake word ("Hey Bumblebee") — hands-free activation
+          {' '}Wake word: say "Jarvis" — hands-free Compass activation
         </label>
       </div>
 

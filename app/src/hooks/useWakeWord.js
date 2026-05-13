@@ -6,9 +6,12 @@ import { WebVoiceProcessor } from '@picovoice/web-voice-processor'
  * On-device wake word detection via Picovoice Porcupine.
  *
  * - Audio never leaves the browser until the wake word fires.
- * - Initial keyword: BuiltInKeyword.Bumblebee (no training required).
- *   Swap to a custom "Hey UCT Intelligence" keyword later by training
- *   one at console.picovoice.ai and replacing the keyword param.
+ * - Built-in keyword: BuiltInKeyword.Jarvis (no training required, brand-
+ *   compatible with an AI trading assistant). Picovoice doesn't ship a
+ *   "Compass" built-in; the closest in tone is Jarvis. A custom "Hey
+ *   Compass" wake word can be trained at console.picovoice.ai for an
+ *   even tighter brand fit — drop the .ppn file in app/public/ and
+ *   swap the keyword param to { custom: '/hey-compass.ppn' }.
  *
  * Toggle via the `enabled` flag — pass `false` to fully unmount the worker
  * and release the microphone.
@@ -40,7 +43,7 @@ export default function useWakeWord({ enabled = false, onWake } = {}) {
       try {
         const worker = await PorcupineWorker.create(
           accessKey,
-          [{ builtin: BuiltInKeyword.Bumblebee }],
+          [{ builtin: BuiltInKeyword.Jarvis }],
           onKeywordDetected,
         )
         if (cancelled) {

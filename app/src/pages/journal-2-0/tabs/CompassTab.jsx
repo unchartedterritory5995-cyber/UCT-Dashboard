@@ -12,6 +12,7 @@ import useJ2CoachReviews from '../hooks/useJ2CoachReviews'
 import useJ2TraderProfile from '../hooks/useJ2TraderProfile'
 import useJ2Settings from '../hooks/useJ2Settings'
 import useJ2EODRecaps from '../hooks/useJ2EODRecaps'
+import useHandsFreeEodRecap from '../hooks/useHandsFreeEodRecap'
 import CompassReview from '../components/CompassReview'
 import EODRecap from '../components/EODRecap'
 import TraderProfileEditor from '../components/TraderProfileEditor'
@@ -56,6 +57,12 @@ export default function CompassTab() {
   } = useJ2EODRecaps(accountId)
   const { profile, save: saveProfile, refresh: refreshProfile } = useJ2TraderProfile(accountId)
   const { overview } = useCompassOverview(accountId)
+  // P5-B: when the user opens this tab post-close on a day with a recap,
+  // and proactive_speak is ON, read today's EOD recap aloud. Once.
+  const todaysEodRecap = (eodRecaps || []).find(
+    (r) => r?.day_or_week === todayISO() || r?.day === todayISO(),
+  )
+  useHandsFreeEodRecap({ accountId, todaysEodRecap })
   const [generating, setGenerating] = useState(false)
   const [errorMsg, setErrorMsg] = useState(null)
 
