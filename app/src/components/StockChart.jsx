@@ -9,6 +9,7 @@ import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeS
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import PatternOverlay from './chart/PatternOverlay'
+import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import useRealtimePrices from '../hooks/useRealtimePrices'
@@ -515,11 +516,16 @@ export default function StockChart({
     setPref('chart_settings', JSON.stringify(newSettings))
   }, [setPref])
 
-  // ── Pattern overlay state (Phase 5 Task 1) ──
-  // Default OFF until Task 4 wires the toolbar toggle. Hard-code to `true` locally for smoke tests,
-  // then revert before commit.
-  const [showPatterns, setShowPatterns] = useState(false)
-  // eslint-disable-next-line no-unused-vars -- consumed when Task 3 side panel lands
+  // ── Pattern overlay state (Phase 5 Tasks 1, 3, 4) ──
+  // Toggle persists via chart_settings (usePreferences). Local UI state mirrors
+  // the persisted flag so toggle feels instant; handleTogglePatterns writes through.
+  const persistedShowPatterns = !!cs.showPatterns
+  const [showPatterns, setShowPatterns] = useState(persistedShowPatterns)
+  useEffect(() => { setShowPatterns(persistedShowPatterns) }, [persistedShowPatterns])
+  const handleTogglePatterns = useCallback((next) => {
+    setShowPatterns(next)
+    handleUpdateChartSettings({ ...cs, showPatterns: next, preset: 'custom' })
+  }, [cs, handleUpdateChartSettings])
   const [activeDetection, setActiveDetection] = useState(null)
   const { detections: patternDetections } = usePatternDetections(sym, resolvedTf, showPatterns, 50)
 
@@ -3010,6 +3016,8 @@ export default function StockChart({
               setReplayIndex(Math.max(0, Math.min(max, idx)))
             }}
             onReplaySpeedChange={setReplaySpeed}
+            showPatterns={showPatterns}
+            onTogglePatterns={handleTogglePatterns}
           />
           {screenshotPopoverOpen && (
             <ScreenshotPopover
@@ -3040,6 +3048,10 @@ export default function StockChart({
         </>
       )}
       <KeyboardHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <PatternSidePanel
+        detection={activeDetection}
+        onClose={() => setActiveDetection(null)}
+      />
     </div>
   )
 }

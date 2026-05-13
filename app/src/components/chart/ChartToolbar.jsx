@@ -4,6 +4,7 @@ import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import ColorPicker from './ColorPicker'
 import ComparisonPicker from './ComparisonPicker'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
+import PatternToolbarButton from './PatternToolbarButton'
 import styles from './ChartToolbar.module.css'
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
@@ -603,6 +604,8 @@ export default function ChartToolbar({
   onReplayIndexChange = null,
   onReplaySpeedChange = null,
   onShowHelp = null,
+  showPatterns = false,
+  onTogglePatterns = null,
 }) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -721,6 +724,11 @@ export default function ChartToolbar({
         >
           {ICONS.repeat}
         </button>
+
+        {/* Patterns overlay toggle */}
+        {onTogglePatterns && (
+          <PatternToolbarButton active={!!showPatterns} onToggle={onTogglePatterns} />
+        )}
 
         {/* Extended hours toggle (intraday only) */}
         {showExtended !== null && onToggleExtended && (
