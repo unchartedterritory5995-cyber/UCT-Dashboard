@@ -1,5 +1,23 @@
 /* app/src/components/MobileNav.module.css — Mobile-only navigation */
 
+/* P5-K: Compass unread badge on the Journal mobile-drawer link. */
+.drawerCompassBadge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--ut-gold, #c9a84c);
+  color: #000;
+  border-radius: 9px;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
 /* ── Hide everything on desktop ───────────────────────────────────────────── */
 @media (min-width: 641px) {
   .topBar,

@@ -188,6 +188,12 @@ export default function MobileNav() {
                 >
                   <span className={styles.drawerIcon}>{item.icon}</span>
                   <span className={styles.drawerLabel}>{item.label}</span>
+                  {item.to === '/journal' && compassUnread > 0 && (
+                    <span className={styles.drawerCompassBadge}
+                          title={`${compassUnread} Compass insight${compassUnread === 1 ? '' : 's'} waiting`}>
+                      {compassUnread > 9 ? '9+' : compassUnread}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </div>

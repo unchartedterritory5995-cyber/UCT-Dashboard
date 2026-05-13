@@ -8,8 +8,65 @@
  *   onRegenerate?(): void
  *   onForget?(): void
  */
+import { useEffect, useRef, useContext } from 'react'
+import { VoiceContext } from '../../../context/VoiceContext'
+
 
 export default function TradeReviewCard({ review, isLoading, onFeedback, onRegenerate, onForget }) {
+  // P5-J: when a fresh review lands AND proactive_speak is ON, speak it
+  // through Compass. Localstorage-gated per review_id so revisits to
+  // an already-heard review don't replay.
+  const voice = useContext(VoiceContext)
+  const spokenForRef = useRef(null)
+  useEffect(() => {
+    if (!voice) return
+    if (!review?.id || !review?.body) return
+    if (spokenForRef.current === review.id) return
+    const lsKey = `compass.tradereview_spoken.${review.id}`
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage.getItem(lsKey)) {
+        spokenForRef.current = review.id
+        return
+      }
+    } catch { /* ignore */ }
+    spokenForRef.current = review.id
+    let cancelled = false
+    const run = async () => {
+      try {
+        const settingsResp = await fetch('/api/voice/settings', {
+          credentials: 'include',
+        })
+        if (!settingsResp.ok) return
+        const settings = await settingsResp.json()
+        if (!settings.proactive_speak || !settings.enabled) return
+        if (voice.status === 'playing' || voice.status === 'loading') return
+        if (voice.mode === 'c'
+            && voice.status !== 'idle'
+            && voice.status !== 'error') return
+
+        const text = `Trade post-mortem. ${(review.body || '').slice(0, 2500)}`
+        const ttsResp = await fetch('/api/voice/tts', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        })
+        if (!ttsResp.ok || cancelled) return
+        const blob = await ttsResp.blob()
+        const url = URL.createObjectURL(blob)
+        if (cancelled) { URL.revokeObjectURL(url); return }
+        await voice.playUrl({
+          url,
+          trackId: `compass-tradereview-${review.id}`,
+          trackLabel: 'Compass — Trade post-mortem',
+        })
+        try { localStorage.setItem(lsKey, '1') } catch { /* ignore */ }
+      } catch { /* swallow */ }
+    }
+    run()
+    return () => { cancelled = true }
+  }, [review?.id, review?.body, voice])
+
   if (isLoading) {
     return (
       <div style={cardStyle()}>
