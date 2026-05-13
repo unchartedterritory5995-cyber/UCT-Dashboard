@@ -70,6 +70,8 @@ class SettingsUpdateRequest(BaseModel):
     voice: str | None = None
     speed: float | None = Field(None, ge=MIN_SPEED, le=MAX_SPEED)
     retention_days: int | None = Field(None, ge=1, le=3650)
+    # P3-C unification: opt-in proactive speech for daemon-fired alerts
+    proactive_speak: bool | None = None
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -166,6 +168,7 @@ def settings_put(
             voice=body.voice,
             speed=body.speed,
             retention_days=body.retention_days,
+            proactive_speak=body.proactive_speak,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -139,6 +139,130 @@ function AvatarUpload({ user }) {
   )
 }
 
+// ── Compass Voice Picker (P3-A unification) ──
+// Renders all 8 OpenAI Realtime voices with a Preview button that hits
+// /api/voice/tts with a 10-second sample phrase so the user can hear each
+// voice before committing.
+const COMPASS_VOICES = [
+  { id: 'alloy',   label: 'Alloy',   blurb: 'Sharp, neutral, professional.' },
+  { id: 'ash',     label: 'Ash',     blurb: 'Calm, firm — head-trader presence.' },
+  { id: 'ballad',  label: 'Ballad',  blurb: 'Warm, slightly storyteller.' },
+  { id: 'coral',   label: 'Coral',   blurb: 'Conversational, approachable.' },
+  { id: 'echo',    label: 'Echo',    blurb: 'Steady, measured cadence.' },
+  { id: 'sage',    label: 'Sage',    blurb: 'Soft, thoughtful, deliberate.' },
+  { id: 'shimmer', label: 'Shimmer', blurb: 'Bright, supportive, coach-like.' },
+  { id: 'verse',   label: 'Verse',   blurb: 'Energetic, news-desk feel.' },
+]
+
+const COMPASS_VOICE_SAMPLE =
+  "Hey — I'm Compass. Breadth score is sixty-five, regime is amber, " +
+  "and you're three trades into the week. Ask me anything."
+
+function CompassVoicePicker({ value, onChange, enabled }) {
+  const [previewing, setPreviewing] = useState(null)
+  const audioRef = useRef(null)
+
+  const stopPreview = () => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.src = ''
+      }
+    } catch { /* ignore */ }
+    setPreviewing(null)
+  }
+
+  const preview = async (voiceId) => {
+    if (previewing === voiceId) {
+      stopPreview()
+      return
+    }
+    stopPreview()
+    setPreviewing(voiceId)
+    try {
+      const r = await fetch('/api/voice/tts', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: COMPASS_VOICE_SAMPLE,
+          voice: voiceId,
+          speed: 1.0,
+        }),
+      })
+      if (!r.ok) {
+        setPreviewing(null)
+        return
+      }
+      const blob = await r.blob()
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      audioRef.current = audio
+      audio.onended = () => setPreviewing(null)
+      audio.onerror = () => setPreviewing(null)
+      await audio.play()
+    } catch {
+      setPreviewing(null)
+    }
+  }
+
+  // Stop on unmount
+  useEffect(() => () => stopPreview(), [])
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+      {COMPASS_VOICES.map((v) => {
+        const selected = value === v.id
+        const isPlaying = previewing === v.id
+        return (
+          <div
+            key={v.id}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '6px 10px',
+              border: `1px solid ${selected ? 'var(--ut-gold, #c9a84c)' : 'var(--border)'}`,
+              borderRadius: 4,
+              background: selected ? 'rgba(201, 168, 76, 0.08)' : 'transparent',
+              cursor: enabled ? 'pointer' : 'not-allowed',
+              opacity: enabled ? 1 : 0.5,
+            }}
+            onClick={() => enabled && onChange(v.id)}
+          >
+            <input
+              type="radio"
+              name="compass-voice"
+              checked={selected}
+              onChange={() => enabled && onChange(v.id)}
+              disabled={!enabled}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 13 }}>{v.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{v.blurb}</div>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); preview(v.id) }}
+              disabled={!enabled}
+              style={{
+                padding: '4px 10px', fontSize: 11,
+                background: isPlaying ? 'var(--ut-gold, #c9a84c)' : 'transparent',
+                color: isPlaying ? '#000' : 'var(--ut-gold, #c9a84c)',
+                border: '1px solid var(--ut-gold, #c9a84c)',
+                borderRadius: 3, cursor: enabled ? 'pointer' : 'not-allowed',
+              }}
+              title={isPlaying ? 'Stop preview' : 'Hear this voice'}
+            >
+              {isPlaying ? '■ Stop' : '▶ Preview'}
+            </button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+
 // ── Voice Panel ──
 function VoicePanel() {
   const [settings, setSettings] = useState(null)
@@ -178,7 +302,7 @@ function VoicePanel() {
   }, [])
 
   if (!settings) {
-    return <TileCard title="Voice"><div style={{ opacity: 0.7 }}>Voice features require a paid plan.</div></TileCard>
+    return <TileCard title="🧭 Compass"><div style={{ opacity: 0.7 }}>Compass voice features require a paid plan.</div></TileCard>
   }
 
   const update = async (patch) => {
@@ -199,13 +323,13 @@ function VoicePanel() {
     }
   }
 
-  const VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse']
+  // Voice list moved to CompassVoicePicker (P3-A unification).
   const usedSec = usage?.mode_a_seconds ?? 0
   const capSec = usage?.cap_seconds ?? null
   const pct = capSec ? Math.min(100, Math.round((usedSec / capSec) * 100)) : 0
 
   return (
-    <TileCard title="Voice">
+    <TileCard title="🧭 Compass">
       <div className={styles.voiceRow}>
         <label className={styles.voiceLabel}>
           <input
@@ -213,7 +337,7 @@ function VoicePanel() {
             checked={!!settings.enabled}
             onChange={(e) => update({ enabled: e.target.checked })}
           />
-          {' '}Voice features enabled
+          {' '}Compass voice + read-aloud enabled
         </label>
       </div>
 
@@ -232,10 +356,23 @@ function VoicePanel() {
       </div>
 
       <div className={styles.voiceRow}>
+        <label className={styles.voiceLabel}>
+          <input
+            type="checkbox"
+            checked={!!settings.proactive_speak}
+            onChange={(e) => update({ proactive_speak: e.target.checked })}
+          />
+          {' '}Compass can speak proactive alerts (regime flips, tilt, intervention rules)
+        </label>
+      </div>
+
+      <div className={styles.voiceRow}>
         <span className={styles.voiceLabel}>Voice</span>
-        <select value={settings.voice} onChange={(e) => update({ voice: e.target.value })}>
-          {VOICES.map(v => <option key={v} value={v}>{v}</option>)}
-        </select>
+        <CompassVoicePicker
+          value={settings.voice}
+          onChange={(v) => update({ voice: v })}
+          enabled={!!settings.enabled}
+        />
       </div>
 
       <div className={styles.voiceRow}>

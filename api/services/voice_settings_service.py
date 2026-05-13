@@ -16,18 +16,32 @@ DEFAULT_SPEED = 1.0
 DEFAULT_RETENTION_DAYS = 30
 
 
+def _ensure_proactive_column(conn) -> None:
+    """Idempotent migration: add proactive_speak column for P3-C unification."""
+    try:
+        conn.execute(
+            "ALTER TABLE voice_settings ADD COLUMN proactive_speak INTEGER NOT NULL DEFAULT 0"
+        )
+        conn.commit()
+    except Exception:
+        pass  # column already exists
+
+
 def get_voice_settings(user_id: str) -> dict:
     """Return per-user voice settings; creates a default row if missing."""
     conn = get_connection()
     try:
+        _ensure_proactive_column(conn)
         row = conn.execute(
-            "SELECT enabled, voice, speed, retention_days FROM voice_settings WHERE user_id = ?",
+            "SELECT enabled, voice, speed, retention_days, proactive_speak "
+            "FROM voice_settings WHERE user_id = ?",
             (user_id,),
         ).fetchone()
         if row is None:
             conn.execute(
-                """INSERT INTO voice_settings (user_id, enabled, voice, speed, retention_days)
-                   VALUES (?, 1, ?, ?, ?)""",
+                """INSERT INTO voice_settings
+                       (user_id, enabled, voice, speed, retention_days, proactive_speak)
+                   VALUES (?, 1, ?, ?, ?, 0)""",
                 (user_id, DEFAULT_VOICE, DEFAULT_SPEED, DEFAULT_RETENTION_DAYS),
             )
             conn.commit()
@@ -36,12 +50,14 @@ def get_voice_settings(user_id: str) -> dict:
                 "voice": DEFAULT_VOICE,
                 "speed": DEFAULT_SPEED,
                 "retention_days": DEFAULT_RETENTION_DAYS,
+                "proactive_speak": False,
             }
         return {
             "enabled": bool(row["enabled"]),
             "voice": row["voice"],
             "speed": float(row["speed"]),
             "retention_days": int(row["retention_days"]),
+            "proactive_speak": bool(row["proactive_speak"]),
         }
     finally:
         conn.close()
@@ -54,6 +70,7 @@ def update_voice_settings(
     voice: str | None = None,
     speed: float | None = None,
     retention_days: int | None = None,
+    proactive_speak: bool | None = None,
 ) -> dict:
     """Validate + upsert voice settings. Returns the new full settings dict."""
     if voice is not None and voice not in ALLOWED_VOICES:
@@ -69,18 +86,26 @@ def update_voice_settings(
     new_voice = current["voice"] if voice is None else voice
     new_speed = current["speed"] if speed is None else float(speed)
     new_retention = current["retention_days"] if retention_days is None else int(retention_days)
+    new_proactive = (
+        bool(current.get("proactive_speak"))
+        if proactive_speak is None
+        else bool(proactive_speak)
+    )
 
     conn = get_connection()
     try:
+        _ensure_proactive_column(conn)
         conn.execute(
             """UPDATE voice_settings
-               SET enabled = ?, voice = ?, speed = ?, retention_days = ?, updated_at = ?
+               SET enabled = ?, voice = ?, speed = ?, retention_days = ?,
+                   proactive_speak = ?, updated_at = ?
                WHERE user_id = ?""",
             (
                 1 if new_enabled else 0,
                 new_voice,
                 new_speed,
                 new_retention,
+                1 if new_proactive else 0,
                 datetime.now(timezone.utc).isoformat(),
                 user_id,
             ),
@@ -94,4 +119,5 @@ def update_voice_settings(
         "voice": new_voice,
         "speed": new_speed,
         "retention_days": new_retention,
+        "proactive_speak": new_proactive,
     }

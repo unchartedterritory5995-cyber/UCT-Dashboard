@@ -51,3 +51,29 @@ def test_update_rejects_speed_out_of_range():
 def test_allowed_voices_includes_verse():
     assert "verse" in ALLOWED_VOICES
     assert "alloy" in ALLOWED_VOICES
+
+
+# ── P3-C unification: proactive_speak field ────────────────────────────────
+
+def test_proactive_speak_defaults_to_false_for_new_user():
+    uid = _make_user()
+    s = get_voice_settings(uid)
+    assert s["proactive_speak"] is False
+
+
+def test_update_proactive_speak_roundtrip():
+    uid = _make_user()
+    update_voice_settings(uid, proactive_speak=True)
+    assert get_voice_settings(uid)["proactive_speak"] is True
+    update_voice_settings(uid, proactive_speak=False)
+    assert get_voice_settings(uid)["proactive_speak"] is False
+
+
+def test_update_proactive_speak_partial_doesnt_clobber():
+    """Updating other fields shouldn't reset proactive_speak."""
+    uid = _make_user()
+    update_voice_settings(uid, proactive_speak=True)
+    update_voice_settings(uid, voice="alloy")  # no proactive arg
+    s = get_voice_settings(uid)
+    assert s["proactive_speak"] is True
+    assert s["voice"] == "alloy"
