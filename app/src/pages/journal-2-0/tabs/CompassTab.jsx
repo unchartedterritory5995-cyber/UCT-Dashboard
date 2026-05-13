@@ -13,6 +13,7 @@ import useJ2TraderProfile from '../hooks/useJ2TraderProfile'
 import useJ2Settings from '../hooks/useJ2Settings'
 import useJ2EODRecaps from '../hooks/useJ2EODRecaps'
 import useHandsFreeEodRecap from '../hooks/useHandsFreeEodRecap'
+import useHandsFreeWeeklyReview from '../hooks/useHandsFreeWeeklyReview'
 import CompassReview from '../components/CompassReview'
 import EODRecap from '../components/EODRecap'
 import TraderProfileEditor from '../components/TraderProfileEditor'
@@ -63,6 +64,10 @@ export default function CompassTab() {
     (r) => r?.day_or_week === todayISO() || r?.day === todayISO(),
   )
   useHandsFreeEodRecap({ accountId, todaysEodRecap })
+
+  // P5-G: on Sunday, auto-read this week's weekly review aloud.
+  const latestReview = (reviews || [])[0]
+  useHandsFreeWeeklyReview({ accountId, latestReview })
   const [generating, setGenerating] = useState(false)
   const [errorMsg, setErrorMsg] = useState(null)
 
