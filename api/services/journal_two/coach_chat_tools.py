@@ -743,6 +743,129 @@ def _schedule_paper_only_day_execute(*, user_id, account_id, args, conn=None) ->
     return {"ok": True, "summary": f"Marked {d} paper-only."}
 
 
+# ── Pattern Engine bridge (text mode) ────────────────────────────────────────
+# Read access to the 50-detector pattern engine. Same logic as the voice
+# tools in voice_tool_impls.py (the bridge ones); duplicated here because
+# the Compass Chat text path uses its own tool catalog. Detection runs on
+# the background universe-scan job; these tools just query the fresh
+# pattern_detections table.
+
+
+def _pattern_pe_load() -> None:
+    try:
+        import api.routers.patterns  # noqa: F401
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _pattern_name(pid: str) -> str:
+    try:
+        from api.routers.patterns import _PATTERN_METADATA
+        return _PATTERN_METADATA.get(pid, {}).get(
+            "name", pid.replace("_", " ").title())
+    except Exception:
+        return pid.replace("_", " ").title()
+
+
+def _exec_find_patterns_on_ticker(*, user_id, account_id, args, conn=None) -> dict:
+    _pattern_pe_load()
+    sym = (args.get("symbol") or "").strip().upper()
+    if not sym:
+        return {"ok": False, "error": "symbol required"}
+    tf = (args.get("tf") or "D").strip().upper()
+    min_conf = float(args.get("min_conf") or 50)
+    min_conf = max(0.0, min(100.0, min_conf))
+    try:
+        from api.services.pattern_engine import memory as _pe_memory
+        rows = _pe_memory.get_active_detections(sym=sym, tf=tf, min_conf=min_conf)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+    top = sorted(rows, key=lambda r: r.get("confidence") or 0, reverse=True)[:5]
+    return {"ok": True, "symbol": sym, "tf": tf, "count": len(rows),
+            "detections": [{
+                "id": r.get("id"), "pattern_id": r.get("pattern_id"),
+                "pattern_name": _pattern_name(r.get("pattern_id") or ""),
+                "confidence": r.get("confidence"), "direction": r.get("direction"),
+                "status": r.get("status"), "levels": r.get("levels") or {},
+                "detected_at": r.get("detected_at"),
+            } for r in top]}
+
+
+def _exec_scan_active_patterns(*, user_id, account_id, args, conn=None) -> dict:
+    _pattern_pe_load()
+    import time as _t, json as _j
+    pattern_ids = [t.strip() for t in (args.get("types") or "").split(",") if t.strip()] or None
+    tf = (args.get("tf") or "D").strip().upper()
+    min_conf = max(50.0, min(100.0, float(args.get("min_conf") or 70)))
+    cat = (args.get("category") or "").strip().lower() or None
+    cap = max(1, min(200, int(args.get("limit") or 20)))
+    recent_cutoff = int(_t.time()) - 7 * 24 * 60 * 60
+
+    c = conn or get_connection()
+    sql = """SELECT id, sym, tf, pattern_id, category, direction, confidence,
+                    status, levels_json, detected_at
+               FROM pattern_detections
+              WHERE tf = ? AND status IN ('forming','ready','triggered')
+                AND confidence >= ? AND detected_at >= ?"""
+    params: list = [tf, min_conf, recent_cutoff]
+    if pattern_ids:
+        sql += f" AND pattern_id IN ({','.join('?' * len(pattern_ids))})"
+        params.extend(pattern_ids)
+    if cat:
+        sql += " AND category = ?"
+        params.append(cat)
+    sql += " ORDER BY detected_at DESC, confidence DESC LIMIT ?"
+    params.append(cap)
+    rows = c.execute(sql, params).fetchall()
+    out = []
+    for r in rows:
+        try:
+            lvls = _j.loads(r["levels_json"] or "{}")
+        except Exception:
+            lvls = {}
+        out.append({
+            "id": r["id"], "sym": r["sym"], "tf": r["tf"],
+            "pattern_id": r["pattern_id"],
+            "pattern_name": _pattern_name(r["pattern_id"]),
+            "category": r["category"], "direction": r["direction"],
+            "confidence": r["confidence"], "status": r["status"],
+            "levels": {"entry": lvls.get("entry"), "stop": lvls.get("stop"),
+                       "target": lvls.get("target_primary")},
+            "detected_at": r["detected_at"],
+        })
+    return {"ok": True, "count": len(out), "detections": out,
+            "filters": {"types": pattern_ids, "tf": tf, "min_conf": min_conf,
+                        "category": cat, "limit": cap}}
+
+
+def _exec_list_pattern_types(*, user_id, account_id, args, conn=None) -> dict:
+    _pattern_pe_load()
+    cat = (args.get("category") or "").strip().lower() or None
+    try:
+        from api.services.pattern_engine.detectors.registry import list_pattern_ids
+        from api.routers.patterns import _PATTERN_METADATA
+        ids = list_pattern_ids()
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+    items = []
+    for pid in ids:
+        meta = _PATTERN_METADATA.get(pid, {})
+        item_cat = (meta.get("category") or "uncategorized").lower()
+        if cat and item_cat != cat:
+            continue
+        items.append({
+            "id": pid,
+            "name": meta.get("name", pid.replace("_", " ").title()),
+            "category": item_cat,
+            "direction": (meta.get("direction") or "neutral").lower(),
+        })
+    by_cat: dict[str, int] = {}
+    for it in items:
+        by_cat[it["category"]] = by_cat.get(it["category"], 0) + 1
+    return {"ok": True, "count": len(items), "patterns": items,
+            "by_category": by_cat}
+
+
 TOOLS: dict[str, dict[str, Any]] = {
     "list_recent_trades": {
         "name": "list_recent_trades",
@@ -1409,6 +1532,49 @@ TOOLS.update({
                 "this_weeks_focus": {"type": "string"},
             },
             "required": ["trader_profile"],
+        },
+    },
+    "find_patterns_on_ticker": {
+        "name": "find_patterns_on_ticker",
+        "description": "Active chart patterns currently detected on a single ticker (Bull Flag, VCP, High Tight Flag, Cup & Handle, candlestick reversals, etc.) with confidence, direction, status, and entry/stop/target levels. Use when the trader asks 'is NVDA in a bull flag?', 'what patterns on TSLA?', 'show me setups on AAPL'.",
+        "requires_confirm": False,
+        "executor": _exec_find_patterns_on_ticker,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "symbol": {"type": "string", "description": "Ticker, e.g. NVDA."},
+                "tf": {"type": "string", "description": "Timeframe: D, W, 60, 30, 15, 5. Default D."},
+                "min_conf": {"type": "number", "description": "Minimum confidence 0-100. Default 50."},
+            },
+            "required": ["symbol"],
+        },
+    },
+    "scan_active_patterns": {
+        "name": "scan_active_patterns",
+        "description": "Universe scan — what chart patterns have fired across the market in the last 7 days. Filter by pattern types, timeframe, confidence floor, or category (classical/candlestick/uct/structure). Use when the trader asks 'what flags fired today?', 'show me VCPs', 'any breakouts setting up?'.",
+        "requires_confirm": False,
+        "executor": _exec_scan_active_patterns,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "types": {"type": "string", "description": "Comma-separated pattern_ids (e.g. 'bull_flag,vcp')."},
+                "tf": {"type": "string", "description": "Timeframe. Default D."},
+                "min_conf": {"type": "number", "description": "Minimum confidence 50-100. Default 70."},
+                "category": {"type": "string", "enum": ["classical", "candlestick", "uct", "structure"]},
+                "limit": {"type": "integer", "default": 20, "maximum": 200},
+            },
+        },
+    },
+    "list_pattern_types": {
+        "name": "list_pattern_types",
+        "description": "List the chart patterns the engine can detect (50 across classical, candlestick, UCT-specific, and structure categories). Use when the trader asks 'what patterns can you detect?', 'what does the engine know?'.",
+        "requires_confirm": False,
+        "executor": _exec_list_pattern_types,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "enum": ["classical", "candlestick", "uct", "structure"]},
+            },
         },
     },
 })

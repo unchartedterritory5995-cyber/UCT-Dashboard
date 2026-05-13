@@ -1212,6 +1212,241 @@ def _correct_me(*, user, what_was_wrong: str = "", what_was_right: str = "") -> 
     }
 
 
+# ── Pattern Engine bridge ─────────────────────────────────────────────────
+# Tools that expose the existing pattern_engine REST surface conversationally.
+# Read-only — detection itself happens on the background universe-scan job
+# (see api/main.py:_run_patterns_universe_scan). These tools just query the
+# fresh pattern_detections table.
+
+
+def _ensure_pattern_detectors_loaded() -> None:
+    """Importing api.routers.patterns triggers detector self-registration.
+    Safe to call repeatedly — registry uses dict.update semantics."""
+    try:
+        import api.routers.patterns  # noqa: F401
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _pattern_name_lookup(pattern_id: str) -> str:
+    try:
+        from api.routers.patterns import _PATTERN_METADATA
+        return _PATTERN_METADATA.get(pattern_id, {}).get(
+            "name", pattern_id.replace("_", " ").title(),
+        )
+    except Exception:
+        return pattern_id.replace("_", " ").title()
+
+
+def _format_levels(levels: dict) -> str:
+    """Inline phrase like 'entry $124.50, stop $119.80, target $135'."""
+    parts = []
+    e = levels.get("entry") or levels.get("entry_price")
+    s = levels.get("stop") or levels.get("stop_price")
+    t = (levels.get("target")
+         or levels.get("target_primary")
+         or levels.get("target_price"))
+    if e is not None:
+        parts.append(f"entry ${e:.2f}" if isinstance(e, (int, float)) else f"entry {e}")
+    if s is not None:
+        parts.append(f"stop ${s:.2f}" if isinstance(s, (int, float)) else f"stop {s}")
+    if t is not None:
+        parts.append(f"target ${t:.2f}" if isinstance(t, (int, float)) else f"target {t}")
+    return ", ".join(parts) if parts else ""
+
+
+def _find_patterns_on_ticker(
+    *, symbol: str, tf: str = "D", min_conf: float = 50.0,
+) -> dict:
+    """Active pattern detections for one ticker on one timeframe."""
+    _ensure_pattern_detectors_loaded()
+    sym = (symbol or "").strip().upper()
+    if not sym:
+        return {"ok": False, "narration": "Symbol required.",
+                "error": "missing_symbol"}
+
+    tf_norm = (tf or "D").strip().upper()
+    try:
+        from api.services.pattern_engine import memory as _pe_memory
+        rows = _pe_memory.get_active_detections(
+            sym=sym, tf=tf_norm,
+            min_conf=float(max(0.0, min(100.0, min_conf or 0))),
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "narration": f"Pattern lookup failed: {e}",
+                "error": str(e)}
+
+    if not rows:
+        return {
+            "ok": True,
+            "narration": f"No active patterns on {sym} ({tf_norm}) above "
+                         f"{min_conf:.0f}% confidence right now.",
+            "symbol": sym, "tf": tf_norm, "count": 0, "detections": [],
+        }
+
+    # Top 5 by confidence
+    top = sorted(rows, key=lambda r: r.get("confidence") or 0, reverse=True)[:5]
+    snippets: list[str] = []
+    for r in top:
+        name = _pattern_name_lookup(r.get("pattern_id") or "")
+        conf = r.get("confidence") or 0
+        direction = (r.get("direction") or "").lower() or "directional"
+        status = r.get("status") or ""
+        levels_phrase = _format_levels(r.get("levels") or {})
+        bit = f"{name} ({conf:.0f}% conf, {direction}"
+        if status:
+            bit += f", {status}"
+        bit += ")"
+        if levels_phrase:
+            bit += f" — {levels_phrase}"
+        snippets.append(bit)
+    headline = f"{sym} on the {tf_norm} timeframe: {len(rows)} active pattern" \
+               f"{'s' if len(rows) != 1 else ''}. "
+    narration = headline + " · ".join(snippets[:3])
+    return {
+        "ok": True, "symbol": sym, "tf": tf_norm,
+        "count": len(rows), "detections": top,
+        "narration": narration,
+    }
+
+
+def _scan_active_patterns(
+    *, types: str = "", tf: str = "D", min_conf: float = 70.0,
+    category: str = "", limit: int = 20,
+) -> dict:
+    """Universe scan — what patterns fired across the market recently."""
+    _ensure_pattern_detectors_loaded()
+    pattern_ids = [t.strip() for t in (types or "").split(",") if t.strip()] or None
+    tf_norm = (tf or "D").strip().upper()
+    cat = (category or "").strip().lower() or None
+    cap = max(1, min(200, int(limit or 20)))
+    conf_min = max(50.0, min(100.0, float(min_conf or 70.0)))
+
+    try:
+        from api.services.auth_db import get_connection
+        import time as _time, json as _json
+        recent_cutoff = int(_time.time()) - 7 * 24 * 60 * 60
+
+        sql = """
+            SELECT id, sym, tf, pattern_id, category, direction, confidence,
+                   status, levels_json, detected_at
+              FROM pattern_detections
+             WHERE tf = ?
+               AND status IN ('forming', 'ready', 'triggered')
+               AND confidence >= ?
+               AND detected_at >= ?
+        """
+        params: list = [tf_norm, conf_min, recent_cutoff]
+        if pattern_ids:
+            placeholders = ",".join(["?"] * len(pattern_ids))
+            sql += f" AND pattern_id IN ({placeholders})"
+            params.extend(pattern_ids)
+        if cat:
+            sql += " AND category = ?"
+            params.append(cat)
+        sql += " ORDER BY detected_at DESC, confidence DESC LIMIT ?"
+        params.append(cap)
+
+        conn = get_connection()
+        try:
+            rows = conn.execute(sql, params).fetchall()
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "narration": f"Scan failed: {e}", "error": str(e)}
+
+    if not rows:
+        filter_phrase = ""
+        if pattern_ids:
+            filter_phrase = f" matching {', '.join(pattern_ids[:3])}"
+        elif cat:
+            filter_phrase = f" in the {cat} category"
+        return {
+            "ok": True, "count": 0, "detections": [],
+            "narration": f"No active patterns{filter_phrase} on the "
+                         f"{tf_norm} timeframe above {conf_min:.0f}% "
+                         f"confidence in the last 7 days.",
+        }
+
+    out: list[dict] = []
+    for r in rows:
+        try:
+            lvls = _json.loads(r["levels_json"] or "{}")
+        except Exception:
+            lvls = {}
+        out.append({
+            "id": r["id"], "sym": r["sym"], "tf": r["tf"],
+            "pattern_id": r["pattern_id"],
+            "pattern_name": _pattern_name_lookup(r["pattern_id"]),
+            "category": r["category"], "direction": r["direction"],
+            "confidence": r["confidence"], "status": r["status"],
+            "levels": {
+                "entry": lvls.get("entry"),
+                "stop": lvls.get("stop"),
+                "target": lvls.get("target_primary"),
+            },
+            "detected_at": r["detected_at"],
+        })
+
+    # Top-3 narration snippet
+    bullets = []
+    for d in out[:3]:
+        bullets.append(
+            f"{d['sym']} {d['pattern_name']} ({d['confidence']:.0f}%, "
+            f"{(d['direction'] or '').lower() or 'directional'})"
+        )
+    narration = (
+        f"{len(out)} active pattern{'s' if len(out) != 1 else ''} on the "
+        f"{tf_norm} timeframe: " + " · ".join(bullets)
+        + (f". Plus {len(out) - 3} more." if len(out) > 3 else ".")
+    )
+    return {
+        "ok": True, "count": len(out), "detections": out,
+        "narration": narration,
+        "filters": {"types": pattern_ids, "tf": tf_norm,
+                    "min_conf": conf_min, "category": cat, "limit": cap},
+    }
+
+
+def _list_pattern_types(*, category: str = "") -> dict:
+    """Enumerate available pattern detectors, optionally filtered by category."""
+    _ensure_pattern_detectors_loaded()
+    cat = (category or "").strip().lower() or None
+    try:
+        from api.services.pattern_engine.detectors.registry import list_pattern_ids
+        from api.routers.patterns import _PATTERN_METADATA
+        ids = list_pattern_ids()
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "narration": f"Pattern registry unavailable: {e}",
+                "error": str(e)}
+
+    items = []
+    for pid in ids:
+        meta = _PATTERN_METADATA.get(pid, {})
+        item_cat = (meta.get("category") or "uncategorized").lower()
+        if cat and item_cat != cat:
+            continue
+        items.append({
+            "id": pid,
+            "name": meta.get("name", pid.replace("_", " ").title()),
+            "category": item_cat,
+            "direction": (meta.get("direction") or "neutral").lower(),
+        })
+
+    if not items:
+        return {"ok": True, "count": 0, "patterns": [],
+                "narration": f"No patterns registered"
+                             f"{' in category ' + cat if cat else ''}."}
+
+    by_cat: dict[str, int] = {}
+    for it in items:
+        by_cat[it["category"]] = by_cat.get(it["category"], 0) + 1
+    cat_phrase = ", ".join(f"{n} {c}" for c, n in sorted(by_cat.items()))
+    narration = f"{len(items)} pattern type{'s' if len(items) != 1 else ''} available: {cat_phrase}."
+    return {"ok": True, "count": len(items), "patterns": items,
+            "by_category": by_cat, "narration": narration}
+
+
 def _register_all() -> None:
     """Register (or re-register) all Slice 2 tools into the registry."""
 
@@ -1461,6 +1696,40 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_analyze_setup_in_period)
+
+    # Compass × Pattern Engine bridge — read access to the 50-detector engine
+    _vt.voice_tool(
+        name="find_patterns_on_ticker",
+        description="Active chart patterns currently detected on a single ticker. Returns Bull Flag, VCP, High Tight Flag, Cup & Handle, Engulfing, Hammer, etc. with confidence, direction, status (forming/ready/triggered), and entry/stop/target levels. Call when the user asks 'is NVDA in a bull flag?', 'what patterns are on TSLA?', 'any setups on AAPL right now?'.",
+        parameters={
+            "symbol":   {"type": "string",  "description": "Ticker, e.g. NVDA."},
+            "tf":       {"type": "string",  "description": "Timeframe — D (daily), W (weekly), 60 (1h), 30, 15, 5. Defaults to D."},
+            "min_conf": {"type": "number",  "description": "Minimum confidence (0-100). Defaults to 50."},
+        },
+        contexts=["global"],
+    )(_find_patterns_on_ticker)
+
+    _vt.voice_tool(
+        name="scan_active_patterns",
+        description="Universe scan — what chart patterns fired across the market in the last 7 days. Filter by pattern types (comma-separated, e.g. 'bull_flag,high_tight_flag,vcp'), timeframe, minimum confidence, or category (classical / candlestick / uct / structure). Call when the user asks 'what flags fired today?', 'show me high tight flags', 'any breakouts setting up?', 'scan for VCPs'.",
+        parameters={
+            "types":    {"type": "string",  "description": "Comma-separated pattern_ids (e.g. 'bull_flag,vcp'). Omit for all patterns."},
+            "tf":       {"type": "string",  "description": "Timeframe — D, W, 60, 30, 15, 5. Defaults to D."},
+            "min_conf": {"type": "number",  "description": "Minimum confidence (50-100). Defaults to 70."},
+            "category": {"type": "string",  "description": "Filter: classical, candlestick, uct, or structure. Omit for all."},
+            "limit":    {"type": "integer", "description": "Max results (default 20, max 200)."},
+        },
+        contexts=["global"],
+    )(_scan_active_patterns)
+
+    _vt.voice_tool(
+        name="list_pattern_types",
+        description="List the chart patterns the pattern engine can detect — 50 across classical (flags, wedges, triangles, head & shoulders), candlestick (hammer, engulfing, morning star), UCT (VCP, high tight flag, episodic pivot, power earnings gap), and structure (swing pivots, support/resistance, stage analysis). Call when the user asks 'what patterns can you detect?', 'what does the engine know?', 'list candlestick patterns'.",
+        parameters={
+            "category": {"type": "string", "description": "Filter: classical, candlestick, uct, or structure. Omit for all."},
+        },
+        contexts=["global"],
+    )(_list_pattern_types)
 
     # P4-E: conversational queries against the proactive daemon
     _vt.voice_tool(

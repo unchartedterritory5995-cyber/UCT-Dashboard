@@ -356,6 +356,10 @@ def _compass_tool_union() -> set[str]:
     out.add("get_my_trade_review")
     # P5-L: weekly Compass digest for "show me your work" questions.
     out.add("what_compass_did_this_week")
+    # Compass × Pattern Engine bridge — 50-detector pattern recognition.
+    out.add("find_patterns_on_ticker")
+    out.add("scan_active_patterns")
+    out.add("list_pattern_types")
     return out
 
 
