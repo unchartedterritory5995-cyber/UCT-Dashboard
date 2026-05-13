@@ -68,6 +68,9 @@ class Context(TypedDict):
     nearest_support: float | None
     days_to_earnings: int | None
     sector_strength_rank: int | None
+    # Phase 3 additions:
+    recent_dcr_avg: float                                       # average DCR over last 10 bars, 0.0-1.0
+    dcr_signature: Literal["accumulation", "distribution", "neutral"]  # trend-scale classifier
 
 
 class QualityComponents(TypedDict):

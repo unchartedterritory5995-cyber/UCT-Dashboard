@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from api.services.pattern_engine.primitives.dcr import avg_dcr, dcr_signature
 from api.services.pattern_engine.primitives.volume import volume_signature
 from api.services.pattern_engine.types import Bar, Context
 
@@ -150,4 +151,6 @@ def build_context(
         "nearest_support": _nearest_support(bars),
         "days_to_earnings": None,
         "sector_strength_rank": None,
+        "recent_dcr_avg": round(avg_dcr(bars, lookback=10), 4),
+        "dcr_signature": dcr_signature(bars, lookback=10),
     }

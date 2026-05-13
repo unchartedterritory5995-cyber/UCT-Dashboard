@@ -54,3 +54,19 @@ def test_handles_short_bars_gracefully():
     ctx = build_context(bars, sym="TEST")
     # Should not crash; ma_alignment may be "mixed" without 200 SMA.
     assert ctx["ma_alignment"] in ("stacked_bullish", "mixed", "stacked_bearish")
+
+
+def test_build_context_includes_dcr_fields():
+    bars = [{"t": i, "o": 100, "h": 101, "l": 99, "c": 100.5, "v": 1000} for i in range(20)]
+    ctx = build_context(bars, sym="TEST")
+    assert "recent_dcr_avg" in ctx
+    assert 0.0 <= ctx["recent_dcr_avg"] <= 1.0
+    assert ctx["dcr_signature"] in ("accumulation", "distribution", "neutral")
+
+
+def test_build_context_dcr_accumulation_signal():
+    # Bars where close is near high consistently
+    bars = [{"t": i, "o": 99, "h": 100, "l": 99, "c": 99.95, "v": 1000} for i in range(20)]
+    ctx = build_context(bars, sym="TEST")
+    assert ctx["dcr_signature"] == "accumulation"
+    assert ctx["recent_dcr_avg"] > 0.7
