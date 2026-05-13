@@ -966,6 +966,25 @@ async def lifespan(app: FastAPI):
                            id="voice_proactive_after_hours",
                            max_instances=1, replace_existing=True)
 
+        # Compass P4-D — daily focus message at 7:30 AM ET on weekdays.
+        # Composes regime + flagged gappers + earnings + interventions and
+        # posts as a high-importance proactive insight that cascades to:
+        # inbox (P3-D), Compass chat thread (P4-C), and spoken aloud (P4-A)
+        # if proactive_speak is ON.
+        def _compass_daily_focus_run():
+            try:
+                from api.services.voice_daily_focus import run_for_all_enabled_users
+                report = run_for_all_enabled_users()
+                print(f"[compass_daily_focus] posted={report['posted']} "
+                      f"skipped={report['skipped']}")
+            except Exception as e:
+                print(f"[compass_daily_focus] outer error: {e}")
+        _scheduler.add_job(_compass_daily_focus_run,
+                           trigger=CronTrigger(day_of_week="mon-fri",
+                                               hour=7, minute=30),
+                           id="compass_daily_focus",
+                           max_instances=1, replace_existing=True)
+
         # Voice P8 — nightly memory consolidation. Dedupes facts, flags
         # stale ones, surfaces summary compression candidates.
         def _voice_nightly_consolidate():
