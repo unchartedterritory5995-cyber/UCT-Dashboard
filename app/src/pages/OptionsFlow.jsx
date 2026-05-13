@@ -3427,6 +3427,8 @@ export default function OptionsFlowDashboard() {
                     <div style={{ width:3, background:`linear-gradient(180deg, ${P.bu}, ${P.ac}, ${P.bu})`, borderRadius:2, alignSelf:"stretch", flexShrink:0, opacity:0.3 }} />
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:11, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase", marginBottom:6 }}>Flow Intelligence</div>
+                      <div style={{ display:"flex", gap:16 }}>
+                        <div style={{ flex:1 }}>
                       <div style={{ fontSize:12, color:P.wh, lineHeight:1.8 }}>
                         <span>Net flow is </span>
                         <span style={{ fontWeight:900, color:netC }}>{netDir}</span>
@@ -3488,6 +3490,12 @@ export default function OptionsFlowDashboard() {
                           <span>.</span>
                         </div>
                       )}
+                        </div>
+                        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0, width:"18%" }}>
+                          <div style={{ fontSize:32, fontWeight:900, color:netC, fontVariantNumeric:"tabular-nums", lineHeight:1 }}>{bullPct}%</div>
+                          <div style={{ fontSize:7, fontWeight:600, color:P.dm, letterSpacing:1, textTransform:"uppercase", marginTop:4 }}>Bull Flow</div>
+                        </div>
+                      </div>
                       {/* Timeframe Outlook */}
                       {(()=>{
                         const tfRanges = [
@@ -3530,10 +3538,6 @@ export default function OptionsFlowDashboard() {
                           </div>
                         );
                       })()}
-                    </div>
-                    <div style={{ textAlign:"center", flexShrink:0, padding:"0 10px" }}>
-                      <div style={{ fontSize:28, fontWeight:900, color:netC, fontVariantNumeric:"tabular-nums" }}>{bullPct}%</div>
-                      <div style={{ fontSize:8, fontWeight:600, color:P.dm, letterSpacing:1, textTransform:"uppercase" }}>Bull Flow</div>
                     </div>
                   </div>
                 </Card>
