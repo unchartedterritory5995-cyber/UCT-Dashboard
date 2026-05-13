@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from verify_phase_checks import (
     test_suite, inventory, schema, api_smoke, fixture_battery,
-    fp_sweep, perf_bench, confidence_dist, consistency,
+    fp_sweep, perf_bench, confidence_dist, consistency, launch_readiness,
 )
 
 
@@ -69,6 +69,7 @@ def main(phase: int, skip_api: bool = False):
         ("Performance Bench",      perf_bench.run,        {}),
         ("Confidence Distribution", confidence_dist.run,  {}),
         ("Cross-Detector Consistency", consistency.run,   {}),
+        ("Launch Readiness",       launch_readiness.run,  {}),
     ]
 
     results = []
