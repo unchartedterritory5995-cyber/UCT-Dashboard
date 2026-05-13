@@ -1,7 +1,8 @@
 // app/src/components/chart/PatternOverlay.jsx — SVG overlay for engine-detected chart patterns.
 //
-// Task 1 (Phase 5): foundation only. Renders placeholder debug markers (circles + ticker labels) at
-// each detection's first anchor. Task 2 will dispatch to real shape renderers per pattern_id.
+// Task 2 (Phase 5): dispatches each detection to a shape-specific renderer based on
+// `detection.geometry.shape`. The shape renderers live in ./patternShapes/ — one file per geometry
+// type (trendline_pair, neckline, cup_curve, rectangle, candle_mark, horizontal_line).
 //
 // Peer layer to ChartDrawingOverlay — both live inside the StockChart `wrapper` (position: relative)
 // and are sized to overlay the chart's `containerRef` div. The SVG opts out of pointer events at the
@@ -9,9 +10,24 @@
 //
 // Subscribes to lightweight-charts v5 timeScale events (visible-time + visible-logical) so shapes
 // reproject on scroll/zoom. Coordinate conversion is `chart.timeScale().timeToCoordinate(t)` and
-// `series.priceToCoordinate(price)` — both return null when the point is off-screen, which we treat
-// as a skip-render condition.
+// `series.priceToCoordinate(price)` — both return null when the point is off-screen, which the
+// renderers treat as a skip-render condition.
 import { useEffect, useRef, useState, useCallback } from 'react'
+import TrendlinePair from './patternShapes/TrendlinePair'
+import Neckline from './patternShapes/Neckline'
+import CupCurve from './patternShapes/CupCurve'
+import Rectangle from './patternShapes/Rectangle'
+import CandleMark from './patternShapes/CandleMark'
+import HorizontalLine from './patternShapes/HorizontalLine'
+
+const SHAPE_RENDERERS = {
+  trendline_pair: TrendlinePair,
+  neckline: Neckline,
+  cup_curve: CupCurve,
+  rectangle: Rectangle,
+  candle_mark: CandleMark,
+  horizontal_line: HorizontalLine,
+}
 
 /**
  * Props:
@@ -73,17 +89,6 @@ export default function PatternOverlay({
     try { return series.priceToCoordinate(price) } catch { return null }
   }
 
-  // Task 1: debug placeholder markers. Task 2 will swap this for per-pattern shape renderers.
-  if (typeof window !== 'undefined' && detections.length) {
-    // One-shot console signal so developers can confirm the overlay is wired up during smoke tests.
-    console.debug(
-      '[PatternOverlay] rendering',
-      detections.length,
-      'detections:',
-      detections.map((d) => `${d.pattern_id}:${d.direction || 'neutral'}@${d.confidence ?? '?'}`).join(', ')
-    )
-  }
-
   return (
     <svg
       ref={svgRef}
@@ -97,32 +102,28 @@ export default function PatternOverlay({
         zIndex: 5,             // above candles, below chart toolbar
       }}
     >
+      <defs>
+        {/* Soft glow applied to "recent" detections (detected_at within last 5 minutes). */}
+        <filter id="patternGlow">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+          <feMerge>
+            <feMergeNode in="coloredBlur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
       {detections.map((d) => {
-        const first = d.geometry?.anchors?.[0]
-        if (!first) return null
-        const x = tToX(first.t)
-        const y = priceToY(first.price)
-        if (x == null || y == null) return null
-
-        const color =
-          d.direction === 'bullish'
-            ? '#10b981'
-            : d.direction === 'bearish'
-            ? '#ef4444'
-            : '#c9a84c'
-        const opacity = Math.max(0.4, (d.confidence || 50) / 100)
-
+        const shape = d?.geometry?.shape
+        const Renderer = SHAPE_RENDERERS[shape]
+        if (!Renderer) return null
         return (
-          <g
+          <Renderer
             key={d.id}
-            onClick={() => onDetectionClick?.(d)}
-            style={{ cursor: 'pointer', pointerEvents: 'auto' }}
-          >
-            <circle cx={x} cy={y} r={8} fill={color} opacity={opacity} />
-            <text x={x + 12} y={y + 4} fontSize="11" fill={color}>
-              {d.pattern_id}
-            </text>
-          </g>
+            detection={d}
+            tToX={tToX}
+            priceToY={priceToY}
+            onClick={onDetectionClick}
+          />
         )
       })}
     </svg>
