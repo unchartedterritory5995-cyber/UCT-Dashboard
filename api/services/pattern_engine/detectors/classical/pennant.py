@@ -401,6 +401,7 @@ def _score_context(context: dict, direction: str) -> float:
     return min(100.0, score)
 
 
+# Custom variant - does not match shared narrative_helpers
 def _ma_alignment_phrase(context: dict, direction: str) -> str:
     align = context.get("ma_alignment", "mixed")
     if align == "stacked_bullish":
@@ -412,6 +413,7 @@ def _ma_alignment_phrase(context: dict, direction: str) -> str:
     return "mixed moving-average"
 
 
+# Custom variant - does not match shared narrative_helpers
 def _trend_stage_description(context: dict, direction: str) -> str:
     stage = context.get("trend_stage", 0)
     if direction == "bullish":
@@ -435,6 +437,7 @@ def _trend_stage_description(context: dict, direction: str) -> str:
     return "an undefined trend stage"
 
 
+# Custom variant - does not match shared narrative_helpers
 def _rs_trend_phrase(context: dict, direction: str) -> str:
     rs = context.get("rs_trend", "flat")
     if direction == "bullish":

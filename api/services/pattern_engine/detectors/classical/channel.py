@@ -319,6 +319,7 @@ def _channel_type_phrase(channel_type: str, direction: str, upper_slope: float,
             f"${mid_price:.2f})")
 
 
+# Custom variant - does not match shared narrative_helpers
 def _ma_alignment_phrase(context: dict, direction: str) -> str:
     align = context.get("ma_alignment", "mixed")
     if align == "stacked_bullish":
@@ -332,6 +333,7 @@ def _ma_alignment_phrase(context: dict, direction: str) -> str:
     return "mixed moving-average"
 
 
+# Custom variant - does not match shared narrative_helpers
 def _trend_stage_description(context: dict, direction: str) -> str:
     stage = context.get("trend_stage", 0)
     if direction == "bullish":
@@ -358,6 +360,7 @@ def _trend_stage_description(context: dict, direction: str) -> str:
     return "an undefined trend stage"
 
 
+# Custom variant - does not match shared narrative_helpers
 def _rs_trend_phrase(context: dict) -> str:
     rs = context.get("rs_trend", "flat")
     if rs == "up":
@@ -367,6 +370,7 @@ def _rs_trend_phrase(context: dict) -> str:
     return "neutral"
 
 
+# Custom variant - does not match shared narrative_helpers
 def _dcr_phrase(context: dict) -> str:
     sig = context.get("dcr_signature", "neutral")
     avg = context.get("recent_dcr_avg", 0.5)
