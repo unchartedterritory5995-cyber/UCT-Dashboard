@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * RiskDashboard — visualize the position-sizing engine + portfolio heat.
  *
@@ -14,7 +15,10 @@
  * trades. Gives the user institutional-grade visibility into their
  * exposure at a glance.
  */
+import { useContext } from 'react'
 import useSWR from 'swr'
+import { VoiceContext, setVoicePageHint } from '../context/VoiceContext'
+import useRealtimeSession from '../hooks/useRealtimeSession'
 import styles from './RiskDashboard.module.css'
 
 const fetcher = (url) =>
@@ -98,6 +102,11 @@ function HeatRow({ data }) {
   const cap = data.portfolio_heat_cap_pct
   const ratio = cap > 0 ? Math.min(heat / cap, 1.2) : 0
   const overCap = heat > cap
+  // P5-F: any sector over its concentration cap?
+  const sectorBreached = (data.by_sector || []).some(
+    (s) => s.risk_pct > data.max_sector_concentration_pct,
+  )
+  const showAskCompass = overCap || sectorBreached
 
   return (
     <section className={styles.heatSection}>
@@ -121,7 +130,50 @@ function HeatRow({ data }) {
         <span><strong>{fmtMoney(data.total_risk_dollars)}</strong> at risk</span>
         <span>Account: <strong>{fmtMoney(data.account_size)}</strong></span>
       </div>
+      {showAskCompass && (
+        <AskCompassButton
+          reason={overCap ? 'heat-over-cap' : 'sector-breach'}
+          data={data}
+        />
+      )}
     </section>
+  )
+}
+
+
+function AskCompassButton({ reason, data }) {
+  const voice = useContext(VoiceContext)
+  if (!voice) return null
+  return <AskCompassButtonInner reason={reason} data={data} />
+}
+
+
+function AskCompassButtonInner({ reason, data }) {
+  const { connect } = useRealtimeSession()
+  const handleClick = () => {
+    // Pre-load a page hint so Compass starts the session knowing the
+    // risk state — heat % and the specific breach.
+    const breach = reason === 'heat-over-cap'
+      ? `portfolio heat ${data.portfolio_heat_pct.toFixed(1)}% is over the ${data.portfolio_heat_cap_pct.toFixed(0)}% cap`
+      : `a sector concentration is over the ${data.max_sector_concentration_pct.toFixed(0)}% limit`
+    setVoicePageHint(
+      `Risk Dashboard — ${breach}. Open positions: ${data.open_position_count}. ` +
+      `Total at risk: $${data.total_risk_dollars.toFixed(0)}.`
+    )
+    connect('compass')
+  }
+  const label = reason === 'heat-over-cap'
+    ? '🧭 Ask Compass why you’re hot'
+    : '🧭 Ask Compass about this sector concentration'
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={styles.askCompassBtn}
+      aria-label={label}
+    >
+      {label}
+    </button>
   )
 }
 

@@ -6,6 +6,7 @@ import TickerPopup from '../components/TickerPopup'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { SkeletonTileContent } from '../components/Skeleton'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
+import useHandsFreeMorningWire from '../hooks/useHandsFreeMorningWire'
 import styles from './MorningWire.module.css'
 
 function htmlToPlainText(html) {
@@ -213,6 +214,9 @@ export default function MorningWire() {
   const { mutate } = useSWRConfig()
   const { data: rundown }  = useSWR('/api/rundown',         fetcher, { refreshInterval: 300000 })
   const { data: analysts } = useSWR('/api/analyst-actions', fetcher, { refreshInterval: 300000 })
+
+  // P5-E: hands-free auto-read of today's rundown when proactive_speak is ON
+  useHandsFreeMorningWire({ rundownHtml: rundown?.html })
 
   const handleRefresh = useCallback(() => Promise.all([
     mutate('/api/rundown'),
