@@ -13,6 +13,7 @@ import AudioPlayerBar from './components/voice/AudioPlayerBar'
 import FloatingOrb from './components/voice/FloatingOrb'
 import TranscriptBubble from './components/voice/TranscriptBubble'
 import usePushToTalkHotkey from './hooks/usePushToTalkHotkey'
+import useProactiveVoice from './hooks/useProactiveVoice'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
@@ -61,6 +62,10 @@ function VoiceMounts() {
   const { connect } = useRealtimeSession()
   usePushToTalkHotkey({ context: 'global' })
   useWakeWord({ enabled: wakeEnabled, onWake: () => connect('global') })
+  // P4-A: Compass speaks proactive alerts when the user has opted in
+  // (Compass Settings → "Compass can speak proactive alerts"). The hook
+  // is a no-op when the toggle is off; backend gates the unspoken queue.
+  useProactiveVoice()
   // Batch 10a: when an agent emits route_to_agent, start a fresh session
   // in the target agent's context.
   useEffect(() => {

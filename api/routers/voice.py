@@ -227,6 +227,66 @@ def insights_dismiss(
     return {"ok": ok}
 
 
+# ── P4-A: end-to-end proactive voice ──────────────────────────────────────
+# Surfaces ONE high-importance insight per poll so the frontend hook can
+# speak it via TTS without opening a full voice session. Filters by the
+# user's proactive_speak setting (off = always returns empty).
+
+_PROACTIVE_SPEAK_MIN_IMPORTANCE = 7
+
+
+@router.get("/insights/unspoken")
+def insights_unspoken(user: dict = Depends(requires_voice_access)):
+    """Return ONE high-severity insight to speak, or null. Respects the
+    user's proactive_speak setting and minimum importance threshold."""
+    from api.services.voice_proactive_service import list_pending_insights
+    settings = get_voice_settings(user["id"])
+    if not settings.get("proactive_speak"):
+        return {"insight": None, "reason": "proactive_speak disabled"}
+    pending = list_pending_insights(user["id"], limit=10)
+    for ins in pending:
+        if (ins.get("importance") or 0) >= _PROACTIVE_SPEAK_MIN_IMPORTANCE:
+            # Compose speakable text: headline plus optional one-line body
+            headline = (ins.get("headline") or "").strip()
+            body = (ins.get("body") or "").strip()
+            sym = (ins.get("symbol") or "").strip()
+            spoken_text = headline
+            if body and len(spoken_text) + len(body) < 400:
+                spoken_text = f"{headline}. {body}"
+            return {
+                "insight": {
+                    "id": ins["id"],
+                    "kind": ins.get("kind"),
+                    "symbol": sym,
+                    "headline": headline,
+                    "spoken_text": spoken_text,
+                    "importance": ins.get("importance"),
+                }
+            }
+    return {"insight": None}
+
+
+@router.post("/insights/{insight_id}/mark-spoken")
+@limiter.limit("60/minute")
+def insights_mark_spoken(
+    request: Request,
+    insight_id: int,
+    user: dict = Depends(requires_voice_access),
+):
+    """Mark a proactive insight as spoken (sets delivered_at). Scoped by
+    user_id for defense-in-depth — won't mark another user's row."""
+    from api.services.voice_proactive_service import (
+        list_pending_insights, mark_delivered,
+    )
+    pending = list_pending_insights(user["id"], limit=50)
+    if not any(p["id"] == insight_id for p in pending):
+        # Either already delivered/dismissed, doesn't exist, or belongs to
+        # another user. Idempotent — don't 404, just no-op.
+        return {"ok": True, "marked": 0}
+    n = mark_delivered([insight_id])
+    return {"ok": True, "marked": n}
+
+
 class VisionDescribeRequest(BaseModel):
     image_url: str | None = None
     image_b64: str | None = None
