@@ -50,6 +50,8 @@ from api.services.pattern_engine.detectors.candlestick import bullish_harami as 
 from api.services.pattern_engine.detectors.candlestick import bearish_harami as _bearish_harami  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import morning_star as _morning_star  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import evening_star as _evening_star  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import three_white_soldiers as _three_white_soldiers  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import three_black_crows as _three_black_crows  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -267,6 +269,18 @@ _PATTERN_METADATA = {
         "category": "candlestick",
         "direction": "bearish",
         "description": "3-bar pattern: long green + small body (the 'star') + long red closing below bar 1's midpoint. Bearish reversal at swing highs. Named for Venus at dusk.",
+    },
+    "three_white_soldiers": {
+        "name": "Three White Soldiers",
+        "category": "candlestick",
+        "direction": "bullish",
+        "description": "3 consecutive long green bars, each opening within prior body and closing near its high. Institutional accumulation signal - bullish continuation from base or reversal at swing lows.",
+    },
+    "three_black_crows": {
+        "name": "Three Black Crows",
+        "category": "candlestick",
+        "direction": "bearish",
+        "description": "3 consecutive long red bars, each opening within prior body and closing near its low. Distribution signal - bearish reversal at swing highs or continuation from top.",
     },
 }
 
