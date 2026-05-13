@@ -3596,21 +3596,16 @@ export default function OptionsFlowDashboard() {
             {/* Sector / Theme Breakdown */}
             {FD.SECTORS.length > 0 && (
               <Card>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <span style={{ fontSize:11, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1.5 }}>
-                      {sectorView==="themes"?"Theme Flow":FD.sectorTickerMode?(FD.sectorIsETF?"ETF Flow":"Ticker Flow"):"Sector Flow"}
-                    </span>
-                    <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
-                      {[["sectors","Sectors"],["themes","Themes"]].map(([v,label])=>(
-                        <button key={v} onClick={()=>{setSectorView(v);setSelectedItem(null);}} style={{
-                          padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
-                          fontSize:9, fontWeight:700, fontFamily:"inherit",
-                          background:sectorView===v?P.ac+"22":"transparent",
-                          color:sectorView===v?P.ac:P.dm,
-                        }}>{label}</button>
-                      ))}
-                    </div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:8 }}>
+                  <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                    {[["sectors","Sectors"],["themes","Themes"]].map(([v,label])=>(
+                      <button key={v} onClick={()=>{setSectorView(v);setSelectedItem(null);}} style={{
+                        padding:"4px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                        fontSize:11, fontWeight:700, fontFamily:"inherit", textTransform:"uppercase", letterSpacing:1.5,
+                        background:sectorView===v?P.ac+"22":"transparent",
+                        color:sectorView===v?P.ac:P.dm,
+                      }}>{label}</button>
+                    ))}
                   </div>
                   <span style={{ fontSize:10, color:P.mt }}>
                     {sectorView==="themes"?"Confirmed premium by investment theme":"Confirmed premium by "+(FD.sectorTickerMode?"ticker":"sector")}
@@ -3653,7 +3648,7 @@ export default function OptionsFlowDashboard() {
                           const clusters = (tk.c||[]).slice(0,4);
                           return (
                             <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:280, maxWidth:400,
-                              background:"#152038", border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
+                              background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
                               boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}
                               onClick={e=>e.stopPropagation()}>
                               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -3713,7 +3708,7 @@ export default function OptionsFlowDashboard() {
                         {/* Sector mode dropdown */}
                         {!FD.sectorTickerMode && selectedItem&&selectedItem._secKey===hk && s.topTickers && s.topTickers.length > 0 && (
                           <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:180,
-                            background:"#152038", border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
+                            background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
                             boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
                             <div style={{ fontWeight:700, color:P.ac, marginBottom:6 }}>{s.name} — Top Flow</div>
                             {s.topTickers.map((tk,j) => {
