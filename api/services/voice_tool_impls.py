@@ -363,6 +363,130 @@ def _plan_my_day(*, user) -> dict:
     return plan_my_day(user_id=user["id"])
 
 
+# ── P5-L: weekly Compass digest ───────────────────────────────────────────
+
+def _what_compass_did_this_week(*, user, days: int = 7) -> dict:
+    """Return a structured summary of Compass's outputs over the past N days:
+    proactive insights by kind, EOD recaps written, trade reviews written,
+    interventions that fired, daily focuses delivered.
+
+    Lets Compass answer 'show me what you've done for me this week'."""
+    from datetime import datetime, timedelta, timezone
+    uid = user["id"]
+    n = max(1, min(90, int(days or 7)))
+    cutoff = datetime.now(timezone.utc) - timedelta(days=n)
+    cutoff_iso = cutoff.isoformat()
+
+    # 1. Proactive insights — bucket by kind
+    insights_by_kind: dict[str, int] = {}
+    daily_focus_count = 0
+    speakable_high_imp = 0
+    try:
+        from api.services.voice_proactive_service import list_history
+        hist = list_history(uid, limit=200) or []
+        for ins in hist:
+            ts = ins.get("created_at") or ""
+            if ts < cutoff_iso:
+                continue
+            kind = ins.get("kind") or "unknown"
+            insights_by_kind[kind] = insights_by_kind.get(kind, 0) + 1
+            if (ins.get("importance") or 0) >= 7:
+                speakable_high_imp += 1
+            if kind == "daily_focus":
+                daily_focus_count += 1
+    except Exception:
+        pass
+
+    # 2. Trade reviews written
+    review_count = 0
+    try:
+        from api.services.trader_memory import get_default_account_id
+        from api.services.journal_two.trade_review import list_reviews
+        account_id = get_default_account_id(uid)
+        if account_id:
+            resp = list_reviews(user_id=uid, account_id=account_id, limit=200) or {}
+            review_count = sum(
+                1 for r in (resp.get("reviews") or [])
+                if (r.get("created_at") or "") >= cutoff_iso
+            )
+    except Exception:
+        pass
+
+    # 3. EOD recaps + weekly reviews via j2_coach_outputs
+    eod_count = 0
+    weekly_count = 0
+    try:
+        from api.services.auth_db import get_connection
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                """SELECT output_type FROM j2_coach_outputs
+                    WHERE user_id = ? AND created_at >= ?
+                      AND forgotten = 0""",
+                (uid, cutoff_iso),
+            ).fetchall()
+        finally:
+            conn.close()
+        for r in rows:
+            t = (r["output_type"] or "").lower()
+            if t == "eod_recap":
+                eod_count += 1
+            elif t == "weekly_review":
+                weekly_count += 1
+    except Exception:
+        pass
+
+    total = (
+        sum(insights_by_kind.values())
+        + review_count + eod_count + weekly_count
+    )
+
+    if total == 0:
+        return {
+            "ok": True,
+            "narration": f"Nothing from Compass in the last {n} days yet.",
+            "total_outputs": 0,
+            "days": n,
+        }
+
+    parts = []
+    if insights_by_kind:
+        ins_total = sum(insights_by_kind.values())
+        kinds_summary = ", ".join(
+            f"{count} {kind.replace('_', ' ')}"
+            for kind, count in sorted(insights_by_kind.items(),
+                                       key=lambda kv: kv[1], reverse=True)
+            if kind != "daily_focus"
+        )
+        if kinds_summary:
+            parts.append(f"{ins_total} insight{'s' if ins_total != 1 else ''} fired ({kinds_summary})")
+        else:
+            parts.append(f"{ins_total} insight{'s' if ins_total != 1 else ''} fired")
+    if daily_focus_count:
+        parts.append(f"{daily_focus_count} daily focus message{'s' if daily_focus_count != 1 else ''}")
+    if eod_count:
+        parts.append(f"{eod_count} EOD recap{'s' if eod_count != 1 else ''}")
+    if weekly_count:
+        parts.append(f"{weekly_count} weekly review{'s' if weekly_count != 1 else ''}")
+    if review_count:
+        parts.append(f"{review_count} trade post-mortem{'s' if review_count != 1 else ''}")
+
+    narration = f"In the last {n} days, Compass produced: " + "; ".join(parts) + "."
+
+    return {
+        "ok": True,
+        "narration": narration,
+        "days": n,
+        "total_outputs": total,
+        "insights_by_kind": insights_by_kind,
+        "daily_focus_count": daily_focus_count,
+        "high_importance_insights": speakable_high_imp,
+        "eod_recaps_count": eod_count,
+        "weekly_reviews_count": weekly_count,
+        "trade_reviews_count": review_count,
+    }
+
+
 # ── P5-H: trade post-mortem read ──────────────────────────────────────────
 
 def _get_my_trade_review(*, user, symbol: str = "", trade_id: str = "") -> dict:
@@ -1299,6 +1423,17 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_plan_my_day)
+
+    # P5-L: weekly Compass digest — "show me what you've done for me"
+    _vt.voice_tool(
+        name="what_compass_did_this_week",
+        description="Return a structured summary of Compass's outputs over the past N days (default 7). Counts insights fired (by kind), daily focuses, EOD recaps, weekly reviews, and trade post-mortems written. Call when the user asks 'what have you done for me this week', 'show me your work', 'how much value has Compass given me'.",
+        parameters={
+            "days": {"type": "integer", "description": "Lookback window in days (default 7, max 90)."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_what_compass_did_this_week)
 
     # P5-H: read a Compass-authored trade post-mortem
     _vt.voice_tool(

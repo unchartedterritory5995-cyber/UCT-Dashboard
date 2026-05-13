@@ -354,6 +354,8 @@ def _compass_tool_union() -> set[str]:
     out.add("analyze_setup_in_period")
     # P5-H: read Compass-authored trade post-mortems.
     out.add("get_my_trade_review")
+    # P5-L: weekly Compass digest for "show me your work" questions.
+    out.add("what_compass_did_this_week")
     return out
 
 
