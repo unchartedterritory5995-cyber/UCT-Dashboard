@@ -491,7 +491,14 @@ def _build_detection(bars, c, confidence, context,
         f"lowest on right shoulder, then expanding sharply on the neckline "
         f"break - reveals the rotation from weak to strong hands. Bulkowski's "
         f"empirical sample places confirmed inverse H&S breakouts at roughly "
-        f"60-70% follow-through to the measured-move target."
+        f"60-70% follow-through to the measured-move target. Peter Brandt — "
+        f"the modern H&S specialist whose career tracking classical chart "
+        f"patterns spans 50+ years — treats inverse H&S as one of the most "
+        f"reliable classical reversal patterns when the neckline breaks with "
+        f"volume expansion. Linda Raschke uses the inverse H&S in her swing "
+        f"playbook as a high-probability bottom signal, especially when paired "
+        f"with positive RSI divergence between the left-shoulder low and the "
+        f"head low."
     )
 
     why_it_matters = (

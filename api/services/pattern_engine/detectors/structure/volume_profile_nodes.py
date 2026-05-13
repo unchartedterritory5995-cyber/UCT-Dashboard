@@ -344,7 +344,12 @@ def _build_detection(
             f"signature - future price action approaching the level "
             f"typically slows down, chops sideways, or outright reverses, "
             f"as the residual supply and demand from the prior auction "
-            f"re-engages."
+            f"re-engages. Linda Raschke uses volume profile + Market "
+            f"Profile (TPO chart) reads in her swing playbook as a "
+            f"primary confluence input — she treats price approaching a "
+            f"prior HVN with diverging momentum as one of the highest-edge "
+            f"mean-reversion setups in the entire structural-analysis "
+            f"library."
         )
         why_it_matters = (
             f"This HVN at ${price_mid:.2f} is currently "
@@ -474,7 +479,12 @@ def _build_detection(
             f"slow future price action when it returns. Volume Profile "
             f"theory holds that price tends to MOVE rapidly through LVNs "
             f"on every visit, accelerating from one HVN to the next "
-            f"rather than stalling in between."
+            f"rather than stalling in between. Linda Raschke uses volume "
+            f"profile and Market Profile reads in her swing playbook as "
+            f"a primary confluence input — she specifically targets LVN "
+            f"transit zones as continuation accelerators, treating a "
+            f"breakout that enters an LVN on volume as a high-edge "
+            f"trigger for adding to existing trend positions."
         )
         why_it_matters = (
             f"This LVN at ${price_mid:.2f} sits {abs(distance_pct):.2f}% "

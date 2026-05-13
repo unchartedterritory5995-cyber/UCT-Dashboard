@@ -679,7 +679,14 @@ def _build_detection(bars, c, atr14, confidence, context,
         f"Bonde teaches that remount breakouts frequently outperform original breakouts "
         f"because the false breakdown has already shaken out weak hands and the move now "
         f"begins from a 'clean' float — fewer trapped longs, fewer overhead sellers, and "
-        f"a fuel tank of short-cover demand standing by."
+        f"a fuel tank of short-cover demand standing by. Brian Shannon's modern Anchored "
+        f"VWAP framework formalizes the remount as an AVWAP reclaim — a stock that breaks "
+        f"the AVWAP from a key low, retests below, and then reclaims that AVWAP on "
+        f"expanding volume is, in his playbook, one of the highest-edge swing triggers in "
+        f"the entire trend-continuation library. Linda Raschke's 'Turtle Soup' failed-"
+        f"breakdown read is the same idea on a shorter timeframe — a stock that breaks an "
+        f"n-period low and reclaims it within 1-3 sessions is her canonical short-cover "
+        f"reversal trigger, capturing the identical 'failed move = next big move' mechanic."
     )
 
     why_it_matters = (

@@ -576,7 +576,14 @@ def _build_detection(bars, c, confidence, context,
         f"cousins because true distribution tops form rarely (most stocks "
         f"don't earn a clean two-trough symmetric topping pattern), and "
         f"empirical research places their follow-through reliability at "
-        f"roughly 60% when properly confirmed by volume and trend-stage context."
+        f"roughly 60% when properly confirmed by volume and trend-stage context. "
+        f"Tom Bulkowski's Encyclopedia of Chart Patterns catalogues the rounded "
+        f"top as one of the more challenging bearish reversals to time but among "
+        f"the cleanest once a handle-failure plus rim-break fires on volume. Dan "
+        f"Zanger — the modern cup-handle specialist — treats the inverse variant "
+        f"as the highest-edge short trigger when it forms after a parabolic run, "
+        f"flagging the same volume-contraction-in-handle / volume-expansion-on-"
+        f"breakdown signature he uses on the bullish side, just inverted."
     )
 
     why_it_matters = (

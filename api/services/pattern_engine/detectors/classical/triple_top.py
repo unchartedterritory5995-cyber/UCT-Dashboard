@@ -403,11 +403,18 @@ def _build_detection(bars, c, confidence, context,
         f"component) reveals buying conviction fading with each "
         f"successive attempt even as the price tag matches. Bulkowski's "
         f"empirical research on triple tops places the confirmed-"
-        f"breakdown follow-through rate at 65-70%, slightly stronger "
-        f"than the double-top's ~65%. Measured moves equal the peak-to-"
-        f"neckline distance projected below the neckline (here "
-        f"${peak_to_neckline_pts:.2f} = {peak_to_neckline_pct:.1f}% "
-        f"projection)."
+        f"breakdown follow-through rate at ~67-70%, slightly stronger "
+        f"than the double-top's ~65% — a meaningful edge in his sample "
+        f"that traces directly to the third failure carrying additional "
+        f"information about repeated programmatic supply. Measured moves "
+        f"equal the peak-to-neckline distance projected below the neckline "
+        f"(here ${peak_to_neckline_pts:.2f} = {peak_to_neckline_pct:.1f}% "
+        f"projection). Edwards & Magee originally noted that the triple "
+        f"top is rarer than the double because most distributions resolve "
+        f"on the second test — when a third visit to the same level occurs "
+        f"without resolution, the underlying supply is unusually deep and "
+        f"the eventual breakdown tends to carry further than the geometry "
+        f"would suggest."
     )
 
     why_it_matters = (

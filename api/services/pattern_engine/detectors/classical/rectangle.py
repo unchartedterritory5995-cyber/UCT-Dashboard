@@ -461,7 +461,15 @@ def _build_detection(bars, c, confidence, context,
         f"(below the floor) or the 'upthrust' (above the ceiling) - false "
         f"breakouts that mark the true reversal direction. Bulkowski's "
         f"empirical sample shows context-aligned rectangle breakouts produce "
-        f"measured-move follow-through ~68% of the time."
+        f"measured-move follow-through ~68% of the time. Richard Wyckoff's "
+        f"Phase A → B → C → D → E progression inside a rectangle is the modern "
+        f"framework most professional tape readers still operate inside: Phase "
+        f"A is preliminary support / selling climax establishing the floor, "
+        f"Phase B is the cause-building accumulation/distribution oscillation, "
+        f"Phase C is the spring or upthrust test, Phase D is the markup or "
+        f"markdown out of the range, and Phase E is the trend acceleration "
+        f"away from the structure — making the rectangle not a passive box "
+        f"but a sequenced auction with measurable cause-and-effect."
     )
 
     why_it_matters = (

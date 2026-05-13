@@ -530,7 +530,13 @@ def _build_detection(bars, c, confidence, context, direction,
             f"and frequently violent because there is no overhead supply or "
             f"underhead demand to absorb it. Pennants are the chart language of "
             f"coiled springs, and the closer to apex without breakout, the more "
-            f"imminent the resolution becomes."
+            f"imminent the resolution becomes. Tom Bulkowski's Encyclopedia of "
+            f"Chart Patterns pegs pennant follow-through at ~63% reliability when "
+            f"the convergence is clean and volume confirms the breakout, slightly "
+            f"below flags because pennants often resolve too close to apex. Peter "
+            f"Brandt's classical-pattern work treats pennants as one of the most "
+            f"tradeable continuation structures specifically because the symmetrical "
+            f"compression produces a clean, mechanical breakout level."
         )
 
         why_it_matters = (
@@ -635,7 +641,12 @@ def _build_detection(bars, c, confidence, context, direction,
             f"without breakdown, the more imminent the resolution becomes. "
             f"Pennants in downtrends are coiled-spring continuations: the moment "
             f"demand fails to defend the lower line, the slide resumes with the "
-            f"same velocity that produced the pole."
+            f"same velocity that produced the pole. Tom Bulkowski's pattern "
+            f"statistics put bearish pennant follow-through near ~63% when the "
+            f"convergence is clean, and Peter Brandt's classical-pattern work "
+            f"highlights bearish pennants as one of the cleanest short-side "
+            f"continuation setups when the breakdown carries a fresh volume "
+            f"expansion against contracting pennant-phase volume."
         )
 
         why_it_matters = (

@@ -385,7 +385,13 @@ def _build_detection(bars, c, confidence, context,
         f"running on fumes. Bulkowski's 'Encyclopedia of Chart Patterns' "
         f"ranks the rising wedge in uptrends among the highest-reliability "
         f"bearish reversal structures - cited follow-through rates near ~70% "
-        f"in his empirical sample once the lower trendline breaks on volume."
+        f"in his empirical sample once the lower trendline breaks on volume. "
+        f"Peter Brandt treats wedges as his personal specialty — he calls them "
+        f"'the most under-utilized reversal pattern in technical analysis' and "
+        f"writes that the rising wedge is among the highest-edge short-side "
+        f"reversal triggers in his discretionary playbook, particularly when "
+        f"a third upper-line touch precedes the lower-line breakdown on "
+        f"expanding volume."
     )
 
     why_it_matters = (

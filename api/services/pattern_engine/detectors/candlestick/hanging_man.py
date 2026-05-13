@@ -369,7 +369,14 @@ def _build_detection(
         f"often weak-handed short-covering or stop-runs, not the kind of new institutional "
         f"accumulation that powers the next leg up. The pattern is {color_word} "
         f"({'close < open, the stronger bearish read' if not c['is_green'] else 'close > open, valid but weaker than a red hanging man'}), "
-        f"printed on volume of {vol_ratio_disp} the 20-bar average."
+        f"printed on volume of {vol_ratio_disp} the 20-bar average. Greg Morris's "
+        f"'Candlestick Charting Explained' frames the hanging man as one of the most "
+        f"context-dependent reversal candles — same anatomy as the hammer, but the bearish "
+        f"read only activates when the prior trend is unmistakably up and confirmation "
+        f"arrives the next bar. Tom Bulkowski's empirical research actually puts hanging-"
+        f"man reliability LOWER than commonly believed — around 59% in his sample — and "
+        f"emphasizes that the candle needs a confirming red close the following session "
+        f"to convert from a passive warning into a tradeable short signal."
     )
 
     why_it_matters = (

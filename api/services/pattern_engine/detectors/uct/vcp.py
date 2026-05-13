@@ -658,7 +658,16 @@ def _build_detection(bars, c, confidence, context,
         f"bars) is where weak hands are exhausted and the stock coils for the next leg. "
         f"The pivot at ${pivot_price:.2f} represents the supply line that institutions have "
         f"been defending - once it breaks decisively, the path of least resistance is up. "
-        f"VCP is the chart language of professional accumulation."
+        f"VCP is the chart language of professional accumulation. Kristjan Kullamägi "
+        f"(Qullamaggie) — whose 2020-2023 returns made him the most-watched modern "
+        f"momentum trader on Twitter — runs the VCP pattern as his core setup, looking "
+        f"specifically for daily VCPs forming inside multi-week consolidations on the "
+        f"daily chart with the weekly chart simultaneously showing a clean breakout "
+        f"structure. Ryan Pierpont's Investor's Business Daily methodology, an offshoot "
+        f"of O'Neil's CAN SLIM lineage, treats the VCP as a refinement of the flat-base "
+        f"and ascending-base patterns — the same volatility-contraction read pioneered "
+        f"by Minervini, with explicit emphasis on the final tight 4-week zone and a "
+        f"clean pivot-point trigger."
     )
 
     why_it_matters = (

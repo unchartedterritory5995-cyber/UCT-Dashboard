@@ -341,7 +341,13 @@ def _build_detection(bars, c, confidence, context,
         f"on shorting parabolics) because the mechanic is universal: distribution "
         f"in a downtrend produces tight relief rallies that fail at predictable "
         f"levels, and the resulting break of the flag low resumes the slide "
-        f"with as much velocity as the pole had downward."
+        f"with as much velocity as the pole had downward. Kristjan Kullamägi's "
+        f"'parabolic short' variant is the modern playbook expression of this "
+        f"setup — he hunts bear flags forming after parabolic blow-off tops in "
+        f"former high-flyers, treating the flag breakdown as the highest-edge "
+        f"short trigger in momentum tape. Tom Bulkowski's pattern statistics "
+        f"mirror the bullish version with ~63-67% follow-through reliability "
+        f"when flag volume contracts and the breakdown carries fresh volume."
     )
 
     why_it_matters = (

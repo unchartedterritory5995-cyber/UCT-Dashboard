@@ -346,7 +346,13 @@ def _build_detection(
         f"{color_word} ({'close > open, modestly stronger' if c['is_green'] else 'close < open, valid but weaker than a green hammer'}). "
         f"Visually the bar forges a 'hammer' under price: sellers drove the session lower, "
         f"buyers absorbed the drop, and by the bell the rejection was complete. The pattern "
-        f"prints on volume of {vol_ratio_disp} the 20-bar average."
+        f"prints on volume of {vol_ratio_disp} the 20-bar average. Greg Morris's "
+        f"'Candlestick Charting Explained' — the modern interpretive guide that translated "
+        f"Sakata-era reading rules into a probability framework — frames the hammer as one "
+        f"of the highest-edge single-bar reversal signals when the lower wick is at least "
+        f"twice the body and prior trend is clearly down. Linda Raschke uses the hammer-at-"
+        f"swing-low plus positive RSI divergence as her signature reversal combo, treating "
+        f"the candle as the timing trigger inside a broader confluence read."
     )
 
     why_it_matters = (

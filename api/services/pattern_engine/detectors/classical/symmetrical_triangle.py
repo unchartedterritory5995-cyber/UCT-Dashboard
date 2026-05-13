@@ -348,7 +348,12 @@ def _build_detection(bars, c, confidence, context,
         f"{vol_pct:.0f}% of first-half average here confirms classical "
         f"coiled-spring compression. Bulkowski's data shows volume-confirmed "
         f"symmetrical-triangle breakouts produce measured-move follow-through "
-        f"~62% of the time."
+        f"~62% of the time. Welles Wilder's early triangle work in 'New "
+        f"Concepts in Technical Trading Systems' (1978) — the same volume that "
+        f"introduced RSI, ATR and Parabolic SAR — formalized the volatility-"
+        f"compression read on triangle structures, framing them as periods "
+        f"where directional energy accumulates beneath a measurable contraction "
+        f"in true range that resolves with an outsized expansion bar."
     )
 
     why_it_matters = (

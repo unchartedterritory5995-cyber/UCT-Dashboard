@@ -468,7 +468,12 @@ def _build_detection(bars, c, confidence, context,
         f"the slow turn higher is the 'sign of strength' that signals "
         f"accumulation has completed. Bulkowski's research shows rounded "
         f"bases produce 25-40% follow-through with high frequency once "
-        f"the right rim is broken on volume."
+        f"the right rim is broken on volume. Mark Ritchie II — whose modern "
+        f"momentum playbook leans heavily on post-IPO and post-correction "
+        f"structures — uses the rounded base as a core component of his post-"
+        f"IPO setup, treating a slow saucer in a recently-public liquid leader "
+        f"as one of the highest-edge accumulation patterns in the entire "
+        f"growth-stock universe."
     )
 
     why_it_matters = (

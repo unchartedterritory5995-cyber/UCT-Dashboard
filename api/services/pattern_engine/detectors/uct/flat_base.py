@@ -508,7 +508,14 @@ def _build_detection(bars, c, confidence, context,
         f"Volume contraction through the base is the supply-absorbed signal — first half of "
         f"the base averaged {first_half_vol_avg:,.0f} shares per bar, the second half "
         f"averaged {second_half_vol_avg:,.0f}, a {vol_contraction_pct:.1f}% decline that tells "
-        f"you patient buyers are mopping up shares while overhead supply quietly exhausts itself."
+        f"you patient buyers are mopping up shares while overhead supply quietly exhausts itself. "
+        f"Kristjan Kullamägi has built a substantial portion of his playbook around what he "
+        f"calls 'the 4-week-tight base' — a refinement of O'Neil's flat-base read where the "
+        f"final 4 weeks of consolidation show closes inside a 3-4% range — and treats this "
+        f"as his core trigger structure for momentum entries. The 4-week-tight is functionally "
+        f"the late-cycle tight phase of a longer flat base, and identifying it inside a "
+        f"longer O'Neil-style base is one of the highest-edge structural reads in modern "
+        f"growth-stock trading."
     )
 
     why_it_matters = (

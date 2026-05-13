@@ -653,7 +653,15 @@ def _build_detection(
         f"highest-conviction reaction zones on the chart, and historical "
         f"studies of trendline interactions show first-touch hold rates of "
         f"55-70% rising to 75-85% on trendlines with r-squared above 0.85 "
-        f"and four-plus touches."
+        f"and four-plus touches. The trendline-as-structure read was first "
+        f"formalized by Richard Donchian in 1934 (Donchian's price-channel "
+        f"work became the foundation of the Turtle trader system) and "
+        f"canonized by Edwards & Magee in 'Technical Analysis of Stock "
+        f"Trends' (1948). Peter Brandt's modern classical-pattern work "
+        f"places particular emphasis on the 'third touch' as the critical "
+        f"validation — he treats the trendline as provisional until a third "
+        f"reaction at the line confirms it, and as a high-edge trade "
+        f"reference only after that confirmation prints."
     )
 
     why_it_matters = (

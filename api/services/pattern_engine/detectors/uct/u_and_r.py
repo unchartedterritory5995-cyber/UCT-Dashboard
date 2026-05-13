@@ -636,7 +636,14 @@ def _build_detection(bars, c, confidence, context,
         f"the undercut session — the textbook signature. Shannon teaches that 'the failed "
         f"move is often the start of the next big move' — U&R captures this principle with "
         f"surgical precision because the very act of breaking support that fails to follow "
-        f"through is itself the strongest possible bullish signal."
+        f"through is itself the strongest possible bullish signal. Tom DeMark's TD Sequential "
+        f"framework reads the undercut-then-reclaim sequence as a textbook countertrend "
+        f"exhaustion — an undercut of prior support that prints a TD9 setup signal at the "
+        f"low is one of his canonical buy triggers, marking the exact bar when the downtrend's "
+        f"internal energy has expired. Linda Raschke's 'Turtle Soup' setup is the same idea "
+        f"expressed differently: a failed breakdown of an n-period low followed by a reclaim "
+        f"of that level on the next session is one of her signature short-cover-driven "
+        f"reversal triggers."
     )
 
     why_it_matters = (

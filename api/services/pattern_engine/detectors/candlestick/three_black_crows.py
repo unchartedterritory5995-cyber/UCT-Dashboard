@@ -554,7 +554,16 @@ def _build_detection(
         f"of the three sessions. The DCR profile is the institutional fingerprint: {b1_dcr_pct}% / "
         f"{b2_dcr_pct}% / {b3_dcr_pct}%, averaging {dcr_avg_pct}% - {dcr_grade}. Volume across the "
         f"three bars averaged {vol_vs_prior_disp} the trailing 10-bar baseline, and within the "
-        f"pattern volume was {vol_progression_word}."
+        f"pattern volume was {vol_progression_word}. Greg Morris's 'Candlestick Charting "
+        f"Explained' frames Three Black Crows as one of the most decisive bearish "
+        f"continuation/reversal sequences when each bar opens inside the prior body and "
+        f"closes near its own low. Tom Bulkowski's empirical climax-warning research adds the "
+        f"critical caveat that mirrors his Three White Soldiers note: when this pattern "
+        f"appears late in an already-extended downtrend, it frequently marks the EXHAUSTION "
+        f"bottom rather than continuation. Charlie Bilello's modern bear-pattern statistics — "
+        f"distilled across thousands of post-2000 declines — further document this climax-"
+        f"bottom warning, with stocks frequently bottoming within 1-3 weeks of a Three Black "
+        f"Crows print on accelerating volume."
     )
 
     why_it_matters = (

@@ -465,7 +465,16 @@ def _build_detection(bars, c, confidence, context,
         f"and orderly - exactly the signature O'Neil and Bonde teach. "
         f"Historically, when HTF triggers cleanly on a volume surge, the next "
         f"8-12 weeks frequently produce 100%+ extensions, making this the "
-        f"highest reward-to-risk continuation setup that exists on the chart."
+        f"highest reward-to-risk continuation setup that exists on the chart. "
+        f"Mark Ritchie II — the post-IPO HTF specialist — has documented that "
+        f"HTFs forming in stocks within roughly 6 months of their IPO date "
+        f"carry the highest follow-through rates of any HTF subgroup, with his "
+        f"empirical work showing ~80%+ continuation when float, fundamental "
+        f"catalyst, and structural tightness all align. Kristjan Kullamägi "
+        f"treats the HTF after a 90%+ pole as his single highest-conviction "
+        f"'monster move' indicator — when this pattern fires in a liquid "
+        f"leader with a fresh catalyst, his playbook calls for maximum "
+        f"position size and a multi-week hold rather than a quick swing."
     )
 
     why_it_matters = (

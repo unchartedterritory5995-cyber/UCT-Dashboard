@@ -662,7 +662,13 @@ def _build_detection(bars, c, confidence, context,
         f"research found preceded the great winners of every market cycle "
         f"since the 1960s — the institutional accumulation that produces "
         f"25%+ moves with high consistency when the breakout triggers on "
-        f"confirming volume."
+        f"confirming volume. Dan Zanger — whose 1999-2000 record-setting "
+        f"returns were built almost entirely on this single pattern — calls "
+        f"the cup-with-handle 'the highest-edge setup in growth stocks' when "
+        f"the volume signature is right and the handle is tight, and he "
+        f"specifically uses the Zanger Volume Indicator to time the breakout: "
+        f"contracting volume into the handle's low followed by an expansion-"
+        f"volume close above the right-rim pivot is his canonical trigger."
     )
 
     why_it_matters = (

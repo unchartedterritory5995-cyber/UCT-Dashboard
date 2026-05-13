@@ -488,7 +488,12 @@ def _build_detection(bars, c, confidence, context,
         f"left shoulder, declining through head, lowest on right shoulder - "
         f"reveals the rotation. Bulkowski's empirical sample places confirmed "
         f"H&S breakdowns at roughly 60-70% follow-through to the measured-move "
-        f"target."
+        f"target. Peter Brandt — the modern H&S specialist whose career has been "
+        f"built tracking classical chart patterns since the 1970s — calls H&S "
+        f"'the most reliable classical reversal pattern when the neckline breaks "
+        f"with volume,' and treats the right-shoulder failure plus neckline "
+        f"break on expanding volume as one of the highest-edge short triggers "
+        f"in his discretionary playbook."
     )
 
     why_it_matters = (

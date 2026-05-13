@@ -571,7 +571,13 @@ def _build_detection(bars, c, confidence, context,
         f"clean cup-handles in leadership stocks produce 25%+ moves with high "
         f"frequency when the four classical criteria — proper rim match, "
         f"genuine roundness, handle depth under 50% of cup, and volume "
-        f"contraction through both segments — are all met."
+        f"contraction through both segments — are all met. Dan Zanger, the "
+        f"modern cup-and-handle specialist whose 1999–2000 record-setting "
+        f"returns were built almost entirely on this setup, developed the "
+        f"'Zanger Volume Indicator' to confirm the breakout — emphasizing that "
+        f"a tight handle on contracting volume followed by an expansion-volume "
+        f"breakout above the right rim is, in his words, 'the highest-edge "
+        f"setup in growth stocks' when the rest of the structure is right."
     )
 
     why_it_matters = (

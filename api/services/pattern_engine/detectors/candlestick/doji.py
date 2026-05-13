@@ -481,7 +481,14 @@ def _build_detection(
         f"intraday narrative: price probed a level (either up or down), the dominant side "
         f"could not hold the move, and by close the entire effort was retraced. That single-"
         f"bar reversal of conviction is the doji's signal value - the bar where one side's "
-        f"effort visibly fails."
+        f"effort visibly fails. Greg Morris's 'Candlestick Charting Explained' — the modern "
+        f"interpretive guide that translated Sakata-era reading rules into a probability "
+        f"framework — flags doji at structural levels as one of the highest-edge single-bar "
+        f"signals in the entire candlestick library, particularly when the bar arrives on "
+        f"above-average volume. Steve Bigalow's body of work fusing candlesticks with "
+        f"western technical analysis treats the doji-plus-confluence read (oversold/"
+        f"overbought oscillator + support/resistance + doji print) as a near-mechanical "
+        f"trigger pattern rather than a passive observation."
     )
 
     why_it_matters = (

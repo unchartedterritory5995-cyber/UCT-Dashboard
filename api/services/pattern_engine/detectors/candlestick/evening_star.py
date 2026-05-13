@@ -443,7 +443,16 @@ def _build_detection(
         f"{'a textbook institutional-distribution fingerprint' if c['b3_dcr'] <= 0.30 else 'a moderate close that warrants confirmation'}. "
         f"Star volume was {star_vol_disp} bar 1's, and bar 3 volume was {confirm_vol_disp} the "
         f"average of bars 1-2 - "
-        f"{'textbook volume profile: contraction on the star, expansion on the confirmation' if star_vol_ratio <= 0.80 and confirm_vol_ratio >= 1.20 else 'mixed volume profile - not the ideal Homma signature but the geometry holds'}."
+        f"{'textbook volume profile: contraction on the star, expansion on the confirmation' if star_vol_ratio <= 0.80 and confirm_vol_ratio >= 1.20 else 'mixed volume profile - not the ideal Homma signature but the geometry holds'}. "
+        f"Greg Morris's 'Candlestick Charting Explained' frames the evening star as one of "
+        f"the highest-conviction reversal sequences in the entire candlestick library, "
+        f"requiring a clear uptrend, a gap-up or doji star, and a strong confirming third "
+        f"bar that closes deep into the first bar's body. Tom Bulkowski's empirical sample "
+        f"puts evening-star follow-through reliability near ~78% — mirroring the bullish "
+        f"morning star — when all three bars meet his geometric criteria. Linda Raschke "
+        f"uses the evening star plus overbought RSI as a high-conviction reversal combo "
+        f"in her swing playbook, treating the 3-bar sequence as the timing trigger inside "
+        f"a broader bearish confluence read."
     )
 
     why_it_matters = (

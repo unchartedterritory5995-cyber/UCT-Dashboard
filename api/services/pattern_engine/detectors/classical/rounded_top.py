@@ -455,7 +455,16 @@ def _build_detection(bars, c, confidence, context,
         f"'sign of weakness' that signals distribution has completed. "
         f"Bulkowski's research shows rounded tops produce 20-30% "
         f"downside follow-through with high frequency once the right rim "
-        f"is broken on volume."
+        f"is broken on volume. Richard Schabacker (1932) was the first to "
+        f"formally distinguish the 'saucer top' from sharper reversal "
+        f"structures, framing it as the visible footprint of patient "
+        f"institutional distribution. Adam Grimes — whose modern empirical "
+        f"work in 'The Art and Science of Technical Analysis' updates the "
+        f"classical interpretation — emphasizes that the rounded top's "
+        f"diagnostic edge comes from the volume signature: persistently "
+        f"declining volume across the dome paired with an expansion bar on "
+        f"the right-rim break is the highest-probability confirmation, "
+        f"echoing the same volume-divergence read on the bullish side."
     )
 
     why_it_matters = (

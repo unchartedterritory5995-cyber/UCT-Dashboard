@@ -512,7 +512,14 @@ def _build_detection(bars, c, confidence, context,
         f"three ways: (1) trend-following entries on pullbacks to the "
         f"trend-side boundary, (2) counter-trend reversion to the opposite "
         f"boundary as a profit-taking zone, and (3) breakout trades when the "
-        f"channel finally fails."
+        f"channel finally fails. Nicolas Darvas's Box Theory — built during "
+        f"his 1950s record-setting run trading from telegrams while touring "
+        f"as a dancer — treats price channels as a stack of 'boxes' a stock "
+        f"climbs through, with the buy trigger being the break of the current "
+        f"box's upper boundary on volume and the stop being the break of the "
+        f"box's lower boundary; this turns the channel from a passive "
+        f"description into a mechanical pyramid-up trading system that modern "
+        f"trend-followers have quietly re-adopted."
     )
 
     why_it_matters = (

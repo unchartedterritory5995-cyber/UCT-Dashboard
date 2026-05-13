@@ -426,7 +426,14 @@ def _build_detection(
         f"{'a red inside bar is the textbook bearish harami (moderately stronger reversal signature)' if c['is_red'] else 'a green inside bar is the looser variant - still valid but slightly weaker conviction than the red-bodied form'}. "
         f"The inside bar's DCR of {curr_dcr_pct}% places its close in {dcr_position} of its "
         f"session range. Volume on bar N was {vol_ratio_disp} the prior bar - "
-        f"{'textbook volume contraction that signals buying pressure has dried up and the up-trend has lost momentum' if vol_ratio <= 0.80 else 'volume that did NOT contract sharply - the harami signal is weaker without the volume-drying confirmation that Homma originally required'}."
+        f"{'textbook volume contraction that signals buying pressure has dried up and the up-trend has lost momentum' if vol_ratio <= 0.80 else 'volume that did NOT contract sharply - the harami signal is weaker without the volume-drying confirmation that Homma originally required'}. "
+        f"The bearish harami is among the oldest documented reversal patterns of any kind, "
+        f"codified in the Honma Sakata rules of the early 1700s and predating Western chart "
+        f"analysis by more than two centuries; the inside-bar-after-a-long-green read is "
+        f"the original Sakata topping trigger and the ancestor of every modern inside-bar "
+        f"short setup. Greg Morris's 'Candlestick Charting Explained' treats the bearish "
+        f"harami as a context-dependent warning that requires confirmation: the inside "
+        f"print is the pause, the next-bar break below the inside-bar low is the trigger."
     )
 
     why_it_matters = (

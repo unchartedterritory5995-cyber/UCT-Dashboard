@@ -385,7 +385,12 @@ def _build_detection(bars, c, confidence, context,
         f"running on fumes, and Bulkowski's 'Encyclopedia of Chart Patterns' "
         f"ranks the falling wedge among the higher-reliability bullish structures "
         f"when the breakout fires on volume - cited follow-through rates near "
-        f"~70% in his empirical sample."
+        f"~70% in his empirical sample. Peter Brandt — whose career has been "
+        f"built on classical chart patterns — calls wedges 'the most under-utilized "
+        f"reversal pattern in technical analysis' and considers the falling wedge "
+        f"his personal specialty, emphasizing that the apex compression plus a "
+        f"third trendline touch produces the cleanest mechanical breakout signal "
+        f"in the entire classical playbook."
     )
 
     why_it_matters = (

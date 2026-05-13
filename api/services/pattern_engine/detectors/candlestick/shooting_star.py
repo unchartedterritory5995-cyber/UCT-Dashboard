@@ -357,7 +357,14 @@ def _build_detection(
         f"the bar opened. That dramatic intraday rejection at the highs - especially when "
         f"printed {position_phrase} - is the bearish signature. The pattern prints on "
         f"volume of {vol_ratio_disp} the 20-bar average, which is the corroborating evidence "
-        f"for whether the rejection was institutional supply or just light-volume air."
+        f"for whether the rejection was institutional supply or just light-volume air. "
+        f"Greg Morris's 'Candlestick Charting Explained' frames the shooting star as one of "
+        f"the cleanest single-bar bearish reversal signals when it prints at established "
+        f"resistance, requiring an upper-wick-to-body ratio of at least 2x and a confirming "
+        f"red close the next session. Linda Raschke uses shooting star at resistance + "
+        f"volume divergence (price tagging a new high while volume fades) as her signature "
+        f"short-side reversal combo, treating the candle as the timing trigger inside a "
+        f"broader bearish confluence read."
     )
 
     why_it_matters = (

@@ -397,7 +397,11 @@ def _build_detection(bars, c, confidence, context,
         f"at roughly 70% follow-through reliability in liquid stocks when "
         f"triggered on volume, with measured moves equal to the peak-to-trough "
         f"distance projected above the rally peak (here ${peak_to_trough_pts:.2f} "
-        f"= {peak_to_trough_pct:.1f}% projection)."
+        f"= {peak_to_trough_pct:.1f}% projection). Tom DeMark's TD Sequential "
+        f"framework reads the second-trough hold as a textbook countertrend "
+        f"exhaustion — a TD9 buy setup at the matching low marks the moment the "
+        f"downtrend's internal energy has expired and risk-reward begins skewing "
+        f"toward the long side even before the neckline-break confirms."
     )
 
     why_it_matters = (

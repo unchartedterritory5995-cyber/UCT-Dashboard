@@ -402,7 +402,14 @@ def _build_detection(
         f"of the session range - "
         f"{'a textbook institutional-distribution fingerprint where sellers held into the bell' if c['curr_dcr'] <= 0.30 else 'a moderate close that warrants confirmation'}. "
         f"Volume on bar N was {vol_ratio_disp} the prior bar - "
-        f"{'strong reversal volume that corroborates the body geometry as professional distribution' if vol_ratio >= 1.5 else 'modest volume that softens the conviction of the print'}."
+        f"{'strong reversal volume that corroborates the body geometry as professional distribution' if vol_ratio >= 1.5 else 'modest volume that softens the conviction of the print'}. "
+        f"Greg Morris's 'Candlestick Charting Explained' frames the bearish engulfing as one "
+        f"of the cleanest two-bar topping signals when accompanied by volume expansion, and "
+        f"Tom Bulkowski's mirror statistics put follow-through reliability near ~73% when "
+        f"the second bar's body fully overwhelms the prior session on expanding volume. "
+        f"Peter Brandt teaches the bearish engulfing as a discretionary short trigger with "
+        f"explicit rules: clearly defined prior uptrend, full body engulfment, and next-bar "
+        f"confirmation below the engulfing bar's midpoint."
     )
 
     why_it_matters = (

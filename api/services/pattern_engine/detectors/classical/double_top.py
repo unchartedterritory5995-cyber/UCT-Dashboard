@@ -393,7 +393,11 @@ def _build_detection(bars, c, confidence, context,
         f"tops places the confirmed-breakdown follow-through rate at roughly 65%, "
         f"with measured moves equal to the peak-to-trough distance projected below "
         f"the neckline (here ${peak_to_trough_pts:.2f} = {peak_to_trough_pct:.1f}% "
-        f"projection)."
+        f"projection). Tom DeMark's TD Sequential framework treats the double-top "
+        f"as a classic exhaustion signature — a TD9 setup at the second peak is "
+        f"one of his core countertrend triggers, marking the moment the trend's "
+        f"internal energy has expired even before price has confirmed via "
+        f"neckline break."
     )
 
     why_it_matters = (

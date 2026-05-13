@@ -416,7 +416,17 @@ def _build_detection(bars, c, confidence, context,
         f"is the day institutional buyers stop accumulating quietly and "
         f"aggressively acquire shares. The {base_bars}-bar base preceding the "
         f"EP was the slow accumulation phase; the EP bar is when that "
-        f"accumulation becomes urgent, public, and unmistakable on the tape."
+        f"accumulation becomes urgent, public, and unmistakable on the tape. "
+        f"Kristjan Kullamägi has refined Bonde's original EP read for the "
+        f"modern momentum tape with explicit criteria: an ATR-relative thrust "
+        f"bar (the EP bar's range expressed in multiples of the trailing ATR) "
+        f"plus a clean 3-5 week base immediately preceding the print — his "
+        f"playbook entry triggers on the high of the EP day with stop under "
+        f"the EP-day low. Lance Breitstein's intraday opening-drive EP read "
+        f"applies the same framework to the 9:30 AM bar — the first 30-minute "
+        f"opening drive that breaks a prior multi-week base on volume — and "
+        f"Burnt Toast's small-cap variant focuses on the EP as a catalyst-"
+        f"driven character-change signal in lower-float names."
     )
 
     why_it_matters = (

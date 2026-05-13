@@ -381,8 +381,13 @@ def _build_detection(bars, c, confidence, context,
         f"textbook confirmation that supply is running on fumes. Bulkowski's "
         f"'Encyclopedia of Chart Patterns' classifies ascending triangles as "
         f"one of the higher-reliability bullish continuation structures with a "
-        f"~63% measured-move follow-through rate when the breakout fires on "
-        f"volume."
+        f"~63-70% measured-move follow-through rate when the breakout fires on "
+        f"confirming volume — among the highest of any classical pattern in his "
+        f"empirical sample. Constance Brown's 'Technical Analysis for the Trading "
+        f"Professional' updates the classical interpretation with momentum-"
+        f"oscillator confluence — she treats an ascending triangle where RSI "
+        f"holds above 50 throughout the consolidation as a markedly higher-edge "
+        f"setup than the geometry alone would suggest."
     )
 
     why_it_matters = (

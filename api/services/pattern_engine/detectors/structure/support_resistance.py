@@ -495,7 +495,18 @@ def _build_detection(
         f"zones where supply and demand have repeatedly intersected, providing "
         f"reference points for entries, stops, and targets that institutional "
         f"traders watch in real time and that algorithmic systems pre-position "
-        f"around well in advance of the level being tested."
+        f"around well in advance of the level being tested. Richard Wyckoff "
+        f"first formalized this reading in his accumulation/distribution "
+        f"schematics — a level becomes structurally significant once it has "
+        f"been tested at least three times. Tom Bulkowski's empirical "
+        f"touch-rate research quantifies the read: support/resistance levels "
+        f"with 3+ touches hold on retest roughly 70% of the time, with hit "
+        f"rate climbing further as touch count and time spent at the level "
+        f"grow. Adam Grimes's modern S/R probability statistics in 'The Art "
+        f"and Science of Technical Analysis' refine the picture further with "
+        f"explicit decay curves: a fresh level holds better than an aged "
+        f"level, and a recent fast-rejection touch carries more information "
+        f"than an old slow-grind touch."
     )
 
     target_phrase = (

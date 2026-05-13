@@ -564,7 +564,14 @@ def _build_detection(
         f"any point in any of the three sessions. The DCR profile is the institutional fingerprint: "
         f"{b1_dcr_pct}% / {b2_dcr_pct}% / {b3_dcr_pct}%, averaging {dcr_avg_pct}% - {dcr_grade}. "
         f"Volume across the three bars averaged {vol_vs_prior_disp} the trailing 10-bar baseline, "
-        f"and within the pattern volume was {vol_progression_word}."
+        f"and within the pattern volume was {vol_progression_word}. Greg Morris's 'Candlestick "
+        f"Charting Explained' frames Three White Soldiers as one of the most decisive bullish "
+        f"continuation/reversal sequences when each bar opens inside the prior body and closes "
+        f"near its own high — but he stresses the critical caveat that Tom Bulkowski's empirical "
+        f"climax-warning research confirms: when this pattern appears late in an already-"
+        f"extended uptrend, it frequently marks the EXHAUSTION top rather than continuation, "
+        f"as three back-to-back power-bars often represent the final FOMO chase that absorbs "
+        f"the last sidelined buyers and leaves no incremental demand."
     )
 
     why_it_matters = (

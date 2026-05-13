@@ -238,7 +238,16 @@ def _build_detection(bars: List[Bar], r: dict, context: dict) -> Detection:
         f"range, and the volume signature reads {volume_desc}. This is the "
         f"classical Wyckoff trading-range structure: a battle between "
         f"supply at the upper bound and demand at the lower bound, with "
-        f"institutional positioning happening quietly through the middle."
+        f"institutional positioning happening quietly through the middle. "
+        f"Richard Schabacker formalized the trading range in 'Technical "
+        f"Analysis and Stock Market Profits' (1932) as the foundational "
+        f"consolidation pattern from which every directional move emerges. "
+        f"Mark Minervini's empirical work on stage-2 leaders makes the "
+        f"point explicit — in his words, 'trading ranges precede every "
+        f"major advance; the longer the consolidation before the launch, "
+        f"the more powerful the subsequent move.' His SEPA framework "
+        f"specifically hunts the longest, tightest ranges as the highest-"
+        f"edge bases for momentum entries."
     )
 
     why_it_matters = (

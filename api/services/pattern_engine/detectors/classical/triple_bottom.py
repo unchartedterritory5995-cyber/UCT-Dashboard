@@ -405,10 +405,18 @@ def _build_detection(bars, c, confidence, context,
         f"conviction strengthening with each successive defense even as "
         f"the price tag matches. Bulkowski's empirical research on triple "
         f"bottoms places the confirmed-breakout follow-through rate at "
-        f"~67%, slightly stronger than the double-bottom's ~65%. Measured "
-        f"moves equal the neckline-to-trough distance projected above the "
-        f"neckline (here ${neckline_to_trough_pts:.2f} = "
-        f"{neckline_to_trough_pct:.1f}% projection)."
+        f"~67%, slightly stronger than the double-bottom's ~65% — a "
+        f"meaningful edge that traces directly to the third defense "
+        f"carrying additional information about repeated programmatic "
+        f"demand. Measured moves equal the neckline-to-trough distance "
+        f"projected above the neckline (here ${neckline_to_trough_pts:.2f} "
+        f"= {neckline_to_trough_pct:.1f}% projection). Edwards & Magee "
+        f"originally framed the triple bottom as rarer than the double "
+        f"because most accumulations resolve on the second test — when a "
+        f"third defense of the same low occurs without breakdown, the "
+        f"underlying demand is unusually deep and the eventual breakout "
+        f"tends to carry further than the measured-move geometry would "
+        f"suggest."
     )
 
     why_it_matters = (

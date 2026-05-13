@@ -362,8 +362,13 @@ def _build_detection(bars, c, confidence, context,
         f"{vol_pct:.0f}% of first-half average is the textbook confirmation "
         f"that the defending demand is depleted. Bulkowski's 'Encyclopedia "
         f"of Chart Patterns' classifies descending triangles among the more "
-        f"reliable bearish continuation structures with ~64% measured-move "
-        f"follow-through when the breakdown fires on volume."
+        f"reliable bearish continuation structures with ~64-70% measured-move "
+        f"follow-through when the breakdown fires on volume. Constance Brown's "
+        f"'Technical Analysis for the Trading Professional' updates the classical "
+        f"interpretation with momentum confluence: a descending triangle whose "
+        f"RSI stays capped below 50 through the consolidation is, in her "
+        f"framework, a markedly higher-edge short setup than the geometry "
+        f"alone implies."
     )
 
     why_it_matters = (

@@ -415,7 +415,14 @@ def _build_detection(
         f"current bar's body of {curr_body_pct_disp}% of range with a DCR of {curr_dcr_pct}% "
         f"(close in {dcr_position} of the session) indicates "
         f"{'institutional buyers held into the bell against late-session supply' if c['curr_dcr'] >= 0.60 else 'moderate buying that warrants confirmation'}. "
-        f"Volume on bar N was {vol_ratio_disp} the prior bar."
+        f"Volume on bar N was {vol_ratio_disp} the prior bar. Greg Morris's 'Candlestick "
+        f"Charting Explained' frames the piercing pattern as a meaningful but not as decisive "
+        f"reversal as the bullish engulfing — the close above the midpoint communicates "
+        f"intent, but the failure to clear the prior open leaves room for further "
+        f"distribution. Adam Grimes's empirical probability research on piercing patterns "
+        f"emphasizes that follow-through edge is meaningfully higher when the second bar's "
+        f"close pushes deep into the upper third of the prior bar's range rather than "
+        f"barely scraping above the midpoint."
     )
 
     why_it_matters = (

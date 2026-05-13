@@ -407,7 +407,14 @@ def _build_detection(
         f"of the session range - "
         f"{'a textbook institutional-buying fingerprint' if c['curr_dcr'] >= 0.70 else 'a moderate close that warrants confirmation'}. "
         f"Volume on bar N was {vol_ratio_disp} the prior bar - "
-        f"{'strong reversal volume that corroborates the body geometry' if vol_ratio >= 1.5 else 'modest volume that softens the conviction of the print'}."
+        f"{'strong reversal volume that corroborates the body geometry' if vol_ratio >= 1.5 else 'modest volume that softens the conviction of the print'}. "
+        f"Greg Morris's 'Candlestick Charting Explained' frames the bullish engulfing as one "
+        f"of the highest-edge two-bar reversals when accompanied by volume expansion, and "
+        f"Tom Bulkowski's Encyclopedia of Chart Patterns puts follow-through reliability "
+        f"near ~73% when the volume signature is right. Peter Brandt teaches the engulfing "
+        f"as a discretionary trade trigger with explicit rules: it must appear in a clearly "
+        f"defined downtrend, the second bar must engulf the entire body of the first, and "
+        f"the next-bar confirmation must hold above the engulfing bar's midpoint."
     )
 
     why_it_matters = (
