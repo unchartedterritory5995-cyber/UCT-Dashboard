@@ -113,6 +113,31 @@ function reducer(state, action) {
 // (useVoice() below still throws — that's the strict accessor.)
 export const VoiceContext = createContext(null)
 
+
+// ── P4-F: page-hint ref ────────────────────────────────────────────────────
+//
+// Module-level ref so any component can stash "what the user is looking at
+// right now" (e.g. a TickerPopup writes "chart of NVDA") without causing
+// re-renders. useRealtimeSession reads this at connect() time and passes
+// it to the backend as page_hint, overriding the default pathname.
+//
+// Usage from a component:
+//   import { setVoicePageHint } from '../context/VoiceContext'
+//   useEffect(() => {
+//     setVoicePageHint(`chart of ${sym}`)
+//     return () => setVoicePageHint(null)
+//   }, [sym])
+//
+const _voicePageHintRef = { current: null }
+
+export function setVoicePageHint(hint) {
+  _voicePageHintRef.current = (hint && String(hint).trim()) || null
+}
+
+export function getVoicePageHint() {
+  return _voicePageHintRef.current
+}
+
 export function VoiceProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState)
   // Single shared <audio> element managed by AudioPlayerBar — ref is set there

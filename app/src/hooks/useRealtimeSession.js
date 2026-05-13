@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useVoice } from '../context/VoiceContext'
+import { useVoice, getVoicePageHint } from '../context/VoiceContext'
 import useReadAloud from './useReadAloud'
 import {
   openTicker as busOpenTicker,
@@ -342,15 +342,24 @@ export default function useRealtimeSession() {
 
     let tokenResp
     try {
-      // P4-B unification: send the current pathname so Compass knows
-      // what the user is looking at when they start talking. The backend
-      // translates the path into a friendly system-prompt block.
+      // P4-B + P4-F unification: send a page hint so Compass knows
+      // what the user is looking at when they start talking. The
+      // backend translates the hint into a friendly system-prompt block.
+      // Priority:
+      //   1. Explicit hint set by a component (TickerPopup, ChartPage, etc.)
+      //      via setVoicePageHint — wins when present.
+      //   2. Fallback to window.location.pathname + search.
       let pageHint = null
       try {
-        if (typeof window !== 'undefined' && window.location) {
-          pageHint = window.location.pathname + (window.location.search || '')
-        }
+        pageHint = getVoicePageHint()
       } catch { /* ignore */ }
+      if (!pageHint) {
+        try {
+          if (typeof window !== 'undefined' && window.location) {
+            pageHint = window.location.pathname + (window.location.search || '')
+          }
+        } catch { /* ignore */ }
+      }
 
       const r = await fetch('/api/voice/session_token', {
         method: 'POST',

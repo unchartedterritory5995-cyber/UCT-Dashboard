@@ -1,6 +1,7 @@
 // app/src/components/TickerPopup.jsx
 import { useState, useEffect, lazy, Suspense } from 'react'
 import useRealtimePrices from '../hooks/useRealtimePrices'
+import { setVoicePageHint } from '../context/VoiceContext'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
@@ -49,6 +50,16 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [modalOpen, sym, isFlagged, toggleFlag])
+
+  // P4-F unification: while this ticker modal is open, tell Compass the
+  // user is looking at this symbol. So if they open the orb from inside
+  // the modal, Compass starts the session knowing the ticker context.
+  useEffect(() => {
+    if (!modalOpen || !sym) return
+    const tabHint = tab && tab !== 'Daily' ? `, ${tab}` : ''
+    setVoicePageHint(`chart of ${sym}${tabHint}`)
+    return () => setVoicePageHint(null)
+  }, [modalOpen, sym, tab])
 
   return (
     <>
