@@ -43,6 +43,7 @@ const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPag
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const MultiChart = lazy(() => import('./pages/MultiChart'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
+const RiskDashboard = lazy(() => import('./pages/RiskDashboard'))
 const Community = lazy(() => import('./pages/Community'))
 const Support = lazy(() => import('./pages/Support'))
 const Settings = lazy(() => import('./pages/Settings'))
@@ -159,6 +160,7 @@ export default function App() {
                 <Route path="/journal-2-0/report" element={<J2ReportPage />} />
                 <Route path="/multi-chart" element={<MultiChart />} />
                 <Route path="/watchlists" element={<Watchlists />} />
+                <Route path="/risk" element={<RiskDashboard />} />
                 <Route path="/community" element={<Community />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />

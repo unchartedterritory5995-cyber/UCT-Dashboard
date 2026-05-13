@@ -190,6 +190,93 @@ def _sectors_for_symbol(sym: str) -> set[str]:
             for t in themes if t.get("sector_name")}
 
 
+def get_risk_dashboard(user_id: str, account_id: str | None = None) -> dict:
+    """Compose the Risk Dashboard payload — total heat, by-symbol, by-sector,
+    recent refusals, account settings. Read-only.
+
+    Used by the Risk Dashboard UI panel to visualize the position-sizing
+    engine state.
+    """
+    settings = _get_account_settings(user_id, account_id)
+    account_size = float(settings.get("account_size") or 0)
+    max_risk_pct = float(settings.get("max_risk_pct") or 0)
+    current = _current_portfolio_risk(user_id, settings.get("account_id"))
+
+    total_risk = float(current.get("total_risk") or 0)
+    portfolio_heat_pct = (total_risk / account_size * 100.0) if account_size > 0 else 0.0
+    portfolio_heat_cap_pct = max_risk_pct * 3.0  # mirror validate_trade rule 3
+    max_sector_pct = max_risk_pct * 2.5          # mirror validate_trade rule 5
+
+    # Top concentrations
+    by_symbol = current.get("by_symbol") or {}
+    by_sector = current.get("by_sector") or {}
+    top_symbols = sorted(by_symbol.items(), key=lambda kv: kv[1], reverse=True)[:6]
+    top_sectors = sorted(by_sector.items(), key=lambda kv: kv[1], reverse=True)[:6]
+
+    # Recent refusals: scan voice_tool_calls for validate_trade with ok=false
+    recent_refusals: list[dict] = []
+    try:
+        from api.services.auth_db import get_connection
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                """SELECT args_json, result_json, error, created_at
+                     FROM voice_tool_calls
+                    WHERE user_id = ?
+                      AND tool_name = 'validate_trade'
+                      AND ok = 0
+                    ORDER BY id DESC
+                    LIMIT 10""",
+                (user_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        import json as _json
+        for r in rows:
+            try:
+                args = _json.loads(r["args_json"]) if r["args_json"] else {}
+            except (TypeError, ValueError):
+                args = {}
+            try:
+                result = _json.loads(r["result_json"]) if r["result_json"] else {}
+            except (TypeError, ValueError):
+                result = {}
+            recent_refusals.append({
+                "symbol": (args.get("symbol") or "").upper(),
+                "entry": args.get("entry"),
+                "stop": args.get("stop"),
+                "shares": args.get("shares"),
+                "refusal_basis": result.get("refusal_basis") or [],
+                "reason": result.get("reason") or r.get("error"),
+                "created_at": r["created_at"],
+            })
+    except Exception as e:  # noqa: BLE001
+        _log = __import__("logging").getLogger(__name__)
+        _log.warning("[risk_dashboard] recent_refusals failed: %s", e)
+
+    return {
+        "account_id": settings.get("account_id"),
+        "account_size": round(account_size, 2),
+        "max_risk_per_trade_pct": round(max_risk_pct, 2),
+        "portfolio_heat_cap_pct": round(portfolio_heat_cap_pct, 2),
+        "max_sector_concentration_pct": round(max_sector_pct, 2),
+        "total_risk_dollars": round(total_risk, 2),
+        "portfolio_heat_pct": round(portfolio_heat_pct, 2),
+        "open_position_count": current.get("open_count", 0),
+        "by_symbol": [
+            {"symbol": s, "risk_dollars": round(r, 2),
+             "risk_pct": round(r / account_size * 100.0, 2) if account_size > 0 else 0}
+            for s, r in top_symbols
+        ],
+        "by_sector": [
+            {"sector": s, "risk_dollars": round(r, 2),
+             "risk_pct": round(r / account_size * 100.0, 2) if account_size > 0 else 0}
+            for s, r in top_sectors
+        ],
+        "recent_refusals": recent_refusals,
+    }
+
+
 def validate_trade(
     *,
     user_id: str,

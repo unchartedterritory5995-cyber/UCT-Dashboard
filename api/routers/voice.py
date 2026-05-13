@@ -215,6 +215,14 @@ def insights_pending(user: dict = Depends(requires_voice_access)):
     return {"insights": list_pending_insights(user["id"], limit=20)}
 
 
+@router.get("/risk-dashboard")
+def risk_dashboard_get(user: dict = Depends(requires_voice_access)):
+    """Compose the Risk Dashboard payload for the user — total heat,
+    by-symbol, by-sector, recent refusals, account settings."""
+    from api.services.voice_position_sizing import get_risk_dashboard
+    return get_risk_dashboard(user["id"])
+
+
 @router.post("/insights/{insight_id}/dismiss")
 @limiter.limit("60/minute")
 def insights_dismiss(
