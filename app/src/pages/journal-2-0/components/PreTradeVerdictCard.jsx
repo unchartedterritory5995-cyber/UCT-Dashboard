@@ -6,7 +6,8 @@
  *   isLoading: bool
  *   error?: string
  */
-import { useState } from 'react'
+import { useState, useEffect, useRef, useContext } from 'react'
+import { VoiceContext } from '../../../context/VoiceContext'
 
 const LABEL_STYLES = {
   GO: { bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.5)', text: '#22c55e' },
@@ -17,6 +18,59 @@ const LABEL_STYLES = {
 
 export default function PreTradeVerdictCard({ verdict, isLoading, error }) {
   const [open, setOpen] = useState(false)
+  const voice = useContext(VoiceContext)
+  const spokenForRef = useRef(null)
+
+  // P5-I: When a fresh verdict lands AND proactive_speak is ON, read the
+  // label + paragraph aloud. One-shot per verdict — spokenForRef avoids
+  // repeats on re-renders or accordion toggles.
+  useEffect(() => {
+    if (!voice) return
+    if (!verdict || !verdict.label || !verdict.paragraph) return
+    const id = `${verdict.label}-${(verdict.paragraph || '').slice(0, 40)}`
+    if (spokenForRef.current === id) return
+    spokenForRef.current = id
+
+    let cancelled = false
+    const run = async () => {
+      try {
+        const settingsResp = await fetch('/api/voice/settings', {
+          credentials: 'include',
+        })
+        if (!settingsResp.ok) return
+        const settings = await settingsResp.json()
+        if (!settings.proactive_speak || !settings.enabled) return
+
+        // Don't talk over anything else
+        if (voice.status === 'playing' || voice.status === 'loading') return
+        if (voice.mode === 'c'
+            && voice.status !== 'idle'
+            && voice.status !== 'error') return
+
+        const text = `Compass verdict: ${verdict.label}. ${verdict.paragraph}`
+        const ttsResp = await fetch('/api/voice/tts', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        })
+        if (!ttsResp.ok || cancelled) return
+        const blob = await ttsResp.blob()
+        const url = URL.createObjectURL(blob)
+        if (cancelled) {
+          URL.revokeObjectURL(url)
+          return
+        }
+        await voice.playUrl({
+          url,
+          trackId: `compass-verdict-${id}`,
+          trackLabel: `Compass — ${verdict.label}`,
+        })
+      } catch { /* swallow */ }
+    }
+    run()
+    return () => { cancelled = true }
+  }, [verdict, voice])
 
   if (isLoading) {
     return (
