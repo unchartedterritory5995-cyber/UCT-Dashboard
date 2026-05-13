@@ -687,6 +687,16 @@ def session_token(
     _log.info("[session_token] +%.0fms cap check ok", (_time.time() - _t0) * 1000)
 
     ctx = body.context or "global"
+
+    # Phase 1 of Compass × Voice unification (2026-05-12): when no specialist
+    # is explicitly named, default to the unified Compass agent. Specialist
+    # IDs (analyst/risk_officer/coach/scout/orchestrator) and special
+    # contexts (train_me) still pass through unchanged for the eval shadow.
+    _SPECIALIST_CTXS = {"analyst", "risk_officer", "coach", "scout",
+                        "orchestrator", "train_me", "compass"}
+    if ctx not in _SPECIALIST_CTXS:
+        ctx = "compass"
+
     tools_schema = get_schema_for_context(ctx)
     _log.info("[session_token] +%.0fms %d tools loaded (ctx=%s)",
               (_time.time() - _t0) * 1000, len(tools_schema), ctx)
@@ -695,7 +705,8 @@ def session_token(
     _log.info("[session_token] +%.0fms memory context %d chars",
               (_time.time() - _t0) * 1000, len(memory_context))
 
-    # Resolve agent if ctx names one of the specialists (Batch 10a)
+    # Resolve agent if ctx names one of the specialists (Batch 10a) or
+    # the unified Compass (Phase 1 of unification, 2026-05-12).
     agent_def = None
     try:
         from api.services.voice_agents import get_agent

@@ -5,10 +5,12 @@ from api.services import voice_agents as va
 from api.services import voice_tools
 
 
-def test_five_agents_defined():
-    """4 specialists + 1 orchestrator (Batch 10d)."""
+def test_agents_defined():
+    """5 specialists (Batch 10d) + Compass unified default (Phase 1
+    unification, 2026-05-12)."""
     assert set(va.AGENTS.keys()) == {
         "orchestrator", "analyst", "risk_officer", "coach", "scout",
+        "compass",
     }
 
 
@@ -23,15 +25,19 @@ def test_orchestrator_does_not_get_create_position():
 
 
 def test_each_agent_has_required_fields():
+    """Compass uses a lazy `_system_prompt_loader` instead of a literal
+    `system_prompt` key — get_agent() resolves it on access."""
     required = {"id", "display_name", "emoji", "color", "voice",
-                "description", "system_prompt", "tool_allowlist"}
+                "description", "tool_allowlist"}
     for agent_id, agent in va.AGENTS.items():
         missing = required - set(agent.keys())
         assert not missing, f"{agent_id} missing fields: {missing}"
         assert isinstance(agent["tool_allowlist"], set), \
             f"{agent_id} tool_allowlist must be a set"
         assert len(agent["tool_allowlist"]) > 0
-        assert len(agent["system_prompt"]) > 100
+        # system_prompt either inline OR resolvable via the loader
+        resolved = va.get_agent(agent_id)
+        assert len(resolved.get("system_prompt", "")) > 100
 
 
 def test_get_agent_by_id():
@@ -59,12 +65,15 @@ def test_get_agent_unknown_returns_none():
 
 
 def test_list_agents_returns_safe_dicts():
+    """Phase 1 unification: list_agents() only surfaces Compass to the UI.
+    The 5 specialists stay registered in AGENTS as eval shadow variants
+    but are no longer user-visible."""
     out = va.list_agents()
-    assert len(out) == 5  # orchestrator + 4 specialists
-    for a in out:
-        assert set(a.keys()) == {
-            "id", "display_name", "emoji", "color", "voice", "description"
-        }
+    assert len(out) == 1
+    assert out[0]["id"] == "compass"
+    assert set(out[0].keys()) == {
+        "id", "display_name", "emoji", "color", "voice", "description"
+    }
 
 
 def test_route_to_agent_valid():
@@ -111,9 +120,13 @@ def test_analyst_has_market_reads():
     assert "lookup_trading_principle" in allow
 
 
-def test_every_agent_can_route_to_others():
-    """Every agent needs route_to_agent so they can hand off."""
-    for agent in va.AGENTS.values():
+def test_every_specialist_can_route_to_others():
+    """Every specialist needs route_to_agent so they can hand off. Compass
+    is the unified default and doesn't route (it IS all of them)."""
+    for agent_id, agent in va.AGENTS.items():
+        if agent_id == "compass":
+            assert "route_to_agent" not in agent["tool_allowlist"]
+            continue
         assert "route_to_agent" in agent["tool_allowlist"]
 
 

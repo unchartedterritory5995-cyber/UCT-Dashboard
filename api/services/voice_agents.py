@@ -322,6 +322,56 @@ AGENTS: dict[str, dict[str, Any]] = {
     },
 }
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 1 of Compass × Voice unification (2026-05-12)
+#
+# Compass is added as the unified default agent. Its tool allowlist is the
+# UNION of all 5 specialist allowlists (de-duplicated), so Compass can do
+# everything any specialist could. Its system prompt is built from the
+# existing elite Compass chat prompt + a voice-mode addendum that bakes in
+# the specialist disciplines as conditional mandates.
+#
+# The 5 specialists stay registered as fallback / shadow A/B variants. They
+# are no longer exposed in the UI agent picker (Phase 3 will fully remove
+# them from view).
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _compass_tool_union() -> set[str]:
+    """Union of all specialist tool allowlists."""
+    out: set[str] = set()
+    for agent in AGENTS.values():
+        out.update(agent.get("tool_allowlist") or set())
+    # `route_to_agent` was a multi-agent routing tool. Compass doesn't route
+    # — it IS all the agents — so we drop it.
+    out.discard("route_to_agent")
+    return out
+
+
+def _compass_system_prompt() -> str:
+    """Lazy-load the unified Compass voice prompt to avoid circular imports."""
+    from api.services.voice_prompts.compass import build_compass_voice_prompt
+    return build_compass_voice_prompt()
+
+
+AGENTS["compass"] = {
+    "id": "compass",
+    "display_name": "Compass",
+    "emoji": "🧭",
+    "color": "#c9a84c",  # gold (UCT brand)
+    "voice": "ash",  # default until user picks via Compass Settings voice picker
+    "description": (
+        "Your senior trading coach. Markets, setups, regime, risk, "
+        "discipline, journal, scanner, watchlists, alerts — all in one. "
+        "Speaks the same Compass you know from the Compass tab."
+    ),
+    # Resolved lazily — the system_prompt key is read in voice.py via
+    # agent_def["system_prompt"], so we use a property-like accessor below.
+    "_system_prompt_loader": _compass_system_prompt,
+    "tool_allowlist": _compass_tool_union(),
+}
+
+
 # Allow alias lookups (case-insensitive, also accept display names)
 _ALIASES: dict[str, str] = {}
 for aid, agent in AGENTS.items():
@@ -330,22 +380,43 @@ for aid, agent in AGENTS.items():
 
 
 def get_agent(agent_id: str) -> dict | None:
-    """Return the agent definition for an id or display name. None if unknown."""
+    """Return the agent definition for an id or display name. None if unknown.
+
+    If the agent uses a lazy `_system_prompt_loader` (Compass does, to defer
+    importing the Compass chat prompt and the voice addendum), resolve it
+    here so callers always see a `system_prompt` field.
+    """
     if not agent_id:
         return None
     aid = _ALIASES.get(agent_id.strip().lower())
     if not aid:
         return None
-    return AGENTS.get(aid)
+    agent = AGENTS.get(aid)
+    if not agent:
+        return None
+    if "system_prompt" not in agent and "_system_prompt_loader" in agent:
+        agent = dict(agent)
+        try:
+            agent["system_prompt"] = agent["_system_prompt_loader"]()
+        except Exception:
+            agent["system_prompt"] = ""
+    return agent
 
 
 def list_agents() -> list[dict]:
-    """Return all agent definitions for UI consumption."""
+    """Return agent definitions for UI consumption.
+
+    Phase 1 of Compass × Voice unification: only Compass is user-visible.
+    The 5 former specialists (orchestrator/analyst/risk_officer/coach/scout)
+    stay registered as fallback variants for the prompt eval but are no
+    longer surfaced in the UI agent picker.
+    """
     return [
         {"id": a["id"], "display_name": a["display_name"],
          "emoji": a["emoji"], "color": a["color"], "voice": a["voice"],
          "description": a["description"]}
         for a in AGENTS.values()
+        if a["id"] == "compass"
     ]
 
 
