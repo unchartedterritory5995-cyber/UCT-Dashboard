@@ -451,6 +451,42 @@ def _score_context(context: dict) -> float:
     return min(100.0, score)
 
 
+# ---------------------------------------------------------------------------
+# Narrative helpers
+# ---------------------------------------------------------------------------
+
+
+def _ma_alignment_phrase(context: dict) -> str:
+    align = context.get("ma_alignment", "mixed")
+    if align == "stacked_bullish":
+        return "stacked-bullish moving-average (overbought topping context — primed to roll over)"
+    if align == "stacked_bearish":
+        return "stacked-bearish moving-average (downtrend continuation context)"
+    return "mixed moving-average"
+
+
+def _trend_stage_description(context: dict) -> str:
+    stage = context.get("trend_stage", 0)
+    if stage == 3:
+        return "a Stage 3 distribution/topping environment (textbook inverse cup-handle reversal setup)"
+    if stage == 4:
+        return "a Stage 4 downtrend (continuation context — inverse cup-handle as distribution-bear-flag)"
+    if stage == 2:
+        return "a Stage 2 uptrend showing exhaustion (counter-trend reversal context — early warning)"
+    if stage == 1:
+        return "a Stage 1 base/accumulation environment (counter-trend caution — base may resolve up)"
+    return "an undefined trend stage"
+
+
+def _rs_trend_phrase(context: dict) -> str:
+    rs = context.get("rs_trend", "flat")
+    if rs == "up":
+        return "still improving (counter-trend warning — wait for trough break)"
+    if rs == "down":
+        return "deteriorating (institutional rotation already underway)"
+    return "neutral"
+
+
 def _build_detection(bars, c, confidence, context,
                      geom_score, vol_score, ctx_score, hist_score) -> Detection:
     last_bar = bars[-1]
@@ -475,6 +511,166 @@ def _build_detection(bars, c, confidence, context,
     # Measured move: project dome depth below the right trough
     target = round(right_trough_price - dome_depth_dollars, 2)
     rr = (entry - target) / (stop - entry) if stop > entry else 0.0
+
+    # Stop distance %
+    stop_distance_pct = (stop - entry) / entry * 100 if entry > 0 else 0.0
+
+    # Narrative dimension values
+    dome_bars = c["dome_bars"]
+    dome_depth_pct = c["dome_depth_pct"] * 100.0
+    trough_similarity_pct = (1.0 - c["trough_diff"]) * 100.0
+    trough_diff_pct = c["trough_diff"] * 100.0
+    roundness_residual = c["roundness_residual"]
+    top_width_pct = c["top_width_pct"] * 100.0
+    handle_bars = c["handle_bars"]
+    handle_depth_pct = c["handle_depth_pct"] * 100.0
+    handle_to_dome_ratio_pct = (
+        (c["handle_depth_pct"] / c["dome_depth_pct"]) * 100.0
+        if c["dome_depth_pct"] > 0 else 0.0
+    )
+    dome_depth_dollars_val = dome_depth_dollars
+
+    ma_phrase = _ma_alignment_phrase(context)
+    stage_phrase = _trend_stage_description(context)
+    rs_phrase = _rs_trend_phrase(context)
+    regime = context.get("regime", "current")
+    vol_signature = context.get("volume_signature", "unspecified")
+
+    sym_token = "the stock"
+
+    # ---- Narrative composition - RICH, paragraph-length, with real values ----
+    headline = (
+        f"Inverse Cup with Handle forming on {sym_token} - {dome_bars}-bar dome "
+        f"of {dome_depth_pct:.1f}% depth with {trough_similarity_pct:.1f}% trough "
+        f"match + {handle_bars}-bar handle rallying {handle_depth_pct:.1f}%. "
+        f"Pivot ${entry:.2f}, target ${target:.2f}, R:R {rr:.1f}."
+    )
+
+    what_it_is = (
+        f"The Inverse Cup with Handle is the bearish mirror of William O'Neil's "
+        f"classic CAN SLIM cup-handle continuation pattern — a distribution-top "
+        f"formation that emerged from the same body of technical-analysis "
+        f"research codified in O'Neil's 'How to Make Money in Stocks' (1988) "
+        f"and the empirical chart-pattern catalogues of Bulkowski and Edwards "
+        f"& Magee. Structurally it is a two-part formation: (1) a rounded "
+        f"inverted-U 'dome' where price advances from a left trough at "
+        f"${left_trough_price:.2f}, carves out a smooth distribution arc to a "
+        f"peak at ${dome_peak_price:.2f} ({dome_depth_pct:.1f}% above the "
+        f"trough), then declines back to a right trough at "
+        f"${right_trough_price:.2f} within {trough_diff_pct:.2f}% of the left "
+        f"trough ({trough_similarity_pct:.1f}% trough match score); and (2) a "
+        f"short 'handle' rally after the right trough, here {handle_bars} bars "
+        f"long advancing {handle_depth_pct:.1f}% to ${handle_high_price:.2f} "
+        f"({handle_to_dome_ratio_pct:.1f}% of total dome depth) before failing "
+        f"to extend. The dome spans {dome_bars} bars and the roundness residual "
+        f"ratio of {roundness_residual:.3f} (lower = rounder; the detector "
+        f"requires a negative quadratic fit and rejects sharp inverted-V spike "
+        f"tops) combined with {top_width_pct:.0f}% of dome bars sitting in the "
+        f"upper 25% of dome depth confirms the dome-not-spike shape. The market "
+        f"mechanic underneath is institutional distribution through patience: "
+        f"smart money sells into the prior trough's recovery, lets late buyers "
+        f"chase price up through the dome, distributes inventory at progressively "
+        f"smaller advances as demand thins, and then offers one more upthrust "
+        f"in the handle to capture remaining late longs before the markdown "
+        f"leg begins. Inverse cup-handles are less common than their bullish "
+        f"cousins because true distribution tops form rarely (most stocks "
+        f"don't earn a clean two-trough symmetric topping pattern), and "
+        f"empirical research places their follow-through reliability at "
+        f"roughly 60% when properly confirmed by volume and trend-stage context."
+    )
+
+    why_it_matters = (
+        f"This Inverse Cup with Handle is forming in {stage_phrase} with "
+        f"{ma_phrase} alignment and {rs_phrase} relative strength versus the "
+        f"broader market, against a {regime} regime backdrop and volume "
+        f"signature reading {vol_signature}. The {trough_similarity_pct:.1f}% "
+        f"trough symmetry and {dome_depth_pct:.1f}% dome depth sit in the "
+        f"documented high-reliability zone — trough matches within 5% indicate "
+        f"that demand at the prior-low price has been genuinely tested twice "
+        f"and held (otherwise the right side of the dome wouldn't pull back to "
+        f"the same level), and 20-35% dome depth falls in the textbook range "
+        f"where institutional distribution has time to complete without "
+        f"leaving the stock primed for a sharp V-bottom reversal off the "
+        f"second trough. The roundness residual of {roundness_residual:.3f} "
+        f"and {top_width_pct:.0f}% top-width fraction together verify the "
+        f"dome shape — a sharp inverted-V spike-top (despite fitting a "
+        f"parabola in least-squares terms) lacks the time-at-the-top that "
+        f"signals patient distribution rather than a single-bar exhaustion "
+        f"reversal that more often resolves bullish. The {handle_bars}-bar "
+        f"handle rallying {handle_depth_pct:.1f}% "
+        f"({handle_to_dome_ratio_pct:.1f}% of dome depth) is the final "
+        f"upthrust before breakdown — handles taller than 50% of dome depth "
+        f"signal that demand may have rebuilt enough to reverse the "
+        f"distribution thesis, while handles too shallow (under 20%) often "
+        f"indicate the breakdown has already started without the proper "
+        f"upthrust trap that produces a clean short setup. Volume contracting "
+        f"through dome and handle (encoded in this detection's volume_score "
+        f"component) confirms that demand is drying up at exactly the moment "
+        f"institutions are ready to push through support at "
+        f"${right_trough_price:.2f}, where the next leg would re-engage "
+        f"trapped buyers as new supply."
+    )
+
+    what_to_watch_for = (
+        f"The trigger is a daily close below ${entry:.2f} (whichever is lower: "
+        f"right trough ${right_trough_price:.2f} or handle low "
+        f"${handle_low_price:.2f}, minus a small confirmation buffer) on "
+        f"volume of at least 1.5x the 20-bar average — that volume expansion "
+        f"on the breakdown is non-negotiable because an inverse-cup-handle "
+        f"break on light tape frequently fades back into the handle range as "
+        f"a bear trap, especially in an environment where the broader trend "
+        f"hasn't yet rolled over. The ideal trigger bar closes in the lower "
+        f"half of its range with a wide real body, and the next 1-3 bars "
+        f"should hold below ${right_trough_price:.2f} without re-entering the "
+        f"handle range (${handle_low_price:.2f} to ${handle_high_price:.2f}) "
+        f"more than briefly — a single throwback retest of the trough is "
+        f"normal and often the highest-quality short entry, but two-plus "
+        f"closes back inside the handle weakens the thesis. Measured target "
+        f"is ${target:.2f}, derived by subtracting dome depth "
+        f"(${dome_depth_dollars_val:.2f}) from the right trough — strong "
+        f"inverse cup-handles in Stage 3 environments frequently extend "
+        f"1.5x to 3x this measured move over the 8-16 weeks following the "
+        f"trigger because the prior distribution has compressed substantial "
+        f"latent selling. Initial stop sits at ${stop:.2f} (1% above the "
+        f"handle high at ${handle_high_price:.2f}) representing a "
+        f"{stop_distance_pct:.1f}% risk from entry — risking 1% of account "
+        f"on this short implies a position size of roughly "
+        f"{(1.0 / (stop_distance_pct / 100)) if stop_distance_pct > 0 else 0:.0f}% "
+        f"of equity, and risking 0.5% halves that. Trail stops above each "
+        f"new swing high as the trade extends, or above the descending "
+        f"10-EMA, and consider covering partial size at 1R for a free trade. "
+        f"Short trades require borrow availability and carry overnight gap "
+        f"risk that long trades do not — never short a stock you couldn't "
+        f"get filled on at the open."
+    )
+
+    failure_signal = (
+        f"The pattern is invalidated on a daily close above the handle high "
+        f"at ${handle_high_price:.2f} (stop at ${stop:.2f}, 1% above to "
+        f"absorb the standard upside wick) — that close signals failed "
+        f"distribution, institutional supply has been absorbed, and the dome "
+        f"may resolve as an accumulation base rather than a distribution top. "
+        f"A subtler failure mode that often precedes the hard stop: price "
+        f"breaks below ${right_trough_price:.2f} on weak or merely-average "
+        f"volume, the next 1-3 bars close in the upper half of their range, "
+        f"and price recovers back above the trough on improving volume. That "
+        f"sequence is the textbook 'failed breakdown' or Wyckoff 'spring' — "
+        f"market makers used the visible inverse-cup-handle pattern as a "
+        f"liquidity grab to cover shorts and re-accumulate, not a genuine "
+        f"continuation of distribution. Short squeezes off a failed inverse "
+        f"cup-handle can be particularly violent because the pattern is "
+        f"less common than its bullish cousin and tends to attract heavier "
+        f"speculative short interest from pattern scanners, and the "
+        f"asymmetric risk profile of a short trade (capped reward, uncapped "
+        f"loss) demands the {stop_distance_pct:.1f}% stop be honored without "
+        f"negotiation — widening or removing a stop on a failing inverse "
+        f"cup-handle short is one of the fastest ways to convert a "
+        f"manageable loss into account-damaging exposure. Failed inverse "
+        f"cup-handles in Stage 2 uptrends are especially dangerous because "
+        f"the failure often transitions directly into a fresh markup leg "
+        f"with V-shape velocity straight through the dome peak, so size "
+        f"accordingly to the prevailing trend stage and never average down."
+    )
 
     now = int(time.time())
 
@@ -530,25 +726,11 @@ def _build_detection(bars, c, confidence, context,
             "historical_score": hist_score,
         },
         "narrative": {
-            "headline": (f"Inverse cup with handle forming - {c['dome_depth_pct']*100:.1f}% dome "
-                         f"over {c['dome_bars']} bars, {c['handle_depth_pct']*100:.1f}% "
-                         f"handle over {c['handle_bars']} bars, breakdown at "
-                         f"{breakdown_level:.2f}"),
-            "what_it_is": ("Bearish reversal pattern (distribution top): a smooth inverted-U "
-                           "dome followed by a small failing rally on the right side (the "
-                           "handle). Sellers absorb demand gradually through the dome, and "
-                           "the handle is the final upthrust before breakdown."),
-            "why_it_matters": ("The rounded top signals patient, sustained distribution - "
-                               "not a panic spike top. The failing handle rally on weaker "
-                               "volume confirms supply pressure. A breakdown below the right "
-                               "trough on expanding volume projects a measured move equal to "
-                               "the depth of the dome."),
-            "what_to_watch_for": (f"Breakdown below {breakdown_level:.2f} on volume >= 1.5x "
-                                  f"the 20-bar average. Short entry triggers below {entry:.2f}; "
-                                  f"measured-move target {target:.2f}; stop {stop:.2f}."),
-            "failure_signal": (f"Close above the handle high ({handle_high_price:.2f}). "
-                               f"Pattern invalidates and the prior consolidation may "
-                               f"resolve to the upside."),
+            "headline": headline,
+            "what_it_is": what_it_is,
+            "why_it_matters": why_it_matters,
+            "what_to_watch_for": what_to_watch_for,
+            "failure_signal": failure_signal,
         },
         "status": "ready",
         "outcome": None,

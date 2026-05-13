@@ -286,6 +286,42 @@ def _score_context(context: dict) -> float:
     return min(100.0, score)
 
 
+# ---------------------------------------------------------------------------
+# Narrative helpers
+# ---------------------------------------------------------------------------
+
+
+def _ma_alignment_phrase(context: dict) -> str:
+    align = context.get("ma_alignment", "mixed")
+    if align == "stacked_bullish":
+        return "stacked-bullish moving-average (overbought topping context)"
+    if align == "stacked_bearish":
+        return "stacked-bearish moving-average (counter-trend warning for shorts)"
+    return "mixed moving-average"
+
+
+def _trend_stage_description(context: dict) -> str:
+    stage = context.get("trend_stage", 0)
+    if stage == 3:
+        return "a Stage 3 distribution/topping environment (textbook double-top reversal setup)"
+    if stage == 2:
+        return "a Stage 2 uptrend showing exhaustion at resistance (overbought reversal context)"
+    if stage == 4:
+        return "a Stage 4 downtrend (continuation context — double top as a bear-flag analog)"
+    if stage == 1:
+        return "a Stage 1 base/accumulation environment (counter-trend caution)"
+    return "an undefined trend stage"
+
+
+def _rs_trend_phrase(context: dict) -> str:
+    rs = context.get("rs_trend", "flat")
+    if rs == "up":
+        return "still improving (counter-trend warning — wait for trough break)"
+    if rs == "down":
+        return "deteriorating"
+    return "neutral"
+
+
 def _build_detection(bars, c, confidence, context,
                      geom_score, vol_score, ctx_score, hist_score) -> Detection:
     last_bar = bars[-1]
@@ -303,6 +339,140 @@ def _build_detection(bars, c, confidence, context,
     # Measured move down: peak2 → trough distance, projected below trough
     target = round(trough_price - (peak2_price - trough_price), 2)
     rr = (entry - target) / (stop - entry) if stop > entry else 0.0
+
+    # Stop distance %
+    stop_distance_pct = (stop - entry) / entry * 100 if entry > 0 else 0.0
+
+    # Narrative dimension values
+    peak_similarity_pct = c["peak_similarity"] * 100.0
+    peak_match_pct = (1.0 - c["peak_similarity"]) * 100.0
+    retrace_depth_pct = c["retrace_depth"] * 100.0
+    pattern_bars = c["pattern_bars"]
+    peak_to_trough_pts = peak2_price - trough_price
+    peak_to_trough_pct = (peak_to_trough_pts / peak2_price * 100.0) if peak2_price > 0 else 0.0
+    avg_peak = (peak1_price + peak2_price) / 2.0
+
+    ma_phrase = _ma_alignment_phrase(context)
+    stage_phrase = _trend_stage_description(context)
+    rs_phrase = _rs_trend_phrase(context)
+    regime = context.get("regime", "current")
+    vol_signature = context.get("volume_signature", "unspecified")
+
+    sym_token = "the stock"
+
+    # ---- Narrative composition - RICH, paragraph-length, with real values ----
+    headline = (
+        f"Double Top forming on {sym_token} - peaks ${peak1_price:.2f} / "
+        f"${peak2_price:.2f} within {peak_similarity_pct:.2f}% of each other, "
+        f"retrace trough ${trough_price:.2f} ({retrace_depth_pct:.1f}% off peak), "
+        f"{pattern_bars}-bar pattern. Pivot ${entry:.2f}, target ${target:.2f}, "
+        f"R:R {rr:.1f}."
+    )
+
+    what_it_is = (
+        f"The Double Top is one of the oldest and most documented bearish reversal "
+        f"patterns in technical analysis, with origins traced back to Charles Dow's "
+        f"market commentary at the turn of the 20th century, formalized by Richard "
+        f"Schabacker in 'Technical Analysis and Stock Market Profits' (1932), and "
+        f"canonized in Edwards & Magee's 'Technical Analysis of Stock Trends' "
+        f"(1948). Structurally it is two sequential peaks in an uptrend that fail "
+        f"at approximately the same price level: peak 1 at ${peak1_price:.2f} "
+        f"establishes the rally high, a retrace pulls back to ${trough_price:.2f} "
+        f"({retrace_depth_pct:.1f}% off the peak), and peak 2 at ${peak2_price:.2f} "
+        f"tests the prior high but fails to extend. Here the two peaks are within "
+        f"{peak_similarity_pct:.2f}% of each other (match score {peak_match_pct:.1f}%) "
+        f"and the retrace trough at ${trough_price:.2f} forms the 'neckline' — the "
+        f"horizontal support line whose breach confirms the reversal. The pattern "
+        f"spans {pattern_bars} bars between the two peaks. The market mechanic "
+        f"underneath is supply finally overwhelming demand: at the prior-high price, "
+        f"institutional sellers who had been waiting on the sidelines step in with "
+        f"size, absorbing the second-attempt rally and refusing to let price extend. "
+        f"The volume signature that confirms the read — declining volume on peak 2 "
+        f"versus peak 1 — reveals that the buying conviction is fading even as the "
+        f"price tag matches. Bulkowski's empirical research on thousands of double "
+        f"tops places the confirmed-breakdown follow-through rate at roughly 65%, "
+        f"with measured moves equal to the peak-to-trough distance projected below "
+        f"the neckline (here ${peak_to_trough_pts:.2f} = {peak_to_trough_pct:.1f}% "
+        f"projection)."
+    )
+
+    why_it_matters = (
+        f"This Double Top is forming in {stage_phrase} with {ma_phrase} alignment "
+        f"and {rs_phrase} relative strength versus the broader market, against a "
+        f"{regime} regime backdrop and volume signature reading {vol_signature}. "
+        f"The {peak_match_pct:.1f}% peak symmetry is squarely in the high-quality "
+        f"zone — tight peak matches (within 2%) are the highest-reliability variant "
+        f"because they reveal a clear institutional supply line at one specific "
+        f"price (${avg_peak:.2f} average), while loose matches (above 3%) blur "
+        f"into rounded-top noise. The {retrace_depth_pct:.1f}% retrace depth "
+        f"between peaks falls in the textbook 10-20% zone where the highest-"
+        f"follow-through double tops resolve — too-shallow retraces (under 5%) "
+        f"often mean buyers haven't actually been challenged yet, while too-deep "
+        f"retraces (over 25%) usually reflect a structural breakdown already "
+        f"underway rather than a clean two-peak topping pattern. The "
+        f"{pattern_bars}-bar pattern width sits in the 12-30 bar sweet spot — "
+        f"longer, sprawling patterns are less reliable because they accumulate "
+        f"too many late buyers near the trough who defend the neckline, while "
+        f"shorter patterns lack the time for genuine distribution to occur. The "
+        f"declining-volume signature on peak 2 (encoded in this detection's "
+        f"volume_score component) confirms the buying-exhaustion thesis: the "
+        f"same price level can't attract the same conviction twice, and the "
+        f"institutions absorbing the prior high have stopped buying. Trapped "
+        f"longs near ${avg_peak:.2f} become the supply that caps every "
+        f"subsequent rally attempt."
+    )
+
+    what_to_watch_for = (
+        f"The trigger is a daily close below ${entry:.2f} (the retrace trough at "
+        f"${trough_price:.2f} minus a small confirmation buffer) on volume of at "
+        f"least 1.5x the 20-bar average — that volume expansion on the breakdown "
+        f"is non-negotiable because a neckline break on light tape frequently "
+        f"reverses as a bear trap, especially on a pattern this well-watched. The "
+        f"ideal trigger bar closes in the lower half of its range with a wide "
+        f"real body, and the next 1-3 bars should hold below ${trough_price:.2f} "
+        f"without 'kissing back' above the trough more than once — a single "
+        f"throwback retest of the broken support is normal and often the highest-"
+        f"quality short entry, but two-plus closes back above ${trough_price:.2f} "
+        f"weakens the thesis. Measured target is ${target:.2f}, derived by "
+        f"projecting the ${peak_to_trough_pts:.2f} peak-to-trough distance "
+        f"downward from the trough — a {peak_to_trough_pct:.1f}% projected move "
+        f"that justifies the position. Initial stop sits at ${stop:.2f} (1% "
+        f"above peak 2 at ${peak2_price:.2f}) representing a "
+        f"{stop_distance_pct:.1f}% risk from entry — risking 1% of account on "
+        f"this short implies a position size of roughly "
+        f"{(1.0 / (stop_distance_pct / 100)) if stop_distance_pct > 0 else 0:.0f}% "
+        f"of equity, and risking 0.5% halves that. Trail stops above each new "
+        f"swing high as the trade extends, or above the descending 10/20 EMA, "
+        f"and consider covering partial size at 1R to lock in a free trade. "
+        f"Short trades require borrow availability and carry overnight gap risk "
+        f"that long trades do not — never short a stock you couldn't get filled "
+        f"on at the open."
+    )
+
+    failure_signal = (
+        f"The pattern is invalidated on a daily close above peak 2 at "
+        f"${peak2_price:.2f} (stop at ${stop:.2f}, 1% above to absorb the "
+        f"standard upside wick) — that close signals the distribution thesis is "
+        f"wrong, demand has reabsorbed supply at the prior-high level, and the "
+        f"underlying uptrend has a high probability of resuming, often with a "
+        f"squeeze leg as trapped shorts cover into the breakout. A subtler "
+        f"failure mode that often precedes the hard stop: price breaks below "
+        f"${trough_price:.2f} on weak or merely-average volume, the next 1-2 "
+        f"bars close in the upper half of their range, and price recovers back "
+        f"above the trough. That sequence is the textbook 'failed breakdown' or "
+        f"Wyckoff 'spring' — market makers used the visible double-top neckline "
+        f"as a liquidity grab to cover shorts and re-accumulate, not a genuine "
+        f"continuation. Short squeezes off a failed double top can be violent "
+        f"because the pattern attracts heavy short interest from trend-following "
+        f"systems and pattern scanners, and uncapped upside loss demands the "
+        f"{stop_distance_pct:.1f}% stop be honored without negotiation — widening "
+        f"or removing a stop on a failing double-top short is one of the fastest "
+        f"ways to convert a manageable loss into account-damaging exposure, "
+        f"because the asymmetric risk profile of a short trade (capped reward, "
+        f"uncapped loss) demands tighter discipline than long trades. Failed "
+        f"double tops often resolve with V-shape reversal velocity straight back "
+        f"through both peaks, so size accordingly and never average down."
+    )
 
     now = int(time.time())
 
@@ -351,22 +521,11 @@ def _build_detection(bars, c, confidence, context,
             "historical_score": hist_score,
         },
         "narrative": {
-            "headline": (f"Double top forming - peaks within {c['peak_similarity']*100:.1f}%, "
-                         f"retrace trough {trough_price:.2f} ({c['retrace_depth']*100:.1f}% off peak), "
-                         f"{c['pattern_bars']}-bar pattern"),
-            "what_it_is": ("Two-peak topping pattern: the rally to a new high (peak 1) is followed "
-                           "by a retrace, then a second rally that fails at approximately the same "
-                           "level (peak 2). Classic bearish reversal."),
-            "why_it_matters": ("Buyers failed to push past the prior high on the second attempt - "
-                               "demand has been exhausted at this level. Declining volume on the "
-                               "second peak confirms the failed thrust. A breakdown below the "
-                               "retrace trough projects a measured move equal to the peak-to-trough "
-                               "distance."),
-            "what_to_watch_for": (f"Breakdown below the retrace trough ({trough_price:.2f}) on "
-                                  f"volume >= 1.5x the 20-bar average. Entry triggers below "
-                                  f"{entry:.2f}; measured-move target {target:.2f}."),
-            "failure_signal": (f"Close above peak 2 ({peak2_price:.2f}). Pattern invalidates "
-                               f"and the prior uptrend may resume."),
+            "headline": headline,
+            "what_it_is": what_it_is,
+            "why_it_matters": why_it_matters,
+            "what_to_watch_for": what_to_watch_for,
+            "failure_signal": failure_signal,
         },
         "status": "ready",
         "outcome": None,

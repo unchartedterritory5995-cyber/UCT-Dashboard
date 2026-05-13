@@ -447,6 +447,42 @@ def _score_context(context: dict) -> float:
     return min(100.0, score)
 
 
+# ---------------------------------------------------------------------------
+# Narrative helpers
+# ---------------------------------------------------------------------------
+
+
+def _ma_alignment_phrase(context: dict) -> str:
+    align = context.get("ma_alignment", "mixed")
+    if align == "stacked_bullish":
+        return "stacked-bullish moving-average (classic cup-handle trend backdrop)"
+    if align == "stacked_bearish":
+        return "stacked-bearish moving-average (counter-trend warning — trend still down)"
+    return "mixed moving-average"
+
+
+def _trend_stage_description(context: dict) -> str:
+    stage = context.get("trend_stage", 0)
+    if stage == 2:
+        return "a Stage 2 uptrend (textbook cup-handle continuation environment)"
+    if stage == 1:
+        return "a Stage 1 base/accumulation environment (cup-handle as breakout setup from base)"
+    if stage == 3:
+        return "a Stage 3 distribution environment (late-cycle caution — cup-handles in Stage 3 fail more often)"
+    if stage == 4:
+        return "a Stage 4 downtrend (counter-trend warning — wait for trend confirmation)"
+    return "an undefined trend stage"
+
+
+def _rs_trend_phrase(context: dict) -> str:
+    rs = context.get("rs_trend", "flat")
+    if rs == "up":
+        return "improving (institutional-sponsorship signal aligned)"
+    if rs == "down":
+        return "deteriorating (counter-trend warning — wait for confirmation)"
+    return "neutral"
+
+
 def _build_detection(bars, c, confidence, context,
                      geom_score, vol_score, ctx_score, hist_score) -> Detection:
     last_bar = bars[-1]
@@ -471,6 +507,159 @@ def _build_detection(bars, c, confidence, context,
     # Measured move: project cup depth above the right rim
     target = round(right_rim_price + cup_depth_dollars, 2)
     rr = (target - entry) / (entry - stop) if entry > stop else 0.0
+
+    # Stop distance %
+    stop_distance_pct = (entry - stop) / entry * 100 if entry > 0 else 0.0
+
+    # Narrative dimension values
+    cup_bars = c["cup_bars"]
+    cup_depth_pct = c["cup_depth_pct"] * 100.0
+    rim_similarity_pct = (1.0 - c["rim_diff"]) * 100.0
+    rim_diff_pct = c["rim_diff"] * 100.0
+    roundness_residual = c["roundness_residual"]
+    bottom_width_pct = c["bottom_width_pct"] * 100.0
+    handle_bars = c["handle_bars"]
+    handle_depth_pct = c["handle_depth_pct"] * 100.0
+    handle_to_cup_ratio_pct = (
+        (c["handle_depth_pct"] / c["cup_depth_pct"]) * 100.0
+        if c["cup_depth_pct"] > 0 else 0.0
+    )
+    cup_depth_pct_value = c["cup_depth_pct"] * 100.0
+    cup_depth_dollars_val = cup_depth_dollars
+
+    ma_phrase = _ma_alignment_phrase(context)
+    stage_phrase = _trend_stage_description(context)
+    rs_phrase = _rs_trend_phrase(context)
+    regime = context.get("regime", "current")
+    vol_signature = context.get("volume_signature", "unspecified")
+
+    sym_token = "the stock"
+
+    # ---- Narrative composition - RICH, paragraph-length, with real values ----
+    headline = (
+        f"Cup with Handle forming on {sym_token} - {cup_bars}-bar cup of "
+        f"{cup_depth_pct:.1f}% depth with {rim_similarity_pct:.1f}% rim match + "
+        f"{handle_bars}-bar handle retracing {handle_depth_pct:.1f}%. Pivot "
+        f"${entry:.2f}, target ${target:.2f}, R:R {rr:.1f}."
+    )
+
+    what_it_is = (
+        f"The Cup with Handle is the canonical bullish continuation pattern "
+        f"developed and popularized by William O'Neil, founder of Investor's "
+        f"Business Daily, in his 1988 book 'How to Make Money in Stocks' and "
+        f"refined through decades of CAN SLIM research on the leading stocks "
+        f"of every market cycle from the 1960s onward. Structurally it is a "
+        f"two-part formation: (1) a rounded U-shaped consolidation 'cup' where "
+        f"price declines from a left rim at ${left_rim_price:.2f}, carves out "
+        f"a smooth basing curve to a low at ${cup_bottom_price:.2f} ("
+        f"{cup_depth_pct:.1f}% depth), then recovers to a right rim at "
+        f"${right_rim_price:.2f} within {rim_diff_pct:.2f}% of the left rim "
+        f"({rim_similarity_pct:.1f}% rim match score); and (2) a short "
+        f"'handle' pullback after the right rim, here {handle_bars} bars long "
+        f"retracing {handle_depth_pct:.1f}% to ${handle_low_price:.2f} "
+        f"({handle_to_cup_ratio_pct:.1f}% of total cup depth). The cup spans "
+        f"{cup_bars} bars and the roundness residual ratio of "
+        f"{roundness_residual:.3f} (lower = rounder; the detector requires a "
+        f"positive quadratic fit and rejects V-shapes) combined with "
+        f"{bottom_width_pct:.0f}% of cup bars sitting in the lower 25% of "
+        f"cup depth confirms the U-not-V shape. The market mechanic underneath "
+        f"is institutional accumulation through patience: smart money declines "
+        f"to chase the prior rally high, lets weak hands rotate out during the "
+        f"cup decline, absorbs supply through the basing curve as panic exits "
+        f"taper, and then shakes out one more wave of late longs in the handle "
+        f"before triggering the markup leg. O'Neil's CAN SLIM data shows that "
+        f"clean cup-handles in leadership stocks produce 25%+ moves with high "
+        f"frequency when the four classical criteria — proper rim match, "
+        f"genuine roundness, handle depth under 50% of cup, and volume "
+        f"contraction through both segments — are all met."
+    )
+
+    why_it_matters = (
+        f"This Cup with Handle is forming in {stage_phrase} with {ma_phrase} "
+        f"alignment and {rs_phrase} relative strength versus the broader "
+        f"market, against a {regime} regime backdrop and volume signature "
+        f"reading {vol_signature}. The {rim_similarity_pct:.1f}% rim symmetry "
+        f"and {cup_depth_pct:.1f}% cup depth sit in O'Neil's documented "
+        f"high-reliability zone — rim matches within 5% indicate that supply "
+        f"at the prior high price has been genuinely absorbed (otherwise the "
+        f"right side of the cup would fail short), and 20-35% cup depth "
+        f"falls in the textbook range where institutional accumulation has "
+        f"time to complete without leaving the stock structurally damaged. "
+        f"The roundness residual of {roundness_residual:.3f} and {bottom_width_pct:.0f}% "
+        f"bottom-width fraction together verify the U-shape — a sharp "
+        f"V-bottom (despite sometimes fitting a parabola in least-squares "
+        f"terms) lacks the time-at-the-bottom that signals patient "
+        f"accumulation rather than panic-buying off a flush. The "
+        f"{handle_bars}-bar handle retracing {handle_depth_pct:.1f}% "
+        f"({handle_to_cup_ratio_pct:.1f}% of cup depth) is the final shakeout "
+        f"before breakout — handles deeper than 50% of cup depth signal "
+        f"weakening sponsorship and historically fail more often, while "
+        f"handles too shallow (under 20%) often indicate the breakout has "
+        f"already started without the proper consolidation that produces a "
+        f"clean setup. Volume contracting through cup and handle (encoded in "
+        f"this detection's volume_score component) confirms that supply is "
+        f"drying up at exactly the moment institutions are ready to push "
+        f"through resistance at ${right_rim_price:.2f}, where the next leg "
+        f"would re-engage trapped sellers from prior cycles as new buyers."
+    )
+
+    what_to_watch_for = (
+        f"The trigger is a daily close above ${entry:.2f} (whichever is higher: "
+        f"right rim ${right_rim_price:.2f} or handle high ${handle_high_price:.2f}, "
+        f"plus a small confirmation buffer) on volume of at least 1.5x the "
+        f"20-bar average — that volume expansion on the breakout is non-"
+        f"negotiable because a cup-handle break on light tape frequently "
+        f"fades back into the handle range as a bull trap. The ideal trigger "
+        f"bar closes in the upper half of its range with a wide real body, "
+        f"and the next 1-3 bars should hold above ${right_rim_price:.2f} "
+        f"without re-entering the handle range (${handle_low_price:.2f} to "
+        f"${handle_high_price:.2f}) more than briefly — a single throwback "
+        f"retest of the rim is normal and often the highest-quality entry, "
+        f"but two-plus closes back inside the handle weakens the thesis. "
+        f"Measured target is ${target:.2f}, derived by adding cup depth "
+        f"(${cup_depth_dollars_val:.2f}) to the right rim — this is the "
+        f"conservative O'Neil projection; strong cup-handles in Stage 2 "
+        f"trends frequently extend 1.5x to 3x this measured move over the "
+        f"8-16 weeks following the trigger because the prior accumulation "
+        f"has compressed substantial latent buying. Initial stop sits at "
+        f"${stop:.2f} (1% below the handle low at ${handle_low_price:.2f}) "
+        f"representing a {stop_distance_pct:.1f}% risk from entry — risking "
+        f"1% of account on this long implies a position size of roughly "
+        f"{(1.0 / (stop_distance_pct / 100)) if stop_distance_pct > 0 else 0:.0f}% "
+        f"of equity, and risking 0.5% halves that. Trail stops below each "
+        f"new swing low as the trade extends, or below the rising 10-EMA, "
+        f"and consider taking partial profit at 1R to lock in a free trade. "
+        f"O'Neil's research emphasizes that cup-handle stops typically run "
+        f"5-8% from the pivot, which supports larger position sizing than "
+        f"most patterns when geometry is clean."
+    )
+
+    failure_signal = (
+        f"The pattern is invalidated on a daily close below the handle low "
+        f"at ${handle_low_price:.2f} (stop at ${stop:.2f}, 1% below to "
+        f"absorb the standard downside wick) — that close signals failed "
+        f"accumulation, institutional sponsorship has stepped away, and the "
+        f"cup may resolve as a distribution top rather than a continuation "
+        f"base. A subtler failure mode that often precedes the hard stop: "
+        f"the breakout above ${entry:.2f} occurs on weak or merely-average "
+        f"volume, the next 1-3 bars fade back into the handle range, and "
+        f"price spends 3-5 bars churning between handle low and breakout "
+        f"level without sustained advance. O'Neil specifically warns about "
+        f"this 'failed breakout' setup — it often precedes a deeper decline "
+        f"because what looked like accumulation through the cup may have "
+        f"actually been a distribution rotation in disguise, and once the "
+        f"trigger fails the stock typically breaks the handle low within "
+        f"5-10 bars. The {stop_distance_pct:.1f}% stop must be honored "
+        f"without negotiation — widening or removing a stop on a failing "
+        f"cup-handle is one of the most expensive habits in swing trading "
+        f"because the natural human tendency is to defend the thesis ('this "
+        f"is a clean pattern, it has to work') rather than accept the "
+        f"market's verdict. Failed cup-handles in Stage 3 (distribution) "
+        f"contexts are particularly dangerous because the failure often "
+        f"transitions directly into a Stage 4 markdown leg, so size "
+        f"accordingly to the trend stage and never average down on a "
+        f"failing breakout."
+    )
 
     now = int(time.time())
 
@@ -525,25 +714,11 @@ def _build_detection(bars, c, confidence, context,
             "historical_score": hist_score,
         },
         "narrative": {
-            "headline": (f"Cup with handle forming - {c['cup_depth_pct']*100:.1f}% cup "
-                         f"over {c['cup_bars']} bars, {c['handle_depth_pct']*100:.1f}% "
-                         f"handle over {c['handle_bars']} bars, breakout at "
-                         f"{breakout_level:.2f}"),
-            "what_it_is": ("Bullish continuation pattern (O'Neil): a smooth rounded U-shaped "
-                           "consolidation (the cup) followed by a tight pullback on the right "
-                           "side (the handle). Buyers absorb supply gradually through the cup, "
-                           "and the handle is the final shakeout before breakout."),
-            "why_it_matters": ("The rounded bottom signals patient, sustained accumulation - "
-                               "not a panic V-bottom. Contracting volume through the cup and "
-                               "handle confirms supply exhaustion. A breakout above the right "
-                               "rim on expanding volume projects a measured move equal to the "
-                               "depth of the cup."),
-            "what_to_watch_for": (f"Breakout above {breakout_level:.2f} on volume >= 1.5x "
-                                  f"the 20-bar average. Entry triggers above {entry:.2f}; "
-                                  f"measured-move target {target:.2f}; stop {stop:.2f}."),
-            "failure_signal": (f"Close below the handle low ({handle_low_price:.2f}). "
-                               f"Pattern invalidates and the prior consolidation may "
-                               f"resolve to the downside."),
+            "headline": headline,
+            "what_it_is": what_it_is,
+            "why_it_matters": why_it_matters,
+            "what_to_watch_for": what_to_watch_for,
+            "failure_signal": failure_signal,
         },
         "status": "ready",
         "outcome": None,

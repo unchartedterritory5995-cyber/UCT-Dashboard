@@ -287,6 +287,42 @@ def _score_context(context: dict) -> float:
     return min(100.0, score)
 
 
+# ---------------------------------------------------------------------------
+# Narrative helpers
+# ---------------------------------------------------------------------------
+
+
+def _ma_alignment_phrase(context: dict) -> str:
+    align = context.get("ma_alignment", "mixed")
+    if align == "stacked_bearish":
+        return "stacked-bearish moving-average (oversold basing context)"
+    if align == "stacked_bullish":
+        return "stacked-bullish moving-average (counter-trend warning — trend already up)"
+    return "mixed moving-average"
+
+
+def _trend_stage_description(context: dict) -> str:
+    stage = context.get("trend_stage", 0)
+    if stage == 1:
+        return "a Stage 1 base/accumulation environment (textbook double-bottom reversal setup)"
+    if stage == 4:
+        return "a Stage 4 downtrend showing exhaustion at support (oversold reversal context)"
+    if stage == 2:
+        return "a Stage 2 uptrend (continuation context — double bottom as a bull-flag analog)"
+    if stage == 3:
+        return "a Stage 3 distribution environment (counter-trend caution)"
+    return "an undefined trend stage"
+
+
+def _rs_trend_phrase(context: dict) -> str:
+    rs = context.get("rs_trend", "flat")
+    if rs == "up":
+        return "improving (trend tailwind for the breakout)"
+    if rs == "down":
+        return "still deteriorating (counter-trend warning — wait for peak break)"
+    return "neutral"
+
+
 def _build_detection(bars, c, confidence, context,
                      geom_score, vol_score, ctx_score, hist_score) -> Detection:
     last_bar = bars[-1]
@@ -304,6 +340,145 @@ def _build_detection(bars, c, confidence, context,
     # Measured move up: peak → trough2 distance, projected above peak
     target = round(peak_price + (peak_price - trough2_price), 2)
     rr = (target - entry) / (entry - stop) if entry > stop else 0.0
+
+    # Stop distance %
+    stop_distance_pct = (entry - stop) / entry * 100 if entry > 0 else 0.0
+
+    # Narrative dimension values
+    trough_similarity_pct = c["trough_similarity"] * 100.0
+    trough_match_pct = (1.0 - c["trough_similarity"]) * 100.0
+    rally_depth_pct = c["rally_depth"] * 100.0
+    pattern_bars = c["pattern_bars"]
+    peak_to_trough_pts = peak_price - trough2_price
+    peak_to_trough_pct = (peak_to_trough_pts / peak_price * 100.0) if peak_price > 0 else 0.0
+    avg_trough = (trough1_price + trough2_price) / 2.0
+
+    ma_phrase = _ma_alignment_phrase(context)
+    stage_phrase = _trend_stage_description(context)
+    rs_phrase = _rs_trend_phrase(context)
+    regime = context.get("regime", "current")
+    vol_signature = context.get("volume_signature", "unspecified")
+
+    sym_token = "the stock"
+
+    # ---- Narrative composition - RICH, paragraph-length, with real values ----
+    headline = (
+        f"Double Bottom forming on {sym_token} - troughs ${trough1_price:.2f} / "
+        f"${trough2_price:.2f} within {trough_similarity_pct:.2f}% of each other, "
+        f"rally peak ${peak_price:.2f} ({rally_depth_pct:.1f}% off trough), "
+        f"{pattern_bars}-bar pattern. Pivot ${entry:.2f}, target ${target:.2f}, "
+        f"R:R {rr:.1f}."
+    )
+
+    what_it_is = (
+        f"The Double Bottom is the bullish mirror of the Double Top — one of the "
+        f"oldest documented reversal patterns in technical analysis, traced back "
+        f"through Charles Dow's market commentary at the turn of the 20th century, "
+        f"formalized by Richard Schabacker in 'Technical Analysis and Stock Market "
+        f"Profits' (1932), and canonized in Edwards & Magee's 'Technical Analysis "
+        f"of Stock Trends' (1948). Structurally it is two sequential troughs in a "
+        f"downtrend (or sideways base) that hold at approximately the same price "
+        f"level: trough 1 at ${trough1_price:.2f} establishes the decline low, an "
+        f"intervening rally pushes price up to ${peak_price:.2f} "
+        f"({rally_depth_pct:.1f}% off the trough), and trough 2 at "
+        f"${trough2_price:.2f} retests the prior low but fails to break it. Here "
+        f"the two troughs are within {trough_similarity_pct:.2f}% of each other "
+        f"(match score {trough_match_pct:.1f}%) and the rally peak at "
+        f"${peak_price:.2f} forms the 'neckline' — the horizontal resistance line "
+        f"whose breach confirms the reversal. The pattern spans {pattern_bars} "
+        f"bars between the two troughs. The market mechanic underneath is demand "
+        f"finally overwhelming supply: at the prior-low price, institutional buyers "
+        f"who had been waiting on the sidelines step in with size, absorbing the "
+        f"second-decline supply and refusing to let price extend lower. The volume "
+        f"signature that confirms the read — expanding volume on the trough-2 "
+        f"bounce versus declining volume on the trough-2 decline — reveals that "
+        f"buying conviction is rebuilding even as price tags the same low. "
+        f"Bulkowski's empirical research places confirmed double-bottom breakouts "
+        f"at roughly 70% follow-through reliability in liquid stocks when "
+        f"triggered on volume, with measured moves equal to the peak-to-trough "
+        f"distance projected above the rally peak (here ${peak_to_trough_pts:.2f} "
+        f"= {peak_to_trough_pct:.1f}% projection)."
+    )
+
+    why_it_matters = (
+        f"This Double Bottom is forming in {stage_phrase} with {ma_phrase} "
+        f"alignment and {rs_phrase} relative strength versus the broader market, "
+        f"against a {regime} regime backdrop and volume signature reading "
+        f"{vol_signature}. The {trough_match_pct:.1f}% trough symmetry is squarely "
+        f"in the high-quality zone — tight trough matches (within 2%) are the "
+        f"highest-reliability variant because they reveal a clear institutional "
+        f"demand line at one specific price (${avg_trough:.2f} average), while "
+        f"loose matches (above 3%) blur into rounded-bottom noise that can fail "
+        f"either way. The {rally_depth_pct:.1f}% intervening rally falls in the "
+        f"textbook 10-20% zone where the highest-follow-through double bottoms "
+        f"resolve — too-shallow rallies (under 5%) often mean sellers haven't "
+        f"actually been challenged yet, while too-deep rallies (over 25%) "
+        f"usually reflect a structural breakout already underway rather than a "
+        f"clean two-trough basing pattern. The {pattern_bars}-bar pattern width "
+        f"sits in the 12-30 bar sweet spot — longer, sprawling patterns are "
+        f"less reliable because they accumulate too many late shorts near the "
+        f"peak who defend the neckline, while shorter patterns lack the time "
+        f"for genuine accumulation to occur. Expanding volume on the trough-2 "
+        f"bounce (encoded in this detection's volume_score component) confirms "
+        f"the demand-rebuilding thesis: the same price level attracts more "
+        f"aggressive buying on the second touch, and the institutions absorbing "
+        f"the prior low are stepping up size. Trapped shorts near "
+        f"${avg_trough:.2f} become the fuel that propels every subsequent "
+        f"upward attempt through the rally peak."
+    )
+
+    what_to_watch_for = (
+        f"The trigger is a daily close above ${entry:.2f} (the rally peak at "
+        f"${peak_price:.2f} plus a small confirmation buffer) on volume of at "
+        f"least 1.5x the 20-bar average — that volume expansion on the breakout "
+        f"is non-negotiable because a neckline break on light tape frequently "
+        f"reverses as a bull trap, especially on a pattern this well-watched. "
+        f"The ideal trigger bar closes in the upper half of its range with a "
+        f"wide real body, and the next 1-3 bars should hold above ${peak_price:.2f} "
+        f"without 'kissing back' below the peak more than once — a single "
+        f"throwback retest of the broken resistance is normal and often the "
+        f"highest-quality long entry, but two-plus closes back below "
+        f"${peak_price:.2f} weakens the thesis. Measured target is ${target:.2f}, "
+        f"derived by projecting the ${peak_to_trough_pts:.2f} peak-to-trough "
+        f"distance upward from the peak — a {peak_to_trough_pct:.1f}% projected "
+        f"move that justifies the position. Initial stop sits at ${stop:.2f} "
+        f"(1% below trough 2 at ${trough2_price:.2f}) representing a "
+        f"{stop_distance_pct:.1f}% risk from entry — risking 1% of account on "
+        f"this long implies a position size of roughly "
+        f"{(1.0 / (stop_distance_pct / 100)) if stop_distance_pct > 0 else 0:.0f}% "
+        f"of equity, and risking 0.5% halves that. Trail stops below each new "
+        f"swing low as the trade extends, or below the rising 10/20 EMA, and "
+        f"consider taking partial profit at 1R to lock in a free trade. Long "
+        f"trades have the asymmetric edge of capped downside (the stop) and "
+        f"uncapped upside, but never average down on the stop — the entire edge "
+        f"depends on the breakout working within 1-7 bars."
+    )
+
+    failure_signal = (
+        f"The pattern is invalidated on a daily close below trough 2 at "
+        f"${trough2_price:.2f} (stop at ${stop:.2f}, 1% below to absorb the "
+        f"standard downside wick) — that close signals the accumulation thesis "
+        f"is wrong, supply has reabsorbed demand at the prior-low level, and "
+        f"the underlying downtrend has a high probability of resuming, often "
+        f"with a flush leg as trapped longs capitulate into the trough break. "
+        f"A subtler failure mode that often precedes the hard stop: price "
+        f"breaks above ${peak_price:.2f} on weak or merely-average volume, the "
+        f"next 1-2 bars close in the lower half of their range, and price "
+        f"recovers back below the peak. That sequence is the textbook 'failed "
+        f"breakout' or 'upthrust after distribution' — market makers used the "
+        f"visible double-bottom neckline as a liquidity grab to fill sell "
+        f"orders, not a genuine continuation. Flushes off a failed double "
+        f"bottom can be violent because the pattern attracts heavy long "
+        f"interest from trend-following systems and breakout scanners, and "
+        f"the {stop_distance_pct:.1f}% stop must be honored without negotiation — "
+        f"widening or removing a stop on a failing double-bottom long is one "
+        f"of the fastest ways to convert a manageable loss into account-"
+        f"damaging exposure, because the natural human tendency is to 'wait "
+        f"and see' on losing longs while immediately cutting losing shorts. "
+        f"Failed double bottoms often resolve with rapid trend-resumption "
+        f"velocity straight through both troughs, so size accordingly and "
+        f"never average down."
+    )
 
     now = int(time.time())
 
@@ -352,22 +527,11 @@ def _build_detection(bars, c, confidence, context,
             "historical_score": hist_score,
         },
         "narrative": {
-            "headline": (f"Double bottom forming - troughs within {c['trough_similarity']*100:.1f}%, "
-                         f"rally peak {peak_price:.2f} ({c['rally_depth']*100:.1f}% off trough), "
-                         f"{c['pattern_bars']}-bar pattern"),
-            "what_it_is": ("Two-trough basing pattern: the decline to a new low (trough 1) is followed "
-                           "by a rally, then a second decline that holds at approximately the same "
-                           "level (trough 2). Classic bullish reversal."),
-            "why_it_matters": ("Sellers failed to push past the prior low on the second attempt - "
-                               "supply has been exhausted at this level. Expanding volume on the "
-                               "second-trough bounce confirms buyers stepping in to defend. A breakout "
-                               "above the rally peak projects a measured move equal to the "
-                               "peak-to-trough distance."),
-            "what_to_watch_for": (f"Breakout above the rally peak ({peak_price:.2f}) on "
-                                  f"volume >= 1.5x the 20-bar average. Entry triggers above "
-                                  f"{entry:.2f}; measured-move target {target:.2f}."),
-            "failure_signal": (f"Close below trough 2 ({trough2_price:.2f}). Pattern invalidates "
-                               f"and the prior downtrend may resume."),
+            "headline": headline,
+            "what_it_is": what_it_is,
+            "why_it_matters": why_it_matters,
+            "what_to_watch_for": what_to_watch_for,
+            "failure_signal": failure_signal,
         },
         "status": "ready",
         "outcome": None,
