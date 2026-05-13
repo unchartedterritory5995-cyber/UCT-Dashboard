@@ -1190,6 +1190,34 @@ async def lifespan(app: FastAPI):
             replace_existing=True,
         )
 
+        # Compass P5-O — weekly email digest, Sundays 8:00 AM ET.
+        # For every compass-enabled account: generate (idempotent) the
+        # weekly review for the just-closed week and email the trader
+        # an HTML digest with stat strip + this-week's-focus pullout.
+        def _compass_weekly_email_job():
+            import os as _os
+            if not _os.environ.get("ANTHROPIC_API_KEY"):
+                print("[scheduler] Compass weekly email: ANTHROPIC_API_KEY missing — skipping batch")
+                return
+            try:
+                from api.services.journal_two.coach_email_digest import (
+                    run_for_all_enabled_accounts as _run,
+                )
+                report = _run()
+                print(f"[scheduler] Compass weekly email batch: "
+                      f"sent={report['sent']} skipped={report['skipped']} "
+                      f"errors={report['errors']}")
+            except Exception as e:  # noqa: BLE001
+                print(f"[scheduler] Compass weekly email batch error: {e}")
+
+        _scheduler.add_job(
+            _compass_weekly_email_job,
+            trigger=CronTrigger(day_of_week="sun", hour=8, minute=0),
+            id="compass_weekly_email_digest",
+            max_instances=1,
+            replace_existing=True,
+        )
+
         # ── Pattern engine learning-loop jobs (Phase 6) ─────────────────────
         # Three jobs that close the detect → outcome → stats loop and keep
         # the admin verification dashboard populated:
