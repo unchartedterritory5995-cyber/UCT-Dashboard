@@ -101,6 +101,25 @@
   }
 }
 
+/* P5-C: Compass unread badge — gold pill on the Journal nav item. */
+.compassBadge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--ut-gold, #c9a84c);
+  color: #000;
+  border-radius: 8px;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 /* ─── Phone: hide desktop sidebar entirely (MobileNav takes over) ────────── */
 @media (max-width: 640px) {
   .nav {

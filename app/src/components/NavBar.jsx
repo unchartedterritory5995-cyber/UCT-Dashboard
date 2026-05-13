@@ -1,8 +1,12 @@
 // app/src/components/NavBar.jsx
 import { NavLink } from 'react-router-dom'
+import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
 import AlertBell from './AlertBell'
 import styles from './NavBar.module.css'
+
+const fetcher = (url) =>
+  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
 const NAV_ITEMS = [
   { to: '/dashboard',    label: 'Dashboard',    icon: '⊞' },
@@ -35,6 +39,16 @@ export default function NavBar() {
   const isAdmin = user?.role === 'admin'
   const showAll = plan === 'pro' || isAdmin
 
+  // P5-C unification: Compass unread count on the Journal nav link.
+  // Polls /api/voice/insights/pending every 30s. Quietly silent when
+  // the user isn't authenticated or doesn't have voice access.
+  const { data: pending } = useSWR(
+    user ? '/api/voice/insights/pending' : null,
+    fetcher,
+    { refreshInterval: 30_000, revalidateOnFocus: true },
+  )
+  const compassUnread = pending?.insights?.length || 0
+
   return (
     <nav data-testid="nav-sidebar" className={styles.nav}>
       <div className={styles.brand}>UCT</div>
@@ -51,6 +65,12 @@ export default function NavBar() {
           >
             <span className={styles.icon} aria-hidden="true">{item.icon}</span>
             <span className={styles.label}>{item.label}</span>
+            {item.to === '/journal' && compassUnread > 0 && (
+              <span className={styles.compassBadge}
+                    title={`${compassUnread} Compass insight${compassUnread === 1 ? '' : 's'} waiting`}>
+                {compassUnread > 9 ? '9+' : compassUnread}
+              </span>
+            )}
           </NavLink>
         ))}
       </div>
