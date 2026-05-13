@@ -636,6 +636,11 @@ def oneshot(
 
 class SessionTokenRequest(BaseModel):
     context: str = "global"
+    # P4-B unification: what is the user looking at right now? Pathname or
+    # a richer hint like "chart of NVDA, daily timeframe". Injected into
+    # Compass's system prompt so it can answer in-page questions without
+    # the user having to spell out context.
+    page_hint: str | None = None
 
 
 class ExecRequest(BaseModel):
@@ -863,7 +868,19 @@ def session_token(
         except Exception as e:
             _log.warning("[session_token] gap block failed: %s", e)
 
+    # P4-B unification: page-aware context. Tell Compass exactly what the
+    # user is looking at right now so it can answer in-page questions
+    # without the user spelling out context.
+    page_hint_block = ""
+    raw_hint = (body.page_hint or "").strip()[:500]
+    if raw_hint and ctx != "train_me":
+        # Translate a raw pathname into a friendly description if it looks
+        # like a URL path; otherwise treat the hint as already-friendly text.
+        page_hint_block = _describe_page_hint(raw_hint)
+
     session_instructions = base_instructions
+    if page_hint_block:
+        session_instructions = session_instructions + "\n\n" + page_hint_block
     if temporal_line:
         session_instructions = session_instructions + "\n\n" + temporal_line
     if regime_line:
@@ -1023,6 +1040,76 @@ def session_end_post(
                               body.session_id, user["id"])
 
     return {"ok": True, "duration_seconds": duration}
+
+
+# ── P4-B helper: friendly page-hint descriptions ───────────────────────────
+
+_PAGE_DESCRIPTIONS: dict[str, str] = {
+    "/dashboard": "the main Dashboard (bento-box overview).",
+    "/morning-wire": "the Morning Wire — today's pre-market briefing.",
+    "/uct20": "the UCT 20 leadership list.",
+    "/breadth": "the Breadth Monitor (market internals).",
+    "/theme-tracker": "the Theme Tracker (sector + theme performance).",
+    "/calendar": "the Calendar (earnings + macro events).",
+    "/traders": "the Traders feed.",
+    "/screener": "the Scanner Hub (pullback / remount / gappers).",
+    "/options-flow": "Options Flow.",
+    "/post-market": "the Post-Market movers page.",
+    "/model-book": "the Model Book (graded chart examples + setup taxonomy).",
+    "/journal": "the trader's Journal (Journal 2.0 / Compass coaching surface).",
+    "/watchlists": "the Watchlists page.",
+    "/community": "Community feed.",
+    "/settings": "the Settings page.",
+    "/support": "the Support page.",
+}
+
+
+def _describe_page_hint(raw: str) -> str:
+    """Translate a route hint into a friendly natural-language block for
+    Compass's system prompt.
+
+    Accepts either a raw pathname (e.g. "/journal", "/screener?type=remount")
+    OR an already-friendly free-text hint (e.g. "chart of NVDA, daily").
+    Returns a block formatted like:
+
+        === CURRENT PAGE ===
+        The user is on the trader's Journal right now.
+        === END CURRENT PAGE ===
+
+    Empty string if no useful hint can be derived.
+    """
+    hint = (raw or "").strip()
+    if not hint:
+        return ""
+
+    # If it looks like a URL path, try to map it.
+    desc = None
+    if hint.startswith("/"):
+        # Strip query string, then take the first 2 segments for sub-routes
+        path = hint.split("?", 1)[0].split("#", 1)[0].rstrip("/") or "/"
+        # Exact match
+        if path in _PAGE_DESCRIPTIONS:
+            desc = _PAGE_DESCRIPTIONS[path]
+        else:
+            # Two-segment fallback (e.g. /journal/foo → /journal)
+            parts = [p for p in path.split("/") if p]
+            if parts:
+                root = "/" + parts[0]
+                if root in _PAGE_DESCRIPTIONS:
+                    desc = _PAGE_DESCRIPTIONS[root]
+        if not desc:
+            desc = f"a page at {path}."
+    else:
+        # Treat as already-friendly free text. Just use it verbatim.
+        desc = hint if hint.endswith(".") else hint + "."
+
+    return (
+        "=== CURRENT PAGE ===\n"
+        f"The user is on {desc} "
+        "If their question is ambiguous, lean on this context — they "
+        "probably mean something on this page.\n"
+        "=== END CURRENT PAGE ==="
+    )
 
 
 def _audit_session_background(session_id: int, user_id: str) -> None:

@@ -342,11 +342,21 @@ export default function useRealtimeSession() {
 
     let tokenResp
     try {
+      // P4-B unification: send the current pathname so Compass knows
+      // what the user is looking at when they start talking. The backend
+      // translates the path into a friendly system-prompt block.
+      let pageHint = null
+      try {
+        if (typeof window !== 'undefined' && window.location) {
+          pageHint = window.location.pathname + (window.location.search || '')
+        }
+      } catch { /* ignore */ }
+
       const r = await fetch('/api/voice/session_token', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ context }),
+        body: JSON.stringify({ context, page_hint: pageHint }),
       })
       if (!r.ok) {
         if (r.status === 402) alert('Voice features require a paid plan.')
