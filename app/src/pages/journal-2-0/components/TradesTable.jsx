@@ -47,10 +47,25 @@ function resultBadge(result) {
 
 const dash = <span className={styles.dash}>—</span>
 
-function cellFor(key, trade) {
+function cellFor(key, trade, opts) {
   switch (key) {
-    case 'symbol':
-      return trade.symbol
+    case 'symbol': {
+      const reviewed = opts?.reviewedIds?.has?.(String(trade.id))
+      return (
+        <span className={styles.symbolCell}>
+          {trade.symbol}
+          {reviewed && (
+            <span
+              className={styles.compassDot}
+              title="Compass has a post-mortem for this trade"
+              aria-label="Compass post-mortem available"
+            >
+              🧭
+            </span>
+          )}
+        </span>
+      )
+    }
     case 'result':
       return resultBadge(trade.result)
     case 'shares':
@@ -108,7 +123,7 @@ function cellFor(key, trade) {
   }
 }
 
-export default function TradesTable({ trades, visibleColumns, onRowAction }) {
+export default function TradesTable({ trades, visibleColumns, onRowAction, reviewedIds }) {
   // Default sort: entryDate DESC (spec §11.3). Callers may pre-sort; we
   // sort again here to be safe.
   const sorted = useMemo(
@@ -164,7 +179,7 @@ export default function TradesTable({ trades, visibleColumns, onRowAction }) {
                     onRowAction && c.key === 'symbol' ? { cursor: 'pointer' } : undefined
                   }
                 >
-                  {cellFor(c.key, t)}
+                  {cellFor(c.key, t, { reviewedIds })}
                 </td>
               ))}
             </tr>

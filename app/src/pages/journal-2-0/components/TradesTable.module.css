@@ -75,6 +75,19 @@
   color: var(--warn);
 }
 
+.symbolCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compassDot {
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.85;
+  cursor: help;
+}
+
 .pos { color: var(--gain); }
 .neg { color: var(--loss); }
 .dash { color: var(--text-muted); }

@@ -13,6 +13,7 @@ import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Trades from '../hooks/useJ2Trades'
 import useJ2OptionStrategies from '../hooks/useJ2OptionStrategies'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
+import useReviewedTradeIds from '../hooks/useReviewedTradeIds'
 import TradeDrawer from '../components/TradeDrawer'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
 import useJ2Filters from '../hooks/useJ2Filters'
@@ -58,6 +59,7 @@ export default function TradeJournalTab({ settings }) {
   } = useJ2OptionStrategies({ status: 'closed' })
   const { accountId: selectedAccountId, accounts } = useJ2SelectedAccount()
   const { mutate } = useSWRConfig()
+  const { reviewedIds } = useReviewedTradeIds(selectedAccountId)
 
   const tradingMode = settings?.tradingMode ?? 'both'
   const showShares = tradingMode !== 'options'
@@ -313,6 +315,7 @@ export default function TradeJournalTab({ settings }) {
           <TradesTable
             trades={filteredTrades}
             visibleColumns={visibleColumns}
+            reviewedIds={reviewedIds}
             onRowAction={(action, trade) => {
               if (action === 'open') setDrawerTrade(trade)
             }}

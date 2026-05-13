@@ -52,6 +52,28 @@ describe('TradesTable — YSS reference render (§11.3)', () => {
     expect(stop.hiddenByDefault).toBe(true)
   })
 
+  it('renders 🧭 indicator for trades with Compass post-mortems (P5-M)', () => {
+    const cols = buildTradesColumns().filter((c) => !c.hiddenByDefault)
+    const reviewed = new Set([BASE_TRADE.id])
+    render(
+      <TradesTable trades={[BASE_TRADE]} visibleColumns={cols} reviewedIds={reviewed} />,
+    )
+    expect(
+      screen.getByLabelText('Compass post-mortem available'),
+    ).toBeInTheDocument()
+  })
+
+  it('omits 🧭 indicator when trade has no review (P5-M)', () => {
+    const cols = buildTradesColumns().filter((c) => !c.hiddenByDefault)
+    const reviewed = new Set(['other-trade'])
+    render(
+      <TradesTable trades={[BASE_TRADE]} visibleColumns={cols} reviewedIds={reviewed} />,
+    )
+    expect(
+      screen.queryByLabelText('Compass post-mortem available'),
+    ).not.toBeInTheDocument()
+  })
+
   it('sorts by entry date DESC (newest first)', () => {
     const older = { ...BASE_TRADE, id: 'a', symbol: 'OLDER', entryDate: '2026-01-01T00:00:00Z' }
     const newer = { ...BASE_TRADE, id: 'b', symbol: 'NEWER', entryDate: '2026-06-01T00:00:00Z' }
