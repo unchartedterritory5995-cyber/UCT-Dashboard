@@ -50,6 +50,7 @@ const Support = lazy(() => import('./pages/Support'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Admin = lazy(() => import('./pages/Admin'))
 const ChartHealth = lazy(() => import('./pages/admin/ChartHealth'))
+const PatternAdmin = lazy(() => import('./pages/admin/PatternAdmin'))
 const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
@@ -168,6 +169,7 @@ export default function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/admin/chart-health" element={<ChartHealth />} />
+                <Route path="/admin/patterns" element={<PatternAdmin />} />
               </Route>
             </Route>
 

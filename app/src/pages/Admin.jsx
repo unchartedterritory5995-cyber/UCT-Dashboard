@@ -1801,6 +1801,43 @@ export default function Admin() {
         </div>
       )}
 
+      {/* ── Section 6b: Admin Tools (links to subpages) ── */}
+      <div className={styles.healthSection}>
+        <div className={styles.sectionTitle}>Admin Tools</div>
+        <div className={styles.healthGrid}>
+          <div className={styles.healthItem}>
+            <span className={styles.healthLabel}>Pattern Verification</span>
+            <div className={styles.healthSyncRow}>
+              <a
+                href="/admin/patterns"
+                className={styles.syncBtn}
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+              >
+                Open Verification Dashboard
+              </a>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Gate 5 shadow-mode operator review
+              </span>
+            </div>
+          </div>
+          <div className={styles.healthItem}>
+            <span className={styles.healthLabel}>Chart Health</span>
+            <div className={styles.healthSyncRow}>
+              <a
+                href="/admin/chart-health"
+                className={styles.syncBtn}
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+              >
+                Open Chart Health
+              </a>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Bars audit · liveness · source health
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ── Section 7: System Health ── */}
       <div className={styles.healthSection}>
         <div className={styles.sectionTitle}>System Health</div>

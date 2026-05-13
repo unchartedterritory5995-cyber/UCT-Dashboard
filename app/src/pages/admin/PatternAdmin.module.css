@@ -1,0 +1,435 @@
+/* PatternAdmin — operator review dashboard for Gate 5 shadow mode.
+   Matches existing admin pages (ChartHealth) for visual consistency. */
+
+.page {
+  padding: 24px 28px 60px;
+  max-width: 1400px;
+  margin: 0 auto;
+  color: var(--text);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.heading {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-heading);
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.subheading {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 6px;
+}
+
+.stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+
+.stat label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.stat strong {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+/* ── Filters ────────────────────────────────────────────────────────── */
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filterLabel select {
+  background: var(--bg-elevated, #1f1f1f);
+  color: var(--text, #e5e5e5);
+  border: 1px solid var(--border, #2a2a2a);
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.filterMeta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.refreshBtn {
+  background: var(--ut-gold, #c9a84c);
+  color: #000;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+
+.refreshBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Feed ───────────────────────────────────────────────────────────── */
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.loading,
+.empty {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.error {
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  color: var(--loss);
+  padding: 12px 14px;
+  border-radius: var(--radius-md, 6px);
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+/* ── Card row (3-column layout: ticker info · detection detail · actions) ─── */
+
+.card {
+  display: grid;
+  grid-template-columns: 180px 1fr 260px;
+  gap: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  padding: 14px 16px;
+  transition: border-color 0.15s, opacity 0.15s;
+}
+
+.card:hover {
+  border-color: var(--border-hover, #3a3a3a);
+}
+
+.card.reviewed {
+  opacity: 0.7;
+  background: var(--bg-elevated, #14140f);
+}
+
+.card.reviewed:hover {
+  opacity: 1;
+}
+
+/* — Left column: ticker + meta — */
+
+.cardLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-right: 1px solid var(--border);
+  padding-right: 16px;
+}
+
+.sym {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-heading);
+  letter-spacing: 1px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.metaLine {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.tf {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.conf {
+  font-size: 11px;
+  color: #c9a84c;
+  letter-spacing: 0.5px;
+}
+
+.pattern {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.category {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* — Middle column: narrative + levels — */
+
+.cardMiddle {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0; /* allow text to wrap */
+}
+
+.headline {
+  font-size: 13px;
+  color: var(--text-bright, #e5e5e5);
+  line-height: 1.45;
+}
+
+.levels {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.levelChip {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.levelChip label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 9px;
+  margin-right: 4px;
+}
+
+.detected {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.status {
+  color: #c9a84c;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reviewBadge {
+  display: inline-block;
+  font-size: 11px;
+  border: 1px solid #c9a84c;
+  border-radius: 3px;
+  padding: 4px 8px;
+  margin-top: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.reviewNote {
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-style: italic;
+}
+
+/* — Right column: note + actions — */
+
+.cardRight {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.noteInput {
+  background: var(--bg-elevated, #1f1f1f);
+  color: var(--text, #e5e5e5);
+  border: 1px solid var(--border, #2a2a2a);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 36px;
+}
+
+.noteInput:focus {
+  outline: none;
+  border-color: var(--ut-gold, #c9a84c);
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.actionBtn {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated, #1f1f1f);
+  color: var(--text);
+  padding: 7px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.3px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.actionBtn:hover:not(:disabled) {
+  border-color: var(--text);
+}
+
+.actionBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.accept {
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #10b981;
+}
+
+.accept:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: #10b981;
+}
+
+.reject {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+.reject:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+}
+
+.flag {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+}
+
+.flag:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: #f59e0b;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+
+@media (max-width: 1000px) {
+  .card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .cardLeft {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding-right: 0;
+    padding-bottom: 12px;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .cardLeft .sym { font-size: 18px; }
+  .cardLeft .pattern { margin-top: 0; }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 16px 12px 40px;
+  }
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .stats {
+    justify-content: space-between;
+  }
+  .stat {
+    min-width: 0;
+    flex: 1 1 calc(50% - 5px);
+  }
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filterMeta {
+    margin-left: 0;
+  }
+  .actions {
+    flex-wrap: wrap;
+  }
+}
