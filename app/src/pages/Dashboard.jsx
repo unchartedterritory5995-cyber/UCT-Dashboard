@@ -9,6 +9,7 @@ import CatalystFlow from '../components/tiles/CatalystFlow'
 import LeadershipTile from '../components/tiles/LeadershipTile'
 import NewsFeed from '../components/tiles/NewsFeed'
 import CompassTodayTile from '../components/tiles/CompassTodayTile'
+import RegimeTile from '../components/tiles/RegimeTile'
 import MoversSidebar from '../components/MoversSidebar'
 import TileCard from '../components/TileCard'
 import styles from './Dashboard.module.css'
@@ -71,9 +72,12 @@ export default function Dashboard() {
         <IntradayPulse />
 
         {/* P4-H unification: Compass status surface on the main dashboard.
-            Visible at first login glance — today's focus + interventions + CTA. */}
+            Visible at first login glance — today's focus + interventions + CTA.
+            Paired with live regime tile (P5-N) so the trader sees both
+            "what Compass thinks" and "what the market is doing" at a glance. */}
         <div className={styles.compassRow}>
           <CompassTodayTile />
+          <RegimeTile />
         </div>
 
         {/* ── Desktop layout (hidden on mobile) ──────────────────────────── */}

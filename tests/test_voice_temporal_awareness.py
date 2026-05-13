@@ -91,7 +91,10 @@ def test_data_freshness_no_wire():
 
 
 def test_data_freshness_today():
-    today_iso = date.today().isoformat()
+    # _data_freshness uses _et_now().date() — match it so the test isn't
+    # timezone-sensitive (failed across local-midnight when system is in
+    # CT but ET is one day ahead).
+    today_iso = vta._et_now().date().isoformat()
     with patch("api.services.cache.cache.get",
                return_value={"date": today_iso}):
         f = vta._data_freshness()
@@ -100,7 +103,7 @@ def test_data_freshness_today():
 
 
 def test_data_freshness_old():
-    old = (date.today() - timedelta(days=5)).isoformat()
+    old = (vta._et_now().date() - timedelta(days=5)).isoformat()
     with patch("api.services.cache.cache.get",
                return_value={"date": old}):
         f = vta._data_freshness()

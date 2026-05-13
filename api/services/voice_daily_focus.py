@@ -49,6 +49,10 @@ def _already_posted_today(user_id: str) -> bool:
     Compares against created_at >= today-start-ET (translated to UTC for
     the SQLite comparison) so a scheduler retry within the same trading
     day doesn't double-post.
+
+    SQLite stores created_at via CURRENT_TIMESTAMP in 'YYYY-MM-DD HH:MM:SS'
+    format (UTC, no timezone suffix). We format the cutoff the same way
+    so string comparison works.
     """
     try:
         from zoneinfo import ZoneInfo
@@ -56,8 +60,9 @@ def _already_posted_today(user_id: str) -> bool:
         et = ZoneInfo("America/New_York")
         now_et = datetime.now(et)
         start_of_day_et = now_et.replace(hour=0, minute=0, second=0, microsecond=0)
-        # Compare as UTC ISO string (SQLite created_at is stored as UTC ISO)
-        cutoff_iso = start_of_day_et.astimezone(timezone.utc).isoformat()
+        cutoff_utc = start_of_day_et.astimezone(timezone.utc)
+        # Match SQLite CURRENT_TIMESTAMP format: 'YYYY-MM-DD HH:MM:SS'
+        cutoff_str = cutoff_utc.strftime("%Y-%m-%d %H:%M:%S")
         conn = get_connection()
         try:
             row = conn.execute(
@@ -65,7 +70,7 @@ def _already_posted_today(user_id: str) -> bool:
                     WHERE user_id = ? AND kind = ?
                       AND created_at >= ?
                     LIMIT 1""",
-                (user_id, _FOCUS_INSIGHT_KIND, cutoff_iso),
+                (user_id, _FOCUS_INSIGHT_KIND, cutoff_str),
             ).fetchone()
             return row is not None
         finally:
