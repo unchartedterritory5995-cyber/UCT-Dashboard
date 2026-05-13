@@ -363,6 +363,87 @@ def _plan_my_day(*, user) -> dict:
     return plan_my_day(user_id=user["id"])
 
 
+# ── P5-H: trade post-mortem read ──────────────────────────────────────────
+
+def _get_my_trade_review(*, user, symbol: str = "", trade_id: str = "") -> dict:
+    """Fetch the most-recent Compass-authored post-mortem for a trade.
+
+    If `trade_id` is provided, look it up directly. Otherwise filter by
+    `symbol` and return the most recent matching review. Falls back to
+    the latest review overall when neither is given.
+
+    Read-only — does NOT generate a new review; user has to click the
+    'Tell me about this trade' button on the TradeDrawer for generation
+    (which is signed + LLM-authored).
+    """
+    uid = user["id"]
+    try:
+        from api.services.trader_memory import get_default_account_id
+        from api.services.journal_two.trade_review import list_reviews
+        from api.services.journal_two.trades import list_trades_for_user
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "narration": "Trade review service unavailable.",
+                "error": str(e)}
+
+    account_id = get_default_account_id(uid)
+    if not account_id:
+        return {"ok": False, "narration": "No journal account found.",
+                "error": "no_account"}
+
+    reviews_resp = list_reviews(user_id=uid, account_id=account_id, limit=100)
+    reviews = reviews_resp.get("reviews", []) or []
+    if not reviews:
+        return {"ok": True, "narration": "No trade reviews on file yet. "
+                "Open a closed trade and click 'Tell me about this trade' "
+                "to have Compass write one.", "count": 0}
+
+    # If trade_id specified, exact match
+    target = None
+    tid = (trade_id or "").strip()
+    sym = (symbol or "").strip().upper()
+    if tid:
+        target = next((r for r in reviews if str(r.get("trade_id")) == tid), None)
+        if not target:
+            return {"ok": False, "narration": f"No post-mortem found for trade {tid}.",
+                    "error": "review_not_found"}
+    elif sym:
+        # Resolve trade_id → symbol map via list_trades_for_user
+        try:
+            all_trades = list_trades_for_user(uid, account_id=account_id) or []
+            tid_to_sym = {str(t.get("id")): (t.get("symbol") or "").upper()
+                          for t in all_trades}
+        except Exception:
+            tid_to_sym = {}
+        target = next(
+            (r for r in reviews
+             if tid_to_sym.get(str(r.get("trade_id"))) == sym),
+            None,
+        )
+        if not target:
+            return {
+                "ok": True,
+                "narration": f"No post-mortem on file for {sym}. The most "
+                f"recent review is for "
+                f"{tid_to_sym.get(str(reviews[0].get('trade_id')), 'an earlier trade')}.",
+                "count": 0,
+            }
+    else:
+        target = reviews[0]
+
+    body = (target.get("body") or "").strip()
+    summary = (target.get("summary") or "").strip()
+    narration = summary or body[:400] or "Review present but body is empty."
+    return {
+        "ok": True,
+        "narration": narration,
+        "trade_id": target.get("trade_id"),
+        "review_id": target.get("id"),
+        "body": body,
+        "summary": summary,
+        "created_at": target.get("created_at"),
+    }
+
+
 # ── P5-D: backtest-on-demand ──────────────────────────────────────────────
 
 def _analyze_setup_in_period(
@@ -1218,6 +1299,18 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_plan_my_day)
+
+    # P5-H: read a Compass-authored trade post-mortem
+    _vt.voice_tool(
+        name="get_my_trade_review",
+        description="Read a Compass-authored post-mortem for a closed trade. Returns the summary + body of the most recent review matching the criteria. Pass trade_id for an exact match, OR symbol to find the most recent review for that ticker, OR neither for the most recent review overall. Read-only — does NOT generate a new review.",
+        parameters={
+            "symbol":   {"type": "string", "description": "Ticker (e.g. NVDA). Optional."},
+            "trade_id": {"type": "string", "description": "Exact trade id. Optional."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_get_my_trade_review)
 
     # P5-D: backtest-on-demand over the user's journal
     _vt.voice_tool(

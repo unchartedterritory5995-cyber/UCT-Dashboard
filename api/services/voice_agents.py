@@ -352,6 +352,8 @@ def _compass_tool_union() -> set[str]:
     out.add("what_compass_noticed")
     # P5-D: backtest-on-demand over the user's journal.
     out.add("analyze_setup_in_period")
+    # P5-H: read Compass-authored trade post-mortems.
+    out.add("get_my_trade_review")
     return out
 
 
