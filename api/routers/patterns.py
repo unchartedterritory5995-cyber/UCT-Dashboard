@@ -42,6 +42,10 @@ from api.services.pattern_engine.detectors.candlestick import doji as _doji  # n
 from api.services.pattern_engine.detectors.candlestick import hammer as _hammer  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import hanging_man as _hanging_man  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import shooting_star as _shooting_star  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import bullish_engulfing as _bullish_engulfing  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import bearish_engulfing as _bearish_engulfing  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import piercing as _piercing  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import dark_cloud_cover as _dark_cloud_cover  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -211,6 +215,30 @@ _PATTERN_METADATA = {
         "category": "candlestick",
         "direction": "bearish",
         "description": "Long upper wick (>=2x body) + small body at a swing high after advance. Bearish reversal signal requiring next-bar bearish confirmation.",
+    },
+    "bullish_engulfing": {
+        "name": "Bullish Engulfing",
+        "category": "candlestick",
+        "direction": "bullish",
+        "description": "2-bar pattern: a red bar fully engulfed by a larger green bar that closes above the prior open. Bullish reversal at swing lows.",
+    },
+    "bearish_engulfing": {
+        "name": "Bearish Engulfing",
+        "category": "candlestick",
+        "direction": "bearish",
+        "description": "2-bar pattern: a green bar fully engulfed by a larger red bar that closes below the prior open. Bearish reversal at swing highs.",
+    },
+    "piercing": {
+        "name": "Piercing Pattern",
+        "category": "candlestick",
+        "direction": "bullish",
+        "description": "2-bar pattern: a long red bar followed by a green bar that gaps down on open but closes above the midpoint of the prior body. Less aggressive bullish reversal than engulfing.",
+    },
+    "dark_cloud_cover": {
+        "name": "Dark Cloud Cover",
+        "category": "candlestick",
+        "direction": "bearish",
+        "description": "2-bar pattern: a long green bar followed by a red bar that gaps up on open but closes below the midpoint of the prior body. Less aggressive bearish reversal than engulfing.",
     },
 }
 

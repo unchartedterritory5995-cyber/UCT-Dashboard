@@ -1,0 +1,54 @@
+{
+  "name": "short_series",
+  "category": "negative",
+  "expected": {
+    "fires": false
+  },
+  "context": {
+    "trend_stage": 1,
+    "rs_trend": "flat",
+    "ma_alignment": "mixed",
+    "volume_signature": "neutral",
+    "regime": "neutral",
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": null,
+    "recent_dcr_avg": 0.5,
+    "dcr_signature": "neutral"
+  },
+  "bars": [
+    {
+      "t": 1700000000,
+      "o": 50.1,
+      "h": 50.15,
+      "l": 49.85,
+      "c": 49.9,
+      "v": 1000.0
+    },
+    {
+      "t": 1700086400,
+      "o": 49.43,
+      "h": 49.48,
+      "l": 49.18,
+      "c": 49.23,
+      "v": 1000.0
+    },
+    {
+      "t": 1700172800,
+      "o": 48.77,
+      "h": 48.82,
+      "l": 48.52,
+      "c": 48.57,
+      "v": 1000.0
+    },
+    {
+      "t": 1700259200,
+      "o": 48.1,
+      "h": 48.15,
+      "l": 47.85,
+      "c": 47.9,
+      "v": 1000.0
+    }
+  ]
+}
