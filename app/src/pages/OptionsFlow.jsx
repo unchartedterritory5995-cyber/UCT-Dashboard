@@ -800,8 +800,9 @@ function processFlowData(rows) {
   filtered = filtered.filter(t => {
     if (!t.isDeep) return true;
     const isITM = (t.CP === "C" && t.K < t.Spot) || (t.CP === "P" && t.K > t.Spot);
-    // Deep ITM = always arb, filter everything
-    if (isITM) return false;
+    // Deep ITM blocks = arb/rebalancing, filter. Deep ITM sweeps = urgency, keep.
+    if (isITM && t.Ty === "BLK") return false;
+    if (isITM) return true;
     // Deep OTM: keep if both sweep and block exist at same strike
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (deepOTMBlockKeys.has(k) && deepOTMSweepKeys.has(k)) return true;
@@ -3314,54 +3315,6 @@ export default function OptionsFlowDashboard() {
           </div>
         )}
 
-        {/* Short/Long Banners */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
-          {(() => {
-            const shortTop3 = (shortDir==="BULL" ? FD.SBLC : FD.SBRC).slice(0,3);
-            return (
-              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:20, borderLeft:"4px solid "+shortC, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div>
-                  <div style={{ fontSize:11, color:shortC, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Short-Term Outlook</div>
-                  <div style={{ fontSize:36, fontWeight:900, color:shortC, marginBottom:4 }}>{shortDir}</div>
-                  <div style={{ fontSize:11, color:P.dm }}>0–59 DTE: Bull {fmt(FD.shortBullTotal)} vs Bear {fmt(FD.shortBearTotal)}</div>
-                </div>
-                {shortTop3.length > 0 && (
-                  <div style={{ textAlign:"right", minWidth:120 }}>
-                    {shortTop3.map((c,i) => (
-                      <div key={i} style={{ fontSize:11, color:i===0?P.wh:P.dm, fontWeight:i===0?700:400, lineHeight:1.8 }}>
-                        <span style={{ color:shortC, fontWeight:700 }}>{c.S}</span>{" "}
-                        <span style={{ color:P.dm }}>${c.K}{c.CP} {c.E}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-          {(() => {
-            const longTop3 = (longDir==="BULL" ? FD.LBLC : FD.LBRC).slice(0,3);
-            return (
-              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:20, borderLeft:"4px solid "+longC, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div>
-                  <div style={{ fontSize:11, color:longC, fontWeight:700, letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Long-Term Outlook</div>
-                  <div style={{ fontSize:36, fontWeight:900, color:longC, marginBottom:4 }}>{longDir}</div>
-                  <div style={{ fontSize:11, color:P.dm }}>60+ DTE: Bull {fmt(FD.longBullTotal)} vs Bear {fmt(FD.longBearTotal)}</div>
-                </div>
-                {longTop3.length > 0 && (
-                  <div style={{ textAlign:"right", minWidth:120 }}>
-                    {longTop3.map((c,i) => (
-                      <div key={i} style={{ fontSize:11, color:i===0?P.wh:P.dm, fontWeight:i===0?700:400, lineHeight:1.8 }}>
-                        <span style={{ color:longC, fontWeight:700 }}>{c.S}</span>{" "}
-                        <span style={{ color:P.dm }}>${c.K}{c.CP} {c.E}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-
         {/* Tabs */}
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
@@ -3535,6 +3488,48 @@ export default function OptionsFlowDashboard() {
                           <span>.</span>
                         </div>
                       )}
+                      {/* Timeframe Outlook */}
+                      {(()=>{
+                        const tfRanges = [
+                          { key:"week", label:"THIS WEEK", sub:"0–7 DTE", min:0, max:7 },
+                          { key:"biweek", label:"1–2 WEEKS", sub:"7–14 DTE", min:7, max:14 },
+                          { key:"monthly", label:"MONTHLY", sub:"14–60 DTE", min:14, max:60 },
+                          { key:"longterm", label:"LONG TERM", sub:"60+ DTE", min:60, max:9999 },
+                        ];
+                        return (
+                          <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:8, marginTop:10 }}>
+                            {tfRanges.map(tf => {
+                              const tfTrades = cc.filter(t=>t.DTE>=tf.min&&t.DTE<tf.max);
+                              let tfBull=0, tfBear=0;
+                              const tfContracts = {};
+                              tfTrades.forEach(t => {
+                                if(t.D==="BULL") tfBull+=t.P; if(t.D==="BEAR") tfBear+=t.P;
+                                const ck=t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+                                if(!tfContracts[ck]) tfContracts[ck]={sym:t.S,cp:t.CP,K:t.K,exp:t.E,prem:0};
+                                tfContracts[ck].prem+=t.P;
+                              });
+                              const tfDir = tfBull>=tfBear ? "BULL" : "BEAR";
+                              const tfDirC = tfDir==="BULL" ? P.bu : P.be;
+                              const topC = Object.values(tfContracts).sort((a,b)=>b.prem-a.prem)[0];
+                              const tfTotal = tfBull+tfBear;
+                              return (
+                                <div key={tf.key} style={{ background:P.al, borderRadius:6, padding:"8px 10px", borderLeft:"3px solid "+(tfTotal>0?tfDirC:P.bd) }}>
+                                  <div style={{ fontSize:8, color:P.dm, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{tf.label}</div>
+                                  <div style={{ fontSize:7, color:P.dm, marginBottom:4 }}>{tf.sub}</div>
+                                  {tfTotal > 0 ? <>
+                                    <div style={{ fontSize:16, fontWeight:900, color:tfDirC, lineHeight:1 }}>{tfDir}</div>
+                                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{fmt(tfBull)} vs {fmt(tfBear)}</div>
+                                    {topC && <div style={{ fontSize:8, color:P.wh, marginTop:4, fontWeight:600 }}>
+                                      <span style={{ color:topC.cp==="C"?P.bu:P.be }}>{topC.sym}</span>
+                                      <span style={{ color:P.dm }}> {topC.cp==="C"?"C":"P"} ${topC.K} {topC.exp}</span>
+                                    </div>}
+                                  </> : <div style={{ fontSize:11, color:P.dm, marginTop:4 }}>No flow</div>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div style={{ textAlign:"center", flexShrink:0, padding:"0 10px" }}>
                       <div style={{ fontSize:28, fontWeight:900, color:netC, fontVariantNumeric:"tabular-nums" }}>{bullPct}%</div>
