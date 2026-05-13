@@ -38,6 +38,10 @@ from api.services.pattern_engine.detectors.structure import swing_pivots as _swi
 from api.services.pattern_engine.detectors.structure import support_resistance as _support_resistance  # noqa: F401
 from api.services.pattern_engine.detectors.structure import major_trendlines as _major_trendlines  # noqa: F401
 from api.services.pattern_engine.detectors.structure import stage_analysis as _stage_analysis  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import doji as _doji  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import hammer as _hammer  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import hanging_man as _hanging_man  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import shooting_star as _shooting_star  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -183,6 +187,30 @@ _PATTERN_METADATA = {
         "category": "structure",
         "direction": "neutral",
         "description": "Classifies the chart's current stage in Weinstein's 4-stage cycle (basing, advance, distribution, decline). Foundational context for every other pattern.",
+    },
+    "doji": {
+        "name": "Doji",
+        "category": "candlestick",
+        "direction": "neutral",
+        "description": "A candle where open ~= close (body <5% of total range). Signals indecision; 4 variants (standard/long_legged/dragonfly/gravestone) identify directional bias from wick anatomy.",
+    },
+    "hammer": {
+        "name": "Hammer",
+        "category": "candlestick",
+        "direction": "bullish",
+        "description": "Long lower wick (>=2x body) + small body at a swing low. Bullish reversal signal requiring next-bar confirmation.",
+    },
+    "hanging_man": {
+        "name": "Hanging Man",
+        "category": "candlestick",
+        "direction": "bearish",
+        "description": "Same anatomy as hammer but at a swing high after advance. Bearish reversal warning requiring next-bar bearish confirmation.",
+    },
+    "shooting_star": {
+        "name": "Shooting Star",
+        "category": "candlestick",
+        "direction": "bearish",
+        "description": "Long upper wick (>=2x body) + small body at a swing high after advance. Bearish reversal signal requiring next-bar bearish confirmation.",
     },
 }
 
