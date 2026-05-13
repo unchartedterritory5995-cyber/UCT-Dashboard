@@ -46,6 +46,10 @@ from api.services.pattern_engine.detectors.candlestick import bullish_engulfing 
 from api.services.pattern_engine.detectors.candlestick import bearish_engulfing as _bearish_engulfing  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import piercing as _piercing  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import dark_cloud_cover as _dark_cloud_cover  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import bullish_harami as _bullish_harami  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import bearish_harami as _bearish_harami  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import morning_star as _morning_star  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import evening_star as _evening_star  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 
@@ -239,6 +243,30 @@ _PATTERN_METADATA = {
         "category": "candlestick",
         "direction": "bearish",
         "description": "2-bar pattern: a long green bar followed by a red bar that gaps up on open but closes below the midpoint of the prior body. Less aggressive bearish reversal than engulfing.",
+    },
+    "bullish_harami": {
+        "name": "Bullish Harami",
+        "category": "candlestick",
+        "direction": "bullish",
+        "description": "2-bar pattern: a long red bar followed by a small-body bar inside the red bar's range. Indecision after decline - bullish reversal signal at swing lows.",
+    },
+    "bearish_harami": {
+        "name": "Bearish Harami",
+        "category": "candlestick",
+        "direction": "bearish",
+        "description": "2-bar pattern: a long green bar followed by a small-body bar inside the green bar's range. Indecision after advance - bearish reversal signal at swing highs.",
+    },
+    "morning_star": {
+        "name": "Morning Star",
+        "category": "candlestick",
+        "direction": "bullish",
+        "description": "3-bar pattern: long red + small body (the 'star') + long green closing above bar 1's midpoint. Bullish reversal at swing lows. Named for Venus at dawn.",
+    },
+    "evening_star": {
+        "name": "Evening Star",
+        "category": "candlestick",
+        "direction": "bearish",
+        "description": "3-bar pattern: long green + small body (the 'star') + long red closing below bar 1's midpoint. Bearish reversal at swing highs. Named for Venus at dusk.",
     },
 }
 
