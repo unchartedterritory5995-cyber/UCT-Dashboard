@@ -18,6 +18,14 @@ function timeSince(unixSec) {
  * Card wrapper used as the TickerPopup trigger element. Clicking it opens
  * the popup (TickerPopup manages its own open state internally).
  */
+// CAN SLIM grade -> color (O'Neil's 7-pillar composite)
+const CAN_SLIM_COLORS = {
+  A: '#10b981', // emerald — institutional-grade leader
+  B: '#34d399', // light green — mostly confirmed
+  C: '#c9a84c', // gold — mixed
+  D: '#ef4444', // red — failing
+}
+
 function CardTrigger({ detection, onClick, className: _ignoredClass, children: _ignoredChildren, ...rest }) {
   const d = detection
   const dirColor =
@@ -41,6 +49,13 @@ function CardTrigger({ detection, onClick, className: _ignoredClass, children: _
   const stop = levels.stop
   const target = levels.target_primary != null ? levels.target_primary : levels.target
   const rr = levels.risk_reward
+
+  const canSlimGrade = d.can_slim_grade
+  const canSlimScore = d.can_slim_score
+  const canSlimColor = canSlimGrade ? (CAN_SLIM_COLORS[canSlimGrade] || '#c9a84c') : null
+  const canSlimTitle = canSlimGrade
+    ? `CAN SLIM Grade ${canSlimGrade}${typeof canSlimScore === 'number' ? ` (${canSlimScore.toFixed(0)}/100)` : ''} — O'Neil 7-pillar composite`
+    : null
 
   return (
     <div
@@ -68,8 +83,19 @@ function CardTrigger({ detection, onClick, className: _ignoredClass, children: _
 
       <div className={styles.patternRow}>
         <div className={styles.patternName} style={{ color: dirColor }}>{d.pattern_name}</div>
-        <div className={styles.dirBadge} style={{ color: dirColor, borderColor: dirColor }}>
-          {dirBadgeLabel}
+        <div className={styles.patternBadges}>
+          {canSlimGrade && (
+            <div
+              className={styles.canSlimBadge}
+              style={{ color: canSlimColor, borderColor: canSlimColor }}
+              title={canSlimTitle}
+            >
+              CAN SLIM {canSlimGrade}
+            </div>
+          )}
+          <div className={styles.dirBadge} style={{ color: dirColor, borderColor: dirColor }}>
+            {dirBadgeLabel}
+          </div>
         </div>
       </div>
 

@@ -71,6 +71,9 @@ class Context(TypedDict):
     # Phase 3 additions:
     recent_dcr_avg: float                                       # average DCR over last 10 bars, 0.0-1.0
     dcr_signature: Literal["accumulation", "distribution", "neutral"]  # trend-scale classifier
+    # Phase 7.5 additions (CAN SLIM meta-pillar):
+    can_slim_grade: Literal["A", "B", "C", "D"]                 # O'Neil 7-pillar composite grade
+    can_slim_score: float                                       # 0-100 composite CAN SLIM score
 
 
 class QualityComponents(TypedDict):

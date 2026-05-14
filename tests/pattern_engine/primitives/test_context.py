@@ -70,3 +70,21 @@ def test_build_context_dcr_accumulation_signal():
     ctx = build_context(bars, sym="TEST")
     assert ctx["dcr_signature"] == "accumulation"
     assert ctx["recent_dcr_avg"] > 0.7
+
+
+def test_build_context_includes_can_slim_fields():
+    """Phase 7.5: context now carries can_slim_grade + can_slim_score."""
+    bars = [_bar(i, 100 + i * 0.5) for i in range(300)]
+    ctx = build_context(bars, sym="TEST", regime_hint="bull")
+    assert "can_slim_grade" in ctx
+    assert "can_slim_score" in ctx
+    assert ctx["can_slim_grade"] in ("A", "B", "C", "D")
+    assert 0.0 <= ctx["can_slim_score"] <= 100.0
+
+
+def test_build_context_strong_uptrend_can_slim_high():
+    """A clean uptrend + bull regime should produce a B or A CAN SLIM grade."""
+    bars = [_bar(i, 100 + i * 0.5, v=2_000_000) for i in range(300)]
+    ctx = build_context(bars, sym="TEST", regime_hint="bull")
+    assert ctx["can_slim_grade"] in ("A", "B")
+    assert ctx["can_slim_score"] >= 60

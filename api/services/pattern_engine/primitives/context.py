@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from api.services.pattern_engine.primitives.can_slim import can_slim_score as _compute_can_slim
 from api.services.pattern_engine.primitives.dcr import avg_dcr, dcr_signature
 from api.services.pattern_engine.primitives.volume import volume_signature
 from api.services.pattern_engine.types import Bar, Context
@@ -141,16 +142,35 @@ def build_context(
     """
     regime = regime_hint if regime_hint else "unknown"
 
+    trend_stage = _trend_stage(bars)
+    rs_trend = _rs_trend(bars)
+    vol_sig = volume_signature(bars, lookback=10)
+    dcr_sig = dcr_signature(bars, lookback=10)
+
+    # CAN SLIM composite (Phase 7.5) - O'Neil 7-pillar meta-grading.
+    # Computed from already-derived structural signals + bars; never crashes on
+    # short series (returns neutral grade "C" / score 50 internally).
+    can_slim = _compute_can_slim(bars, {
+        "trend_stage": trend_stage,
+        "regime": regime,
+        "rs_trend": rs_trend,
+        "dcr_signature": dcr_sig,
+        "volume_signature": vol_sig,
+        "sector_strength_rank": None,
+    })
+
     return {
-        "trend_stage": _trend_stage(bars),
-        "rs_trend": _rs_trend(bars),
+        "trend_stage": trend_stage,
+        "rs_trend": rs_trend,
         "ma_alignment": _ma_alignment(bars),
-        "volume_signature": volume_signature(bars, lookback=10),
+        "volume_signature": vol_sig,
         "regime": regime,
         "nearest_resistance": _nearest_resistance(bars),
         "nearest_support": _nearest_support(bars),
         "days_to_earnings": None,
         "sector_strength_rank": None,
         "recent_dcr_avg": round(avg_dcr(bars, lookback=10), 4),
-        "dcr_signature": dcr_signature(bars, lookback=10),
+        "dcr_signature": dcr_sig,
+        "can_slim_grade": can_slim["grade"],
+        "can_slim_score": can_slim["composite_score"],
     }

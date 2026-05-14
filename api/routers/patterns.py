@@ -405,7 +405,7 @@ def _slim_detection(row) -> dict:
     """Return a slim detection payload for scanner results.
 
     Includes only the fields the scanner UI needs — full levels (trimmed),
-    narrative headline (no body), and core identifiers.
+    narrative headline (no body), CAN SLIM grade, and core identifiers.
     """
     try:
         levels = json.loads(row["levels_json"] or "{}")
@@ -415,6 +415,10 @@ def _slim_detection(row) -> dict:
         narrative = json.loads(row["narrative_json"] or "{}")
     except Exception:
         narrative = {}
+    try:
+        context = json.loads(row["context_json"] or "{}")
+    except Exception:
+        context = {}
 
     pattern_id = row["pattern_id"]
     meta = _PATTERN_METADATA.get(pattern_id, {})
@@ -438,6 +442,8 @@ def _slim_detection(row) -> dict:
             "risk_reward": levels.get("risk_reward"),
         },
         "narrative": {"headline": narrative.get("headline", "")},
+        "can_slim_grade": context.get("can_slim_grade"),
+        "can_slim_score": context.get("can_slim_score"),
         "detected_at": row["detected_at"],
         "last_seen_at": row["last_seen_at"],
     }

@@ -359,7 +359,20 @@ def _score_context(context: dict) -> float:
         score += 10
     # DCR integration (Phase 7.5) — bullish: accumulation = tailwind.
     score += _dcr_score_adjustment(context)
+    # CAN SLIM meta-pillar (Phase 7.5) — O'Neil A-grade leaders get a meaningful bonus.
+    score += _can_slim_score_adjustment(context)
     return min(100.0, max(0.0, score))
+
+
+def _can_slim_score_adjustment(context: dict) -> float:
+    """Return CAN SLIM-derived bonus for bullish continuation patterns."""
+    grade = context.get("can_slim_grade", "C")
+    score = context.get("can_slim_score", 50) or 50
+    if grade == "A" and score >= 80:
+        return 15.0
+    if grade == "B" and score >= 65:
+        return 8.0
+    return 0.0
 # Custom variant - does not match shared narrative_helpers
 
 
