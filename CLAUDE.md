@@ -64,6 +64,38 @@ A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 
 
 Open the last tab to try it. All existing Journal tabs behave identically to before.
 
+### Journal 2.0 — Compass Coaching Layer (Phases A–G, shipped 2026-05-08 → 2026-05-12)
+
+J2 is now a full coaching product: Journal + Playbook + AI Coach. **10 distinct coaching surfaces** powered by Anthropic Sonnet 4.6 with server-side hallucination audit + sample-size confidence + regime awareness.
+
+- **Source:** `api/services/journal_two/coach*.py` (coach, coach_chat, coach_chat_tools, coach_prompts, coach_validation, coach_data_assembler), `api/services/journal_two/{pre_trade_verdict,trade_review,interventions,profile_suggestions,overview}.py`
+- **Frontend:** `app/src/pages/journal-2-0/components/{CompassChat,CompassOverview,VoiceInputButton,TradeDrawer}.jsx`
+- **Tables (extend `j2_` family):** `j2_chat_messages`, `j2_onboarding_responses`, `j2_verdicts`, `j2_trade_reviews`, `j2_interventions`, `j2_profile_suggestions` + columns added to `j2_accounts`: `trader_profile`, `onboarded`, `onboarding_mode`, `onboarding_session_id`, `muted_setups`, `paper_only_days`
+
+**The 10 surfaces:**
+1. **Weekly Review** — Sunday auto-generated; user 👍/👎 trains profile
+2. **EOD Recap** — daily 4:30 PM ET via APScheduler; this-week-focus persisted
+3. **Compass Chat** — conversational coach (28+ tools, preview-confirm for action tools, elevated-warning subtype for discipline mutations, streaming + sliding-window summarization, validate_chat_output audit)
+4. **Compass Onboarding** — adaptive 10-category intake interview (Section 8 prompt directive)
+5. **Pre-Trade Verdict** — 🧭 button on AddPositionModal; two-stage pipeline (hard checks → LLM) → GO/HOLD/SKIP with factors
+6. **Per-Trade Post-Mortem** — 🧭 button on TradeDrawer; idempotent 3-5 sentence prose review with data citation
+7. **Real-Time Intervention** — 4 tilt rules (rapid_fire, daily_loss_approach, loss_streak, cooling_off_active); banner on AddPositionModal + CompassTab; cooldowns per rule
+8. **Active Feedback Trimming** — 👎 auto-creates `j2_profile_suggestions`; Compass refines `trader_profile` via `update_trader_profile` tool with preview-confirm
+9. **Voice → Compass Bridge v1** — browser-native SpeechRecognition mic + opt-in `speechSynthesis` TTS; zero backend; localStorage prefs
+10. **Compass Overview** — capstone card at top of Compass tab; 3-col (Profile · This Week · Today) + footer pills (recent reviews); null on fresh accounts
+
+**P5 polish (2026-05-12 → 2026-05-13):**
+- **P5-M** — 🧭 indicator on Trade Log rows whose `j2_trades.id` appears in `j2_trade_reviews`. Inline in Symbol cell, SWR-polled, no new column. Files: `app/src/pages/journal-2-0/{hooks/useReviewedTradeIds.js, components/TradesTable.jsx, tabs/TradeJournalTab.jsx}`.
+- **P5-N** — urgent voice variant for verdict refusals. SKIP → `"Hold up. Compass says SKIP."` at speed 1.1; HOLD → `"Heads up."` at default speed; GO unchanged. File: `app/src/pages/journal-2-0/components/PreTradeVerdictCard.jsx`.
+- **P5-O** — weekly Compass email digest, Sundays 8 AM ET. Per-account batch via `j2_accounts.compass_enabled`. Idempotent via `j2_weekly_email_log`. Service: `api/services/journal_two/coach_email_digest.py`; scheduler id `compass_weekly_email_digest` in `api/main.py`.
+- **Pattern Engine bridge** — 3 read tools (`find_patterns_on_ticker`, `scan_active_patterns`, `list_pattern_types`) make the 50-detector engine reachable from Compass in BOTH voice mode (registered in `voice_tool_impls.py` + `_compass_tool_union()` allowlist in `voice_agents.py`) AND text chat (`TOOLS` dict in `coach_chat_tools.py`). Read-only: queries the `pattern_detections` table populated by the background `_run_patterns_universe_scan` job. Always call `_ensure_pattern_detectors_loaded()` before pattern_id lookups — registry is empty until `api.routers.patterns` is imported.
+
+**Critical:** All coaching writes go to J2 ONLY. Journal 1.0 must remain untouched by coach + voice (voice tools migrated in commit `b4ee2aa`/`b8d7709`/`3a32eab`). Watch `_J2_SCHEMA` + `_PHASE_2_ALTERS` patterns in `db.py`.
+
+**Test counts at shipping:** Backend `journal_two/` 482 passing · Frontend vitest 227 passing across 31 files. Plus session-level: pattern bridge 15 cases · email digest 9 cases · pattern_engine suite 1011 cases · TradesTable 7 cases.
+
+**In-flight:** Tight Compass ↔ Voice Assistant unification ("one brain, shared memory") is being built in a parallel Claude session — see `project_compass_va_unification_inflight.md` in user memory before refactoring `coach_chat.py`, `voice.py`, or shared trader-memory architecture.
+
 ## Mobile Navigation
 
 Hamburger + slide-out drawer (hidden on desktop). Fixed header with page title + AlertBell. Body scroll locked when drawer open. User avatar + name in drawer header.
