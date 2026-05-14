@@ -40,6 +40,8 @@ const PATTERN_LETTERS = {
   stage_analysis: '2',
   accumulation_distribution: 'A/D',
   '52w_proximity': '52w',
+  outside_bar: 'OB',
+  inside_bar_breakout: 'IB',
 }
 
 function badgeLetter(detection) {

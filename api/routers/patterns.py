@@ -57,6 +57,13 @@ from api.services.pattern_engine.detectors.uct import wyckoff_upthrust as _wycko
 from api.services.pattern_engine.detectors.uct import pullback_to_10ema as _pullback_to_10ema  # noqa: F401
 from api.services.pattern_engine.detectors.uct import pullback_to_21ema as _pullback_to_21ema  # noqa: F401
 from api.services.pattern_engine.detectors.uct import pullback_to_50sma as _pullback_to_50sma  # noqa: F401
+from api.services.pattern_engine.detectors.uct import pullback_to_200sma as _pullback_to_200sma  # noqa: F401
+from api.services.pattern_engine.detectors.classical import bollinger_squeeze as _bollinger_squeeze  # noqa: F401
+from api.services.pattern_engine.detectors.classical import donchian_breakout as _donchian_breakout  # noqa: F401
+from api.services.pattern_engine.detectors.classical import rsi_bullish_divergence as _rsi_bullish_divergence  # noqa: F401
+from api.services.pattern_engine.detectors.classical import rsi_bearish_divergence as _rsi_bearish_divergence  # noqa: F401
+from api.services.pattern_engine.detectors.classical import outside_bar as _outside_bar  # noqa: F401
+from api.services.pattern_engine.detectors.classical import inside_bar_breakout as _inside_bar_breakout  # noqa: F401
 from api.services.pattern_engine.detectors.structure import swing_pivots as _swing_pivots  # noqa: F401
 from api.services.pattern_engine.detectors.structure import support_resistance as _support_resistance  # noqa: F401
 from api.services.pattern_engine.detectors.structure import major_trendlines as _major_trendlines  # noqa: F401
@@ -474,6 +481,48 @@ _PATTERN_METADATA = {
         "category": "uct",
         "direction": "bullish",
         "description": "William O'Neil's 'second buy point' from CAN SLIM — test of rising 50-day average in a confirmed leader after ≥30% prior advance. Classic institutional re-entry.",
+    },
+    "pullback_to_200sma": {
+        "name": "Pullback to 200-SMA (Weinstein Stage 2 Retest)",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Major-trend retest of rising 200-day SMA in a confirmed Stage 2 advance. Weinstein's institutional reentry zone after ≥40% prior gain.",
+    },
+    "bollinger_squeeze": {
+        "name": "Bollinger Squeeze",
+        "category": "classical",
+        "direction": "neutral",
+        "description": "Bollinger Bands inside Keltner Channels = compression precedes directional breakout. John Bollinger + John Carter TTM Squeeze framework.",
+    },
+    "donchian_breakout": {
+        "name": "Donchian Breakout (Turtle)",
+        "category": "classical",
+        "direction": "neutral",
+        "description": "Close beyond 20-bar (System 1) or 55-bar (System 2) Donchian channel high/low. Richard Donchian + Turtle Traders trend-following entry.",
+    },
+    "rsi_bullish_divergence": {
+        "name": "RSI Bullish Divergence",
+        "category": "classical",
+        "direction": "bullish",
+        "description": "Price makes new low but RSI fails to confirm (higher RSI at new low). Welles Wilder + Cardwell + Constance Brown momentum exhaustion signal.",
+    },
+    "rsi_bearish_divergence": {
+        "name": "RSI Bearish Divergence",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "Price makes new high but RSI doesn't confirm. Mirror of bullish divergence — upward momentum exhausting.",
+    },
+    "outside_bar": {
+        "name": "Outside Bar / Key Reversal",
+        "category": "classical",
+        "direction": "neutral",
+        "description": "Bar's range fully engulfs the prior bar + volume expansion. Larry Williams' 'key reversal' — direction inferred from close.",
+    },
+    "inside_bar_breakout": {
+        "name": "Inside Bar Breakout",
+        "category": "classical",
+        "direction": "neutral",
+        "description": "Bar fully INSIDE the prior bar's range = compression/coil. Breakout direction = trade direction. Linda Raschke + modern day-trader staple.",
     },
 }
 
