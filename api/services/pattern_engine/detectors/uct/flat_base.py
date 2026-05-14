@@ -31,6 +31,10 @@ from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
 from api.services.pattern_engine.narrative_helpers import dcr_interpretation, dcr_phrase
+from api.services.pattern_engine.narrative_helpers_structure import (
+    compute_structure_quality, structure_extras, structure_geom_boost,
+    structure_narrative_sentence,
+)
 from api.services.pattern_engine.types import Bar, Detection
 
 
@@ -153,11 +157,19 @@ def _enumerate_base_windows(bars: List[Bar]) -> List[dict]:
             if advance_info is None:
                 continue
 
+            # Find absolute bar index of the base_low for structure-quality checks.
+            base_low_idx = base_start
+            for i, b in enumerate(window):
+                if b["l"] == base_low:
+                    base_low_idx = base_start + i
+                    break
+            sq = compute_structure_quality(bars, base_low_idx, base_low)
             candidate = {
                 "base_start": base_start,
                 "base_end": base_end,
                 "base_high": base_high,
                 "base_low": base_low,
+                "base_low_idx": base_low_idx,
                 "base_mid": base_mid,
                 "base_depth": depth,
                 "base_bars": length,
@@ -170,6 +182,8 @@ def _enumerate_base_windows(bars: List[Bar]) -> List[dict]:
                 "prior_advance_high_idx": advance_info["high_idx"],
                 "prior_advance_high_price": advance_info["high_price"],
                 "prior_advance_height": advance_info["high_price"] - advance_info["low_price"],
+                "hl_result": sq["hl_result"],
+                "ma_result": sq["ma_result"],
             }
             out.append(candidate)
 
@@ -324,10 +338,9 @@ def _score_geometry(c: dict) -> float:
     else:
         drift_score = (1.0 - slope_pct / _MAX_SLOPE_PCT_PER_BAR) * 100.0
 
-    return round(
-        0.45 * depth_score + 0.25 * duration_score + 0.30 * drift_score,
-        2,
-    )
+    base = (0.45 * depth_score + 0.25 * duration_score + 0.30 * drift_score)
+    base += structure_geom_boost(c)
+    return round(min(100.0, base), 2)
 
 
 def _score_volume(bars: List[Bar], c: dict) -> float:
@@ -566,8 +579,9 @@ def _build_detection(bars, c, confidence, context,
         f"context — is the four-factor confirmation O'Neil teaches as the precondition for "
         f"a high-edge flat-base trade. "
         f"{dcr_phrase(context.get('dcr_signature'), context.get('recent_dcr_avg'))}. "
-        f"{dcr_interpretation(context, 'bullish')}"
-    )
+        f"{dcr_interpretation(context, 'bullish')} "
+        f"{structure_narrative_sentence(c)}"
+    ).strip()
 
     what_to_watch_for = (
         f"The trigger is a daily close above ${entry:.2f} (the {base_bars}-bar base high "
@@ -638,6 +652,7 @@ def _build_detection(bars, c, confidence, context,
                 "second_half_vol_avg": round(second_half_vol_avg, 0),
                 "base_slope_pct_per_bar": round(base_slope_pct_per_bar * 100.0, 4),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
+                **structure_extras(c),
             },
         },
         "levels": {

@@ -38,6 +38,10 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.narrative_helpers_structure import (
+    compute_structure_quality, structure_extras, structure_geom_boost,
+    structure_narrative_sentence,
+)
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.types import Bar, Detection
 
@@ -176,6 +180,7 @@ def _try_extract_pattern(bars: List[Bar], T1: dict, T2: dict, T3: dict) -> Optio
     if pattern_bars > _MAX_PATTERN_BARS:
         return None
 
+    sq = compute_structure_quality(bars, t3_idx, t3_price)
     return {
         "trough1_idx": t1_idx, "trough1_price": t1_price,
         "trough2_idx": t2_idx, "trough2_price": t2_price,
@@ -192,6 +197,8 @@ def _try_extract_pattern(bars: List[Bar], T1: dict, T2: dict, T3: dict) -> Optio
         "pattern_bars": pattern_bars,
         "start_idx": t1_idx,
         "end_idx": t3_idx,
+        "hl_result": sq["hl_result"],
+        "ma_result": sq["ma_result"],
     }
 
 
@@ -247,8 +254,10 @@ def _score_geometry(c: dict) -> float:
         span_score = max(0.0, (span - 2 * _MIN_TROUGH_SPACING) / (35 - 2 * _MIN_TROUGH_SPACING) * 100)
     else:
         span_score = max(0.0, (_MAX_PATTERN_BARS - span) / (_MAX_PATTERN_BARS - 65) * 100)
-    return round(0.35 * trough_score + 0.25 * peak_score
-                 + 0.25 * depth_score + 0.15 * span_score, 2)
+    base = (0.35 * trough_score + 0.25 * peak_score
+            + 0.25 * depth_score + 0.15 * span_score)
+    base += structure_geom_boost(c)
+    return round(min(100.0, base), 2)
 
 
 def _score_volume(bars: List[Bar], c: dict) -> float:
@@ -471,8 +480,9 @@ def _build_detection(bars, c, confidence, context,
         f"breakout attempt. Wyckoff would call this the textbook "
         f"absorption phase of accumulation: composite operators "
         f"systematically transferring supply from weak hands to strong "
-        f"hands at the floor price."
-    )
+        f"hands at the floor price. "
+        f"{structure_narrative_sentence(c)}"
+    ).strip()
 
     what_to_watch_for = (
         f"The trigger is a daily close above ${entry:.2f} (the neckline at "
@@ -594,6 +604,7 @@ def _build_detection(bars, c, confidence, context,
                 "neckline": round(float(neckline), 2),
                 "pattern_bars": int(c["pattern_bars"]),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
+                **structure_extras(c),
             },
         },
         "levels": {

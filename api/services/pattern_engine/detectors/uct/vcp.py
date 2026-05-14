@@ -34,6 +34,10 @@ from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
 from api.services.pattern_engine.narrative_helpers import dcr_interpretation, dcr_phrase
+from api.services.pattern_engine.narrative_helpers_structure import (
+    compute_structure_quality, structure_extras, structure_geom_boost,
+    structure_narrative_sentence,
+)
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.types import Bar, Detection
 
@@ -84,6 +88,13 @@ def detect_vcp(bars: List[Bar], context: dict) -> List[Detection]:
         final_low_idx = candidate["contractions"][-1]["low_idx"]
         if last_bar_idx - final_low_idx > _MAX_FINAL_LOW_AGE:
             continue
+
+        # Structure-quality boosts (higher-low + rising-MA-pullback)
+        sq = compute_structure_quality(
+            bars, final_low_idx, candidate["contractions"][-1]["low_price"]
+        )
+        candidate["hl_result"] = sq["hl_result"]
+        candidate["ma_result"] = sq["ma_result"]
 
         # Already-broken gate: if price has CLOSED meaningfully above pivot AND
         # traded sustainably above pivot, the breakout already happened.
@@ -438,13 +449,14 @@ def _score_geometry(c: dict) -> float:
     else:
         first_score = max(0.0, (_MAX_FIRST_CONTRACTION_PCT - first_pct) / 0.10 * 100)
 
-    return round(
+    base = (
         0.30 * count_score
         + 0.30 * tightening_score
         + 0.25 * final_score
-        + 0.15 * first_score,
-        2,
+        + 0.15 * first_score
     )
+    base += structure_geom_boost(c)
+    return round(min(100.0, base), 2)
 
 
 def _score_volume(bars: List[Bar], c: dict) -> float:
@@ -710,8 +722,9 @@ def _build_detection(bars, c, confidence, context,
         f"context to position-sizing decisions, and the {pattern_bars}-bar formation length "
         f"is well inside Minervini's 6-13 week sweet spot for the highest-quality bases. "
         f"{dcr_phrase(context.get('dcr_signature'), context.get('recent_dcr_avg'))}. "
-        f"{dcr_interpretation(context, 'bullish')}"
-    )
+        f"{dcr_interpretation(context, 'bullish')} "
+        f"{structure_narrative_sentence(c)}"
+    ).strip()
 
     what_to_watch_for = (
         f"Watch for a daily close above ${entry:.2f} on volume of at least 1.5x the 20-bar "
@@ -765,6 +778,7 @@ def _build_detection(bars, c, confidence, context,
                 "pattern_bars": int(pattern_bars),
                 "final_contraction_bars": int(final_bars),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
+                **structure_extras(c),
             },
         },
         "levels": {

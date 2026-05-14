@@ -30,6 +30,10 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.narrative_helpers_structure import (
+    compute_structure_quality, structure_extras, structure_geom_boost,
+    structure_narrative_sentence,
+)
 from api.services.pattern_engine.types import Bar, Detection
 
 
@@ -156,11 +160,18 @@ def _try_extract(bars: List[Bar], ep_idx: int) -> Optional[dict]:
         # EP close must break above the entire base range
         if ep_close <= base_high:
             continue
+        # Find absolute bar index of the base low
+        base_low_idx = base_start
+        for i, b in enumerate(base_segment):
+            if b["l"] == base_low:
+                base_low_idx = base_start + i
+                break
         best_base = {
             "base_start_idx": base_start,
             "base_end_idx": ep_idx - 1,
             "base_high": base_high,
             "base_low": base_low,
+            "base_low_idx": base_low_idx,
             "base_depth_pct": depth,
             "base_bars": n,
         }
@@ -169,6 +180,7 @@ def _try_extract(bars: List[Bar], ep_idx: int) -> Optional[dict]:
     if best_base is None:
         return None
 
+    sq = compute_structure_quality(bars, best_base["base_low_idx"], best_base["base_low"])
     return {
         "ep_idx": ep_idx,
         "ep_high": ep_high,
@@ -183,6 +195,8 @@ def _try_extract(bars: List[Bar], ep_idx: int) -> Optional[dict]:
         "avg_range": avg_range,
         "avg_volume": avg_volume,
         **best_base,
+        "hl_result": sq["hl_result"],
+        "ma_result": sq["ma_result"],
     }
 
 
@@ -242,13 +256,14 @@ def _score_geometry(c: dict) -> float:
     else:
         length_score = max(0.0, 100.0 - (n - 40) / 20.0 * 40.0)
 
-    return round(
+    base = (
         0.30 * flatness_score
         + 0.30 * range_score
         + 0.25 * close_score
-        + 0.15 * length_score,
-        2,
+        + 0.15 * length_score
     )
+    base += structure_geom_boost(c)
+    return round(min(100.0, base), 2)
 
 
 def _score_volume(c: dict) -> float:
@@ -475,8 +490,9 @@ def _build_detection(bars, c, confidence, context,
         f"the pattern has a 70%+ continuation rate when bought near the close "
         f"of the EP bar or on a tight 1-2 day pullback that holds the EP "
         f"bar's mid-range, with average follow-through measured in weeks, "
-        f"not days."
-    )
+        f"not days. "
+        f"{structure_narrative_sentence(c)}"
+    ).strip()
 
     what_to_watch_for = (
         f"The trigger is a daily close above ${entry:.2f} (EP bar high "
@@ -550,6 +566,7 @@ def _build_detection(bars, c, confidence, context,
                 "ep_low": round(ep_low, 2),
                 "ep_close": round(ep_close, 2),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
+                **structure_extras(c),
             },
         },
         "levels": {

@@ -31,6 +31,10 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.narrative_helpers_structure import (
+    compute_structure_quality, structure_extras, structure_geom_boost,
+    structure_narrative_sentence,
+)
 from api.services.pattern_engine.primitives.geometry import line_at
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.types import Bar, Detection
@@ -197,6 +201,7 @@ def _try_extract_pattern(bars: List[Bar], L: dict, H: dict, R: dict) -> Optional
 
     head_pct_below_shoulders = ((l_price + r_price) / 2 - h_price) / h_price
 
+    sq = compute_structure_quality(bars, r_idx, r_price)
     return {
         "left_shoulder_idx": l_idx,
         "left_shoulder_price": l_price,
@@ -217,6 +222,8 @@ def _try_extract_pattern(bars: List[Bar], L: dict, H: dict, R: dict) -> Optional
         "pattern_bars": r_idx - l_idx,
         "start_idx": l_idx,
         "end_idx": r_idx,
+        "hl_result": sq["hl_result"],
+        "ma_result": sq["ma_result"],
     }
 
 
@@ -300,13 +307,15 @@ def _score_geometry(c: dict) -> float:
         balance = 0.0
     balance_score = balance * 100
 
-    return round(
+    base = (
         0.30 * sym_score
         + 0.25 * neckline_score
         + 0.20 * head_dom_score
         + 0.15 * span_score
-        + 0.10 * balance_score, 2
+        + 0.10 * balance_score
     )
+    base += structure_geom_boost(c)
+    return round(min(100.0, base), 2)
 
 
 def _score_volume(bars: List[Bar], c: dict) -> float:
@@ -538,8 +547,9 @@ def _build_detection(bars, c, confidence, context,
         f"right shoulder (encoded in volume_score component) confirms the "
         f"thesis that institutional supply is exhausting itself, and "
         f"underwater longs from the head price level become a relatively "
-        f"thin supply layer once the neckline cracks on volume."
-    )
+        f"thin supply layer once the neckline cracks on volume. "
+        f"{structure_narrative_sentence(c)}"
+    ).strip()
 
     what_to_watch_for = (
         f"The trigger is a daily close above ${entry:.2f} (the neckline "
@@ -623,6 +633,7 @@ def _build_detection(bars, c, confidence, context,
                 "neckline_slope": round(float(c["neckline_slope"]), 6),
                 "pattern_bars": int(c["pattern_bars"]),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
+                **structure_extras(c),
             },
         },
         "levels": {

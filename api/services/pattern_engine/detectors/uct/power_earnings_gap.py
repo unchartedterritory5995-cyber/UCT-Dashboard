@@ -34,6 +34,10 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.narrative_helpers_structure import (
+    compute_structure_quality, structure_extras, structure_geom_boost,
+    structure_narrative_sentence,
+)
 from api.services.pattern_engine.types import Bar, Detection
 
 
@@ -180,6 +184,13 @@ def _try_extract(bars: List[Bar], gap_idx: int) -> Optional[dict]:
     gap_range_pct = gap_range / gap_close * 100.0 if gap_close > 0 else 0.0
     gap_height = gap_close - prior_close  # absolute gap size in dollars
 
+    # Locate the absolute bar index of the lowest post-gap low (pullback low).
+    post_gap_low_idx = gap_idx + 1
+    for i, b in enumerate(post_gap_segment):
+        if b["l"] == min_post_gap_low:
+            post_gap_low_idx = gap_idx + 1 + i
+            break
+    sq = compute_structure_quality(bars, post_gap_low_idx, min_post_gap_low)
     return {
         "gap_idx": gap_idx,
         "gap_open": gap_open,
@@ -196,11 +207,14 @@ def _try_extract(bars: List[Bar], gap_idx: int) -> Optional[dict]:
         "post_gap_bars": post_gap_bars,
         "post_gap_high": post_gap_high,
         "post_gap_low": min_post_gap_low,
+        "post_gap_low_idx": post_gap_low_idx,
         "avg_post_gap_range": avg_post_gap_range,
         "gap_fill_margin": gap_fill_margin,
         "post_gap_range_pct": post_gap_range_pct,
         "gap_range_pct": gap_range_pct,
         "gap_height": gap_height,
+        "hl_result": sq["hl_result"],
+        "ma_result": sq["ma_result"],
     }
 
 
@@ -267,13 +281,14 @@ def _score_geometry(c: dict) -> float:
     else:
         bars_score = 40.0
 
-    return round(
+    base = (
         0.40 * gap_score
         + 0.30 * tightness_score
         + 0.20 * holding_score
-        + 0.10 * bars_score,
-        2,
+        + 0.10 * bars_score
     )
+    base += structure_geom_boost(c)
+    return round(min(100.0, base), 2)
 
 
 def _score_volume(c: dict) -> float:
@@ -494,8 +509,9 @@ def _build_detection(bars, c, confidence, context,
         f"the prior range. {regime_sentence}. Within the {regime} regime, PEGs are "
         f"particularly potent because they reset the supply/demand equation overnight - "
         f"every prior overhead supply level becomes irrelevant once the gap clears it, "
-        f"so the path of least resistance is straight up to the next obvious resistance."
-    )
+        f"so the path of least resistance is straight up to the next obvious resistance. "
+        f"{structure_narrative_sentence(c)}"
+    ).strip()
 
     what_to_watch_for = (
         f"The trigger is a close above the post-gap consolidation high (${entry:.2f}, "
@@ -563,6 +579,7 @@ def _build_detection(bars, c, confidence, context,
                 "post_gap_low": round(post_gap_low, 2),
                 "gap_range_pct": round(gap_range_pct, 2),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
+                **structure_extras(c),
             },
         },
         "levels": {

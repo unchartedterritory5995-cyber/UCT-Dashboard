@@ -32,6 +32,10 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.narrative_helpers_structure import (
+    compute_structure_quality, structure_extras, structure_geom_boost,
+    structure_narrative_sentence,
+)
 from api.services.pattern_engine.primitives.geometry import line_at
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_trendline
@@ -174,6 +178,13 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
 
     pattern_low = min(b["l"] for b in pattern_bars)
     pattern_high = max(b["h"] for b in pattern_bars)
+    # The most recent pattern low — that's the freshest pullback to the rising
+    # support line, the "buy point" of the ascending triangle.
+    pattern_low_idx = start_idx
+    for i, b in enumerate(pattern_bars):
+        if b["l"] == pattern_low:
+            pattern_low_idx = start_idx + i
+    sq = compute_structure_quality(bars, pattern_low_idx, pattern_low)
 
     return {
         "start_idx": start_idx,
@@ -181,6 +192,7 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
         "pattern_bars": pattern_bars,
         "pattern_count": bar_count,
         "pattern_low": pattern_low,
+        "pattern_low_idx": pattern_low_idx,
         "pattern_high": pattern_high,
         "flat_top_price": flat_top_price,
         "flat_top_spread_pct": flat_top_spread,
@@ -197,6 +209,8 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
         "earliest_swing_low": earliest_swing_low_price,
         "cluster_touches": len(cluster_pivots_raw),
         "low_touches": lower_line["touches"],
+        "hl_result": sq["hl_result"],
+        "ma_result": sq["ma_result"],
     }
 
 
@@ -218,8 +232,10 @@ def _score_geometry(c: dict) -> float:
         conv_score = max(0.0, 100.0 - (c["gap_pct"] - 0.05) * 1500.0)
     # Duration: ideal ~30-45 bars
     duration_score = max(0.0, 100.0 - abs(c["pattern_count"] - 36) * 3.0)
-    return round(0.25 * flatness + 0.20 * rs_quality + 0.20 * touch_score
-                 + 0.20 * conv_score + 0.15 * duration_score, 2)
+    base = (0.25 * flatness + 0.20 * rs_quality + 0.20 * touch_score
+            + 0.20 * conv_score + 0.15 * duration_score)
+    base += structure_geom_boost(c)
+    return round(min(100.0, base), 2)
 
 
 def _score_volume(bars: List[Bar], c: dict) -> float:
@@ -441,8 +457,9 @@ def _build_detection(bars, c, confidence, context,
         f"highest-conviction expression of this setup; weakness on any of those "
         f"context factors lowers conviction but doesn't invalidate the geometry. "
         f"Measured-move math projects a ${pattern_height:.2f} target add - the "
-        f"triangle height projected up from the breakout level."
-    )
+        f"triangle height projected up from the breakout level. "
+        f"{structure_narrative_sentence(c)}"
+    ).strip()
 
     what_to_watch_for = (
         f"The trigger is a daily close above ${entry:.2f} (the flat top at "
@@ -535,6 +552,7 @@ def _build_detection(bars, c, confidence, context,
                 "flat_top_price": round(float(flat_top), 2),
                 "gap_pct": round(float(c["gap_pct"]) * 100, 2),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
+                **structure_extras(c),
             },
         },
         "levels": {

@@ -34,6 +34,10 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.narrative_helpers_structure import (
+    compute_structure_quality, structure_extras, structure_geom_boost,
+    structure_narrative_sentence,
+)
 from api.services.pattern_engine.primitives.geometry import line_at, line_intersect
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_trendline
@@ -200,6 +204,13 @@ def _try_extract_bullish_pennant(bars, pivots, pole_top_idx: int, pole_top) -> O
 
     pennant_low = min(b["l"] for b in pennant_bars)
     pennant_high = max(b["h"] for b in pennant_bars)
+    # Locate absolute bar index of the pennant low for structure-quality checks.
+    pennant_low_idx = start_idx
+    for i, b in enumerate(pennant_bars):
+        if b["l"] == pennant_low:
+            pennant_low_idx = start_idx + i
+            break
+    sq = compute_structure_quality(bars, pennant_low_idx, pennant_low)
 
     return {
         "direction": "bullish",
@@ -212,6 +223,7 @@ def _try_extract_bullish_pennant(bars, pivots, pole_top_idx: int, pole_top) -> O
         "pole_bars": pole_bars,
         "pennant_count": len(pennant_bars),
         "pennant_low": pennant_low,
+        "pennant_low_idx": pennant_low_idx,
         "pennant_high": pennant_high,
         "pennant_start_idx": start_idx,
         "pennant_end_idx": end_idx,
@@ -222,6 +234,8 @@ def _try_extract_bullish_pennant(bars, pivots, pole_top_idx: int, pole_top) -> O
         "width_ratio": width_ratio,
         "apex_bars_ahead": apex_bars_ahead,
         "pennant_bars": pennant_bars,
+        "hl_result": sq["hl_result"],
+        "ma_result": sq["ma_result"],
     }
 
 
@@ -356,8 +370,12 @@ def _score_geometry(c: dict) -> float:
         apex_score = max(0.0, 50.0 + apex * 10.0)
     else:
         apex_score = max(0.0, 100.0 - (apex - 15) * 6.0)
-    return round(0.30 * pole_score + 0.30 * convergence_score
-                 + 0.20 * apex_score + 0.20 * duration_score, 2)
+    base = (0.30 * pole_score + 0.30 * convergence_score
+            + 0.20 * apex_score + 0.20 * duration_score)
+    # Structure quality only applies to bullish pennants (continuation)
+    if c.get("direction") == "bullish":
+        base += structure_geom_boost(c)
+    return round(min(100.0, base), 2)
 
 
 def _pennant_volume_contracted(bars: List[Bar], c: dict) -> bool:
@@ -580,8 +598,9 @@ def _build_detection(bars, c, confidence, context, direction,
             f"Volume contracting to {pennant_vol_pct:.0f}% of pole average is the "
             f"key confirmation that supply is exhausting itself. Historically, "
             f"clean bullish pennants produce measured-move follow-through 55-65% "
-            f"of the time when they break on volume within the apex window."
-        )
+            f"of the time when they break on volume within the apex window. "
+            f"{structure_narrative_sentence(c)}"
+        ).strip()
 
         what_to_watch_for = (
             f"The trigger is a daily close above ${entry:.2f} (current upper "
@@ -773,6 +792,7 @@ def _build_detection(bars, c, confidence, context, direction,
                 "apex_bars_ahead": round(float(c["apex_bars_ahead"]), 2),
                 "width_ratio": round(float(c["width_ratio"]), 3),
                 "dcr_score_adj": round(_dcr_score_adjustment(context, direction), 2),
+                **(structure_extras(c) if direction == "bullish" else {}),
             },
         },
         "levels": {

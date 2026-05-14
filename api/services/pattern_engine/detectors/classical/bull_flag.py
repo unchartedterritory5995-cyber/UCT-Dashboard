@@ -24,6 +24,10 @@ from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
 from api.services.pattern_engine.narrative_helpers import dcr_interpretation, dcr_phrase
+from api.services.pattern_engine.narrative_helpers_structure import (
+    compute_structure_quality, structure_extras, structure_geom_boost,
+    structure_narrative_sentence,
+)
 from api.services.pattern_engine.primitives.geometry import channel_width_parallel_score
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_pair_parallel
@@ -140,6 +144,12 @@ def _try_extract_pattern(bars, pivots, pole_top_idx: int, pole_top) -> Optional[
 
     flag_low = min(b["l"] for b in flag_bars)
     flag_high = max(b["h"] for b in flag_bars)
+    # Find the absolute bar index of the flag low (for higher-low + MA-pullback checks).
+    flag_low_idx = pole_top_idx + 1
+    for i, b in enumerate(flag_bars):
+        if b["l"] == flag_low:
+            flag_low_idx = pole_top_idx + 1 + i
+            break
     retrace = (pole_top["price"] - flag_low) / pole_height
     if retrace < _MIN_FLAG_RETRACE or retrace > _MAX_FLAG_RETRACE:
         return None
@@ -156,6 +166,7 @@ def _try_extract_pattern(bars, pivots, pole_top_idx: int, pole_top) -> Optional[
     if par_score < _MIN_PARALLEL_SCORE:
         return None
 
+    sq = compute_structure_quality(bars, flag_low_idx, flag_low)
     return {
         "pole_base_idx": pole_base["bar_index"],
         "pole_base_price": pole_base["price"],
@@ -166,12 +177,15 @@ def _try_extract_pattern(bars, pivots, pole_top_idx: int, pole_top) -> Optional[
         "pole_bars": pole_bars,
         "flag_count": len(flag_bars),
         "flag_low": flag_low,
+        "flag_low_idx": flag_low_idx,
         "flag_high": flag_high,
         "retrace_pct": retrace,
         "upper_line": upper_line,
         "lower_line": lower_line,
         "parallel_score": par_score,
         "flag_bars": flag_bars,
+        "hl_result": sq["hl_result"],
+        "ma_result": sq["ma_result"],
     }
 
 
@@ -182,8 +196,10 @@ def _score_geometry(c: dict) -> float:
     parallel_pts = c["parallel_score"] * 100
     duration_score = 100 - abs(c["flag_count"] - 8) * 5
     duration_score = max(0, duration_score)
-    return round(0.30 * pole_score + 0.30 * retrace_score
-                 + 0.25 * parallel_pts + 0.15 * duration_score, 2)
+    base = (0.30 * pole_score + 0.30 * retrace_score
+            + 0.25 * parallel_pts + 0.15 * duration_score)
+    base += structure_geom_boost(c)  # higher-low (+8) + rising-MA-pullback (+10/15/18/22)
+    return round(min(100.0, base), 2)
 
 
 def _flag_volume_contracted(bars: List[Bar], c: dict) -> bool:
@@ -397,8 +413,9 @@ def _build_detection(bars, c, confidence, context,
         f"6-8 week window roughly 55-65% of the time, with average winners "
         f"hitting target and average losers stopping out cleanly at the flag low. "
         f"{dcr_phrase(context.get('dcr_signature'), context.get('recent_dcr_avg'))}. "
-        f"{dcr_interpretation(context, 'bullish')}"
-    )
+        f"{dcr_interpretation(context, 'bullish')} "
+        f"{structure_narrative_sentence(c)}"
+    ).strip()
 
     what_to_watch_for = (
         f"The trigger is a daily close above ${entry:.2f} (flag high "
@@ -470,6 +487,7 @@ def _build_detection(bars, c, confidence, context,
                 "flag_bars": c["flag_count"],
                 "parallel_score": round(c["parallel_score"], 3),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
+                **structure_extras(c),
             },
         },
         "levels": {
