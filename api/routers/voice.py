@@ -34,6 +34,7 @@ from api.services.voice_tools import get_schema_for_context
 from api.services.voice_usage import (
     record_mode_b_call, is_within_mode_b_cap, MODE_B_DEFAULT_CAP_CALLS,
     record_mode_c_seconds, is_within_mode_c_cap, MODE_C_DEFAULT_CAP_SECONDS,
+    record_mode_d_seconds, is_within_mode_d_cap, MODE_D_DEFAULT_CAP_SECONDS,
 )
 from api.services.voice_openai import mint_realtime_session
 from api.services.voice_session_service import (
@@ -638,6 +639,52 @@ def oneshot(
         headers=headers,
         background=BackgroundTask(on_complete),
     )
+
+
+# ── Mode D: pure dictation (Whisper STT, no intent, no TTS) ────────────────
+# Used by VoiceInputButton across journal text fields. Returns just the
+# transcribed text so the frontend can drop it into a textarea — the user
+# remains in control of editing + submitting.
+
+@router.post("/transcribe")
+@limiter.limit("60/minute")
+def transcribe(
+    request: Request,
+    audio: UploadFile = File(...),
+    user: dict = Depends(requires_voice_access),
+):
+    audio_bytes = audio.file.read() if audio else b""
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="audio is empty")
+
+    settings = get_voice_settings(user["id"])
+    if not settings.get("enabled", True):
+        raise HTTPException(status_code=400, detail="voice features disabled in settings")
+
+    is_admin = user.get("role") == "admin"
+    if not is_within_mode_d_cap(user["id"], is_admin=is_admin):
+        raise HTTPException(status_code=429, detail="monthly dictation cap reached")
+
+    try:
+        from api.services.voice_openai import _get_client
+        _get_client()
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    try:
+        text = transcribe_audio(audio_bytes, filename=audio.filename or "audio.webm")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        _log.exception("Whisper failed in /transcribe")
+        raise HTTPException(status_code=502, detail=f"Transcription failed: {e}")
+
+    # Estimate seconds from audio bytes as a rough usage signal. WebM Opus at
+    # mono 16k ≈ 4 KB/s, so bytes/4096 ≈ seconds. Clamp to [1, 600].
+    est_seconds = max(1, min(600, len(audio_bytes) // 4096))
+    record_mode_d_seconds(user["id"], est_seconds)
+
+    return {"text": text, "seconds_billed": est_seconds}
 
 
 # ── Slice 4: Realtime (Mode C) ─────────────────────────────────────────────

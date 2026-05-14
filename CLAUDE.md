@@ -96,6 +96,17 @@ J2 is now a full coaching product: Journal + Playbook + AI Coach. **10 distinct 
 
 **In-flight:** Tight Compass ↔ Voice Assistant unification ("one brain, shared memory") is being built in a parallel Claude session — see `project_compass_va_unification_inflight.md` in user memory before refactoring `coach_chat.py`, `voice.py`, or shared trader-memory architecture.
 
+### Voice Dictation Everywhere (2026-05-13)
+
+Whisper-backed push-to-talk dictation + Compass voice conversation are paired on every long-form text field across Journal 2.0. Two reusable components do the heavy lifting; surfaces just drop them in next to a textarea.
+
+- **Backend:** `POST /api/voice/transcribe` (`api/routers/voice.py`) — additive endpoint. Multipart audio in, `{text, seconds_billed}` out. Thin wrapper around existing `transcribe_audio()` (OpenAI Whisper). New `mode_d` cap (1 hr/month default, `MODE_D_DEFAULT_CAP_SECONDS`) tracks usage via `voice_usage.record_mode_d_seconds`. `voice_usage_monthly` gained a `mode_d_seconds` column (auth_db migration list).
+- **`VoiceInputButton`** (`app/src/pages/journal-2-0/components/VoiceInputButton.jsx`): same prop API (`onTranscript`, `disabled`). MediaRecorder → POST primary, browser Web Speech fallback if MediaRecorder unavailable OR backend 5xx. Same visual UX (🎤 / 🛑, "Listening…" / "Transcribing…").
+- **`CompassAssistButton`** (`app/src/components/voice/CompassAssistButton.jsx`): 🧭 button that opens a full Realtime conversation with Compass, pre-loaded with a surface-specific `pageHint`. Reuses existing `useRealtimeSession` + `setVoicePageHint` infra — no new backend. Returns null when no `VoiceProvider` is mounted.
+- **Surfaces wired:** `CompassChat` (already had both); `DayReflection` (4 sections, date threaded into hint); `TradeDrawer` (🎙️ Talk about this trade — hint includes ticker/side/entry/exit/P&L/setup); `AddPositionModal` (Notes); `PlaybookEntryModal` (Thesis + Additional Notes); `CompassReview` (Weekly Review — 🎙️ Discuss).
+- **Page hints**: every CompassAssistButton passes a rich `pageHint` describing the surface + record context. `setVoicePageHint` is called on click so the Realtime session-token mint includes it. Compass's existing P4-B mechanism turns the hint into a "=== CURRENT PAGE ===" block in its system prompt.
+- **Tests**: backend 6 new tests in `tests/test_voice_router.py` (auth, paid-gate, happy path, empty audio, usage tracking, cap exceeded). Frontend 4 new tests in `CompassAssistButton.test.jsx` + 4 added to `VoiceInputButton.test.jsx` (Whisper path, fetch failure → fallback). All 65 backend + 545 frontend tests pass.
+
 ## Mobile Navigation
 
 Hamburger + slide-out drawer (hidden on desktop). Fixed header with page title + AlertBell. Body scroll locked when drawer open. User avatar + name in drawer header.

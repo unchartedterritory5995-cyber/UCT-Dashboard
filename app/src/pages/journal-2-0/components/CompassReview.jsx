@@ -13,6 +13,7 @@
 
 import { useMemo } from 'react'
 import { renderMarkdown } from '../lib/coachMarkdown'
+import CompassAssistButton from '../../../components/voice/CompassAssistButton'
 
 export default function CompassReview({ review, onFeedback, onRegenerate, onForget }) {
   const body = useMemo(() => renderMarkdown(review?.body), [review?.body])
@@ -58,6 +59,12 @@ export default function CompassReview({ review, onFeedback, onRegenerate, onForg
           >👎 Unhelpful</button>
           <button type="button" onClick={onRegenerate} style={ghostBtn()}>Regenerate</button>
           <button type="button" onClick={onForget} style={ghostBtn()}>Forget</button>
+          <CompassAssistButton
+            pageHint={`Weekly Review · week of ${
+              review.week_start || review.metadata?.week_start || 'unknown'
+            }`}
+            label="🎙️ Discuss"
+          />
         </div>
       </header>
       <div>{body}</div>

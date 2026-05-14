@@ -235,6 +235,7 @@ CREATE TABLE IF NOT EXISTS voice_usage_monthly (
     mode_a_seconds       INTEGER NOT NULL DEFAULT 0,
     mode_b_calls         INTEGER NOT NULL DEFAULT 0,
     mode_c_seconds       INTEGER NOT NULL DEFAULT 0,
+    mode_d_seconds       INTEGER NOT NULL DEFAULT 0,
     estimated_cost_usd   REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id, year_month)
 );
@@ -609,6 +610,7 @@ def _migrate_journal_v2(conn):
         ("journal_entries", "session", "TEXT DEFAULT ''"),
         ("journal_entries", "day_of_week", "TEXT"),
         ("journal_entries", "holding_minutes", "INTEGER"),
+        ("voice_usage_monthly", "mode_d_seconds", "INTEGER NOT NULL DEFAULT 0"),
     ]
     for table, col, typedef in new_cols:
         try:

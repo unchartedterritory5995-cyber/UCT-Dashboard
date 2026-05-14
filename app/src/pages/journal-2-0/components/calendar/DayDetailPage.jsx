@@ -138,6 +138,7 @@ export default function DayDetailPage() {
             saving={saving}
             error={saveError}
             optionsActivity={buildOptionsActivitySummary(strategies)}
+            date={date}
           />
 
           <DayAttachments

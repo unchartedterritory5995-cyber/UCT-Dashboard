@@ -12,6 +12,7 @@
 import { useEffect } from 'react'
 import useTradeReview from '../hooks/useTradeReview'
 import TradeReviewCard from './TradeReviewCard'
+import CompassAssistButton from '../../../components/voice/CompassAssistButton'
 import { money, moneySigned, percent, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
 
 export default function TradeDrawer({ trade, accountId, onClose }) {
@@ -181,6 +182,18 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
               🧭 Tell me about this trade
             </button>
           )}
+
+          {/* Voice conversation about this trade */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+            <CompassAssistButton
+              pageHint={`TradeDrawer · ${trade.symbol} ${trade.side || ''} · `
+                + `entered ${dateShort(trade.entryDate)} at ${money(trade.entryPrice)}`
+                + ` · exited ${dateShort(trade.exitDate)} at ${money(trade.exitPrice)}`
+                + ` · ${moneySigned(net)} (${percent(trade.pnlPercent, { signed: true, dp: 1 })})`
+                + (trade.setup ? ` · setup: ${trade.setup}` : '')}
+              label="🎙️ Talk about this trade"
+            />
+          </div>
         </div>
       </aside>
     </>

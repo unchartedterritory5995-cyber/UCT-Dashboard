@@ -8,6 +8,8 @@ import { useEffect, useRef, useState } from 'react'
 import useJ2Settings from '../../hooks/useJ2Settings'
 import { todayET } from '../../lib/calendar'
 import styles from './PlaybookEntryModal.module.css'
+import VoiceInputButton from '../VoiceInputButton'
+import CompassAssistButton from '../../../../components/voice/CompassAssistButton'
 
 const STATUS_OPTIONS = [
   { key: 'watching',  label: '👀 Watching' },
@@ -228,6 +230,17 @@ export default function PlaybookEntryModal({ entry, onClose, prefillSymbol }) {
 
           <label className={styles.field}>
             <span className={styles.label}>Thesis</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <VoiceInputButton
+                onTranscript={(spoken) => {
+                  setThesis((prev) => prev ? `${prev} ${spoken}` : spoken)
+                }}
+              />
+              <CompassAssistButton
+                pageHint={`PlaybookEntry · ${symbol || 'new entry'} · field: thesis`
+                  + (setup ? ` · setup: ${setup}` : '')}
+              />
+            </div>
             <textarea
               value={thesis}
               onChange={(e) => setThesis(e.target.value)}
@@ -329,6 +342,17 @@ export default function PlaybookEntryModal({ entry, onClose, prefillSymbol }) {
 
           <label className={styles.field}>
             <span className={styles.label}>Additional Notes</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <VoiceInputButton
+                onTranscript={(spoken) => {
+                  setNotes((prev) => prev ? `${prev} ${spoken}` : spoken)
+                }}
+              />
+              <CompassAssistButton
+                pageHint={`PlaybookEntry · ${symbol || 'new entry'} · field: additional notes`
+                  + (setup ? ` · setup: ${setup}` : '')}
+              />
+            </div>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

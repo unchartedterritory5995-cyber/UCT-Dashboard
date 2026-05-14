@@ -209,6 +209,77 @@ def test_oneshot_rejects_empty_audio(client):
     assert r.status_code == 400
 
 
+# ── Dictation endpoint (Mode D — pure STT, no TTS, no intent) ──────────────
+
+def test_transcribe_requires_auth(client):
+    r = client.post(
+        "/api/voice/transcribe",
+        files={"audio": ("a.webm", b"FAKE", "audio/webm")},
+    )
+    assert r.status_code == 401
+
+
+def test_transcribe_requires_paid(client):
+    _login(client, plan="free")
+    r = client.post(
+        "/api/voice/transcribe",
+        files={"audio": ("a.webm", b"FAKE", "audio/webm")},
+    )
+    assert r.status_code == 402
+
+
+def test_transcribe_returns_text_for_paid_user(client):
+    _login(client, plan="pro")
+    with patch("api.services.voice_openai._get_client", return_value=object()), \
+         patch("api.routers.voice.transcribe_audio",
+               return_value="add NVDA long position at 142"):
+        r = client.post(
+            "/api/voice/transcribe",
+            files={"audio": ("a.webm", b"FAKE-AUDIO", "audio/webm")},
+        )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["text"] == "add NVDA long position at 142"
+
+
+def test_transcribe_rejects_empty_audio(client):
+    _login(client, plan="pro")
+    r = client.post(
+        "/api/voice/transcribe",
+        files={"audio": ("a.webm", b"", "audio/webm")},
+    )
+    assert r.status_code == 400
+
+
+def test_transcribe_records_mode_d_usage(client):
+    user_id = _login(client, plan="pro")
+    from api.services.voice_usage import get_monthly_usage
+    before = get_monthly_usage(user_id).get("mode_d_seconds", 0)
+    with patch("api.services.voice_openai._get_client", return_value=object()), \
+         patch("api.routers.voice.transcribe_audio", return_value="hello world"):
+        r = client.post(
+            "/api/voice/transcribe",
+            files={"audio": ("a.webm", b"FAKE-AUDIO", "audio/webm")},
+        )
+    assert r.status_code == 200
+    after = get_monthly_usage(user_id).get("mode_d_seconds", 0)
+    assert after > before
+
+
+def test_transcribe_blocks_when_cap_exceeded(client):
+    user_id = _login(client, plan="pro")
+    from api.services.voice_usage import (
+        record_mode_d_seconds, MODE_D_DEFAULT_CAP_SECONDS,
+    )
+    # Saturate the cap
+    record_mode_d_seconds(user_id, MODE_D_DEFAULT_CAP_SECONDS + 1)
+    r = client.post(
+        "/api/voice/transcribe",
+        files={"audio": ("a.webm", b"FAKE", "audio/webm")},
+    )
+    assert r.status_code == 429
+
+
 # ── Realtime endpoints (Slice 4) ───────────────────────────────────────────
 
 def test_session_token_requires_paid(client):

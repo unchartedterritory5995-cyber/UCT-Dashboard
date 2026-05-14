@@ -48,7 +48,8 @@ def get_monthly_usage(user_id: str, year_month: str | None = None) -> dict:
     conn = get_connection()
     try:
         row = conn.execute(
-            """SELECT mode_a_seconds, mode_b_calls, mode_c_seconds, estimated_cost_usd
+            """SELECT mode_a_seconds, mode_b_calls, mode_c_seconds,
+                      mode_d_seconds, estimated_cost_usd
                FROM voice_usage_monthly WHERE user_id = ? AND year_month = ?""",
             (user_id, ym),
         ).fetchone()
@@ -58,6 +59,7 @@ def get_monthly_usage(user_id: str, year_month: str | None = None) -> dict:
                 "mode_a_seconds": 0,
                 "mode_b_calls": 0,
                 "mode_c_seconds": 0,
+                "mode_d_seconds": 0,
                 "estimated_cost_usd": 0.0,
             }
         return {
@@ -65,6 +67,7 @@ def get_monthly_usage(user_id: str, year_month: str | None = None) -> dict:
             "mode_a_seconds": int(row["mode_a_seconds"]),
             "mode_b_calls": int(row["mode_b_calls"]),
             "mode_c_seconds": int(row["mode_c_seconds"]),
+            "mode_d_seconds": int(row["mode_d_seconds"]),
             "estimated_cost_usd": float(row["estimated_cost_usd"]),
         }
     finally:
@@ -160,3 +163,44 @@ def is_within_mode_c_cap(
     if is_admin:
         return True
     return get_monthly_usage(user_id)["mode_c_seconds"] < cap_seconds
+
+
+# ── Mode D (dictation — pure Whisper STT, no TTS, no intent) ────────────────
+
+# 60 min/month free. Whisper $0.006/min → max $0.36/user/month. Light usage
+# profile compared to Mode C (Realtime). Override via env in future.
+MODE_D_DEFAULT_CAP_SECONDS = 3600
+MODE_D_COST_PER_SECOND = 0.0001  # $0.006/min
+
+
+def record_mode_d_seconds(user_id: str, seconds: int) -> None:
+    """Add Mode D (dictation) seconds for the current calendar month."""
+    if seconds <= 0:
+        return
+    ym = _current_year_month()
+    cost_delta = seconds * MODE_D_COST_PER_SECOND
+    conn = get_connection()
+    try:
+        conn.execute(
+            """INSERT INTO voice_usage_monthly
+               (user_id, year_month, mode_d_seconds, estimated_cost_usd)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT (user_id, year_month) DO UPDATE SET
+                 mode_d_seconds = mode_d_seconds + excluded.mode_d_seconds,
+                 estimated_cost_usd = estimated_cost_usd + excluded.estimated_cost_usd""",
+            (user_id, ym, int(seconds), cost_delta),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def is_within_mode_d_cap(
+    user_id: str,
+    *,
+    cap_seconds: int = MODE_D_DEFAULT_CAP_SECONDS,
+    is_admin: bool = False,
+) -> bool:
+    if is_admin:
+        return True
+    return get_monthly_usage(user_id)["mode_d_seconds"] < cap_seconds

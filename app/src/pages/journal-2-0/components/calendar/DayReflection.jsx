@@ -11,6 +11,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import styles from './DayReflection.module.css'
+import VoiceInputButton from '../VoiceInputButton'
+import CompassAssistButton from '../../../../components/voice/CompassAssistButton'
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
@@ -36,6 +38,7 @@ export default function DayReflection({
   saving,
   error,
   optionsActivity = '',
+  date = '',
 }) {
   return (
     <div className={styles.stack}>
@@ -63,6 +66,7 @@ export default function DayReflection({
           onSave={onSave}
           externalError={error}
           suggestion={s.key === 'recapNotes' ? optionsActivity : ''}
+          date={date}
         />
       ))}
     </div>
@@ -73,6 +77,7 @@ function Section({
   sectionKey, label, icon, placeholder, initialValue,
   attachments, rules, currentAll, onSave, externalError,
   suggestion = '',
+  date = '',
 }) {
   const [text, setText] = useState(initialValue)
   const [open, setOpen] = useState(() => Boolean(initialValue && initialValue.length > 0))
@@ -150,22 +155,36 @@ function Section({
       </button>
       {open && (
         <div className={styles.body}>
-          {suggestion && !text.includes(suggestion.slice(0, 20)) && (
-            <button
-              type="button"
-              className={styles.suggestBtn}
-              onClick={() => {
-                const next = text ? `${suggestion}\n\n${text}` : suggestion
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <VoiceInputButton
+              onTranscript={(spoken) => {
+                const next = text ? `${text} ${spoken}` : spoken
                 setText(next)
                 setStatus('typing')
                 clearTimeout(debounceRef.current)
                 debounceRef.current = setTimeout(() => triggerSave(next), AUTOSAVE_DEBOUNCE_MS)
               }}
-              title="Prepend an auto-generated summary of today's options activity"
-            >
-              ✨ Insert today's options summary
-            </button>
-          )}
+            />
+            <CompassAssistButton
+              pageHint={`Daily Notes · ${label}${date ? ` · ${date}` : ''}`}
+            />
+            {suggestion && !text.includes(suggestion.slice(0, 20)) && (
+              <button
+                type="button"
+                className={styles.suggestBtn}
+                onClick={() => {
+                  const next = text ? `${suggestion}\n\n${text}` : suggestion
+                  setText(next)
+                  setStatus('typing')
+                  clearTimeout(debounceRef.current)
+                  debounceRef.current = setTimeout(() => triggerSave(next), AUTOSAVE_DEBOUNCE_MS)
+                }}
+                title="Prepend an auto-generated summary of today's options activity"
+              >
+                ✨ Insert today's options summary
+              </button>
+            )}
+          </div>
           <textarea
             className={styles.textarea}
             value={text}

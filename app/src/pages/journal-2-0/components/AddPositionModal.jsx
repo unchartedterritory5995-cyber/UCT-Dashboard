@@ -14,6 +14,8 @@
 import { useState, useCallback, useId, useEffect } from 'react'
 import styles from './ModalShell.module.css'
 import bannerStyles from './AlertBanner.module.css'
+import VoiceInputButton from './VoiceInputButton'
+import CompassAssistButton from '../../../components/voice/CompassAssistButton'
 import {
   computeDefaultShares,
   computeSuggestedTarget,
@@ -435,6 +437,18 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
 
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Notes</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <VoiceInputButton
+                onTranscript={(spoken) => {
+                  setNotes((prev) => prev ? `${prev} ${spoken}` : spoken)
+                }}
+              />
+              <CompassAssistButton
+                pageHint={`AddPositionModal · ${symbol || 'new position'}`
+                  + (setup ? ` · setup: ${setup}` : '')
+                  + (entryPrice ? ` · entry: $${entryPrice}` : '')}
+              />
+            </div>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
