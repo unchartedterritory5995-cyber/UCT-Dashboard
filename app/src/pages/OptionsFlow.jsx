@@ -3315,7 +3315,7 @@ export default function OptionsFlowDashboard() {
         {tab==="Market Read" && (
           <div style={{ marginBottom:12 }}>
             {/* Ticker Strip */}
-            <div style={{ display:"flex", alignItems:"center", gap:0, background:P.cd, border:"1px solid "+P.bd, borderRadius:marketNarrative&&!narrativeLoading?"10px 10px 0 0":10, padding:"8px 14px", flexWrap:"wrap" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:0, background:P.cd, border:"1px solid "+P.bd, borderRadius:marketNarrative&&!narrativeLoading?"10px 10px 0 0":10, padding:"8px 14px", flexWrap:"wrap" }}>
               {marketIndices ? marketIndices.map((idx,i) => {
                 const isVix = (idx.name||"").includes("VIX");
                 const up = isVix ? idx.pct < 0 : idx.pct >= 0;
