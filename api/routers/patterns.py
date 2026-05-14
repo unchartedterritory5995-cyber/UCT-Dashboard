@@ -50,6 +50,13 @@ from api.services.pattern_engine.detectors.uct import holy_grail as _holy_grail 
 from api.services.pattern_engine.detectors.uct import can_slim_composite as _can_slim_composite  # noqa: F401
 from api.services.pattern_engine.detectors.uct import liquid_leader_filter as _liquid_leader_filter  # noqa: F401
 from api.services.pattern_engine.detectors.classical import higher_low_continuation as _higher_low_continuation  # noqa: F401
+from api.services.pattern_engine.detectors.classical import td_sequential_buy as _td_sequential_buy  # noqa: F401
+from api.services.pattern_engine.detectors.classical import td_sequential_sell as _td_sequential_sell  # noqa: F401
+from api.services.pattern_engine.detectors.uct import wyckoff_spring as _wyckoff_spring  # noqa: F401
+from api.services.pattern_engine.detectors.uct import wyckoff_upthrust as _wyckoff_upthrust  # noqa: F401
+from api.services.pattern_engine.detectors.uct import pullback_to_10ema as _pullback_to_10ema  # noqa: F401
+from api.services.pattern_engine.detectors.uct import pullback_to_21ema as _pullback_to_21ema  # noqa: F401
+from api.services.pattern_engine.detectors.uct import pullback_to_50sma as _pullback_to_50sma  # noqa: F401
 from api.services.pattern_engine.detectors.structure import swing_pivots as _swing_pivots  # noqa: F401
 from api.services.pattern_engine.detectors.structure import support_resistance as _support_resistance  # noqa: F401
 from api.services.pattern_engine.detectors.structure import major_trendlines as _major_trendlines  # noqa: F401
@@ -425,6 +432,48 @@ _PATTERN_METADATA = {
         "category": "uct",
         "direction": "bullish",
         "description": "Universe-eligibility detector: within 5% of 52w high + avg volume >=500K + Stage 2 + stacked bullish + RS up. The 'this stock is worth trading' signal (Kullamägi/Minervini/O'Neil criteria).",
+    },
+    "td_sequential_buy": {
+        "name": "TD Sequential Buy (TD9)",
+        "category": "classical",
+        "direction": "bullish",
+        "description": "Tom DeMark's TD9 setup — 9 consecutive bars closing below the close 4 bars prior. Downside exhaustion signal used by institutional desks.",
+    },
+    "td_sequential_sell": {
+        "name": "TD Sequential Sell (TD9)",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "DeMark's TD9 mirror — 9 consecutive bars closing above the close 4 bars prior. Upside exhaustion signal.",
+    },
+    "wyckoff_spring": {
+        "name": "Wyckoff Spring",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Wyckoff Phase C accumulation: false breakdown below trading range support + immediate reclaim on Sign of Strength volume. Highest-conviction long entry.",
+    },
+    "wyckoff_upthrust": {
+        "name": "Wyckoff Upthrust",
+        "category": "uct",
+        "direction": "bearish",
+        "description": "Wyckoff Phase C distribution mirror: false breakout above trading range resistance + immediate reject on Sign of Weakness volume.",
+    },
+    "pullback_to_10ema": {
+        "name": "Pullback to 10-EMA",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Fast-pullback entry to the rising 10-EMA in a Stage 2 uptrend. Raschke + Bonde framework — tightest stop, highest reward-to-risk.",
+    },
+    "pullback_to_21ema": {
+        "name": "Pullback to 21-EMA (Minervini SEPA)",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Mark Minervini's SEPA primary support — pullback to rising 21-EMA in confirmed Stage 2 trend. The 'natural support' of leading momentum stocks.",
+    },
+    "pullback_to_50sma": {
+        "name": "Pullback to 50-SMA (O'Neil 2nd Buy Point)",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "William O'Neil's 'second buy point' from CAN SLIM — test of rising 50-day average in a confirmed leader after ≥30% prior advance. Classic institutional re-entry.",
     },
 }
 
