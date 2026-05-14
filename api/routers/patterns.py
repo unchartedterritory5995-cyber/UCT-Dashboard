@@ -43,6 +43,13 @@ from api.services.pattern_engine.detectors.uct import flat_base as _flat_base  #
 from api.services.pattern_engine.detectors.uct import u_and_r as _u_and_r  # noqa: F401
 from api.services.pattern_engine.detectors.uct import remount as _remount  # noqa: F401
 from api.services.pattern_engine.detectors.uct import cup_handle_uct as _cup_handle_uct  # noqa: F401
+from api.services.pattern_engine.detectors.uct import kell_cycle as _kell_cycle  # noqa: F401
+from api.services.pattern_engine.detectors.uct import qullamaggie_setup as _qullamaggie_setup  # noqa: F401
+from api.services.pattern_engine.detectors.uct import parabolic_short as _parabolic_short  # noqa: F401
+from api.services.pattern_engine.detectors.uct import holy_grail as _holy_grail  # noqa: F401
+from api.services.pattern_engine.detectors.uct import can_slim_composite as _can_slim_composite  # noqa: F401
+from api.services.pattern_engine.detectors.uct import liquid_leader_filter as _liquid_leader_filter  # noqa: F401
+from api.services.pattern_engine.detectors.classical import higher_low_continuation as _higher_low_continuation  # noqa: F401
 from api.services.pattern_engine.detectors.structure import swing_pivots as _swing_pivots  # noqa: F401
 from api.services.pattern_engine.detectors.structure import support_resistance as _support_resistance  # noqa: F401
 from api.services.pattern_engine.detectors.structure import major_trendlines as _major_trendlines  # noqa: F401
@@ -376,6 +383,48 @@ _PATTERN_METADATA = {
         "category": "candlestick",
         "direction": "bearish",
         "description": "3 consecutive long red bars, each opening within prior body and closing near its low. Distribution signal - bearish reversal at swing highs or continuation from top.",
+    },
+    "kell_cycle": {
+        "name": "Kell Cycle of Price Action",
+        "category": "uct",
+        "direction": "neutral",
+        "description": "Oliver Kell's 5-stage Cycle of Price Action: reversal extension -> wedge pop -> exhaustion extension -> wedge drop -> base & breakout. From 'Victorious Stock Operator'.",
+    },
+    "qullamaggie_setup": {
+        "name": "Qullamaggie Setup",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Kristjan Kullamägi's signature: 4-week consolidation + ATR-relative thrust + low-volume retracement on liquid leader near 52w high. The 'monster move' trigger.",
+    },
+    "parabolic_short": {
+        "name": "Parabolic Short",
+        "category": "uct",
+        "direction": "bearish",
+        "description": "Kullamägi's blow-off detector: parabolic 100%+ run + climactic bar with gap-up failure + 3x volume + DCR <0.3. High-RR short setup at trend exhaustion.",
+    },
+    "holy_grail": {
+        "name": "Holy Grail (Raschke)",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Linda Raschke's pullback setup: ADX > 30 strong trend + pullback to rising 20EMA + close above EMA. From 'Street Smarts' (Raschke + Connors 1995).",
+    },
+    "higher_low_continuation": {
+        "name": "Higher Low Continuation",
+        "category": "classical",
+        "direction": "bullish",
+        "description": "Classical Dow Theory uptrend confirmation: most recent swing low is higher than prior swing low + price reclaims above. Structural continuation signal.",
+    },
+    "can_slim_composite": {
+        "name": "CAN SLIM Composite",
+        "category": "uct",
+        "direction": "neutral",
+        "description": "William O'Neil's CAN SLIM 7-pillar framework score (C/A/N/S/L/I/M). Meta-detector - always emits with grade A-D + per-pillar breakdown.",
+    },
+    "liquid_leader_filter": {
+        "name": "Liquid Leader Eligibility",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Universe-eligibility detector: within 5% of 52w high + avg volume >=500K + Stage 2 + stacked bullish + RS up. The 'this stock is worth trading' signal (Kullamägi/Minervini/O'Neil criteria).",
     },
 }
 
