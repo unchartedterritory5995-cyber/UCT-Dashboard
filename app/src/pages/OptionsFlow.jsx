@@ -389,6 +389,37 @@ function filterByCap(trades, cap) {
   return trades.filter(t => capBand(t.mktcap) === cap);
 }
 function sum(arr) { return arr.reduce((a,t)=>a+t.P,0); }
+
+// ─── Theme Map ────────────────────────────────────────────────────────────────
+// Tickers can belong to multiple themes. Themes aggregate flow across sectors.
+const THEMES_DEF = {
+  "Semiconductors": ["NVDA","AMD","INTC","AVGO","QCOM","MU","MRVL","TSM","ASML","LRCX","AMAT","KLAC","ON","MCHP","TXN","ARM","SMCI","ADI","NXPI","SWKS","GFS","MPWR","WOLF","CRUS","ALGM","ACLS","RMBS","SYNA","CDNS","SNPS","CRDO","AMKR"],
+  "Software": ["CRM","PLTR","AI","SNOW","DDOG","MDB","PATH","SOUN","BBAI","NOW","ORCL","IBM","ADBE","WDAY","HUBS","DOCN","ESTC","GTLB","CFLT","APP","GRAB","DUOL"],
+  "AI Infra": ["CRWV","NBIS","IREN","CIFR","WULF","CORZ","VRT","EQIX","DLR","DELL","HPE","ANET"],
+  "Crypto": ["MSTR","COIN","RIOT","MARA","CLSK","BITF","HUT","IBIT","BITO","GBTC","ETHE","BTBT","SQ","HOOD"],
+  "Nuclear": ["VST","CEG","NRG","TLN","OKLO","SMR","NNE","GEV","POWL","ETN","BN","BWXT","LEU","UEC","CCJ","DNN"],
+  "China": ["BABA","JD","PDD","NIO","LI","XPEV","BIDU","KWEB","FXI","BILI","TME","FUTU","TCOM","WB","TAL","YMM","VNET","MNSO","ZTO","TIGR","HUYA","IQ","QFIN","FINV"],
+  "EV": ["TSLA","RIVN","LCID","CHPT","QS","BLNK","GOEV","PTRA","WKHS","FFIE","VFS","PSNY","F","GM"],
+  "Defense": ["LMT","RTX","NOC","GD","BA","LHX","HII","KTOS","RKLB","LDOS","BAH","MRCY","AVAV","TDG","AXON","RCAT"],
+  "Biotech": ["MRNA","PFE","ABBV","BMY","GILD","AMGN","BIIB","REGN","VRTX","LLY","NVO","AZN","MRK","JNJ","SGEN","ALNY","CRSP","NTLA","BEAM","EDIT","EXAS","DXCM","ISRG","ILMN","VKTX","ALT","GPCR","TERN","VTYX","ROCL","ZEAL"],
+  "Cybersecurity": ["CRWD","PANW","ZS","FTNT","S","NET","CYBR","TENB","QLYS","RPD","VRNS","SAIL","OKTA","RBRK"],
+  "Financials": ["JPM","GS","BAC","WFC","MS","C","USB","PNC","SCHW","COF","AXP","V","MA","PYPL","BLK","ICE","CME","SPGI","MCO","FIS","FISV","GPN","UPST","SOFI","AFRM","NU","TOST"],
+  "Energy": ["XOM","CVX","OXY","COP","SLB","HAL","DVN","EOG","MPC","VLO","PSX","FANG","MRO","APA","HES","BKR","AR","EQT","RRC","CTRA"],
+  "Metal Miners": ["NEM","GOLD","AEM","FNV","WPM","AG","PAAS","HL","CDE","SSRM","RGLD","KGC","BTG","AGI","MAG","SVM","EXK","FSM","GFI","AU","HMY"],
+  "Solar": ["ENPH","SEDG","FSLR","RUN","NOVA","MAXN","ARRY","CSIQ","JKS","SPWR","TAN","SHLS","GNRC"],
+  "Quantum": ["IONQ","RGTI","QUBT","ARQQ","QBTS"],
+  "Retail": ["WMT","TGT","COST","HD","LOW","DG","DLTR","LULU","NKE","TJX","ROST","FIVE","BBY","M","KSS","BURL","GPS","ANF","AEO"],
+  "Airlines": ["UAL","DAL","AAL","LUV","JBLU","ALK","SAVE","HA","SKYW","ALGT"],
+  "Homebuilders": ["DHI","LEN","NVR","PHM","TOL","KBH","TMHC","MTH","MHO","CCS","GRBK","LGIH","MDC","TPH","BZH"],
+};
+// Reverse lookup: ticker → [theme1, theme2, ...]
+const THEME_LOOKUP = {};
+Object.entries(THEMES_DEF).forEach(([theme, tickers]) => {
+  tickers.forEach(sym => {
+    if (!THEME_LOOKUP[sym]) THEME_LOOKUP[sym] = [];
+    if (!THEME_LOOKUP[sym].includes(theme)) THEME_LOOKUP[sym].push(theme);
+  });
+});
 function netByTicker(trades, n=8) {
   const m = {};
   trades.forEach(t => {
@@ -624,10 +655,28 @@ function buildCharts(cc) {
         .map(s => ({ ...s, topTickers: Object.values(s.tickers).sort((a,b)=>b.p-a.p).slice(0,5) }))
     : Object.values(sectorMap).sort((a,b)=>(b.bull+b.bear)-(a.bull+a.bear)).slice(0,8)
         .map(s => ({ ...s, topTickers: Object.values(s.tickers).sort((a,b)=>b.p-a.p).slice(0,5) }));
+  // ── Theme aggregation ──
+  const themeMap = {};
+  cc.forEach(t => {
+    const themes = THEME_LOOKUP[t.S];
+    if (!themes) return;
+    themes.forEach(th => {
+      if (!themeMap[th]) themeMap[th] = { name:th, bull:0, bear:0, count:0, tickers:{} };
+      themeMap[th].count++;
+      t.D === "BULL" ? (themeMap[th].bull += t.P) : (themeMap[th].bear += t.P);
+      if (!themeMap[th].tickers[t.S]) themeMap[th].tickers[t.S] = { s:t.S, p:0, bull:0, bear:0 };
+      themeMap[th].tickers[t.S].p += t.P;
+      t.D === "BULL" ? (themeMap[th].tickers[t.S].bull += t.P) : (themeMap[th].tickers[t.S].bear += t.P);
+    });
+  });
+  const THEMES = Object.values(themeMap)
+    .filter(th => th.count >= 2)
+    .sort((a,b) => (b.bull+b.bear) - (a.bull+a.bear))
+    .map(th => ({ ...th, topTickers: Object.values(th.tickers).sort((a,b)=>b.p-a.p).slice(0,5) }));
   return {
     DAYS, CONV, SB_SYM, SR_SYM, LB_SYM, LR_SYM, LEAPS_B, LEAPS_R,
     SBL, SBR, LBL, LBR_T, LEAPS_BL_T, LEAPS_BR_T,
-    SBLC, SBRC, LBLC, LBRC, LEAPS_BLC, LEAPS_BRC, LEAPS_EXPS, SECTORS,
+    SBLC, SBRC, LBLC, LBRC, LEAPS_BLC, LEAPS_BRC, LEAPS_EXPS, SECTORS, THEMES,
     sectorTickerMode: useTickers, sectorIsETF: isETFData,
     shortBullTotal:sum(sb),
     shortBearTotal:sum(sbr),
@@ -1116,6 +1165,7 @@ export default function OptionsFlowDashboard() {
   const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
   const [leaderDte, setLeaderDte] = useState("All");
   const [selectedLeaderTicker, setSelectedLeaderTicker] = useState(null);
+  const [sectorView, setSectorView] = useState("sectors"); // "sectors" | "themes"
   const [tfDteFilter, setTfDteFilter] = useState("All");
   const [gexTicker, setGexTicker] = useState("SPY");
   const [gexInput, setGexInput] = useState("SPY");
@@ -3543,8 +3593,25 @@ export default function OptionsFlowDashboard() {
                 </Card>
               );
             })()}
+            {/* Sector / Theme Breakdown */}
             {FD.SECTORS.length > 0 && (
-              <Card title={FD.sectorTickerMode?(FD.sectorIsETF?"ETF Flow":"Ticker Flow"):"Sector Flow"} sub={FD.sectorTickerMode?"Confirmed premium by ticker":"Confirmed premium by sector"}>
+              <Card>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:8 }}>
+                  <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                    {[["sectors","Sectors"],["themes","Themes"]].map(([v,label])=>(
+                      <button key={v} onClick={()=>{setSectorView(v);setSelectedItem(null);}} style={{
+                        padding:"4px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                        fontSize:11, fontWeight:700, fontFamily:"inherit", textTransform:"uppercase", letterSpacing:1.5,
+                        background:sectorView===v?P.ac+"22":"transparent",
+                        color:sectorView===v?P.ac:P.dm,
+                      }}>{label}</button>
+                    ))}
+                  </div>
+                  <span style={{ fontSize:10, color:P.mt }}>
+                    {sectorView==="themes"?"Confirmed premium by investment theme":"Confirmed premium by "+(FD.sectorTickerMode?"ticker":"sector")}
+                  </span>
+                </div>
+                {sectorView==="sectors" && (
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:6 }}>
                   {FD.SECTORS.map((s,i) => {
                     const total = s.bull + s.bear;
@@ -3581,7 +3648,7 @@ export default function OptionsFlowDashboard() {
                           const clusters = (tk.c||[]).slice(0,4);
                           return (
                             <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:280, maxWidth:400,
-                              background:"#152038", border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
+                              background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
                               boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}
                               onClick={e=>e.stopPropagation()}>
                               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -3641,7 +3708,7 @@ export default function OptionsFlowDashboard() {
                         {/* Sector mode dropdown */}
                         {!FD.sectorTickerMode && selectedItem&&selectedItem._secKey===hk && s.topTickers && s.topTickers.length > 0 && (
                           <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:180,
-                            background:"#152038", border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
+                            background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
                             boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
                             <div style={{ fontWeight:700, color:P.ac, marginBottom:6 }}>{s.name} — Top Flow</div>
                             {s.topTickers.map((tk,j) => {
@@ -3663,6 +3730,73 @@ export default function OptionsFlowDashboard() {
                     );
                   })}
                 </div>
+                )}
+                {/* Theme Flow view */}
+                {sectorView==="themes" && (
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:6 }}>
+                  {(FD.THEMES||[]).length > 0 ? (FD.THEMES||[]).map((th,i) => {
+                    const total = th.bull + th.bear;
+                    const bullPct = total > 0 ? th.bull / total * 100 : 50;
+                    const isBull = th.bull >= th.bear;
+                    const dirC = isBull ? P.bu : P.be;
+                    const hk = "thm_"+i;
+                    return (
+                      <div key={i} style={{ position:"relative" }}
+                        onClick={()=>setSelectedItem(prev=>prev&&prev._secKey===hk?null:{_secKey:hk})}>
+                        <div style={{ background:P.al, borderRadius:6, padding:"8px 10px", border:"1px solid "+((selectedItem&&selectedItem._secKey===hk)?P.ac:P.bd), cursor:"pointer", transition:"border-color 0.15s",
+                          borderLeft:"3px solid "+dirC }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                            <span style={{ fontSize:10, fontWeight:800, color:P.wh }}>{th.name}</span>
+                            <span style={{ width:8, height:8, borderRadius:2, background:dirC, display:"inline-block" }} title={isBull?"Bullish":"Bearish"} />
+                          </div>
+                          <div style={{ fontSize:12, fontWeight:800, color:P.ac }}>{fmt(total)}</div>
+                          <div style={{ display:"flex", gap:8, fontSize:9, marginTop:3 }}>
+                            <span style={{ color:P.bu, fontWeight:700 }}>B {fmt(th.bull)}</span>
+                            <span style={{ color:P.be, fontWeight:700 }}>R {fmt(th.bear)}</span>
+                          </div>
+                          <div style={{ width:"100%", height:3, background:P.be, borderRadius:2, marginTop:4 }}>
+                            <div style={{ width:bullPct+"%", height:"100%", background:P.bu, borderRadius:2 }} />
+                          </div>
+                          <div style={{ fontSize:8, color:P.dm, marginTop:2 }}>{th.count} trades · {Object.keys(th.tickers).length} tickers</div>
+                        </div>
+                        {/* Theme ticker dropdown */}
+                        {selectedItem&&selectedItem._secKey===hk && th.topTickers && th.topTickers.length > 0 && (
+                          <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:220,
+                            background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
+                            boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}
+                            onClick={e=>e.stopPropagation()}>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                              <span style={{ fontWeight:800, color:P.ac, fontSize:11 }}>{th.name}</span>
+                              <button onClick={e=>{e.stopPropagation();setSelectedItem(null);}}
+                                style={{ background:"none", border:"none", color:P.dm, fontSize:14, cursor:"pointer", padding:"0 2px" }}>×</button>
+                            </div>
+                            {th.topTickers.map((tk,j) => {
+                              const tkTotal = tk.bull + tk.bear;
+                              const tkBull = tk.bull >= tk.bear;
+                              const sqColor = tkBull ? P.bu : P.be;
+                              return (
+                                <div key={j} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"4px 0", borderBottom:j<th.topTickers.length-1?("1px solid "+P.bd+"20"):"none" }}>
+                                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                    <span style={{ width:6, height:6, borderRadius:1, background:sqColor, display:"inline-block", flexShrink:0 }} />
+                                    <span style={{ fontWeight:800, color:P.wh, cursor:"pointer" }}
+                                      onClick={e=>{e.stopPropagation(); setSearch(tk.s); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.s)||null); setTab("Search"); setSelectedItem(null);}}
+                                    >{tk.s}</span>
+                                  </div>
+                                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                    <span style={{ fontSize:9, color:P.bu, fontWeight:700 }}>{fmt(tk.bull)}</span>
+                                    <span style={{ fontSize:9, color:P.be, fontWeight:700 }}>{fmt(tk.bear)}</span>
+                                    <span style={{ fontWeight:700, color:P.ac, fontSize:9 }}>{fmt(tkTotal)}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }) : <div style={{ gridColumn:"1/-1", textAlign:"center", padding:16, color:P.dm, fontSize:11 }}>No themed tickers found in current flow data</div>}
+                </div>
+                )}
               </Card>
             )}
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
@@ -4702,6 +4836,7 @@ export default function OptionsFlowDashboard() {
                       {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}
                     </button>
                     <span style={{ fontSize:9, color:P.dm }}>Updates Now, P&L, OI, ΔOI, Greeks across both tables</span>
+                    {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
                   </div>
                   <Card title={tk.s+" — Top 10 Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
                   {tk.c.length>0 && <Card title={tk.s+" — Top Consistency (2+ hits)"}><CT rows={tk.c.slice(0,5)} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>}
