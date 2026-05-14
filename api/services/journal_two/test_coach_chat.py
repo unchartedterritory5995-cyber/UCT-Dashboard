@@ -182,6 +182,75 @@ def test_handle_user_turn_simple_text_response(db_conn):
     assert "complete" in types
 
 
+class _SdkEvent:
+    """Mimics the real Anthropic SDK event shape: an object with .type and
+    other attributes set. Used to reproduce the production behavior where the
+    SDK emits events as Pydantic models, not dicts."""
+
+    def __init__(self, **kw):
+        for k, v in kw.items():
+            setattr(self, k, v)
+
+
+def test_handle_user_turn_captures_tool_use_from_content_block_stop(db_conn):
+    """Production regression: the Anthropic SDK 0.83 never emits events with
+    type='tool_use'. Tool calls arrive as ContentBlockStopEvent objects whose
+    content_block.type == 'tool_use'. The orchestrator must capture these."""
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
+                  exit_iso="2026-05-11T20:00:00+00:00")
+    tool_use_block = _SdkEvent(
+        type="tool_use", id="tu_1", name="list_recent_trades", input={"days": 7},
+    )
+    client = FakeChatClient(stream_scripts=[
+        [_SdkEvent(type="content_block_stop", content_block=tool_use_block),
+         _SdkEvent(type="message_stop")],
+        [_SdkEvent(type="text", text="You had 1 trade."),
+         _SdkEvent(type="message_stop")],
+    ])
+    list(coach_chat.handle_user_turn(
+        user_id="u_chat", account_id=acc["id"],
+        user_message="How many trades?", client=client, conn=db_conn,
+    ))
+    rows = db_conn.execute("SELECT role, content, tool_calls FROM j2_chat_messages ORDER BY created_at").fetchall()
+    roles = [r["role"] for r in rows]
+    assert "tool" in roles, f"tool row missing, got roles: {roles}"
+    assistant_contents = [r["content"] for r in rows if r["role"] == "assistant"]
+    assert any("1 trade" in (c or "") for c in assistant_contents), \
+        f"second-turn assistant text missing, got: {assistant_contents}"
+    # The first assistant row should have captured the tool_use call.
+    first_assistant = next(r for r in rows if r["role"] == "assistant")
+    tc = json.loads(first_assistant["tool_calls"]) if first_assistant["tool_calls"] else []
+    assert len(tc) == 1 and tc[0]["name"] == "list_recent_trades"
+
+
+def test_reconstruct_skips_empty_assistant_rows(db_conn):
+    """An assistant row with no content AND no tool_calls must never produce
+    an empty text content block (`{'type':'text','text':''}`). Anthropic
+    rejects empty text content blocks with HTTP 400, which surfaces as a 500
+    on the chat endpoint and breaks the conversation."""
+    from api.services.journal_two import coach_chat
+    acc = _seed_account(db_conn)
+    coach_chat.append_message(user_id="u_chat", account_id=acc["id"],
+                              role="user", content="hi", conn=db_conn)
+    # Simulate the pathological row a broken streaming loop would save.
+    coach_chat.append_message(user_id="u_chat", account_id=acc["id"],
+                              role="assistant", content=None, conn=db_conn)
+    coach_chat.append_message(user_id="u_chat", account_id=acc["id"],
+                              role="user", content="hello again", conn=db_conn)
+    msgs = coach_chat._reconstruct_messages(
+        user_id="u_chat", account_id=acc["id"], conn=db_conn,
+    )
+    for m in msgs:
+        content = m.get("content")
+        if isinstance(content, list):
+            for b in content:
+                if isinstance(b, dict) and b.get("type") == "text":
+                    assert b.get("text"), \
+                        f"empty text block in reconstructed messages: {m}"
+
+
 def test_handle_user_turn_executes_read_tool_inline(db_conn):
     from api.services.journal_two import coach_chat
     acc = _seed_account(db_conn)

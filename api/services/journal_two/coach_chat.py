@@ -248,6 +248,39 @@ def _build_anthropic_tools_param() -> list[dict]:
     ]
 
 
+def _ev_attr(ev, name, default=None):
+    return ev.get(name, default) if isinstance(ev, dict) else getattr(ev, name, default)
+
+
+def _extract_tool_use_from_event(ev) -> dict | None:
+    """Return the canonical {id, name, args} dict for a completed tool_use
+    block, or None if `ev` is not a tool_use event.
+
+    Handles both the real Anthropic SDK shape (a `content_block_stop` event
+    whose `.content_block` is a `ToolUseBlock`) and the legacy dict-shape
+    used by unit-test mocks (`{"type": "tool_use", "id": ..., ...}`).
+    """
+    etype = _ev_attr(ev, "type")
+    if etype == "tool_use":
+        return {
+            "id": _ev_attr(ev, "id"),
+            "name": _ev_attr(ev, "name"),
+            "args": _ev_attr(ev, "input", {}) or {},
+        }
+    if etype == "content_block_stop":
+        cb = _ev_attr(ev, "content_block")
+        if cb is None:
+            return None
+        if _ev_attr(cb, "type") != "tool_use":
+            return None
+        return {
+            "id": _ev_attr(cb, "id"),
+            "name": _ev_attr(cb, "name"),
+            "args": _ev_attr(cb, "input", {}) or {},
+        }
+    return None
+
+
 def _reconstruct_messages(
     *, user_id: str, account_id: str, conn,
 ) -> list[dict]:
@@ -277,7 +310,13 @@ def _reconstruct_messages(
                     "type": "tool_use", "id": tc["id"],
                     "name": tc["name"], "input": tc.get("args", {}),
                 })
-            out.append({"role": "assistant", "content": blocks or [{"type": "text", "text": ""}]})
+            if not blocks:
+                # Empty assistant row (no content + no tool_calls). Skip it —
+                # the Anthropic API rejects empty text content blocks with a
+                # 400 ("text content blocks must be non-empty"), which would
+                # surface as a 500 on the next chat turn.
+                continue
+            out.append({"role": "assistant", "content": blocks})
         elif r["role"] == "tool":
             for tr in (r["tool_results"] or []):
                 pending_tool_results.append({
@@ -350,21 +389,14 @@ def handle_user_turn(
                 user_id=user_id,
             ) as stream:
                 for ev in stream:
-                    etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)
-                    if etype == "text":
-                        text = ev.get("text") if isinstance(ev, dict) else getattr(ev, "text", "")
+                    if _ev_attr(ev, "type") == "text":
+                        text = _ev_attr(ev, "text", "") or ""
                         assistant_text += text
                         yield {"type": "token", "text": text}
-                    elif etype == "tool_use":
-                        tu = {
-                            "id": ev.get("id") if isinstance(ev, dict) else getattr(ev, "id", None),
-                            "name": ev.get("name") if isinstance(ev, dict) else getattr(ev, "name", None),
-                            "args": (ev.get("input") if isinstance(ev, dict)
-                                     else getattr(ev, "input", {})) or {},
-                        }
+                        continue
+                    tu = _extract_tool_use_from_event(ev)
+                    if tu is not None:
                         tool_uses.append(tu)
-                    elif etype == "message_stop":
-                        pass
 
             tool_calls_json = [{"id": tu["id"], "name": tu["name"], "args": tu["args"],
                                 "status": "pending"} for tu in tool_uses]
@@ -560,9 +592,8 @@ def confirm_pending_action(
             user_id=user_id,
         ) as stream:
             for ev in stream:
-                etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)
-                if etype == "text":
-                    text = ev.get("text") if isinstance(ev, dict) else getattr(ev, "text", "")
+                if _ev_attr(ev, "type") == "text":
+                    text = _ev_attr(ev, "text", "") or ""
                     ack_text += text
                     yield {"type": "token", "text": text}
         ack_id = append_message(
@@ -748,9 +779,8 @@ def cancel_pending_action(
             user_id=user_id,
         ) as stream:
             for ev in stream:
-                etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)
-                if etype == "text":
-                    text = ev.get("text") if isinstance(ev, dict) else getattr(ev, "text", "")
+                if _ev_attr(ev, "type") == "text":
+                    text = _ev_attr(ev, "text", "") or ""
                     ack_text += text
                     yield {"type": "token", "text": text}
         ack_id = append_message(
@@ -836,18 +866,13 @@ def start_onboarding(
             user_id=user_id,
         ) as stream:
             for ev in stream:
-                etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", None)
-                if etype == "text":
-                    text = ev.get("text") if isinstance(ev, dict) else getattr(ev, "text", "")
+                if _ev_attr(ev, "type") == "text":
+                    text = _ev_attr(ev, "text", "") or ""
                     assistant_text += text
                     yield {"type": "token", "text": text}
-                elif etype == "tool_use":
-                    tu = {
-                        "id": ev.get("id") if isinstance(ev, dict) else getattr(ev, "id", None),
-                        "name": ev.get("name") if isinstance(ev, dict) else getattr(ev, "name", None),
-                        "args": (ev.get("input") if isinstance(ev, dict)
-                                 else getattr(ev, "input", {})) or {},
-                    }
+                    continue
+                tu = _extract_tool_use_from_event(ev)
+                if tu is not None:
                     tool_uses.append(tu)
 
         tool_calls_json = [{"id": tu["id"], "name": tu["name"], "args": tu["args"], "status": "pending"} for tu in tool_uses] or None
