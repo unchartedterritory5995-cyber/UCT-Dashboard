@@ -261,10 +261,22 @@ def _score_context(context: dict) -> float:
         score += 10  # overbought context — wedge marks the exhaustion
     if context.get("volume_signature") == "contracting":
         score += 15
-    return min(100.0, score)
-
-
+    # DCR integration (Phase 7.5) — bearish: distribution = tailwind.
+    score += _dcr_score_adjustment(context)
+    return min(100.0, max(0.0, score))
 # Custom variant - does not match shared narrative_helpers
+
+
+def _dcr_score_adjustment(context: dict) -> float:
+    """Return the DCR-derived score adjustment for a bearish pattern."""
+    dcr_sig = context.get("dcr_signature")
+    recent_dcr = context.get("recent_dcr_avg", 0.5) or 0.5
+    if dcr_sig == "distribution" and recent_dcr <= 0.35:
+        return 12.0   # sellers closing positions strong
+    if dcr_sig == "accumulation":
+        return -8.0   # buyers absorbing into close — bearish pattern faces headwind
+    return 0.0
+
 def _ma_alignment_phrase(context: dict) -> str:
     align = context.get("ma_alignment", "mixed")
     if align == "stacked_bullish":
@@ -495,6 +507,7 @@ def _build_detection(bars, c, confidence, context,
                 "convergence_ratio": round(float(c["convergence_ratio"]), 3),
                 "upper_slope": round(float(c["upper_slope"]), 6),
                 "lower_slope": round(float(c["lower_slope"]), 6),
+                "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
             },
         },
         "levels": {

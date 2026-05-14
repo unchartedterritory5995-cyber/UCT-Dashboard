@@ -203,6 +203,7 @@ def detect_stage_analysis(bars: List[Bar], context: dict) -> List[Detection]:
         "slope_sign_50": int(slope_sign_50),
         "slope_sign_20": int(slope_sign_20),
         "confidence_components": confidence_components,
+        "dcr_score_adj": 0.0,
     }
 
     # ---- Narrative ----

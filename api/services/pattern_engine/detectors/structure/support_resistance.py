@@ -557,7 +557,14 @@ def _build_detection(
         f"wicks AT the level (rejecting touches with closes back above for "
         f"support, below for resistance) signal it is holding firm, while "
         f"repeated full-bar closes through it on rising volume signal it is "
-        f"failing and a regime shift to the opposite role is imminent."
+        f"failing and a regime shift to the opposite role is imminent. "
+        f"Watch DCR on the bar that interacts with this level - strong DCR "
+        f"(>=0.7) on a bounce confirms institutional defense of "
+        f"{('support' if level_type == 'support' else 'resistance')}, "
+        f"weak DCR (<=0.3) on a touch signals supply overhead and a likely "
+        f"failure of the level. Recent 10-bar DCR average is "
+        f"{(context.get('recent_dcr_avg', 0.5) or 0.5) * 100:.0f}% with "
+        f"signature: {context.get('dcr_signature', 'neutral')}."
     )
 
     failure_signal = (
@@ -609,6 +616,7 @@ def _build_detection(
                 "distance_from_current_pct": round(float(distance_from_current_pct), 2),
                 "cluster_band_pct": round(float(cluster_band_pct * 100.0), 3),
                 "window_bars": int(window_bars),
+                "dcr_score_adj": 0.0,
             },
         },
         "levels": {

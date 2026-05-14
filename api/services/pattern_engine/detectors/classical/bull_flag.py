@@ -23,6 +23,7 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.narrative_helpers import dcr_interpretation, dcr_phrase
 from api.services.pattern_engine.primitives.geometry import channel_width_parallel_score
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_pair_parallel
@@ -223,7 +224,20 @@ def _score_context(context: dict) -> float:
     if context.get("trend_stage") == 2: score += 25
     if context.get("ma_alignment") == "stacked_bullish": score += 15
     if context.get("rs_trend") == "up": score += 10
-    return min(100.0, score)
+    # DCR integration (Phase 7.5) — bullish continuation: accumulation = tailwind.
+    score += _dcr_score_adjustment(context)
+    return min(100.0, max(0.0, score))
+
+
+def _dcr_score_adjustment(context: dict) -> float:
+    """Return the DCR-derived score adjustment for a bullish continuation pattern."""
+    dcr_sig = context.get("dcr_signature")
+    recent_dcr = context.get("recent_dcr_avg", 0.5) or 0.5
+    if dcr_sig == "accumulation" and recent_dcr >= 0.65:
+        return 12.0   # institutional buying into close
+    if dcr_sig == "distribution":
+        return -8.0   # sellers active — bullish pattern faces headwind
+    return 0.0
 
 
 # Custom variant - does not match shared narrative_helpers
@@ -363,7 +377,9 @@ def _build_detection(bars, c, confidence, context,
         f"itself. Historically, bull flags with these characteristics and a "
         f"clean breakout trigger produce measured-move follow-through in the "
         f"6-8 week window roughly 55-65% of the time, with average winners "
-        f"hitting target and average losers stopping out cleanly at the flag low."
+        f"hitting target and average losers stopping out cleanly at the flag low. "
+        f"{dcr_phrase(context.get('dcr_signature'), context.get('recent_dcr_avg'))}. "
+        f"{dcr_interpretation(context, 'bullish')}"
     )
 
     what_to_watch_for = (
@@ -435,6 +451,7 @@ def _build_detection(bars, c, confidence, context,
                 "retrace_pct": round(c["retrace_pct"] * 100, 2),
                 "flag_bars": c["flag_count"],
                 "parallel_score": round(c["parallel_score"], 3),
+                "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
             },
         },
         "levels": {

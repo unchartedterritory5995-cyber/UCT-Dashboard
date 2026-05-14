@@ -205,6 +205,7 @@ def detect_accumulation_distribution(bars: List[Bar], context: dict) -> List[Det
         "window_bars": _WINDOW_BARS,
         "current_close": round(float(current_close), 4),
         "first_close": round(float(first_close), 4),
+        "dcr_score_adj": 0.0,
     }
 
     # ---- Narrative ----

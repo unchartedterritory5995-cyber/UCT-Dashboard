@@ -310,7 +310,20 @@ def _score_context(context: dict) -> float:
     elif rs == "flat":
         score += 5.0
 
-    return min(100.0, score)
+    # DCR integration (Phase 7.5) — bullish continuation: accumulation = tailwind.
+    score += _dcr_score_adjustment(context)
+    return min(100.0, max(0.0, score))
+
+
+def _dcr_score_adjustment(context: dict) -> float:
+    """Return the DCR-derived score adjustment for a bullish pattern."""
+    dcr_sig = context.get("dcr_signature")
+    recent_dcr = context.get("recent_dcr_avg", 0.5) or 0.5
+    if dcr_sig == "accumulation" and recent_dcr >= 0.65:
+        return 12.0   # institutional buying into close
+    if dcr_sig == "distribution":
+        return -8.0   # sellers active — bullish pattern faces headwind
+    return 0.0
 
 
 # Custom variant - does not match shared narrative_helpers
@@ -536,6 +549,7 @@ def _build_detection(bars, c, confidence, context,
                 "post_gap_high": round(post_gap_high, 2),
                 "post_gap_low": round(post_gap_low, 2),
                 "gap_range_pct": round(gap_range_pct, 2),
+                "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
             },
         },
         "levels": {

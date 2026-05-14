@@ -24,6 +24,7 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.narrative_helpers import dcr_interpretation, dcr_phrase
 from api.services.pattern_engine.primitives.geometry import channel_width_parallel_score
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_pair_parallel
@@ -226,7 +227,20 @@ def _score_context(context: dict) -> float:
     if context.get("trend_stage") == 4: score += 25
     if context.get("ma_alignment") == "stacked_bearish": score += 15
     if context.get("rs_trend") == "down": score += 10
-    return min(100.0, score)
+    # DCR integration (Phase 7.5) — bearish continuation: distribution = tailwind.
+    score += _dcr_score_adjustment(context)
+    return min(100.0, max(0.0, score))
+
+
+def _dcr_score_adjustment(context: dict) -> float:
+    """Return the DCR-derived score adjustment for a bearish continuation pattern."""
+    dcr_sig = context.get("dcr_signature")
+    recent_dcr = context.get("recent_dcr_avg", 0.5) or 0.5
+    if dcr_sig == "distribution" and recent_dcr <= 0.35:
+        return 12.0   # sellers closing positions strong
+    if dcr_sig == "accumulation":
+        return -8.0   # buyers absorbing into close — bearish pattern faces headwind
+    return 0.0
 
 
 # Custom variant - does not match shared narrative_helpers
@@ -372,7 +386,9 @@ def _build_detection(bars, c, confidence, context,
         f"language of trapped longs hoping for an exit, not new buyers "
         f"arriving. Historically, bear flags with these characteristics produce "
         f"measured-move follow-through 55-65% of the time within 6-8 weeks "
-        f"when the breakdown triggers on volume."
+        f"when the breakdown triggers on volume. "
+        f"{dcr_phrase(context.get('dcr_signature'), context.get('recent_dcr_avg'))}. "
+        f"{dcr_interpretation(context, 'bearish')}"
     )
 
     what_to_watch_for = (
@@ -448,6 +464,7 @@ def _build_detection(bars, c, confidence, context,
                 "retrace_pct": round(c["retrace_pct"] * 100, 2),
                 "flag_bars": c["flag_count"],
                 "parallel_score": round(c["parallel_score"], 3),
+                "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
             },
         },
         "levels": {

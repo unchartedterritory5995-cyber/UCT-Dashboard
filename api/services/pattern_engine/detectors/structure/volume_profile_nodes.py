@@ -304,6 +304,7 @@ def _build_detection(
         "node_width": round(float(node_width), 4),
         "distance_from_current_pct": round(float(distance_pct), 3),
         "current_close": round(float(current_close), 4),
+        "dcr_score_adj": 0.0,
     }
 
     # -------- Narrative --------

@@ -225,7 +225,21 @@ def _score_context(context: dict) -> float:
         score += 15
     if context.get("volume_signature") == "contracting":
         score += 15
-    return min(100.0, score)
+    # DCR integration (Phase 7.5) — neutral pattern: strong directional DCR adds modest boost
+    score += _dcr_score_adjustment(context)
+    return min(100.0, max(0.0, score))
+
+
+def _dcr_score_adjustment(context: dict) -> float:
+    """Neutral-direction triangle: any strong directional DCR signal slightly boosts confidence
+    (the breakout direction is undetermined but a clear DCR signature increases reliability)."""
+    dcr_sig = context.get("dcr_signature")
+    recent_dcr = context.get("recent_dcr_avg", 0.5) or 0.5
+    if dcr_sig == "accumulation" and recent_dcr >= 0.65:
+        return 8.0   # bullish breakout more likely
+    if dcr_sig == "distribution" and recent_dcr <= 0.35:
+        return 8.0   # bearish breakout more likely
+    return 0.0
 
 
 def _trend_stage_phrase(context: dict) -> str:
@@ -476,6 +490,7 @@ def _build_detection(bars, c, confidence, context,
                 "convergence_ratio": round(float(c["convergence_ratio"]), 3),
                 "apex_bars_ahead": round(float(c["apex_bars_ahead"]), 2),
                 "apex_price": round(float(c["apex_price"]), 2),
+                "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
             },
         },
         "levels": {

@@ -398,7 +398,26 @@ def _score_context(context: dict, direction: str) -> float:
         if context.get("trend_stage") == 4: score += 25
         if context.get("ma_alignment") == "stacked_bearish": score += 15
         if context.get("rs_trend") == "down": score += 10
-    return min(100.0, score)
+    # DCR integration (Phase 7.5) — direction-aware boost (pennant resolves in either direction)
+    score += _dcr_score_adjustment(context, direction)
+    return min(100.0, max(0.0, score))
+
+
+def _dcr_score_adjustment(context: dict, direction: str) -> float:
+    """Return the DCR-derived score adjustment for the pennant's direction."""
+    dcr_sig = context.get("dcr_signature")
+    recent_dcr = context.get("recent_dcr_avg", 0.5) or 0.5
+    if direction == "bullish":
+        if dcr_sig == "accumulation" and recent_dcr >= 0.65:
+            return 12.0
+        if dcr_sig == "distribution":
+            return -8.0
+    else:
+        if dcr_sig == "distribution" and recent_dcr <= 0.35:
+            return 12.0
+        if dcr_sig == "accumulation":
+            return -8.0
+    return 0.0
 
 
 # Custom variant - does not match shared narrative_helpers
@@ -753,6 +772,7 @@ def _build_detection(bars, c, confidence, context, direction,
                 "pennant_bars": c["pennant_count"],
                 "apex_bars_ahead": round(float(c["apex_bars_ahead"]), 2),
                 "width_ratio": round(float(c["width_ratio"]), 3),
+                "dcr_score_adj": round(_dcr_score_adjustment(context, direction), 2),
             },
         },
         "levels": {

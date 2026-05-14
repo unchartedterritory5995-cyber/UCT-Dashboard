@@ -131,3 +131,54 @@ def position_in_range_phrase(value: float, low: float, high: float) -> str:
         return f"at ${value:.2f}"
     pos_pct = (value - low) / (high - low) * 100
     return f"{pos_pct:.0f}% of the way from ${low:.2f} (low) to ${high:.2f} (high)"
+
+
+def dcr_interpretation(context: dict, direction: str) -> str:
+    """Return a 1-2 sentence interpretation of DCR for the given trade direction.
+
+    Used by detectors to weave a DCR read into the why_it_matters narrative field.
+
+    direction: "bullish" or "bearish" (anything other than "bullish" is treated as bearish).
+
+    Examples:
+      direction="bullish", dcr_signature="accumulation" ->
+        "Institutional buyers are closing positions strong (DCR signature: accumulation) -
+         supportive of the bullish thesis."
+      direction="bearish", dcr_signature="distribution" ->
+        "Sellers in control through close (DCR signature: distribution) -
+         supportive of the bearish thesis."
+    """
+    dcr_sig = context.get("dcr_signature", "neutral")
+    is_bullish = direction == "bullish"
+
+    if is_bullish:
+        if dcr_sig == "accumulation":
+            return (
+                "Institutional buyers are closing positions strong (DCR signature: "
+                "accumulation) - supportive of the bullish thesis."
+            )
+        if dcr_sig == "distribution":
+            return (
+                "Sellers controlling closes (DCR signature: distribution) - bullish "
+                "pattern faces headwind, demand follow-through critical."
+            )
+        return (
+            "DCR signal is neutral - neither tailwind nor headwind from close-in-range "
+            "positioning."
+        )
+
+    # bearish
+    if dcr_sig == "distribution":
+        return (
+            "Sellers in control through close (DCR signature: distribution) - "
+            "supportive of the bearish thesis."
+        )
+    if dcr_sig == "accumulation":
+        return (
+            "Buyers absorbing into close (DCR signature: accumulation) - bearish "
+            "pattern may struggle without selling follow-through."
+        )
+    return (
+        "DCR signal is neutral - neither tailwind nor headwind from close-in-range "
+        "positioning."
+    )

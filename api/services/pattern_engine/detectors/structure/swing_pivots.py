@@ -302,6 +302,7 @@ def _build_detection(
                 "most_recent_pivot_type": str(most_recent_type),
                 "most_recent_pivot_age_bars": int(most_recent_age_bars),
                 "avg_pivot_strength": round(float(avg_strength), 2),
+                "dcr_score_adj": 0.0,
             },
         },
         "levels": {

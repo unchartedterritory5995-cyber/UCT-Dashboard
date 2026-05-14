@@ -363,6 +363,7 @@ def _build_detection(bars: List[Bar], r: dict, context: dict) -> Detection:
         "vol_avg_pre_range": round(float(vol_pre), 2),
         "vol_contraction_pct": round(float(vol_contraction_pct), 3),
         "scan_window_bars": int(_SCAN_WINDOW),
+        "dcr_score_adj": 0.0,
     }
 
     geometry_score = round(

@@ -741,7 +741,13 @@ def _build_detection(
         f"moves in the opposite direction because they trap the "
         f"institutional positioning that respected the line for weeks - "
         f"the failure itself becomes a setup for an aggressive counter-trend "
-        f"trade."
+        f"trade. "
+        f"Watch DCR on the bar that interacts with this trendline - strong DCR "
+        f"(>=0.7) on a bounce confirms the line's continued validity as a "
+        f"defended structural level, while weak DCR (<=0.3) on a touch warns "
+        f"of likely line failure. Recent 10-bar DCR average is "
+        f"{(context.get('recent_dcr_avg', 0.5) or 0.5) * 100:.0f}% "
+        f"(signature: {context.get('dcr_signature', 'neutral')})."
     )
 
     extras = {
@@ -757,6 +763,7 @@ def _build_detection(
         ),
         "raw_slope": round(float(slope), 6),
         "window_bars": int(window_bars),
+        "dcr_score_adj": 0.0,
     }
 
     detection: Detection = {

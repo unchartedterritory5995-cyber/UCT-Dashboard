@@ -30,6 +30,7 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.narrative_helpers import dcr_interpretation, dcr_phrase
 from api.services.pattern_engine.types import Bar, Detection
 
 
@@ -356,10 +357,22 @@ def _score_context(context: dict) -> float:
         score += 15
     if context.get("volume_signature") == "contracting":
         score += 10
-    return min(100.0, score)
-
-
+    # DCR integration (Phase 7.5) — bullish: accumulation = tailwind.
+    score += _dcr_score_adjustment(context)
+    return min(100.0, max(0.0, score))
 # Custom variant - does not match shared narrative_helpers
+
+
+def _dcr_score_adjustment(context: dict) -> float:
+    """Return the DCR-derived score adjustment for a bullish pattern."""
+    dcr_sig = context.get("dcr_signature")
+    recent_dcr = context.get("recent_dcr_avg", 0.5) or 0.5
+    if dcr_sig == "accumulation" and recent_dcr >= 0.65:
+        return 12.0   # institutional buying into close
+    if dcr_sig == "distribution":
+        return -8.0   # sellers active — bullish pattern faces headwind
+    return 0.0
+
 def _ma_alignment_phrase(context: dict) -> str:
     align = context.get("ma_alignment", "mixed")
     if align == "stacked_bullish":
@@ -538,7 +551,9 @@ def _build_detection(bars, c, confidence, context,
         f"round of demand will trigger above the pivot at ${base_high:.2f}. {regime_sentence}. "
         f"The combined picture — prior trend, base flatness, drying volume, supportive "
         f"context — is the four-factor confirmation O'Neil teaches as the precondition for "
-        f"a high-edge flat-base trade."
+        f"a high-edge flat-base trade. "
+        f"{dcr_phrase(context.get('dcr_signature'), context.get('recent_dcr_avg'))}. "
+        f"{dcr_interpretation(context, 'bullish')}"
     )
 
     what_to_watch_for = (
@@ -609,6 +624,7 @@ def _build_detection(bars, c, confidence, context,
                 "first_half_vol_avg": round(first_half_vol_avg, 0),
                 "second_half_vol_avg": round(second_half_vol_avg, 0),
                 "base_slope_pct_per_bar": round(base_slope_pct_per_bar * 100.0, 4),
+                "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
             },
         },
         "levels": {

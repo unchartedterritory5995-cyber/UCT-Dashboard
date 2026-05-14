@@ -600,6 +600,7 @@ def detect_52w_proximity(bars: List[Bar], context: dict) -> List[Detection]:
         "window_bars_used": int(window_n),
         "partial_window": bool(partial),
         "lookback_bars_target": int(_LOOKBACK_BARS),
+        "dcr_score_adj": 0.0,
     }
 
     if classification == "near_high":

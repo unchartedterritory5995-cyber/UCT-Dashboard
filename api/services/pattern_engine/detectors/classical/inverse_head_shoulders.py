@@ -372,10 +372,22 @@ def _score_context(context: dict) -> float:
         score += 10  # oversold context — reversal pattern marks bottom
     if context.get("volume_signature") == "contracting":
         score += 15
-    return min(100.0, score)
-
-
+    # DCR integration (Phase 7.5) — bullish: accumulation = tailwind.
+    score += _dcr_score_adjustment(context)
+    return min(100.0, max(0.0, score))
 # Custom variant - does not match shared narrative_helpers
+
+
+def _dcr_score_adjustment(context: dict) -> float:
+    """Return the DCR-derived score adjustment for a bullish pattern."""
+    dcr_sig = context.get("dcr_signature")
+    recent_dcr = context.get("recent_dcr_avg", 0.5) or 0.5
+    if dcr_sig == "accumulation" and recent_dcr >= 0.65:
+        return 12.0   # institutional buying into close
+    if dcr_sig == "distribution":
+        return -8.0   # sellers active — bullish pattern faces headwind
+    return 0.0
+
 def _ma_alignment_phrase(context: dict) -> str:
     align = context.get("ma_alignment", "mixed")
     if align == "stacked_bullish":
@@ -610,6 +622,7 @@ def _build_detection(bars, c, confidence, context,
                 "shoulder_symmetry": round((1.0 - c["asymmetry"]) * 100, 2),
                 "neckline_slope": round(float(c["neckline_slope"]), 6),
                 "pattern_bars": int(c["pattern_bars"]),
+                "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
             },
         },
         "levels": {
