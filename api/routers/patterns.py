@@ -419,10 +419,17 @@ def _slim_detection(row) -> dict:
         context = json.loads(row["context_json"] or "{}")
     except Exception:
         context = {}
+    try:
+        geometry = json.loads(row["geometry_json"] or "{}")
+    except Exception:
+        geometry = {}
 
     pattern_id = row["pattern_id"]
     meta = _PATTERN_METADATA.get(pattern_id, {})
     pattern_name = meta.get("name", pattern_id.replace("_", " ").title())
+
+    extras = geometry.get("extras") if isinstance(geometry, dict) else None
+    from_leader_universe = bool((extras or {}).get("from_leader_universe", False))
 
     return {
         "id": row["id"],
@@ -444,9 +451,28 @@ def _slim_detection(row) -> dict:
         "narrative": {"headline": narrative.get("headline", "")},
         "can_slim_grade": context.get("can_slim_grade"),
         "can_slim_score": context.get("can_slim_score"),
+        "from_leader_universe": from_leader_universe,
         "detected_at": row["detected_at"],
         "last_seen_at": row["last_seen_at"],
     }
+
+
+def _load_leader_tickers() -> set[str]:
+    """Load the curated leader-universe tickers (best-effort)."""
+    import os as _os
+    leader_path = _os.path.join(
+        _os.path.dirname(__file__), "..", "data", "leader_universe.json"
+    )
+    leader_path = _os.path.abspath(leader_path)
+    if not _os.path.exists(leader_path):
+        return set()
+    try:
+        with open(leader_path) as f:
+            data = json.load(f)
+        tickers = data.get("tickers", []) if isinstance(data, dict) else []
+        return {t.upper() for t in tickers if isinstance(t, str)}
+    except Exception:
+        return set()
 
 
 @router.get("/scan")
@@ -455,6 +481,7 @@ def scan_universe(
     tf: str = Query(default="D"),
     min_conf: float = Query(default=70.0, ge=50.0, le=100.0),
     category: Optional[str] = Query(default=None, description="filter to classical/candlestick/uct/structure"),
+    leaders_only: bool = Query(default=False, description="restrict results to curated leader-universe tickers"),
     limit: int = Query(default=100, le=500),
 ):
     """Universe scan for active detections matching filters.
@@ -465,16 +492,43 @@ def scan_universe(
       - tf matches
       - pattern_id in types (if specified)
       - category matches (if specified)
+      - sym in leader_universe.tickers (if leaders_only)
       - detected_at >= now - 7 days (recent only)
     Ordered by detected_at DESC, confidence DESC. Capped at limit.
     """
-    cache_key = f"pattern_scan:{tf}:{types or 'all'}:{min_conf}:{category or 'all'}:{limit}"
+    cache_key = (
+        f"pattern_scan:{tf}:{types or 'all'}:{min_conf}:"
+        f"{category or 'all'}:{int(bool(leaders_only))}:{limit}"
+    )
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
     pattern_ids = [t.strip() for t in types.split(",") if t.strip()] if types else None
     recent_cutoff = int(time.time()) - _RECENT_WINDOW_SECS
+
+    leader_set: set[str] = set()
+    if leaders_only:
+        leader_set = _load_leader_tickers()
+
+    # If leaders_only requested but no leaders configured → empty result rather than scanning all.
+    if leaders_only and not leader_set:
+        payload = {
+            "detections": [],
+            "count": 0,
+            "filters": {
+                "tf": tf,
+                "types": pattern_ids,
+                "min_conf": min_conf,
+                "category": category,
+                "leaders_only": True,
+                "limit": limit,
+            },
+            "leader_universe_size": 0,
+            "cached_at": int(time.time()),
+        }
+        cache.set(cache_key, payload, _SCAN_TTL)
+        return payload
 
     conn = get_connection()
     try:
@@ -493,6 +547,10 @@ def scan_universe(
         if category:
             sql += " AND category = ?"
             params.append(category)
+        if leaders_only and leader_set:
+            placeholders = ",".join(["?"] * len(leader_set))
+            sql += f" AND sym IN ({placeholders})"
+            params.extend(sorted(leader_set))
         sql += " ORDER BY detected_at DESC, confidence DESC LIMIT ?"
         params.append(int(limit))
 
@@ -509,8 +567,10 @@ def scan_universe(
             "types": pattern_ids,
             "min_conf": min_conf,
             "category": category,
+            "leaders_only": bool(leaders_only),
             "limit": limit,
         },
+        "leader_universe_size": len(leader_set) if leaders_only else None,
         "cached_at": int(time.time()),
     }
     cache.set(cache_key, payload, _SCAN_TTL)

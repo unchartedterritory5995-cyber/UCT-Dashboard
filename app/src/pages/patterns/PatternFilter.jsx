@@ -26,6 +26,7 @@ const DEFAULT_FILTERS = {
   tf: 'D',
   min_conf: 70,
   category: '',
+  leaders_only: true,
 }
 
 export default function PatternFilter({ filters, onChange }) {
@@ -43,6 +44,7 @@ export default function PatternFilter({ filters, onChange }) {
   const setCategory = (c) => onChange({ ...filters, category: c, types: [] })
   const setTF = (tf) => onChange({ ...filters, tf })
   const setMinConf = (v) => onChange({ ...filters, min_conf: Number(v) })
+  const setLeadersOnly = (v) => onChange({ ...filters, leaders_only: v })
   const toggleType = (pid) => {
     const has = filters.types.includes(pid)
     const next = has ? filters.types.filter(x => x !== pid) : [...filters.types, pid]
@@ -95,6 +97,18 @@ export default function PatternFilter({ filters, onChange }) {
             className={styles.slider}
           />
         </div>
+
+        <label
+          className={`${styles.toggleField} ${filters.leaders_only ? styles.toggleActive : ''}`}
+          title="Restrict to curated liquid thematic leaders"
+        >
+          <input
+            type="checkbox"
+            checked={!!filters.leaders_only}
+            onChange={e => setLeadersOnly(e.target.checked)}
+          />
+          Leaders only
+        </label>
 
         <button type="button" className={styles.resetBtn} onClick={reset}>
           Reset

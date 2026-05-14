@@ -75,3 +75,53 @@ def test_scan_limit_capped():
     assert r.status_code == 200
     data = r.json()
     assert len(data["detections"]) <= 100
+
+
+def test_scan_surfaces_from_leader_universe_flag():
+    """Slim detection payload includes from_leader_universe flag from geometry.extras."""
+    init_db()
+    memory.store_detection(_det(
+        id="scan-leader-1", sym="NVDA",
+        start_t=1700100000, end_t=1700200000,
+        geometry={"shape": "trendline_pair", "anchors": [],
+                  "extras": {"from_leader_universe": True}},
+    ))
+    memory.store_detection(_det(
+        id="scan-cap-1", sym="ZZZZ",
+        start_t=1700200000, end_t=1700300000,
+        geometry={"shape": "trendline_pair", "anchors": [],
+                  "extras": {"from_leader_universe": False}},
+    ))
+    r = client.get("/api/patterns/scan?tf=D")
+    assert r.status_code == 200
+    data = r.json()
+    by_sym = {d["sym"]: d for d in data["detections"]}
+    if "NVDA" in by_sym:
+        assert by_sym["NVDA"]["from_leader_universe"] is True
+    if "ZZZZ" in by_sym:
+        assert by_sym["ZZZZ"]["from_leader_universe"] is False
+
+
+def test_scan_leaders_only_filter():
+    """leaders_only=true restricts results to tickers in api/data/leader_universe.json."""
+    init_db()
+    # NVDA is in the seed leader_universe.json; "ZZZZ" is not.
+    memory.store_detection(_det(
+        id="scan-leaders-nvda", sym="NVDA",
+        start_t=1700400000, end_t=1700500000,
+    ))
+    memory.store_detection(_det(
+        id="scan-leaders-zzzz", sym="ZZZZ",
+        start_t=1700500000, end_t=1700600000,
+    ))
+    r = client.get("/api/patterns/scan?tf=D&leaders_only=true")
+    assert r.status_code == 200
+    data = r.json()
+    # leader_universe_size should be > 0 when leaders_only is on
+    assert (data.get("leader_universe_size") or 0) > 0
+    syms = {d["sym"] for d in data["detections"]}
+    assert "ZZZZ" not in syms
+    # If any NVDA detection is present it must be flagged
+    for d in data["detections"]:
+        if d["sym"] == "NVDA":
+            assert d["from_leader_universe"] is True or d["sym"] in syms

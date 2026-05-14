@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "generated_at": 1715000000,
+  "leader_count": 84,
+  "tickers": [
+    "NVDA", "META", "AMZN", "MSFT", "GOOGL", "AAPL", "TSLA", "AVGO",
+    "AMD", "ASML", "TSM", "ARM", "CRM", "ORCL", "ADBE", "NOW",
+    "PLTR", "SNOW", "NET", "CRWD", "ZS", "PANW", "FTNT", "OKTA",
+    "DELL", "VRT", "ANET", "MU", "MRVL", "WDC", "ON", "QCOM",
+    "SHOP", "MELI", "MSTR", "COIN", "HOOD", "SOFI", "AFRM", "DKNG",
+    "UBER", "ABNB", "DASH", "SQ", "PYPL", "MA", "V", "AXP",
+    "JPM", "BAC", "WFC", "GS", "MS", "C",
+    "LLY", "NVO", "UNH", "JNJ", "PFE", "MRK", "ABBV", "REGN",
+    "TMO", "DHR", "ABT", "ISRG", "VRTX", "GILD",
+    "XOM", "CVX", "OXY", "EOG", "PXD",
+    "CAT", "DE", "BA", "RTX", "LMT", "GE",
+    "WMT", "COST", "HD", "TGT", "LOW"
+  ],
+  "details": [],
+  "note": "Default seed list — hand-curated liquid thematic leaders. Replace with output of scripts/generate_leader_universe.py after first run."
+}

@@ -124,6 +124,20 @@
   cursor: help;
 }
 
+.leaderBadge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 2px 6px;
+  border: 1px solid #c9a84c;
+  border-radius: 4px;
+  background: rgba(201, 168, 76, 0.18);
+  color: #c9a84c;
+  flex-shrink: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  cursor: help;
+}
+
 .headline {
   font-size: 12px;
   line-height: 1.45;

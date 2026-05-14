@@ -58,6 +58,7 @@ def _row_to_detection_with_review(row) -> dict:
 
     Mirrors memory._row_to_detection() but adds three review fields:
       reviewed (bool), reviewer_rating (str|None), reviewer_note (str|None).
+    Also surfaces `from_leader_universe` for downstream sorting.
     """
     def _safe_json(blob, default):
         if blob is None:
@@ -68,6 +69,9 @@ def _row_to_detection_with_review(row) -> dict:
             return default
 
     pattern_id = row["pattern_id"]
+    geometry = _safe_json(row["geometry_json"], {})
+    extras = geometry.get("extras") if isinstance(geometry, dict) else None
+    from_leader_universe = bool((extras or {}).get("from_leader_universe", False))
     return {
         "id": row["id"],
         "sym": row["sym"],
@@ -79,7 +83,7 @@ def _row_to_detection_with_review(row) -> dict:
         "start_t": row["start_t"],
         "end_t": row["end_t"],
         "pivot_ts": [],
-        "geometry": _safe_json(row["geometry_json"], {}),
+        "geometry": geometry,
         "levels": _safe_json(row["levels_json"], {}),
         "context": _safe_json(row["context_json"], {}),
         "confidence": row["confidence"],
@@ -89,6 +93,7 @@ def _row_to_detection_with_review(row) -> dict:
         "outcome": None,
         "detected_at": row["detected_at"],
         "last_seen_at": row["last_seen_at"],
+        "from_leader_universe": from_leader_universe,
         "reviewed": bool(row["reviewed"]) if "reviewed" in row.keys() else False,
         "reviewer_rating": row["reviewer_rating"] if "reviewer_rating" in row.keys() else None,
         "reviewer_note": row["reviewer_note"] if "reviewer_note" in row.keys() else None,
@@ -129,8 +134,16 @@ def recent_detections(hours: int = Query(default=24, ge=1, le=168)):
 
         detections = [_row_to_detection_with_review(r) for r in rows]
 
+        # Surface leader-universe detections first, then by detected_at desc.
+        # The SQL already orders by detected_at DESC; this stable sort just
+        # bubbles leader picks to the top of the list.
+        detections.sort(
+            key=lambda d: (0 if d.get("from_leader_universe") else 1, -int(d.get("detected_at") or 0)),
+        )
+
         total = len(detections)
         reviewed_rows = [d for d in detections if d.get("reviewed")]
+        leader_count = sum(1 for d in detections if d.get("from_leader_universe"))
         accepted = sum(1 for d in reviewed_rows if d["reviewer_rating"] == "great")
         rejected = sum(1 for d in reviewed_rows if d["reviewer_rating"] == "wrong")
         flagged = sum(1 for d in reviewed_rows if d["reviewer_rating"] == "miss")
@@ -139,6 +152,7 @@ def recent_detections(hours: int = Query(default=24, ge=1, le=168)):
         return {
             "detections": detections,
             "count": total,
+            "leader_universe_count": leader_count,
             "reviewed_count": len(reviewed_rows),
             "accepted": accepted,
             "rejected": rejected,

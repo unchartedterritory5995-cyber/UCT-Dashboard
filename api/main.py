@@ -141,13 +141,19 @@ def _run_patterns_recompute_stats():
 
 
 def _run_patterns_universe_scan():
-    """APScheduler job: scan the universe with all 50 detectors, store detections.
+    """APScheduler job: scan leaders + a rotating chunk of cap_universe, store detections.
+
+    Strategy:
+      - Leader universe (curated ~80-200 liquid thematic stocks) scanned EVERY run.
+      - Cap universe rotates through 4 chunks; one chunk per hourly run.
+      - Each detection tagged with `from_leader_universe` flag for downstream filtering.
 
     Populates pattern_detections so the admin dashboard /admin/patterns has data
-    for Gate 5 operator review.
+    for Gate 5 operator review and the /patterns scanner page can filter to leaders.
     """
     _plog = logging.getLogger(__name__)
     try:
+        import time as _time
         from api.services import bars_sqlite
         from api.services.pattern_engine import detect_all
         from api.services.pattern_engine import memory
@@ -155,8 +161,23 @@ def _run_patterns_universe_scan():
         # Importing patterns router triggers detector registration:
         from api.routers import patterns as _patterns  # noqa: F401
 
-        # Resolve the cap_universe path. Primary: relative to this file
-        # (api/main.py → api/data/cap_universe.json). Fallback: cwd-relative.
+        # Resolve leader_universe path
+        leader_path = os.path.join(
+            os.path.dirname(__file__), "data", "leader_universe.json"
+        )
+        if not os.path.exists(leader_path):
+            leader_path = os.path.join("api", "data", "leader_universe.json")
+
+        leader_tickers: list[str] = []
+        if os.path.exists(leader_path):
+            try:
+                with open(leader_path) as f:
+                    leader_data = json.load(f)
+                leader_tickers = leader_data.get("tickers", []) if isinstance(leader_data, dict) else []
+            except Exception as le:
+                _plog.warning("[patterns] universe_scan: failed to load leader_universe: %s", le)
+
+        # Resolve the cap_universe path
         universe_path = os.path.join(
             os.path.dirname(__file__), "data", "cap_universe.json"
         )
@@ -173,16 +194,28 @@ def _run_patterns_universe_scan():
         with open(universe_path) as f:
             data = json.load(f)
         if isinstance(data, list):
-            tickers = [t for t in data if isinstance(t, str)]
+            cap_tickers = [t for t in data if isinstance(t, str)]
         else:
-            tickers = data.get("tickers", []) if isinstance(data, dict) else []
+            cap_tickers = data.get("tickers", []) if isinstance(data, dict) else []
 
-        scan_limit = 500
+        # Rotate through cap_universe in 4 chunks: one chunk per hourly run.
+        hour_index = (int(_time.time()) // 3600) % 4
+        cap_chunk_size = max(1, len(cap_tickers) // 4)
+        cap_start = hour_index * cap_chunk_size
+        cap_end = cap_start + cap_chunk_size
+        cap_to_scan = cap_tickers[cap_start:cap_end]
+
+        leader_set = {t for t in leader_tickers if isinstance(t, str)}
+
         timeframes = ["D"]
         scanned = 0
         stored = 0
+        leader_stored = 0
 
-        for sym in tickers[:scan_limit]:
+        def _scan_one(sym: str, from_leader: bool) -> tuple[int, int]:
+            """Scan a single sym; return (scanned, stored)."""
+            s_scanned = 0
+            s_stored = 0
             for tf in timeframes:
                 try:
                     bars = bars_sqlite.get_bars(sym, tf, 200)
@@ -201,21 +234,47 @@ def _run_patterns_universe_scan():
                     for d in detections:
                         d["sym"] = sym
                         d["tf"] = tf
+                        # Tag detection origin (leader vs cap rotation)
+                        try:
+                            geom = d.setdefault("geometry", {})
+                            extras = geom.setdefault("extras", {})
+                            extras["from_leader_universe"] = bool(from_leader)
+                        except Exception:
+                            pass
                         try:
                             memory.store_detection(d)
-                            stored += 1
+                            s_stored += 1
                         except Exception as store_err:
-                            # Individual store failures shouldn't stop the scan
                             _plog.debug("[patterns] store failed for %s: %s", sym, store_err)
-                    scanned += 1
+                    s_scanned += 1
                 except Exception as scan_err:
                     _plog.debug("[patterns] scan failed for %s %s: %s", sym, tf, scan_err)
+            return s_scanned, s_stored
+
+        # Scan leaders FIRST (every run)
+        for sym in leader_tickers:
+            sc, st = _scan_one(sym, from_leader=True)
+            scanned += sc
+            stored += st
+            leader_stored += st
+
+        # Scan rotating cap_universe chunk (skipping symbols already scanned as leaders)
+        for sym in cap_to_scan:
+            if sym in leader_set:
+                continue
+            sc, st = _scan_one(sym, from_leader=False)
+            scanned += sc
+            stored += st
 
         _plog.info(
-            "[patterns] universe_scan: scanned %d symbol-TFs, stored %d detections",
-            scanned, stored,
+            "[patterns] universe_scan: scanned %d symbol-TFs (leaders=%d, cap chunk %d/4), stored %d (leader %d)",
+            scanned, len(leader_tickers), hour_index + 1, stored, leader_stored,
         )
-        print(f"[patterns] universe_scan: scanned {scanned} symbol-TFs, stored {stored} detections")
+        print(
+            f"[patterns] universe_scan: scanned {scanned} symbol-TFs "
+            f"(leaders={len(leader_tickers)}, cap chunk {hour_index + 1}/4), "
+            f"stored {stored} detections ({leader_stored} from leader universe)"
+        )
     except Exception as e:
         _plog.exception("[patterns] universe_scan failed: %s", e)
         print(f"[patterns] universe_scan failed: {e}")

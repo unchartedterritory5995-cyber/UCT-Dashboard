@@ -88,6 +88,32 @@
 }
 .resetBtn:hover { border-color: #c9a84c; color: #c9a84c; }
 
+.toggleField {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  color: #d6d0c2;
+  cursor: pointer;
+  padding: 6px 10px;
+  border: 1px solid #2f2c27;
+  border-radius: 6px;
+  background: #0e0f0d;
+  user-select: none;
+  transition: all 0.15s;
+}
+.toggleField:hover { border-color: #c9a84c; color: #e8e3d4; }
+.toggleField input[type="checkbox"] {
+  accent-color: #c9a84c;
+  margin: 0;
+}
+.toggleActive {
+  background: rgba(201, 168, 76, 0.18);
+  border-color: #c9a84c;
+  color: #c9a84c;
+}
+
 .typesGroup {
   display: flex;
   flex-direction: column;

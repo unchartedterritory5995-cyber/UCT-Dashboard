@@ -8,10 +8,11 @@ const fetcher = (url) => fetch(url, { credentials: 'include' }).then(r => r.json
 
 export default function Patterns() {
   const [filters, setFilters] = useState({
-    types: [],         // empty = all
+    types: [],          // empty = all
     tf: 'D',
     min_conf: 70,
-    category: '',      // empty = all
+    category: '',       // empty = all
+    leaders_only: true, // default ON — user's focus is liquid thematic leaders
   })
 
   const queryString = useMemo(() => {
@@ -20,6 +21,7 @@ export default function Patterns() {
     params.set('tf', filters.tf)
     params.set('min_conf', filters.min_conf)
     if (filters.category) params.set('category', filters.category)
+    if (filters.leaders_only) params.set('leaders_only', 'true')
     params.set('limit', 100)
     return params.toString()
   }, [filters])

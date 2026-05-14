@@ -57,6 +57,8 @@ function CardTrigger({ detection, onClick, className: _ignoredClass, children: _
     ? `CAN SLIM Grade ${canSlimGrade}${typeof canSlimScore === 'number' ? ` (${canSlimScore.toFixed(0)}/100)` : ''} — O'Neil 7-pillar composite`
     : null
 
+  const fromLeaderUniverse = !!d.from_leader_universe
+
   return (
     <div
       className={styles.card}
@@ -84,6 +86,14 @@ function CardTrigger({ detection, onClick, className: _ignoredClass, children: _
       <div className={styles.patternRow}>
         <div className={styles.patternName} style={{ color: dirColor }}>{d.pattern_name}</div>
         <div className={styles.patternBadges}>
+          {fromLeaderUniverse && (
+            <div
+              className={styles.leaderBadge}
+              title="From curated leader universe (liquid thematic leader)"
+            >
+              LEADER
+            </div>
+          )}
           {canSlimGrade && (
             <div
               className={styles.canSlimBadge}
