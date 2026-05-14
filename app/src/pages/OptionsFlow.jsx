@@ -3317,8 +3317,7 @@ export default function OptionsFlowDashboard() {
             {/* Ticker Strip */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:0, position:"relative", background:P.cd, border:"1px solid "+P.bd, borderRadius:marketNarrative&&!narrativeLoading?"10px 10px 0 0":10, padding:"8px 14px", flexWrap:"wrap" }}>
               {marketIndices ? marketIndices.map((idx,i) => {
-                const isVix = (idx.name||"").includes("VIX");
-                const up = isVix ? idx.pct < 0 : idx.pct >= 0;
+                const up = idx.pct >= 0;
                 const c = up ? P.bu : P.be;
                 const short = {"S&P 500":"SPY","NASDAQ":"QQQ","DOW 30":"DIA","Russell 2000":"IWM","VIX":"VIX"}[idx.name]||idx.name;
                 return (
