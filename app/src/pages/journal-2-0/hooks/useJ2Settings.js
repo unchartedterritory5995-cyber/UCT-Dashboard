@@ -47,8 +47,20 @@ export default function useJ2Settings() {
         body: JSON.stringify(payload),
       })
       if (!res.ok) {
+        // FastAPI returns {"detail": "..."} for HTTPException — extract the
+        // human-readable string instead of dumping the raw JSON to the UI.
         const body = await res.text()
-        throw new Error(body || `save failed (${res.status})`)
+        let msg = body
+        try {
+          const parsed = JSON.parse(body)
+          if (parsed && typeof parsed.detail === 'string') msg = parsed.detail
+          else if (Array.isArray(parsed?.detail)) {
+            msg = parsed.detail
+              .map((d) => d?.msg || JSON.stringify(d))
+              .join('; ')
+          }
+        } catch { /* not JSON — fall back to raw text */ }
+        throw new Error(msg || `save failed (${res.status})`)
       }
       const saved = await res.json()
       await mutate(saved, { revalidate: false })

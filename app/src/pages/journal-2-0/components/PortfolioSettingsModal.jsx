@@ -262,6 +262,10 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
       await onSave(payload)
       onClose?.()
     } catch (e) {
+      // Surface to DevTools so a stuck "Save Settings" click is debuggable
+      // from a user's browser without round-tripping through the team.
+      // eslint-disable-next-line no-console
+      console.error('[J2 Settings] save failed:', e)
       setErrorMsg(String(e?.message || e))
     } finally {
       setSaving(false)
@@ -1039,12 +1043,13 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
             </label>
           </section>
 
-          {errorMsg && (
-            <div className={styles.errorBanner} role="alert" aria-live="polite">
-              {errorMsg}
-            </div>
-          )}
         </div>
+
+        {errorMsg && (
+          <div className={styles.errorBannerSticky} role="alert" aria-live="polite">
+            <strong>Couldn't save:</strong> {errorMsg}
+          </div>
+        )}
 
         <div className={styles.footer}>
           <button

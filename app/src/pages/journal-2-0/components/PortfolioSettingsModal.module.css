@@ -387,6 +387,25 @@
   font-size: 12px;
 }
 
+/* Always-visible error placement — sits between the scrollable body and the
+ * footer so a failed save can never be hidden below the scroll fold. */
+.errorBannerSticky {
+  flex-shrink: 0;
+  margin: 0 22px 12px;
+  padding: 10px 12px;
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  border-radius: 8px;
+  color: var(--loss);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.errorBannerSticky strong {
+  color: var(--loss);
+  margin-right: 4px;
+}
+
 .footer {
   display: flex;
   align-items: center;
