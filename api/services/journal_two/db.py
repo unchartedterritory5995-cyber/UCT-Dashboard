@@ -332,6 +332,18 @@ CREATE TABLE IF NOT EXISTS j2_profile_suggestions (
 
 CREATE INDEX IF NOT EXISTS idx_j2_profile_suggestions_pending
     ON j2_profile_suggestions(user_id, account_id, status, created_at);
+
+-- Unified Coach State: holds user-level coach identity + profile for
+-- "All Accounts" mode. Each user has at most one row. Separate from
+-- per-account fields in j2_accounts to allow account-agnostic coaching.
+CREATE TABLE IF NOT EXISTS j2_unified_coach_state (
+    user_id          TEXT PRIMARY KEY,
+    trader_profile   TEXT NOT NULL DEFAULT '',
+    compass_enabled  INTEGER NOT NULL DEFAULT 1,
+    onboarded        INTEGER NOT NULL DEFAULT 0,
+    created_at       TEXT NOT NULL,
+    updated_at       TEXT NOT NULL
+);
 """
 
 
