@@ -109,20 +109,22 @@ The following modules learn about `'_all_'`:
 
 ### Endpoints
 
-The existing route shape is reused. Where today we have:
+The existing route shape is reused. Today's routes nest coach paths under the account: `/api/j2/accounts/{account_id}/coach/...`. Examples:
 
 ```
-GET    /api/j2/coach/{account_id}/reviews
-POST   /api/j2/coach/{account_id}/reviews/generate
-GET    /api/j2/coach/{account_id}/eod-recaps
-POST   /api/j2/coach/{account_id}/chat
-GET    /api/j2/coach/{account_id}/overview
-GET    /api/j2/coach/{account_id}/trader-profile
-PUT    /api/j2/coach/{account_id}/trader-profile
+GET    /api/j2/accounts/{account_id}/coach/weekly-reviews
+POST   /api/j2/accounts/{account_id}/coach/weekly-reviews/generate
+GET    /api/j2/accounts/{account_id}/coach/eod-recaps
+POST   /api/j2/accounts/{account_id}/coach/chat/stream
+GET    /api/j2/accounts/{account_id}/coach/overview
+GET    /api/j2/accounts/{account_id}/coach/profile
+PUT    /api/j2/accounts/{account_id}/coach/profile
+GET    /api/j2/accounts/{account_id}/coach/interventions/active
+GET    /api/j2/accounts/{account_id}/coach/profile-suggestions
 …
 ```
 
-These accept `account_id = '_all_'`. The route handlers add one new precheck:
+These accept `account_id = '_all_'` in the URL path. The route handlers add one new precheck:
 
 ```python
 if account_id == "_all_":
