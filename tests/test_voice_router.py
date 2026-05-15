@@ -266,6 +266,37 @@ def test_transcribe_records_mode_d_usage(client):
     assert after > before
 
 
+def test_transcribe_applies_cleanup_when_requested(client):
+    _login(client, plan="pro")
+    with patch("api.services.voice_openai._get_client", return_value=object()), \
+         patch("api.routers.voice.transcribe_audio",
+               return_value="um add a in video long"), \
+         patch("api.routers.voice.cleanup_transcript",
+               return_value="Add an NVDA long.") as mock_cleanup:
+        r = client.post(
+            "/api/voice/transcribe",
+            files={"audio": ("a.webm", b"FAKE-AUDIO", "audio/webm")},
+            data={"cleanup": "true"},
+        )
+    assert r.status_code == 200
+    assert r.json()["text"] == "Add an NVDA long."
+    mock_cleanup.assert_called_once()
+
+
+def test_transcribe_skips_cleanup_by_default(client):
+    _login(client, plan="pro")
+    with patch("api.services.voice_openai._get_client", return_value=object()), \
+         patch("api.routers.voice.transcribe_audio", return_value="raw text"), \
+         patch("api.routers.voice.cleanup_transcript") as mock_cleanup:
+        r = client.post(
+            "/api/voice/transcribe",
+            files={"audio": ("a.webm", b"FAKE-AUDIO", "audio/webm")},
+        )
+    assert r.status_code == 200
+    assert r.json()["text"] == "raw text"
+    mock_cleanup.assert_not_called()
+
+
 def test_transcribe_blocks_when_cap_exceeded(client):
     user_id = _login(client, plan="pro")
     from api.services.voice_usage import (

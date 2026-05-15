@@ -118,6 +118,43 @@ def test_classify_intent_handles_no_match():
     assert "Sorry" in out["narration_template"]
 
 
+# ── Transcript cleanup (gpt-4o-mini) ────────────────────────────────────────
+
+def test_cleanup_transcript_returns_cleaned_text():
+    fake_msg = MagicMock()
+    fake_msg.content = "Add an NVDA long position at $142."
+    fake_choice = MagicMock(message=fake_msg)
+    fake_completion = MagicMock(choices=[fake_choice])
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = fake_completion
+
+    with patch.object(voice_openai, "_get_client", return_value=fake_client):
+        out = voice_openai.cleanup_transcript("um add a in video long position at one forty two")
+
+    assert out == "Add an NVDA long position at $142."
+    kwargs = fake_client.chat.completions.create.call_args.kwargs
+    assert kwargs["model"] == "gpt-4o-mini"
+
+
+def test_cleanup_transcript_passthrough_on_empty():
+    out = voice_openai.cleanup_transcript("")
+    assert out == ""
+    out2 = voice_openai.cleanup_transcript("   ")
+    assert out2.strip() == ""
+
+
+def test_cleanup_transcript_returns_original_on_api_error():
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.side_effect = RuntimeError("api down")
+
+    with patch.object(voice_openai, "_get_client", return_value=fake_client):
+        out = voice_openai.cleanup_transcript("raw spoken text here")
+
+    # Cleanup is best-effort: a failure must NOT lose the user's dictation.
+    assert out == "raw spoken text here"
+
+
 # ── Realtime session minting ────────────────────────────────────────────────
 
 def test_mint_realtime_session_uses_ga_endpoint_first(monkeypatch):

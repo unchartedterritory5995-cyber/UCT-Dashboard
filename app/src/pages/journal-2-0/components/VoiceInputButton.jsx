@@ -9,6 +9,10 @@
  * Props:
  *   onTranscript(text: string): void   — called when a transcript is ready
  *   disabled?: bool
+ *   cleanup?: bool                     — request gpt-4o-mini cleanup pass
+ *                                        (filler removal, ticker fixes,
+ *                                        punctuation). Default true. Only
+ *                                        applies to the Whisper path.
  */
 import { useState, useRef, useEffect, useCallback } from 'react'
 
@@ -24,7 +28,7 @@ function hasMediaRecorder() {
     && !!root.navigator?.mediaDevices?.getUserMedia
 }
 
-export default function VoiceInputButton({ onTranscript, disabled = false }) {
+export default function VoiceInputButton({ onTranscript, disabled = false, cleanup = true }) {
   const SR = getSpeechRecognitionCtor()
   const whisperAvailable = hasMediaRecorder()
   const webSpeechAvailable = !!SR
@@ -93,6 +97,7 @@ export default function VoiceInputButton({ onTranscript, disabled = false }) {
     try {
       const form = new FormData()
       form.append('audio', blob, 'audio.webm')
+      form.append('cleanup', cleanup ? 'true' : 'false')
       const resp = await fetch('/api/voice/transcribe', {
         method: 'POST',
         credentials: 'include',
@@ -111,7 +116,7 @@ export default function VoiceInputButton({ onTranscript, disabled = false }) {
     } finally {
       setUploading(false)
     }
-  }, [onTranscript, webSpeechAvailable, startWebSpeech])
+  }, [onTranscript, webSpeechAvailable, startWebSpeech, cleanup])
 
   const startWhisper = useCallback(async () => {
     audioChunksRef.current = []

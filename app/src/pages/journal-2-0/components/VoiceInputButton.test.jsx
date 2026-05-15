@@ -148,6 +148,40 @@ describe('VoiceInputButton', () => {
     )
   })
 
+  it('sends cleanup=true in the form data by default', async () => {
+    const recorders = installMediaRecorderMock()
+    let sentForm = null
+    global.fetch = vi.fn().mockImplementation((url, opts) => {
+      sentForm = opts.body
+      return Promise.resolve({ ok: true, json: async () => ({ text: 'hi' }) })
+    })
+    const user = userEvent.setup()
+    render(<VoiceInputButton onTranscript={vi.fn()} />)
+    const btn = screen.getByRole('button', { name: /voice/i })
+    await user.click(btn)
+    await waitFor(() => expect(recorders.length).toBeGreaterThan(0))
+    await user.click(btn)
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    expect(sentForm.get('cleanup')).toBe('true')
+  })
+
+  it('omits cleanup when cleanup prop is false', async () => {
+    const recorders = installMediaRecorderMock()
+    let sentForm = null
+    global.fetch = vi.fn().mockImplementation((url, opts) => {
+      sentForm = opts.body
+      return Promise.resolve({ ok: true, json: async () => ({ text: 'hi' }) })
+    })
+    const user = userEvent.setup()
+    render(<VoiceInputButton onTranscript={vi.fn()} cleanup={false} />)
+    const btn = screen.getByRole('button', { name: /voice/i })
+    await user.click(btn)
+    await waitFor(() => expect(recorders.length).toBeGreaterThan(0))
+    await user.click(btn)
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    expect(sentForm.get('cleanup')).toBe('false')
+  })
+
   it('falls back to Web Speech when /api/voice/transcribe returns 500', async () => {
     const recorders = installMediaRecorderMock()
     installSpeechRecognitionMock()

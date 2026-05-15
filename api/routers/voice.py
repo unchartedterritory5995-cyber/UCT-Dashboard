@@ -28,7 +28,7 @@ from api.services.voice_audio_cache import get_cached, put_cached
 from api.services.voice_openai import synthesize_speech, synthesize_speech_stream, MAX_INPUT_CHARS
 from fastapi import UploadFile, File, Form
 from urllib.parse import quote as _urlquote
-from api.services.voice_openai import transcribe_audio
+from api.services.voice_openai import transcribe_audio, cleanup_transcript
 from api.services.voice_intent import run_oneshot
 from api.services.voice_tools import get_schema_for_context
 from api.services.voice_usage import (
@@ -651,6 +651,7 @@ def oneshot(
 def transcribe(
     request: Request,
     audio: UploadFile = File(...),
+    cleanup: bool = Form(False),
     user: dict = Depends(requires_voice_access),
 ):
     audio_bytes = audio.file.read() if audio else b""
@@ -678,6 +679,12 @@ def transcribe(
     except Exception as e:
         _log.exception("Whisper failed in /transcribe")
         raise HTTPException(status_code=502, detail=f"Transcription failed: {e}")
+
+    # Optional gpt-4o-mini cleanup pass — strips fillers, fixes ticker
+    # mishears, adds punctuation. Best-effort: cleanup_transcript returns the
+    # original text on any error, so this can never lose the dictation.
+    if cleanup:
+        text = cleanup_transcript(text)
 
     # Estimate seconds from audio bytes as a rough usage signal. WebM Opus at
     # mono 16k ≈ 4 KB/s, so bytes/4096 ≈ seconds. Clamp to [1, 600].

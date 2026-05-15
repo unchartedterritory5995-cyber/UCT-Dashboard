@@ -410,6 +410,29 @@ function VoicePanel() {
         )}
       </div>
 
+      <div style={{
+        marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)',
+      }}>
+        <div style={{
+          fontSize: 12, fontWeight: 600, color: 'var(--ut-gold, #c9a84c)',
+          marginBottom: 8,
+        }}>
+          Ways to talk to Compass
+        </div>
+        <ul style={{
+          margin: 0, padding: 0, listStyle: 'none',
+          display: 'flex', flexDirection: 'column', gap: 7,
+          fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5,
+        }}>
+          <li><strong style={{ color: 'var(--text-bright)' }}>🎤 Dictate</strong> — push-to-talk into any journal text field (notes, thesis, recaps). High-accuracy Whisper transcription with auto-cleanup.</li>
+          <li><strong style={{ color: 'var(--text-bright)' }}>🧭 Assist / 🎙️ Talk</strong> — opens a full voice conversation with Compass that already knows the trade, note, or review you're looking at.</li>
+          <li><strong style={{ color: 'var(--text-bright)' }}>Floating orb</strong> — bottom-right on every page; tap to speak to Compass from anywhere.</li>
+          <li><strong style={{ color: 'var(--text-bright)' }}>Push-to-talk hotkey</strong> — hold the spacebar shortcut for a quick voice question without leaving the keyboard.</li>
+          <li><strong style={{ color: 'var(--text-bright)' }}>Wake word</strong> — say "Jarvis" (toggle above) for fully hands-free activation.</li>
+          <li><strong style={{ color: 'var(--text-bright)' }}>Read-aloud</strong> — Compass speaks the Morning Wire, UCT 20 picks, post-mortems, and EOD recaps on request.</li>
+        </ul>
+      </div>
+
       {savingMsg && <div className={styles.voiceSaveMsg}>{savingMsg}</div>}
     </TileCard>
   )

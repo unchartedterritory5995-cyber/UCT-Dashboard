@@ -199,6 +199,49 @@ def classify_intent(transcript: str, tools_schema: list[dict]) -> dict:
     }
 
 
+# ── Transcript cleanup (gpt-4o-mini) ────────────────────────────────────────
+
+_CLEANUP_MODEL = "gpt-4o-mini"
+
+_CLEANUP_SYSTEM_PROMPT = """You clean up raw voice-dictation transcripts for a stock-trading journal.
+
+Rules:
+- Remove filler words (um, uh, like, you know) and false starts.
+- Add natural punctuation and capitalization.
+- Fix obvious speech-to-text mishears of stock tickers and trading terms
+  (e.g. "in video" → "NVDA", "apple" → "AAPL" only when clearly a ticker,
+  "tesla" → "TSLA", "spy" → "SPY", "q q q" → "QQQ", "one forty two" → "142",
+  "one forty seven fifty" → "147.50").
+- Keep the user's wording and meaning. Do NOT summarize, add content, or
+  change the substance. Do NOT add commentary.
+- Output ONLY the cleaned text, nothing else."""
+
+
+def cleanup_transcript(text: str) -> str:
+    """
+    Clean a raw dictation transcript via gpt-4o-mini: strip fillers, add
+    punctuation, fix common ticker mishears. Best-effort — on ANY error the
+    original text is returned unchanged so a user's dictation is never lost.
+    """
+    if not text or not text.strip():
+        return text
+    try:
+        client = _get_client()
+        completion = client.chat.completions.create(
+            model=_CLEANUP_MODEL,
+            messages=[
+                {"role": "system", "content": _CLEANUP_SYSTEM_PROMPT},
+                {"role": "user", "content": text},
+            ],
+            temperature=0.0,
+        )
+        cleaned = (completion.choices[0].message.content or "").strip()
+        return cleaned or text
+    except Exception as e:  # noqa: BLE001
+        _log.warning("cleanup_transcript failed, returning original: %s", e)
+        return text
+
+
 # ── Realtime session minting ────────────────────────────────────────────────
 
 import os as _os
