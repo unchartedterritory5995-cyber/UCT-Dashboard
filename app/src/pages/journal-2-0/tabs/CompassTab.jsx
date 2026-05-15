@@ -116,6 +116,26 @@ export default function CompassTab() {
     }
   }
 
+  const onImportProfile = async (sourceAccountId) => {
+    setErrorMsg(null)
+    try {
+      const r = await fetch(
+        `/api/j2/accounts/${sourceAccountId}/coach/profile`,
+        { credentials: 'include' },
+      )
+      if (!r.ok) throw new Error(`${r.status}`)
+      const { profile: src } = await r.json()
+      if (!src) {
+        setErrorMsg('That account has no Trader Profile to import yet.')
+        return
+      }
+      await saveProfile(src)
+      await refreshProfile()
+    } catch (e) {
+      setErrorMsg(String(e.message || e))
+    }
+  }
+
   return (
     <div style={{ padding: '16px 20px' }}>
       <h1 style={{ fontSize: 22, marginBottom: 8 }}>
@@ -312,6 +332,8 @@ export default function CompassTab() {
         profile={profile}
         onSave={saveProfile}
         onClear={onClearProfile}
+        importSources={isUnified ? inScope : undefined}
+        onImport={isUnified ? onImportProfile : undefined}
       />
     </div>
   )

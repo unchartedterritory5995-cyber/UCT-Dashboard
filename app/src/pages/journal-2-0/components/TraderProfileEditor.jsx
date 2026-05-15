@@ -5,14 +5,32 @@
  *   profile: string (markdown)
  *   onSave(next: string): Promise<void>
  *   onClear(): Promise<void>
+ *   importSources?: Array<{ id, name }>   // unified mode only — accounts to seed from
+ *   onImport?(accountId: string): Promise<void>
  */
 
 import { useState } from 'react'
 
-export default function TraderProfileEditor({ profile, onSave, onClear }) {
+export default function TraderProfileEditor({
+  profile, onSave, onClear, importSources, onImport,
+}) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(profile || '')
   const [saving, setSaving] = useState(false)
+  const [importId, setImportId] = useState('')
+  const [importing, setImporting] = useState(false)
+  const canImport = Array.isArray(importSources) && importSources.length > 0 && !!onImport
+
+  const doImport = async () => {
+    if (!importId) return
+    setImporting(true)
+    try {
+      await onImport(importId)
+      setImportId('')
+    } finally {
+      setImporting(false)
+    }
+  }
 
   const startEdit = () => {
     setDraft(profile || '')
@@ -94,6 +112,36 @@ export default function TraderProfileEditor({ profile, onSave, onClear }) {
         <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
           Compass hasn't built a profile yet — generate your first weekly review and it'll start.
         </p>
+      )}
+      {!editing && canImport && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+            Seed from an account:
+          </span>
+          <select
+            aria-label="Import profile from account"
+            value={importId}
+            onChange={(e) => setImportId(e.target.value)}
+            style={{
+              padding: '4px 8px', fontSize: 11,
+              background: 'var(--bg)', color: 'var(--text-bright)',
+              border: '1px solid var(--border)', borderRadius: 6,
+            }}
+          >
+            <option value="">Choose account…</option>
+            {importSources.map((a) => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={doImport}
+            disabled={!importId || importing}
+            style={btn('var(--ut-gold, #c9a84c)')}
+          >
+            {importing ? 'Importing…' : 'Import'}
+          </button>
+        </div>
       )}
     </section>
   )
