@@ -2,6 +2,7 @@
  * Compass Overview — SWR hook for the unified state card.
  */
 import useSWR from 'swr'
+import { compassScope } from './compassScope'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -10,9 +11,7 @@ const fetcher = (url) =>
   })
 
 export default function useCompassOverview(accountId) {
-  const url = accountId
-    ? `/api/j2/accounts/${accountId}/coach/overview`
-    : null
+  const url = `/api/j2/accounts/${compassScope(accountId)}/coach/overview`
   const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
     revalidateOnFocus: true,
     refreshInterval: 60000,

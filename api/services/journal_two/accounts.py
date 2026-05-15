@@ -918,6 +918,9 @@ def _row_to_account(row: sqlite3.Row) -> dict[str, Any]:
         "broker": row["broker"],
         "startingBalance": float(row["starting_balance"]),
         "goals": goals,
+        "compassEnabled": (
+            bool(row["compass_enabled"]) if "compass_enabled" in keys else True
+        ),
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }

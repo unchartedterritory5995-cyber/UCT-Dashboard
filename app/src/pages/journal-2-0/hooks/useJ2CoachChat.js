@@ -9,6 +9,7 @@
  */
 import { useState, useCallback, useRef } from 'react'
 import useSWR from 'swr'
+import { compassScope } from './compassScope'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -37,8 +38,9 @@ async function* sseFromFetch(response) {
 }
 
 export default function useJ2CoachChat(accountId) {
-  const messagesUrl = accountId ? `/api/j2/accounts/${accountId}/coach/chat/messages?limit=200` : null
-  const statusUrl = accountId ? `/api/j2/accounts/${accountId}/coach/chat/status` : null
+  const scope = compassScope(accountId)
+  const messagesUrl = `/api/j2/accounts/${scope}/coach/chat/messages?limit=200`
+  const statusUrl = `/api/j2/accounts/${scope}/coach/chat/status`
   const { data: messagesData, error, isLoading, mutate: refreshMessages } = useSWR(
     messagesUrl, fetcher,
     { revalidateOnFocus: true, shouldRetryOnError: false },
@@ -101,73 +103,66 @@ export default function useJ2CoachChat(accountId) {
   }, [refreshMessages, refreshStatus])
 
   const send = useCallback((text) => {
-    if (!accountId || !text?.trim()) return
+    if (!text?.trim()) return
     return consumeStream(
-      `/api/j2/accounts/${accountId}/coach/chat/stream`,
+      `/api/j2/accounts/${scope}/coach/chat/stream`,
       { message: text.trim() },
     )
-  }, [accountId, consumeStream])
+  }, [scope, consumeStream])
 
   const confirm = useCallback((message_id, tool_call_id) => {
-    if (!accountId) return
     return consumeStream(
-      `/api/j2/accounts/${accountId}/coach/chat/confirm`,
+      `/api/j2/accounts/${scope}/coach/chat/confirm`,
       { message_id, tool_call_id },
     )
-  }, [accountId, consumeStream])
+  }, [scope, consumeStream])
 
   const cancel = useCallback((message_id, tool_call_id) => {
-    if (!accountId) return
     return consumeStream(
-      `/api/j2/accounts/${accountId}/coach/chat/cancel`,
+      `/api/j2/accounts/${scope}/coach/chat/cancel`,
       { message_id, tool_call_id },
     )
-  }, [accountId, consumeStream])
+  }, [scope, consumeStream])
 
   const forget = useCallback(async (message_id) => {
-    if (!accountId) return
-    await fetch(`/api/j2/accounts/${accountId}/coach/chat/forget`, {
+    await fetch(`/api/j2/accounts/${scope}/coach/chat/forget`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message_id }),
     })
     await refreshMessages()
-  }, [accountId, refreshMessages])
+  }, [scope, refreshMessages])
 
   const forgetAll = useCallback(async () => {
-    if (!accountId) return
-    await fetch(`/api/j2/accounts/${accountId}/coach/chat/forget`, {
+    await fetch(`/api/j2/accounts/${scope}/coach/chat/forget`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ all: true }),
     })
     await refreshMessages()
-  }, [accountId, refreshMessages])
+  }, [scope, refreshMessages])
 
   const startOnboarding = useCallback(() => {
-    if (!accountId) return
     return consumeStream(
-      `/api/j2/accounts/${accountId}/coach/chat/start_onboarding`,
+      `/api/j2/accounts/${scope}/coach/chat/start_onboarding`,
       {},
     )
-  }, [accountId, consumeStream])
+  }, [scope, consumeStream])
 
   const skipOnboarding = useCallback(async () => {
-    if (!accountId) return
-    await fetch(`/api/j2/accounts/${accountId}/coach/chat/skip_onboarding`, {
+    await fetch(`/api/j2/accounts/${scope}/coach/chat/skip_onboarding`, {
       method: 'POST', credentials: 'include',
     })
     await refreshStatus()
     await refreshMessages()
-  }, [accountId, refreshStatus, refreshMessages])
+  }, [scope, refreshStatus, refreshMessages])
 
   const redoOnboarding = useCallback(() => {
-    if (!accountId) return
     return consumeStream(
-      `/api/j2/accounts/${accountId}/coach/chat/redo_onboarding`,
+      `/api/j2/accounts/${scope}/coach/chat/redo_onboarding`,
       {},
     )
-  }, [accountId, consumeStream])
+  }, [scope, consumeStream])
 
   return {
     messages: messagesData?.messages ?? [],

@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import bannerStyles from '../components/AlertBanner.module.css'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
+import useJ2Accounts from '../hooks/useJ2Accounts'
 import useJ2CoachReviews from '../hooks/useJ2CoachReviews'
 import useJ2TraderProfile from '../hooks/useJ2TraderProfile'
 import useJ2Settings from '../hooks/useJ2Settings'
@@ -44,6 +45,10 @@ function todayISO() {
 
 export default function CompassTab() {
   const { accountId } = useJ2SelectedAccount()
+  // accountId === null → "All Accounts" selected → unified coaching identity.
+  const isUnified = accountId === null
+  const { accounts } = useJ2Accounts()
+  const inScope = (accounts || []).filter((a) => a.compassEnabled !== false)
   const { interventions, dismiss: dismissIntervention } = useInterventions(accountId)
   const { suggestions: profileSuggestions, dismiss: dismissSuggestion } = useProfileSuggestions(accountId)
   const { settings } = useJ2Settings()
@@ -71,15 +76,10 @@ export default function CompassTab() {
   const [generating, setGenerating] = useState(false)
   const [errorMsg, setErrorMsg] = useState(null)
 
-  if (!accountId) {
-    return (
-      <div style={{ padding: 24, color: 'var(--text-muted)' }}>
-        Select a single account to view Compass reviews.
-      </div>
-    )
-  }
-
-  const compassEnabled = settings?.compassEnabled !== false
+  // In unified mode `settings` is the Default account's fallback, so its
+  // compassEnabled flag isn't meaningful — the backend gates unified access
+  // via the per-user unified toggle instead.
+  const compassEnabled = isUnified || settings?.compassEnabled !== false
   if (!compassEnabled) {
     return (
       <div style={{ padding: 24, color: 'var(--text-muted)' }}>
@@ -118,18 +118,28 @@ export default function CompassTab() {
 
   return (
     <div style={{ padding: '16px 20px' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 8 }}>🧭 Compass</h1>
+      <h1 style={{ fontSize: 22, marginBottom: 8 }}>
+        🧭 Compass{isUnified ? ' — Portfolio' : ''}
+      </h1>
       <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 0 }}>
-        Your trading coach. Generates a weekly review of your closed trades,
-        what worked, what didn't, and what to focus on next.
+        {isUnified
+          ? 'Coaching across every account where Compass is enabled.'
+          : "Your trading coach. Generates a weekly review of your closed trades, what worked, what didn't, and what to focus on next."}
       </p>
+      {isUnified && inScope.length > 0 && (
+        <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: '6px 0 0' }}>
+          Coaching across {inScope.map((a) => a.name).join(' + ')} ({inScope.length} account{inScope.length === 1 ? '' : 's'}).
+        </p>
+      )}
 
       <CompassOverview overview={overview} />
 
-      <InterventionBanner
-        interventions={interventions}
-        onDismiss={dismissIntervention}
-      />
+      {!isUnified && (
+        <InterventionBanner
+          interventions={interventions}
+          onDismiss={dismissIntervention}
+        />
+      )}
 
       {profileSuggestions.length > 0 && (
         <div style={{

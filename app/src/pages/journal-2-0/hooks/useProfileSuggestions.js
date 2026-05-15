@@ -3,6 +3,7 @@
  */
 import useSWR from 'swr'
 import { useCallback } from 'react'
+import { compassScope } from './compassScope'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -11,9 +12,8 @@ const fetcher = (url) =>
   })
 
 export default function useProfileSuggestions(accountId) {
-  const url = accountId
-    ? `/api/j2/accounts/${accountId}/coach/profile-suggestions`
-    : null
+  const scope = compassScope(accountId)
+  const url = `/api/j2/accounts/${scope}/coach/profile-suggestions`
   const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
     revalidateOnFocus: true,
     refreshInterval: 30000,
@@ -21,12 +21,12 @@ export default function useProfileSuggestions(accountId) {
   })
 
   const dismiss = useCallback(async (id) => {
-    if (!accountId || !id) return
-    await fetch(`/api/j2/accounts/${accountId}/coach/profile-suggestions/${id}/dismiss`, {
+    if (!id) return
+    await fetch(`/api/j2/accounts/${scope}/coach/profile-suggestions/${id}/dismiss`, {
       method: 'POST', credentials: 'include',
     })
     await mutate()
-  }, [accountId, mutate])
+  }, [scope, mutate])
 
   return {
     suggestions: data?.suggestions ?? [],

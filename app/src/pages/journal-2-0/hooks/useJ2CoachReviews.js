@@ -4,6 +4,7 @@
  */
 
 import useSWR from 'swr'
+import { compassScope } from './compassScope'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -30,14 +31,13 @@ async function jsonPost(url, body) {
 }
 
 export default function useJ2CoachReviews(accountId) {
-  const url = accountId
-    ? `/api/j2/accounts/${accountId}/coach/weekly-reviews`
-    : null
+  const scope = compassScope(accountId)
+  const url = `/api/j2/accounts/${scope}/coach/weekly-reviews`
   const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })
-  const base = accountId ? `/api/j2/accounts/${accountId}/coach/weekly-reviews` : null
+  const base = url
 
   return {
     reviews: data?.reviews ?? [],
