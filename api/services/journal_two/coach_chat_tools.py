@@ -22,6 +22,16 @@ from typing import Any, Callable
 from api.services.auth_db import get_connection
 from api.services.journal_two import accounts as accounts_service
 from api.services.journal_two import coach_data_assembler
+from api.services.journal_two.coach_scope import is_unified
+
+
+_UNIFIED_REJECT = {
+    "ok": False,
+    "error": (
+        "This action targets one account's settings. "
+        "Switch the account selector to a single account, then try again."
+    ),
+}
 
 
 def _date_from_for_period(period: str) -> str | None:
@@ -139,6 +149,13 @@ def _exec_get_open_positions(*, user_id, account_id, args, conn=None) -> dict:
 
 def _exec_get_trader_profile(*, user_id, account_id, args, conn=None) -> dict:
     c = conn or get_connection()
+    if is_unified(account_id):
+        from api.services.journal_two import unified_coach
+        state = unified_coach.get_or_create(c, user_id)
+        return {
+            "profile_markdown": state["traderProfile"],
+            "exists": bool(state["traderProfile"]),
+        }
     row = c.execute(
         "SELECT trader_profile FROM j2_accounts WHERE id = ? AND user_id = ?",
         (account_id, user_id),
@@ -582,6 +599,8 @@ def _mute_setup_preview(*, user_id, account_id, args, conn=None) -> dict:
 
 
 def _mute_setup_execute(*, user_id, account_id, args, conn=None) -> dict:
+    if is_unified(account_id):
+        return _UNIFIED_REJECT
     setup = args.get("setup_name")
     until = args.get("until_date") or (date.today() + timedelta(days=14)).isoformat()
     c = conn or get_connection()
@@ -605,6 +624,8 @@ def _unmute_setup_preview(*, user_id, account_id, args, conn=None) -> dict:
 
 
 def _unmute_setup_execute(*, user_id, account_id, args, conn=None) -> dict:
+    if is_unified(account_id):
+        return _UNIFIED_REJECT
     setup = args.get("setup_name")
     c = conn or get_connection()
     row = c.execute("SELECT muted_setups FROM j2_accounts WHERE id = ? AND user_id = ?",
@@ -628,6 +649,8 @@ def _set_a_plus_setups_preview(*, user_id, account_id, args, conn=None) -> dict:
 
 
 def _set_a_plus_setups_execute(*, user_id, account_id, args, conn=None) -> dict:
+    if is_unified(account_id):
+        return _UNIFIED_REJECT
     add = args.get("add") or []
     remove = args.get("remove") or []
     c = conn or get_connection()
@@ -711,6 +734,8 @@ def _count_recent_breaches(conn, user_id, account_id, field, current_value, days
 def _update_discipline_setting_execute(*, user_id, account_id, args, conn=None) -> dict:
     field = args.get("field")
     value = args.get("value")
+    if is_unified(account_id):
+        return _UNIFIED_REJECT
     if field not in _DISCIPLINE_FIELD_MAP:
         return {"ok": False, "error": f"field must be one of {sorted(_DISCIPLINE_FIELD_MAP.keys())}"}
     column = _DISCIPLINE_FIELD_MAP[field]
@@ -727,6 +752,8 @@ def _schedule_paper_only_day_preview(*, user_id, account_id, args, conn=None) ->
 
 
 def _schedule_paper_only_day_execute(*, user_id, account_id, args, conn=None) -> dict:
+    if is_unified(account_id):
+        return _UNIFIED_REJECT
     d = args.get("date")
     c = conn or get_connection()
     row = c.execute("SELECT paper_only_days FROM j2_accounts WHERE id = ? AND user_id = ?",
@@ -1261,6 +1288,8 @@ def _propose_account_settings_preview(*, user_id, account_id, args, conn=None) -
 
 
 def _propose_account_settings_execute(*, user_id, account_id, args, conn=None) -> dict:
+    if is_unified(account_id):
+        return _UNIFIED_REJECT
     c = conn or get_connection()
     field_map = {
         "maxRiskPerTradePct": "max_risk_per_trade_pct",
@@ -1395,6 +1424,10 @@ def _update_trader_profile_execute(*, user_id, account_id, args, conn=None) -> d
     if not new_profile:
         return {"ok": False, "error": "trader_profile required"}
     c = conn or get_connection()
+    if is_unified(account_id):
+        from api.services.journal_two import unified_coach
+        unified_coach.update_state(c, user_id, trader_profile=new_profile)
+        return {"ok": True, "summary": "Unified trader profile updated."}
     c.execute(
         "UPDATE j2_accounts SET trader_profile = ? WHERE id = ? AND user_id = ?",
         (new_profile, account_id, user_id),

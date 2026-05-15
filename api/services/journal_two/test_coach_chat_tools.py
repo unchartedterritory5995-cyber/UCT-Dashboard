@@ -929,3 +929,76 @@ def test_check_active_interventions_returns_active_list(db_conn):
     assert "interventions" in result
     rules = [i["rule"] for i in result["interventions"]]
     assert "cooling_off_active" in rules
+
+
+# ── Unified-mode ('_all_') chat-tool behavior ───────────────────────────────
+
+
+def test_get_trader_profile_returns_unified_profile_in_all_mode(db_conn):
+    from api.services.journal_two import coach_chat_tools as cct
+    from api.services.journal_two import unified_coach
+    unified_coach.get_or_create(db_conn, "u_chat")
+    unified_coach.update_state(db_conn, "u_chat", trader_profile="Unified bias.")
+    out = cct._exec_get_trader_profile(
+        user_id="u_chat", account_id="_all_", args={}, conn=db_conn,
+    )
+    assert out == {"profile_markdown": "Unified bias.", "exists": True}
+
+
+def test_update_trader_profile_execute_writes_unified_state(db_conn):
+    from api.services.journal_two import coach_chat_tools as cct
+    from api.services.journal_two import unified_coach
+    out = cct._update_trader_profile_execute(
+        user_id="u_chat", account_id="_all_",
+        args={"trader_profile": "New unified profile."}, conn=db_conn,
+    )
+    assert out["ok"] is True
+    state = unified_coach.get_or_create(db_conn, "u_chat")
+    assert state["traderProfile"] == "New unified profile."
+
+
+def test_account_scoped_mutators_reject_all_sentinel(db_conn):
+    from api.services.journal_two import coach_chat_tools as cct
+    for fn, args in [
+        (cct._mute_setup_execute, {"setup_name": "Bull Flag"}),
+        (cct._unmute_setup_execute, {"setup_name": "Bull Flag"}),
+        (cct._set_a_plus_setups_execute, {"add": ["Bull Flag"]}),
+        (cct._update_discipline_setting_execute,
+         {"field": "maxRiskPerTradePct", "value": 2}),
+        (cct._schedule_paper_only_day_execute, {"date": "2026-05-20"}),
+        (cct._propose_account_settings_execute, {"maxRiskPerTradePct": 1}),
+    ]:
+        out = fn(user_id="u_chat", account_id="_all_", args=args, conn=db_conn)
+        assert out["ok"] is False, f"{fn.__name__} should reject '_all_'"
+        assert "single account" in out["error"].lower()
+
+
+def test_get_open_positions_unions_in_all_mode(db_conn):
+    """Delegates to the union-aware assembler helper — sanity check."""
+    from api.services.journal_two import coach_chat_tools as cct
+    from api.services.journal_two import accounts as accounts_service
+    a1 = accounts_service.create_account(
+        "u_chat2", {"name": "A", "color": "blue", "startingBalance": 100000},
+        conn=db_conn,
+    )
+    a2 = accounts_service.create_account(
+        "u_chat2", {"name": "B", "color": "teal", "startingBalance": 100000},
+        conn=db_conn,
+    )
+    for acc, sym in ((a1, "AAA"), (a2, "BBB")):
+        db_conn.execute(
+            """INSERT INTO j2_positions
+               (id, user_id, account_id, symbol, side, shares, original_shares,
+                entry_price, stop_price, entry_date, context_at_entry,
+                created_at, updated_at)
+               VALUES (?, ?, ?, ?, 'Long', 5, 5, 10, 9,
+                       '2026-05-01T14:00:00+00:00', '{}',
+                       '2026-05-01T14:00:00+00:00', '2026-05-01T14:00:00+00:00')""",
+            (str(uuid.uuid4()), "u_chat2", acc["id"], sym),
+        )
+    db_conn.commit()
+    out = cct._exec_get_open_positions(
+        user_id="u_chat2", account_id="_all_", args={}, conn=db_conn,
+    )
+    assert out["count"] == 2
+    assert {p["symbol"] for p in out["positions"]} == {"AAA", "BBB"}
