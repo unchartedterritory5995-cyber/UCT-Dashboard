@@ -1,0 +1,98 @@
+{
+  "name": "borderline_volume",
+  "category": "edge",
+  "expected": {
+    "fires": true,
+    "min_confidence": 50.0,
+    "max_confidence": 95.0
+  },
+  "context": {
+    "trend_stage": 1,
+    "rs_trend": "flat",
+    "ma_alignment": "mixed",
+    "volume_signature": "neutral",
+    "regime": "transition",
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": null,
+    "recent_dcr_avg": 0.5,
+    "dcr_signature": "neutral",
+    "can_slim_grade": "C",
+    "can_slim_score": 50
+  },
+  "bars": [
+    {
+      "t": 1700050800,
+      "o": 49.87,
+      "h": 50.3,
+      "l": 49.84,
+      "c": 49.86,
+      "v": 1632.0
+    },
+    {
+      "t": 1700051100,
+      "o": 50.15,
+      "h": 50.17,
+      "l": 49.7,
+      "c": 50.15,
+      "v": 1442.0
+    },
+    {
+      "t": 1700051400,
+      "o": 49.97,
+      "h": 50.11,
+      "l": 49.95,
+      "c": 50.09,
+      "v": 1294.0
+    },
+    {
+      "t": 1700051700,
+      "o": 50.28,
+      "h": 50.36,
+      "l": 50.27,
+      "c": 50.3,
+      "v": 1423.0
+    },
+    {
+      "t": 1700052000,
+      "o": 49.94,
+      "h": 50.11,
+      "l": 49.92,
+      "c": 50.07,
+      "v": 1643.0
+    },
+    {
+      "t": 1700052300,
+      "o": 49.89,
+      "h": 49.94,
+      "l": 49.78,
+      "c": 49.81,
+      "v": 1493.0
+    },
+    {
+      "t": 1700052600,
+      "o": 50.56,
+      "h": 50.71,
+      "l": 50.48,
+      "c": 50.61,
+      "v": 2416.0
+    },
+    {
+      "t": 1700052900,
+      "o": 50.64,
+      "h": 50.82,
+      "l": 50.57,
+      "c": 50.74,
+      "v": 1402.0
+    },
+    {
+      "t": 1700053200,
+      "o": 50.68,
+      "h": 50.72,
+      "l": 50.53,
+      "c": 50.6,
+      "v": 1183.0
+    }
+  ]
+}

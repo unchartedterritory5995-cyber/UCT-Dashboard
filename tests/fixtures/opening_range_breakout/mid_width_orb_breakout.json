@@ -1,0 +1,98 @@
+{
+  "name": "mid_width_orb_breakout",
+  "category": "positive",
+  "expected": {
+    "fires": true,
+    "min_confidence": 50.0,
+    "max_confidence": 100.0
+  },
+  "context": {
+    "trend_stage": 2,
+    "rs_trend": "up",
+    "ma_alignment": "stacked_bullish",
+    "volume_signature": "expanding",
+    "regime": "bull",
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": 3,
+    "recent_dcr_avg": 0.65,
+    "dcr_signature": "accumulation",
+    "can_slim_grade": "B",
+    "can_slim_score": 72
+  },
+  "bars": [
+    {
+      "t": 1700050800,
+      "o": 50.09,
+      "h": 50.25,
+      "l": 50.02,
+      "c": 50.1,
+      "v": 1690.0
+    },
+    {
+      "t": 1700051100,
+      "o": 49.81,
+      "h": 49.94,
+      "l": 49.72,
+      "c": 49.88,
+      "v": 1326.0
+    },
+    {
+      "t": 1700051400,
+      "o": 49.95,
+      "h": 50.05,
+      "l": 49.95,
+      "c": 49.99,
+      "v": 1373.0
+    },
+    {
+      "t": 1700051700,
+      "o": 49.98,
+      "h": 49.99,
+      "l": 49.88,
+      "c": 49.95,
+      "v": 1337.0
+    },
+    {
+      "t": 1700052000,
+      "o": 49.99,
+      "h": 50.07,
+      "l": 49.95,
+      "c": 49.97,
+      "v": 1372.0
+    },
+    {
+      "t": 1700052300,
+      "o": 50.25,
+      "h": 50.34,
+      "l": 50.11,
+      "c": 50.16,
+      "v": 1580.0
+    },
+    {
+      "t": 1700052600,
+      "o": 50.54,
+      "h": 50.69,
+      "l": 50.48,
+      "c": 50.59,
+      "v": 3420.0
+    },
+    {
+      "t": 1700052900,
+      "o": 50.65,
+      "h": 50.67,
+      "l": 50.64,
+      "c": 50.66,
+      "v": 1130.0
+    },
+    {
+      "t": 1700053200,
+      "o": 50.6,
+      "h": 50.66,
+      "l": 50.49,
+      "c": 50.52,
+      "v": 1226.0
+    }
+  ]
+}

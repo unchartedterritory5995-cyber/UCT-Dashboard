@@ -64,6 +64,13 @@ from api.services.pattern_engine.detectors.classical import rsi_bullish_divergen
 from api.services.pattern_engine.detectors.classical import rsi_bearish_divergence as _rsi_bearish_divergence  # noqa: F401
 from api.services.pattern_engine.detectors.classical import outside_bar as _outside_bar  # noqa: F401
 from api.services.pattern_engine.detectors.classical import inside_bar_breakout as _inside_bar_breakout  # noqa: F401
+from api.services.pattern_engine.detectors.classical import macd_bullish_cross as _macd_bullish_cross  # noqa: F401
+from api.services.pattern_engine.detectors.classical import macd_bearish_cross as _macd_bearish_cross  # noqa: F401
+from api.services.pattern_engine.detectors.classical import vsa_no_demand as _vsa_no_demand  # noqa: F401
+from api.services.pattern_engine.detectors.classical import vsa_no_supply as _vsa_no_supply  # noqa: F401
+from api.services.pattern_engine.detectors.uct import opening_range_breakout as _opening_range_breakout  # noqa: F401
+from api.services.pattern_engine.detectors.uct import opening_range_breakdown as _opening_range_breakdown  # noqa: F401
+from api.services.pattern_engine.detectors.uct import avwap_reclaim as _avwap_reclaim  # noqa: F401
 from api.services.pattern_engine.detectors.structure import swing_pivots as _swing_pivots  # noqa: F401
 from api.services.pattern_engine.detectors.structure import support_resistance as _support_resistance  # noqa: F401
 from api.services.pattern_engine.detectors.structure import major_trendlines as _major_trendlines  # noqa: F401
@@ -523,6 +530,48 @@ _PATTERN_METADATA = {
         "category": "classical",
         "direction": "neutral",
         "description": "Bar fully INSIDE the prior bar's range = compression/coil. Breakout direction = trade direction. Linda Raschke + modern day-trader staple.",
+    },
+    "macd_bullish_cross": {
+        "name": "MACD Bullish Crossover",
+        "category": "classical",
+        "direction": "bullish",
+        "description": "MACD line crosses above signal line. Gerald Appel's momentum trigger — stronger when crossover happens below zero (oversold reversal).",
+    },
+    "macd_bearish_cross": {
+        "name": "MACD Bearish Crossover",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "MACD line crosses below signal line. Stronger when crossover happens above zero (overbought reversal).",
+    },
+    "opening_range_breakout": {
+        "name": "Opening Range Breakout (ORB)",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "First-30-min range break to upside on volume. Toby Crabel framework + Lance Breitstein modern intraday adaptation.",
+    },
+    "opening_range_breakdown": {
+        "name": "Opening Range Breakdown",
+        "category": "uct",
+        "direction": "bearish",
+        "description": "First-30-min range break to downside. Mirror of ORB.",
+    },
+    "vsa_no_demand": {
+        "name": "VSA No Demand",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "Narrow-range up bar on declining volume = institutions not buying = distribution signature. Tom Williams' Volume Spread Analysis.",
+    },
+    "vsa_no_supply": {
+        "name": "VSA No Supply",
+        "category": "classical",
+        "direction": "bullish",
+        "description": "Narrow-range down bar on declining volume = institutions not selling = absorption signature. Mirror of No Demand.",
+    },
+    "avwap_reclaim": {
+        "name": "AVWAP Reclaim",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Anchored VWAP from a key pivot reclaimed on volume after being below. Brian Shannon's AVWAP framework — anchor-aware level reclaim.",
     },
 }
 

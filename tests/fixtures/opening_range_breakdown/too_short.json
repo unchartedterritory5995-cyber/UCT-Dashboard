@@ -1,0 +1,80 @@
+{
+  "name": "too_short",
+  "category": "negative",
+  "expected": {
+    "fires": false
+  },
+  "context": {
+    "trend_stage": 4,
+    "rs_trend": "down",
+    "ma_alignment": "stacked_bearish",
+    "volume_signature": "expanding",
+    "regime": "bear",
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": 10,
+    "recent_dcr_avg": 0.3,
+    "dcr_signature": "distribution",
+    "can_slim_grade": "D",
+    "can_slim_score": 35
+  },
+  "bars": [
+    {
+      "t": 1700050800,
+      "o": 49.96,
+      "h": 50.3,
+      "l": 49.92,
+      "c": 50.02,
+      "v": 1712.0
+    },
+    {
+      "t": 1700051100,
+      "o": 49.77,
+      "h": 49.84,
+      "l": 49.7,
+      "c": 49.83,
+      "v": 1646.0
+    },
+    {
+      "t": 1700051400,
+      "o": 50.2,
+      "h": 50.29,
+      "l": 50.15,
+      "c": 50.18,
+      "v": 1547.0
+    },
+    {
+      "t": 1700051700,
+      "o": 50.07,
+      "h": 50.21,
+      "l": 50.01,
+      "c": 50.12,
+      "v": 1646.0
+    },
+    {
+      "t": 1700052000,
+      "o": 50.16,
+      "h": 50.19,
+      "l": 50.1,
+      "c": 50.13,
+      "v": 1694.0
+    },
+    {
+      "t": 1700052300,
+      "o": 50.03,
+      "h": 50.19,
+      "l": 49.97,
+      "c": 50.16,
+      "v": 1482.0
+    },
+    {
+      "t": 1700052600,
+      "o": 49.41,
+      "h": 49.47,
+      "l": 49.35,
+      "c": 49.45,
+      "v": 2921.0
+    }
+  ]
+}
