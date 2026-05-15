@@ -754,6 +754,16 @@ function processFlowData(rows) {
         else if (side === "BB" && isSWP) direction = "BULL"; // BB sweep put = selling puts = bullish
         // B Put / BB Block Put = ambiguous/repositioning, no direction
       }
+      // Lottery ticket filter: way OTM + short DTE = noise, not conviction
+      // Only mega/large caps — small caps are volatile, keep all their flow
+      if (direction && spot > 0 && dte >= 0 && dte <= 7 && mktcap >= 10e9) {
+        const isOTM = (cp === "C" && strike > spot) || (cp === "P" && strike < spot);
+        if (isOTM) {
+          const otmPct = Math.abs(strike - spot) / spot * 100;
+          const otmLimit = mktcap >= 200e9 ? 10 : 15;
+          if (otmPct >= otmLimit) direction = null;
+        }
+      }
     }
     return {
       S:(r.ticker||"").toUpperCase().trim(), Ty:isSWP?"SWP":isBLK?"BLK":null,
