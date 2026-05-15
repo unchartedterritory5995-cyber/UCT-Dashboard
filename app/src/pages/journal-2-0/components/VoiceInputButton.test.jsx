@@ -53,6 +53,8 @@ function installSpeechRecognitionMock() {
 
 // ── Tests ───────────────────────────────────────────────────────────────────
 
+const HINT_KEY = 'voice.dictation.hintSeen'
+
 describe('VoiceInputButton', () => {
   let originalSR
   let originalMR
@@ -64,6 +66,9 @@ describe('VoiceInputButton', () => {
     originalMR = global.MediaRecorder
     originalNav = global.navigator.mediaDevices
     originalFetch = global.fetch
+    // Default: hint already seen, so behavioral tests aren't affected by the
+    // one-time discoverability popover. Hint-specific tests opt out below.
+    try { localStorage.setItem(HINT_KEY, '1') } catch { /* ignore */ }
   })
 
   afterEach(() => {
@@ -180,6 +185,50 @@ describe('VoiceInputButton', () => {
     await user.click(btn)
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
     expect(sentForm.get('cleanup')).toBe('false')
+  })
+
+  // ── First-run discoverability hint ──
+
+  it('shows the first-run hint when the flag is unset and voice is supported', () => {
+    localStorage.removeItem(HINT_KEY)
+    installMediaRecorderMock()
+    render(<VoiceInputButton onTranscript={() => {}} />)
+    expect(screen.getByText(/speak instead of type/i)).toBeInTheDocument()
+  })
+
+  it('does not show the hint when the flag is already set', () => {
+    localStorage.setItem(HINT_KEY, '1')
+    installMediaRecorderMock()
+    render(<VoiceInputButton onTranscript={() => {}} />)
+    expect(screen.queryByText(/speak instead of type/i)).not.toBeInTheDocument()
+    localStorage.removeItem(HINT_KEY)
+  })
+
+  it('dismissing the hint sets the flag and hides it', async () => {
+    localStorage.removeItem(HINT_KEY)
+    installMediaRecorderMock()
+    const user = userEvent.setup()
+    render(<VoiceInputButton onTranscript={() => {}} />)
+    const dismiss = screen.getByRole('button', { name: /dismiss tip/i })
+    await user.click(dismiss)
+    expect(screen.queryByText(/speak instead of type/i)).not.toBeInTheDocument()
+    expect(localStorage.getItem(HINT_KEY)).toBe('1')
+    localStorage.removeItem(HINT_KEY)
+  })
+
+  it('starting a recording dismisses the hint and sets the flag', async () => {
+    localStorage.removeItem(HINT_KEY)
+    installMediaRecorderMock()
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ text: '' }) })
+    const user = userEvent.setup()
+    render(<VoiceInputButton onTranscript={() => {}} />)
+    expect(screen.getByText(/speak instead of type/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /start voice input/i }))
+    await waitFor(() =>
+      expect(screen.queryByText(/speak instead of type/i)).not.toBeInTheDocument(),
+    )
+    expect(localStorage.getItem(HINT_KEY)).toBe('1')
+    localStorage.removeItem(HINT_KEY)
   })
 
   it('falls back to Web Speech when /api/voice/transcribe returns 500', async () => {

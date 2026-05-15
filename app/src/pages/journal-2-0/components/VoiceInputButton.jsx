@@ -28,6 +28,18 @@ function hasMediaRecorder() {
     && !!root.navigator?.mediaDevices?.getUserMedia
 }
 
+// One-time discoverability hint. Shown once ever across all surfaces, gated
+// by a single localStorage flag. Dismissed by the X button OR first voice use.
+const HINT_KEY = 'voice.dictation.hintSeen'
+
+function hintAlreadySeen() {
+  try { return localStorage.getItem(HINT_KEY) === '1' } catch { return true }
+}
+
+function markHintSeen() {
+  try { localStorage.setItem(HINT_KEY, '1') } catch { /* ignore */ }
+}
+
 export default function VoiceInputButton({ onTranscript, disabled = false, cleanup = true }) {
   const SR = getSpeechRecognitionCtor()
   const whisperAvailable = hasMediaRecorder()
@@ -36,6 +48,12 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
 
   const [recording, setRecording] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [showHint, setShowHint] = useState(() => supported && !hintAlreadySeen())
+
+  const dismissHint = useCallback(() => {
+    markHintSeen()
+    setShowHint(false)
+  }, [])
 
   // Whisper path refs
   const mediaRecorderRef = useRef(null)
@@ -156,9 +174,10 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
 
   const startRecording = useCallback(() => {
     if (!supported || disabled) return
+    dismissHint()
     if (whisperAvailable) startWhisper()
     else if (webSpeechAvailable) startWebSpeech()
-  }, [supported, disabled, whisperAvailable, webSpeechAvailable, startWhisper, startWebSpeech])
+  }, [supported, disabled, dismissHint, whisperAvailable, webSpeechAvailable, startWhisper, startWebSpeech])
 
   const toggle = useCallback(() => {
     if (recording) stopRecording()
@@ -188,7 +207,37 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
   const statusText = uploading ? 'Transcribing…' : 'Listening…'
 
   return (
-    <>
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+      {showHint && !recording && !uploading && (
+        <span
+          role="status"
+          style={{
+            position: 'absolute', bottom: 'calc(100% + 8px)', left: 0,
+            zIndex: 20, width: 230,
+            background: 'var(--bg-base, #1a1a1a)',
+            border: '1px solid var(--ut-gold, #c9a84c)',
+            borderRadius: 6, padding: '8px 10px',
+            fontSize: 11, lineHeight: 1.45, color: 'var(--text-bright)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+          }}
+        >
+          <strong style={{ color: 'var(--ut-gold, #c9a84c)' }}>🎤 New:</strong>{' '}
+          speak instead of type. Tap the mic to dictate, or 🧭 to talk through it with Compass.
+          <button
+            type="button"
+            aria-label="Dismiss tip"
+            onClick={dismissHint}
+            style={{
+              position: 'absolute', top: 2, right: 4,
+              background: 'transparent', border: 'none',
+              color: 'var(--text-muted)', cursor: 'pointer',
+              fontSize: 13, lineHeight: 1, padding: 2,
+            }}
+          >
+            ✕
+          </button>
+        </span>
+      )}
       <button
         type="button"
         aria-label={recording ? 'Stop voice input' : 'Start voice input'}
@@ -221,6 +270,6 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
         </span>
       )}
       <style>{`@keyframes compass-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }`}</style>
-    </>
+    </span>
   )
 }
