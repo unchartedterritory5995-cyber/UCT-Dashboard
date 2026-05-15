@@ -97,6 +97,9 @@ def assemble_week(
 
 
 def _read_trader_profile(conn, user_id: str, account_id: str) -> str:
+    if is_unified(account_id):
+        from api.services.journal_two import unified_coach
+        return unified_coach.get_or_create(conn, user_id)["traderProfile"]
     row = conn.execute(
         "SELECT trader_profile FROM j2_accounts WHERE id = ? AND user_id = ?",
         (account_id, user_id),

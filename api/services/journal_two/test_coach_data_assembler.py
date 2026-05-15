@@ -508,3 +508,22 @@ def test_discipline_events_unified_sums_across_accounts(db_conn):
     end = datetime(2030, 1, 1, tzinfo=timezone.utc)
     ev = cda._discipline_events(db_conn, "u_uni4", "_all_", start, end)
     assert ev["cooling_off_fires"] == 2
+
+
+def test_read_trader_profile_uses_unified_state_in_all_mode(db_conn):
+    from api.services.journal_two import coach_data_assembler as cda
+    from api.services.journal_two import unified_coach
+    unified_coach.get_or_create(db_conn, "u_tp")
+    unified_coach.update_state(db_conn, "u_tp", trader_profile="Cross-account swing bias.")
+    assert cda._read_trader_profile(db_conn, "u_tp", "_all_") == "Cross-account swing bias."
+
+
+def test_read_trader_profile_uses_account_row_in_per_account_mode(db_conn):
+    from api.services.journal_two import coach_data_assembler as cda
+    acc = _seed_named_account(db_conn, "u_tp2", "Default")
+    db_conn.execute(
+        "UPDATE j2_accounts SET trader_profile = ? WHERE id = ?",
+        ("Account-specific profile.", acc["id"]),
+    )
+    db_conn.commit()
+    assert cda._read_trader_profile(db_conn, "u_tp2", acc["id"]) == "Account-specific profile."
