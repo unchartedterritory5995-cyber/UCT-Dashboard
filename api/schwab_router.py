@@ -7,7 +7,10 @@ Add to main.py: from schwab_router import router as schwab_router
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import urlparse, parse_qs
+import logging
 import api.schwab_service as schwab
+
+logger = logging.getLogger(__name__)
 
 # Yahoo Finance uses different symbols for indices
 YF_INDEX_MAP = {"SPX":"^GSPC", "NDX":"^NDX", "DJX":"^DJI", "RUT":"^RUT", "VIX":"^VIX", "XSP":"^GSPC"}
@@ -98,8 +101,36 @@ async def options_quotes_batch(contracts: list[dict]):
     """
     Fetch current prices for multiple option contracts.
     Body: [{"symbol":"AAPL","strike":250,"expDate":"2026-03-20","cp":"C"}, ...]
+    Falls back to Unusual Whales for contracts Schwab can't price.
     """
     results = await schwab.get_batch_option_quotes(contracts)
+
+    # ── UW fallback for failed contracts ──
+    failed_indices = [i for i, r in enumerate(results) if r.get("error") and not r.get("expired")]
+    if failed_indices:
+        try:
+            from api.uw_service import get_batch_quotes as uw_batch
+        except ImportError:
+            try:
+                from uw_service import get_batch_quotes as uw_batch
+            except ImportError:
+                uw_batch = None
+
+        if uw_batch:
+            failed_contracts = [contracts[i] for i in failed_indices]
+            try:
+                uw_results = await uw_batch(failed_contracts)
+                recovered = 0
+                for idx, uw_q in zip(failed_indices, uw_results):
+                    if not uw_q.get("error"):
+                        uw_q["_source"] = "uw"
+                        results[idx] = uw_q
+                        recovered += 1
+                if recovered > 0:
+                    logger.info("[UW fallback] Recovered %d/%d failed contracts", recovered, len(failed_indices))
+            except Exception as e:
+                logger.warning("[UW fallback] Error: %s", e)
+
     return {"quotes": results}
 
 
