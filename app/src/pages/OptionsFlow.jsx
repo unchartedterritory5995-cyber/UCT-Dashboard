@@ -850,7 +850,8 @@ function processFlowData(rows) {
   const deepOTMBlockKeys = new Set();
   const deepOTMSweepKeys = new Set();
   filtered.forEach(t => {
-    if (!t.isDeep) return;
+    // Use consistent 10% threshold for cluster detection (not isDeep which differs by type)
+    if (t.pctFromSpot < 10) return;
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     const isITM = (t.CP === "C" && t.K < t.Spot) || (t.CP === "P" && t.K > t.Spot);
     if (!isITM) { // deep OTM
