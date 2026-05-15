@@ -1919,7 +1919,7 @@ export default function OptionsFlowDashboard() {
     const totalPrem = allTrades.reduce((s,t)=>s+t.P,0);
 
     return modal(
-      <div style={{ background:"#0d1525", border:"1px solid "+P.bl, borderRadius:12, overflow:"hidden",
+      <div style={{ background:P.cd, border:"1px solid "+P.bl, borderRadius:12, overflow:"hidden",
         boxShadow:"0 8px 32px rgba(0,0,0,0.6)", borderTop:"2px solid "+c }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", borderBottom:"1px solid "+P.bd }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -2002,13 +2002,13 @@ export default function OptionsFlowDashboard() {
                     tickFormatter={v=>"$"+v.toFixed(1)} width={36} domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
                   <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:9, fill:"#7b8fa3" }}
                     tickFormatter={v=>fK(v)} width={42} />
-                  <Tooltip contentStyle={{ background:"#0d1525", border:"1px solid #243352", borderRadius:6, fontSize:9, padding:"6px 10px" }}
+                  <Tooltip contentStyle={{ background:P.cd, border:"1px solid "+P.bl+"", borderRadius:6, fontSize:9, padding:"6px 10px" }}
                     formatter={(val,name)=>{ if(name==="price") return ["$"+val.toFixed(2),"Price"]; if(name==="vol") return [fK(val),"Volume"]; return [val.toLocaleString(),"OI"]; }}
                     labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
                   <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
                   <Bar yAxisId="voloi" dataKey="oi" fill="#6ba3be" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
                   <Line yAxisId="price" dataKey="price" type="monotone" stroke="#c9a84c" strokeWidth={2} strokeOpacity={0.5}
-                    dot={{ r:4, fill:"#c9a84c", stroke:"#0d1525", strokeWidth:1.5 }} connectNulls />
+                    dot={{ r:4, fill:"#c9a84c", stroke:"#1a1c17", strokeWidth:1.5 }} connectNulls />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -2056,7 +2056,7 @@ export default function OptionsFlowDashboard() {
               </div>
               <div style={{ maxHeight:180, overflowY:"auto" }}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
-                  <thead><tr style={{ borderBottom:"1px solid "+P.bd, position:"sticky", top:0, background:"#0d1525" }}>
+                  <thead><tr style={{ borderBottom:"1px solid "+P.bd, position:"sticky", top:0, background:P.cd }}>
                     {["Day","Time","Type","Side","Color","Vol","OI","Premium","Price"].map(h=>(
                       <th key={h} style={{ padding:"3px 6px", textAlign:h==="Premium"||h==="Price"||h==="Vol"||h==="OI"?"right":"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
                     ))}
@@ -2184,7 +2184,7 @@ export default function OptionsFlowDashboard() {
         <div style={{color:"#e74c3c",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
         <div style={{color:"#7b8fa3",fontSize:12,marginBottom:16}}>{csvError}</div>
         <div style={{color:"#4a5c73",fontSize:11}}>No flow data in database. Upload CSV via the admin page to get started.</div>
-        <button onClick={()=>window.location.reload()} style={{marginTop:16,background:"#1a2540",color:"#c8d6e5",border:"1px solid #243352",borderRadius:6,padding:"8px 20px",fontSize:12,cursor:"pointer"}}>Retry</button>
+        <button onClick={()=>window.location.reload()} style={{marginTop:16,background:"#1a2540",color:"#c8d6e5",border:"1px solid "+P.bl+"",borderRadius:6,padding:"8px 20px",fontSize:12,cursor:"pointer"}}>Retry</button>
       </div>
     </div>
   );
@@ -2676,7 +2676,7 @@ export default function OptionsFlowDashboard() {
                           tickFormatter={v=>fmtGex(v)} />
                         <YAxis type="category" dataKey="label" tick={{ fontSize:10, fill:"#7b8fa3" }}
                           width={60} reversed />
-                        <Tooltip contentStyle={{ background:"#0d1525", border:"1px solid #243352", borderRadius:6, fontSize:11 }}
+                        <Tooltip contentStyle={{ background:P.cd, border:"1px solid "+P.bl+"", borderRadius:6, fontSize:11 }}
                           formatter={(val, name) => [fmtGex(val), name === "callGex" ? "Call GEX" : name === "putGex" ? "Put GEX" : "Net GEX"]} />
                         <ReferenceLine x={0} stroke="#7b8fa3" strokeWidth={1} />
                         {gexData.zeroGamma && <ReferenceLine y={"$"+Math.round(gexData.zeroGamma)} stroke={P.ac} strokeDasharray="3 3" label={{ value:"0γ", position:"right", fill:P.ac, fontSize:10 }} />}
@@ -4829,7 +4829,6 @@ export default function OptionsFlowDashboard() {
                     {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
                   </div>
                   <Card title={tk.s+" — Top 10 Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
-                  {tk.c.length>0 && <Card title={tk.s+" — Top Consistency (2+ hits)"}><CT rows={tk.c.slice(0,5)} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>}
                   {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
                 </>
               );
