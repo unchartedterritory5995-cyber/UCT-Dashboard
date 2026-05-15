@@ -1403,6 +1403,7 @@ export default function OptionsFlowDashboard() {
   const [wlBull, setWlBull] = useState([]);
   const [wlBear, setWlBear] = useState([]);
   const [wlDteFilter, setWlDteFilter] = useState("All");
+  const [wlViewFilter, setWlViewFilter] = useState("both");
   const [wlDate, setWlDate] = useState(new Date().toISOString().slice(0,10));
   const [wlDates, setWlDates] = useState([]);
   const [wlEditing, setWlEditing] = useState(null);
@@ -1414,6 +1415,25 @@ export default function OptionsFlowDashboard() {
   const [wlRemoveReason, setWlRemoveReason] = useState("");
   const [wlRemoved, setWlRemoved] = useState([]);
   const [wlOILoading, setWlOILoading] = useState(false);
+  const wlRef = useRef(null);
+  const screenshotWatchlist = async () => {
+    if (!wlRef.current) return;
+    let h2c = window.html2canvas;
+    if (!h2c) {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+      document.head.appendChild(s);
+      await new Promise(r => { s.onload = r; s.onerror = () => r(); });
+      h2c = window.html2canvas;
+    }
+    if (!h2c) { alert("Could not load screenshot library"); return; }
+    const canvas = await h2c(wlRef.current, { backgroundColor:P.bg, scale:2, useCORS:true });
+    const link = document.createElement("a");
+    const side = wlViewFilter === "both" ? "Full" : wlViewFilter === "bull" ? "Bull" : "Bear";
+    link.download = `UCT_Watchlist_${side}_${wlDate}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+  };
 
   const wlFetchOI = async () => {
     const all = [...wlBull, ...wlBear];
@@ -5432,11 +5452,16 @@ export default function OptionsFlowDashboard() {
                       color:wlOILoading?P.dm:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlOILoading?"not-allowed":"pointer" }}>
                     {wlOILoading?"Fetching…":"📊 Fetch Live OI"}
                   </button>
+                  <button onClick={screenshotWatchlist}
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    📸 Screenshot
+                  </button>
                 </div>
               </div>
             </Card>
-            {/* DTE Filter */}
-            <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+            {/* DTE + View Filter Bar */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
               {[
                 {k:"All", label:"All"},
                 {k:"1-2W", label:"1–2 Wks"},
@@ -5454,8 +5479,20 @@ export default function OptionsFlowDashboard() {
                   }}>{d.label}</button>
                 );
               })}
+              </div>
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                {[["both","Both"],["bull","Bull"],["bear","Bear"]].map(([v,label])=>(
+                  <button key={v} onClick={()=>setWlViewFilter(v)} style={{
+                    padding:"4px 10px", borderRadius:4, border:"none", cursor:"pointer",
+                    fontSize:10, fontWeight:700, fontFamily:"inherit",
+                    background:wlViewFilter===v?(v==="bull"?P.bu:v==="bear"?P.be:P.ac)+"22":"transparent",
+                    color:wlViewFilter===v?(v==="bull"?P.bu:v==="bear"?P.be:P.ac):P.dm,
+                  }}>{label}</button>
+                ))}
+              </div>
             </div>
             {/* Two-column layout */}
+            <div ref={wlRef}>
             {(()=>{
               // Compute DTE and filter
               const getDTE = (item) => {
@@ -5477,51 +5514,114 @@ export default function OptionsFlowDashboard() {
               };
               const filtBull = wlBull.filter(dteOk);
               const filtBear = wlBear.filter(dteOk);
+              const sortedBullIdx = filtBull.map((_,i)=>i).sort((a,b)=>(filtBull[b].score||0)-(filtBull[a].score||0));
+              const sortedBearIdx = filtBear.map((_,i)=>i).sort((a,b)=>(filtBear[b].score||0)-(filtBear[a].score||0));
+              const splitHalf = (sorted) => {
+                const mid = Math.ceil(sorted.length / 2); return [sorted.slice(0, mid), sorted.slice(mid)];
+              };
+              const renderCol = (indices, list, origList, side) => (
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {indices.length>0 ? indices.map(i=>renderItem(list[i], origList.indexOf(list[i]), side)) : (
+                    <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>No picks in this range.</div>
+                  )}
+                </div>
+              );
               return (
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              {/* Bull */}
-              <Card>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                  <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
-                  <span style={{ fontSize:9, color:P.dm }}>{filtBull.length} tickers</span>
-                </div>
-                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                  {filtBull.length>0 ? filtBull.map((_,i)=>i).sort((a,b)=>(filtBull[b].score||0)-(filtBull[a].score||0)).map(i=>renderItem(filtBull[i], wlBull.indexOf(filtBull[i]),"bull")) : (
-                    <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBull.length>0?"No bull picks in this DTE range.":"No bull picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
-                  )}
-                  <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                    <input value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
-                      onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bull")}
-                      placeholder="Add ticker..."
-                      style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
-                    <button onClick={()=>wlAddTicker("bull")}
-                      style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+              {wlViewFilter==="both" ? (
+                <>
+                <Card>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
+                    <span style={{ fontSize:9, color:P.dm }}>{filtBull.length} tickers</span>
                   </div>
-                </div>
-              </Card>
-              {/* Bear */}
-              <Card>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                  <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
-                  <span style={{ fontSize:9, color:P.dm }}>{filtBear.length} tickers</span>
-                </div>
-                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                  {filtBear.length>0 ? filtBear.map((_,i)=>i).sort((a,b)=>(filtBear[b].score||0)-(filtBear[a].score||0)).map(i=>renderItem(filtBear[i], wlBear.indexOf(filtBear[i]),"bear")) : (
-                    <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBear.length>0?"No bear picks in this DTE range.":"No bear picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
-                  )}
-                  <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                    <input value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
-                      onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bear")}
-                      placeholder="Add ticker..."
-                      style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
-                    <button onClick={()=>wlAddTicker("bear")}
-                      style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                    {filtBull.length>0 ? sortedBullIdx.map(i=>renderItem(filtBull[i], wlBull.indexOf(filtBull[i]),"bull")) : (
+                      <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBull.length>0?"No bull picks in this DTE range.":"No bull picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
+                    )}
+                    <div style={{ display:"flex", gap:4, marginTop:4 }}>
+                      <input value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
+                        onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bull")}
+                        placeholder="Add ticker..."
+                        style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
+                      <button onClick={()=>wlAddTicker("bull")}
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                    </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
+                <Card>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
+                    <span style={{ fontSize:9, color:P.dm }}>{filtBear.length} tickers</span>
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                    {filtBear.length>0 ? sortedBearIdx.map(i=>renderItem(filtBear[i], wlBear.indexOf(filtBear[i]),"bear")) : (
+                      <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBear.length>0?"No bear picks in this DTE range.":"No bear picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
+                    )}
+                    <div style={{ display:"flex", gap:4, marginTop:4 }}>
+                      <input value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
+                        onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bear")}
+                        placeholder="Add ticker..."
+                        style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
+                      <button onClick={()=>wlAddTicker("bear")}
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                    </div>
+                  </div>
+                </Card>
+                </>
+              ) : wlViewFilter==="bull" ? (
+                <>
+                {(()=>{ const [left,right] = splitHalf(sortedBullIdx); return (<>
+                  <Card>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
+                      <span style={{ fontSize:9, color:P.dm }}>{filtBull.length} tickers</span>
+                    </div>
+                    {renderCol(left, filtBull, wlBull, "bull")}
+                  </Card>
+                  <Card>
+                    <div style={{ marginBottom:8, height:19 }}/>
+                    {renderCol(right, filtBull, wlBull, "bull")}
+                    <div style={{ display:"flex", gap:4, marginTop:4 }}>
+                      <input value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
+                        onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bull")}
+                        placeholder="Add ticker..."
+                        style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
+                      <button onClick={()=>wlAddTicker("bull")}
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                    </div>
+                  </Card>
+                </>); })()}
+                </>
+              ) : (
+                <>
+                {(()=>{ const [left,right] = splitHalf(sortedBearIdx); return (<>
+                  <Card>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
+                      <span style={{ fontSize:9, color:P.dm }}>{filtBear.length} tickers</span>
+                    </div>
+                    {renderCol(left, filtBear, wlBear, "bear")}
+                  </Card>
+                  <Card>
+                    <div style={{ marginBottom:8, height:19 }}/>
+                    {renderCol(right, filtBear, wlBear, "bear")}
+                    <div style={{ display:"flex", gap:4, marginTop:4 }}>
+                      <input value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
+                        onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bear")}
+                        placeholder="Add ticker..."
+                        style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
+                      <button onClick={()=>wlAddTicker("bear")}
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                    </div>
+                  </Card>
+                </>); })()}
+                </>
+              )}
             </div>
               );
             })()}
+            </div>
             {/* Scanner Suggestions — overflow picks not yet on watchlist */}
             {FD && FD.CONV && (() => {
               const existingSyms = new Set([...wlBull.map(i=>i.sym+"|"+i.exp+"|"+i.strike), ...wlBear.map(i=>i.sym+"|"+i.exp+"|"+i.strike)]);
