@@ -1429,11 +1429,19 @@ export default function OptionsFlowDashboard() {
     }
     if (!h2c) { alert("Could not load screenshot library"); return; }
     const canvas = await h2c(wlRef.current, { backgroundColor:P.bg, scale:2, useCORS:true });
-    const link = document.createElement("a");
-    const side = wlViewFilter === "both" ? "Full" : wlViewFilter === "bull" ? "Bull" : "Bear";
-    link.download = `UCT_Watchlist_${side}_${wlDate}.png`;
-    link.href = canvas.toDataURL();
-    link.click();
+    try {
+      const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      setStatus("📸 Copied to clipboard!");
+      setTimeout(() => setStatus(""), 2000);
+    } catch(e) {
+      // Fallback to download if clipboard fails
+      const link = document.createElement("a");
+      const side = wlViewFilter === "both" ? "Full" : wlViewFilter === "bull" ? "Bull" : "Bear";
+      link.download = `UCT_Watchlist_${side}_${wlDate}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    }
   };
 
   const wlFetchOI = async () => {
