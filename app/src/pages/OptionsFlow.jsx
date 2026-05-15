@@ -755,8 +755,10 @@ function processFlowData(rows) {
         // B Put / BB Block Put = ambiguous/repositioning, no direction
       }
       // Lottery ticket filter: way OTM + short DTE = noise, not conviction
+      // Uses live DTE (from expiry date vs today), not historical CSV DTE
       // Only mega/large caps — small caps are volatile, keep all their flow
-      if (direction && spot > 0 && dte >= 0 && dte <= 7 && mktcap >= 10e9) {
+      const liveDte = expiry ? computeDTE(expiry) : dte;
+      if (direction && spot > 0 && liveDte >= 0 && liveDte <= 7 && mktcap >= 10e9) {
         const isOTM = (cp === "C" && strike > spot) || (cp === "P" && strike < spot);
         if (isOTM) {
           const otmPct = Math.abs(strike - spot) / spot * 100;
