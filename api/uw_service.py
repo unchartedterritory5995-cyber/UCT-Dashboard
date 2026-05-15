@@ -46,21 +46,28 @@ def build_occ(sym: str, cp: str, strike: float, exp_str: str) -> str:
     Format: TICKER (padded to 6) + YYMMDD + C/P + strike*1000 (padded to 8)
     Example: AAPL  260320C00200000
     
-    exp_str can be 'M/D', 'M/D/YY', or 'M/D/YYYY'
+    exp_str can be 'M/D', 'M/D/YY', 'M/D/YYYY', or 'YYYY-MM-DD' (ISO)
     """
     ticker = sym.upper()
     
-    parts = exp_str.strip().split("/")
-    m = int(parts[0])
-    d = int(parts[1])
-    if len(parts) >= 3:
-        y = int(parts[2])
-        if y < 100:
-            y += 2000
+    # Detect ISO format (YYYY-MM-DD)
+    if "-" in exp_str and len(exp_str) >= 8:
+        iso_parts = exp_str.strip().split("-")
+        y = int(iso_parts[0])
+        m = int(iso_parts[1])
+        d = int(iso_parts[2])
     else:
-        y = datetime.now().year
-        if date(y, m, d) < date.today():
-            y += 1
+        parts = exp_str.strip().split("/")
+        m = int(parts[0])
+        d = int(parts[1])
+        if len(parts) >= 3:
+            y = int(parts[2])
+            if y < 100:
+                y += 2000
+        else:
+            y = datetime.now().year
+            if date(y, m, d) < date.today():
+                y += 1
     
     date_str = f"{y % 100:02d}{m:02d}{d:02d}"
     cp_char = "C" if cp.upper().startswith("C") else "P"
