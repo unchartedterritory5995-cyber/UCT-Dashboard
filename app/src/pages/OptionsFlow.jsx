@@ -738,7 +738,7 @@ function processFlowData(rows) {
     const isBlock = typeRawForDeep === "BLOCK" || typeRawForDeep.includes("BLK");
     const isDeep = isBlock ? pctFromSpot >= 10 : pctFromSpot >= 20;
     // Direction logic per flow rules
-    const confirmed = color === "YELLOW" || color === "MAGENTA";
+    let confirmed = color === "YELLOW" || color === "MAGENTA";
     let direction = null;
     // "Primarily look for Ask/Above Ask for directional bets"
     // B trades = ambiguous (closing, repositioning, hedging) - never directional
@@ -763,7 +763,7 @@ function processFlowData(rows) {
         if (isOTM) {
           const otmPct = Math.abs(strike - spot) / spot * 100;
           const otmLimit = mktcap >= 200e9 ? 10 : 15;
-          if (otmPct >= otmLimit) direction = null;
+          if (otmPct >= otmLimit) { direction = null; confirmed = false; }
         }
       }
     }
