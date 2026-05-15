@@ -407,3 +407,104 @@ def test_assemble_week_now_includes_weekly_eod_context(db_conn):
     )
     weo = data.get("weekly_eod_context") or []
     assert any(e.get("day") == "2026-05-05" for e in weo), weo
+
+
+# ── Unified-mode ('_all_') union tests ──────────────────────────────────────
+
+
+def _seed_named_account(db_conn, user_id, name, compass_enabled=1):
+    from api.services.journal_two import accounts as accounts_service
+    acc = accounts_service.create_account(
+        user_id,
+        {"name": name, "color": "blue", "startingBalance": 100_000},
+        conn=db_conn,
+    )
+    if compass_enabled != 1:
+        db_conn.execute(
+            "UPDATE j2_accounts SET compass_enabled = ? WHERE id = ?",
+            (compass_enabled, acc["id"]),
+        )
+        db_conn.commit()
+    return acc
+
+
+def test_trades_in_range_unions_across_accounts(db_conn):
+    """account_id == '_all_' pulls trades from every compass_enabled account
+    and tags each row with its source account name."""
+    from api.services.journal_two import coach_data_assembler as cda
+    a1 = _seed_named_account(db_conn, "u_uni", "Default")
+    a2 = _seed_named_account(db_conn, "u_uni", "Cash")
+    _insert_trade(db_conn, user_id="u_uni", account_id=a1["id"],
+                  exit_iso="2026-05-05T20:00:00+00:00", symbol="AAPL")
+    _insert_trade(db_conn, user_id="u_uni", account_id=a2["id"],
+                  exit_iso="2026-05-06T20:00:00+00:00", symbol="NVDA")
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    end = datetime(2030, 1, 1, tzinfo=timezone.utc)
+    rows = cda._trades_in_range(db_conn, "u_uni", "_all_", start, end)
+    by_sym = {r["symbol"]: r for r in rows}
+    assert set(by_sym) == {"AAPL", "NVDA"}
+    assert by_sym["AAPL"]["account_name"] == "Default"
+    assert by_sym["NVDA"]["account_name"] == "Cash"
+
+
+def test_trades_in_range_excludes_compass_disabled_account(db_conn):
+    from api.services.journal_two import coach_data_assembler as cda
+    a1 = _seed_named_account(db_conn, "u_uni2", "Default")
+    a2 = _seed_named_account(db_conn, "u_uni2", "Excluded", compass_enabled=0)
+    _insert_trade(db_conn, user_id="u_uni2", account_id=a1["id"],
+                  exit_iso="2026-05-05T20:00:00+00:00", symbol="AAPL")
+    _insert_trade(db_conn, user_id="u_uni2", account_id=a2["id"],
+                  exit_iso="2026-05-06T20:00:00+00:00", symbol="TSLA")
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    end = datetime(2030, 1, 1, tzinfo=timezone.utc)
+    rows = cda._trades_in_range(db_conn, "u_uni2", "_all_", start, end)
+    assert {r["symbol"] for r in rows} == {"AAPL"}
+
+
+def test_open_positions_unions_across_accounts(db_conn):
+    from api.services.journal_two import coach_data_assembler as cda
+    import uuid
+    a1 = _seed_named_account(db_conn, "u_uni3", "Default")
+    a2 = _seed_named_account(db_conn, "u_uni3", "Cash")
+    for acc, sym in ((a1, "MSFT"), (a2, "GOOG")):
+        db_conn.execute(
+            """INSERT INTO j2_positions
+               (id, user_id, account_id, symbol, side, shares, original_shares,
+                entry_price, stop_price, entry_date, context_at_entry,
+                created_at, updated_at)
+               VALUES (?, ?, ?, ?, 'Long', 10, 10, 100, 95,
+                       '2026-05-01T14:00:00+00:00', '{}',
+                       '2026-05-01T14:00:00+00:00', '2026-05-01T14:00:00+00:00')""",
+            (str(uuid.uuid4()), "u_uni3", acc["id"], sym),
+        )
+    db_conn.commit()
+    rows = cda._open_positions(db_conn, "u_uni3", "_all_")
+    by_sym = {r["symbol"]: r for r in rows}
+    assert set(by_sym) == {"MSFT", "GOOG"}
+    assert by_sym["MSFT"]["account_name"] == "Default"
+    assert by_sym["GOOG"]["account_name"] == "Cash"
+
+
+def test_discipline_events_unified_sums_across_accounts(db_conn):
+    """Unified mode sums discipline counters across enabled accounts using
+    each account's own caps. Two losing trades in two accounts → 2 cooling
+    -off fires when each account has cooling-off configured."""
+    from api.services.journal_two import coach_data_assembler as cda
+    a1 = _seed_named_account(db_conn, "u_uni4", "Default")
+    a2 = _seed_named_account(db_conn, "u_uni4", "Cash")
+    for acc in (a1, a2):
+        db_conn.execute(
+            "UPDATE j2_accounts SET cooling_off_minutes_after_loss = 15 WHERE id = ?",
+            (acc["id"],),
+        )
+    db_conn.commit()
+    _insert_trade(db_conn, user_id="u_uni4", account_id=a1["id"],
+                  exit_iso="2026-05-05T20:00:00+00:00", result="Loss",
+                  r_multiple=-1.0, pnl_dollar=-100)
+    _insert_trade(db_conn, user_id="u_uni4", account_id=a2["id"],
+                  exit_iso="2026-05-06T20:00:00+00:00", result="Loss",
+                  r_multiple=-1.0, pnl_dollar=-100)
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    end = datetime(2030, 1, 1, tzinfo=timezone.utc)
+    ev = cda._discipline_events(db_conn, "u_uni4", "_all_", start, end)
+    assert ev["cooling_off_fires"] == 2

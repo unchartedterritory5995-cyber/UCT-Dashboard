@@ -37,6 +37,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import accounts as accounts_service
+from api.services.journal_two.coach_scope import is_unified, resolve_account_scope
 
 
 def assemble_week(
@@ -107,14 +108,18 @@ def _read_trader_profile(conn, user_id: str, account_id: str) -> str:
 
 
 def _recent_coach_memory(conn, user_id: str, account_id: str, limit: int) -> list[dict]:
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return []
+    placeholders = ",".join("?" * len(ids))
     rows = conn.execute(
-        """
+        f"""
         SELECT summary, metadata FROM j2_coach_outputs
-         WHERE user_id = ? AND account_id = ?
+         WHERE user_id = ? AND account_id IN ({placeholders})
            AND output_type = 'weekly_review' AND forgotten = 0
          ORDER BY created_at DESC LIMIT ?
         """,
-        (user_id, account_id, limit),
+        [user_id, *ids, limit],
     ).fetchall()
     out = []
     for r in rows:
@@ -134,19 +139,27 @@ def _trades_in_range(
     conn, user_id: str, account_id: str,
     start: datetime, end: datetime,
 ) -> list[dict]:
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return []
+    placeholders = ",".join("?" * len(ids))
     start_iso = start.isoformat()
     end_iso = end.isoformat()
     rows = conn.execute(
-        """
-        SELECT symbol, side, shares, entry_price, exit_price, entry_date, exit_date,
-               original_stop, setup, notes, pnl_dollar, pnl_percent, r_multiple,
-               hold_days, result, mistake_tags, emotion_tags, regime
-          FROM j2_trades
-         WHERE user_id = ? AND account_id = ?
-           AND exit_date >= ? AND exit_date < ?
-         ORDER BY exit_date ASC
+        f"""
+        SELECT t.symbol, t.side, t.shares, t.entry_price, t.exit_price,
+               t.entry_date, t.exit_date,
+               t.original_stop, t.setup, t.notes, t.pnl_dollar, t.pnl_percent,
+               t.r_multiple, t.hold_days, t.result,
+               t.mistake_tags, t.emotion_tags, t.regime,
+               t.account_id, a.name AS account_name
+          FROM j2_trades t
+          LEFT JOIN j2_accounts a ON a.id = t.account_id
+         WHERE t.user_id = ? AND t.account_id IN ({placeholders})
+           AND t.exit_date >= ? AND t.exit_date < ?
+         ORDER BY t.exit_date ASC
         """,
-        (user_id, account_id, start_iso, end_iso),
+        [user_id, *ids, start_iso, end_iso],
     ).fetchall()
     out = []
     for r in rows:
@@ -170,6 +183,8 @@ def _trades_in_range(
             "emotion_tags": _parse_json_list(r["emotion_tags"]),
             "regime": r["regime"],
             "process_score": None,    # j2 doesn't yet store process_score per trade
+            "account_id": r["account_id"],
+            "account_name": r["account_name"],
         })
     return out
 
@@ -292,7 +307,29 @@ def _discipline_events(conn, user_id, account_id, start, end) -> dict:
     - no_trade_window_blocks: not directly observable from trade data;
       reported as 0 until a future polish introduces a discipline-events
       log table.
+
+    Unified mode (account_id == '_all_'): sum counters across each
+    enabled account using that account's own risk caps / daily-loss limit.
     """
+    if is_unified(account_id):
+        ids = resolve_account_scope(conn, user_id, account_id)
+        if not ids:
+            return {
+                "risk_cap_breaches": 0, "risk_cap_overrides": 0,
+                "daily_loss_lockouts": 0, "cooling_off_fires": 0,
+                "no_trade_window_blocks": 0, "a_plus_taken": 0,
+            }
+        agg = {
+            "risk_cap_breaches": 0, "risk_cap_overrides": 0,
+            "daily_loss_lockouts": 0, "cooling_off_fires": 0,
+            "no_trade_window_blocks": 0, "a_plus_taken": 0,
+        }
+        for aid in ids:
+            part = _discipline_events(conn, user_id, aid, start, end)
+            for k in agg:
+                agg[k] += part.get(k, 0)
+        return agg
+
     settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
     account_size = float(settings.get("accountSize") or 0)
     cap_pct = settings.get("maxRiskPerTradePct")
@@ -382,14 +419,18 @@ def _vs_last_week(curr: dict, prior: dict) -> dict:
 
 
 def _feedback_signals(conn, user_id, account_id) -> list[dict]:
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return []
+    placeholders = ",".join("?" * len(ids))
     rows = conn.execute(
-        """
+        f"""
         SELECT summary, metadata FROM j2_coach_outputs
-         WHERE user_id = ? AND account_id = ?
+         WHERE user_id = ? AND account_id IN ({placeholders})
            AND feedback = 'unhelpful' AND forgotten = 0
          ORDER BY created_at DESC LIMIT 5
         """,
-        (user_id, account_id),
+        [user_id, *ids],
     ).fetchall()
     out = []
     for r in rows:
@@ -406,15 +447,19 @@ def _eod_summaries_in_week(
     week_start: str, week_end: str,
 ) -> list[dict]:
     """Return EOD recap summaries from this week (used by Weekly Review prompt)."""
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return []
+    placeholders = ",".join("?" * len(ids))
     rows = conn.execute(
-        """
+        f"""
         SELECT summary, metadata FROM j2_coach_outputs
-         WHERE user_id = ? AND account_id = ?
+         WHERE user_id = ? AND account_id IN ({placeholders})
            AND output_type = 'eod_recap' AND forgotten = 0
            AND json_extract(metadata, '$.day') BETWEEN ? AND ?
          ORDER BY json_extract(metadata, '$.day') ASC
         """,
-        (user_id, account_id, week_start, week_end),
+        [user_id, *ids, week_start, week_end],
     ).fetchall()
     out = []
     for r in rows:
@@ -539,15 +584,19 @@ def _recent_eod_summaries(
 ) -> list[dict]:
     """Return the last N EOD recap summaries for this account, excluding the
     recap for `before_day` itself."""
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return []
+    placeholders = ",".join("?" * len(ids))
     rows = conn.execute(
-        """
+        f"""
         SELECT summary, metadata FROM j2_coach_outputs
-         WHERE user_id = ? AND account_id = ?
+         WHERE user_id = ? AND account_id IN ({placeholders})
            AND output_type = 'eod_recap' AND forgotten = 0
            AND json_extract(metadata, '$.day') < ?
          ORDER BY created_at DESC LIMIT ?
         """,
-        (user_id, account_id, before_day, limit),
+        [user_id, *ids, before_day, limit],
     ).fetchall()
     out: list[dict] = []
     for r in rows:
@@ -563,14 +612,18 @@ def _last_weekly_summary_and_focus(
     conn: sqlite3.Connection, user_id: str, account_id: str,
 ) -> dict:
     """Return {summary, this_weeks_focus} from the most recent weekly_review."""
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return {"summary": "", "this_weeks_focus": None}
+    placeholders = ",".join("?" * len(ids))
     row = conn.execute(
-        """
+        f"""
         SELECT summary, metadata FROM j2_coach_outputs
-         WHERE user_id = ? AND account_id = ?
+         WHERE user_id = ? AND account_id IN ({placeholders})
            AND output_type = 'weekly_review' AND forgotten = 0
          ORDER BY created_at DESC LIMIT 1
         """,
-        (user_id, account_id),
+        [user_id, *ids],
     ).fetchone()
     if row is None:
         return {"summary": "", "this_weeks_focus": None}
@@ -585,15 +638,26 @@ def _last_weekly_summary_and_focus(
 
 
 def _open_positions(conn: sqlite3.Connection, user_id: str, account_id: str) -> list[dict]:
-    """Open positions (closed_at IS NULL) for this account."""
+    """Open positions (closed_at IS NULL) for this account.
+
+    In unified mode (account_id == '_all_'), unions positions across every
+    enabled account and tags each with account_id + account_name so the
+    coach prompt can attribute statements.
+    """
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return []
+    placeholders = ",".join("?" * len(ids))
     rows = conn.execute(
-        """
-        SELECT symbol, side, shares, entry_price, stop_price, entry_date
-          FROM j2_positions
-         WHERE user_id = ? AND account_id = ? AND closed_at IS NULL
-         ORDER BY entry_date ASC
+        f"""
+        SELECT p.symbol, p.side, p.shares, p.entry_price, p.stop_price, p.entry_date,
+               p.account_id, a.name AS account_name
+          FROM j2_positions p
+          LEFT JOIN j2_accounts a ON a.id = p.account_id
+         WHERE p.user_id = ? AND p.account_id IN ({placeholders}) AND p.closed_at IS NULL
+         ORDER BY p.entry_date ASC
         """,
-        (user_id, account_id),
+        [user_id, *ids],
     ).fetchall()
     out: list[dict] = []
     for r in rows:
@@ -612,21 +676,27 @@ def _open_positions(conn: sqlite3.Connection, user_id: str, account_id: str) -> 
             "days_held": days_held,
             "unrealized_r": None,        # v2: live price integration deferred
             "current_price": None,
+            "account_id": r["account_id"],
+            "account_name": r["account_name"],
         })
     return out
 
 
 def _eod_feedback_signals(conn, user_id, account_id) -> list[dict]:
     """Recent EOD recaps the user marked unhelpful."""
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return []
+    placeholders = ",".join("?" * len(ids))
     rows = conn.execute(
-        """
+        f"""
         SELECT summary, metadata FROM j2_coach_outputs
-         WHERE user_id = ? AND account_id = ?
+         WHERE user_id = ? AND account_id IN ({placeholders})
            AND output_type = 'eod_recap'
            AND feedback = 'unhelpful' AND forgotten = 0
          ORDER BY created_at DESC LIMIT 3
         """,
-        (user_id, account_id),
+        [user_id, *ids],
     ).fetchall()
     out = []
     for r in rows:
