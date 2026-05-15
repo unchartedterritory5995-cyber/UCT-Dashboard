@@ -45,6 +45,47 @@ from api.services.journal_two import (
 router = APIRouter(prefix="/api/j2", tags=["journal-2-0"])
 
 
+def _unified_enabled() -> bool:
+    """Feature flag — flip UNIFIED_COMPASS_ENABLED=false in Railway env to
+    fully revert to the per-account-only 'select a single account' guard."""
+    import os
+    raw = os.getenv("UNIFIED_COMPASS_ENABLED", "true").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def _require_compass_enabled(user_id: str, account_id: str) -> None:
+    """Raise 404/403 if Compass isn't reachable for (user, account).
+
+    Accepts the '_all_' sentinel: the per-user unified coach toggle gates
+    the request instead of the per-account one.
+    """
+    from api.services.journal_two.coach_scope import is_unified
+    from api.services.journal_two import unified_coach
+    if is_unified(account_id):
+        if not _unified_enabled():
+            raise HTTPException(status_code=404, detail="Unified Compass is disabled by configuration.")
+        state = unified_coach.get_or_create(None, user_id)
+        if not state["compassEnabled"]:
+            raise HTTPException(status_code=403, detail="Unified Compass is disabled.")
+        return
+    settings_check = accounts_service.get_account_settings(user_id, account_id)
+    if settings_check is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not settings_check.get("compassEnabled", True):
+        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+
+
+def _reject_unified_for_per_trade(account_id: str) -> None:
+    """Pre-trade verdict / trade-review / onboarding endpoints are inherently
+    per-account in v1. Reject the unified sentinel with a friendly 400."""
+    from api.services.journal_two.coach_scope import is_unified
+    if is_unified(account_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Switch to a single account — Compass needs an account context for this action.",
+        )
+
+
 def _most_recent_closed_monday() -> str:
     """Return the most recent fully-closed Monday-Friday week as ISO Monday date."""
     from datetime import datetime, timedelta, timezone
@@ -989,12 +1030,7 @@ def generate_coach_weekly_review(
     payload: dict | None = None,
     user: dict = Depends(get_current_user),
 ):
-    # Compass-enabled gate
-    settings_check = accounts_service.get_account_settings(user["id"], account_id)
-    if settings_check is None:
-        raise HTTPException(status_code=404, detail="Account not found")
-    if not settings_check.get("compassEnabled", True):
-        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+    _require_compass_enabled(user["id"], account_id)
 
     week_start = (payload or {}).get("weekStart") or _most_recent_closed_monday()
     try:
@@ -1088,12 +1124,7 @@ def generate_coach_eod_recap(
     payload: dict | None = None,
     user: dict = Depends(get_current_user),
 ):
-    # Compass-enabled gate
-    settings_check = accounts_service.get_account_settings(user["id"], account_id)
-    if settings_check is None:
-        raise HTTPException(status_code=404, detail="Account not found")
-    if not settings_check.get("compassEnabled", True):
-        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+    _require_compass_enabled(user["id"], account_id)
 
     # Default day = today ET
     from datetime import datetime as _dt
@@ -1185,11 +1216,7 @@ def chat_stream(
     msg = (payload or {}).get("message", "").strip()
     if not msg:
         raise HTTPException(status_code=400, detail="message required")
-    settings_check = accounts_service.get_account_settings(user["id"], account_id)
-    if settings_check is None:
-        raise HTTPException(status_code=404, detail="Account not found")
-    if not settings_check.get("compassEnabled", True):
-        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+    _require_compass_enabled(user["id"], account_id)
 
     def _gen():
         for event in coach_chat_service.handle_user_turn(
@@ -1310,16 +1337,40 @@ def put_coach_profile(
         conn.close()
 
 
+@router.get("/unified-coach")
+def get_unified_coach_state_route(
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import unified_coach
+    return unified_coach.get_or_create(None, user["id"])
+
+
+@router.put("/unified-coach")
+def put_unified_coach_state_route(
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    from api.services.journal_two import unified_coach
+    profile = (payload or {}).get("traderProfile")
+    enabled = (payload or {}).get("compassEnabled")
+    if profile is not None and not isinstance(profile, str):
+        raise HTTPException(status_code=400, detail="traderProfile must be a string")
+    if enabled is not None and not isinstance(enabled, bool):
+        raise HTTPException(status_code=400, detail="compassEnabled must be a boolean")
+    return unified_coach.update_state(
+        None, user["id"],
+        trader_profile=profile,
+        compass_enabled=enabled,
+    )
+
+
 @router.post("/accounts/{account_id}/coach/chat/start_onboarding")
 def chat_start_onboarding(
     account_id: str,
     user: dict = Depends(get_current_user),
 ):
-    settings_check = accounts_service.get_account_settings(user["id"], account_id)
-    if settings_check is None:
-        raise HTTPException(status_code=404, detail="Account not found")
-    if not settings_check.get("compassEnabled", True):
-        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+    _reject_unified_for_per_trade(account_id)
+    _require_compass_enabled(user["id"], account_id)
 
     def _gen():
         for event in coach_chat_service.start_onboarding(
@@ -1342,11 +1393,8 @@ def chat_redo_onboarding(
     account_id: str,
     user: dict = Depends(get_current_user),
 ):
-    settings_check = accounts_service.get_account_settings(user["id"], account_id)
-    if settings_check is None:
-        raise HTTPException(status_code=404, detail="Account not found")
-    if not settings_check.get("compassEnabled", True):
-        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+    _reject_unified_for_per_trade(account_id)
+    _require_compass_enabled(user["id"], account_id)
 
     def _gen():
         for event in coach_chat_service.redo_onboarding(
@@ -1366,11 +1414,8 @@ def pre_trade_verdict(
     user: dict = Depends(get_current_user),
 ):
     from api.services.journal_two import pre_trade_verdict as ptv_service
-    settings_check = accounts_service.get_account_settings(user["id"], account_id)
-    if settings_check is None:
-        raise HTTPException(status_code=404, detail="Account not found")
-    if not settings_check.get("compassEnabled", True):
-        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+    _reject_unified_for_per_trade(account_id)
+    _require_compass_enabled(user["id"], account_id)
     return ptv_service.generate_verdict(
         user_id=user["id"], account_id=account_id, params=payload or {},
     )
@@ -1408,11 +1453,8 @@ def generate_trade_review(
     user: dict = Depends(get_current_user),
 ):
     from api.services.journal_two import trade_review as tr
-    settings_check = accounts_service.get_account_settings(user["id"], account_id)
-    if settings_check is None:
-        raise HTTPException(status_code=404, detail="Account not found")
-    if not settings_check.get("compassEnabled", True):
-        raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+    _reject_unified_for_per_trade(account_id)
+    _require_compass_enabled(user["id"], account_id)
     trade_id = (payload or {}).get("trade_id")
     if not trade_id:
         raise HTTPException(status_code=400, detail="trade_id required")
