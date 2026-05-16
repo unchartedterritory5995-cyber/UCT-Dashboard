@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 # Importing the detector modules triggers self-registration with the registry.
+from api.services.pattern_engine.detectors.classical import golden_cross as _golden_cross  # noqa: F401
 from api.services.pattern_engine.detectors.classical import bull_flag as _bull_flag  # noqa: F401
 from api.services.pattern_engine.detectors.classical import bear_flag as _bear_flag  # noqa: F401
 from api.services.pattern_engine.detectors.classical import pennant as _pennant  # noqa: F401
@@ -106,6 +107,12 @@ router = APIRouter(prefix="/api/patterns", tags=["patterns"])
 
 
 _PATTERN_METADATA = {
+    "golden_cross": {
+        "name": "Golden Cross (50/200 SMA)",
+        "category": "classical",
+        "direction": "bullish",
+        "description": "50-day SMA crosses ABOVE 200-day SMA with both MAs rising. Weinstein Stage 2 transition signal — institutional trend-change trigger (Dow Theory / Stan Weinstein 1988).",
+    },
     "bull_flag": {
         "name": "Bull Flag",
         "category": "classical",
