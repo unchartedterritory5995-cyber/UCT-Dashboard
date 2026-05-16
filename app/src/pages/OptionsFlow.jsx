@@ -4526,7 +4526,6 @@ export default function OptionsFlowDashboard() {
                 <table style={{ borderCollapse:"collapse", fontSize:12, margin:"0 auto", width:"85%" }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                     <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, width:80 }}>Ticker</th>
-                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600, width:90 }}>Sector</th>
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Bull</th>
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Bear</th>
                     <th style={{ padding:"4px 12px", width:100, textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Split</th>
@@ -4548,7 +4547,6 @@ export default function OptionsFlowDashboard() {
                           
                           {d.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
                         </td>
-                        <td style={{ padding:"8px 6px", fontSize:10, color:P.dm, textAlign:"center" }}>{(()=>{ const th = (THEME_LOOKUP[d.sym]||[])[0]; if (th) return th; const sec = (D.TICKER_DB.find(t=>t.s===d.sym)||{}).sector||""; return (sec && sec!=="None" && sec!=="Unknown") ? sec : ""; })()}</td>
                         <td style={{ padding:"8px 14px", fontWeight:800, color:P.bu, textAlign:"center" }}>{d.found&&d.bull>0?fmt(d.bull):"—"}</td>
                         <td style={{ padding:"8px 14px", fontWeight:800, color:P.be, textAlign:"center" }}>{d.found&&d.bear>0?fmt(d.bear):"—"}</td>
                         <td style={{ padding:"8px 12px", width:100 }}>
