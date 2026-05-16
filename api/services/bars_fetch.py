@@ -82,6 +82,57 @@ def _needs_fresh(last_ts: int | None, tf: str) -> bool:
     return (_time.time() - last_ts) > thresholds.get(tf, 300)
 
 
+def _expected_latest_session_yyyymmdd(now=None) -> int:
+    """ET date (YYYYMMDD int) of the most recent trading session that
+    should have intraday bars available.
+
+    Weekends roll to Friday; weekday pre-open (before ~09:35 ET) rolls to
+    the prior weekday. Holidays are intentionally ignored — at worst that
+    triggers one extra (cheap) synchronous delta fetch that returns no new
+    bars. False positives cost ~1s of latency once; false negatives are
+    the universe-freeze bug, so we bias toward fetching.
+    """
+    et = _ZI("America/New_York")
+    now = now or datetime.now(et)
+    wd = now.weekday()  # 0=Mon … 5=Sat, 6=Sun
+    if wd == 5:
+        d = now - timedelta(days=1)
+    elif wd == 6:
+        d = now - timedelta(days=2)
+    else:
+        if now.hour * 100 + now.minute < 935:
+            d = now - timedelta(days=1)
+            if d.weekday() == 5:
+                d -= timedelta(days=1)
+            elif d.weekday() == 6:
+                d -= timedelta(days=2)
+        else:
+            d = now
+    return int(d.strftime("%Y%m%d"))
+
+
+def _is_cold_stale_intraday(tf: str, last_ts: int | None, now=None) -> bool:
+    """True when the newest cached intraday bar predates the most recent
+    session that should have data — i.e. the cache is missing >=1 whole
+    trading session, not merely a same-session top-up.
+
+    Cold-stale entries MUST be fetched synchronously so the FIRST chart
+    paint is correct, instead of being served stale-while-revalidate (the
+    root cause of the universe-wide May-8 freeze: charts fetch once per
+    mount, so they never picked up the background heal). Same-session
+    staleness still uses the fast SWR path — that's a legit "serve
+    instantly, top up the developing bar in the background" case.
+    """
+    if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
+        return False
+    try:
+        et = _ZI("America/New_York")
+        last_date = int(datetime.fromtimestamp(last_ts, et).strftime("%Y%m%d"))
+    except Exception:
+        return False
+    return last_date < _expected_latest_session_yyyymmdd(now)
+
+
 def _fmt_sqlite_bars(rows: list[tuple], tf: str) -> list[dict]:
     """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format."""
     date_tf = tf in ("D", "W", "M")
@@ -205,6 +256,27 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
             f"[bars] _fetch_intraday_massive {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
         )
         return []
+
+
+def _paginate_massive_aggs(client, url: str) -> list[dict]:
+    """Follow Massive/Polygon ``next_url`` pagination, returning ALL raw
+    result dicts across pages.
+
+    Single-page responses silently truncate large windows (documented in
+    _fetch_intraday_massive). The delta path needs the SAME loop or
+    multi-day / multi-month gaps never fully backfill — the asymmetry
+    that let cold-stale intraday entries appear "stuck" weeks back.
+    """
+    out: list[dict] = []
+    for _page in range(20):  # 20 × 50000 safety cap, same as full-fetch
+        data = client._get(url)
+        out.extend(data.get("results") or [])
+        nxt = data.get("next_url")
+        if not nxt:
+            break
+        sep = "&" if "?" in nxt else "?"
+        url = f"{nxt}{sep}apiKey={client._api_key}"
+    return out
 
 
 def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
@@ -507,11 +579,10 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
                 f"/{from_date}/{to_date}"
                 f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
             )
-            data = client._get(url)
             bars_30m = [
                 {"t": int(b["t"] / 1000), "o": round(b["o"], 2), "h": round(b["h"], 2),
                  "l": round(b["l"], 2), "c": round(b["c"], 2), "v": int(b.get("v", 0))}
-                for b in (data.get("results") or [])
+                for b in _paginate_massive_aggs(client, url)
             ]
             # Intraday boundary bar is owned by Phase 4 WebSocket — REST
             # must NOT overwrite it on every call or the chart flickers
@@ -538,9 +609,8 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
             f"/{from_date}/{to_date}"
             f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
         )
-        data = client._get(url)
         new = []
-        for bar in (data.get("results") or []):
+        for bar in _paginate_massive_aggs(client, url):
             ts = int(bar["t"] / 1000)
             # Strict > so REST does NOT overwrite the boundary bar that
             # Phase 4 WebSocket is actively painting. With >= we observed
@@ -1175,7 +1245,14 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
             headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
         )
 
-    if stored_rows and last_ts:
+    # Cold-stale intraday (missing >=1 whole session) must NOT be served
+    # stale-while-revalidate — charts fetch once per mount, so they'd pin
+    # the frozen first paint and never pick up the bg heal (the May-8
+    # universe-freeze bug). Fall through to Layer 4's synchronous,
+    # de-duplicated delta fetch so the FIRST paint is already correct.
+    # Same-session staleness still uses fast SWR below (serve instantly,
+    # top up the developing bar in the background).
+    if stored_rows and last_ts and not _is_cold_stale_intraday(tf, last_ts):
         # Partial cache: SQLite has SOME rows but fewer than the chart asked
         # for. The block above ("len(stored_rows) >= bars * 0.9") falls
         # through here on purpose so the bg path can populate the missing
