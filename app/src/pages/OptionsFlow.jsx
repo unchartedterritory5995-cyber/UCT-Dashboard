@@ -1219,7 +1219,7 @@ export default function OptionsFlowDashboard() {
   const [leaderYtd, setLeaderYtd] = useState({});
   const [leaderOff52, setLeaderOff52] = useState({});
   const [leaderOI, setLeaderOI] = useState({});
-  const [leaderSort, setLeaderSort] = useState({col:"sym", dir:"asc"});
+  const [leaderSort, setLeaderSort] = useState({col:"net", dir:"desc"});
   const [leaderYtdLoading, setLeaderYtdLoading] = useState(false);
   const fetchLeaderYtd = async () => {
     if (!leaders.length) return;
@@ -4587,7 +4587,7 @@ export default function OptionsFlowDashboard() {
                     style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.ac+"22", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
                   <button onClick={fetchLeaderYtd} disabled={leaderYtdLoading}
                     style={{ padding:"5px 12px", borderRadius:4, border:"1px solid "+P.bl, background:"transparent", color:leaderYtdLoading?P.dm:P.mt, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:leaderYtdLoading?"wait":"pointer" }}>
-                    {leaderYtdLoading?"Loading…":"📈 YTD%"}
+                    {leaderYtdLoading?"Loading…":"📈 Fetch Data"}
                   </button>
                   <button onClick={autoPopulateLeaders}
                     style={{ padding:"5px 12px", borderRadius:4, border:"1px solid #6ba3be55", background:"#6ba3be11", color:"#6ba3be", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
