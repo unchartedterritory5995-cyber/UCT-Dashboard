@@ -540,7 +540,7 @@ function buildCharts(cc) {
     if (!allCons[k]) allCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, vol:0, dir:t.D,
       hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
       bullPrem:0, bearPrem:0, askPrem:0, bidPrem:0, dominantOverride:false, maxOI:0, er:t.er||false,
-      ivs:[], spots:[], prices:[], sideTimes:[] };
+      uoa:false, mktcap:t.mktcap||0, ivs:[], spots:[], prices:[], sideTimes:[] };
     if (!consTrades[k]) consTrades[k] = [];
     consTrades[k].push(t);
     allCons[k].hits++; allCons[k].prem += t.P; allCons[k].vol += t.V;
@@ -554,6 +554,8 @@ function buildCharts(cc) {
     if (t.Ty==="BLK") allCons[k].hasBlock = true;
     if (t.Co==="YELLOW"||t.Co==="MAGENTA") allCons[k].oiExceeded = true;
     if (t.D) allCons[k].dirs.add(t.D);
+    if (t.uoa) allCons[k].uoa = true;
+    if (t.mktcap > allCons[k].mktcap) allCons[k].mktcap = t.mktcap;
     if (t.OI > allCons[k].maxOI) allCons[k].maxOI = t.OI;
     // Track IV, spot, price, and side with time for pattern detection
     if (t.IV > 0) allCons[k].ivs.push(t.IV);
@@ -621,7 +623,7 @@ function buildCharts(cc) {
     return { ...c, score: c.score + heatBonus, tickerHeat: th.contracts >= 2 ? { contracts:th.contracts, totalPrem:th.totalPrem, strikes:th.strikes.size, exps:th.exps.size } : null };
   })
   .sort((a,b)=>b.score-a.score)
-  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, DTE:c.DTE, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0, bullPrem:c.bullPrem||0, bearPrem:c.bearPrem||0, tickerHeat:c.tickerHeat,
+  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, DTE:c.DTE, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0, bullPrem:c.bullPrem||0, bearPrem:c.bearPrem||0, tickerHeat:c.tickerHeat, uoa:c.uoa||false,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"", price:t.price||0, Spot:t.Spot||0 })), patterns:c.patterns||[] }));
   const sectorMap = {};
   const tickerFlowMap = {};
@@ -1152,7 +1154,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Top Flow","Alpha","Search","OI Check","Tracker","Watchlist"];
+const TABS = ["Market Read","Top Flow","Alpha","Leaders","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -1179,6 +1181,18 @@ export default function OptionsFlowDashboard() {
   const [leaderDte, setLeaderDte] = useState("All");
   const [selectedLeaderTicker, setSelectedLeaderTicker] = useState(null);
   const [sectorView, setSectorView] = useState("sectors"); // "sectors" | "themes"
+  // ─── Leaders State ──────────────────────────────────────────────────
+  const [leaders, setLeaders] = useState(() => {
+    try { const saved = localStorage.getItem("uct_leaders"); return saved ? JSON.parse(saved) : []; } catch { return []; }
+  });
+  const [leadersInput, setLeadersInput] = useState("");
+  const saveLeaders = (list) => { setLeaders(list); try { localStorage.setItem("uct_leaders", JSON.stringify(list)); } catch {} };
+  const addLeader = () => {
+    const syms = leadersInput.toUpperCase().split(",").map(s=>s.trim()).filter(s=>s && !leaders.includes(s));
+    if (syms.length) saveLeaders([...leaders, ...syms]);
+    setLeadersInput("");
+  };
+  const removeLeader = (sym) => saveLeaders(leaders.filter(s=>s!==sym));
   const [tfDteFilter, setTfDteFilter] = useState("All");
   const [gexTicker, setGexTicker] = useState("SPY");
   const [gexInput, setGexInput] = useState("SPY");
@@ -1487,20 +1501,30 @@ export default function OptionsFlowDashboard() {
 
   const autoScore = (c) => {
     let s = 0;
+    // Grade: 0.5–2.5
     const g = c.grade||"";
     s += g==="A+"?2.5:g==="A"?2:g==="B+"?1.5:g==="B"?1:g==="C"?0.5:0.5;
+    // Hits (repetition): 0.5–2.5, but skip penalty for extreme V/OI
     const h = c.hits||0;
-    s += h>=10?2.5:h>=5?2:h>=2?1.5:1;
-    // Cap-relative premium scoring
+    const v = c.volOI||0;
+    if (v >= 20 && h <= 1) { s += 1.5; } // single trade but extreme V/OI = still good
+    else { s += h>=10?2.5:h>=5?2:h>=3?1.5:h>=2?1:0.5; }
+    // Cap-relative premium: 0.5–2
     const p = c.prem||0;
     const isMega = wlCapCheck(c)==="Mega";
     if (isMega) { s += p>=10e6?2:p>=5e6?1.5:p>=1e6?1:0.5; }
     else { s += p>=2e6?2:p>=500e3?1.5:p>=100e3?1:0.5; }
-    const v = c.volOI||0;
-    s += v>=3?1.5:v>=2?1:0.5;
+    // V/OI ratio: 0.5–2.5 (boosted from 1.5 max)
+    s += v>=20?2.5:v>=10?2:v>=5?1.5:v>=3?1.2:v>=2?1:0.5;
+    // Side (urgency): 0.5–1.5
     const sd = c.side||"";
     s += sd==="AA"?1.5:sd==="BB"?1:0.5;
-    return Math.min(10, Math.round(s*10)/10);
+    // UOA flag: +1 when true
+    if (c.uoa) s += 1;
+    // LEAPS bonus: +0.5 for DTE > 180 (long-dated conviction)
+    if ((c.DTE||0) > 180) s += 0.5;
+    // Normalize to 10 max (raw max ~12.5)
+    return Math.min(10, Math.round(s / 1.25 * 10) / 10);
   };
 
   const wlPopulate = () => {
@@ -1518,13 +1542,13 @@ export default function OptionsFlowDashboard() {
         return { ...c, _isExit, _rankScore: _isExit ? (c.score||0) * 0.4 : (c.score||0) };
       }).sort((a,b)=>b._rankScore-a._rankScore).filter(c => { if (seen.has(c.sym)) return false; seen.add(c.sym); return true; });
     };
-    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL")).slice(0,10).map(c=>({
+    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:c.dir||"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
       cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
     }));
-    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR")).slice(0,10).map(c=>({
+    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:c.dir||"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
@@ -1552,13 +1576,13 @@ export default function OptionsFlowDashboard() {
     const sorted = deduped.sort((a,b) => b.prem - a.prem);
     const tickerSeen = new Set();
     const uniqueTicker = (list) => list.filter(c => { if (tickerSeen.has(c.sym+"|"+c.dir)) return false; tickerSeen.add(c.sym+"|"+c.dir); return true; });
-    const bulls = uniqueTicker(sorted.filter(c=>c.dir==="BULL")).slice(0,10).map(c=>({
+    const bulls = uniqueTicker(sorted.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
       cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
     }));
-    const bears = uniqueTicker(sorted.filter(c=>c.dir==="BEAR")).slice(0,10).map(c=>({
+    const bears = uniqueTicker(sorted.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
@@ -3400,10 +3424,10 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Alpha"?"#c9a84c":t==="Watchlist"?P.ac:P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Alpha"?"1px solid #c9a84c55":"1px solid transparent"), cursor:"pointer",
-              fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Alpha")?800:600, fontFamily:"inherit",
-              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Alpha"?"#c9a84c33":P.ac+"22"):"transparent",
-              color:tab===t?(t==="Watchlist"?P.ac:t==="Alpha"?"#c9a84c":P.wh):(t==="Watchlist"?P.ac:t==="Alpha"?"#c9a84c":P.mt)
+              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Alpha"?"#c9a84c":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Alpha"?"1px solid #c9a84c55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
+              fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Alpha"||t==="Leaders")?800:600, fontFamily:"inherit",
+              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Alpha"?"#c9a84c33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
+              color:tab===t?(t==="Watchlist"?P.ac:t==="Alpha"?"#c9a84c":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Alpha"?"#c9a84c":t==="Leaders"?"#6ba3be":P.mt)
             }}>{t}</button>
           ))}
         </div>
@@ -3849,8 +3873,8 @@ export default function OptionsFlowDashboard() {
                   else if (t.D==="BEAR") tkMap[t.S].r += t.P;
                 });
                 const tickers = Object.values(tkMap);
-                const bulls = [...tickers].filter(tk=>tk.b>tk.r).sort((a,b)=>(b.b-b.r)-(a.b-a.r)).slice(0,10);
-                const bears = [...tickers].filter(tk=>tk.r>tk.b).sort((a,b)=>(b.r-b.b)-(a.r-a.b)).slice(0,10);
+                const bulls = [...tickers].filter(tk=>tk.b>tk.r).sort((a,b)=>(b.b-b.r)-(a.b-a.r)).slice(0,20);
+                const bears = [...tickers].filter(tk=>tk.r>tk.b).sort((a,b)=>(b.r-b.b)-(a.r-a.b)).slice(0,20);
                 const renderRow = (tk, i) => {
                   const total = tk.b + tk.r;
                   const bullPct = total > 0 ? Math.round(tk.b / total * 100) : 50;
@@ -4431,6 +4455,118 @@ export default function OptionsFlowDashboard() {
               </table>
             </Card>
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
+          </div>
+          );
+        })()}
+
+        {/* Leaders */}
+        {tab==="Leaders" && D && (()=>{
+          const fmt = (n) => n>=1e6?"$"+(n/1e6).toFixed(1)+"M":n>=1e3?"$"+(n/1e3).toFixed(0)+"K":"$"+n.toFixed(0);
+          const leaderData = leaders.map(sym => {
+            const tk = D.TICKER_DB.find(t=>t.s===sym);
+            if (!tk) return { sym, found:false, bull:0, bear:0, net:0, trades:0, topContract:null };
+            const bull = tk.b||0, bear = tk.r||0, net = bull-bear;
+            const topC = (tk.c||[]).length>0 ? tk.c[0] : (tk.t||[]).length>0 ? tk.t[0] : null;
+            return { sym, found:true, bull, bear, net, trades:tk.n||0, cap:capBand(tk.mktcap), er:tk.er,
+              topContract:topC ? { cp:topC.CP||topC.cp, K:topC.K||topC.strike, exp:topC.E||topC.exp,
+                hits:topC.H||topC.hits||1, prem:topC.P||topC.prem||0, grade:topC.grade||"",
+                side:topC.Si||topC.side||"" } : null };
+          }).sort((a,b) => Math.abs(b.net) - Math.abs(a.net));
+          const totalBull = leaderData.reduce((a,d)=>a+d.bull,0);
+          const totalBear = leaderData.reduce((a,d)=>a+d.bear,0);
+          const bullPct = (totalBull+totalBear)>0 ? Math.round(totalBull/(totalBull+totalBear)*100) : 50;
+          return (
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <Card>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:3, height:28, background:P.ac, borderRadius:2 }}/>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700, color:P.ac }}>Market Leaders</div>
+                    <div style={{ fontSize:10, color:P.dm }}>Track institutional flow on the names driving this market. {leaders.length} leaders tracked.</div>
+                  </div>
+                </div>
+                <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                  <input value={leadersInput} onChange={e=>setLeadersInput(e.target.value.toUpperCase())}
+                    onKeyDown={e=>e.key==="Enter"&&addLeader()}
+                    placeholder="Add tickers (comma-separated)..."
+                    style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 10px", fontFamily:"inherit", width:200 }}/>
+                  <button onClick={addLeader}
+                    style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.ac+"22", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                </div>
+              </div>
+            </Card>
+            {leaders.length > 0 && (
+            <Card>
+              <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:8 }}>
+                <div>
+                  <span style={{ fontSize:10, color:P.dm }}>Leaders Net Flow</span>
+                  <div style={{ fontSize:18, fontWeight:900, color:totalBull>=totalBear?P.bu:P.be }}>{fmt(Math.abs(totalBull-totalBear))}</div>
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:P.dm, marginBottom:2 }}>
+                    <span>Bull {fmt(totalBull)}</span>
+                    <span style={{ fontSize:16, fontWeight:800, color:bullPct>=50?P.bu:P.be }}>{bullPct}%</span>
+                    <span>Bear {fmt(totalBear)}</span>
+                  </div>
+                  <div style={{ width:"100%", height:6, background:P.be, borderRadius:3 }}>
+                    <div style={{ width:bullPct+"%", height:"100%", background:P.bu, borderRadius:3 }}/>
+                  </div>
+                </div>
+              </div>
+            </Card>
+            )}
+            {leaders.length > 0 ? (
+            <Card>
+              <div style={{ display:"grid", gridTemplateColumns:"60px 1fr 90px 90px 90px 180px 30px", gap:"0", alignItems:"center" }}>
+                {["Ticker","","Bull","Bear","Net","Top Contract",""].map((h,i)=>(
+                  <div key={i} style={{ padding:"6px 8px", fontSize:9, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, borderBottom:"1px solid "+P.bd }}>{h}</div>
+                ))}
+                {leaderData.map((d,i) => {
+                  const isBull = d.net >= 0;
+                  const total = d.bull + d.bear;
+                  const bPct = total > 0 ? d.bull / total * 100 : 50;
+                  return (
+                    <Fragment key={d.sym}>
+                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", cursor:"pointer" }}
+                        onClick={()=>{ setSearch(d.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===d.sym)||null); setTab("Search"); }}>
+                        <span style={{ fontWeight:800, color:P.wh, fontSize:12 }}>{d.sym}</span>
+                        {d.er && <span style={{ fontSize:7, background:"#c9a84c33", color:"#c9a84c", padding:"1px 4px", borderRadius:3, marginLeft:4, fontWeight:700 }}>ER</span>}
+                        {d.cap && <span style={{ fontSize:8, color:P.dm, marginLeft:4 }}>{d.cap}</span>}
+                      </div>
+                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40" }}>
+                        <div style={{ width:"100%", height:3, background:P.be+"40", borderRadius:2, maxWidth:120 }}>
+                          <div style={{ width:bPct+"%", height:"100%", background:P.bu, borderRadius:2 }}/>
+                        </div>
+                      </div>
+                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", fontSize:11, fontWeight:700, color:P.bu, textAlign:"right" }}>{d.found?fmt(d.bull):"—"}</div>
+                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", fontSize:11, fontWeight:700, color:P.be, textAlign:"right" }}>{d.found?fmt(d.bear):"—"}</div>
+                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", fontSize:11, fontWeight:800, color:isBull?P.bu:P.be, textAlign:"right" }}>{d.found?(isBull?"+":"")+fmt(d.net):"—"}</div>
+                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", fontSize:9, color:P.dm }}>
+                        {d.topContract ? (
+                          <span>
+                            <span style={{ color:d.topContract.cp==="C"?P.bu:P.be, fontWeight:700 }}>{d.topContract.cp}</span>
+                            {" $"+d.topContract.K+" "+d.topContract.exp}
+                            {d.topContract.hits>1 && <span style={{ color:P.ac, fontWeight:700 }}> {d.topContract.hits}x</span>}
+                            <span style={{ color:P.ac }}> {fmt(d.topContract.prem)}</span>
+                          </span>
+                        ) : <span style={{ color:P.mt }}>no flow</span>}
+                      </div>
+                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", textAlign:"center" }}>
+                        <button onClick={()=>removeLeader(d.sym)}
+                          style={{ background:"none", border:"none", color:P.dm, fontSize:12, cursor:"pointer", padding:0, lineHeight:1 }}
+                          title="Remove">×</button>
+                      </div>
+                    </Fragment>
+                  );
+                })}
+              </div>
+            </Card>
+            ) : (
+              <Card><div style={{ textAlign:"center", padding:24, color:P.dm, fontSize:11 }}>
+                Add market leaders above to start tracking their flow. Example: NVDA, AAPL, TSLA, META, AMZN, GOOGL
+              </div></Card>
+            )}
           </div>
           );
         })()}
