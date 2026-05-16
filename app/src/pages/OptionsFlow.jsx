@@ -4540,9 +4540,9 @@ export default function OptionsFlowDashboard() {
                 </div>
                 <div style={{ flex:1 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:P.dm, marginBottom:2 }}>
-                    <span>Bull {fmt(totalBull)}</span>
+                    <span style={{ color:P.bu }}>Bull {fmt(totalBull)}</span>
                     <span style={{ fontSize:16, fontWeight:800, color:bullPct>=50?P.bu:P.be }}>{bullPct}%</span>
-                    <span>Bear {fmt(totalBear)}</span>
+                    <span style={{ color:P.be }}>Bear {fmt(totalBear)}</span>
                   </div>
                   <div style={{ width:"100%", height:6, background:P.be, borderRadius:3 }}>
                     <div style={{ width:bullPct+"%", height:"100%", background:P.bu, borderRadius:3 }}/>
