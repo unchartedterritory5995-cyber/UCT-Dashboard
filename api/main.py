@@ -818,34 +818,46 @@ async def lifespan(app: FastAPI):
             print(f"[startup] Initial snapshot pull error after {elapsed:.1f}s "
                   f"(non-fatal): {e} — proceeding with cold cache")
 
-        # Periodic R2 sync: REPLACES the entire local bars.db with worker's
-        # snapshot every 5 minutes. This was DESIGNED to keep web in sync
-        # with worker's prewarmer, but in practice it overwrites the web's
-        # fresh delta-fetch writes with whatever stale state the worker has.
-        # User report 2026-05-07: charts show correct data after a refresh,
-        # then revert to stale within 5 min — exactly matching this loop.
-        # Gated behind R2_PERIODIC_PULL_ENABLED (default OFF) so the boot-
-        # time initial pull happens (still useful for cold-start), but the
-        # periodic overwrite stops. Web's local writes become authoritative
-        # once the deploy is up. Re-enable by setting the env var to "1"
-        # when worker's prewarmer is verified to produce fresh data.
-        if os.environ.get("R2_PERIODIC_PULL_ENABLED") == "1":
-            def _s3_pull_loop():
-                import time as _t
-                while True:
-                    _t.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)  # sleep first; initial pull just happened
-                    try:
+        # Periodic R2 sync (Part 2, 2026-05-16). HISTORY: the OLD loop
+        # REPLACED the entire local bars.db with the worker snapshot every
+        # 5 min, clobbering the web's fresher on-demand delta writes
+        # (2026-05-07 incident). It was disabled — which then froze the
+        # whole intraday universe at ~May 8 because nothing else refreshed
+        # it (USE_REMOTE_BARS gates off the in-process prewarmer too).
+        #
+        # The pull is now a newer-wins MERGE (data_sync.sync_if_newer_merge
+        # → merge_snapshot): a snapshot row is adopted only when local has
+        # none for that (ticker,tf) yet OR it is strictly newer than
+        # local's newest bar. INSERT OR IGNORE never overwrites an existing
+        # local row. It can therefore only ADD freshness / pre-populate
+        # cold tickers — never regress a fresher local write. Because it is
+        # safe by construction it runs UNCONDITIONALLY (no
+        # R2_PERIODIC_PULL_ENABLED gate). R2_PERIODIC_PULL_LEGACY_REPLACE=1
+        # restores the old unsafe replace for emergencies only.
+        _legacy_replace = os.environ.get("R2_PERIODIC_PULL_LEGACY_REPLACE") == "1"
+
+        def _s3_pull_loop():
+            import time as _t
+            while True:
+                _t.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)  # initial pull already happened
+                try:
+                    if _legacy_replace:
                         ts = data_sync.sync_if_newer()
                         if ts:
-                            print(f"[data_sync] pulled snapshot {ts}")
-                    except Exception as e:
-                        print(f"[data_sync] pull error (non-fatal): {e}")
-            threading.Thread(target=_s3_pull_loop, daemon=True, name="s3_pull").start()
-            print(f"[startup] S3 snapshot puller thread started ({data_sync.SNAPSHOT_INTERVAL_SECONDS // 60}-min cadence)")
-        else:
-            print("[startup] S3 periodic puller DISABLED (R2_PERIODIC_PULL_ENABLED!=1) — "
-                  "web's local writes are authoritative; only the boot-time pull happened. "
-                  "Set R2_PERIODIC_PULL_ENABLED=1 to re-enable periodic R2 overrides.")
+                            print(f"[data_sync] (legacy replace) pulled snapshot {ts}")
+                    else:
+                        ts = data_sync.sync_if_newer_merge()
+                        if ts:
+                            print(f"[data_sync] merged snapshot {ts} (newer-wins)")
+                except Exception as e:
+                    print(f"[data_sync] pull error (non-fatal): {e}")
+
+        threading.Thread(target=_s3_pull_loop, daemon=True, name="s3_pull").start()
+        print(
+            f"[startup] S3 periodic puller started "
+            f"({data_sync.SNAPSHOT_INTERVAL_SECONDS // 60}-min cadence; mode="
+            f"{'LEGACY-REPLACE' if _legacy_replace else 'newer-wins-merge'})"
+        )
 
     # Real-time bar streaming (Phase 4): Massive WS → BarBroadcaster → SSE.
     # Off by default; flip STREAM_BARS_ENABLED=1 to enable.

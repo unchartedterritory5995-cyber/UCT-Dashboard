@@ -364,3 +364,83 @@ def test_force_resync_clears_marker_and_local_db(tmp_path, monkeypatch):
         "force_resync did not clear the sync marker — sync_if_newer would "
         "still short-circuit on the stale 'I'm up to date' check"
     )
+
+
+class TestMergeOhlcv:
+    """Part 2 — the locked 'never regress' rule. _merge_ohlcv_from must
+    add freshness / pre-populate cold tickers but NEVER overwrite or roll
+    back a fresher local row (the 2026-05-07 replace-regression class)."""
+
+    def _mkdb(self, path, rows):
+        c = sqlite3.connect(str(path))
+        c.execute(
+            "CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, "
+            "o REAL, h REAL, l REAL, c REAL, v INTEGER, "
+            "PRIMARY KEY (ticker,tf,ts))"
+        )
+        c.executemany(
+            "INSERT INTO ohlcv (ticker,tf,ts,o,h,l,c,v) VALUES (?,?,?,?,?,?,?,?)",
+            rows,
+        )
+        c.commit()
+        c.close()
+
+    def _rows(self, path, ticker, tf):
+        c = sqlite3.connect(str(path))
+        try:
+            return c.execute(
+                "SELECT ts,c FROM ohlcv WHERE ticker=? AND tf=? ORDER BY ts",
+                (ticker, tf),
+            ).fetchall()
+        finally:
+            c.close()
+
+    def test_adopts_newer_and_pre_populates_but_never_regresses(self, tmp_path):
+        data_sync = _reload_data_sync()
+        local = tmp_path / "local.db"
+        snap = tmp_path / "snap.db"
+        # local: AAPL frozen at ts=100 (c=10). NVDA absent entirely.
+        self._mkdb(local, [("AAPL", "15", 100, 1, 1, 1, 10, 5)])
+        # snapshot: AAPL has the old 100 (different c — must NOT overwrite)
+        # plus newer 200/300; NVDA fully present (cold-ticker pre-pop).
+        self._mkdb(snap, [
+            ("AAPL", "15", 100, 9, 9, 9, 99, 9),   # collides — must be IGNORED
+            ("AAPL", "15", 200, 2, 2, 2, 20, 6),   # newer — adopt
+            ("AAPL", "15", 300, 3, 3, 3, 30, 7),   # newer — adopt
+            ("NVDA", "15", 50, 4, 4, 4, 40, 8),    # absent locally — adopt
+        ])
+        adopted = data_sync._merge_ohlcv_from(str(snap), local_db=str(local))
+        assert adopted == 3
+        aapl = self._rows(local, "AAPL", "15")
+        assert aapl == [(100, 10.0), (200, 20.0), (300, 30.0)], (
+            "existing local bar must NOT be overwritten; newer bars adopted"
+        )
+        assert self._rows(local, "NVDA", "15") == [(50, 40.0)]
+
+    def test_stale_snapshot_is_a_noop(self, tmp_path):
+        data_sync = _reload_data_sync()
+        local = tmp_path / "local.db"
+        snap = tmp_path / "snap.db"
+        # local fresher (up to 300); snapshot only has older 100/200.
+        self._mkdb(local, [
+            ("AAPL", "15", 100, 1, 1, 1, 10, 5),
+            ("AAPL", "15", 200, 2, 2, 2, 20, 6),
+            ("AAPL", "15", 300, 3, 3, 3, 30, 7),
+        ])
+        self._mkdb(snap, [
+            ("AAPL", "15", 100, 9, 9, 9, 99, 9),
+            ("AAPL", "15", 200, 9, 9, 9, 99, 9),
+        ])
+        adopted = data_sync._merge_ohlcv_from(str(snap), local_db=str(local))
+        assert adopted == 0, "stale snapshot must adopt nothing"
+        assert self._rows(local, "AAPL", "15") == [
+            (100, 10.0), (200, 20.0), (300, 30.0)
+        ], "fresher local data must be completely preserved"
+
+    def test_no_local_db_returns_sentinel(self, tmp_path):
+        data_sync = _reload_data_sync()
+        snap = tmp_path / "snap.db"
+        self._mkdb(snap, [("AAPL", "15", 1, 1, 1, 1, 1, 1)])
+        assert data_sync._merge_ohlcv_from(
+            str(snap), local_db=str(tmp_path / "missing.db")
+        ) == -1

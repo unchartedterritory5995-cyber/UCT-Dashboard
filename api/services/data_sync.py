@@ -400,3 +400,126 @@ def force_resync() -> bool:
         )
         return False
     return download_snapshot(ts)
+
+
+# ── Newer-wins MERGE (Part 2, 2026-05-16) ─────────────────────────────────────
+# The locked rule that replaces the two-mechanism conflict (worker→R2→web
+# REPLACE vs web on-demand delta WRITE). A snapshot row is adopted ONLY
+# when local has no rows for that (ticker,tf) yet (cold-ticker
+# pre-population) OR the row is strictly newer than local's newest bar for
+# that (ticker,tf) (forward freshness). INSERT OR IGNORE means an existing
+# local row is NEVER overwritten. Net: the snapshot can only ADD freshness,
+# never regress a fresher local write — the exact 2026-05-07 failure mode.
+
+def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
+    """Newer-wins merge of snapshot ohlcv into the local bars.db.
+
+    Returns rows adopted (best-effort), or -1 if there is no local DB to
+    merge into (caller should fall back to a plain install)."""
+    if local_db is None:
+        local_db = os.path.join(_DATA_DIR, "bars.db")
+    if not os.path.exists(local_db):
+        return -1
+    conn = sqlite3.connect(local_db, timeout=30)
+    try:
+        conn.execute("PRAGMA busy_timeout=30000")
+        conn.execute("ATTACH DATABASE ? AS snap", (src_db,))
+        try:
+            cur = conn.execute(
+                """
+                INSERT OR IGNORE INTO ohlcv (ticker,tf,ts,o,h,l,c,v)
+                SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v
+                FROM snap.ohlcv s
+                LEFT JOIN (
+                    SELECT ticker,tf,MAX(ts) AS mx
+                    FROM ohlcv GROUP BY ticker,tf
+                ) l ON l.ticker=s.ticker AND l.tf=s.tf
+                WHERE l.mx IS NULL OR s.ts > l.mx
+                """
+            )
+            adopted = cur.rowcount if cur.rowcount is not None else 0
+            # Best-effort provenance merge — older snapshots may lack the
+            # table; same OR IGNORE no-regress semantics.
+            try:
+                conn.execute(
+                    "INSERT OR IGNORE INTO bars_provenance "
+                    "(ticker,tf,ts,source,fetched_at) "
+                    "SELECT ticker,tf,ts,source,fetched_at FROM snap.bars_provenance"
+                )
+            except sqlite3.Error:
+                pass
+            conn.commit()
+            return adopted
+        finally:
+            conn.execute("DETACH DATABASE snap")
+    finally:
+        conn.close()
+
+
+def merge_snapshot(ts: str) -> bool:
+    """Download snapshot <ts> and MERGE it into the local bars.db with
+    newer-wins semantics. Never replaces the local DB, so it cannot
+    regress fresher local writes. Falls back to a full install only when
+    there is no local DB yet (cold start — nothing to protect)."""
+    client = _client()
+    bucket = _bucket()
+    if not (client and bucket):
+        return False
+    if not os.path.exists(os.path.join(_DATA_DIR, "bars.db")):
+        return download_snapshot(ts)
+    key = f"{_SNAPSHOT_PREFIX}{ts}.tar.gz"
+    try:
+        resp = client.get_object(Bucket=bucket, Key=key)
+        data = resp["Body"].read()
+    except Exception as e:
+        logger.warning(f"[data_sync] merge download failed for {key}: {e}")
+        return False
+    tmpdir = tempfile.mkdtemp(prefix="data_sync_merge_")
+    try:
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+            tar.extractall(tmpdir)
+        src_db = os.path.join(tmpdir, "bars.db")
+        if not os.path.exists(src_db):
+            logger.warning(f"[data_sync] snapshot {ts} has no bars.db; skip merge")
+            return False
+        if not _verify_snapshot_db(src_db):
+            logger.error(
+                f"[data_sync] snapshot {ts} bars.db failed integrity_check; "
+                f"refusing to merge"
+            )
+            return False
+        adopted = _merge_ohlcv_from(src_db)
+        if adopted < 0:
+            return download_snapshot(ts)
+        try:
+            from api.services import bars_sqlite
+            bars_sqlite.bump_db_epoch()
+        except Exception as e:
+            logger.warning(
+                f"[data_sync] bump_db_epoch after merge failed (non-fatal): {e}"
+            )
+        _write_marker(_LAST_SYNC_MARKER, ts)
+        logger.info(
+            f"[data_sync] merged snapshot {ts}: {adopted} rows adopted (newer-wins)"
+        )
+        return True
+    except Exception as e:
+        logger.exception(f"[data_sync] merge extract/apply failed for {key}: {e}")
+        return False
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def sync_if_newer_merge() -> Optional[str]:
+    """Like sync_if_newer but MERGES (newer-wins) instead of replacing.
+    Safe to run unconditionally on a fixed cadence — it can only add
+    freshness, never regress a fresher local write."""
+    remote_ts = get_latest_snapshot_ts()
+    if not remote_ts:
+        return None
+    local = get_local_sync_state()
+    if local["snapshot_ts"] == remote_ts:
+        return None  # already merged this snapshot
+    if merge_snapshot(remote_ts):
+        return remote_ts
+    return None
