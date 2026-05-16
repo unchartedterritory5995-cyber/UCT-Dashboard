@@ -145,9 +145,9 @@ def cap_band(mktcap: float) -> str:
 
 def aggregate_flow(trades: list[dict]) -> dict:
     """
-    Aggregate trades into per-ticker bull/bear totals.
+    Aggregate trades into per-ticker bull/bear totals with top contract.
     Applies: direction rules, confirmation, dirty cluster filter.
-    Returns dict of {sym: {bull, bear, net, trades, mktcap, er, uoa}}
+    Returns dict of {sym: {bull, bear, net, trades, mktcap, er, uoa, top_contract}}
     """
     # Step 1: Assign direction and filter confirmed
     confirmed = []
@@ -162,13 +162,18 @@ def aggregate_flow(trades: list[dict]) -> dict:
         cp = (t.get("call_put") or t.get("CallPut") or "").upper()
         strike = float(t.get("strike") or t.get("Strike") or 0)
         exp = t.get("expiration_date") or t.get("ExpirationDate") or ""
+        vol = int(float(t.get("volume") or t.get("Volume") or 0))
+        oi = int(float(t.get("oi") or t.get("OI") or 0))
         mktcap = float(t.get("mkt_cap") or t.get("MktCap") or t.get("mktcap") or 0)
-        er = bool(t.get("er") or t.get("ER"))
-        uoa = bool(t.get("uoa") or t.get("Uoa") or t.get("UOA"))
+        er_raw = t.get("er") or t.get("ER") or ""
+        er = er_raw is True or (isinstance(er_raw, str) and er_raw.strip().upper() in ("TRUE", "1", "YES", "Y"))
+        uoa_raw = t.get("uoa") or t.get("Uoa") or t.get("UOA") or ""
+        uoa = uoa_raw is True or (isinstance(uoa_raw, str) and uoa_raw.strip().upper() in ("TRUE", "1", "YES", "Y"))
 
         confirmed.append({
             "sym": sym, "prem": prem, "dir": direction,
             "cp": cp, "strike": strike, "exp": exp,
+            "vol": vol, "oi": oi,
             "mktcap": mktcap, "er": er, "uoa": uoa,
         })
 
@@ -181,18 +186,21 @@ def aggregate_flow(trades: list[dict]) -> dict:
 
     dirty_keys = {k for k, v in clusters.items() if len(v["dirs"]) > 1}
 
-    # Step 3: Aggregate clean trades by ticker
+    # Step 3: Aggregate clean trades by ticker + track contracts
     tickers = {}
+    contracts = defaultdict(lambda: {"prem": 0, "hits": 0, "vol": 0, "oi": 0, "cp": "", "strike": 0, "exp": "", "dir": ""})
+    
     for t in confirmed:
         key = f"{t['sym']}|{t['cp']}|{t['strike']}|{t['exp']}"
         if key in dirty_keys:
-            continue  # Skip dirty cluster trades
+            continue
 
         sym = t["sym"]
         if sym not in tickers:
             tickers[sym] = {
                 "sym": sym, "bull": 0, "bear": 0, "n": 0,
                 "mktcap": 0, "er": False, "uoa": False,
+                "top_contract": None,
             }
         tk = tickers[sym]
         if t["dir"] == "BULL":
@@ -207,7 +215,38 @@ def aggregate_flow(trades: list[dict]) -> dict:
         if t["uoa"]:
             tk["uoa"] = True
 
-    # Add net
+        # Track contract-level aggregation
+        ckey = f"{sym}|{t['cp']}|{t['strike']}|{t['exp']}"
+        c = contracts[ckey]
+        c["prem"] += t["prem"]
+        c["hits"] += 1
+        c["cp"] = t["cp"]
+        c["strike"] = t["strike"]
+        c["exp"] = t["exp"]
+        c["dir"] = t["dir"]
+        if t["vol"] > c["vol"]:
+            c["vol"] = t["vol"]
+        if t["oi"] > c["oi"]:
+            c["oi"] = t["oi"]
+
+    # Find top contract per ticker (by premium)
+    for ckey, c in contracts.items():
+        sym = ckey.split("|")[0]
+        if sym in tickers:
+            tk = tickers[sym]
+            if tk["top_contract"] is None or c["prem"] > tk["top_contract"]["prem"]:
+                voi = f"{c['vol']/c['oi']:.1f}x" if c["oi"] > 0 else ""
+                tk["top_contract"] = {
+                    "cp": c["cp"][0] if c["cp"] else "?",
+                    "strike": c["strike"],
+                    "exp": c["exp"],
+                    "prem": c["prem"],
+                    "hits": c["hits"],
+                    "voi": voi,
+                    "dir": c["dir"],
+                }
+
+    # Add net + cap
     for tk in tickers.values():
         tk["net"] = tk["bull"] - tk["bear"]
         tk["cap"] = cap_band(tk["mktcap"])
@@ -226,55 +265,78 @@ def fmt(n: float) -> str:
     return f"${a:.0f}"
 
 
+def _fmt_exp(exp: str) -> str:
+    """Shorten expiration: '05/22/2026' -> '5/22', '5/22/26' -> '5/22'."""
+    if not exp:
+        return "?"
+    parts = exp.replace("-", "/").split("/")
+    if len(parts) >= 2:
+        m = str(int(parts[0]))
+        d = str(int(parts[1]))
+        return f"{m}/{d}"
+    return exp[:5]
+
 def build_section(title: str, emoji: str, tickers: list[dict], direction: str) -> str:
-    """Build a formatted section for Discord."""
-    lines = [f"**{emoji} {title}**", "```"]
+    """Build a formatted section for Discord with contract details."""
+    lines = [f"**{emoji} {title}**"]
 
     for i, tk in enumerate(tickers[:10], 1):
-        sym = tk["sym"].ljust(6)
-        bull = fmt(tk["bull"]).rjust(8)
-        bear = fmt(tk["bear"]).rjust(8)
-        net = fmt(abs(tk["net"])).rjust(8)
-        pct = (
-            f"{tk['bull'] / (tk['bull'] + tk['bear']) * 100:.0f}%"
-            if (tk["bull"] + tk["bear"]) > 0
-            else "—"
-        ).rjust(4)
+        total = tk["bull"] + tk["bear"]
+        pct = round(tk["bull"] / total * 100) if total > 0 else 50
+        net_val = fmt(abs(tk["net"]))
+
+        # Contract info
+        tc = tk.get("top_contract")
+        if tc:
+            strike_str = f"${tc['strike']:g}" if tc['strike'] else "?"
+            contract = f"{tc['cp']} {strike_str} {_fmt_exp(tc['exp'])}"
+            hits = f"{tc['hits']}x" if tc['hits'] > 1 else ""
+            voi = tc.get("voi", "")
+            contract_line = f"  {contract}  {hits}  {voi}  {fmt(tc['prem'])}"
+        else:
+            contract_line = ""
+
+        # Visual bar
+        if direction == "BULL":
+            filled = max(1, round(pct / 10))
+            bar = "🟩" * filled + "⬛" * (10 - filled)
+            dir_pct = f"{pct}%"
+        else:
+            filled = max(1, round((100 - pct) / 10))
+            bar = "🟥" * filled + "⬛" * (10 - filled)
+            dir_pct = f"{100-pct}%"
 
         flags = ""
         if tk.get("er"):
-            flags += " ER"
+            flags += " `ER`"
         if tk.get("uoa"):
-            flags += " UOA"
+            flags += " `UOA`"
 
         lines.append(
-            f"{i:>2}. {sym}  Bull {bull}  Bear {bear}  Net {net}  {pct}{flags}"
+            f"`{i:>2}.` **{tk['sym']}**  {bar}  {dir_pct}  Net **{net_val}**{flags}"
+            f"\n      ↳{contract_line}"
         )
 
-    lines.append("```")
     return "\n".join(lines)
 
 
-def build_discord_message(trades: list[dict], label: str = "") -> dict:
+def build_discord_messages(trades: list[dict], label: str = "") -> list[dict]:
     """
-    Build full Discord message with 4 sections:
-    - ALL Top 10 Bull / Top 10 Bear
-    - UNUSUAL MID-SMALL Top 10 Bull / Top 10 Bear
+    Build Discord messages with 4 sections split across 2 messages:
+    Message 1: ALL — Top 10 Bull + Top 10 Bear
+    Message 2: MID-SMALL — Top 10 Bull + Top 10 Bear
     """
     tickers = aggregate_flow(trades)
     all_tickers = list(tickers.values())
 
-    # ALL — sort by net for bull (highest positive) and bear (lowest negative)
     with_flow = [t for t in all_tickers if t["bull"] + t["bear"] > 0]
     top_bull_all = sorted(with_flow, key=lambda t: t["net"], reverse=True)[:10]
     top_bear_all = sorted(with_flow, key=lambda t: t["net"])[:10]
 
-    # UNUSUAL MID-SMALL — filter by cap + UOA
     mid_small = [t for t in with_flow if t["cap"] == "Mid-Small"]
     top_bull_ms = sorted(mid_small, key=lambda t: t["net"], reverse=True)[:10]
     top_bear_ms = sorted(mid_small, key=lambda t: t["net"])[:10]
 
-    # Summary stats
     total_bull = sum(t["bull"] for t in with_flow)
     total_bear = sum(t["bear"] for t in with_flow)
     total_net = total_bull - total_bear
@@ -288,42 +350,48 @@ def build_discord_message(trades: list[dict], label: str = "") -> dict:
     date_str = now.strftime("%B %d, %Y")
     time_str = now.strftime("%I:%M %p ET")
 
-    header = (
+    # Message 1: ALL
+    msg1 = (
         f"{'🟢' if total_net > 0 else '🔴'} **UCT OPTIONS FLOW — {label or 'WATCHLIST'}**\n"
         f"{date_str} · {time_str}\n"
-        f"Market Flow: {fmt(total_net)} net · {fmt(total_bull)} bull / {fmt(total_bear)} bear · {bull_pct}% bullish\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Net: **{fmt(total_net)}** · {fmt(total_bull)} bull / {fmt(total_bear)} bear · **{bull_pct}%** bullish\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        + build_section("BULL WATCHLIST", "🟢", top_bull_all, "BULL")
+        + "\n\n"
+        + build_section("BEAR WATCHLIST", "🔴", top_bear_all, "BEAR")
     )
 
-    sections = [
-        build_section("TOP 10 BULL — ALL", "🟢", top_bull_all, "BULL"),
-        build_section("TOP 10 BEAR — ALL", "🔴", top_bear_all, "BEAR"),
-        build_section("TOP 10 BULL — MID-SMALL", "⚡", top_bull_ms, "BULL"),
-        build_section("TOP 10 BEAR — MID-SMALL", "💀", top_bear_ms, "BEAR"),
-    ]
+    # Message 2: MID-SMALL
+    msg2 = (
+        f"⚡ **UNUSUAL FLOW — MID-SMALL CAP**\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        + build_section("BULL — MID-SMALL", "⚡", top_bull_ms, "BULL")
+        + "\n\n"
+        + build_section("BEAR — MID-SMALL", "💀", top_bear_ms, "BEAR")
+    )
 
-    content = header + "\n".join(sections)
-
-    # Discord has 2000 char limit per message — split if needed
-    return {"content": content[:2000]}
+    return [{"content": msg1[:2000]}, {"content": msg2[:2000]}]
 
 
 # ── Sending ────────────────────────────────────────────────────────────────
 
 async def send_to_discord(trades: list[dict], label: str = "") -> dict:
-    """Build and send watchlist to Discord webhook."""
+    """Build and send watchlist to Discord webhook (2 messages)."""
     if not DISCORD_FLOW_WEBHOOK_URL:
         logger.error("[Discord] No DISCORD_FLOW_WEBHOOK_URL configured")
         return {"error": "No webhook URL configured"}
 
-    message = build_discord_message(trades, label)
+    messages = build_discord_messages(trades, label)
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(DISCORD_FLOW_WEBHOOK_URL, json=message)
-            resp.raise_for_status()
-            logger.info("[Discord] Watchlist posted — %s", label or "manual")
-            return {"status": "sent", "label": label}
+            for msg in messages:
+                resp = await client.post(DISCORD_FLOW_WEBHOOK_URL, json=msg)
+                resp.raise_for_status()
+                import asyncio
+                await asyncio.sleep(0.5)  # avoid rate limit between messages
+            logger.info("[Discord] Watchlist posted (%d messages) — %s", len(messages), label or "manual")
+            return {"status": "sent", "label": label, "messages": len(messages)}
     except Exception as e:
         logger.error("[Discord] Post failed: %s", e)
         return {"error": str(e)}
