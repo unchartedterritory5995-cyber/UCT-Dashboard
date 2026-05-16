@@ -4579,12 +4579,6 @@ export default function OptionsFlowDashboard() {
                   </div>
                 </div>
                 <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-                  <input value={leadersInput} onChange={e=>setLeadersInput(e.target.value.toUpperCase())}
-                    onKeyDown={e=>e.key==="Enter"&&addLeader()}
-                    placeholder="Add tickers (comma-separated)..."
-                    style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 10px", fontFamily:"inherit", width:200 }}/>
-                  <button onClick={addLeader}
-                    style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.ac+"22", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
                   <button onClick={fetchLeaderYtd} disabled={leaderYtdLoading}
                     style={{ padding:"5px 12px", borderRadius:4, border:"1px solid "+P.bl, background:"transparent", color:leaderYtdLoading?P.dm:P.mt, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:leaderYtdLoading?"wait":"pointer" }}>
                     {leaderYtdLoading?"Loading…":"📈 Fetch Data"}
@@ -4639,7 +4633,6 @@ export default function OptionsFlowDashboard() {
                     {sortHdrL("Trend","trend")}
                     {sortHdrL("ΔOI","oi")}
                     <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
-                    <th style={{ width:20 }}/>
                   </tr></thead>
                   <tbody>
                   {leaderData.map((d,i) => {
@@ -4678,11 +4671,7 @@ export default function OptionsFlowDashboard() {
                             </span>
                           ) : <span style={{ color:P.mt }}>no flow</span>}
                         </td>
-                        <td style={{ width:20, textAlign:"center" }}>
-                          <button onClick={e=>{ e.stopPropagation(); removeLeader(d.sym); }}
-                            style={{ background:"none", border:"none", color:P.dm, fontSize:10, cursor:"pointer", padding:0, lineHeight:1 }}
-                            title="Remove">×</button>
-                        </td>
+
                       </tr>
                     );
                   })}
@@ -4693,7 +4682,7 @@ export default function OptionsFlowDashboard() {
             </Card>
             ) : (
               <Card><div style={{ textAlign:"center", padding:24, color:P.dm, fontSize:11 }}>
-                Add market leaders above to start tracking their flow. Example: NVDA, AAPL, TSLA, META, AMZN, GOOGL
+                Click "⚡ Auto-Fill Top 25" to populate leaders from flow data.
               </div></Card>
             )}
           </div>
