@@ -1197,6 +1197,35 @@ export default function OptionsFlowDashboard() {
     setLeadersInput("");
   };
   const removeLeader = (sym) => saveLeaders(leaders.filter(s=>s!==sym));
+  const [leaderYtd, setLeaderYtd] = useState({});
+  const [leaderYtdLoading, setLeaderYtdLoading] = useState(false);
+  const fetchLeaderYtd = async () => {
+    if (!leaders.length) return;
+    setLeaderYtdLoading(true);
+    try {
+      const results = {};
+      const batches = [];
+      for (let i = 0; i < leaders.length; i += 5) batches.push(leaders.slice(i, i + 5));
+      for (const batch of batches) {
+        await Promise.all(batch.map(async sym => {
+          try {
+            const resp = await fetch(`/api/schwab/chart-proxy?symbol=${sym}&range=ytd&interval=1d`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const prices = data.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+            if (prices.length >= 2) {
+              const start = prices.find(p => p != null);
+              const end = prices[prices.length - 1];
+              if (start && end) results[sym] = ((end - start) / start * 100).toFixed(1);
+            }
+          } catch {}
+        }));
+        if (batches.indexOf(batch) < batches.length - 1) await new Promise(r => setTimeout(r, 300));
+      }
+      setLeaderYtd(results);
+    } catch {}
+    setLeaderYtdLoading(false);
+  };
   const [tfDteFilter, setTfDteFilter] = useState("All");
   const [gexTicker, setGexTicker] = useState("SPY");
   const [gexInput, setGexInput] = useState("SPY");
@@ -4475,7 +4504,7 @@ export default function OptionsFlowDashboard() {
               topContract:topC ? { cp:topC.CP||topC.cp, K:topC.K||topC.strike, exp:topC.E||topC.exp,
                 hits:topC.H||topC.hits||1, prem:topC.P||topC.prem||0, grade:topC.grade||"",
                 side:topC.Si||topC.side||"" } : null };
-          }).sort((a,b) => Math.abs(b.net) - Math.abs(a.net));
+          }).sort((a,b) => a.sym.localeCompare(b.sym));
           const totalBull = leaderData.reduce((a,d)=>a+d.bull,0);
           const totalBear = leaderData.reduce((a,d)=>a+d.bear,0);
           const bullPct = (totalBull+totalBear)>0 ? Math.round(totalBull/(totalBull+totalBear)*100) : 50;
@@ -4497,6 +4526,10 @@ export default function OptionsFlowDashboard() {
                     style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 10px", fontFamily:"inherit", width:200 }}/>
                   <button onClick={addLeader}
                     style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.ac+"22", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
+                  <button onClick={fetchLeaderYtd} disabled={leaderYtdLoading}
+                    style={{ padding:"5px 12px", borderRadius:4, border:"1px solid "+P.bl, background:"transparent", color:leaderYtdLoading?P.dm:P.mt, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:leaderYtdLoading?"wait":"pointer" }}>
+                    {leaderYtdLoading?"Loading…":"📈 YTD%"}
+                  </button>
                 </div>
               </div>
             </Card>
@@ -4530,6 +4563,7 @@ export default function OptionsFlowDashboard() {
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Bear</th>
                     <th style={{ padding:"4px 12px", width:100, textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Split</th>
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Net</th>
+                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>YTD%</th>
                     <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
                     <th style={{ width:20 }}/>
                   </tr></thead>
@@ -4555,6 +4589,7 @@ export default function OptionsFlowDashboard() {
                           </div>
                         </td>
                         <td style={{ padding:"8px 14px", fontWeight:900, color:isBull?P.bu:P.be, fontSize:13, textAlign:"center" }}>{d.found&&total>0?fmt(Math.abs(d.net)):"—"}</td>
+                        <td style={{ padding:"8px 14px", fontSize:11, fontWeight:700, textAlign:"center", color:leaderYtd[d.sym]?(parseFloat(leaderYtd[d.sym])>=0?P.bu:P.be):P.dm }}>{leaderYtd[d.sym]?leaderYtd[d.sym]+"%":"—"}</td>
                         <td style={{ padding:"8px 14px", fontSize:10 }}>
                           {d.topContract ? (
                             <span>
