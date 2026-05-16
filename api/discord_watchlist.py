@@ -276,55 +276,47 @@ def _fmt_exp(exp: str) -> str:
         return f"{m}/{d}"
     return exp[:5]
 
-def build_section(title: str, emoji: str, tickers: list[dict], direction: str) -> str:
-    """Build a formatted section for Discord with contract details."""
-    lines = [f"**{emoji} {title}**"]
 
+def _fmt_strike(strike: float) -> str:
+    """Format strike: 135.0 -> '$135', 27.5 -> '$27.5'."""
+    if strike == int(strike):
+        return f"${int(strike)}"
+    return f"${strike:g}"
+
+
+def build_embed_table(tickers: list[dict], direction: str) -> str:
+    """Build a monospace-aligned table for a Discord embed code block."""
+    lines = []
     for i, tk in enumerate(tickers[:10], 1):
-        total = tk["bull"] + tk["bear"]
-        pct = round(tk["bull"] / total * 100) if total > 0 else 50
-        net_val = fmt(abs(tk["net"]))
-
-        # Contract info
+        sym = tk["sym"].ljust(6)
         tc = tk.get("top_contract")
         if tc:
-            strike_str = f"${tc['strike']:g}" if tc['strike'] else "?"
-            contract = f"{tc['cp']} {strike_str} {_fmt_exp(tc['exp'])}"
-            hits = f"{tc['hits']}x" if tc['hits'] > 1 else ""
-            voi = tc.get("voi", "")
-            contract_line = f"  {contract}  {hits}  {voi}  {fmt(tc['prem'])}"
+            cp = tc["cp"]
+            strike = _fmt_strike(tc["strike"]).ljust(7)
+            exp = _fmt_exp(tc["exp"]).ljust(5)
+            hits = (f"{tc['hits']}x" if tc["hits"] > 1 else "1x").rjust(3)
+            voi = tc.get("voi", "").rjust(6)
+            prem = fmt(tc["prem"]).rjust(7)
+            contract = f"{cp} {strike} {exp} {hits} {voi} {prem}"
         else:
-            contract_line = ""
-
-        # Visual bar
-        if direction == "BULL":
-            filled = max(1, round(pct / 10))
-            bar = "🟩" * filled + "⬛" * (10 - filled)
-            dir_pct = f"{pct}%"
-        else:
-            filled = max(1, round((100 - pct) / 10))
-            bar = "🟥" * filled + "⬛" * (10 - filled)
-            dir_pct = f"{100-pct}%"
+            contract = "—"
 
         flags = ""
         if tk.get("er"):
-            flags += " `ER`"
+            flags += " ER"
         if tk.get("uoa"):
-            flags += " `UOA`"
+            flags += " UOA"
 
-        lines.append(
-            f"`{i:>2}.` **{tk['sym']}**  {bar}  {dir_pct}  Net **{net_val}**{flags}"
-            f"\n      ↳{contract_line}"
-        )
+        rank = f"{i:>2}."
+        lines.append(f"{rank} {sym} {contract}{flags}")
 
     return "\n".join(lines)
 
 
 def build_discord_messages(trades: list[dict], label: str = "") -> list[dict]:
     """
-    Build Discord messages with 4 sections split across 2 messages:
-    Message 1: ALL — Top 10 Bull + Top 10 Bear
-    Message 2: MID-SMALL — Top 10 Bull + Top 10 Bear
+    Build Discord messages using rich embeds.
+    Returns list of message payloads with embeds array.
     """
     tickers = aggregate_flow(trades)
     all_tickers = list(tickers.values())
@@ -349,28 +341,68 @@ def build_discord_messages(trades: list[dict], label: str = "") -> list[dict]:
     now = datetime.now()
     date_str = now.strftime("%B %d, %Y")
     time_str = now.strftime("%I:%M %p ET")
+    ticker_count = len(with_flow)
 
-    # Message 1: ALL
-    msg1 = (
-        f"{'🟢' if total_net > 0 else '🔴'} **UCT OPTIONS FLOW — {label or 'WATCHLIST'}**\n"
-        f"{date_str} · {time_str}\n"
-        f"Net: **{fmt(total_net)}** · {fmt(total_bull)} bull / {fmt(total_bear)} bear · **{bull_pct}%** bullish\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        + build_section("BULL WATCHLIST", "🟢", top_bull_all, "BULL")
-        + "\n\n"
-        + build_section("BEAR WATCHLIST", "🔴", top_bear_all, "BEAR")
-    )
+    # Discord embed colors (decimal)
+    GREEN = 0x43B581
+    RED = 0xF04747
+    GOLD = 0xFAA61A
+    PURPLE = 0x9B59B6
 
-    # Message 2: MID-SMALL
-    msg2 = (
-        f"⚡ **UNUSUAL FLOW — MID-SMALL CAP**\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        + build_section("BULL — MID-SMALL", "⚡", top_bull_ms, "BULL")
-        + "\n\n"
-        + build_section("BEAR — MID-SMALL", "💀", top_bear_ms, "BEAR")
-    )
+    # Message 1: ALL (bull + bear embeds)
+    bull_table = build_embed_table(top_bull_all, "BULL")
+    bear_table = build_embed_table(top_bear_all, "BEAR")
 
-    return [{"content": msg1[:2000]}, {"content": msg2[:2000]}]
+    msg1 = {
+        "embeds": [
+            {
+                "color": GREEN,
+                "author": {"name": "UCT Options Flow"},
+                "title": f"{'🟢' if total_net > 0 else '🔴'} {label or 'WATCHLIST'} — {date_str}",
+                "description": (
+                    f"**Net: {fmt(total_net)}** · {fmt(total_bull)} bull / {fmt(total_bear)} bear · **{bull_pct}%** bullish\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    f"**▲ BULL WATCHLIST**\n"
+                    f"```\n{bull_table}\n```"
+                ),
+                "footer": {"text": f"UCT Intelligence · {time_str} · {ticker_count} tickers with flow"},
+            },
+            {
+                "color": RED,
+                "description": (
+                    f"**▼ BEAR WATCHLIST**\n"
+                    f"```\n{bear_table}\n```"
+                ),
+            },
+        ]
+    }
+
+    # Message 2: MID-SMALL (bull + bear embeds)
+    bull_ms_table = build_embed_table(top_bull_ms, "BULL")
+    bear_ms_table = build_embed_table(top_bear_ms, "BEAR")
+
+    msg2 = {
+        "embeds": [
+            {
+                "color": GOLD,
+                "title": "⚡ UNUSUAL FLOW — MID-SMALL CAP",
+                "description": (
+                    f"**▲ BULL — MID-SMALL**\n"
+                    f"```\n{bull_ms_table}\n```"
+                ),
+            },
+            {
+                "color": PURPLE,
+                "description": (
+                    f"**▼ BEAR — MID-SMALL**\n"
+                    f"```\n{bear_ms_table}\n```"
+                ),
+                "footer": {"text": f"UCT Intelligence · {time_str}"},
+            },
+        ]
+    }
+
+    return [msg1, msg2]
 
 
 # ── Sending ────────────────────────────────────────────────────────────────
