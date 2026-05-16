@@ -175,3 +175,37 @@ class TestPaginateMassiveAggs:
     def test_empty_results_safe(self):
         c = _FakeClient([{}])
         assert _paginate_massive_aggs(c, "http://u") == []
+
+
+from api.services import bars_fetch as _bf
+
+
+class TestHotIntradaySet:
+    """Usage-driven hot-set: the prewarmer keeps THESE warm so charts the
+    user flips through don't fall back into the cold-stale path."""
+
+    def setup_method(self):
+        with _bf._recent_intraday_lock:
+            _bf._recent_intraday.clear()
+
+    def test_records_intraday_only(self):
+        _bf._record_intraday_request("aapl", "15")
+        _bf._record_intraday_request("MSFT", "D")   # daily — must be ignored
+        _bf._record_intraday_request("nvda", "60")
+        hot = set(_bf.get_hot_intraday_tickers())
+        assert "AAPL" in hot and "NVDA" in hot
+        assert "MSFT" not in hot
+
+    def test_recent_first_and_bounded(self):
+        for i in range(5):
+            _bf._record_intraday_request(f"T{i}", "5")
+        hot = _bf.get_hot_intraday_tickers(max_n=3)
+        assert len(hot) == 3
+        assert hot[0] == "T4"  # most-recent first
+
+    def test_capacity_prunes_oldest(self):
+        cap = _bf._RECENT_INTRADAY_MAX
+        for i in range(cap + 50):
+            _bf._record_intraday_request(f"S{i}", "30")
+        with _bf._recent_intraday_lock:
+            assert len(_bf._recent_intraday) <= cap

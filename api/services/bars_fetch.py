@@ -39,6 +39,44 @@ from api.services.massive import _get_client, _REST_BASE
 _inflight: dict[str, _threading.Event] = {}
 _inflight_lock = _threading.Lock()
 
+# ── Usage-driven intraday hot-set ─────────────────────────────────────────────
+# The prewarmer only refreshes intraday for a static ticker_list[:200].
+# Anything outside that 200 was frozen until a user happened to view it
+# twice — the universe-freeze bug. We record every ticker whose intraday
+# bars are actually requested so the prewarmer can keep THOSE warm on its
+# 5-min cadence (the charts the user is actually flipping through), no
+# matter where they fall in the universe ordering.
+_recent_intraday: dict[str, float] = {}          # TICKER -> last requested epoch
+_recent_intraday_lock = _threading.Lock()
+_RECENT_INTRADAY_MAX = 800
+
+
+def _record_intraday_request(ticker: str, tf: str) -> None:
+    """Note that (ticker) had an intraday request. O(1) common path;
+    prunes oldest entries when over capacity. Never raises."""
+    if tf not in ("1", "5", "15", "30", "60"):
+        return
+    try:
+        key = ticker.upper()
+        with _recent_intraday_lock:
+            _recent_intraday[key] = _time.time()
+            if len(_recent_intraday) > _RECENT_INTRADAY_MAX:
+                # Drop the oldest ~20% so this prune is amortized, not per-call.
+                cut = sorted(_recent_intraday.items(), key=lambda kv: kv[1])
+                for k, _ in cut[: max(1, len(cut) // 5)]:
+                    _recent_intraday.pop(k, None)
+    except Exception:
+        pass
+
+
+def get_hot_intraday_tickers(max_n: int = 500) -> list[str]:
+    """Most-recently-requested intraday tickers, newest first. Consumed by
+    the prewarmer to keep user-viewed charts fresh regardless of the
+    static universe-ordering cap."""
+    with _recent_intraday_lock:
+        items = sorted(_recent_intraday.items(), key=lambda kv: kv[1], reverse=True)
+    return [k for k, _ in items[:max_n]]
+
 
 def _is_market_open() -> bool:
     now = datetime.now(_ZI("America/New_York"))
@@ -888,6 +926,7 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     only the new rows — typically 0-5 bars, so payload is ~500 bytes vs 50 KB.
     """
     ticker_up = ticker.upper()
+    _record_intraday_request(ticker_up, tf)
     cache_key = f"bars_{ticker_up}_{tf}_{bars}"
     date_tf = tf in ("D", "W", "M")
 
@@ -1213,6 +1252,7 @@ _DEFAULT_WARM_TFS = ["D", "W", "M", "60", "30", "15", "5", "1"]
 
 def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     ticker_up = ticker.upper()
+    _record_intraday_request(ticker_up, tf)
     cache_key = f"bars_{ticker_up}_{tf}_{bars}"
     date_tf   = tf in ("D", "W", "M")
 

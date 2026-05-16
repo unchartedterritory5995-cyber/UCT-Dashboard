@@ -57,8 +57,57 @@ def _loop():
 
 
 def _run_5min_check():
-    """Lightweight check — placeholder for now (Plan 5 follow-up could spot-check recent bars)."""
-    _logger.info("[continuous_audit] 5min check tick")
+    """Intraday freshness watchdog.
+
+    The May-8 universe freeze went unnoticed for ~8 days because nothing
+    actively checked whether cached intraday bars were keeping up with the
+    market. This samples a bounded spread of intraday (ticker, tf) entries
+    and, if a meaningful fraction is missing >=1 whole trading session,
+    raises a chart-health alert so a freeze pages instead of silently
+    persisting. Fully defensive — never raises into the audit loop.
+    """
+    try:
+        import random
+        from api.services import bars_sqlite as _bs
+        from api.services.bars_fetch import _is_cold_stale_intraday
+        from api.services import chart_health_alerts as _alerts
+
+        intraday = [
+            (t, tf) for (t, tf) in _bs.get_all_tickers()
+            if tf in ("1", "5", "15", "30", "60")
+        ]
+        if not intraday:
+            _logger.info("[continuous_audit] 5min freshness: no intraday entries yet")
+            return
+        sample = random.sample(intraday, min(80, len(intraday)))
+        cold = []
+        for t, tf in sample:
+            if _is_cold_stale_intraday(tf, _bs.get_last_ts(t, tf)):
+                cold.append(f"{t}/{tf}")
+        ratio = len(cold) / len(sample)
+        _logger.info(
+            f"[continuous_audit] 5min freshness: {len(cold)}/{len(sample)} "
+            f"intraday entries cold-stale ({ratio:.0%})"
+        )
+        if ratio >= 0.30:
+            _alerts.emit(
+                "intraday_universe_stale", "critical",
+                f"{ratio:.0%} of sampled intraday charts are >=1 session "
+                f"behind ({len(cold)}/{len(sample)}). Universe freshness "
+                f"pipeline likely broken (worker/R2 or prewarmer).",
+                {"ratio": round(ratio, 3), "cold": len(cold),
+                 "sample": len(sample), "examples": cold[:15]},
+            )
+        elif ratio >= 0.10:
+            _alerts.emit(
+                "intraday_universe_stale", "warning",
+                f"{ratio:.0%} of sampled intraday charts are >=1 session "
+                f"behind ({len(cold)}/{len(sample)}).",
+                {"ratio": round(ratio, 3), "cold": len(cold),
+                 "sample": len(sample), "examples": cold[:15]},
+            )
+    except Exception:
+        _logger.exception("[continuous_audit] 5min freshness check failed")
 
 
 def _run_priority_sweep():

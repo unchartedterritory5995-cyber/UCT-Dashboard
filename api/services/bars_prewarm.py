@@ -160,7 +160,23 @@ def run_prewarmer_forever():
     print(f"[prewarm] First pass complete: {warmed} fetched, {skipped} cached, {len(jobs)} total")
     while True:
         _t.sleep(300)
-        refresh_jobs = [j for j in jobs if _needs_fresh(_sqlite.get_last_ts(j[0].upper(), j[1]), j[1])]
+        # Augment the static job list with intraday for the live hot-set —
+        # the tickers users are actually flipping through. Without this,
+        # anything outside ticker_list[:200] only ever refreshed when a
+        # user happened to hit it twice (the universe-freeze bug). Tuple
+        # set-union dedups against the static jobs.
+        cycle_jobs = jobs
+        try:
+            from api.services.bars_fetch import get_hot_intraday_tickers
+            hot = get_hot_intraday_tickers(500)
+            if hot:
+                hot_jobs = [(s, tf, 5000) for s in hot for tf in _INTRADAY_TFS]
+                cycle_jobs = list({*jobs, *hot_jobs})
+                print(f"[prewarm] Hot-set: +{len(hot)} user-viewed tickers "
+                      f"({len(cycle_jobs) - len(jobs)} extra intraday jobs)")
+        except Exception as _e:
+            print(f"[prewarm] Hot-set lookup failed (non-fatal): {_e}")
+        refresh_jobs = [j for j in cycle_jobs if _needs_fresh(_sqlite.get_last_ts(j[0].upper(), j[1]), j[1])]
         if not refresh_jobs: continue
         refreshed = 0
         with _PrewarmTPE(max_workers=2, thread_name_prefix="prewarm-refresh") as ex:
