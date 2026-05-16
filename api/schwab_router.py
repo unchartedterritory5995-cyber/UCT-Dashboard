@@ -769,3 +769,42 @@ async def ytd_performance(symbols: str = Query(..., description="Comma-separated
                 continue
 
     return {"ytd": ytd_results, "off52": off52_results}
+
+
+@router.get("/oi-change-batch")
+async def oi_change_batch(symbols: str = Query(..., description="Comma-separated tickers")):
+    """
+    Return net OI change (sum of all contracts' OI changes) for each ticker.
+    Positive = new positions opening, Negative = positions closing.
+    GET /api/schwab/oi-change-batch?symbols=NVDA,AMD,MU
+    """
+    try:
+        from api.uw_service import get_oi_change
+    except ImportError:
+        from uw_service import get_oi_change
+
+    tickers = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    results = {}
+
+    for sym in tickers[:25]:
+        try:
+            data = await get_oi_change(sym)
+            if not data:
+                continue
+            # Sum net OI change across all contracts
+            net_oi = 0
+            call_oi = 0
+            put_oi = 0
+            for contract in data:
+                change = int(contract.get("oi_change", 0) or 0)
+                cp = (contract.get("option_type") or "").upper()
+                net_oi += change
+                if "CALL" in cp:
+                    call_oi += change
+                elif "PUT" in cp:
+                    put_oi += change
+            results[sym] = {"net": net_oi, "call": call_oi, "put": put_oi}
+        except Exception:
+            continue
+
+    return {"oi_changes": results}
