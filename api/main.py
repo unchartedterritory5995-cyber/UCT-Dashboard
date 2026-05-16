@@ -1261,11 +1261,16 @@ async def lifespan(app: FastAPI):
             try:
                 from api.services.journal_two.coach_email_digest import (
                     run_for_all_enabled_accounts as _run,
+                    run_unified_for_all_users as _run_unified,
                 )
                 report = _run()
                 print(f"[scheduler] Compass weekly email batch: "
                       f"sent={report['sent']} skipped={report['skipped']} "
                       f"errors={report['errors']}")
+                ureport = _run_unified()
+                print(f"[scheduler] Compass unified weekly email batch: "
+                      f"sent={ureport['sent']} skipped={ureport['skipped']} "
+                      f"errors={ureport['errors']}")
             except Exception as e:  # noqa: BLE001
                 print(f"[scheduler] Compass weekly email batch error: {e}")
 

@@ -334,12 +334,17 @@ def send_digest_for_account(
         if not user_row or not user_row["email"]:
             return {"sent": False, "reason": "no_user_email", "week_start": ws}
 
-        # Look up account name (best-effort)
-        acct_row = _conn.execute(
-            "SELECT name FROM j2_accounts WHERE id = ? LIMIT 1",
-            (account_id,),
-        ).fetchone()
-        account_name = acct_row["name"] if acct_row else None
+        # Look up account name (best-effort). Unified mode has no j2_accounts
+        # row — label it "All Accounts" so the email header reads sensibly.
+        from api.services.journal_two.coach_scope import is_unified
+        if is_unified(account_id):
+            account_name = "All Accounts"
+        else:
+            acct_row = _conn.execute(
+                "SELECT name FROM j2_accounts WHERE id = ? LIMIT 1",
+                (account_id,),
+            ).fetchone()
+            account_name = acct_row["name"] if acct_row else None
 
         # Generate (idempotent) the weekly review
         try:
@@ -416,4 +421,42 @@ def run_for_all_enabled_accounts() -> dict[str, int]:
     finally:
         conn.close()
     _log.info("[compass_email_digest] sent=%d skipped=%d errors=%d", sent, skipped, errors)
+    return {"sent": sent, "skipped": skipped, "errors": errors}
+
+
+def run_unified_for_all_users() -> dict[str, int]:
+    """Scheduler entrypoint — send ONE portfolio-level ('_all_') weekly
+    digest per user whose unified Compass toggle is on and who has at least
+    one compass-enabled account. Idempotent via j2_weekly_email_log with
+    account_id = '_all_'. Returns {sent, skipped, errors}."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import unified_coach
+    from api.services.journal_two.coach_scope import UNIFIED_ACCOUNT_ID
+    sent, skipped, errors = 0, 0, 0
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT user_id FROM j2_accounts WHERE compass_enabled = 1",
+        ).fetchall()
+        for r in rows:
+            uid = r["user_id"]
+            try:
+                state = unified_coach.get_or_create(conn, uid)
+                if not state["compassEnabled"]:
+                    skipped += 1
+                    continue
+                result = send_digest_for_account(
+                    user_id=uid, account_id=UNIFIED_ACCOUNT_ID, conn=conn,
+                )
+                if result.get("sent"):
+                    sent += 1
+                else:
+                    skipped += 1
+            except Exception as e:  # noqa: BLE001
+                _log.warning("[compass_email_digest] unified %s failed: %s", uid, e)
+                errors += 1
+    finally:
+        conn.close()
+    _log.info("[compass_email_digest] unified sent=%d skipped=%d errors=%d",
+              sent, skipped, errors)
     return {"sent": sent, "skipped": skipped, "errors": errors}

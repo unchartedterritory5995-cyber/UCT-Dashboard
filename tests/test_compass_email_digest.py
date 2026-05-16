@@ -172,3 +172,58 @@ def test_send_digest_force_bypasses_idempotency(db_conn):
         )
     assert forced["sent"] is True
     assert send_mock.call_count == 2
+
+
+# ── Unified ('_all_') weekly digest ──────────────────────────────────────────
+
+
+def test_send_digest_for_all_sentinel_labels_all_accounts(db_conn):
+    from api.services.journal_two import coach_email_digest as ed
+    _seed_user_and_account(db_conn)  # creates user + a default account
+    captured = {}
+
+    def _capture(to, subject, html):
+        captured["html"] = html
+        captured["subject"] = subject
+        return True
+
+    fake_review = {"body": "# Portfolio week\n\nBody.", "metadata": {}}
+    with patch("api.services.journal_two.coach.generate_weekly_review",
+               return_value=fake_review), \
+         patch("api.services.email_service.send_email", side_effect=_capture):
+        result = ed.send_digest_for_account(
+            user_id="u_dig", account_id="_all_",
+            week_start="2026-05-04", conn=db_conn,
+        )
+    assert result["sent"] is True
+    assert "All Accounts" in captured["html"]
+
+
+def test_run_unified_skips_when_unified_compass_disabled(db_conn):
+    from api.services.journal_two import coach_email_digest as ed
+    from api.services.journal_two import unified_coach
+    _seed_user_and_account(db_conn)
+    unified_coach.get_or_create(db_conn, "u_dig")
+    unified_coach.update_state(db_conn, "u_dig", compass_enabled=False)
+
+    with patch("api.services.journal_two.coach.generate_weekly_review",
+               return_value={"body": "x", "metadata": {}}), \
+         patch("api.services.email_service.send_email",
+               return_value=True) as send_mock:
+        report = ed.run_unified_for_all_users()
+    assert report["sent"] == 0
+    assert send_mock.call_count == 0
+
+
+def test_run_unified_sends_one_per_enabled_user(db_conn):
+    from api.services.journal_two import coach_email_digest as ed
+    _seed_user_and_account(db_conn)
+
+    fake_review = {"body": "# Wk\n\nBody.", "metadata": {}}
+    with patch("api.services.journal_two.coach.generate_weekly_review",
+               return_value=fake_review), \
+         patch("api.services.email_service.send_email",
+               return_value=True) as send_mock:
+        report = ed.run_unified_for_all_users()
+    assert report["sent"] == 1
+    assert send_mock.call_count == 1
