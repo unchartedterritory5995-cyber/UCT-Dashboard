@@ -4528,7 +4528,7 @@ export default function OptionsFlowDashboard() {
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600, width:90 }}>Theme</th>
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Bull</th>
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Bear</th>
-                    <th style={{ padding:"4px 10px", width:70 }}/>
+                    <th style={{ padding:"4px 12px", width:100, textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Split</th>
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Net</th>
                     <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
                     <th style={{ width:20 }}/>
@@ -4544,13 +4544,13 @@ export default function OptionsFlowDashboard() {
                         onClick={()=>{ setSearch(d.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===d.sym)||null); setTab("Search"); }}>
                         <td style={{ padding:"8px 14px", fontWeight:900, color:P.wh, fontSize:13 }}>
                           {d.sym}
-                          {cap && <span style={{ fontSize:7, color:P.dm, marginLeft:4, fontWeight:600 }}>{cap}</span>}
+                          
                           {d.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
                         </td>
                         <td style={{ padding:"8px 6px", fontSize:10, color:P.dm, textAlign:"center" }}>{(THEME_LOOKUP[d.sym]||[]).join(", ")||""}</td>
                         <td style={{ padding:"8px 14px", fontWeight:800, color:P.bu, textAlign:"center" }}>{d.found&&d.bull>0?fmt(d.bull):"—"}</td>
                         <td style={{ padding:"8px 14px", fontWeight:800, color:P.be, textAlign:"center" }}>{d.found&&d.bear>0?fmt(d.bear):"—"}</td>
-                        <td style={{ padding:"8px 10px", width:70 }}>
+                        <td style={{ padding:"8px 12px", width:100 }}>
                           <div style={{ display:"flex", height:4, borderRadius:2, overflow:"hidden", background:P.bd }}>
                             <div style={{ width:bPct+"%", background:total>0?P.bu:"transparent" }}/><div style={{ width:(100-bPct)+"%", background:total>0?P.be:"transparent" }}/>
                           </div>
