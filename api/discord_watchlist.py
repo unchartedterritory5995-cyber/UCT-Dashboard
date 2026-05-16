@@ -284,6 +284,48 @@ def _fmt_strike(strike: float) -> str:
     return f"${strike:g}"
 
 
+def score_ticker(tk: dict) -> float:
+    """
+    AutoScore-style ranking matching the Watchlist tab.
+    Weighs conviction, hits, premium, V/OI, and flags.
+    """
+    total = tk["bull"] + tk["bear"]
+    if total <= 0:
+        return 0
+
+    tc = tk.get("top_contract") or {}
+    hits = tc.get("hits", 1)
+    voi_str = tc.get("voi", "")
+    try:
+        voi = float(voi_str.replace("x", "")) if voi_str else 0
+    except (ValueError, AttributeError):
+        voi = 0
+
+    # Conviction: how one-sided is the flow (0-1)
+    bull_pct = tk["bull"] / total
+    conviction = abs(bull_pct - 0.5) * 2  # 0 = split, 1 = 100% one side
+
+    # Grade-like score from hits
+    hit_score = min(hits / 10, 2.5)  # cap at 2.5
+
+    # V/OI score (unusual activity)
+    voi_score = min(voi / 10, 2.5) if voi > 1 else 0
+
+    # Premium score (log scale so mega-cap doesn't dominate)
+    import math
+    prem_score = min(math.log10(max(total, 1)) - 3, 2.0)  # $1K=0, $10K=1, $100K=2
+
+    # Side bonus (AA = strongest signal)
+    side_score = 1.5 if conviction > 0.7 else 0.5
+
+    # UOA bonus
+    uoa_bonus = 1.0 if tk.get("uoa") else 0
+
+    # Combined score
+    score = hit_score + prem_score + voi_score + side_score + uoa_bonus + (conviction * 2)
+    return score
+
+
 def build_embed_table(tickers: list[dict], direction: str) -> str:
     """Build a monospace-aligned table for a Discord embed code block."""
     lines = []
@@ -292,12 +334,10 @@ def build_embed_table(tickers: list[dict], direction: str) -> str:
         tc = tk.get("top_contract")
         if tc:
             cp = tc["cp"]
-            strike = _fmt_strike(tc["strike"]).ljust(7)
-            exp = _fmt_exp(tc["exp"]).ljust(5)
-            hits = (f"{tc['hits']}x" if tc["hits"] > 1 else "1x").rjust(3)
-            voi = tc.get("voi", "").rjust(6)
+            strike = _fmt_strike(tc["strike"]).ljust(8)
+            exp = _fmt_exp(tc["exp"]).ljust(6)
             prem = fmt(tc["prem"]).rjust(7)
-            contract = f"{cp} {strike} {exp} {hits} {voi} {prem}"
+            contract = f"{cp} {strike}{exp}{prem}"
         else:
             contract = "—"
 
@@ -322,12 +362,16 @@ def build_discord_messages(trades: list[dict], label: str = "") -> list[dict]:
     all_tickers = list(tickers.values())
 
     with_flow = [t for t in all_tickers if t["bull"] + t["bear"] > 0]
-    top_bull_all = sorted(with_flow, key=lambda t: t["net"], reverse=True)[:10]
-    top_bear_all = sorted(with_flow, key=lambda t: t["net"])[:10]
+    bull_candidates = [t for t in with_flow if t["net"] > 0]
+    top_bull_all = sorted(bull_candidates, key=lambda t: score_ticker(t), reverse=True)[:10]
+    bear_candidates = [t for t in with_flow if t["net"] < 0]
+    top_bear_all = sorted(bear_candidates, key=lambda t: score_ticker(t), reverse=True)[:10]
 
     mid_small = [t for t in with_flow if t["cap"] == "Mid-Small"]
-    top_bull_ms = sorted(mid_small, key=lambda t: t["net"], reverse=True)[:10]
-    top_bear_ms = sorted(mid_small, key=lambda t: t["net"])[:10]
+    bull_ms_candidates = [t for t in mid_small if t["net"] > 0]
+    top_bull_ms = sorted(bull_ms_candidates, key=lambda t: score_ticker(t), reverse=True)[:10]
+    bear_ms_candidates = [t for t in mid_small if t["net"] < 0]
+    top_bear_ms = sorted(bear_ms_candidates, key=lambda t: score_ticker(t), reverse=True)[:10]
 
     total_bull = sum(t["bull"] for t in with_flow)
     total_bear = sum(t["bear"] for t in with_flow)
