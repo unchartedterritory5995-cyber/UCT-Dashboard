@@ -1171,6 +1171,7 @@ export default function OptionsFlowDashboard() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [searchDte, setSearchDte] = useState("All");
+  const [searchGroup, setSearchGroup] = useState(null);
   const [batchTickers, setBatchTickers] = useState("");
   const [batchResults, setBatchResults] = useState(null);
   const [batchMode, setBatchMode] = useState(false);
@@ -4693,22 +4694,150 @@ export default function OptionsFlowDashboard() {
         {tab==="Search" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
+              <div style={{ position:"relative" }}>
               <input type="text" value={search}
-                onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(D.TICKER_DB.find(t=>t.s===v)||null); setSearchDte("All"); }}
-                placeholder="Enter ticker symbol (e.g. TSLA, MU, AAPL)"
+                onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(D.TICKER_DB.find(t=>t.s===v)||null); setSearchDte("All"); setSearchGroup(null); }}
+                placeholder="Search ticker, theme, or sector (e.g. TSLA, Semiconductors, Energy)"
                 style={{ width:"100%", padding:"10px 16px", borderRadius:8, fontSize:13, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
               />
-              {search && D.ALL_SYMS.filter(s=>s.startsWith(search)&&s!==search).length>0 && !selectedTicker && (
-                <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:4 }}>
-                  {D.ALL_SYMS.filter(s=>s.startsWith(search)).slice(0,12).map(s=>(
-                    <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(D.TICKER_DB.find(t=>t.s===s)||null); }}
-                      style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:D.TICKER_DB.find(t=>t.s===s)?P.wh:P.mt, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {search && search.length >= 1 && !selectedTicker && !searchGroup && (()=>{
+                const q = search.toLowerCase();
+                const tickerMatches = D.ALL_SYMS.filter(s=>s.startsWith(search)).slice(0,8);
+                const themeMatches = Object.keys(THEMES_DEF).filter(t=>t.toLowerCase().includes(q)).slice(0,4);
+                const allSectors = [...new Set(D.TICKER_DB.map(t=>t.sector).filter(s=>s&&s!=="None"&&s!=="Unknown"))];
+                const sectorMatches = allSectors.filter(s=>s.toLowerCase().includes(q)).slice(0,4);
+                const hasResults = tickerMatches.length > 0 || themeMatches.length > 0 || sectorMatches.length > 0;
+                if (!hasResults) return null;
+                return (
+                  <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:20, background:P.cd, border:"1px solid "+P.bl, borderRadius:8, marginTop:4, padding:8, maxHeight:300, overflowY:"auto" }}>
+                    {tickerMatches.length > 0 && (<>
+                      <div style={{ fontSize:8, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Tickers</div>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:8 }}>
+                        {tickerMatches.map(s=>(
+                          <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(D.TICKER_DB.find(t=>t.s===s)||null); setSearchGroup(null); }}
+                            style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:D.TICKER_DB.find(t=>t.s===s)?P.wh:P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </>)}
+                    {themeMatches.length > 0 && (<>
+                      <div style={{ fontSize:8, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Themes</div>
+                      <div style={{ display:"flex", flexDirection:"column", gap:2, marginBottom:8 }}>
+                        {themeMatches.map(t=>(
+                          <button key={t} onClick={()=>{ setSearch(t); setSelectedTicker(null); setSearchGroup({type:"theme",name:t,tickers:THEMES_DEF[t]}); }}
+                            style={{ padding:"6px 10px", borderRadius:4, border:"none", background:P.al, color:P.ac, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
+                            📁 {t} <span style={{ color:P.dm, fontWeight:400, fontSize:9 }}>({THEMES_DEF[t].length} tickers)</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>)}
+                    {sectorMatches.length > 0 && (<>
+                      <div style={{ fontSize:8, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Sectors</div>
+                      <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+                        {sectorMatches.map(s=>{
+                          const sectorTickers = D.TICKER_DB.filter(t=>t.sector===s).map(t=>t.s);
+                          return (
+                            <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(null); setSearchGroup({type:"sector",name:s,tickers:sectorTickers}); }}
+                              style={{ padding:"6px 10px", borderRadius:4, border:"none", background:P.al, color:"#6ba3be", fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
+                              🏢 {s} <span style={{ color:P.dm, fontWeight:400, fontSize:9 }}>({sectorTickers.length} tickers)</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>)}
+                  </div>
+                );
+              })()}
+              </div>
             </Card>
+            {/* Theme/Sector Group View */}
+            {searchGroup && D && (()=>{
+              const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
+              const groupTickers = new Set(searchGroup.tickers);
+              const groupTrades = cc.filter(t => groupTickers.has(t.S));
+              const tkMap = {};
+              groupTrades.forEach(t => {
+                if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, er:false };
+                if (t.D==="BULL") tkMap[t.S].bull += t.P;
+                if (t.D==="BEAR") tkMap[t.S].bear += t.P;
+                tkMap[t.S].n++;
+                if (t.er) tkMap[t.S].er = true;
+              });
+              const rows = Object.values(tkMap).filter(t=>t.bull+t.bear>0).sort((a,b)=>Math.abs(b.bull-b.bear)-Math.abs(a.bull-a.bear));
+              const totalBull = rows.reduce((a,t)=>a+t.bull,0);
+              const totalBear = rows.reduce((a,t)=>a+t.bear,0);
+              const totalNet = totalBull - totalBear;
+              const bullPct = (totalBull+totalBear)>0 ? Math.round(totalBull/(totalBull+totalBear)*100) : 50;
+              const fmt = (n) => { const a=Math.abs(n); return a>=1e6?"$"+(a/1e6).toFixed(1)+"M":a>=1e3?"$"+(a/1e3).toFixed(0)+"K":"$"+a.toFixed(0); };
+              const isBullGroup = totalBull >= totalBear;
+              return (<>
+                <Card>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                    <div>
+                      <span style={{ fontSize:10, fontWeight:800, color:searchGroup.type==="theme"?P.ac:"#6ba3be", textTransform:"uppercase", letterSpacing:1 }}>
+                        {searchGroup.type==="theme"?"📁":"🏢"} {searchGroup.name}
+                      </span>
+                      <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{rows.length} tickers with flow · {searchGroup.tickers.length} in group</span>
+                    </div>
+                    <button onClick={()=>{ setSearchGroup(null); setSearch(""); }}
+                      style={{ background:"none", border:"1px solid "+P.bl, borderRadius:4, color:P.dm, fontSize:9, padding:"3px 8px", cursor:"pointer", fontFamily:"inherit" }}>✕ Clear</button>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:12 }}>
+                    <div>
+                      <div style={{ fontSize:8, color:P.dm, fontWeight:600 }}>Group Net Flow</div>
+                      <div style={{ fontSize:16, fontWeight:900, color:isBullGroup?P.bu:P.be }}>{fmt(Math.abs(totalNet))}</div>
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:8, color:P.dm, marginBottom:2 }}>
+                        <span style={{ color:P.bu }}>Bull {fmt(totalBull)}</span>
+                        <span style={{ color:P.bu, fontSize:12, fontWeight:800 }}>{bullPct}%</span>
+                        <span style={{ color:P.be }}>Bear {fmt(totalBear)}</span>
+                      </div>
+                      <div style={{ height:6, borderRadius:3, background:P.be, overflow:"hidden" }}>
+                        <div style={{ width:bullPct+"%", height:"100%", borderRadius:3, background:P.bu }} />
+                      </div>
+                    </div>
+                  </div>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
+                    <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                      <th style={{ padding:"4px 8px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Ticker</th>
+                      <th style={{ padding:"4px 8px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Bull</th>
+                      <th style={{ padding:"4px 8px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Bear</th>
+                      <th style={{ padding:"4px 4px", width:80, textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Split</th>
+                      <th style={{ padding:"4px 8px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Net</th>
+                      <th style={{ padding:"4px 8px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Trades</th>
+                    </tr></thead>
+                    <tbody>
+                    {rows.map((r,i) => {
+                      const total = r.bull+r.bear;
+                      const bPct = total>0?Math.round(r.bull/total*100):50;
+                      const net = r.bull - r.bear;
+                      const isBull = net >= 0;
+                      return (
+                        <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"44", cursor:"pointer" }}
+                          onClick={()=>{ setSearch(r.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===r.sym)||null); setSearchGroup(null); }}>
+                          <td style={{ padding:"6px 8px", fontWeight:900, color:P.wh, fontSize:12 }}>
+                            {r.sym}
+                            {r.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
+                          </td>
+                          <td style={{ padding:"6px 8px", fontWeight:800, color:P.bu, textAlign:"center" }}>{r.bull>0?fmt(r.bull):"—"}</td>
+                          <td style={{ padding:"6px 8px", fontWeight:800, color:P.be, textAlign:"center" }}>{r.bear>0?fmt(r.bear):"—"}</td>
+                          <td style={{ padding:"6px 4px" }}>
+                            <div style={{ display:"flex", height:6, borderRadius:3, overflow:"hidden", background:P.be }}>
+                              <div style={{ width:bPct+"%", background:P.bu, borderRadius:3 }} />
+                            </div>
+                          </td>
+                          <td style={{ padding:"6px 8px", fontWeight:900, color:isBull?P.bu:P.be, textAlign:"center" }}>{fmt(Math.abs(net))}</td>
+                          <td style={{ padding:"6px 8px", color:P.dm, textAlign:"center" }}>{r.n}</td>
+                        </tr>
+                      );
+                    })}
+                    </tbody>
+                  </table>
+                </Card>
+              </>);
+            })()}
             {/* Batch Search */}
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <button onClick={()=>setBatchMode(!batchMode)} style={{ padding:"5px 14px", borderRadius:16, border:"1.5px solid "+(batchMode?"#c9a84c":"#c9a84c55"), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:batchMode?"#c9a84c22":"transparent", color:batchMode?"#c9a84c":"#c9a84c" }}>
