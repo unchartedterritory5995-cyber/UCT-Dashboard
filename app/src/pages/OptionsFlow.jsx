@@ -4697,9 +4697,31 @@ export default function OptionsFlowDashboard() {
               <div style={{ position:"relative" }}>
               <input type="text" value={search}
                 onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(D.TICKER_DB.find(t=>t.s===v)||null); setSearchDte("All"); setSearchGroup(null); }}
-                placeholder="Search ticker, theme, or sector (e.g. TSLA, Semiconductors, Energy)"
-                style={{ width:"100%", padding:"10px 16px", borderRadius:8, fontSize:13, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
+                placeholder="Search ticker, theme, or sector..."
+                style={{ width:"100%", padding:"10px 40px 10px 16px", borderRadius:8, fontSize:13, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
               />
+              <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", zIndex:10 }}>
+                <div style={{ position:"relative", display:"inline-block" }}
+                  onMouseEnter={e=>e.currentTarget.querySelector('[data-tip]').style.display='block'}
+                  onMouseLeave={e=>e.currentTarget.querySelector('[data-tip]').style.display='none'}>
+                  <span style={{ fontSize:14, color:P.dm, cursor:"help", userSelect:"none" }}>ⓘ</span>
+                  <div data-tip="1" style={{ display:"none", position:"absolute", right:0, top:"100%", marginTop:8, width:320, background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:12, zIndex:30, boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
+                    <div style={{ fontSize:9, fontWeight:800, color:P.ac, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Available Themes</div>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:10 }}>
+                      {Object.keys(THEMES_DEF).map(t=>(
+                        <button key={t} onClick={()=>{ setSearch(t); setSelectedTicker(null); setSearchGroup({type:"theme",name:t,tickers:THEMES_DEF[t]}); }}
+                          style={{ padding:"3px 8px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:P.wh, fontSize:9, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                          {t} <span style={{ color:P.dm, fontSize:7 }}>{THEMES_DEF[t].length}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ fontSize:9, fontWeight:800, color:"#6ba3be", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Sectors</div>
+                    <div style={{ fontSize:8, color:P.dm, lineHeight:1.6 }}>
+                      Also searchable: Information Technology, Financials, Energy, Consumer Discretionary, Healthcare, Industrials, and more from the flow data.
+                    </div>
+                  </div>
+                </div>
+              </div>
               {search && search.length >= 1 && !selectedTicker && !searchGroup && (()=>{
                 const q = search.toLowerCase();
                 const tickerMatches = D.ALL_SYMS.filter(s=>s.startsWith(search)).slice(0,8);
@@ -4764,7 +4786,7 @@ export default function OptionsFlowDashboard() {
                 tkMap[t.S].n++;
                 if (t.er) tkMap[t.S].er = true;
               });
-              const rows = Object.values(tkMap).filter(t=>t.bull+t.bear>0).sort((a,b)=>Math.abs(b.bull-b.bear)-Math.abs(a.bull-a.bear));
+              const rows = Object.values(tkMap).filter(t=>t.bull+t.bear>0);
               const totalBull = rows.reduce((a,t)=>a+t.bull,0);
               const totalBear = rows.reduce((a,t)=>a+t.bear,0);
               const totalNet = totalBull - totalBear;
@@ -4799,17 +4821,36 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                   </div>
+                  {(()=>{
+                    const [gsCol, gsDir] = (searchGroup._sort||"net|desc").split("|");
+                    const setGS = (col) => { const nd = gsCol===col&&gsDir==="desc"?"asc":"desc"; setSearchGroup({...searchGroup, _sort:col+"|"+nd}); };
+                    const gsHdr = (label, col, align) => {
+                      const active = gsCol===col;
+                      const arrow = active ? (gsDir==="asc"?" ▲":" ▼") : "";
+                      return <th style={{ padding:"4px 8px", textAlign:align||"center", color:active?P.ac:P.mt, fontSize:8, fontWeight:600, cursor:"pointer", userSelect:"none" }}
+                        onClick={()=>setGS(col)}>{label}{arrow}</th>;
+                    };
+                    const m = gsDir==="asc"?1:-1;
+                    const sorted = [...rows].sort((a,b)=>{
+                      if (gsCol==="sym") return m*a.sym.localeCompare(b.sym);
+                      if (gsCol==="bull") return m*(a.bull-b.bull);
+                      if (gsCol==="bear") return m*(a.bear-b.bear);
+                      if (gsCol==="net") return m*(Math.abs(a.bull-a.bear)-Math.abs(b.bull-b.bear));
+                      if (gsCol==="trades") return m*(a.n-b.n);
+                      return 0;
+                    });
+                    return (
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
                     <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                      <th style={{ padding:"4px 8px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Ticker</th>
-                      <th style={{ padding:"4px 8px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Bull</th>
-                      <th style={{ padding:"4px 8px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Bear</th>
+                      {gsHdr("Ticker","sym","left")}
+                      {gsHdr("Bull","bull")}
+                      {gsHdr("Bear","bear")}
                       <th style={{ padding:"4px 4px", width:80, textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Split</th>
-                      <th style={{ padding:"4px 8px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Net</th>
-                      <th style={{ padding:"4px 8px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Trades</th>
+                      {gsHdr("Net","net")}
+                      {gsHdr("Trades","trades")}
                     </tr></thead>
                     <tbody>
-                    {rows.map((r,i) => {
+                    {sorted.map((r,i) => {
                       const total = r.bull+r.bear;
                       const bPct = total>0?Math.round(r.bull/total*100):50;
                       const net = r.bull - r.bear;
@@ -4835,6 +4876,7 @@ export default function OptionsFlowDashboard() {
                     })}
                     </tbody>
                   </table>
+                    ); })()}
                 </Card>
               </>);
             })()}
