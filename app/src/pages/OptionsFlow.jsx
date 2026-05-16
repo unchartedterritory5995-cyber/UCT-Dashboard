@@ -1205,16 +1205,13 @@ export default function OptionsFlowDashboard() {
       return true;
     }).map(tk => {
       const total = tk.b + tk.r;
-      const net = Math.abs(tk.b - tk.r);
-      const bullPct = total > 0 ? tk.b / total : 0.5;
-      const conviction = Math.abs(bullPct - 0.5) * 2;
       const cap = tk.mktcap || 1;
-      const capMultiplier = cap >= 200e9 ? 1 : cap >= 10e9 ? 3 : 8;
-      const adjNet = net * capMultiplier;
+      const capMultiplier = cap >= 200e9 ? 1 : cap >= 10e9 ? 2.5 : 6;
+      const adjTotal = total * capMultiplier;
       const tradeDensity = Math.min(tk.n / 10, 3);
-      const uoaBonus = tk.uoa ? 1.5 : 1;
-      const score = adjNet * (0.5 + conviction * 0.5) * tradeDensity * uoaBonus;
-      return { sym: tk.s, score, net, total, conviction, cap };
+      const uoaBonus = tk.uoa ? 1.3 : 1;
+      const score = adjTotal * tradeDensity * uoaBonus;
+      return { sym: tk.s, score, total, bull: tk.b, bear: tk.r };
     }).sort((a, b) => b.score - a.score);
     const top25 = scored.slice(0, 25).map(t => t.sym);
     saveLeaders(top25);
@@ -2147,7 +2144,7 @@ export default function OptionsFlowDashboard() {
             return (b.time||"").localeCompare(a.time||"");
           }) : [];
           if (strikeTrades.length===0) return null;
-          const tk = D ? D.TICKER_DB.find(t=>t.s===sym) : null;
+          const tk = D ? FD.TICKER_DB.find(t=>t.s===sym) : null;
           const clusterInfo = tk ? tk.c.find(c => c.CP===cp && Math.abs(c.K-K)<0.01 && c.E===exp) : null;
           return (
             <div style={{ borderTop:"1px solid "+P.bd, padding:"10px 16px" }}>
@@ -2192,7 +2189,7 @@ export default function OptionsFlowDashboard() {
         })()}
         {/* ── Ticker Top Flow ────────────────────────────────── */}
         {(()=>{
-          const tk = D ? D.TICKER_DB.find(t=>t.s===sym) : null;
+          const tk = D ? FD.TICKER_DB.find(t=>t.s===sym) : null;
           if (!tk) return null;
           // Other clusters for this ticker (exclude current contract)
           const otherClusters = (tk.c||[]).filter(c => !(c.CP===cp && Math.abs(c.K-K)<0.01 && c.E===exp));
@@ -4503,10 +4500,10 @@ export default function OptionsFlowDashboard() {
         })()}
 
         {/* Leaders */}
-        {tab==="Leaders" && D && (()=>{
+        {tab==="Leaders" && FD && (()=>{
           const fmt = (n) => { const a=Math.abs(n); return a>=1e6?"$"+(a/1e6).toFixed(1)+"M":a>=1e3?"$"+(a/1e3).toFixed(0)+"K":"$"+a.toFixed(0); };
           const leaderData = leaders.map(sym => {
-            const tk = D.TICKER_DB.find(t=>t.s===sym);
+            const tk = FD.TICKER_DB.find(t=>t.s===sym);
             if (!tk) return { sym, found:false, bull:0, bear:0, net:0, trades:0, topContract:null };
             const bull = tk.b||0, bear = tk.r||0, net = bull-bear;
             const topC = (tk.c||[]).length>0 ? tk.c[0] : (tk.t||[]).length>0 ? tk.t[0] : null;
@@ -4608,7 +4605,7 @@ export default function OptionsFlowDashboard() {
                     const cap = d.cap && d.cap !== "Unknown" ? d.cap : "";
                     return (
                       <tr key={d.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
-                        onClick={()=>{ setSearch(d.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===d.sym)||null); setTab("Search"); }}>
+                        onClick={()=>{ setSearch(d.sym); setSelectedTicker(FD.TICKER_DB.find(t=>t.s===d.sym)||null); setTab("Search"); }}>
                         <td style={{ padding:"8px 14px", fontWeight:900, color:P.wh, fontSize:13 }}>
                           {d.sym}
                           
@@ -4959,7 +4956,7 @@ export default function OptionsFlowDashboard() {
                                 fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
                               {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}
                             </button>
-                            <button onClick={()=>{ setSearch(d.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===d.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); setBatchDetail(null); }}
+                            <button onClick={()=>{ setSearch(d.sym); setSelectedTicker(FD.TICKER_DB.find(t=>t.s===d.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); setBatchDetail(null); }}
                               style={{ padding:"6px 14px", borderRadius:6, border:"1px solid "+P.bd, cursor:"pointer",
                                 fontSize:10, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.mt }}>
                               Open in Search →
