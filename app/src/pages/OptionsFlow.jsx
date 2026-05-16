@@ -153,7 +153,7 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.V)}</td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:P.dm }}>{curOI>0?curOI.toLocaleString():"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:csvOI>0?"#665d3a":P.dm }}>{curOI>0?curOI.toLocaleString():csvOI>0?<span title="BBS snapshot (live unavailable)">{csvOI.toLocaleString()}<span style={{ fontSize:7, color:P.dm, marginLeft:2 }}>BBS</span></span>:"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
               <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
@@ -215,7 +215,7 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:P.dm }}>{curOI>0?curOI.toLocaleString():"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:csvOI>0?"#665d3a":P.dm }}>{curOI>0?curOI.toLocaleString():csvOI>0?<span title="BBS snapshot (live unavailable)">{csvOI.toLocaleString()}<span style={{ fontSize:7, color:P.dm, marginLeft:2 }}>BBS</span></span>:"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:P.dm }}>{px&&px.delta?px.delta.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:px&&px.theta<0?P.be:P.dm }}>{px&&px.theta?px.theta.toFixed(2):"—"}</td>}
