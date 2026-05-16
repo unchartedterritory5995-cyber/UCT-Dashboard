@@ -1197,6 +1197,28 @@ export default function OptionsFlowDashboard() {
     setLeadersInput("");
   };
   const removeLeader = (sym) => saveLeaders(leaders.filter(s=>s!==sym));
+  const autoPopulateLeaders = () => {
+    if (!FD || !FD.TICKER_DB) return;
+    const scored = FD.TICKER_DB.filter(tk => {
+      if (tk.b + tk.r <= 0 || tk.s.length > 5) return false;
+      if (capFilter !== "All" && capBand(tk.mktcap) !== capFilter) return false;
+      return true;
+    }).map(tk => {
+      const total = tk.b + tk.r;
+      const net = Math.abs(tk.b - tk.r);
+      const bullPct = total > 0 ? tk.b / total : 0.5;
+      const conviction = Math.abs(bullPct - 0.5) * 2;
+      const cap = tk.mktcap || 1;
+      const capMultiplier = cap >= 200e9 ? 1 : cap >= 10e9 ? 3 : 8;
+      const adjNet = net * capMultiplier;
+      const tradeDensity = Math.min(tk.n / 10, 3);
+      const uoaBonus = tk.uoa ? 1.5 : 1;
+      const score = adjNet * (0.5 + conviction * 0.5) * tradeDensity * uoaBonus;
+      return { sym: tk.s, score, net, total, conviction, cap };
+    }).sort((a, b) => b.score - a.score);
+    const top25 = scored.slice(0, 25).map(t => t.sym);
+    saveLeaders(top25);
+  };
   const [leaderYtd, setLeaderYtd] = useState({});
   const [leaderOff52, setLeaderOff52] = useState({});
   const [leaderSort, setLeaderSort] = useState({col:"sym", dir:"asc"});
@@ -4527,6 +4549,10 @@ export default function OptionsFlowDashboard() {
                   <button onClick={fetchLeaderYtd} disabled={leaderYtdLoading}
                     style={{ padding:"5px 12px", borderRadius:4, border:"1px solid "+P.bl, background:"transparent", color:leaderYtdLoading?P.dm:P.mt, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:leaderYtdLoading?"wait":"pointer" }}>
                     {leaderYtdLoading?"Loading…":"📈 YTD%"}
+                  </button>
+                  <button onClick={autoPopulateLeaders}
+                    style={{ padding:"5px 12px", borderRadius:4, border:"1px solid #6ba3be55", background:"#6ba3be11", color:"#6ba3be", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    ⚡ Auto-Fill Top 25{capFilter !== "All" ? " ("+capFilter+")" : ""}
                   </button>
                 </div>
               </div>
