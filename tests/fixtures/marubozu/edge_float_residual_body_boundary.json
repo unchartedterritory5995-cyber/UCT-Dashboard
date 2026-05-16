@@ -1,21 +1,24 @@
 {
-  "name": "neg_body_below_90pct",
-  "category": "negative",
+  "name": "edge_float_residual_body_boundary",
+  "category": "edge",
   "expected": {
-    "fires": false
+    "fires": true,
+    "min_confidence": 50.0,
+    "max_confidence": 100.0,
+    "geometry_shape": "candle_mark"
   },
   "context": {
-    "trend_stage": 2,
-    "rs_trend": "up",
-    "ma_alignment": "stacked_bullish",
-    "volume_signature": "expanding",
-    "regime": "bullish",
+    "trend_stage": 1,
+    "rs_trend": "flat",
+    "ma_alignment": "mixed",
+    "volume_signature": "neutral",
+    "regime": "choppy",
     "nearest_resistance": null,
     "nearest_support": null,
     "days_to_earnings": null,
     "sector_strength_rank": null,
-    "dcr_signature": "accumulation",
-    "recent_dcr_avg": 0.72
+    "dcr_signature": "neutral",
+    "recent_dcr_avg": null
   },
   "bars": [
     {
@@ -196,11 +199,11 @@
     },
     {
       "t": 1701900800,
-      "o": 97.33,
-      "h": 100.165,
-      "l": 97.165,
+      "o": 97.822,
+      "h": 100.121,
+      "l": 97.701,
       "c": 100.0,
-      "v": 10000.0
+      "v": 6750.0
     }
   ]
 }

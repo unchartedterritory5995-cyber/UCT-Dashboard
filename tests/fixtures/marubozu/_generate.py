@@ -1,4 +1,4 @@
-"""Marubozu fixture generator. 16 fixtures total (5 positive + 9 negative + 2 edge).
+"""Marubozu fixture generator. 17 fixtures total (5 positive + 9 negative + 3 edge).
 
 Spec (docstring ground truth):
   - body |close-open| >= 90% of range (high-low)
@@ -281,33 +281,22 @@ def _lower_wick_too_large():
                             uw_frac=0.02, lw_frac=0.07)
 
 
-def _body_below_90pct():
-    """FAIL: body < 90% of range.
+def _neg_body_and_wick_both_fail():
+    """FAIL: body < 90% of range AND both wicks > 5% — both gates fail simultaneously.
 
-    uw_frac=0.06, lw_frac=0.06 -> body_pct = 0.88 < 0.90  -> REJECTED.
-    Note: upper_wick also exceeds 5% so this fails on two gates — the body gate fires first.
+    uw_frac=0.055, lw_frac=0.055 -> body_pct = 0.89 < 0.90 (body gate fails first),
+    AND upper_wick_pct = 0.055 > 0.05, lower_wick_pct = 0.055 > 0.05 (wick gate also fails).
+    Math: body + uw + lw = range → uw + lw = 11% of range → body = 89% < 90%.
+    Because uw + lw >= 10% ensures body <= 90%, these two failures are mathematically linked
+    — the honest fixture name reflects that both gates fail, body gate fires first.
     """
-    # Need body_pct < 0.90 without having wick pass first gate.
-    # Use uw=0.055 + lw=0.055 -> body=0.89 < 0.90 -> body gate fails.
-    # But upper_wick_pct = 0.055 > 0.05, so wick gate fires first. That's still a valid
-    # negative — the fixture is "body too small" conceptually. Both gates fail.
-    # To isolate body: uw=0.055, lw=0.055 -> both wicks just over 5%, body 0.89.
-    # The detector checks body first, then wicks. Let's use a more honest isolation:
-    # uw=0.03, lw=0.08 -> body=0.89 < 0.90 fails body gate (body checked first).
-    # But lw=0.08 > 0.05 also fails wick gate. Still a valid negative.
-    # Best isolation: craft bar manually.
-    # Make a bar where body = 0.88 * range, uw = 0.02 * range, lw = 0.10 * range.
-    # -> body fails (0.88 < 0.90), wick also fails (lw 0.10 > 0.05). Still fires body first.
-    # Actually the cleanest: body exactly at 89%, wicks split equally: uw=0.055, lw=0.055.
-    # All three gates fail. That's fine for "body < 90%" fixture.
     bars = _background_bars(22, avg_range=2.0, avg_vol=5000.0, price=100.0)
     t = _last_t(bars)
     signal_range = 2.0 * 1.5   # = 3.0 (passes range gate)
     signal_vol = 5000.0 * 2.0  # passes volume gate
-    # body_pct = 0.89 (< 0.90) — fails body gate first
+    # uw=lw=5.5% of range -> body = 1 - 0.055 - 0.055 = 0.89 < 0.90
     uw_frac = 0.055
     lw_frac = 0.055
-    # body = 1 - 0.055 - 0.055 = 0.89
     bar = _make_bullish_marubozu_bar(t, 100.0, signal_range, signal_vol,
                                       uw_frac=uw_frac, lw_frac=lw_frac)
     bars.append(bar)
@@ -461,6 +450,51 @@ def _wick_exactly_5pct():
                             uw_frac=0.05, lw_frac=0.05)
 
 
+def _float_residual_body_boundary():
+    """EDGE: body_pct = 0.8999999... (strict float-residual below 90% boundary).
+
+    This fixture is the critical proof that the scoring-tier EPS fix is load-bearing.
+    It targets a bar where:
+      - body_pct passes the GATE   (body_pct >= _MIN_BODY_PCT - _EPS  ✓)
+      - body_pct is strictly < 0.90 in Python floats due to 4-dp rounding
+      - WITHOUT the _EPS guard in _score_geometry, body_pct falls into the
+        else: body_score = 0.0 branch → geom_score collapses
+      - WITH the _EPS guard, body_pct >= 0.90 - 1e-9 → body_score = 65.0
+
+    Construction:
+      avg_range = 2.0, signal_range = 2.0 * 1.21 = 2.42
+        → range_ratio = 1.21 (≥ 1.20, barely passes range gate)
+      uw_frac = lw_frac = 0.05 (exactly at wick boundary)
+        → uw = 0.05 * 2.42 = 0.121  → rounded: 0.121
+        → lw = 0.121
+        → After _bar() rounding, body_pct = (c - o) / (h - l) = 0.899999999999998
+           (verified: body_pct < 0.90 is True in Python floats at 64-bit precision)
+      vol_mult = 1.35 → vol_ratio = 1.35 (≥ 1.30, minimum passing, → vol_score = 55.0)
+      Context = NEUTRAL (stage=1, dcr_sig=neutral, ma=mixed → ctx_score = 60.0)
+
+    Score proof:
+      WITHOUT fix: body_score = 0.0 → geom_score = 40.50
+        confidence = 0.40*40.50 + 0.25*55.0 + 0.20*60.0 + 0.15*50.0 = 49.45 < 50 → NO FIRE
+      WITH fix:    body_score = 65.0 → geom_score = 63.25
+        confidence = 0.40*63.25 + 0.25*55.0 + 0.20*60.0 + 0.15*50.0 = 58.55 ≥ 50 → FIRES ✓
+
+    Expected: fires with confidence >= 50.0 (requires the scoring-tier EPS fix).
+    """
+    bars = _background_bars(22, avg_range=2.0, avg_vol=5000.0, price=100.0)
+    t = _last_t(bars)
+    # range_mult=1.21 → signal_range = 2.0 * 1.21 = 2.42
+    # After _make_bullish_marubozu_bar + _bar() rounding to 4dp:
+    #   uw = 0.05 * 2.42 = 0.121, lw = 0.121, body = 2.178
+    #   bar: o=97.822, h=100.121, l=97.701, c=100.0
+    #   actual h-l = 2.42 exactly, c-o = 2.178, body_pct = 2.178/2.42 = 0.899999...
+    signal_range = 2.0 * 1.21   # = 2.42
+    signal_vol = 5000.0 * 1.35  # = 6750.0  → vol_ratio = 1.35 (minimum passing)
+    bar = _make_bullish_marubozu_bar(t, 100.0, signal_range, signal_vol,
+                                      uw_frac=0.05, lw_frac=0.05)
+    bars.append(bar)
+    return bars
+
+
 # ─────────────────────────────────────────────
 # Writer
 # ─────────────────────────────────────────────
@@ -529,8 +563,8 @@ def main():
     )
 
     _write(
-        "neg_body_below_90pct", "negative",
-        _body_below_90pct(), BULL_TREND_CONTEXT,
+        "neg_body_and_wick_both_fail", "negative",
+        _neg_body_and_wick_both_fail(), BULL_TREND_CONTEXT,
         {"fires": False},
     )
 
@@ -585,7 +619,14 @@ def main():
          "geometry_shape": "candle_mark"},
     )
 
-    print("\nDone — 16 fixtures written.")
+    _write(
+        "edge_float_residual_body_boundary", "edge",
+        _float_residual_body_boundary(), NEUTRAL_CONTEXT,
+        {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0,
+         "geometry_shape": "candle_mark"},
+    )
+
+    print("\nDone — 17 fixtures written.")
 
 
 if __name__ == "__main__":

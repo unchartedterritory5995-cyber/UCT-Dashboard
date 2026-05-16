@@ -48,7 +48,7 @@ from typing import List
 from api.services.pattern_engine.detectors.registry import register
 from api.services.pattern_engine.narrative_helpers import (
     dcr_phrase, dcr_interpretation, ma_alignment_phrase, regime_phrase,
-    rs_trend_phrase, trend_stage_description, volume_signature_phrase,
+    rs_trend_phrase, trend_stage_description,
 )
 from api.services.pattern_engine.primitives.dcr import compute_dcr
 from api.services.pattern_engine.types import Bar, Detection
@@ -161,7 +161,7 @@ def _score_geometry(c: dict) -> float:
         body_score = 100.0
     elif body_pct >= 0.95:
         body_score = 85.0
-    elif body_pct >= _MIN_BODY_PCT:
+    elif body_pct >= _MIN_BODY_PCT - _EPS:
         body_score = 65.0
     else:
         body_score = 0.0
@@ -171,7 +171,7 @@ def _score_geometry(c: dict) -> float:
         range_score = 100.0
     elif range_ratio >= 1.5:
         range_score = 80.0
-    elif range_ratio >= _MIN_RANGE_RATIO:
+    elif range_ratio >= _MIN_RANGE_RATIO - _EPS:
         range_score = 60.0
     else:
         range_score = 0.0
@@ -235,7 +235,6 @@ def _score_context(context: dict, is_bullish: bool) -> float:
 def _build_detection(bars, c, confidence, context,
                      geom_score, vol_score, ctx_score, hist_score, direction) -> Detection:
     last = c["last"]
-    last_bar = bars[-1]
     bar_range = c["bar_range"]
     is_bullish = c["is_bullish"]
 
@@ -277,7 +276,7 @@ def _build_detection(bars, c, confidence, context,
         "category": "candlestick",
         "direction": direction,
         "start_t": int(last["t"]),
-        "end_t": int(last_bar["t"]),
+        "end_t": int(last["t"]),
         "pivot_ts": [int(last["t"])],
         "geometry": {"shape": "candle_mark", "anchors": anchors, "extras": extras},
         "levels": {
@@ -286,7 +285,7 @@ def _build_detection(bars, c, confidence, context,
                 f"{'Buy above ' + str(entry) + ' (bar high + 0.1%)' if is_bullish else 'Sell below ' + str(entry) + ' (bar low - 0.1%). Confirm borrow.'}"
             ),
             "stop": stop,
-            "stop_basis": "nr7_bar_opposite_extreme",
+            "stop_basis": "marubozu_low" if is_bullish else "marubozu_high",
             "target_primary": target,
             "target_secondary": None,
             "risk_reward": round(rr, 2),
@@ -388,7 +387,7 @@ def _compose_narrative(c, context, entry, stop, target, rr, stop_pct, direction)
         f"Nison's framework: the entire bar IS the pattern — if price revisits "
         f"the {'low' if is_bullish else 'high'} of a Marubozu bar after the trigger, "
         f"the pattern has failed and the 'pure conviction' reading is wrong. "
-        f"Target: ${target:.2f} (entry + {'2x' if is_bullish else '2x'} bar range of "
+        f"Target: ${target:.2f} (entry + 2x bar range of "
         f"${bar_range:.4f} = ${bar_range * 2:.4f} measured move). Morris's "
         f"empirical finding from 'Candlestick Charting Explained': full-body "
         f"Marubozus with above-average volume produce 2x-range continuation "
