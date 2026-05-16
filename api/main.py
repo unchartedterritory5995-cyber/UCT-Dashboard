@@ -60,6 +60,7 @@ from api.routers import backtest as backtest_router
 from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
 from api.flow_router import flow_router
+from api.discord_watchlist import register_discord_routes, setup_scheduler as setup_discord_scheduler
 from api.services.auth_db import init_db as _init_auth_db
 from api.services.voice_audio_cache import purge_expired as _voice_cache_purge
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -516,39 +517,24 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] indicator alert evaluator failed to start")
 
-    # Fire-and-forget priority audit ~30s after boot so the admin chart-health
-    # dashboard has a baseline run on every redeploy without manual operator
-    # intervention. Helper is a no-op if no priority tickers are resolvable
-    # (e.g. wire_data not yet pushed on a fresh volume).
     try:
         _start_priority_audit_background()
         logging.getLogger(__name__).info("[startup] priority audit scheduled (~30s after boot)")
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule priority audit: %s", e)
 
-    # Hot tier warm — pre-load top-priority tickers' bars into RAM 45s after
-    # boot so the first chart request lands in the hot tier (no disk hop).
     try:
         _start_hot_tier_warm_background()
         logging.getLogger(__name__).info("[startup] hot tier warm scheduled (~45s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule hot tier warm")
 
-    # RS rankings warm — compute IBD-style relative strength rankings for the
-    # cap_universe (~3,685 tickers) 120s after boot so the first
-    # /api/rs-rankings request after a redeploy hits the cache instead of
-    # taking ~17s. Staggered after hot-tier warm and priority audit to avoid
-    # contending for bar I/O during startup.
     try:
         _start_rs_rankings_warm_background()
         logging.getLogger(__name__).info("[startup] rs-rankings warm scheduled (~120s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule rs-rankings warm")
 
-    # Deploy-smoke audit — small fixture run ~30s after every deploy so admins
-    # can verify nothing broke in the chart pipeline without manual operator
-    # intervention. Independent of the priority audit (which depends on
-    # wire_data being pushed); this always runs.
     try:
         _start_deploy_smoke_background()
         logging.getLogger(__name__).info("[startup] deploy smoke audit scheduled")
@@ -563,10 +549,6 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] bars_continuous_audit start failed")
 
-    # Start realtime_candle reconciliation worker — runs every 60s in the same
-    # event loop as the FastAPI app. Compares the in-memory developing candle
-    # to a REST snapshot (fetch_minute_snapshot) and emits bar_correction
-    # events when WS state disagrees with the authoritative provider.
     try:
         from api.services import realtime_candle
         import asyncio
@@ -575,12 +557,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
 
-    # Integrity check BEFORE init_db: if /data/bars.db is malformed (which
-    # happens when the previous run was killed mid-write or replaced with
-    # stale WAL/SHM sidecars hanging around), every put_bars at runtime
-    # would fail with "disk image is malformed" and the chart would freeze
-    # at whatever bars were cached before the corruption. Detect it here
-    # and pull a fresh R2 snapshot before any handler can hit the bad file.
     try:
         from api.services import bars_sqlite as _bs_check
         if not _bs_check.integrity_ok():
@@ -626,17 +602,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] tf=60 disk purge error (non-fatal): {e}")
 
-    # Skip the memory pre-warm entirely when this web service pulls bars
-    # from a remote worker via R2 (USE_REMOTE_BARS=1). Reason: the pre-warm
-    # loads bars from /data/bars.db into the in-process TTL cache. With
-    # USE_REMOTE_BARS=1, the snapshot puller hasn't run yet at this point
-    # in startup, so /data/bars.db is whatever the last deploy left behind
-    # (potentially empty, definitely stale). Loading that into memory and
-    # then having the puller replace the disk file leaves memory permanently
-    # disagreeing with disk for up to _CACHE_TTL[tf] seconds — users see
-    # stale bars on every fresh deploy. The first SQLite read per ticker
-    # after a pull is ~1-2ms on local disk, so skipping pre-warm is a
-    # near-free trade for correctness.
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] Memory pre-warm skipped (USE_REMOTE_BARS=1); cache populates lazily after snapshot pull")
     else:
@@ -702,15 +667,6 @@ async def lifespan(app: FastAPI):
         except Exception as _e:
             print(f"[startup] Memory pre-warm failed (non-fatal): {_e}")
 
-    # USE_REMOTE_BARS=1 tells this web service that a separate worker is
-    # producing the bars snapshot, so we should NOT run our own prewarmer or
-    # seeder; instead we pull the snapshot from R2 every 5 min.
-    #
-    # NOTE: do NOT use WORKER_ENABLED here. WORKER_ENABLED is consumed by
-    # railway.json's startCommand to decide whether to run worker_main vs
-    # the full uvicorn web app. If we keyed both decisions off the same
-    # variable, setting it on the web service would replace the website
-    # with the tiny worker-only app. Two different decisions = two vars.
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] USE_REMOTE_BARS=1 — skipping in-process prewarmer/seeder; pulling snapshot from worker via R2")
     else:
@@ -726,28 +682,13 @@ async def lifespan(app: FastAPI):
         from api.services.bars_prewarm import run_prewarmer_forever
         threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
 
-    # When the worker service is producing snapshots, pull them on a fixed
-    # cadence (see SNAPSHOT_INTERVAL_SECONDS in api.services.data_sync).
     if os.environ.get("USE_REMOTE_BARS") == "1":
         from api.services import data_sync
         import time as _t
 
-        # Phase 4.7: pull the initial snapshot synchronously so /api/bars serves
-        # warm-cache responses from the moment the deploy goes Active. Without this,
-        # the first chart load after every deploy waits ~20s for the puller daemon
-        # to do its first sync. The hard timeout ensures we don't hang Railway's
-        # healthcheck if R2 is unreachable.
-        #
-        # IMPORTANT: skip the boot pull if local SQLite already has data. After a
-        # restart with persistent volume, the local cache is intact and may have
-        # FRESHER data than the worker's snapshot (the worker can be stuck or
-        # running behind). Pulling unconditionally would replace fresh local
-        # writes with potentially-stale snapshot. The boot pull only matters
-        # for cold-start (first deploy on an empty volume).
         _initial_pull_timeout = float(os.environ.get("INITIAL_SNAPSHOT_TIMEOUT_SEC", "60"))
         _t0 = _t.time()
         try:
-            # Probe local SQLite size — skip pull if data already present.
             _skip_boot_pull = False
             try:
                 import sqlite3 as _sqlite_probe
@@ -775,11 +716,6 @@ async def lifespan(app: FastAPI):
                 _result = {"ts": None, "err": None}
                 _initial_thread = None
             else:
-                # data_sync.sync_if_newer() is synchronous and may take 5-30s for a
-                # full snapshot pull. We can't easily inject a timeout into it without
-                # refactoring data_sync, so we run it on a thread with a join timeout.
-                # If the join times out, we proceed with a cold cache (existing behavior)
-                # rather than hang the deploy.
                 _result = {"ts": None, "err": None}
                 def _initial_pull():
                     try:
@@ -790,15 +726,12 @@ async def lifespan(app: FastAPI):
                 _initial_thread.start()
                 _initial_thread.join(timeout=_initial_pull_timeout)
             if _initial_thread is None:
-                # Skipped pull entirely (local already has data); nothing to log.
                 pass
             elif _initial_thread.is_alive():
                 elapsed = _t.time() - _t0
                 print(f"[startup] Initial snapshot pull TIMED OUT after {elapsed:.1f}s "
                       f"(limit={_initial_pull_timeout}s) — proceeding with cold cache; "
                       f"daemon puller will sync on next interval")
-                # Note: thread is still running; it'll complete in the background and
-                # update the cache. The daemon puller loop below also keeps trying.
             elif _result["err"] is not None:
                 elapsed = _t.time() - _t0
                 print(f"[startup] Initial snapshot pull FAILED after {elapsed:.1f}s "
@@ -810,36 +743,18 @@ async def lifespan(app: FastAPI):
                     print(f"[startup] Initial snapshot pull complete in {elapsed:.1f}s "
                           f"— cache warm, serving from snapshot {ts}")
                 else:
-                    # sync_if_newer returns None when no new snapshot is available
-                    # (existing local snapshot is current). Cache should still be warm.
                     print(f"[startup] Initial snapshot already current ({elapsed:.1f}s) — cache warm")
         except Exception as e:
             elapsed = _t.time() - _t0
             print(f"[startup] Initial snapshot pull error after {elapsed:.1f}s "
                   f"(non-fatal): {e} — proceeding with cold cache")
 
-        # Periodic R2 sync (Part 2, 2026-05-16). HISTORY: the OLD loop
-        # REPLACED the entire local bars.db with the worker snapshot every
-        # 5 min, clobbering the web's fresher on-demand delta writes
-        # (2026-05-07 incident). It was disabled — which then froze the
-        # whole intraday universe at ~May 8 because nothing else refreshed
-        # it (USE_REMOTE_BARS gates off the in-process prewarmer too).
-        #
-        # The pull is now a newer-wins MERGE (data_sync.sync_if_newer_merge
-        # → merge_snapshot): a snapshot row is adopted only when local has
-        # none for that (ticker,tf) yet OR it is strictly newer than
-        # local's newest bar. INSERT OR IGNORE never overwrites an existing
-        # local row. It can therefore only ADD freshness / pre-populate
-        # cold tickers — never regress a fresher local write. Because it is
-        # safe by construction it runs UNCONDITIONALLY (no
-        # R2_PERIODIC_PULL_ENABLED gate). R2_PERIODIC_PULL_LEGACY_REPLACE=1
-        # restores the old unsafe replace for emergencies only.
         _legacy_replace = os.environ.get("R2_PERIODIC_PULL_LEGACY_REPLACE") == "1"
 
         def _s3_pull_loop():
             import time as _t
             while True:
-                _t.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)  # initial pull already happened
+                _t.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)
                 try:
                     if _legacy_replace:
                         ts = data_sync.sync_if_newer()
@@ -859,8 +774,6 @@ async def lifespan(app: FastAPI):
             f"{'LEGACY-REPLACE' if _legacy_replace else 'newer-wins-merge'})"
         )
 
-    # Real-time bar streaming (Phase 4): Massive WS → BarBroadcaster → SSE.
-    # Off by default; flip STREAM_BARS_ENABLED=1 to enable.
     if os.environ.get("STREAM_BARS_ENABLED") == "1":
         from api.services import bar_stream, bar_broadcaster
         bb = bar_broadcaster.init_broadcaster(
@@ -910,8 +823,6 @@ async def lifespan(app: FastAPI):
     from api.services.theme_performance import load_persisted_on_startup
     load_persisted_on_startup()
 
-    # Voice Batch 9a: seed Trading KB embeddings (idempotent — only embeds
-    # new entries since last run).
     try:
         from api.services.voice_kb_service import seed_on_startup as _kb_seed
         import threading as _t
@@ -951,7 +862,6 @@ async def lifespan(app: FastAPI):
             else:
                 print("[startup] Flow DB: no flow-data.csv found to seed")
         else:
-            # Check if CSV has newer data than DB
             _stock_csv = os.path.join(_public_dir, "flow-data.csv")
             if os.path.exists(_stock_csv):
                 with open(_stock_csv, "r", encoding="utf-8-sig") as _f:
@@ -1017,11 +927,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] COT init error (non-fatal): {e}")
 
-    # Cross-worker lock: only the first uvicorn worker in this container
-    # starts APScheduler. Without this, --workers 2 (Phase 2) would
-    # double-fire every cron job — COT refreshes twice, MRR snapshots
-    # twice, etc. The lock auto-releases when the holding process exits.
-    # See api/services/scheduler_lock.py for mechanism.
     from api.services.scheduler_lock import acquire_scheduler_lock
     _scheduler = None
     if acquire_scheduler_lock():
@@ -1097,11 +1002,6 @@ async def lifespan(app: FastAPI):
 
         _scheduler.add_job(_nightly_bar_refresh, trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=15), id="bars_nightly_refresh", max_instances=1, replace_existing=True)
 
-        # Voice proactive watcher (Batches 11a, 11c, P5).
-        # Three time windows, each with its own scan profile:
-        #   premarket 7-9am ET (every 15 min): overnight gappers + earnings
-        #   RTH 9:30-16 ET (every 30 min): full setup scan + drift
-        #   AH 16:30-20 ET (every 30 min): earnings reactions
         def _voice_window_scan(window: str):
             try:
                 from api.services.auth_db import get_connection as _gc
@@ -1151,11 +1051,6 @@ async def lifespan(app: FastAPI):
                            id="voice_proactive_after_hours",
                            max_instances=1, replace_existing=True)
 
-        # Compass P4-D — daily focus message at 7:30 AM ET on weekdays.
-        # Composes regime + flagged gappers + earnings + interventions and
-        # posts as a high-importance proactive insight that cascades to:
-        # inbox (P3-D), Compass chat thread (P4-C), and spoken aloud (P4-A)
-        # if proactive_speak is ON.
         def _compass_daily_focus_run():
             try:
                 from api.services.voice_daily_focus import run_for_all_enabled_users
@@ -1170,8 +1065,6 @@ async def lifespan(app: FastAPI):
                            id="compass_daily_focus",
                            max_instances=1, replace_existing=True)
 
-        # Voice P8 — nightly memory consolidation. Dedupes facts, flags
-        # stale ones, surfaces summary compression candidates.
         def _voice_nightly_consolidate():
             try:
                 from api.services.auth_db import get_connection as _gc
@@ -1196,7 +1089,6 @@ async def lifespan(app: FastAPI):
                            id="voice_nightly_consolidate",
                            max_instances=1, replace_existing=True)
 
-        # Nightly flow DB prune — remove expired contracts (buffer_days=1)
         def _nightly_flow_prune():
             try:
                 from api.flow_db import FlowDB
@@ -1208,12 +1100,8 @@ async def lifespan(app: FastAPI):
 
         _scheduler.add_job(_nightly_flow_prune, trigger=CronTrigger(hour=20, minute=0), id="flow_nightly_prune", max_instances=1, replace_existing=True)
 
-        # Voice TTS cache cleanup — daily at 3:30 AM ET.
         _scheduler.add_job(_voice_cache_purge, trigger=CronTrigger(hour=3, minute=30), id="voice_audio_cache_purge", max_instances=1, replace_existing=True)
 
-        # Compass EOD recap — auto-generate at 4:30 PM ET, Mon-Fri.
-        # Iterates every j2_account with compass_enabled=1 and calls
-        # coach.generate_eod_recap. Skips accounts with no activity.
         def _compass_eod_job():
             import os as _os
             if not _os.environ.get("ANTHROPIC_API_KEY"):
@@ -1261,10 +1149,6 @@ async def lifespan(app: FastAPI):
             replace_existing=True,
         )
 
-        # Compass P5-O — weekly email digest, Sundays 8:00 AM ET.
-        # For every compass-enabled account: generate (idempotent) the
-        # weekly review for the just-closed week and email the trader
-        # an HTML digest with stat strip + this-week's-focus pullout.
         def _compass_weekly_email_job():
             import os as _os
             if not _os.environ.get("ANTHROPIC_API_KEY"):
@@ -1294,15 +1178,6 @@ async def lifespan(app: FastAPI):
             replace_existing=True,
         )
 
-        # ── Pattern engine learning-loop jobs (Phase 6) ─────────────────────
-        # Three jobs that close the detect → outcome → stats loop and keep
-        # the admin verification dashboard populated:
-        #   1. Outcome tracker — every 4h, walks forward bars to resolve open
-        #      detections.
-        #   2. Stats recompute — nightly at 6 AM UTC, aggregates outcomes
-        #      into pattern_stats.
-        #   3. Universe scan — hourly, runs all 50 detectors against the
-        #      top 500 tickers of cap_universe.json on Daily TF.
         _scheduler.add_job(
             _run_patterns_track_outcomes,
             trigger=IntervalTrigger(hours=4),
@@ -1324,6 +1199,12 @@ async def lifespan(app: FastAPI):
             max_instances=1,
             replace_existing=True,
         )
+
+        # Discord flow watchlist — 3 daily posts (7:00 AM, 12:30 PM, 4:30 PM ET)
+        try:
+            setup_discord_scheduler(_scheduler)
+        except Exception as e:
+            print(f"[startup] Discord watchlist scheduler error (non-fatal): {e}")
 
         _scheduler.start()
         print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
@@ -1374,12 +1255,6 @@ def health():
 
 @app.get("/api/health/cache")
 def health_cache():
-    """Reports staleness of the bars snapshot pulled from the worker service.
-
-    On the web service: snapshot_ts and synced_at come from data_sync's local
-    marker (written every time we successfully pull from R2). On the worker
-    service or when USE_REMOTE_BARS is unset, this endpoint still works but
-    snapshot_ts will be None (no syncing happens)."""
     from api.services.data_sync import get_local_sync_state
     state = get_local_sync_state()
     return {
@@ -1433,12 +1308,12 @@ app.include_router(gex_router)
 app.include_router(watchlist_router)
 app.include_router(flow_router)
 
+# Discord flow watchlist — manual trigger endpoint
+register_discord_routes(app)
+
 # ─── CSV routes: serve from app/public/ directly (fallback for legacy paths) ──
 PUBLIC = os.path.join(os.path.dirname(__file__), "..", "app", "public")
 
-# Cacheable static-on-deploy CSV files. 5-min max-age bounds staleness if
-# someone hot-swaps the file; SWR makes the next mount-after-expiry instant
-# while Cloudflare refreshes asynchronously.
 _CSV_CACHE_HEADERS = {
     "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
     "Vary": "Accept-Encoding",
