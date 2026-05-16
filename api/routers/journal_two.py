@@ -1369,7 +1369,6 @@ def chat_start_onboarding(
     account_id: str,
     user: dict = Depends(get_current_user),
 ):
-    _reject_unified_for_per_trade(account_id)
     _require_compass_enabled(user["id"], account_id)
 
     def _gen():
@@ -1393,7 +1392,6 @@ def chat_redo_onboarding(
     account_id: str,
     user: dict = Depends(get_current_user),
 ):
-    _reject_unified_for_per_trade(account_id)
     _require_compass_enabled(user["id"], account_id)
 
     def _gen():

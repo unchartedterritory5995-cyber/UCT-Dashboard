@@ -1338,12 +1338,19 @@ def _complete_onboarding_execute(*, user_id, account_id, args, conn=None) -> dic
     if not profile.strip():
         return {"ok": False, "error": "trader_profile is required"}
     c = conn or get_connection()
-    c.execute(
-        """UPDATE j2_accounts
-           SET trader_profile = ?, onboarded = 1, onboarding_mode = 0
-           WHERE id = ? AND user_id = ?""",
-        (profile, account_id, user_id),
-    )
+    if is_unified(account_id):
+        from api.services.journal_two import unified_coach
+        unified_coach.update_state(
+            c, user_id,
+            trader_profile=profile, onboarded=True, onboarding_mode=False,
+        )
+    else:
+        c.execute(
+            """UPDATE j2_accounts
+               SET trader_profile = ?, onboarded = 1, onboarding_mode = 0
+               WHERE id = ? AND user_id = ?""",
+            (profile, account_id, user_id),
+        )
     if focus:
         # Reuse the existing set_weekly_focus executor for consistency.
         _set_weekly_focus_execute(user_id=user_id, account_id=account_id,

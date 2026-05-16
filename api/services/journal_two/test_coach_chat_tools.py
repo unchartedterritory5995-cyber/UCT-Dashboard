@@ -1002,3 +1002,18 @@ def test_get_open_positions_unions_in_all_mode(db_conn):
     )
     assert out["count"] == 2
     assert {p["symbol"] for p in out["positions"]} == {"AAA", "BBB"}
+
+
+def test_complete_onboarding_writes_unified_state_in_all_mode(db_conn):
+    from api.services.journal_two import coach_chat_tools as cct
+    from api.services.journal_two import unified_coach
+    out = cct._complete_onboarding_execute(
+        user_id="u_obc", account_id="_all_",
+        args={"trader_profile": "# Unified profile\n\nDisciplined."},
+        conn=db_conn,
+    )
+    assert out["ok"] is True
+    s = unified_coach.get_or_create(db_conn, "u_obc")
+    assert "Disciplined." in s["traderProfile"]
+    assert s["onboarded"] is True
+    assert s["onboardingMode"] is False

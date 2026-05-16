@@ -55,3 +55,22 @@ def test_update_with_no_changes_is_noop(conn):
     out = unified_coach.update_state(conn, "user-1")
     assert out["traderProfile"] == ""
     assert out["compassEnabled"] is True
+
+
+def test_update_onboarding_fields_round_trip(conn):
+    unified_coach.get_or_create(conn, "u_ob")
+    out = unified_coach.update_state(
+        conn, "u_ob", onboarding_mode=True, onboarding_session_id="sess-1",
+    )
+    assert out["onboardingMode"] is True
+    assert out["onboardingSessionId"] == "sess-1"
+    # Clearing the session id with "" sets NULL
+    out2 = unified_coach.update_state(conn, "u_ob", onboarding_session_id="")
+    assert out2["onboardingSessionId"] is None
+
+
+def test_onboarded_defaults_false(conn):
+    s = unified_coach.get_or_create(conn, "u_ob2")
+    assert s["onboarded"] is False
+    assert s["onboardingMode"] is False
+    assert s["onboardingSessionId"] is None

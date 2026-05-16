@@ -337,12 +337,14 @@ CREATE INDEX IF NOT EXISTS idx_j2_profile_suggestions_pending
 -- "All Accounts" mode. Each user has at most one row. Separate from
 -- per-account fields in j2_accounts to allow account-agnostic coaching.
 CREATE TABLE IF NOT EXISTS j2_unified_coach_state (
-    user_id          TEXT PRIMARY KEY,
-    trader_profile   TEXT NOT NULL DEFAULT '',
-    compass_enabled  INTEGER NOT NULL DEFAULT 1,
-    onboarded        INTEGER NOT NULL DEFAULT 0,
-    created_at       TEXT NOT NULL,
-    updated_at       TEXT NOT NULL
+    user_id               TEXT PRIMARY KEY,
+    trader_profile        TEXT NOT NULL DEFAULT '',
+    compass_enabled       INTEGER NOT NULL DEFAULT 1,
+    onboarded             INTEGER NOT NULL DEFAULT 0,
+    onboarding_mode       INTEGER NOT NULL DEFAULT 0,
+    onboarding_session_id TEXT,
+    created_at            TEXT NOT NULL,
+    updated_at            TEXT NOT NULL
 );
 """
 
@@ -411,6 +413,11 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_accounts ADD COLUMN onboarded INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE j2_accounts ADD COLUMN onboarding_mode INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE j2_accounts ADD COLUMN onboarding_session_id TEXT",
+    # Multi-Account Compass — unified onboarding state on the user-level row
+    # (table created fresh with these columns; ALTERs cover DBs that already
+    # created j2_unified_coach_state before unified onboarding shipped).
+    "ALTER TABLE j2_unified_coach_state ADD COLUMN onboarding_mode INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE j2_unified_coach_state ADD COLUMN onboarding_session_id TEXT",
 ]
 
 

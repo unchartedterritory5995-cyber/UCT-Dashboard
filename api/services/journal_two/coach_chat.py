@@ -26,6 +26,79 @@ def _get_conn(conn=None):
     return c, True
 
 
+# ── Onboarding-state accessors (per-account j2_accounts OR unified state) ─────
+#
+# Onboarding state (onboarded / onboarding_mode / onboarding_session_id) lives
+# on j2_accounts per account, and on j2_unified_coach_state for the unified
+# '_all_' coach. These two helpers hide that split so the onboarding flow code
+# stays identical for both scopes.
+
+
+def _read_onboarding_state(conn, user_id: str, account_id: str) -> dict | None:
+    """Return {onboarded, onboarding_mode, onboarding_session_id} or None if
+    the (per-account) account doesn't exist. Unified mode auto-creates."""
+    from api.services.journal_two.coach_scope import is_unified
+    if is_unified(account_id):
+        from api.services.journal_two import unified_coach
+        s = unified_coach.get_or_create(conn, user_id)
+        return {
+            "onboarded": 1 if s["onboarded"] else 0,
+            "onboarding_mode": 1 if s["onboardingMode"] else 0,
+            "onboarding_session_id": s["onboardingSessionId"],
+        }
+    row = conn.execute(
+        "SELECT onboarded, onboarding_mode, onboarding_session_id "
+        "FROM j2_accounts WHERE id = ? AND user_id = ?",
+        (account_id, user_id),
+    ).fetchone()
+    if row is None:
+        return None
+    return {
+        "onboarded": int(row["onboarded"] or 0),
+        "onboarding_mode": int(row["onboarding_mode"] or 0),
+        "onboarding_session_id": row["onboarding_session_id"],
+    }
+
+
+def _set_onboarding_state(
+    conn, user_id: str, account_id: str, *,
+    onboarded: int | None = None,
+    onboarding_mode: int | None = None,
+    onboarding_session_id: str | None = None,
+) -> None:
+    """Patch onboarding state for the right backing store. Pass "" for
+    onboarding_session_id to clear it; None = leave unchanged."""
+    from api.services.journal_two.coach_scope import is_unified
+    if is_unified(account_id):
+        from api.services.journal_two import unified_coach
+        unified_coach.update_state(
+            conn, user_id,
+            onboarded=None if onboarded is None else bool(onboarded),
+            onboarding_mode=None if onboarding_mode is None else bool(onboarding_mode),
+            onboarding_session_id=onboarding_session_id,
+        )
+        return
+    sets: list[str] = []
+    params: list[Any] = []
+    if onboarded is not None:
+        sets.append("onboarded = ?")
+        params.append(onboarded)
+    if onboarding_mode is not None:
+        sets.append("onboarding_mode = ?")
+        params.append(onboarding_mode)
+    if onboarding_session_id is not None:
+        sets.append("onboarding_session_id = ?")
+        params.append(onboarding_session_id or None)
+    if not sets:
+        return
+    params.extend([account_id, user_id])
+    conn.execute(
+        f"UPDATE j2_accounts SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
+        params,
+    )
+    conn.commit()
+
+
 def _current_regime_context() -> str:
     """Returns a one-line system-prompt addendum describing today's market regime.
     Returns empty string if unavailable (graceful degradation)."""
@@ -191,16 +264,13 @@ def get_chat_status(*, user_id: str, account_id: str, conn=None) -> dict:
             "SELECT COUNT(*) AS n FROM j2_chat_messages WHERE user_id = ? AND account_id = ? AND forgotten = 0",
             (user_id, account_id),
         ).fetchone()
-        acc_row = _conn.execute(
-            "SELECT onboarded, onboarding_mode FROM j2_accounts WHERE id = ? AND user_id = ?",
-            (account_id, user_id),
-        ).fetchone()
+        ob = _read_onboarding_state(_conn, user_id, account_id)
         return {
             "enabled": enabled,
             "rate_limit_remaining": rate["remaining"],
             "conversation_message_count": count_row["n"],
-            "onboarded": bool(acc_row and int(acc_row["onboarded"] or 0)),
-            "onboarding_mode": bool(acc_row and int(acc_row["onboarding_mode"] or 0)),
+            "onboarded": bool(ob and ob["onboarded"]),
+            "onboarding_mode": bool(ob and ob["onboarding_mode"]),
         }
     finally:
         if _close:
@@ -372,11 +442,8 @@ def handle_user_turn(
 
         for _iter in range(MAX_LOOPS):
             messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
-            row = _conn.execute(
-                "SELECT onboarding_mode FROM j2_accounts WHERE id = ? AND user_id = ?",
-                (account_id, user_id),
-            ).fetchone()
-            onboarding = bool(row and row["onboarding_mode"])
+            _ob = _read_onboarding_state(_conn, user_id, account_id)
+            onboarding = bool(_ob and _ob["onboarding_mode"])
             system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
             if onboarding:
                 system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
@@ -573,11 +640,8 @@ def confirm_pending_action(
                "summary": _summarize_tool_result(tc["name"], result)}
 
         # Re-invoke model for acknowledgement
-        row = _conn.execute(
-            "SELECT onboarding_mode FROM j2_accounts WHERE id = ? AND user_id = ?",
-            (account_id, user_id),
-        ).fetchone()
-        onboarding = bool(row and row["onboarding_mode"])
+        _ob = _read_onboarding_state(_conn, user_id, account_id)
+        onboarding = bool(_ob and _ob["onboarding_mode"])
         system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
         if onboarding:
             system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
@@ -760,11 +824,8 @@ def cancel_pending_action(
             parent_id=message_id, conn=_conn,
         )
 
-        row = _conn.execute(
-            "SELECT onboarding_mode FROM j2_accounts WHERE id = ? AND user_id = ?",
-            (account_id, user_id),
-        ).fetchone()
-        onboarding = bool(row and row["onboarding_mode"])
+        _ob = _read_onboarding_state(_conn, user_id, account_id)
+        onboarding = bool(_ob and _ob["onboarding_mode"])
         system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
         if onboarding:
             system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
@@ -815,10 +876,7 @@ def start_onboarding(
 
     _conn, _close = _get_conn(conn)
     try:
-        row = _conn.execute(
-            "SELECT onboarded, onboarding_mode, onboarding_session_id FROM j2_accounts WHERE id = ? AND user_id = ?",
-            (account_id, user_id),
-        ).fetchone()
+        row = _read_onboarding_state(_conn, user_id, account_id)
         if row is None:
             yield {"type": "error", "code": "no_account", "message": "Account not found."}
             return
@@ -832,13 +890,10 @@ def start_onboarding(
             pass  # resume
         else:
             new_sid = str(_uuid.uuid4())
-            _conn.execute(
-                """UPDATE j2_accounts
-                   SET onboarding_mode = 1, onboarding_session_id = ?
-                   WHERE id = ? AND user_id = ?""",
-                (new_sid, account_id, user_id),
+            _set_onboarding_state(
+                _conn, user_id, account_id,
+                onboarding_mode=1, onboarding_session_id=new_sid,
             )
-            _conn.commit()
 
         # Persist sentinel user message that triggers Compass's interview opener
         append_message(
@@ -921,11 +976,9 @@ def skip_onboarding(*, user_id: str, account_id: str, conn=None) -> dict:
     """Mark the account as onboarded with no profile. Sync (no SSE)."""
     _conn, _close = _get_conn(conn)
     try:
-        _conn.execute(
-            "UPDATE j2_accounts SET onboarded = 1, onboarding_mode = 0 WHERE id = ? AND user_id = ?",
-            (account_id, user_id),
+        _set_onboarding_state(
+            _conn, user_id, account_id, onboarded=1, onboarding_mode=0,
         )
-        _conn.commit()
         return {"ok": True, "summary": "Onboarding skipped."}
     finally:
         if _close:
@@ -944,21 +997,15 @@ def redo_onboarding(
 
     _conn, _close = _get_conn(conn)
     try:
-        row = _conn.execute(
-            "SELECT onboarded FROM j2_accounts WHERE id = ? AND user_id = ?",
-            (account_id, user_id),
-        ).fetchone()
+        row = _read_onboarding_state(_conn, user_id, account_id)
         if row is None:
             yield {"type": "error", "code": "no_account", "message": "Account not found."}
             return
         new_sid = str(_uuid.uuid4())
-        _conn.execute(
-            """UPDATE j2_accounts
-               SET onboarded = 0, onboarding_mode = 1, onboarding_session_id = ?
-               WHERE id = ? AND user_id = ?""",
-            (new_sid, account_id, user_id),
+        _set_onboarding_state(
+            _conn, user_id, account_id,
+            onboarded=0, onboarding_mode=1, onboarding_session_id=new_sid,
         )
-        _conn.commit()
     finally:
         if _close:
             _conn.close()

@@ -31,7 +31,8 @@ def test_j2_unified_coach_state_schema(conn):
     ).fetchall()}
     assert set(cols.keys()) == {
         "user_id", "trader_profile", "compass_enabled",
-        "onboarded", "created_at", "updated_at",
+        "onboarded", "onboarding_mode", "onboarding_session_id",
+        "created_at", "updated_at",
     }
     assert cols["user_id"]["pk"] == 1
     assert cols["trader_profile"]["notnull"] == 1

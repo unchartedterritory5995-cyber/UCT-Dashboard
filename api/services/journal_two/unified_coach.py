@@ -23,11 +23,16 @@ def _now_iso() -> str:
 
 
 def _row_to_state(row: sqlite3.Row) -> dict[str, Any]:
+    keys = row.keys() if hasattr(row, "keys") else []
     return {
         "userId": row["user_id"],
         "traderProfile": row["trader_profile"] or "",
         "compassEnabled": bool(row["compass_enabled"]),
         "onboarded": bool(row["onboarded"]),
+        "onboardingMode": bool(row["onboarding_mode"]) if "onboarding_mode" in keys else False,
+        "onboardingSessionId": (
+            row["onboarding_session_id"] if "onboarding_session_id" in keys else None
+        ),
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
@@ -72,8 +77,14 @@ def update_state(
     trader_profile: str | None = None,
     compass_enabled: bool | None = None,
     onboarded: bool | None = None,
+    onboarding_mode: bool | None = None,
+    onboarding_session_id: str | None = None,
 ) -> dict[str, Any]:
-    """Patch any subset of the state fields. Missing args = no change."""
+    """Patch any subset of the state fields. Missing args = no change.
+
+    `onboarding_session_id` is special: pass the empty string "" to clear it
+    (set NULL); None means "leave unchanged" like the other fields.
+    """
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -90,6 +101,12 @@ def update_state(
         if onboarded is not None:
             fields.append("onboarded = ?")
             params.append(1 if onboarded else 0)
+        if onboarding_mode is not None:
+            fields.append("onboarding_mode = ?")
+            params.append(1 if onboarding_mode else 0)
+        if onboarding_session_id is not None:
+            fields.append("onboarding_session_id = ?")
+            params.append(onboarding_session_id or None)
 
         if fields:
             fields.append("updated_at = ?")

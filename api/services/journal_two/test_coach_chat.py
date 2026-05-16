@@ -685,3 +685,40 @@ def test_handle_user_turn_skips_regime_context_when_unavailable(db_conn, monkeyp
     ))
     sp = client.calls[-1]["system_prompt"]
     assert "Live market context" not in sp
+
+
+# ── Unified ('_all_') onboarding state ──────────────────────────────────────
+
+
+def test_onboarding_state_helpers_use_unified_store(db_conn):
+    from api.services.journal_two import coach_chat as cc
+    # Fresh unified state: not onboarded, not in onboarding mode
+    st = cc._read_onboarding_state(db_conn, "u_uob", "_all_")
+    assert st == {"onboarded": 0, "onboarding_mode": 0, "onboarding_session_id": None}
+    # Enter onboarding mode
+    cc._set_onboarding_state(
+        db_conn, "u_uob", "_all_", onboarding_mode=1, onboarding_session_id="s1",
+    )
+    st2 = cc._read_onboarding_state(db_conn, "u_uob", "_all_")
+    assert st2["onboarding_mode"] == 1
+    assert st2["onboarding_session_id"] == "s1"
+
+
+def test_skip_onboarding_all_sets_unified_onboarded(db_conn):
+    from api.services.journal_two import coach_chat as cc
+    from api.services.journal_two import unified_coach
+    out = cc.skip_onboarding(user_id="u_uob2", account_id="_all_", conn=db_conn)
+    assert out["ok"] is True
+    s = unified_coach.get_or_create(db_conn, "u_uob2")
+    assert s["onboarded"] is True
+    assert s["onboardingMode"] is False
+
+
+def test_get_chat_status_reflects_unified_onboarding(db_conn):
+    from api.services.journal_two import coach_chat as cc
+    from api.services.journal_two import unified_coach
+    status = cc.get_chat_status(user_id="u_uob3", account_id="_all_", conn=db_conn)
+    assert status["onboarded"] is False
+    unified_coach.update_state(db_conn, "u_uob3", onboarded=True)
+    status2 = cc.get_chat_status(user_id="u_uob3", account_id="_all_", conn=db_conn)
+    assert status2["onboarded"] is True
