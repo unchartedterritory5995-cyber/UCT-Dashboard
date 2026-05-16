@@ -1198,31 +1198,18 @@ export default function OptionsFlowDashboard() {
   };
   const removeLeader = (sym) => saveLeaders(leaders.filter(s=>s!==sym));
   const [leaderYtd, setLeaderYtd] = useState({});
+  const [leaderOff52, setLeaderOff52] = useState({});
   const [leaderYtdLoading, setLeaderYtdLoading] = useState(false);
   const fetchLeaderYtd = async () => {
     if (!leaders.length) return;
     setLeaderYtdLoading(true);
     try {
-      const results = {};
-      const batches = [];
-      for (let i = 0; i < leaders.length; i += 5) batches.push(leaders.slice(i, i + 5));
-      for (const batch of batches) {
-        await Promise.all(batch.map(async sym => {
-          try {
-            const resp = await fetch(`/api/schwab/chart-proxy?symbol=${sym}&range=ytd&interval=1d`);
-            if (!resp.ok) return;
-            const data = await resp.json();
-            const prices = data.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
-            if (prices.length >= 2) {
-              const start = prices.find(p => p != null);
-              const end = prices[prices.length - 1];
-              if (start && end) results[sym] = ((end - start) / start * 100).toFixed(1);
-            }
-          } catch {}
-        }));
-        if (batches.indexOf(batch) < batches.length - 1) await new Promise(r => setTimeout(r, 300));
+      const resp = await fetch(`/api/schwab/ytd-performance?symbols=${leaders.join(",")}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        setLeaderYtd(data.ytd || {});
+        setLeaderOff52(data.off52 || {});
       }
-      setLeaderYtd(results);
     } catch {}
     setLeaderYtdLoading(false);
   };
@@ -4564,6 +4551,7 @@ export default function OptionsFlowDashboard() {
                     <th style={{ padding:"4px 12px", width:100, textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Split</th>
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Net</th>
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>YTD%</th>
+                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Off High</th>
                     <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
                     <th style={{ width:20 }}/>
                   </tr></thead>
@@ -4590,6 +4578,7 @@ export default function OptionsFlowDashboard() {
                         </td>
                         <td style={{ padding:"8px 14px", fontWeight:900, color:isBull?P.bu:P.be, fontSize:13, textAlign:"center" }}>{d.found&&total>0?fmt(Math.abs(d.net)):"—"}</td>
                         <td style={{ padding:"8px 14px", fontSize:11, fontWeight:700, textAlign:"center", color:leaderYtd[d.sym]?(parseFloat(leaderYtd[d.sym])>=0?P.bu:P.be):P.dm }}>{leaderYtd[d.sym]?leaderYtd[d.sym]+"%":"—"}</td>
+                        <td style={{ padding:"8px 14px", fontSize:11, fontWeight:700, textAlign:"center", color:leaderOff52[d.sym]?(parseFloat(leaderOff52[d.sym])>=(-5)?P.bu:parseFloat(leaderOff52[d.sym])>=(-15)?P.ye:P.be):P.dm }}>{leaderOff52[d.sym]?leaderOff52[d.sym]+"%":"—"}</td>
                         <td style={{ padding:"8px 14px", fontSize:10 }}>
                           {d.topContract ? (
                             <span>
