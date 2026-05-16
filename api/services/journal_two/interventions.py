@@ -21,6 +21,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import accounts as accounts_service
+from api.services.journal_two.coach_scope import is_unified, resolve_account_scope
 
 
 COOLDOWNS_MIN = {
@@ -28,6 +29,11 @@ COOLDOWNS_MIN = {
     "daily_loss_approach": 240,
     "loss_streak": 120,
     "cooling_off_active": 0,  # auto-clears via dynamic check
+    # Portfolio-level (unified '_all_' scope) — higher thresholds since they
+    # aggregate every account.
+    "portfolio_rapid_fire": 60,
+    "portfolio_daily_loss": 240,
+    "portfolio_loss_streak": 120,
 }
 
 
@@ -194,6 +200,111 @@ RULE_CHECKS = {
 }
 
 
+# ── Portfolio-level rules (unified '_all_' scope) ────────────────────────────
+#
+# Same tilt patterns, but aggregated across every compass_enabled account.
+# Thresholds are raised vs. the single-account rules because a multi-account
+# trader naturally has more total activity. account_id is always '_all_' here,
+# so firings persist + cooldown under the unified bucket.
+
+
+def _check_portfolio_rapid_fire(conn, *, user_id, account_id) -> dict | None:
+    """6+ closed trades across ALL accounts in the last 60 min."""
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return None
+    ph = ",".join("?" * len(ids))
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=60)).isoformat()
+    n = conn.execute(
+        f"""SELECT COUNT(*) AS n FROM j2_trades
+            WHERE user_id = ? AND account_id IN ({ph}) AND exit_date >= ?""",
+        [user_id, *ids, cutoff],
+    ).fetchone()["n"]
+    if n >= 6:
+        return {
+            "severity": "warning",
+            "message": f"You've closed {n} trades across your accounts in the last hour. Compass thinks you're hunting — slow down everywhere.",
+            "factors": [f"{n} closed trades across all accounts in last 60 minutes"],
+        }
+    return None
+
+
+def _check_portfolio_daily_loss(conn, *, user_id, account_id) -> dict | None:
+    """Aggregate today's realized P&L across all accounts past 75% of the
+    SUM of each account's own dailyLossLimit threshold. Only accounts that
+    actually set a dailyLossLimitPct contribute to the threshold."""
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return None
+    total_threshold = 0.0
+    have_any_limit = False
+    for aid in ids:
+        s = accounts_service.get_account_settings(user_id, aid, conn=conn) or {}
+        acct_size = float(s.get("accountSize") or 0)
+        lim = s.get("dailyLossLimitPct")
+        if lim is not None and acct_size > 0:
+            have_any_limit = True
+            total_threshold += -0.75 * float(lim) * acct_size / 100.0
+    if not have_any_limit:
+        return None
+    ph = ",".join("?" * len(ids))
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    rows = conn.execute(
+        f"""SELECT pnl_dollar FROM j2_trades
+            WHERE user_id = ? AND account_id IN ({ph})
+              AND substr(exit_date, 1, 10) = ?""",
+        [user_id, *ids, today_iso],
+    ).fetchall()
+    net = sum(float(r["pnl_dollar"] or 0) for r in rows)
+    if net <= total_threshold:
+        return {
+            "severity": "danger",
+            "message": f"You're down ${abs(net):.0f} across your accounts today — past 75% of your combined daily loss limits. Compass strongly recommends stepping away.",
+            "factors": [
+                f"portfolio realized today {net:.0f}",
+                f"combined 75% threshold = {total_threshold:.0f}",
+            ],
+        }
+    return None
+
+
+def _check_portfolio_loss_streak(conn, *, user_id, account_id) -> dict | None:
+    """4+ consecutive losses today across ALL accounts (global exit_date order,
+    no winner since the streak started anywhere)."""
+    ids = resolve_account_scope(conn, user_id, account_id)
+    if not ids:
+        return None
+    ph = ",".join("?" * len(ids))
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    rows = conn.execute(
+        f"""SELECT result FROM j2_trades
+            WHERE user_id = ? AND account_id IN ({ph})
+              AND substr(exit_date, 1, 10) = ?
+            ORDER BY exit_date DESC""",
+        [user_id, *ids, today_iso],
+    ).fetchall()
+    streak = 0
+    for r in rows:
+        if r["result"] == "Loss":
+            streak += 1
+        else:
+            break
+    if streak >= 4:
+        return {
+            "severity": "danger",
+            "message": f"{streak} consecutive losses across your accounts today. Compass strongly suggests stepping away before the next trade — anywhere.",
+            "factors": [f"{streak} consecutive losses across all accounts today"],
+        }
+    return None
+
+
+UNIFIED_RULE_CHECKS = {
+    "portfolio_rapid_fire": _check_portfolio_rapid_fire,
+    "portfolio_daily_loss": _check_portfolio_daily_loss,
+    "portfolio_loss_streak": _check_portfolio_loss_streak,
+}
+
+
 def evaluate_interventions(
     *, user_id: str, account_id: str, conn=None,
 ) -> list[dict]:
@@ -203,7 +314,8 @@ def evaluate_interventions(
     _conn, _close = _get_conn(conn)
     try:
         active: list[dict] = []
-        for rule, check_fn in RULE_CHECKS.items():
+        rule_checks = UNIFIED_RULE_CHECKS if is_unified(account_id) else RULE_CHECKS
+        for rule, check_fn in rule_checks.items():
             # Cooling-off is special — always re-evaluate fresh, no cooldown
             if rule == "cooling_off_active":
                 detected = check_fn(_conn, user_id=user_id, account_id=account_id)

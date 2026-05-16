@@ -154,12 +154,10 @@ export default function CompassTab() {
 
       <CompassOverview overview={overview} />
 
-      {!isUnified && (
-        <InterventionBanner
-          interventions={interventions}
-          onDismiss={dismissIntervention}
-        />
-      )}
+      <InterventionBanner
+        interventions={interventions}
+        onDismiss={dismissIntervention}
+      />
 
       {profileSuggestions.length > 0 && (
         <div style={{

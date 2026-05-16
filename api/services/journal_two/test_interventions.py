@@ -266,3 +266,105 @@ def test_evaluate_respects_cooldown_no_duplicate_firings(db_conn):
     iv.evaluate_interventions(user_id="u_i", account_id=acc["id"], conn=db_conn)
     n2 = db_conn.execute("SELECT COUNT(*) AS n FROM j2_interventions").fetchone()["n"]
     assert n2 == n1  # No new firings during cooldown
+
+
+# ── Portfolio-level (unified '_all_') tilt rules ────────────────────────────
+
+
+def _seed_named_account(db_conn, user_id, name, *, daily_loss_pct=None):
+    from api.services.journal_two import accounts as accounts_service
+    acc = accounts_service.create_account(
+        user_id,
+        {"name": name, "color": "blue", "startingBalance": 100000},
+        conn=db_conn,
+    )
+    if daily_loss_pct is not None:
+        db_conn.execute(
+            "UPDATE j2_accounts SET account_size = 100000, daily_loss_limit_pct = ? WHERE id = ?",
+            (daily_loss_pct, acc["id"]),
+        )
+        db_conn.commit()
+    return acc
+
+
+def test_portfolio_loss_streak_fires_across_accounts(db_conn):
+    from api.services.journal_two import interventions as iv
+    a1 = _seed_named_account(db_conn, "u_pf", "Default")
+    a2 = _seed_named_account(db_conn, "u_pf", "Cash")
+    now = datetime.now(timezone.utc)
+    # 4 losses interleaved across the two accounts, newest last
+    for i, acc in enumerate([a1, a2, a1, a2]):
+        _insert_closed_trade(
+            db_conn, user_id="u_pf", account_id=acc["id"],
+            exit_iso=(now - timedelta(minutes=40 - i * 5)).isoformat(),
+            result="Loss", pnl_dollar=-100, r_multiple=-1.0,
+        )
+    active = iv.evaluate_interventions(user_id="u_pf", account_id="_all_", conn=db_conn)
+    rules = {a["rule"] for a in active}
+    assert "portfolio_loss_streak" in rules
+
+
+def test_portfolio_loss_streak_does_not_fire_with_only_3(db_conn):
+    from api.services.journal_two import interventions as iv
+    a1 = _seed_named_account(db_conn, "u_pf2", "Default")
+    a2 = _seed_named_account(db_conn, "u_pf2", "Cash")
+    now = datetime.now(timezone.utc)
+    for i, acc in enumerate([a1, a2, a1]):
+        _insert_closed_trade(
+            db_conn, user_id="u_pf2", account_id=acc["id"],
+            exit_iso=(now - timedelta(minutes=30 - i * 5)).isoformat(),
+            result="Loss", pnl_dollar=-100, r_multiple=-1.0,
+        )
+    active = iv.evaluate_interventions(user_id="u_pf2", account_id="_all_", conn=db_conn)
+    assert "portfolio_loss_streak" not in {a["rule"] for a in active}
+
+
+def test_portfolio_daily_loss_sums_thresholds(db_conn):
+    from api.services.journal_two import interventions as iv
+    # Two accounts, each 100k @ 2% daily limit → each 75% threshold = -1500,
+    # combined = -3000. Lose 1800 in each = -3600 total → fires.
+    a1 = _seed_named_account(db_conn, "u_pf3", "Default", daily_loss_pct=2.0)
+    a2 = _seed_named_account(db_conn, "u_pf3", "Cash", daily_loss_pct=2.0)
+    today = datetime.now(timezone.utc)
+    _insert_closed_trade(db_conn, user_id="u_pf3", account_id=a1["id"],
+                         exit_iso=today.isoformat(), result="Loss",
+                         pnl_dollar=-1800, r_multiple=-1.0)
+    _insert_closed_trade(db_conn, user_id="u_pf3", account_id=a2["id"],
+                         exit_iso=today.isoformat(), result="Loss",
+                         pnl_dollar=-1800, r_multiple=-1.0)
+    active = iv.evaluate_interventions(user_id="u_pf3", account_id="_all_", conn=db_conn)
+    assert "portfolio_daily_loss" in {a["rule"] for a in active}
+
+
+def test_portfolio_rules_persist_under_all_bucket(db_conn):
+    """Firings recorded with account_id='_all_' so list_active('_all_') reads them."""
+    from api.services.journal_two import interventions as iv
+    a1 = _seed_named_account(db_conn, "u_pf4", "Default")
+    a2 = _seed_named_account(db_conn, "u_pf4", "Cash")
+    now = datetime.now(timezone.utc)
+    for i, acc in enumerate([a1, a2, a1, a2]):
+        _insert_closed_trade(
+            db_conn, user_id="u_pf4", account_id=acc["id"],
+            exit_iso=(now - timedelta(minutes=20 - i * 3)).isoformat(),
+            result="Loss", pnl_dollar=-100, r_multiple=-1.0,
+        )
+    iv.evaluate_interventions(user_id="u_pf4", account_id="_all_", conn=db_conn)
+    listed = iv.list_active(user_id="u_pf4", account_id="_all_", conn=db_conn)
+    assert any(a["rule"] == "portfolio_loss_streak" for a in listed)
+
+
+def test_single_account_mode_unaffected_by_portfolio_rules(db_conn):
+    """Per-account evaluate still uses the original 4 rules, not portfolio ones."""
+    from api.services.journal_two import interventions as iv
+    acc = _seed_account(db_conn, "u_pf5")
+    now = datetime.now(timezone.utc)
+    for i in range(3):
+        _insert_closed_trade(
+            db_conn, user_id="u_pf5", account_id=acc["id"],
+            exit_iso=(now - timedelta(minutes=30 - i * 5)).isoformat(),
+            result="Loss", pnl_dollar=-100, r_multiple=-1.0,
+        )
+    active = iv.evaluate_interventions(user_id="u_pf5", account_id=acc["id"], conn=db_conn)
+    rules = {a["rule"] for a in active}
+    assert "loss_streak" in rules
+    assert not any(r.startswith("portfolio_") for r in rules)
