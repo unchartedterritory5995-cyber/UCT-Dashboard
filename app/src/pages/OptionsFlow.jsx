@@ -1218,6 +1218,7 @@ export default function OptionsFlowDashboard() {
   };
   const [leaderYtd, setLeaderYtd] = useState({});
   const [leaderOff52, setLeaderOff52] = useState({});
+  const [leaderOI, setLeaderOI] = useState({});
   const [leaderSort, setLeaderSort] = useState({col:"sym", dir:"asc"});
   const [leaderYtdLoading, setLeaderYtdLoading] = useState(false);
   const fetchLeaderYtd = async () => {
@@ -1229,6 +1230,11 @@ export default function OptionsFlowDashboard() {
         const data = await resp.json();
         setLeaderYtd(data.ytd || {});
         setLeaderOff52(data.off52 || {});
+        // Also fetch OI changes
+        try {
+          const oiResp = await fetch(`/api/schwab/oi-change-batch?symbols=${leaders.join(",")}`);
+          if (oiResp.ok) { const oiData = await oiResp.json(); setLeaderOI(oiData.oi_changes || {}); }
+        } catch {}
       }
     } catch {}
     setLeaderYtdLoading(false);
@@ -4502,15 +4508,49 @@ export default function OptionsFlowDashboard() {
         {/* Leaders */}
         {tab==="Leaders" && FD && (()=>{
           const fmt = (n) => { const a=Math.abs(n); return a>=1e6?"$"+(a/1e6).toFixed(1)+"M":a>=1e3?"$"+(a/1e3).toFixed(0)+"K":"$"+a.toFixed(0); };
+          // Build leader flow data from clean_confirmed (same source as Alpha tab)
+          const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
+          // Recency weighting: recent flow counts more for trend detection
+          const allDatesL = [...new Set(cc.map(t=>t.Dt).filter(Boolean))].sort((a,b)=>{
+            const pa=a.split("/").map(Number), pb=b.split("/").map(Number);
+            const ya=pa.length>=3?(pa[2]<100?pa[2]+2000:pa[2]):2026, yb=pb.length>=3?(pb[2]<100?pb[2]+2000:pb[2]):2026;
+            return new Date(ya,pa[0]-1,pa[1]||1) - new Date(yb,pb[0]-1,pb[1]||1);
+          });
+          const last2d = new Set(allDatesL.slice(-2));
+          const last5d = new Set(allDatesL.slice(-5));
+          const last10d = new Set(allDatesL.slice(-10));
+          const recW = (dt) => last2d.has(dt)?2.0:last5d.has(dt)?1.5:last10d.has(dt)?1.2:1.0;
+          const ccByTicker = {};
+          cc.forEach(t => {
+            if (!ccByTicker[t.S]) ccByTicker[t.S] = { bull:0, bear:0, wBull:0, wBear:0, n:0, er:false, r5Bull:0, r5Bear:0 };
+            const w = recW(t.Dt);
+            if (t.D==="BULL") { ccByTicker[t.S].bull += t.P; ccByTicker[t.S].wBull += t.P * w; }
+            if (t.D==="BEAR") { ccByTicker[t.S].bear += t.P; ccByTicker[t.S].wBear += t.P * w; }
+            ccByTicker[t.S].n++;
+            if (t.er) ccByTicker[t.S].er = true;
+            if (last5d.has(t.Dt)) { if (t.D==="BULL") ccByTicker[t.S].r5Bull += t.P; if (t.D==="BEAR") ccByTicker[t.S].r5Bear += t.P; }
+          });
           const leaderData = leaders.map(sym => {
+            const agg = ccByTicker[sym];
+            if (!agg || (agg.bull + agg.bear) <= 0) {
+              const tk = FD.TICKER_DB.find(t=>t.s===sym);
+              const topC = tk ? ((tk.c||[]).length>0 ? tk.c[0] : (tk.t||[]).length>0 ? tk.t[0] : null) : null;
+              return { sym, found:!!tk, bull:0, bear:0, net:0, trades:0, cap:tk?capBand(tk.mktcap):"", er:agg?.er||tk?.er||false,
+                topContract:topC ? { cp:topC.CP||topC.cp, K:topC.K||topC.strike, exp:topC.E||topC.exp,
+                  hits:topC.H||topC.hits||1, prem:topC.P||topC.prem||0 } : null };
+            }
+            const bull = agg.bull, bear = agg.bear, net = bull - bear;
+            const wNet = agg.wBull - agg.wBear;
+            // Trend: last 5 days bull% vs overall bull% (positive = getting more bullish, negative = getting more bearish)
+            const overallBullPct = (bull+bear)>0 ? bull/(bull+bear) : 0.5;
+            const r5Total = agg.r5Bull + agg.r5Bear;
+            const r5BullPct = r5Total > 0 ? agg.r5Bull / r5Total : 0.5;
+            const trend = Math.round((r5BullPct - overallBullPct) * 100);
             const tk = FD.TICKER_DB.find(t=>t.s===sym);
-            if (!tk) return { sym, found:false, bull:0, bear:0, net:0, trades:0, topContract:null };
-            const bull = tk.b||0, bear = tk.r||0, net = bull-bear;
-            const topC = (tk.c||[]).length>0 ? tk.c[0] : (tk.t||[]).length>0 ? tk.t[0] : null;
-            return { sym, found:true, bull, bear, net, trades:tk.n||0, cap:capBand(tk.mktcap), er:tk.er,
+            const topC = tk ? ((tk.c||[]).length>0 ? tk.c[0] : (tk.t||[]).length>0 ? tk.t[0] : null) : null;
+            return { sym, found:true, bull, bear, net, wNet, trades:agg.n, cap:tk?capBand(tk.mktcap):"", er:agg.er, trend,
               topContract:topC ? { cp:topC.CP||topC.cp, K:topC.K||topC.strike, exp:topC.E||topC.exp,
-                hits:topC.H||topC.hits||1, prem:topC.P||topC.prem||0, grade:topC.grade||"",
-                side:topC.Si||topC.side||"" } : null };
+                hits:topC.H||topC.hits||1, prem:topC.P||topC.prem||0 } : null };
           }).sort((a,b) => {
             const {col, dir} = leaderSort;
             const m = dir === "asc" ? 1 : -1;
@@ -4520,6 +4560,8 @@ export default function OptionsFlowDashboard() {
             if (col === "net") return m * (a.net - b.net);
             if (col === "ytd") return m * ((parseFloat(leaderYtd[a.sym])||0) - (parseFloat(leaderYtd[b.sym])||0));
             if (col === "off52") return m * ((parseFloat(leaderOff52[a.sym])||0) - (parseFloat(leaderOff52[b.sym])||0));
+            if (col === "trend") return m * ((a.trend||0) - (b.trend||0));
+            if (col === "oi") return m * ((leaderOI[a.sym]?.net||0) - (leaderOI[b.sym]?.net||0));
             return 0;
           });
           const totalBull = leaderData.reduce((a,d)=>a+d.bull,0);
@@ -4594,6 +4636,8 @@ export default function OptionsFlowDashboard() {
                     {sortHdrL("Net","net")}
                     {sortHdrL("YTD%","ytd")}
                     {sortHdrL("Off High","off52")}
+                    {sortHdrL("Trend","trend")}
+                    {sortHdrL("ΔOI","oi")}
                     <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
                     <th style={{ width:20 }}/>
                   </tr></thead>
@@ -4621,6 +4665,8 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"8px 14px", fontWeight:900, color:isBull?P.bu:P.be, fontSize:13, textAlign:"center" }}>{d.found&&total>0?fmt(Math.abs(d.net)):"—"}</td>
                         <td style={{ padding:"8px 14px", fontSize:11, fontWeight:700, textAlign:"center", color:leaderYtd[d.sym]?(parseFloat(leaderYtd[d.sym])>=0?P.bu:P.be):P.dm }}>{leaderYtd[d.sym]?leaderYtd[d.sym]+"%":"—"}</td>
                         <td style={{ padding:"8px 14px", fontSize:11, fontWeight:700, textAlign:"center", color:leaderOff52[d.sym]?(parseFloat(leaderOff52[d.sym])>=(-5)?P.bu:parseFloat(leaderOff52[d.sym])>=(-15)?P.ye:P.be):P.dm }}>{leaderOff52[d.sym]?leaderOff52[d.sym]+"%":"—"}</td>
+                        <td style={{ padding:"8px 14px", fontSize:11, fontWeight:700, textAlign:"center", color:d.trend>5?P.bu:d.trend<(-5)?P.be:P.dm }}>{d.trend!==0&&d.found?(d.trend>0?"↑":"↓")+Math.abs(d.trend)+"%":"—"}</td>
+                        <td style={{ padding:"8px 14px", fontSize:10, fontWeight:700, textAlign:"center", color:leaderOI[d.sym]?(leaderOI[d.sym].net>0?P.bu:leaderOI[d.sym].net<0?P.be:P.dm):P.dm }}>{leaderOI[d.sym]?(leaderOI[d.sym].net>0?"+":"")+leaderOI[d.sym].net.toLocaleString():"—"}</td>
                         <td style={{ padding:"8px 14px", fontSize:10 }}>
                           {d.topContract ? (
                             <span>
