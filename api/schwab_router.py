@@ -710,3 +710,62 @@ async def earnings_test(sym: str = Query("QCOM", description="Ticker to test")):
     except Exception as e:
         debug["error"] = str(e)
     return debug
+
+
+@router.get("/ytd-performance")
+async def ytd_performance(symbols: str = Query(..., description="Comma-separated tickers")):
+    """
+    Return YTD% and % off 52-week high for a list of tickers via Yahoo Finance.
+    GET /api/schwab/ytd-performance?symbols=NVDA,AMD,MU
+    Returns: {"ytd": {"NVDA": 45.2}, "off52": {"NVDA": -8.3}}
+    """
+    import httpx
+    from datetime import datetime
+
+    tickers = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    ytd_results = {}
+    off52_results = {}
+    current_year = datetime.now().year
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for sym in tickers[:30]:
+            try:
+                resp = await client.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
+                    params={"interval": "1d", "range": "1y", "includePrePost": "false"},
+                    headers={"User-Agent": ua},
+                )
+                if resp.status_code != 200:
+                    continue
+                data = resp.json()
+                result = data.get("chart", {}).get("result", [{}])[0]
+                timestamps = result.get("timestamp", [])
+                quote = result.get("indicators", {}).get("quote", [{}])[0]
+                closes = quote.get("close", [])
+                highs = quote.get("high", [])
+
+                # 52-week high
+                valid_highs = [h for h in highs if h is not None]
+                valid_closes = [c for c in closes if c is not None]
+                if valid_highs and valid_closes:
+                    high_52 = max(valid_highs)
+                    current = valid_closes[-1]
+                    off52_results[sym] = round((current - high_52) / high_52 * 100, 1)
+
+                # YTD: find first close on or after Jan 1 of current year
+                ytd_start = None
+                for i, ts in enumerate(timestamps):
+                    if ts is None:
+                        continue
+                    dt = datetime.utcfromtimestamp(ts)
+                    if dt.year >= current_year and closes[i] is not None:
+                        ytd_start = closes[i]
+                        break
+                if ytd_start and valid_closes:
+                    current = valid_closes[-1]
+                    ytd_results[sym] = round((current - ytd_start) / ytd_start * 100, 1)
+            except Exception:
+                continue
+
+    return {"ytd": ytd_results, "off52": off52_results}
