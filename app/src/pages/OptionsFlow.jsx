@@ -145,7 +145,7 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
           const isExpanded = expandedKey === rowKey;
           return (
             <Fragment key={i}>
-            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent", cursor:"pointer" }}>
+            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent", textAlign:"center", cursor:"pointer" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
               <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.Dt}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
@@ -209,7 +209,7 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
           const isExpanded = expandedKey === rowKey;
           return (
             <Fragment key={i}>
-            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):r.H>=5?(P.ac+"08"):"transparent", cursor:"pointer" }}>
+            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):r.H>=5?(P.ac+"08"):"transparent", textAlign:"center", cursor:"pointer" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
@@ -1092,9 +1092,12 @@ function processFlowData(rows) {
   const tickerMap = {};
   for (let i = 0; i < filtered.length; i++) {
     const t = filtered[i];
-    if (!tickerMap[t.S]) tickerMap[t.S] = { s:t.S, b:0, r:0, n:0, topTrades:[], minTopP:0, consMap:{} };
+    if (!tickerMap[t.S]) tickerMap[t.S] = { s:t.S, b:0, r:0, n:0, topTrades:[], minTopP:0, consMap:{}, mktcap:0, er:false, uoa:false };
     const tk = tickerMap[t.S];
     tk.n++; if (t.D==="BULL") tk.b+=t.P; else if (t.D==="BEAR") tk.r+=t.P;
+    if (t.mktcap > tk.mktcap) tk.mktcap = t.mktcap;
+    if (t.er) tk.er = true;
+    if (t.uoa) tk.uoa = true;
     // Keep running top 10 by premium (avoid sorting huge arrays)
     if (tk.topTrades.length < 10) {
       tk.topTrades.push(t);
@@ -1118,7 +1121,7 @@ function processFlowData(rows) {
   const TICKER_DB = Object.values(tickerMap)
     .sort((a,b)=>(b.b+b.r)-(a.b+a.r))
     .map(tk => ({
-      s:tk.s, b:tk.b, r:tk.r, n:tk.n,
+      s:tk.s, b:tk.b, r:tk.r, n:tk.n, mktcap:tk.mktcap, er:tk.er, uoa:tk.uoa,
       t:(()=>{ const seen = new Set(); return tk.topTrades.sort((a,b)=>b.P-a.P).filter(t=>{ const k=t.CP+"|"+t.K+"|"+t.E; if(seen.has(k)) return false; seen.add(k); return true; }); })(),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
         c.clean = c.dirs.size <= 1;
@@ -2123,7 +2126,7 @@ export default function OptionsFlowDashboard() {
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd, position:"sticky", top:0, background:P.cd }}>
                     {["Day","Time","Type","Side","Color","Vol","OI","Premium","Price"].map(h=>(
-                      <th key={h} style={{ padding:"3px 6px", textAlign:h==="Premium"||h==="Price"||h==="Vol"||h==="OI"?"right":"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                      <th key={h} style={{ padding:"3px 6px", textAlign:h==="Premium"||h==="Price"||h==="Vol"||h==="OI"?"right":"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
@@ -2191,7 +2194,7 @@ export default function OptionsFlowDashboard() {
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                     {["Exp","Strike","C/P","Type","Side","Color","Vol","Premium"].map(h=>(
-                      <th key={h} style={{ padding:"3px 6px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                      <th key={h} style={{ padding:"3px 6px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
@@ -2199,7 +2202,7 @@ export default function OptionsFlowDashboard() {
                       const trC = tr.CP==="C"?P.bu:P.be;
                       return (
                         <tr key={i} onClick={e=>{e.stopPropagation(); fetchContractHistory(tr.S,tr.CP,tr.K,tr.E); setSelectedItem({sym:tr.S,cp:tr.CP,K:tr.K,exp:tr.E}); if(onClose) onClose();}}
-                          style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
+                          style={{ borderBottom:"1px solid "+P.bd+"10", textAlign:"center", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                           <td style={{ padding:"3px 6px", fontWeight:800, color:P.wh }}>${tr.K}</td>
@@ -2616,7 +2619,7 @@ export default function OptionsFlowDashboard() {
                       </div>
                     );
                   })()}
-                  <div style={{ marginTop:8, fontSize:9, color:P.dm, textAlign:"center" }}>
+                  <div style={{ marginTop:8, fontSize:9, color:P.dm, textAlign:"left", paddingLeft:12 }}>
                     {calStart && !dateTo ? "Click end date" : "Click to start selection"}
                     {" · "}<span style={{ color:P.ac }}>●</span> trading day
                   </div>
@@ -3833,7 +3836,7 @@ export default function OptionsFlowDashboard() {
                                 <div key={j} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"4px 0", borderBottom:j<th.topTickers.length-1?("1px solid "+P.bd+"20"):"none" }}>
                                   <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                                     <span style={{ width:6, height:6, borderRadius:1, background:sqColor, display:"inline-block", flexShrink:0 }} />
-                                    <span style={{ fontWeight:800, color:P.wh, cursor:"pointer" }}
+                                    <span style={{ fontWeight:800, color:P.wh, textAlign:"center", cursor:"pointer" }}
                                       onClick={e=>{e.stopPropagation(); setSearch(tk.s); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.s)||null); setTab("Search"); setSelectedItem(null);}}
                                     >{tk.s}</span>
                                   </div>
@@ -3881,7 +3884,7 @@ export default function OptionsFlowDashboard() {
                   const net = tk.b - tk.r;
                   const dirC = net > 0 ? P.bu : P.be;
                   return (
-                    <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
+                    <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", textAlign:"center", cursor:"pointer" }}
                       onClick={()=>setSelectedLeaderTicker(selectedLeaderTicker===tk.s?null:tk.s)}>
                       <td style={{ padding:"5px 6px", fontWeight:800, color:P.wh, fontSize:12 }}>{tk.s}</td>
                       <td style={{ padding:"5px 6px", fontWeight:700, color:P.bu }}>{fmt(tk.b)}</td>
@@ -3913,7 +3916,7 @@ export default function OptionsFlowDashboard() {
                       <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                         <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                           {["Ticker","Bull $","Bear $","Net","Split","Trades"].map(h=>(
-                            <th key={h} style={{ padding:"4px 6px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                            <th key={h} style={{ padding:"4px 6px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                           ))}
                         </tr></thead>
                         <tbody>{bulls.map(renderRow)}</tbody>
@@ -3924,7 +3927,7 @@ export default function OptionsFlowDashboard() {
                       <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                         <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                           {["Ticker","Bull $","Bear $","Net","Split","Trades"].map(h=>(
-                            <th key={h} style={{ padding:"4px 6px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                            <th key={h} style={{ padding:"4px 6px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                           ))}
                         </tr></thead>
                         <tbody>{bears.map(renderRow)}</tbody>
@@ -4011,7 +4014,7 @@ export default function OptionsFlowDashboard() {
                         </tr></thead>
                         <tbody>
                           {contracts.map((c,i)=>(
-                            <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
+                            <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", textAlign:"center", cursor:"pointer" }}
                               onClick={()=>{ setTab("Search"); setSearch(selectedLeaderTicker); setSelectedTicker(tkRef||null); }}>
                               <td style={{ padding:"4px 5px", fontWeight:800, color:P.wh }}>${c.K}</td>
                               <td style={{ padding:"4px 5px" }}><Tag c={c.CP==="C"?P.bu:P.be}>{c.CP}</Tag></td>
@@ -4156,7 +4159,7 @@ export default function OptionsFlowDashboard() {
               <Fragment key={tk.sym}>
               <tr style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer", background:isExp?P.ac+"0a":idx<5?dirC+"06":"transparent" }}
                 onClick={()=>{ setCExp(isExp ? null : tk.sym); }}>
-                <td style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:12 }}>
+                <td style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:13 }}>
                   {tk.sym}
                   {cap!=="Unknown" && <span style={{ fontSize:7, color:P.dm, marginLeft:4, fontWeight:600 }}>{cap}</span>}
                   {tk.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff9800"+"22", color:"#ff9800" }}>ER</span>}
@@ -4190,7 +4193,7 @@ export default function OptionsFlowDashboard() {
                       const cSide = c.askPrem >= c.bidPrem ? "ask" : "bid";
                       const cC = c.cp==="C" ? (cSide==="ask"?P.bu:"#ff9800") : (cSide==="ask"?P.be:"#29b6f6");
                       return (
-                        <div key={i} style={{ padding:"4px 10px", borderRadius:4, background:P.al, border:"1px solid "+P.bd, fontSize:9, cursor:"pointer" }}
+                        <div key={i} style={{ padding:"4px 10px", borderRadius:4, background:P.al, border:"1px solid "+P.bd, fontSize:9, textAlign:"center", cursor:"pointer" }}
                           title={c.dates && c.dates.size > 0 ? "Flow dates: " + [...c.dates].join(", ") : ""}
                           onClick={e=>{ e.stopPropagation(); setTab("Search"); setSearch(tk.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.sym)||null); setSearchDte("All"); }}>
                           <span style={{ color:cC, fontWeight:800 }}>{c.cp==="C"?"C":"P"}</span>
@@ -4249,13 +4252,13 @@ export default function OptionsFlowDashboard() {
                   </div>
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                     <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Ticker</th>
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, width:80 }}>Ticker</th>
                       {sortHdr("Bull","bull")}
                       {sortHdr("Bear","bear")}
                       <th style={{ padding:"4px 5px", width:60 }}/>
                       {sortHdr("Bull%","bullpct")}
                       {sortHdr("Net","net")}
-                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Top Contract</th>
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
                       
                       
                       
@@ -4272,13 +4275,13 @@ export default function OptionsFlowDashboard() {
                   </div>
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                     <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Ticker</th>
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, width:80 }}>Ticker</th>
                       {sortHdr("Bull","bull")}
                       {sortHdr("Bear","bear")}
                       <th style={{ padding:"4px 5px", width:60 }}/>
                       {sortHdr("Bear%","bullpct")}
                       {sortHdr("Net","net")}
-                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>Top Contract</th>
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
                       
                       
                       
@@ -4461,7 +4464,7 @@ export default function OptionsFlowDashboard() {
 
         {/* Leaders */}
         {tab==="Leaders" && D && (()=>{
-          const fmt = (n) => n>=1e6?"$"+(n/1e6).toFixed(1)+"M":n>=1e3?"$"+(n/1e3).toFixed(0)+"K":"$"+n.toFixed(0);
+          const fmt = (n) => { const a=Math.abs(n); return a>=1e6?"$"+(a/1e6).toFixed(1)+"M":a>=1e3?"$"+(a/1e3).toFixed(0)+"K":"$"+a.toFixed(0); };
           const leaderData = leaders.map(sym => {
             const tk = D.TICKER_DB.find(t=>t.s===sym);
             if (!tk) return { sym, found:false, bull:0, bear:0, net:0, trades:0, topContract:null };
@@ -4492,7 +4495,7 @@ export default function OptionsFlowDashboard() {
                     placeholder="Add tickers (comma-separated)..."
                     style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 10px", fontFamily:"inherit", width:200 }}/>
                   <button onClick={addLeader}
-                    style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.ac+"22", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                    style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.ac+"22", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
                 </div>
               </div>
             </Card>
@@ -4518,48 +4521,62 @@ export default function OptionsFlowDashboard() {
             )}
             {leaders.length > 0 ? (
             <Card>
-              <div style={{ display:"grid", gridTemplateColumns:"60px 1fr 90px 90px 90px 180px 30px", gap:"0", alignItems:"center" }}>
-                {["Ticker","","Bull","Bear","Net","Top Contract",""].map((h,i)=>(
-                  <div key={i} style={{ padding:"6px 8px", fontSize:9, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, borderBottom:"1px solid "+P.bd }}>{h}</div>
-                ))}
-                {leaderData.map((d,i) => {
-                  const isBull = d.net >= 0;
-                  const total = d.bull + d.bear;
-                  const bPct = total > 0 ? d.bull / total * 100 : 50;
-                  return (
-                    <Fragment key={d.sym}>
-                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", cursor:"pointer" }}
+              <div>
+                <table style={{ borderCollapse:"collapse", fontSize:12, margin:"0 auto", width:"85%" }}>
+                  <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                    <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, width:80 }}>Ticker</th>
+                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600, width:90 }}>Theme</th>
+                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Bull</th>
+                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Bear</th>
+                    <th style={{ padding:"4px 10px", width:70 }}/>
+                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Net</th>
+                    <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
+                    <th style={{ width:20 }}/>
+                  </tr></thead>
+                  <tbody>
+                  {leaderData.map((d,i) => {
+                    const isBull = d.net >= 0;
+                    const total = d.bull + d.bear;
+                    const bPct = total > 0 ? Math.round(d.bull / total * 100) : 50;
+                    const cap = d.cap && d.cap !== "Unknown" ? d.cap : "";
+                    return (
+                      <tr key={d.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
                         onClick={()=>{ setSearch(d.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===d.sym)||null); setTab("Search"); }}>
-                        <span style={{ fontWeight:800, color:P.wh, fontSize:12 }}>{d.sym}</span>
-                        {d.er && <span style={{ fontSize:7, background:"#c9a84c33", color:"#c9a84c", padding:"1px 4px", borderRadius:3, marginLeft:4, fontWeight:700 }}>ER</span>}
-                        {d.cap && <span style={{ fontSize:8, color:P.dm, marginLeft:4 }}>{d.cap}</span>}
-                      </div>
-                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40" }}>
-                        <div style={{ width:"100%", height:3, background:P.be+"40", borderRadius:2, maxWidth:120 }}>
-                          <div style={{ width:bPct+"%", height:"100%", background:P.bu, borderRadius:2 }}/>
-                        </div>
-                      </div>
-                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", fontSize:11, fontWeight:700, color:P.bu, textAlign:"right" }}>{d.found?fmt(d.bull):"—"}</div>
-                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", fontSize:11, fontWeight:700, color:P.be, textAlign:"right" }}>{d.found?fmt(d.bear):"—"}</div>
-                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", fontSize:11, fontWeight:800, color:isBull?P.bu:P.be, textAlign:"right" }}>{d.found?(isBull?"+":"")+fmt(d.net):"—"}</div>
-                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", fontSize:9, color:P.dm }}>
-                        {d.topContract ? (
-                          <span>
-                            <span style={{ color:d.topContract.cp==="C"?P.bu:P.be, fontWeight:700 }}>{d.topContract.cp}</span>
-                            {" $"+d.topContract.K+" "+d.topContract.exp}
-                            {d.topContract.hits>1 && <span style={{ color:P.ac, fontWeight:700 }}> {d.topContract.hits}x</span>}
-                            <span style={{ color:P.ac }}> {fmt(d.topContract.prem)}</span>
-                          </span>
-                        ) : <span style={{ color:P.mt }}>no flow</span>}
-                      </div>
-                      <div style={{ padding:"8px", borderBottom:"1px solid "+P.bd+"40", textAlign:"center" }}>
-                        <button onClick={()=>removeLeader(d.sym)}
-                          style={{ background:"none", border:"none", color:P.dm, fontSize:12, cursor:"pointer", padding:0, lineHeight:1 }}
-                          title="Remove">×</button>
-                      </div>
-                    </Fragment>
-                  );
-                })}
+                        <td style={{ padding:"8px 14px", fontWeight:900, color:P.wh, fontSize:13 }}>
+                          {d.sym}
+                          {cap && <span style={{ fontSize:7, color:P.dm, marginLeft:4, fontWeight:600 }}>{cap}</span>}
+                          {d.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
+                        </td>
+                        <td style={{ padding:"8px 6px", fontSize:10, color:P.dm, textAlign:"center" }}>{(THEME_LOOKUP[d.sym]||[]).join(", ")||""}</td>
+                        <td style={{ padding:"8px 14px", fontWeight:800, color:P.bu, textAlign:"center" }}>{d.found&&d.bull>0?fmt(d.bull):"—"}</td>
+                        <td style={{ padding:"8px 14px", fontWeight:800, color:P.be, textAlign:"center" }}>{d.found&&d.bear>0?fmt(d.bear):"—"}</td>
+                        <td style={{ padding:"8px 10px", width:70 }}>
+                          <div style={{ display:"flex", height:4, borderRadius:2, overflow:"hidden", background:P.bd }}>
+                            <div style={{ width:bPct+"%", background:total>0?P.bu:"transparent" }}/><div style={{ width:(100-bPct)+"%", background:total>0?P.be:"transparent" }}/>
+                          </div>
+                        </td>
+                        <td style={{ padding:"8px 14px", fontWeight:900, color:isBull?P.bu:P.be, fontSize:13, textAlign:"center" }}>{d.found&&total>0?fmt(Math.abs(d.net)):"—"}</td>
+                        <td style={{ padding:"8px 14px", fontSize:10 }}>
+                          {d.topContract ? (
+                            <span>
+                              <span style={{ color:d.topContract.cp==="C"?P.bu:P.be, fontWeight:800 }}>{d.topContract.cp}</span>
+                              <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${d.topContract.K}</span>
+                              <span style={{ color:P.ac, marginLeft:3 }}>{d.topContract.exp}</span>
+                              {d.topContract.hits>1 && <span style={{ color:d.topContract.hits>=10?P.ac:P.dm, fontWeight:800, marginLeft:4 }}>{d.topContract.hits}x</span>}
+                              <span style={{ color:P.ac, marginLeft:3 }}>{fmt(d.topContract.prem)}</span>
+                            </span>
+                          ) : <span style={{ color:P.mt }}>no flow</span>}
+                        </td>
+                        <td style={{ width:20, textAlign:"center" }}>
+                          <button onClick={e=>{ e.stopPropagation(); removeLeader(d.sym); }}
+                            style={{ background:"none", border:"none", color:P.dm, fontSize:10, cursor:"pointer", padding:0, lineHeight:1 }}
+                            title="Remove">×</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  </tbody>
+                </table>
               </div>
             </Card>
             ) : (
@@ -4700,7 +4717,7 @@ export default function OptionsFlowDashboard() {
                         let tcC = P.dm;
                         if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
                         return (
-                          <div key={r.sym} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px", borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
+                          <div key={r.sym} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px", borderBottom:"1px solid "+P.bd+"15", textAlign:"center", cursor:"pointer" }}
                             onClick={()=>{
                               const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t=>capBand(t.mktcap)===capFilter);
                               const trades = cc.filter(t=>t.S===r.sym);
@@ -4719,7 +4736,7 @@ export default function OptionsFlowDashboard() {
                                 contracts:Object.values(contracts).sort((a,b)=>b.prem-a.prem), mktcap:r.mktcap});
                             }}>
                             <span style={{ fontSize:10, color:dirC, fontWeight:900, width:16 }}>{i+1}</span>
-                            <span style={{ fontWeight:900, color:P.wh, fontSize:12, minWidth:50 }}>{r.sym}</span>
+                            <span style={{ fontWeight:900, color:P.wh, fontSize:13, minWidth:50 }}>{r.sym}</span>
                             <span style={{ fontWeight:800, color:dirC, fontSize:11 }}>{fmt(r.net)}</span>
                             <span style={{ fontWeight:800, color:r.bullPct>=80?P.bu:r.bullPct<=20?P.be:P.dm, fontSize:10 }}>{r.dir==="BULL"?r.bullPct:(100-r.bullPct)}%</span>
                             {tc && <span style={{ fontSize:9 }}>
@@ -4776,7 +4793,7 @@ export default function OptionsFlowDashboard() {
                     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                       <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                         {["Ticker","","Bull","Bear","","Bull%","Net","Top Contract","Trades","#"].map(h=>(
-                          <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                          <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                         ))}
                       </tr></thead>
                       <tbody>
@@ -4793,7 +4810,7 @@ export default function OptionsFlowDashboard() {
                           let tcC = P.dm;
                           if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
                           return (
-                            <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
+                            <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"15", textAlign:"center", cursor:"pointer" }}
                               onClick={()=>{
                                 const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t=>capBand(t.mktcap)===capFilter);
                                 const trades = cc.filter(t=>t.S===r.sym);
@@ -4850,7 +4867,7 @@ export default function OptionsFlowDashboard() {
             {batchDetail && (
               <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.7)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}
                 onClick={()=>setBatchDetail(null)}>
-                <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:12, padding:20, maxWidth:900, width:"90%", maxHeight:"80vh", overflow:"auto" }}
+                <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:12, padding:20, maxWidth:960, width:"90%", maxHeight:"80vh", overflow:"auto" }}
                   onClick={e=>e.stopPropagation()}>
                   {(()=>{
                     const d = batchDetail;
@@ -4892,7 +4909,7 @@ export default function OptionsFlowDashboard() {
                         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                           <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                             {["C/P","Strike","Exp","DTE","Hits","Vol","OI","Vol/OI","Entry","Now","P&L","Premium","Side"].map(h=>(
-                              <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8, fontWeight:600 }}>{h}</th>
+                              <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                             ))}
                           </tr></thead>
                           <tbody>
@@ -5233,11 +5250,11 @@ export default function OptionsFlowDashboard() {
                 <button onClick={()=>setTrackerDateFilter("All")}
                   style={{ padding:"4px 12px", borderRadius:5, border:"1px solid "+(trackerDateFilter==="All"?P.ac:P.bd),
                     background:trackerDateFilter==="All"?P.ac+"18":"transparent", color:trackerDateFilter==="All"?P.ac:P.dm,
-                    fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>All</button>
+                    fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>All</button>
                 {trackerDates.length > 0 && (
                   <select value={trackerDateFilter==="All"?"":trackerDateFilter}
                     onChange={e=>e.target.value?setTrackerDateFilter(e.target.value):setTrackerDateFilter("All")}
-                    style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:5, color:P.wh, fontSize:10, padding:"4px 8px", fontFamily:"inherit", fontWeight:600 }}>
+                    style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:5, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit", fontWeight:600 }}>
                     <option value="">Select date...</option>
                     {trackerDates.map(d=><option key={d} value={d}>{d}</option>)}
                   </select>
@@ -5310,7 +5327,7 @@ export default function OptionsFlowDashboard() {
                         <Fragment key={p.id||i}>
                         {showSep && <tr><td colSpan={15} style={{ padding:"6px 0", textAlign:"center" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><div style={{ flex:1, height:1, background:P.be+"40" }}/><span style={{ fontSize:8, fontWeight:700, color:P.be, letterSpacing:1 }}>▼ BOTTOM {cappedActive.length - activeResult.split}</span><div style={{ flex:1, height:1, background:P.be+"40" }}/></div></td></tr>}
                         <tr onClick={()=>{ fetchContractHistory(p.sym,p.cp,p.strike,p.exp); setSelectedItem({sym:p.sym,cp:p.cp,K:p.strike,exp:p.exp}); }}
-                          style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
+                          style={{ borderBottom:"1px solid "+P.bd+"10", textAlign:"center", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}</td>
@@ -5541,7 +5558,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:6 }}>
                     {REMOVE_REASONS.map(r=>(
                       <button key={r} onClick={()=>confirmRemove(r)}
-                        style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.be+"30", background:P.al, color:P.dm, fontSize:9, fontWeight:600, fontFamily:"inherit", cursor:"pointer" }}
+                        style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.be+"30", background:P.al, color:P.dm, fontSize:9, fontWeight:600, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}
                         onMouseEnter={e=>{e.currentTarget.style.background=P.be+"22";e.currentTarget.style.color=P.be;}}
                         onMouseLeave={e=>{e.currentTarget.style.background=P.al;e.currentTarget.style.color=P.dm;}}>{r}</button>
                     ))}
@@ -5550,9 +5567,9 @@ export default function OptionsFlowDashboard() {
                     <input value={wlRemoveReason} onChange={e=>setWlRemoveReason(e.target.value)}
                       onKeyDown={e=>e.key==="Enter"&&wlRemoveReason.trim()&&confirmRemove(wlRemoveReason.trim())}
                       placeholder="Or type a custom reason..."
-                      style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"4px 8px", fontFamily:"inherit" }}/>
+                      style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit" }}/>
                     <button onClick={()=>{setWlRemoving(null); setWlRemoveReason("");}}
-                      style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:9, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>Cancel</button>
+                      style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:9, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>Cancel</button>
                   </div>
                 </div>
               )}
@@ -5575,21 +5592,21 @@ export default function OptionsFlowDashboard() {
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
                   {wlDates.length>0 && (
                     <select value={wlDate} onChange={e=>wlLoad(e.target.value)}
-                      style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:5, color:P.wh, fontSize:10, padding:"4px 8px", fontFamily:"inherit" }}>
+                      style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:5, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit" }}>
                       <option value={new Date().toISOString().slice(0,10)}>Today</option>
                       {wlDates.map(d=><option key={d} value={d}>{d}</option>)}
                     </select>
                   )}
                   <button onClick={wlPopulate}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     ⟳ Auto-Fill from Scanner
                   </button>
                   <button onClick={wlPopulateUnusual}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #c9a84c60", background:"transparent", color:"#c9a84c", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #c9a84c60", background:"transparent", color:"#c9a84c", fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     ⟳ Fill from Unusual
                   </button>
                   <button onClick={wlSave}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     💾 Save Watchlist
                   </button>
                   <button onClick={wlFetchOI} disabled={wlOILoading}
@@ -5598,7 +5615,7 @@ export default function OptionsFlowDashboard() {
                     {wlOILoading?"Fetching…":"📊 Fetch Live OI"}
                   </button>
                   <button onClick={screenshotWatchlist}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     📸 Screenshot
                   </button>
                 </div>
@@ -5690,7 +5707,7 @@ export default function OptionsFlowDashboard() {
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
                       <button onClick={()=>wlAddTicker("bull")}
-                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
                     </div>
                   </div>
                 </Card>
@@ -5709,7 +5726,7 @@ export default function OptionsFlowDashboard() {
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
                       <button onClick={()=>wlAddTicker("bear")}
-                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
                     </div>
                   </div>
                 </Card>
@@ -5733,7 +5750,7 @@ export default function OptionsFlowDashboard() {
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
                       <button onClick={()=>wlAddTicker("bull")}
-                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
                     </div>
                   </Card>
                 </>); })()}
@@ -5757,7 +5774,7 @@ export default function OptionsFlowDashboard() {
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
                       <button onClick={()=>wlAddTicker("bear")}
-                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
                     </div>
                   </Card>
                 </>); })()}
@@ -5797,9 +5814,9 @@ export default function OptionsFlowDashboard() {
               };
 
               const renderSuggRow = (c, side) => (
-                <div key={c.sym+c.exp+(c.K||c.strike)} style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 8px", background:P.al, borderRadius:4 }}>
+                <div key={c.sym+c.exp+(c.K||c.strike)} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", background:P.al, borderRadius:4 }}>
                   <button onClick={()=>addFromSugg(c,side)}
-                    style={{ padding:"2px 8px", borderRadius:3, border:"none", background:side==="bull"?P.bu+"22":P.be+"22", color:side==="bull"?P.bu:P.be, fontSize:10, fontWeight:800, fontFamily:"inherit", cursor:"pointer" }}>+</button>
+                    style={{ padding:"2px 8px", borderRadius:3, border:"none", background:side==="bull"?P.bu+"22":P.be+"22", color:side==="bull"?P.bu:P.be, fontSize:10, fontWeight:800, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+</button>
                   <span style={{ fontSize:12, fontWeight:800, color:P.wh, minWidth:50 }}>{c.sym}</span>
                   {c._cap && c._cap!=="Unknown" && <span style={{ fontSize:7, fontWeight:700, color:P.dm, background:P.cd, padding:"1px 4px", borderRadius:2 }}>{c._cap}</span>}
                   <span style={{ fontSize:10, fontWeight:800, color:c._score>=7?P.bu:c._score>=5?"#ff9800":P.ye }}>{Math.round(c._score*10)}%</span>
@@ -5841,7 +5858,7 @@ export default function OptionsFlowDashboard() {
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                   {wlRemoved.map((r,i)=>(
-                    <div key={i} style={{ display:"flex", gap:8, alignItems:"center", padding:"4px 8px", background:P.al, borderRadius:4, opacity:0.7 }}>
+                    <div key={i} style={{ display:"flex", gap:8, alignItems:"center", padding:"5px 14px", background:P.al, borderRadius:4, opacity:0.7 }}>
                       <span style={{ fontSize:11, fontWeight:800, color:P.dm, minWidth:50 }}>{r.sym}</span>
                       <span style={{ fontSize:9, color:r.cp==="C"?P.bu:P.be }}>{r.cp==="C"?"C":"P"} ${r.strike} {r.exp}</span>
                       <span style={{ fontSize:9, fontWeight:700, color:P.be, background:P.be+"15", padding:"1px 6px", borderRadius:3 }}>{r.removeReason}</span>
