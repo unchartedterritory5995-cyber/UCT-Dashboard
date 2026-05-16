@@ -18,6 +18,74 @@ logger = logging.getLogger(__name__)
 
 DISCORD_FLOW_WEBHOOK_URL = os.getenv("DISCORD_FLOW_WEBHOOK_URL", "")
 
+
+def _load_flow_trades() -> list[dict] | None:
+    """Load trades from FlowDB or fall back to CSV file."""
+    # Try 1: FlowDB SQLite
+    try:
+        from api.flow_db import FlowDB
+        db = FlowDB()
+        conn = db.conn if hasattr(db, 'conn') else db._get_conn() if hasattr(db, '_get_conn') else None
+        if conn is None:
+            # Try getting connection from db object
+            import sqlite3
+            db_path = getattr(db, 'db_path', None) or getattr(db, 'path', None)
+            if db_path:
+                conn = sqlite3.connect(db_path)
+                conn.row_factory = sqlite3.Row
+        if conn:
+            try:
+                rows = conn.execute("SELECT * FROM trades WHERE source = 'stocks' ORDER BY created_date DESC LIMIT 500000").fetchall()
+                if rows:
+                    logger.info("[Discord] Loaded %d trades from FlowDB", len(rows))
+                    return [dict(r) for r in rows]
+            except Exception:
+                pass
+    except Exception as e:
+        logger.debug("[Discord] FlowDB import failed: %s", e)
+
+    # Try 2: Direct SQLite at common paths
+    try:
+        import sqlite3
+        for db_path in ["/data/flow.db", "/app/data/flow.db", "data/flow.db"]:
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                conn.row_factory = sqlite3.Row
+                try:
+                    rows = conn.execute("SELECT * FROM trades WHERE source = 'stocks' ORDER BY created_date DESC LIMIT 500000").fetchall()
+                    if rows:
+                        logger.info("[Discord] Loaded %d trades from %s", len(rows), db_path)
+                        return [dict(r) for r in rows]
+                except Exception:
+                    pass
+                finally:
+                    conn.close()
+    except Exception as e:
+        logger.debug("[Discord] Direct SQLite failed: %s", e)
+
+    # Try 3: Read CSV file directly
+    try:
+        import csv
+        csv_paths = [
+            os.path.join(os.path.dirname(__file__), "..", "app", "public", "flow-data.csv"),
+            "/app/app/public/flow-data.csv",
+            "app/public/flow-data.csv",
+        ]
+        for csv_path in csv_paths:
+            resolved = os.path.abspath(csv_path)
+            if os.path.exists(resolved):
+                with open(resolved, "r", encoding="utf-8-sig") as f:
+                    reader = csv.DictReader(f)
+                    trades = list(reader)
+                if trades:
+                    logger.info("[Discord] Loaded %d trades from CSV: %s", len(trades), resolved)
+                    return trades
+    except Exception as e:
+        logger.debug("[Discord] CSV fallback failed: %s", e)
+
+    logger.error("[Discord] Could not load trades from any source")
+    return None
+
 # ── Direction rules (must match frontend exactly) ──────────────────────────
 
 def assign_direction(trade: dict) -> str | None:
@@ -273,16 +341,9 @@ def register_discord_routes(app_or_router):
         days: int = FQuery(20, description="Number of trading days to include"),
     ):
         """Manually trigger a Discord watchlist post."""
-        try:
-            from api.services.flow_db import get_trades_since
-        except ImportError:
-            try:
-                from services.flow_db import get_trades_since
-            except ImportError:
-                return {"error": "flow_db not available"}
-
-        since = datetime.now() - timedelta(days=days * 1.5)  # 1.5x for weekends
-        trades = get_trades_since(since.strftime("%Y-%m-%d"))
+        trades = _load_flow_trades()
+        if trades is None:
+            return {"error": "flow_db not available — no trades loaded"}
         result = await send_to_discord(trades, label)
         return result
 
@@ -301,13 +362,10 @@ def setup_scheduler(scheduler):
     import asyncio
 
     async def _send_scheduled(label):
-        try:
-            from api.services.flow_db import get_trades_since
-        except ImportError:
-            from services.flow_db import get_trades_since
-
-        since = datetime.now() - timedelta(days=30)
-        trades = get_trades_since(since.strftime("%Y-%m-%d"))
+        trades = _load_flow_trades()
+        if not trades:
+            logger.warning("[Discord] No trades loaded — skipping %s", label)
+            return
         await send_to_discord(trades, label)
 
     def morning_job():
