@@ -1092,12 +1092,13 @@ function processFlowData(rows) {
   const tickerMap = {};
   for (let i = 0; i < filtered.length; i++) {
     const t = filtered[i];
-    if (!tickerMap[t.S]) tickerMap[t.S] = { s:t.S, b:0, r:0, n:0, topTrades:[], minTopP:0, consMap:{}, mktcap:0, er:false, uoa:false };
+    if (!tickerMap[t.S]) tickerMap[t.S] = { s:t.S, b:0, r:0, n:0, topTrades:[], minTopP:0, consMap:{}, mktcap:0, er:false, uoa:false, sector:"" };
     const tk = tickerMap[t.S];
     tk.n++; if (t.D==="BULL") tk.b+=t.P; else if (t.D==="BEAR") tk.r+=t.P;
     if (t.mktcap > tk.mktcap) tk.mktcap = t.mktcap;
     if (t.er) tk.er = true;
     if (t.uoa) tk.uoa = true;
+    if (t.sector && !tk.sector) tk.sector = t.sector;
     // Keep running top 10 by premium (avoid sorting huge arrays)
     if (tk.topTrades.length < 10) {
       tk.topTrades.push(t);
@@ -1121,7 +1122,7 @@ function processFlowData(rows) {
   const TICKER_DB = Object.values(tickerMap)
     .sort((a,b)=>(b.b+b.r)-(a.b+a.r))
     .map(tk => ({
-      s:tk.s, b:tk.b, r:tk.r, n:tk.n, mktcap:tk.mktcap, er:tk.er, uoa:tk.uoa,
+      s:tk.s, b:tk.b, r:tk.r, n:tk.n, mktcap:tk.mktcap, er:tk.er, uoa:tk.uoa, sector:tk.sector||"",
       t:(()=>{ const seen = new Set(); return tk.topTrades.sort((a,b)=>b.P-a.P).filter(t=>{ const k=t.CP+"|"+t.K+"|"+t.E; if(seen.has(k)) return false; seen.add(k); return true; }); })(),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
         c.clean = c.dirs.size <= 1;
@@ -4525,7 +4526,7 @@ export default function OptionsFlowDashboard() {
                 <table style={{ borderCollapse:"collapse", fontSize:12, margin:"0 auto", width:"85%" }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                     <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, width:80 }}>Ticker</th>
-                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600, width:90 }}>Theme</th>
+                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600, width:90 }}>Sector</th>
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Bull</th>
                     <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Bear</th>
                     <th style={{ padding:"4px 12px", width:100, textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Split</th>
@@ -4547,7 +4548,7 @@ export default function OptionsFlowDashboard() {
                           
                           {d.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
                         </td>
-                        <td style={{ padding:"8px 6px", fontSize:10, color:P.dm, textAlign:"center" }}>{(THEME_LOOKUP[d.sym]||[]).join(", ")||""}</td>
+                        <td style={{ padding:"8px 6px", fontSize:10, color:P.dm, textAlign:"center" }}>{(()=>{ const th = (THEME_LOOKUP[d.sym]||[])[0]; if (th) return th; const sec = (D.TICKER_DB.find(t=>t.s===d.sym)||{}).sector||""; return (sec && sec!=="None" && sec!=="Unknown") ? sec : ""; })()}</td>
                         <td style={{ padding:"8px 14px", fontWeight:800, color:P.bu, textAlign:"center" }}>{d.found&&d.bull>0?fmt(d.bull):"—"}</td>
                         <td style={{ padding:"8px 14px", fontWeight:800, color:P.be, textAlign:"center" }}>{d.found&&d.bear>0?fmt(d.bear):"—"}</td>
                         <td style={{ padding:"8px 12px", width:100 }}>
