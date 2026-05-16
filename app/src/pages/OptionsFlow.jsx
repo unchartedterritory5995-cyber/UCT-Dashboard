@@ -4179,7 +4179,7 @@ export default function OptionsFlowDashboard() {
                 onClick={()=>{ setCExp(isExp ? null : tk.sym); }}>
                 <td style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:13 }}>
                   {tk.sym}
-                  {cap!=="Unknown" && <span style={{ fontSize:7, color:P.dm, marginLeft:4, fontWeight:600 }}>{cap}</span>}
+                  
                   {tk.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff9800"+"22", color:"#ff9800" }}>ER</span>}
                   {tk.isNew && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:P.ac+"22", color:P.ac }}>NEW</span>}
                 </td>
