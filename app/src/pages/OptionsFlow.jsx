@@ -1199,6 +1199,7 @@ export default function OptionsFlowDashboard() {
   const removeLeader = (sym) => saveLeaders(leaders.filter(s=>s!==sym));
   const [leaderYtd, setLeaderYtd] = useState({});
   const [leaderOff52, setLeaderOff52] = useState({});
+  const [leaderSort, setLeaderSort] = useState({col:"sym", dir:"asc"});
   const [leaderYtdLoading, setLeaderYtdLoading] = useState(false);
   const fetchLeaderYtd = async () => {
     if (!leaders.length) return;
@@ -4491,7 +4492,17 @@ export default function OptionsFlowDashboard() {
               topContract:topC ? { cp:topC.CP||topC.cp, K:topC.K||topC.strike, exp:topC.E||topC.exp,
                 hits:topC.H||topC.hits||1, prem:topC.P||topC.prem||0, grade:topC.grade||"",
                 side:topC.Si||topC.side||"" } : null };
-          }).sort((a,b) => a.sym.localeCompare(b.sym));
+          }).sort((a,b) => {
+            const {col, dir} = leaderSort;
+            const m = dir === "asc" ? 1 : -1;
+            if (col === "sym") return m * a.sym.localeCompare(b.sym);
+            if (col === "bull") return m * (a.bull - b.bull);
+            if (col === "bear") return m * (a.bear - b.bear);
+            if (col === "net") return m * (a.net - b.net);
+            if (col === "ytd") return m * ((parseFloat(leaderYtd[a.sym])||0) - (parseFloat(leaderYtd[b.sym])||0));
+            if (col === "off52") return m * ((parseFloat(leaderOff52[a.sym])||0) - (parseFloat(leaderOff52[b.sym])||0));
+            return 0;
+          });
           const totalBull = leaderData.reduce((a,d)=>a+d.bull,0);
           const totalBear = leaderData.reduce((a,d)=>a+d.bear,0);
           const bullPct = (totalBull+totalBear)>0 ? Math.round(totalBull/(totalBull+totalBear)*100) : 50;
@@ -4543,15 +4554,23 @@ export default function OptionsFlowDashboard() {
             {leaders.length > 0 ? (
             <Card>
               <div>
+                {(()=>{
+                const sortHdrL = (label, col, align) => {
+                  const active = leaderSort.col === col;
+                  const arrow = active ? (leaderSort.dir === "asc" ? " ▲" : " ▼") : "";
+                  return <th style={{ padding:"5px 14px", textAlign:align||"center", color:active?P.ac:P.mt, fontSize:9, fontWeight:600, cursor:"pointer", userSelect:"none" }}
+                    onClick={()=>setLeaderSort(prev=>({col, dir:prev.col===col&&prev.dir==="asc"?"desc":"asc"}))}>{label}{arrow}</th>;
+                };
+                return (
                 <table style={{ borderCollapse:"collapse", fontSize:12, margin:"0 auto", width:"85%" }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, width:80 }}>Ticker</th>
-                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Bull</th>
-                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Bear</th>
+                    {sortHdrL("Ticker","sym","left")}
+                    {sortHdrL("Bull","bull")}
+                    {sortHdrL("Bear","bear")}
                     <th style={{ padding:"4px 12px", width:100, textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Split</th>
-                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Net</th>
-                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>YTD%</th>
-                    <th style={{ padding:"5px 14px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Off High</th>
+                    {sortHdrL("Net","net")}
+                    {sortHdrL("YTD%","ytd")}
+                    {sortHdrL("Off High","off52")}
                     <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
                     <th style={{ width:20 }}/>
                   </tr></thead>
@@ -4600,6 +4619,7 @@ export default function OptionsFlowDashboard() {
                   })}
                   </tbody>
                 </table>
+                ); })()}
               </div>
             </Card>
             ) : (
