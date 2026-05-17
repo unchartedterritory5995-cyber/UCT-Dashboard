@@ -24,7 +24,7 @@ def _fh_key() -> str:
 
 
 def _disk_path(ticker: str) -> str:
-    return os.path.join(_CACHE_DIR, f"{ticker}.json")
+    return os.path.join(_CACHE_DIR, os.path.basename(f"{ticker}.json"))
 
 
 def _disk_get(ticker: str):
@@ -98,6 +98,9 @@ def get_ticker_meta(ticker: str) -> dict:
         data = _from_yfinance(ticker)
     except Exception as e:
         _logger.info("ticker_meta yfinance failed for %s: %s — trying Finnhub", ticker, e)
+        data = {"name": None, "sector": None, "industry": None}
+
+    if not any(data.values()):  # yfinance raised OR returned a silent empty .info
         try:
             data = _from_finnhub(ticker)
         except Exception as e2:

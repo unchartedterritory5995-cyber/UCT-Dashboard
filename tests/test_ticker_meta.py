@@ -10,11 +10,12 @@ def _yf_info(longName="Tesla Inc", sector="Consumer Cyclical", industry="Auto Ma
 def test_yfinance_happy_path():
     ticker_meta._mem.clear()
     with patch.object(ticker_meta, "_disk_get", return_value=None), \
-         patch.object(ticker_meta, "_disk_put"), \
+         patch.object(ticker_meta, "_disk_put") as DP, \
          patch("yfinance.Ticker") as YF:
         YF.return_value.info = _yf_info()
         out = ticker_meta.get_ticker_meta("TSLA")
     assert out == {"name": "Tesla Inc", "sector": "Consumer Cyclical", "industry": "Auto Manufacturers"}
+    DP.assert_called_once_with("TSLA", {"name": "Tesla Inc", "sector": "Consumer Cyclical", "industry": "Auto Manufacturers"})
 
 
 def test_memory_cache_hit_skips_fetch():
@@ -49,3 +50,29 @@ def test_total_failure_returns_nulls_and_not_cached():
     assert out == {"name": None, "sector": None, "industry": None}
     DP.assert_not_called()
     assert ticker_meta._mem.get("tmeta_ZZZZ") is None
+
+
+def test_disk_cache_hit_populates_mem_and_skips_fetch():
+    ticker_meta._mem.clear()
+    cached = {"name": "From Disk", "sector": "Tech", "industry": "Semis"}
+    with patch.object(ticker_meta, "_disk_get", return_value=cached), \
+         patch("yfinance.Ticker") as YF:
+        out = ticker_meta.get_ticker_meta("NVDA")
+    YF.assert_not_called()
+    assert out == cached
+    assert ticker_meta._mem.get("tmeta_NVDA") == cached
+
+
+def test_yfinance_empty_info_falls_back_to_finnhub():
+    """yfinance returns silent empty .info (ETF/delisted) → Finnhub fallback used."""
+    ticker_meta._mem.clear()
+    with patch.object(ticker_meta, "_disk_get", return_value=None), \
+         patch.object(ticker_meta, "_disk_put"), \
+         patch("yfinance.Ticker") as YF, \
+         patch.object(ticker_meta, "_fh_key", return_value="k"), \
+         patch("api.services.ticker_meta.requests.get") as RG:
+        YF.return_value.info = {}
+        RG.return_value.raise_for_status = lambda: None
+        RG.return_value.json = lambda: {"name": "SPDR S&P 500 ETF", "finnhubIndustry": "ETF"}
+        out = ticker_meta.get_ticker_meta("SPY")
+    assert out == {"name": "SPDR S&P 500 ETF", "sector": None, "industry": "ETF"}
