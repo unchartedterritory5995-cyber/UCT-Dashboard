@@ -67,45 +67,83 @@ def _run_5min_check():
     persisting. Fully defensive — never raises into the audit loop.
     """
     try:
-        import random
         from api.services import bars_sqlite as _bs
-        from api.services.bars_fetch import _is_cold_stale_intraday
+        from api.services.bars_fetch import (
+            _is_cold_stale_intraday, get_hot_intraday_tickers,
+        )
         from api.services import chart_health_alerts as _alerts
 
-        intraday = [
-            (t, tf) for (t, tf) in _bs.get_all_tickers()
-            if tf in ("1", "5", "15", "30", "60")
-        ]
-        if not intraday:
-            _logger.info("[continuous_audit] 5min freshness: no intraday entries yet")
-            return
-        sample = random.sample(intraday, min(80, len(intraday)))
-        cold = []
-        for t, tf in sample:
-            if _is_cold_stale_intraday(tf, _bs.get_last_ts(t, tf)):
-                cold.append(f"{t}/{tf}")
-        ratio = len(cold) / len(sample)
-        _logger.info(
-            f"[continuous_audit] 5min freshness: {len(cold)}/{len(sample)} "
-            f"intraday entries cold-stale ({ratio:.0%})"
-        )
-        if ratio >= 0.30:
-            _alerts.emit(
-                "intraday_universe_stale", "critical",
-                f"{ratio:.0%} of sampled intraday charts are >=1 session "
-                f"behind ({len(cold)}/{len(sample)}). Universe freshness "
-                f"pipeline likely broken (worker/R2 or prewarmer).",
-                {"ratio": round(ratio, 3), "cold": len(cold),
-                 "sample": len(sample), "examples": cold[:15]},
-            )
-        elif ratio >= 0.10:
-            _alerts.emit(
-                "intraday_universe_stale", "warning",
-                f"{ratio:.0%} of sampled intraday charts are >=1 session "
-                f"behind ({len(cold)}/{len(sample)}).",
-                {"ratio": round(ratio, 3), "cold": len(cold),
-                 "sample": len(sample), "examples": cold[:15]},
-            )
+        TFS = ("60", "30", "15", "5", "1")
+
+        # ── Actionable signal: the HOT-SET (charts users actually open) ──
+        # The untouched long tail of the ~3,685-ticker universe staying
+        # frozen is the EXPECTED steady state — Part 1 heals it on access,
+        # by design. Alerting on that = a permanently-red signal that
+        # hides a real regression. What's actionable is: are the charts
+        # users are actively viewing fresh? If a meaningful fraction of
+        # recently-requested tickers is >=1 session behind, the freshness
+        # pipeline (Part 1 sync fetch / hot-set prewarm / R2 merge) is
+        # genuinely broken and someone must look.
+        hot = get_hot_intraday_tickers(200)
+        if hot:
+            hot_cold = []
+            hot_checked = 0
+            for t in hot:
+                for tf in TFS:
+                    last = _bs.get_last_ts(t, tf)
+                    if last is None:
+                        continue  # tf never requested for this ticker
+                    hot_checked += 1
+                    if _is_cold_stale_intraday(tf, last):
+                        hot_cold.append(f"{t}/{tf}")
+            if hot_checked:
+                hot_ratio = len(hot_cold) / hot_checked
+                _logger.info(
+                    f"[continuous_audit] hot-set freshness: {len(hot_cold)}/"
+                    f"{hot_checked} cold ({hot_ratio:.0%}) over {len(hot)} "
+                    f"recently-viewed tickers"
+                )
+                if hot_ratio >= 0.20:
+                    _alerts.emit(
+                        "intraday_hotset_stale", "critical",
+                        f"{hot_ratio:.0%} of ACTIVELY-VIEWED intraday charts "
+                        f"are >=1 session behind ({len(hot_cold)}/"
+                        f"{hot_checked}). Freshness pipeline broken — Part 1 "
+                        f"sync fetch / hot-set prewarm / R2 merge.",
+                        {"ratio": round(hot_ratio, 3), "cold": len(hot_cold),
+                         "checked": hot_checked, "examples": hot_cold[:15]},
+                    )
+                elif hot_ratio >= 0.08:
+                    _alerts.emit(
+                        "intraday_hotset_stale", "warning",
+                        f"{hot_ratio:.0%} of actively-viewed intraday charts "
+                        f"are >=1 session behind ({len(hot_cold)}/{hot_checked}).",
+                        {"ratio": round(hot_ratio, 3), "cold": len(hot_cold),
+                         "checked": hot_checked, "examples": hot_cold[:15]},
+                    )
+
+        # ── Visibility-only: universe baseline (NOT alerted) ────────────
+        # Logged so an operator can see long-tail healing progress / decide
+        # whether a bulk warm-universe pass is worth running. Never emits.
+        try:
+            import random
+            allintr = [
+                (t, tf) for (t, tf) in _bs.get_all_tickers()
+                if tf in ("1", "5", "15", "30", "60")
+            ]
+            if allintr:
+                samp = random.sample(allintr, min(80, len(allintr)))
+                base_cold = sum(
+                    1 for t, tf in samp
+                    if _is_cold_stale_intraday(tf, _bs.get_last_ts(t, tf))
+                )
+                _logger.info(
+                    f"[continuous_audit] universe baseline (info, not "
+                    f"alerted): {base_cold}/{len(samp)} long-tail intraday "
+                    f"cold ({base_cold / len(samp):.0%})"
+                )
+        except Exception:
+            pass
     except Exception:
         _logger.exception("[continuous_audit] 5min freshness check failed")
 
