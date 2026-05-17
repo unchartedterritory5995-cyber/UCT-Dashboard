@@ -5337,7 +5337,6 @@ export default function OptionsFlowDashboard() {
                               }}>
                               <td style={{ padding:"5px", textAlign:"center" }}>
                                 <span style={{ fontWeight:900, color:P.wh, fontSize:11 }}>{r.sym}</span>
-                                {capBand(r.mktcap)!=="Unknown" && <sub style={{ fontSize:7, color:P.dm, marginLeft:2, verticalAlign:"baseline" }}>{capBand(r.mktcap)}</sub>}
                               </td>
                               <td style={{ padding:"5px", textAlign:"center" }}><Tag c={dirC}>{r.dir}</Tag></td>
                               <td style={{ padding:"5px", fontWeight:800, color:P.bu, textAlign:"center" }}>{fmt(r.bull)}</td>
