@@ -5,6 +5,9 @@ import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings } from './chart/chartDefaults'
+import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
+import useTickerMeta from '../hooks/useTickerMeta'
+import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
@@ -456,6 +459,20 @@ export default function StockChart({
   )
 
   const containerRef = useRef(null)
+  const wmCtrlRef = useRef(null)        // watermark primitive controller
+  const wmAttachedRef = useRef(false)   // guard: primitive attached once
+  const tickerMeta = useTickerMeta(sym)
+  useWatermarkDrag({
+    containerRef,
+    controllerRef: wmCtrlRef,
+    getActiveTool: () => activeToolRef.current,
+    onCommit: ({ x, y }) => {
+      const next = mergeChartSettings(prefs.chart_settings)
+      next.watermark = { ...next.watermark, x, y }
+      next.preset = 'custom'
+      setPref('chart_settings', JSON.stringify(next))
+    },
+  })
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
@@ -515,6 +532,8 @@ export default function StockChart({
   const crosshairSubRef = useRef(null)
 
   const [activeTool, setActiveTool] = useState(null)
+  const activeToolRef = useRef(activeTool)
+  activeToolRef.current = activeTool
   const [positionTool, setPositionTool] = useState({ entry: '', stop: '', target: '', risk: 200, direction: 'long' })
   const positionPriceLines = useRef([])
   const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color)
@@ -1555,14 +1574,6 @@ export default function StockChart({
         rightOffset: 8,
         rightBarStaysOnScroll: true,
       },
-      watermark: cs.watermark.visible && (watermark || sym) ? {
-        visible: true,
-        text: watermark ?? sym,
-        color: `rgba(168,162,144,${cs.watermark.opacity})`,
-        fontSize: 48,
-        fontFamily: "'Instrument Sans', sans-serif",
-        fontWeight: '700',
-      } : { visible: false },
     }
 
     if (!chart) {
@@ -1570,6 +1581,30 @@ export default function StockChart({
       chartRef.current = chart
     } else {
       chart.applyOptions(chartOpts)
+    }
+
+    // ── Symbol watermark (custom v5 pane primitive, behind series) ──
+    if (!wmCtrlRef.current) {
+      wmCtrlRef.current = createWatermarkPrimitive({ x: cs.watermark.x, y: cs.watermark.y })
+    }
+    if (!wmAttachedRef.current) {
+      try {
+        chart.panes()[0].attachPrimitive(wmCtrlRef.current.primitive)
+        wmAttachedRef.current = true
+      } catch { /* older pane API — primitive optional */ }
+    }
+    {
+      const wmLines = cs.watermark.visible
+        ? composeWatermarkLines(watermark ?? sym, tickerMeta, cs.watermark.lines)
+        : []
+      wmCtrlRef.current.setOptions({
+        lines: wmLines,
+        color: cs.watermark.color,
+        opacity: cs.watermark.opacity,
+        sizeScale: cs.watermark.sizeScale,
+        x: cs.watermark.x,
+        y: cs.watermark.y,
+      })
     }
 
     // Log scale: mode 0 = Normal, 1 = Logarithmic (Lightweight Charts v5)
@@ -2269,7 +2304,7 @@ export default function StockChart({
         }
       }
     }
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf, tickerMeta])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
