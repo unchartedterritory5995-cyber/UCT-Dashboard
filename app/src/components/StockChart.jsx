@@ -483,6 +483,7 @@ export default function StockChart({
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
+  const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
   const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
 
   // ── Extended hours toggle (regular session only vs all hours) ──
@@ -739,8 +740,22 @@ export default function StockChart({
   // For intraday: keep delta-fetch (payloads can be 400KB+ at 5000 bars)
   // but back off `since` by one second so the boundary bar gets re-fetched.
   // mergeDelta deduplicates by timestamp; fresh server value wins.
+  // A cached intraday series whose newest bar is >~23h old is missing at
+  // least the most recent session. The `since`-delta CAN heal it (server
+  // is authoritative), but a rapid sym/tf flip drops the delta (the
+  // sameSymTf race below) leaving the stale cache rendered with a live-
+  // price "spike" bar fused onto week-old history — the exact artifact
+  // seen in production on 5min. Force a full (no-`since`) refetch so the
+  // response REPLACES idbBars with authoritative data (identical to the
+  // technique already used for D/W/M above), and don't paint the stale
+  // series meanwhile (brief spinner beats a wrong chart). 23h errs toward
+  // full-fetch; only cost is one larger payload for already-fresh weekend
+  // data — correctness over bandwidth.
+  const idbStaleIntraday = isIntraday
+    && typeof idbSinceRef.current === 'number'
+    && (Date.now() / 1000 - idbSinceRef.current) > 23 * 3600
   let _sinceParam = null
-  if (isIntraday && typeof idbSinceRef.current === 'number') {
+  if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
   }
   const swrUrl = (sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
@@ -807,11 +822,22 @@ export default function StockChart({
         if (cancelled) return
         try {
           const entry = await idbGet(sym, tf)
-          // Skip if IDB has fresh data (D/W: 24 h; intraday: 4 h)
+          // A cached intraday entry whose newest bar is >23h old is
+          // missing >=1 session — must refetch FULL (no since) so the
+          // response replaces it, or this stale copy gets rendered later
+          // with a fused live-price spike. Mirrors idbStaleIntraday.
+          const _et = entry?.lastT
+          const entryStaleIntraday = !['D', 'W', 'M'].includes(tf)
+            && typeof _et === 'number'
+            && (Date.now() / 1000 - _et) > 23 * 3600
+          // Skip if IDB has fresh data (D/W: 24 h; intraday: 4 h) — but
+          // never skip a stale intraday entry just because it was saved
+          // recently (savedAt tracks write time, not bar freshness).
           const maxAge = (['D', 'W'].includes(tf) ? 86400 : 14400) * 1000
-          if (entry?.bars?.length && Date.now() - (entry.savedAt || 0) < maxAge) continue
+          if (!entryStaleIntraday && entry?.bars?.length
+              && Date.now() - (entry.savedAt || 0) < maxAge) continue
           const bc    = BC[tf] ?? 5000
-          const since = entry?.lastT
+          const since = entryStaleIntraday ? null : entry?.lastT
           const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}`
           const r = await fetch(url)
           if (cancelled || !r.ok) continue
@@ -830,9 +856,12 @@ export default function StockChart({
   }, [sym])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bars: IDB renders instantly; full SWR data replaces it when available.
+  // BUT never paint a stale intraday IDB series — that's what fuses a
+  // live-price spike onto week-old history. When stale we force a full
+  // refetch (no `since`, above) and show a brief spinner until it lands.
   const bars = (data && !data.delta && data.bars?.length)
     ? data.bars
-    : (idbBars?.length ? idbBars : data?.bars)
+    : ((idbBars?.length && !idbStaleIntraday) ? idbBars : data?.bars)
   const loading = !bars && !error
 
   // Real-time price streaming for live candle updates
@@ -1267,6 +1296,12 @@ export default function StockChart({
     // reconnects / market-maker pulls that briefly emit nonsense quotes.
     const _last = lastBarRef.current?.close
     if (_last && _last > 0 && Math.abs(_p - _last) / _last > 0.5) return
+    // Poison-proof gate: lastBarRef can itself get baked with a bad
+    // value (then every good tick is rejected vs that bad baseline and
+    // the phantom sticks — the DDOG 20798 = 100x lock-in). The server
+    // close is never poisonable.
+    const _srv = lastServerCloseRef.current
+    if (_srv && _srv > 0 && Math.abs(_p - _srv) / _srv > 0.5) return
     // day_high / day_low can also arrive zero or stale during the first ticks
     // after market open. Treat 0 / negative / non-finite as "not provided" so
     // the bar's H/L don't snap to 0.
@@ -1399,6 +1434,11 @@ export default function StockChart({
     // dominating the y-axis.
     const lastKnown = lastBarRef.current?.close
     if (lastKnown && lastKnown > 0 && Math.abs(c - lastKnown) / lastKnown > 0.5) {
+      return
+    }
+    // Poison-proof gate vs clean server close (see snapshot-tick path).
+    const _srvc = lastServerCloseRef.current
+    if (_srvc && _srvc > 0 && Math.abs(c - _srvc) / _srvc > 0.5) {
       return
     }
 
@@ -1592,6 +1632,12 @@ export default function StockChart({
       const last = filteredBars[filteredBars.length - 1]
       // Use adjustTime so lastBarRef.time matches the chart series + computeBarTime
       lastBarRef.current = { time: adjustTime(last.t), open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
+      // Trustworthy baseline for live-tick sanity gates: server bars are
+      // validated/quarantined upstream and proven clean. Unlike
+      // lastBarRef (which a bad tick can bake bad, then good ticks get
+      // rejected and the phantom sticks — DDOG 20798 = 100x lock-in),
+      // this is ONLY ever set from server data and can't be poisoned.
+      if (Number.isFinite(last.c) && last.c > 0) lastServerCloseRef.current = last.c
     }
 
     // Re-apply live price immediately after setData() to prevent snap-back.
