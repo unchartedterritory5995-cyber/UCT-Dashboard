@@ -78,7 +78,7 @@ _MAINTENANCE_MODE = False
 class MaintenanceMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         global _MAINTENANCE_MODE
-        if _MAINTENANCE_MODE and not request.url.path.startswith("/api/auth") and request.url.path != "/api/maintenance":
+        if _MAINTENANCE_MODE and not request.url.path.startswith("/api/auth") and request.url.path != "/api/maintenance" and request.url.path != "/api/health":
             return StarletteJSONResponse(
                 status_code=503,
                 content={"detail": "Under maintenance", "maintenance": True},
@@ -605,67 +605,70 @@ async def lifespan(app: FastAPI):
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] Memory pre-warm skipped (USE_REMOTE_BARS=1); cache populates lazily after snapshot pull")
     else:
-        try:
-            from api.services import bars_sqlite as _pbs
-            from api.services.cache import cache as _pcache
-            from api.routers.bars import _fmt_sqlite_bars, _CACHE_TTL
-            from api.services.bars_seeder import _TIER1_BASE
-            _pw = 0
-            _pw_syms: set[str] = set()
+        def _memory_prewarm_background():
+            try:
+                from api.services import bars_sqlite as _pbs
+                from api.services.cache import cache as _pcache
+                from api.routers.bars import _fmt_sqlite_bars, _CACHE_TTL
+                from api.services.bars_seeder import _TIER1_BASE
+                _pw = 0
+                _pw_syms: set[str] = set()
 
-            def _warm_sym_into_memory(sym: str, tf: str):
-                nonlocal _pw
-                _bc = 8000 if tf in ('D', 'W') else 5000
+                def _warm_sym_into_memory(sym: str, tf: str):
+                    nonlocal _pw
+                    _bc = 8000 if tf in ('D', 'W') else 5000
+                    try:
+                        _lt = _pbs.get_last_ts(sym, tf)
+                        if _lt is None:
+                            return
+                        _rows = _pbs.get_bars(sym, tf, _bc)
+                        if not _rows:
+                            return
+                        _pl = {"ticker": sym, "tf": tf, "bars": _fmt_sqlite_bars(_rows, tf)}
+                        _pcache.set(f"bars_{sym}_{tf}_{_bc}", _pl, ttl=_CACHE_TTL.get(tf, 300))
+                        _pw += 1
+                    except Exception:
+                        pass
+
+                for _sym in _TIER1_BASE:
+                    _pw_syms.add(_sym)
+                    for _tf in ('D', 'W', '5', '15', '30', '60'):
+                        _warm_sym_into_memory(_sym, _tf)
+
                 try:
-                    _lt = _pbs.get_last_ts(sym, tf)
-                    if _lt is None:
-                        return
-                    _rows = _pbs.get_bars(sym, tf, _bc)
-                    if not _rows:
-                        return
-                    _pl = {"ticker": sym, "tf": tf, "bars": _fmt_sqlite_bars(_rows, tf)}
-                    _pcache.set(f"bars_{sym}_{tf}_{_bc}", _pl, ttl=_CACHE_TTL.get(tf, 300))
-                    _pw += 1
+                    from api.services import breadth_monitor as _bm
+                    _latest = _bm.get_latest()
+                    if _latest:
+                        for _k, _v in _latest.items():
+                            if not _k.endswith('_list') or not isinstance(_v, list):
+                                continue
+                            for _item in _v:
+                                _s = _item.get('t') if isinstance(_item, dict) else None
+                                if _s and _s.upper() not in _pw_syms:
+                                    _pw_syms.add(_s.upper())
+                                    for _tf in ('D', 'W'):
+                                        _warm_sym_into_memory(_s.upper(), _tf)
                 except Exception:
                     pass
 
-            for _sym in _TIER1_BASE:
-                _pw_syms.add(_sym)
-                for _tf in ('D', 'W', '5', '15', '30', '60'):
-                    _warm_sym_into_memory(_sym, _tf)
+                print(f"[startup] Memory pre-warm pass 1: {_pw} bar series loaded from SQLite ({len(_pw_syms)} tickers)")
 
-            try:
-                from api.services import breadth_monitor as _bm
-                _latest = _bm.get_latest()
-                if _latest:
-                    for _k, _v in _latest.items():
-                        if not _k.endswith('_list') or not isinstance(_v, list):
-                            continue
-                        for _item in _v:
-                            _s = _item.get('t') if isinstance(_item, dict) else None
-                            if _s and _s.upper() not in _pw_syms:
-                                _pw_syms.add(_s.upper())
-                                for _tf in ('D', 'W'):
-                                    _warm_sym_into_memory(_s.upper(), _tf)
-            except Exception:
-                pass
+                try:
+                    from api.services.bars_sqlite import get_all_tickers as _gat
+                    _p2_before = _pw
+                    for _sym, _tf in _gat():
+                        if _tf in ('D', 'W') and _sym not in _pw_syms:
+                            _pw_syms.add(_sym)
+                            _warm_sym_into_memory(_sym, 'D')
+                            _warm_sym_into_memory(_sym, 'W')
+                    print(f"[startup] Memory pre-warm pass 2: +{_pw - _p2_before} series ({len(_pw_syms)} total tickers, {_pw} total series)")
+                except Exception as _e2:
+                    print(f"[startup] Memory pre-warm pass 2 failed (non-fatal): {_e2}")
 
-            print(f"[startup] Memory pre-warm pass 1: {_pw} bar series loaded from SQLite ({len(_pw_syms)} tickers)")
-
-            try:
-                from api.services.bars_sqlite import get_all_tickers as _gat
-                _p2_before = _pw
-                for _sym, _tf in _gat():
-                    if _tf in ('D', 'W') and _sym not in _pw_syms:
-                        _pw_syms.add(_sym)
-                        _warm_sym_into_memory(_sym, 'D')
-                        _warm_sym_into_memory(_sym, 'W')
-                print(f"[startup] Memory pre-warm pass 2: +{_pw - _p2_before} series ({len(_pw_syms)} total tickers, {_pw} total series)")
-            except Exception as _e2:
-                print(f"[startup] Memory pre-warm pass 2 failed (non-fatal): {_e2}")
-
-        except Exception as _e:
-            print(f"[startup] Memory pre-warm failed (non-fatal): {_e}")
+            except Exception as _e:
+                print(f"[startup] Memory pre-warm failed (non-fatal): {_e}")
+        threading.Thread(target=_memory_prewarm_background, daemon=True, name="memory-prewarm").start()
+        print("[startup] Memory pre-warm scheduled (background thread)")
 
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] USE_REMOTE_BARS=1 — skipping in-process prewarmer/seeder; pulling snapshot from worker via R2")
@@ -684,10 +687,7 @@ async def lifespan(app: FastAPI):
 
     if os.environ.get("USE_REMOTE_BARS") == "1":
         from api.services import data_sync
-        import time as _t
 
-        _initial_pull_timeout = float(os.environ.get("INITIAL_SNAPSHOT_TIMEOUT_SEC", "60"))
-        _t0 = _t.time()
         try:
             _skip_boot_pull = False
             try:
@@ -712,42 +712,26 @@ async def lifespan(app: FastAPI):
                 _skip_boot_pull = False
                 print("[startup] FORCE_BOOT_R2_PULL=1 — pulling boot snapshot regardless")
 
-            if _skip_boot_pull:
-                _result = {"ts": None, "err": None}
-                _initial_thread = None
-            else:
-                _result = {"ts": None, "err": None}
+            if not _skip_boot_pull:
                 def _initial_pull():
+                    import time as _t
+                    _t0 = _t.time()
                     try:
-                        _result["ts"] = data_sync.sync_if_newer()
+                        ts = data_sync.sync_if_newer()
+                        elapsed = _t.time() - _t0
+                        if ts:
+                            print(f"[startup] Initial snapshot pull complete in {elapsed:.1f}s "
+                                  f"— cache warm, serving from snapshot {ts}")
+                        else:
+                            print(f"[startup] Initial snapshot already current ({elapsed:.1f}s) — cache warm")
                     except Exception as e:
-                        _result["err"] = e
-                _initial_thread = threading.Thread(target=_initial_pull, name="initial_snapshot_pull")
-                _initial_thread.start()
-                _initial_thread.join(timeout=_initial_pull_timeout)
-            if _initial_thread is None:
-                pass
-            elif _initial_thread.is_alive():
-                elapsed = _t.time() - _t0
-                print(f"[startup] Initial snapshot pull TIMED OUT after {elapsed:.1f}s "
-                      f"(limit={_initial_pull_timeout}s) — proceeding with cold cache; "
-                      f"daemon puller will sync on next interval")
-            elif _result["err"] is not None:
-                elapsed = _t.time() - _t0
-                print(f"[startup] Initial snapshot pull FAILED after {elapsed:.1f}s "
-                      f"(non-fatal): {_result['err']} — proceeding with cold cache")
-            else:
-                elapsed = _t.time() - _t0
-                ts = _result["ts"]
-                if ts:
-                    print(f"[startup] Initial snapshot pull complete in {elapsed:.1f}s "
-                          f"— cache warm, serving from snapshot {ts}")
-                else:
-                    print(f"[startup] Initial snapshot already current ({elapsed:.1f}s) — cache warm")
+                        elapsed = _t.time() - _t0
+                        print(f"[startup] Initial snapshot pull FAILED after {elapsed:.1f}s "
+                              f"(non-fatal): {e} — proceeding with cold cache")
+                threading.Thread(target=_initial_pull, daemon=True, name="initial_snapshot_pull").start()
+                print("[startup] R2 initial snapshot pull started (background thread)")
         except Exception as e:
-            elapsed = _t.time() - _t0
-            print(f"[startup] Initial snapshot pull error after {elapsed:.1f}s "
-                  f"(non-fatal): {e} — proceeding with cold cache")
+            print(f"[startup] Initial snapshot pull error (non-fatal): {e}")
 
         _legacy_replace = os.environ.get("R2_PERIODIC_PULL_LEGACY_REPLACE") == "1"
 
@@ -864,56 +848,58 @@ async def lifespan(app: FastAPI):
     print(f"[startup] Watchlist tracker: {len(_watchlist_tracker.get_recent_dates())} saved days.")
 
     # ── Flow DB: auto-seed from static CSVs if DB is empty ──────────────────
-    try:
-        from api.flow_db import FlowDB
-        _flow_db = FlowDB()
-        _flow_stats = _flow_db.stats()
-        _public_dir = os.path.join(os.path.dirname(__file__), "..", "app", "public")
+    def _flow_db_seed_background():
+        try:
+            from api.flow_db import FlowDB
+            _flow_db = FlowDB()
+            _flow_stats = _flow_db.stats()
+            _public_dir = os.path.join(os.path.dirname(__file__), "..", "app", "public")
 
-        # Seed stocks
-        if _flow_stats["stocks_rows"] == 0:
-            _stock_csv = os.path.join(_public_dir, "flow-data.csv")
-            if os.path.exists(_stock_csv):
-                with open(_stock_csv, "r", encoding="utf-8-sig") as _f:
-                    _result = _flow_db.insert_csv(_f.read(), source="stocks")
-                print(f"[startup] Flow DB seeded stocks: {_result['inserted']:,} rows from flow-data.csv ({len(_result['dates'])} dates)")
-            else:
-                print("[startup] Flow DB: no flow-data.csv found to seed")
-        else:
-            _stock_csv = os.path.join(_public_dir, "flow-data.csv")
-            if os.path.exists(_stock_csv):
-                with open(_stock_csv, "r", encoding="utf-8-sig") as _f:
-                    _result = _flow_db.insert_csv(_f.read(), source="stocks")
-                if _result["inserted"] > 0:
-                    print(f"[startup] Flow DB stocks: +{_result['inserted']:,} new rows, {_result['skipped']:,} dupes skipped")
+            # Seed stocks
+            if _flow_stats["stocks_rows"] == 0:
+                _stock_csv = os.path.join(_public_dir, "flow-data.csv")
+                if os.path.exists(_stock_csv):
+                    with open(_stock_csv, "r", encoding="utf-8-sig") as _f:
+                        _result = _flow_db.insert_csv(_f.read(), source="stocks")
+                    print(f"[startup] Flow DB seeded stocks: {_result['inserted']:,} rows from flow-data.csv ({len(_result['dates'])} dates)")
                 else:
-                    print(f"[startup] Flow DB stocks: {_flow_stats['stocks_rows']:,} rows, {_flow_stats['stock_days']} days — up to date")
-
-        # Seed indexes
-        if _flow_stats["indexes_rows"] == 0:
-            _idx_csv = os.path.join(_public_dir, "Indexes-data.csv")
-            if os.path.exists(_idx_csv):
-                with open(_idx_csv, "r", encoding="utf-8-sig") as _f:
-                    _result = _flow_db.insert_csv(_f.read(), source="indexes")
-                print(f"[startup] Flow DB seeded indexes: {_result['inserted']:,} rows from Indexes-data.csv ({len(_result['dates'])} dates)")
+                    print("[startup] Flow DB: no flow-data.csv found to seed")
             else:
-                print("[startup] Flow DB: no Indexes-data.csv found to seed")
-        else:
-            _idx_csv = os.path.join(_public_dir, "Indexes-data.csv")
-            if os.path.exists(_idx_csv):
-                with open(_idx_csv, "r", encoding="utf-8-sig") as _f:
-                    _result = _flow_db.insert_csv(_f.read(), source="indexes")
-                if _result["inserted"] > 0:
-                    print(f"[startup] Flow DB indexes: +{_result['inserted']:,} new rows, {_result['skipped']:,} dupes skipped")
-                else:
-                    print(f"[startup] Flow DB indexes: {_flow_stats['indexes_rows']:,} rows, {_flow_stats['index_days']} days — up to date")
+                _stock_csv = os.path.join(_public_dir, "flow-data.csv")
+                if os.path.exists(_stock_csv):
+                    with open(_stock_csv, "r", encoding="utf-8-sig") as _f:
+                        _result = _flow_db.insert_csv(_f.read(), source="stocks")
+                    if _result["inserted"] > 0:
+                        print(f"[startup] Flow DB stocks: +{_result['inserted']:,} new rows, {_result['skipped']:,} dupes skipped")
+                    else:
+                        print(f"[startup] Flow DB stocks: {_flow_stats['stocks_rows']:,} rows, {_flow_stats['stock_days']} days — up to date")
 
-        # Auto-prune expired
-        _pruned = _flow_db.prune_expired(buffer_days=1)
-        if _pruned:
-            print(f"[startup] Flow DB pruned {_pruned} expired rows")
-    except Exception as e:
-        print(f"[startup] Flow DB auto-seed error (non-fatal): {e}")
+            # Seed indexes
+            if _flow_stats["indexes_rows"] == 0:
+                _idx_csv = os.path.join(_public_dir, "Indexes-data.csv")
+                if os.path.exists(_idx_csv):
+                    with open(_idx_csv, "r", encoding="utf-8-sig") as _f:
+                        _result = _flow_db.insert_csv(_f.read(), source="indexes")
+                    print(f"[startup] Flow DB seeded indexes: {_result['inserted']:,} rows from Indexes-data.csv ({len(_result['dates'])} dates)")
+                else:
+                    print("[startup] Flow DB: no Indexes-data.csv found to seed")
+            else:
+                _idx_csv = os.path.join(_public_dir, "Indexes-data.csv")
+                if os.path.exists(_idx_csv):
+                    with open(_idx_csv, "r", encoding="utf-8-sig") as _f:
+                        _result = _flow_db.insert_csv(_f.read(), source="indexes")
+                    if _result["inserted"] > 0:
+                        print(f"[startup] Flow DB indexes: +{_result['inserted']:,} new rows, {_result['skipped']:,} dupes skipped")
+                    else:
+                        print(f"[startup] Flow DB indexes: {_flow_stats['indexes_rows']:,} rows, {_flow_stats['index_days']} days — up to date")
+
+            # Auto-prune expired
+            _pruned = _flow_db.prune_expired(buffer_days=1)
+            if _pruned:
+                print(f"[startup] Flow DB pruned {_pruned} expired rows")
+        except Exception as e:
+            print(f"[startup] Flow DB auto-seed error (non-fatal): {e}")
+    threading.Thread(target=_flow_db_seed_background, daemon=True, name="flow-db-seed").start()
 
     try:
         _cot_service.init_db()
