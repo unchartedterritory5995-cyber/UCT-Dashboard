@@ -31,6 +31,12 @@ describe('useTickerMeta', () => {
   it('null-safe when fetch fails', async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false })
     const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
+    await waitFor(() => expect(result.current).toEqual({ name: null, sector: null, industry: null }))
+  })
+
+  it('null-safe when JSON parsing throws', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => { throw new Error('bad json') } })
+    const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
     expect(result.current).toEqual({ name: null, sector: null, industry: null })
   })
