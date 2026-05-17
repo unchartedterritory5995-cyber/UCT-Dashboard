@@ -99,8 +99,30 @@ def _build_table(items: list[dict], limit: int = 10, show_flags: bool = True) ->
             if item.get("uoa") or "UOA" in notes.upper():
                 flags += " UOA"
 
+        # Age + Status tag
+        age = item.get("age") or ""
+        status = item.get("status") or ""
+        status_str = ""
+        if age or status:
+            age_part = age.rjust(3) if age else "   "
+            if status == "NEW":
+                status_part = " ● NEW"
+            elif status and "%" in status:
+                arrow = "▲" if status.startswith("+") else "▼"
+                status_part = f" {arrow} {status}"
+            else:
+                status_part = ""
+            status_str = f"{age_part}{status_part}"
+
+        # Pad grade+flags to fixed width so age/status columns align
+        grade_flags = f"{grade}{flags}"
+        grade_flags_padded = grade_flags.ljust(10)
+
         rank = f"{i:>2}."
-        lines.append(f"{rank} {sym} {contract}  {grade}{flags}")
+        if status_str:
+            lines.append(f"{rank} {sym} {contract}  {grade_flags_padded} {status_str}")
+        else:
+            lines.append(f"{rank} {sym} {contract}  {grade}")
 
     return "\n".join(lines) if lines else "(empty)"
 
