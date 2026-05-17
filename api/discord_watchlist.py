@@ -112,6 +112,7 @@ def build_messages(
     overall_bull: float = 0,
     overall_bear: float = 0,
     ticker_count: int = 0,
+    limit: int = 10,
 ) -> list[dict]:
     """
     Build Discord embed messages.
@@ -160,7 +161,7 @@ def build_messages(
                         f"**Net: {_fmt(net)}** · {_fmt(total_bull)} bull / {_fmt(total_bear)} bear · **{bull_pct}%** bullish\n"
                         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
                         f"🟢 **BULL WATCHLIST**\n"
-                        f"```\n{_build_table(bull_sorted)}\n```"
+                        f"```\n{_build_table(bull_sorted, limit)}\n```"
                     ),
                     "footer": {"text": f"UCT Intelligence · {time_str} · {tk_count} tickers with flow"},
                 },
@@ -168,7 +169,7 @@ def build_messages(
                     "color": RED,
                     "description": (
                         f"🔴 **BEAR WATCHLIST**\n"
-                        f"```\n{_build_table(bear_sorted)}\n```"
+                        f"```\n{_build_table(bear_sorted, limit)}\n```"
                     ),
                 },
             ]
@@ -229,6 +230,7 @@ async def send_to_discord(
     overall_bull: float = 0,
     overall_bear: float = 0,
     ticker_count: int = 0,
+    limit: int = 10,
 ) -> dict:
     """Build messages from bull/bear + unusual items and send to Discord webhook."""
     if not DISCORD_FLOW_WEBHOOK_URL:
@@ -237,7 +239,7 @@ async def send_to_discord(
 
     messages = build_messages(
         bull, bear, label, unusual_bull, unusual_bear,
-        overall_bull, overall_bear, ticker_count,
+        overall_bull, overall_bear, ticker_count, limit,
     )
 
     try:
@@ -299,11 +301,12 @@ def register_discord_routes(app_or_router):
         overall_bear = float(payload.get("overallBear", 0))
         ticker_count = int(payload.get("tickerCount", 0))
         label = payload.get("label", "WATCHLIST")
+        limit = int(payload.get("limit", 10))
 
         if not bull and not bear and not unusual_bull and not unusual_bear:
             return {"ok": False, "error": "No items to send"}
 
         return await send_to_discord(
             bull, bear, label, unusual_bull, unusual_bear,
-            overall_bull, overall_bear, ticker_count,
+            overall_bull, overall_bear, ticker_count, limit,
         )
