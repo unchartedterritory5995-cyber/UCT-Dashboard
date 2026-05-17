@@ -1735,7 +1735,8 @@ export default function OptionsFlowDashboard() {
     const sendBull = mode === "unusual" ? [] : wlBull;
     const sendBear = mode === "unusual" ? [] : wlBear;
     if (!sendBull.length && !sendBear.length && !unusual.bull.length && !unusual.bear.length) {
-      setStatus("⚠️ No items to push"); setTimeout(()=>setStatus(""),2000); setDiscordPushing(false); return;
+      setStatus(`⚠️ No items to push (${mode}: bull=${sendBull.length} bear=${sendBear.length} uBull=${unusual.bull.length} uBear=${unusual.bear.length})`);
+      setTimeout(()=>setStatus(""),3000); setDiscordPushing(false); return;
     }
     let overallBull = 0, overallBear = 0, tickerCount = 0;
     if (D && D.clean_confirmed) {
