@@ -1271,6 +1271,64 @@ export default function Settings() {
           </div>
         </TileCard>
 
+        {/* ── Disclaimers & Attributions ── */}
+        {/* Seed of the future full per-user disclaimer page. Add new <div className={styles.legalBlock}> sections here as legal content grows. */}
+        <TileCard title="Disclaimers & Attributions">
+          <div className={styles.section}>
+            <p className={styles.legalIntro}>
+              UCT Intelligence (a product of Uncharted Territory) is a market
+              research and education platform. The summary below is a starting
+              point — a full, versioned disclaimer page is on the way.
+            </p>
+
+            <div className={styles.legalBlock}>
+              <p className={styles.legalHeading}>Not Investment Advice</p>
+              <p className={styles.legalText}>
+                All data, scores, screens, AI commentary (including Compass),
+                and tools are provided for informational and educational
+                purposes only and do not constitute personalized financial,
+                investment, tax, or legal advice. Trading and investing involve
+                substantial risk of loss. Past performance is not indicative of
+                future results. You are solely responsible for your own
+                decisions and should consult a licensed professional before
+                acting on anything you see here.
+              </p>
+            </div>
+
+            <div className={styles.legalBlock}>
+              <p className={styles.legalHeading}>Market Data</p>
+              <p className={styles.legalText}>
+                Quotes, fundamentals, and historical bars are sourced from
+                third-party providers and may be delayed, incomplete, or
+                inaccurate. Data is not guaranteed and must not be relied upon
+                for trade execution or as the sole basis for any decision.
+              </p>
+            </div>
+
+            <div className={styles.legalBlock}>
+              <p className={styles.legalHeading}>Charting & Attributions</p>
+              <p className={styles.legalText}>
+                Interactive charts are powered by{' '}
+                <a
+                  href="https://www.tradingview.com/lightweight-charts/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Lightweight Charts™ by TradingView
+                </a>
+                . Charting technology and related trademarks are the property
+                of TradingView, Inc.
+              </p>
+            </div>
+
+            <div className={styles.linksRow} style={{ marginTop: 14 }}>
+              <a href="/terms" className={styles.footerLink}>Terms of Service</a>
+              <span className={styles.linkDivider}>·</span>
+              <a href="/privacy" className={styles.footerLink}>Privacy Policy</a>
+            </div>
+          </div>
+        </TileCard>
+
         {/* ── Referral Program ── */}
         <ReferralSection />
 
