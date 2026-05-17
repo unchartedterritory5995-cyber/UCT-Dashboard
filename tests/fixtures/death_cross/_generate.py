@@ -468,8 +468,14 @@ def _build_slope_boundary_series(target_slope: float) -> list:
         cross_idx]).
       - Also outside both 50SMA reference points (cross bar uses bars[cross_idx-49..
         cross_idx]; slope start uses bars[cross_idx-69..cross_idx-20]).
+      - Caveat: the zone's last bar (cross_idx-200) IS inside ma200_prev's window
+        (bars[cross_idx-200..cross_idx-1], used by the m50_p>=m200_p cross
+        precondition at i=cross_idx). Its single-bar contribution is ~1/200 of
+        ma200_prev — far too small to flip the precondition, since the base series
+        keeps ma50_prev well above ma200_prev pre-cross. Verified: the fail fixture
+        still contains a genuine cross (the boundary test asserts it independently).
       - Modifying only these 20 bars changes ma200_ss WITHOUT affecting ma200_cross,
-        ma50_cross, or ma50_ss.
+        ma50_cross, or ma50_ss (and only negligibly perturbs ma200_prev).
 
     Closed-form derivation:
       slope = (ma200_cross - ma200_ss) / ma200_ss = target
