@@ -32,7 +32,15 @@ export const CHART_DEFAULTS = {
     hvcEnabled: true,
   },
 
-  watermark: { visible: true, opacity: 0.07 },
+  watermark: {
+    visible: true,
+    opacity: 0.07,
+    color: '#a8a290',
+    sizeScale: 1.0,
+    lines: { ticker: true, company: true, sector: true, industry: false },
+    x: 0.5,
+    y: 0.5,
+  },
 
   drawingDefaults: { color: '#c9a84c', width: 1 },
 
@@ -205,7 +213,11 @@ export function mergeChartSettings(userSettings) {
       ? parsed.overlays.map((o, i) => ({ ...CHART_DEFAULTS.overlays[i], ...o }))
       : CHART_DEFAULTS.overlays.map(o => ({ ...o })),
     volume: { ...CHART_DEFAULTS.volume, ...(parsed.volume || {}) },
-    watermark: { ...CHART_DEFAULTS.watermark, ...(parsed.watermark || {}) },
+    watermark: {
+      ...CHART_DEFAULTS.watermark,
+      ...(parsed.watermark || {}),
+      lines: { ...CHART_DEFAULTS.watermark.lines, ...((parsed.watermark || {}).lines || {}) },
+    },
     drawingDefaults: { ...CHART_DEFAULTS.drawingDefaults, ...(parsed.drawingDefaults || {}) },
     indicators: {
       rsi:  { ...CHART_DEFAULTS.indicators.rsi,  ...(parsed.indicators?.rsi  || {}) },
