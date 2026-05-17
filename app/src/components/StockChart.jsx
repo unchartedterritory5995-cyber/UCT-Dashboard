@@ -18,6 +18,7 @@ import * as realtimeCandle from '../lib/realtimeCandle'
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
+import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
@@ -1532,6 +1533,7 @@ export default function StockChart({
         textColor: themeColors.textColor,
         fontFamily: "'Instrument Sans', sans-serif",
         fontSize: 10,
+        attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
       },
       grid: {
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
@@ -2907,6 +2909,14 @@ export default function StockChart({
         className={styles.chart}
         style={{ display: error ? 'none' : 'block' }}
       />
+      {!error && (
+        <img
+          src={brandMark}
+          alt="Uncharted Territory"
+          className={styles.brandLogo}
+          draggable={false}
+        />
+      )}
       {crosshairData && (
         <div className={styles.legend}>
           <span className={styles.legendTime}>{formatLegendTime(crosshairData.time)}</span>

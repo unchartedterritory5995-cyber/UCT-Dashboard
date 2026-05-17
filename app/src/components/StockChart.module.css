@@ -13,6 +13,24 @@
   height: 100%;
 }
 
+/* ── UCT brand mark — replaces the built-in TradingView attribution logo ── */
+.brandLogo {
+  position: absolute;
+  bottom: 6px;
+  left: 10px;
+  height: 22px;
+  width: auto;
+  z-index: 3;
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  transition: opacity 0.2s ease;
+}
+.wrapper:hover .brandLogo {
+  opacity: 0.85;
+}
+
 /* ── Loading state ── */
 .loading {
   position: absolute;
