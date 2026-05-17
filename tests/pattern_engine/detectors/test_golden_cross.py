@@ -38,12 +38,10 @@ def test_golden_cross_fixture(fixture):
         if fixture.expected_geometry_shape:
             assert d["geometry"]["shape"] == fixture.expected_geometry_shape
     else:
-        if detections:
-            for d in detections:
-                assert d["confidence"] < 50.0, (
-                    f"Fixture {fixture.name!r} expected NOT to fire, but got "
-                    f"confidence {d['confidence']:.1f}"
-                )
+        assert len(detections) == 0, (
+            f"Fixture {fixture.name!r} expected NOT to fire, but got "
+            f"{len(detections)} detection(s)."
+        )
 
 
 def test_fixture_battery_has_minimum_coverage():
@@ -150,22 +148,31 @@ def test_levels_are_bullish_setup():
 
 
 # ---------------------------------------------------------------------------
-# Slope-gate _EPS boundary unit tests
+# Slope-gate _EPS unit tests
 #
-# WHY UNIT TESTS (not full-series fixtures) for the passing side:
-# A golden cross with cross_age <= 5 and 200SMA slope exactly at -0.005
-# cannot be produced by a natural multi-phase price series.  Mathematical
-# proof: the bars that drive ma50 above ma200 (the cross-driving bars) are
-# necessarily the newest-20 in the slope window. Those rising bars make the
-# slope positive; to keep slope negative while ma50_rising=True would require
-# the 50SMA-window bars (outside the slope window) to be below p_old, which
-# collapses the 200SMA and destroys the cross condition. This was verified
-# exhaustively across 50+ parameter combinations.
+# _EPS = 1e-9 is a defensive epsilon in the gate `ma200_slope >= -0.005 - _EPS`.
+# It is NOT load-bearing for current inputs — the SMA arithmetic on the
+# synthetic boundary series produces slope = -0.004999...9e-17 > -0.005,
+# which already passes the plain `>= -0.005` check.  _EPS is belt-and-
+# suspenders against float residue on non-integer series / future refactors.
 #
-# The synthetic FIXTURE gc_slope_gate_boundary_fail (negative, slope=-0.52%)
-# and gc_edge_slope_gate_boundary_pass (edge, slope=-0.50%) already exercise
-# the JSON-fixture path.  These unit tests exist to prove _EPS is load-bearing:
-# without it, the boundary-pass fixture would be rejected by float residue.
+# Concretely: with target_slope=-0.005 and all-integer prices:
+#   p_cross   = 8346.0                     (exact integer)
+#   ma200[250]= 26666/200 = 133.33         (not exactly representable)
+#   ma200[230]= 134.0                      (exact)
+#   actual_slope = -0.004999...9e-17       (slightly ABOVE -0.005 in IEEE 754)
+# => plain `>= -0.005` is True; `>= -0.005 - _EPS` also True — both paths pass.
+#
+# The fixtures gc_slope_gate_boundary_fail (negative, slope=-0.52%) and
+# gc_edge_slope_gate_boundary_pass (edge, slope=-0.50%) validly exercise the
+# gate rejecting clearly-too-negative slopes and accepting the boundary value;
+# they do NOT specifically prove _EPS is load-bearing.
+#
+# test_slope_gate_boundary_pass_with_eps below runs the full detector on the
+# boundary series and explicitly documents the honest slope arithmetic.
+# test_eps_is_defensive documents the two-inequality proof of the defensive
+# nature of _EPS (slope strictly above -0.005 in IEEE 754 arithmetic).
+# test_slope_gate_boundary_fail_without_cross verifies the rejection side.
 # ---------------------------------------------------------------------------
 
 
@@ -228,18 +235,17 @@ _GOOD_CTX = {
 
 
 def test_slope_gate_boundary_pass_with_eps():
-    """200SMA slope exactly = -0.005 FIRES with _EPS guard.
+    """200SMA slope ≈ -0.005 FIRES — boundary series passes the slope gate.
 
-    Before _EPS: the computed slope (-0.004999...) might be rejected if the
-    gate is `>= -0.005` with no epsilon (float residue can push the value
-    below -0.005 by a few ULPs).  With `>= -0.005 - _EPS` the detection fires.
-
-    This is the load-bearing proof for the _EPS constant.
+    The synthetic boundary series (target_slope=-0.005) produces integer prices
+    (p_cross=8346.0), which means the IEEE 754 division yields a slope slightly
+    ABOVE -0.005 (≈ -0.004999...9e-17).  The detector fires regardless of _EPS;
+    this test verifies the boundary case fires and documents the honest arithmetic.
     """
     bars = _build_slope_boundary_bars(target_slope=-0.005)
     detections = detect_golden_cross(bars, _GOOD_CTX)
 
-    # Verify the actual slope that the detector would compute
+    # Compute the actual slope the detector sees
     n = len(bars)
     cross_idx = n - 2  # cross bar is second-to-last (1 trailing bar)
     ss = max(0, cross_idx - 20)
@@ -247,19 +253,52 @@ def test_slope_gate_boundary_pass_with_eps():
     ma200_ss = _sma(bars, ss, 200)
     actual_slope = (ma200_cross - ma200_ss) / ma200_ss
 
-    # The slope should be at or very near -0.005
+    # Slope should be very close to -0.005
     assert abs(actual_slope - (-0.005)) < 1e-6, (
-        f"Expected slope ≈ -0.005, got {actual_slope:.8f}"
+        f"Expected slope ≈ -0.005, got {actual_slope!r}"
     )
-    # WITHOUT _EPS: `actual_slope >= -0.005` might be False due to float residue.
-    # WITH _EPS:    `actual_slope >= -0.005 - _EPS` is True.
+    # Both the plain gate and the _EPS-guarded gate pass — _EPS is not needed here
+    assert actual_slope >= -0.005, (
+        f"Plain gate (>= -0.005) should pass for this all-integer series; "
+        f"got slope={actual_slope!r}"
+    )
     assert actual_slope >= -0.005 - _EPS, (
-        f"Slope {actual_slope:.8f} should satisfy >= -0.005 - EPS={_EPS}"
+        f"EPS-guarded gate (>= -0.005 - {_EPS}) should also pass; "
+        f"got slope={actual_slope!r}"
     )
     assert len(detections) >= 1, (
-        f"Slope {actual_slope:.8f} is at the inclusive boundary "
-        f"(-0.005 + _EPS = {-0.005 + _EPS:.2e}) — detector must FIRE. "
-        f"Got 0 detections. _EPS={_EPS} is load-bearing."
+        f"Boundary slope {actual_slope!r} should fire; got 0 detections."
+    )
+
+
+def test_eps_is_defensive():
+    """_EPS is defensive: the boundary series slope already passes the plain gate.
+
+    This is the honest proof of _EPS's nature:
+      - actual_slope > -0.005  (plain gate passes — _EPS not needed)
+      - actual_slope >= -0.005 - _EPS  (EPS-guarded gate also passes — trivially)
+
+    The SMA formula on all-integer prices in the boundary series produces a slope
+    that is strictly above -0.005 in IEEE 754 arithmetic (not below it), so _EPS
+    adds no rescue here.  _EPS remains as belt-and-suspenders for non-integer price
+    series or future threshold changes.
+    """
+    bars = _build_slope_boundary_bars(target_slope=-0.005)
+    n = len(bars)
+    cross_idx = n - 2
+    ss = max(0, cross_idx - 20)
+    ma200_cross = _sma(bars, cross_idx, 200)
+    ma200_ss = _sma(bars, ss, 200)
+    actual_slope = (ma200_cross - ma200_ss) / ma200_ss
+
+    # The slope is strictly ABOVE -0.005 — plain gate already passes, _EPS not needed
+    assert actual_slope > -0.005, (
+        f"Expected slope > -0.005 (so _EPS is defensive, not load-bearing); "
+        f"got {actual_slope!r}"
+    )
+    # Trivially, the EPS-guarded gate also passes
+    assert actual_slope >= -0.005 - _EPS, (
+        f"EPS-guarded gate must also pass; got {actual_slope!r}"
     )
 
 

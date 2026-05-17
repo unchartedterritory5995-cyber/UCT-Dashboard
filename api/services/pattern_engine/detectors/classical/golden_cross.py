@@ -12,7 +12,7 @@ by institutions whose combined AUM dwarfs any individual operator.
 
 Conditions:
   - ma50[current] > ma200[current]
-  - ma50[-5] <= ma200[-5] (crossover within last 5 bars)
+  - ma50 <= ma200 on the bar immediately before the detected cross (cross within last 5 bars)
   - Both MAs rising over 20-bar lookback
   - 200SMA slope rising or flat (>= -0.5%, inclusive with float epsilon)
   - Volume: hard floor of 0.5× 20-bar average (bars below 0.5× are rejected as
@@ -50,7 +50,12 @@ _MAX_CROSS_AGE = 5     # cross must be within last 5 bars
 _SLOPE_BARS = 20       # measure MA slope over 20 bars
 _ATR_PERIOD = 14
 _CONFIDENCE_FLOOR = 50.0
-_EPS = 1e-9            # epsilon for inclusive boundary comparisons (avoids float residue rejection)
+_EPS = 1e-9            # defensive epsilon for the -0.005 slope gate; belt-and-suspenders, not
+                       # load-bearing for current inputs: the SMA arithmetic on the boundary
+                       # series produces slope = -0.004999... > -0.005 (passes the plain gate
+                       # already). Kept because: (a) non-integer price series on other hardware
+                       # could accumulate different float residue, and (b) future threshold
+                       # refactors might introduce exact-boundary inputs.
 
 
 def _sma(bars: List[Bar], end_idx: int, period: int) -> Optional[float]:
@@ -109,8 +114,8 @@ def detect_golden_cross(bars: List[Bar], context: dict) -> List[Detection]:
 
     ma50_cross = _sma(bars, cross_idx, _MA50_PERIOD)
     ma200_cross = _sma(bars, cross_idx, _MA200_PERIOD)
-    ma50_5ago = _sma(bars, cross_idx - 1, _MA50_PERIOD) if cross_idx > 0 else None
-    ma200_5ago = _sma(bars, cross_idx - 1, _MA200_PERIOD) if cross_idx > 0 else None
+    ma50_pre_cross = _sma(bars, cross_idx - 1, _MA50_PERIOD) if cross_idx > 0 else None
+    ma200_pre_cross = _sma(bars, cross_idx - 1, _MA200_PERIOD) if cross_idx > 0 else None
 
     if any(v is None for v in (ma50_cross, ma200_cross)):
         return []
@@ -150,8 +155,8 @@ def detect_golden_cross(bars: List[Bar], context: dict) -> List[Detection]:
         "days_since_cross": last_idx - cross_idx,
         "ma50_current": ma50_now,
         "ma200_current": ma200_now,
-        "ma50_5bars_ago": ma50_5ago,
-        "ma200_5bars_ago": ma200_5ago,
+        "ma50_pre_cross": ma50_pre_cross,
+        "ma200_pre_cross": ma200_pre_cross,
         "ma200_slope_20bars": ma200_slope,
         "ma50_rising": ma50_rising,
         "volume_ratio": volume_ratio,
@@ -256,8 +261,8 @@ def _build_detection(bars, c, confidence, context,
     extras = {
         "ma50_current": round(ma50, 2),
         "ma200_current": round(ma200, 2),
-        "ma50_5bars_ago": round(c["ma50_5bars_ago"], 2) if c["ma50_5bars_ago"] else None,
-        "ma200_5bars_ago": round(c["ma200_5bars_ago"], 2) if c["ma200_5bars_ago"] else None,
+        "ma50_pre_cross": round(c["ma50_pre_cross"], 2) if c["ma50_pre_cross"] else None,
+        "ma200_pre_cross": round(c["ma200_pre_cross"], 2) if c["ma200_pre_cross"] else None,
         "ma200_slope_20bars": round(c["ma200_slope_20bars"], 5),
         "days_since_cross": int(c["days_since_cross"]),
         "volume_ratio": round(c["volume_ratio"], 2),
