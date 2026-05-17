@@ -1674,6 +1674,27 @@ export default function OptionsFlowDashboard() {
     }).catch(()=>{});
   };
 
+  // ─── Discord Push ───────────────────────────────────────────────────
+  const [discordPushing, setDiscordPushing] = useState(false);
+  const [discordLabel, setDiscordLabel] = useState("WATCHLIST");
+  const wlPushDiscord = async () => {
+    if (!wlBull.length && !wlBear.length) { setStatus("⚠️ No watchlist items to push"); setTimeout(()=>setStatus(""),2000); return; }
+    setDiscordPushing(true);
+    try {
+      const resp = await fetch("/api/discord/push",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({bull:wlBull,bear:wlBear,label:discordLabel})
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        setStatus(`✅ Pushed to Discord — ${data.messages_sent} messages, ${data.bull_count} bull / ${data.bear_count} bear`);
+      } else {
+        setStatus(`❌ Discord push failed: ${data.error||"unknown error"}`);
+      }
+    } catch(e) { setStatus(`❌ Discord push error: ${e.message}`); }
+    setDiscordPushing(false);
+    setTimeout(()=>setStatus(""),4000);
+  };
+
   const wlLoad = (day) => {
     fetch("/api/watchlist/load/"+day).then(r=>r.json()).then(d=>{
       setWlBull(d.bull||[]); setWlBear(d.bear||[]); setWlRemoved(d.removed||[]); setWlDate(day); setWlLoaded(true);
@@ -5881,6 +5902,17 @@ export default function OptionsFlowDashboard() {
                     style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     💾 Save Watchlist
                   </button>
+                  <div style={{ display:"flex", alignItems:"center", gap:2 }}>
+                    <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
+                      style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
+                      {["WATCHLIST","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
+                    </select>
+                    <button onClick={wlPushDiscord} disabled={discordPushing}
+                      style={{ padding:"5px 14px", borderRadius:"0 5px 5px 0", border:"none", background:discordPushing?"#5865F266":"#5865F2", color:"#fff",
+                        fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:discordPushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                      {discordPushing ? "Sending…" : "📤 Push to Discord"}
+                    </button>
+                  </div>
                   <button onClick={wlFetchOI} disabled={wlOILoading}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+(wlOILoading?P.bd:P.ac), background:"transparent",
                       color:wlOILoading?P.dm:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlOILoading?"not-allowed":"pointer" }}>
