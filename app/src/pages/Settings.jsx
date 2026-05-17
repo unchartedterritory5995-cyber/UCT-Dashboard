@@ -462,17 +462,18 @@ function ChartSettingsSection({ prefs, setPref }) {
 
   const update = useCallback((path, value) => {
     const next = { ...cs }
-    if (path.includes('.')) {
-      const [section, key] = path.split('.')
-      if (section === 'overlays') {
-        // overlays.0.color etc
-        const [, idx, field] = path.split('.')
-        next.overlays = next.overlays.map((o, i) =>
-          i === parseInt(idx) ? { ...o, [field]: field === 'period' ? parseInt(value) || o.period : value } : o
-        )
-      } else {
-        next[section] = { ...next[section], [key]: value }
-      }
+    const parts = path.split('.')
+    if (parts.length === 3 && parts[0] === 'overlays') {
+      const [, idx, field] = parts
+      next.overlays = next.overlays.map((o, i) =>
+        i === parseInt(idx) ? { ...o, [field]: field === 'period' ? parseInt(value) || o.period : value } : o
+      )
+    } else if (parts.length === 3) {
+      const [section, sub, key] = parts
+      next[section] = { ...next[section], [sub]: { ...next[section][sub], [key]: value } }
+    } else if (parts.length === 2) {
+      const [section, key] = parts
+      next[section] = { ...next[section], [key]: value }
     } else {
       next[path] = value
     }
@@ -645,21 +646,64 @@ function ChartSettingsSection({ prefs, setPref }) {
           <div className={styles.chartRow}>
             <label className={styles.chartToggle}>
               <input type="checkbox" checked={cs.watermark.visible} onChange={e => update('watermark.visible', e.target.checked)} />
-              <span>Show ticker watermark</span>
+              <span>Show symbol watermark</span>
             </label>
+          </div>
+          <div className={styles.chartRow} style={{ marginTop: 8, gap: 14, flexWrap: 'wrap' }}>
+            <label className={styles.chartToggle}>
+              <input type="checkbox" checked={cs.watermark.lines.ticker} onChange={e => update('watermark.lines.ticker', e.target.checked)} />
+              <span>Ticker</span>
+            </label>
+            <label className={styles.chartToggle}>
+              <input type="checkbox" checked={cs.watermark.lines.company} onChange={e => update('watermark.lines.company', e.target.checked)} />
+              <span>Company</span>
+            </label>
+            <label className={styles.chartToggle}>
+              <input type="checkbox" checked={cs.watermark.lines.sector} onChange={e => update('watermark.lines.sector', e.target.checked)} />
+              <span>Sector</span>
+            </label>
+            <label className={styles.chartToggle}>
+              <input type="checkbox" checked={cs.watermark.lines.industry} onChange={e => update('watermark.lines.industry', e.target.checked)} />
+              <span>Industry</span>
+            </label>
+          </div>
+          <div className={styles.chartRow} style={{ marginTop: 8 }}>
+            <ColorPicker label="Color" value={cs.watermark.color} onChange={v => update('watermark.color', v)} />
           </div>
           <div className={styles.chartRow} style={{ marginTop: 8, alignItems: 'center' }}>
             <span className={styles.chartMiniLabel}>Opacity</span>
             <input
               type="range"
               className={styles.opacitySlider}
-              min={0.02}
-              max={0.2}
+              min={0}
+              max={0.3}
               step={0.01}
               value={cs.watermark.opacity}
               onChange={e => update('watermark.opacity', parseFloat(e.target.value))}
             />
             <span className={styles.chartMiniLabel}>{Math.round(cs.watermark.opacity * 100)}%</span>
+          </div>
+          <div className={styles.chartRow} style={{ marginTop: 8, alignItems: 'center' }}>
+            <span className={styles.chartMiniLabel}>Size</span>
+            <input
+              type="range"
+              className={styles.opacitySlider}
+              min={0.5}
+              max={2}
+              step={0.1}
+              value={cs.watermark.sizeScale}
+              onChange={e => update('watermark.sizeScale', parseFloat(e.target.value))}
+            />
+            <span className={styles.chartMiniLabel}>{cs.watermark.sizeScale.toFixed(1)}×</span>
+          </div>
+          <div className={styles.chartRow} style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className={styles.btn}
+              onClick={() => { update('watermark.x', 0.5); update('watermark.y', 0.5) }}
+            >
+              Reset position to center
+            </button>
           </div>
         </div>
 

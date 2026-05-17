@@ -96,8 +96,12 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
 
   const update = useCallback((path, value) => {
     const next = { ...cs }
-    if (path.includes('.')) {
-      const [section, key] = path.split('.')
+    const parts = path.split('.')
+    if (parts.length === 3) {
+      const [section, sub, key] = parts
+      next[section] = { ...next[section], [sub]: { ...next[section][sub], [key]: value } }
+    } else if (parts.length === 2) {
+      const [section, key] = parts
       next[section] = { ...next[section], [key]: value }
     } else {
       next[path] = value
@@ -203,6 +207,52 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
             <input type="checkbox" checked={cs.watermark.visible} onChange={e => update('watermark.visible', e.target.checked)} />
             Watermark
           </label>
+        </div>
+      </div>
+
+      {/* ── Watermark ── */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Watermark</span>
+        <div className={styles.sRow}>
+          <label className={styles.sCheck}>
+            <input type="checkbox" checked={cs.watermark.lines.ticker} onChange={e => update('watermark.lines.ticker', e.target.checked)} />
+            Ticker
+          </label>
+          <label className={styles.sCheck}>
+            <input type="checkbox" checked={cs.watermark.lines.company} onChange={e => update('watermark.lines.company', e.target.checked)} />
+            Company
+          </label>
+        </div>
+        <div className={styles.sRow}>
+          <label className={styles.sCheck}>
+            <input type="checkbox" checked={cs.watermark.lines.sector} onChange={e => update('watermark.lines.sector', e.target.checked)} />
+            Sector
+          </label>
+          <label className={styles.sCheck}>
+            <input type="checkbox" checked={cs.watermark.lines.industry} onChange={e => update('watermark.lines.industry', e.target.checked)} />
+            Industry
+          </label>
+        </div>
+        <div className={styles.sRow} style={{ marginTop: 6 }}>
+          <ColorPicker label="Color" value={cs.watermark.color} onChange={v => update('watermark.color', v)} />
+        </div>
+        <div className={styles.sRow} style={{ marginTop: 6, alignItems: 'center' }}>
+          <span>Opacity</span>
+          <input type="range" min={0} max={0.3} step={0.01} value={cs.watermark.opacity}
+            onChange={e => update('watermark.opacity', parseFloat(e.target.value))} />
+          <span>{Math.round(cs.watermark.opacity * 100)}%</span>
+        </div>
+        <div className={styles.sRow} style={{ marginTop: 6, alignItems: 'center' }}>
+          <span>Size</span>
+          <input type="range" min={0.5} max={2} step={0.1} value={cs.watermark.sizeScale}
+            onChange={e => update('watermark.sizeScale', parseFloat(e.target.value))} />
+          <span>{cs.watermark.sizeScale.toFixed(1)}×</span>
+        </div>
+        <div className={styles.sRow} style={{ marginTop: 6 }}>
+          <button type="button" className={styles.sMiniSelect}
+            onClick={() => { update('watermark.x', 0.5); update('watermark.y', 0.5) }}>
+            Reset to center
+          </button>
         </div>
       </div>
 
