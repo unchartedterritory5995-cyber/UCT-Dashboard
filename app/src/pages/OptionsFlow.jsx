@@ -1576,6 +1576,7 @@ export default function OptionsFlowDashboard() {
 
   // Helper: extract first/latest date and spot from CONV trades
   const _extractDateSpot = (c, dateMap) => {
+    // Try 1: this CONV item's own trades
     const trades = (c.trades||[]).filter(t=>t.Dt);
     if (trades.length) {
       const parsed = trades.map(t => {
@@ -1585,30 +1586,60 @@ export default function OptionsFlowDashboard() {
       }).sort((a,b)=>a.dt-b.dt);
       return { firstDate: parsed[0].raw, entrySpot: parsed[0].spot, latestSpot: parsed[parsed.length-1].spot };
     }
-    // Fallback: use dateMap built from clean_confirmed
+    // Try 2: dateMap from clean_confirmed
     if (dateMap && dateMap[c.sym]) {
       return { firstDate: dateMap[c.sym].dt, entrySpot: dateMap[c.sym].spot, latestSpot: dateMap[c.sym].latestSpot || 0 };
+    }
+    // Try 3: scan ALL CONV items for this ticker
+    if (FD && FD.CONV) {
+      for (const conv of FD.CONV) {
+        if (conv.sym !== c.sym) continue;
+        const ct = (conv.trades||[]).filter(t=>t.Dt);
+        if (ct.length) {
+          const parsed = ct.map(t => {
+            const p = (t.Dt||"").split("/").map(Number);
+            const y = p.length>=3 ? (p[2]<100?p[2]+2000:p[2]) : 2026;
+            return { dt: new Date(y, p[0]-1, p[1]||1), raw: t.Dt, spot: t.Spot||0 };
+          }).sort((a,b)=>a.dt-b.dt);
+          return { firstDate: parsed[0].raw, entrySpot: parsed[0].spot, latestSpot: parsed[parsed.length-1].spot };
+        }
+      }
     }
     return { firstDate:"", entrySpot:0, latestSpot:0 };
   };
 
   // Build ticker → earliest date map from clean_confirmed (always has Dt)
+  // Build ticker → earliest date map from multiple sources
   const _buildDateMap = () => {
     const map = {};
-    if (!D || !D.clean_confirmed) return map;
-    D.clean_confirmed.forEach(t => {
-      if (!t.Dt || !t.S) return;
-      const p = t.Dt.split("/").map(Number);
+    const _addTrade = (sym, dt, spot) => {
+      if (!dt || !sym) return;
+      const p = dt.split("/").map(Number);
+      if (p.length < 2 || isNaN(p[0]) || isNaN(p[1])) return;
       const y = p.length>=3 ? (p[2]<100?p[2]+2000:p[2]) : 2026;
       const d = new Date(y, p[0]-1, p[1]||1);
-      const sym = t.S;
+      if (isNaN(d.getTime())) return;
       if (!map[sym]) {
-        map[sym] = { dt: t.Dt, date: d, spot: t.Spot||0, latestSpot: t.Spot||0, latestDate: d };
+        map[sym] = { dt, date: d, spot: spot||0, latestSpot: spot||0, latestDate: d };
       } else {
-        if (d < map[sym].date) { map[sym].dt = t.Dt; map[sym].date = d; map[sym].spot = t.Spot||0; }
-        if (d > map[sym].latestDate) { map[sym].latestSpot = t.Spot||0; map[sym].latestDate = d; }
+        if (d < map[sym].date) { map[sym].dt = dt; map[sym].date = d; map[sym].spot = spot||0; }
+        if (d > map[sym].latestDate) { map[sym].latestSpot = spot||0; map[sym].latestDate = d; }
       }
-    });
+    };
+    // Source 1: clean_confirmed
+    if (D && D.clean_confirmed) {
+      D.clean_confirmed.forEach(t => _addTrade(t.S, t.Dt, t.Spot));
+    }
+    // Source 2: all_directional (broader — includes non-confirmed)
+    if (D && D.all_directional) {
+      D.all_directional.forEach(t => _addTrade(t.S, t.Dt, t.Spot));
+    }
+    // Source 3: CONV trades (in case sources 1-2 miss some)
+    if (FD && FD.CONV) {
+      FD.CONV.forEach(c => {
+        (c.trades||[]).forEach(t => _addTrade(c.sym, t.Dt, t.Spot));
+      });
+    }
     return map;
   };
 
