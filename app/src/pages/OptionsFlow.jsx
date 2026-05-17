@@ -5077,8 +5077,8 @@ export default function OptionsFlowDashboard() {
                   <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
                     <button onClick={()=>{
                       const tickers = batchTickers.split(/[,\s\n]+/).map(s=>s.trim()).filter(Boolean);
-                      if (!tickers.length || !D.clean_confirmed) return;
-                      const cc = capFilter==="All" ? D.clean_confirmed : (D.clean_confirmed||[]).filter(t=>capBand(t.mktcap)===capFilter);
+                      if (!tickers.length || !D.all_directional) return;
+                      const cc = capFilter==="All" ? D.all_directional : (D.all_directional||[]).filter(t=>capBand(t.mktcap)===capFilter);
                       const results = tickers.map(sym => {
                         const trades = cc.filter(t=>t.S===sym);
                         if (!trades.length) return { sym, found:false };
@@ -5181,7 +5181,7 @@ export default function OptionsFlowDashboard() {
                         return (
                           <div key={r.sym} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px", borderBottom:"1px solid "+P.bd+"15", textAlign:"center", cursor:"pointer" }}
                             onClick={()=>{
-                              const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t=>capBand(t.mktcap)===capFilter);
+                              const cc = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t=>capBand(t.mktcap)===capFilter);
                               const trades = cc.filter(t=>t.S===r.sym);
                               const contracts = {};
                               trades.forEach(t => {
@@ -5275,8 +5275,9 @@ export default function OptionsFlowDashboard() {
                       </tr></thead>
                       <tbody>
                         {(()=>{
-                          const sorted = [...batchResults];
-                          const dir = batchSortDir==="desc"?-1:1;
+                          const found = batchResults.filter(r=>r.found);
+                          const notFound = batchResults.filter(r=>!r.found);
+                          const dir = batchSortDir==="desc"?1:-1;
                           const getPnl = (r) => {
                             if(!r.found||!r.topContract) return -999;
                             const tc=r.topContract;
@@ -5285,18 +5286,19 @@ export default function OptionsFlowDashboard() {
                             const entry=tc.entry||0;
                             return (now>0&&entry>0)?(now-entry)/entry*100:-999;
                           };
-                          if(batchSort==="net") sorted.sort((a,b)=>((b.net||0)-(a.net||0))*dir);
-                          else if(batchSort==="bull") sorted.sort((a,b)=>((b.bull||0)-(a.bull||0))*dir);
-                          else if(batchSort==="bear") sorted.sort((a,b)=>((b.bear||0)-(a.bear||0))*dir);
-                          else if(batchSort==="bullpct") sorted.sort((a,b)=>((b.bullPct||0)-(a.bullPct||0))*dir);
-                          else if(batchSort==="pnl") sorted.sort((a,b)=>(getPnl(b)-getPnl(a))*dir);
-                          else if(batchSort==="oi") sorted.sort((a,b)=>{
-                            const oiA = a.found&&a.topContract ? (getPrice(a.sym,a.topContract.cp,a.topContract.K,a.topContract.exp)||{}).oi||0 : 0;
-                            const oiB = b.found&&b.topContract ? (getPrice(b.sym,b.topContract.cp,b.topContract.K,b.topContract.exp)||{}).oi||0 : 0;
+                          if(batchSort==="net") found.sort((a,b)=>((b.net||0)-(a.net||0))*dir);
+                          else if(batchSort==="bull") found.sort((a,b)=>((b.bull||0)-(a.bull||0))*dir);
+                          else if(batchSort==="bear") found.sort((a,b)=>((b.bear||0)-(a.bear||0))*dir);
+                          else if(batchSort==="bullpct") found.sort((a,b)=>((b.bullPct||0)-(a.bullPct||0))*dir);
+                          else if(batchSort==="pnl") found.sort((a,b)=>(getPnl(b)-getPnl(a))*dir);
+                          else if(batchSort==="oi") found.sort((a,b)=>{
+                            const oiA = a.topContract ? (getPrice(a.sym,a.topContract.cp,a.topContract.K,a.topContract.exp)||{}).oi||0 : 0;
+                            const oiB = b.topContract ? (getPrice(b.sym,b.topContract.cp,b.topContract.K,b.topContract.exp)||{}).oi||0 : 0;
                             return (oiB-oiA)*dir;
                           });
-                          else if(batchSort==="ticker") sorted.sort((a,b)=>a.sym.localeCompare(b.sym)*dir);
-                          return sorted.map(r => {
+                          else if(batchSort==="ticker") found.sort((a,b)=>a.sym.localeCompare(b.sym)*dir);
+                          notFound.sort((a,b)=>a.sym.localeCompare(b.sym));
+                          return [...found,...notFound].map(r => {
                           if (!r.found) return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.4 }}>
                               <td style={{ padding:"5px", fontWeight:800, color:P.wh }}>{r.sym}</td>
@@ -5317,7 +5319,7 @@ export default function OptionsFlowDashboard() {
                           return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
                               onClick={()=>{
-                                const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t=>capBand(t.mktcap)===capFilter);
+                                const cc = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t=>capBand(t.mktcap)===capFilter);
                                 const trades = cc.filter(t=>t.S===r.sym);
                                 const contracts = {};
                                 trades.forEach(t => {
