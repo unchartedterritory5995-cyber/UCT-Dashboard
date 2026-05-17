@@ -5014,7 +5014,7 @@ export default function OptionsFlowDashboard() {
                       if (gsCol==="sym") return m*a.sym.localeCompare(b.sym);
                       if (gsCol==="bull") return m*(a.bull-b.bull);
                       if (gsCol==="bear") return m*(a.bear-b.bear);
-                      if (gsCol==="net") return m*(Math.abs(a.bull-a.bear)-Math.abs(b.bull-b.bear));
+                      if (gsCol==="net") return m*((a.bull-a.bear)-(b.bull-b.bear));
                       if (gsCol==="trades") return m*(a.n-b.n);
                       return 0;
                     });
@@ -5096,7 +5096,7 @@ export default function OptionsFlowDashboard() {
                         const sorted=Object.values(contracts).sort((a,b)=>b.prem-a.prem);
                         sorted.forEach(c=>{ c.entry = c.prices.length>0 ? c.prices.sort((a,b)=>a-b)[Math.floor(c.prices.length/2)] : 0; });
                         const top=sorted[0]||null;
-                        return { sym, found:true, bull, bear, n, bullPct, dir:bull>=bear?"BULL":"BEAR", net:Math.abs(bull-bear), topContract:top, contractCount:sorted.length, hasSwp, hasBlk, mktcap:trades[0]?.mktcap||0 };
+                        return { sym, found:true, bull, bear, n, bullPct, dir:bull>=bear?"BULL":"BEAR", net:bull-bear, topContract:top, contractCount:sorted.length, hasSwp, hasBlk, mktcap:trades[0]?.mktcap||0 };
                       });
                       setBatchResults(results);
                     }} style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:P.ac, color:P.bg }}>
@@ -5143,15 +5143,16 @@ export default function OptionsFlowDashboard() {
                     </div>
                     {/* Top Ideas from batch */}
                     {(()=>{
-                      const found = batchResults.filter(r=>r.found && r.net > 0);
+                      const found = batchResults.filter(r=>r.found && r.net !== 0);
                       if (found.length < 2) return null;
                       // Score each
                       const scored = found.map(r => {
                         let sc = 0;
+                        const absNet = Math.abs(r.net);
                         const convPct = r.dir==="BULL" ? r.bullPct : (100-r.bullPct);
                         sc += convPct >= 95 ? 25 : convPct >= 90 ? 20 : convPct >= 80 ? 15 : convPct >= 70 ? 10 : 5;
                         sc += r.hasSwp && r.hasBlk ? 25 : r.hasSwp ? 15 : 5;
-                        sc += r.net >= 50e6 ? 15 : r.net >= 20e6 ? 12 : r.net >= 5e6 ? 9 : r.net >= 1e6 ? 6 : 3;
+                        sc += absNet >= 50e6 ? 15 : absNet >= 20e6 ? 12 : absNet >= 5e6 ? 9 : absNet >= 1e6 ? 6 : 3;
                         const tc = r.topContract;
                         if (tc) {
                           sc += tc.hits >= 10 ? 10 : tc.hits >= 5 ? 7 : tc.hits >= 3 ? 4 : 2;
@@ -5199,7 +5200,7 @@ export default function OptionsFlowDashboard() {
                             }}>
                             <span style={{ fontSize:10, color:dirC, fontWeight:900, width:16 }}>{i+1}</span>
                             <span style={{ fontWeight:900, color:P.wh, fontSize:13, minWidth:50 }}>{r.sym}</span>
-                            <span style={{ fontWeight:800, color:dirC, fontSize:11 }}>{fmt(r.net)}</span>
+                            <span style={{ fontWeight:800, color:dirC, fontSize:11 }}>{fmt(Math.abs(r.net))}</span>
                             <span style={{ fontWeight:800, color:r.bullPct>=80?P.bu:r.bullPct<=20?P.be:P.dm, fontSize:10 }}>{r.dir==="BULL"?r.bullPct:(100-r.bullPct)}%</span>
                             {tc && <span style={{ fontSize:9 }}>
                               <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
@@ -5347,7 +5348,7 @@ export default function OptionsFlowDashboard() {
                                 </div>
                               </td>
                               <td style={{ padding:"5px", fontWeight:800, fontSize:10, color:r.bullPct>=80?P.bu:r.bullPct<=20?P.be:P.dm, textAlign:"center" }}>{r.bullPct}%</td>
-                              <td style={{ padding:"5px", fontWeight:900, color:dirC, textAlign:"center" }}>{fmt(r.net)}</td>
+                              <td style={{ padding:"5px", fontWeight:900, color:dirC, textAlign:"center" }}>{fmt(Math.abs(r.net))}</td>
                               <td style={{ padding:"5px", fontSize:9, textAlign:"center" }}>
                                 {tc && (<span>
                                   <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
@@ -5394,7 +5395,7 @@ export default function OptionsFlowDashboard() {
                             <span style={{ fontSize:20, fontWeight:900, color:P.wh }}>{d.sym}</span>
                             <span style={{ fontSize:8, color:P.dm }}>{capBand(d.mktcap)}</span>
                             <Tag c={dirC}>{d.dir}</Tag>
-                            <span style={{ fontWeight:800, color:dirC, fontSize:14 }}>{fmt(d.net)}</span>
+                            <span style={{ fontWeight:800, color:dirC, fontSize:14 }}>{fmt(Math.abs(d.net))}</span>
                             <span style={{ fontWeight:800, color:d.bullPct>=80?P.bu:d.bullPct<=20?P.be:P.dm, fontSize:11 }}>{d.bullPct}% bull</span>
                           </div>
                           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
