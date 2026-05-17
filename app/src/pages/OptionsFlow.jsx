@@ -5254,9 +5254,9 @@ export default function OptionsFlowDashboard() {
                     })()}
                     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10, tableLayout:"fixed" }}>
                       <colgroup>
-                        <col style={{ width:"8%" }}/><col style={{ width:"5%" }}/><col style={{ width:"9%" }}/><col style={{ width:"9%" }}/>
-                        <col style={{ width:"6%" }}/><col style={{ width:"6%" }}/><col style={{ width:"9%" }}/><col style={{ width:"22%" }}/>
-                        <col style={{ width:"9%" }}/><col style={{ width:"17%" }}/>
+                        <col style={{ width:"10%" }}/><col style={{ width:"5%" }}/><col style={{ width:"8%" }}/><col style={{ width:"8%" }}/>
+                        <col style={{ width:"5%" }}/><col style={{ width:"5%" }}/><col style={{ width:"8%" }}/><col style={{ width:"21%" }}/>
+                        <col style={{ width:"8%" }}/><col style={{ width:"22%" }}/>
                       </colgroup>
                       <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                         {[["Ticker","ticker"],["",""],["Bull","bull"],["Bear","bear"],["",""],["Bull%","bullpct"],["Net","net"],["Top Contract",""],["Live OI","oi"],["P/L","pnl"]].map(([h,sk])=>{
@@ -5335,9 +5335,9 @@ export default function OptionsFlowDashboard() {
                                 setBatchDetail({sym:r.sym, bull:r.bull, bear:r.bear, bullPct:r.bullPct, dir:r.dir, net:r.net, n:r.n,
                                   contracts:Object.values(contracts).sort((a,b)=>b.prem-a.prem), mktcap:r.mktcap});
                               }}>
-                              <td style={{ padding:"5px", fontWeight:900, color:P.wh, fontSize:11, textAlign:"center" }}>
-                                {r.sym}
-                                {capBand(r.mktcap)!=="Unknown" && <span style={{ fontSize:7, color:P.dm, marginLeft:3 }}>{capBand(r.mktcap)}</span>}
+                              <td style={{ padding:"5px", textAlign:"center" }}>
+                                <span style={{ fontWeight:900, color:P.wh, fontSize:11 }}>{r.sym}</span>
+                                {capBand(r.mktcap)!=="Unknown" && <sub style={{ fontSize:7, color:P.dm, marginLeft:2, verticalAlign:"baseline" }}>{capBand(r.mktcap)}</sub>}
                               </td>
                               <td style={{ padding:"5px", textAlign:"center" }}><Tag c={dirC}>{r.dir}</Tag></td>
                               <td style={{ padding:"5px", fontWeight:800, color:P.bu, textAlign:"center" }}>{fmt(r.bull)}</td>
