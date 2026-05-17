@@ -1575,19 +1575,46 @@ export default function OptionsFlowDashboard() {
   };
 
   // Helper: extract first/latest date and spot from CONV trades
-  const _extractDateSpot = (c) => {
+  const _extractDateSpot = (c, dateMap) => {
     const trades = (c.trades||[]).filter(t=>t.Dt);
-    if (!trades.length) return { firstDate:"", entrySpot:0, latestSpot:0 };
-    const parsed = trades.map(t => {
-      const p = (t.Dt||"").split("/").map(Number);
+    if (trades.length) {
+      const parsed = trades.map(t => {
+        const p = (t.Dt||"").split("/").map(Number);
+        const y = p.length>=3 ? (p[2]<100?p[2]+2000:p[2]) : 2026;
+        return { dt: new Date(y, p[0]-1, p[1]||1), raw: t.Dt, spot: t.Spot||0 };
+      }).sort((a,b)=>a.dt-b.dt);
+      return { firstDate: parsed[0].raw, entrySpot: parsed[0].spot, latestSpot: parsed[parsed.length-1].spot };
+    }
+    // Fallback: use dateMap built from clean_confirmed
+    if (dateMap && dateMap[c.sym]) {
+      return { firstDate: dateMap[c.sym].dt, entrySpot: dateMap[c.sym].spot, latestSpot: dateMap[c.sym].latestSpot || 0 };
+    }
+    return { firstDate:"", entrySpot:0, latestSpot:0 };
+  };
+
+  // Build ticker → earliest date map from clean_confirmed (always has Dt)
+  const _buildDateMap = () => {
+    const map = {};
+    if (!D || !D.clean_confirmed) return map;
+    D.clean_confirmed.forEach(t => {
+      if (!t.Dt || !t.S) return;
+      const p = t.Dt.split("/").map(Number);
       const y = p.length>=3 ? (p[2]<100?p[2]+2000:p[2]) : 2026;
-      return { dt: new Date(y, p[0]-1, p[1]||1), raw: t.Dt, spot: t.Spot||0 };
-    }).sort((a,b)=>a.dt-b.dt);
-    return { firstDate: parsed[0].raw, entrySpot: parsed[0].spot, latestSpot: parsed[parsed.length-1].spot };
+      const d = new Date(y, p[0]-1, p[1]||1);
+      const sym = t.S;
+      if (!map[sym]) {
+        map[sym] = { dt: t.Dt, date: d, spot: t.Spot||0, latestSpot: t.Spot||0, latestDate: d };
+      } else {
+        if (d < map[sym].date) { map[sym].dt = t.Dt; map[sym].date = d; map[sym].spot = t.Spot||0; }
+        if (d > map[sym].latestDate) { map[sym].latestSpot = t.Spot||0; map[sym].latestDate = d; }
+      }
+    });
+    return map;
   };
 
   const wlPopulate = () => {
     if (!FD || !FD.CONV) return;
+    const dateMap = _buildDateMap();
     // Deduplicate by ticker — take highest-scoring contract per ticker
     // Also apply EXIT penalty so watchlist matches Top Flow ranking
     const dedup = (list) => {
@@ -1602,7 +1629,7 @@ export default function OptionsFlowDashboard() {
       }).sort((a,b)=>b._rankScore-a._rankScore).filter(c => { if (seen.has(c.sym)) return false; seen.add(c.sym); return true; });
     };
     const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>{
-      const ds = _extractDateSpot(c);
+      const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
         strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
@@ -1612,7 +1639,7 @@ export default function OptionsFlowDashboard() {
       };
     });
     const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>{
-      const ds = _extractDateSpot(c);
+      const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
         strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
@@ -1701,6 +1728,7 @@ export default function OptionsFlowDashboard() {
 
   const _buildUnusualMidSmall = () => {
     if (!FD || !FD.CONV) return { bull: [], bear: [] };
+    const dateMap = _buildDateMap();
     const unusual = [];
     (FD.CONV||[]).forEach(c => { (c.patterns||[]).forEach(p => { unusual.push({ ...c, anomaly:p.type, source:"pattern" }); }); });
     (FD.CONV||[]).forEach(c => { if (c.volOI >= 10 && c.maxOI > 0 && c.maxOI < 500) unusual.push({ ...c, anomaly:"VOL_OI_EXTREME", source:"voloi" }); });
@@ -1718,7 +1746,7 @@ export default function OptionsFlowDashboard() {
     const tickerSeen = new Set();
     const unique = (list) => list.filter(c => { const k = c.sym+"|"+c.dir; if (tickerSeen.has(k)) return false; tickerSeen.add(k); return true; });
     const mapItem = (c, dir) => {
-      const ds = _extractDateSpot(c);
+      const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
         strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
