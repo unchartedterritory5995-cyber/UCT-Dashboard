@@ -1711,9 +1711,25 @@ export default function OptionsFlowDashboard() {
     if (!wlBull.length && !wlBear.length) { setStatus("⚠️ No watchlist items to push"); setTimeout(()=>setStatus(""),2000); return; }
     setDiscordPushing(true);
     const unusual = _buildUnusualMidSmall();
+    // Compute overall day flow from ALL clean_confirmed trades (not curated list)
+    let overallBull = 0, overallBear = 0, tickerCount = 0;
+    if (D && D.clean_confirmed) {
+      const tkSet = new Set();
+      D.clean_confirmed.forEach(t => {
+        if (t.D === "BULL") overallBull += t.P;
+        if (t.D === "BEAR") overallBear += t.P;
+        if (t.S) tkSet.add(t.S);
+      });
+      tickerCount = tkSet.size;
+    }
     try {
       const resp = await fetch("/api/discord/push",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({bull:wlBull, bear:wlBear, unusualBull:unusual.bull, unusualBear:unusual.bear, label:discordLabel})
+        body:JSON.stringify({
+          bull:wlBull, bear:wlBear,
+          unusualBull:unusual.bull, unusualBear:unusual.bear,
+          overallBull, overallBear, tickerCount,
+          label:discordLabel
+        })
       });
       const data = await resp.json();
       if (data.ok) {
