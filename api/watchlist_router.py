@@ -26,12 +26,33 @@ class WatchlistItem(BaseModel):
     prem: float = 0
     side: str = ""
     notes: str = ""
+    # Fields needed by Discord bot for cap filtering / flags
+    er: bool = False
+    uoa: bool = False
+    cap: str = ""
+    oi: float = 0
+    volume: float = 0
+    volOI: float = 0
+    liveOI: float = 0
+    liveOIDelta: float = 0
+    actionLog: list = []
+    mktcap: float = 0
+    DTE: int = 0
+
+    model_config = {"extra": "allow"}  # forward-compat: don't strip unknown fields
+
+
+class RemovedItem(BaseModel):
+    sym: str = ""
+    reason: str = ""
+    model_config = {"extra": "allow"}
 
 
 class WatchlistSave(BaseModel):
     date: str
     bull: list[WatchlistItem]
     bear: list[WatchlistItem]
+    removed: list[RemovedItem] = []
 
 
 @router.post("/save")
@@ -41,6 +62,7 @@ def save_watchlist(payload: WatchlistSave):
         payload.date,
         [item.model_dump() for item in payload.bull],
         [item.model_dump() for item in payload.bear],
+        removed=[item.model_dump() for item in payload.removed],
     )
 
 
