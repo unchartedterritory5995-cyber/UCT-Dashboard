@@ -1699,7 +1699,6 @@ export default function OptionsFlowDashboard() {
   const [discordLabel, setDiscordLabel] = useState("WATCHLIST");
 
   const _buildUnusualMidSmall = () => {
-    // Same logic as wlPopulateUnusual, but filtered to Mid-Small cap only
     if (!FD || !FD.CONV) return { bull: [], bear: [] };
     const unusual = [];
     (FD.CONV||[]).forEach(c => { (c.patterns||[]).forEach(p => { unusual.push({ ...c, anomaly:p.type, source:"pattern" }); }); });
@@ -1711,7 +1710,6 @@ export default function OptionsFlowDashboard() {
     const seen = new Set();
     const deduped = unusual.filter(u => { const k = u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp; if (seen.has(k)) return false; seen.add(k); return true; });
     const sorted = deduped.sort((a,b) => b.prem - a.prem);
-    // Filter to Mid-Small only + dedup by ticker
     const msOnly = sorted.filter(c => capBand(c.mktcap)==="Mid-Small");
     const tickerSeen = new Set();
     const unique = (list) => list.filter(c => { const k = c.sym+"|"+c.dir; if (tickerSeen.has(k)) return false; tickerSeen.add(k); return true; });
@@ -1731,11 +1729,14 @@ export default function OptionsFlowDashboard() {
     };
   };
 
-  const wlPushDiscord = async () => {
-    if (!wlBull.length && !wlBear.length) { setStatus("⚠️ No watchlist items to push"); setTimeout(()=>setStatus(""),2000); return; }
+  const wlPushDiscord = async (mode) => {
     setDiscordPushing(true);
-    const unusual = _buildUnusualMidSmall();
-    // Compute overall day flow from ALL clean_confirmed trades (not curated list)
+    const unusual = mode === "unusual" ? _buildUnusualMidSmall() : { bull: [], bear: [] };
+    const sendBull = mode === "unusual" ? [] : wlBull;
+    const sendBear = mode === "unusual" ? [] : wlBear;
+    if (!sendBull.length && !sendBear.length && !unusual.bull.length && !unusual.bear.length) {
+      setStatus("⚠️ No items to push"); setTimeout(()=>setStatus(""),2000); setDiscordPushing(false); return;
+    }
     let overallBull = 0, overallBear = 0, tickerCount = 0;
     if (D && D.clean_confirmed) {
       const tkSet = new Set();
@@ -1746,7 +1747,6 @@ export default function OptionsFlowDashboard() {
       });
       tickerCount = tkSet.size;
     }
-    // Compute age + status for each item
     const today = new Date();
     const _addStatus = (items) => items.map(item => {
       let age = "", status = "";
@@ -1757,7 +1757,6 @@ export default function OptionsFlowDashboard() {
         const diffMs = today - fd;
         const diffDays = Math.max(0, Math.round(diffMs / 86400000));
         age = diffDays <= 1 ? "1d" : diffDays + "d";
-        // Status logic
         if (diffDays <= 2) { status = "NEW"; }
         else if (item.entrySpot > 0 && item.latestSpot > 0) {
           const movePct = ((item.latestSpot - item.entrySpot) / item.entrySpot * 100);
@@ -1770,7 +1769,7 @@ export default function OptionsFlowDashboard() {
     try {
       const resp = await fetch("/api/discord/push",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
-          bull:_addStatus(wlBull), bear:_addStatus(wlBear),
+          bull:_addStatus(sendBull), bear:_addStatus(sendBear),
           unusualBull:_addStatus(unusual.bull), unusualBear:_addStatus(unusual.bear),
           overallBull, overallBear, tickerCount,
           label:discordLabel
@@ -1778,7 +1777,8 @@ export default function OptionsFlowDashboard() {
       });
       const data = await resp.json();
       if (data.ok) {
-        setStatus(`✅ Pushed to Discord — ${data.messages_sent} messages, ${data.bull_count} bull / ${data.bear_count} bear`);
+        const what = mode === "unusual" ? "unusual" : "watchlist";
+        setStatus(`✅ Pushed ${what} to Discord — ${data.messages_sent} message(s)`);
       } else {
         setStatus(`❌ Discord push failed: ${data.error||"unknown error"}`);
       }
@@ -5829,7 +5829,11 @@ export default function OptionsFlowDashboard() {
                 borderBottom:isRemoving?"none":undefined,
                 cursor:"pointer", transition:"all 0.15s" }}
                 onClick={()=>{if(!isRemoving){setWlEditing(isEditing?null:key); setWlRemoving(null);}}}>
-                {/* Ticker + Score */}
+                {/* Quick remove ✗ */}
+                <button onClick={e=>{e.stopPropagation(); const n=[...list]; n.splice(idx,1); setList(n);}}
+                  style={{ background:"transparent", border:"none", color:P.dm, fontSize:12, cursor:"pointer", padding:"2px 4px", lineHeight:1, flexShrink:0, opacity:0.5 }}
+                  onMouseEnter={e=>e.target.style.opacity=1} onMouseLeave={e=>e.target.style.opacity=0.5}
+                  title="Remove ticker">✕</button>
                 <div style={{ width:120, flexShrink:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{item.sym}</span>
@@ -5994,15 +5998,24 @@ export default function OptionsFlowDashboard() {
                     style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     💾 Save Watchlist
                   </button>
+                  <button onClick={()=>{setWlBull([]);setWlBear([]);setWlRemoved([]);}}
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.be+"40", background:"transparent", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    🗑 Clear All
+                  </button>
                   <div style={{ display:"flex", alignItems:"center", gap:2 }}>
                     <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
                       style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
                       {["WATCHLIST","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
                     </select>
-                    <button onClick={wlPushDiscord} disabled={discordPushing}
-                      style={{ padding:"5px 14px", borderRadius:"0 5px 5px 0", border:"none", background:discordPushing?"#5865F266":"#5865F2", color:"#fff",
+                    <button onClick={()=>wlPushDiscord("watchlist")} disabled={discordPushing}
+                      style={{ padding:"5px 10px", border:"none", background:discordPushing?"#5865F266":"#5865F2", color:"#fff",
                         fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:discordPushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                      {discordPushing ? "Sending…" : "📤 Push to Discord"}
+                      {discordPushing ? "…" : "📤 Watchlist"}
+                    </button>
+                    <button onClick={()=>wlPushDiscord("unusual")} disabled={discordPushing}
+                      style={{ padding:"5px 10px", borderRadius:"0 5px 5px 0", border:"none", background:discordPushing?"#c9a84c66":"#c9a84c", color:P.bg,
+                        fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:discordPushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                      {discordPushing ? "…" : "⚡ Unusual"}
                     </button>
                   </div>
                   <button onClick={wlFetchOI} disabled={wlOILoading}
