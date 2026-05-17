@@ -1712,6 +1712,9 @@ export default function OptionsFlowDashboard() {
     const deduped = unusual.filter(u => { const k = u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp; if (seen.has(k)) return false; seen.add(k); return true; });
     const sorted = deduped.sort((a,b) => b.prem - a.prem);
     const msOnly = sorted.filter(c => capBand(c.mktcap)==="Mid-Small");
+    // Exclude tickers already in the main watchlist
+    const wlSyms = new Set([...wlBull.map(i=>i.sym), ...wlBear.map(i=>i.sym)]);
+    const msNew = msOnly.filter(c => !wlSyms.has(c.sym));
     const tickerSeen = new Set();
     const unique = (list) => list.filter(c => { const k = c.sym+"|"+c.dir; if (tickerSeen.has(k)) return false; tickerSeen.add(k); return true; });
     const mapItem = (c, dir) => {
@@ -1725,8 +1728,8 @@ export default function OptionsFlowDashboard() {
       };
     };
     return {
-      bull: unique(msOnly.filter(c=>c.dir==="BULL")).slice(0,10).map(c=>mapItem(c,"BULL")),
-      bear: unique(msOnly.filter(c=>c.dir==="BEAR")).slice(0,10).map(c=>mapItem(c,"BEAR")),
+      bull: unique(msNew.filter(c=>c.dir==="BULL")).slice(0,10).map(c=>mapItem(c,"BULL")),
+      bear: unique(msNew.filter(c=>c.dir==="BEAR")).slice(0,10).map(c=>mapItem(c,"BEAR")),
     };
   };
 
