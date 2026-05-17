@@ -63,11 +63,12 @@ def init():
     _load()
 
 
-def save_watchlist(day: str, bull: list, bear: list) -> dict:
+def save_watchlist(day: str, bull: list, bear: list, removed: list | None = None) -> dict:
     _data[day] = {
         "date": day,
         "bull": bull,
         "bear": bear,
+        "removed": removed or [],
     }
     _prune()
     _save()
@@ -81,3 +82,11 @@ def get_watchlist(day: str) -> dict:
 
 def get_recent_dates() -> list:
     return sorted(_data.keys(), reverse=True)[:MAX_DAYS]
+
+
+def get_latest_watchlist() -> dict | None:
+    """Return the most recently saved watchlist, or None if empty."""
+    if not _data:
+        return None
+    latest_date = sorted(_data.keys(), reverse=True)[0]
+    return _data[latest_date]
