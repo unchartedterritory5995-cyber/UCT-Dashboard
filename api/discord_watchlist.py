@@ -94,14 +94,8 @@ def _build_table(items: list[dict], limit: int = 10) -> str:
         entry_date = _fmt_exp(item.get("firstDate") or "")
         date_str = f" {entry_date}" if entry_date and entry_date != "?" else ""
 
-        # Move % since entry (from status field computed by frontend)
-        status = item.get("status") or ""
-        move_str = ""
-        if status and "%" in status:
-            move_str = f" {status}"
-
         rank = f"{i:>2}. "
-        lines.append(f"{rank}{sym} {contract} {grade}{date_str}{move_str}")
+        lines.append(f"{rank}{sym} {contract} {grade}{date_str}")
 
     return "\n".join(lines) if lines else "(empty)"
 
