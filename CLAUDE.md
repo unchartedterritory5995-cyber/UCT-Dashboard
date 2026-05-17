@@ -30,7 +30,7 @@ Both sibling repos are available as submodules under `external/` for Claude Code
 
 ## Nav Tabs (left sidebar)
 
-Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | Heatmap | COT Data | Data Charts | Analogues) · Theme Tracker · Calendar · Traders · Screener · Options Flow · Post Market · Model Book · Journal · Watchlists · Community · Support
+Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | Heatmap | COT Data | Data Charts | Analogues) · Theme Tracker · Calendar · Traders · Screener · Options Flow · Post Market · Model Book · Journal · Watchlists · Support
 Settings + Admin (admin only) pinned to bottom of sidebar.
 
 ## Journal 2.0 — parallel rebuild (beta)

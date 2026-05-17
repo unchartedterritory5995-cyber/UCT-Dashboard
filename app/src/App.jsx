@@ -45,7 +45,6 @@ const MultiChart = lazy(() => import('./pages/MultiChart'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const Patterns = lazy(() => import('./pages/Patterns'))
 const RiskDashboard = lazy(() => import('./pages/RiskDashboard'))
-const Community = lazy(() => import('./pages/Community'))
 const Support = lazy(() => import('./pages/Support'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Admin = lazy(() => import('./pages/Admin'))
@@ -164,7 +163,6 @@ export default function App() {
                 <Route path="/watchlists" element={<Watchlists />} />
                 <Route path="/patterns" element={<Patterns />} />
                 <Route path="/risk" element={<RiskDashboard />} />
-                <Route path="/community" element={<Community />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />

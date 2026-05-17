@@ -47,7 +47,6 @@ from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
 from api.routers import watchlist_alerts as watchlist_alerts_router
 from api.routers import stream as stream_router
-from api.routers import community as community_router
 from api.routers import rs_ranking as rs_ranking_router
 from api.routers import intelligence as intelligence_router
 from api.routers import transcripts as transcripts_router
@@ -1305,7 +1304,6 @@ app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
 app.include_router(watchlist_alerts_router.router)
 app.include_router(stream_router.router)
-app.include_router(community_router.router)
 app.include_router(live_prices_router.router)
 app.include_router(rs_ranking_router.router)
 app.include_router(intelligence_router.router)

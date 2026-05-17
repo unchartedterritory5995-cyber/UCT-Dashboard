@@ -27,7 +27,6 @@ const NAV_ITEMS = [
   { to: '/risk',         label: 'Risk',          icon: '🛡️' },
   { to: '/multi-chart',  label: 'Multi Chart',   icon: '⊟' },
   { to: '/watchlists',   label: 'Watchlists',    icon: '📋' },
-  { to: '/community',    label: 'Community',     icon: '📊' },
   { to: '/support',      label: 'Support',       icon: '💬' },
 ]
 

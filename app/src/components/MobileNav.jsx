@@ -51,7 +51,6 @@ const NAV_SECTIONS = [
   {
     label: 'Social',
     items: [
-      { to: '/community', label: 'Community', icon: '\uD83D\uDCCA' },
       { to: '/support', label: 'Support', icon: '\uD83D\uDCAC' },
     ],
   },

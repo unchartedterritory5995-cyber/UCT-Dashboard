@@ -1120,7 +1120,6 @@ _PAGE_DESCRIPTIONS: dict[str, str] = {
     "/model-book": "the Model Book (graded chart examples + setup taxonomy).",
     "/journal": "the trader's Journal (Journal 2.0 / Compass coaching surface).",
     "/watchlists": "the Watchlists page.",
-    "/community": "Community feed.",
     "/settings": "the Settings page.",
     "/support": "the Support page.",
 }

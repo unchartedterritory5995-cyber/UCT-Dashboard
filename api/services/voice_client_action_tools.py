@@ -47,7 +47,6 @@ PAGE_ALIASES: dict[str, str] = {
     "watchlists": "/watchlists", "watchlist": "/watchlists",
     "my lists": "/watchlists", "lists": "/watchlists",
 
-    "community": "/community",
     "support": "/support", "help": "/support",
     "settings": "/settings", "preferences": "/settings",
 
