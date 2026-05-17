@@ -555,7 +555,7 @@ describe('watermarkFontPx', () => {
 describe('computeWatermarkRect', () => {
   it('centers block on normalized pos, clamps inside bounds', () => {
     const r = computeWatermarkRect({ x: 0.5, y: 0.5 }, { width: 1000, height: 400 }, { w: 200, h: 120 })
-    expect(r).toEqual({ x: 400, y: 170, w: 200, h: 120 })
+    expect(r).toEqual({ x: 400, y: 140, w: 200, h: 120 })
   })
   it('clamps so block never leaves the pane', () => {
     const r = computeWatermarkRect({ x: 0, y: 0 }, { width: 1000, height: 400 }, { w: 200, h: 120 })
@@ -690,7 +690,7 @@ export function createWatermarkPrimitive(initial) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd C:/Users/Patrick/uct-dashboard/app && npx vitest run src/components/chart/watermarkPrimitive.test.js`
-Expected: PASS (9 passed)
+Expected: PASS (7 passed)
 
 - [ ] **Step 5: Commit**
 
