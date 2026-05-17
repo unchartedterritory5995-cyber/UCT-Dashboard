@@ -66,7 +66,7 @@ def _conviction_grade(score: float) -> str:
     return "C "
 
 
-def _build_table(items: list[dict], limit: int = 10, show_flags: bool = True) -> str:
+def _build_table(items: list[dict], limit: int = 10) -> str:
     """Build a monospace-aligned table from watchlist items."""
     lines = []
     for i, item in enumerate(items[:limit], 1):
@@ -90,38 +90,18 @@ def _build_table(items: list[dict], limit: int = 10, show_flags: bool = True) ->
         score = float(item.get("score") or item.get("autoScore") or 0)
         grade = _conviction_grade(score)
 
-        # Flags (ER/UOA) — optional, suppressed for unusual section
-        flags = ""
-        if show_flags:
-            if item.get("er"):
-                flags += " ER"
-            notes = str(item.get("notes") or "")
-            if item.get("uoa") or "UOA" in notes.upper():
-                flags += " UOA"
+        # Entry date (when flow first appeared)
+        entry_date = _fmt_exp(item.get("firstDate") or "")
+        date_str = f" {entry_date}" if entry_date and entry_date != "?" else ""
 
-        # Age + Status tag
-        age = item.get("age") or ""
+        # Move % since entry (from status field computed by frontend)
         status = item.get("status") or ""
-        status_str = ""
-        if age or status:
-            age_part = age.rjust(3) if age else "   "
-            if status == "NEW":
-                status_part = " ● NEW"
-            elif status and "%" in status:
-                arrow = "▲" if status.startswith("+") else "▼"
-                status_part = f" {arrow}{status}"
-            else:
-                status_part = ""
-            status_str = f"{age_part}{status_part}"
-
-        # Pad grade+flags to fixed width so age/status aligns
-        grade_flags = f"{grade}{flags}"
+        move_str = ""
+        if status and "%" in status:
+            move_str = f" {status}"
 
         rank = f"{i:>2}. "
-        if status_str:
-            lines.append(f"{rank}{sym} {contract} {grade_flags.ljust(9)}{status_str}")
-        else:
-            lines.append(f"{rank}{sym} {contract} {grade}")
+        lines.append(f"{rank}{sym} {contract} {grade}{date_str}{move_str}")
 
     return "\n".join(lines) if lines else "(empty)"
 
@@ -212,14 +192,14 @@ def build_messages(
                     "title": "⚡ UNUSUAL FLOW — MID-SMALL CAP",
                     "description": (
                         f"🟢 **BULL**\n"
-                        f"```\n{_build_table(ub_sorted, show_flags=False)}\n```"
+                        f"```\n{_build_table(ub_sorted)}\n```"
                     ),
                 },
                 {
                     "color": PURPLE,
                     "description": (
                         f"🔴 **BEAR**\n"
-                        f"```\n{_build_table(ubear_sorted, show_flags=False)}\n```"
+                        f"```\n{_build_table(ubear_sorted)}\n```"
                     ),
                     "footer": {"text": f"UCT Intelligence · {time_str}"},
                 },
