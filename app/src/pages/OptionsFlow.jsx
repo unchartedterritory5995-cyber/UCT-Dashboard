@@ -1697,6 +1697,7 @@ export default function OptionsFlowDashboard() {
   // ─── Discord Push ───────────────────────────────────────────────────
   const [discordPushing, setDiscordPushing] = useState(false);
   const [discordLabel, setDiscordLabel] = useState("WATCHLIST");
+  const [discordCount, setDiscordCount] = useState(10);
 
   const _buildUnusualMidSmall = () => {
     if (!FD || !FD.CONV) return { bull: [], bear: [] };
@@ -1773,7 +1774,7 @@ export default function OptionsFlowDashboard() {
           bull:_addStatus(sendBull), bear:_addStatus(sendBear),
           unusualBull:_addStatus(unusual.bull), unusualBear:_addStatus(unusual.bear),
           overallBull, overallBear, tickerCount,
-          label:discordLabel
+          label:discordLabel, limit:discordCount
         })
       });
       const data = await resp.json();
@@ -6007,6 +6008,11 @@ export default function OptionsFlowDashboard() {
                     <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
                       style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
                       {["WATCHLIST","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
+                    </select>
+                    <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
+                      style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:9, padding:"5px 4px", fontFamily:"inherit" }}>
+                      {[5,10,15,20,25].map(n=><option key={n} value={n}>Top {n}</option>)}
+                      <option value={99}>All</option>
                     </select>
                     <button onClick={()=>wlPushDiscord("watchlist")} disabled={discordPushing}
                       style={{ padding:"5px 10px", border:"none", background:discordPushing?"#5865F266":"#5865F2", color:"#fff",
