@@ -146,32 +146,34 @@ def build_messages(
     GOLD = 0xFAA61A
     PURPLE = 0x9B59B6
 
-    # Message 1: All-cap bull + bear
-    msg1 = {
-        "embeds": [
-            {
-                "color": GREEN,
-                "author": {"name": "UCT Options Flow"},
-                "title": f"{'🟢' if net > 0 else '🔴'} {label or 'WATCHLIST'} — {date_str}",
-                "description": (
-                    f"**Net: {_fmt(net)}** · {_fmt(total_bull)} bull / {_fmt(total_bear)} bear · **{bull_pct}%** bullish\n"
-                    f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                    f"🟢 **BULL WATCHLIST**\n"
-                    f"```\n{_build_table(bull_sorted)}\n```"
-                ),
-                "footer": {"text": f"UCT Intelligence · {time_str} · {tk_count} tickers with flow"},
-            },
-            {
-                "color": RED,
-                "description": (
-                    f"🔴 **BEAR WATCHLIST**\n"
-                    f"```\n{_build_table(bear_sorted)}\n```"
-                ),
-            },
-        ]
-    }
+    messages = []
 
-    messages = [msg1]
+    # Message 1: All-cap bull + bear (skip if empty — unusual-only push)
+    if bull_sorted or bear_sorted:
+        msg1 = {
+            "embeds": [
+                {
+                    "color": GREEN,
+                    "author": {"name": "UCT Options Flow"},
+                    "title": f"{'🟢' if net > 0 else '🔴'} {label or 'WATCHLIST'} — {date_str}",
+                    "description": (
+                        f"**Net: {_fmt(net)}** · {_fmt(total_bull)} bull / {_fmt(total_bear)} bear · **{bull_pct}%** bullish\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                        f"🟢 **BULL WATCHLIST**\n"
+                        f"```\n{_build_table(bull_sorted)}\n```"
+                    ),
+                    "footer": {"text": f"UCT Intelligence · {time_str} · {tk_count} tickers with flow"},
+                },
+                {
+                    "color": RED,
+                    "description": (
+                        f"🔴 **BEAR WATCHLIST**\n"
+                        f"```\n{_build_table(bear_sorted)}\n```"
+                    ),
+                },
+            ]
+        }
+        messages.append(msg1)
 
     # Message 2: Unusual Mid-Small (separate dataset from frontend)
     ub = unusual_bull or []
@@ -179,12 +181,19 @@ def build_messages(
     if ub or ubear:
         ub_sorted = sorted(ub, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
         ubear_sorted = sorted(ubear, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
+        # If standalone (no watchlist), add summary to unusual header
+        unusual_title = f"⚡ {label or 'UNUSUAL FLOW'} — MID-SMALL CAP" if not messages else "⚡ UNUSUAL FLOW — MID-SMALL CAP"
+        unusual_header = ""
+        if not messages and (overall_bull > 0 or overall_bear > 0):
+            unusual_header = f"**Net: {_fmt(net)}** · {_fmt(total_bull)} bull / {_fmt(total_bear)} bear · **{bull_pct}%** bullish\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         msg2 = {
             "embeds": [
                 {
                     "color": GOLD,
-                    "title": "⚡ UNUSUAL FLOW — MID-SMALL CAP",
+                    "author": {"name": "UCT Options Flow"} if not messages else None,
+                    "title": unusual_title,
                     "description": (
+                        f"{unusual_header}"
                         f"🟢 **BULL**\n"
                         f"```\n{_build_table(ub_sorted)}\n```"
                     ),
@@ -199,6 +208,11 @@ def build_messages(
                 },
             ]
         }
+        # Remove None author
+        msg2["embeds"] = [e for e in msg2["embeds"] if e is not None]
+        for e in msg2["embeds"]:
+            if "author" in e and e["author"] is None:
+                del e["author"]
         messages.append(msg2)
 
     return messages
@@ -286,8 +300,8 @@ def register_discord_routes(app_or_router):
         ticker_count = int(payload.get("tickerCount", 0))
         label = payload.get("label", "WATCHLIST")
 
-        if not bull and not bear:
-            return {"ok": False, "error": "No bull or bear items to send"}
+        if not bull and not bear and not unusual_bull and not unusual_bear:
+            return {"ok": False, "error": "No items to send"}
 
         return await send_to_discord(
             bull, bear, label, unusual_bull, unusual_bear,
