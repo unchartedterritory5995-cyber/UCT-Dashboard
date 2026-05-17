@@ -97,14 +97,28 @@ def run_prewarmer_forever():
         taxonomy_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "themes_taxonomy.json")
         if os.path.exists(taxonomy_path):
             with open(taxonomy_path) as f:
-                themes = json.load(f)
-            for theme in themes:
-                etf = theme.get("ticker")
-                if etf:
-                    tickers.add(etf.upper()); _active.add(etf.upper())
-                for h in (theme.get("holdings") or []):
-                    _sym = h["sym"].upper()
-                    tickers.add(_sym); _active.add(_sym)
+                _tax = json.load(f)
+            # PRE-EXISTING BUG FIX (2026-05-17): themes_taxonomy.json is a
+            # dict {version, generated_at, sectors, themes} — the old
+            # `for theme in themes:` iterated dict KEYS (strings),
+            # AttributeError'd on .get(), and was silently swallowed by
+            # the except. Net: Theme Tracker's ~1,316 holdings were NEVER
+            # prewarmed. Walk the whole doc and collect every sym/ticker
+            # value — robust to nesting (sectors→themes→holdings) and to
+            # future structure changes. Exactly the broad navigation
+            # surface the user wants kept fast.
+            def _collect(obj):
+                if isinstance(obj, dict):
+                    for k, v in obj.items():
+                        if k in ("sym", "ticker") and isinstance(v, str) and v:
+                            s = v.upper()
+                            tickers.add(s); _active.add(s)
+                        else:
+                            _collect(v)
+                elif isinstance(obj, list):
+                    for x in obj:
+                        _collect(x)
+            _collect(_tax)
     except Exception:
         pass
     tickers.discard('')
