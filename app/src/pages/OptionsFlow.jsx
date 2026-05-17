@@ -1677,12 +1677,43 @@ export default function OptionsFlowDashboard() {
   // ─── Discord Push ───────────────────────────────────────────────────
   const [discordPushing, setDiscordPushing] = useState(false);
   const [discordLabel, setDiscordLabel] = useState("WATCHLIST");
+
+  const _buildUnusualMidSmall = () => {
+    // Same logic as wlPopulateUnusual, but filtered to Mid-Small cap only
+    if (!FD || !FD.CONV) return { bull: [], bear: [] };
+    const unusual = [];
+    (FD.CONV||[]).forEach(c => { (c.patterns||[]).forEach(p => { unusual.push({ ...c, anomaly:p.type, source:"pattern" }); }); });
+    (FD.CONV||[]).forEach(c => { if (c.volOI >= 10 && c.maxOI > 0 && c.maxOI < 500) unusual.push({ ...c, anomaly:"VOL_OI_EXTREME", source:"voloi" }); });
+    (FD.CONV||[]).forEach(c => {
+      const cap = capBand(c.mktcap);
+      if (cap==="Mid-Small" && c.prem >= 500e3) unusual.push({ ...c, anomaly:"SIZE_VS_CAP", source:"sizecap" });
+    });
+    const seen = new Set();
+    const deduped = unusual.filter(u => { const k = u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp; if (seen.has(k)) return false; seen.add(k); return true; });
+    const sorted = deduped.sort((a,b) => b.prem - a.prem);
+    // Filter to Mid-Small only + dedup by ticker
+    const msOnly = sorted.filter(c => capBand(c.mktcap)==="Mid-Small");
+    const tickerSeen = new Set();
+    const unique = (list) => list.filter(c => { const k = c.sym+"|"+c.dir; if (tickerSeen.has(k)) return false; tickerSeen.add(k); return true; });
+    const mapItem = (c, dir) => ({
+      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+      dir, hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
+      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, uoa:true
+    });
+    return {
+      bull: unique(msOnly.filter(c=>c.dir==="BULL")).slice(0,10).map(c=>mapItem(c,"BULL")),
+      bear: unique(msOnly.filter(c=>c.dir==="BEAR")).slice(0,10).map(c=>mapItem(c,"BEAR")),
+    };
+  };
+
   const wlPushDiscord = async () => {
     if (!wlBull.length && !wlBear.length) { setStatus("⚠️ No watchlist items to push"); setTimeout(()=>setStatus(""),2000); return; }
     setDiscordPushing(true);
+    const unusual = _buildUnusualMidSmall();
     try {
       const resp = await fetch("/api/discord/push",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({bull:wlBull,bear:wlBear,label:discordLabel})
+        body:JSON.stringify({bull:wlBull, bear:wlBear, unusualBull:unusual.bull, unusualBear:unusual.bear, label:discordLabel})
       });
       const data = await resp.json();
       if (data.ok) {
