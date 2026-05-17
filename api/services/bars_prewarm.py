@@ -143,7 +143,10 @@ def run_prewarmer_forever():
     if _IS_WORKER:
         _CORE_INTRADAY_TICKERS = ticker_list            # full universe
         _DEEP_INTRADAY_TICKERS = ticker_list[:800]
-        _PREWARM_WORKERS = 6
+        # 4 (not 6): fetches are network-bound so 4 still parallelises
+        # well, but fewer concurrent writers = a much shorter wait queue
+        # behind the SQLite write lock. Sweet spot for throughput.
+        _PREWARM_WORKERS = 4
     else:
         _CORE_INTRADAY_TICKERS = ticker_list[:200]
         _DEEP_INTRADAY_TICKERS = ticker_list[:200]

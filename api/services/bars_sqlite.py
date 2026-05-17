@@ -28,6 +28,17 @@ _recovery_active = False
 _recovery_last_attempt = 0.0
 _RECOVERY_COOLDOWN_SECONDS = 60.0
 
+# In-process write serializer. SQLite allows exactly ONE writer; the
+# worker prewarmer runs many fetch threads (P-1 raised the pool) plus
+# detached bg_delta threads, and without this they all hit the DB at
+# once → "database is locked", the retry/backoff burns time, and some
+# writes get skipped (slowing the warm + log spam). Reads (get_bars /
+# get_last_ts) stay LOCK-FREE — WAL allows concurrent readers — so this
+# only orders writers, which SQLite was going to serialize anyway. Net:
+# orderly in-process queueing instead of wasteful lock-collision churn.
+# Per-process (web and worker are separate processes / separate DBs).
+_WRITE_LOCK = threading.Lock()
+
 # Connection epoch — bumped whenever /data/bars.db is replaced wholesale
 # (currently: data_sync.download_snapshot when the web pulls a fresh
 # snapshot from R2). Each thread caches its own (conn, epoch) pair in
@@ -245,13 +256,14 @@ def put_provenance(
     last_lock_err: sqlite3.OperationalError | None = None
     for attempt in range(3):
         try:
-            c = _conn()
-            c.executemany(
-                "INSERT OR REPLACE INTO bars_provenance"
-                "(ticker,tf,ts,source,fetched_at) VALUES(?,?,?,?,?)",
-                rows,
-            )
-            c.commit()
+            with _WRITE_LOCK:
+                c = _conn()
+                c.executemany(
+                    "INSERT OR REPLACE INTO bars_provenance"
+                    "(ticker,tf,ts,source,fetched_at) VALUES(?,?,?,?,?)",
+                    rows,
+                )
+                c.commit()
             return len(rows)
         except sqlite3.OperationalError as e:
             if "locked" not in str(e).lower():
@@ -448,12 +460,13 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False) -> i
     last_lock_err: sqlite3.OperationalError | None = None
     for attempt in range(3):
         try:
-            c = _conn()
-            c.executemany(
-                "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
-                rows,
-            )
-            c.commit()
+            with _WRITE_LOCK:
+                c = _conn()
+                c.executemany(
+                    "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                    rows,
+                )
+                c.commit()
             return len(rows)
         except sqlite3.OperationalError as e:
             # OperationalError covers "locked" (contention) and a few non-
