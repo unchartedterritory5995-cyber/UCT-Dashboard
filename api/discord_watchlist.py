@@ -91,23 +91,23 @@ def _build_table(items: list[dict], limit: int = 10) -> str:
 
 # ── Message builder ────────────────────────────────────────────────────────
 
-def _is_mid_small(item: dict) -> bool:
-    cap = (item.get("cap") or "").lower().replace("-", "")
-    return cap in ("midsmall", "mid", "small", "micro")
 
-
-def build_messages(bull: list[dict], bear: list[dict], label: str = "") -> list[dict]:
+def build_messages(
+    bull: list[dict],
+    bear: list[dict],
+    label: str = "",
+    unusual_bull: list[dict] | None = None,
+    unusual_bear: list[dict] | None = None,
+) -> list[dict]:
     """
-    Build Discord embed messages from curated watchlist items.
-    Returns 1-2 message payloads (message 2 only if mid-small items exist).
+    Build Discord embed messages.
+    Sections 1&2: bull/bear from main watchlist (Auto-Fill from Scanner).
+    Sections 3&4: unusual_bull/unusual_bear from mid-small unusual scan.
+    Returns 1-2 message payloads (message 2 only if unusual items exist).
     """
     # Sort by score descending
     bull_sorted = sorted(bull, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
     bear_sorted = sorted(bear, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
-
-    # Mid-small subsets
-    bull_ms = [i for i in bull_sorted if _is_mid_small(i)]
-    bear_ms = [i for i in bear_sorted if _is_mid_small(i)]
 
     # Summary stats
     total_bull = sum(float(i.get("prem") or 0) for i in bull)
@@ -153,8 +153,12 @@ def build_messages(bull: list[dict], bear: list[dict], label: str = "") -> list[
 
     messages = [msg1]
 
-    # Message 2: Mid-Small (only if data exists)
-    if bull_ms or bear_ms:
+    # Message 2: Unusual Mid-Small (separate dataset from frontend)
+    ub = unusual_bull or []
+    ubear = unusual_bear or []
+    if ub or ubear:
+        ub_sorted = sorted(ub, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
+        ubear_sorted = sorted(ubear, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
         msg2 = {
             "embeds": [
                 {
@@ -162,14 +166,14 @@ def build_messages(bull: list[dict], bear: list[dict], label: str = "") -> list[
                     "title": "⚡ UNUSUAL FLOW — MID-SMALL CAP",
                     "description": (
                         f"**▲ BULL — MID-SMALL**\n"
-                        f"```\n{_build_table(bull_ms)}\n```"
+                        f"```\n{_build_table(ub_sorted)}\n```"
                     ),
                 },
                 {
                     "color": PURPLE,
                     "description": (
                         f"**▼ BEAR — MID-SMALL**\n"
-                        f"```\n{_build_table(bear_ms)}\n```"
+                        f"```\n{_build_table(ubear_sorted)}\n```"
                     ),
                     "footer": {"text": f"UCT Intelligence · {time_str}"},
                 },
@@ -182,13 +186,19 @@ def build_messages(bull: list[dict], bear: list[dict], label: str = "") -> list[
 
 # ── Send to Discord ────────────────────────────────────────────────────────
 
-async def send_to_discord(bull: list[dict], bear: list[dict], label: str = "") -> dict:
-    """Build messages from bull/bear items and send to Discord webhook."""
+async def send_to_discord(
+    bull: list[dict],
+    bear: list[dict],
+    label: str = "",
+    unusual_bull: list[dict] | None = None,
+    unusual_bear: list[dict] | None = None,
+) -> dict:
+    """Build messages from bull/bear + unusual items and send to Discord webhook."""
     if not DISCORD_FLOW_WEBHOOK_URL:
         logger.error("[Discord] No DISCORD_FLOW_WEBHOOK_URL configured")
         return {"ok": False, "error": "No webhook URL configured"}
 
-    messages = build_messages(bull, bear, label)
+    messages = build_messages(bull, bear, label, unusual_bull, unusual_bear)
 
     try:
         import asyncio
@@ -199,14 +209,18 @@ async def send_to_discord(bull: list[dict], bear: list[dict], label: str = "") -
                 await asyncio.sleep(0.5)
 
         logger.info(
-            "[Discord] Watchlist posted — %d msgs, %d bull, %d bear — %s",
-            len(messages), len(bull), len(bear), label or "manual"
+            "[Discord] Watchlist posted — %d msgs, %d bull, %d bear, %d unusual_bull, %d unusual_bear — %s",
+            len(messages), len(bull), len(bear),
+            len(unusual_bull or []), len(unusual_bear or []),
+            label or "manual"
         )
         return {
             "ok": True,
             "messages_sent": len(messages),
             "bull_count": len(bull),
             "bear_count": len(bear),
+            "unusual_bull_count": len(unusual_bull or []),
+            "unusual_bear_count": len(unusual_bear or []),
             "label": label,
         }
     except Exception as e:
@@ -226,13 +240,21 @@ def register_discord_routes(app_or_router):
     ):
         """
         Push curated watchlist to Discord.
-        Body: { "bull": [...], "bear": [...], "label": "WATCHLIST" }
+        Body: {
+          "bull": [...],          -- main watchlist bull picks
+          "bear": [...],          -- main watchlist bear picks
+          "unusualBull": [...],   -- unusual mid-small bull (auto-computed by frontend)
+          "unusualBear": [...],   -- unusual mid-small bear (auto-computed by frontend)
+          "label": "WATCHLIST"
+        }
         """
         bull = payload.get("bull", [])
         bear = payload.get("bear", [])
+        unusual_bull = payload.get("unusualBull", [])
+        unusual_bear = payload.get("unusualBear", [])
         label = payload.get("label", "WATCHLIST")
 
         if not bull and not bear:
             return {"ok": False, "error": "No bull or bear items to send"}
 
-        return await send_to_discord(bull, bear, label)
+        return await send_to_discord(bull, bear, label, unusual_bull, unusual_bear)
