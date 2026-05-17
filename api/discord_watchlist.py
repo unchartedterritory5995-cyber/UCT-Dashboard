@@ -4,20 +4,22 @@ Discord Watchlist Service — posts curated watchlist to Discord webhook.
 Manual-only: user clicks "Push to Discord" on the Watchlist tab.
 Receives bull/bear items directly from the frontend (already scored/curated).
 Formats into 4-section embeds:
-  1. ▲ BULL WATCHLIST (all caps)
-  2. ▼ BEAR WATCHLIST (all caps)
-  3. ▲ BULL — MID-SMALL (unusual flow)
-  4. ▼ BEAR — MID-SMALL (unusual flow)
+  1. BULL WATCHLIST (all caps)
+  2. BEAR WATCHLIST (all caps)
+  3. BULL — MID-SMALL (unusual flow)
+  4. BEAR — MID-SMALL (unusual flow)
 """
 
 import os
 import logging
 import httpx
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
 DISCORD_FLOW_WEBHOOK_URL = os.getenv("DISCORD_FLOW_WEBHOOK_URL", "")
+ET = ZoneInfo("America/New_York")
 
 
 # ── Formatting ─────────────────────────────────────────────────────────────
@@ -51,15 +53,17 @@ def _fmt_strike(strike: float) -> str:
 
 # ── Embed table builder ───────────────────────────────────────────────────
 
-def _conviction_icon(score: float) -> str:
-    """Map autoScore (0-10) to conviction icons."""
-    if score >= 8:
-        return "🔥🔥"
-    if score >= 6:
-        return "🔥"
+def _conviction_grade(score: float) -> str:
+    """Map autoScore (0-10) to letter grade."""
+    if score >= 8.5:
+        return "A+"
+    if score >= 7:
+        return "A "
+    if score >= 5.5:
+        return "B+"
     if score >= 4:
-        return "⚡"
-    return "○"
+        return "B "
+    return "C "
 
 
 def _build_table(items: list[dict], limit: int = 10) -> str:
@@ -82,7 +86,11 @@ def _build_table(items: list[dict], limit: int = 10) -> str:
         else:
             contract = "—"
 
-        # Flags
+        # Conviction icon first (fixed position after premium), then flags
+        score = float(item.get("score") or item.get("autoScore") or 0)
+        grade = _conviction_grade(score)
+
+        # Flags trail after icon
         flags = ""
         if item.get("er"):
             flags += " ER"
@@ -90,12 +98,8 @@ def _build_table(items: list[dict], limit: int = 10) -> str:
         if item.get("uoa") or "UOA" in notes.upper():
             flags += " UOA"
 
-        # Conviction icon
-        score = float(item.get("score") or item.get("autoScore") or 0)
-        icon = _conviction_icon(score)
-
         rank = f"{i:>2}."
-        lines.append(f"{rank} {sym} {contract}{flags}  {icon}")
+        lines.append(f"{rank} {sym} {contract}  {grade}{flags}")
 
     return "\n".join(lines) if lines else "(empty)"
 
@@ -137,7 +141,7 @@ def build_messages(
     bull_pct = round(total_bull / total * 100) if total > 0 else 50
     net = total_bull - total_bear
 
-    now = datetime.now()
+    now = datetime.now(ET)
     date_str = now.strftime("%B %d, %Y")
     time_str = now.strftime("%I:%M %p ET")
 
@@ -156,7 +160,7 @@ def build_messages(
                 "description": (
                     f"**Net: {_fmt(net)}** · {_fmt(total_bull)} bull / {_fmt(total_bear)} bear · **{bull_pct}%** bullish\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                    f"**▲ BULL WATCHLIST**\n"
+                    f"🟢 **BULL WATCHLIST**\n"
                     f"```\n{_build_table(bull_sorted)}\n```"
                 ),
                 "footer": {"text": f"UCT Intelligence · {time_str} · {tk_count} tickers with flow"},
@@ -164,7 +168,7 @@ def build_messages(
             {
                 "color": RED,
                 "description": (
-                    f"**▼ BEAR WATCHLIST**\n"
+                    f"🔴 **BEAR WATCHLIST**\n"
                     f"```\n{_build_table(bear_sorted)}\n```"
                 ),
             },
@@ -185,14 +189,14 @@ def build_messages(
                     "color": GOLD,
                     "title": "⚡ UNUSUAL FLOW — MID-SMALL CAP",
                     "description": (
-                        f"**▲ BULL — MID-SMALL**\n"
+                        f"🟢 **BULL — MID-SMALL**\n"
                         f"```\n{_build_table(ub_sorted)}\n```"
                     ),
                 },
                 {
                     "color": PURPLE,
                     "description": (
-                        f"**▼ BEAR — MID-SMALL**\n"
+                        f"🔴 **BEAR — MID-SMALL**\n"
                         f"```\n{_build_table(ubear_sorted)}\n```"
                     ),
                     "footer": {"text": f"UCT Intelligence · {time_str}"},
