@@ -33,8 +33,9 @@ describe('watermarkFontPx', () => {
 
 describe('computeWatermarkRect', () => {
   it('centers block on normalized pos, clamps inside bounds', () => {
+    // centered anchor: x = 0.5*1000 - 200/2 = 400 ; y = 0.5*400 - 120/2 = 140
     const r = computeWatermarkRect({ x: 0.5, y: 0.5 }, { width: 1000, height: 400 }, { w: 200, h: 120 })
-    expect(r).toEqual({ x: 400, y: 170, w: 200, h: 120 })
+    expect(r).toEqual({ x: 400, y: 140, w: 200, h: 120 })
   })
   it('clamps so block never leaves the pane', () => {
     const r = computeWatermarkRect({ x: 0, y: 0 }, { width: 1000, height: 400 }, { w: 200, h: 120 })

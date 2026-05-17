@@ -22,8 +22,9 @@ export function watermarkFontPx(lineIndex, sizeScale) {
 
 export function computeWatermarkRect(pos, mediaSize, block) {
   const cx = pos.x * mediaSize.width
+  const cy = pos.y * mediaSize.height
   let x = cx - block.w / 2
-  let y = pos.y * (mediaSize.height - block.h / 2)
+  let y = cy - block.h / 2
   x = Math.max(0, Math.min(x, mediaSize.width - block.w))
   y = Math.max(0, Math.min(y, mediaSize.height - block.h))
   return { x, y, w: block.w, h: block.h }
