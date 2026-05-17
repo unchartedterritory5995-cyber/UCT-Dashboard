@@ -32,6 +32,10 @@ class TTLCache:
         """Remove a key from the cache immediately."""
         self._store.pop(key, None)
 
+    def clear(self) -> None:
+        """Remove all entries from the cache."""
+        self._store.clear()
+
     def delete_prefix(self, prefix: str) -> int:
         """Remove every key starting with ``prefix``. Returns the count.
 
