@@ -87,17 +87,22 @@ def _conn() -> sqlite3.Connection:
         c = sqlite3.connect(_DB_PATH, check_same_thread=False)
         c.execute("PRAGMA journal_mode=WAL")
         c.execute("PRAGMA synchronous=NORMAL")
-        # busy_timeout makes SQLite wait up to N ms for a contended lock
-        # before raising OperationalError("database is locked"). Without
-        # this, concurrent writers (multiple uvicorn workers / threads)
-        # see immediate failures even when the lock would clear in <1ms.
-        # 2s is the sweet spot: long enough to absorb normal contention
-        # (most real waits are <50ms), short enough that a stuck writer
-        # doesn't pin the request handler for 10s. Combined with the
-        # 3-attempt retry loop in put_bars, total worst-case wait per
-        # request is ~6.5s — acceptable; an earlier 10s setting compounded
-        # to ~30s per request and saturated the anyio thread pool.
-        c.execute("PRAGMA busy_timeout=2000")
+        # busy_timeout = how long a contended writer WAITS before raising
+        # OperationalError("database is locked"). This is context-aware:
+        #
+        #  • WEB (serves requests): keep 2s. A long wait here compounds
+        #    with the put_bars retry loop and saturates the anyio thread
+        #    pool — the documented reason 2s was chosen (a prior 10s
+        #    setting → ~30s/request and a stalled site).
+        #  • WORKER (background prewarmer, no latency SLA): 30s. It
+        #    contends with its OWN 5-min full-DB backup (the uploader's
+        #    sqlite .backup(), a separate connection outside _WRITE_LOCK)
+        #    and rolling-deploy overlap. At 2s those contend-windows
+        #    blew straight past the timeout → ~155 "database is locked"
+        #    per 45s, each a wasted Massive fetch + a slower warm. The
+        #    worker should simply WAIT it out and succeed.
+        _busy_ms = 30000 if os.environ.get("WORKER_ENABLED") == "1" else 2000
+        c.execute(f"PRAGMA busy_timeout={_busy_ms}")
         c.execute("PRAGMA cache_size=-8192")   # 8 MB page cache per connection
         c.execute("PRAGMA temp_store=MEMORY")
         _local.conn = c
