@@ -60,7 +60,7 @@ from api.routers import backtest as backtest_router
 from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
 from api.flow_router import flow_router
-from api.discord_watchlist import register_discord_routes, setup_scheduler as setup_discord_scheduler
+from api.discord_watchlist import register_discord_routes
 from api.services.auth_db import init_db as _init_auth_db
 from api.services.voice_audio_cache import purge_expired as _voice_cache_purge
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -1200,11 +1200,7 @@ async def lifespan(app: FastAPI):
             replace_existing=True,
         )
 
-        # Discord flow watchlist — 3 daily posts (7:00 AM, 12:30 PM, 4:30 PM ET)
-        try:
-            setup_discord_scheduler(_scheduler)
-        except Exception as e:
-            print(f"[startup] Discord watchlist scheduler error (non-fatal): {e}")
+        # Discord flow watchlist — manual push only (no scheduled jobs)
 
         _scheduler.start()
         print("[startup] COT scheduler running — Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
