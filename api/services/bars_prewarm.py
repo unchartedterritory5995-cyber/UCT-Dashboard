@@ -77,6 +77,13 @@ def run_prewarmer_forever():
         db.close()
     except Exception:
         pass
+    # Snapshot the ACTIVE set (what users actually navigate from: priority
+    # + wire/UCT20/candidates/earnings + watchlists + tags) BEFORE the
+    # cap_universe bulk-add. Heavy intraday warming is scoped to this set
+    # (+ breadth drill lists + theme holdings, added below). The
+    # cap_universe long tail still gets light Daily/Weekly/Monthly + the
+    # on-demand-correct Part-1 path — just not proactive 5-TF intraday.
+    _active = set(tickers)
     try:
         cap_path = os.path.join(os.path.dirname(__file__), "..", "data", "cap_universe.json")
         if os.path.exists(cap_path):
@@ -93,9 +100,11 @@ def run_prewarmer_forever():
                 themes = json.load(f)
             for theme in themes:
                 etf = theme.get("ticker")
-                if etf: tickers.add(etf.upper())
+                if etf:
+                    tickers.add(etf.upper()); _active.add(etf.upper())
                 for h in (theme.get("holdings") or []):
-                    tickers.add(h["sym"].upper())
+                    _sym = h["sym"].upper()
+                    tickers.add(_sym); _active.add(_sym)
     except Exception:
         pass
     tickers.discard('')
@@ -120,29 +129,44 @@ def run_prewarmer_forever():
     except Exception as e:
         print(f"[prewarm] Fast-path lookup failed: {e}")
     fast_path_set = set(_FAST_PATH)
+    # Breadth drill lists ARE the universe the user navigates from — fold
+    # them into the active set explicitly.
+    _active |= priority_set | fast_path_set
     rest = sorted(tickers - priority_set - fast_path_set)
     ticker_list = _PRIORITY + _FAST_PATH + rest
+    # The ACTIVE intraday list = priority + breadth drill lists + wire/
+    # watchlist/tag/theme tickers (everything EXCEPT the cap_universe-only
+    # long tail). This is what gets proactive 5-TF intraday warming.
+    _active_intraday = (
+        _PRIORITY + _FAST_PATH
+        + sorted(_active - priority_set - fast_path_set)
+    )
     print(f"[prewarm] Order: {len(_PRIORITY)} priority + {len(_FAST_PATH)} breadth-list + {len(rest)} long-tail = {len(ticker_list)} tickers")
+    print(f"[prewarm] Active intraday set: {len(_active_intraday)} tickers "
+          f"(scoped to breadth/watchlist/UCT20/candidates/themes; "
+          f"cap_universe long tail = on-demand intraday only)")
     from concurrent.futures import ThreadPoolExecutor as _PrewarmTPE
     from api.routers.bars import _get_bars_inner, _needs_fresh
     from api.services import bars_sqlite as _sqlite
-    # The prewarmer runs on the DEDICATED worker service in production
-    # (USE_REMOTE_BARS=1 gates it off on web). The old [:200] intraday
-    # cap was a web-process memory safeguard; the worker has its own
-    # 50GB volume and serves no requests, so it can — and must —
-    # pre-warm intraday for the WHOLE universe. That warmth then reaches
-    # web via the existing R2 newer-wins merge, making every chart open
-    # instant + fresh instead of a ~4s cold synchronous fetch. TFs are
-    # tiered for sustainability: 60/30/15 (most-viewed; the ones the
-    # freeze broke) for ALL tickers; 5/1 (heavier, less-viewed) for a
-    # large priority tier. The in-process web path keeps the small cap.
+    # Prewarmer runs on the DEDICATED worker (USE_REMOTE_BARS=1 gates it
+    # off on web). Proactive 5-TF intraday warming is scoped to the
+    # ACTIVE set — the tickers users actually navigate from (Breadth
+    # drill lists + watchlists + UCT20 + candidates + theme holdings +
+    # priority), NOT the full cap_universe long tail. Rationale: that's
+    # where ~all real chart opens originate, it keeps those lists very
+    # fresh on a tight cycle, and it slashes worker SQLite write volume
+    # (more headroom behind the write-lock / busy_timeout). The
+    # cap_universe-only long tail still gets light Daily/Weekly/Monthly
+    # universe-wide + the on-demand Part-1 path (correct on first open,
+    # ~2-4s then cached) — never wrong, just not pre-warmed. TFs tiered:
+    # 60/30/15 for the whole active set; 5/1 (heavier) for the top tier.
     _IS_WORKER = os.environ.get("WORKER_ENABLED") == "1"
     _CORE_INTRADAY_TFS = ('60', '30', '15')
     _DEEP_INTRADAY_TFS = ('5', '1')
     _INTRADAY_TFS = _CORE_INTRADAY_TFS + _DEEP_INTRADAY_TFS  # refresh-loop hot-set union
     if _IS_WORKER:
-        _CORE_INTRADAY_TICKERS = ticker_list            # full universe
-        _DEEP_INTRADAY_TICKERS = ticker_list[:800]
+        _CORE_INTRADAY_TICKERS = _active_intraday       # active set, not full universe
+        _DEEP_INTRADAY_TICKERS = _active_intraday[:800]
         # 4 (not 6): fetches are network-bound so 4 still parallelises
         # well, but fewer concurrent writers = a much shorter wait queue
         # behind the SQLite write lock. Sweet spot for throughput.
