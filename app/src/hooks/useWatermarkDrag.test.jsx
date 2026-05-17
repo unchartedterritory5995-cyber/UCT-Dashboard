@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import useWatermarkDrag from './useWatermarkDrag'
 
@@ -22,6 +22,7 @@ describe('useWatermarkDrag', () => {
     commit = vi.fn()
     tool = 'cursor'
   })
+  afterEach(() => { if (el && el.parentNode) el.parentNode.removeChild(el) })
   const setup = () => renderHook(() => useWatermarkDrag({
     containerRef: { current: el }, controllerRef: { current: ctrl },
     getActiveTool: () => tool, onCommit: commit, mediaSize: { width: 1000, height: 400 },
@@ -69,6 +70,30 @@ describe('useWatermarkDrag', () => {
     el.dispatchEvent(pe('pointerdown', 10, 10))
     el.dispatchEvent(pe('pointermove', 20, 20))
     el.dispatchEvent(pe('pointerup', 20, 20))
+    expect(commit).not.toHaveBeenCalled()
+  })
+
+  it('press outside rect never arms and never starts a drag', () => {
+    setup()
+    el.dispatchEvent(pe('pointerdown', 10, 10))
+    el.dispatchEvent(pe('pointermove', 300, 300))
+    el.dispatchEvent(pe('pointerup', 300, 300))
+    expect(ctrl.setArmed).not.toHaveBeenCalledWith(true)
+    expect(ctrl.setOptions).not.toHaveBeenCalled()
+    expect(commit).not.toHaveBeenCalled()
+  })
+
+  it('orphan pointerup (no prior pointerdown) does not throw or commit', () => {
+    setup()
+    expect(() => el.dispatchEvent(pe('pointerup', 10, 10))).not.toThrow()
+    expect(commit).not.toHaveBeenCalled()
+  })
+
+  it('pointercancel aborts the drag without committing', () => {
+    setup()
+    el.dispatchEvent(pe('pointerdown', 500, 230))
+    el.dispatchEvent(pe('pointermove', 600, 270))
+    el.dispatchEvent(pe('pointercancel', 600, 270))
     expect(commit).not.toHaveBeenCalled()
   })
 })
