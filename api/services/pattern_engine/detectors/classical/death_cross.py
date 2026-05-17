@@ -54,15 +54,19 @@ _MAX_CROSS_AGE = 5
 _SLOPE_BARS = 20
 _ATR_PERIOD = 14
 _CONFIDENCE_FLOOR = 50.0
-_EPS = 1e-9            # defensive epsilon for the +0.005 slope gate; belt-and-suspenders, not
-                       # load-bearing for current inputs: the boundary series produces
-                       # slope = -0.00551 << +0.005 (passes the plain gate already).
-                       # The natural death-cross construction (flat phase + decline) cannot
-                       # land the slope exactly at +0.005 — the flat phase drops the 200SMA
-                       # slope to around -0.005 to -0.015. Kept because: (a) non-integer
-                       # price series on other hardware could accumulate different float
-                       # residue at the exact threshold, and (b) future refactors might
-                       # introduce exact-boundary inputs.
+_EPS = 1e-9            # defensive epsilon for the +0.005 slope gate; belt-and-suspenders,
+                       # NOT load-bearing for current inputs. Verified arithmetic
+                       # (see tests/fixtures/death_cross/_generate.py for derivation):
+                       #   just-inside (target=+0.004999):  actual_slope ≈ +0.004998978
+                       #     plain gate  (<= +0.005)      → True  (_EPS not needed)
+                       #     EPS gate    (<= +0.005+1e-9) → True  (trivially)
+                       #   just-outside (target=+0.005001): actual_slope ≈ +0.005001028
+                       #     plain gate  (<= +0.005)      → False (gate rejects)
+                       #     EPS gate    (<= +0.005+1e-9) → False (gate also rejects)
+                       # The arithmetic residue (~1e-6) far exceeds _EPS=1e-9, so the plain
+                       # gate already handles both boundary cases correctly. _EPS is kept as
+                       # belt-and-suspenders for non-integer price series on other hardware
+                       # or future threshold changes.
 
 
 def _sma(bars: List[Bar], end_idx: int, period: int) -> Optional[float]:
@@ -345,7 +349,7 @@ def _compose_narrative(c, context, entry, stop, target, rr, stop_pct) -> dict:
         f"MA as a long-side filter will flip from full-weight long to "
         f"neutral/short simultaneously when the Death Cross fires, creating a "
         f"mechanical selling wave. Weinstein documented in 'Secrets for "
-        f"Profiting in Bull and Bear Markets' (1988) that Stage 4 declinesAfter "
+        f"Profiting in Bull and Bear Markets' (1988) that Stage 4 declines after "
         f"a Death Cross confirmation produce the most sustained and largest "
         f"drawdowns in equity markets — this is the phase where the stock's "
         f"fundamentals have deteriorated enough that institutions are actively "

@@ -27,23 +27,40 @@ Negative (>=8): cross >5 bars old, 50SMA still above 200SMA (no cross),
   golden cross direction (50 above 200), insufficient bars,
   flat chop intertwined, stale cross 30 bars ago.
 Edge (>=3): cross at oldest detectable age (age=4), 200SMA slope boundary
-  fail (slope clearly +1.5% -> reject), 200SMA slope boundary pass
-  (flat plateau before cross -> slope ~-0.55% -> accept).
+  fail (slope +0.005001 -> reject), 200SMA slope boundary pass
+  (slope +0.004999 -> accept).
 
 --- Slope boundary / _EPS note ---
 For death cross: gate is ma200_slope <= 0.005 + _EPS (slope declining or flat,
-allowing up to +0.5%). _EPS = 1e-9 is DEFENSIVE, not load-bearing:
+allowing up to +0.5%). _EPS = 1e-9 is DEFENSIVE, not load-bearing.
 
-The boundary series (dc_edge_slope_gate_boundary_pass) produces a slope of
-approximately -0.015 (well below +0.005), not at the exact +0.005 boundary.
-A natural death-cross series with the flat-phase construction cannot land
-the slope at exactly +0.005 — the flat phase drops the 200SMA slope to around
--0.005 to -0.015. The boundary fixtures therefore test clearly-failing (slope
-+1.5% >> +0.005 -> reject) and clearly-passing (slope ~-0.015 << +0.005 -> accept).
+The two boundary fixtures use _build_slope_boundary_series() which engineers the
+exact SMA arithmetic directly. Technique (see function docstring for full derivation):
+  1. Build a natural death-cross series (flat-phase construction).
+  2. Locate the cross bar (cross_idx). The slope window is [cross_idx-20, cross_idx].
+  3. Identify the EXCLUSIVE ZONE: bars[cross_idx-219 .. cross_idx-200] (20 bars).
+     These bars enter the ma200 OLD slope-reference window (at slope_start=cross_idx-20)
+     but are OUTSIDE the ma200 window at the cross bar AND outside both 50SMA reference
+     points — modifying them changes ma200_slope WITHOUT affecting the cross detection
+     or ma50_declining.
+  4. Closed-form solve: target = (ma200_cross - ma200_ss_new) / ma200_ss_new
+     → ma200_ss_new = ma200_cross / (1 + target)
+     → required sum over excl zone = 200*ma200_ss_new - sum(bars[excl_end+1..ss])
+     → set each excl-zone bar's close = required_sum / 20.
 
-_EPS is kept belt-and-suspenders for non-integer price series or future refactors
-but is NOT load-bearing for any fixture in this battery.
+Verified arithmetic for the two boundary fixtures (using rounded 4-dp prices):
+  dc_edge_slope_gate_boundary_pass  (target=+0.004999):
+    actual_slope ≈ 0.004998978 (<< 0.005 — plain gate <= 0.005 is True)
+    _EPS not needed; _EPS gate also True. _EPS is DEFENSIVE here.
+  dc_edge_slope_gate_boundary_fail  (target=+0.005001):
+    actual_slope ≈ 0.005001028 (> 0.005 — plain gate <= 0.005 is False)
+    _EPS gate (<= 0.005 + 1e-9) also False. Gate correctly rejects.
+
+Conclusion: the arithmetic granularity (residue ~1e-6) far exceeds _EPS = 1e-9, so the
+plain gate already accepts the pass case and rejects the fail case. _EPS is belt-and-
+suspenders for non-integer price series on other hardware or future refactors.
 """
+import copy
 import json
 import math
 import os
@@ -438,49 +455,113 @@ def _cross_oldest_detectable_age():
     return _build_cross_series(cross_age=5, cross_vol_mult=1.5)
 
 
-def _slope_gate_boundary_fail():
-    """200SMA slope = ~+1.5% — clearly outside the +0.5% gate (rejects).
+def _build_slope_boundary_series(target_slope: float) -> list:
+    """Construct a synthetic death-cross series producing the exact target 200SMA slope.
 
-    NATURAL SERIES: a very steep uptrend followed by a short decline produces
-    a 200SMA slope well above +0.005 at any cross-like bar. The slope gate
-    (<=+0.005) rejects regardless of cross presence.
+    Technique: start from a natural death-cross series (flat-phase construction),
+    locate the cross bar, then solve closed-form for the exclusive-zone bar values
+    that produce target_slope without disturbing the cross detection or ma50_declining.
 
-    This is the same as dc_200sma_slope_rising but labeled as edge to cover
-    the boundary-fail side of the gate.
+    EXCLUSIVE ZONE: bars[cross_idx-219 .. cross_idx-200] (20 bars).
+      - These bars enter the ma200 OLD slope-reference window (at ss=cross_idx-20)
+        but are OUTSIDE the ma200 window at the cross bar (which uses bars[cross_idx-199..
+        cross_idx]).
+      - Also outside both 50SMA reference points (cross bar uses bars[cross_idx-49..
+        cross_idx]; slope start uses bars[cross_idx-69..cross_idx-20]).
+      - Modifying only these 20 bars changes ma200_ss WITHOUT affecting ma200_cross,
+        ma50_cross, or ma50_ss.
 
-    Establishes _EPS truth: slope ~+0.015 >> +0.005 + _EPS; gate rejects.
-    _EPS = 1e-9 is irrelevant — the slope is far above the boundary.
+    Closed-form derivation:
+      slope = (ma200_cross - ma200_ss) / ma200_ss = target
+      => ma200_ss = ma200_cross / (1 + target)
+      sum(excl_zone) = 200 * ma200_ss - sum(bars[excl_end+1 .. ss])
+      each excl bar close = sum(excl_zone) / 20
+
+    Produces a genuine death cross (ma50<ma200 now, ma50>=ma200 prev bar,
+    cross within last 5 bars, ma50_declining, >=200 bars) with ma200_slope
+    at exactly the requested target (to floating-point precision).
     """
-    bars = []
-    t = T0
-    # Extremely steep uptrend — 200SMA over last 20 bars will be +1-2%
-    bars.extend(_trending(200, 50.0, 200.0, vol=BASE_VOL, t_start=t))
-    t = _last_t(bars)
-    # Short 25-bar decline (insufficient to flatten 200SMA)
-    bars.extend(_trending(25, 200.0, 170.0, vol=BASE_VOL * 1.5, t_start=t))
-    t = _last_t(bars)
-    last_c = bars[-1]["c"]
-    cross_c = last_c * 0.96
-    bars.append(_bar(t, cross_c * 1.001, cross_c * 1.005, cross_c * 0.995,
-                     cross_c, BASE_VOL * 1.5))
-    t += DT
-    bars.extend(_flat(3, cross_c * 0.98, t_start=t))
-    return bars
+    bars = _build_cross_series(cross_age=1, cross_vol_mult=1.5, flat_bars=40)
+    n = len(bars)
+    last_idx = n - 1
+
+    # Find cross bar
+    cross_idx = None
+    for i in range(last_idx, max(last_idx - 5, 199), -1):
+        m50_i = _sma_of(bars, i, 50)
+        m50_p = _sma_of(bars, i - 1, 50)
+        m200_i = _sma_of(bars, i, 200)
+        m200_p = _sma_of(bars, i - 1, 200)
+        if (m50_i is not None and m200_i is not None and
+                m50_p is not None and m200_p is not None and
+                m50_p >= m200_p and m50_i < m200_i):
+            cross_idx = i
+            break
+
+    if cross_idx is None:
+        raise RuntimeError("_build_slope_boundary_series: no death cross found in base series")
+
+    ss = max(0, cross_idx - 20)            # slope_start
+    excl_start = cross_idx - 219           # first bar of exclusive zone
+    excl_end = cross_idx - 200             # last bar of exclusive zone (inclusive)
+
+    if excl_start < 0:
+        raise RuntimeError("_build_slope_boundary_series: series too short for exclusive zone")
+
+    ma200_cross = _sma_of(bars, cross_idx, 200)
+    # sum of bars in ss window that are NOT in the exclusive zone
+    sum_non_excl = sum(bars[i]["c"] for i in range(excl_end + 1, ss + 1))
+
+    # Solve for required exclusive-zone values
+    ma200_ss_new = ma200_cross / (1.0 + target_slope)
+    new_excl_sum = 200.0 * ma200_ss_new - sum_non_excl
+    new_excl_val = new_excl_sum / 20.0
+
+    if new_excl_val <= 0:
+        raise RuntimeError(
+            f"_build_slope_boundary_series: computed excl val={new_excl_val:.4f} "
+            f"is non-positive for target={target_slope}"
+        )
+
+    bars_mod = copy.deepcopy(bars)
+    for i in range(excl_start, excl_end + 1):
+        c = round(new_excl_val, 4)
+        spread = max(c * 0.003, 0.01)
+        bars_mod[i] = _bar(bars_mod[i]["t"],
+                           round(c - spread * 0.4, 4),
+                           round(c + spread * 0.6, 4),
+                           round(c - spread * 0.6, 4),
+                           c,
+                           bars_mod[i]["v"])
+
+    return bars_mod
+
+
+def _slope_gate_boundary_fail():
+    """200SMA slope = +0.005001 — just OUTSIDE the +0.005 gate (rejects).
+
+    SYNTHETIC SERIES via _build_slope_boundary_series(target_slope=+0.005001).
+    Every other death-cross condition is satisfied (genuine cross within last 5 bars,
+    ma50_declining, volume >= 0.5x avg); only the slope gate rejects.
+
+    Verified arithmetic (with 4-dp rounded prices):
+      actual_slope ≈ +0.005001028  (> +0.005 — plain gate <= 0.005 is False)
+      EPS gate (<= 0.005 + 1e-9) is also False. Detector returns 0 detections.
+    """
+    return _build_slope_boundary_series(target_slope=+0.005001)
 
 
 def _slope_gate_boundary_pass():
-    """200SMA slope approximately -0.015 (well below +0.005) — gate passes.
+    """200SMA slope = +0.004999 — just INSIDE the +0.005 gate (fires).
 
-    NATURAL SERIES: a long uptrend followed by a 40-bar flat plateau then decline
-    produces a 200SMA slope of approximately -0.005 to -0.015 at the cross bar.
-    This is well within the <= +0.005 gate.
+    SYNTHETIC SERIES via _build_slope_boundary_series(target_slope=+0.004999).
+    Every death-cross condition is satisfied; the slope gate accepts.
 
-    Establishes _EPS truth: slope ~-0.015 << +0.005; plain gate passes;
-    _EPS = 1e-9 is belt-and-suspenders, not load-bearing here.
-
-    Uses same construction as _clean_fresh_cross but cross_age=1 (fresh).
+    Verified arithmetic (with 4-dp rounded prices):
+      actual_slope ≈ +0.004998978  (< +0.005 — plain gate <= 0.005 is True)
+      _EPS not needed; the plain gate already passes. _EPS is DEFENSIVE here.
     """
-    return _build_cross_series(cross_age=1, cross_vol_mult=1.5, flat_bars=40)
+    return _build_slope_boundary_series(target_slope=+0.004999)
 
 
 # ============== CONTEXTS ==============

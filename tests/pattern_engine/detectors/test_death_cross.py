@@ -149,38 +149,60 @@ def test_levels_are_bearish_setup():
 
 
 # ---------------------------------------------------------------------------
-# Slope-gate _EPS unit tests
+# Slope-gate _EPS unit tests — TRUE BOUNDARY COVERAGE
 #
 # _EPS = 1e-9 is a DEFENSIVE epsilon in the gate `ma200_slope <= 0.005 + _EPS`.
-# It is NOT load-bearing for current inputs — the natural death-cross series
-# (flat plateau + decline construction) produces slope = -0.00551 << +0.005,
-# which already passes the plain `<= 0.005` check.
+# It is NOT load-bearing for current inputs.
 #
-# The boundary series cannot be naturally constructed at exactly +0.005:
-#   * slope = (ma200_cross - ma200_ss) / ma200_ss
-#   * The flat-phase construction drops the 200SMA slope to -0.005 to -0.015
-#     in the 20-bar window at the cross. Landing at exactly +0.005 would
-#     require a steeply rising price over those 20 bars — but a rising price
-#     over 20 bars means the 50SMA would be RISING too (ma50_declining=False),
-#     which is a separate gate failure.
-#   * Empirically: dc_edge_slope_gate_boundary_pass has slope = -0.00551.
-#   * dc_edge_slope_gate_boundary_fail has slope = +0.085 (far above the gate).
+# The two boundary fixtures (dc_edge_slope_gate_boundary_pass / _fail) are built
+# by _build_slope_boundary_series() in _generate.py using the exclusive-zone
+# technique: bars[cross_idx-219..cross_idx-200] are modified to land ma200_slope
+# at exactly the requested target without disturbing the cross detection or
+# ma50_declining gate.
 #
-# _EPS is therefore belt-and-suspenders for non-integer price series or
-# future threshold changes. The tests below document this HONEST assessment.
+# Verified arithmetic (rounded 4-dp prices, IEEE 754 float64):
+#   dc_edge_slope_gate_boundary_pass  (target=+0.004999):
+#     actual_slope ≈ +0.004998978  |actual - 0.005| ≈ 1e-6
+#     plain gate  (<= +0.005)      → True  (_EPS not needed here)
+#     EPS gate    (<= +0.005+1e-9) → True  (trivially)
+#     → _EPS is DEFENSIVE, not load-bearing
+#
+#   dc_edge_slope_gate_boundary_fail  (target=+0.005001):
+#     actual_slope ≈ +0.005001028  |actual - 0.005| ≈ 1e-6
+#     plain gate  (<= +0.005)      → False (gate correctly rejects)
+#     EPS gate    (<= +0.005+1e-9) → False (gate also rejects)
+#
+# The arithmetic granularity (~1e-6) is far larger than _EPS=1e-9; the plain gate
+# already handles both cases correctly. _EPS is belt-and-suspenders for non-integer
+# series on other hardware or future threshold changes.
 # ---------------------------------------------------------------------------
 
 
-def _build_boundary_bars_via_fixture() -> list:
-    """Return bars from the slope_gate_boundary_pass fixture for reuse."""
+def _load_fixture_bars(fixture_name: str) -> list:
+    """Load bars from a named death_cross JSON fixture file."""
     import json, os
     path = os.path.join(
         os.path.dirname(__file__), "..", "..", "fixtures", "death_cross",
-        "dc_edge_slope_gate_boundary_pass.json"
+        f"{fixture_name}.json"
     )
     with open(path) as f:
-        data = json.load(f)
-    return data["bars"]
+        return json.load(f)["bars"]
+
+
+def _find_cross_idx(bars: list) -> int:
+    """Locate the death-cross bar index by scanning backwards from last bar."""
+    n = len(bars)
+    last_idx = n - 1
+    for i in range(last_idx, max(last_idx - 5, 199), -1):
+        ma50_i = _sma(bars, i, 50)
+        ma50_prev = _sma(bars, i - 1, 50)
+        ma200_i = _sma(bars, i, 200)
+        ma200_prev = _sma(bars, i - 1, 200)
+        if any(v is None for v in (ma50_i, ma50_prev, ma200_i, ma200_prev)):
+            continue
+        if ma50_prev >= ma200_prev and ma50_i < ma200_i:
+            return i
+    return None
 
 
 _GOOD_CTX = {
@@ -192,117 +214,85 @@ _GOOD_CTX = {
 }
 
 
-def test_slope_gate_boundary_pass_confirmed():
-    """200SMA slope ≈ -0.0055 FIRES — well within the gate boundary.
+def test_slope_gate_boundary_pass():
+    """200SMA slope ≈ +0.004999 FIRES — just inside the <= +0.005 gate.
 
-    The natural death-cross construction (flat phase + decline) produces a
-    200SMA slope of approximately -0.0055, which is well below the +0.005
-    gate threshold. The detector fires regardless of _EPS; this test
-    verifies the boundary case fires and documents the honest arithmetic.
+    The synthetic boundary-pass fixture targets slope=+0.004999, which rounds
+    to actual_slope ≈ +0.004998978 after 4-dp price rounding.  The slope is
+    within 0.0001 of +0.005 (strict boundary proximity proof) and strictly
+    below +0.005 (plain gate already accepts; _EPS not load-bearing here).
     """
-    bars = _build_boundary_bars_via_fixture()
+    bars = _load_fixture_bars("dc_edge_slope_gate_boundary_pass")
     detections = detect_death_cross(bars, _GOOD_CTX)
 
-    n = len(bars)
-    last_idx = n - 1
-    # Find the cross index (scan backwards)
-    cross_idx = None
-    for i in range(last_idx, max(last_idx - 5, 199), -1):
-        ma50_i = _sma(bars, i, 50)
-        ma50_prev = _sma(bars, i - 1, 50)
-        ma200_i = _sma(bars, i, 200)
-        ma200_prev = _sma(bars, i - 1, 200)
-        if any(v is None for v in (ma50_i, ma50_prev, ma200_i, ma200_prev)):
-            continue
-        if ma50_prev >= ma200_prev and ma50_i < ma200_i:
-            cross_idx = i
-            break
-
-    assert cross_idx is not None, "No cross found in boundary_pass fixture"
+    cross_idx = _find_cross_idx(bars)
+    assert cross_idx is not None, "No death cross found in boundary_pass fixture"
 
     ss = max(0, cross_idx - 20)
     ma200_cross = _sma(bars, cross_idx, 200)
     ma200_ss = _sma(bars, ss, 200)
     actual_slope = (ma200_cross - ma200_ss) / ma200_ss
 
-    # Slope should be approximately -0.005 to -0.015 (below gate)
-    assert actual_slope < 0.005, (
-        f"Expected slope < +0.005 for the pass case; got {actual_slope!r}"
+    # Strict proximity proof: slope must be within 0.0001 of +0.005
+    assert abs(actual_slope - 0.005) < 0.0001, (
+        f"Boundary-pass fixture slope {actual_slope!r} is not within 0.0001 of +0.005; "
+        f"|actual - 0.005| = {abs(actual_slope - 0.005):.6e}"
     )
-    # Both the plain gate and the _EPS-guarded gate pass (trivially)
+    # Plain gate check
     assert actual_slope <= 0.005, (
-        f"Plain gate (<= 0.005) should pass; got slope={actual_slope!r}"
+        f"Plain gate (<= +0.005) should pass for just-inside slope; got {actual_slope!r}"
     )
+    # EPS-guarded gate (trivially also passes)
     assert actual_slope <= 0.005 + _EPS, (
-        f"EPS-guarded gate (<= 0.005 + {_EPS}) should also pass; got slope={actual_slope!r}"
+        f"EPS-guarded gate (<= +0.005 + {_EPS}) should pass; got {actual_slope!r}"
     )
+    # Detector must fire (slope inside gate, all other death-cross conditions satisfied)
     assert len(detections) >= 1, (
-        f"Slope {actual_slope!r} well within gate — detector must fire. Got 0 detections."
+        f"Just-inside slope {actual_slope!r} (<= +0.005) — detector must fire. "
+        f"Got 0 detections."
     )
 
 
-def test_eps_is_defensive():
-    """_EPS is defensive: the boundary series slope already passes the plain gate.
+def test_slope_gate_boundary_fail():
+    """200SMA slope ≈ +0.005001 does NOT fire — just outside the <= +0.005 gate.
 
-    Honest proof of _EPS's nature:
-      - actual_slope ≈ -0.00551  (<< +0.005, plain gate passes — _EPS not needed)
-      - actual_slope <= 0.005 + _EPS  (EPS-guarded gate also passes — trivially)
-
-    The natural death-cross construction cannot produce a slope of exactly
-    +0.005 at the cross bar while also satisfying ma50_declining=True.
-    _EPS remains as belt-and-suspenders for non-integer price series or
-    future threshold changes.
+    The synthetic boundary-fail fixture targets slope=+0.005001, which rounds
+    to actual_slope ≈ +0.005001028 after 4-dp price rounding.  The slope is
+    within 0.0001 of +0.005 (strict boundary proximity proof) and strictly
+    above +0.005 (both the plain gate and _EPS gate reject; this test proves
+    the slope gate — not any other condition — is solely responsible for rejection
+    because every other death-cross gate is satisfied in the fixture).
     """
-    bars = _build_boundary_bars_via_fixture()
-    n = len(bars)
-    last_idx = n - 1
-    cross_idx = None
-    for i in range(last_idx, max(last_idx - 5, 199), -1):
-        ma50_i = _sma(bars, i, 50)
-        ma50_prev = _sma(bars, i - 1, 50)
-        ma200_i = _sma(bars, i, 200)
-        ma200_prev = _sma(bars, i - 1, 200)
-        if any(v is None for v in (ma50_i, ma50_prev, ma200_i, ma200_prev)):
-            continue
-        if ma50_prev >= ma200_prev and ma50_i < ma200_i:
-            cross_idx = i
-            break
+    bars = _load_fixture_bars("dc_edge_slope_gate_boundary_fail")
+    detections = detect_death_cross(bars, _GOOD_CTX)
 
-    assert cross_idx is not None, "No cross found in boundary_pass fixture"
+    cross_idx = _find_cross_idx(bars)
+    assert cross_idx is not None, (
+        "No death cross found in boundary_fail fixture — "
+        "every condition except the slope gate should be satisfied"
+    )
+
     ss = max(0, cross_idx - 20)
     ma200_cross = _sma(bars, cross_idx, 200)
     ma200_ss = _sma(bars, ss, 200)
     actual_slope = (ma200_cross - ma200_ss) / ma200_ss
 
-    # The slope is strictly BELOW +0.005 — plain gate already passes, _EPS not needed
-    assert actual_slope < 0.005, (
-        f"Expected slope < +0.005 (so _EPS is defensive, not load-bearing); "
-        f"got {actual_slope!r}"
+    # Strict proximity proof: slope must be within 0.0001 of +0.005
+    assert abs(actual_slope - 0.005) < 0.0001, (
+        f"Boundary-fail fixture slope {actual_slope!r} is not within 0.0001 of +0.005; "
+        f"|actual - 0.005| = {abs(actual_slope - 0.005):.6e}"
     )
-    # Trivially, the EPS-guarded gate also passes
-    assert actual_slope <= 0.005 + _EPS, (
-        f"EPS-guarded gate must also pass; got {actual_slope!r}"
+    # Plain gate must REJECT (slope is above +0.005)
+    assert actual_slope > 0.005, (
+        f"Plain gate should REJECT: slope {actual_slope!r} should be > +0.005"
     )
-
-
-def test_slope_gate_boundary_fail_clearly_outside():
-    """200SMA slope = +0.085 clearly fails the gate (far outside +0.005).
-
-    Pairs with test_slope_gate_boundary_pass_confirmed to confirm the gate
-    works correctly. Slope +0.085 >> +0.005 + _EPS; gate rejects.
-    """
-    import json, os
-    path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "fixtures", "death_cross",
-        "dc_edge_slope_gate_boundary_fail.json"
+    # EPS-guarded gate must also reject (residue ~1e-6 >> _EPS=1e-9)
+    assert actual_slope > 0.005 + _EPS, (
+        f"EPS gate should also REJECT: slope {actual_slope!r} should be > +0.005 + {_EPS}"
     )
-    with open(path) as f:
-        data = json.load(f)
-    bars = data["bars"]
-    ctx = data["context"]
-    detections = detect_death_cross(bars, ctx)
+    # Detector must NOT fire (slope gate rejects; all other conditions satisfied)
     assert len(detections) == 0, (
-        f"Slope ~+0.085 is far outside the +0.005 gate — detector must NOT fire. "
+        f"Just-outside slope {actual_slope!r} (> +0.005) — slope gate must reject. "
         f"Got {len(detections)} detection(s) with confidence "
         f"{[d['confidence'] for d in detections]}."
     )
