@@ -30,7 +30,7 @@ from fastapi.responses import JSONResponse
 from api.services.cache import cache
 from api.services import bars_disk_cache as disk_cache
 from api.services import bars_sqlite as _sqlite
-from api.services.massive import _get_client, _REST_BASE
+from api.services.massive import _get_client, _REST_BASE, to_polygon_symbol
 
 # ── In-flight deduplication ───────────────────────────────────────────────────
 # Prevents N concurrent requests for the same key from each making a separate
@@ -252,7 +252,7 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
     try:
         client = _get_client()
         url = (
-            f"{_REST_BASE}/v2/aggs/ticker/{ticker.upper()}/range/{multiplier}/minute"
+            f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/{multiplier}/minute"
             f"/{from_date}/{to_date}"
             f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
         )
@@ -613,7 +613,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
         try:
             client = _get_client()
             url = (
-                f"{_REST_BASE}/v2/aggs/ticker/{ticker.upper()}/range/30/minute"
+                f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/30/minute"
                 f"/{from_date}/{to_date}"
                 f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
             )
@@ -643,7 +643,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
     try:
         client = _get_client()
         url = (
-            f"{_REST_BASE}/v2/aggs/ticker/{ticker.upper()}/range/{multiplier}/minute"
+            f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/{multiplier}/minute"
             f"/{from_date}/{to_date}"
             f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
         )

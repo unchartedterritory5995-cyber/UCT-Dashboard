@@ -209,3 +209,25 @@ class TestHotIntradaySet:
             _bf._record_intraday_request(f"S{i}", "30")
         with _bf._recent_intraday_lock:
             assert len(_bf._recent_intraday) <= cap
+
+
+from api.services.massive import to_polygon_symbol
+
+
+class TestPolygonSymbol:
+    """Dual-class tickers froze because Massive uses dot notation
+    (BRK.B) but the universe/cache/FMP/yfinance use hyphen (BRK-B);
+    the Massive (and delta) fetch returned n=0 → permanent freeze.
+    Verified empirically against production."""
+
+    def test_class_share_hyphen_to_dot(self):
+        assert to_polygon_symbol("BRK-B") == "BRK.B"
+        assert to_polygon_symbol("BF-B") == "BF.B"
+        assert to_polygon_symbol("CRD-A") == "CRD.A"
+
+    def test_plain_ticker_unchanged(self):
+        assert to_polygon_symbol("AAPL") == "AAPL"
+        assert to_polygon_symbol("nvda") == "NVDA"
+
+    def test_idempotent_on_dot_form(self):
+        assert to_polygon_symbol("BRK.B") == "BRK.B"

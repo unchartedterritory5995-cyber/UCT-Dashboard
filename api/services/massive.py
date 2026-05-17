@@ -14,6 +14,21 @@ from api.services.cache import cache
 
 _REST_BASE = "https://api.massive.com"
 
+
+def to_polygon_symbol(ticker: str) -> str:
+    """Map an app/UI ticker to the symbol Massive (Polygon-compatible)
+    expects. Class shares use DOT notation upstream (BRK.B), but the
+    universe list, SQLite cache, FMP and yfinance all use the HYPHEN
+    form (BRK-B). Verified empirically: Massive returns n=0 for
+    'BRK-B'/'BF-B' but full fresh data for 'BRK.B'/'BF.B'. Without this,
+    every dual-class ticker's Massive (and delta) fetch returns nothing
+    and the chart stays frozen at whatever the cache last had.
+
+    Apply ONLY at the Massive REST boundary — storage/cache keys and the
+    FMP/yfinance fallbacks keep the canonical hyphen form. No-op for
+    normal tickers (no hyphen)."""
+    return ticker.upper().replace("-", ".")
+
 _client = None
 
 # Shared httpx session — persistent TCP connections.
@@ -82,7 +97,7 @@ class _MassiveRestClient:
         """
         url = (
             f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
-            f"/{ticker.upper()}?apiKey={self._api_key}"
+            f"/{to_polygon_symbol(ticker)}?apiKey={self._api_key}"
         )
         try:
             data = self._get(url)
@@ -364,7 +379,7 @@ def get_agg_bars(ticker: str, from_date: str, to_date: str) -> list[dict]:
     try:
         client = _get_client()
         url = (
-            f"{_REST_BASE}/v2/aggs/ticker/{ticker.upper()}/range/1/day"
+            f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/1/day"
             f"/{from_date}/{to_date}"
             f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
         )
