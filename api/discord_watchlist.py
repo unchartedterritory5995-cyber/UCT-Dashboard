@@ -51,13 +51,24 @@ def _fmt_strike(strike: float) -> str:
 
 # ── Embed table builder ───────────────────────────────────────────────────
 
+def _conviction_icon(score: float) -> str:
+    """Map autoScore (0-10) to conviction icons."""
+    if score >= 8:
+        return "🔥🔥"
+    if score >= 6:
+        return "🔥"
+    if score >= 4:
+        return "⚡"
+    return "○"
+
+
 def _build_table(items: list[dict], limit: int = 10) -> str:
     """Build a monospace-aligned table from watchlist items."""
     lines = []
     for i, item in enumerate(items[:limit], 1):
         sym = (item.get("sym") or "???").ljust(6)
 
-        # Contract info
+        # Contract info — order: exp strike cp
         strike_val = item.get("strike")
         if strike_val and str(strike_val).strip():
             cp = (item.get("cp") or "?")[0].upper()
@@ -67,7 +78,7 @@ def _build_table(items: list[dict], limit: int = 10) -> str:
                 strike = "".ljust(8)
             exp = _fmt_exp(item.get("exp") or "").ljust(6)
             prem = _fmt(float(item.get("prem") or 0)).rjust(7)
-            contract = f"{cp} {strike}{exp}{prem}"
+            contract = f"{exp}{strike}{cp} {prem}"
         else:
             contract = "—"
 
@@ -79,12 +90,12 @@ def _build_table(items: list[dict], limit: int = 10) -> str:
         if item.get("uoa") or "UOA" in notes.upper():
             flags += " UOA"
 
-        # Score badge
+        # Conviction icon
         score = float(item.get("score") or item.get("autoScore") or 0)
-        score_str = f" [{score:.0f}]" if score else ""
+        icon = _conviction_icon(score)
 
         rank = f"{i:>2}."
-        lines.append(f"{rank} {sym} {contract}{flags}{score_str}")
+        lines.append(f"{rank} {sym} {contract}{flags}  {icon}")
 
     return "\n".join(lines) if lines else "(empty)"
 
@@ -98,24 +109,33 @@ def build_messages(
     label: str = "",
     unusual_bull: list[dict] | None = None,
     unusual_bear: list[dict] | None = None,
+    overall_bull: float = 0,
+    overall_bear: float = 0,
+    ticker_count: int = 0,
 ) -> list[dict]:
     """
     Build Discord embed messages.
     Sections 1&2: bull/bear from main watchlist (Auto-Fill from Scanner).
     Sections 3&4: unusual_bull/unusual_bear from mid-small unusual scan.
-    Returns 1-2 message payloads (message 2 only if unusual items exist).
+    Summary uses overall_bull/overall_bear (full day flow across ALL tickers).
     """
     # Sort by score descending
     bull_sorted = sorted(bull, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
     bear_sorted = sorted(bear, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
 
-    # Summary stats
-    total_bull = sum(float(i.get("prem") or 0) for i in bull)
-    total_bear = sum(float(i.get("prem") or 0) for i in bear)
+    # Summary stats — use overall day flow (all tickers) if provided, else fall back to curated
+    if overall_bull > 0 or overall_bear > 0:
+        total_bull = overall_bull
+        total_bear = overall_bear
+        tk_count = ticker_count or len(set(i.get("sym") for i in bull + bear))
+    else:
+        total_bull = sum(float(i.get("prem") or 0) for i in bull)
+        total_bear = sum(float(i.get("prem") or 0) for i in bear)
+        tk_count = len(set(i.get("sym") for i in bull + bear))
+
     total = total_bull + total_bear
     bull_pct = round(total_bull / total * 100) if total > 0 else 50
     net = total_bull - total_bear
-    ticker_count = len(set(i.get("sym") for i in bull + bear))
 
     now = datetime.now()
     date_str = now.strftime("%B %d, %Y")
@@ -139,7 +159,7 @@ def build_messages(
                     f"**▲ BULL WATCHLIST**\n"
                     f"```\n{_build_table(bull_sorted)}\n```"
                 ),
-                "footer": {"text": f"UCT Intelligence · {time_str} · {ticker_count} tickers"},
+                "footer": {"text": f"UCT Intelligence · {time_str} · {tk_count} tickers with flow"},
             },
             {
                 "color": RED,
@@ -192,13 +212,19 @@ async def send_to_discord(
     label: str = "",
     unusual_bull: list[dict] | None = None,
     unusual_bear: list[dict] | None = None,
+    overall_bull: float = 0,
+    overall_bear: float = 0,
+    ticker_count: int = 0,
 ) -> dict:
     """Build messages from bull/bear + unusual items and send to Discord webhook."""
     if not DISCORD_FLOW_WEBHOOK_URL:
         logger.error("[Discord] No DISCORD_FLOW_WEBHOOK_URL configured")
         return {"ok": False, "error": "No webhook URL configured"}
 
-    messages = build_messages(bull, bear, label, unusual_bull, unusual_bear)
+    messages = build_messages(
+        bull, bear, label, unusual_bull, unusual_bear,
+        overall_bull, overall_bear, ticker_count,
+    )
 
     try:
         import asyncio
@@ -241,10 +267,13 @@ def register_discord_routes(app_or_router):
         """
         Push curated watchlist to Discord.
         Body: {
-          "bull": [...],          -- main watchlist bull picks
-          "bear": [...],          -- main watchlist bear picks
-          "unusualBull": [...],   -- unusual mid-small bull (auto-computed by frontend)
-          "unusualBear": [...],   -- unusual mid-small bear (auto-computed by frontend)
+          "bull": [...],            -- main watchlist bull picks
+          "bear": [...],            -- main watchlist bear picks
+          "unusualBull": [...],     -- unusual mid-small bull
+          "unusualBear": [...],     -- unusual mid-small bear
+          "overallBull": 231200000, -- total bull premium across ALL tickers (day flow)
+          "overallBear": 150300000, -- total bear premium across ALL tickers (day flow)
+          "tickerCount": 462,       -- total tickers with flow
           "label": "WATCHLIST"
         }
         """
@@ -252,9 +281,15 @@ def register_discord_routes(app_or_router):
         bear = payload.get("bear", [])
         unusual_bull = payload.get("unusualBull", [])
         unusual_bear = payload.get("unusualBear", [])
+        overall_bull = float(payload.get("overallBull", 0))
+        overall_bear = float(payload.get("overallBear", 0))
+        ticker_count = int(payload.get("tickerCount", 0))
         label = payload.get("label", "WATCHLIST")
 
         if not bull and not bear:
             return {"ok": False, "error": "No bull or bear items to send"}
 
-        return await send_to_discord(bull, bear, label, unusual_bull, unusual_bear)
+        return await send_to_discord(
+            bull, bear, label, unusual_bull, unusual_bear,
+            overall_bull, overall_bear, ticker_count,
+        )
