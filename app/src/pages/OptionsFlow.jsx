@@ -1589,18 +1589,37 @@ export default function OptionsFlowDashboard() {
         return { ...c, _isExit, _rankScore: _isExit ? (c.score||0) * 0.4 : (c.score||0) };
       }).sort((a,b)=>b._rankScore-a._rankScore).filter(c => { if (seen.has(c.sym)) return false; seen.add(c.sym); return true; });
     };
-    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>({
-      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
-      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-      dir:c.dir||"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
-      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
-    }));
-    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>({
-      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
-      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-      dir:c.dir||"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
-      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
-    }));
+    // Helper: extract first/latest date and spot from CONV trades
+    const _extractDateSpot = (c) => {
+      const trades = (c.trades||[]).filter(t=>t.Dt);
+      if (!trades.length) return { firstDate:"", entrySpot:0, latestSpot:0 };
+      const parsed = trades.map(t => {
+        const p = (t.Dt||"").split("/").map(Number);
+        const y = p.length>=3 ? (p[2]<100?p[2]+2000:p[2]) : 2026;
+        return { dt: new Date(y, p[0]-1, p[1]||1), raw: t.Dt, spot: t.Spot||0 };
+      }).sort((a,b)=>a.dt-b.dt);
+      return { firstDate: parsed[0].raw, entrySpot: parsed[0].spot, latestSpot: parsed[parsed.length-1].spot };
+    };
+    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>{
+      const ds = _extractDateSpot(c);
+      return {
+        sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+        strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+        dir:c.dir||"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
+        cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
+        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot
+      };
+    });
+    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>{
+      const ds = _extractDateSpot(c);
+      return {
+        sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+        strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+        dir:c.dir||"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
+        cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
+        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot
+      };
+    });
     setWlBull(bulls);
     setWlBear(bears);
   };
@@ -1722,10 +1741,31 @@ export default function OptionsFlowDashboard() {
       });
       tickerCount = tkSet.size;
     }
+    // Compute age + status for each item
+    const today = new Date();
+    const _addStatus = (items) => items.map(item => {
+      let age = "", status = "";
+      if (item.firstDate) {
+        const p = item.firstDate.split("/").map(Number);
+        const y = p.length >= 3 ? (p[2] < 100 ? p[2] + 2000 : p[2]) : today.getFullYear();
+        const fd = new Date(y, p[0]-1, p[1]||1);
+        const diffMs = today - fd;
+        const diffDays = Math.max(0, Math.round(diffMs / 86400000));
+        age = diffDays <= 1 ? "1d" : diffDays + "d";
+        // Status logic
+        if (diffDays <= 2) { status = "NEW"; }
+        else if (item.entrySpot > 0 && item.latestSpot > 0) {
+          const movePct = ((item.latestSpot - item.entrySpot) / item.entrySpot * 100);
+          const sign = movePct >= 0 ? "+" : "";
+          status = sign + Math.round(movePct) + "%";
+        }
+      }
+      return { ...item, age, status };
+    });
     try {
       const resp = await fetch("/api/discord/push",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
-          bull:wlBull, bear:wlBear,
+          bull:_addStatus(wlBull), bear:_addStatus(wlBear),
           unusualBull:unusual.bull, unusualBear:unusual.bear,
           overallBull, overallBear, tickerCount,
           label:discordLabel
