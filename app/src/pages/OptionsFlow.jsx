@@ -1574,6 +1574,18 @@ export default function OptionsFlowDashboard() {
     return Math.min(10, Math.round(s / 1.25 * 10) / 10);
   };
 
+  // Helper: extract first/latest date and spot from CONV trades
+  const _extractDateSpot = (c) => {
+    const trades = (c.trades||[]).filter(t=>t.Dt);
+    if (!trades.length) return { firstDate:"", entrySpot:0, latestSpot:0 };
+    const parsed = trades.map(t => {
+      const p = (t.Dt||"").split("/").map(Number);
+      const y = p.length>=3 ? (p[2]<100?p[2]+2000:p[2]) : 2026;
+      return { dt: new Date(y, p[0]-1, p[1]||1), raw: t.Dt, spot: t.Spot||0 };
+    }).sort((a,b)=>a.dt-b.dt);
+    return { firstDate: parsed[0].raw, entrySpot: parsed[0].spot, latestSpot: parsed[parsed.length-1].spot };
+  };
+
   const wlPopulate = () => {
     if (!FD || !FD.CONV) return;
     // Deduplicate by ticker — take highest-scoring contract per ticker
@@ -1588,17 +1600,6 @@ export default function OptionsFlowDashboard() {
         const _isExit = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
         return { ...c, _isExit, _rankScore: _isExit ? (c.score||0) * 0.4 : (c.score||0) };
       }).sort((a,b)=>b._rankScore-a._rankScore).filter(c => { if (seen.has(c.sym)) return false; seen.add(c.sym); return true; });
-    };
-    // Helper: extract first/latest date and spot from CONV trades
-    const _extractDateSpot = (c) => {
-      const trades = (c.trades||[]).filter(t=>t.Dt);
-      if (!trades.length) return { firstDate:"", entrySpot:0, latestSpot:0 };
-      const parsed = trades.map(t => {
-        const p = (t.Dt||"").split("/").map(Number);
-        const y = p.length>=3 ? (p[2]<100?p[2]+2000:p[2]) : 2026;
-        return { dt: new Date(y, p[0]-1, p[1]||1), raw: t.Dt, spot: t.Spot||0 };
-      }).sort((a,b)=>a.dt-b.dt);
-      return { firstDate: parsed[0].raw, entrySpot: parsed[0].spot, latestSpot: parsed[parsed.length-1].spot };
     };
     const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c);
@@ -1714,12 +1715,16 @@ export default function OptionsFlowDashboard() {
     const msOnly = sorted.filter(c => capBand(c.mktcap)==="Mid-Small");
     const tickerSeen = new Set();
     const unique = (list) => list.filter(c => { const k = c.sym+"|"+c.dir; if (tickerSeen.has(k)) return false; tickerSeen.add(k); return true; });
-    const mapItem = (c, dir) => ({
-      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
-      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-      dir, hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
-      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, uoa:true
-    });
+    const mapItem = (c, dir) => {
+      const ds = _extractDateSpot(c);
+      return {
+        sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+        strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+        dir, hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
+        cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, uoa:true,
+        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot
+      };
+    };
     return {
       bull: unique(msOnly.filter(c=>c.dir==="BULL")).slice(0,10).map(c=>mapItem(c,"BULL")),
       bear: unique(msOnly.filter(c=>c.dir==="BEAR")).slice(0,10).map(c=>mapItem(c,"BEAR")),
@@ -1766,7 +1771,7 @@ export default function OptionsFlowDashboard() {
       const resp = await fetch("/api/discord/push",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
           bull:_addStatus(wlBull), bear:_addStatus(wlBear),
-          unusualBull:unusual.bull, unusualBear:unusual.bear,
+          unusualBull:_addStatus(unusual.bull), unusualBear:_addStatus(unusual.bear),
           overallBull, overallBear, tickerCount,
           label:discordLabel
         })
