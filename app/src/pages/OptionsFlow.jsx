@@ -1176,6 +1176,7 @@ export default function OptionsFlowDashboard() {
   const [batchResults, setBatchResults] = useState(null);
   const [batchMode, setBatchMode] = useState(false);
   const [batchDetail, setBatchDetail] = useState(null); // {sym, trades, contracts, ...}
+  const [batchSort, setBatchSort] = useState("net"); // net|bull|bear|bullpct|pnl|ticker
   const [convictionDte, setConvictionDte] = useState("All");
   const [convictionSort, setConvictionSort] = useState("net");
   const [convictionPct, setConvictionPct] = useState("All"); // All, 90bull, 80bull, 90bear, 80bear
@@ -5239,14 +5240,49 @@ export default function OptionsFlowDashboard() {
                         </div>
                       );
                     })()}
+                    {/* Sort pills + Fetch All */}
+                    <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6, flexWrap:"wrap" }}>
+                      <span style={{ fontSize:8, color:P.dm, fontWeight:700, letterSpacing:0.5 }}>SORT</span>
+                      {[["net","Net ↓"],["bull","Bull$ ↓"],["bear","Bear$ ↓"],["bullpct","Bull% ↓"],["pnl","P/L ↓"],["ticker","A → Z"]].map(([k,label])=>(
+                        <button key={k} onClick={()=>setBatchSort(k)} style={{ padding:"2px 8px", borderRadius:10, border:"1px solid "+(batchSort===k?P.ac:P.bd), cursor:"pointer",
+                          fontSize:8, fontWeight:700, fontFamily:"inherit", background:batchSort===k?P.ac+"22":"transparent", color:batchSort===k?P.ac:P.dm }}>{label}</button>
+                      ))}
+                      <button onClick={()=>{
+                        const allC = [];
+                        batchResults.filter(r=>r.found&&r.topContract).forEach(r=>{
+                          const tc=r.topContract; allC.push({sym:r.sym,cp:tc.cp,strike:tc.K,exp:tc.exp});
+                        });
+                        if(allC.length) fetchPrices(allC);
+                      }} disabled={fetchLoading}
+                        style={{ marginLeft:"auto", padding:"3px 10px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                          fontSize:8, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
+                        {fetchLoading?"Fetching…":"⚡ Fetch All OI & P/L"}
+                      </button>
+                    </div>
                     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                       <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                        {["Ticker","","Bull","Bear","","Bull%","Net","Top Contract","Trades","#"].map(h=>(
-                          <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                        {["Ticker","","Bull","Bear","","Bull%","Net","Top Contract","Live OI","P/L"].map(h=>(
+                          <th key={h} style={{ padding:"4px 5px", textAlign:h==="P/L"?"right":"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
                         ))}
                       </tr></thead>
                       <tbody>
-                        {batchResults.sort((a,b)=>(b.net||0)-(a.net||0)).map(r => {
+                        {(()=>{
+                          const sorted = [...batchResults];
+                          const getPnl = (r) => {
+                            if(!r.found||!r.topContract) return -999;
+                            const tc=r.topContract;
+                            const px=getPrice(r.sym,tc.cp,tc.K,tc.exp);
+                            const now=px?(px.mark||px.last||px.mid||0):0;
+                            const entry=tc.entry||0;
+                            return (now>0&&entry>0)?(now-entry)/entry*100:-999;
+                          };
+                          if(batchSort==="net") sorted.sort((a,b)=>(b.net||0)-(a.net||0));
+                          else if(batchSort==="bull") sorted.sort((a,b)=>(b.bull||0)-(a.bull||0));
+                          else if(batchSort==="bear") sorted.sort((a,b)=>(b.bear||0)-(a.bear||0));
+                          else if(batchSort==="bullpct") sorted.sort((a,b)=>(b.bullPct||0)-(a.bullPct||0));
+                          else if(batchSort==="pnl") sorted.sort((a,b)=>getPnl(b)-getPnl(a));
+                          else if(batchSort==="ticker") sorted.sort((a,b)=>a.sym.localeCompare(b.sym));
+                          return sorted.map(r => {
                           if (!r.found) return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.4 }}>
                               <td style={{ padding:"5px", fontWeight:800, color:P.wh }}>{r.sym}</td>
@@ -5258,8 +5294,14 @@ export default function OptionsFlowDashboard() {
                           const tcSide = tc?(tc.askPrem>=tc.bidPrem?"ask":"bid"):"ask";
                           let tcC = P.dm;
                           if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
+                          // Live OI + P/L from priceCache
+                          const px = tc ? getPrice(r.sym, tc.cp, tc.K, tc.exp) : null;
+                          const liveOI = px ? (px.oi||0) : 0;
+                          const now = px ? (px.mark||px.last||px.mid||0) : 0;
+                          const entry = tc ? (tc.entry||0) : 0;
+                          const pnl = (now>0&&entry>0) ? (now-entry)/entry*100 : null;
                           return (
-                            <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"15", textAlign:"center", cursor:"pointer" }}
+                            <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
                               onClick={()=>{
                                 const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t=>capBand(t.mktcap)===capFilter);
                                 const trades = cc.filter(t=>t.S===r.sym);
@@ -5301,11 +5343,20 @@ export default function OptionsFlowDashboard() {
                                   {tc.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc.prem)}</span>}
                                 </span>)}
                               </td>
-                              <td style={{ padding:"5px", color:P.dm, fontSize:9 }}>{r.n}</td>
-                              <td style={{ padding:"5px", color:P.dm, fontSize:9 }}>{r.contractCount}</td>
+                              <td style={{ padding:"5px", fontSize:9, color:liveOI>0?P.wh:P.dm+"55" }}>
+                                {liveOI>0 ? liveOI.toLocaleString() : "—"}
+                              </td>
+                              <td style={{ padding:"5px", textAlign:"right", fontSize:9 }}>
+                                {pnl!==null ? (<span>
+                                  <span style={{ color:P.dm }}>${entry.toFixed(2)}→</span>
+                                  <span style={{ color:P.wh, fontWeight:700 }}>${now.toFixed(2)}</span>
+                                  <span style={{ color:pnl>=0?P.bu:P.be, fontWeight:800, marginLeft:3 }}>{pnl>=0?"+":""}{pnl.toFixed(1)}%</span>
+                                </span>) : <span style={{ color:P.dm+"55" }}>—</span>}
+                              </td>
                             </tr>
                           );
-                        })}
+                          });
+                        })()}
                       </tbody>
                     </table>
                   </div>
