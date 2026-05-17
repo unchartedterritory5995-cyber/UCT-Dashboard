@@ -5,6 +5,7 @@
 const FONT_RAMP = [54, 20, 14, 13]   // px @ sizeScale 1.0, per line index
 const LINE_GAP = 6                   // px between lines @ scale 1.0
 const FONT_FAMILY = "'Instrument Sans', sans-serif"
+const makeFont = fp => `700 ${fp}px ${FONT_FAMILY}`
 
 export function composeWatermarkLines(sym, meta, lines) {
   const out = []
@@ -35,7 +36,7 @@ function hexToRgb(hex) {
   return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [168, 162, 144]
 }
 
-// Factory → { primitive, setOptions, getRect }.
+// Factory → { primitive, setOptions, setArmed, getRect }.
 // opts: { lines:string[], color, opacity, sizeScale, x, y }
 export function createWatermarkPrimitive(initial) {
   let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, x: 0.5, y: 0.5, ...initial }
@@ -48,7 +49,7 @@ export function createWatermarkPrimitive(initial) {
     let h = 0
     opts.lines.forEach((text, i) => {
       const fp = watermarkFontPx(i, opts.sizeScale)
-      ctx.font = `700 ${fp}px ${FONT_FAMILY}`
+      ctx.font = makeFont(fp)
       w = Math.max(w, ctx.measureText(text).width)
       h += fp + (i > 0 ? LINE_GAP * (opts.sizeScale || 1) : 0)
     })
@@ -74,7 +75,7 @@ export function createWatermarkPrimitive(initial) {
           opts.lines.forEach((text, i) => {
             const fp = watermarkFontPx(i, opts.sizeScale)
             if (i > 0) cy += LINE_GAP * (opts.sizeScale || 1)
-            ctx.font = `700 ${fp}px ${FONT_FAMILY}`
+            ctx.font = makeFont(fp)
             ctx.fillText(text, rect.x + rect.w / 2, cy)
             cy += fp
           })
@@ -103,6 +104,9 @@ export function createWatermarkPrimitive(initial) {
     primitive,
     setOptions(patch) { opts = { ...opts, ...patch }; redraw() },
     setArmed(v) { if (armed !== v) { armed = v; redraw() } },
-    getRect() { return lastRect },
+    getRect() {
+      if (!opts.lines.length || opts.opacity <= 0) return null
+      return lastRect
+    },
   }
 }
