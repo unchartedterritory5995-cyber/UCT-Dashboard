@@ -70,19 +70,19 @@ def _build_table(items: list[dict], limit: int = 10, show_flags: bool = True) ->
     """Build a monospace-aligned table from watchlist items."""
     lines = []
     for i, item in enumerate(items[:limit], 1):
-        sym = (item.get("sym") or "???").ljust(6)
+        sym = (item.get("sym") or "???").ljust(5)
 
         # Contract info — order: exp strike cp
         strike_val = item.get("strike")
         if strike_val and str(strike_val).strip():
             cp = (item.get("cp") or "?")[0].upper()
             try:
-                strike = _fmt_strike(float(strike_val)).ljust(8)
+                strike = _fmt_strike(float(strike_val))
             except (ValueError, TypeError):
-                strike = "".ljust(8)
-            exp = _fmt_exp(item.get("exp") or "").ljust(6)
-            prem = _fmt(float(item.get("prem") or 0)).rjust(7)
-            contract = f"{exp}{strike}{cp} {prem}"
+                strike = ""
+            exp = _fmt_exp(item.get("exp") or "")
+            prem = _fmt(float(item.get("prem") or 0))
+            contract = f"{exp.ljust(6)}{strike.ljust(6)}{cp} {prem.rjust(6)}"
         else:
             contract = "—"
 
@@ -109,20 +109,19 @@ def _build_table(items: list[dict], limit: int = 10, show_flags: bool = True) ->
                 status_part = " ● NEW"
             elif status and "%" in status:
                 arrow = "▲" if status.startswith("+") else "▼"
-                status_part = f" {arrow} {status}"
+                status_part = f" {arrow}{status}"
             else:
                 status_part = ""
             status_str = f"{age_part}{status_part}"
 
-        # Pad grade+flags to fixed width so age/status columns align
+        # Pad grade+flags to fixed width so age/status aligns
         grade_flags = f"{grade}{flags}"
-        grade_flags_padded = grade_flags.ljust(10)
 
-        rank = f"{i:>2}."
+        rank = f"{i:>2}. "
         if status_str:
-            lines.append(f"{rank} {sym} {contract}  {grade_flags_padded} {status_str}")
+            lines.append(f"{rank}{sym} {contract} {grade_flags.ljust(9)}{status_str}")
         else:
-            lines.append(f"{rank} {sym} {contract}  {grade}")
+            lines.append(f"{rank}{sym} {contract} {grade}")
 
     return "\n".join(lines) if lines else "(empty)"
 
