@@ -5127,19 +5127,8 @@ export default function OptionsFlowDashboard() {
                 </div>
                 {batchResults && (
                   <div style={{ marginTop:10 }}>
-                    <div style={{ fontSize:10, fontWeight:700, color:P.ac, marginBottom:6, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <span>{batchResults.filter(r=>r.found).length} of {batchResults.length} tickers found in flow data</span>
-                      <button onClick={()=>{
-                        const allC = [];
-                        batchResults.filter(r=>r.found&&r.topContract).forEach(r=>{
-                          const tc=r.topContract; allC.push({sym:r.sym,cp:tc.cp,strike:tc.K,exp:tc.exp});
-                        });
-                        if(allC.length) fetchPrices(allC);
-                      }} disabled={fetchLoading}
-                        style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
-                          fontSize:8, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
-                        {fetchLoading?"Fetching…":"⚡ Fetch All OI & P/L"}
-                      </button>
+                    <div style={{ fontSize:10, fontWeight:700, color:P.ac, marginBottom:6 }}>
+                      {batchResults.filter(r=>r.found).length} of {batchResults.length} tickers found in flow data
                     </div>
                     {/* Top Ideas from batch */}
                     {(()=>{
@@ -5255,12 +5244,11 @@ export default function OptionsFlowDashboard() {
                     })()}
                     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10, tableLayout:"fixed" }}>
                       <colgroup>
-                        <col style={{ width:"10%" }}/><col style={{ width:"5%" }}/><col style={{ width:"8%" }}/><col style={{ width:"8%" }}/>
-                        <col style={{ width:"5%" }}/><col style={{ width:"5%" }}/><col style={{ width:"8%" }}/><col style={{ width:"21%" }}/>
-                        <col style={{ width:"8%" }}/><col style={{ width:"22%" }}/>
+                        <col style={{ width:"8%" }}/><col style={{ width:"6%" }}/><col style={{ width:"10%" }}/><col style={{ width:"10%" }}/>
+                        <col style={{ width:"8%" }}/><col style={{ width:"10%" }}/><col style={{ width:"40%" }}/><col style={{ width:"8%" }}/>
                       </colgroup>
                       <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                        {[["Ticker","ticker"],["",""],["Bull","bull"],["Bear","bear"],["",""],["Bull%","bullpct"],["Net","net"],["Top Contract",""],["Live OI","oi"],["P/L","pnl"]].map(([h,sk])=>{
+                        {[["Ticker","ticker"],["Bet",""],["Bull","bull"],["Bear","bear"],["Split",""],["Net","net"],["Top Contract",""],["Trades","trades"]].map(([h,sk])=>{
                           const sortable = !!sk;
                           const active = batchSort===sk;
                           const arrow = active ? (batchSortDir==="desc"?" ▼":" ▲") : "";
@@ -5279,31 +5267,17 @@ export default function OptionsFlowDashboard() {
                           const found = batchResults.filter(r=>r.found);
                           const notFound = batchResults.filter(r=>!r.found);
                           const dir = batchSortDir==="desc"?1:-1;
-                          const getPnl = (r) => {
-                            if(!r.found||!r.topContract) return -999;
-                            const tc=r.topContract;
-                            const px=getPrice(r.sym,tc.cp,tc.K,tc.exp);
-                            const now=px?(px.mark||px.last||px.mid||0):0;
-                            const entry=tc.entry||0;
-                            return (now>0&&entry>0)?(now-entry)/entry*100:-999;
-                          };
                           if(batchSort==="net") found.sort((a,b)=>((b.net||0)-(a.net||0))*dir);
                           else if(batchSort==="bull") found.sort((a,b)=>((b.bull||0)-(a.bull||0))*dir);
                           else if(batchSort==="bear") found.sort((a,b)=>((b.bear||0)-(a.bear||0))*dir);
-                          else if(batchSort==="bullpct") found.sort((a,b)=>((b.bullPct||0)-(a.bullPct||0))*dir);
-                          else if(batchSort==="pnl") found.sort((a,b)=>(getPnl(b)-getPnl(a))*dir);
-                          else if(batchSort==="oi") found.sort((a,b)=>{
-                            const oiA = a.topContract ? (getPrice(a.sym,a.topContract.cp,a.topContract.K,a.topContract.exp)||{}).oi||0 : 0;
-                            const oiB = b.topContract ? (getPrice(b.sym,b.topContract.cp,b.topContract.K,b.topContract.exp)||{}).oi||0 : 0;
-                            return (oiB-oiA)*dir;
-                          });
+                          else if(batchSort==="trades") found.sort((a,b)=>((b.n||0)-(a.n||0))*dir);
                           else if(batchSort==="ticker") found.sort((a,b)=>a.sym.localeCompare(b.sym)*dir);
                           notFound.sort((a,b)=>a.sym.localeCompare(b.sym));
                           return [...found,...notFound].map(r => {
                           if (!r.found) return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.4 }}>
-                              <td style={{ padding:"5px", fontWeight:800, color:P.wh }}>{r.sym}</td>
-                              <td colSpan={9} style={{ padding:"5px", color:P.dm, fontSize:9 }}>No flow found</td>
+                              <td style={{ padding:"5px", fontWeight:800, color:P.wh, textAlign:"center" }}>{r.sym}</td>
+                              <td colSpan={7} style={{ padding:"5px", color:P.dm, fontSize:9 }}>No flow found</td>
                             </tr>
                           );
                           const dirC = r.dir==="BULL"?P.bu:P.be;
@@ -5311,12 +5285,6 @@ export default function OptionsFlowDashboard() {
                           const tcSide = tc?(tc.askPrem>=tc.bidPrem?"ask":"bid"):"ask";
                           let tcC = P.dm;
                           if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
-                          // Live OI + P/L from priceCache
-                          const px = tc ? getPrice(r.sym, tc.cp, tc.K, tc.exp) : null;
-                          const liveOI = px ? (px.oi||0) : 0;
-                          const now = px ? (px.mark||px.last||px.mid||0) : 0;
-                          const entry = tc ? (tc.entry||0) : 0;
-                          const pnl = (now>0&&entry>0) ? (now-entry)/entry*100 : null;
                           return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
                               onClick={()=>{
@@ -5347,7 +5315,6 @@ export default function OptionsFlowDashboard() {
                                   <div style={{ width:r.bullPct+"%", background:P.bu }}/><div style={{ width:(100-r.bullPct)+"%", background:P.be }}/>
                                 </div>
                               </td>
-                              <td style={{ padding:"5px", fontWeight:800, fontSize:10, color:r.bullPct>=80?P.bu:r.bullPct<=20?P.be:P.dm, textAlign:"center" }}>{r.bullPct}%</td>
                               <td style={{ padding:"5px", fontWeight:900, color:dirC, textAlign:"center" }}>{fmt(Math.abs(r.net))}</td>
                               <td style={{ padding:"5px", fontSize:9, textAlign:"center" }}>
                                 {tc && (<span>
@@ -5359,16 +5326,7 @@ export default function OptionsFlowDashboard() {
                                   {tc.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc.prem)}</span>}
                                 </span>)}
                               </td>
-                              <td style={{ padding:"5px", fontSize:9, color:liveOI>0?P.wh:P.dm+"55", textAlign:"center" }}>
-                                {liveOI>0 ? liveOI.toLocaleString() : "—"}
-                              </td>
-                              <td style={{ padding:"5px", textAlign:"center", fontSize:9 }}>
-                                {pnl!==null ? (<span>
-                                  <span style={{ color:P.dm }}>${entry.toFixed(2)}→</span>
-                                  <span style={{ color:P.wh, fontWeight:700 }}>${now.toFixed(2)}</span>
-                                  <span style={{ color:pnl>=0?P.bu:P.be, fontWeight:800, marginLeft:3 }}>{pnl>=0?"+":""}{pnl.toFixed(1)}%</span>
-                                </span>) : <span style={{ color:P.dm+"55" }}>—</span>}
-                              </td>
+                              <td style={{ padding:"5px", color:P.dm, fontSize:9, textAlign:"center" }}>{r.n}</td>
                             </tr>
                           );
                           });
