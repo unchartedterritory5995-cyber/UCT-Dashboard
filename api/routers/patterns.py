@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 # Importing the detector modules triggers self-registration with the registry.
 from api.services.pattern_engine.detectors.classical import golden_cross as _golden_cross  # noqa: F401
+from api.services.pattern_engine.detectors.classical import death_cross as _death_cross  # noqa: F401
 from api.services.pattern_engine.detectors.classical import bull_flag as _bull_flag  # noqa: F401
 from api.services.pattern_engine.detectors.classical import bear_flag as _bear_flag  # noqa: F401
 from api.services.pattern_engine.detectors.classical import pennant as _pennant  # noqa: F401
@@ -112,6 +113,12 @@ _PATTERN_METADATA = {
         "category": "classical",
         "direction": "bullish",
         "description": "50-day SMA crosses ABOVE 200-day SMA with both MAs rising. Weinstein Stage 2 transition signal — institutional trend-change trigger (Dow Theory / Stan Weinstein 1988).",
+    },
+    "death_cross": {
+        "name": "Death Cross (50/200 SMA)",
+        "category": "classical",
+        "direction": "bearish",
+        "description": "50-day SMA crosses BELOW 200-day SMA with both MAs declining. Weinstein Stage 4 transition signal — bearish mirror of the Golden Cross; institutional long-to-short rotation trigger (Dow Theory / Stan Weinstein 1988).",
     },
     "bull_flag": {
         "name": "Bull Flag",
