@@ -1,5 +1,5 @@
 {
-  "name": "gc_edge_cross_age_5",
+  "name": "gc_edge_cross_oldest_detectable_age4",
   "category": "edge",
   "expected": {
     "fires": true,

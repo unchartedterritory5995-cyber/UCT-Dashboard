@@ -14,8 +14,9 @@ Conditions:
   - ma50[current] > ma200[current]
   - ma50[-5] <= ma200[-5] (crossover within last 5 bars)
   - Both MAs rising over 20-bar lookback
-  - 200SMA slope rising or flat (>= -0.5%)
-  - Volume above 20-bar avg on cross bar (soft gate)
+  - 200SMA slope rising or flat (>= -0.5%, inclusive with float epsilon)
+  - Volume: hard floor of 0.5× 20-bar average (bars below 0.5× are rejected as
+    illiquid artifacts); above 0.5× the ratio is a soft, score-contributing gate
 
 Levels:
   - entry = close * 1.001

@@ -1,4 +1,4 @@
-"""Golden Cross fixture generator. 15 fixtures total.
+"""Golden Cross fixture generator. 17 fixtures total.
 
 Builds price series programmatically (>=200 bars each) that produce a
 known 50/200 SMA relationship.
@@ -14,11 +14,40 @@ VERIFIED against detect_golden_cross before writing.
 
 Positive (>=5): clean fresh cross (age=2), cross 1 bar ago, cross age=3
   high-volume, long Stage-1 base, rising 200SMA (base_price=200).
-Negative (>=8): cross >5 bars old, 50SMA below 200SMA (no cross),
+Negative (>=9): cross >5 bars old, 50SMA below 200SMA (no cross),
   MAs declining, 200SMA slope < -0.5%, death-cross direction,
-  insufficient bars, flat-chop intertwined MAs, stale cross 30 bars ago.
-Edge (>=2): cross exactly 5 bars ago (age boundary), volume = exactly 0.5x
-  average (the inclusive volume-gate boundary >= 0.5).
+  insufficient bars, flat-chop intertwined MAs, stale cross 30 bars ago,
+  200SMA slope boundary just outside gate (-0.52% — synthetic series, see below).
+Edge (>=3): cross oldest detectable age=4, volume = exactly 0.5x average
+  (inclusive volume-gate boundary >= 0.5), 200SMA slope boundary at exactly
+  the gate (-0.50%).
+
+--- Slope boundary coverage note ---
+The 200SMA slope gate (-0.005 threshold, _EPS-inclusive) cannot be exercised at
+the boundary with a natural multi-phase price series. Mathematical proof:
+  * slope = (ma200[cross] - ma200[cross-20]) / ma200[cross-20]
+          = (bar[cross] - bar[cross-200]) / (200 * ma200[cross-20])
+  * For a golden cross, bar[cross] must be HIGH (pushes ma50 above ma200).
+    For slope = -0.005, bar[cross] = bar[cross-200] - 0.005*200*ma200_ss.
+  * This requires bar[cross-200] >> ma200_ss. In any natural series where
+    bar[cross-200] is a moderate price, bar[cross] evaluates to a NEGATIVE
+    or near-zero value — impossible for a cross bar that must push ma50 up.
+  * Empirically verified: natural series cross_age <= 5 yields slope >= -0.0002
+    (never approaches -0.005). Ages where slope < -0.005 require cross_age >= 6+.
+
+The boundary fixtures therefore use a SYNTHETIC series that engineers the exact
+SMA arithmetic directly (see _slope_gate_boundary_fail and _slope_gate_boundary_pass):
+  Design: 31*P_LOW + 20*P_HIGH_OLD + 150*P_MID + 30*P_LOW2 + 19*P_SW + P_CROSS + P_TRAIL
+  The 20*P_HIGH_OLD bars (bars 31-50) are the 'oldest_20' in the 200SMA slope window.
+  P_CROSS is computed so that sum(newest_20) - sum(oldest_20) = target_slope * 200 * ma200_ss.
+  The genuine cross transition is achieved because the P_LOW_2 bars (bars 201-230)
+  keep ma50 well below ma200 up to bar 249, then P_CROSS jumps ma50 above ma200 at bar 250.
+  Verified math (P_LOW=50, P_HIGH_OLD=500, P_MID=100, P_LOW_2=60, P_SW=80):
+    ma200_ss = ma200[230] = (20*500 + 150*100 + 30*60)/200 = 134.0
+    For slope=-0.005: P_CROSS = 20*500 + 20*(-0.005)*10*134 - 19*80 = 8346.0
+    ma50[cross=250] = (30*60 + 19*80 + 8346)/50 = 233.32  > ma200=133.33  ✓
+    ma50[249]       = (31*60 + 19*80)/50         = 68.40   < ma200=94.10   ✓ (prev bar)
+    ma50_rising     = ma50[250]=233.32 > ma50[230]=76.0                    ✓
 """
 import json
 import math
@@ -278,6 +307,105 @@ def _mas_declining_into_cross():
     return bars
 
 
+def _slope_gate_boundary_fail():
+    """200SMA slope = -0.52% — just outside the -0.50% gate boundary.
+
+    SYNTHETIC SERIES: every other golden-cross condition is satisfied (cross
+    found within 5 bars, ma50_rising, volume >= 0.5x avg), but the 200SMA
+    slope gate rejects the detection.  The boundary fixture cannot be produced
+    by a natural multi-phase price series (see module docstring for proof);
+    bars are engineered directly from the SMA math.
+
+    Design (252 bars total — see module docstring for the series structure):
+      P_LOW=50 (31 bars), P_HIGH_OLD=500 (20 bars, oldest_20 reference),
+      P_MID=100 (150 bars), P_LOW_2=60 (30 bars), P_SW=80 (19 sw bars)
+      P_CROSS = sum_oldest_20 + (-0.0052)*200*ma200_ss - 19*P_SW = 8340.64
+
+    Verified math (all at cross bar = bar 250):
+      ma200_ss = ma200[230] = (20*500 + 150*100 + 30*60)/200 = 134.0
+      P_CROSS               = 10000 + (-0.0052)*200*134 - 19*80 = 8340.64
+      ma50[cross=250]       = (30*60 + 19*80 + 8340.64)/50    = 233.21 > 133.30 ✓
+      ma50[249] (prev bar)  = (31*60 + 19*80)/50              = 68.40  < 94.10  ✓
+      ma50_rising           = 233.21 > 76.0 (ma50[230])                         ✓
+      slope                 = (133.30 - 134.0)/134.0           = -0.00520        ✗ gate
+      volume_ratio (cross bar) = 1.5x avg                                       ✓
+    """
+    return _build_slope_boundary_series(target_slope=-0.0052)
+
+
+def _build_slope_boundary_series(target_slope: float) -> list:
+    """Construct a 252-bar synthetic series producing the exact target 200SMA slope.
+
+    Series layout (bar indices 0-based):
+      bars   0..30  : P_LOW=50.0      (31 bars, low-price prefix — outside 200SMA at cross)
+      bars  31..50  : P_HIGH_OLD=500  (20 bars = 'oldest_20', slope reference)
+      bars  51..200 : P_MID=100.0     (150 bars, middle filler)
+      bars 201..230 : P_LOW_2=60.0    (30 bars, keeps 50SMA low before cross)
+      bars 231..249 : P_SW=80.0       (19 bars, slope window intermediate)
+      bar  250      : P_CROSS         (computed for exact slope; elevated volume)
+      bar  251      : P_CROSS+0.5     (trailing bar, age=1 from last)
+
+    Math (cross_idx=250, slope_start=230):
+      ma200[230]  = (20*P_HIGH_OLD + 150*P_MID + 30*P_LOW_2) / 200 = 134.0
+      sum_oldest  = 20 * P_HIGH_OLD = 10000
+      sum_newest  = sum_oldest + target_slope * 200 * ma200[230]
+      P_CROSS     = sum_newest - 19 * P_SW
+
+    This is the ONLY design that simultaneously satisfies:
+      (a) genuine cross transition (ma50[249] <= ma200[249], ma50[250] > ma200[250])
+      (b) engineered 200SMA slope = target_slope exactly
+      (c) all prices positive
+    """
+    P_LOW, P_HIGH_OLD = 50.0, 500.0
+    P_MID, P_LOW_2, P_SW = 100.0, 60.0, 80.0
+
+    ma200_ss = (20 * P_HIGH_OLD + 150 * P_MID + 30 * P_LOW_2) / 200  # = 134.0
+    sum_oldest = 20 * P_HIGH_OLD                                       # = 10000
+    sum_newest = sum_oldest + target_slope * 200 * ma200_ss
+    p_cross = sum_newest - 19 * P_SW
+
+    bars = []
+    t = T0
+
+    for c in [P_LOW] * 31 + [P_HIGH_OLD] * 20 + [P_MID] * 150 + [P_LOW_2] * 30 + [P_SW] * 19:
+        spread = max(c * 0.003, 0.01)
+        bars.append(_bar(t, c - spread * 0.4, c + spread * 0.6,
+                         c - spread * 0.6, c + spread * 0.4, BASE_VOL))
+        t += DT
+
+    # Cross bar (bar 250): elevated volume
+    c = p_cross
+    spread = max(c * 0.003, 0.01)
+    bars.append(_bar(t, c - spread * 0.4, c + spread * 0.6,
+                     c - spread * 0.6, c + spread * 0.4, BASE_VOL * 1.5))
+    t += DT
+
+    # Trailing bar (bar 251)
+    c = p_cross + 0.5
+    spread = max(c * 0.003, 0.01)
+    bars.append(_bar(t, c - spread * 0.4, c + spread * 0.6,
+                     c - spread * 0.6, c + spread * 0.4, BASE_VOL))
+    return bars
+
+
+def _slope_gate_boundary_pass():
+    """200SMA slope = exactly -0.50% — at the inclusive gate boundary.
+
+    EDGE / SYNTHETIC SERIES: slope is at the exact threshold (-0.005).  The
+    detector uses `ma200_slope >= -0.005 - _EPS` to admit the detection.
+    Without _EPS the check `>= -0.005` could fail due to float residue on some
+    architectures; with _EPS the detection is provably inclusive.
+
+    Same construction as _slope_gate_boundary_fail but target_slope=-0.005.
+    Verified math (all at cross bar = bar 250):
+      ma200_ss = 134.0
+      P_CROSS  = 10000 + (-0.005)*200*134 - 19*80 = 8346.0
+      slope    = (133.33 - 134.0)/134.0            = -0.005000  ✓ (>= -0.005 - EPS)
+      detector FIRES (confidence ~81)
+    """
+    return _build_slope_boundary_series(target_slope=-0.005)
+
+
 def _200sma_slope_too_negative():
     """200SMA slope < -0.5% — specifically fails the slope gate.
 
@@ -360,13 +488,19 @@ def _stale_cross_30_bars_ago():
 
 # ============== EDGE ==============
 
-def _cross_exactly_5_bars_ago():
-    """Cross at exactly age=5 — the inclusive boundary of _MAX_CROSS_AGE.
+def _cross_oldest_detectable_age4():
+    """Cross at age=4 — the oldest cross the detector can detect (inclusive boundary).
 
     The detector scans backwards from last_idx to
-    max(last_idx - _MAX_CROSS_AGE, _MA200_PERIOD - 1) exclusive.
-    Age=5 means cross_idx = last_idx - 5, which is included in the scan.
-    This verifies the off-by-one is correct (inclusive boundary).
+    max(last_idx - _MAX_CROSS_AGE, _MA200_PERIOD - 1) exclusive, where
+    _MAX_CROSS_AGE = 5.  The scan range is (last_idx, last_idx-5], exclusive
+    lower bound, which means the oldest scannable cross_idx = last_idx - 4
+    (age = 4).  cross_age=5 in _build_cross_series places the cross bar at
+    last_idx - 4 (since cross_age trailing bars = cross_age-1 extra bars after
+    the cross, so age = cross_age - 1 = 4).
+
+    This verifies the scan off-by-one is correct — age=4 is detected, age=5 is not
+    (see gc_cross_too_old which uses cross_age=6, placing the cross at age=5).
     """
     return _build_cross_series(cross_age=5, cross_vol_mult=1.5)
 
@@ -535,6 +669,10 @@ def main():
            _200sma_slope_too_negative(), NEUTRAL_CONTEXT,
            {"fires": False})
 
+    _write("gc_slope_gate_boundary_fail", "negative",
+           _slope_gate_boundary_fail(), GOOD_CONTEXT,
+           {"fires": False})
+
     _write("gc_death_cross_direction", "negative",
            _death_cross_not_golden(), BEARISH_CONTEXT,
            {"fires": False})
@@ -551,9 +689,9 @@ def main():
            _stale_cross_30_bars_ago(), GOOD_CONTEXT,
            {"fires": False})
 
-    # ---- 2 EDGE ----
-    _write("gc_edge_cross_age_5", "edge",
-           _cross_exactly_5_bars_ago(), GOOD_CONTEXT,
+    # ---- 3 EDGE ----
+    _write("gc_edge_cross_oldest_detectable_age4", "edge",
+           _cross_oldest_detectable_age4(), GOOD_CONTEXT,
            {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0,
             "geometry_shape": "candle_mark"})
 
@@ -562,7 +700,12 @@ def main():
            {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0,
             "geometry_shape": "candle_mark"})
 
-    print("\nDone — 15 fixtures written.")
+    _write("gc_edge_slope_gate_boundary_pass", "edge",
+           _slope_gate_boundary_pass(), GOOD_CONTEXT,
+           {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0,
+            "geometry_shape": "candle_mark"})
+
+    print("\nDone — 17 fixtures written.")
 
 
 if __name__ == "__main__":
