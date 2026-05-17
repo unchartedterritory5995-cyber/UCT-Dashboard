@@ -126,8 +126,28 @@ def run_prewarmer_forever():
     from concurrent.futures import ThreadPoolExecutor as _PrewarmTPE
     from api.routers.bars import _get_bars_inner, _needs_fresh
     from api.services import bars_sqlite as _sqlite
-    _INTRADAY_TICKERS = ticker_list[:200]
-    _INTRADAY_TFS = ('60', '30', '15', '5', '1')
+    # The prewarmer runs on the DEDICATED worker service in production
+    # (USE_REMOTE_BARS=1 gates it off on web). The old [:200] intraday
+    # cap was a web-process memory safeguard; the worker has its own
+    # 50GB volume and serves no requests, so it can — and must —
+    # pre-warm intraday for the WHOLE universe. That warmth then reaches
+    # web via the existing R2 newer-wins merge, making every chart open
+    # instant + fresh instead of a ~4s cold synchronous fetch. TFs are
+    # tiered for sustainability: 60/30/15 (most-viewed; the ones the
+    # freeze broke) for ALL tickers; 5/1 (heavier, less-viewed) for a
+    # large priority tier. The in-process web path keeps the small cap.
+    _IS_WORKER = os.environ.get("WORKER_ENABLED") == "1"
+    _CORE_INTRADAY_TFS = ('60', '30', '15')
+    _DEEP_INTRADAY_TFS = ('5', '1')
+    _INTRADAY_TFS = _CORE_INTRADAY_TFS + _DEEP_INTRADAY_TFS  # refresh-loop hot-set union
+    if _IS_WORKER:
+        _CORE_INTRADAY_TICKERS = ticker_list            # full universe
+        _DEEP_INTRADAY_TICKERS = ticker_list[:800]
+        _PREWARM_WORKERS = 6
+    else:
+        _CORE_INTRADAY_TICKERS = ticker_list[:200]
+        _DEEP_INTRADAY_TICKERS = ticker_list[:200]
+        _PREWARM_WORKERS = 2
     def _warm_one(args):
         sym, tf, bar_count = args
         try:
@@ -143,13 +163,17 @@ def run_prewarmer_forever():
     for sym in ticker_list: jobs.append((sym, 'D', 5000))
     for sym in ticker_list: jobs.append((sym, 'W', 5000))
     for sym in ticker_list: jobs.append((sym, 'M', 5000))
-    for sym in _INTRADAY_TICKERS:
-        for tf in _INTRADAY_TFS: jobs.append((sym, tf, 5000))
-    print(f"[prewarm] {len(jobs)} jobs queued ({len(ticker_list)} tickers; Daily/Weekly/Monthly all + {len(_INTRADAY_TICKERS)} for intraday)")
+    for sym in _CORE_INTRADAY_TICKERS:
+        for tf in _CORE_INTRADAY_TFS: jobs.append((sym, tf, 5000))
+    for sym in _DEEP_INTRADAY_TICKERS:
+        for tf in _DEEP_INTRADAY_TFS: jobs.append((sym, tf, 5000))
+    print(f"[prewarm] {len(jobs)} jobs queued (worker={_IS_WORKER}; D/W/M all "
+          f"+ {len(_CORE_INTRADAY_TICKERS)}x{len(_CORE_INTRADAY_TFS)} core "
+          f"+ {len(_DEEP_INTRADAY_TICKERS)}x{len(_DEEP_INTRADAY_TFS)} deep intraday)")
     warmed = 0
     skipped = 0
     fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))
-    with _PrewarmTPE(max_workers=2, thread_name_prefix="prewarm-bars") as ex:
+    with _PrewarmTPE(max_workers=_PREWARM_WORKERS, thread_name_prefix="prewarm-bars") as ex:
         for i, (status, _sym, _tf) in enumerate(ex.map(_warm_one, jobs), start=1):
             if status == 'warmed': warmed += 1
             elif status == 'skipped': skipped += 1
@@ -169,6 +193,17 @@ def run_prewarmer_forever():
         try:
             from api.services.bars_fetch import get_hot_intraday_tickers
             hot = get_hot_intraday_tickers(500)
+            # P-2: this prewarmer runs in the WORKER process, so its own
+            # get_hot_intraday_tickers() is empty (the web process records
+            # views). Union the web-published hot-set from R2 so what
+            # users actually flip through is refreshed first.
+            try:
+                from api.services import data_sync as _ds
+                _r2_hot = _ds.get_hotset()
+                if _r2_hot:
+                    hot = list({*hot, *_r2_hot})
+            except Exception:
+                pass
             if hot:
                 hot_jobs = [(s, tf, 5000) for s in hot for tf in _INTRADAY_TFS]
                 cycle_jobs = list({*jobs, *hot_jobs})
@@ -179,7 +214,7 @@ def run_prewarmer_forever():
         refresh_jobs = [j for j in cycle_jobs if _needs_fresh(_sqlite.get_last_ts(j[0].upper(), j[1]), j[1])]
         if not refresh_jobs: continue
         refreshed = 0
-        with _PrewarmTPE(max_workers=2, thread_name_prefix="prewarm-refresh") as ex:
+        with _PrewarmTPE(max_workers=_PREWARM_WORKERS, thread_name_prefix="prewarm-refresh") as ex:
             for status, _sym, _tf in ex.map(_warm_one, refresh_jobs):
                 if status == 'warmed': refreshed += 1
         if refreshed:

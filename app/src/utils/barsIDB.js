@@ -17,8 +17,22 @@ const DB_NAME    = 'uct_bars_v1'
 const DB_VERSION = 2
 const STORE      = 'bars'
 
-// Max age for intraday data (stale session bars shouldn't linger forever)
-const INTRADAY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000  // 7 days
+// LOGICAL cache version — NOT the IndexedDB schema version (bumping
+// DB_VERSION deadlocks, see above). Stored in every record; on mismatch
+// idbGet treats the entry as absent, so bumping this one integer cleanly
+// invalidates ALL cached bars after any change to bar-fetch/merge logic
+// (e.g. the 2026-05-16 freshness fixes) with zero deadlock risk.
+const CACHE_LOGIC_VERSION = 3
+
+// Max age by SAVE time — secondary bound only. The PRIMARY intraday
+// guard is bar-data freshness (newest bar age), checked in idbGet:
+// savedAt-based eviction missed the bug where stale bars get re-saved
+// recently (savedAt new, bars week-old) and lingered for 7 days.
+const INTRADAY_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000  // 2 days
+// An intraday entry whose NEWEST BAR is older than this is missing >=1
+// session — never serve it (forces a fresh full fetch). Mirrors the
+// backend _is_cold_stale_intraday + StockChart idbStaleIntraday guards.
+const INTRADAY_STALE_BAR_SEC = 26 * 60 * 60  // 26h
 // Max age for daily/weekly/monthly. Without this, corrupted historical bars
 // (wrong company, pre-split, etc.) persist indefinitely because delta fetches
 // only ask for bars newer than the last cached timestamp.
@@ -73,10 +87,21 @@ export async function idbGet(sym, tf) {
       req.onsuccess = () => {
         const entry = req.result
         if (!entry || !entry.bars?.length) return resolve(null)
+        // Logic-version invalidation: a stale schema/logic record is
+        // treated as absent so the caller refetches fresh.
+        if (entry.v !== CACHE_LOGIC_VERSION) return resolve(null)
         const age = Date.now() - (entry.savedAt || 0)
         const isIntraday = ['1','5','15','30','60'].includes(tf)
         const maxAge = isIntraday ? INTRADAY_MAX_AGE_MS : DAILY_MAX_AGE_MS
         if (age > maxAge) return resolve(null)
+        // PRIMARY intraday guard: never serve a series whose newest bar
+        // is >=1 session old, regardless of when it was saved. This is
+        // what stops the stale-cache-fused-to-live-price spike at the
+        // source (lastT for intraday is unix seconds).
+        if (isIntraday && typeof entry.lastT === 'number'
+            && (Date.now() / 1000 - entry.lastT) > INTRADAY_STALE_BAR_SEC) {
+          return resolve(null)
+        }
         resolve(entry)
       }
       req.onerror = () => resolve(null)
@@ -102,6 +127,7 @@ export async function idbPut(sym, tf, bars) {
         bars,
         lastT,
         savedAt: Date.now(),
+        v: CACHE_LOGIC_VERSION,
       })
       tx.oncomplete = resolve
       tx.onerror    = () => resolve()

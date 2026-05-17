@@ -19,6 +19,7 @@ Snapshot layout in the bucket:
 from __future__ import annotations
 
 import io
+import json
 import os
 import shutil
 import sqlite3
@@ -340,6 +341,49 @@ def get_local_upload_state() -> dict:
     Same shape as get_local_sync_state; snapshot_ts is the timestamp of
     the most recent upload that succeeded."""
     return _read_marker(_LAST_UPLOAD_MARKER)
+
+
+# ── P-2: cross-process hot-set bridge (web -> R2 -> worker) ───────────────────
+# The hot-set (intraday tickers users actually open) is recorded in the
+# WEB process, but the prewarmer runs in the WORKER process — they don't
+# share memory. The web publishes the hot-set to a tiny R2 object; the
+# worker prewarmer reads it each cycle and force-prioritises those
+# tickers' intraday TFs so what users flip through is warm first.
+_HOTSET_KEY = "hotset_intraday.json"
+
+
+def put_hotset(tickers: list) -> bool:
+    """Publish the web's recent-intraday hot-set to R2. Best-effort."""
+    client = _client()
+    bucket = _bucket()
+    if not (client and bucket) or not tickers:
+        return False
+    try:
+        body = json.dumps(
+            sorted({str(t).upper() for t in tickers if t})[:1000]
+        ).encode()
+        client.put_object(Bucket=bucket, Key=_HOTSET_KEY, Body=body,
+                          ContentType="application/json")
+        return True
+    except Exception as e:
+        logger.warning(f"[data_sync] put_hotset failed (non-fatal): {e}")
+        return False
+
+
+def get_hotset() -> list:
+    """Read the published hot-set (worker side). [] on any failure."""
+    client = _client()
+    bucket = _bucket()
+    if not (client and bucket):
+        return []
+    try:
+        resp = client.get_object(Bucket=bucket, Key=_HOTSET_KEY)
+        data = json.loads(resp["Body"].read())
+        if isinstance(data, list):
+            return [str(t).upper() for t in data if t]
+    except Exception:
+        pass
+    return []
 
 
 def sync_if_newer() -> Optional[str]:

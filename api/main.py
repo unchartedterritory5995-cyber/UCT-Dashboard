@@ -774,6 +774,24 @@ async def lifespan(app: FastAPI):
             f"{'LEGACY-REPLACE' if _legacy_replace else 'newer-wins-merge'})"
         )
 
+        # P-2: publish the web-recorded intraday hot-set to R2 so the
+        # WORKER's prewarmer (separate process, can't see web memory)
+        # prioritises the tickers users actually open. ~1 tiny PUT/2min.
+        def _hotset_push_loop():
+            import time as _t
+            from api.services.bars_fetch import get_hot_intraday_tickers
+            while True:
+                _t.sleep(120)
+                try:
+                    hs = get_hot_intraday_tickers(500)
+                    if hs:
+                        data_sync.put_hotset(hs)
+                except Exception as e:
+                    print(f"[hotset] push error (non-fatal): {e}")
+
+        threading.Thread(target=_hotset_push_loop, daemon=True, name="hotset_push").start()
+        print("[startup] hot-set push loop started (web -> R2, 2-min cadence)")
+
     if os.environ.get("STREAM_BARS_ENABLED") == "1":
         from api.services import bar_stream, bar_broadcaster
         bb = bar_broadcaster.init_broadcaster(

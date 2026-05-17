@@ -196,6 +196,19 @@ function isOhlcType(chartType) {
   return !chartType || OHLC_TYPES.has(chartType)
 }
 
+// ─── Live-tick sanity (SINGLE source of truth) ───────────────────────────────
+// Every developing-bar update path MUST gate through this. Divergent
+// inline guards are exactly how the DDOG 20798 (=100x) phantom slipped a
+// path. Rejects non-finite / non-positive, and any value deviating >50%
+// from EITHER the last painted bar OR the poison-proof last *server*
+// close (lastBarRef can itself get baked bad; the server close cannot).
+function isSaneLivePrice(p, lastClose, serverClose) {
+  if (!Number.isFinite(p) || p <= 0) return false
+  if (lastClose && lastClose > 0 && Math.abs(p - lastClose) / lastClose > 0.5) return false
+  if (serverClose && serverClose > 0 && Math.abs(p - serverClose) / serverClose > 0.5) return false
+  return true
+}
+
 // ─── Volume Profile canvas draw ──────────────────────────────────────────────
 
 function drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg) {
@@ -1291,17 +1304,10 @@ export default function StockChart({
     // get stuck with a low of 0 (or extreme) until full page reload, dragging
     // EMA/SMA series into a V-shape collapse on intraday charts.
     const _p = liveData.price
-    if (!Number.isFinite(_p) || _p <= 0) return
-    // Sanity bound vs last known close — protects against bad WS ticks during
-    // reconnects / market-maker pulls that briefly emit nonsense quotes.
-    const _last = lastBarRef.current?.close
-    if (_last && _last > 0 && Math.abs(_p - _last) / _last > 0.5) return
-    // Poison-proof gate: lastBarRef can itself get baked with a bad
-    // value (then every good tick is rejected vs that bad baseline and
-    // the phantom sticks — the DDOG 20798 = 100x lock-in). The server
-    // close is never poisonable.
-    const _srv = lastServerCloseRef.current
-    if (_srv && _srv > 0 && Math.abs(_p - _srv) / _srv > 0.5) return
+    // Single sanity chokepoint (see isSaneLivePrice): non-finite/<=0, or
+    // >50% deviation from the last painted bar OR the poison-proof clean
+    // server close. Mirror of the WS-bar path so they cannot diverge.
+    if (!isSaneLivePrice(_p, lastBarRef.current?.close, lastServerCloseRef.current)) return
     // day_high / day_low can also arrive zero or stale during the first ticks
     // after market open. Treat 0 / negative / non-finite as "not provided" so
     // the bar's H/L don't snap to 0.
@@ -1428,17 +1434,10 @@ export default function StockChart({
     if (!allFinitePositive || l > h) {
       return  // silently drop the bad bar — next tick will repaint correctly
     }
-    // Sanity bound: if the last known price differs from this bar's close
-    // by >50%, this is almost certainly bad data (penny stock split, bad
-    // tick, etc). Skip to protect the chart's auto-scale from one bad bar
-    // dominating the y-axis.
-    const lastKnown = lastBarRef.current?.close
-    if (lastKnown && lastKnown > 0 && Math.abs(c - lastKnown) / lastKnown > 0.5) {
-      return
-    }
-    // Poison-proof gate vs clean server close (see snapshot-tick path).
-    const _srvc = lastServerCloseRef.current
-    if (_srvc && _srvc > 0 && Math.abs(c - _srvc) / _srvc > 0.5) {
+    // Single sanity chokepoint (see isSaneLivePrice) — same gate as the
+    // snapshot-tick path so the two can never diverge (divergent inline
+    // guards are exactly how the 100x phantom slipped through).
+    if (!isSaneLivePrice(c, lastBarRef.current?.close, lastServerCloseRef.current)) {
       return
     }
 
