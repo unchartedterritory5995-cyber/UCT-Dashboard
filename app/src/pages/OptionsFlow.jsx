@@ -4959,11 +4959,20 @@ export default function OptionsFlowDashboard() {
               const groupTrades = cc.filter(t => groupTickers.has(t.S));
               const tkMap = {};
               groupTrades.forEach(t => {
-                if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, er:false };
+                if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, er:false, contracts:{} };
                 if (t.D==="BULL") tkMap[t.S].bull += t.P;
                 if (t.D==="BEAR") tkMap[t.S].bear += t.P;
                 tkMap[t.S].n++;
                 if (t.er) tkMap[t.S].er = true;
+                const ck=t.CP+"|"+t.K+"|"+t.E;
+                if(!tkMap[t.S].contracts[ck]) tkMap[t.S].contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,askPrem:0,bidPrem:0,DTE:t.DTE};
+                const c=tkMap[t.S].contracts[ck]; c.hits++; c.prem+=t.P;
+                if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
+              });
+              Object.values(tkMap).forEach(tk=>{
+                const sorted=Object.values(tk.contracts).sort((a,b)=>b.prem-a.prem);
+                tk.topContract=sorted[0]||null;
+                tk.dir=tk.bull>=tk.bear?"BULL":"BEAR";
               });
               const rows = Object.values(tkMap).filter(t=>t.bull+t.bear>0);
               const totalBull = rows.reduce((a,t)=>a+t.bull,0);
@@ -5015,41 +5024,59 @@ export default function OptionsFlowDashboard() {
                       if (gsCol==="bull") return m*(a.bull-b.bull);
                       if (gsCol==="bear") return m*(a.bear-b.bear);
                       if (gsCol==="net") return m*((a.bull-a.bear)-(b.bull-b.bear));
-                      if (gsCol==="trades") return m*(a.n-b.n);
                       return 0;
                     });
                     return (
-                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
+                  <table style={{ width:"90%", margin:"0 auto", borderCollapse:"collapse", fontSize:11, tableLayout:"fixed" }}>
+                    <colgroup>
+                      <col style={{ width:"11%" }}/><col style={{ width:"8%" }}/><col style={{ width:"13%" }}/><col style={{ width:"13%" }}/>
+                      <col style={{ width:"11%" }}/><col style={{ width:"15%" }}/><col style={{ width:"29%" }}/>
+                    </colgroup>
                     <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                      {gsHdr("Ticker","sym","left")}
+                      {gsHdr("Ticker","sym","center")}
+                      <th style={{ padding:"4px 5px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Bet</th>
                       {gsHdr("Bull","bull")}
                       {gsHdr("Bear","bear")}
-                      <th style={{ padding:"4px 4px", width:80, textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Split</th>
+                      <th style={{ padding:"4px 5px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Split</th>
                       {gsHdr("Net","net")}
-                      {gsHdr("Trades","trades")}
+                      <th style={{ padding:"4px 5px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Top Contract</th>
                     </tr></thead>
                     <tbody>
                     {sorted.map((r,i) => {
                       const total = r.bull+r.bear;
                       const bPct = total>0?Math.round(r.bull/total*100):50;
                       const net = r.bull - r.bear;
-                      const isBull = net >= 0;
+                      const dirC = r.dir==="BULL"?P.bu:P.be;
+                      const tc = r.topContract;
+                      const tcSide = tc?(tc.askPrem>=tc.bidPrem?"ask":"bid"):"ask";
+                      let tcC = P.dm;
+                      if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
                       return (
                         <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"44", cursor:"pointer" }}
                           onClick={()=>{ setSearch(r.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===r.sym)||null); setSearchGroup(null); }}>
-                          <td style={{ padding:"6px 8px", fontWeight:900, color:P.wh, fontSize:12 }}>
-                            {r.sym}
+                          <td style={{ padding:"6px 5px", textAlign:"center" }}>
+                            <span style={{ fontWeight:900, color:P.wh, fontSize:12 }}>{r.sym}</span>
                             {r.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
                           </td>
-                          <td style={{ padding:"6px 8px", fontWeight:800, color:P.bu, textAlign:"center" }}>{r.bull>0?fmt(r.bull):"—"}</td>
-                          <td style={{ padding:"6px 8px", fontWeight:800, color:P.be, textAlign:"center" }}>{r.bear>0?fmt(r.bear):"—"}</td>
-                          <td style={{ padding:"6px 4px" }}>
+                          <td style={{ padding:"6px 5px", textAlign:"center" }}><Tag c={dirC}>{r.dir}</Tag></td>
+                          <td style={{ padding:"6px 5px", fontWeight:800, color:P.bu, textAlign:"center" }}>{r.bull>0?fmt(r.bull):"—"}</td>
+                          <td style={{ padding:"6px 5px", fontWeight:800, color:P.be, textAlign:"center" }}>{r.bear>0?fmt(r.bear):"—"}</td>
+                          <td style={{ padding:"6px 5px" }}>
                             <div style={{ display:"flex", height:6, borderRadius:3, overflow:"hidden", background:P.be }}>
                               <div style={{ width:bPct+"%", background:P.bu, borderRadius:3 }} />
                             </div>
                           </td>
-                          <td style={{ padding:"6px 8px", fontWeight:900, color:isBull?P.bu:P.be, textAlign:"center" }}>{fmt(Math.abs(net))}</td>
-                          <td style={{ padding:"6px 8px", color:P.dm, textAlign:"center" }}>{r.n}</td>
+                          <td style={{ padding:"6px 5px", fontWeight:900, color:dirC, textAlign:"center" }}>{fmt(Math.abs(net))}</td>
+                          <td style={{ padding:"6px 5px", fontSize:9, textAlign:"center" }}>
+                            {tc && (<span>
+                              <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
+                              {tcSide==="bid" && <span style={{ fontSize:7, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
+                              <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
+                              <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
+                              <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc.hits}x</span>
+                              {tc.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc.prem)}</span>}
+                            </span>)}
+                          </td>
                         </tr>
                       );
                     })}
@@ -5242,13 +5269,13 @@ export default function OptionsFlowDashboard() {
                         </div>
                       );
                     })()}
-                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10, tableLayout:"fixed" }}>
+                    <table style={{ width:"90%", margin:"0 auto", borderCollapse:"collapse", fontSize:10, tableLayout:"fixed" }}>
                       <colgroup>
-                        <col style={{ width:"8%" }}/><col style={{ width:"6%" }}/><col style={{ width:"10%" }}/><col style={{ width:"10%" }}/>
-                        <col style={{ width:"8%" }}/><col style={{ width:"10%" }}/><col style={{ width:"40%" }}/><col style={{ width:"8%" }}/>
+                        <col style={{ width:"11%" }}/><col style={{ width:"8%" }}/><col style={{ width:"13%" }}/><col style={{ width:"13%" }}/>
+                        <col style={{ width:"11%" }}/><col style={{ width:"15%" }}/><col style={{ width:"29%" }}/>
                       </colgroup>
                       <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                        {[["Ticker","ticker"],["Bet",""],["Bull","bull"],["Bear","bear"],["Split",""],["Net","net"],["Top Contract",""],["Trades","trades"]].map(([h,sk])=>{
+                        {[["Ticker","ticker"],["Bet",""],["Bull","bull"],["Bear","bear"],["Split",""],["Net","net"],["Top Contract",""]].map(([h,sk])=>{
                           const sortable = !!sk;
                           const active = batchSort===sk;
                           const arrow = active ? (batchSortDir==="desc"?" ▼":" ▲") : "";
@@ -5270,14 +5297,13 @@ export default function OptionsFlowDashboard() {
                           if(batchSort==="net") found.sort((a,b)=>((b.net||0)-(a.net||0))*dir);
                           else if(batchSort==="bull") found.sort((a,b)=>((b.bull||0)-(a.bull||0))*dir);
                           else if(batchSort==="bear") found.sort((a,b)=>((b.bear||0)-(a.bear||0))*dir);
-                          else if(batchSort==="trades") found.sort((a,b)=>((b.n||0)-(a.n||0))*dir);
                           else if(batchSort==="ticker") found.sort((a,b)=>a.sym.localeCompare(b.sym)*dir);
                           notFound.sort((a,b)=>a.sym.localeCompare(b.sym));
                           return [...found,...notFound].map(r => {
                           if (!r.found) return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.4 }}>
                               <td style={{ padding:"5px", fontWeight:800, color:P.wh, textAlign:"center" }}>{r.sym}</td>
-                              <td colSpan={7} style={{ padding:"5px", color:P.dm, fontSize:9 }}>No flow found</td>
+                              <td colSpan={6} style={{ padding:"5px", color:P.dm, fontSize:9 }}>No flow found</td>
                             </tr>
                           );
                           const dirC = r.dir==="BULL"?P.bu:P.be;
@@ -5326,7 +5352,6 @@ export default function OptionsFlowDashboard() {
                                   {tc.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc.prem)}</span>}
                                 </span>)}
                               </td>
-                              <td style={{ padding:"5px", color:P.dm, fontSize:9, textAlign:"center" }}>{r.n}</td>
                             </tr>
                           );
                           });
