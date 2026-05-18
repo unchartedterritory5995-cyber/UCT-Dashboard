@@ -113,25 +113,29 @@ def detect_tweezer_bottom(bars: List[Bar], context: dict) -> List[Detection]:
         if pair is None:
             continue
 
+        # Compute context helpers once per candidate — used by gate, scoring,
+        # and detection builder.  Each helper is O(lookback) so calling it
+        # three times per accepted candidate was redundant.
+        sw = _is_swing_low(bars, i)
+        b50 = _below_sma50(bars, i)
+        dp = _recent_decline_pct(bars, i)
+
         # Hard reversal-context gate (precondition — see docstring).
         # A tweezer is a REVERSAL pattern: it is meaningless without a
         # reversal context. No matter how perfect the geometry or volume,
         # if the price is NOT in a reversal-friendly location this pair is
         # discarded unconditionally.
-        _swing_low_gate = _is_swing_low(bars, i)
-        _below_50_gate  = _below_sma50(bars, i)
-        _decline_gate   = _recent_decline_pct(bars, i)
         has_reversal_context = (
-            _swing_low_gate
-            or _below_50_gate
-            or _decline_gate >= _MIN_DECLINE_FOR_REVERSAL
+            sw
+            or b50
+            or dp >= _MIN_DECLINE_FOR_REVERSAL
         )
         if not has_reversal_context:
             continue  # anti-pattern: tweezer in non-reversal location
 
         geom_score = _score_geometry(pair)
         vol_score = _score_volume(bars, i)
-        ctx_score = _score_context(context, bars, i)
+        ctx_score = _score_context(context, sw=sw, b50=b50, dp=dp, bars=bars, i=i)
         hist_score = 50.0
 
         confidence = round(
@@ -143,6 +147,7 @@ def detect_tweezer_bottom(bars: List[Bar], context: dict) -> List[Detection]:
         d = _build_detection(
             bars, pair, i, confidence, context,
             geom_score, vol_score, ctx_score, hist_score,
+            sw=sw, b50=b50, dp=dp,
         )
         detections.append(d)
 
@@ -302,20 +307,28 @@ def _score_volume(bars: List[Bar], i: int) -> float:
     return 30.0 * ratio / 0.7
 
 
-def _score_context(context: dict, bars: List[Bar], i: int) -> float:
-    """Score reversal context at bar B index — mirrors hammer's _score_context."""
-    score = 30.0
-    swing_low = _is_swing_low(bars, i)
-    below_50 = _below_sma50(bars, i)
-    decline = _recent_decline_pct(bars, i)
+def _score_context(
+    context: dict,
+    sw: bool,
+    b50: bool,
+    dp: float,
+    bars: List[Bar],
+    i: int,
+) -> float:
+    """Score reversal context at bar B index — mirrors hammer's _score_context.
 
-    if swing_low:
+    Accepts precomputed helper values (sw, b50, dp) so the detect loop can
+    compute each helper exactly once per candidate.
+    """
+    score = 30.0
+
+    if sw:
         score += 35
-    if below_50:
+    if b50:
         score += 15
-    if decline >= 0.10:
+    if dp >= 0.10:
         score += 15
-    elif decline >= 0.05:
+    elif dp >= 0.05:
         score += 8
 
     # Tweezer at a known support level
@@ -375,15 +388,19 @@ def _build_detection(
     vol_score: float,
     ctx_score: float,
     hist_score: float,
+    *,
+    sw: bool,
+    b50: bool,
+    dp: float,
 ) -> Detection:
     bar_a = p["bar_a"]
     bar_b = p["bar_b"]
     matched_low = p["matched_low"]
     pattern_high = p["pattern_high"]
 
-    is_swing_low = _is_swing_low(bars, i)
-    below_50 = _below_sma50(bars, i)
-    decline_pct = _recent_decline_pct(bars, i) * 100
+    is_swing_low = sw
+    below_50 = b50
+    decline_pct = dp * 100
 
     # Levels
     entry = round(pattern_high * 1.001, 2)
@@ -531,7 +548,8 @@ def _build_detection(
         f"context ({ma_phrase} MA alignment, {rs_phrase} RS) this risk is "
         f"{'elevated — be more demanding of confirmation quality' if ma_phrase == 'stacked-bearish' else 'moderate'}. "
         f"Bulkowski's research shows tweezers without reversal handoff (bar A and bar B "
-        f"same color) have lower follow-through rates, so {'' if p['reversal_handoff'] else 'this pattern (no handoff) warrants additional confirmation before entry. '}Position "
+        f"same color) have lower follow-through rates"
+        f"{'; this pattern has no handoff, so additional confirmation is warranted before entry' if not p['reversal_handoff'] else ''}. Position "
         f"sizing must reflect the {stop_distance_pct:.1f}% stop: risking 0.5% of account "
         f"implies a position size of roughly "
         f"{(0.5 / max(stop_distance_pct, 0.5)) * 100:.1f}% of equity. Treat the "

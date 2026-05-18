@@ -200,10 +200,10 @@ def _strong_geometry_with_context():
           decline ≈ (59.6-48.0)/59.6 = 19.5% >> 5% → True
       - has_reversal_context = True → gate PASSES
 
-    Expected confidence ≈ 88.5:
-      geom=100 (diff=0, handoff), vol=100 (ratio=2.0≥1.8), ctx=80 (swing_low+35
-        + decline>10%+15 + base=30), hist=50
-      0.40*100 + 0.25*100 + 0.20*80 + 0.15*50 = 40+25+16+7.5 = 88.5
+    Expected confidence ≈ 89.5:
+      geom=100 (diff=0, handoff), vol=100 (ratio=2.0≥1.8), ctx=85 (swing_low+35
+        + decline>10%+15 + stage=4+5 + base=30), hist=50
+      0.40*100 + 0.25*100 + 0.20*85 + 0.15*50 = 40+25+17+7.5 = 89.5
     """
     bars = _downtrend(20, 65.0, 50.0, vol=1000.0)
     t = _last_t(bars)

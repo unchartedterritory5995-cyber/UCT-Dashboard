@@ -367,7 +367,7 @@ _PATTERN_METADATA = {
         "name": "Tweezer Bottom",
         "category": "candlestick",
         "direction": "bullish",
-        "description": "2-bar pattern: two consecutive candles with virtually identical lows (within 0.15% of price) at a swing low or after a recent decline. Strongest when bar A is bearish + bar B bullish (reversal handoff). Bullish reversal requiring next-bar close above pattern high.",
+        "description": "2-bar pattern: two consecutive candles with virtually identical lows (within 0.15% of price) at a swing low, below the 50-bar SMA, or after a recent decline (>=5%). Strongest when bar A is bearish + bar B bullish (reversal handoff). Bullish reversal requiring next-bar close above pattern high.",
     },
     "bullish_engulfing": {
         "name": "Bullish Engulfing",
