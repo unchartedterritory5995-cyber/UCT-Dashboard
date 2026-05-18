@@ -106,15 +106,16 @@ def detect_nr7(bars: List[Bar], context: dict) -> List[Detection]:
     geom_score = _score_geometry(candidate)
     ctx_score = _score_context(context, candidate)
     hist_score = 50.0
+    vol_score = 50.0  # NR7 is a bar-range/contraction pattern; volume is structural context, not a directional driver
 
     confidence = round(
-        0.50 * geom_score + 0.35 * ctx_score + 0.15 * hist_score, 2
+        0.40 * geom_score + 0.25 * vol_score + 0.20 * ctx_score + 0.15 * hist_score, 2
     )
     if confidence < _CONFIDENCE_FLOOR:
         return []
 
     return [_build_detection(bars, candidate, confidence, context,
-                             geom_score, ctx_score, hist_score)]
+                             geom_score, vol_score, ctx_score, hist_score)]
 
 
 def _score_geometry(c: dict) -> float:
@@ -159,7 +160,7 @@ def _score_context(context: dict, c: dict) -> float:
 
 
 def _build_detection(bars, c, confidence, context,
-                     geom_score, ctx_score, hist_score) -> Detection:
+                     geom_score, vol_score, ctx_score, hist_score) -> Detection:
     last = c["last"]
     last_bar = bars[-1]
     last_range = c["last_range"]
@@ -223,7 +224,7 @@ def _build_detection(bars, c, confidence, context,
         "confidence": confidence,
         "quality_components": {
             "geometry_score": geom_score,
-            "volume_score": 50.0,
+            "volume_score": vol_score,
             "context_score": ctx_score,
             "historical_score": hist_score,
         },

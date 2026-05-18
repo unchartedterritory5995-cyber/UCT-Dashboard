@@ -190,6 +190,62 @@ def test_neutral_dual_levels():
 
 
 # ---------------------------------------------------------------------------
+# Formula-pin test — locks the canonical 0.40/0.25/0.20/0.15 weights
+# ---------------------------------------------------------------------------
+
+def test_confidence_formula_pin():
+    """Pins the canonical confidence formula for nr7.
+
+    Picks one deterministic positive fixture (nr7_also_nr4), independently
+    recomputes the expected confidence from the detector's own quality_components,
+    and asserts the emitted confidence equals that recomputation EXACTLY.
+
+    Formula: round(0.40*geometry_score + 0.25*volume_score + 0.20*context_score
+                   + 0.15*historical_score, 2)
+
+    This makes any future formula drift fail loudly.
+    Also asserts volume_score == 50.0 for nr7 specifically so the
+    'volume term is present and weighted' property is locked.
+    """
+    fixtures = load_all_fixtures("nr7", include_internal=False)
+    fixture = next(
+        (f for f in fixtures if f.name == "nr7_also_nr4"), None
+    )
+    assert fixture is not None, "missing nr7_also_nr4 fixture"
+
+    ctx = (
+        fixture.context
+        if fixture.context is not None
+        else build_context(fixture.bars, sym="TEST")
+    )
+    detections = detect_nr7(fixture.bars, ctx)
+    assert detections, "nr7_also_nr4 must fire for the formula-pin test"
+    d = detections[0]
+
+    qc = d["quality_components"]
+    geom  = qc["geometry_score"]
+    vol   = qc["volume_score"]
+    ctx_s = qc["context_score"]
+    hist  = qc["historical_score"]
+
+    # Lock the volume term: NR7 always uses flat 50.0 (structural, not directional)
+    assert vol == 50.0, (
+        f"nr7 volume_score must always be 50.0 (structural constant); got {vol}"
+    )
+
+    # Recompute from components using the canonical weights
+    expected_confidence = round(
+        0.40 * geom + 0.25 * vol + 0.20 * ctx_s + 0.15 * hist, 2
+    )
+
+    assert d["confidence"] == expected_confidence, (
+        f"confidence {d['confidence']} != recomputed {expected_confidence} "
+        f"(geom={geom}, vol={vol}, ctx={ctx_s}, hist={hist}). "
+        f"Weights must be 0.40/0.25/0.20/0.15."
+    )
+
+
+# ---------------------------------------------------------------------------
 # Strict-narrowest boundary unit test (honest _EPS framing)
 # ---------------------------------------------------------------------------
 
