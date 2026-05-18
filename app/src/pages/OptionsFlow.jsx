@@ -1789,8 +1789,8 @@ export default function OptionsFlowDashboard() {
       };
     };
     return {
-      bull: unique(msNew.filter(c=>c.dir==="BULL")).slice(0,10).map(c=>mapItem(c,"BULL")),
-      bear: unique(msNew.filter(c=>c.dir==="BEAR")).slice(0,10).map(c=>mapItem(c,"BEAR")),
+      bull: unique(msNew.filter(c=>c.dir==="BULL")).slice(0,discordCount).map(c=>mapItem(c,"BULL")),
+      bear: unique(msNew.filter(c=>c.dir==="BEAR")).slice(0,discordCount).map(c=>mapItem(c,"BEAR")),
     };
   };
 
