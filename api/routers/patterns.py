@@ -96,6 +96,7 @@ from api.services.pattern_engine.detectors.candlestick import evening_star as _e
 from api.services.pattern_engine.detectors.candlestick import three_white_soldiers as _three_white_soldiers  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import three_black_crows as _three_black_crows  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import marubozu as _marubozu  # noqa: F401
+from api.services.pattern_engine.detectors.classical import nr7 as _nr7  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
 from api.services.auth_db import get_connection
@@ -425,6 +426,12 @@ _PATTERN_METADATA = {
         "category": "candlestick",
         "direction": "neutral",  # emits both bullish and bearish variants
         "description": "Full-body conviction candle (Nison 1991): body >= 90% of range, both wicks <= 5%, above-average range (1.2x) and volume (1.3x), DCR >= 0.95 (bull) or <= 0.05 (bear). The 'bald' candle — pure directional control for the entire session.",
+    },
+    "nr7": {
+        "name": "NR7 — Narrow Range 7",
+        "category": "classical",
+        "direction": "neutral",  # pre-breakout; both long + short levels emitted
+        "description": "Current bar's range is strictly narrowest of the past 7 bars (Toby Crabel 1990 / Linda Raschke 1995). Volatility contraction signal preceding a directional expansion. NEUTRAL — dual long + short breakout levels encoded; NR4 bonus and inside-bar confluence boost confidence.",
     },
     "kell_cycle": {
         "name": "Kell Cycle of Price Action",
