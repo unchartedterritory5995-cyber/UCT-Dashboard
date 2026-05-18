@@ -86,6 +86,7 @@ from api.services.pattern_engine.detectors.candlestick import doji as _doji  # n
 from api.services.pattern_engine.detectors.candlestick import hammer as _hammer  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import hanging_man as _hanging_man  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import shooting_star as _shooting_star  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import tweezer_bottom as _tweezer_bottom  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import bullish_engulfing as _bullish_engulfing  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import bearish_engulfing as _bearish_engulfing  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import piercing as _piercing  # noqa: F401
@@ -361,6 +362,12 @@ _PATTERN_METADATA = {
         "category": "candlestick",
         "direction": "bearish",
         "description": "Long upper wick (>=2x body) + small body at a swing high after advance. Bearish reversal signal requiring next-bar bearish confirmation.",
+    },
+    "tweezer_bottom": {
+        "name": "Tweezer Bottom",
+        "category": "candlestick",
+        "direction": "bullish",
+        "description": "2-bar pattern: two consecutive candles with virtually identical lows (within 0.15% of price) at a swing low or after a recent decline. Strongest when bar A is bearish + bar B bullish (reversal handoff). Bullish reversal requiring next-bar close above pattern high.",
     },
     "bullish_engulfing": {
         "name": "Bullish Engulfing",
