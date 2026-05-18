@@ -15,7 +15,7 @@ describe('useTickerMeta', () => {
   it('returns null-safe defaults before/without data', () => {
     global.fetch = vi.fn(() => new Promise(() => {}))
     const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
-    expect(result.current).toEqual({ name: null, sector: null, industry: null })
+    expect(result.current).toEqual({ name: null, sector: null, industry: null, theme: null })
   })
 
   it('returns fetched meta', async () => {
@@ -31,14 +31,14 @@ describe('useTickerMeta', () => {
   it('null-safe when fetch fails', async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false })
     const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
-    await waitFor(() => expect(result.current).toEqual({ name: null, sector: null, industry: null }))
+    await waitFor(() => expect(result.current).toEqual({ name: null, sector: null, industry: null, theme: null }))
   })
 
   it('null-safe when JSON parsing throws', async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => { throw new Error('bad json') } })
     const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
-    expect(result.current).toEqual({ name: null, sector: null, industry: null })
+    expect(result.current).toEqual({ name: null, sector: null, industry: null, theme: null })
   })
 
   it('does not fetch when sym is falsy', () => {

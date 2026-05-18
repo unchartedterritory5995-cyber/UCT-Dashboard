@@ -1,7 +1,7 @@
 import useSWR from 'swr'
 
 // Frozen so the shared fallback can never be mutated by a consumer.
-const NULLS = Object.freeze({ name: null, sector: null, industry: null })
+const NULLS = Object.freeze({ name: null, sector: null, industry: null, theme: null })
 
 // Fetcher intentionally swallows all errors and returns NULLS rather than
 // throwing: the watermark degrades silently (no error surface) — a failed
@@ -11,7 +11,7 @@ async function fetcher(url) {
   if (!r.ok) return NULLS
   try {
     const j = await r.json()
-    return { name: j?.name ?? null, sector: j?.sector ?? null, industry: j?.industry ?? null }
+    return { name: j?.name ?? null, sector: j?.sector ?? null, industry: j?.industry ?? null, theme: j?.theme ?? null }
   } catch {
     return NULLS
   }

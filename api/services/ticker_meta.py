@@ -78,7 +78,7 @@ def _from_finnhub(ticker: str):
     }
 
 
-def get_ticker_meta(ticker: str) -> dict:
+def _base_meta(ticker: str) -> dict:
     ticker = (ticker or "").upper().strip()
     if not ticker:
         return {"name": None, "sector": None, "industry": None}
@@ -111,3 +111,35 @@ def get_ticker_meta(ticker: str) -> dict:
         _mem.set(key, data, ttl=_TTL)
         _disk_put(ticker, data)
     return data
+
+
+# Tier priority: a ticker's "core" theme beats "relevant" beats "peripheral".
+_TIER_RANK = {"core": 0, "relevant": 1, "peripheral": 2}
+
+
+def _primary_theme(ticker: str):
+    """The single most-relevant UCT theme name for a ticker, or None.
+
+    Cheap indexed SQLite lookup via the theme taxonomy DB — read fresh each
+    call (sub-ms) so taxonomy edits reflect immediately and it never caches a
+    stale theme. Never raises (theme DB may be unseeded in some contexts)."""
+    ticker = (ticker or "").upper().strip()
+    if not ticker:
+        return None
+    try:
+        from api.services.theme_db import get_themes_for_ticker
+        rows = get_themes_for_ticker(ticker)
+        if not rows:
+            return None
+        rows.sort(key=lambda m: (_TIER_RANK.get(m.get("tier"), 99), m.get("theme_id") or ""))
+        return rows[0].get("theme_name") or None
+    except Exception as e:
+        _logger.info("ticker_meta theme lookup failed for %s: %s", ticker, e)
+        return None
+
+
+def get_ticker_meta(ticker: str) -> dict:
+    """{name, sector, industry, theme}. name/sector/industry are 24h-cached
+    (yfinance → Finnhub); theme is the live UCT-taxonomy primary theme."""
+    base = _base_meta(ticker)
+    return {**base, "theme": _primary_theme(ticker)}

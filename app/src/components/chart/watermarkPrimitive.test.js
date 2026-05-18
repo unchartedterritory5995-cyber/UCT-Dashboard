@@ -20,6 +20,18 @@ describe('composeWatermarkLines', () => {
     expect(composeWatermarkLines('TSLA', meta, { ticker: false, company: false, sector: false, industry: false }))
       .toEqual([])
   })
+  it('appends the UCT theme as a 5th line when enabled and present', () => {
+    const m = { name: 'SolarEdge Technologies, Inc.', sector: 'Technology', industry: 'Solar', theme: 'Clean Energy' }
+    expect(composeWatermarkLines('SEDG', m, { ticker: true, company: true, sector: true, industry: true, theme: true }))
+      .toEqual(['SEDG', 'SolarEdge Technologies, Inc.', 'Technology', 'Solar', 'Clean Energy'])
+  })
+  it('skips theme line when toggled off or theme is null', () => {
+    const m = { name: 'X', sector: 'S', industry: 'I', theme: null }
+    expect(composeWatermarkLines('AAA', m, { ticker: true, company: false, sector: false, industry: false, theme: true }))
+      .toEqual(['AAA'])
+    expect(composeWatermarkLines('AAA', { ...m, theme: 'T' }, { ticker: true, company: false, sector: false, industry: false, theme: false }))
+      .toEqual(['AAA'])
+  })
 })
 
 describe('watermarkFontPx', () => {

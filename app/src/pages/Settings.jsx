@@ -666,6 +666,10 @@ function ChartSettingsSection({ prefs, setPref }) {
               <input type="checkbox" checked={cs.watermark.lines.industry} onChange={e => update('watermark.lines.industry', e.target.checked)} />
               <span>Industry</span>
             </label>
+            <label className={styles.chartToggle}>
+              <input type="checkbox" checked={cs.watermark.lines.theme} onChange={e => update('watermark.lines.theme', e.target.checked)} />
+              <span>UCT Theme</span>
+            </label>
           </div>
           <div className={styles.chartRow} style={{ marginTop: 8 }}>
             <ColorPicker label="Color" value={cs.watermark.color} onChange={v => update('watermark.color', v)} />

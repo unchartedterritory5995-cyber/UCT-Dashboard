@@ -13,6 +13,7 @@ export function composeWatermarkLines(sym, meta, lines) {
   if (lines.company && meta?.name) out.push(meta.name)
   if (lines.sector && meta?.sector) out.push(meta.sector)
   if (lines.industry && meta?.industry) out.push(meta.industry)
+  if (lines.theme && meta?.theme) out.push(meta.theme)
   return out
 }
 

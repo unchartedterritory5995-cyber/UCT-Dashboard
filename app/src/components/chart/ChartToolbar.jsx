@@ -233,6 +233,12 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
             Industry
           </label>
         </div>
+        <div className={styles.sRow}>
+          <label className={styles.sCheck}>
+            <input type="checkbox" checked={cs.watermark.lines.theme} onChange={e => update('watermark.lines.theme', e.target.checked)} />
+            UCT Theme
+          </label>
+        </div>
         <div className={styles.sRow} style={{ marginTop: 6 }}>
           <ColorPicker label="Color" value={cs.watermark.color} onChange={v => update('watermark.color', v)} />
         </div>
