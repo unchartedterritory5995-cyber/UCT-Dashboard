@@ -939,6 +939,43 @@ async def lifespan(app: FastAPI):
         from apscheduler.triggers.interval import IntervalTrigger
         from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens, record_mrr_snapshot
         _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
+
+        # ── Compass automation master switch ──────────────────────────────
+        # Pauses ALL automated (scheduled) Compass + voice LLM interactions
+        # to prevent accidental token burn. Manual / on-demand Compass
+        # surfaces are UNAFFECTED — those are always user-initiated:
+        #   • Compass chat (text + voice)
+        #   • Pre-Trade Verdict + Per-Trade Post-Mortem buttons
+        #   • "Generate EOD recap / weekly review now" endpoints
+        #   • Manual voice scan / consolidate endpoints
+        #   • Rule-based real-time intervention banners (no LLM tokens)
+        #
+        # Paused 2026-05-18 at user request. Default = OFF, so automation
+        # stays paused across Railway redeploys until explicitly resumed.
+        # Resume by EITHER:
+        #   • setting Railway env var  COMPASS_AUTOMATION_ENABLED=1,  or
+        #   • flipping the default below to "1" and redeploying.
+        import os as _os_ca
+        _compass_automation_on = (
+            _os_ca.environ.get("COMPASS_AUTOMATION_ENABLED", "0") == "1"
+        )
+
+        def _add_compass_job(*args, **kwargs):
+            """Register a job ONLY if Compass automation is enabled.
+
+            All automated Compass/voice LLM jobs go through this instead of
+            ``_scheduler.add_job`` so a single switch governs them. The
+            scheduler uses the in-memory jobstore, so a job that is not
+            re-added here simply does not exist after restart."""
+            if _compass_automation_on:
+                _scheduler.add_job(*args, **kwargs)
+            else:
+                print(
+                    f"[startup] Compass automation PAUSED — skipping "
+                    f"job '{kwargs.get('id', '?')}' "
+                    f"(set COMPASS_AUTOMATION_ENABLED=1 to resume)"
+                )
+
         _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
@@ -1039,17 +1076,17 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[voice_proactive] {window} outer error: {e}")
 
-        _scheduler.add_job(lambda: _voice_window_scan("premarket"),
+        _add_compass_job(lambda: _voice_window_scan("premarket"),
                            trigger=CronTrigger(day_of_week="mon-fri",
                                                hour="7-9", minute="*/15"),
                            id="voice_proactive_premarket",
                            max_instances=1, replace_existing=True)
-        _scheduler.add_job(lambda: _voice_window_scan("rth"),
+        _add_compass_job(lambda: _voice_window_scan("rth"),
                            trigger=CronTrigger(day_of_week="mon-fri",
                                                hour="9-15", minute="*/30"),
                            id="voice_proactive_scan",
                            max_instances=1, replace_existing=True)
-        _scheduler.add_job(lambda: _voice_window_scan("after_hours"),
+        _add_compass_job(lambda: _voice_window_scan("after_hours"),
                            trigger=CronTrigger(day_of_week="mon-fri",
                                                hour="16-20", minute="*/30"),
                            id="voice_proactive_after_hours",
@@ -1063,7 +1100,7 @@ async def lifespan(app: FastAPI):
                       f"skipped={report['skipped']}")
             except Exception as e:
                 print(f"[compass_daily_focus] outer error: {e}")
-        _scheduler.add_job(_compass_daily_focus_run,
+        _add_compass_job(_compass_daily_focus_run,
                            trigger=CronTrigger(day_of_week="mon-fri",
                                                hour=7, minute=30),
                            id="compass_daily_focus",
@@ -1088,7 +1125,7 @@ async def lifespan(app: FastAPI):
                         print(f"[voice_consolidate] user={r['user_id']} failed: {e}")
             except Exception as e:
                 print(f"[voice_consolidate] outer error: {e}")
-        _scheduler.add_job(_voice_nightly_consolidate,
+        _add_compass_job(_voice_nightly_consolidate,
                            trigger=CronTrigger(hour=3, minute=30),
                            id="voice_nightly_consolidate",
                            max_instances=1, replace_existing=True)
@@ -1145,7 +1182,7 @@ async def lifespan(app: FastAPI):
             except Exception as e:  # noqa: BLE001
                 print(f"[scheduler] Compass EOD batch error: {e}")
 
-        _scheduler.add_job(
+        _add_compass_job(
             _compass_eod_job,
             trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=30),
             id="compass_eod_recap",
@@ -1174,7 +1211,7 @@ async def lifespan(app: FastAPI):
             except Exception as e:  # noqa: BLE001
                 print(f"[scheduler] Compass weekly email batch error: {e}")
 
-        _scheduler.add_job(
+        _add_compass_job(
             _compass_weekly_email_job,
             trigger=CronTrigger(day_of_week="sun", hour=8, minute=0),
             id="compass_weekly_email_digest",
@@ -1211,7 +1248,10 @@ async def lifespan(app: FastAPI):
         print("[startup] Session cleanup scheduled — daily at 3:00 AM ET")
         print("[startup] Churn risk check scheduled — daily at 9:00 AM ET")
         print("[startup] MRR snapshot scheduled — daily at 11:59 PM ET")
-        print("[startup] Compass EOD recap scheduled — Mon-Fri at 4:30 PM ET")
+        if _compass_automation_on:
+            print("[startup] Compass automation ENABLED — proactive scans, daily focus, EOD recap, weekly digest scheduled")
+        else:
+            print("[startup] Compass automation PAUSED — all scheduled Compass/voice jobs skipped; manual surfaces unaffected (set COMPASS_AUTOMATION_ENABLED=1 to resume)")
         print("[startup] Pattern engine jobs scheduled — outcomes (4h interval), stats (06:00 UTC daily), universe scan (1h interval)")
     else:
         print("[startup] APScheduler skipped — lock held by another uvicorn worker (multi-worker mode)")
