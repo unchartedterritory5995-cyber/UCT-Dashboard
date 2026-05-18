@@ -37,11 +37,22 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
       return !!(rect && p.x >= rect.x && p.x <= rect.x + rect.w && p.y >= rect.y && p.y <= rect.y + rect.h)
     }
 
+    // While we own the gesture, keep the event away from Lightweight Charts
+    // so the chart doesn't pan/scale underneath the watermark drag. Only ever
+    // called for an owned drag — normal clicks/hover are never suppressed, so
+    // crosshair + chart panning stay fully intact everywhere else.
+    const suppressChart = (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation()
+    }
+
     const onMove = (e) => {
       const c = controllerRef.current
       if (!c) return
       const p = local(e)
       if (drag.current) {
+        suppressChart(e) // own the whole gesture, including pre-threshold moves
         if (!drag.current.moved) {
           if (Math.abs(p.x - drag.current.sx) + Math.abs(p.y - drag.current.sy) < THRESHOLD) return
           drag.current.moved = true
@@ -54,7 +65,6 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
         drag.current.nx = nx
         drag.current.ny = ny
         c.setOptions({ x: nx, y: ny })
-        e.preventDefault()
         return
       }
       if (toolActive()) { c.setArmed(false); return }
@@ -65,6 +75,8 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
       if (toolActive()) return
       const p = local(e)
       if (!inRect(p)) return
+      // We own this press — stop it reaching the chart so it doesn't start a pan.
+      suppressChart(e)
       drag.current = { sx: p.x, sy: p.y, moved: false, nx: null, ny: null }
       try { el.setPointerCapture(e.pointerId) } catch { /* ignore */ }
     }
@@ -73,6 +85,7 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
       const c = controllerRef.current
       const d = drag.current
       drag.current = null
+      if (d) suppressChart(e) // the chart must not see the gesture's pointerup
       try { el.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
       if (commit && d && d.moved && d.nx != null && c) onCommitRef.current({ x: d.nx, y: d.ny })
     }

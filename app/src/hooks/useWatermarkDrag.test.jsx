@@ -96,4 +96,44 @@ describe('useWatermarkDrag', () => {
     el.dispatchEvent(pe('pointercancel', 600, 270))
     expect(commit).not.toHaveBeenCalled()
   })
+
+  // Regression: dragging the watermark must NOT also pan the chart.
+  function spiedPe(type, x, y) {
+    const e = pe(type, x, y)
+    vi.spyOn(e, 'stopPropagation')
+    vi.spyOn(e, 'preventDefault')
+    return e
+  }
+
+  it('stops the event from reaching the chart while dragging the watermark', () => {
+    setup()
+    const down = spiedPe('pointerdown', 500, 230)
+    el.dispatchEvent(down)
+    expect(down.stopPropagation).toHaveBeenCalled()
+    expect(down.preventDefault).toHaveBeenCalled()
+    const move = spiedPe('pointermove', 600, 270)
+    el.dispatchEvent(move)
+    expect(move.stopPropagation).toHaveBeenCalled()
+    const up = spiedPe('pointerup', 600, 270)
+    el.dispatchEvent(up)
+    expect(up.stopPropagation).toHaveBeenCalled()
+  })
+
+  it('does NOT suppress the event for a press outside the watermark (chart pan preserved)', () => {
+    setup()
+    const down = spiedPe('pointerdown', 10, 10)
+    el.dispatchEvent(down)
+    expect(down.stopPropagation).not.toHaveBeenCalled()
+    const move = spiedPe('pointermove', 20, 20)
+    el.dispatchEvent(move)
+    expect(move.stopPropagation).not.toHaveBeenCalled()
+  })
+
+  it('does NOT suppress a plain hover over the watermark (crosshair preserved)', () => {
+    setup()
+    const hover = spiedPe('pointermove', 500, 230)
+    el.dispatchEvent(hover)
+    expect(hover.stopPropagation).not.toHaveBeenCalled()
+    expect(ctrl.setArmed).toHaveBeenLastCalledWith(true)
+  })
 })
