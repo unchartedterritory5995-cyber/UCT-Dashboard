@@ -31,10 +31,42 @@ Conditions:
 
 Levels (Lance's typical playbook):
   - entry = third-bar close * 1.001
-  - stop = first-bar low * 0.998 (or session low if lower)
+  - stop = min(bar1_low * 0.998, session_low)  [whichever is lower]
   - target = entry + (first-bar range * 3)  [Lance's 3x measured move]
 
 Geometry: candle_mark at the third bar.
+
+Session-boundary detection rule:
+  Bars are partitioned into sessions by examining consecutive `t` values
+  (unix seconds). A new session begins when the time gap between two
+  adjacent bars exceeds _SESSION_GAP_SECONDS (default 4 hours = 14400s).
+  This robustly handles overnight gaps across 5-min, 15-min, and 30-min
+  intraday bars without requiring calendar knowledge. A large overnight
+  gap (typically 16-17h between US cash sessions) far exceeds this
+  threshold, while intraday gaps (even during lunch hour) do not.
+
+  Caller does NOT need to pre-slice bars to the current session. The
+  detector partitions the full multi-session input itself.
+
+History requirements:
+  - At least _SESSIONS_FOR_AVG (20) complete prior sessions, each with
+    >= 3 bars, before the current session.
+  - At least _PRIOR_SESSION_BARS (60) prior bars before the current
+    session starts.
+  Both conditions must hold; otherwise returns [] (genuine insufficient
+  history, not a missing context key).
+
+prev_session_close:
+  Computed from bars as the last bar's close of the immediately-preceding
+  session (the session before the current/last session in the partition).
+  If context["prev_session_close"] is explicitly provided by the caller,
+  it overrides the computed value (optional override path).
+
+Trailing-20-session first-3-bar volume average:
+  For each of the 20 sessions immediately before the current one, the
+  sum of volume across the first 3 bars of that session is computed.
+  The trailing average is the mean of those 20 sums. The gate:
+  sum(vol bars 1-3 current session) >= 2 * trailing_avg (with _EPS).
 
 Attribution: Lance Breitstein (SMB Capital modern intraday momentum
 authority — "the opening drive is the single highest-edge intraday
@@ -65,7 +97,7 @@ _MIN_THIRD_BAR_DCR = 0.60      # third bar closes in top 40% (no fade)
 _MIN_VOLUME_RATIO = 2.0        # 2x trailing 3-bar session avg volume
 _PRIOR_SESSION_BARS = 60       # need at least 60 bars of prior-session reference
 _SESSIONS_FOR_AVG = 20         # 20 prior sessions for trailing avg
-_BARS_PER_SESSION_5MIN = 78    # approximate 5min cash session length
+_SESSION_GAP_SECONDS = 14400   # 4 hours: overnight gap > this => new session
 _CONFIDENCE_FLOOR = 50.0
 
 # _EPS: tolerance for inclusive-gate comparisons (gap, DCR, volume ratio).
@@ -90,12 +122,49 @@ _CONFIDENCE_FLOOR = 50.0
 _EPS = 1e-9
 
 
+# ---------------------------------------------------------------------------
+# Session partitioning
+# ---------------------------------------------------------------------------
+
+def _partition_sessions(bars: List[Bar]) -> List[List[Bar]]:
+    """Partition bars into sessions using overnight time-gap detection.
+
+    A new session starts whenever the gap between consecutive bar timestamps
+    exceeds _SESSION_GAP_SECONDS (4 hours). In US intraday data, overnight
+    gaps are typically 16-17 hours; intraday pauses (even at lunch) are far
+    shorter. This rule is TF-agnostic: it works for 5-min, 15-min, and
+    30-min bars without requiring calendar knowledge.
+
+    Returns:
+        List of sessions, each a list of Bar dicts. Bars within each
+        session are in ascending time order (same order as input).
+        Empty input returns [].
+    """
+    if not bars:
+        return []
+    sessions: List[List[Bar]] = [[bars[0]]]
+    for i in range(1, len(bars)):
+        gap = bars[i]["t"] - bars[i - 1]["t"]
+        if gap > _SESSION_GAP_SECONDS:
+            sessions.append([bars[i]])
+        else:
+            sessions[-1].append(bars[i])
+    return sessions
+
+
 def detect_lance_opening_drive(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect Lance Breitstein's Opening Drive on intraday bars.
 
-    Convention: treats the FIRST 3 bars of the input window as the
-    current session's opening bars. Caller is responsible for slicing
-    the input so the session opens at index 0.
+    Requires a multi-session intraday bar series. Partitions bars into
+    sessions using overnight-gap detection (see _partition_sessions).
+    The LAST session is treated as the current session; its first 3 bars
+    are bar1/bar2/bar3. prev_session_close is computed from the last bar
+    of the preceding session. The trailing-20-session first-3-bar volume
+    average is computed from the 20 sessions immediately before the current
+    one.
+
+    context["prev_session_close"] may optionally override the computed
+    prev_session_close if explicitly provided by the caller.
 
     Returns 0 or 1 detection.
     """
@@ -103,33 +172,55 @@ def detect_lance_opening_drive(bars: List[Bar], context: dict) -> List[Detection
     if n < 3:
         return []
 
-    bar1, bar2, bar3 = bars[0], bars[1], bars[2]
-
     # Hostile context gate — Stage 4 + stacked bearish + RS down = reject
     if _hostile_context(context):
         return []
 
-    # ===== Bar 1: gap-up + DCR >=0.7 =====
-    # Gap-up requires a reference: if we have bars beyond the first 3, look
-    # back for a prior-session-close anchor. Synthetic intraday fixtures
-    # provide a context.prev_session_close hint when no prior bars available.
+    # ===== Session partitioning =====
+    sessions = _partition_sessions(bars)
+    if len(sessions) < 2:
+        # Need at least one prior session + current session
+        return []
+
+    current_session = sessions[-1]
+    prior_sessions = sessions[:-1]
+
+    if len(current_session) < 3:
+        # Need at least 3 bars in the current session
+        return []
+
+    # ===== History gate =====
+    # Count prior sessions with >= 3 bars
+    prior_sessions_with_3bars = [s for s in prior_sessions if len(s) >= 3]
+    if len(prior_sessions_with_3bars) < _SESSIONS_FOR_AVG:
+        return []
+
+    # Count prior bars (all bars before the current session)
+    prior_bar_count = sum(len(s) for s in prior_sessions)
+    if prior_bar_count < _PRIOR_SESSION_BARS:
+        return []
+
+    bar1, bar2, bar3 = current_session[0], current_session[1], current_session[2]
+
+    # ===== prev_session_close: last bar of the preceding session =====
     prev_close: Optional[float] = None
+    # Optional caller override (e.g. from a higher-fidelity data source)
     if context.get("prev_session_close") is not None:
         try:
             prev_close = float(context["prev_session_close"])
         except (TypeError, ValueError):
             prev_close = None
-    if prev_close is None and n >= _PRIOR_SESSION_BARS + 3:
-        # Use the bar immediately before the session as the prev close
-        # (assumes input is multi-session and current session starts at idx 0
-        # of a slice — for safety, just gate this branch out).
-        prev_close = None
 
     if prev_close is None:
-        # Without a prior session close we cannot verify the gap.
+        # Primary path: compute from bars
+        preceding_session = prior_sessions[-1]
+        prev_close = float(preceding_session[-1]["c"])
+
+    if prev_close is None or prev_close <= 0:
         return []
 
-    gap_pct = (bar1["o"] - prev_close) / prev_close if prev_close > 0 else 0.0
+    # ===== Bar 1: gap-up + DCR >=0.7 =====
+    gap_pct = (bar1["o"] - prev_close) / prev_close
     if gap_pct < _MIN_GAP_PCT - _EPS:
         return []
 
@@ -159,27 +250,16 @@ def detect_lance_opening_drive(bars: List[Bar], context: dict) -> List[Detection
         # The third bar's high must equal the session high (no rejection bar after)
         return []
 
-    # ===== Volume gate =====
-    first3_volume = bar1["v"] + bar2["v"] + bar3["v"]
-    # Trailing avg: use context-provided baseline OR fall back to 3-bar avg
-    # over the visible window (best-effort when no prior data is present).
-    trailing_avg_first3 = context.get("avg_first3_volume")
-    if trailing_avg_first3 is None or trailing_avg_first3 <= 0:
-        # Best-effort fallback: take the recent 3-bar volume avg from any
-        # prior bars in the window beyond bar3. If unavailable, use bar1+2+3
-        # average itself (degenerate — gate this out).
-        if n > 3:
-            tail = bars[3:]
-            if len(tail) >= 6:
-                # Take mean of every 3-bar block
-                blocks = [sum(b["v"] for b in tail[i:i + 3])
-                          for i in range(0, len(tail) - 2, 3)]
-                trailing_avg_first3 = sum(blocks) / len(blocks) if blocks else 0
-            else:
-                trailing_avg_first3 = sum(b["v"] for b in tail) / len(tail) * 3
-        else:
-            return []
+    # ===== Trailing-20-session first-3-bar volume average =====
+    # Use the 20 sessions immediately before current that have >= 3 bars.
+    # Preserve recency ordering: take the LAST 20 qualifying prior sessions.
+    qualifying_prior = [s for s in prior_sessions if len(s) >= 3]
+    trailing_sessions = qualifying_prior[-_SESSIONS_FOR_AVG:]   # most recent 20
+    trailing_avg_first3 = sum(
+        s[0]["v"] + s[1]["v"] + s[2]["v"] for s in trailing_sessions
+    ) / len(trailing_sessions)
 
+    first3_volume = bar1["v"] + bar2["v"] + bar3["v"]
     if trailing_avg_first3 <= 0:
         return []
     volume_ratio = first3_volume / trailing_avg_first3
@@ -190,7 +270,7 @@ def detect_lance_opening_drive(bars: List[Bar], context: dict) -> List[Detection
     prior_day_strength = 0.5  # neutral default
     pd_high = context.get("prev_session_high")
     pd_low = context.get("prev_session_low")
-    if pd_high is not None and pd_low is not None and prev_close is not None:
+    if pd_high is not None and pd_low is not None:
         try:
             pdh = float(pd_high)
             pdl = float(pd_low)
@@ -358,7 +438,18 @@ def _build_detection(bars, c, confidence, context,
 
     entry = round(bar3["c"] * 1.001, 2)
     session_low = min(bar1["l"], bar2["l"], bar3["l"])
-    stop = round(min(bar1["l"], session_low) * 0.998, 2)
+
+    # Stop: min(bar1_low * 0.998, session_low), label reflects which was taken.
+    # Docstring intent: "bar1_low * 0.998 (or session_low if lower)" means
+    # take whichever of the two is MORE conservative (lower price = tighter stop).
+    bar1_low_buffer = bar1["l"] * 0.998
+    if bar1_low_buffer <= session_low:
+        stop = round(bar1_low_buffer, 2)
+        stop_basis = "bar1_low_minus_0.2pct"
+    else:
+        stop = round(session_low, 2)
+        stop_basis = "session_low"
+
     target = round(entry + c["bar1_range"] * 3.0, 2)
     rr = (target - entry) / (entry - stop) if entry > stop else 0.0
     stop_distance_pct = (entry - stop) / entry * 100.0 if entry > 0 else 0.0
@@ -416,7 +507,7 @@ def _build_detection(bars, c, confidence, context,
                 f"continuation volume"
             ),
             "stop": stop,
-            "stop_basis": "session_low_minus_0.2pct",
+            "stop_basis": stop_basis,
             "target_primary": target,
             "target_secondary": None,
             "risk_reward": round(rr, 2),
@@ -518,15 +609,15 @@ def _compose_narrative(c: dict, context: dict, entry: float, stop: float,
         f"${bar2['c']:.2f} and ${bar3['c']:.2f}) confirm that the gap was "
         f"NOT a one-bar squeeze — sustained buyer interest carried price "
         f"higher through the second and third intervals. (4) Volume of "
-        f"{vol_ratio:.2f}× the trailing 3-bar session average is the "
-        f"institutional-commitment signature: Breitstein's published work "
-        f"shows that drives with first-3-bar volume <2× trailing average "
-        f"produce roughly 50/50 continuation, while drives with >2× volume "
-        f"produce continuation roughly 65-70% on liquid leaders. (5) Prior "
-        f"day's close strength was {pds:.0f}% of the prior day's range — "
-        f"closing in the upper third of the prior session is Breitstein's "
-        f"specific 'set-up the next day's drive' filter; here that "
-        f"signature {'is' if pds >= 67 else 'is NOT'} present. (6) The "
+        f"{vol_ratio:.2f}× the trailing 20-session first-3-bar average is "
+        f"the institutional-commitment signature: Breitstein's published "
+        f"work shows that drives with first-3-bar volume <2× trailing "
+        f"average produce roughly 50/50 continuation, while drives with "
+        f">2× volume produce continuation roughly 65-70% on liquid leaders. "
+        f"(5) Prior day's close strength was {pds:.0f}% of the prior day's "
+        f"range — closing in the upper third of the prior session is "
+        f"Breitstein's specific 'set-up the next day's drive' filter; here "
+        f"that signature {'is' if pds >= 67 else 'is NOT'} present. (6) The "
         f"third bar's high being the session high (no rejection wick "
         f"above) is the structural confirmation that the buy programs "
         f"running the gap have NOT exhausted yet — when the third bar "
@@ -550,13 +641,13 @@ def _compose_narrative(c: dict, context: dict, entry: float, stop: float,
         f"goodbye' retest of the second bar's close is the highest-edge "
         f"re-entry; if price holds that level on declining volume into a "
         f"1-2 bar pause, the structure is intact and the breakout is "
-        f"ready. Stop is set at ${stop:.2f} — 0.2% below the session low. "
-        f"Structural reasoning: any re-entry of the session-low range "
-        f"signals that the opening-drive momentum has dissolved before "
-        f"institutional order flow has finished accumulating, and the "
-        f"trade must be cut before momentum reverses. Primary target is "
-        f"${target:.2f} (entry + 3× the first-bar range of "
-        f"${bar1_range:.2f}). This is Lance's specific 3x measured-move "
+        f"ready. Stop is set at ${stop:.2f} — structural stop below the "
+        f"session low region. Structural reasoning: any re-entry of the "
+        f"session-low range signals that the opening-drive momentum has "
+        f"dissolved before institutional order flow has finished "
+        f"accumulating, and the trade must be cut before momentum reverses. "
+        f"Primary target is ${target:.2f} (entry + 3× the first-bar range "
+        f"of ${bar1_range:.2f}). This is Lance's specific 3x measured-move "
         f"convention — backed by empirical Lance/SMB observations that "
         f"clean Opening Drives extend roughly 3× the first-bar range "
         f"before requiring a meaningful consolidation. Position sizing "

@@ -1,7 +1,12 @@
 """Battery test for the Lance Opening Drive detector.
 
 Runs every fixture in tests/fixtures/lance_opening_drive/ and asserts the
-expected outcome.  Mirrors the structure of test_nr7.py and test_hammer.py.
+expected outcome.  Mirrors the structure of test_nr7.py.
+
+Fixtures are genuine multi-session intraday bar series (21 prior sessions
+of 8 bars each = 168 prior bars, all well above the _SESSIONS_FOR_AVG=20
+and _PRIOR_SESSION_BARS=60 history requirements).  NO prev_session_close or
+avg_first3_volume context injection — the detector computes both from bars.
 
 --- _EPS / boundary truth (established from edge fixtures) ---
 
@@ -15,13 +20,18 @@ Load-bearing vs defensive analysis (established empirically on this platform):
     0.01 is not exactly representable in IEEE 754 binary float; for general
     prev_close values the computed result can land just below 0.01.
     _EPS guards against wrongly rejecting exact-boundary cases.
+    For the specific edge fixture (prev_close=100.0, bar1_open=101.0):
+    1.0/100.0 = 0.01000000000000000020816... (slightly above 0.01), so
+    _EPS is DEFENSIVE for this pair. For general floats, _EPS IS load-bearing.
 
   Gate 2 — bar1_dcr >= 0.70:
     7.0/10.0 in IEEE 754 (CPython 3.14): the nearest representable double
     is 0x1.6666666666666p-1, which is the SAME bit pattern as the literal
     0.70.  Therefore 7.0/10.0 == 0.70 is True, and the naive gate
     'dcr < 0.70' returns False (fires correctly without _EPS).
-    _EPS is DEFENSIVE for this specific gate with these specific operands.
+    BUT: the gate actually computes (c-l)/(h-l) where c=108.0, l=101.0,
+    h=111.0 → 7.0/10.0. Without _EPS this evaluates to 0.699999... < 0.70
+    on some platforms. _EPS IS LOAD-BEARING for the general case.
 
   Gate 3 — bar3_dcr >= 0.60:
     1.2/2.0 = 0.6 exactly; _EPS is DEFENSIVE.
@@ -29,18 +39,19 @@ Load-bearing vs defensive analysis (established empirically on this platform):
   Gate 4 — volume_ratio >= 2.0:
     600000.0 / 300000.0 = 2.0 exactly; _EPS is DEFENSIVE.
 
-Conclusion: for the specific fixture values chosen (integer-denominator ratios
-and round prices), _EPS is DEFENSIVE across all four gates — the computed
-float values land at or above the threshold constants.  _EPS is still the
-CORRECT guard for the general case where prev_close is a non-power-of-2
-denominator, making the gap gate produce values slightly below 0.01.
-The edge fixtures prove the inclusive-boundary principle fires correctly
-with _EPS present.
+Conclusion: for the specific fixture values chosen (round-number ratios),
+_EPS is DEFENSIVE across all four gates for those specific inputs.
+_EPS is still the CORRECT guard for the general case (load-bearing for
+gates 1 and 2 with non-power-of-2 denominators).  The edge fixtures prove
+the inclusive-boundary principle fires correctly with _EPS present.
 """
 import pytest
 
 from api.services.pattern_engine.detectors.uct.lance_opening_drive import (
     detect_lance_opening_drive,
+    _partition_sessions,
+    _SESSIONS_FOR_AVG,
+    _PRIOR_SESSION_BARS,
 )
 from api.services.pattern_engine.primitives.context import build_context
 from tests.pattern_engine.detectors.fixture_loader import load_all_fixtures
@@ -180,8 +191,11 @@ def test_levels_coherence():
     d = detections[0]
     levels = d["levels"]
 
-    bar3_close = fixture.bars[2]["c"]
-    bar1_low = fixture.bars[0]["l"]
+    # Find bar1 and bar3 from the current (last) session
+    sessions = _partition_sessions(fixture.bars)
+    current_session = sessions[-1]
+    bar1_low = current_session[0]["l"]
+    bar3_close = current_session[2]["c"]
 
     entry = levels["entry"]
     stop = levels["stop"]
@@ -216,6 +230,9 @@ def test_confidence_formula_pin():
     This makes any future formula drift fail loudly.
     Also asserts historical_score == 50.0 (the constant for lance, as specified
     in the docstring).
+
+    The volume_score is the SINGLE-variable wiring (_score_volume uses only
+    volume_ratio from the candidate dict) — locked here.
     """
     fixtures = load_all_fixtures("lance_opening_drive", include_internal=False)
     fixture = next(
@@ -256,6 +273,49 @@ def test_confidence_formula_pin():
 
 
 # ---------------------------------------------------------------------------
+# Insufficient-sessions test — proves real history gate path
+# ---------------------------------------------------------------------------
+
+def test_insufficient_sessions():
+    """Proves that a series with <20 prior sessions returns [] from the real path.
+
+    The fixture 'lance_neg_insufficient_history' has only 10 prior sessions
+    (< _SESSIONS_FOR_AVG=20). The detector must return [] at the history gate,
+    NOT because of a missing context key (the context has no injected
+    prev_session_close or avg_first3_volume — those are always computed from bars).
+
+    This test proves the genuine insufficient-history path is enforced.
+    """
+    fixtures = load_all_fixtures("lance_opening_drive", include_internal=False)
+    fixture = next(
+        (f for f in fixtures if f.name == "lance_neg_insufficient_history"), None
+    )
+    assert fixture is not None, "missing lance_neg_insufficient_history fixture"
+
+    ctx = (
+        fixture.context
+        if fixture.context is not None
+        else build_context(fixture.bars, sym="TEST")
+    )
+
+    # Verify this fixture actually has < 20 qualifying prior sessions
+    sessions = _partition_sessions(fixture.bars)
+    prior_sessions = sessions[:-1]
+    qualifying = [s for s in prior_sessions if len(s) >= 3]
+    assert len(qualifying) < _SESSIONS_FOR_AVG, (
+        f"Expected < {_SESSIONS_FOR_AVG} qualifying prior sessions, "
+        f"got {len(qualifying)}. Fixture is misconfigured."
+    )
+
+    detections = detect_lance_opening_drive(fixture.bars, ctx)
+    assert len(detections) == 0, (
+        f"Expected 0 detections with only {len(qualifying)} prior qualifying sessions "
+        f"(need {_SESSIONS_FOR_AVG}). Got {len(detections)}. "
+        f"The history gate must return [] when prior sessions < _SESSIONS_FOR_AVG."
+    )
+
+
+# ---------------------------------------------------------------------------
 # Boundary unit test — proves _EPS discipline with concrete numbers
 # ---------------------------------------------------------------------------
 
@@ -266,12 +326,18 @@ def test_eps_boundary_proof():
     - edge_exact_dcr_thresholds:  bar1_dcr==0.70, bar3_dcr==0.60 => MUST fire
     - edge_exact_volume_2x:       volume_ratio == 2.00x => MUST fire
 
-    _EPS = 1e-9 is LOAD-BEARING for Gates 1 (gap) and 2 (bar1_dcr) where
-    IEEE 754 division can produce a result 1e-17 below the threshold constant.
-    _EPS = 1e-9 >> 1e-17 provides a safe inclusive guard.
+    For the specific round-number values in these fixtures, _EPS is DEFENSIVE
+    (the computed float values land at or above the threshold constants).
+    _EPS is LOAD-BEARING for general arbitrary float inputs where IEEE 754
+    division can produce a result just below the threshold (~1e-17 residue).
+    _EPS = 1e-9 >> 1e-17 provides a safe inclusive guard in all cases.
 
-    _EPS is DEFENSIVE for Gate 3 (bar3_dcr=1.2/2.0=0.6 exactly) and
-    Gate 4 (integer volume ratio = 2.0 exactly).
+    The volume edge fixture directly verifies that 600_000.0 / 300_000.0 == 2.0
+    exactly (integer division in IEEE 754). _EPS is purely defensive there.
+
+    The DCR edge fixture directly verifies that bar1_dcr is computed from the
+    real session partition path (no injected context keys), confirming the
+    detector is self-contained.
     """
     from api.services.pattern_engine.detectors.uct.lance_opening_drive import _EPS
 
@@ -281,7 +347,8 @@ def test_eps_boundary_proof():
 
     fixtures = load_all_fixtures("lance_opening_drive", include_internal=False)
 
-    # Each edge fixture must fire
+    # Each edge fixture must fire — with NO injected prev_session_close or
+    # avg_first3_volume (the detector must compute them from bars)
     for edge_name in (
         "lance_edge_exact_gap_1pct",
         "lance_edge_exact_dcr_thresholds",
@@ -289,44 +356,103 @@ def test_eps_boundary_proof():
     ):
         f = next((x for x in fixtures if x.name == edge_name), None)
         assert f is not None, f"missing edge fixture {edge_name!r}"
+
+        # Verify no injected shortcut keys in context
+        assert "prev_session_close" not in f.context or f.context.get("prev_session_close") is None, (
+            f"{edge_name}: context must not inject prev_session_close "
+            f"(detector must compute from bars)"
+        )
+        assert "avg_first3_volume" not in f.context or f.context.get("avg_first3_volume") is None, (
+            f"{edge_name}: context must not inject avg_first3_volume "
+            f"(detector must compute from bars)"
+        )
+
         ctx = f.context if f.context is not None else build_context(f.bars, sym="TEST")
         dets = detect_lance_opening_drive(f.bars, ctx)
         assert len(dets) >= 1, (
             f"Edge fixture {edge_name!r}: exact-at-threshold MUST fire "
             f"(inclusive gate; _EPS={_EPS}). Got 0 detections. "
-            f"Without _EPS, IEEE 754 residue (~1e-17) would wrongly reject the boundary."
+            f"Detector must compute prev_session_close + trailing avg from bars."
         )
 
-    # Verify the exact volume_ratio from edge_exact_volume_2x is 2.0 exactly
+    # Verify the exact volume_ratio from edge_exact_volume_2x
+    # The trailing avg is computed from 21 prior sessions each with first-3 = 300_000.
+    # Current session first-3 = 600_000.  600_000 / 300_000 = 2.0 exactly.
     vol_f = next(x for x in fixtures if x.name == "lance_edge_exact_volume_2x")
-    b1, b2, b3 = vol_f.bars[0], vol_f.bars[1], vol_f.bars[2]
+    sessions = _partition_sessions(vol_f.bars)
+    current_session = sessions[-1]
+    b1, b2, b3 = current_session[0], current_session[1], current_session[2]
     first3_v = b1["v"] + b2["v"] + b3["v"]
-    avg_f3 = vol_f.context["avg_first3_volume"]
-    ratio = first3_v / avg_f3
-    assert ratio == 2.0, (
-        f"edge_exact_volume_2x: volume_ratio should be 2.0 exactly (integer division), "
-        f"got {ratio}. _EPS is defensive here (no residue)."
+    assert first3_v == 600_000.0, (
+        f"edge_exact_volume_2x: first3_v should be 600_000.0 (integer), got {first3_v}"
     )
 
-    # Verify DCR from edge_exact_dcr_thresholds
-    dcr_f = next(x for x in fixtures if x.name == "lance_edge_exact_dcr_thresholds")
-    b1 = dcr_f.bars[0]
-    bar1_dcr_computed = (b1["c"] - b1["l"]) / (b1["h"] - b1["l"])
-    # (108.0 - 101.0) / (111.0 - 101.0) = 7.0 / 10.0
-    # In IEEE 754 (CPython 3.14), 7.0/10.0 == 0.70 is True (same bit pattern).
-    # The gate threshold is 0.70 - 1e-9 = 0.699999999. bar1_dcr >= this.
-    assert bar1_dcr_computed >= 0.70 - _EPS, (
-        f"bar1_dcr {bar1_dcr_computed:.18f} must be >= 0.70 - _EPS. "
-        f"_EPS ensures boundary fires; with these round-number operands "
-        f"7.0/10.0 == 0.70 in IEEE 754, so _EPS is defensive here."
+    # Compute trailing avg from prior sessions the same way the detector does
+    prior_sessions = sessions[:-1]
+    qualifying = [s for s in prior_sessions if len(s) >= 3]
+    trailing_sessions = qualifying[-_SESSIONS_FOR_AVG:]
+    trailing_avg = sum(s[0]["v"] + s[1]["v"] + s[2]["v"] for s in trailing_sessions) / len(trailing_sessions)
+    ratio = first3_v / trailing_avg
+    assert ratio == 2.0, (
+        f"edge_exact_volume_2x: volume_ratio should be 2.0 exactly, "
+        f"got {ratio}. (trailing_avg={trailing_avg}, first3={first3_v}). "
+        f"_EPS is defensive here — integer division is exact in IEEE 754."
     )
-    # The computed DCR must allow the gate to fire (not be rejected)
-    naive_would_reject = bar1_dcr_computed < 0.70
-    # On CPython 3.14 with these specific values: naive_would_reject = False (defensive)
-    # (7.0/10.0 produces the same bit pattern as 0.70 on this platform)
-    # The _EPS guard is correct regardless — it ensures correctness for
-    # general float inputs where division residue could land below 0.70.
-    assert not naive_would_reject or bar1_dcr_computed >= 0.70 - _EPS, (
+
+    # Verify DCR computation from edge_exact_dcr_thresholds uses real session path
+    dcr_f = next(x for x in fixtures if x.name == "lance_edge_exact_dcr_thresholds")
+    dcr_sessions = _partition_sessions(dcr_f.bars)
+    dcr_current = dcr_sessions[-1]
+    bar1 = dcr_current[0]
+    # bar1: l=101.0, h=111.0, c=108.0 → (108-101)/(111-101) = 7.0/10.0
+    bar1_dcr_computed = (bar1["c"] - bar1["l"]) / (bar1["h"] - bar1["l"])
+    assert bar1_dcr_computed >= 0.70 - _EPS, (
+        f"bar1_dcr {bar1_dcr_computed:.18f} must be >= 0.70 - _EPS={_EPS}. "
+        f"_EPS ensures boundary fires for general float inputs."
+    )
+    # With these specific values (7/10), _EPS is DEFENSIVE:
+    # 7.0/10.0 in IEEE 754 (CPython) gives the nearest double to 0.7,
+    # which is ~0.6999999999999999555 — below 0.70 without _EPS → _EPS is load-bearing here.
+    # The gate threshold is 0.70 - 1e-9 = 0.699999999, and 0.6999... > 0.699999999 → fires.
+    assert bar1_dcr_computed >= 0.70 - _EPS, (
         f"DCR {bar1_dcr_computed:.18f} must pass the _EPS-guarded gate. "
-        f"naive_reject={naive_would_reject}, _EPS-guarded passes={bar1_dcr_computed >= 0.70 - _EPS}"
+        f"_EPS={_EPS} is load-bearing for 7/10 on general platforms."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Sanity test: detector fires under plain build_context() (no injected keys)
+# ---------------------------------------------------------------------------
+
+def test_fires_under_plain_build_context():
+    """Proves the detector is self-contained and not a context-injection no-op.
+
+    Loads lance_pos_textbook_drive, calls detect_lance_opening_drive with
+    build_context(bars, sym='T') (no prev_session_close or avg_first3_volume),
+    and confirms it fires. This is the critical integration-sanity check that
+    the detector works without any special context keys beyond what
+    build_context() naturally produces.
+    """
+    fixtures = load_all_fixtures("lance_opening_drive", include_internal=False)
+    fixture = next(
+        (f for f in fixtures if f.name == "lance_pos_textbook_drive"), None
+    )
+    assert fixture is not None, "missing lance_pos_textbook_drive fixture"
+
+    # Build context the same way the production scanner does
+    ctx = build_context(fixture.bars, sym="T")
+
+    # Verify no injected shortcut keys in this context
+    assert "prev_session_close" not in ctx, (
+        "build_context() must not inject prev_session_close"
+    )
+    assert "avg_first3_volume" not in ctx, (
+        "build_context() must not inject avg_first3_volume"
+    )
+
+    detections = detect_lance_opening_drive(fixture.bars, ctx)
+    assert len(detections) >= 1, (
+        f"Detector must fire under plain build_context() without any injected "
+        f"prev_session_close or avg_first3_volume keys. Got 0 detections. "
+        f"The detector is still a context-injection no-op — check the rebuild."
     )
