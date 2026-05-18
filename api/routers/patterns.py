@@ -72,6 +72,7 @@ from api.services.pattern_engine.detectors.classical import vsa_no_demand as _vs
 from api.services.pattern_engine.detectors.classical import vsa_no_supply as _vsa_no_supply  # noqa: F401
 from api.services.pattern_engine.detectors.uct import opening_range_breakout as _opening_range_breakout  # noqa: F401
 from api.services.pattern_engine.detectors.uct import opening_range_breakdown as _opening_range_breakdown  # noqa: F401
+from api.services.pattern_engine.detectors.uct import lance_opening_drive as _lance_opening_drive  # noqa: F401
 from api.services.pattern_engine.detectors.uct import avwap_reclaim as _avwap_reclaim  # noqa: F401
 from api.services.pattern_engine.detectors.structure import swing_pivots as _swing_pivots  # noqa: F401
 from api.services.pattern_engine.detectors.structure import support_resistance as _support_resistance  # noqa: F401
@@ -582,6 +583,12 @@ _PATTERN_METADATA = {
         "category": "uct",
         "direction": "bearish",
         "description": "First-30-min range break to downside. Mirror of ORB.",
+    },
+    "lance_opening_drive": {
+        "name": "Lance Opening Drive",
+        "category": "uct",
+        "direction": "bullish",
+        "description": "Lance Breitstein's highest-edge intraday momentum continuation: gap-up >=1% on first bar + DCR >=0.70 + two consecutive higher closes + bar3 DCR >=0.60 + bar3 == session high + first-3-bar volume >=2x trailing avg. Lance's specific claim: 'the single highest-edge intraday pattern in liquid US equities.'",
     },
     "vsa_no_demand": {
         "name": "VSA No Demand",

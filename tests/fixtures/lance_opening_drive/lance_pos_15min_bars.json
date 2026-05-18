@@ -1,0 +1,119 @@
+{
+  "name": "lance_pos_15min_bars",
+  "category": "positive",
+  "expected": {
+    "fires": true,
+    "min_confidence": 50.0,
+    "max_confidence": 100.0,
+    "geometry_shape": "candle_mark"
+  },
+  "context": {
+    "prev_session_close": 60.0,
+    "avg_first3_volume": 600000.0,
+    "prev_session_high": null,
+    "prev_session_low": null,
+    "trend_stage": 2,
+    "ma_alignment": "stacked_bullish",
+    "rs_trend": "up",
+    "regime": "bullish",
+    "dcr_signature": "accumulation",
+    "recent_dcr_avg": 0.68,
+    "volume_signature": "expanding",
+    "can_slim_grade": "A",
+    "can_slim_score": 85,
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": 2
+  },
+  "bars": [
+    {
+      "t": 1700000000,
+      "o": 61.08,
+      "h": 62.72,
+      "l": 60.72,
+      "c": 62.36,
+      "v": 504000.0
+    },
+    {
+      "t": 1700000900,
+      "o": 62.36,
+      "h": 62.56,
+      "l": 62.28,
+      "c": 62.48,
+      "v": 560000.0
+    },
+    {
+      "t": 1700001800,
+      "o": 62.48,
+      "h": 63.65,
+      "l": 62.15,
+      "c": 63.32,
+      "v": 616000.0
+    },
+    {
+      "t": 1700002700,
+      "o": 63.32,
+      "h": 63.45,
+      "l": 63.28,
+      "c": 63.37,
+      "v": 120000.0
+    },
+    {
+      "t": 1700003600,
+      "o": 63.37,
+      "h": 63.5,
+      "l": 63.33,
+      "c": 63.42,
+      "v": 120000.0
+    },
+    {
+      "t": 1700004500,
+      "o": 63.42,
+      "h": 63.55,
+      "l": 63.38,
+      "c": 63.47,
+      "v": 120000.0
+    },
+    {
+      "t": 1700005400,
+      "o": 63.47,
+      "h": 63.6,
+      "l": 63.43,
+      "c": 63.52,
+      "v": 120000.0
+    },
+    {
+      "t": 1700006300,
+      "o": 63.52,
+      "h": 63.65,
+      "l": 63.48,
+      "c": 63.57,
+      "v": 120000.0
+    },
+    {
+      "t": 1700007200,
+      "o": 63.57,
+      "h": 63.7,
+      "l": 63.53,
+      "c": 63.62,
+      "v": 120000.0
+    },
+    {
+      "t": 1700008100,
+      "o": 63.62,
+      "h": 63.75,
+      "l": 63.58,
+      "c": 63.67,
+      "v": 120000.0
+    },
+    {
+      "t": 1700009000,
+      "o": 63.67,
+      "h": 63.8,
+      "l": 63.63,
+      "c": 63.72,
+      "v": 120000.0
+    }
+  ]
+}

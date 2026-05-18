@@ -1,0 +1,119 @@
+{
+  "name": "lance_pos_prior_day_bonus",
+  "category": "positive",
+  "expected": {
+    "fires": true,
+    "min_confidence": 50.0,
+    "max_confidence": 100.0,
+    "geometry_shape": "candle_mark"
+  },
+  "context": {
+    "prev_session_close": 120.0,
+    "avg_first3_volume": 200000.0,
+    "prev_session_high": 120.6,
+    "prev_session_low": 117.6,
+    "trend_stage": 2,
+    "ma_alignment": "stacked_bullish",
+    "rs_trend": "up",
+    "regime": "bullish",
+    "dcr_signature": "accumulation",
+    "recent_dcr_avg": 0.68,
+    "volume_signature": "expanding",
+    "can_slim_grade": "A",
+    "can_slim_score": 85,
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": 2
+  },
+  "bars": [
+    {
+      "t": 1700000000,
+      "o": 121.8,
+      "h": 123.4,
+      "l": 121.4,
+      "c": 123.0,
+      "v": 150000.0
+    },
+    {
+      "t": 1700000300,
+      "o": 123.0,
+      "h": 123.23,
+      "l": 122.92,
+      "c": 123.15,
+      "v": 166667.0
+    },
+    {
+      "t": 1700000600,
+      "o": 123.15,
+      "h": 124.28,
+      "l": 122.78,
+      "c": 123.9,
+      "v": 183333.0
+    },
+    {
+      "t": 1700000900,
+      "o": 123.9,
+      "h": 124.03,
+      "l": 123.86,
+      "c": 123.95,
+      "v": 40000.0
+    },
+    {
+      "t": 1700001200,
+      "o": 123.95,
+      "h": 124.08,
+      "l": 123.91,
+      "c": 124.0,
+      "v": 40000.0
+    },
+    {
+      "t": 1700001500,
+      "o": 124.0,
+      "h": 124.13,
+      "l": 123.96,
+      "c": 124.05,
+      "v": 40000.0
+    },
+    {
+      "t": 1700001800,
+      "o": 124.05,
+      "h": 124.18,
+      "l": 124.01,
+      "c": 124.1,
+      "v": 40000.0
+    },
+    {
+      "t": 1700002100,
+      "o": 124.1,
+      "h": 124.23,
+      "l": 124.06,
+      "c": 124.15,
+      "v": 40000.0
+    },
+    {
+      "t": 1700002400,
+      "o": 124.15,
+      "h": 124.28,
+      "l": 124.11,
+      "c": 124.2,
+      "v": 40000.0
+    },
+    {
+      "t": 1700002700,
+      "o": 124.2,
+      "h": 124.33,
+      "l": 124.16,
+      "c": 124.25,
+      "v": 40000.0
+    },
+    {
+      "t": 1700003000,
+      "o": 124.25,
+      "h": 124.38,
+      "l": 124.21,
+      "c": 124.3,
+      "v": 40000.0
+    }
+  ]
+}

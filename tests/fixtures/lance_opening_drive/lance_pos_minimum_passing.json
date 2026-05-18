@@ -1,0 +1,119 @@
+{
+  "name": "lance_pos_minimum_passing",
+  "category": "positive",
+  "expected": {
+    "fires": true,
+    "min_confidence": 50.0,
+    "max_confidence": 100.0,
+    "geometry_shape": "candle_mark"
+  },
+  "context": {
+    "prev_session_close": 80.0,
+    "avg_first3_volume": 150000.0,
+    "prev_session_high": null,
+    "prev_session_low": null,
+    "trend_stage": 2,
+    "ma_alignment": "mixed",
+    "rs_trend": "flat",
+    "regime": "neutral",
+    "dcr_signature": null,
+    "recent_dcr_avg": null,
+    "volume_signature": "neutral",
+    "can_slim_grade": "C",
+    "can_slim_score": 50,
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": null
+  },
+  "bars": [
+    {
+      "t": 1700000000,
+      "o": 80.96,
+      "h": 82.4,
+      "l": 80.4,
+      "c": 81.84,
+      "v": 99000.0
+    },
+    {
+      "t": 1700000300,
+      "o": 81.84,
+      "h": 82.02,
+      "l": 81.76,
+      "c": 81.94,
+      "v": 110000.0
+    },
+    {
+      "t": 1700000600,
+      "o": 81.94,
+      "h": 82.87,
+      "l": 81.37,
+      "c": 82.3,
+      "v": 121000.0
+    },
+    {
+      "t": 1700000900,
+      "o": 82.3,
+      "h": 82.43,
+      "l": 82.26,
+      "c": 82.35,
+      "v": 30000.0
+    },
+    {
+      "t": 1700001200,
+      "o": 82.35,
+      "h": 82.48,
+      "l": 82.31,
+      "c": 82.4,
+      "v": 30000.0
+    },
+    {
+      "t": 1700001500,
+      "o": 82.4,
+      "h": 82.53,
+      "l": 82.36,
+      "c": 82.45,
+      "v": 30000.0
+    },
+    {
+      "t": 1700001800,
+      "o": 82.45,
+      "h": 82.58,
+      "l": 82.41,
+      "c": 82.5,
+      "v": 30000.0
+    },
+    {
+      "t": 1700002100,
+      "o": 82.5,
+      "h": 82.63,
+      "l": 82.46,
+      "c": 82.55,
+      "v": 30000.0
+    },
+    {
+      "t": 1700002400,
+      "o": 82.55,
+      "h": 82.68,
+      "l": 82.51,
+      "c": 82.6,
+      "v": 30000.0
+    },
+    {
+      "t": 1700002700,
+      "o": 82.6,
+      "h": 82.73,
+      "l": 82.56,
+      "c": 82.65,
+      "v": 30000.0
+    },
+    {
+      "t": 1700003000,
+      "o": 82.65,
+      "h": 82.78,
+      "l": 82.61,
+      "c": 82.7,
+      "v": 30000.0
+    }
+  ]
+}

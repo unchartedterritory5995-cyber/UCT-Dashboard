@@ -1,0 +1,95 @@
+{
+  "name": "lance_edge_exact_dcr_thresholds",
+  "category": "edge",
+  "expected": {
+    "fires": true,
+    "min_confidence": 50.0,
+    "max_confidence": 100.0,
+    "geometry_shape": "candle_mark"
+  },
+  "context": {
+    "prev_session_close": 99.0,
+    "avg_first3_volume": 300000.0,
+    "prev_session_high": null,
+    "prev_session_low": null,
+    "trend_stage": 2,
+    "ma_alignment": "stacked_bullish",
+    "rs_trend": "up",
+    "regime": "bullish",
+    "dcr_signature": "accumulation",
+    "recent_dcr_avg": 0.68,
+    "volume_signature": "expanding",
+    "can_slim_grade": "A",
+    "can_slim_score": 85,
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": 2
+  },
+  "bars": [
+    {
+      "t": 1700000000,
+      "o": 101.0,
+      "h": 111.0,
+      "l": 101.0,
+      "c": 108.0,
+      "v": 270000.0
+    },
+    {
+      "t": 1700000300,
+      "o": 108.25,
+      "h": 108.5,
+      "l": 107.9,
+      "c": 108.3,
+      "v": 300000.0
+    },
+    {
+      "t": 1700000600,
+      "o": 111.2,
+      "h": 113.0,
+      "l": 111.0,
+      "c": 112.2,
+      "v": 330000.0
+    },
+    {
+      "t": 1700000900,
+      "o": 112.2,
+      "h": 112.31,
+      "l": 112.17,
+      "c": 112.25,
+      "v": 90000.0
+    },
+    {
+      "t": 1700001200,
+      "o": 112.25,
+      "h": 112.36,
+      "l": 112.22,
+      "c": 112.3,
+      "v": 90000.0
+    },
+    {
+      "t": 1700001500,
+      "o": 112.3,
+      "h": 112.41,
+      "l": 112.27,
+      "c": 112.35,
+      "v": 90000.0
+    },
+    {
+      "t": 1700001800,
+      "o": 112.35,
+      "h": 112.46,
+      "l": 112.32,
+      "c": 112.4,
+      "v": 90000.0
+    },
+    {
+      "t": 1700002100,
+      "o": 112.4,
+      "h": 112.51,
+      "l": 112.37,
+      "c": 112.45,
+      "v": 90000.0
+    }
+  ]
+}

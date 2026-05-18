@@ -1,0 +1,92 @@
+{
+  "name": "lance_neg_bar3_no_continuation",
+  "category": "negative",
+  "expected": {
+    "fires": false
+  },
+  "context": {
+    "prev_session_close": 50.0,
+    "avg_first3_volume": 300000.0,
+    "prev_session_high": null,
+    "prev_session_low": null,
+    "trend_stage": 2,
+    "ma_alignment": "stacked_bullish",
+    "rs_trend": "up",
+    "regime": "bullish",
+    "dcr_signature": "accumulation",
+    "recent_dcr_avg": 0.68,
+    "volume_signature": "expanding",
+    "can_slim_grade": "A",
+    "can_slim_score": 85,
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": 2
+  },
+  "bars": [
+    {
+      "t": 1700000000,
+      "o": 51.0,
+      "h": 52.7,
+      "l": 50.7,
+      "c": 52.4,
+      "v": 270000.0
+    },
+    {
+      "t": 1700000300,
+      "o": 52.6,
+      "h": 52.73,
+      "l": 52.32,
+      "c": 52.65,
+      "v": 300000.0
+    },
+    {
+      "t": 1700000600,
+      "o": 52.45,
+      "h": 52.6,
+      "l": 52.2,
+      "c": 52.5,
+      "v": 330000.0
+    },
+    {
+      "t": 1700000900,
+      "o": 52.5,
+      "h": 52.55,
+      "l": 52.48,
+      "c": 52.52,
+      "v": 60000.0
+    },
+    {
+      "t": 1700001200,
+      "o": 52.52,
+      "h": 52.57,
+      "l": 52.5,
+      "c": 52.54,
+      "v": 60000.0
+    },
+    {
+      "t": 1700001500,
+      "o": 52.54,
+      "h": 52.59,
+      "l": 52.52,
+      "c": 52.56,
+      "v": 60000.0
+    },
+    {
+      "t": 1700001800,
+      "o": 52.56,
+      "h": 52.61,
+      "l": 52.54,
+      "c": 52.58,
+      "v": 60000.0
+    },
+    {
+      "t": 1700002100,
+      "o": 52.58,
+      "h": 52.63,
+      "l": 52.56,
+      "c": 52.6,
+      "v": 60000.0
+    }
+  ]
+}
