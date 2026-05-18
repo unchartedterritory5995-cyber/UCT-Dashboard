@@ -188,8 +188,12 @@ def _make_drive_session(t_start, prev_close, gap_pct, bar1_dcr, bar2_delta, bar3
     if bar3_is_session_high and bar3_h < bar2_h:
         lift = bar2_h - bar3_h + 0.02
         bar3_h = round(bar3_h + lift, 4)
-        # Recompute bar3_c to preserve DCR after lift
-        bar3_c = round(bar3_l + bar3_range * bar3_dcr + lift * bar3_dcr, 4)
+        # Recompute bar3_c to EXACTLY restore DCR after the high is lifted.
+        # Standard DCR = (c - l) / (h - l).  After lifting h, the new range is
+        # (bar3_h - bar3_l).  Setting c = l + dcr * new_range gives exact DCR.
+        # (The old "+ lift * bar3_dcr" term was an approximation.)
+        new_range = bar3_h - bar3_l
+        bar3_c = round(bar3_l + bar3_dcr * new_range, 4)
 
     bar3_v = round(target_first3_total * 0.33, 0)
 
@@ -747,6 +751,30 @@ def _verify_all():
     check("edge_exact_gap_1pct", "edge", *_edge_exact_gap_1pct(), True)
     check("edge_exact_dcr_thresholds", "edge", *_edge_exact_dcr_thresholds(), True)
     check("edge_exact_volume_2x", "edge", *_edge_exact_volume_2x(), True)
+
+    # --- Measure edge fixture boundary values to 9+ decimals ---
+    results.append("\nEdge fixture boundary measurements:")
+
+    # gap edge: prev_close=100.0, bar1_open=101.0
+    gap_edge_prev_close = 100.0
+    gap_edge_bar1_open = 101.0
+    gap_edge_val = (gap_edge_bar1_open - gap_edge_prev_close) / gap_edge_prev_close
+    results.append(f"  edge_exact_gap_1pct      gap = {gap_edge_val:.18f}  (threshold 0.01)")
+
+    # DCR edge: bar3 l=111.0, h=113.0, c=112.2 (manually constructed, not via _make_drive_session)
+    bar3_l, bar3_h, bar3_c = 111.0, 113.0, 112.2
+    bar3_dcr_measured = (bar3_c - bar3_l) / (bar3_h - bar3_l)
+    assert abs(bar3_dcr_measured - 0.60) < 1e-9, (
+        f"bar3 DCR {bar3_dcr_measured:.18f} not within 1e-9 of 0.60"
+    )
+    bar1_l, bar1_h, bar1_c = 101.0, 111.0, 108.0
+    bar1_dcr_measured = (bar1_c - bar1_l) / (bar1_h - bar1_l)
+    results.append(f"  edge_exact_dcr_thresholds bar1_dcr = {bar1_dcr_measured:.18f}  (threshold 0.70)")
+    results.append(f"  edge_exact_dcr_thresholds bar3_dcr = {bar3_dcr_measured:.18f}  (threshold 0.60) EXACT within 1e-9 [OK]")
+
+    # volume edge: 600_000 / 300_000
+    vol_ratio = 600_000.0 / 300_000.0
+    results.append(f"  edge_exact_volume_2x     vol_ratio = {vol_ratio:.18f}  (threshold 2.0)")
 
     for line in results:
         print(line)

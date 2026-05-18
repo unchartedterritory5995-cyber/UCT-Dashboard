@@ -440,8 +440,8 @@ def _build_detection(bars, c, confidence, context,
     session_low = min(bar1["l"], bar2["l"], bar3["l"])
 
     # Stop: min(bar1_low * 0.998, session_low), label reflects which was taken.
-    # Docstring intent: "bar1_low * 0.998 (or session_low if lower)" means
-    # take whichever of the two is MORE conservative (lower price = tighter stop).
+    # Take the lower of (bar1_low − 0.2%) and session_low — the lower price sits
+    # further below entry, giving the wider/safer stop floor.
     bar1_low_buffer = bar1["l"] * 0.998
     if bar1_low_buffer <= session_low:
         stop = round(bar1_low_buffer, 2)
