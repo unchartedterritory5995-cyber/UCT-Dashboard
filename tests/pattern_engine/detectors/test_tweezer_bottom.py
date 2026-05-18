@@ -3,31 +3,30 @@
 Runs every fixture in tests/fixtures/tweezer_bottom/ and asserts the
 expected outcome.
 
---- _EPS / tolerance boundary truth (established from the edge fixtures) ---
+--- _EPS / tolerance boundary truth (established by Python computation) ---
 
 The tweezer_bottom detector uses _MATCH_TOL_PCT = 0.0015 (0.15% of matched_low)
 and _EPS = 1e-9. The gate is:
     diff <= _MATCH_TOL + _EPS    where  _MATCH_TOL = _MATCH_TOL_PCT * matched_low
 
-For the 'edge_exact_tolerance_must_fire' fixture:
-    low_a  = 50.00 (exact in IEEE 754)
-    low_b  = 50.075  (stored, but IEEE 754 nearest double ≈ 50.0749999...−7e-15)
-    tol    = 0.0015 * 50.00 ≈ 0.075 − 2.8e-17  (0.0015 is not exactly representable)
-    diff   = abs(50.075 − 50.00) ≈ 0.075 − 7e-15
+For the 'edge_exact_tolerance_must_fire' fixture (low_a=50.00, low_b=50.075):
+    The IEEE 754 nearest double for 50.075 is 50.07500000000000284...
+    (stores ABOVE the nominal 50.075 value).
+    diff = abs(50.075 - 50.00) = 0.07500000000000284  (above 0.075 by ~2.84e-15)
+    tol  = 0.0015 * 50.00     = 0.075                  (exact for this price)
 
-    diff < tol (by ~7e-15) WITHOUT needing _EPS. So _EPS is DEFENSIVE (not
-    load-bearing) for this specific fixture pair — the IEEE 754 inexactness of
-    50.075 already lands diff slightly below tol.
+    diff > tol by ~2.84e-15. WITHOUT _EPS the gate is:
+        diff <= tol  →  0.075000...284 <= 0.075  →  FALSE → WRONGLY REJECTED.
+    _EPS = 1e-9 >> 2.84e-15 makes the gate:
+        diff <= tol + 1e-9  →  True → CORRECTLY ACCEPTED.
 
-    Conclusion: _EPS is honest defensive headroom. Its presence is correct and
-    safe, but this fixture would pass even with plain `<=`. We do NOT claim _EPS
-    is load-bearing because the concrete arithmetic shows it is not.
+    Conclusion: _EPS IS LOAD-BEARING for this class of boundary values. It is
+    not merely defensive — it is necessary. The gate would wrongly reject this
+    exact-tolerance pair without it.
 
-For the 'edge_just_over_tolerance_no_fire' fixture:
-    low_a  = 50.00, low_b = 50.10 → diff = 0.10
-    tol    = 0.075 → diff (0.10) > tol + _EPS (0.075 + 1e-9) → correctly rejected.
-    The 0.10 − 0.075 = 0.025 margin is orders of magnitude above _EPS (1e-9),
-    so no float ambiguity.
+For the 'edge_just_over_tolerance_no_fire' fixture (low_a=50.00, low_b=50.10):
+    diff = 0.10, tol ≈ 0.075. Gap = 0.025 >> _EPS (1e-9).
+    No float ambiguity; gate correctly rejects.
 """
 import pytest
 
@@ -75,7 +74,7 @@ def test_fixture_battery_has_minimum_coverage():
     pos = [f for f in fixtures if f.category == "positive"]
     neg = [f for f in fixtures if f.category == "negative"]
     edge = [f for f in fixtures if f.category == "edge"]
-    assert len(pos) >= 5, f"need >=5 positive fixtures, have {len(pos)}"
+    assert len(pos) >= 6, f"need >=6 positive fixtures, have {len(pos)}"
     assert len(neg) >= 8, f"need >=8 negative fixtures, have {len(neg)}"
     assert len(edge) >= 3, f"need >=3 edge fixtures, have {len(edge)}"
 
@@ -347,13 +346,15 @@ def test_tolerance_boundary_eps_proof():
     Pair: edge_exact_tolerance_must_fire (diff == tol → MUST fire)
           edge_just_over_tolerance_no_fire (diff >> tol → MUST NOT fire)
 
-    _EPS truth:
+    _EPS truth (established by Python computation — see module docstring):
       For the exact-tolerance fixture (low_a=50.00, low_b=50.075):
-        - 50.075 is NOT exactly representable in IEEE 754 double.
-          Nearest double ≈ 50.0749999... (about 7e-15 below 50.075).
-        - tol = 0.0015 * 50.00 ≈ 0.075 - 2.8e-17 (0.0015 is inexact too).
-        - diff ≈ 0.075 - 7e-15  <  tol ≈ 0.075 - 2.8e-17
-        Therefore diff < tol WITHOUT _EPS. _EPS is DEFENSIVE, not load-bearing.
+        - 50.075 stores as IEEE 754 nearest double ≈ 50.07500000000000284...
+          (ABOVE nominal, NOT below it).
+        - diff = abs(50.075 - 50.00) = 0.07500000000000284  (> 0.075 by ~2.84e-15)
+        - tol  = 0.0015 * 50.00 = 0.075
+        - diff > tol → WITHOUT _EPS this pair is WRONGLY REJECTED.
+        - _EPS = 1e-9 >> 2.84e-15 → gate passes correctly.
+        _EPS IS LOAD-BEARING here, not merely defensive.
 
       For the just-over-tolerance fixture (low_a=50.00, low_b=50.10):
         - diff = 0.10, tol ≈ 0.075 → gap = 0.025 >> _EPS (1e-9).
@@ -377,10 +378,10 @@ def test_tolerance_boundary_eps_proof():
     )
     exact_detections = detect_tweezer_bottom(exact_fix.bars, ctx_exact)
     assert len(exact_detections) >= 1, (
-        f"Exact tolerance boundary: diff == tol MUST fire (inclusive <=). "
+        f"Exact tolerance boundary: diff == nominal tol MUST fire (gate: diff <= tol + _EPS). "
         f"Got 0 detections. "
-        f"Note: 50.075 rounds down in IEEE 754, so diff < tol without _EPS — "
-        f"_EPS is defensive headroom here, not load-bearing."
+        f"IEEE 754: 50.075 stores ABOVE nominal so diff > tol by ~2.84e-15; "
+        f"_EPS=1e-9 is load-bearing here — without it this pair would be wrongly rejected."
     )
 
     # Just over: MUST NOT fire
@@ -395,9 +396,29 @@ def test_tolerance_boundary_eps_proof():
         f"MUST NOT fire. Got {len(over_detections)} detection(s)."
     )
 
-    # Verify the delta is meaningful vs _EPS
+    # Verify the exact-tolerance boundary arithmetic explicitly
+    exact_bars = exact_fix.bars
+    low_a_exact = exact_bars[-2]["l"]
+    low_b_exact = exact_bars[-1]["l"]
+    diff_exact = abs(low_a_exact - low_b_exact)
+    tol_exact = _MATCH_TOL_PCT * min(low_a_exact, low_b_exact)
+    # _EPS must be the deciding factor: diff > tol but diff <= tol + _EPS
+    assert diff_exact > tol_exact, (
+        f"Exact-tolerance fixture: diff ({diff_exact:.20f}) should be > tol "
+        f"({tol_exact:.20f}) — _EPS must be load-bearing"
+    )
+    assert diff_exact <= tol_exact + _EPS, (
+        f"Exact-tolerance fixture: diff ({diff_exact:.20f}) should be <= "
+        f"tol + _EPS ({tol_exact + _EPS:.20f})"
+    )
+    gap_exact = diff_exact - tol_exact
+    assert 0 < gap_exact < _EPS, (
+        f"Exact-tolerance gap ({gap_exact:.4e}) must satisfy 0 < gap < _EPS ({_EPS:.2e}): "
+        f"confirms _EPS is load-bearing"
+    )
+
+    # Verify the over-tolerance gap is far above _EPS
     over_bars = over_fix.bars
-    # The tweezer pair is the last 2 bars
     low_a = over_bars[-2]["l"]
     low_b = over_bars[-1]["l"]
     diff = abs(low_a - low_b)
@@ -407,4 +428,118 @@ def test_tolerance_boundary_eps_proof():
     assert gap > _EPS * 1000, (
         f"Over-tolerance margin ({gap:.6f}) should be >> _EPS ({_EPS:.2e}). "
         f"No float ambiguity."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Reversal-context gate regression test
+# ---------------------------------------------------------------------------
+
+def test_no_reversal_context_never_fires():
+    """Anti-fixture-masking guard for the reversal-context hard gate.
+
+    Builds the adversarial construction in code (not from a fixture) and asserts
+    0 detections regardless of how strong the geometry/volume is. This is exactly
+    the construction the spec reviewer proved would fire at confidence=78.5 before
+    the gate was added:
+
+      geom=100 (diff=0, full reversal handoff), vol=100 (2× avg),
+      ctx=30 (base only — clean Stage-2 uptrend, no swing low, not below 50SMA,
+      decline < 5%), hist=50
+      → 0.40*100 + 0.25*100 + 0.20*30 + 0.15*50 = 78.5 BEFORE gate
+
+    After the gate: has_reversal_context = False → pair discarded → 0 detections.
+
+    Also asserts the paired positive control (same geometry + volume but with a
+    genuine swing low after >5% decline) DOES fire strongly — proves the gate
+    is context-selective, not a blanket suppressor.
+    """
+    # ── Part 1: Strong geometry + clean uptrend → 0 detections ─────────────
+    # 50-bar uptrend 60→100, pair at the top (price ~99-100)
+    T0 = 1700000000
+    DT = 86400
+    bars_up = []
+    t = T0
+    n = 50
+    start_p, end_p = 60.0, 100.0
+    step = (end_p - start_p) / (n - 1)
+    for i in range(n):
+        mid = start_p + step * i
+        bars_up.append({
+            "t": t, "o": mid - 0.10, "h": mid + 0.15,
+            "l": mid - 0.15, "c": mid + 0.10, "v": 1000.0,
+        })
+        t += DT
+    # Bar A: bearish, low=99.00
+    bars_up.append({"t": t, "o": 99.80, "h": 100.10, "l": 99.00, "c": 99.40, "v": 1000.0})
+    t += DT
+    # Bar B: bullish, diff=0 (perfect tight lows), 2× volume
+    bars_up.append({"t": t, "o": 99.40, "h": 100.50, "l": 99.00, "c": 100.30, "v": 2000.0})
+
+    uptrend_ctx = {
+        "trend_stage": 2,
+        "rs_trend": "up",
+        "ma_alignment": "stacked_bullish",
+        "volume_signature": "neutral",
+        "regime": "bullish",
+        "nearest_resistance": None,
+        "nearest_support": None,
+        "days_to_earnings": None,
+        "sector_strength_rank": None,
+    }
+
+    # Anti-masking assertion: must return 0 detections because the reversal-
+    # context gate rejects the pair (not because geometry was weakened).
+    # BEFORE the gate was added this would fire at confidence=78.5.
+    result_up = detect_tweezer_bottom(bars_up, uptrend_ctx)
+    assert result_up == [], (
+        "REGRESSION: strong-geometry clean-uptrend tweezer must return 0 detections "
+        "(reversal-context gate). "
+        f"Got {len(result_up)} detection(s) with confidence "
+        f"{[d['confidence'] for d in result_up]}. "
+        "Before the gate this fires at 78.5 — the gate must block it."
+    )
+
+    # ── Part 2: Identical geometry + reversal context → DOES fire ───────────
+    # 20-bar downtrend 65→50, pair at the bottom — genuine swing low + >5% decline
+    bars_dn = []
+    t2 = T0
+    n_dn = 20
+    start_dn, end_dn = 65.0, 50.0
+    step_dn = (end_dn - start_dn) / (n_dn - 1)
+    for i in range(n_dn):
+        mid = start_dn + step_dn * i
+        bars_dn.append({
+            "t": t2, "o": mid + 0.10, "h": mid + 0.15,
+            "l": mid - 0.15, "c": mid - 0.10, "v": 1000.0,
+        })
+        t2 += DT
+    # Bar A: bearish, low=48.00
+    bars_dn.append({"t": t2, "o": 49.80, "h": 50.10, "l": 48.00, "c": 49.20, "v": 1000.0})
+    t2 += DT
+    # Bar B: bullish, diff=0 (perfect tight lows), 2× volume
+    bars_dn.append({"t": t2, "o": 49.20, "h": 51.50, "l": 48.00, "c": 51.20, "v": 2000.0})
+
+    downtrend_ctx = {
+        "trend_stage": 4,
+        "rs_trend": "down",
+        "ma_alignment": "stacked_bearish",
+        "volume_signature": "neutral",
+        "regime": "bearish",
+        "nearest_resistance": 65.0,
+        "nearest_support": None,
+        "days_to_earnings": None,
+        "sector_strength_rank": None,
+    }
+
+    result_dn = detect_tweezer_bottom(bars_dn, downtrend_ctx)
+    assert len(result_dn) >= 1, (
+        "Paired positive control (identical geometry + reversal context) must fire. "
+        "Got 0 detections. The reversal-context gate must be context-selective, "
+        "not a blanket suppressor."
+    )
+    # Should fire strongly (context is rich: swing low + >5% decline)
+    assert result_dn[0]["confidence"] >= 80.0, (
+        f"Paired control with strong geometry + reversal context should fire with "
+        f"confidence >= 80.0, got {result_dn[0]['confidence']}"
     )

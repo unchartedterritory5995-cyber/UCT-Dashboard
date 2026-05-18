@@ -13,15 +13,33 @@ Definition (geometry):
     _MATCH_TOL = _MATCH_TOL_PCT * matched_low (_MATCH_TOL_PCT = 0.0015, i.e. 0.15%).
     The 0.15% rule is price-scaled (correct for both $5 and $500 stocks) and
     precisely named. This tolerance is the detector's defining boundary.
-  - _EPS = 1e-9: defensive headroom for IEEE 754 subtraction residues. For the
-    canonical boundary fixture (low_a=50.00, low_b=50.075), IEEE 754 inexactness
-    of 50.075 already places diff slightly below tol; _EPS is not load-bearing there
-    but is correct defensive practice.
+  - _EPS = 1e-9: LOAD-BEARING for the canonical boundary pair (low_a=50.00,
+    low_b=50.075). The IEEE 754 nearest double for 50.075 is
+    50.07500000000000284... (stores ABOVE nominal), giving:
+      diff = abs(50.075 - 50.00) ≈ 0.07500000000000284  (above 0.075 by ~2.84e-15)
+      tol  = 0.0015 * 50.00     ≈ 0.075                  (exact for this price)
+    diff > tol by ~2.84e-15 → WITHOUT _EPS the exact-tolerance pair is WRONGLY
+    REJECTED. _EPS = 1e-9 >> 2.84e-15 makes the gate pass correctly. _EPS is
+    necessary and load-bearing for this class of boundary values.
 
 Context (critical — mirrors hammer):
-  - Must be at a swing low OR after a recent decline (close < 50-bar SMA or
-    recent drawdown >= 5%). A tweezer in the middle of an uptrend is NOT a
-    reversal signal. Context score below floor → confidence < 50 → not emitted.
+  - A tweezer bottom is a bullish REVERSAL. A "great trader's eye" would never
+    take a tweezer that is NOT at a reversal point. Therefore a hard reversal-
+    context GATE precedes all scoring: a candidate pair is only emitted when
+    at least one of the following is true:
+      (a) at_swing_low  — bar B is within 5% of the 10-bar range floor
+      (b) below_50sma   — bar B close is below the 50-bar SMA
+      (c) recent_decline_pct >= _MIN_DECLINE_FOR_REVERSAL (0.05, i.e. 5%)
+          over the 15-bar lookback window
+    If NONE of these hold the pair is unconditionally discarded (continue) —
+    no confidence is computed, no Detection is built. This gate is the bullish-
+    tweezer analogue of "a hammer mid-uptrend is noise." Even a geometrically
+    perfect pair with full reversal handoff and 2× volume CANNOT fire without
+    reversal context (e.g. clean Stage-2 uptrend, no swing low, not below 50SMA,
+    decline < 5% → 0 detections).
+  - The context SCORING (swing low / support / below-50SMA / decline tiers) still
+    runs for all candidates that PASS the gate, differentiating strong from weak
+    reversal setups among those that qualify.
 
 Strength scoring:
   - Strongest: bar A bearish + bar B bullish (reversal handoff) — scores a bonus.
@@ -72,11 +90,12 @@ from api.services.pattern_engine.types import Bar, Detection
 
 
 _PATTERN_ID = "tweezer_bottom"
-_MIN_BARS = 7                   # need enough history for context helpers
-_MATCH_TOL_PCT = 0.0015         # 0.15% of matched_low — defining boundary constant
-_EPS = 1e-9                     # defensive IEEE 754 headroom; see docstring for truth
-_SCAN_LOOKBACK = 6              # scan last N bars for the second bar of a pair
-_SWING_LOOKBACK = 10            # bars to look back when testing for swing low
+_MIN_BARS = 7                         # need enough history for context helpers
+_MATCH_TOL_PCT = 0.0015               # 0.15% of matched_low — defining boundary constant
+_EPS = 1e-9                           # load-bearing IEEE 754 headroom; see docstring
+_SCAN_LOOKBACK = 6                    # scan last N bars for the second bar of a pair
+_SWING_LOOKBACK = 10                  # bars to look back when testing for swing low
+_MIN_DECLINE_FOR_REVERSAL = 0.05      # 5% recent drawdown required for reversal gate
 _CONFIDENCE_FLOOR = 50.0
 
 
@@ -93,6 +112,22 @@ def detect_tweezer_bottom(bars: List[Bar], context: dict) -> List[Detection]:
         pair = _try_extract_pair(bars, i)
         if pair is None:
             continue
+
+        # Hard reversal-context gate (precondition — see docstring).
+        # A tweezer is a REVERSAL pattern: it is meaningless without a
+        # reversal context. No matter how perfect the geometry or volume,
+        # if the price is NOT in a reversal-friendly location this pair is
+        # discarded unconditionally.
+        _swing_low_gate = _is_swing_low(bars, i)
+        _below_50_gate  = _below_sma50(bars, i)
+        _decline_gate   = _recent_decline_pct(bars, i)
+        has_reversal_context = (
+            _swing_low_gate
+            or _below_50_gate
+            or _decline_gate >= _MIN_DECLINE_FOR_REVERSAL
+        )
+        if not has_reversal_context:
+            continue  # anti-pattern: tweezer in non-reversal location
 
         geom_score = _score_geometry(pair)
         vol_score = _score_volume(bars, i)

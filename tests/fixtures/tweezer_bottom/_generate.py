@@ -1,22 +1,28 @@
-"""Tweezer Bottom fixture generator. 16 fixtures total (5 pos / 8 neg / 3 edge).
+"""Tweezer Bottom fixture generator. 17 fixtures total (6 pos / 8 neg / 3 edge).
 
 Anatomy: two consecutive candles whose lows match within _MATCH_TOL_PCT = 0.0015
          (0.15% of the matched low).
 
-Context: must be at a swing low / after a recent decline — mirrors hammer context
-         logic. A tweezer mid-uptrend is NOT a reversal and must not fire.
+Context gate: must have reversal context (at swing low OR below 50SMA OR
+         recent_decline_pct >= 5%). A tweezer mid-uptrend is NOT a reversal —
+         the hard gate rejects it unconditionally, regardless of geometry/volume.
 
-Positive (5):
-  1. textbook_bearish_a_bullish_b  — bearish A + bullish B at clear swing low
-  2. tweezer_after_decline         — tweezer after a measured 10%+ recent decline
-  3. tweezer_at_support            — tweezer at mapped nearest_support level
-  4. same_direction_both_bearish   — both bars bearish at a low (valid, weaker)
-  5. high_volume_bar_b             — high-volume bar B (strong reversal signal)
+Positive (6):
+  1. textbook_bearish_a_bullish_b       — bearish A + bullish B at clear swing low
+  2. tweezer_after_decline              — tweezer after a measured 10%+ recent decline
+  3. tweezer_at_support                 — tweezer at mapped nearest_support level
+  4. same_direction_both_bearish        — both bars bearish at a low (valid, weaker)
+  5. high_volume_bar_b                  — high-volume bar B (strong reversal signal)
+  6. strong_geometry_with_context       — tight lows + full handoff + 2× vol + real swing low
+                                          (paired control for neg_tweezer_mid_uptrend: same
+                                          geometry is allowed precisely because context IS present)
 
 Negative (8), each isolating ONE failure:
   1. lows_dont_match               — diff > tolerance (geometry gate fails)
   2. series_too_short              — only one bar (< _MIN_BARS)
-  3. tweezer_mid_uptrend           — strong uptrend, no reversal context → must not fire
+  3. tweezer_mid_uptrend           — tight lows + full handoff + 2× vol, but clean Stage-2
+                                      uptrend (no swing low / not below 50SMA / decline<5%) →
+                                      hard reversal-context gate rejects unconditionally
   4. highs_match_not_lows          — tweezer TOP territory, not bottom
   5. non_consecutive_lows          — matching lows but bars not adjacent (gap bar between)
   6. no_context_flat_chop          — matching lows but flat chop (no swing-low/decline)
@@ -176,6 +182,39 @@ def _high_volume_bar_b():
     return bars
 
 
+def _strong_geometry_with_context():
+    """Paired positive control for neg_tweezer_mid_uptrend.
+
+    IDENTICAL strong geometry: diff=0 (perfect tight lows), bar A bearish + bar B
+    bullish (full reversal handoff), bar B vol = 2× avg. The ONLY difference from
+    the negative fixture is genuine reversal context — a real 20-bar downtrend that
+    places the pair at a swing low with a >5% recent decline.
+
+    This fixture proves the reversal-context gate is context-selective (not a
+    blanket suppressor). Same geometry that is REJECTED in the uptrend case is
+    ACCEPTED here because reversal context is present.
+
+    Verification:
+      - is_swing_low: bar_b.l=48.00 = window minimum → ratio=0.0 ≤ 0.05 → True
+      - recent_decline_pct: 15-bar high ≈ 59.6, bar_b.l=48.00
+          decline ≈ (59.6-48.0)/59.6 = 19.5% >> 5% → True
+      - has_reversal_context = True → gate PASSES
+
+    Expected confidence ≈ 88.5:
+      geom=100 (diff=0, handoff), vol=100 (ratio=2.0≥1.8), ctx=80 (swing_low+35
+        + decline>10%+15 + base=30), hist=50
+      0.40*100 + 0.25*100 + 0.20*80 + 0.15*50 = 40+25+16+7.5 = 88.5
+    """
+    bars = _downtrend(20, 65.0, 50.0, vol=1000.0)
+    t = _last_t(bars)
+    # Bar A: bearish (c < o), low=48.00 — full handoff
+    bars.append(_bar(t, 49.80, 50.10, 48.00, 49.20, 1000.0))
+    t += DT
+    # Bar B: bullish (c > o), low=48.00 (diff=0), 2× avg volume
+    bars.append(_bar(t, 49.20, 51.50, 48.00, 51.20, 2000.0))
+    return bars
+
+
 # ============================================================
 # NEGATIVE FIXTURES
 # ============================================================
@@ -200,112 +239,45 @@ def _series_too_short():
 
 
 def _tweezer_mid_uptrend():
-    """Matching lows in a clear uptrend — not a reversal context → must not fire.
+    """ADVERSARIAL negative: strongest possible geometry + volume, but clean uptrend.
 
-    Prices rising from 40→90. A strong sustained uptrend with no meaningful
-    decline. The pair bars form at 85+ with matching lows but:
-      - No swing low (preceding bars all higher than the pair lows)
-      - No decline (15-bar recent high is close to current price)
-      - below_50sma = False (price is above SMA in uptrend)
-      - Stage 2 uptrend gives no ctx bonus
-    ctx_score = 30 (base) → confidence = 0.40*G + 0.25*V + 0.20*30 + 0.15*50
-    Even with geom=100 and vol=75, conf = 40+18.75+6+7.5 = 72.25 — this fires.
+    This is the exact adversarial construction the spec reviewer proved must fire
+    WITHOUT the context gate (confidence = 78.5), and must return 0 detections
+    WITH the gate. It is the anti-fixture-masking guard.
 
-    To ensure it doesn't fire, we need ctx_score = 30 (base only).
-    We must ensure:
-      1. NOT a swing low: the 10-bar lookback must have bars with higher lows
-         than the pair, so bar_b is not near the window minimum.
-      2. recent_decline_pct < 5%: all 15 preceding bars must be close to the
-         pair lows in price (uptrend means bars go 85→88→91, not 90→64).
-      3. below_50sma = False.
+    Geometry: PERFECT — tight lows, diff=0 (tightest possible), tightness_ratio=0
+      → tightness_score=100. Bar A bearish + bar B bullish = full reversal handoff
+      → handoff_bonus=15. geom = min(100, 115) = 100.
 
-    Strategy: use a very gradual uptrend ending at 85-86, then have the pair
-    bars at 85.00/85.02. The preceding 15 bars are also around 84-85, so
-    the 15-bar high is only slightly above 85, giving recent_decline_pct < 5%.
-    The 10-bar lookback has bars with lows ~84.xx so bar_b.l=85.00 is NOT
-    the 10-bar low (it's actually above the minimum because earlier bars in
-    the uptrend have lower lows — wait, uptrend goes UP so older bars are LOWER).
+    Volume: bar B vol = 2× 20-bar avg → ratio=2.0 >= 1.8 → vol_score=100.
 
-    Revised strategy: make the pair appear in the MIDDLE of a strong uptrend
-    where previous bars have LOWER lows (older history) but the RECENT 15 bars
-    are all close to the pair's price level — so no meaningful recent decline.
+    Context gate check (ALL THREE must be False):
+      - is_swing_low: 50-bar uptrend from 60→100. In the 10-bar lookback the
+        OLDER bars have LOWER lows (~93-99). bar_b.l=99.00 sits at the TOP of
+        the window → ratio ≈ 0.79 >> 0.05 → False.
+      - below_50sma: bar_b.c≈100.30, SMA50≈81.7 → False.
+      - recent_decline_pct: 15-bar high≈100.5, bar_b.l=99.00
+          decline ≈ (100.5-99.0)/100.5 = 1.49% << 5% → False.
 
-    Use 50 bars rising from 60→100 (0.8/bar). Last 2 bars of the uptrend
-    at ~100 have pair lows at 99.00/99.02.
-    Recent 15 bars go from 88→100 (high ≈ 100.10), low of pair = 99.00.
-    recent_decline_pct = (100.10 - 99.00) / 100.10 = 1.1% < 5% → no bonus.
-    is_swing_low: the 10-bar lookback is bars 40-50 (lows 92.xx to 98.xx).
-    bar_b.l = 99.00, which is the HIGHEST in the 10-bar window (not the lowest)
-    → is_swing_low = False.
-    below_50sma = False (price at 99+ in uptrend, SMA50 around 80).
-    ctx_score = 30 (base only). conf = 0.40*G + 0.25*V + 0.20*30 + 0.15*50
-    With geom=100 and vol conserved near 75: 40+~18+6+7.5 = ~71.5.
-    Still above 50 floor — uptrend_context stage=2 gives no penalty.
+    All three False → has_reversal_context=False → DISCARDED by gate unconditionally.
+    0 detections. NOT because geometry was weakened.
 
-    Problem: the pure formula still fires at ~70 without any swing_low or decline.
-    The spec says confidence <50 WITHOUT reversal context — we need ctx to be low
-    enough. With ctx=30, conf = 0.4*100+0.25*75+0.2*30+0.15*50 = 40+18.75+6+7.5=72.25.
+    BEFORE gate (for documentation): conf=78.5
+      geom=100, vol=100, ctx=30 (base only), hist=50
+      0.40*100 + 0.25*100 + 0.20*30 + 0.15*50 = 40+25+6+7.5 = 78.5
 
-    We need a truly zero-context scenario: use NEUTRAL_CONTEXT (stage=1 adds +5
-    but that still gives ctx=35, conf = 40+18.75+7+7.5 = 73.25).
-
-    The real issue is the confidence floor of 50 is too low relative to the base
-    scores when geometry is perfect (100). The spec says tweezer mid-uptrend must
-    NOT fire — so we need ctx_score to be LOW enough that conf < 50.
-
-    With hist=50, geom=100, vol=~75: we need ctx such that
-    0.40*100 + 0.25*75 + 0.20*ctx + 0.15*50 < 50
-    40 + 18.75 + 0.20*ctx + 7.5 < 50
-    0.20*ctx < 50 - 66.25 = -16.25 → ctx < -81.25 — impossible.
-
-    The spec's intent is that UPTREND context gives LOW enough ctx_score.
-    But with the current formula, a perfect-geometry pair always exceeds 50
-    even with ctx=30.
-
-    Resolution: Per the spec, "A tweezer mid-uptrend is NOT a reversal — it must
-    NOT fire (confidence < 50) WITHOUT reversal context". The spec says the CONTEXT
-    score gates the signal via the CONFIDENCE FLOOR. But with base geom=100 and
-    vol>50, this is mathematically impossible with just ctx.
-
-    The correct approach (used by hammer too) is to add uptrend penalty into
-    context scoring. Looking at hammer.py: stage=2 gives no bonus (+0), but
-    the base is 30. So ctx_score=30 for pure uptrend.
-
-    Since the formula makes it impossible to drop below 50 with geom=100 and
-    vol>0, we must design the fixture so that either:
-    (a) the pair's lows DON'T actually match (geometry gate fails first), OR
-    (b) the pair's geometry score is kept LOW by using a very small tolerance
-        ratio — but wait, tightness still gives high geom for close lows.
-
-    The REAL fix: the negative uptrend fixture should have lows that are close
-    but not SUPER-tight (tightness_ratio near 1.0, so geom_score ≈ 30).
-    With geom=30: 0.4*30+0.25*75+0.2*30+0.15*50 = 12+18.75+6+7.5 = 44.25 < 50. ✓
-
-    So design: lows that are close to the tolerance boundary (diff = 0.8*tol).
-    tol = 0.0015 * 65.0 = 0.0975. Use diff = 0.08 (0.82*tol → tightness=0.82).
-    geom: tightness_ratio=0.82 → tightness_score = 30+(1.0-0.82)/0.5*40 = 30+14.4=44.4
-    No handoff_bonus (both bars bullish in uptrend? no, we can make bar_a red, bar_b green
-    but then handoff gives +15 → geom=59.4).
-    Both bullish: no handoff → geom=44.4.
-    conf = 0.4*44.4+0.25*75+0.2*30+0.15*50 = 17.76+18.75+6+7.5 = 50.01 — still barely fires!
-
-    Let's use diff = 0.9*tol (tightness=0.9):
-    tightness_score = 30+(1.0-0.9)/0.5*40 = 30+8=38. geom=38.
-    conf = 0.4*38+0.25*75+0.2*30+0.15*50 = 15.2+18.75+6+7.5 = 47.45 < 50. ✓
-
-    tol = 0.0015 * 65.0 = 0.0975. diff = 0.9*0.0975 = 0.08775 → use diff = 0.087.
-    low_a = 65.00, low_b = 65.087.
+    Paired positive control: pos_strong_geometry_with_context uses identical
+    geometry + volume but with a genuine swing low after a >5% decline —
+    that fixture MUST fire strongly to prove the gate is context-selective,
+    not a blanket suppressor.
     """
-    bars = _uptrend(30, 40.0, 70.0)
+    bars = _uptrend(50, 60.0, 100.0)
     t = _last_t(bars)
-    # Use diff that puts tightness_ratio ≈ 0.9 → geom ≈ 38 → conf < 50
-    low_a = 65.00
-    low_b = 65.087   # diff=0.087, tol=0.0015*65.00=0.0975, ratio=0.087/0.0975=0.892
-    # Bar A: bullish (no reversal handoff → no +15 bonus on geom)
-    bars.append(_bar(t, 64.90, 66.00, low_a, 65.80, 1200.0))
+    # Bar A: bearish (c < o) — full reversal handoff setup
+    bars.append(_bar(t, 99.80, 100.10, 99.00, 99.40, 1000.0))
     t += DT
-    # Bar B: bullish also (same direction = no handoff bonus)
-    bars.append(_bar(t, 65.80, 66.50, low_b, 66.30, 1300.0))
+    # Bar B: bullish (c > o), diff=0, 2× avg volume — strongest possible geometry
+    bars.append(_bar(t, 99.40, 100.50, 99.00, 100.30, 2000.0))
     return bars
 
 
@@ -444,46 +416,30 @@ def _pair_outside_scan_window():
 # ============================================================
 
 def _exact_tolerance_must_fire():
-    """abs(low_a - low_b) EXACTLY == _MATCH_TOL — inclusive boundary, MUST fire.
+    """abs(low_a - low_b) EXACTLY == _MATCH_TOL (nominal) — inclusive boundary, MUST fire.
 
     matched_low = 50.00
-    _MATCH_TOL = 0.0015 * 50.00 = 0.075 (exactly)
+    _MATCH_TOL = 0.0015 * 50.00 = 0.075
     low_a = 50.00, low_b = 50.075
 
-    IEEE 754 / _EPS truth:
-      50.00 is exactly representable as binary float (= 50 exactly).
-      0.075 = 0.0015 * 50.0. In IEEE 754 double:
-        50.0   → exact (50 = 110010₂ × 2⁰)
-        0.0015 → not exact: 0.001499999999999999944488848768742... (rounds to nearest)
-        0.0015 * 50.0 = 0.07499999999999999722444243843710...
-                      ≈ 0.075 - 2.8e-17
-        So abs(50.00 - 50.075) = 0.075 exactly? No:
-          50.075 in IEEE 754: 50.075 cannot be represented exactly.
-          The nearest double is 50.07499999999999928945726423989...
-          abs(50.07499... - 50.00) = 0.07499... ≈ 0.075 - 7e-15
+    IEEE 754 / _EPS truth (established by Python computation):
+      50.075 is NOT exactly representable in IEEE 754 double.
+      The nearest double is 50.07500000000000284... (stores ABOVE nominal 50.075).
 
-      So the computed _MATCH_TOL = 0.0015 * 50.00 ≈ 0.075 - 2.8e-17
-      and abs(low_a - low_b) ≈ 0.075 - 7e-15 (because 50.075 is inexact)
+      Computed values:
+        low_a  = 50.00  (exactly representable)
+        low_b  = 50.075 (stored as 50.07500000000000284...)
+        diff   = abs(50.075 - 50.00) = 0.07500000000000284  (> 0.075 by ~2.84e-15)
+        tol    = 0.0015 * 50.00     = 0.075                 (exact for this price)
 
-      diff ≈ 0.075 - 7e-15  vs  tol ≈ 0.075 - 2.8e-17
+      diff > tol by ~2.84e-15. WITHOUT _EPS the gate:
+          diff <= tol  →  0.07500000000000284 <= 0.075  →  FALSE → WRONGLY REJECTED.
+      WITH _EPS = 1e-9:
+          diff <= tol + 1e-9  →  True → CORRECTLY ACCEPTED.
 
-      diff < tol? (0.075 - 7e-15) < (0.075 - 2.8e-17)?
-        ⟺ -7e-15 < -2.8e-17  ⟺  True (7e-15 > 2.8e-17, so -7e-15 < -2.8e-17)
-
-      Therefore diff < tol WITHOUT _EPS. The gate `diff <= tol + _EPS` is
-      ALSO satisfied trivially (+ _EPS only adds headroom). For this fixture,
-      plain `<=` would work. _EPS is defensive headroom, not load-bearing here,
-      because the inexact low_b representation already puts diff slightly BELOW tol.
-
-      Conclusion: _EPS is DEFENSIVE (not load-bearing) for this pair of values,
-      but including it is correct practice and costs nothing.
-
-      Verification numbers:
-        low_a   = 50.00           (exact)
-        low_b   = 50.075          (stored, but actual bit value ≈ 50.0749999...7e-15 below)
-        tol     = 0.0015 * 50.00 ≈ 0.075 - 2.8e-17
-        diff    = abs(50.075 - 50.00) ≈ 0.075 - 7e-15
-        diff <= tol + _EPS → True (diff < tol by ~7e-15)
+      Conclusion: _EPS IS LOAD-BEARING. It is not merely defensive — the exact-
+      tolerance pair would be wrongly rejected without it. _EPS = 1e-9 >> 2.84e-15
+      provides the necessary correction for this IEEE 754 boundary case.
     """
     bars = _downtrend(15, 60.0, 50.0)
     t = _last_t(bars)
@@ -602,6 +558,20 @@ UPTREND_CONTEXT = {
     "sector_strength_rank": None,
 }
 
+# Context for the strong-geometry-with-context paired positive control.
+# Stage 4 downtrend, bearish regime, no mapped support (swing low provides context).
+STRONG_GEOM_REVERSAL_CONTEXT = {
+    "trend_stage": 4,
+    "rs_trend": "down",
+    "ma_alignment": "stacked_bearish",
+    "volume_signature": "neutral",
+    "regime": "bearish",
+    "nearest_resistance": 65.0,
+    "nearest_support": None,
+    "days_to_earnings": None,
+    "sector_strength_rank": None,
+}
+
 EDGE_CONTEXT = {
     "trend_stage": 4,
     "rs_trend": "down",
@@ -637,7 +607,7 @@ def _write(name, category, bars, context, expected):
 
 
 def main():
-    # ── 5 POSITIVE ──────────────────────────────────────────────────────
+    # ── 6 POSITIVE ──────────────────────────────────────────────────────
     _write("pos_textbook_bearish_a_bullish_b", "positive",
            _textbook_bearish_a_bullish_b(), BEARISH_CONTEXT,
            {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0,
@@ -661,6 +631,13 @@ def main():
     _write("pos_high_volume_bar_b", "positive",
            _high_volume_bar_b(), BEARISH_CONTEXT,
            {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0,
+            "geometry_shape": "candle_mark"})
+
+    # Paired positive control: identical strong geometry as neg_tweezer_mid_uptrend
+    # but WITH reversal context. Proves the gate is context-selective.
+    _write("pos_strong_geometry_with_context", "positive",
+           _strong_geometry_with_context(), STRONG_GEOM_REVERSAL_CONTEXT,
+           {"fires": True, "min_confidence": 80.0, "max_confidence": 100.0,
             "geometry_shape": "candle_mark"})
 
     # ── 8 NEGATIVE ──────────────────────────────────────────────────────
@@ -703,7 +680,7 @@ def main():
            {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0,
             "geometry_shape": "candle_mark"})
 
-    print("\nDone — 16 fixtures written (5 pos / 8 neg / 3 edge).")
+    print("\nDone — 17 fixtures written (6 pos / 8 neg / 3 edge).")
 
 
 if __name__ == "__main__":
