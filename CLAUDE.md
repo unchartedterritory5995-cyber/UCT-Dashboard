@@ -194,6 +194,21 @@ All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key com
 - **Lookback caps**: daily/weekly capped at 30 years (10,950 days) to avoid strftime crash on pre-1900 dates. Intraday scales dynamically: `bars_per_day = 390 / multiplier`, lookback = `max_bars / bars_per_day * 1.5`.
 - **Startup purge**: `bars_disk_cache.purge_empty()` removes empty cache files from prior bugs.
 
+### Bars Freshness & Reliability Architecture (2026-05-16/17 overhaul — CRITICAL, do not regress)
+
+Spec: `docs/superpowers/specs/2026-05-16-bars-freshness-fix-design.md`. Fixed a systemic universe-wide intraday freeze + frontend spike/phantom classes. **Locked invariant: newest bar wins per `(ticker, tf, ts)` on EVERY path.**
+
+- **Two services, separate volumes, R2 bridge**: `web` (uvicorn, serves users) + `worker` (`python -m api.worker_main`, `WORKER_ENABLED=1`, runs the prewarmer + uploads R2 snapshots). Separate `/data` volumes. Web ingests worker freshness via a **newer-wins MERGE** (`data_sync.merge_snapshot` / `sync_if_newer_merge`): `INSERT OR IGNORE … WHERE local has none OR snap.ts > local MAX(ts)`. **NEVER re-enable replace-style pull** — `R2_PERIODIC_PULL_LEGACY_REPLACE=1` is an emergency-only escape hatch; replace-pull caused the 2026-05-07 regression that froze the universe.
+- **Cold-stale ⇒ synchronous first paint**: `_is_cold_stale_intraday()` (weekend/pre-open aware) — an entry missing ≥1 session is fetched **synchronously** (correct first paint), NOT stale-while-revalidate. `_delta_intraday` paginates `next_url` (multi-day gaps fully backfill).
+- **Dual-class symbology**: `massive.to_polygon_symbol()` maps `BRK-B`→`BRK.B` at the Massive REST boundary ONLY (cache/FMP/yfinance keep hyphen). Massive/Polygon use dot notation for class shares.
+- **SQLite writes**: in-process `bars_sqlite._WRITE_LOCK` serializes `put_bars`/`put_provenance` (reads stay lock-free, WAL). `busy_timeout` is **context-aware: 30s on worker / 2s on web** (web's 2s is intentional — high values compound with the retry loop and saturate the anyio pool). Worker prewarm pool = 4.
+- **Worker proactive intraday warm is SCOPED to the ACTIVE set** (priority + breadth drill lists + watchlists + UCT20 + candidates + theme holdings), NOT the full cap_universe. cap_universe-only long tail gets light D/W/M universe-wide + on-demand-correct Part-1 intraday (correct on first open, ~2-4s then cached — never wrong). Tiered TFs: 60/30/15 whole active set, 5/1 top-800.
+- **Frontend hardening** (`StockChart.jsx`, `utils/barsIDB.js`): `isSaneLivePrice()` is the SINGLE chokepoint for ALL live-apply paths (rejects non-finite/≤0 and >50% deviation vs last bar OR poison-proof `lastServerCloseRef` — a baseline only ever set from clean server bars; this killed the DDOG 20798 = 100× phantom lock-in). Stale intraday IDB is NOT rendered (`idbStaleIntraday` → full no-since refetch). barsIDB has a logical `CACHE_LOGIC_VERSION` (bump to invalidate all cached bars — do NOT bump `DB_VERSION`, it deadlocks) + intraday eviction keyed on **bar-data freshness** (newest bar >26h ⇒ cache miss), not save-time.
+- **Watchdog**: `bars_continuous_audit._run_5min_check` samples the hot-set; `chart_health_alerts.emit('intraday_hotset_stale', …)` if actively-viewed charts go ≥1 session stale (universe long-tail baseline is logged, NOT alerted — avoids permanent-red).
+- **GOTCHA — quarantine is intraday-only**: `bar_quarantine`/`bars_disk_cache` write does `int(bar['t'])` which throws+swallows for daily ISO `t`, and the read filter compares ISO-string `t` vs an int set — so quarantine **silently no-ops for D/W/M**. Make it date_tf-aware (YYYYMMDD int both sides) before relying on it for daily.
+- **Reusable audit tools**: `tools/full_chart_diagnostic.py`, `tools/phantom_scan.py`, `tools/daily_split_audit.py`. (Do NOT use `tools/detect_dead_tickers.py` — unsafe: self-induced load makes it false-flag live megacaps as delisted.)
+- Outstanding/deferred items: see user memory `project_chart_accuracy_initiative.md` → "OUTSTANDING" section.
+
 ### Chart Settings System
 - `app/src/components/chart/chartDefaults.js` — schema, defaults, 3 presets (Classic Dark / OLED Black / TradingView)
 - `chart_settings` JSON blob stored server-side via `usePreferences` (`POST /api/auth/preferences`)
