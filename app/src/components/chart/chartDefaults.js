@@ -37,7 +37,7 @@ export const CHART_DEFAULTS = {
     opacity: 0.07,
     color: '#a8a290',
     sizeScale: 1.0,
-    lines: { ticker: true, company: true, sector: true, industry: false },
+    lines: { ticker: true, company: true, sector: true, industry: true },
     x: 0.5,
     y: 0.5,
   },
