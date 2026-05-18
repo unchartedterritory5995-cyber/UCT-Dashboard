@@ -32,7 +32,8 @@ Primary (long) levels used for the schema; short levels in extras.
 
 Geometry: candle_mark at NR7 bar.
 Extras: nr7_range, lookback_max_range, nr4_also_true, is_inside_bar,
-        bar_range_pct_of_avg, entry_short, stop_short, target_short.
+        bar_range_pct_of_avg, avg_range_20bars, entry_short, stop_short,
+        target_short, rr_short.
 
 Attribution: Toby Crabel, "Day Trading with Short Term Price Patterns
 and Opening Range Breakout" (Traders Press, 1990). Linda Raschke,
@@ -278,10 +279,10 @@ def _compose_narrative(c, context, entry_long, stop_long, target_long,
         f"prior range: ${lmr:.4f}), meaning it qualifies as NR7. At just "
         f"{pct * 100:.0f}% of the 20-bar average range of ${avg_range:.4f}, "
         f"this is {'an extreme compression' if pct <= 0.35 else 'a moderate compression'} — "
-        f"{'the deeper the compression vs average, the more statistically significant the expansion signal' if pct <= 0.35 else 'Crabel noted deeper compressions produce larger average directional moves'}. "
-        f"{'The NR4 bonus is also present (narrowest in 4 bars) — Crabel specifically notes NR4+NR7 confluence as the strongest volatility-compression signal in his dataset.' if nr4 else ''} "
-        f"{'The bar is also an inside bar (high below prior high, low above prior low) — Linda Raschke expanded Crabel' + chr(39) + 's work in Street Smarts (1995) by noting that NR7 + inside bar combinations have particularly clean breakout signatures because the inside bar confirms that neither buyers nor sellers had sufficient conviction to extend beyond the prior bar' + chr(39) + 's range.' if inside else ''} "
-        f"Direction is NEUTRAL at the NR7 bar — the pattern predicts "
+        f"{'the deeper the compression vs average, the more statistically significant the expansion signal' if pct <= 0.35 else 'Crabel noted deeper compressions produce larger average directional moves'}."
+        f"{' The NR4 bonus is also present (narrowest in 4 bars) — Crabel specifically notes NR4+NR7 confluence as the strongest volatility-compression signal in his dataset.' if nr4 else ''}"
+        f"{' The bar is also an inside bar (high below prior high, low above prior low) — Linda Raschke expanded Crabel' + chr(39) + 's work in Street Smarts (1995) by noting that NR7 + inside bar combinations have particularly clean breakout signatures because the inside bar confirms that neither buyers nor sellers had sufficient conviction to extend beyond the prior bar' + chr(39) + 's range.' if inside else ''}"
+        f" Direction is NEUTRAL at the NR7 bar — the pattern predicts "
         f"EXPANSION, not DIRECTION. The breakout side determines the trade."
     )
 
