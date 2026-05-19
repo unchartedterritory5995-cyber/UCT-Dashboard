@@ -16,8 +16,22 @@ Definition (geometry):
   - Bar N: GREEN, LONG body (body_pct >= 0.40 of range), closes ABOVE the
     MIDPOINT of bar N-2's body. The completion - buyers reclaim control.
 
-Context (critical):
-  - Morning Star is meaningful at swing low or after recent decline
+Context (critical — reversal-context HARD GATE):
+  - Morning Star is a bullish REVERSAL pattern. A hard reversal-context gate
+    precedes all scoring: a candidate 3-bar sequence is only emitted when at
+    least one of the following is true (anchor = bar N / bar3, the completion
+    bar):
+      (a) at_swing_low  — bar3 (or its 3-bar window) is within 5% of the
+          10-bar range floor
+      (b) below_50sma   — bar3 close is below the 50-bar SMA
+      (c) recent_decline_pct >= _MIN_DECLINE_FOR_REVERSAL (0.05, i.e. 5%)
+          over the 15-bar lookback window ending at bar3
+          (decline window: bars[i-14:i+1], low = min of bars i, i-1, i-2)
+    If NONE of these hold the 3-bar sequence is unconditionally discarded
+    (continue) — no confidence is computed, no Detection is built.
+  - The context SCORING (swing low / DCR / support / below-50SMA / decline
+    tiers) still runs for all candidates that PASS the gate, differentiating
+    strong from weak reversal setups among those that qualify.
   - Stars require 3 bars to complete - pattern is invalidated if any bar
     deviates from the structure (e.g., bar N-2 not red, bar N-1 too large,
     bar N not green or not closing above midpoint)
@@ -44,6 +58,7 @@ _MIN_LONG_BODY_PCT = 0.40
 _MAX_STAR_BODY_RATIO = 0.30        # middle bar body <= 30% of bar N-2's body
 _SCAN_LOOKBACK = 5
 _SWING_LOOKBACK = 10
+_MIN_DECLINE_FOR_REVERSAL = 0.05  # 5% recent drawdown required for reversal gate
 _CONFIDENCE_FLOOR = 50.0
 
 
@@ -59,9 +74,28 @@ def detect_morning_star(bars: List[Bar], context: dict) -> List[Detection]:
         if candidate is None:
             continue
 
+        # Compute context helpers once per candidate — used by gate, scoring,
+        # and detection builder.  Anchor = bar3 = bars[i] (completion bar).
+        sw = _is_swing_low(bars, i)
+        b50 = _below_sma50(bars, i)
+        dp = _recent_decline_pct(bars, i)
+
+        # Hard reversal-context gate (precondition — see docstring).
+        # A morning star is a REVERSAL pattern: it is meaningless without
+        # reversal context. No matter how perfect the geometry or volume, if
+        # the price is NOT in a reversal-friendly location this 3-bar sequence
+        # is discarded unconditionally.
+        has_reversal_context = (
+            sw
+            or b50
+            or dp >= _MIN_DECLINE_FOR_REVERSAL
+        )
+        if not has_reversal_context:
+            continue  # anti-pattern: morning star in non-reversal location
+
         geom_score = _score_geometry(candidate)
         vol_score = _score_volume(bars, i)
-        ctx_score = _score_context(context, bars, i, candidate)
+        ctx_score = _score_context(context, bars, i, candidate, sw=sw, b50=b50, dp=dp)
         hist_score = 50.0
 
         confidence = round(
@@ -71,7 +105,9 @@ def detect_morning_star(bars: List[Bar], context: dict) -> List[Detection]:
             continue
 
         d = _build_detection(
-            bars, candidate, i, confidence, context, geom_score, vol_score, ctx_score, hist_score
+            bars, candidate, i, confidence, context,
+            geom_score, vol_score, ctx_score, hist_score,
+            sw=sw, b50=b50, dp=dp,
         )
         detections.append(d)
 
@@ -282,11 +318,25 @@ def _score_volume(bars: List[Bar], i: int) -> float:
     return round(0.40 * star_score + 0.60 * confirm_score, 2)
 
 
-def _score_context(context: dict, bars: List[Bar], i: int, c: dict) -> float:
+def _score_context(
+    context: dict,
+    bars: List[Bar],
+    i: int,
+    c: dict,
+    *,
+    sw: bool,
+    b50: bool,
+    dp: float,
+) -> float:
+    """Score reversal context at bar3 (completion bar, index i).
+
+    Accepts precomputed helper values (sw, b50, dp) so the detect loop can
+    compute each helper exactly once per candidate.
+    """
     score = 25.0
-    swing_low = _is_swing_low(bars, i)
-    below_50 = _below_sma50(bars, i)
-    decline = _recent_decline_pct(bars, i)
+    swing_low = sw
+    below_50 = b50
+    decline = dp
 
     if swing_low:
         score += 25
@@ -355,6 +405,10 @@ def _build_detection(
     vol_score: float,
     ctx_score: float,
     hist_score: float,
+    *,
+    sw: bool,
+    b50: bool,
+    dp: float,
 ) -> Detection:
     bar1, bar2, bar3 = c["bar1"], c["bar2"], c["bar3"]
 
@@ -368,9 +422,9 @@ def _build_detection(
     b2_dcr_pct = round(c["b2_dcr"] * 100, 1)
     b3_dcr_pct = round(c["b3_dcr"] * 100, 1)
 
-    is_swing_low = _is_swing_low(bars, i)
-    below_50 = _below_sma50(bars, i)
-    decline_pct = _recent_decline_pct(bars, i) * 100
+    is_swing_low = sw
+    below_50 = b50
+    decline_pct = dp * 100
 
     b1_v = bar1["v"]
     b2_v = bar2["v"]

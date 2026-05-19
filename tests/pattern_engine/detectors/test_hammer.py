@@ -103,3 +103,108 @@ def test_levels_are_bullish_setup():
     assert levels["stop"] < last_bar["l"]
     # Target above entry
     assert levels["target_primary"] > levels["entry"]
+
+
+# ---------------------------------------------------------------------------
+# Reversal-context gate regression test
+# ---------------------------------------------------------------------------
+
+def test_no_reversal_context_never_fires():
+    """Anti-fixture-masking guard for the reversal-context hard gate.
+
+    Builds the adversarial construction in code (not from a fixture) and asserts
+    0 detections regardless of how strong the hammer geometry is.
+
+    Part 1 — strong geometry in a clean mid-uptrend (no context):
+      Perfect hammer anatomy (lower wick 4x body, minimal upper wick, small body)
+      placed at the top of a 50-bar uptrend. No swing low, price well above the
+      SMA (all bars rising), <5% recent decline. Before the gate this would fire
+      at high confidence purely on geometry. After the gate: 0 detections.
+
+    Part 2 — identical anatomy WITH genuine reversal context:
+      Same hammer geometry placed at the bottom of a 20-bar downtrend (genuine
+      swing low + >5% decline). Must fire strongly — proves the gate is
+      context-selective, not a blanket suppressor.
+    """
+    T0 = 1700000000
+    DT = 86400
+
+    # ── Part 1: Strong hammer geometry in clean uptrend → 0 detections ──────
+    bars_up = []
+    t = T0
+    n = 50
+    start_p, end_p = 60.0, 100.0
+    step = (end_p - start_p) / (n - 1)
+    for k in range(n):
+        mid = start_p + step * k
+        bars_up.append({
+            "t": t, "o": mid - 0.10, "h": mid + 0.15,
+            "l": mid - 0.15, "c": mid + 0.10, "v": 1000.0,
+        })
+        t += DT
+    # Perfect hammer: body=0.20, lower_wick=1.20 (6x body), upper_wick=0.05
+    bars_up.append({
+        "t": t, "o": 100.20, "h": 100.25, "l": 99.00, "c": 100.40, "v": 2000.0,
+    })
+
+    uptrend_ctx = {
+        "trend_stage": 2,
+        "rs_trend": "up",
+        "ma_alignment": "stacked_bullish",
+        "volume_signature": "neutral",
+        "regime": "bullish",
+        "nearest_resistance": None,
+        "nearest_support": None,
+        "days_to_earnings": None,
+        "sector_strength_rank": None,
+    }
+
+    result_up = detect_hammer(bars_up, uptrend_ctx)
+    assert result_up == [], (
+        "REGRESSION: strong-geometry hammer in clean uptrend must return 0 detections "
+        "(reversal-context gate). "
+        f"Got {len(result_up)} detection(s) with confidence "
+        f"{[d['confidence'] for d in result_up]}. "
+        "Before the gate this fires purely on geometry — the gate must block it."
+    )
+
+    # ── Part 2: Identical hammer anatomy + reversal context → DOES fire ──────
+    bars_dn = []
+    t2 = T0
+    n_dn = 20
+    start_dn, end_dn = 65.0, 50.0
+    step_dn = (end_dn - start_dn) / (n_dn - 1)
+    for k in range(n_dn):
+        mid = start_dn + step_dn * k
+        bars_dn.append({
+            "t": t2, "o": mid + 0.10, "h": mid + 0.15,
+            "l": mid - 0.15, "c": mid - 0.10, "v": 1000.0,
+        })
+        t2 += DT
+    # Same perfect hammer anatomy at the bottom of the downtrend
+    bars_dn.append({
+        "t": t2, "o": 49.20, "h": 49.25, "l": 48.00, "c": 49.40, "v": 2000.0,
+    })
+
+    downtrend_ctx = {
+        "trend_stage": 4,
+        "rs_trend": "down",
+        "ma_alignment": "stacked_bearish",
+        "volume_signature": "neutral",
+        "regime": "bearish",
+        "nearest_resistance": 65.0,
+        "nearest_support": None,
+        "days_to_earnings": None,
+        "sector_strength_rank": None,
+    }
+
+    result_dn = detect_hammer(bars_dn, downtrend_ctx)
+    assert len(result_dn) >= 1, (
+        "Paired positive control (identical hammer anatomy + reversal context) must fire. "
+        "Got 0 detections. The reversal-context gate must be context-selective, "
+        "not a blanket suppressor."
+    )
+    assert result_dn[0]["confidence"] >= 70.0, (
+        f"Paired control with strong hammer anatomy + reversal context should fire with "
+        f"confidence >= 70.0, got {result_dn[0]['confidence']}"
+    )

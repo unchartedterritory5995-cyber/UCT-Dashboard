@@ -101,3 +101,103 @@ def test_levels_are_bullish_setup():
     assert levels["entry"] > pattern_high * 0.999
     assert levels["stop"] < pattern_low
     assert levels["target_primary"] > levels["entry"]
+
+
+# ---------------------------------------------------------------------------
+# Reversal-context gate regression test
+# ---------------------------------------------------------------------------
+
+def test_no_reversal_context_never_fires():
+    """Anti-fixture-masking guard for the reversal-context hard gate.
+
+    Part 1 — strongest-geometry bullish engulfing in a clean mid-uptrend:
+      Bar N-1 red, bar N green, engulfment ratio 3x, strong DCR, high volume.
+      50-bar uptrend with no swing low, price above rising SMA, <5% decline.
+      Before the gate this would fire at high confidence. After: 0 detections.
+
+    Part 2 — identical geometry WITH genuine reversal context (swing low after
+      >5% decline). Must fire — proves the gate is context-selective.
+    """
+    T0 = 1700000000
+    DT = 86400
+
+    # ── Part 1: Strong engulfing geometry in clean uptrend → 0 detections ───
+    bars_up = []
+    t = T0
+    n = 50
+    start_p, end_p = 60.0, 100.0
+    step = (end_p - start_p) / (n - 1)
+    for k in range(n):
+        mid = start_p + step * k
+        bars_up.append({
+            "t": t, "o": mid - 0.10, "h": mid + 0.15,
+            "l": mid - 0.15, "c": mid + 0.10, "v": 1000.0,
+        })
+        t += DT
+    # Bar N-1: red, body = 0.60
+    bars_up.append({"t": t, "o": 100.80, "h": 101.00, "l": 100.10, "c": 100.20, "v": 1000.0})
+    t += DT
+    # Bar N: green, engulfs bar N-1 with 3x body, strong DCR, 2x volume
+    bars_up.append({"t": t, "o": 100.10, "h": 102.20, "l": 100.00, "c": 102.00, "v": 2000.0})
+
+    uptrend_ctx = {
+        "trend_stage": 2,
+        "rs_trend": "up",
+        "ma_alignment": "stacked_bullish",
+        "volume_signature": "neutral",
+        "regime": "bullish",
+        "nearest_resistance": None,
+        "nearest_support": None,
+        "days_to_earnings": None,
+        "sector_strength_rank": None,
+    }
+
+    result_up = detect_bullish_engulfing(bars_up, uptrend_ctx)
+    assert result_up == [], (
+        "REGRESSION: strong-geometry bullish engulfing in clean uptrend must return 0 "
+        "detections (reversal-context gate). "
+        f"Got {len(result_up)} detection(s) with confidence "
+        f"{[d['confidence'] for d in result_up]}. "
+        "Before the gate this fires purely on geometry — the gate must block it."
+    )
+
+    # ── Part 2: Identical engulfing anatomy + reversal context → DOES fire ───
+    bars_dn = []
+    t2 = T0
+    n_dn = 20
+    start_dn, end_dn = 65.0, 50.0
+    step_dn = (end_dn - start_dn) / (n_dn - 1)
+    for k in range(n_dn):
+        mid = start_dn + step_dn * k
+        bars_dn.append({
+            "t": t2, "o": mid + 0.10, "h": mid + 0.15,
+            "l": mid - 0.15, "c": mid - 0.10, "v": 1000.0,
+        })
+        t2 += DT
+    # Same engulfing pair at the bottom of the downtrend
+    bars_dn.append({"t": t2, "o": 49.80, "h": 50.00, "l": 49.10, "c": 49.20, "v": 1000.0})
+    t2 += DT
+    bars_dn.append({"t": t2, "o": 49.10, "h": 51.20, "l": 49.00, "c": 51.00, "v": 2000.0})
+
+    downtrend_ctx = {
+        "trend_stage": 4,
+        "rs_trend": "down",
+        "ma_alignment": "stacked_bearish",
+        "volume_signature": "neutral",
+        "regime": "bearish",
+        "nearest_resistance": 65.0,
+        "nearest_support": None,
+        "days_to_earnings": None,
+        "sector_strength_rank": None,
+    }
+
+    result_dn = detect_bullish_engulfing(bars_dn, downtrend_ctx)
+    assert len(result_dn) >= 1, (
+        "Paired positive control (identical engulfing anatomy + reversal context) must fire. "
+        "Got 0 detections. The reversal-context gate must be context-selective, "
+        "not a blanket suppressor."
+    )
+    assert result_dn[0]["confidence"] >= 70.0, (
+        f"Paired control with strong engulfing geometry + reversal context should fire with "
+        f"confidence >= 70.0, got {result_dn[0]['confidence']}"
+    )

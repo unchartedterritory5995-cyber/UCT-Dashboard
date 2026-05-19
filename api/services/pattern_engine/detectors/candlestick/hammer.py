@@ -15,9 +15,19 @@ Definition (geometry):
   - Color of the body is not strict - both green and red hammers count, but a
     green (close > open) hammer is moderately stronger.
 
-Context (critical):
-  - Hammer is meaningful at a swing low OR after recent decline (close < 50-bar SMA)
-  - Hammer in the middle of an uptrend is NOT a reversal signal - it's noise
+Context (critical — reversal-context HARD GATE):
+  - The Hammer is a bullish REVERSAL pattern. A hammer mid-uptrend is noise,
+    not a reversal signal. A hard reversal-context gate precedes all scoring:
+    a candidate is only emitted when at least one of the following is true:
+      (a) at_swing_low  — bar i is within 5% of the 10-bar range floor
+      (b) below_50sma   — bar i close is below the 50-bar SMA
+      (c) recent_decline_pct >= _MIN_DECLINE_FOR_REVERSAL (0.05, i.e. 5%)
+          over the 15-bar lookback window
+    If NONE of these hold the candidate is unconditionally discarded (continue) —
+    no confidence is computed, no Detection is built.
+  - The context SCORING (swing low / support / below-50SMA / decline tiers) still
+    runs for all candidates that PASS the gate, differentiating strong from weak
+    reversal setups among those that qualify.
   - Hammer + volume expansion = institutional buying signature
 
 Direction: bullish.
@@ -40,6 +50,7 @@ _UPPER_WICK_BODY_MULT = 0.5       # upper_wick <= 0.5 x body
 _BODY_TO_RANGE_MAX = 0.35
 _SCAN_LOOKBACK = 5
 _SWING_LOOKBACK = 10
+_MIN_DECLINE_FOR_REVERSAL = 0.05  # 5% recent drawdown required for reversal gate
 _CONFIDENCE_FLOOR = 50.0
 
 
@@ -55,9 +66,28 @@ def detect_hammer(bars: List[Bar], context: dict) -> List[Detection]:
         if candidate is None:
             continue
 
+        # Compute context helpers once per candidate — used by gate, scoring,
+        # and detection builder.  Each helper is O(lookback).
+        sw = _is_swing_low(bars, i)
+        b50 = _below_sma50(bars, i)
+        dp = _recent_decline_pct(bars, i)
+
+        # Hard reversal-context gate (precondition — see docstring).
+        # A hammer is a REVERSAL pattern: it is meaningless without a
+        # reversal context. No matter how perfect the geometry or volume,
+        # if the price is NOT in a reversal-friendly location this candidate
+        # is discarded unconditionally.
+        has_reversal_context = (
+            sw
+            or b50
+            or dp >= _MIN_DECLINE_FOR_REVERSAL
+        )
+        if not has_reversal_context:
+            continue  # anti-pattern: hammer in non-reversal location
+
         geom_score = _score_geometry(candidate)
         vol_score = _score_volume(bars, i)
-        ctx_score = _score_context(context, bars, i)
+        ctx_score = _score_context(context, bars, i, sw=sw, b50=b50, dp=dp)
         hist_score = 50.0
 
         confidence = round(
@@ -67,7 +97,9 @@ def detect_hammer(bars: List[Bar], context: dict) -> List[Detection]:
             continue
 
         d = _build_detection(
-            bars, candidate, i, confidence, context, geom_score, vol_score, ctx_score, hist_score
+            bars, candidate, i, confidence, context,
+            geom_score, vol_score, ctx_score, hist_score,
+            sw=sw, b50=b50, dp=dp,
         )
         detections.append(d)
 
@@ -215,19 +247,29 @@ def _score_volume(bars: List[Bar], i: int) -> float:
     return 30.0 * ratio / 0.7
 
 
-def _score_context(context: dict, bars: List[Bar], i: int) -> float:
-    score = 30.0
-    swing_low = _is_swing_low(bars, i)
-    below_50 = _below_sma50(bars, i)
-    decline = _recent_decline_pct(bars, i)
+def _score_context(
+    context: dict,
+    bars: List[Bar],
+    i: int,
+    *,
+    sw: bool,
+    b50: bool,
+    dp: float,
+) -> float:
+    """Score reversal context at bar i.
 
-    if swing_low:
+    Accepts precomputed helper values (sw, b50, dp) so the detect loop can
+    compute each helper exactly once per candidate.
+    """
+    score = 30.0
+
+    if sw:
         score += 35
-    if below_50:
+    if b50:
         score += 15
-    if decline >= 0.10:
+    if dp >= 0.10:
         score += 15
-    elif decline >= 0.05:
+    elif dp >= 0.05:
         score += 8
 
     # Hammer at a known support
@@ -275,15 +317,19 @@ def _build_detection(
     vol_score: float,
     ctx_score: float,
     hist_score: float,
+    *,
+    sw: bool,
+    b50: bool,
+    dp: float,
 ) -> Detection:
     bar = c["bar"]
     body_disp = round(c["body_to_range"] * 100, 2)
     upper_disp = round(c["upper_wick_pct"] * 100, 2)
     lower_disp = round(c["lower_wick_pct"] * 100, 2)
     ratio_disp = round(c["lower_wick_body_ratio"], 2)
-    is_swing_low = _is_swing_low(bars, i)
-    below_50 = _below_sma50(bars, i)
-    decline_pct = _recent_decline_pct(bars, i) * 100
+    is_swing_low = sw
+    below_50 = b50
+    decline_pct = dp * 100
 
     # Levels
     entry = round(c["high"] * 1.001, 2)

@@ -102,3 +102,104 @@ def test_levels_are_bullish_setup():
     # Stop is below prev bar low
     assert levels["stop"] < prev_bar["l"]
     assert levels["target_primary"] > levels["entry"]
+
+
+# ---------------------------------------------------------------------------
+# Reversal-context gate regression test
+# ---------------------------------------------------------------------------
+
+def test_no_reversal_context_never_fires():
+    """Anti-fixture-masking guard for the reversal-context hard gate.
+
+    Part 1 — strongest-geometry bullish harami in a clean mid-uptrend:
+      Bar N-1 long red (body_pct 80%), bar N tiny green inside bar (ratio 0.10),
+      perfectly centered. 50-bar uptrend with no swing low, price above rising
+      SMA, <5% recent decline. Before the gate this would fire at high confidence.
+      After: 0 detections.
+
+    Part 2 — identical geometry WITH genuine reversal context (swing low after
+      >5% decline). Must fire — proves the gate is context-selective.
+    """
+    T0 = 1700000000
+    DT = 86400
+
+    # ── Part 1: Strong harami geometry in clean uptrend → 0 detections ──────
+    bars_up = []
+    t = T0
+    n = 50
+    start_p, end_p = 60.0, 100.0
+    step = (end_p - start_p) / (n - 1)
+    for k in range(n):
+        mid = start_p + step * k
+        bars_up.append({
+            "t": t, "o": mid - 0.10, "h": mid + 0.15,
+            "l": mid - 0.15, "c": mid + 0.10, "v": 1000.0,
+        })
+        t += DT
+    # Bar N-1: long red, body = 2.00, range = 2.50 → body_pct = 0.80
+    bars_up.append({"t": t, "o": 101.00, "h": 101.25, "l": 98.75, "c": 99.00, "v": 1500.0})
+    t += DT
+    # Bar N: tiny green inside bar, body = 0.20 (10% of N-1's body), centered
+    bars_up.append({"t": t, "o": 99.90, "h": 100.10, "l": 99.80, "c": 100.10, "v": 600.0})
+
+    uptrend_ctx = {
+        "trend_stage": 2,
+        "rs_trend": "up",
+        "ma_alignment": "stacked_bullish",
+        "volume_signature": "neutral",
+        "regime": "bullish",
+        "nearest_resistance": None,
+        "nearest_support": None,
+        "days_to_earnings": None,
+        "sector_strength_rank": None,
+    }
+
+    result_up = detect_bullish_harami(bars_up, uptrend_ctx)
+    assert result_up == [], (
+        "REGRESSION: strong-geometry bullish harami in clean uptrend must return 0 "
+        "detections (reversal-context gate). "
+        f"Got {len(result_up)} detection(s) with confidence "
+        f"{[d['confidence'] for d in result_up]}. "
+        "Before the gate this fires purely on geometry — the gate must block it."
+    )
+
+    # ── Part 2: Identical harami anatomy + reversal context → DOES fire ──────
+    bars_dn = []
+    t2 = T0
+    n_dn = 20
+    start_dn, end_dn = 65.0, 50.0
+    step_dn = (end_dn - start_dn) / (n_dn - 1)
+    for k in range(n_dn):
+        mid = start_dn + step_dn * k
+        bars_dn.append({
+            "t": t2, "o": mid + 0.10, "h": mid + 0.15,
+            "l": mid - 0.15, "c": mid - 0.10, "v": 1000.0,
+        })
+        t2 += DT
+    # Same harami pair at the bottom of the downtrend
+    bars_dn.append({"t": t2, "o": 50.00, "h": 50.25, "l": 47.75, "c": 48.00, "v": 1500.0})
+    t2 += DT
+    bars_dn.append({"t": t2, "o": 48.90, "h": 49.10, "l": 48.80, "c": 49.10, "v": 600.0})
+
+    downtrend_ctx = {
+        "trend_stage": 4,
+        "rs_trend": "down",
+        "ma_alignment": "stacked_bearish",
+        "volume_signature": "neutral",
+        "regime": "bearish",
+        "nearest_resistance": 65.0,
+        "nearest_support": None,
+        "days_to_earnings": None,
+        "sector_strength_rank": None,
+    }
+
+    result_dn = detect_bullish_harami(bars_dn, downtrend_ctx)
+    assert len(result_dn) >= 1, (
+        "Paired positive control (identical harami anatomy + reversal context) must fire. "
+        "Got 0 detections. The reversal-context gate must be context-selective, "
+        "not a blanket suppressor."
+    )
+    assert result_dn[0]["confidence"] >= 60.0, (
+        f"Paired control with strong harami geometry + reversal context should fire with "
+        f"confidence >= 60.0, got {result_dn[0]['confidence']}"
+    )
