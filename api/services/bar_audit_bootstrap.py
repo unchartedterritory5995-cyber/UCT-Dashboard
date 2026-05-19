@@ -15,6 +15,56 @@ from api.services import bars_disk_cache, bar_quarantine, bar_validation
 _logger = logging.getLogger(__name__)
 _FNAME_RE = re.compile(r"^([A-Z0-9.\-]+)_([0-9DWM]+)_(\d+)\.json$")
 
+# This scan is a ONE-SHOT migration: it backfills quarantine entries for bars
+# that were cached before inline validation existed. New bad bars are already
+# quarantined on the normal fetch path, so once this completes it must never
+# run again — re-running it re-quarantines the SAME ~260k bars via ~260k
+# individual auth.db transactions (~36 min), starving the user-facing web
+# process for that entire window after every deploy. A versioned marker on
+# the persistent /data volume makes it converge. Bump the version only if
+# validation logic changes and a full re-scan is genuinely wanted.
+_BOOTSTRAP_VERSION = 1
+
+
+def _marker_path() -> str:
+    # Read _CACHE_DIR lazily (tests monkeypatch it) and place the marker on
+    # the same persistent volume as the cache it scanned (parent of /data/bars_cache).
+    return os.path.join(
+        os.path.dirname(bars_disk_cache._CACHE_DIR), "bar_audit_bootstrap.marker"
+    )
+
+
+def _read_marker() -> dict | None:
+    try:
+        with open(_marker_path()) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _write_marker(quarantined: int, elapsed_s: float) -> None:
+    """Atomically record completion so subsequent boots skip the full scan."""
+    path = _marker_path()
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(
+                {
+                    "version": _BOOTSTRAP_VERSION,
+                    "completed_at": int(time.time()),
+                    "quarantined": quarantined,
+                    "elapsed_s": round(elapsed_s, 1),
+                },
+                f,
+            )
+        os.replace(tmp, path)  # atomic — a partial marker can't cause a false skip
+    except OSError as e:  # noqa: BLE001
+        _logger.warning(
+            "[bar_audit_bootstrap] could not write completion marker (%s) — "
+            "scan will repeat next boot: %s",
+            path, e,
+        )
+
 
 def _to_epoch(t) -> int | None:
     """Convert a bar timestamp to an integer epoch.
@@ -34,11 +84,26 @@ def _to_epoch(t) -> int | None:
         return None
 
 
-def scan_and_quarantine_existing_cache() -> int:
+def scan_and_quarantine_existing_cache(force: bool = False) -> int:
     """Scan every cache file, validate each bar, quarantine failures.
 
-    Returns count of bars quarantined.
+    One-shot: if a completion marker for the current bootstrap version is
+    already present on the persistent volume, the full scan is skipped and
+    the previously-recorded count is returned. Pass ``force=True`` to re-scan
+    regardless (operator/manual use). Returns count of bars quarantined.
     """
+    if not force:
+        m = _read_marker()
+        if m and int(m.get("version") or 0) >= _BOOTSTRAP_VERSION:
+            _logger.info(
+                "[bar_audit_bootstrap] skipping full scan — one-shot migration "
+                "already completed (v%s, %s bars in %.0fs); new bad bars are "
+                "quarantined inline on the fetch path",
+                m.get("version"), m.get("quarantined"),
+                float(m.get("elapsed_s") or 0),
+            )
+            return int(m.get("quarantined") or 0)
+
     t0 = time.time()
     cache_dir = bars_disk_cache._CACHE_DIR
     if not os.path.isdir(cache_dir):
@@ -103,4 +168,7 @@ def scan_and_quarantine_existing_cache() -> int:
         "[bar_audit_bootstrap] quarantined %d bars from existing cache in %.1fs",
         quarantined, elapsed,
     )
+    # Only reached on a real scan (the skip path returns early). Record
+    # completion so future boots don't repeat this 36-min write storm.
+    _write_marker(quarantined, elapsed)
     return quarantined
