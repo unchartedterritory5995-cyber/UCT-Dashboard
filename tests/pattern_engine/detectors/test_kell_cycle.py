@@ -94,3 +94,48 @@ def test_geometry_extras_richness():
                 "range_expansion_ratio", "is_parabolic", "is_consolidating",
                 "prior_trend"):
         assert key in extras, f"missing geometry.extras.{key}"
+
+
+# ---------------------------------------------------------------------------
+# Confidence-formula pin
+# ---------------------------------------------------------------------------
+
+def test_confidence_formula_pin():
+    """Pins the canonical 4-weight confidence formula for kell_cycle.
+
+    Formula: round(0.40*geometry_score + 0.25*volume_score
+                   + 0.20*context_score + 0.15*historical_score, 2)
+
+    Uses the 'stage1_reversal' fixture (deterministic positive case).
+    Any future formula drift causes this test to fail loudly.
+    """
+    fixtures = load_all_fixtures("kell_cycle", include_internal=False)
+    fixture = next((f for f in fixtures if f.name == "stage1_reversal"), None)
+    assert fixture is not None, "missing stage1_reversal fixture"
+
+    ctx = (
+        fixture.context
+        if fixture.context is not None
+        else build_context(fixture.bars, sym="TEST")
+    )
+    detections = detect_kell_cycle(fixture.bars, ctx)
+    assert detections, "stage1_reversal must fire for the formula-pin test"
+    d = detections[0]
+
+    qc = d["quality_components"]
+    expected = round(
+        0.40 * qc["geometry_score"]
+        + 0.25 * qc["volume_score"]
+        + 0.20 * qc["context_score"]
+        + 0.15 * qc["historical_score"],
+        2,
+    )
+    assert d["confidence"] == expected, (
+        f"confidence {d['confidence']} != recomputed {expected} "
+        f"(geom={qc['geometry_score']}, vol={qc['volume_score']}, "
+        f"ctx={qc['context_score']}, hist={qc['historical_score']}). "
+        "Check formula weights in detect_kell_cycle."
+    )
+    assert qc["historical_score"] == 50.0, (
+        f"historical_score must be 50.0 cold-start prior; got {qc['historical_score']}"
+    )

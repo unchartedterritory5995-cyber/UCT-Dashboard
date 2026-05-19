@@ -66,10 +66,20 @@ def detect_kell_cycle(bars: List[Bar], context: dict) -> List[Detection]:
     features = _compute_features(bars)
     stage = _classify_stage(features)
     direction = _direction_for_stage(stage, features)
-    confidence = _compute_confidence(stage, features)
+    # Compute sub-scores first so confidence is derived from the canonical formula
+    # (not a separate stage-heuristic), keeping quality_components consistent.
+    geom_score = _geometry_score_for_stage(stage, features)
+    vol_score = _volume_score(bars, stage)
+    ctx_score = _context_score(context)
+    hist_score = 50.0
+    confidence = round(
+        0.40 * geom_score + 0.25 * vol_score + 0.20 * ctx_score + 0.15 * hist_score, 2
+    )
+    if confidence < 50.0:
+        confidence = 50.0
     levels = _build_levels(bars, stage, features)
     detection = _build_detection(bars, context, stage, direction, confidence,
-                                 features, levels)
+                                 features, levels, geom_score, vol_score, ctx_score, hist_score)
     return [detection]
 
 
@@ -360,6 +370,7 @@ def _build_levels(bars: List[Bar], stage: int, features: dict) -> dict:
 def _build_detection(
     bars: List[Bar], context: dict, stage: int, direction: str,
     confidence: float, features: dict, levels: dict,
+    geom_score: float, vol_score: float, ctx_score: float, hist_score: float,
 ) -> Detection:
     last_bar = bars[-1]
     now = int(time.time())
@@ -389,11 +400,6 @@ def _build_detection(
         extras["base_bars"] = features["base_bars"]
 
     narrative = _compose_narrative(stage, stage_name, direction, features, context, levels)
-
-    geom_score = _geometry_score_for_stage(stage, features)
-    vol_score = _volume_score(bars, stage)
-    ctx_score = _context_score(context)
-    hist_score = 50.0
 
     return {
         "id": str(uuid.uuid4()),

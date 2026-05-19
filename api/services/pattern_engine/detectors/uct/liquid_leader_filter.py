@@ -72,8 +72,14 @@ def detect_liquid_leader_filter(bars: List[Bar], context: dict) -> List[Detectio
     if context.get("rs_trend") != "up":
         return []
 
-    # All gates pass - compute confidence based on strength of each criterion
-    confidence = _compute_confidence(dist_pct, avg60_vol, context)
+    # All gates pass - compute canonical 4-component sub-scores then confidence
+    geom_score = _score_geometry(dist_pct)
+    vol_score = _score_volume(avg60_vol)
+    ctx_score = _score_context(context)
+    hist_score = 50.0
+    confidence = round(
+        0.40 * geom_score + 0.25 * vol_score + 0.20 * ctx_score + 0.15 * hist_score, 2
+    )
 
     # Simple ATR for stop sizing
     atr = _atr(bars[-20:])
@@ -90,7 +96,8 @@ def detect_liquid_leader_filter(bars: List[Bar], context: dict) -> List[Detectio
 
     levels = _build_levels(candidate, atr, ema20)
 
-    d = _build_detection(bars, candidate, confidence, context, levels)
+    d = _build_detection(bars, candidate, confidence, context, levels,
+                         geom_score, vol_score, ctx_score, hist_score)
     return [d]
 
 
@@ -122,8 +129,61 @@ def _atr(bars: List[Bar]) -> float:
     return sum(trs) / len(trs) if trs else 0.0
 
 
+def _score_geometry(dist_pct: float) -> float:
+    """Geometry score = 52w-high proximity. Closer = cleaner setup geometry."""
+    if dist_pct <= 1.0:
+        return 95.0
+    if dist_pct <= 2.0:
+        return 85.0
+    if dist_pct <= 3.0:
+        return 75.0
+    if dist_pct <= _MAX_52W_DISTANCE_PCT:
+        return 65.0
+    return 50.0
+
+
+def _score_volume(avg60_vol: float) -> float:
+    """Volume score = institutional liquidity tier."""
+    if avg60_vol >= 10_000_000:
+        return 100.0
+    if avg60_vol >= 5_000_000:
+        return 90.0
+    if avg60_vol >= 2_000_000:
+        return 75.0
+    if avg60_vol >= 1_000_000:
+        return 65.0
+    if avg60_vol >= _MIN_AVG_VOLUME_60D:
+        return 55.0
+    return 40.0
+
+
+def _score_context(context: dict) -> float:
+    """Context score = alignment of stage, MA stack, RS, CAN SLIM, DCR."""
+    score = 50.0
+    # Stage 2 + stacked_bullish already confirmed as gates; award baseline bonus
+    if context.get("trend_stage") == 2:
+        score += 15.0
+    if context.get("ma_alignment") == "stacked_bullish":
+        score += 10.0
+    if context.get("rs_trend") == "up":
+        score += 10.0
+    # CAN SLIM sweetener
+    grade = context.get("can_slim_grade", "C")
+    cscore = context.get("can_slim_score", 50) or 50
+    if grade == "A" and cscore >= 80:
+        score += 10.0
+    elif grade == "B" and cscore >= 65:
+        score += 5.0
+    # DCR sweetener
+    dcr_sig = context.get("dcr_signature")
+    recent_dcr = context.get("recent_dcr_avg", 0.5) or 0.5
+    if dcr_sig == "accumulation" and recent_dcr >= 0.65:
+        score += 5.0
+    return round(min(100.0, score), 2)
+
+
 def _compute_confidence(dist_pct: float, avg60_vol: float, context: dict) -> float:
-    """Confidence scales 60-95 with how strongly each criterion is met."""
+    """Legacy helper retained for reference; canonical path uses sub-scores + formula."""
     base = 60.0
 
     # 52w proximity: closer = better
@@ -189,7 +249,10 @@ def _build_levels(c: dict, atr: float, ema20: Optional[float]) -> dict:
 # Detection assembly
 # ---------------------------------------------------------------------------
 
-def _build_detection(bars, c, confidence, context, levels) -> Detection:
+def _build_detection(
+    bars, c, confidence, context, levels,
+    geom_score: float, vol_score: float, ctx_score: float, hist_score: float,
+) -> Detection:
     last_bar = bars[-1]
     last_close = c["last_close"]
     avg60_vol = c["avg60_vol"]
@@ -233,10 +296,10 @@ def _build_detection(bars, c, confidence, context, levels) -> Detection:
         "context": context,
         "confidence": confidence,
         "quality_components": {
-            "geometry_score": round(confidence, 2),
-            "volume_score": round(min(100.0, avg60_vol / 100_000.0), 2),
-            "context_score": round(confidence, 2),
-            "historical_score": 50.0,
+            "geometry_score": round(geom_score, 2),
+            "volume_score": round(vol_score, 2),
+            "context_score": round(ctx_score, 2),
+            "historical_score": round(hist_score, 2),
         },
         "narrative": narrative,
         "status": "ready",

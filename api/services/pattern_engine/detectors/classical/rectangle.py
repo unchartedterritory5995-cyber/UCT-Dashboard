@@ -80,7 +80,7 @@ def detect_rectangle(bars: List[Bar], context: dict) -> List[Detection]:
         hist_score = 50.0
 
         confidence = round(
-            0.40 * geom_score + 0.20 * vol_score + 0.25 * ctx_score + 0.15 * hist_score, 2
+            0.40 * geom_score + 0.25 * vol_score + 0.20 * ctx_score + 0.15 * hist_score, 2
         )
         if confidence < _CONFIDENCE_FLOOR:
             continue
