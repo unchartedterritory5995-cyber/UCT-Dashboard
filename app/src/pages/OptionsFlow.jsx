@@ -1796,12 +1796,8 @@ export default function OptionsFlowDashboard() {
 
   const wlPushDiscord = async (mode) => {
     setDiscordPushing(true);
-    const unusual = mode === "unusual" ? _buildUnusualMidSmall() : { bull: [], bear: [] };
-    const sendBull = mode === "unusual" ? [] : wlBull;
-    const sendBear = mode === "unusual" ? [] : wlBear;
-    if (!sendBull.length && !sendBear.length && !unusual.bull.length && !unusual.bear.length) {
-      setStatus(`⚠️ No items to push (${mode}: bull=${sendBull.length} bear=${sendBear.length} uBull=${unusual.bull.length} uBear=${unusual.bear.length})`);
-      setTimeout(()=>setStatus(""),3000); setDiscordPushing(false); return;
+    if (!wlBull.length && !wlBear.length) {
+      setStatus("⚠️ No items to push"); setTimeout(()=>setStatus(""),2000); setDiscordPushing(false); return;
     }
     let overallBull = 0, overallBear = 0, tickerCount = 0;
     if (D && D.clean_confirmed) {
@@ -1835,16 +1831,15 @@ export default function OptionsFlowDashboard() {
     try {
       const resp = await fetch("/api/discord/push",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
-          bull:_addStatus(sendBull), bear:_addStatus(sendBear),
-          unusualBull:_addStatus(unusual.bull), unusualBear:_addStatus(unusual.bear),
+          bull:_addStatus(wlBull), bear:_addStatus(wlBear),
+          unusualBull:[], unusualBear:[],
           overallBull, overallBear, tickerCount,
           label:discordLabel, limit:discordCount
         })
       });
       const data = await resp.json();
       if (data.ok) {
-        const what = mode === "unusual" ? "unusual" : "watchlist";
-        setStatus(`✅ Pushed ${what} to Discord — ${data.messages_sent} message(s)`);
+        setStatus(`✅ Pushed to Discord — ${data.messages_sent} message(s)`);
       } else {
         setStatus(`❌ Discord push failed: ${data.error||"unknown error"}`);
       }
