@@ -42,7 +42,6 @@ const NAV_SECTIONS = [
       { to: '/post-market', label: 'Post Market', icon: '\uD83C\uDF19' },
       { to: '/model-book',     label: 'Model Book',    icon: '\uD83D\uDCD6' },
       { to: '/setup-library', label: 'Setup Library', icon: '\uD83D\uDCDA' },
-      { to: '/backtester',    label: 'Backtester',    icon: '\uD83E\uDDEA' },
       { to: '/journal',       label: 'Journal',       icon: '\uD83D\uDCD3' },
       { to: '/multi-chart', label: 'Multi Chart', icon: '\u229F' },
       { to: '/watchlists',  label: 'Watchlists',  icon: '\uD83D\uDCCB' },

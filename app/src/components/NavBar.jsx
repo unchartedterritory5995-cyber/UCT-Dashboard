@@ -22,7 +22,6 @@ const NAV_ITEMS = [
   { to: '/post-market',  label: 'Post Market',   icon: '🌙' },
   { to: '/model-book',      label: 'Model Book',     icon: '📖' },
   { to: '/setup-library',   label: 'Setup Library',  icon: '📚' },
-  { to: '/backtester',   label: 'Backtester',    icon: '🧪' },
   { to: '/journal',      label: 'Journal',       icon: '📓' },
   { to: '/risk',         label: 'Risk',          icon: '🛡️' },
   { to: '/multi-chart',  label: 'Multi Chart',   icon: '⊟' },
