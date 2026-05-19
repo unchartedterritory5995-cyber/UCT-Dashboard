@@ -25,10 +25,21 @@ Definition (correct mirror):
                   min(bar_N.open, bar_N.close) > bar_N-1.open
   - Bar N's body <= 50% of bar N-1's body
 
-Context (critical):
-  - Bearish Harami is meaningful at swing high or post-advance
-  - DCR accumulation -> neutral transition is the institutional fingerprint
-  - Harami signals indecision, NOT full reversal - requires follow-through
+Context (critical — bearish reversal gate):
+  - Bearish Harami is a REVERSAL pattern and is meaningless without a
+    topping/distribution context. A hard reversal-context GATE precedes all
+    scoring: a candidate pair is only emitted when at least one of the
+    following is true (anchor = bar N, the inside/harami bar):
+      (a) at_swing_high  — bar N is within 5% of the 10-bar range ceiling
+      (b) above_50sma    — bar N close is above the 50-bar SMA
+      (c) recent_advance_pct >= _MIN_ADVANCE_FOR_REVERSAL (0.05, i.e. 5%)
+          over the 15-bar lookback window
+    If NONE hold the pair is unconditionally discarded (continue) — no
+    confidence is computed, no Detection is built.
+  - Context SCORING (swing high / above-50SMA / advance tiers / DCR) still
+    runs for all candidates that PASS the gate.
+  - DCR accumulation -> neutral transition is the institutional fingerprint.
+  - Harami signals indecision, NOT full reversal - requires follow-through.
 
 Direction: bearish.
 Confirmation: NEXT bar must close BELOW bar N-1's open (the long green bar's
@@ -51,6 +62,7 @@ _MIN_PREV_BODY_PCT = 0.50
 _MAX_INSIDE_BODY_RATIO = 0.50
 _SCAN_LOOKBACK = 5
 _SWING_LOOKBACK = 10
+_MIN_ADVANCE_FOR_REVERSAL = 0.05      # 5% recent run-up required for reversal gate
 _CONFIDENCE_FLOOR = 50.0
 
 
@@ -66,9 +78,28 @@ def detect_bearish_harami(bars: List[Bar], context: dict) -> List[Detection]:
         if candidate is None:
             continue
 
+        # Compute context helpers once per candidate — used by gate, scoring,
+        # and detection builder. Anchor = bar N (the inside/harami bar at index i).
+        sh = _is_swing_high(bars, i)
+        a50 = _above_sma50(bars, i)
+        ap = _recent_advance_pct(bars, i)
+
+        # Hard reversal-context gate (precondition — see docstring).
+        # Bearish Harami is a REVERSAL pattern: it is meaningless without
+        # a topping/distribution context. No matter how perfect the geometry,
+        # if the price is NOT in a reversal-friendly location this pair is
+        # discarded unconditionally.
+        has_reversal_context = (
+            sh
+            or a50
+            or ap >= _MIN_ADVANCE_FOR_REVERSAL
+        )
+        if not has_reversal_context:
+            continue  # anti-pattern: bearish harami in non-topping location
+
         geom_score = _score_geometry(candidate)
         vol_score = _score_volume(bars, i)
-        ctx_score = _score_context(context, bars, i, candidate)
+        ctx_score = _score_context(context, bars, i, candidate, sh=sh, a50=a50, ap=ap)
         hist_score = 50.0
 
         confidence = round(
@@ -78,7 +109,8 @@ def detect_bearish_harami(bars: List[Bar], context: dict) -> List[Detection]:
             continue
 
         d = _build_detection(
-            bars, candidate, i, confidence, context, geom_score, vol_score, ctx_score, hist_score
+            bars, candidate, i, confidence, context, geom_score, vol_score, ctx_score, hist_score,
+            sh=sh, a50=a50, ap=ap,
         )
         detections.append(d)
 
@@ -257,11 +289,25 @@ def _score_volume(bars: List[Bar], i: int) -> float:
     return 25.0
 
 
-def _score_context(context: dict, bars: List[Bar], i: int, c: dict) -> float:
+def _score_context(
+    context: dict,
+    bars: List[Bar],
+    i: int,
+    c: dict,
+    *,
+    sh: bool,
+    a50: bool,
+    ap: float,
+) -> float:
+    """Score topping context at bar N index.
+
+    Accepts precomputed helper values (sh, a50, ap) so the detect loop can
+    compute each helper exactly once per candidate.
+    """
     score = 15.0
-    swing_high = _is_swing_high(bars, i)
-    above_50 = _above_sma50(bars, i)
-    advance = _recent_advance_pct(bars, i)
+    swing_high = sh
+    above_50 = a50
+    advance = ap
 
     if swing_high:
         score += 25
@@ -330,6 +376,10 @@ def _build_detection(
     vol_score: float,
     ctx_score: float,
     hist_score: float,
+    *,
+    sh: bool,
+    a50: bool,
+    ap: float,
 ) -> Detection:
     prev_bar = c["prev_bar"]
     curr_bar = c["curr_bar"]
@@ -342,9 +392,9 @@ def _build_detection(
     prev_dcr_pct = round(c["prev_dcr"] * 100, 1)
     color_word = "red" if c["is_red"] else "green"
 
-    is_swing_high = _is_swing_high(bars, i)
-    above_50 = _above_sma50(bars, i)
-    advance_pct = _recent_advance_pct(bars, i) * 100
+    is_swing_high = sh
+    above_50 = a50
+    advance_pct = ap * 100
 
     prev_v = prev_bar["v"]
     curr_v = curr_bar["v"]

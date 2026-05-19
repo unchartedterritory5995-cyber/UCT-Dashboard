@@ -17,12 +17,23 @@ Definition (geometry):
   - Bar N: RED, LONG body (body_pct >= 0.40 of range), closes BELOW the
     MIDPOINT of bar N-2's body. The completion - sellers reclaim control.
 
-Context (critical):
-  - Evening Star is meaningful at swing high or after recent advance
+Context (critical — bearish reversal gate):
+  - Evening Star is a REVERSAL pattern and is meaningless without a
+    topping/distribution context. A hard reversal-context GATE precedes all
+    scoring: a candidate triplet is only emitted when at least one of the
+    following is true (anchor = bar3, the completion bar at index i):
+      (a) at_swing_high  — bar3 is within 5% of the 10-bar range ceiling
+      (b) above_50sma    — bar3 close is above the 50-bar SMA
+      (c) recent_advance_pct >= _MIN_ADVANCE_FOR_REVERSAL (0.05, i.e. 5%)
+          over bars[i-14:i+1] ending at bar3
+    If NONE hold the triplet is unconditionally discarded (continue) — no
+    confidence is computed, no Detection is built.
+  - Context SCORING (swing high / above-50SMA / advance tiers / DCR) still
+    runs for all candidates that PASS the gate.
   - Stars require 3 bars to complete - pattern is invalidated if any bar
-    deviates from the structure
+    deviates from the structure.
   - DCR accumulation -> neutral -> distribution transition over the 3 bars
-    is the ideal institutional fingerprint
+    is the ideal institutional fingerprint.
 
 Direction: bearish.
 Confirmation: NEXT bar (bar N+1) close below bar N's low.
@@ -44,6 +55,7 @@ _MIN_LONG_BODY_PCT = 0.40
 _MAX_STAR_BODY_RATIO = 0.30
 _SCAN_LOOKBACK = 5
 _SWING_LOOKBACK = 10
+_MIN_ADVANCE_FOR_REVERSAL = 0.05      # 5% recent run-up required for reversal gate
 _CONFIDENCE_FLOOR = 50.0
 
 
@@ -59,9 +71,28 @@ def detect_evening_star(bars: List[Bar], context: dict) -> List[Detection]:
         if candidate is None:
             continue
 
+        # Compute context helpers once per candidate — used by gate, scoring,
+        # and detection builder. Anchor = bar3 (the completion bar at index i).
+        sh = _is_swing_high(bars, i)
+        a50 = _above_sma50(bars, i)
+        ap = _recent_advance_pct(bars, i)
+
+        # Hard reversal-context gate (precondition — see docstring).
+        # Evening Star is a REVERSAL pattern: it is meaningless without
+        # a topping/distribution context. No matter how perfect the geometry,
+        # if the price is NOT in a reversal-friendly location this triplet is
+        # discarded unconditionally.
+        has_reversal_context = (
+            sh
+            or a50
+            or ap >= _MIN_ADVANCE_FOR_REVERSAL
+        )
+        if not has_reversal_context:
+            continue  # anti-pattern: evening star in non-topping location
+
         geom_score = _score_geometry(candidate)
         vol_score = _score_volume(bars, i)
-        ctx_score = _score_context(context, bars, i, candidate)
+        ctx_score = _score_context(context, bars, i, candidate, sh=sh, a50=a50, ap=ap)
         hist_score = 50.0
 
         confidence = round(
@@ -71,7 +102,8 @@ def detect_evening_star(bars: List[Bar], context: dict) -> List[Detection]:
             continue
 
         d = _build_detection(
-            bars, candidate, i, confidence, context, geom_score, vol_score, ctx_score, hist_score
+            bars, candidate, i, confidence, context, geom_score, vol_score, ctx_score, hist_score,
+            sh=sh, a50=a50, ap=ap,
         )
         detections.append(d)
 
@@ -271,11 +303,25 @@ def _score_volume(bars: List[Bar], i: int) -> float:
     return round(0.40 * star_score + 0.60 * confirm_score, 2)
 
 
-def _score_context(context: dict, bars: List[Bar], i: int, c: dict) -> float:
+def _score_context(
+    context: dict,
+    bars: List[Bar],
+    i: int,
+    c: dict,
+    *,
+    sh: bool,
+    a50: bool,
+    ap: float,
+) -> float:
+    """Score topping context at bar3 index (completion bar).
+
+    Accepts precomputed helper values (sh, a50, ap) so the detect loop can
+    compute each helper exactly once per candidate.
+    """
     score = 25.0
-    swing_high = _is_swing_high(bars, i)
-    above_50 = _above_sma50(bars, i)
-    advance = _recent_advance_pct(bars, i)
+    swing_high = sh
+    above_50 = a50
+    advance = ap
 
     if swing_high:
         score += 25
@@ -342,6 +388,10 @@ def _build_detection(
     vol_score: float,
     ctx_score: float,
     hist_score: float,
+    *,
+    sh: bool,
+    a50: bool,
+    ap: float,
 ) -> Detection:
     bar1, bar2, bar3 = c["bar1"], c["bar2"], c["bar3"]
 
@@ -355,9 +405,9 @@ def _build_detection(
     b2_dcr_pct = round(c["b2_dcr"] * 100, 1)
     b3_dcr_pct = round(c["b3_dcr"] * 100, 1)
 
-    is_swing_high = _is_swing_high(bars, i)
-    above_50 = _above_sma50(bars, i)
-    advance_pct = _recent_advance_pct(bars, i) * 100
+    is_swing_high = sh
+    above_50 = a50
+    advance_pct = ap * 100
 
     b1_v = bar1["v"]
     b2_v = bar2["v"]
