@@ -87,6 +87,7 @@ from api.services.pattern_engine.detectors.candlestick import hammer as _hammer 
 from api.services.pattern_engine.detectors.candlestick import hanging_man as _hanging_man  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import shooting_star as _shooting_star  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import tweezer_bottom as _tweezer_bottom  # noqa: F401
+from api.services.pattern_engine.detectors.candlestick import tweezer_top as _tweezer_top  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import bullish_engulfing as _bullish_engulfing  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import bearish_engulfing as _bearish_engulfing  # noqa: F401
 from api.services.pattern_engine.detectors.candlestick import piercing as _piercing  # noqa: F401
@@ -368,6 +369,12 @@ _PATTERN_METADATA = {
         "category": "candlestick",
         "direction": "bullish",
         "description": "2-bar pattern: two consecutive candles with virtually identical lows (within 0.15% of price) at a swing low, below the 50-bar SMA, or after a recent decline (>=5%). Strongest when bar A is bearish + bar B bullish (reversal handoff). Bullish reversal requiring next-bar close above pattern high.",
+    },
+    "tweezer_top": {
+        "name": "Tweezer Top",
+        "category": "candlestick",
+        "direction": "bearish",
+        "description": "2-bar pattern: two consecutive candles with virtually identical highs (within 0.15% of price) at a swing high, above the 50-bar SMA, or after a recent advance (>=5%). Strongest when bar A is bullish + bar B bearish (reversal handoff). Bearish reversal requiring next-bar close below pattern low.",
     },
     "bullish_engulfing": {
         "name": "Bullish Engulfing",

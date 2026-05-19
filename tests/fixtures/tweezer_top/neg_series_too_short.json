@@ -1,0 +1,28 @@
+{
+  "name": "neg_series_too_short",
+  "category": "negative",
+  "expected": {
+    "fires": false
+  },
+  "context": {
+    "trend_stage": 1,
+    "rs_trend": "flat",
+    "ma_alignment": "mixed",
+    "volume_signature": "neutral",
+    "regime": "neutral",
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": null
+  },
+  "bars": [
+    {
+      "t": 1700000000,
+      "o": 50.0,
+      "h": 51.0,
+      "l": 49.0,
+      "c": 50.5,
+      "v": 1000.0
+    }
+  ]
+}
