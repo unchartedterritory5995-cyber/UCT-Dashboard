@@ -346,18 +346,17 @@ def test_tolerance_boundary_eps_proof():
           edge_just_over_tolerance_no_fire (diff >> tol -> MUST NOT fire)
 
     _EPS truth (established by Python computation — see module docstring):
-      For the exact-tolerance fixture (high_a=100.00, high_b=100.15):
-        - 100.15 stores as IEEE 754 nearest double ~= 100.15000000000000568...
-          (ABOVE nominal, NOT below it).
-        - tol = 0.0015 * 100.00 ~= 0.14999999999999999...
-          (BELOW nominal 0.15 by ~4.5e-18)
-        - diff = abs(100.15 - 100.00) = 0.15000000000000568  (> 0.15 nominal by ~5.69e-15)
+      For the exact-tolerance fixture (high_a=100.00, high_b=99.85):
+        - matched_high = max(100.00, 99.85) = 100.00 (exactly representable).
+        - tol = 0.0015 * 100.00 = 0.15 exactly (same IEEE 754 bit pattern as 0.15).
+        - 99.85 is NOT exactly representable; abs(100.00 - 99.85) stores ABOVE
+          nominal: diff = 0.15000000000000568 (> 0.15 by ~5.69e-15).
         - diff > tol -> WITHOUT _EPS this pair is WRONGLY REJECTED.
         - _EPS = 1e-9 >> 5.69e-15 -> gate passes correctly.
         _EPS IS LOAD-BEARING here, not merely defensive.
 
       For the just-over-tolerance fixture (high_a=100.00, high_b=100.20):
-        - diff = 0.20, tol ~= 0.15 -> gap = 0.05 >> _EPS (1e-9).
+        - diff = 0.20, tol = 0.15 -> gap = 0.05 >> _EPS (1e-9).
         - No float ambiguity; gate correctly rejects.
     """
     fixtures = load_all_fixtures("tweezer_top", include_internal=False)

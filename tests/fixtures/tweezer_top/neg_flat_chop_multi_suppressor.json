@@ -1,5 +1,5 @@
 {
-  "name": "neg_no_context_flat_chop",
+  "name": "neg_flat_chop_multi_suppressor",
   "category": "negative",
   "expected": {
     "fires": false

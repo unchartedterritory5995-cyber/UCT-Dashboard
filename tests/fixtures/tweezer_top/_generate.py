@@ -25,7 +25,9 @@ Negative (8), each isolating ONE failure:
                                        → hard reversal-context gate rejects unconditionally
   4. lows_match_not_highs           — tweezer BOTTOM territory, not top
   5. non_consecutive_highs          — matching highs but bars not adjacent (gap bar between)
-  6. no_context_flat_chop           — matching highs but flat chop (no swing-high/advance)
+  6. flat_chop_multi_suppressor     — flat chop failing on weak geometry + near-zero vol +
+                                       absent reversal context (multi-condition suppressor;
+                                       gate-only isolation is neg_tweezer_mid_downtrend)
   7. single_shooting_star_bar       — single bar (not a 2-bar tweezer)
   8. pair_outside_scan_window       — matching pair is too far back, outside scan window
 
@@ -316,12 +318,22 @@ def _non_consecutive_highs():
     return bars
 
 
-def _no_context_flat_chop():
-    """Matching highs in flat choppy price action — no swing-high/advance context.
+def _flat_chop_multi_suppressor():
+    """Flat-chop fixture that fails on MULTIPLE simultaneous conditions — not a clean isolation.
 
-    Isolates the 'no topping context' failure via WEAK geometry + VERY low volume.
-    All other consecutive bar pairs have highs that differ >> _MATCH_TOL (no
-    accidental valid pairs in the non-intended region).
+    This fixture suppresses firing via THREE conditions acting together:
+      1. WEAK geometry  — tightness_ratio=0.861 -> tightness_score~=41; no reversal handoff
+                          (both bars bearish). geom ~= 41.
+      2. NEAR-ZERO volume — bar B vol=1 vs avg=1000 -> vol_score ~= 0.04.
+      3. ABSENT reversal context — alternating-high chop keeps bar_b.h below the
+                          10-bar window maximum (is_swing_high=False), advance_pct < 5%.
+
+    Any one of the three would suppress or heavily penalise the detection; all three
+    apply simultaneously here. This is flat-chop coverage, not a gate-only isolation.
+
+    The rigorous context-gate-only isolation is neg_tweezer_mid_downtrend: that fixture
+    uses PERFECT geometry (diff=0, full reversal handoff, 2x volume) and is rejected
+    SOLELY by the has_reversal_context gate. Do NOT alter neg_tweezer_mid_downtrend.
 
     Math for the intended pair (high_a=51.80, high_b=51.867):
       diff = 0.067, matched_high=51.867, tol=0.0015*51.867=0.0778
@@ -329,26 +341,18 @@ def _no_context_flat_chop():
       tightness_score = 30+(1.0-0.861)/0.5*40 = 30+11.12 = 41.12
       No reversal handoff (both bearish) -> geom = 41.12
 
-    Volume design: bar B vol=1, avg of preceding 10 bars = 1000.
-      ratio = 1/1000 = 0.001 -> vol_score = 30*0.001/0.7 = 0.043
+    Volume: bar B vol=1, avg of preceding 10 bars = 1000.
+      ratio = 1/1000 = 0.001 -> vol_score = 30*0.001/0.7 ~= 0.04
 
     Context: alternating-high chop bars ensure the 10-bar window has highs of 54.0
-      (well above 51.8) so bar_b.h is NOT the window maximum.
-      is_swing_high: (54.0-51.867)/(54.0-48.0) = 0.356 >> 0.05 -> False
-      15-bar min_l=48.0, pair_b.h=51.867, advance=(51.867-48.0)/48.0=8.1%...
-      Wait — we need advance < 5%. Use chop lows >= 50 so advance stays small.
-
-    Revised chop design with lows >= 50:
-      Chop bars: alternating highs between 53 and 49 (adjacent differ >> tol).
-      15-bar min_l across chop = ~48.5 from some bars, bar_b.h=51.867
-      Let us use high chop lows (l >= 50) so advance = (51.867 - 50) / 50 = 3.7% < 5%.
+      (well above 51.8) so bar_b.h is NOT the window maximum (is_swing_high=False).
+      Lows kept high (>=50) so advance_pct = (51.867-50)/50 = 3.7% < 5% (False).
 
     Chop bars use ALTERNATING highs (adjacent differences >> tol):
       highs: 51.80, 54.00, 51.50, 54.50, 51.20, 54.00, 51.00, 53.50, 50.80, 54.00
       Adjacent deltas: 2.20, 2.50, 3.00, 3.30, 2.80, 3.00, 2.50, 2.70, 3.20
       All >> 0.078 -> no accidental tweezer-top pairs.
-    Then the intended pair follows: high_a=51.80, high_b=51.867 (diff=0.067 < tol=0.078).
-    Lows kept high (>=50) to suppress advance_pct.
+    Then the intended pair: high_a=51.80, high_b=51.867 (diff=0.067 < tol=0.078).
     """
     bars = []
     t = T0
@@ -673,8 +677,8 @@ def main():
     _write("neg_non_consecutive_highs", "negative",
            _non_consecutive_highs(), BULLISH_CONTEXT, {"fires": False})
 
-    _write("neg_no_context_flat_chop", "negative",
-           _no_context_flat_chop(), NEUTRAL_CONTEXT, {"fires": False})
+    _write("neg_flat_chop_multi_suppressor", "negative",
+           _flat_chop_multi_suppressor(), NEUTRAL_CONTEXT, {"fires": False})
 
     _write("neg_single_shooting_star_bar", "negative",
            _single_shooting_star_bar(), BULLISH_CONTEXT, {"fires": False})
