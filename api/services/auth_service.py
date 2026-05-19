@@ -197,7 +197,11 @@ def get_user_plan(user_id: str) -> str:
     sub = get_subscription(user_id)
     if not sub:
         return "free"
-    if sub["status"] in ("active", "trialing"):
+    # 'comped' = admin-granted free Pro access. Must be honored here or the
+    # comp grant is invisible to AuthGuard (which gates on plan == 'pro').
+    # Mirrors get_admin_stats / list_users_filtered, which also treat
+    # 'comped' as a paid tier.
+    if sub["status"] in ("active", "trialing", "comped"):
         return sub["plan"]
     return "free"
 
