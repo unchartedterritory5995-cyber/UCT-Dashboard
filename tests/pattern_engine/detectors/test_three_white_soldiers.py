@@ -112,3 +112,134 @@ def test_levels_are_bullish_setup():
     assert levels["stop"] < body_low
     assert levels["target_primary"] > levels["entry"]
     assert levels["risk_reward"] > 0.0
+
+
+# ---------------------------------------------------------------------------
+# Dual-gate behavioural tests (3 tests added for Phase 0 gate implementation)
+# ---------------------------------------------------------------------------
+
+def _make_bar(t: int, o: float, h: float, l: float, c: float, v: float = 1_000_000) -> dict:
+    return {"t": t, "o": o, "h": h, "l": l, "c": c, "v": v}
+
+
+def test_no_context_mid_trend_never_fires():
+    """Strongest-geometry TWS planted mid clean Stage-2 uptrend must be suppressed.
+
+    Conditions that MUST hold (validated via build_context):
+      - trend_stage == 2   (57 rising bars + 7 flat → slope positive AND above long SMA)
+      - is_swing_low == False   (pattern bars are at the top, not a swing low)
+      - above_50sma == True     (price well above 50-bar SMA after long uptrend)
+      - _recent_decline_pct < 0.03   (tiny soldiers → no meaningful pullback)
+    All three reversal+continuation predicates False → gate fires → detections == [].
+    """
+    price = 100.0
+    bars = []
+
+    # 57 rising bars — price * 1.0045 per bar gives slow uptrend
+    for k in range(57):
+        p = price * (1.0045 ** k)
+        bars.append(_make_bar(k, p, p * 1.002, p * 0.998, p * 1.001))
+
+    # 7 flat bars at the top (prevents swing-low; avoids further gain to keep decline<3%)
+    top = bars[-1]["c"]
+    for k in range(7):
+        t = 57 + k
+        bars.append(_make_bar(t, top, top * 1.001, top * 0.999, top))
+
+    # 3 small soldiers starting 1.5% ABOVE the flat bars.
+    # This ensures soldier lows stay well above the flat bars' lows so that
+    # the lookback window's low_min = flat bar lows and
+    # (bar_low - low_min) / rng > 0.20 → is_swing_low = False.
+    base = top * 1.015   # 1.5% step-up from flat zone
+    rng = base * 0.006
+    for k in range(3):
+        t = 64 + k
+        prev_c = bars[-1]["c"] if k > 0 else base
+        b_l = prev_c * 0.9985   # tiny lower shadow, stays well above flat bars
+        b_o = b_l + 0.25 * rng + 0.001   # float-safe nudge ensures body_pct > 0.60
+        b_c = b_o + 0.62 * rng
+        b_h = b_c + 0.13 * rng
+        bars.append(_make_bar(t, b_o, b_h, b_l, b_c))
+
+    ctx = build_context(bars, sym="PROBE")
+    # Verify preconditions that make this a valid "should-block" scenario
+    assert ctx["trend_stage"] == 2, f"Expected stage=2, got {ctx['trend_stage']}"
+    result = detect_three_white_soldiers(bars, ctx)
+    assert result == [], (
+        f"Expected no detection mid-Stage-2 with no prior context, got {len(result)} detections"
+    )
+
+
+def test_continuation_breakout_still_fires():
+    """TWS at Stage-1 base breakout must fire — proves dual gate preserves continuation.
+
+    Use <50 bars so build_context returns trend_stage=1 (insufficient history for
+    long SMA → falls back to stage 1). With stage=1, in_continuation_context=True
+    regardless of other flags, so the gate passes.
+    """
+    # Build 25 flat/oscillating base bars (< 50 → build_context → stage=1)
+    bars = []
+    price = 50.0
+    for k in range(25):
+        # Slight up/down chop keeps it a base
+        p = price * (1.001 if k % 2 == 0 else 0.999)
+        bars.append(_make_bar(k, p, p * 1.005, p * 0.995, p))
+
+    # 3 strong soldiers on top of the base
+    base = bars[-1]["c"]
+    rng = base * 0.020   # 2% range per bar — strong geometry
+    for k in range(3):
+        t = 25 + k
+        prev_c = bars[-1]["c"]
+        b_l = prev_c - 0.30 * rng
+        b_o = b_l + 0.20 * rng + 0.001
+        b_c = b_o + 0.70 * rng
+        b_h = b_c + 0.10 * rng
+        bars.append(_make_bar(t, b_o, b_h, b_l, b_c))
+
+    ctx = build_context(bars, sym="PROBE")
+    assert ctx["trend_stage"] == 1, f"Expected stage=1 (short series), got {ctx['trend_stage']}"
+    result = detect_three_white_soldiers(bars, ctx)
+    assert len(result) >= 1, (
+        "Stage-1 base breakout TWS should fire (continuation gate passes) but got 0 detections"
+    )
+
+
+def test_reversal_context_still_fires():
+    """TWS at genuine swing low after >5% decline must fire — proves reversal gate passes.
+
+    25 rising bars followed by 12 declining bars creates:
+      - _recent_decline_pct >= 0.05 from the peak → in_reversal_context=True
+      - pattern bars are at the swing low → further confirms reversal context
+    """
+    bars = []
+    # 25 rising bars up to ~130
+    price = 100.0
+    for k in range(25):
+        p = price * (1.005 ** k)
+        bars.append(_make_bar(k, p, p * 1.003, p * 0.997, p * 1.001))
+
+    # 12 declining bars — ~8% pullback from peak
+    peak = bars[-1]["c"]
+    for k in range(12):
+        p = peak * (0.993 ** (k + 1))
+        bars.append(_make_bar(25 + k, p, p * 1.002, p * 0.998, p * 0.999))
+
+    # 3 strong soldiers at the bottom
+    bottom = bars[-1]["c"]
+    rng = bottom * 0.020
+    for k in range(3):
+        t = 37 + k
+        prev_c = bars[-1]["c"]
+        b_l = prev_c - 0.30 * rng
+        b_o = b_l + 0.20 * rng + 0.001
+        b_c = b_o + 0.70 * rng
+        b_h = b_c + 0.10 * rng
+        bars.append(_make_bar(t, b_o, b_h, b_l, b_c))
+
+    ctx = build_context(bars, sym="PROBE")
+    result = detect_three_white_soldiers(bars, ctx)
+    assert len(result) >= 1, (
+        "Reversal TWS after >5% decline should fire but got 0 detections; "
+        f"trend_stage={ctx['trend_stage']}"
+    )

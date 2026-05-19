@@ -20,10 +20,34 @@ Definition (geometry):
   - Each bar's close is LOWER than the previous bar's close
   - No long lower wicks (lower_wick <= 0.15 of range on each bar)
 
-Context (critical):
-  - Three Black Crows is most powerful at a swing high, at a distribution top,
-    or after recent advance. After a long decline, it can be a CLIMAX BOTTOM -
-    Nison warns about this inversion.
+Context (critical — DUAL gate, NOT a pure reversal gate):
+  Three Black Crows is legitimately BOTH a continuation AND a reversal
+  pattern. A strict "must have reversal context" gate (like tweezer/shooting
+  star) would WRONGLY suppress a valid TBC firing at a Stage-3 distribution
+  breakdown — which by design has a recent advance but may not have all three
+  reversal flags set, and stacked-bearish MAs that AWARD a ctx bonus. Therefore
+  this detector uses a RELAXED dual predicate: a candidate is blocked ONLY when
+  it is unambiguously mid-Stage-4 downtrend with no prior advance whatsoever.
+
+  The dual gate (evaluated at bar i, the 3rd crow):
+    in_reversal_context   = at_swing_high
+                            OR above_50sma
+                            OR recent_advance_pct >= _MIN_ADVANCE_FOR_REVERSAL (5%)
+    in_continuation_context = (trend_stage == 3)
+                               OR (recent_advance_pct >= _CONT_MOVE_RELAX) (3%)
+    if not (in_reversal_context or in_continuation_context): continue
+
+  This blocks only the "mid-Stage-4, no prior rally, no distribution context"
+  false-fire. It preserves:
+    - Stage-3 distribution top continuation (trend_stage=3, recent advance →
+      passes)
+    - Any 3%+ rally before the crows (relaxed continuation threshold)
+    - Genuine reversal off swing highs / above-50SMA / >=5% advance
+
+  The CLIMAX penalty (decline >= 40% → −10 ctx) remains intact; it addresses
+  overextension at the BOTTOM, which is a different concern from mid-trend
+  noise.
+
   - DCR signature distribution + all three bars DCR <= 0.30 = institutional
     fingerprint of stacked selling days.
 
@@ -49,6 +73,10 @@ _MAX_LOWER_WICK_PCT = 0.15
 _SCAN_LOOKBACK = 5
 _SWING_LOOKBACK = 10
 _CONFIDENCE_FLOOR = 50.0
+# Dual-gate thresholds (see docstring)
+_MIN_DECLINE_FOR_REVERSAL = 0.05   # reserved for TWS mirror; unused here
+_MIN_ADVANCE_FOR_REVERSAL = 0.05   # 5%: qualifies as reversal context
+_CONT_MOVE_RELAX = 0.03            # 3%: relaxed threshold to qualify as continuation context
 
 
 def detect_three_black_crows(bars: List[Bar], context: dict) -> List[Detection]:
@@ -63,9 +91,34 @@ def detect_three_black_crows(bars: List[Bar], context: dict) -> List[Detection]:
         if candidate is None:
             continue
 
+        # Compute context helpers once — used by the dual gate, scorer, and builder.
+        at_swing_high = _is_swing_high(bars, i)
+        above_50 = not _below_sma50(bars, i)
+        advance = _recent_advance_pct(bars, i)
+        trend_stage = context.get("trend_stage")
+
+        # ------------------------------------------------------------------ #
+        # Dual continuation+reversal gate (see module docstring).             #
+        # Blocks only mid-Stage-4 downtrend with no prior context at all.     #
+        # ------------------------------------------------------------------ #
+        in_reversal_context = (
+            at_swing_high
+            or above_50
+            or advance >= _MIN_ADVANCE_FOR_REVERSAL
+        )
+        in_continuation_context = (
+            trend_stage == 3
+            or advance >= _CONT_MOVE_RELAX
+        )
+        if not (in_reversal_context or in_continuation_context):
+            continue  # mid-trend, no-prior-context false-fire: suppress
+
         geom_score = _score_geometry(candidate)
         vol_score = _score_volume(bars, i)
-        ctx_score = _score_context(context, bars, i, candidate)
+        ctx_score = _score_context(
+            context, bars, i, candidate,
+            at_swing_high=at_swing_high, above_50=above_50, advance=advance,
+        )
         hist_score = 50.0
 
         confidence = round(
@@ -75,7 +128,8 @@ def detect_three_black_crows(bars: List[Bar], context: dict) -> List[Detection]:
             continue
 
         d = _build_detection(
-            bars, candidate, i, confidence, context, geom_score, vol_score, ctx_score, hist_score
+            bars, candidate, i, confidence, context, geom_score, vol_score, ctx_score, hist_score,
+            at_swing_high=at_swing_high, above_50=above_50, advance=advance,
         )
         detections.append(d)
 
@@ -345,11 +399,20 @@ def _score_volume(bars: List[Bar], i: int) -> float:
     return round(0.60 * commit_score + 0.40 * prog_score, 2)
 
 
-def _score_context(context: dict, bars: List[Bar], i: int, c: dict) -> float:
+def _score_context(
+    context: dict,
+    bars: List[Bar],
+    i: int,
+    c: dict,
+    *,
+    at_swing_high: Optional[bool] = None,
+    above_50: Optional[bool] = None,
+    advance: Optional[float] = None,
+) -> float:
     score = 25.0
-    swing_high = _is_swing_high(bars, i)
-    below_50 = _below_sma50(bars, i)
-    advance = _recent_advance_pct(bars, i)
+    swing_high = at_swing_high if at_swing_high is not None else _is_swing_high(bars, i)
+    below_50 = not above_50 if above_50 is not None else _below_sma50(bars, i)
+    advance = advance if advance is not None else _recent_advance_pct(bars, i)
     decline = _recent_decline_pct(bars, i)
 
     if swing_high:
@@ -430,6 +493,10 @@ def _build_detection(
     vol_score: float,
     ctx_score: float,
     hist_score: float,
+    *,
+    at_swing_high: Optional[bool] = None,
+    above_50: Optional[bool] = None,
+    advance: Optional[float] = None,
 ) -> Detection:
     bar1, bar2, bar3 = c["bar1"], c["bar2"], c["bar3"]
 
@@ -452,9 +519,11 @@ def _build_detection(
     b2_lw_disp = round(c["b2_lower_wick"] * 100, 2)
     b3_lw_disp = round(c["b3_lower_wick"] * 100, 2)
 
-    is_swing_high = _is_swing_high(bars, i)
-    below_50 = _below_sma50(bars, i)
-    advance_pct = _recent_advance_pct(bars, i) * 100
+    # Reuse precomputed helpers if available; fall back to recompute if called standalone.
+    is_swing_high = at_swing_high if at_swing_high is not None else _is_swing_high(bars, i)
+    below_50 = not above_50 if above_50 is not None else _below_sma50(bars, i)
+    advance_raw = advance if advance is not None else _recent_advance_pct(bars, i)
+    advance_pct = advance_raw * 100
     decline_pct = _recent_decline_pct(bars, i) * 100
     climax_warning = decline_pct >= 40.0
 

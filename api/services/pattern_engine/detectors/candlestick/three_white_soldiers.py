@@ -19,10 +19,33 @@ Definition (geometry):
   - Each bar's close is HIGHER than the previous bar's close
   - No long upper wicks (upper_wick <= 0.15 of range on each bar)
 
-Context (critical):
-  - Three White Soldiers is most powerful at a swing low, at the base breakout,
-    or after recent decline. After a long advance, it can be a CLIMAX TOP -
-    Nison warns about this inversion.
+Context (critical — DUAL gate, NOT a pure reversal gate):
+  Three White Soldiers is legitimately BOTH a continuation AND a reversal
+  pattern. A strict "must have reversal context" gate (like tweezer/hammer)
+  would WRONGLY suppress a valid TWS firing at a Stage-1 base breakout —
+  which by design has ~0% prior decline, no swing low, and stacked-bullish
+  MAs that AWARD a ctx bonus rather than deny entry. Therefore this detector
+  uses a RELAXED dual predicate: a candidate is blocked ONLY when it is
+  unambiguously mid-Stage-2 uptrend with no prior context whatsoever.
+
+  The dual gate (evaluated at bar i, the 3rd soldier):
+    in_reversal_context   = at_swing_low
+                            OR below_50sma
+                            OR recent_decline_pct >= _MIN_DECLINE_FOR_REVERSAL (5%)
+    in_continuation_context = (trend_stage == 1)
+                               OR (recent_decline_pct >= _CONT_MOVE_RELAX) (3%)
+    if not (in_reversal_context or in_continuation_context): continue
+
+  This blocks only the "mid-Stage-2, no pullback, no base context" false-fire
+  that inflates confidence (stacked MA ctx bonus + no swing-low penalty = 82.5
+  on raw geometry alone). It preserves:
+    - Stage-1 base breakout continuation (trend_stage=1, ~0% decline → passes)
+    - Any 3%+ pullback before the soldiers (relaxed continuation threshold)
+    - Genuine reversal off swing lows / below-50SMA / >=5% decline
+
+  The CLIMAX penalty (advance >= 40% → −10 ctx) remains intact; it addresses
+  overextension at the TOP, which is a different concern from mid-trend noise.
+
   - DCR signature accumulation + all three bars DCR >= 0.7 = institutional
     fingerprint of stacked buying days.
 
@@ -48,6 +71,10 @@ _MAX_UPPER_WICK_PCT = 0.15
 _SCAN_LOOKBACK = 5
 _SWING_LOOKBACK = 10
 _CONFIDENCE_FLOOR = 50.0
+# Dual-gate thresholds (see docstring)
+_MIN_DECLINE_FOR_REVERSAL = 0.05   # 5%: qualifies as reversal context
+_MIN_ADVANCE_FOR_REVERSAL = 0.05   # reserved for TBC mirror; unused here
+_CONT_MOVE_RELAX = 0.03            # 3%: relaxed threshold to qualify as continuation context
 
 
 def detect_three_white_soldiers(bars: List[Bar], context: dict) -> List[Detection]:
@@ -62,9 +89,35 @@ def detect_three_white_soldiers(bars: List[Bar], context: dict) -> List[Detectio
         if candidate is None:
             continue
 
+        # Compute context helpers once — used by the dual gate, scorer, and builder.
+        at_swing_low = _is_swing_low(bars, i)
+        above_50 = _above_sma50(bars, i)
+        below_50 = not above_50
+        decline = _recent_decline_pct(bars, i)
+        trend_stage = context.get("trend_stage")
+
+        # ------------------------------------------------------------------ #
+        # Dual continuation+reversal gate (see module docstring).             #
+        # Blocks only mid-Stage-2 uptrend with no prior context at all.       #
+        # ------------------------------------------------------------------ #
+        in_reversal_context = (
+            at_swing_low
+            or below_50
+            or decline >= _MIN_DECLINE_FOR_REVERSAL
+        )
+        in_continuation_context = (
+            trend_stage == 1
+            or decline >= _CONT_MOVE_RELAX
+        )
+        if not (in_reversal_context or in_continuation_context):
+            continue  # mid-trend, no-prior-context false-fire: suppress
+
         geom_score = _score_geometry(candidate)
         vol_score = _score_volume(bars, i)
-        ctx_score = _score_context(context, bars, i, candidate)
+        ctx_score = _score_context(
+            context, bars, i, candidate,
+            at_swing_low=at_swing_low, above_50=above_50, decline=decline,
+        )
         hist_score = 50.0
 
         confidence = round(
@@ -74,7 +127,8 @@ def detect_three_white_soldiers(bars: List[Bar], context: dict) -> List[Detectio
             continue
 
         d = _build_detection(
-            bars, candidate, i, confidence, context, geom_score, vol_score, ctx_score, hist_score
+            bars, candidate, i, confidence, context, geom_score, vol_score, ctx_score, hist_score,
+            at_swing_low=at_swing_low, above_50=above_50, decline=decline,
         )
         detections.append(d)
 
@@ -350,11 +404,20 @@ def _score_volume(bars: List[Bar], i: int) -> float:
     return round(0.60 * commit_score + 0.40 * prog_score, 2)
 
 
-def _score_context(context: dict, bars: List[Bar], i: int, c: dict) -> float:
+def _score_context(
+    context: dict,
+    bars: List[Bar],
+    i: int,
+    c: dict,
+    *,
+    at_swing_low: Optional[bool] = None,
+    above_50: Optional[bool] = None,
+    decline: Optional[float] = None,
+) -> float:
     score = 25.0
-    swing_low = _is_swing_low(bars, i)
-    above_50 = _above_sma50(bars, i)
-    decline = _recent_decline_pct(bars, i)
+    swing_low = at_swing_low if at_swing_low is not None else _is_swing_low(bars, i)
+    above_50 = above_50 if above_50 is not None else _above_sma50(bars, i)
+    decline = decline if decline is not None else _recent_decline_pct(bars, i)
     advance = _recent_advance_pct(bars, i)
 
     # Swing low / recent decline = ideal context (reversal off lows)
@@ -438,6 +501,10 @@ def _build_detection(
     vol_score: float,
     ctx_score: float,
     hist_score: float,
+    *,
+    at_swing_low: Optional[bool] = None,
+    above_50: Optional[bool] = None,
+    decline: Optional[float] = None,
 ) -> Detection:
     bar1, bar2, bar3 = c["bar1"], c["bar2"], c["bar3"]
 
@@ -460,9 +527,11 @@ def _build_detection(
     b2_uw_disp = round(c["b2_upper_wick"] * 100, 2)
     b3_uw_disp = round(c["b3_upper_wick"] * 100, 2)
 
-    is_swing_low = _is_swing_low(bars, i)
-    above_50 = _above_sma50(bars, i)
-    decline_pct = _recent_decline_pct(bars, i) * 100
+    # Reuse precomputed helpers if available; fall back to recompute if called standalone.
+    is_swing_low = at_swing_low if at_swing_low is not None else _is_swing_low(bars, i)
+    above_50 = above_50 if above_50 is not None else _above_sma50(bars, i)
+    decline_raw = decline if decline is not None else _recent_decline_pct(bars, i)
+    decline_pct = decline_raw * 100
     advance_pct = _recent_advance_pct(bars, i) * 100
     climax_warning = advance_pct >= 40.0
 
