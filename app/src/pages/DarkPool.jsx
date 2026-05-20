@@ -613,59 +613,62 @@ function OverviewPane({onJumpTo}){
   const narrative = (()=>{
     const days = D.meta.tradingDays;
 
-    // Exclude the usual suspects — indexes and mega-cap ETFs that always print
-    const USUAL = new Set(["SPY","QQQ","IWM","DIA","VOO","IVV","VTI","RSP","MDY","TQQQ","SQQQ","UPRO","SPXL","SOXL","SOXS","TNA","TZA",
-      "XLF","XLE","XLK","XLV","XLI","XLY","XLP","XLU","XLB","XLRE","XLC","GLD","SLV","TLT","HYG","LQD","AGG","BND","EEM","EFA","VEA","VWO"]);
+    // Filter out names that ALWAYS print — indexes, mega-caps, popular ETFs
+    const USUAL = new Set([
+      "SPY","QQQ","IWM","DIA","VOO","IVV","VTI","RSP","MDY","TQQQ","SQQQ","UPRO","SPXL","SOXL","SOXS","TNA","TZA",
+      "XLF","XLE","XLK","XLV","XLI","XLY","XLP","XLU","XLB","XLRE","XLC","GLD","SLV","TLT","HYG","LQD","AGG","BND","EEM","EFA","VEA","VWO",
+      "AAPL","MSFT","NVDA","AMZN","GOOGL","GOOG","META","TSLA","AVGO","JPM","V","MA","UNH","HD","PG","JNJ","XOM","CVX",
+      "BAC","WFC","NFLX","ORCL","CRM","AMD","INTC","MU","QCOM","BRK.B","COST","LLY","MRK","ABBV","PEP","KO",
+      "FNDX","FNDA","SCHG","SCHI","SCHM","SCHX","VUG","VTV","VO","VB","IEFA","IEMG","ACWI","VGT",
+      "IWF","IWD","IWB","IWR","IWS","GOVT","MBB","VCIT","VCSH","VTIP","VGIT","VUSB","VCLT",
+    ]);
 
     let parts = [];
 
-    if(days >= 2){
-      // Multi-day: repeat activity detection
-      const repeatThresh = Math.max(3, Math.ceil(days * 0.4));
+    if(days >= 3){
+      // Repeat: appeared on 70%+ of days, min 4 days
+      const repeatThresh = Math.max(4, Math.ceil(days * 0.7));
       const repeats = allItems
         .filter(i => i.days >= repeatThresh && !USUAL.has(i.t))
         .sort((a,b) => b.days - a.days || b.bigPrintN - a.bigPrintN);
       if(repeats.length > 0){
-        const top = repeats.slice(0,6);
-        parts.push(`Repeat prints: ${top.map(t => `${t.t} (${t.days}/${days}d)`).join(", ")}${repeats.length>6?" + "+(repeats.length-6)+" more":""}.`);
+        const top = repeats.slice(0,5);
+        parts.push(`Repeat: ${top.map(t => `${t.t} (${t.days}/${days}d)`).join(", ")}${repeats.length>5?" +"+( repeats.length-5):""}.`);
       }
     }
 
-    // Unusual mid/small cap names with big prints (works for any timeframe)
+    // Unusual mid/small cap — $30M+ print, cap at 3
     const unusual = allItems
-      .filter(i => !USUAL.has(i.t) && (i.cat === "Mid Cap" || i.cat === "Small Cap") && i.bigPrintN >= 20_000_000)
+      .filter(i => !USUAL.has(i.t) && (i.cat === "Mid Cap" || i.cat === "Small Cap") && i.bigPrintN >= 30_000_000)
       .sort((a,b) => b.bigPrintN - a.bigPrintN);
     if(unusual.length > 0){
-      const top = unusual.slice(0,5);
-      parts.push(`Unusual names: ${top.map(t => `${t.t} (${fmt(t.bigPrintN)}${t.bigPrintPctAvgVol>=20?" · "+t.bigPrintPctAvgVol.toFixed(0)+"% avg vol":""})`).join(", ")}.`);
+      parts.push(`Unusual: ${unusual.slice(0,3).map(t => `${t.t} (${fmt(t.bigPrintN)}${t.bigPrintPctAvgVol>=30?" · "+t.bigPrintPctAvgVol.toFixed(0)+"%vol":""})`).join(", ")}.`);
     }
 
-    // High %AvgVol prints — regardless of cap (works for 1d)
+    // Outsized prints — 50%+ avg vol, $50M+, cap at 3
     const highVol = allItems
-      .filter(i => !USUAL.has(i.t) && i.bigPrintPctAvgVol >= 30 && i.bigPrintN >= 50_000_000)
+      .filter(i => !USUAL.has(i.t) && i.bigPrintPctAvgVol >= 50 && i.bigPrintN >= 50_000_000)
       .sort((a,b) => b.bigPrintPctAvgVol - a.bigPrintPctAvgVol);
     if(highVol.length > 0){
-      const notShown = highVol.filter(h => !unusual.slice(0,5).some(u => u.t === h.t));
+      const notShown = highVol.filter(h => !unusual.slice(0,3).some(u => u.t === h.t));
       if(notShown.length > 0){
-        const top = notShown.slice(0,4);
-        parts.push(`Outsized prints: ${top.map(t => `${t.t} (${t.bigPrintPctAvgVol.toFixed(0)}% avg vol)`).join(", ")}.`);
+        parts.push(`Outsized: ${notShown.slice(0,3).map(t => `${t.t} (${t.bigPrintPctAvgVol.toFixed(0)}%vol)`).join(", ")}.`);
       }
     }
 
-    // Flagged signals on non-usual names
+    // Flagged — cap at 3
     const flaggedUnusual = allItems
       .filter(i => i.signals && i.signals.length > 0 && !USUAL.has(i.t))
       .sort((a,b) => b.signals.length - a.signals.length || b.bigPrintN - a.bigPrintN);
     if(flaggedUnusual.length > 0){
-      const top = flaggedUnusual.slice(0,4);
-      parts.push(`Flagged: ${top.map(t => `${t.t} ${t.signals.map(s=>s.icon).join("")}`).join(", ")}${flaggedUnusual.length>4?" + "+(flaggedUnusual.length-4)+" more":""}.`);
+      parts.push(`Flagged: ${flaggedUnusual.slice(0,3).map(t => `${t.t} ${t.signals.map(s=>s.icon).join("")}`).join(", ")}${flaggedUnusual.length>3?" +"+(flaggedUnusual.length-3):""}.`);
     }
 
-    // Zone lean (only if meaningful)
+    // Zone lean
     const abovePct = Math.round((aboveN/(allItems.length||1))*100);
     const belowPct = Math.round((belowN/(allItems.length||1))*100);
     if(Math.abs(abovePct - belowPct) >= 5){
-      parts.push(`Zone: ${belowPct > abovePct ? "bearish" : "bullish"} lean (${abovePct}% above, ${belowPct}% below).`);
+      parts.push(`Zone: ${belowPct > abovePct ? "bearish" : "bullish"} (${abovePct}%↑ ${belowPct}%↓).`);
     }
 
     return parts.length > 0 ? parts.join(" ") : null;
@@ -685,8 +688,8 @@ function OverviewPane({onJumpTo}){
       </div>
       )}
 
-      {/* ── Row 1: Stat Cards ────────────────────────────────────── */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8}}>
+      {/* ── Stat Cards (2 rows of 4) ────────────────────────────── */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
         <StatCard icon="💰" label="Total Flow" color={C.cyan}
           value={D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(1)}B`}
           sub={`${D.meta.tradingDays} trading days`}/>
@@ -702,6 +705,9 @@ function OverviewPane({onJumpTo}){
         <StatCard icon="▼" label="Below Zone" color={C.red}
           value={belowN}
           sub={`${((belowN/(allItems.length||1))*100).toFixed(0)}% of universe`}/>
+        <StatCard icon="◼" label="Inside Zone" color={C.tx2}
+          value={insideN}
+          sub={`${((insideN/(allItems.length||1))*100).toFixed(0)}% of universe`}/>
         <StatCard icon="⚖️" label="Net Lean" color={leanColor}
           value={(netLean>0?"+":"")+netLean}
           sub={leanLabel}/>
@@ -718,7 +724,7 @@ function OverviewPane({onJumpTo}){
         return (
           <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
             <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
-              textTransform:"uppercase",marginBottom:10}}>🔥 Notable Activity — {flagged.length} ticker{flagged.length!==1?"s":""} flagged</div>
+              textTransform:"uppercase",marginBottom:10}}>🔥 Notable Activity</div>
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
               {flagged.slice(0,8).map(it=>{
                 const cc=CAT_COLORS[it.cat]||C.tx;
@@ -760,49 +766,6 @@ function OverviewPane({onJumpTo}){
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <CategoryBars categories={D.categories} onJumpTo={onJumpTo}/>
         <BiggestPrintsPanel/>
-      </div>
-
-      {/* ── Row 4: Above / Below zone panels ─────────────────────── */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-
-        {/* Above zone */}
-        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
-          {sectionLabel(`▲ Above Zone — Top ${Math.min(8,D.above.length)}`)}
-          <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 6px 0",
-            borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
-            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:52}}>Ticker</span>
-            <div style={{display:"flex",gap:12,alignItems:"center"}}>
-              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Last</span>
-              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:68,textAlign:"right"}}>Big Print</span>
-              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>% Move</span>
-              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:36,textAlign:"right"}}>Flow</span>
-            </div>
-          </div>
-          {D.above.slice(0,8).map(item=>(
-            <MiniRow key={item.t} item={item} dir="above"/>
-          ))}
-          {D.above.length===0 && <div style={{fontSize:12,color:C.tx3}}>None</div>}
-        </div>
-
-        {/* Below zone */}
-        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
-          {sectionLabel(`▼ Below Zone — Top ${Math.min(8,D.below.length)}`)}
-          <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 6px 0",
-            borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
-            <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:52}}>Ticker</span>
-            <div style={{display:"flex",gap:12,alignItems:"center"}}>
-              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Last</span>
-              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:68,textAlign:"right"}}>Big Print</span>
-              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>% Move</span>
-              <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:36,textAlign:"right"}}>Flow</span>
-            </div>
-          </div>
-          {D.below.slice(0,8).map(item=>(
-            <MiniRow key={item.t} item={item} dir="below"/>
-          ))}
-          {D.below.length===0 && <div style={{fontSize:12,color:C.tx3}}>None</div>}
-        </div>
-
       </div>
     </div>
   );
@@ -1631,6 +1594,7 @@ export default function DarkPool(){
 
       {/* Header */}
       <div style={{background:C.bg2,borderBottom:`1px solid ${C.bdr}`,padding:"12px 20px"}}>
+        <div style={{maxWidth:1400,margin:"0 auto"}}>
         {/* Title row */}
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
           <span style={{width:8,height:8,borderRadius:"50%",background:C.green,
@@ -1673,11 +1637,13 @@ export default function DarkPool(){
             <div style={{fontSize:10,color:C.tx3,marginTop:3}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</div>
           </div>
         </div>
+        </div>
       </div>
 
       {/* ── Date Picker Bar ──────────────────────────────────────── */}
       {availableDates.length > 0 && (
         <div style={{ display:"flex", justifyContent:"center", padding:"8px 20px", background:C.bg3, borderBottom:`1px solid ${C.bdr}` }}>
+          <div style={{ maxWidth:1400, width:"100%", display:"flex", justifyContent:"center" }}>
           <div style={{ display:"flex", gap:4, alignItems:"center", background:C.bg2, borderRadius:6, padding:4, border:`1px solid ${C.bdr}`, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
             {[
               { key:"Last1", label:"1d", days:1 },
@@ -1826,12 +1792,13 @@ export default function DarkPool(){
               </div>
             )}
           </div>
+          </div>
         </div>
       )}
 
       {/* Tab bar */}
-      <div style={{background:C.bg3,borderBottom:`1px solid ${C.bdr}`,
-        padding:"0 20px",display:"flex",overflowX:"auto",gap:2,alignItems:"center"}}>
+      <div style={{background:C.bg3,borderBottom:`1px solid ${C.bdr}`,padding:"0 20px"}}>
+        <div style={{maxWidth:1400,margin:"0 auto",display:"flex",overflowX:"auto",gap:2,alignItems:"center"}}>
         {TABS.map(t=>{
           const on=t.id===tab;
           return (
@@ -1854,6 +1821,7 @@ export default function DarkPool(){
             flexShrink:0}}>
           🔍 Search
         </button>
+        </div>
       </div>
 
       {/* Content */}
