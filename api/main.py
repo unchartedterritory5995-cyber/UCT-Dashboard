@@ -143,6 +143,26 @@ def _run_patterns_recompute_stats():
         print(f"[patterns] recompute_stats failed: {e}")
 
 
+# ---------------------------------------------------------------------------
+# RTH gate — used by the intraday pass inside _run_patterns_universe_scan
+# ---------------------------------------------------------------------------
+
+_INTRADAY_PATTERN_IDS = ["lance_opening_drive", "opening_range_breakout", "opening_range_breakdown"]
+
+
+def _is_rth_now() -> bool:
+    """Return True iff the current time is Mon-Fri 09:30–16:00 ET (inclusive)."""
+    try:
+        import datetime as _dt
+        now = _dt.datetime.now(ZoneInfo("America/New_York"))
+        if now.weekday() >= 5:          # Saturday=5, Sunday=6
+            return False
+        t = now.time()
+        return _dt.time(9, 30) <= t <= _dt.time(16, 0)
+    except Exception:
+        return False
+
+
 def _run_patterns_universe_scan():
     """APScheduler job: scan leaders + a rotating chunk of cap_universe, store detections.
 
@@ -278,6 +298,99 @@ def _run_patterns_universe_scan():
             f"(leaders={len(leader_tickers)}, cap chunk {hour_index + 1}/4), "
             f"stored {stored} detections ({leader_stored} from leader universe)"
         )
+
+        # -----------------------------------------------------------------------
+        # Intraday pass — leader-only, RTH-gated
+        # Runs AFTER the daily pass, ONLY Mon-Fri 09:30-16:00 ET.
+        # Scans lance_opening_drive + opening_range_breakout + opening_range_breakdown
+        # against 5-min bars for the 84-leader universe only.
+        # Context (trend stage / MA alignment) is built from daily bars so that
+        # the intraday detectors benefit from meaningful higher-TF context.
+        # ORB/ORBD receive only today's session bars (bars[:6] == first 30 min).
+        # Lance receives the full 5000-bar intraday series (it partitions sessions
+        # internally and needs 20+ prior sessions for its trailing-volume average).
+        # Disable this block with: if False and leader_tickers:
+        # -----------------------------------------------------------------------
+        if _is_rth_now() and leader_tickers:
+            intra_scanned = 0
+            intra_stored = 0
+            for sym in leader_tickers:
+                try:
+                    # --- daily bars for context ---
+                    try:
+                        daily_raw = bars_sqlite.get_bars(sym, "D", 200)
+                    except Exception as _be:
+                        _plog.debug("[patterns] intraday: get_bars(D) failed for %s: %s", sym, _be)
+                        continue
+                    if not daily_raw or len(daily_raw) < 30:
+                        continue
+                    daily_bars_list = [
+                        {"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
+                        for r in daily_raw
+                    ]
+                    try:
+                        ctx = build_context(daily_bars_list, sym=sym)
+                    except Exception as _ce:
+                        _plog.debug("[patterns] intraday: build_context failed for %s: %s", sym, _ce)
+                        continue
+
+                    # --- intraday bars (5-min) ---
+                    try:
+                        intra_raw = bars_sqlite.get_bars(sym, "5", 5000)
+                    except Exception as _ibe:
+                        _plog.debug("[patterns] intraday: get_bars(5) failed for %s: %s", sym, _ibe)
+                        continue
+                    if not intra_raw or len(intra_raw) < 9:
+                        continue
+                    intra_bars = [
+                        {"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
+                        for r in intra_raw
+                    ]
+
+                    # --- Lance: full intraday series (partitions sessions itself) ---
+                    try:
+                        lance_dets = detect_all(intra_bars, ctx, pattern_ids=["lance_opening_drive"])
+                    except Exception as _ld:
+                        _plog.debug("[patterns] intraday: lance failed for %s: %s", sym, _ld)
+                        lance_dets = []
+
+                    # --- ORB/ORBD: today's session slice only ---
+                    # Walk backward from the end to find the current session start
+                    # (first index where gap to prior bar > 4 hours = 14400s).
+                    orb_dets: list = []
+                    try:
+                        session_start_idx = 0
+                        for i in range(len(intra_bars) - 1, 0, -1):
+                            if intra_bars[i]["t"] - intra_bars[i - 1]["t"] > 14400:
+                                session_start_idx = i
+                                break
+                        today_session = intra_bars[session_start_idx:]
+                        if len(today_session) >= 9:
+                            orb_dets = detect_all(
+                                today_session, ctx,
+                                pattern_ids=["opening_range_breakout", "opening_range_breakdown"],
+                            )
+                    except Exception as _od:
+                        _plog.debug("[patterns] intraday: ORB/ORBD failed for %s: %s", sym, _od)
+
+                    intra_scanned += 1
+                    for d in lance_dets + orb_dets:
+                        try:
+                            d["sym"] = sym
+                            d["tf"] = "5"
+                            d.setdefault("geometry", {}).setdefault("extras", {})["from_leader_universe"] = True
+                            memory.store_detection(d)
+                            intra_stored += 1
+                        except Exception as _se:
+                            _plog.debug("[patterns] intraday: store failed for %s: %s", sym, _se)
+
+                except Exception as _ticker_err:
+                    _plog.debug("[patterns] intraday: ticker loop error for %s: %s", sym, _ticker_err)
+                    continue
+
+            _plog.info("[patterns] intraday pass: scanned=%d stored=%d", intra_scanned, intra_stored)
+            print(f"[patterns] intraday pass: scanned={intra_scanned} stored={intra_stored}")
+
     except Exception as e:
         _plog.exception("[patterns] universe_scan failed: %s", e)
         print(f"[patterns] universe_scan failed: {e}")
