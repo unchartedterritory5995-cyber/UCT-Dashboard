@@ -69,7 +69,6 @@ from api.gex_router import router as gex_router
 from api.watchlist_router import router as watchlist_router
 from api import watchlist_tracker as _watchlist_tracker
 from api.darkpool_router import router as darkpool_router
-app.include_router(darkpool_router)
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 
@@ -1423,6 +1422,7 @@ def health_cache():
 
 app.include_router(snapshot.router)
 app.include_router(movers.router)
+app.include_router(darkpool_router)
 app.include_router(engine_data.router)
 app.include_router(earnings.router)
 app.include_router(news.router)
