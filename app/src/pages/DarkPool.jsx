@@ -317,17 +317,17 @@ function FlowTable({items, showCat=true, showZone=false}){
 // ── Overview stat card ────────────────────────────────────────────────────────
 function StatCard({label, value, sub, color, icon}){
   return (
-    <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,
-      padding:"14px 18px",minWidth:120,flex:"1 1 0"}}>
-      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:4}}>
-        {icon && <span style={{fontSize:12,opacity:0.7}}>{icon}</span>}
-        <span style={{fontSize:10,color:C.tx3,textTransform:"uppercase",
+    <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,
+      padding:"10px 14px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:3}}>
+        {icon && <span style={{fontSize:10,opacity:0.7}}>{icon}</span>}
+        <span style={{fontSize:9,color:C.tx3,textTransform:"uppercase",
           letterSpacing:"0.06em",fontWeight:700}}>{label}</span>
       </div>
-      <div style={{fontSize:20,fontWeight:700,color:color||C.tx,fontFamily:"'Instrument Sans', sans-serif"}}>
+      <div style={{fontSize:18,fontWeight:700,color:color||C.tx,fontFamily:"'Instrument Sans', sans-serif"}}>
         {value}
       </div>
-      {sub && <div style={{fontSize:11,color:C.tx2,marginTop:3}}>{sub}</div>}
+      {sub && <div style={{fontSize:10,color:C.tx2,marginTop:2}}>{sub}</div>}
     </div>
   );
 }
@@ -609,11 +609,85 @@ function OverviewPane({onJumpTo}){
     );
   }
 
+  // ── Generate narrative summary ──────────────────────────────────────────────
+  const narrative = (()=>{
+    const days = D.meta.tradingDays;
+    if(days < 2) return null; // Need multiple days to detect repeat activity
+
+    // Exclude the usual suspects — indexes and mega-cap ETFs that always print
+    const USUAL = new Set(["SPY","QQQ","IWM","DIA","VOO","IVV","VTI","RSP","MDY","TQQQ","SQQQ","UPRO","SPXL","SOXL","SOXS","TNA","TZA",
+      "XLF","XLE","XLK","XLV","XLI","XLY","XLP","XLU","XLB","XLRE","XLC","GLD","SLV","TLT","HYG","LQD","AGG","BND","EEM","EFA","VEA","VWO"]);
+
+    // Find tickers with repeat activity (appeared on 50%+ of trading days AND have 3+ days)
+    const repeatThresh = Math.max(3, Math.ceil(days * 0.4));
+    const repeats = allItems
+      .filter(i => i.days >= repeatThresh && !USUAL.has(i.t))
+      .sort((a,b) => b.days - a.days || b.bigPrintN - a.bigPrintN);
+
+    // Find unusual names — not Large Cap or Indexes, with significant prints
+    const unusual = allItems
+      .filter(i => !USUAL.has(i.t) && (i.cat === "Mid Cap" || i.cat === "Small Cap") && i.bigPrintN >= 20_000_000)
+      .sort((a,b) => b.days - a.days || b.bigPrintN - a.bigPrintN);
+
+    // Find names with signals that aren't the usual suspects
+    const flaggedUnusual = allItems
+      .filter(i => i.signals && i.signals.length > 0 && !USUAL.has(i.t))
+      .sort((a,b) => b.signals.length - a.signals.length || b.bigPrintN - a.bigPrintN);
+
+    let parts = [];
+
+    // Repeat activity
+    if(repeats.length > 0){
+      const top = repeats.slice(0,6);
+      const repeatStr = top.map(t => `${t.t} (${t.days}/${days}d)`).join(", ");
+      parts.push(`Repeat prints: ${repeatStr}${repeats.length>6?" + "+(repeats.length-6)+" more":""}.`);
+    }
+
+    // Unusual mid/small cap names
+    if(unusual.length > 0){
+      const notInRepeats = unusual.filter(u => !repeats.slice(0,6).some(r => r.t === u.t));
+      if(notInRepeats.length > 0){
+        const top = notInRepeats.slice(0,5);
+        parts.push(`Unusual names: ${top.map(t => `${t.t} (${t.cat}, ${fmt(t.bigPrintN)})`).join(", ")}.`);
+      }
+    }
+
+    // Flagged signals on non-usual names
+    if(flaggedUnusual.length > 0){
+      const top = flaggedUnusual.slice(0,4);
+      const sigStr = top.map(t => {
+        const labels = t.signals.map(s => s.icon).join("");
+        return `${t.t} ${labels}`;
+      }).join(", ");
+      parts.push(`Flagged: ${sigStr}${flaggedUnusual.length>4?" + "+(flaggedUnusual.length-4)+" more":""}.`);
+    }
+
+    // Zone lean (keep it short)
+    const abovePct = Math.round((aboveN/(allItems.length||1))*100);
+    const belowPct = Math.round((belowN/(allItems.length||1))*100);
+    if(Math.abs(abovePct - belowPct) >= 5){
+      parts.push(`Zone: ${belowPct > abovePct ? "bearish" : "bullish"} lean (${abovePct}% above, ${belowPct}% below).`);
+    }
+
+    return parts.length > 0 ? parts.join(" ") : null;
+  })();
+
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+
+      {/* ── Summary Narrative ────────────────────────────────────── */}
+      {narrative && (
+      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"12px 16px"}}>
+        <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
+          textTransform:"uppercase",marginBottom:6}}>📋 Dark Pool Intelligence — {D.meta.dateRange||"Selected Period"}</div>
+        <div style={{fontSize:12,color:C.tx2,lineHeight:1.65,fontFamily:"'Instrument Sans', system-ui, sans-serif"}}>
+          {narrative}
+        </div>
+      </div>
+      )}
 
       {/* ── Row 1: Stat Cards ────────────────────────────────────── */}
-      <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8}}>
         <StatCard icon="💰" label="Total Flow" color={C.cyan}
           value={D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(1)}B`}
           sub={`${D.meta.tradingDays} trading days`}/>
@@ -684,13 +758,13 @@ function OverviewPane({onJumpTo}){
       })()}
 
       {/* ── Row 3: Category Bars + Biggest Prints ────────────────── */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <CategoryBars categories={D.categories} onJumpTo={onJumpTo}/>
         <BiggestPrintsPanel/>
       </div>
 
       {/* ── Row 4: Above / Below zone panels ─────────────────────── */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
 
         {/* Above zone */}
         <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
@@ -1557,21 +1631,20 @@ export default function DarkPool(){
       `}</style>
 
       {/* Header */}
-      <div style={{background:C.bg2,borderBottom:`1px solid ${C.bdr}`,padding:"14px 20px"}}>
+      <div style={{background:C.bg2,borderBottom:`1px solid ${C.bdr}`,padding:"12px 20px"}}>
         {/* Title row */}
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-          <span style={{width:10,height:10,borderRadius:"50%",background:C.green,
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
+          <span style={{width:8,height:8,borderRadius:"50%",background:C.green,
             boxShadow:`0 0 6px ${C.green}`,display:"inline-block",flexShrink:0}}/>
-          <span style={{fontSize:22,fontWeight:800,color:C.tx,letterSpacing:"0.02em",
+          <span style={{fontSize:18,fontWeight:800,color:C.tx,letterSpacing:"0.02em",
             fontFamily:"'Instrument Sans', system-ui, sans-serif"}}>DARK POOL SCANNER</span>
-        </div>
-        {/* Subtitle */}
-        <div style={{fontSize:12,color:C.tx3,marginBottom:14,paddingLeft:18}}>
-          {D.meta?.dateRange??""} · {D.meta?.tradingDays??""} trading days · {(D.meta?.totalTrades??0).toLocaleString()} block trades · {(D.meta?.totalTickers??0).toLocaleString()} tickers ·{" "}
-          <span style={{color:C.cyan}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} total flow</span>
+          <span style={{fontSize:11,color:C.tx3,marginLeft:4}}>
+            · {D.meta?.tradingDays??""} trading days · {(D.meta?.totalTrades??0).toLocaleString()} block trades · {(D.meta?.totalTickers??0).toLocaleString()} tickers ·{" "}
+            <span style={{color:C.cyan}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</span>
+          </span>
         </div>
         {/* Zone cards */}
-        <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,auto)",gap:8,marginTop:10,justifyContent:"start"}}>
           {[
             {label:`SPY ${D.meta?.tradingDays??30}-DAY ZONE`,item:spyItem},
             {label:`QQQ ${D.meta?.tradingDays??30}-DAY ZONE`,item:qqqItem},
@@ -1579,28 +1652,26 @@ export default function DarkPool(){
           ].filter(x=>x.item).map(({label,item})=>{
             const c=zC(item.last,item.lo,item.hi);
             return (
-              <div key={label} style={{background:C.bg4,border:`1px solid ${C.bdr}`,
-                borderRadius:8,padding:"10px 16px",minWidth:160}}>
-                <div style={{fontSize:10,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
-                  textTransform:"uppercase",marginBottom:4}}>{label}</div>
-                <div style={{fontSize:24,fontWeight:800,color:c,
+              <div key={label} style={{background:C.bg,border:`1px solid ${C.bdr}`,
+                borderRadius:6,padding:"8px 14px"}}>
+                <div style={{fontSize:9,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
+                  textTransform:"uppercase",marginBottom:2}}>{label}</div>
+                <div style={{fontSize:20,fontWeight:800,color:c,
                   fontFamily:"'Instrument Sans', sans-serif",lineHeight:1}}>{fP(item.last)}</div>
-                <div style={{fontSize:11,color:C.tx3,marginTop:4,
-                  fontFamily:"'Instrument Sans', sans-serif"}}>
+                <div style={{fontSize:10,color:C.tx3,marginTop:3}}>
                   Zone {fP(item.lo)} – {fP(item.hi)}
                 </div>
               </div>
             );
           })}
           {/* Period card */}
-          <div style={{background:C.bg4,border:`1px solid ${C.bdr}`,borderRadius:8,
-            padding:"10px 16px",minWidth:140}}>
-            <div style={{fontSize:10,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
-              textTransform:"uppercase",marginBottom:4}}>PERIOD</div>
-            <div style={{fontSize:24,fontWeight:800,color:C.amber,
-              fontFamily:"'Instrument Sans', sans-serif",lineHeight:1}}>{D.meta?.tradingDays??""} <span style={{fontSize:14}}>days</span></div>
-            <div style={{fontSize:11,color:C.tx3,marginTop:4,
-              fontFamily:"'Instrument Sans', sans-serif"}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</div>
+          <div style={{background:C.bg,border:`1px solid ${C.bdr}`,borderRadius:6,
+            padding:"8px 14px"}}>
+            <div style={{fontSize:9,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
+              textTransform:"uppercase",marginBottom:2}}>PERIOD</div>
+            <div style={{fontSize:20,fontWeight:800,color:C.amber,
+              fontFamily:"'Instrument Sans', sans-serif",lineHeight:1}}>{D.meta?.tradingDays??""} <span style={{fontSize:12}}>days</span></div>
+            <div style={{fontSize:10,color:C.tx3,marginTop:3}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</div>
           </div>
         </div>
       </div>
@@ -1787,7 +1858,7 @@ export default function DarkPool(){
       </div>
 
       {/* Content */}
-      <div style={{padding:"18px 20px",maxWidth:1400,margin:"0 auto"}}>
+      <div style={{padding:"14px 20px",maxWidth:1400,margin:"0 auto"}}>
         {tab==="overview" && <OverviewPane onJumpTo={handleJumpTo}/>}
         {tab==="category" && <CategoryPaneWrapper jump={catJump} onJumpDone={()=>setCatJump(null)}/>}
         {tab==="above"    && <AbovePane/>}
