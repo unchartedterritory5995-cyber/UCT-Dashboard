@@ -26,17 +26,17 @@ function parseCSV(text) {
   }).filter(r => Object.values(r).some(v => v));
 }
 
-// ── colours ─────────────────────────────────────────────────────────────────
+// ── colours (matched to OptionsFlow dashboard palette) ─────────────────────
 const C = {
-  bg:"#0b1120", bg2:"#111a2e", bg3:"#0f1729", bg4:"#111d33", bgH:"#162240",
-  bdr:"#1b2a45", bdr2:"#243352",
-  tx:"#e8ecf4", tx2:"#7a8ba8", tx3:"#4a5d7a",
-  blue:"#4e9fff", green:"#2dd4a0", red:"#ff5c72", amber:"#ffb347",
-  cyan:"#22d3ee", purple:"#a78bfa", pink:"#f472b6", orange:"#fb923c",
+  bg:"#0e0f0d", bg2:"#1a1c17", bg3:"#22251e", bg4:"#1a1c17", bgH:"#2a2d23",
+  bdr:"#2e3127", bdr2:"#3a3d32",
+  tx:"#e0dac8", tx2:"#a8a290", tx3:"#706b5e",
+  blue:"#6ba3be", green:"#3cb868", red:"#e74c3c", amber:"#c9a84c",
+  cyan:"#6ba3be", purple:"#a78bfa", pink:"#c97a8b", orange:"#c9844c",
 };
 const CAT_COLORS = {
-  "Indexes":"#4e9fff","Large Cap":"#a78bfa","Mid Cap":"#ffb347","Small Cap":"#ff5c72",
-  "Sector ETFs":"#2dd4a0","Bond ETFs":"#22d3ee","Intl/EM ETFs":"#f472b6","Commodity ETFs":"#fb923c"
+  "Indexes":"#6ba3be","Large Cap":"#a78bfa","Mid Cap":"#c9a84c","Small Cap":"#e74c3c",
+  "Sector ETFs":"#3cb868","Bond ETFs":"#6ba3be","Intl/EM ETFs":"#c97a8b","Commodity ETFs":"#c9844c"
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ function fmt(n){
   return "$"+n;
 }
 function fP(p){ return p!=null?"$"+p.toFixed(2):"—"; }
-function zC(p,lo,hi){ return p>hi?C.green:p<lo?C.red:"#c8d4e4"; }
+function zC(p,lo,hi){ return p>hi?C.green:p<lo?C.red:"#a8a290"; }
 function pctFmt(p){ return p===0?"IN":(p>0?"+":"")+p.toFixed(2)+"%"; }
 
 // ── Sparkline ────────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ function Sparkline({it, w=140, h=36}){
   const zoneY1=y(hi), zoneY2=y(lo);
   const polyline = pts.map((pt,i)=>x(i)+","+y(pt.p)).join(" ");
   const lastP=pts[pts.length-1].p;
-  const lineColor=lastP>hi?C.green:lastP<lo?C.red:"#8899aa";
+  const lineColor=lastP>hi?C.green:lastP<lo?C.red:"#a8a290";
 
   // Big print level — clamp to visible range
   const bp = it.bigPrint;
@@ -77,22 +77,22 @@ function Sparkline({it, w=140, h=36}){
     <svg width={w} height={h} style={{display:"block"}}>
       {/* DP zone band */}
       <rect x={P} y={zoneY1} width={w-P*2} height={Math.max(0,zoneY2-zoneY1)}
-        fill="#22d3ee11" stroke="none"/>
-      <line x1={P} y1={y(lo)} x2={w-P} y2={y(lo)} stroke="#22d3ee33" strokeWidth={0.5}/>
-      <line x1={P} y1={y(hi)} x2={w-P} y2={y(hi)} stroke="#22d3ee33" strokeWidth={0.5}/>
+        fill="#6ba3be11" stroke="none"/>
+      <line x1={P} y1={y(lo)} x2={w-P} y2={y(lo)} stroke="#6ba3be33" strokeWidth={0.5}/>
+      <line x1={P} y1={y(hi)} x2={w-P} y2={y(hi)} stroke="#6ba3be33" strokeWidth={0.5}/>
 
       {/* Largest print level — amber zone */}
       {bpY!=null && (
         <>
           {/* Thick zone band */}
           <rect x={P} y={bpY - bpThick/2} width={w-P*2} height={bpThick}
-            fill="#ffb34733" stroke="none" rx={1}/>
+            fill="#c9a84c33" stroke="none" rx={1}/>
           {/* Center line */}
           <line x1={P} y1={bpY} x2={w-P} y2={bpY}
-            stroke="#ffb347" strokeWidth={1.5} strokeDasharray="3,2" opacity={0.9}/>
+            stroke="#c9a84c" strokeWidth={1.5} strokeDasharray="3,2" opacity={0.9}/>
           {/* Left anchor tick */}
           <line x1={P} y1={bpY-4} x2={P} y2={bpY+4}
-            stroke="#ffb347" strokeWidth={2} opacity={0.9}/>
+            stroke="#c9a84c" strokeWidth={2} opacity={0.9}/>
         </>
       )}
 
@@ -143,7 +143,7 @@ function TickerCell({it, catColor}){
 // ── Zone display ──────────────────────────────────────────────────────────────
 function ZoneCell({it}){
   const pos=it.pos;
-  const color=pos==="above"?C.green:pos==="below"?C.red:"#8899aa";
+  const color=pos==="above"?C.green:pos==="below"?C.red:"#a8a290";
   const pct=pos==="in"?"IN ZONE":(pos==="above"?"+":"")+it.pct.toFixed(2)+"%";
   return (
     <span style={{color,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif",fontSize:13}}>
@@ -204,18 +204,49 @@ function CatPill({cat}){
   );
 }
 
+// ── Signal badges ────────────────────────────────────────────────────────────
+const SIG_COLORS={
+  YEARLY_RECORD:"#c9a84c", MONTHLY_RECORD:"#3cb868", NOTIONAL_SPIKE:"#e74c3c",
+  RARE_FLOW:"#6ba3be", SIZE_ESCALATION:"#a78bfa", ZONE_BREAK_RECORD:"#c9a84c",
+};
+function SignalBadges({signals,compact}){
+  if(!signals||signals.length===0) return null;
+  if(compact) return (
+    <span style={{display:"inline-flex",gap:2,marginLeft:4}}>
+      {signals.map(s=>(
+        <span key={s.type} title={s.label+(s.mult?" ("+s.mult+"×)":"")+(s.days?" ("+s.days+"d)":"")}
+          style={{fontSize:9,cursor:"default"}}>{s.icon}</span>
+      ))}
+    </span>
+  );
+  return (
+    <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+      {signals.map(s=>{
+        const color=SIG_COLORS[s.type]||C.amber;
+        return (
+          <span key={s.type} style={{fontSize:9,padding:"2px 7px",borderRadius:10,
+            background:color+"18",color,fontWeight:700,whiteSpace:"nowrap",
+            border:`1px solid ${color}33`}}>
+            {s.icon} {s.label}{s.mult?" "+s.mult+"×":""}{s.days?" "+s.days+"d":""}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Big Print cell (proper component so hooks are legal) ─────────────────────
 
 // ── Flow table ────────────────────────────────────────────────────────────────
 const TH = ({children,style={}}) => (
   <th style={{padding:"8px 10px",textAlign:"left",fontSize:11,
-    color:"#4a5d7a",fontWeight:600,borderBottom:"1px solid #1b2a45",
-    position:"sticky",top:0,background:"#0f1729",whiteSpace:"nowrap",...style}}>
+    color:"#706b5e",fontWeight:600,borderBottom:"1px solid #2e3127",
+    position:"sticky",top:0,background:"#22251e",whiteSpace:"nowrap",...style}}>
     {children}
   </th>
 );
 const TD = ({children,style={}}) => (
-  <td style={{padding:"7px 10px",borderBottom:"1px solid #1b2a4533",
+  <td style={{padding:"7px 10px",borderBottom:"1px solid #2e312733",
     verticalAlign:"middle",...style}}>
     {children}
   </td>
@@ -323,7 +354,7 @@ function ZoneGauge({above,inside,below}){
         textTransform:"uppercase",marginBottom:10}}>Zone Positioning</div>
       <div style={{display:"flex",gap:3,alignItems:"flex-start"}}>
         {seg(above,pA,C.green,"Above","flex-start")}
-        {seg(inside,pI,"#556b8a","Inside","center")}
+        {seg(inside,pI,"#706b5e","Inside","center")}
         {seg(below,pB,C.red,"Below","flex-end")}
       </div>
     </div>
@@ -379,11 +410,11 @@ function BiggestPrintsPanel(){
   ];
   const ETF_CATS=new Set(["Sector ETFs","Bond ETFs","Intl/EM ETFs","Commodity ETFs"]);
 
-  const universe=useMemo(()=>{
+  const universe=(()=>{
     const map={};
     for(const cat of D.categories) for(const it of cat.items) if(it.bigPrintN>0) map[it.t]=it;
     return Object.values(map);
-  },[]);
+  })();
 
   const filtered=useMemo(()=>{
     let items=universe;
@@ -473,6 +504,7 @@ function BiggestPrintsPanel(){
                 width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
               <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
                 fontSize:12,color:cc}}>{it.t}</span>
+              <SignalBadges signals={it.signals} compact/>
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
               <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.amber,
@@ -506,7 +538,7 @@ function OverviewPane({onJumpTo}){
   );
 
   // Compute zone counts across ALL tickers
-  const {aboveN,insideN,belowN,allItems}=useMemo(()=>{
+  const {aboveN,insideN,belowN,allItems}=(()=>{
     const map={};
     for(const cat of D.categories) for(const it of cat.items) map[it.t]=it;
     const items=Object.values(map);
@@ -516,7 +548,7 @@ function OverviewPane({onJumpTo}){
       belowN:items.filter(i=>i.pos==="below").length,
       allItems:items,
     };
-  },[]);
+  })();
 
   // Net sentiment: bull/bear lean
   const netLean=aboveN-belowN;
@@ -604,6 +636,52 @@ function OverviewPane({onJumpTo}){
 
       {/* ── Row 2: Zone Gauge ────────────────────────────────────── */}
       <ZoneGauge above={aboveN} inside={insideN} below={belowN}/>
+
+      {/* ── Row 2.5: Notable Activity (signal flags) ─────────────── */}
+      {(()=>{
+        const flagged=allItems.filter(i=>i.signals&&i.signals.length>0)
+          .sort((a,b)=>b.signals.length-a.signals.length||b.bigPrintN-a.bigPrintN);
+        if(flagged.length===0) return null;
+        return (
+          <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
+              textTransform:"uppercase",marginBottom:10}}>🔥 Notable Activity — {flagged.length} ticker{flagged.length!==1?"s":""} flagged</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {flagged.slice(0,8).map(it=>{
+                const cc=CAT_COLORS[it.cat]||C.tx;
+                const bpPct=it.bigPrint>0?((it.last-it.bigPrint)/it.bigPrint*100):null;
+                const bpColor=bpPct==null?C.tx3:bpPct>0?C.green:bpPct<0?C.red:C.tx3;
+                return (
+                  <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+                    padding:"6px 8px",borderRadius:6,background:C.bg+"88",
+                    border:`1px solid ${C.bdr}44`}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flex:"0 0 auto"}}>
+                      <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
+                        fontSize:13,color:cc,minWidth:48}}>{it.t}</span>
+                      <CatPill cat={it.cat}/>
+                      <SignalBadges signals={it.signals}/>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:12}}>
+                      <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.tx2}}>
+                        {fP(it.last)}
+                      </span>
+                      <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.amber,fontWeight:600}}>
+                        BP {fP(it.bigPrint)}
+                      </span>
+                      <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.cyan,fontWeight:700}}>
+                        {fmt(it.bigPrintN)}
+                      </span>
+                      <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,fontWeight:700,color:bpColor}}>
+                        {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Row 3: Category Bars + Biggest Prints ────────────────── */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -887,14 +965,14 @@ function SearchResultsTable({items}){
 
 function SearchModal({onClose}){
   const [query,setQuery]=useState("");
-  const allItems = useMemo(()=>{
+  const allItems = (()=>{
     const map={};
     for(const cat of D.categories) for(const it of cat.items) map[it.t]=it;
     for(const it of D.above) map[it.t]=it;
     for(const it of D.below) map[it.t]=it;
     for(const it of D.unusual) map[it.t]=it;
     return Object.values(map);
-  },[]);
+  })();
   const top5 = useMemo(()=>allItems.slice().sort((a,b)=>b.n-a.n).slice(0,20),[allItems]);
   const results = useMemo(()=>{
     if(!query||query.length<1) return [];
@@ -1151,7 +1229,74 @@ function parseCSVtoD(rows){
 
     const cat=classifyTicker(tk,totalN,numDates);
     const avg30=tickerAvg30[tk]||0;
-    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDate,bigPrintPctAvgVol,avg30});
+    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDk,bigPrintDate,bigPrintPctAvgVol,avg30,signals:[]});
+  }
+
+  // ── Signal Detection (tight thresholds — only truly unusual prints) ─────────
+  const sortedDateKeys = allDates.map(fmtDateKey);
+  const last2Set = new Set(sortedDateKeys.slice(-2));
+  const lastDateKey = sortedDateKeys[sortedDateKeys.length-1];
+
+  for(const item of itemsAll){
+    const signals=[];
+    const tk=item.t;
+    const trades=tickerTrades[tk]||[];
+    const activeDays=tickerDaily[tk]||{};
+    const activeDateKeys=Object.keys(activeDays).sort();
+
+    // Daily max single print per day
+    const dailyMax={};
+    for(const tr of trades){ if(!dailyMax[tr.dk]||tr.n>dailyMax[tr.dk]) dailyMax[tr.dk]=tr.n; }
+
+    // Recent biggest print (last 2 trading days) for this ticker
+    const recentBiggest=Math.max(0,...Object.entries(dailyMax).filter(([dk])=>last2Set.has(dk)).map(([,n])=>n));
+
+    // 1. YEARLY_RECORD — recent print is biggest this ticker has seen across ALL prior data
+    const allPriorMax=Math.max(0,...Object.entries(dailyMax).filter(([dk])=>!last2Set.has(dk)).map(([,n])=>n));
+    if(recentBiggest>=50_000_000 && allPriorMax>0 && recentBiggest>allPriorMax && activeDateKeys.length>=10){
+      signals.push({type:"YEARLY_RECORD",icon:"👑",label:"Yearly Record",mult:+(recentBiggest/allPriorMax).toFixed(1)});
+    }
+
+    // 2. MONTHLY_RECORD — recent print is biggest in last 20 trading days (but not yearly record)
+    const last20Set=new Set(sortedDateKeys.slice(-20));
+    const prior20Set=new Set(sortedDateKeys.slice(0,Math.max(0,sortedDateKeys.length-2)).filter(dk=>last20Set.has(dk)));
+    const monthly20Max=Math.max(0,...Object.entries(dailyMax).filter(([dk])=>prior20Set.has(dk)).map(([,n])=>n));
+    if(recentBiggest>=50_000_000 && monthly20Max>0 && recentBiggest>monthly20Max
+      && !signals.some(s=>s.type==="YEARLY_RECORD") && activeDateKeys.length>=5){
+      signals.push({type:"MONTHLY_RECORD",icon:"🏆",label:"Monthly Record",mult:+(recentBiggest/monthly20Max).toFixed(1)});
+    }
+
+    // 3. NOTIONAL_SPIKE — last day's total notional ≥3× avg, min $100M last day
+    const lastDayN=activeDays[lastDateKey]?.notional||0;
+    const priorNots=activeDateKeys.filter(dk=>dk!==lastDateKey).map(dk=>activeDays[dk].notional);
+    const avgPrior=priorNots.length>=3?priorNots.reduce((s,n)=>s+n,0)/priorNots.length:0;
+    if(lastDayN>=100_000_000 && avgPrior>0 && lastDayN>=3*avgPrior){
+      signals.push({type:"NOTIONAL_SPIKE",icon:"🔥",label:"Volume Surge",mult:+(lastDayN/avgPrior).toFixed(1)});
+    }
+
+    // 4. RARE_FLOW — only appeared in last 2 dates, dataset has 20+ dates
+    const recentCount=activeDateKeys.filter(dk=>last2Set.has(dk)).length;
+    const olderCount=activeDateKeys.filter(dk=>!last2Set.has(dk)).length;
+    if(recentCount>0 && olderCount===0 && sortedDateKeys.length>=20 && item.bigPrintN>=20_000_000){
+      signals.push({type:"RARE_FLOW",icon:"🆕",label:"New Flow"});
+    }
+
+    // 5. SIZE_ESCALATION — 4+ consecutive days, each ≥25% bigger than prior
+    const recentDailyArr=sortedDateKeys.filter(dk=>dailyMax[dk]!=null).slice(-6).map(dk=>dailyMax[dk]);
+    if(recentDailyArr.length>=4){
+      let streak=1;
+      for(let i=recentDailyArr.length-1;i>0;i--){
+        if(recentDailyArr[i]>recentDailyArr[i-1]*1.25) streak++; else break;
+      }
+      if(streak>=4) signals.push({type:"SIZE_ESCALATION",icon:"⬆️",label:"Escalating",days:streak});
+    }
+
+    // 6. ZONE_BREAK_RECORD — outside zone + has record signal
+    if(item.pos!=="inside" && signals.some(s=>s.type==="YEARLY_RECORD"||s.type==="MONTHLY_RECORD")){
+      signals.push({type:"ZONE_BREAK_RECORD",icon:"💥",label:"Zone Break"});
+    }
+
+    item.signals=signals;
   }
 
   // Categories
@@ -1226,39 +1371,135 @@ function parseCSVtoD(rows){
   };
 }
 
+// ── Date helpers ──────────────────────────────────────────────────────────────
+const mdyToIso = (mdy) => {
+  const p = mdy.split("/").map(Number);
+  if (p.length < 3) return "";
+  const y = p[2] < 100 ? p[2] + 2000 : p[2];
+  return `${y}-${String(p[0]).padStart(2,"0")}-${String(p[1]).padStart(2,"0")}`;
+};
+const isoToDate = (iso) => { const p = iso.split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); };
+const mdyToDate = (mdy) => { const p = mdy.split("/").map(Number); const y = p.length>=3?(p[2]<100?p[2]+2000:p[2]):new Date().getFullYear(); return new Date(y, p[0]-1, p[1]||1); };
+const fmtDatePill = (dateStr) => {
+  const parts = dateStr.split("/").map(Number);
+  const y = parts.length >= 3 ? (parts[2] < 100 ? parts[2] + 2000 : parts[2]) : new Date().getFullYear();
+  const d = new Date(y, parts[0] - 1, parts[1] || 1);
+  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  return days[d.getDay()] + " " + parts[0] + "/" + (parts[1] || 1);
+};
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function DarkPool(){
   const [dpData,setDpData]=useState(null);
   const [loadErr,setLoadErr]=useState(null);
-  const [loadStatus,setLoadStatus]=useState("Loading CSV…");
+  const [loadStatus,setLoadStatus]=useState("Loading…");
+  const [parsedRows,setParsedRows]=useState(null);
 
-  useEffect(()=>{
-    setLoadStatus("Fetching Darkpool-data.csv…");
-    fetch("/Darkpool-data.csv")
-      .then(r=>{
-        if(!r.ok) throw new Error("HTTP "+r.status+" — check Darkpool-data.csv is in app/public");
+  // Date picker state (matches OptionsFlow pattern)
+  const [dateFilter,setDateFilter]=useState("Last1");
+  const [fetchDays,setFetchDays]=useState(1);
+  const [dateFrom,setDateFrom]=useState("");
+  const [dateTo,setDateTo]=useState("");
+  const [showCal,setShowCal]=useState(false);
+  const [calMonth,setCalMonth]=useState(new Date().getMonth());
+  const [calYear,setCalYear]=useState(new Date().getFullYear());
+  const [calStart,setCalStart]=useState(null);
+  const calRef=useRef(null);
+  const [csvLoading,setCsvLoading]=useState(true);
+
+  const csvFile = fetchDays === 0
+    ? "/api/darkpool/data?all_data=true"
+    : `/api/darkpool/data?days=${fetchDays}`;
+
+  // Extract unique dates from parsed rows
+  const availableDates = useMemo(() => {
+    if (!parsedRows || parsedRows.length === 0) return [];
+    const dateSet = new Set();
+    parsedRows.forEach(r => { if (r.Date) dateSet.add(r.Date.trim()); });
+    return [...dateSet].sort((a, b) => {
+      const pa = a.split("/").map(Number);
+      const pb = b.split("/").map(Number);
+      const ya = pa.length >= 3 ? (pa[2] < 100 ? pa[2] + 2000 : pa[2]) : new Date().getFullYear();
+      const yb = pb.length >= 3 ? (pb[2] < 100 ? pb[2] + 2000 : pb[2]) : new Date().getFullYear();
+      return new Date(ya, pa[0]-1, pa[1]||1) - new Date(yb, pb[0]-1, pb[1]||1);
+    });
+  }, [parsedRows]);
+
+  const tradingDaysSet = useMemo(() => new Set(availableDates.map(d => mdyToIso(d))), [availableDates]);
+
+  // Close calendar on click outside
+  useEffect(() => {
+    if (!showCal) return;
+    const handler = (e) => { if (calRef.current && !calRef.current.contains(e.target)) setShowCal(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showCal]);
+
+  // Process data whenever parsedRows or dateFilter changes
+  useEffect(() => {
+    if (!parsedRows || parsedRows.length === 0) return;
+    let filtered;
+    if (dateFrom && dateTo) {
+      const from = isoToDate(dateFrom);
+      const to = isoToDate(dateTo);
+      to.setHours(23,59,59);
+      filtered = parsedRows.filter(r => {
+        if (!r.Date) return false;
+        const d = mdyToDate(r.Date.trim());
+        return d >= from && d <= to;
+      });
+    } else if (dateFilter === "All") {
+      filtered = parsedRows;
+    } else if (dateFilter.startsWith("Last")) {
+      const n = parseInt(dateFilter.replace("Last",""))||1;
+      const recentDates = new Set(availableDates.slice(-n));
+      filtered = parsedRows.filter(r => r.Date && recentDates.has(r.Date.trim()));
+    } else {
+      filtered = parsedRows.filter(r => r.Date && r.Date.trim() === dateFilter);
+    }
+    if (filtered.length === 0) { setDpData(null); return; }
+    try {
+      const d = parseCSVtoD(filtered);
+      setDpData(d);
+    } catch(err) {
+      setLoadErr("Processing error: "+err.message);
+    }
+  }, [parsedRows, dateFilter, dateFrom, dateTo]);
+
+  // Fetch data from API
+  useEffect(() => {
+    let cancelled = false;
+    setCsvLoading(true);
+    setLoadErr(null);
+    setLoadStatus("Fetching dark pool data…");
+
+    fetch(csvFile + "&_t=" + Date.now())
+      .then(r => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
         const ct = r.headers.get("content-type") || "";
-        if(ct.includes("text/html")) throw new Error("Got HTML instead of CSV — file not found on server");
+        if (ct.includes("text/html")) throw new Error("Got HTML instead of CSV — API not found");
         return r.text();
       })
-      .then(text=>{
+      .then(text => {
+        if (cancelled) return;
         const trimmed = text.trim();
-        if(trimmed.startsWith("<!") || trimmed.startsWith("<html")) throw new Error("Got HTML instead of CSV — Darkpool-data.csv not found");
-        setLoadStatus("Parsing CSV…");
-        const rows = parseCSV(text);
-        if(!rows || rows.length===0) throw new Error("CSV parsed but contained 0 valid rows");
-        setLoadStatus("Processing "+rows.length.toLocaleString()+" rows…");
-        setTimeout(()=>{
-          try{
-            const d = parseCSVtoD(rows);
-            setDpData(d);
-          }catch(e){
-            setLoadErr("Processing error: "+e.message);
+        if (trimmed.startsWith("<!") || trimmed.startsWith("<html")) throw new Error("Got HTML — API route not found");
+        setLoadStatus("Parsing…");
+        setTimeout(() => {
+          if (cancelled) return;
+          try {
+            const rows = parseCSV(text);
+            if (!rows || rows.length === 0) throw new Error("No data returned");
+            setParsedRows(rows);
+            setCsvLoading(false);
+          } catch(err) {
+            if (!cancelled) { setLoadErr(err.message); setCsvLoading(false); }
           }
-        }, 50);
+        }, 0);
       })
-      .catch(e=>setLoadErr(e.message));
-  },[]);
+      .catch(e => { if (!cancelled) { setLoadErr(e.message); setCsvLoading(false); } });
+    return () => { cancelled = true; };
+  }, [csvFile]);
 
 
 
@@ -1274,41 +1515,45 @@ export default function DarkPool(){
 
   if(loadErr) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:"60vh",background:"#0b1120",color:"#ff5c72",fontFamily:"'Instrument Sans', sans-serif",
+      minHeight:"60vh",background:C.bg,color:C.red,fontFamily:"'Instrument Sans', sans-serif",
       flexDirection:"column",gap:12,padding:20}}>
       <div style={{fontSize:20,fontWeight:700}}>⚠ Failed to load data</div>
-      <div style={{fontSize:13,color:"#7a8ba8"}}>Attempted: <code style={{color:"#4e9fff"}}>/Darkpool-data.csv</code></div>
-      <div style={{fontSize:12,color:"#ff5c72",background:"#1a0f14",border:"1px solid #ff5c7244",
+      <div style={{fontSize:13,color:C.tx2}}>Attempted: <code style={{color:C.blue}}>{csvFile}</code></div>
+      <div style={{fontSize:12,color:C.red,background:C.bg2,border:`1px solid ${C.red}44`,
         borderRadius:8,padding:"8px 16px",maxWidth:480,textAlign:"center"}}>
         {loadErr}
       </div>
-      <div style={{fontSize:11,color:"#4a5d7a"}}>Make sure Darkpool-data.csv is in app/public/ and redeployed.</div>
+      <div style={{fontSize:11,color:C.tx3}}>Check that darkpool_router is mounted and DB has data.</div>
     </div>
   );
 
   if(!dpData) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:"100vh",background:"#0b1120",color:"#4e9fff",fontFamily:"'Instrument Sans', sans-serif",
+      minHeight:"100vh",background:C.bg,color:C.blue,fontFamily:"'Instrument Sans', sans-serif",
       flexDirection:"column",gap:16}}>
-      <div style={{width:40,height:40,border:"3px solid #1b2a45",
-        borderTop:"3px solid #4e9fff",borderRadius:"50%",
+      <div style={{width:40,height:40,border:`3px solid ${C.bdr}`,
+        borderTop:`3px solid ${C.amber}`,borderRadius:"50%",
         animation:"spin 0.8s linear infinite"}}/>
-      <div style={{fontSize:14,color:"#7a8ba8"}}>{loadStatus}</div>
+      <div style={{fontSize:14,color:C.tx2}}>{loadStatus}</div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
   D = dpData;
 
+  // Find index tickers by name (not array position)
+  const spyItem = D.categories.find(c=>c.name==="Indexes")?.items.find(i=>i.t==="SPY");
+  const qqqItem = D.categories.find(c=>c.name==="Indexes")?.items.find(i=>i.t==="QQQ");
+  const iwmItem = D.categories.find(c=>c.name==="Indexes")?.items.find(i=>i.t==="IWM");
+
   return (
     <div style={{background:C.bg,minHeight:"100vh",color:C.tx,
       fontFamily:"'Instrument Sans', system-ui, sans-serif",fontSize:13}}>
-      {/* Global font import */}
       <style>{`
-::-webkit-scrollbar{width:6px;height:6px}
-        ::-webkit-scrollbar-track{background:#0b1120}
-        ::-webkit-scrollbar-thumb{background:#243352;border-radius:3px}
-        input:focus{border-color:#4e9fff !important}
+        ::-webkit-scrollbar{width:6px;height:6px}
+        ::-webkit-scrollbar-track{background:${C.bg}}
+        ::-webkit-scrollbar-thumb{background:${C.bdr2};border-radius:3px}
+        input:focus{border-color:${C.amber} !important}
       `}</style>
 
       {/* Header */}
@@ -1328,9 +1573,9 @@ export default function DarkPool(){
         {/* Zone cards */}
         <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
           {[
-            {label:`SPY ${D.meta?.tradingDays??30}-DAY ZONE`,item:D.categories[0]?.items[0]},
-            {label:`QQQ ${D.meta?.tradingDays??30}-DAY ZONE`,item:D.categories[0]?.items[1]},
-            {label:`IWM ${D.meta?.tradingDays??30}-DAY ZONE`,item:D.categories[0]?.items[4]},
+            {label:`SPY ${D.meta?.tradingDays??30}-DAY ZONE`,item:spyItem},
+            {label:`QQQ ${D.meta?.tradingDays??30}-DAY ZONE`,item:qqqItem},
+            {label:`IWM ${D.meta?.tradingDays??30}-DAY ZONE`,item:iwmItem},
           ].filter(x=>x.item).map(({label,item})=>{
             const c=zC(item.last,item.lo,item.hi);
             return (
@@ -1360,6 +1605,160 @@ export default function DarkPool(){
         </div>
       </div>
 
+      {/* ── Date Picker Bar ──────────────────────────────────────── */}
+      {availableDates.length > 0 && (
+        <div style={{ display:"flex", justifyContent:"center", padding:"8px 20px", background:C.bg3, borderBottom:`1px solid ${C.bdr}` }}>
+          <div style={{ display:"flex", gap:4, alignItems:"center", background:C.bg2, borderRadius:6, padding:4, border:`1px solid ${C.bdr}`, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
+            {[
+              { key:"Last1", label:"1d", days:1 },
+              { key:"Last5", label:"5d", days:5 },
+              { key:"Last20", label:"20d", days:20 },
+              { key:"Last60", label:"60d", days:60 },
+              { key:"Last90", label:"90d", days:90 },
+              { key:"All", label:"All", days:0 },
+            ].map(({key, label, days}) => {
+              const filterKey = days === 0 ? "All" : "Last" + days;
+              const isActive = !dateFrom && !dateTo && dateFilter === filterKey;
+              const needsFetch = days === 0 ? fetchDays !== 0 : days > fetchDays && fetchDays !== 0;
+              return (
+                <button key={key} onClick={()=>{
+                  if (needsFetch) setFetchDays(days);
+                  setDateFilter(filterKey);
+                  setDateFrom(""); setDateTo(""); setShowCal(false); setCalStart(null);
+                }} style={{
+                  padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit",
+                  background:isActive?C.bg3:"transparent",
+                  color:isActive?(key==="All"?C.amber:C.tx):C.tx2,
+                  transition:"all 0.15s"
+                }}>
+                  {label}
+                </button>
+              );
+            })}
+            <span style={{ width:1, height:16, background:C.bdr }}/>
+            <button onClick={()=>{
+              if (!showCal) {
+                const last = availableDates[availableDates.length-1];
+                if (last) { const d = mdyToDate(last); setCalMonth(d.getMonth()); setCalYear(d.getFullYear()); }
+              }
+              setShowCal(!showCal); setCalStart(null);
+            }} style={{
+              padding:"5px 12px", borderRadius:4, border:`1px solid ${dateFrom&&dateTo?C.amber:C.bdr}`,
+              cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+              background:dateFrom&&dateTo?C.amber+"22":showCal?C.bg3:"transparent",
+              color:dateFrom&&dateTo?C.amber:showCal?C.tx:C.tx2, transition:"all 0.15s"
+            }}>
+              {dateFrom && dateTo
+                ? `${dateFrom.slice(5).replace("-","/")} → ${dateTo.slice(5).replace("-","/")}`
+                : "📅 Dates"}
+            </button>
+            {dateFrom && dateTo && (
+              <button onClick={()=>{ setDateFrom(""); setDateTo(""); setDateFilter("Last1"); setShowCal(false); setCalStart(null); }}
+                style={{ background:"transparent", border:"none", color:C.tx3, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}>✕</button>
+            )}
+            <span style={{ fontSize:9, color:C.tx3 }}>
+              {csvLoading ? "Loading..." : dateFrom && dateTo
+                ? (() => { const n = availableDates.filter(d => { const iso = mdyToIso(d); return iso >= dateFrom && iso <= dateTo; }).length; return n + " trading day" + (n!==1?"s":""); })()
+                : (() => { const n = dateFilter.startsWith("Last") ? Math.min(parseInt(dateFilter.replace("Last",""))||1, availableDates.length) : availableDates.length; return n + " trading day" + (n!==1?"s":""); })()}
+            </span>
+
+            {/* Calendar dropdown */}
+            {showCal && (
+              <div ref={calRef} style={{
+                position:"absolute", top:"100%", right:0, marginTop:6, zIndex:999,
+                background:C.bg2, border:`1px solid ${C.bdr2}`, borderRadius:10, padding:14,
+                boxShadow:"0 8px 32px rgba(0,0,0,0.6)", minWidth:290
+              }}>
+                <div style={{ display:"flex", gap:4, marginBottom:10, flexWrap:"wrap" }}>
+                  {[
+                    { label:"Today", fn:()=>{ const d=availableDates[availableDates.length-1]; if(d){const iso=mdyToIso(d); setDateFrom(iso); setDateTo(iso); if(fetchDays!==0)setFetchDays(0); setShowCal(false);} }},
+                    { label:"This Week", fn:()=>{ const last=availableDates[availableDates.length-1]; if(!last)return; const ld=mdyToDate(last); const mon=new Date(ld); mon.setDate(ld.getDate()-(ld.getDay()||7)+1); setDateFrom(mon.toISOString().slice(0,10)); setDateTo(mdyToIso(last)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                    { label:"Last Week", fn:()=>{ const now=new Date(); const mon=new Date(now); mon.setDate(now.getDate()-(now.getDay()||7)+1-7); const fri=new Date(mon); fri.setDate(mon.getDate()+4); setDateFrom(mon.toISOString().slice(0,10)); setDateTo(fri.toISOString().slice(0,10)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                    { label:"This Month", fn:()=>{ const now=new Date(); const f=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`; const last=availableDates[availableDates.length-1]; setDateFrom(f); setDateTo(last?mdyToIso(last):now.toISOString().slice(0,10)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                    { label:"Last Month", fn:()=>{ const now=new Date(); const pm=new Date(now.getFullYear(), now.getMonth()-1, 1); const f=`${pm.getFullYear()}-${String(pm.getMonth()+1).padStart(2,"0")}-01`; const lm=new Date(pm.getFullYear(), pm.getMonth()+1, 0); const t=`${lm.getFullYear()}-${String(lm.getMonth()+1).padStart(2,"0")}-${String(lm.getDate()).padStart(2,"0")}`; setDateFrom(f); setDateTo(t); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                  ].map(p => (
+                    <button key={p.label} onClick={p.fn} style={{
+                      padding:"4px 10px", borderRadius:4, border:`1px solid ${C.bdr}`,
+                      background:"transparent", color:C.tx2, fontSize:9, fontWeight:700,
+                      cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s"
+                    }}
+                      onMouseEnter={e=>{e.target.style.background=C.bg3; e.target.style.color=C.tx;}}
+                      onMouseLeave={e=>{e.target.style.background="transparent"; e.target.style.color=C.tx2;}}
+                    >{p.label}</button>
+                  ))}
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                  <button onClick={()=>{ if(calMonth===0){setCalMonth(11);setCalYear(calYear-1);}else setCalMonth(calMonth-1); }}
+                    style={{ background:"transparent", border:"none", color:C.tx2, cursor:"pointer", fontSize:14, fontFamily:"inherit", padding:"2px 8px" }}>◀</button>
+                  <span style={{ fontSize:12, fontWeight:700, color:C.tx }}>
+                    {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][calMonth]} {calYear}
+                  </span>
+                  <button onClick={()=>{ if(calMonth===11){setCalMonth(0);setCalYear(calYear+1);}else setCalMonth(calMonth+1); }}
+                    style={{ background:"transparent", border:"none", color:C.tx2, cursor:"pointer", fontSize:14, fontFamily:"inherit", padding:"2px 8px" }}>▶</button>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:4 }}>
+                  {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>(
+                    <div key={d} style={{ textAlign:"center", fontSize:8, fontWeight:700, color:C.tx3, padding:2 }}>{d}</div>
+                  ))}
+                </div>
+                {(()=>{
+                  const firstDay = new Date(calYear, calMonth, 1).getDay();
+                  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+                  const cells = [];
+                  for (let i=0; i<firstDay; i++) cells.push(null);
+                  for (let d=1; d<=daysInMonth; d++) cells.push(d);
+                  while (cells.length%7!==0) cells.push(null);
+                  return (
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1 }}>
+                      {cells.map((day, i) => {
+                        if (!day) return <div key={i} style={{ padding:4 }}/>;
+                        const iso = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                        const isTrading = tradingDaysSet.has(iso);
+                        const isWeekend = new Date(calYear, calMonth, day).getDay()%6===0;
+                        const isStart = dateFrom===iso;
+                        const isEnd = dateTo===iso;
+                        const inRange = dateFrom && dateTo && iso>=dateFrom && iso<=dateTo;
+                        return (
+                          <button key={i} onClick={()=>{
+                            if (!calStart) {
+                              setCalStart(iso); setDateFrom(iso); setDateTo("");
+                            } else {
+                              let from=calStart, to=iso;
+                              if (iso < calStart) { from=iso; to=calStart; }
+                              setDateFrom(from); setDateTo(to); setCalStart(null);
+                              if (fetchDays!==0) setFetchDays(0);
+                              setShowCal(false);
+                            }
+                          }} style={{
+                            padding:0, borderRadius:4, border:"none", cursor:"pointer",
+                            fontSize:10, fontWeight:isTrading?700:400, fontFamily:"inherit",
+                            background: isStart||isEnd ? C.amber : inRange ? C.amber+"33" : "transparent",
+                            color: isStart||isEnd ? C.bg : inRange ? C.amber : isTrading ? C.tx : isWeekend ? C.bdr : C.tx3+"88",
+                            minWidth:32, minHeight:32, display:"flex", alignItems:"center", justifyContent:"center",
+                            position:"relative", transition:"background 0.1s"
+                          }}
+                            onMouseEnter={e=>{ if(!inRange&&!isStart&&!isEnd) e.target.style.background=C.bg3; }}
+                            onMouseLeave={e=>{ if(!inRange&&!isStart&&!isEnd) e.target.style.background="transparent"; }}
+                          >
+                            {day}
+                            {isTrading && <span style={{ position:"absolute", bottom:2, left:"50%", transform:"translateX(-50%)", width:3, height:3, borderRadius:"50%", background:isStart||isEnd?C.bg:C.amber }}/>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+                <div style={{ marginTop:8, fontSize:9, color:C.tx3, textAlign:"left", paddingLeft:12 }}>
+                  {calStart && !dateTo ? "Click end date" : "Click to start selection"}
+                  {" · "}<span style={{ color:C.amber }}>●</span> trading day
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Tab bar */}
       <div style={{background:C.bg3,borderBottom:`1px solid ${C.bdr}`,
         padding:"0 20px",display:"flex",overflowX:"auto",gap:2,alignItems:"center"}}>
@@ -1368,8 +1767,8 @@ export default function DarkPool(){
           return (
             <button key={t.id} onClick={()=>setTab(t.id)}
               style={{padding:"10px 14px",background:"transparent",border:"none",
-                borderBottom:on?`2px solid ${C.blue}`:"2px solid transparent",
-                color:on?C.blue:C.tx2,fontWeight:on?700:400,fontSize:12,
+                borderBottom:on?`2px solid ${C.amber}`:"2px solid transparent",
+                color:on?C.amber:C.tx2,fontWeight:on?700:400,fontSize:12,
                 cursor:"pointer",whiteSpace:"nowrap",transition:"color 0.15s",
                 fontFamily:"'Instrument Sans', system-ui, sans-serif"}}>
               {t.label}
