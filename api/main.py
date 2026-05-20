@@ -68,6 +68,8 @@ from starlette.responses import JSONResponse as StarletteJSONResponse
 from api.gex_router import router as gex_router
 from api.watchlist_router import router as watchlist_router
 from api import watchlist_tracker as _watchlist_tracker
+from api.darkpool_router import router as darkpool_router
+app.include_router(darkpool_router)
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 
