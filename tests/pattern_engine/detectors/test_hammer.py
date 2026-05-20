@@ -142,9 +142,12 @@ def test_no_reversal_context_never_fires():
             "l": mid - 0.15, "c": mid + 0.10, "v": 1000.0,
         })
         t += DT
-    # Perfect hammer: body=0.20, lower_wick=1.20 (6x body), upper_wick=0.05
+    # Perfect hammer: body=0.20 (o=100.20→c=100.40), lower_wick=1.20 (6x body),
+    # upper_wick=0.05 (h=100.45 → 0.05 above close). Previously h=100.25 < c=100.40
+    # was invalid OHLC and caused _try_extract to reject the bar before the gate ran.
+    # With h=100.45 the geometry is valid: the gate (not the extractor) is what blocks it.
     bars_up.append({
-        "t": t, "o": 100.20, "h": 100.25, "l": 99.00, "c": 100.40, "v": 2000.0,
+        "t": t, "o": 100.20, "h": 100.45, "l": 99.00, "c": 100.40, "v": 2000.0,
     })
 
     uptrend_ctx = {

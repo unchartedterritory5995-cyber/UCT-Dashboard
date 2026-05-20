@@ -130,8 +130,13 @@ def test_no_context_mid_trend_never_fires():
       - trend_stage == 4   (57 declining bars + 7 flat → slope negative AND below long SMA)
       - is_swing_high == False   (pattern bars are at the bottom, not a swing high)
       - above_50sma == False     (price well below 50-bar SMA after long downtrend)
-      - _recent_advance_pct < 0.03   (tiny crows → no meaningful prior rally)
+      - _recent_advance_pct < 0.03   (monotone downtrend window → no meaningful prior rally)
     All three reversal+continuation predicates False → gate fires → detections == [].
+
+    Uses NORMAL-SIZE crows (rng = base * 0.014 ≈ realistic 3-bar bearish run) to prove
+    that the gate blocks under realistic anatomy, not just artificially tiny bars.
+    The corrected _recent_advance_pct excludes the 3 pattern bars from its window,
+    so in a monotone declining pre-window the (hi-lo)/lo fraction remains near 0.
     """
     price = 100.0
     bars = []
@@ -141,24 +146,29 @@ def test_no_context_mid_trend_never_fires():
         p = price * (0.9955 ** k)
         bars.append(_make_bar(k, p, p * 1.002, p * 0.998, p * 0.999))
 
-    # 7 flat bars at the bottom (prevents swing-high; avoids further fall to keep advance<3%)
+    # 7 flat bars at the bottom (prevents swing-high; keeps the pre-crow lookback
+    # window in a monotone falling + flat region so advance_pct stays < 3%)
     bottom = bars[-1]["c"]
     for k in range(7):
         t = 57 + k
         bars.append(_make_bar(t, bottom, bottom * 1.001, bottom * 0.999, bottom))
 
-    # 3 small crows starting 1.5% BELOW the flat bars.
-    # This ensures crow highs stay well below the flat bars' highs so that
-    # the lookback window's high_max = flat bar highs and
-    # (high_max - bar_high) / rng > 0.20 → is_swing_high = False.
+    # 3 NORMAL-SIZE crows starting 1.5% BELOW the flat bars.
+    # rng = base * 0.014 reflects a realistic 3-bar bearish run (~1.4% range per bar).
+    # Crow highs stay well below the flat bars' highs so:
+    #   - (high_max - bar_high) / rng > 0.20 → is_swing_high = False
+    # The corrected _recent_advance_pct only looks at bars[start : i-2] (pre-crow window),
+    # which is a monotone declining + flat region → (hi-lo)/lo ≈ 0 → advance < 3%.
+    # Normal-size crows with the OLD formula would pass the gate (crows' own span / crows'
+    # own low ≈ 2-4% ≥ _CONT_MOVE_RELAX=0.03). The new formula must block them.
     base = bottom * 0.985   # 1.5% step-down from flat zone
-    rng = base * 0.006
+    rng = base * 0.014      # normal-size crow range (~1.4% of price)
     for k in range(3):
         t = 64 + k
         prev_c = bars[-1]["c"] if k > 0 else base
-        b_h = prev_c * 1.0015   # tiny upper shadow, stays well below flat bars
+        b_h = prev_c * 1.0015   # small upper shadow, stays well below flat bars
         b_o = b_h - 0.13 * rng             # small upper wick from high to open
-        b_c = b_o - 0.62 * rng             # body = 62% of rng (float-safe)
+        b_c = b_o - 0.72 * rng             # body = 72% of rng (strong TBC anatomy)
         b_l = b_c - 0.10 * rng             # lower wick = 10% of rng (satisfies <= 0.15)
         bars.append(_make_bar(t, b_o, b_h, b_l, b_c))
 
@@ -167,7 +177,10 @@ def test_no_context_mid_trend_never_fires():
     assert ctx["trend_stage"] == 4, f"Expected stage=4, got {ctx['trend_stage']}"
     result = detect_three_black_crows(bars, ctx)
     assert result == [], (
-        f"Expected no detection mid-Stage-4 with no prior context, got {len(result)} detections"
+        f"Expected no detection mid-Stage-4 with no prior context (normal-size crows), "
+        f"got {len(result)} detections. "
+        "The corrected _recent_advance_pct must measure the pre-crow window only, "
+        "not the crows' own span."
     )
 
 

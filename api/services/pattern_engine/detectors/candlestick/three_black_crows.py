@@ -275,17 +275,18 @@ def _below_sma50(bars: List[Bar], i: int) -> bool:
     return bars[i]["c"] < sma
 
 
-def _recent_advance_pct(bars: List[Bar], i: int) -> float:
-    """Advance from recent 15-bar low to the 3-bar pattern high."""
-    start = max(0, i - 14)
-    window = bars[start:i + 1]
-    if not window:
+def _recent_advance_pct(bars: List[Bar], i: int, lookback: int = 15) -> float:
+    """Fraction of prior rally in the [i-lookback : i-3] window (excludes the 3 pattern bars).
+    Returns 0 if window too small or low <= 0."""
+    start = max(0, i - lookback)
+    window = bars[start : i - 2]   # exclude bars[i-2..i] (the 3 crow bars)
+    if len(window) < 2:
         return 0.0
-    low = min(b["l"] for b in window)
-    high_now = max(bars[i]["h"], bars[i - 1]["h"], bars[i - 2]["h"])
-    if low <= 0:
+    hi = max(b["h"] for b in window)
+    lo = min(b["l"] for b in window)
+    if lo <= 0:
         return 0.0
-    return (high_now - low) / low
+    return (hi - lo) / lo
 
 
 def _recent_decline_pct(bars: List[Bar], i: int) -> float:
