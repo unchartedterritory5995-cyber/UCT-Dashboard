@@ -612,57 +612,56 @@ function OverviewPane({onJumpTo}){
   // ── Generate narrative summary ──────────────────────────────────────────────
   const narrative = (()=>{
     const days = D.meta.tradingDays;
-    if(days < 2) return null; // Need multiple days to detect repeat activity
 
     // Exclude the usual suspects — indexes and mega-cap ETFs that always print
     const USUAL = new Set(["SPY","QQQ","IWM","DIA","VOO","IVV","VTI","RSP","MDY","TQQQ","SQQQ","UPRO","SPXL","SOXL","SOXS","TNA","TZA",
       "XLF","XLE","XLK","XLV","XLI","XLY","XLP","XLU","XLB","XLRE","XLC","GLD","SLV","TLT","HYG","LQD","AGG","BND","EEM","EFA","VEA","VWO"]);
 
-    // Find tickers with repeat activity (appeared on 50%+ of trading days AND have 3+ days)
-    const repeatThresh = Math.max(3, Math.ceil(days * 0.4));
-    const repeats = allItems
-      .filter(i => i.days >= repeatThresh && !USUAL.has(i.t))
-      .sort((a,b) => b.days - a.days || b.bigPrintN - a.bigPrintN);
-
-    // Find unusual names — not Large Cap or Indexes, with significant prints
-    const unusual = allItems
-      .filter(i => !USUAL.has(i.t) && (i.cat === "Mid Cap" || i.cat === "Small Cap") && i.bigPrintN >= 20_000_000)
-      .sort((a,b) => b.days - a.days || b.bigPrintN - a.bigPrintN);
-
-    // Find names with signals that aren't the usual suspects
-    const flaggedUnusual = allItems
-      .filter(i => i.signals && i.signals.length > 0 && !USUAL.has(i.t))
-      .sort((a,b) => b.signals.length - a.signals.length || b.bigPrintN - a.bigPrintN);
-
     let parts = [];
 
-    // Repeat activity
-    if(repeats.length > 0){
-      const top = repeats.slice(0,6);
-      const repeatStr = top.map(t => `${t.t} (${t.days}/${days}d)`).join(", ");
-      parts.push(`Repeat prints: ${repeatStr}${repeats.length>6?" + "+(repeats.length-6)+" more":""}.`);
+    if(days >= 2){
+      // Multi-day: repeat activity detection
+      const repeatThresh = Math.max(3, Math.ceil(days * 0.4));
+      const repeats = allItems
+        .filter(i => i.days >= repeatThresh && !USUAL.has(i.t))
+        .sort((a,b) => b.days - a.days || b.bigPrintN - a.bigPrintN);
+      if(repeats.length > 0){
+        const top = repeats.slice(0,6);
+        parts.push(`Repeat prints: ${top.map(t => `${t.t} (${t.days}/${days}d)`).join(", ")}${repeats.length>6?" + "+(repeats.length-6)+" more":""}.`);
+      }
     }
 
-    // Unusual mid/small cap names
+    // Unusual mid/small cap names with big prints (works for any timeframe)
+    const unusual = allItems
+      .filter(i => !USUAL.has(i.t) && (i.cat === "Mid Cap" || i.cat === "Small Cap") && i.bigPrintN >= 20_000_000)
+      .sort((a,b) => b.bigPrintN - a.bigPrintN);
     if(unusual.length > 0){
-      const notInRepeats = unusual.filter(u => !repeats.slice(0,6).some(r => r.t === u.t));
-      if(notInRepeats.length > 0){
-        const top = notInRepeats.slice(0,5);
-        parts.push(`Unusual names: ${top.map(t => `${t.t} (${t.cat}, ${fmt(t.bigPrintN)})`).join(", ")}.`);
+      const top = unusual.slice(0,5);
+      parts.push(`Unusual names: ${top.map(t => `${t.t} (${fmt(t.bigPrintN)}${t.bigPrintPctAvgVol>=20?" · "+t.bigPrintPctAvgVol.toFixed(0)+"% avg vol":""})`).join(", ")}.`);
+    }
+
+    // High %AvgVol prints — regardless of cap (works for 1d)
+    const highVol = allItems
+      .filter(i => !USUAL.has(i.t) && i.bigPrintPctAvgVol >= 30 && i.bigPrintN >= 50_000_000)
+      .sort((a,b) => b.bigPrintPctAvgVol - a.bigPrintPctAvgVol);
+    if(highVol.length > 0){
+      const notShown = highVol.filter(h => !unusual.slice(0,5).some(u => u.t === h.t));
+      if(notShown.length > 0){
+        const top = notShown.slice(0,4);
+        parts.push(`Outsized prints: ${top.map(t => `${t.t} (${t.bigPrintPctAvgVol.toFixed(0)}% avg vol)`).join(", ")}.`);
       }
     }
 
     // Flagged signals on non-usual names
+    const flaggedUnusual = allItems
+      .filter(i => i.signals && i.signals.length > 0 && !USUAL.has(i.t))
+      .sort((a,b) => b.signals.length - a.signals.length || b.bigPrintN - a.bigPrintN);
     if(flaggedUnusual.length > 0){
       const top = flaggedUnusual.slice(0,4);
-      const sigStr = top.map(t => {
-        const labels = t.signals.map(s => s.icon).join("");
-        return `${t.t} ${labels}`;
-      }).join(", ");
-      parts.push(`Flagged: ${sigStr}${flaggedUnusual.length>4?" + "+(flaggedUnusual.length-4)+" more":""}.`);
+      parts.push(`Flagged: ${top.map(t => `${t.t} ${t.signals.map(s=>s.icon).join("")}`).join(", ")}${flaggedUnusual.length>4?" + "+(flaggedUnusual.length-4)+" more":""}.`);
     }
 
-    // Zone lean (keep it short)
+    // Zone lean (only if meaningful)
     const abovePct = Math.round((aboveN/(allItems.length||1))*100);
     const belowPct = Math.round((belowN/(allItems.length||1))*100);
     if(Math.abs(abovePct - belowPct) >= 5){
