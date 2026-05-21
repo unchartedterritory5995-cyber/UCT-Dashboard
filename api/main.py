@@ -715,7 +715,7 @@ async def lifespan(app: FastAPI):
                 if os.path.exists(_db_probe_path):
                     _pc = _sqlite_probe.connect(_db_probe_path, timeout=5)
                     try:
-                        _row = _pc.execute("SELECT COUNT(*) FROM ohlcv").fetchone()
+                        _row = _pc.execute("SELECT COUNT(*) FROM (SELECT 1 FROM ohlcv LIMIT 1000)").fetchone()
                         _local_count = int(_row[0]) if _row else 0
                     finally:
                         _pc.close()
