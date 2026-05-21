@@ -3,8 +3,8 @@ flow_router.py — FastAPI router for flow database operations.
 
 Endpoints:
     POST /api/flow/upload          — Upload CSV (stocks or indexes)
-    GET  /api/flow/data            — Query flow data as CSV
-    GET  /api/flow/indexes-data    — Query indexes data as CSV
+    GET  /api/flow/data            — Query flow data as CSV (streamed)
+    GET  /api/flow/indexes-data    — Query indexes data as CSV (streamed)
     GET  /api/flow/stats           — DB statistics for admin
     POST /api/flow/prune           — Manually trigger expired contract cleanup
     GET  /api/flow/dates           — Available trading dates
@@ -15,7 +15,8 @@ Integration in main.py:
 """
 
 from fastapi import APIRouter, Request
-from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi.responses import JSONResponse
+from starlette.responses import StreamingResponse
 from api.flow_db import FlowDB
 import os
 
@@ -74,11 +75,8 @@ async def upload_flow(request: Request):
 @flow_router.get("/data")
 async def get_flow_data(request: Request):
     """
-    Serve stock flow data as CSV.
-    ?days=N (default 1) — last N trading days. Default lowered from 20 → 1
-        because a 20-day default payload is ~25MB / ~15s and the UI only
-        renders a single day on initial load. Callers that want more must
-        opt in via ?days=N (max 365) or ?all_data=true.
+    Serve stock flow data as CSV (streamed).
+    ?days=N (default 1) — last N trading days.
     ?all_data=true — all available data (heavy; opt-in only)
     """
     try:
@@ -95,22 +93,25 @@ async def get_flow_data(request: Request):
 
     try:
         if all_data:
-            csv_text = db.query_all_csv(source="stocks")
+            gen = db.stream_csv(source="stocks")
         else:
-            csv_text = db.query_csv(source="stocks", days=days)
-        return PlainTextResponse(csv_text, media_type="text/csv", headers=_FLOW_CACHE_HEADERS)
+            gen = db.stream_csv(source="stocks", days=days)
+        return StreamingResponse(
+            gen,
+            media_type="text/csv",
+            headers=_FLOW_CACHE_HEADERS,
+        )
     except Exception as e:
-        return PlainTextResponse(
-            f"Error: {e}", status_code=500, media_type="text/plain"
+        return StreamingResponse(
+            iter([f"Error: {e}"]),
+            status_code=500,
+            media_type="text/plain",
         )
 
 
 @flow_router.get("/indexes-data")
 async def get_indexes_data(request: Request):
-    """Serve indexes/ETF flow data as CSV.
-    ?days=N (default 1) — same rationale as /data: keep default payloads
-    small. Callers that want more must opt in via ?days=N or ?all_data=true.
-    """
+    """Serve indexes/ETF flow data as CSV (streamed)."""
     try:
         days_str = request.query_params.get("days", "1")
         all_data = request.query_params.get("all_data", "false").lower() == "true"
@@ -125,19 +126,25 @@ async def get_indexes_data(request: Request):
 
     try:
         if all_data:
-            csv_text = db.query_all_csv(source="indexes")
+            gen = db.stream_csv(source="indexes")
         else:
-            csv_text = db.query_csv(source="indexes", days=days)
-        return PlainTextResponse(csv_text, media_type="text/csv", headers=_FLOW_CACHE_HEADERS)
+            gen = db.stream_csv(source="indexes", days=days)
+        return StreamingResponse(
+            gen,
+            media_type="text/csv",
+            headers=_FLOW_CACHE_HEADERS,
+        )
     except Exception as e:
-        return PlainTextResponse(
-            f"Error: {e}", status_code=500, media_type="text/plain"
+        return StreamingResponse(
+            iter([f"Error: {e}"]),
+            status_code=500,
+            media_type="text/plain",
         )
 
 
 @flow_router.get("/stats")
 async def get_stats():
-    """Database statistics for admin dashboard."""
+    """Database statistics for admin display."""
     try:
         return JSONResponse(db.stats())
     except Exception as e:
