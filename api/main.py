@@ -473,15 +473,15 @@ async def lifespan(app: FastAPI):
         import anyio
         limiter = anyio.to_thread.current_default_thread_limiter()
         limiter.total_tokens = 64
-        print(f"[startup +{_elapsed()}] anyio thread limiter set to {limiter.total_tokens}")
+        logging.getLogger(__name__).info("[startup +%s] anyio thread limiter set to %d", _elapsed(), limiter.total_tokens)
     except Exception as e:
-        print(f"[startup +{_elapsed()}] anyio thread-pool tuning failed (non-fatal): {e}")
+        logging.getLogger(__name__).warning("[startup +%s] anyio thread-pool tuning failed (non-fatal): %s", _elapsed(), e)
 
     try:
         _init_auth_db()
-        print(f"[startup +{_elapsed()}] auth DB ready")
+        logging.getLogger(__name__).info("[startup +%s] auth DB ready", _elapsed())
     except Exception as e:
-        print(f"[startup +{_elapsed()}] Auth DB init error (non-fatal): {e}")
+        logging.getLogger(__name__).warning("[startup +%s] Auth DB init error (non-fatal): %s", _elapsed(), e)
 
     # Chart-health bootstrap: init quarantine + audit schemas synchronously so
     # the tables exist before any /api/bars handler runs, then spawn a daemon
@@ -492,7 +492,7 @@ async def lifespan(app: FastAPI):
         bar_quarantine.init_schema()
         bars_audit._init_audit_runs_table()
         bar_provenance.init_schema()
-        print(f"[startup +{_elapsed()}] chart-health schemas ready")
+        logging.getLogger(__name__).info("[startup +%s] chart-health schemas ready", _elapsed())
 
         def _bootstrap_scan():
             try:
@@ -569,9 +569,9 @@ async def lifespan(app: FastAPI):
     try:
         from api.services import bars_sqlite as _bars_sqlite
         _bars_sqlite.init_db()
-        print(f"[startup +{_elapsed()}] SQLite bar store ready")
+        logging.getLogger(__name__).info("[startup +%s] SQLite bar store ready", _elapsed())
     except Exception as e:
-        print(f"[startup +{_elapsed()}] SQLite bar store init error (non-fatal): {e}")
+        logging.getLogger(__name__).warning("[startup +%s] SQLite bar store init error (non-fatal): %s", _elapsed(), e)
 
     # Integrity check is slow (PRAGMA integrity_check on 262k+ bars) — run in background.
     # If DB is corrupt, requests will surface errors; no need to block startup for this.
@@ -617,6 +617,8 @@ async def lifespan(app: FastAPI):
                     pass
     except Exception as e:
         print(f"[startup] tf=60 disk purge error (non-fatal): {e}")
+
+    logging.getLogger(__name__).info("[startup +%s] tf60 purge done", _elapsed())
 
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] Memory pre-warm skipped (USE_REMOTE_BARS=1); cache populates lazily after snapshot pull")
@@ -696,6 +698,7 @@ async def lifespan(app: FastAPI):
             print(f"[startup] Bar seeder start error (non-fatal): {e}")
 
     _seed_cache_from_volume()
+    logging.getLogger(__name__).info("[startup +%s] seed_cache_from_volume done", _elapsed())
 
     if os.environ.get("USE_REMOTE_BARS") != "1":
         from api.services.bars_prewarm import run_prewarmer_forever
@@ -792,6 +795,8 @@ async def lifespan(app: FastAPI):
         threading.Thread(target=_hotset_push_loop, daemon=True, name="hotset_push").start()
         print("[startup] hot-set push loop started (web -> R2, 2-min cadence)")
 
+    logging.getLogger(__name__).info("[startup +%s] R2/seeder section done", _elapsed())
+
     if os.environ.get("STREAM_BARS_ENABLED") == "1":
         from api.services import bar_stream, bar_broadcaster
         bb = bar_broadcaster.init_broadcaster(
@@ -837,11 +842,11 @@ async def lifespan(app: FastAPI):
     from api.services.theme_db import init_theme_tables, seed_from_json
     init_theme_tables()
     seed_from_json()
-    print(f"[startup +{_elapsed()}] theme tables ready")
+    logging.getLogger(__name__).info("[startup +%s] theme tables ready", _elapsed())
 
     from api.services.theme_performance import load_persisted_on_startup
     load_persisted_on_startup()
-    print(f"[startup +{_elapsed()}] theme performance loaded")
+    logging.getLogger(__name__).info("[startup +%s] theme performance loaded", _elapsed())
 
     try:
         from api.services.voice_kb_service import seed_on_startup as _kb_seed
@@ -860,10 +865,10 @@ async def lifespan(app: FastAPI):
 
     _top_flow_tracker.init()
     _top_flow_tracker.archive_expired()
-    print(f"[startup] Top Flow tracker: {len(_top_flow_tracker.get_all()['active'])} active, {len(_top_flow_tracker.get_all()['archived'])} archived.")
+    logging.getLogger(__name__).info("[startup +%s] top_flow_tracker ready", _elapsed())
 
     _watchlist_tracker.init()
-    print(f"[startup] Watchlist tracker: {len(_watchlist_tracker.get_recent_dates())} saved days.")
+    logging.getLogger(__name__).info("[startup +%s] watchlist_tracker ready", _elapsed())
 
     # ── Flow DB: auto-seed from static CSVs if DB is empty ──────────────────
     def _flow_db_seed_background():
@@ -948,6 +953,8 @@ async def lifespan(app: FastAPI):
                 print("[startup] COT database ready.")
     except Exception as e:
         print(f"[startup] COT init error (non-fatal): {e}")
+
+    logging.getLogger(__name__).info("[startup +%s] COT init done, starting scheduler", _elapsed())
 
     from api.services.scheduler_lock import acquire_scheduler_lock
     _scheduler = None
@@ -1234,7 +1241,7 @@ async def lifespan(app: FastAPI):
     else:
         print("[startup] APScheduler skipped — lock held by another uvicorn worker (multi-worker mode)")
 
-    print(f"[startup +{_elapsed()}] lifespan ready — yielding to accept connections")
+    logging.getLogger(__name__).info("[startup +%s] lifespan ready — yielding to accept connections", _elapsed())
     yield
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
