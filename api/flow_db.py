@@ -4,6 +4,7 @@ flow_db.py — SQLite persistence layer for UCT Intelligence options flow data.
 Handles:
 - Inserting CSV uploads (stocks + indexes) with automatic deduplication
 - Querying by date range, serving as CSV to the frontend
+- Streaming CSV responses (avoids building 27MB+ strings in memory)
 - Auto-pruning expired contracts
 - Stats for admin visibility
 
@@ -12,6 +13,8 @@ Usage:
     db = FlowDB("/data/flow.db")
     inserted, skipped = db.insert_csv(csv_content, source="stocks")
     csv_string = db.query_csv(source="stocks", days=20)
+    for chunk in db.stream_csv(source="stocks", days=20):
+        send(chunk)
     pruned = db.prune_expired()
 """
 
@@ -30,11 +33,19 @@ COLUMNS = [
     "Uoa", "Weekly", "MktCap", "OI"
 ]
 
+# Pre-computed header line and column select clause
+_HEADER_LINE = ",".join(COLUMNS) + "\n"
+_SELECT_COLS = ", ".join(COLUMNS)
+
 # Dedup key — uniquely identifies a single trade
 DEDUP_COLS = [
     "CreatedDate", "CreatedTime", "Symbol", "Type", "Volume",
     "Price", "CallPut", "Strike", "ExpirationDate", "Premium"
 ]
+
+# How many rows to batch into a single chunk when streaming CSV.
+# Larger = fewer Python→ASGI round-trips, smaller = lower memory.
+_STREAM_BATCH = 2000
 
 
 class FlowDB:
@@ -117,6 +128,25 @@ class FlowDB:
             pass
         return None
 
+    def _resolve_dates(self, conn, source: str, days: int | None = None) -> list[str]:
+        """Get the date strings for the last N trading days, or all if days is None."""
+        cursor = conn.execute(
+            "SELECT DISTINCT CreatedDate FROM flow WHERE source = ?",
+            (source,),
+        )
+        all_dates_raw = [r[0] for r in cursor.fetchall()]
+
+        dated = []
+        for d in all_dates_raw:
+            parsed = self._parse_date_mdy(d)
+            if parsed:
+                dated.append((parsed, d))
+        dated.sort(key=lambda x: x[0], reverse=True)
+
+        if days is not None:
+            return [d[1] for d in dated[:days]]
+        return [d[1] for d in dated]
+
     def insert_csv(self, csv_content: str, source: str = "stocks") -> dict:
         """
         Insert CSV rows into the database. Skips duplicates automatically.
@@ -188,67 +218,70 @@ class FlowDB:
             "dates": sorted(dates_seen),
         }
 
+    # ── Streaming CSV (preferred for /api/flow/data) ────────────────────
+
+    def stream_csv(self, source: str = "stocks", days: int | None = None):
+        """
+        Generator that yields CSV chunks from the database.
+
+        Uses cursor iteration (no fetchall) so memory stays flat regardless
+        of result size, and the first chunk ships as soon as the first batch
+        of rows is read — no 50-second server-side wait.
+
+        ``days=None`` means all data.
+        """
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        try:
+            # Resolve target dates
+            selected_dates = self._resolve_dates(conn, source, days)
+            if not selected_dates:
+                yield _HEADER_LINE
+                return
+
+            placeholders = ",".join(["?"] * len(selected_dates))
+            cursor = conn.execute(
+                f"SELECT {_SELECT_COLS} FROM flow "
+                f"WHERE source = ? AND CreatedDate IN ({placeholders})",
+                [source] + selected_dates,
+            )
+
+            # Yield header
+            yield _HEADER_LINE
+
+            # Yield rows in batches — csv.writer into a small StringIO buffer
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            count = 0
+
+            for row in cursor:
+                writer.writerow(row)
+                count += 1
+                if count % _STREAM_BATCH == 0:
+                    yield buf.getvalue()
+                    buf.seek(0)
+                    buf.truncate(0)
+
+            # Flush remaining
+            remainder = buf.getvalue()
+            if remainder:
+                yield remainder
+        finally:
+            conn.close()
+
+    # ── Legacy full-string methods (kept for backward compat / startup seed) ─
+
     def query_csv(self, source: str = "stocks", days: int = 20) -> str:
         """
         Query the last N trading days of data for the given source.
         Returns a CSV string with the same headers as BBS exports.
         """
-        with self._conn() as conn:
-            # Get the last N distinct trading dates
-            cursor = conn.execute(
-                """SELECT DISTINCT CreatedDate FROM flow
-                   WHERE source = ?
-                   ORDER BY CreatedDate DESC""",
-                (source,),
-            )
-            all_dates_raw = [r[0] for r in cursor.fetchall()]
-
-            # Sort dates chronologically (M/D/YYYY format)
-            dated = []
-            for d in all_dates_raw:
-                parsed = self._parse_date_mdy(d)
-                if parsed:
-                    dated.append((parsed, d))
-            dated.sort(key=lambda x: x[0], reverse=True)
-
-            # Take last N trading days
-            selected_dates = [d[1] for d in dated[:days]]
-
-            if not selected_dates:
-                return ",".join(COLUMNS) + "\n"
-
-            placeholders = ",".join(["?"] * len(selected_dates))
-            cursor = conn.execute(
-                f"""SELECT {', '.join(COLUMNS)} FROM flow
-                    WHERE source = ? AND CreatedDate IN ({placeholders})
-                    ORDER BY id DESC""",
-                [source] + selected_dates,
-            )
-            rows = cursor.fetchall()
-
-        # Build CSV string
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(COLUMNS)
-        for row in rows:
-            writer.writerow(row)
-        return output.getvalue()
+        return "".join(self.stream_csv(source=source, days=days))
 
     def query_all_csv(self, source: str = "stocks") -> str:
         """Query ALL data for the given source. Use with caution on large DBs."""
-        with self._conn() as conn:
-            cursor = conn.execute(
-                f"SELECT {', '.join(COLUMNS)} FROM flow WHERE source = ? ORDER BY id DESC",
-                (source,),
-            )
-            rows = cursor.fetchall()
-
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(COLUMNS)
-        for row in rows:
-            writer.writerow(row)
-        return output.getvalue()
+        return "".join(self.stream_csv(source=source, days=None))
 
     def prune_expired(self, buffer_days: int = 7) -> int:
         """
