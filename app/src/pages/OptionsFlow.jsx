@@ -1163,6 +1163,7 @@ const TABS = ["Market Read","Top Flow","Alpha","Leaders","Search","OI Check","Tr
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
   const [tab, setTab] = useState("Market Read");
+  const [top5Filter, setTop5Filter] = useState("Both"); // Both|Calls|Puts
   const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
   const [cpFilter, setCpFilter] = useState("All"); // All | Calls | Puts
   const [convCpFilter, setConvCpFilter] = useState("All"); // independent C/P for CONV cards
@@ -3865,6 +3866,169 @@ export default function OptionsFlowDashboard() {
                         );
                       })()}
                     </div>
+                  </div>
+                </Card>
+              );
+            })()}
+            {/* ⚡ TOP 5 FLOW PICKS */}
+            {D && D.all_directional && (()=>{
+              const ad = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t=>capBand(t.mktcap)===capFilter);
+              if (!ad.length) return null;
+              const tkMap = {};
+              ad.forEach(t => {
+                if (!tkMap[t.S]) tkMap[t.S]={sym:t.S,bull:0,bear:0,n:0,swp:0,blk:0,confirmed:0,band:capBand(t.mktcap),
+                  contracts:{},hasER:!!t.er,minDTE:999,mktcap:t.mktcap||0,sector:t.sector||""};
+                const tk=tkMap[t.S];
+                if(t.D==="BULL") tk.bull+=t.P; if(t.D==="BEAR") tk.bear+=t.P;
+                tk.n++;
+                if(t.Ty==="SWP") tk.swp++; else if(t.Ty==="BLK") tk.blk++;
+                if(t.confirmed) tk.confirmed++;
+                if(t.DTE!=null && t.DTE<tk.minDTE) tk.minDTE=t.DTE;
+                const ck=t.CP+"|"+t.K+"|"+t.E;
+                if(!tk.contracts[ck]) tk.contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,oi:0,askPrem:0,bidPrem:0,prices:[]};
+                const c=tk.contracts[ck]; c.hits++; c.prem+=t.P; c.vol+=(t.V||0);
+                if(t.OI>c.oi) c.oi=t.OI;
+                if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
+                if(t.price>0) c.prices.push(t.price);
+              });
+              const candidates = [];
+              Object.values(tkMap).forEach(tk => {
+                const total=tk.bull+tk.bear;
+                if(total===0) return;
+                const net=Math.abs(tk.bull-tk.bear);
+                const purity=Math.max(tk.bull,tk.bear)/total*100;
+                const dir=tk.bull>=tk.bear?"BULL":"BEAR";
+                const hasBoth=tk.swp>0&&tk.blk>0;
+                const swpRatio=tk.swp/(tk.swp+tk.blk);
+                if(purity<70) return;
+                if(tk.confirmed<1) return;
+                if(tk.swp<1) return;
+                if(tk.hasER&&tk.minDTE<=14) return;
+                let score=0;
+                if(tk.band==="Mega"){ if(net<10e6) return; score=net/10e6; }
+                else if(tk.band==="Large"){ if(net<1e6) return; score=net/1e6*1.5; }
+                else { if(net<250e3) return; score=net/250e3*2.0; }
+                if(hasBoth) score*=1.3;
+                if(purity>=90) score*=1.2;
+                if(tk.confirmed>=3) score*=1.2;
+                if(swpRatio<0.3) score*=0.3;           // block-heavy = likely hedging
+                else if(swpRatio<0.5) score*=0.6;      // lean block = moderate penalty
+                const topC=Object.values(tk.contracts).sort((a,b)=>b.prem-a.prem)[0];
+                const volOI=topC&&topC.oi>0?topC.vol/topC.oi:0;
+                if(volOI>2) score*=1.15;
+                // LEAPS on Large/Mega = portfolio hedge, not tactical bet
+                const topDTE = topC ? (topC.exp ? Math.round((new Date(topC.exp)-new Date())/(86400000)) : 999) : 0;
+                if((tk.band==="Large"||tk.band==="Mega") && topDTE>180) score*=0.2;
+                else if(tk.band==="Mid-Small" && topDTE>180) score*=0.8; // LEAPS on small = still meaningful but slight discount
+                const entry = topC&&topC.prices.length>0 ? topC.prices.reduce((a,b)=>a+b,0)/topC.prices.length : 0;
+                candidates.push({...tk,net,purity,dir,score,hasBoth,topC,volOI,entry});
+              });
+              candidates.sort((a,b)=>b.score-a.score);
+              // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
+              const filtered = top5Filter==="Both" ? candidates : candidates.filter(c=>top5Filter==="Calls"?c.dir==="BULL":c.dir==="BEAR");
+              const picks=[]; let megaC=0; const sectorC={};
+              for(const c of filtered){
+                if(picks.length>=5) break;
+                if(c.band==="Mega"){ if(megaC>=1) continue; megaC++; }
+                if(c.sector){ sectorC[c.sector]=(sectorC[c.sector]||0)+1; if(sectorC[c.sector]>2) continue; }
+                picks.push(c);
+              }
+              if(!picks.length) return null;
+              const allContracts=picks.filter(p=>p.topC).map(p=>({sym:p.sym,cp:p.topC.cp,strike:p.topC.K,exp:p.topC.exp}));
+              return (
+                <Card>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      <div style={{ fontSize:14, fontWeight:900, color:P.ac, letterSpacing:1 }}>⚡ TOP 5 FLOW PICKS</div>
+                      <div style={{ display:"flex", gap:2, background:P.bg, borderRadius:5, padding:2 }}>
+                        {["Both","Calls","Puts"].map(f=>(
+                          <button key={f} onClick={()=>setTop5Filter(f)} style={{
+                            padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
+                            fontSize:9, fontWeight:700, fontFamily:"inherit",
+                            background:top5Filter===f?P.ac+"22":"transparent",
+                            color:top5Filter===f?P.ac:P.dm
+                          }}>{f}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontSize:9, color:P.dm }}>Cap-weighted · sweep required</span>
+                      <button onClick={()=>fetchPrices(allContracts)} disabled={fetchLoading}
+                        style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                          fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                        {fetchLoading?"Fetching…":"⚡ Fetch Live P/L"}
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                    {picks.map((p,i) => {
+                      const dirC=p.dir==="BULL"?P.bu:P.be;
+                      const tc=p.topC;
+                      const tcSide=tc?(tc.askPrem>=tc.bidPrem?"ask":"bid"):"ask";
+                      let tcC=P.dm;
+                      if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
+                      const grade=p.purity>=95&&p.hasBoth&&p.confirmed>=3?"A+":p.purity>=85&&p.hasBoth?"A":p.purity>=75&&p.confirmed>=2?"B+":"B";
+                      const gradeC=grade==="A+"?P.ac:grade==="A"?P.bu:grade==="B+"?P.ye:P.dm;
+                      const px = tc ? getPrice(p.sym,tc.cp,tc.K,tc.exp) : null;
+                      const now = px ? (px.mark||px.last||px.mid||0) : 0;
+                      const entry = p.entry||0;
+                      const pnl = (now>0&&entry>0) ? (now-entry)/entry*100 : null;
+                      // Auto-generate notes from strongest signals
+                      const notes = [];
+                      if(tc&&tc.hits>=5) notes.push({t:`${tc.hits} hits on same strike — repeat buyer`,w:10});
+                      else if(tc&&tc.hits>=3) notes.push({t:`${tc.hits}x same strike — concentrated`,w:6});
+                      if(p.hasBoth) notes.push({t:"Sweeps + blocks — institutional",w:8});
+                      else if(p.swp>0&&p.blk===0) notes.push({t:"All sweeps — urgency signal",w:7});
+                      const askPct=tc&&tc.prem>0?(tc.askPrem/tc.prem*100):50;
+                      if(askPct>=90) notes.push({t:"All ask-side — aggressive buying",w:7});
+                      if(p.volOI>=10) notes.push({t:`Vol ${Math.round(p.volOI)}x OI — brand new positions`,w:9});
+                      else if(p.volOI>=3) notes.push({t:`Vol ${p.volOI.toFixed(1)}x OI — fresh positions`,w:7});
+                      else if(p.volOI>0&&p.volOI<0.5) notes.push({t:"Building on existing OI",w:4});
+                      if(p.minDTE>180) notes.push({t:"LEAPS — long-term conviction play",w:8});
+                      else if(p.minDTE<=7&&p.minDTE>0) notes.push({t:"Weekly expiry — catalyst play",w:5});
+                      if(p.mktcap>0&&p.mktcap<5e9&&p.net>=1e6) notes.push({t:`$${fmt(p.net)} on a $${(p.mktcap/1e9).toFixed(1)}B name — outsized`,w:9});
+                      else if(p.mktcap>0&&p.mktcap<2e9&&p.net>=500e3) notes.push({t:`Big relative to ${fmt(p.mktcap)} cap`,w:6});
+                      if(p.purity>=95) notes.push({t:`${Math.round(p.purity)}% one-way — minimal hedging`,w:6});
+                      if(p.confirmed>=5) notes.push({t:`${p.confirmed} confirmed trades — sustained`,w:7});
+                      else if(p.confirmed>=3) notes.push({t:`${p.confirmed} confirmed — repeat interest`,w:5});
+                      notes.sort((a,b)=>b.w-a.w);
+                      const topNotes = notes.slice(0,2).map(n=>n.t);
+                      return (
+                        <div key={p.sym} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:P.al, borderRadius:8, borderLeft:"3px solid "+dirC }}>
+                          <span style={{ fontSize:16, fontWeight:900, color:P.dm+"88", width:16, textAlign:"center", flexShrink:0 }}>{i+1}</span>
+                          <span style={{ fontSize:14, fontWeight:900, color:P.wh, width:50, flexShrink:0 }}>{p.sym}</span>
+                          <Tag c={dirC}>{p.dir}</Tag>
+                          <div style={{ width:65, textAlign:"right", flexShrink:0 }}>
+                            <div style={{ fontSize:13, fontWeight:900, color:dirC }}>{fmt(p.net)}</div>
+                            <div style={{ fontSize:8, color:P.dm }}>{Math.round(p.purity)}%</div>
+                          </div>
+                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
+                          <div style={{ fontSize:9, color:P.mt, width:130, flexShrink:0 }}>
+                            {tc && (<span>
+                              <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
+                              <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
+                              <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
+                              <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc.hits}x</span>
+                            </span>)}
+                          </div>
+                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
+                          <div style={{ fontSize:9, width:130, flexShrink:0 }}>
+                            {entry>0 ? (<span>
+                              <span style={{ color:P.dm }}>${entry.toFixed(2)}</span>
+                              {pnl!==null ? (<span>
+                                <span style={{ color:P.dm, marginLeft:2 }}>→</span>
+                                <span style={{ color:P.wh, fontWeight:700, marginLeft:2 }}>${now.toFixed(2)}</span>
+                                <span style={{ color:pnl>=0?P.bu:P.be, fontWeight:800, marginLeft:3 }}>{pnl>=0?"+":""}{pnl.toFixed(1)}%</span>
+                              </span>) : <span style={{ color:P.dm+"55", marginLeft:3 }}>→ fetch</span>}
+                            </span>) : <span style={{ color:P.dm+"55" }}>—</span>}
+                          </div>
+                          <span style={{ fontSize:12, fontWeight:900, color:gradeC, padding:"2px 8px", borderRadius:4, background:gradeC+"18", border:"1px solid "+gradeC+"44", flexShrink:0 }}>{grade}</span>
+                          <div style={{ flex:1, fontSize:10, color:P.dm, lineHeight:1.5, paddingLeft:12 }}>
+                            {topNotes.map((n,ni)=><div key={ni} style={{ color:P.mt }}>{n}</div>)}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </Card>
               );
