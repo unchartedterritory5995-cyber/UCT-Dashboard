@@ -557,20 +557,27 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
 
-    try:
-        from api.services import bars_sqlite as _bs_check
-        if not _bs_check.integrity_ok():
-            print("[startup] bars.db failed PRAGMA integrity_check — pulling fresh snapshot from R2")
-            try:
-                from api.services import data_sync as _ds_check
-                if _ds_check.force_resync():
-                    print("[startup] bars.db restored from R2 snapshot")
-                else:
-                    print("[startup] bars.db restore from R2 FAILED — init_db will create empty DB")
-            except Exception as e:
-                print(f"[startup] force_resync error (non-fatal): {e}")
-    except Exception as e:
-        print(f"[startup] bars.db integrity_check error (non-fatal): {e}")
+    # SQLite integrity check — heavy on 58M rows, run in background
+    def _integrity_check_bg():
+        try:
+            from api.services import bars_sqlite as _bs_check
+            import time as _ic_t
+            _ic_t0 = _ic_t.time()
+            if not _bs_check.integrity_ok():
+                print(f"[startup] bars.db failed PRAGMA integrity_check after {_ic_t.time()-_ic_t0:.1f}s — pulling fresh snapshot from R2")
+                try:
+                    from api.services import data_sync as _ds_check
+                    if _ds_check.force_resync():
+                        print("[startup] bars.db restored from R2 snapshot")
+                    else:
+                        print("[startup] bars.db restore from R2 FAILED")
+                except Exception as e:
+                    print(f"[startup] force_resync error (non-fatal): {e}")
+            else:
+                print(f"[startup] bars.db integrity check passed ({_ic_t.time()-_ic_t0:.1f}s)")
+        except Exception as e:
+            print(f"[startup] bars.db integrity_check error (non-fatal): {e}")
+    threading.Thread(target=_integrity_check_bg, daemon=True, name="sqlite-integrity").start()
 
     try:
         from api.services import bars_sqlite as _bars_sqlite
@@ -696,7 +703,7 @@ async def lifespan(app: FastAPI):
                 if os.path.exists(_db_probe_path):
                     _pc = _sqlite_probe.connect(_db_probe_path, timeout=5)
                     try:
-                        _row = _pc.execute("SELECT COUNT(*) FROM ohlcv").fetchone()
+                        _row = _pc.execute("SELECT COUNT(*) FROM (SELECT 1 FROM ohlcv LIMIT 1000)").fetchone()
                         _local_count = int(_row[0]) if _row else 0
                     finally:
                         _pc.close()
