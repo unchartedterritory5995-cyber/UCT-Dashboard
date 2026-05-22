@@ -1079,7 +1079,7 @@ function processFlowData(rows) {
   }
   const convSyms = new Set(CONV.map(c=>c.sym));
   const PERF_INIT = [
-    ...buildPerfItems("Alpha", clean_confirmed.filter(t=>convSyms.has(t.S)), 6),
+    ...buildPerfItems("Leaderboard", clean_confirmed.filter(t=>convSyms.has(t.S)), 6),
     ...buildPerfItems("Short Bull", _st.filter(t=>t.D==="BULL"), 3),
     ...buildPerfItems("Short Bear", _st.filter(t=>t.D==="BEAR"), 3),
     ...buildPerfItems("Long Bull", _lt.filter(t=>t.D==="BULL"), 3),
@@ -1158,7 +1158,7 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Top Flow","Alpha","Leaders","Search","OI Check","Tracker","Watchlist"];
+const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -3647,10 +3647,10 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Alpha"?"#c9a84c":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Alpha"?"1px solid #c9a84c55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
-              fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Alpha"||t==="Leaders")?800:600, fontFamily:"inherit",
-              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Alpha"?"#c9a84c33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
-              color:tab===t?(t==="Watchlist"?P.ac:t==="Alpha"?"#c9a84c":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Alpha"?"#c9a84c":t==="Leaders"?"#6ba3be":P.mt)
+              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Leaderboard"?"#c9a84c":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #c9a84c55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
+              fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Leaderboard"||t==="Leaders")?800:600, fontFamily:"inherit",
+              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Leaderboard"?"#c9a84c33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
+              color:tab===t?(t==="Watchlist"?P.ac:t==="Leaderboard"?"#c9a84c":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Leaderboard"?"#c9a84c":t==="Leaders"?"#6ba3be":P.mt)
             }}>{t}</button>
           ))}
         </div>
@@ -3871,259 +3871,6 @@ export default function OptionsFlowDashboard() {
                 </Card>
               );
             })()}
-            {/* ⚡ TOP 5 FLOW PICKS */}
-            {D && D.all_directional && (()=>{
-              const ad = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t=>capBand(t.mktcap)===capFilter);
-              if (!ad.length) return null;
-              const _now = new Date();
-              const _parseDt = (dt) => { if(!dt) return null; const p=dt.split("/").map(Number); return p.length>=2?new Date(_now.getFullYear(),p[0]-1,p[1]):null; };
-              const tkMap = {};
-              ad.forEach(t => {
-                if (!tkMap[t.S]) tkMap[t.S]={sym:t.S,bull:0,bear:0,n:0,swp:0,blk:0,confirmed:0,band:capBand(t.mktcap),
-                  contracts:{},hasER:!!t.er,minDTE:999,mktcap:t.mktcap||0,sector:t.sector||"",lastDate:null,hasUOA:false};
-                const tk=tkMap[t.S];
-                if(t.D==="BULL") tk.bull+=t.P; if(t.D==="BEAR") tk.bear+=t.P;
-                tk.n++;
-                if(t.Ty==="SWP") tk.swp++; else if(t.Ty==="BLK") tk.blk++;
-                if(t.confirmed) tk.confirmed++;
-                if(t.uoa) tk.hasUOA=true;
-                if(t.DTE!=null && t.DTE<tk.minDTE) tk.minDTE=t.DTE;
-                const tDate=_parseDt(t.Dt);
-                if(tDate&&(!tk.lastDate||tDate>tk.lastDate)) tk.lastDate=tDate;
-                const ck=t.CP+"|"+t.K+"|"+t.E;
-                if(!tk.contracts[ck]) tk.contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,oi:0,lastOI:0,askPrem:0,bidPrem:0,prices:[],lastDate:null};
-                const c=tk.contracts[ck]; c.hits++; c.prem+=t.P; c.vol+=(t.V||0);
-                if(t.OI>c.oi) c.oi=t.OI;
-                if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
-                if(t.price>0) c.prices.push(t.price);
-                if(tDate&&(!c.lastDate||tDate>=c.lastDate)){ c.lastDate=tDate; c.lastOI=t.OI||c.lastOI; }
-              });
-              const candidates = [];
-              Object.values(tkMap).forEach(tk => {
-                const total=tk.bull+tk.bear;
-                if(total===0) return;
-                const net=Math.abs(tk.bull-tk.bear);
-                const purity=Math.max(tk.bull,tk.bear)/total*100;
-                const dir=tk.bull>=tk.bear?"BULL":"BEAR";
-                const hasBoth=tk.swp>0&&tk.blk>0;
-                const swpRatio=tk.swp/(tk.swp+tk.blk);
-                if(purity<70) return;
-                if(tk.confirmed<1) return;
-                if(tk.swp<1) return;
-                if(tk.hasER&&tk.minDTE<=14) return;
-                let score=0;
-                if(tk.band==="Mega"){ if(net<10e6) return; score=net/10e6; }
-                else if(tk.band==="Large"){ if(net<1e6) return; score=net/1e6*1.5; }
-                else { if(net<250e3) return; score=net/250e3*2.0; }
-                if(hasBoth) score*=1.3;
-                if(purity>=90) score*=1.2;
-                if(tk.confirmed>=3) score*=1.2;
-                if(swpRatio<0.3) score*=0.3;
-                else if(swpRatio<0.5) score*=0.6;
-                const topC=Object.values(tk.contracts).sort((a,b)=>b.prem-a.prem)[0];
-                const volOI=topC&&topC.oi>0?topC.vol/topC.oi:0;
-                if(volOI>2) score*=1.15;
-                const topDTE = topC ? (topC.exp ? Math.round((new Date(topC.exp)-new Date())/(86400000)) : 999) : 0;
-                if((tk.band==="Large"||tk.band==="Mega") && topDTE>180) score*=0.2;
-                else if(tk.band==="Mid-Small" && topDTE>180) score*=0.8;
-                // Exit detection — penalize closing flow, not age
-                const daysSince = tk.lastDate ? Math.max(0,Math.round((_now-tk.lastDate)/86400000)) : 30;
-                const lastDateStr = tk.lastDate ? `${tk.lastDate.getMonth()+1}/${tk.lastDate.getDate()}` : "—";
-                const freshLabel = daysSince<=1?"Today":daysSince<=2?"Yesterday":lastDateStr;
-                // Bid-side exit ratio on top contract: high bid% = closing trades
-                const exitRatio = topC&&topC.prem>0 ? topC.bidPrem/topC.prem : 0;
-                // OI retention: lastOI vs maxOI — declining OI = positions closed
-                const oiRetention = topC&&topC.oi>0&&topC.lastOI>0 ? topC.lastOI/topC.oi : 1;
-                let posStatus = "ACTIVE";
-                if(exitRatio>0.5 || oiRetention<0.5) { score*=0.3; posStatus="CLOSED"; }
-                else if(exitRatio>0.3 || oiRetention<0.7) { score*=0.6; posStatus="FADING"; }
-                else if(exitRatio<0.1 && oiRetention>=0.9) { score*=1.1; posStatus="ACTIVE"; }
-                // Stale with no exit data still gets slight discount
-                if(daysSince>=14 && posStatus==="ACTIVE") posStatus="HOLDING";
-                const entry = topC&&topC.prices.length>0 ? topC.prices.reduce((a,b)=>a+b,0)/topC.prices.length : 0;
-                candidates.push({...tk,net,purity,dir,score,hasBoth,topC,volOI,entry,daysSince,freshLabel,posStatus,exitRatio,oiRetention});
-              });
-              candidates.sort((a,b)=>b.score-a.score);
-              // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
-              const filtered = top5Filter==="Both" ? candidates
-                : top5Filter==="Calls" ? candidates.filter(c=>c.dir==="BULL")
-                : top5Filter==="Puts" ? candidates.filter(c=>c.dir==="BEAR")
-                : candidates.filter(c=>c.hasUOA || c.volOI>=3 || (c.mktcap>0 && c.mktcap<10e9 && c.net>=c.mktcap*0.001));
-              const picks=[]; let megaC=0; const sectorC={};
-              for(const c of filtered){
-                if(picks.length>=5) break;
-                if(c.band==="Mega"){ if(megaC>=1) continue; megaC++; }
-                if(c.sector){ sectorC[c.sector]=(sectorC[c.sector]||0)+1; if(sectorC[c.sector]>2) continue; }
-                picks.push(c);
-              }
-              if(!picks.length) return null;
-              const allContracts=picks.filter(p=>p.topC).map(p=>({sym:p.sym,cp:p.topC.cp,strike:p.topC.K,exp:p.topC.exp}));
-              return (
-                <Card>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                      <div style={{ fontSize:14, fontWeight:900, color:P.ac, letterSpacing:1 }}>⚡ TOP 5 FLOW PICKS</div>
-                      <div style={{ display:"flex", gap:2, background:P.bg, borderRadius:5, padding:2 }}>
-                        {["Both","Calls","Puts","Unusual"].map(f=>(
-                          <button key={f} onClick={()=>setTop5Filter(f)} style={{
-                            padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
-                            fontSize:9, fontWeight:700, fontFamily:"inherit",
-                            background:top5Filter===f?(f==="Unusual"?"#ff980022":P.ac+"22"):"transparent",
-                            color:top5Filter===f?(f==="Unusual"?"#ff9800":P.ac):P.dm
-                          }}>{f}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <span style={{ fontSize:9, color:P.dm }}>Cap-weighted · sweep required</span>
-                      <button onClick={()=>fetchPrices(allContracts)} disabled={fetchLoading}
-                        style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
-                          fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
-                        {fetchLoading?"Fetching…":"⚡ Fetch Live P/L"}
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                    {picks.map((p,i) => {
-                      const dirC=p.dir==="BULL"?P.bu:P.be;
-                      const tc=p.topC;
-                      const tcSide=tc?(tc.askPrem>=tc.bidPrem?"ask":"bid"):"ask";
-                      let tcC=P.dm;
-                      if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
-                      const grade=p.purity>=95&&p.hasBoth&&p.confirmed>=3?"A+":p.purity>=85&&p.hasBoth?"A":p.purity>=75&&p.confirmed>=2?"B+":"B";
-                      const gradeC=grade==="A+"?P.ac:grade==="A"?P.bu:grade==="B+"?P.ye:P.dm;
-                      const px = tc ? getPrice(p.sym,tc.cp,tc.K,tc.exp) : null;
-                      const now = px ? (px.mark||px.last||px.mid||0) : 0;
-                      const entry = p.entry||0;
-                      const pnl = (now>0&&entry>0) ? (now-entry)/entry*100 : null;
-                      // Auto-generate notes
-                      const notes = [];
-                      if(tc&&tc.hits>=5) notes.push({t:`${tc.hits} hits on same strike — repeat buyer`,w:10});
-                      else if(tc&&tc.hits>=3) notes.push({t:`${tc.hits}x same strike — concentrated`,w:6});
-                      if(p.hasBoth) notes.push({t:"Sweeps + blocks — institutional",w:8});
-                      else if(p.swp>0&&p.blk===0) notes.push({t:"All sweeps — urgency signal",w:7});
-                      const askPct=tc&&tc.prem>0?(tc.askPrem/tc.prem*100):50;
-                      if(askPct>=90) notes.push({t:"All ask-side — aggressive buying",w:7});
-                      if(p.volOI>=10) notes.push({t:`Vol ${Math.round(p.volOI)}x OI — brand new positions`,w:9});
-                      else if(p.volOI>=3) notes.push({t:`Vol ${p.volOI.toFixed(1)}x OI — fresh positions`,w:7});
-                      if(p.minDTE>180) notes.push({t:"LEAPS — long-term conviction play",w:8});
-                      if(p.mktcap>0&&p.mktcap<5e9&&p.net>=1e6) notes.push({t:`${fmt(p.net)} on a $${(p.mktcap/1e9).toFixed(1)}B name — outsized`,w:9});
-                      if(p.purity>=95) notes.push({t:`${Math.round(p.purity)}% one-way — minimal hedging`,w:6});
-                      if(p.confirmed>=5) notes.push({t:`${p.confirmed} confirmed trades — sustained`,w:7});
-                      else if(p.confirmed>=3) notes.push({t:`${p.confirmed} confirmed — repeat interest`,w:5});
-                      notes.sort((a,b)=>b.w-a.w);
-                      const topNotes = notes.slice(0,2).map(n=>n.t);
-                      // Position activity note
-                      let posNote = "";
-                      const bidPct = tc&&tc.prem>0 ? tc.bidPrem/tc.prem*100 : 0;
-                      const oiGrowth = tc&&tc.oi>0&&tc.lastOI>0 ? (tc.lastOI/tc.oi-1)*100 : 0;
-                      if(bidPct>=50) posNote = `🔻 Heavy exits — ${Math.round(bidPct)}% closing flow`;
-                      else if(bidPct>=30) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid-side closing`;
-                      else if(bidPct>=15 && oiGrowth>0) posNote = "↔️ Mixed — some exits but OI still net growing";
-                      else if(bidPct>=15) posNote = `⚠️ Some exits — ${Math.round(bidPct)}% bid-side flow`;
-                      else if(p.daysSince<=2 && tc&&tc.hits<=3) posNote = "🆕 New entry — just appeared";
-                      else if(oiGrowth>20 && bidPct<15) posNote = `📈 Adding — OI up ${Math.round(oiGrowth)}%`;
-                      else if(oiGrowth>5) posNote = "📈 Accumulating — OI growing";
-                      else if(bidPct<10 && p.daysSince<=3 && tc&&tc.hits>=5) posNote = "🔥 Active — fresh flow, no exits";
-                      else if(p.daysSince>=7 && bidPct<10) posNote = "💤 Holding — no new flow or exits";
-                      else if(bidPct<15 && tc&&tc.hits>=5) posNote = "✅ In position — minimal exits";
-                      else posNote = "✅ In position";
-                      // Freshness + last OI
-                      const freshC = p.daysSince<=1?P.bu:p.daysSince<=3?P.ac:p.daysSince>=7?P.be:P.dm;
-                      const lastOI = tc?tc.lastOI:0;
-                      return (
-                        <div key={p.sym}>
-                        <div onClick={()=>setTop5Detail(top5Detail===p.sym?null:p.sym)} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:P.al, borderRadius:8, borderLeft:"3px solid "+dirC, cursor:"pointer" }}>
-                          <span style={{ fontSize:16, fontWeight:900, color:P.dm+"88", width:16, textAlign:"center", flexShrink:0 }}>{i+1}</span>
-                          <span style={{ fontSize:14, fontWeight:900, color:P.wh, width:50, flexShrink:0 }}>{p.sym}</span>
-                          <Tag c={dirC}>{p.dir}</Tag>
-                          <div style={{ width:70, textAlign:"right", flexShrink:0 }}>
-                            <div style={{ fontSize:7, color:P.dm, letterSpacing:0.5 }}>NET</div>
-                            <div style={{ fontSize:13, fontWeight:900, color:dirC }}>{fmt(p.net)}</div>
-                            <div style={{ fontSize:8, color:P.dm }}>{Math.round(p.purity)}%</div>
-                          </div>
-                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
-                          <div style={{ fontSize:9, color:P.mt, width:150, flexShrink:0 }}>
-                            {tc && (<div>
-                              <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
-                              <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
-                              <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
-                              <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc.hits}x</span>
-                              <div style={{ fontSize:8, color:P.ye }}>{fmt(tc.prem)}</div>
-                            </div>)}
-                          </div>
-                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
-                          <div style={{ fontSize:9, width:130, flexShrink:0 }}>
-                            {entry>0 ? (<span>
-                              <span style={{ color:P.dm }}>${entry.toFixed(2)}</span>
-                              {pnl!==null ? (<span>
-                                <span style={{ color:P.dm, marginLeft:2 }}>→</span>
-                                <span style={{ color:P.wh, fontWeight:700, marginLeft:2 }}>${now.toFixed(2)}</span>
-                                <span style={{ color:pnl>=0?P.bu:P.be, fontWeight:800, marginLeft:3 }}>{pnl>=0?"+":""}{pnl.toFixed(1)}%</span>
-                              </span>) : <span style={{ color:P.dm+"55", marginLeft:3 }}>→ fetch</span>}
-                            </span>) : <span style={{ color:P.dm+"55" }}>—</span>}
-                          </div>
-                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
-                          <div style={{ width:55, flexShrink:0, fontSize:8, textAlign:"center" }}>
-                            {lastOI>0 ? <div style={{ color:P.dm }}>OI: {lastOI.toLocaleString()}</div> : <span style={{ color:P.dm+"55" }}>—</span>}
-                          </div>
-                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
-                          <div style={{ width:140, flexShrink:0, fontSize:9, color:P.ac, fontWeight:600, textAlign:"center" }}>
-                            {posNote || <span style={{ color:P.dm+"55" }}>—</span>}
-                          </div>
-                          <span style={{ fontSize:12, fontWeight:900, color:gradeC, padding:"2px 8px", borderRadius:4, background:gradeC+"18", border:"1px solid "+gradeC+"44", flexShrink:0 }}>{grade}</span>
-                          <div style={{ flex:1, fontSize:10, color:P.dm, lineHeight:1.5, paddingLeft:12 }}>
-                            {topNotes.map((n,ni)=><div key={ni} style={{ color:P.mt }}>{n}</div>)}
-                          </div>
-                          <span style={{ fontSize:9, color:P.dm+"66", flexShrink:0 }}>{top5Detail===p.sym?"▲":"▼"}</span>
-                        </div>
-                        {/* Expandable trade detail */}
-                        {top5Detail===p.sym && (()=>{
-                          const trades = ad.filter(t=>t.S===p.sym).sort((a,b)=>(b.P||0)-(a.P||0)).slice(0,5);
-                          if(!trades.length) return null;
-                          return (
-                            <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:6, padding:10, marginTop:2, marginBottom:4, marginLeft:24 }}>
-                              <div style={{ fontSize:9, fontWeight:700, color:P.ac, marginBottom:6 }}>TOP {trades.length} TRADES BY PREMIUM</div>
-                              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
-                                <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                                  {["Date","Time","Type","Side","C/P","Strike","Exp","DTE","Vol","OI","Premium","Color"].map(h=>(
-                                    <th key={h} style={{ padding:"3px 6px", textAlign:"center", color:P.dm, fontSize:8, fontWeight:600 }}>{h}</th>
-                                  ))}
-                                </tr></thead>
-                                <tbody>
-                                  {trades.map((t,ti)=>{
-                                    const sideC=t.Si==="A"||t.Si==="AA"?P.bu:t.Si==="B"||t.Si==="BB"?P.be:P.dm;
-                                    const cpC=t.CP==="C"?P.bu:P.be;
-                                    const coC=t.Co==="YELLOW"?P.ye:t.Co==="MAGENTA"?"#e040fb":P.dm;
-                                    return (
-                                      <tr key={ti} style={{ borderBottom:"1px solid "+P.bd+"22" }}>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh }}>{t.Dt||"—"}</td>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.dm }}>{t.time||"—"}</td>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:t.Ty==="SWP"?P.ac:P.mt, fontWeight:700 }}>{t.Ty}</td>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:sideC, fontWeight:700 }}>{t.Si}</td>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:cpC, fontWeight:700 }}>{t.CP==="C"?"CALL":"PUT"}</td>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh, fontWeight:700 }}>${t.K}</td>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.ac }}>{t.E}</td>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.dm }}>{t.DTE}</td>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh }}>{(t.V||0).toLocaleString()}</td>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.dm }}>{(t.OI||0).toLocaleString()}</td>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh, fontWeight:800 }}>{fmt(t.P)}</td>
-                                        <td style={{ padding:"3px 6px", textAlign:"center", color:coC, fontWeight:700 }}>{t.Co}</td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          );
-                        })()}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card>
-              );
-            })()}
             {/* Sector / Theme Breakdown */}
             {FD.SECTORS.length > 0 && (
               <Card>
@@ -4332,182 +4079,256 @@ export default function OptionsFlowDashboard() {
             )}
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
 
-            {/* Bull vs Bear Leaderboard */}
-
-            <Card title="Flow Leaderboard" sub="Top bullish & bearish tickers by net premium">
-              {(()=>{
-                const [lbDte, setLbDte] = [leaderDte, setLeaderDte];
-                // Build per-ticker bull/bear from confirmed trades with DTE filter
-                const dteFilter = t => lbDte==="All" ? true : lbDte==="ST" ? t.DTE<60 : t.DTE>=60;
-                const tkMap = {};
-                (D.clean_confirmed||[]).forEach(t => {
-                  if (!dteFilter(t)) return;
-                  if (capFilter!=="All" && capBand(t.mktcap)!==capFilter) return;
-                  if (!tkMap[t.S]) tkMap[t.S] = { s:t.S, b:0, r:0, n:0 };
-                  tkMap[t.S].n++;
-                  if (t.D==="BULL") tkMap[t.S].b += t.P;
-                  else if (t.D==="BEAR") tkMap[t.S].r += t.P;
-                });
-                const tickers = Object.values(tkMap);
-                const bulls = [...tickers].filter(tk=>tk.b>tk.r).sort((a,b)=>(b.b-b.r)-(a.b-a.r)).slice(0,20);
-                const bears = [...tickers].filter(tk=>tk.r>tk.b).sort((a,b)=>(b.r-b.b)-(a.r-a.b)).slice(0,20);
-                const renderRow = (tk, i) => {
-                  const total = tk.b + tk.r;
-                  const bullPct = total > 0 ? Math.round(tk.b / total * 100) : 50;
-                  const net = tk.b - tk.r;
-                  const dirC = net > 0 ? P.bu : P.be;
-                  return (
-                    <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", textAlign:"center", cursor:"pointer" }}
-                      onClick={()=>setSelectedLeaderTicker(selectedLeaderTicker===tk.s?null:tk.s)}>
-                      <td style={{ padding:"5px 6px", fontWeight:800, color:P.wh, fontSize:12 }}>{tk.s}</td>
-                      <td style={{ padding:"5px 6px", fontWeight:700, color:P.bu }}>{fmt(tk.b)}</td>
-                      <td style={{ padding:"5px 6px", fontWeight:700, color:P.be }}>{fmt(tk.r)}</td>
-                      <td style={{ padding:"5px 6px", fontWeight:800, color:dirC }}>{net>0?"+":""}{fmt(Math.abs(net))}</td>
-                      <td style={{ padding:"5px 6px", width:100 }}>
-                        <div style={{ display:"flex", height:4, borderRadius:2, overflow:"hidden", background:P.al }}>
-                          <div style={{ width:bullPct+"%", background:P.bu }}/>
-                          <div style={{ width:(100-bullPct)+"%", background:P.be }}/>
-                        </div>
-                      </td>
-                      <td style={{ padding:"5px 6px", color:P.dm, fontSize:9 }}>{tk.n} trades</td>
-                    </tr>
-                  );
-                };
-                return (
-                  <div>
-                    <div style={{ display:"flex", gap:2, marginBottom:10, background:P.al, borderRadius:5, padding:2, width:"fit-content" }}>
-                      {[["All","All DTE"],["ST","0–59d"],["LT","60+d"]].map(([v,label])=>(
-                        <button key={v} onClick={()=>setLeaderDte(v)}
-                          style={{ padding:"3px 12px", borderRadius:4, border:"none", cursor:"pointer",
-                            fontSize:9, fontWeight:700, fontFamily:"inherit",
-                            background:lbDte===v?P.cd:"transparent", color:lbDte===v?P.ac:P.dm }}>{label}</button>
-                      ))}
-                    </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-                    <div>
-                      <div style={{ fontSize:11, fontWeight:800, color:P.bu, marginBottom:6, letterSpacing:1 }}>▲ TOP BULLISH</div>
-                      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
-                        <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                          {["Ticker","Bull $","Bear $","Net","Split","Trades"].map(h=>(
-                            <th key={h} style={{ padding:"4px 6px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
-                          ))}
-                        </tr></thead>
-                        <tbody>{bulls.map(renderRow)}</tbody>
-                      </table>
-                    </div>
-                    <div>
-                      <div style={{ fontSize:11, fontWeight:800, color:P.be, marginBottom:6, letterSpacing:1 }}>▼ TOP BEARISH</div>
-                      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
-                        <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                          {["Ticker","Bull $","Bear $","Net","Split","Trades"].map(h=>(
-                            <th key={h} style={{ padding:"4px 6px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
-                          ))}
-                        </tr></thead>
-                        <tbody>{bears.map(renderRow)}</tbody>
-                      </table>
-                    </div>
-                  </div>
-                  </div>
-                );
-              })()}
-            </Card>
-            {/* Inline Ticker Detail */}
-            {selectedLeaderTicker && (()=>{
-              // Build popup data from ALL clean_confirmed (no DTE/cap filter) — matches Search tab
-              const trades = (D.clean_confirmed||[]).filter(t => t.S===selectedLeaderTicker);
-              if (trades.length===0) return null;
-              let b=0, r=0;
-              const consMap = {};
-              trades.forEach(t => {
-                if (t.D==="BULL") b+=t.P; else if (t.D==="BEAR") r+=t.P;
-                const ck = t.CP+"|"+t.K+"|"+t.E;
-                if (!consMap[ck]) consMap[ck] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
-                  hasSweep:false, hasBlock:false, dirs:new Set(), bullPrem:0, bearPrem:0 };
-                const c = consMap[ck];
-                c.H++; c.P+=t.P; c.V+=t.V;
-                if (t.D==="BULL") c.bullPrem+=t.P;
-                if (t.D==="BEAR") c.bearPrem+=t.P;
-                if (t.Ty==="SWP") c.hasSweep=true;
-                if (t.Ty==="BLK") c.hasBlock=true;
-                if (t.D) c.dirs.add(t.D);
+            {/* ⚡ TOP 5 FLOW PICKS */}
+            {D && D.all_directional && (()=>{
+              const ad = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t=>capBand(t.mktcap)===capFilter);
+              if (!ad.length) return null;
+              const _now = new Date();
+              const _parseDt = (dt) => { if(!dt) return null; const p=dt.split("/").map(Number); return p.length>=2?new Date(_now.getFullYear(),p[0]-1,p[1]):null; };
+              const tkMap = {};
+              ad.forEach(t => {
+                if (!tkMap[t.S]) tkMap[t.S]={sym:t.S,bull:0,bear:0,n:0,swp:0,blk:0,confirmed:0,band:capBand(t.mktcap),
+                  contracts:{},hasER:!!t.er,minDTE:999,mktcap:t.mktcap||0,sector:t.sector||"",lastDate:null,hasUOA:false};
+                const tk=tkMap[t.S];
+                if(t.D==="BULL") tk.bull+=t.P; if(t.D==="BEAR") tk.bear+=t.P;
+                tk.n++;
+                if(t.Ty==="SWP") tk.swp++; else if(t.Ty==="BLK") tk.blk++;
+                if(t.confirmed) tk.confirmed++;
+                if(t.uoa) tk.hasUOA=true;
+                if(t.DTE!=null && t.DTE<tk.minDTE) tk.minDTE=t.DTE;
+                const tDate=_parseDt(t.Dt);
+                if(tDate&&(!tk.lastDate||tDate>tk.lastDate)) tk.lastDate=tDate;
+                const ck=t.CP+"|"+t.K+"|"+t.E;
+                if(!tk.contracts[ck]) tk.contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,oi:0,lastOI:0,askPrem:0,bidPrem:0,prices:[],lastDate:null};
+                const c=tk.contracts[ck]; c.hits++; c.prem+=t.P; c.vol+=(t.V||0);
+                if(t.OI>c.oi) c.oi=t.OI;
+                if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
+                if(t.price>0) c.prices.push(t.price);
+                if(tDate&&(!c.lastDate||tDate>=c.lastDate)){ c.lastDate=tDate; c.lastOI=t.OI||c.lastOI; }
               });
-              const contracts = Object.values(consMap).filter(c=>c.H>=2).map(c => {
-                c.clean = c.dirs.size<=1;
-                if (!c.clean) {
-                  const totalDir = (c.bullPrem||0)+(c.bearPrem||0);
-                  if (totalDir>0) {
-                    if ((c.bullPrem||0)/totalDir>=0.8) { c.clean=true; c.D="BULL"; }
-                    else if ((c.bearPrem||0)/totalDir>=0.8) { c.clean=true; c.D="BEAR"; }
-                  }
-                }
-                c.grade = gradeCluster(c);
-                return c;
-              }).sort((a,bb)=>bb.H-a.H||bb.P-a.P).slice(0,6);
-              const net = b - r;
-              const total = b + r;
-              const dir = net>0?"BULL":"BEAR";
-              const dirC = dir==="BULL"?P.bu:P.be;
-              const bullPct = total>0?Math.round(b/total*100):50;
-              const tkRef = D.TICKER_DB.find(t=>t.s===selectedLeaderTicker);
+              const candidates = [];
+              Object.values(tkMap).forEach(tk => {
+                const total=tk.bull+tk.bear;
+                if(total===0) return;
+                const net=Math.abs(tk.bull-tk.bear);
+                const purity=Math.max(tk.bull,tk.bear)/total*100;
+                const dir=tk.bull>=tk.bear?"BULL":"BEAR";
+                const hasBoth=tk.swp>0&&tk.blk>0;
+                const swpRatio=tk.swp/(tk.swp+tk.blk);
+                if(purity<70) return;
+                if(tk.confirmed<1) return;
+                if(tk.swp<1) return;
+                if(tk.hasER&&tk.minDTE<=14) return;
+                let score=0;
+                if(tk.band==="Mega"){ if(net<10e6) return; score=net/10e6; }
+                else if(tk.band==="Large"){ if(net<1e6) return; score=net/1e6*1.5; }
+                else { if(net<250e3) return; score=net/250e3*2.0; }
+                if(hasBoth) score*=1.3;
+                if(purity>=90) score*=1.2;
+                if(tk.confirmed>=3) score*=1.2;
+                if(swpRatio<0.3) score*=0.3;
+                else if(swpRatio<0.5) score*=0.6;
+                const topC=Object.values(tk.contracts).sort((a,b)=>b.prem-a.prem)[0];
+                const volOI=topC&&topC.oi>0?topC.vol/topC.oi:0;
+                if(volOI>2) score*=1.15;
+                const topDTE = topC ? (topC.exp ? Math.round((new Date(topC.exp)-new Date())/(86400000)) : 999) : 0;
+                if((tk.band==="Large"||tk.band==="Mega") && topDTE>180) score*=0.2;
+                else if(tk.band==="Mid-Small" && topDTE>180) score*=0.8;
+                // Exit detection — penalize closing flow, not age
+                const daysSince = tk.lastDate ? Math.max(0,Math.round((_now-tk.lastDate)/86400000)) : 30;
+                const lastDateStr = tk.lastDate ? `${tk.lastDate.getMonth()+1}/${tk.lastDate.getDate()}` : "—";
+                const freshLabel = daysSince<=1?"Today":daysSince<=2?"Yesterday":lastDateStr;
+                // Bid-side exit ratio on top contract: high bid% = closing trades
+                const exitRatio = topC&&topC.prem>0 ? topC.bidPrem/topC.prem : 0;
+                // OI retention: lastOI vs maxOI — declining OI = positions closed
+                const oiRetention = topC&&topC.oi>0&&topC.lastOI>0 ? topC.lastOI/topC.oi : 1;
+                let posStatus = "ACTIVE";
+                if(exitRatio>0.5 || oiRetention<0.5) { score*=0.3; posStatus="CLOSED"; }
+                else if(exitRatio>0.3 || oiRetention<0.7) { score*=0.6; posStatus="FADING"; }
+                else if(exitRatio<0.1 && oiRetention>=0.9) { score*=1.1; posStatus="ACTIVE"; }
+                // Stale with no exit data still gets slight discount
+                if(daysSince>=14 && posStatus==="ACTIVE") posStatus="HOLDING";
+                const entry = topC&&topC.prices.length>0 ? topC.prices.reduce((a,b)=>a+b,0)/topC.prices.length : 0;
+                candidates.push({...tk,net,purity,dir,score,hasBoth,topC,volOI,entry,daysSince,freshLabel,posStatus,exitRatio,oiRetention});
+              });
+              candidates.sort((a,b)=>b.score-a.score);
+              // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
+              const filtered = top5Filter==="Both" ? candidates
+                : top5Filter==="Calls" ? candidates.filter(c=>c.dir==="BULL")
+                : top5Filter==="Puts" ? candidates.filter(c=>c.dir==="BEAR")
+                : candidates.filter(c=>c.hasUOA || c.volOI>=3 || (c.mktcap>0 && c.mktcap<10e9 && c.net>=c.mktcap*0.001));
+              const picks=[]; let megaC=0; const sectorC={};
+              for(const c of filtered){
+                if(picks.length>=5) break;
+                if(c.band==="Mega"){ if(megaC>=1) continue; megaC++; }
+                if(c.sector){ sectorC[c.sector]=(sectorC[c.sector]||0)+1; if(sectorC[c.sector]>2) continue; }
+                picks.push(c);
+              }
+              if(!picks.length) return null;
+              const allContracts=picks.filter(p=>p.topC).map(p=>({sym:p.sym,cp:p.topC.cp,strike:p.topC.K,exp:p.topC.exp}));
               return (
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                      <span style={{ fontSize:18, fontWeight:900, color:P.wh }}>{selectedLeaderTicker}</span>
-                      <span style={{ fontSize:14, fontWeight:800, color:dirC }}>{dir}</span>
-                      <span style={{ fontSize:11, color:P.dm }}>{trades.length} confirmed trades</span>
-                    </div>
-                    <button onClick={()=>setSelectedLeaderTicker(null)} style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:16, fontFamily:"inherit" }}>✕</button>
-                  </div>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:12 }}>
-                    <div style={{ padding:8, background:P.al, borderRadius:6, borderLeft:"3px solid "+dirC }}>
-                      <div style={{ fontSize:8, color:P.mt, fontWeight:600 }}>NET DIRECTION</div>
-                      <div style={{ fontSize:16, fontWeight:900, color:dirC }}>{dir}</div>
-                    </div>
-                    <div style={{ padding:8, background:P.al, borderRadius:6 }}>
-                      <div style={{ fontSize:8, color:P.mt, fontWeight:600 }}>BULLISH FLOW</div>
-                      <div style={{ fontSize:16, fontWeight:900, color:P.bu }}>{fmt(b)}</div>
-                      <div style={{ display:"flex", height:3, borderRadius:2, overflow:"hidden", background:P.bd, marginTop:4 }}>
-                        <div style={{ width:bullPct+"%", background:P.bu }}/><div style={{ width:(100-bullPct)+"%", background:P.be }}/>
+                      <div style={{ fontSize:14, fontWeight:900, color:P.ac, letterSpacing:1 }}>⚡ TOP 5 FLOW PICKS</div>
+                      <div style={{ display:"flex", gap:2, background:P.bg, borderRadius:5, padding:2 }}>
+                        {["Both","Calls","Puts","Unusual"].map(f=>(
+                          <button key={f} onClick={()=>setTop5Filter(f)} style={{
+                            padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
+                            fontSize:9, fontWeight:700, fontFamily:"inherit",
+                            background:top5Filter===f?(f==="Unusual"?"#ff980022":P.ac+"22"):"transparent",
+                            color:top5Filter===f?(f==="Unusual"?"#ff9800":P.ac):P.dm
+                          }}>{f}</button>
+                        ))}
                       </div>
                     </div>
-                    <div style={{ padding:8, background:P.al, borderRadius:6 }}>
-                      <div style={{ fontSize:8, color:P.mt, fontWeight:600 }}>BEARISH FLOW</div>
-                      <div style={{ fontSize:16, fontWeight:900, color:P.be }}>{fmt(r)}</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontSize:9, color:P.dm }}>Cap-weighted · sweep required</span>
+                      <button onClick={()=>fetchPrices(allContracts)} disabled={fetchLoading}
+                        style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                          fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                        {fetchLoading?"Fetching…":"⚡ Fetch Live P/L"}
+                      </button>
                     </div>
                   </div>
-                  {contracts.length>0 && (
-                    <div>
-                      <div style={{ fontSize:10, fontWeight:700, color:P.mt, marginBottom:6, letterSpacing:1 }}>TOP CONTRACTS (2+ HITS)</div>
-                      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
-                        <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                          {["Strike","C/P","Exp","Hits","Grade","Premium","Side"].map(h=>(
-                            <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:8 }}>{h}</th>
-                          ))}
-                        </tr></thead>
-                        <tbody>
-                          {contracts.map((c,i)=>(
-                            <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10", textAlign:"center", cursor:"pointer" }}
-                              onClick={()=>{ setTab("Search"); setSearch(selectedLeaderTicker); setSelectedTicker(tkRef||null); }}>
-                              <td style={{ padding:"4px 5px", fontWeight:800, color:P.wh }}>${c.K}</td>
-                              <td style={{ padding:"4px 5px" }}><Tag c={c.CP==="C"?P.bu:P.be}>{c.CP}</Tag></td>
-                              <td style={{ padding:"4px 5px", color:P.wh }}>{c.E}</td>
-                              <td style={{ padding:"4px 5px", fontWeight:700, color:c.H>=5?P.ac:c.H>=3?P.ye:P.dm }}>{c.H}x</td>
-                              <td style={{ padding:"4px 5px" }}><Tag c={GRADE_COLORS[c.grade]||P.mt}>{c.grade||"—"}</Tag></td>
-                              <td style={{ padding:"4px 5px", fontWeight:700, color:premC(c.P) }}>{fmt(c.P)}</td>
-                              <td style={{ padding:"4px 5px" }}>{c.hasSweep&&c.hasBlock?<Tag c={P.ac}>S+B</Tag>:c.hasSweep?<Tag c={P.sw}>SWP</Tag>:<Tag c={P.bk}>BLK</Tag>}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <div style={{ textAlign:"center", marginTop:6 }}>
-                        <button onClick={()=>{ setTab("Search"); setSearch(selectedLeaderTicker); setSelectedTicker(tkRef||null); }}
-                          style={{ fontSize:9, color:P.ac, background:"transparent", border:"1px solid "+P.ac+"44", borderRadius:4, padding:"3px 12px", cursor:"pointer", fontFamily:"inherit", fontWeight:700 }}>
-                          View full detail in Search →
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                    {picks.map((p,i) => {
+                      const dirC=p.dir==="BULL"?P.bu:P.be;
+                      const tc=p.topC;
+                      const tcSide=tc?(tc.askPrem>=tc.bidPrem?"ask":"bid"):"ask";
+                      let tcC=P.dm;
+                      if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
+                      const grade=p.purity>=95&&p.hasBoth&&p.confirmed>=3?"A+":p.purity>=85&&p.hasBoth?"A":p.purity>=75&&p.confirmed>=2?"B+":"B";
+                      const gradeC=grade==="A+"?P.ac:grade==="A"?P.bu:grade==="B+"?P.ye:P.dm;
+                      const px = tc ? getPrice(p.sym,tc.cp,tc.K,tc.exp) : null;
+                      const now = px ? (px.mark||px.last||px.mid||0) : 0;
+                      const entry = p.entry||0;
+                      const pnl = (now>0&&entry>0) ? (now-entry)/entry*100 : null;
+                      // Auto-generate notes
+                      const notes = [];
+                      if(tc&&tc.hits>=5) notes.push({t:`${tc.hits} hits on same strike — repeat buyer`,w:10});
+                      else if(tc&&tc.hits>=3) notes.push({t:`${tc.hits}x same strike — concentrated`,w:6});
+                      if(p.hasBoth) notes.push({t:"Sweeps + blocks — institutional",w:8});
+                      else if(p.swp>0&&p.blk===0) notes.push({t:"All sweeps — urgency signal",w:7});
+                      const askPct=tc&&tc.prem>0?(tc.askPrem/tc.prem*100):50;
+                      if(askPct>=90) notes.push({t:"All ask-side — aggressive buying",w:7});
+                      if(p.volOI>=10) notes.push({t:`Vol ${Math.round(p.volOI)}x OI — brand new positions`,w:9});
+                      else if(p.volOI>=3) notes.push({t:`Vol ${p.volOI.toFixed(1)}x OI — fresh positions`,w:7});
+                      if(p.minDTE>180) notes.push({t:"LEAPS — long-term conviction play",w:8});
+                      if(p.mktcap>0&&p.mktcap<5e9&&p.net>=1e6) notes.push({t:`${fmt(p.net)} on a $${(p.mktcap/1e9).toFixed(1)}B name — outsized`,w:9});
+                      if(p.purity>=95) notes.push({t:`${Math.round(p.purity)}% one-way — minimal hedging`,w:6});
+                      if(p.confirmed>=5) notes.push({t:`${p.confirmed} confirmed trades — sustained`,w:7});
+                      else if(p.confirmed>=3) notes.push({t:`${p.confirmed} confirmed — repeat interest`,w:5});
+                      notes.sort((a,b)=>b.w-a.w);
+                      const topNotes = notes.slice(0,2).map(n=>n.t);
+                      // Position activity note
+                      let posNote = "";
+                      const bidPct = tc&&tc.prem>0 ? tc.bidPrem/tc.prem*100 : 0;
+                      const oiGrowth = tc&&tc.oi>0&&tc.lastOI>0 ? (tc.lastOI/tc.oi-1)*100 : 0;
+                      if(bidPct>=50) posNote = `🔻 Heavy exits — ${Math.round(bidPct)}% closing flow`;
+                      else if(bidPct>=30) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid-side closing`;
+                      else if(bidPct>=15 && oiGrowth>0) posNote = "↔️ Mixed — some exits but OI still net growing";
+                      else if(bidPct>=15) posNote = `⚠️ Some exits — ${Math.round(bidPct)}% bid-side flow`;
+                      else if(p.daysSince<=2 && tc&&tc.hits<=3) posNote = "🆕 New entry — just appeared";
+                      else if(oiGrowth>20 && bidPct<15) posNote = `📈 Adding — OI up ${Math.round(oiGrowth)}%`;
+                      else if(oiGrowth>5) posNote = "📈 Accumulating — OI growing";
+                      else if(bidPct<10 && p.daysSince<=3 && tc&&tc.hits>=5) posNote = "🔥 Active — fresh flow, no exits";
+                      else if(p.daysSince>=7 && bidPct<10) posNote = "💤 Holding — no new flow or exits";
+                      else if(bidPct<15 && tc&&tc.hits>=5) posNote = "✅ In position — minimal exits";
+                      else posNote = "✅ In position";
+                      // Freshness + last OI
+                      const freshC = p.daysSince<=1?P.bu:p.daysSince<=3?P.ac:p.daysSince>=7?P.be:P.dm;
+                      const lastOI = tc?tc.lastOI:0;
+                      return (
+                        <div key={p.sym}>
+                        <div onClick={()=>setTop5Detail(top5Detail===p.sym?null:p.sym)} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:P.al, borderRadius:8, borderLeft:"3px solid "+dirC, cursor:"pointer" }}>
+                          <span style={{ fontSize:16, fontWeight:900, color:P.dm+"88", width:16, textAlign:"center", flexShrink:0 }}>{i+1}</span>
+                          <span style={{ fontSize:14, fontWeight:900, color:P.wh, width:50, flexShrink:0 }}>{p.sym}</span>
+                          <Tag c={dirC}>{p.dir}</Tag>
+                          <div style={{ width:70, textAlign:"right", flexShrink:0 }}>
+                            <div style={{ fontSize:7, color:P.dm, letterSpacing:0.5 }}>NET</div>
+                            <div style={{ fontSize:13, fontWeight:900, color:dirC }}>{fmt(p.net)}</div>
+                            <div style={{ fontSize:8, color:P.dm }}>{Math.round(p.purity)}%</div>
+                          </div>
+                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
+                          <div style={{ fontSize:9, color:P.mt, width:150, flexShrink:0, textAlign:"center" }}>
+                            {tc && (<div>
+                              <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
+                              <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
+                              <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
+                              <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc.hits}x</span>
+                              <div style={{ fontSize:8, color:P.ye }}>{fmt(tc.prem)}</div>
+                            </div>)}
+                          </div>
+                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
+                          <div style={{ fontSize:9, width:130, flexShrink:0 }}>
+                            {entry>0 ? (<span>
+                              <span style={{ color:P.dm }}>${entry.toFixed(2)}</span>
+                              {pnl!==null ? (<span>
+                                <span style={{ color:P.dm, marginLeft:2 }}>→</span>
+                                <span style={{ color:P.wh, fontWeight:700, marginLeft:2 }}>${now.toFixed(2)}</span>
+                                <span style={{ color:pnl>=0?P.bu:P.be, fontWeight:800, marginLeft:3 }}>{pnl>=0?"+":""}{pnl.toFixed(1)}%</span>
+                              </span>) : null}
+                            </span>) : <span style={{ color:P.dm+"55" }}>—</span>}
+                          </div>
+                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
+                          <div style={{ width:55, flexShrink:0, fontSize:8, textAlign:"center" }}>
+                            {lastOI>0 ? <div style={{ color:P.dm }}>OI: {lastOI.toLocaleString()}</div> : <span style={{ color:P.dm+"55" }}>—</span>}
+                          </div>
+                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
+                          <div style={{ width:140, flexShrink:0, fontSize:9, color:P.ac, fontWeight:600, textAlign:"center" }}>
+                            {posNote || <span style={{ color:P.dm+"55" }}>—</span>}
+                          </div>
+                          <span style={{ fontSize:12, fontWeight:900, color:gradeC, padding:"2px 8px", borderRadius:4, background:gradeC+"18", border:"1px solid "+gradeC+"44", flexShrink:0 }}>{grade}</span>
+                          <div style={{ flex:1, fontSize:10, color:P.dm, lineHeight:1.5, paddingLeft:12 }}>
+                            {topNotes.map((n,ni)=><div key={ni} style={{ color:P.mt }}>{n}</div>)}
+                          </div>
+                          <span style={{ fontSize:9, color:P.dm+"66", flexShrink:0 }}>{top5Detail===p.sym?"▲":"▼"}</span>
+                        </div>
+                        {/* Expandable trade detail */}
+                        {top5Detail===p.sym && (()=>{
+                          const trades = ad.filter(t=>t.S===p.sym).sort((a,b)=>(b.P||0)-(a.P||0)).slice(0,5);
+                          if(!trades.length) return null;
+                          return (
+                            <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:6, padding:10, marginTop:2, marginBottom:4, marginLeft:24 }}>
+                              <div style={{ fontSize:9, fontWeight:700, color:P.ac, marginBottom:6 }}>TOP {trades.length} TRADES BY PREMIUM</div>
+                              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+                                <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                                  {["Date","Time","Type","Side","C/P","Strike","Exp","DTE","Vol","OI","Premium","Color"].map(h=>(
+                                    <th key={h} style={{ padding:"3px 6px", textAlign:"center", color:P.dm, fontSize:8, fontWeight:600 }}>{h}</th>
+                                  ))}
+                                </tr></thead>
+                                <tbody>
+                                  {trades.map((t,ti)=>{
+                                    const sideC=t.Si==="A"||t.Si==="AA"?P.bu:t.Si==="B"||t.Si==="BB"?P.be:P.dm;
+                                    const cpC=t.CP==="C"?P.bu:P.be;
+                                    const coC=t.Co==="YELLOW"?P.ye:t.Co==="MAGENTA"?"#e040fb":P.dm;
+                                    return (
+                                      <tr key={ti} style={{ borderBottom:"1px solid "+P.bd+"22" }}>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh }}>{t.Dt||"—"}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.dm }}>{t.time||"—"}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:t.Ty==="SWP"?P.ac:P.mt, fontWeight:700 }}>{t.Ty}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:sideC, fontWeight:700 }}>{t.Si}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:cpC, fontWeight:700 }}>{t.CP==="C"?"CALL":"PUT"}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh, fontWeight:700 }}>${t.K}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.ac }}>{t.E}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.dm }}>{t.DTE}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh }}>{(t.V||0).toLocaleString()}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.dm }}>{(t.OI||0).toLocaleString()}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh, fontWeight:800 }}>{fmt(t.P)}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:coC, fontWeight:700 }}>{t.Co}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })()}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </Card>
               );
             })()}
@@ -4515,8 +4336,8 @@ export default function OptionsFlowDashboard() {
         )}
 
 
-        {/* Alpha Board */}
-        {tab==="Alpha" && FD && (()=>{
+        {/* Leaderboard */}
+        {tab==="Leaderboard" && FD && (()=>{
           const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
           const [convDte, setConvDte] = [convictionDte, setConvictionDte];
           const [cSort, setCSort] = [convictionSort, setConvictionSort];
@@ -4697,7 +4518,7 @@ export default function OptionsFlowDashboard() {
                 <div style={{ display:"flex", gap:14, alignItems:"center" }}>
                   <div style={{ width:3, background:"#c9a84c", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                   <div>
-                    <div style={{ fontSize:13, fontWeight:700, color:"#c9a84c", marginBottom:5 }}>Alpha Board</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#c9a84c", marginBottom:5 }}>Leaderboard</div>
                     <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Top bullish and bearish tickers ranked by net confirmed premium. Only non-expired, clean flow. Click any row to expand top contracts, click ticker to drill into Search.</div>
                   </div>
                 </div>
