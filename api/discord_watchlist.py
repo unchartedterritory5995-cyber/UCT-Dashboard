@@ -175,13 +175,18 @@ def build_messages(
 
         # Embed 1: Summary header (gold sidebar)
         net_emoji = "🟢" if net > 0 else "🔴"
+        title_label = label or "WATCHLIST"
         embeds.append({
             "color": GOLD,
             "author": {"name": "UCT Options Flow"},
-            "title": f"{net_emoji} {label or 'WATCHLIST'} — {date_str}",
+            "title": f"{net_emoji} {title_label} — {date_str}",
             "description": (
-                f"**Net: {_fmt(net)}** · {_fmt(total_bull)} bull / "
-                f"{_fmt(total_bear)} bear · **{bull_pct}% bullish**\n"
+                f"```ansi\n"
+                f"Net: {_GREEN_A if net>0 else _RED_A}{_fmt(net)}{_RESET} · "
+                f"{_GREEN_A}{_fmt(total_bull)}{_RESET} bull / "
+                f"{_RED_A}{_fmt(total_bear)}{_RESET} bear · "
+                f"{_WHITE_A}{bull_pct}% bullish{_RESET}\n"
+                f"```"
                 f"{tk_count} tickers with flow"
             ),
         })
