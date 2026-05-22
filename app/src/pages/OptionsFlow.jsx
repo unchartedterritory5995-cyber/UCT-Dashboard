@@ -6190,7 +6190,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ display:"flex", alignItems:"center", gap:2 }}>
                     <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
                       style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
-                      {["WATCHLIST","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
+                      {["WATCHLIST","UNUSUAL","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
                     </select>
                     <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
                       style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:9, padding:"5px 4px", fontFamily:"inherit" }}>
