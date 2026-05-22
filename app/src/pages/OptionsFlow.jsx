@@ -1754,6 +1754,23 @@ export default function OptionsFlowDashboard() {
     }).then(r=>r.json()).then(()=>{
       fetch("/api/watchlist/dates").then(r=>r.json()).then(d=>setWlDates(d));
     }).catch(()=>{});
+    // Push top 10 bull + top 10 bear to tracker
+    const today = new Date().toISOString().split("T")[0];
+    const toTracker = (items, dir) => items.slice(0,10).map(item => ({
+      sym: item.sym, cp: item.cp||"C", strike: parseFloat(item.strike)||0,
+      exp: item.exp||"", entry: item.entrySpot||0,
+      grade: item.grade||"B", dir, hits: item.hits||1,
+      prem: item.prem||0, cap: item.cap||capBand(item.mktcap||0),
+      dateSaved: today
+    }));
+    const trackerPicks = [...toTracker(wlBull,"BULL"), ...toTracker(wlBear,"BEAR")];
+    if (trackerPicks.length > 0) {
+      fetch("/api/top-flow/save",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(trackerPicks)
+      }).then(r=>r.ok?r.json():null).then(()=>{
+        fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{ if(data) setTopFlowPicks(data); });
+      }).catch(()=>{});
+    }
   };
 
   // ─── Discord Push ───────────────────────────────────────────────────
@@ -1842,6 +1859,23 @@ export default function OptionsFlowDashboard() {
       const data = await resp.json();
       if (data.ok) {
         setStatus(`✅ Pushed to Discord — ${data.messages_sent} message(s)`);
+        // Also push top 10 bull + top 10 bear to tracker
+        const todayISO = new Date().toISOString().split("T")[0];
+        const toTracker = (items, dir) => items.slice(0,10).map(item => ({
+          sym: item.sym, cp: item.cp||"C", strike: parseFloat(item.strike)||0,
+          exp: item.exp||"", entry: item.entrySpot||0,
+          grade: item.grade||"B", dir, hits: item.hits||1,
+          prem: item.prem||0, cap: item.cap||capBand(item.mktcap||0),
+          dateSaved: todayISO
+        }));
+        const trackerPicks = [...toTracker(wlBull,"BULL"), ...toTracker(wlBear,"BEAR")];
+        if (trackerPicks.length > 0) {
+          fetch("/api/top-flow/save",{method:"POST",headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(trackerPicks)
+          }).then(r=>r.ok?r.json():null).then(()=>{
+            fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(d=>{ if(d) setTopFlowPicks(d); });
+          }).catch(()=>{});
+        }
       } else {
         setStatus(`❌ Discord push failed: ${data.error||"unknown error"}`);
       }
@@ -5849,10 +5883,10 @@ export default function OptionsFlowDashboard() {
                 </div>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {[{label:"Ticker",key:"ticker"},{label:"Exp",key:"exp"},{label:"Strike",key:"strike"},{label:"C/P",key:""},{label:"OI",key:"oi"},{label:"ΔOI",key:"doi"},{label:"Grade",key:"grade"},{label:"Dir",key:""},{label:"Entry",key:"entry"},{label:"Now",key:"now"},{label:"P&L",key:"pnl"},{label:"Peak",key:"peak"},{label:"Days",key:"days"},{label:"Trend",key:""},{label:"Added",key:"added"}].map(h=>(
+                    {[{label:"Ticker",key:"ticker"},{label:"Exp",key:"exp"},{label:"Strike",key:"strike"},{label:"C/P",key:""},{label:"Live OI",key:"oi"},{label:"Grade",key:"grade"},{label:"Entry",key:"entry"},{label:"Now",key:"now"},{label:"P&L",key:"pnl"},{label:"Peak",key:"peak"},{label:"Trend",key:""},{label:"Added",key:"added"}].map(h=>(
                       <th key={h.label} onClick={()=>h.key&&trkToggle(h.key)}
                         style={{ padding:"5px 5px", textAlign:"left", color:h.key?trkColor(h.key):P.mt, fontSize:9, fontWeight:600, cursor:h.key?"pointer":"default", userSelect:"none" }}
-                        title={h.label==="Peak"?"Highest % gain from entry":h.label==="ΔOI"?"Change in OI from previous snapshot":undefined}>{h.label}{h.key?trkIcon(h.key):""}</th>
+                        title={h.label==="Peak"?"Highest % gain from entry":undefined}>{h.label}{h.key?trkIcon(h.key):""}</th>
                     ))}
                   </tr></thead>
                   <tbody>
@@ -5895,7 +5929,7 @@ export default function OptionsFlowDashboard() {
                       const isExit = oiDropPct >= 30 && peakOI >= 100;
                       return (
                         <Fragment key={p.id||i}>
-                        {showSep && <tr><td colSpan={15} style={{ padding:"6px 0", textAlign:"center" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><div style={{ flex:1, height:1, background:P.be+"40" }}/><span style={{ fontSize:8, fontWeight:700, color:P.be, letterSpacing:1 }}>▼ BOTTOM {cappedActive.length - activeResult.split}</span><div style={{ flex:1, height:1, background:P.be+"40" }}/></div></td></tr>}
+                        {showSep && <tr><td colSpan={12} style={{ padding:"6px 0", textAlign:"center" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><div style={{ flex:1, height:1, background:P.be+"40" }}/><span style={{ fontSize:8, fontWeight:700, color:P.be, letterSpacing:1 }}>▼ BOTTOM {cappedActive.length - activeResult.split}</span><div style={{ flex:1, height:1, background:P.be+"40" }}/></div></td></tr>}
                         <tr onClick={()=>{ fetchContractHistory(p.sym,p.cp,p.strike,p.exp); setSelectedItem({sym:p.sym,cp:p.cp,K:p.strike,exp:p.exp}); }}
                           style={{ borderBottom:"1px solid "+P.bd+"10", textAlign:"center", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
@@ -5905,14 +5939,11 @@ export default function OptionsFlowDashboard() {
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
                           <td style={{ padding:"5px 5px", fontSize:10, color:curOI>0?P.dm:P.mt }}>{curOI>0?curOI.toLocaleString():"—"}</td>
-                          <td style={{ padding:"5px 5px", fontSize:10, fontWeight:700, color:deltaOI>0?P.bu:deltaOI<0?P.be:P.dm }}>{deltaOI!==0?(deltaOI>0?"+":"")+deltaOI.toLocaleString():"—"}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={GRADE_COLORS[p.grade]||P.mt}>{p.grade}</Tag></td>
-                          <td style={{ padding:"5px 5px" }}><Tag c={dirC}>{p.dir}</Tag></td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{p.entry>0?"$"+p.entry.toFixed(2):"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
-                          <td style={{ padding:"5px 5px", color:P.dm }}>{days}d</td>
                           <td style={{ padding:"5px 5px", fontSize:14, fontWeight:800, color:trendC }}>{trend}</td>
                           <td style={{ padding:"5px 5px", color:P.dm, fontSize:9 }}>{p.dateSaved||"—"}</td>
                         </tr>
