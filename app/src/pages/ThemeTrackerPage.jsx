@@ -8,7 +8,7 @@ import SymbolSearch from '../components/chart/SymbolSearch'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
-import { prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
+import { prefetchBar, prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
@@ -125,7 +125,7 @@ function groupReturn(theme, periodKey) {
     : avgReturn(theme.holdings, periodKey)
 }
 
-function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions }) {
+function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym }) {
   const isPortfolio = theme.ticker === 'UCT20'
   const groupAvg = groupReturn(theme, activeKey)
   const momentumDelta = rotationRanking?.momentum_delta
@@ -161,6 +161,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
             ref={el => { if (rowRefs) rowRefs.current[h.sym] = el }}
             className={`${styles.stockRow} ${isSelected ? styles.selected : ''}`}
             onClick={() => onSelectSym(h.sym, h.name)}
+            onMouseEnter={onHoverSym ? () => onHoverSym(h.sym) : undefined}
             onContextMenu={tickerActions ? e => tickerActions.openMenu(e, h.sym) : undefined}
           >
             {getTag && getTag(h.sym) && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[getTag(h.sym)]?.hex, marginRight: 4 }} />}
@@ -218,11 +219,28 @@ export default function ThemeTrackerPage() {
   function toggleTheme(ticker) {
     setOpenThemes(prev => {
       const next = new Set(prev)
-      if (next.has(ticker)) next.delete(ticker)
-      else next.add(ticker)
+      if (next.has(ticker)) {
+        next.delete(ticker)
+      } else {
+        next.add(ticker)
+        // Bulk-warm bars + ticker-meta for every holding in the just-opened
+        // group so any click within it lands on a populated SWR cache. Server
+        // disk cache makes this cheap (~10ms each, parallelised by the
+        // browser), and prefetchBars dedups against in-flight requests.
+        const theme = data?.themes?.find(t => t.ticker === ticker)
+        if (theme?.holdings?.length) {
+          prefetchBars(theme.holdings.map(h => h.sym), chartPeriod)
+        }
+      }
       return next
     })
   }
+
+  // Row-hover prefetch: by the time the click commits (~200ms of mouse-down
+  // latency on average), the bars are already in flight or cached.
+  const handleHoverSym = useCallback(sym => {
+    prefetchBar(sym, chartPeriod)
+  }, [chartPeriod])
 
   const chartRef = useRef(null)
 
@@ -407,7 +425,7 @@ export default function ThemeTrackerPage() {
                 <ThemeGroup key={theme.ticker} theme={theme} selectedSym={selectedSym} onSelectSym={handleSelect}
                   activeKey={activeKey} sortDir={sortDir} open={openThemes.has(theme.ticker)} onToggle={toggleTheme}
                   rowRefs={rowRefs} rotationRanking={rotationRankings[theme.ticker]} getTag={getTag}
-                  tickerActions={tickerActions} />
+                  tickerActions={tickerActions} onHoverSym={handleHoverSym} />
               ))}
             </div>
           </>

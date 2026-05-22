@@ -18,6 +18,7 @@ export function prefetchBars(tickers, tf = 'D') {
   for (const sym of tickers) {
     if (!sym) continue
     preload(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}`, fetcher)
+    prefetchTickerMeta(sym) // warm the watermark meta in the same pass
   }
 }
 
