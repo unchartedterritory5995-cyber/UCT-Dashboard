@@ -15,7 +15,7 @@ Integration in main.py:
 """
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.responses import StreamingResponse
 from api.flow_db import FlowDB
 import os
@@ -96,8 +96,9 @@ async def get_flow_data(request: Request):
             gen = db.stream_csv(source="stocks")
         else:
             gen = db.stream_csv(source="stocks", days=days)
-        return StreamingResponse(
-            gen,
+        content = "".join(gen)
+        return Response(
+            content=content,
             media_type="text/csv",
             headers=_FLOW_CACHE_HEADERS,
         )
@@ -129,8 +130,9 @@ async def get_indexes_data(request: Request):
             gen = db.stream_csv(source="indexes")
         else:
             gen = db.stream_csv(source="indexes", days=days)
-        return StreamingResponse(
-            gen,
+        content = "".join(gen)
+        return Response(
+            content=content,
             media_type="text/csv",
             headers=_FLOW_CACHE_HEADERS,
         )
