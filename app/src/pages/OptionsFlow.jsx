@@ -5829,14 +5829,14 @@ export default function OptionsFlowDashboard() {
                     {trackerDates.map(d=><option key={d} value={d}>{d}</option>)}
                   </select>
                 )}
-                <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{filteredActive.length} active · {filteredArchived.length} archived</span>
+                <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{filteredActive.length} active contracts</span>
               </div>
             </Card>
             {cappedActive.length > 0 ? (
               <Card title="Active Picks" sub={cappedActive.length+(cappedActive.length<filteredActive.length?" of "+filteredActive.length:"")+" contracts"}>
                 <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
                   <button onClick={()=>{
-                    const contracts = topFlowPicks.active.map(p=>({sym:p.sym,cp:p.cp,strike:p.strike,exp:p.exp}));
+                    const contracts = cappedActive.map(p=>({sym:p.sym,cp:p.cp,strike:p.strike,exp:p.exp}));
                     fetchPrices(contracts).then(()=>{
                       fetch("/api/top-flow/snapshot",{method:"POST"}).then(()=>fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(d=>{if(d)setTopFlowPicks(d);})).catch(()=>{});
                     });
@@ -5926,47 +5926,6 @@ export default function OptionsFlowDashboard() {
               <Card><div style={{ textAlign:"center", padding:"20px 0", color:P.dm, fontSize:12 }}>No active picks yet. Upload flow data — Top Flow picks will be tracked automatically.</div></Card>
             )}
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
-            {cappedArchived.length > 0 && (
-              <Card title="Archived Picks" sub={cappedArchived.length+(cappedArchived.length<filteredArchived.length?" of "+filteredArchived.length:"")+" expired"}>
-                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
-                  <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["Ticker","Exp","Strike","C/P","Grade","Dir","Entry","Final","P&L","Peak","Peak OI","Saved"].map(h=>(
-                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
-                    ))}
-                  </tr></thead>
-                  <tbody>
-                    {cappedArchived.map((p,i)=>{
-                      const pnlC = p.finalPnl>0?P.bu:p.finalPnl<0?P.be:P.dm;
-                      const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
-                      const hist = p.history||[];
-                      const allPx = [...hist.map(h=>h.price), p.finalPrice||0].filter(v=>v>0);
-                      const peakPrice = allPx.length>0 ? Math.max(...allPx) : 0;
-                      const peakPnl = peakPrice>0 && p.entry>0 ? (peakPrice-p.entry)/p.entry*100 : 0;
-                      const oiHist = hist.filter(h=>(h.oi||0)>0);
-                      const peakOI = oiHist.length>0 ? Math.max(...oiHist.map(h=>h.oi)) : 0;
-                      const lastOI = oiHist.length>0 ? oiHist[oiHist.length-1].oi : 0;
-                      const wasExit = peakOI>=100 && lastOI>0 && (peakOI-lastOI)/peakOI*100>=30;
-                      return (
-                        <tr key={p.id||i} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.7 }}>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{wasExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}</td>
-                          <td style={{ padding:"5px 5px", color:P.dm }}>{p.exp}</td>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
-                          <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
-                          <td style={{ padding:"5px 5px" }}><Tag c={GRADE_COLORS[p.grade]||P.mt}>{p.grade}</Tag></td>
-                          <td style={{ padding:"5px 5px" }}><Tag c={dirC}>{p.dir}</Tag></td>
-                          <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{p.entry>0?"$"+p.entry.toFixed(2):"—"}</td>
-                          <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.finalPrice>0?"$"+p.finalPrice.toFixed(2):"—"}</td>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:pnlC }}>{p.finalPnl?(p.finalPnl>0?"+":"")+p.finalPnl.toFixed(1)+"%":"—"}</td>
-                          <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?P.bu:P.dm }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
-                          <td style={{ padding:"5px 5px", fontSize:10, color:P.dm }}>{peakOI>0?peakOI.toLocaleString():"—"}</td>
-                          <td style={{ padding:"5px 5px", color:P.dm, fontSize:9 }}>{p.dateSaved||"—"}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </Card>
-            )}
           </div>
           );
         })()}
