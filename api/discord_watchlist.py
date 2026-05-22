@@ -181,7 +181,10 @@ def build_messages(
             "color": GOLD,
             "author": {"name": "UCT Options Flow"},
             "title": f"{net_emoji} {title_label} — {date_str}",
-            "description": f"{tk_count} tickers with flow · **{bull_pct}% bullish**",
+            "description": (
+                f"{tk_count} tickers with flow · "
+                f"```ansi\n{_GREEN_A if bull_pct>=50 else _RED_A}{bull_pct}% {'bullish' if bull_pct>=50 else 'bearish'}{_RESET}\n```"
+            ),
             "fields": [
                 {"name": f"{net_emoji} Net", "value": f"```ansi\n{net_color}{_fmt(net)}{_RESET}\n```", "inline": True},
                 {"name": "🟢 Bull", "value": f"```ansi\n{_GREEN_A}{_fmt(total_bull)}{_RESET}\n```", "inline": True},
