@@ -3,11 +3,10 @@ Discord Watchlist Service — posts curated watchlist to Discord webhook.
 
 Manual-only: user clicks "Push to Discord" on the Watchlist tab.
 Receives bull/bear items directly from the frontend (already scored/curated).
-Formats into 4-section embeds:
-  1. BULL WATCHLIST (all caps)
-  2. BEAR WATCHLIST (all caps)
-  3. BULL — MID-SMALL (unusual flow)
-  4. BEAR — MID-SMALL (unusual flow)
+Formats into tiered embeds with colored sidebars:
+  1. Summary embed (gold sidebar) — net, bull/bear totals, date
+  2. Bull embed (green sidebar) — curated bull picks with row separators
+  3. Bear embed (red sidebar) — curated bear picks with row separators
 """
 
 import os
@@ -20,6 +19,14 @@ logger = logging.getLogger(__name__)
 
 DISCORD_FLOW_WEBHOOK_URL = os.getenv("DISCORD_FLOW_WEBHOOK_URL", "")
 ET = ZoneInfo("America/New_York")
+
+# ── Discord embed color constants ──────────────────────────────────────────
+GREEN = 0x57F287
+RED = 0xED4245
+GOLD = 0xC9A84C
+
+# ── Row separator for code blocks ──────────────────────────────────────────
+SEP = "─" * 45
 
 
 # ── Formatting ─────────────────────────────────────────────────────────────
@@ -51,26 +58,28 @@ def _fmt_strike(strike: float) -> str:
     return f"${strike:g}"
 
 
-# ── Embed table builder ───────────────────────────────────────────────────
+# ── Conviction grade ──────────────────────────────────────────────────────
 
 def _conviction_grade(score: float) -> str:
     """Map autoScore (0-10) to letter grade."""
     if score >= 8.5:
         return "A+"
     if score >= 7:
-        return "A "
+        return "A"
     if score >= 5.5:
         return "B+"
     if score >= 4:
-        return "B "
-    return "C "
+        return "B"
+    return "C"
 
+
+# ── Table builder with row separators ─────────────────────────────────────
 
 def _build_table(items: list[dict], limit: int = 10) -> str:
-    """Build a monospace-aligned table from watchlist items."""
+    """Build a monospace-aligned table with separator between each row."""
     lines = []
     for i, item in enumerate(items[:limit], 1):
-        sym = (item.get("sym") or "???").ljust(5)
+        sym = (item.get("sym") or "???").ljust(6)
 
         # Contract info — order: exp strike cp
         strike_val = item.get("strike")
@@ -82,7 +91,7 @@ def _build_table(items: list[dict], limit: int = 10) -> str:
                 strike = ""
             exp = _fmt_exp(item.get("exp") or "")
             prem = _fmt(float(item.get("prem") or 0))
-            contract = f"{exp.ljust(6)}{strike.ljust(6)}{cp} {prem.rjust(6)}"
+            contract = f"{exp.ljust(6)}{strike.ljust(8)}{cp}  {prem.rjust(7)}"
         else:
             contract = "—"
 
@@ -90,18 +99,22 @@ def _build_table(items: list[dict], limit: int = 10) -> str:
         score = float(item.get("score") or item.get("autoScore") or 0)
         grade = _conviction_grade(score)
 
-        # Entry date (when flow first appeared)
+        # Entry date
         entry_date = _fmt_exp(item.get("firstDate") or "")
-        date_str = f" {entry_date}" if entry_date and entry_date != "?" else ""
+        date_str = f"  {entry_date}" if entry_date and entry_date != "?" else ""
 
-        rank = f"{i:>2}. "
-        lines.append(f"{rank}{sym} {contract} {grade}{date_str}")
+        rank = f"{i:>2}."
+        row = f"{rank} {sym}{contract}  {grade}{date_str}"
+        lines.append(row)
+
+        # Add separator between rows (not after last row)
+        if i < min(len(items), limit):
+            lines.append(SEP)
 
     return "\n".join(lines) if lines else "(empty)"
 
 
-# ── Message builder ────────────────────────────────────────────────────────
-
+# ── Message builder (tiered embeds) ────────────────────────────────────────
 
 def build_messages(
     bull: list[dict],
@@ -115,16 +128,24 @@ def build_messages(
     limit: int = 10,
 ) -> list[dict]:
     """
-    Build Discord embed messages.
-    Sections 1&2: bull/bear from main watchlist (Auto-Fill from Scanner).
-    Sections 3&4: unusual_bull/unusual_bear from mid-small unusual scan.
-    Summary uses overall_bull/overall_bear (full day flow across ALL tickers).
+    Build Discord embed messages as tiered embeds:
+      Embed 1: Gold summary (net, bull/bear, date)
+      Embed 2: Green bull watchlist with row separators
+      Embed 3: Red bear watchlist with row separators
     """
     # Sort by score descending
-    bull_sorted = sorted(bull, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
-    bear_sorted = sorted(bear, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
+    bull_sorted = sorted(
+        bull,
+        key=lambda x: float(x.get("score") or x.get("autoScore") or 0),
+        reverse=True,
+    )
+    bear_sorted = sorted(
+        bear,
+        key=lambda x: float(x.get("score") or x.get("autoScore") or 0),
+        reverse=True,
+    )
 
-    # Summary stats — use overall day flow (all tickers) if provided, else fall back to curated
+    # Summary stats
     if overall_bull > 0 or overall_bear > 0:
         total_bull = overall_bull
         total_bear = overall_bear
@@ -142,79 +163,81 @@ def build_messages(
     date_str = now.strftime("%B %d, %Y")
     time_str = now.strftime("%I:%M %p ET")
 
-    GREEN = 0x43B581
-    RED = 0xF04747
-    GOLD = 0xFAA61A
-    PURPLE = 0x9B59B6
-
     messages = []
 
-    # Message 1: All-cap bull + bear (skip if empty — unusual-only push)
     if bull_sorted or bear_sorted:
-        msg1 = {
-            "embeds": [
-                {
-                    "color": GREEN,
-                    "author": {"name": "UCT Options Flow"},
-                    "title": f"{'🟢' if net > 0 else '🔴'} {label or 'WATCHLIST'} — {date_str}",
-                    "description": (
-                        f"**Net: {_fmt(net)}** · {_fmt(total_bull)} bull / {_fmt(total_bear)} bear · **{bull_pct}%** bullish\n"
-                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                        f"🟢 **BULL WATCHLIST**\n"
-                        f"```\n{_build_table(bull_sorted, limit)}\n```"
-                    ),
-                    "footer": {"text": f"UCT Intelligence · {time_str} · {tk_count} tickers with flow"},
-                },
-                {
-                    "color": RED,
-                    "description": (
-                        f"🔴 **BEAR WATCHLIST**\n"
-                        f"```\n{_build_table(bear_sorted, limit)}\n```"
-                    ),
-                },
-            ]
-        }
-        messages.append(msg1)
+        embeds = []
 
-    # Message 2: Unusual Mid-Small (separate dataset from frontend)
+        # Embed 1: Summary header (gold sidebar)
+        net_emoji = "🟢" if net > 0 else "🔴"
+        embeds.append({
+            "color": GOLD,
+            "author": {"name": "UCT Options Flow"},
+            "title": f"{net_emoji} {label or 'WATCHLIST'} — {date_str}",
+            "description": (
+                f"**Net: {_fmt(net)}** · {_fmt(total_bull)} bull / "
+                f"{_fmt(total_bear)} bear · **{bull_pct}% bullish**\n"
+                f"{tk_count} tickers with flow"
+            ),
+        })
+
+        # Embed 2: Bull watchlist (green sidebar)
+        if bull_sorted:
+            bull_table = _build_table(bull_sorted, limit)
+            embeds.append({
+                "color": GREEN,
+                "title": f"🟢 BULL WATCHLIST",
+                "description": f"```\n{bull_table}\n```",
+            })
+
+        # Embed 3: Bear watchlist (red sidebar)
+        if bear_sorted:
+            bear_table = _build_table(bear_sorted, limit)
+            embeds.append({
+                "color": RED,
+                "title": f"🔴 BEAR WATCHLIST",
+                "description": f"```\n{bear_table}\n```",
+            })
+
+        # Footer on last embed
+        embeds[-1]["footer"] = {"text": f"UCT Intelligence · {time_str}"}
+
+        messages.append({"embeds": embeds})
+
+    # Unusual flow (if present) — separate message
     ub = unusual_bull or []
     ubear = unusual_bear or []
     if ub or ubear:
-        ub_sorted = sorted(ub, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
-        ubear_sorted = sorted(ubear, key=lambda x: float(x.get("score") or x.get("autoScore") or 0), reverse=True)
-        # If standalone (no watchlist), add summary to unusual header
-        unusual_title = f"⚡ {label or 'UNUSUAL FLOW'} — MID-SMALL CAP" if not messages else "⚡ UNUSUAL FLOW — MID-SMALL CAP"
-        unusual_header = ""
-        if not messages and (overall_bull > 0 or overall_bear > 0):
-            unusual_header = f"**Net: {_fmt(net)}** · {_fmt(total_bull)} bull / {_fmt(total_bear)} bear · **{bull_pct}%** bullish\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        msg2 = {
-            "embeds": [
-                {
-                    "color": GOLD,
-                    "author": {"name": "UCT Options Flow"} if not messages else None,
-                    "title": unusual_title,
-                    "description": (
-                        f"{unusual_header}"
-                        f"🟢 **BULL**\n"
-                        f"```\n{_build_table(ub_sorted)}\n```"
-                    ),
-                },
-                {
-                    "color": PURPLE,
-                    "description": (
-                        f"🔴 **BEAR**\n"
-                        f"```\n{_build_table(ubear_sorted)}\n```"
-                    ),
-                    "footer": {"text": f"UCT Intelligence · {time_str}"},
-                },
-            ]
-        }
-        # Remove None author
-        msg2["embeds"] = [e for e in msg2["embeds"] if e is not None]
-        for e in msg2["embeds"]:
-            if "author" in e and e["author"] is None:
-                del e["author"]
-        messages.append(msg2)
+        ub_sorted = sorted(
+            ub,
+            key=lambda x: float(x.get("score") or x.get("autoScore") or 0),
+            reverse=True,
+        )
+        ubear_sorted = sorted(
+            ubear,
+            key=lambda x: float(x.get("score") or x.get("autoScore") or 0),
+            reverse=True,
+        )
+
+        unusual_embeds = []
+
+        if ub_sorted:
+            unusual_embeds.append({
+                "color": GOLD,
+                "title": "⚡ UNUSUAL FLOW — BULL",
+                "description": f"```\n{_build_table(ub_sorted, limit)}\n```",
+            })
+
+        if ubear_sorted:
+            unusual_embeds.append({
+                "color": 0x9B59B6,  # Purple
+                "title": "⚡ UNUSUAL FLOW — BEAR",
+                "description": f"```\n{_build_table(ubear_sorted, limit)}\n```",
+            })
+
+        if unusual_embeds:
+            unusual_embeds[-1]["footer"] = {"text": f"UCT Intelligence · {time_str}"}
+            messages.append({"embeds": unusual_embeds})
 
     return messages
 
@@ -251,10 +274,8 @@ async def send_to_discord(
                 await asyncio.sleep(0.5)
 
         logger.info(
-            "[Discord] Watchlist posted — %d msgs, %d bull, %d bear, %d unusual_bull, %d unusual_bear — %s",
-            len(messages), len(bull), len(bear),
-            len(unusual_bull or []), len(unusual_bear or []),
-            label or "manual"
+            "[Discord] Watchlist posted — %d msgs, %d bull, %d bear — %s",
+            len(messages), len(bull), len(bear), label or "manual",
         )
         return {
             "ok": True,
@@ -283,14 +304,15 @@ def register_discord_routes(app_or_router):
         """
         Push curated watchlist to Discord.
         Body: {
-          "bull": [...],            -- main watchlist bull picks
-          "bear": [...],            -- main watchlist bear picks
-          "unusualBull": [...],     -- unusual mid-small bull
-          "unusualBear": [...],     -- unusual mid-small bear
-          "overallBull": 231200000, -- total bull premium across ALL tickers (day flow)
-          "overallBear": 150300000, -- total bear premium across ALL tickers (day flow)
-          "tickerCount": 462,       -- total tickers with flow
-          "label": "WATCHLIST"
+          "bull": [...],
+          "bear": [...],
+          "unusualBull": [...],
+          "unusualBear": [...],
+          "overallBull": 231200000,
+          "overallBear": 150300000,
+          "tickerCount": 462,
+          "label": "WATCHLIST",
+          "limit": 10
         }
         """
         bull = payload.get("bull", [])
