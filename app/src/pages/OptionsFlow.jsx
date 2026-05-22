@@ -3926,7 +3926,8 @@ export default function OptionsFlowDashboard() {
                 else if(tk.band==="Mid-Small" && topDTE>180) score*=0.8;
                 // Exit detection — penalize closing flow, not age
                 const daysSince = tk.lastDate ? Math.max(0,Math.round((_now-tk.lastDate)/86400000)) : 30;
-                const freshLabel = daysSince<=1?"Today":daysSince<=2?"Yesterday":daysSince+"d ago";
+                const lastDateStr = tk.lastDate ? `${tk.lastDate.getMonth()+1}/${tk.lastDate.getDate()}` : "—";
+                const freshLabel = daysSince<=1?"Today":daysSince<=2?"Yesterday":lastDateStr;
                 // Bid-side exit ratio on top contract: high bid% = closing trades
                 const exitRatio = topC&&topC.prem>0 ? topC.bidPrem/topC.prem : 0;
                 // OI retention: lastOI vs maxOI — declining OI = positions closed
@@ -4011,14 +4012,17 @@ export default function OptionsFlowDashboard() {
                       let posNote = "";
                       const bidPct = tc&&tc.prem>0 ? tc.bidPrem/tc.prem*100 : 0;
                       const oiGrowth = tc&&tc.oi>0&&tc.lastOI>0 ? (tc.lastOI/tc.oi-1)*100 : 0;
-                      if(p.daysSince<=2 && tc&&tc.hits<=3) posNote = "🆕 New entry — just appeared";
-                      else if(oiGrowth>20 && bidPct<15) posNote = `📈 Adding — OI up ${Math.round(oiGrowth)}%, minimal exits`;
-                      else if(oiGrowth>5 && bidPct<20) posNote = `📈 Accumulating — OI growing, position building`;
-                      else if(bidPct>=30 && bidPct<50) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid-side closing flow`;
-                      else if(bidPct>=50) posNote = `🔻 Heavy exits — ${Math.round(bidPct)}% closing flow detected`;
-                      else if(bidPct<10 && p.daysSince<=3 && tc&&tc.hits>=5) posNote = "🔥 Active accumulation — fresh flow, no exits";
-                      else if(bidPct<10 && p.daysSince>=7) posNote = "💤 Holding — no new flow or exits, position intact";
-                      else if(bidPct>=15 && bidPct<30 && oiGrowth>0) posNote = "↔️ Mixed — some exits but OI still growing";
+                      if(bidPct>=50) posNote = `🔻 Heavy exits — ${Math.round(bidPct)}% closing flow`;
+                      else if(bidPct>=30) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid-side closing`;
+                      else if(bidPct>=15 && oiGrowth>0) posNote = "↔️ Mixed — some exits but OI still net growing";
+                      else if(bidPct>=15) posNote = `⚠️ Some exits — ${Math.round(bidPct)}% bid-side flow`;
+                      else if(p.daysSince<=2 && tc&&tc.hits<=3) posNote = "🆕 New entry — just appeared";
+                      else if(oiGrowth>20 && bidPct<15) posNote = `📈 Adding — OI up ${Math.round(oiGrowth)}%`;
+                      else if(oiGrowth>5) posNote = "📈 Accumulating — OI growing";
+                      else if(bidPct<10 && p.daysSince<=3 && tc&&tc.hits>=5) posNote = "🔥 Active — fresh flow, no exits";
+                      else if(p.daysSince>=7 && bidPct<10) posNote = "💤 Holding — no new flow or exits";
+                      else if(bidPct<15 && tc&&tc.hits>=5) posNote = "✅ In position — minimal exits";
+                      else posNote = "✅ In position";
                       // Freshness + last OI
                       const freshC = p.daysSince<=1?P.bu:p.daysSince<=3?P.ac:p.daysSince>=7?P.be:P.dm;
                       const lastOI = tc?tc.lastOI:0;
@@ -4053,7 +4057,7 @@ export default function OptionsFlowDashboard() {
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
                           <div style={{ width:75, flexShrink:0, fontSize:8, textAlign:"center" }}>
-                            <div style={{ color:freshC, fontWeight:700 }}>{p.freshLabel}</div>
+                            <div style={{ color:freshC, fontWeight:700 }}>{p.daysSince<=2?p.freshLabel:"Last: "+p.freshLabel}</div>
                             {lastOI>0 && <div style={{ color:P.dm }}>OI: {lastOI.toLocaleString()}</div>}
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
