@@ -26,10 +26,56 @@ RED = 0xED4245
 GOLD = 0xC9A84C
 
 # ── Row separator for code blocks ──────────────────────────────────────────
-SEP = "─" * 45
+# ANSI codes
+_GREEN_A = "\u001b[1;32m"
+_RED_A = "\u001b[1;31m"
+_YELLOW_A = "\u001b[1;33m"
+_WHITE_A = "\u001b[1;37m"
+_DIM = "\u001b[2;37m"
+_RESET = "\u001b[0m"
+
+# Dim dotted separator — compact for mobile (~38 chars)
+SEP_RAW = "╌" * 38
 
 
-# ── Formatting ─────────────────────────────────────────────────────────────
+def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
+    """Build a compact monospace table with dim separators and colored premium."""
+    prem_color = _GREEN_A if side == "bull" else _RED_A
+    sep_line = f"{_DIM}{SEP_RAW}{_RESET}"
+
+    lines = []
+    for i, item in enumerate(items[:limit], 1):
+        sym = (item.get("sym") or "???").ljust(5)
+
+        strike_val = item.get("strike")
+        if strike_val and str(strike_val).strip():
+            cp = (item.get("cp") or "?")[0].upper()
+            try:
+                strike = _fmt_strike(float(strike_val))
+            except (ValueError, TypeError):
+                strike = ""
+            exp = _fmt_exp(item.get("exp") or "")
+            prem = _fmt(float(item.get("prem") or 0))
+            contract = f"{exp.ljust(5)}{strike.ljust(7)}{cp} {prem_color}{prem.rjust(7)}{_RESET}"
+        else:
+            contract = "—"
+
+        score = float(item.get("score") or item.get("autoScore") or 0)
+        grade = _conviction_grade(score)
+        grade_color = _YELLOW_A if grade in ("A+", "A") else _WHITE_A
+        grade_str = f"{grade_color}{grade}{_RESET}"
+
+        entry_date = _fmt_exp(item.get("firstDate") or "")
+        date_str = f" {entry_date}" if entry_date and entry_date != "?" else ""
+
+        rank = f"{i:>2}."
+        row = f"{rank}{sym} {contract} {grade_str}{date_str}"
+        lines.append(row)
+
+        if i < min(len(items), limit):
+            lines.append(sep_line)
+
+    return "\n".join(lines) if lines else "(empty)"
 
 def _fmt(n: float) -> str:
     a = abs(n)
@@ -71,47 +117,6 @@ def _conviction_grade(score: float) -> str:
     if score >= 4:
         return "B"
     return "C"
-
-
-# ── Table builder with row separators ─────────────────────────────────────
-
-def _build_table(items: list[dict], limit: int = 10) -> str:
-    """Build a monospace-aligned table with separator between each row."""
-    lines = []
-    for i, item in enumerate(items[:limit], 1):
-        sym = (item.get("sym") or "???").ljust(6)
-
-        # Contract info — order: exp strike cp
-        strike_val = item.get("strike")
-        if strike_val and str(strike_val).strip():
-            cp = (item.get("cp") or "?")[0].upper()
-            try:
-                strike = _fmt_strike(float(strike_val))
-            except (ValueError, TypeError):
-                strike = ""
-            exp = _fmt_exp(item.get("exp") or "")
-            prem = _fmt(float(item.get("prem") or 0))
-            contract = f"{exp.ljust(6)}{strike.ljust(8)}{cp}  {prem.rjust(7)}"
-        else:
-            contract = "—"
-
-        # Conviction grade
-        score = float(item.get("score") or item.get("autoScore") or 0)
-        grade = _conviction_grade(score)
-
-        # Entry date
-        entry_date = _fmt_exp(item.get("firstDate") or "")
-        date_str = f"  {entry_date}" if entry_date and entry_date != "?" else ""
-
-        rank = f"{i:>2}."
-        row = f"{rank} {sym}{contract}  {grade}{date_str}"
-        lines.append(row)
-
-        # Add separator between rows (not after last row)
-        if i < min(len(items), limit):
-            lines.append(SEP)
-
-    return "\n".join(lines) if lines else "(empty)"
 
 
 # ── Message builder (tiered embeds) ────────────────────────────────────────
@@ -183,20 +188,20 @@ def build_messages(
 
         # Embed 2: Bull watchlist (green sidebar)
         if bull_sorted:
-            bull_table = _build_table(bull_sorted, limit)
+            bull_table = _build_table(bull_sorted, limit, side="bull")
             embeds.append({
                 "color": GREEN,
                 "title": f"🟢 BULL WATCHLIST",
-                "description": f"```\n{bull_table}\n```",
+                "description": f"```ansi\n{bull_table}\n```",
             })
 
         # Embed 3: Bear watchlist (red sidebar)
         if bear_sorted:
-            bear_table = _build_table(bear_sorted, limit)
+            bear_table = _build_table(bear_sorted, limit, side="bear")
             embeds.append({
                 "color": RED,
                 "title": f"🔴 BEAR WATCHLIST",
-                "description": f"```\n{bear_table}\n```",
+                "description": f"```ansi\n{bear_table}\n```",
             })
 
         # Footer on last embed
@@ -225,14 +230,14 @@ def build_messages(
             unusual_embeds.append({
                 "color": GOLD,
                 "title": "⚡ UNUSUAL FLOW — BULL",
-                "description": f"```\n{_build_table(ub_sorted, limit)}\n```",
+                "description": f"```ansi\n{_build_table(ub_sorted, limit, side='bull')}\n```",
             })
 
         if ubear_sorted:
             unusual_embeds.append({
                 "color": 0x9B59B6,  # Purple
                 "title": "⚡ UNUSUAL FLOW — BEAR",
-                "description": f"```\n{_build_table(ubear_sorted, limit)}\n```",
+                "description": f"```ansi\n{_build_table(ubear_sorted, limit, side='bear')}\n```",
             })
 
         if unusual_embeds:
