@@ -197,6 +197,11 @@ export default function ThemeTrackerPage() {
   const [sortDir, setSortDir] = useState('desc')
   const [openThemes, setOpenThemes] = useState(new Set())
   const [search, setSearch] = useState('')
+  // chartPeriod is declared up here (not later in the file) because
+  // toggleTheme + handleHoverSym below close over it; a `const` declared
+  // *after* those would be in the temporal dead zone at render time.
+  const [chartPeriod, setChartPeriod] = useState('D')
+  const [flagToast, setFlagToast] = useState(null)
 
   const rowRefs = useRef({})
   const activeKey = RANK_TO_KEY[activeTab]
@@ -329,9 +334,6 @@ export default function ThemeTrackerPage() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
-
-  const [chartPeriod, setChartPeriod] = useState('D')
-  const [flagToast, setFlagToast] = useState(null)
 
   // Prefetch all timeframes for current ticker + adjacent tickers for active TF
   useEffect(() => {
