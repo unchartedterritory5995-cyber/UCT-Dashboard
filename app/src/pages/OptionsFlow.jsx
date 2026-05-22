@@ -1164,6 +1164,7 @@ export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
   const [tab, setTab] = useState("Market Read");
   const [top5Filter, setTop5Filter] = useState("Both"); // Both|Calls|Puts
+  const [top5Detail, setTop5Detail] = useState(null); // expanded pick sym
   const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
   const [cpFilter, setCpFilter] = useState("All"); // All | Calls | Puts
   const [convCpFilter, setConvCpFilter] = useState("All"); // independent C/P for CONV cards
@@ -3879,12 +3880,13 @@ export default function OptionsFlowDashboard() {
               const tkMap = {};
               ad.forEach(t => {
                 if (!tkMap[t.S]) tkMap[t.S]={sym:t.S,bull:0,bear:0,n:0,swp:0,blk:0,confirmed:0,band:capBand(t.mktcap),
-                  contracts:{},hasER:!!t.er,minDTE:999,mktcap:t.mktcap||0,sector:t.sector||"",lastDate:null};
+                  contracts:{},hasER:!!t.er,minDTE:999,mktcap:t.mktcap||0,sector:t.sector||"",lastDate:null,hasUOA:false};
                 const tk=tkMap[t.S];
                 if(t.D==="BULL") tk.bull+=t.P; if(t.D==="BEAR") tk.bear+=t.P;
                 tk.n++;
                 if(t.Ty==="SWP") tk.swp++; else if(t.Ty==="BLK") tk.blk++;
                 if(t.confirmed) tk.confirmed++;
+                if(t.uoa) tk.hasUOA=true;
                 if(t.DTE!=null && t.DTE<tk.minDTE) tk.minDTE=t.DTE;
                 const tDate=_parseDt(t.Dt);
                 if(tDate&&(!tk.lastDate||tDate>tk.lastDate)) tk.lastDate=tDate;
@@ -3943,7 +3945,10 @@ export default function OptionsFlowDashboard() {
               });
               candidates.sort((a,b)=>b.score-a.score);
               // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
-              const filtered = top5Filter==="Both" ? candidates : candidates.filter(c=>top5Filter==="Calls"?c.dir==="BULL":c.dir==="BEAR");
+              const filtered = top5Filter==="Both" ? candidates
+                : top5Filter==="Calls" ? candidates.filter(c=>c.dir==="BULL")
+                : top5Filter==="Puts" ? candidates.filter(c=>c.dir==="BEAR")
+                : candidates.filter(c=>c.hasUOA || c.volOI>=3 || (c.mktcap>0 && c.mktcap<10e9 && c.net>=c.mktcap*0.001));
               const picks=[]; let megaC=0; const sectorC={};
               for(const c of filtered){
                 if(picks.length>=5) break;
@@ -3959,12 +3964,12 @@ export default function OptionsFlowDashboard() {
                     <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                       <div style={{ fontSize:14, fontWeight:900, color:P.ac, letterSpacing:1 }}>⚡ TOP 5 FLOW PICKS</div>
                       <div style={{ display:"flex", gap:2, background:P.bg, borderRadius:5, padding:2 }}>
-                        {["Both","Calls","Puts"].map(f=>(
+                        {["Both","Calls","Puts","Unusual"].map(f=>(
                           <button key={f} onClick={()=>setTop5Filter(f)} style={{
                             padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
                             fontSize:9, fontWeight:700, fontFamily:"inherit",
-                            background:top5Filter===f?P.ac+"22":"transparent",
-                            color:top5Filter===f?P.ac:P.dm
+                            background:top5Filter===f?(f==="Unusual"?"#ff980022":P.ac+"22"):"transparent",
+                            color:top5Filter===f?(f==="Unusual"?"#ff9800":P.ac):P.dm
                           }}>{f}</button>
                         ))}
                       </div>
@@ -4027,22 +4032,25 @@ export default function OptionsFlowDashboard() {
                       const freshC = p.daysSince<=1?P.bu:p.daysSince<=3?P.ac:p.daysSince>=7?P.be:P.dm;
                       const lastOI = tc?tc.lastOI:0;
                       return (
-                        <div key={p.sym} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:P.al, borderRadius:8, borderLeft:"3px solid "+dirC }}>
+                        <div key={p.sym}>
+                        <div onClick={()=>setTop5Detail(top5Detail===p.sym?null:p.sym)} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:P.al, borderRadius:8, borderLeft:"3px solid "+dirC, cursor:"pointer" }}>
                           <span style={{ fontSize:16, fontWeight:900, color:P.dm+"88", width:16, textAlign:"center", flexShrink:0 }}>{i+1}</span>
                           <span style={{ fontSize:14, fontWeight:900, color:P.wh, width:50, flexShrink:0 }}>{p.sym}</span>
                           <Tag c={dirC}>{p.dir}</Tag>
-                          <div style={{ width:65, textAlign:"right", flexShrink:0 }}>
+                          <div style={{ width:70, textAlign:"right", flexShrink:0 }}>
+                            <div style={{ fontSize:7, color:P.dm, letterSpacing:0.5 }}>NET</div>
                             <div style={{ fontSize:13, fontWeight:900, color:dirC }}>{fmt(p.net)}</div>
                             <div style={{ fontSize:8, color:P.dm }}>{Math.round(p.purity)}%</div>
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
-                          <div style={{ fontSize:9, color:P.mt, width:130, flexShrink:0 }}>
-                            {tc && (<span>
+                          <div style={{ fontSize:9, color:P.mt, width:150, flexShrink:0 }}>
+                            {tc && (<div>
                               <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
                               <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
                               <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
                               <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc.hits}x</span>
-                            </span>)}
+                              <div style={{ fontSize:8, color:P.ye }}>{fmt(tc.prem)}</div>
+                            </div>)}
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
                           <div style={{ fontSize:9, width:130, flexShrink:0 }}>
@@ -4056,9 +4064,8 @@ export default function OptionsFlowDashboard() {
                             </span>) : <span style={{ color:P.dm+"55" }}>—</span>}
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
-                          <div style={{ width:75, flexShrink:0, fontSize:8, textAlign:"center" }}>
-                            <div style={{ color:freshC, fontWeight:700 }}>{p.daysSince<=2?p.freshLabel:"Last: "+p.freshLabel}</div>
-                            {lastOI>0 && <div style={{ color:P.dm }}>OI: {lastOI.toLocaleString()}</div>}
+                          <div style={{ width:55, flexShrink:0, fontSize:8, textAlign:"center" }}>
+                            {lastOI>0 ? <div style={{ color:P.dm }}>OI: {lastOI.toLocaleString()}</div> : <span style={{ color:P.dm+"55" }}>—</span>}
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
                           <div style={{ width:140, flexShrink:0, fontSize:9, color:P.ac, fontWeight:600, textAlign:"center" }}>
@@ -4068,6 +4075,48 @@ export default function OptionsFlowDashboard() {
                           <div style={{ flex:1, fontSize:10, color:P.dm, lineHeight:1.5, paddingLeft:12 }}>
                             {topNotes.map((n,ni)=><div key={ni} style={{ color:P.mt }}>{n}</div>)}
                           </div>
+                          <span style={{ fontSize:9, color:P.dm+"66", flexShrink:0 }}>{top5Detail===p.sym?"▲":"▼"}</span>
+                        </div>
+                        {/* Expandable trade detail */}
+                        {top5Detail===p.sym && (()=>{
+                          const trades = ad.filter(t=>t.S===p.sym).sort((a,b)=>(b.P||0)-(a.P||0)).slice(0,5);
+                          if(!trades.length) return null;
+                          return (
+                            <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:6, padding:10, marginTop:2, marginBottom:4, marginLeft:24 }}>
+                              <div style={{ fontSize:9, fontWeight:700, color:P.ac, marginBottom:6 }}>TOP {trades.length} TRADES BY PREMIUM</div>
+                              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+                                <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                                  {["Date","Time","Type","Side","C/P","Strike","Exp","DTE","Vol","OI","Premium","Color"].map(h=>(
+                                    <th key={h} style={{ padding:"3px 6px", textAlign:"center", color:P.dm, fontSize:8, fontWeight:600 }}>{h}</th>
+                                  ))}
+                                </tr></thead>
+                                <tbody>
+                                  {trades.map((t,ti)=>{
+                                    const sideC=t.Si==="A"||t.Si==="AA"?P.bu:t.Si==="B"||t.Si==="BB"?P.be:P.dm;
+                                    const cpC=t.CP==="C"?P.bu:P.be;
+                                    const coC=t.Co==="YELLOW"?P.ye:t.Co==="MAGENTA"?"#e040fb":P.dm;
+                                    return (
+                                      <tr key={ti} style={{ borderBottom:"1px solid "+P.bd+"22" }}>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh }}>{t.Dt||"—"}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.dm }}>{t.time||"—"}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:t.Ty==="SWP"?P.ac:P.mt, fontWeight:700 }}>{t.Ty}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:sideC, fontWeight:700 }}>{t.Si}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:cpC, fontWeight:700 }}>{t.CP==="C"?"CALL":"PUT"}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh, fontWeight:700 }}>${t.K}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.ac }}>{t.E}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.dm }}>{t.DTE}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh }}>{(t.V||0).toLocaleString()}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.dm }}>{(t.OI||0).toLocaleString()}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:P.wh, fontWeight:800 }}>{fmt(t.P)}</td>
+                                        <td style={{ padding:"3px 6px", textAlign:"center", color:coC, fontWeight:700 }}>{t.Co}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })()}
                         </div>
                       );
                     })}
