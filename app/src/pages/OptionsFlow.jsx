@@ -5881,11 +5881,25 @@ export default function OptionsFlowDashboard() {
                   </button>
                   {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
                 </div>
-                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                <table style={{ width:"90%", margin:"0 auto", borderCollapse:"collapse", fontSize:10, tableLayout:"fixed" }}>
+                  <colgroup>
+                    <col style={{ width:"8%" }}/>
+                    <col style={{ width:"7%" }}/>
+                    <col style={{ width:"8%" }}/>
+                    <col style={{ width:"5%" }}/>
+                    <col style={{ width:"9%" }}/>
+                    <col style={{ width:"7%" }}/>
+                    <col style={{ width:"10%" }}/>
+                    <col style={{ width:"10%" }}/>
+                    <col style={{ width:"9%" }}/>
+                    <col style={{ width:"9%" }}/>
+                    <col style={{ width:"5%" }}/>
+                    <col style={{ width:"13%" }}/>
+                  </colgroup>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                     {[{label:"Ticker",key:"ticker"},{label:"Exp",key:"exp"},{label:"Strike",key:"strike"},{label:"C/P",key:""},{label:"Live OI",key:"oi"},{label:"Grade",key:"grade"},{label:"Entry",key:"entry"},{label:"Now",key:"now"},{label:"P&L",key:"pnl"},{label:"Peak",key:"peak"},{label:"Trend",key:""},{label:"Added",key:"added"}].map(h=>(
                       <th key={h.label} onClick={()=>h.key&&trkToggle(h.key)}
-                        style={{ padding:"5px 5px", textAlign:"left", color:h.key?trkColor(h.key):P.mt, fontSize:9, fontWeight:600, cursor:h.key?"pointer":"default", userSelect:"none" }}
+                        style={{ padding:"5px 5px", textAlign:"center", color:h.key?trkColor(h.key):P.mt, fontSize:9, fontWeight:600, cursor:h.key?"pointer":"default", userSelect:"none" }}
                         title={h.label==="Peak"?"Highest % gain from entry":undefined}>{h.label}{h.key?trkIcon(h.key):""}</th>
                     ))}
                   </tr></thead>
