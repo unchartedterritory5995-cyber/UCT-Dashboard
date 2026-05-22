@@ -173,20 +173,20 @@ def build_messages(
     if bull_sorted or bear_sorted:
         embeds = []
 
-        # Embed 1: Summary header (gold sidebar)
+        # Embed 1: Summary header (gold sidebar) with colored field values
         net_emoji = "🟢" if net > 0 else "🔴"
+        net_color = _GREEN_A if net > 0 else _RED_A
         title_label = label or "WATCHLIST"
         embeds.append({
             "color": GOLD,
             "author": {"name": "UCT Options Flow"},
             "title": f"{net_emoji} {title_label} — {date_str}",
-            "description": (
-                f"**Net: {_fmt(net)}** · "
-                f"🟢 **{_fmt(total_bull)}** bull / "
-                f"🔴 **{_fmt(total_bear)}** bear · "
-                f"**{bull_pct}% bullish**\n"
-                f"{tk_count} tickers with flow"
-            ),
+            "description": f"{tk_count} tickers with flow · **{bull_pct}% bullish**",
+            "fields": [
+                {"name": f"{net_emoji} Net", "value": f"```ansi\n{net_color}{_fmt(net)}{_RESET}\n```", "inline": True},
+                {"name": "🟢 Bull", "value": f"```ansi\n{_GREEN_A}{_fmt(total_bull)}{_RESET}\n```", "inline": True},
+                {"name": "🔴 Bear", "value": f"```ansi\n{_RED_A}{_fmt(total_bear)}{_RESET}\n```", "inline": True},
+            ],
         })
 
         # Embed 2: Bull watchlist (green sidebar)
