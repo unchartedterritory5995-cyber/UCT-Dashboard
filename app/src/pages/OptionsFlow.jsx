@@ -4001,16 +4001,26 @@ export default function OptionsFlowDashboard() {
                       if(p.volOI>=10) notes.push({t:`Vol ${Math.round(p.volOI)}x OI — brand new positions`,w:9});
                       else if(p.volOI>=3) notes.push({t:`Vol ${p.volOI.toFixed(1)}x OI — fresh positions`,w:7});
                       if(p.minDTE>180) notes.push({t:"LEAPS — long-term conviction play",w:8});
-                      if(p.mktcap>0&&p.mktcap<5e9&&p.net>=1e6) notes.push({t:`$${fmt(p.net)} on a $${(p.mktcap/1e9).toFixed(1)}B name — outsized`,w:9});
+                      if(p.mktcap>0&&p.mktcap<5e9&&p.net>=1e6) notes.push({t:`${fmt(p.net)} on a $${(p.mktcap/1e9).toFixed(1)}B name — outsized`,w:9});
                       if(p.purity>=95) notes.push({t:`${Math.round(p.purity)}% one-way — minimal hedging`,w:6});
                       if(p.confirmed>=5) notes.push({t:`${p.confirmed} confirmed trades — sustained`,w:7});
                       else if(p.confirmed>=3) notes.push({t:`${p.confirmed} confirmed — repeat interest`,w:5});
                       notes.sort((a,b)=>b.w-a.w);
                       const topNotes = notes.slice(0,2).map(n=>n.t);
+                      // Position activity note
+                      let posNote = "";
+                      const bidPct = tc&&tc.prem>0 ? tc.bidPrem/tc.prem*100 : 0;
+                      const oiGrowth = tc&&tc.oi>0&&tc.lastOI>0 ? (tc.lastOI/tc.oi-1)*100 : 0;
+                      if(p.daysSince<=2 && tc&&tc.hits<=3) posNote = "🆕 New entry — just appeared";
+                      else if(oiGrowth>20 && bidPct<15) posNote = `📈 Adding — OI up ${Math.round(oiGrowth)}%, minimal exits`;
+                      else if(oiGrowth>5 && bidPct<20) posNote = `📈 Accumulating — OI growing, position building`;
+                      else if(bidPct>=30 && bidPct<50) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid-side closing flow`;
+                      else if(bidPct>=50) posNote = `🔻 Heavy exits — ${Math.round(bidPct)}% closing flow detected`;
+                      else if(bidPct<10 && p.daysSince<=3 && tc&&tc.hits>=5) posNote = "🔥 Active accumulation — fresh flow, no exits";
+                      else if(bidPct<10 && p.daysSince>=7) posNote = "💤 Holding — no new flow or exits, position intact";
+                      else if(bidPct>=15 && bidPct<30 && oiGrowth>0) posNote = "↔️ Mixed — some exits but OI still growing";
                       // Freshness + last OI
                       const freshC = p.daysSince<=1?P.bu:p.daysSince<=3?P.ac:p.daysSince>=7?P.be:P.dm;
-                      const statusC = p.posStatus==="ACTIVE"?P.bu:p.posStatus==="HOLDING"?P.ac:p.posStatus==="FADING"?"#ff9800":P.be;
-                      const statusIcon = p.posStatus==="ACTIVE"?"🟢":p.posStatus==="HOLDING"?"🟡":p.posStatus==="FADING"?"🟠":"🔴";
                       const lastOI = tc?tc.lastOI:0;
                       return (
                         <div key={p.sym} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:P.al, borderRadius:8, borderLeft:"3px solid "+dirC }}>
@@ -4043,9 +4053,12 @@ export default function OptionsFlowDashboard() {
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
                           <div style={{ width:75, flexShrink:0, fontSize:8, textAlign:"center" }}>
-                            <div style={{ color:statusC, fontWeight:700 }}>{statusIcon} {p.posStatus}</div>
-                            <div style={{ color:freshC }}>{p.freshLabel}</div>
+                            <div style={{ color:freshC, fontWeight:700 }}>{p.freshLabel}</div>
                             {lastOI>0 && <div style={{ color:P.dm }}>OI: {lastOI.toLocaleString()}</div>}
+                          </div>
+                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
+                          <div style={{ width:140, flexShrink:0, fontSize:9, color:P.ac, fontWeight:600, textAlign:"center" }}>
+                            {posNote || <span style={{ color:P.dm+"55" }}>—</span>}
                           </div>
                           <span style={{ fontSize:12, fontWeight:900, color:gradeC, padding:"2px 8px", borderRadius:4, background:gradeC+"18", border:"1px solid "+gradeC+"44", flexShrink:0 }}>{grade}</span>
                           <div style={{ flex:1, fontSize:10, color:P.dm, lineHeight:1.5, paddingLeft:12 }}>
