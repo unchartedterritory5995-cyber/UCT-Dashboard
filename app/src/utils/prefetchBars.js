@@ -2,6 +2,7 @@
 // Uses full bar counts matching StockChart's request so SWR cache keys align.
 // Server-side disk cache makes these fast (~10ms) for pre-warmed tickers.
 import { preload } from 'swr'
+import { prefetchTickerMeta } from '../hooks/useTickerMeta'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -25,12 +26,14 @@ export function prefetchBar(sym, tf = 'D') {
   if (!sym) return
   const bars = BAR_COUNTS[tf] ?? 5000
   preload(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}`, fetcher)
+  prefetchTickerMeta(sym) // warm the watermark meta too, so it paints instantly
 }
 
 // Prefetch ALL timeframes for a single ticker — call when a ticker is selected
 // so switching between 5min/30min/1hr/Daily/Weekly tabs is instant
 export function prefetchAllTimeframes(sym) {
   if (!sym) return
+  prefetchTickerMeta(sym) // warm the watermark meta alongside the bars
   for (const tf of ALL_TFS) {
     preload(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BAR_COUNTS[tf]}`, fetcher)
   }

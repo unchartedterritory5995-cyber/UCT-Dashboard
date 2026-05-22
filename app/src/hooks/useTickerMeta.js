@@ -1,7 +1,42 @@
-import useSWR from 'swr'
+import { useMemo } from 'react'
+import useSWR, { preload } from 'swr'
 
 // Frozen so the shared fallback can never be mutated by a consumer.
 const NULLS = Object.freeze({ name: null, sector: null, industry: null, theme: null })
+
+// ── localStorage layer: instant watermark on first paint ──
+// SWR's in-memory cache is empty on every page load, so without this the
+// watermark renders ticker-only and then "pops in" the company/sector/theme
+// ~half a second later when the network fetch resolves. Company name, sector,
+// industry, and primary theme are extremely stable, so we persist them to
+// localStorage and seed SWR's `fallbackData` from it — the full watermark
+// paints synchronously on the very first frame for any previously-seen ticker.
+// SWR still revalidates in the background (revalidateIfStale) so a changed
+// theme/taxonomy edit is picked up within the session.
+const LS_PREFIX = 'tmeta:'
+const LS_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+function lsGet(sym) {
+  try {
+    const raw = localStorage.getItem(LS_PREFIX + sym)
+    if (!raw) return undefined
+    const { t, d } = JSON.parse(raw)
+    if (!t || Date.now() - t > LS_TTL || !d) return undefined
+    return d
+  } catch {
+    return undefined // private mode / disabled storage — degrade to network fetch
+  }
+}
+
+function lsPut(sym, data) {
+  // Only persist a real hit — never cache an all-null transient miss.
+  if (!sym || !data || !(data.name || data.sector || data.industry || data.theme)) return
+  try {
+    localStorage.setItem(LS_PREFIX + sym, JSON.stringify({ t: Date.now(), d: data }))
+  } catch {
+    /* quota exceeded / private mode — non-fatal, watermark just isn't pre-warmed */
+  }
+}
 
 // Root cause of the "watermark only shows the ticker for an hour" bug:
 // the old fetcher swallowed every failure and returned NULLS as a *successful*
@@ -21,13 +56,30 @@ export async function fetcher(url) {
   return { name: j?.name ?? null, sector: j?.sector ?? null, industry: j?.industry ?? null, theme: j?.theme ?? null }
 }
 
+// Warm the cache for a ticker BEFORE its chart mounts (call on hover/selection).
+// Populates both the SWR memory cache (same key the hook reads) and localStorage
+// so a first-ever view of the ticker paints its full watermark instantly too.
+export function prefetchTickerMeta(sym) {
+  if (!sym || lsGet(sym)) return // already warm
+  preload(`/api/ticker-meta/${encodeURIComponent(sym)}`, async (url) => {
+    const d = await fetcher(url)
+    lsPut(sym, d)
+    return d
+  })
+}
+
 // Per-symbol company metadata for the chart watermark. Never throws to the
 // component; returns NULLS until real data resolves.
 export default function useTickerMeta(sym) {
+  // Synchronous localStorage seed, recomputed only when the symbol changes
+  // (avoids a storage read on every chart tick re-render).
+  const fallbackData = useMemo(() => (sym ? lsGet(sym) : undefined), [sym])
+
   const { data } = useSWR(
     sym ? `/api/ticker-meta/${encodeURIComponent(sym)}` : null,
     fetcher,
     {
+      fallbackData,               // instant first paint from localStorage
       revalidateOnFocus: false,   // don't refetch on every tab focus (decorative)
       revalidateOnReconnect: true,
       revalidateIfStale: true,    // a stale/transient miss self-corrects on next view
@@ -35,6 +87,7 @@ export default function useTickerMeta(sym) {
                                   // short enough that a transient miss recovers fast
       errorRetryCount: 4,
       errorRetryInterval: 4000,   // ~4s backoff — recovers within seconds, not an hour
+      onSuccess: (d) => lsPut(sym, d), // persist real hits for instant future paints
     },
   )
   return data || NULLS
