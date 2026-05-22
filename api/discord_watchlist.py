@@ -56,7 +56,7 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
                 strike = ""
             exp = _fmt_exp(item.get("exp") or "")
             prem = _fmt(float(item.get("prem") or 0))
-            contract = f"{exp.ljust(5)}{strike.ljust(7)}{cp} {prem_color}{prem.rjust(7)}{_RESET}"
+            contract = f"{exp.ljust(5)} {strike.ljust(6)} {cp}{prem_color}{prem.rjust(7)}{_RESET}"
         else:
             contract = "—"
 
