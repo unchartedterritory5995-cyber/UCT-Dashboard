@@ -231,3 +231,89 @@ class TestPolygonSymbol:
 
     def test_idempotent_on_dot_form(self):
         assert to_polygon_symbol("BRK.B") == "BRK.B"
+
+
+# ── FMP timestamp regression ─────────────────────────────────────────────────
+#
+# The "noon-cutoff" bug that haunted intraday charts for months: FMP returns
+# its `date` field as Eastern Time text (e.g. "2026-05-22 15:30:00" meaning
+# 3:30 PM ET), but `_fetch_intraday_fmp` did `datetime.strptime(..., fmt)`
+# WITHOUT timezone info, then `dt.timestamp()`. On a UTC-clock container
+# (Railway default) that interprets the naive datetime as UTC, producing a
+# unix-seconds value exactly the ET-UTC offset BEHIND the correct moment.
+#
+# Net effect when FMP fallback fired (Massive validation rejection / outage):
+# every bar got persisted to SQLite at a timestamp 4-5 hours earlier than
+# reality. The afternoon RTH session (13:00-16:00 ET) landed in the morning
+# slots (09:00-12:00 ET), so the chart's RTH session-filter accepted those
+# (mis-labelled) bars and the actual afternoon timestamps either had no
+# data or held stale rows from a prior fetch — symptom: chart visibly cuts
+# off at noon ET on "most stocks" and never recovers.
+
+import urllib.request as _urlreq
+from io import BytesIO
+import json as _json
+
+from api.services.bars_fetch import _fetch_intraday_fmp
+
+
+class _FakeFMPResponse:
+    """Mimics urllib.request.urlopen()'s response context manager."""
+    def __init__(self, payload):
+        self._buf = BytesIO(_json.dumps(payload).encode("utf-8"))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def read(self):
+        return self._buf.read()
+
+
+class TestFMPTimestampIsEasternTime:
+    """FMP returns ET-local date text — the unix-seconds we store MUST
+    correspond to that ET moment, not the same wall-clock interpreted as
+    UTC. Regression guard against the "noon-cutoff" bug."""
+
+    def _patch(self, monkeypatch, fmp_bars):
+        monkeypatch.setenv("FMP_API_KEY", "fake-test-key")
+        monkeypatch.setattr(
+            _urlreq, "urlopen",
+            lambda *a, **kw: _FakeFMPResponse(fmp_bars),
+        )
+
+    def test_et_text_decodes_to_correct_utc_unix(self, monkeypatch):
+        # FMP says "2026-05-22 15:30:00" — that's 3:30 PM ET (EDT, UTC-4).
+        # Correct unix seconds for 2026-05-22 15:30 ET == 19:30 UTC.
+        correct_t = _et_ts(2026, 5, 22, 15, 30)  # ET-anchored timestamp
+        self._patch(monkeypatch, [{
+            "date": "2026-05-22 15:30:00",
+            "open": 102.5, "high": 102.9, "low": 102.4, "close": 102.74,
+            "volume": 283912,
+        }])
+        bars = _fetch_intraday_fmp("EPAM", "30", 200)
+        assert len(bars) == 1
+        # The bug stored `t` = (15:30 interpreted as UTC) = correct_t - 14400
+        # in EDT. Assert we DON'T regress to that shifted value.
+        assert bars[0]["t"] == correct_t, (
+            f"FMP bar timestamp shifted by {(correct_t - bars[0]['t']) / 3600:.1f}h — "
+            "ET text being parsed as UTC again? (See noon-cutoff bug.)"
+        )
+        # The bar's actual ET hour MUST be 15, not 11 (the shifted/buggy value).
+        assert datetime.fromtimestamp(bars[0]["t"], tz=_ET).hour == 15
+
+    def test_et_text_handles_winter_est(self, monkeypatch):
+        # During EST (UTC-5) the offset shifts to 5h — bug would manifest
+        # as 5h-earlier instead of 4h. Pick a January date to exercise EST.
+        correct_t = _et_ts(2026, 1, 15, 14, 0)
+        self._patch(monkeypatch, [{
+            "date": "2026-01-15 14:00:00",
+            "open": 100.0, "high": 100.5, "low": 99.8, "close": 100.2,
+            "volume": 50000,
+        }])
+        bars = _fetch_intraday_fmp("AAPL", "30", 200)
+        assert len(bars) == 1
+        assert bars[0]["t"] == correct_t
+        assert datetime.fromtimestamp(bars[0]["t"], tz=_ET).hour == 14

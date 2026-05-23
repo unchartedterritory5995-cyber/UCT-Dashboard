@@ -335,10 +335,20 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
             data = _json.loads(resp.read().decode("utf-8"))
         if not isinstance(data, list) or not data:
             return []
+        # CRITICAL: FMP's `date` field is Eastern Time text ("2026-05-22 15:30:00"
+        # = 3:30 PM ET), NOT UTC. The prior code did a naive strptime + .timestamp(),
+        # which on a UTC-clock container (Railway default) interprets the wall-clock
+        # as UTC and shifts every bar by the full ET-UTC offset (4h EDT / 5h EST).
+        # Net effect when FMP fired as a fallback: the entire RTH session landed
+        # in the wrong hourly buckets, the afternoon (13-16 ET) ended up labelled
+        # as morning (09-12 ET), and the real afternoon timestamps held either
+        # nothing or stale data — chart visibly "cut off at noon" on most stocks.
+        # Anchor to ET explicitly so `.timestamp()` produces the correct UTC unix.
+        _ET_FMP = _ZI("America/New_York")
         bars = []
         for bar in reversed(data):  # FMP returns newest first
             try:
-                dt = datetime.strptime(bar["date"], "%Y-%m-%d %H:%M:%S")
+                dt = datetime.strptime(bar["date"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=_ET_FMP)
                 bars.append({
                     "t": int(dt.timestamp()),
                     "o": round(float(bar["open"]), 2),
@@ -379,13 +389,21 @@ def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
         )
         if df is None or df.empty:
             return []
-        # Strip timezone
-        if df.index.tzinfo is not None:
-            df.index = df.index.tz_localize(None)
+        # Do NOT strip the timezone — it's the same trap that bit FMP.
+        # A naive Timestamp.timestamp() interprets wall-clock in the host's
+        # local TZ; on Railway (UTC) that shifts every bar by the full ET
+        # offset. For tz-aware Timestamps, .timestamp() returns the proper
+        # UTC unix-seconds regardless of host TZ. If yfinance ever returns
+        # naive data (some edge tickers), assume ET — that matches Yahoo's
+        # documented intraday convention for US equities.
+        _ET_YF = _ZI("America/New_York")
         bars = []
         for ts, row in df.iterrows():
+            if getattr(ts, "tzinfo", None) is None:
+                # pandas Timestamp lacks `.replace`; use tz_localize on the value
+                ts = ts.tz_localize(_ET_YF)
             bars.append({
-                "t": int(ts.timestamp()),  # unix seconds for LW Charts UTCTimestamp
+                "t": int(ts.timestamp()),  # unix seconds (UTC), tz-correct
                 "o": round(row["Open"], 2),
                 "h": round(row["High"], 2),
                 "l": round(row["Low"], 2),
