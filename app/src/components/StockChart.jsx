@@ -2299,7 +2299,7 @@ export default function StockChart({
             color: pl.color || cs.textColor,
             lineWidth: pl.lineWidth || 1,
             lineStyle: pl.lineStyle ?? 2,
-            axisLabelVisible: true,
+            axisLabelVisible: pl.axisLabelVisible ?? true,
             title: pl.title || '',
           })
           priceLineRefs.current.push(ref)

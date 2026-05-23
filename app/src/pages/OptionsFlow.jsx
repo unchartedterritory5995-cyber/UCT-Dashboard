@@ -2026,6 +2026,12 @@ export default function OptionsFlowDashboard() {
     }
     if (zg) lines.push({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, title:"Danger Line" });
     const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
+    // Secondary above/below levels: keep the LINES (visible, color-coded so
+    // user still sees support/resistance positions), but suppress the right-
+    // axis $-value LABELS. Each axis label triggers LWC overlap-avoidance
+    // layout work per redraw; with 6 secondary labels stacked near spot,
+    // that compounded into visible crosshair lag. Walls + Danger Line keep
+    // their labels (those carry the most important $ values).
     const aboveCandidates = [...(gexData.strikes||[])].filter(s=>s.strike>sp&&!usedStrikes.has(s.strike)).map(s=>{
       const callVal = s.callGex > 0 ? s.callGex : 0;
       const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
@@ -2036,7 +2042,7 @@ export default function OptionsFlowDashboard() {
       usedStrikes.add(s.strike);
       const {lw,ls,op} = getLineWeight(s.gex);
       const title = s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex);
-      lines.push({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, title });
+      lines.push({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:false });
     });
     const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
       const callVal = s.callGex > 0 ? s.callGex : 0;
@@ -2048,7 +2054,7 @@ export default function OptionsFlowDashboard() {
       const {lw,ls,op} = getLineWeight(s.gex);
       const baseColor = s.type === "call" ? "#00BCD4" : "#0a8f55";
       const title = s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
-      lines.push({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, title });
+      lines.push({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:false });
     });
     return lines;
   }, [gexData]);
