@@ -65,8 +65,21 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
         grade_color = _YELLOW_A if grade in ("A+", "A") else _WHITE_A
         grade_str = f"{grade_color}{grade}{_RESET}"
 
-        entry_date = _fmt_exp(item.get("firstDate") or "")
-        date_str = f" {entry_date}" if entry_date and entry_date != "?" else ""
+        # Entry date — try multiple fields
+        entry_date = ""
+        for field in ("firstDate", "date", "entryDate"):
+            raw = item.get(field) or ""
+            if raw:
+                entry_date = _fmt_exp(raw)
+                if entry_date and entry_date != "?":
+                    break
+                entry_date = ""
+        # Fallback: if age field exists (e.g. "3d"), show it
+        if not entry_date:
+            age = item.get("age") or ""
+            if age:
+                entry_date = age
+        date_str = f" {entry_date}" if entry_date else ""
 
         row = f"{sym}{contract} {grade_str}{date_str}"
         lines.append(row)
