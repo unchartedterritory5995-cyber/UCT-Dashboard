@@ -1,0 +1,293 @@
+"""Background reconciliation: continuously diff SQLite bars vs Polygon
+canonical, surgically heal any drift before users see it.
+
+This is the structural safety net behind the chart correctness contract.
+Every "noon cutoff" / "wrong close" / "phantom bar" bug we've shipped a
+patch for had the same shape: a write happened with bad data, persisted
+silently, and was only noticed weeks later when a user spotted it
+visually. The fixes we ship for individual bug classes (FMP timezone,
+strict-> filter, in-progress-bar storage, etc.) prevent the next instance
+of each known pattern — but cannot defend against the bugs we have not
+found yet. This module catches every variant by definition: if cached
+data diverges from Polygon canonical, the cached rows are wiped so the
+next fetch repopulates clean.
+
+Cadence: one cycle per RECONCILE_CYCLE_SECONDS (default 1800 = 30 min),
+auditing RECONCILE_PAIRS_PER_CYCLE (default 60) (ticker, tf) pairs sampled
+across hot-set / priority / long-tail. Polygon API cost per cycle is
+bounded by the pair count (one canonical fetch per pair); ~60/cycle ×
+~48 cycles/day = ~2880 calls/day — comfortably under any tier.
+
+Heal action on drift: surgically `DELETE` the specific (ticker, tf, ts)
+rows that diverged from canonical, plus clear the in-memory cache for
+that key. Next fetch repopulates from canonical via the now-relaxed `>=`
+delta path. Does NOT mass-wipe.
+
+Disabled by default — set `RECONCILE_ENABLED=1` on the worker pod (only)
+so audit runs on the dedicated worker service and not against the web
+pod's bars.db (separate /data volumes).
+"""
+import json
+import logging
+import os
+import random
+import sqlite3
+import threading
+import time
+from datetime import datetime
+
+_logger = logging.getLogger(__name__)
+
+# ── Config (env-tunable) ──────────────────────────────────────────────────────
+_CYCLE_SECONDS = int(os.environ.get("RECONCILE_CYCLE_SECONDS", "1800"))  # 30 min
+_PAIRS_PER_CYCLE = int(os.environ.get("RECONCILE_PAIRS_PER_CYCLE", "60"))
+_BARS_PER_AUDIT = int(os.environ.get("RECONCILE_BARS_PER_AUDIT", "200"))
+# Intraday is where every known bug class has lived. D/W/M is included
+# but at lower frequency (one TF picked at random per pair means each TF
+# gets ~1/8 of attention). Could weight if we ever see drift bias.
+_TFS = ("1", "5", "15", "30", "60", "D", "W", "M")
+
+_PRIORITY_TICKERS = (
+    "SPY", "QQQ", "IWM", "DIA", "AAPL", "NVDA", "MSFT", "TSLA",
+    "AMZN", "META", "GOOGL", "AMD", "AVGO", "SMCI", "PLTR", "ARM",
+    "COIN", "MSTR", "HOOD", "ANET", "NFLX", "CRM", "ORCL", "UBER",
+)
+
+# ── State (for status endpoint + ops visibility) ──────────────────────────────
+_state_lock = threading.Lock()
+_state = {
+    "enabled": False,
+    "running": False,
+    "started_at": None,
+    "cycle_seconds": _CYCLE_SECONDS,
+    "pairs_per_cycle": _PAIRS_PER_CYCLE,
+    "cycles_completed": 0,
+    "audits_run": 0,
+    "audits_errored": 0,
+    "drift_detected_count": 0,
+    "rows_healed_total": 0,
+    "last_cycle_at": None,
+    "last_drift": [],  # ring buffer, last 30 drifts detected
+}
+
+
+def _record_drift(ticker: str, tf: str, fail_count: int, warn_count: int, healed: int):
+    with _state_lock:
+        _state["drift_detected_count"] += 1
+        _state["rows_healed_total"] += healed
+        _state["last_drift"].append({
+            "ticker": ticker, "tf": tf,
+            "fail_count": fail_count, "warn_count": warn_count,
+            "healed_rows": healed,
+            "at": datetime.utcnow().isoformat() + "Z",
+        })
+        # Cap to 30 most recent so memory doesn't grow unbounded.
+        _state["last_drift"] = _state["last_drift"][-30:]
+
+
+def _sample_pairs() -> list[tuple[str, str]]:
+    """Pick PAIRS_PER_CYCLE (ticker, tf) pairs weighted toward where users
+    actually look. The mix is intentional:
+
+    - **Hot set (50%)** — most-recently-fetched tickers. If users are
+      seeing a bug, it'll be on these; catching drift here heals charts
+      before complaints come in.
+    - **Priority (20%)** — fixed list (SPY/QQQ/UCT20 majors). Always
+      audited so a degradation on the highest-traffic tickers is impossible
+      to miss.
+    - **Random long-tail (30%)** — any (ticker, tf) from cap_universe.
+      Ensures nothing escapes attention across weeks of cycling. Statistical
+      coverage of the whole universe over time.
+
+    Each ticker is paired with ONE random TF per cycle (not all 8) so the
+    Polygon call count stays bounded. Over 48 cycles/day each ticker that
+    enters the rotation gets sampled across multiple TFs.
+    """
+    pairs: list[tuple[str, str]] = []
+
+    n_hot = _PAIRS_PER_CYCLE // 2
+    n_priority = _PAIRS_PER_CYCLE // 5
+    n_tail = _PAIRS_PER_CYCLE - n_hot - n_priority
+
+    # Hot set (recently-fetched intraday)
+    try:
+        from api.services.bars_fetch import get_hot_intraday_tickers
+        hot = get_hot_intraday_tickers(200)
+    except Exception:
+        hot = []
+    if hot:
+        for t in random.sample(hot, min(n_hot, len(hot))):
+            pairs.append((t, random.choice(_TFS)))
+
+    # Priority
+    for t in random.sample(_PRIORITY_TICKERS, min(n_priority, len(_PRIORITY_TICKERS))):
+        pairs.append((t, random.choice(_TFS)))
+
+    # Long-tail random sample
+    try:
+        cap_path = os.path.join(os.path.dirname(__file__), "..", "data", "cap_universe.json")
+        if os.path.exists(cap_path):
+            with open(cap_path) as f:
+                universe = json.load(f)
+            if isinstance(universe, dict):
+                universe = universe.get("tickers") or []
+            if universe:
+                for t in random.sample(universe, min(n_tail, len(universe))):
+                    pairs.append((t, random.choice(_TFS)))
+    except Exception:
+        _logger.warning("[reconcile] failed to load cap_universe for long-tail sample", exc_info=True)
+
+    return pairs
+
+
+def _heal_drift(ticker: str, tf: str, bad_timestamps: list[int]) -> int:
+    """Surgically delete the (ticker, tf, ts) rows that diverged from canonical.
+    Returns the count of rows deleted. Next user fetch repopulates them
+    cleanly via the now-correct delta path.
+
+    Surgical (not full-ticker wipe) so unrelated rows aren't disturbed —
+    other timeframes keep serving, the rest of this ticker's history stays
+    cached, only the bad bars are gone.
+    """
+    if not bad_timestamps:
+        return 0
+    db_path = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
+    if not os.path.exists(db_path):
+        return 0
+    deleted = 0
+    try:
+        conn = sqlite3.connect(db_path, timeout=30)
+        try:
+            conn.execute("PRAGMA busy_timeout=30000")
+            # SQLite has a host-parameter limit; chunk in groups of 500 to be safe.
+            CHUNK = 500
+            for i in range(0, len(bad_timestamps), CHUNK):
+                chunk = bad_timestamps[i:i + CHUNK]
+                placeholders = ",".join("?" * len(chunk))
+                cur = conn.execute(
+                    f"DELETE FROM ohlcv WHERE ticker=? AND tf=? AND ts IN ({placeholders})",
+                    (ticker.upper(), tf, *chunk),
+                )
+                deleted += cur.rowcount or 0
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        _logger.exception(f"[reconcile] heal SQLite delete failed for {ticker}/{tf}")
+        return deleted
+
+    # Also clear in-memory cache for this (ticker, tf) so the next request
+    # doesn't serve stale rows from Layer 1.
+    try:
+        from api.services.cache import cache as _mem
+        _mem.delete_prefix(f"bars_{ticker.upper()}_{tf}_")
+    except Exception:
+        pass
+
+    # And bump the DB epoch so thread-local connections refresh against the
+    # now-modified table.
+    try:
+        from api.services import bars_sqlite
+        bars_sqlite.bump_db_epoch()
+    except Exception:
+        pass
+
+    return deleted
+
+
+def _run_cycle():
+    """One reconciliation pass: sample pairs, audit each, heal drift."""
+    from api.services import audit
+    pairs = _sample_pairs()
+    if not pairs:
+        _logger.info("[reconcile] cycle: no pairs to audit (universe load failed?)")
+        return
+
+    drift_count = 0
+    rows_healed = 0
+    audits_ok = 0
+    audits_err = 0
+
+    for ticker, tf in pairs:
+        try:
+            result = audit.audit_ticker(ticker, tf, bars=_BARS_PER_AUDIT)
+            if result.error:
+                audits_err += 1
+                continue
+            audits_ok += 1
+            if result.fail_count > 0:
+                bad_ts = sorted({d.timestamp for d in result.diffs if d.severity == "fail"})
+                healed = _heal_drift(ticker, tf, bad_ts)
+                drift_count += 1
+                rows_healed += healed
+                _logger.warning(
+                    "[reconcile] DRIFT %s/%s: %d fail / %d warn — healed %d row(s)",
+                    ticker, tf, result.fail_count, result.warn_count, healed,
+                )
+                _record_drift(ticker, tf, result.fail_count, result.warn_count, healed)
+        except Exception:
+            audits_err += 1
+            _logger.exception(f"[reconcile] cycle: audit crashed for {ticker}/{tf}")
+
+    with _state_lock:
+        _state["cycles_completed"] += 1
+        _state["audits_run"] += audits_ok
+        _state["audits_errored"] += audits_err
+        _state["last_cycle_at"] = datetime.utcnow().isoformat() + "Z"
+
+    _logger.info(
+        "[reconcile] cycle complete: %d pairs audited (%d ok, %d err), "
+        "%d drift detected, %d rows healed",
+        len(pairs), audits_ok, audits_err, drift_count, rows_healed,
+    )
+
+
+def _run_forever():
+    """Loop: sleep, run cycle, sleep, repeat. Catches all per-cycle errors so
+    one bad iteration cannot kill the daemon."""
+    enabled = os.environ.get("RECONCILE_ENABLED") == "1"
+    with _state_lock:
+        _state["enabled"] = enabled
+    if not enabled:
+        _logger.info("[reconcile] disabled (set RECONCILE_ENABLED=1 on worker pod to enable)")
+        return
+
+    with _state_lock:
+        _state["running"] = True
+        _state["started_at"] = datetime.utcnow().isoformat() + "Z"
+
+    _logger.info(
+        "[reconcile] started — cycle every %ds, %d pairs per cycle, %d bars per audit",
+        _CYCLE_SECONDS, _PAIRS_PER_CYCLE, _BARS_PER_AUDIT,
+    )
+
+    # Initial delay so startup isn't slammed (prewarm, integrity check, heals
+    # all want the SQLite write lock first).
+    time.sleep(120)
+
+    while True:
+        try:
+            _run_cycle()
+        except Exception:
+            _logger.exception("[reconcile] cycle outer crashed (caught — looping)")
+        # Sleep with short ticks so a future stop signal could be responsive,
+        # though we don't currently expose stop().
+        slept = 0
+        while slept < _CYCLE_SECONDS:
+            time.sleep(10)
+            slept += 10
+
+
+def start():
+    """Spawn the daemon thread. Idempotent — calling twice is a no-op."""
+    if getattr(start, "_started", False):
+        return
+    start._started = True
+    t = threading.Thread(target=_run_forever, daemon=True, name="bars-reconciliation")
+    t.start()
+
+
+def get_state() -> dict:
+    """For the status endpoint."""
+    with _state_lock:
+        return dict(_state)

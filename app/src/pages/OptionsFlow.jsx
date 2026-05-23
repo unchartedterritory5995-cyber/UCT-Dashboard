@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
+import StockChart from "../components/StockChart";
 
 // ─── Flow Data loaded dynamically from /api/flow/data (SQLite DB) ─────────────
 
@@ -1258,6 +1259,8 @@ export default function OptionsFlowDashboard() {
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
+  const [contractChartTf, setContractChartTf] = useState('D');
+  useEffect(() => { setContractChartTf('D'); }, [selectedItem?.sym, selectedItem?.cp, selectedItem?.K, selectedItem?.exp]);
   const [priceCache, setPriceCache] = useState({}); // key: "SYM|CP|STRIKE|EXP" -> { mark, bid, ask, last, delta, theta, iv }
   const [earningsCache, setEarningsCache] = useState({});
   const [marketIndices, setMarketIndices] = useState(null);
@@ -2235,9 +2238,6 @@ export default function OptionsFlowDashboard() {
     const liveEntry = chartData.filter(d=>d.isLive);
     const nonLiveAll = chartData.filter(d=>!d.isLive);
     const trimmed = nonLiveAll.slice(-10).concat(liveEntry);
-    const chartKey = `item_${sym}_${cp}_${K}_${exp}`;
-    const chartRange = (window._chartRange||{})[chartKey] || "3mo";
-    const setChartRange = v => { if(!window._chartRange) window._chartRange={}; window._chartRange[chartKey]=v; setSelectedItem(null); setTimeout(()=>setSelectedItem({sym,cp,K,exp}),10); };
     const dir = cp==="C"?"BULL":"BEAR";
     const totalPrem = allTrades.reduce((s,t)=>s+t.P,0);
 
@@ -2262,50 +2262,15 @@ export default function OptionsFlowDashboard() {
           <button onClick={onClose} style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
-          <div style={{ borderRight:"1px solid "+P.bd, position:"relative" }}>
-            <div ref={el=>{
-              if (!el || el._tvInit) return;
-              el._tvInit = true;
-              const buildChart = () => {
-                const LWC = window.LightweightCharts;
-                if (!LWC) return;
-                el.innerHTML = "";
-                const chart = LWC.createChart(el, {
-                  width:el.clientWidth, height:200,
-                  layout:{background:{color:"#0d1117"},textColor:"#7b8fa3",fontSize:9},
-                  grid:{vertLines:{color:"#1a254022"},horzLines:{color:"#1a254022"}},
-                  crosshair:{mode:0}, rightPriceScale:{borderColor:"#1a2540"},
-                  timeScale:{borderColor:"#1a2540",timeVisible:true,secondsVisible:false,
-                    tickMarkFormatter:(t)=>{const d=new Date(t*1000);const h=parseInt(d.toLocaleString("en-US",{timeZone:"America/New_York",hour:"numeric",hour12:false}));const m=parseInt(d.toLocaleString("en-US",{timeZone:"America/New_York",minute:"numeric"}));if(h<=10&&m<=30)return d.toLocaleString("en-US",{timeZone:"America/New_York",month:"short",day:"numeric"});return d.toLocaleString("en-US",{timeZone:"America/New_York",hour:"numeric",minute:"2-digit",hour12:true});}},
-                  localization:{timeFormatter:t=>{const d=new Date(t*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});}},
-                });
-                const s = chart.addCandlestickSeries({upColor:"#0a8f55",downColor:"#c43030",borderUpColor:"#0a8f55",borderDownColor:"#c43030",wickUpColor:"#0a8f55",wickDownColor:"#c43030"});
-                fetch(`/api/schwab/chart-ohlc?sym=${encodeURIComponent(sym)}&range=${chartRange}`).then(r=>r.ok?r.json():null).then(d=>{
-                  if(d?.candles?.length){s.setData(d.candles);chart.timeScale().fitContent();}
-                }).catch(()=>{});
-                const ro=new ResizeObserver(()=>{if(el.clientWidth>0)chart.applyOptions({width:el.clientWidth});});
-                ro.observe(el);
-                el._tvCleanup=()=>{ro.disconnect();chart.remove();};
-              };
-              if (window.LightweightCharts) { buildChart(); }
-              else {
-                el.innerHTML="<div style='color:#555;padding:20px;font-size:11px'>Loading chart...</div>";
-                const sc=document.createElement("script");
-                sc.src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js";
-                sc.onload=buildChart;
-                document.head.appendChild(sc);
-              }
-            }} style={{ width:"100%", height:200 }} />
-            <div style={{ position:"absolute", top:8, right:8, display:"flex", gap:4, zIndex:2 }}>
-              {[["5m","5m"],["15m","15m"],["1D","1D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
-                <button key={val} onClick={e=>{e.stopPropagation();setChartRange(val);}}
-                  style={{ padding:"2px 7px", borderRadius:4, border:"1px solid "+(chartRange===val?P.ac:P.bd+"80"),
-                    background:chartRange===val?P.ac+"22":"rgba(6,9,15,0.75)", color:chartRange===val?P.ac:P.dm,
-                    fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                  {label}
-                </button>
-              ))}
-            </div>
+          <div style={{ borderRight:"1px solid "+P.bd, position:"relative", height:440 }}>
+            <StockChart
+              sym={sym}
+              tf={contractChartTf}
+              height={440}
+              liveUpdates={true}
+              showDrawingTools={true}
+              onTfChange={setContractChartTf}
+            />
           </div>
           <div style={{ padding:"12px 14px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}>

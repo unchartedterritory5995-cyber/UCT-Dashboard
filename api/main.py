@@ -549,6 +549,17 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] bars_continuous_audit start failed")
 
+    # Start the reconciliation worker — diffs SQLite vs Polygon canonical
+    # periodically, auto-heals any drift. Structural safety net behind every
+    # chart correctness invariant. Only active on the worker pod
+    # (RECONCILE_ENABLED=1) so the web pod doesn't compete on Polygon quota.
+    try:
+        from api.services import bars_reconciliation
+        bars_reconciliation.start()
+        logging.getLogger(__name__).info("[startup] bars_reconciliation started")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] bars_reconciliation start failed")
+
     try:
         from api.services import realtime_candle
         import asyncio
@@ -762,7 +773,8 @@ async def lifespan(app: FastAPI):
         "needs_fresh_post_market=on "
         "swr_refresh_interval=30s_intraday "
         "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
-        "delta_intraday_filter=>= idb_cache_logic_version=4"
+        "delta_intraday_filter=>= idb_cache_logic_version=4 "
+        f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED') == '1' else 'off'}"
     )
 
     if os.environ.get("USE_REMOTE_BARS") == "1":

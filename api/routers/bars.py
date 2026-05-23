@@ -232,6 +232,19 @@ def warm_universe_stop(request: Request):
     return {"status": "stopped", "was_running": was_running}
 
 
+@router.get("/api/admin/reconciliation-status")
+def reconciliation_status():
+    """Return current state of the bars-reconciliation worker (no auth — read-only).
+
+    Shows cycles completed, audits run, drift detected, rows auto-healed, plus
+    the rolling ring buffer of the last 30 drift events. Use this to verify
+    the safety net is alive AND to see at a glance which tickers/timeframes
+    have been drifting (a cluster of failures on one tf is a signal to investigate
+    that code path)."""
+    from api.services import bars_reconciliation
+    return bars_reconciliation.get_state()
+
+
 @router.get("/api/admin/warm-universe-status")
 def warm_universe_status():
     """Return current progress of the universe warmer (no auth — read-only)."""
