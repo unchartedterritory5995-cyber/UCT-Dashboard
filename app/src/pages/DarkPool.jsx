@@ -1684,17 +1684,27 @@ export default function DarkPool(){
     setLoadErr(null);
     setLoadStatus("Fetching dark pool data…");
 
-    fetch(csvFile + "&_t=" + Date.now())
-      .then(r => {
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        const ct = r.headers.get("content-type") || "";
-        if (ct.includes("text/html")) throw new Error("Got HTML instead of CSV — API not found");
-        return r.text();
+    function tryFetch(url) {
+      return fetch(url + (url.includes("?") ? "&" : "?") + "_t=" + Date.now())
+        .then(r => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.text();
+        })
+        .then(text => {
+          const trimmed = text.trim();
+          if (trimmed.startsWith("<!") || trimmed.startsWith("<html")) throw new Error("HTML");
+          return text;
+        });
+    }
+
+    // Try API first, fall back to static CSV
+    tryFetch(csvFile)
+      .catch(() => {
+        setLoadStatus("API unavailable — loading static CSV…");
+        return tryFetch("/Darkpool-data.csv");
       })
       .then(text => {
         if (cancelled) return;
-        const trimmed = text.trim();
-        if (trimmed.startsWith("<!") || trimmed.startsWith("<html")) throw new Error("Got HTML — API route not found");
         setLoadStatus("Parsing…");
         setTimeout(() => {
           if (cancelled) return;
@@ -1708,7 +1718,7 @@ export default function DarkPool(){
           }
         }, 0);
       })
-      .catch(e => { if (!cancelled) { setLoadErr(e.message); setCsvLoading(false); } });
+      .catch(e => { if (!cancelled) { setLoadErr("Could not load data from API or static CSV"); setCsvLoading(false); } });
     return () => { cancelled = true; };
   }, [csvFile]);
 
