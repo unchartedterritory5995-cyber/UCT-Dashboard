@@ -97,6 +97,9 @@ def _last_weekday_yyyymmdd() -> int:
     return int(d.strftime("%Y%m%d"))
 
 
+_INTRADAY_FRESHNESS_THRESHOLDS = {"1": 90, "5": 300, "15": 900, "30": 1800, "60": 3600}
+
+
 def _needs_fresh(last_ts: int | None, tf: str) -> bool:
     """True if SQLite data is stale enough to warrant a delta fetch."""
     if last_ts is None:
@@ -112,12 +115,41 @@ def _needs_fresh(last_ts: int | None, tf: str) -> bool:
         # per ticker per tf — fine for Polygon rate limits, and ensures
         # today's evolving close updates instead of freezing.
         return last_ts <= _last_weekday_yyyymmdd()
-    # Intraday: skip refresh outside market hours UNLESS data is from a prior session
-    if not _is_market_open():
-        # Force refresh if last bar is older than 30 hours (previous session / missed day)
-        return (_time.time() - last_ts) > 30 * 3600
-    thresholds = {"1": 90, "5": 300, "15": 900, "30": 1800, "60": 3600}
-    return (_time.time() - last_ts) > thresholds.get(tf, 300)
+
+    threshold = _INTRADAY_FRESHNESS_THRESHOLDS.get(tf, 300)
+    age = _time.time() - last_ts
+
+    if _is_market_open():
+        return age > threshold
+
+    # Off-market refinements (the bug being fixed here):
+    # The prior code returned `age > 30h` for ALL off-market times, which
+    # meant a chart opened at 17:00 ET on a trading day where the cache
+    # only had data through 12:00 ET would NOT trigger a top-up — the 5h
+    # diff is well under 30h, so the user saw a chart pinned at noon even
+    # though Polygon had the full RTH session available. New rule:
+    #
+    # - Weekday extended-hours window (4 AM – 8 PM ET): use the standard
+    #   tf threshold so post-market and pre-market top-ups happen normally.
+    #   Polygon delivers RTH-close prints + after-hours moves + early-bird
+    #   pre-market in that window; we should pick them up.
+    # - Overnight (8 PM – 4 AM ET) and weekends: nothing new arrives, so
+    #   the conservative 30h "is the data ancient?" gate still applies.
+    try:
+        et = _ZI("America/New_York")
+        now_dt = datetime.now(et)
+        hour_min = now_dt.hour * 60 + now_dt.minute
+        # 4:00 AM ET (240) through 8:00 PM ET (1200) on a weekday is the
+        # window where extended-hours trading and RTH coexist.
+        in_extended_today = now_dt.weekday() < 5 and 240 <= hour_min < 1200
+    except Exception:
+        # If zoneinfo fails for any reason, fall back to the old conservative
+        # behavior — better to under-fetch than over-fetch on an edge case.
+        in_extended_today = False
+
+    if in_extended_today:
+        return age > threshold
+    return age > 30 * 3600
 
 
 def _expected_latest_session_yyyymmdd(now=None) -> int:

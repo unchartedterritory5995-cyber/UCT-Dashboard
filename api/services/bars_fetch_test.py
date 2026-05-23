@@ -304,6 +304,66 @@ class TestFMPTimestampIsEasternTime:
         # The bar's actual ET hour MUST be 15, not 11 (the shifted/buggy value).
         assert datetime.fromtimestamp(bars[0]["t"], tz=_ET).hour == 15
 
+    def test_et_text_decodes_does_not_drop_at_market_close(self, monkeypatch):
+        """Adjacent bug found while verifying the FMP heal: `_needs_fresh`
+        used a 30h off-market threshold, so a chart opened at 17:00 ET on a
+        trading day whose cache only had through 12:00 ET would NOT refetch
+        (5h gap < 30h). Visible symptom: chart "stuck" at noon after RTH
+        close even with Polygon serving the full session. New rule: same-day
+        extended-hours window (4 AM - 8 PM ET weekday) uses the standard tf
+        threshold; overnight + weekends keep the conservative 30h gate."""
+        from unittest.mock import patch
+        from api.services.bars_fetch import _needs_fresh
+        # Pretend it's Friday 5:00 PM ET (post-RTH close, still extended hours).
+        post_market_friday = datetime(2026, 5, 22, 17, 0, tzinfo=_ET)
+        # Cache last_ts is the noon ET bar from the same day.
+        last_ts = _et_ts(2026, 5, 22, 12, 0)
+        # Mock _is_market_open (returns False post-close) and datetime.now.
+        with patch("api.services.bars_fetch._is_market_open", return_value=False), \
+             patch("api.services.bars_fetch.datetime") as mock_dt, \
+             patch("api.services.bars_fetch._time") as mock_time:
+            mock_dt.now.return_value = post_market_friday
+            mock_dt.fromtimestamp = datetime.fromtimestamp  # keep helpers
+            mock_time.time.return_value = post_market_friday.timestamp()
+            # 5h gap @ tf=60 with 3600s threshold: needs fresh.
+            assert _needs_fresh(last_ts, "60") is True, (
+                "post-market same-day cache must top up to RTH close, not wait 30h"
+            )
+
+    def test_overnight_uses_conservative_threshold(self, monkeypatch):
+        """Opposite case: 3 AM ET on a weekday — no new bars arriving, so
+        the 30h gate kicks in. Cache 5h old should NOT trigger a fetch."""
+        from unittest.mock import patch
+        from api.services.bars_fetch import _needs_fresh
+        overnight_weekday = datetime(2026, 5, 22, 3, 0, tzinfo=_ET)
+        last_ts = int(overnight_weekday.timestamp()) - 5 * 3600  # 5h old
+        with patch("api.services.bars_fetch._is_market_open", return_value=False), \
+             patch("api.services.bars_fetch.datetime") as mock_dt, \
+             patch("api.services.bars_fetch._time") as mock_time:
+            mock_dt.now.return_value = overnight_weekday
+            mock_dt.fromtimestamp = datetime.fromtimestamp
+            mock_time.time.return_value = overnight_weekday.timestamp()
+            assert _needs_fresh(last_ts, "60") is False, (
+                "overnight should NOT burn API calls to top up — nothing new arrives 8 PM - 4 AM ET"
+            )
+
+    def test_weekend_uses_conservative_threshold(self, monkeypatch):
+        """Saturday 11 AM ET: weekend, no new bars regardless of clock-time.
+        Stays on the 30h gate."""
+        from unittest.mock import patch
+        from api.services.bars_fetch import _needs_fresh
+        saturday = datetime(2026, 5, 23, 11, 0, tzinfo=_ET)
+        last_ts = int(saturday.timestamp()) - 10 * 3600  # 10h old
+        with patch("api.services.bars_fetch._is_market_open", return_value=False), \
+             patch("api.services.bars_fetch.datetime") as mock_dt, \
+             patch("api.services.bars_fetch._time") as mock_time:
+            mock_dt.now.return_value = saturday
+            mock_dt.fromtimestamp = datetime.fromtimestamp
+            mock_time.time.return_value = saturday.timestamp()
+            assert _needs_fresh(last_ts, "60") is False, (
+                "weekend should NOT trigger a fetch — Polygon has nothing new to offer"
+            )
+
     def test_et_text_handles_winter_est(self, monkeypatch):
         # During EST (UTC-5) the offset shifts to 5h — bug would manifest
         # as 5h-earlier instead of 4h. Pick a January date to exercise EST.
