@@ -209,6 +209,70 @@ Spec: `docs/superpowers/specs/2026-05-16-bars-freshness-fix-design.md`. Fixed a 
 - **Reusable audit tools**: `tools/full_chart_diagnostic.py`, `tools/phantom_scan.py`, `tools/daily_split_audit.py`. (Do NOT use `tools/detect_dead_tickers.py` — unsafe: self-induced load makes it false-flag live megacaps as delisted.)
 - Outstanding/deferred items: see user memory `project_chart_accuracy_initiative.md` → "OUTSTANDING" section.
 
+### Bars Correctness Layer — 2026-05-22/23 weekend (CRITICAL, do not regress)
+
+Capstone fix-pass over the long-weekend closure. Killed the last persistent
+bug classes that survived the May-16/17 freshness overhaul. **Locked invariants:**
+
+- **FMP `_fetch_intraday_fmp` parses `date` as ET, NOT naive.** FMP returns
+  ET local text (`"2026-05-22 15:30:00"`); the prior naive `datetime.strptime`
+  + `.timestamp()` interpreted that as UTC and shifted every FMP-sourced bar
+  by the ET-UTC offset (4h EDT / 5h EST). yfinance fallback got a defensive
+  fix in the same commit so it can't regress to the same trap.
+
+- **`_delta_intraday` uses `>=` (NOT strict `>`)** for the boundary bar.
+  Strict-`>` froze in-progress 30min bars stored at chart-load-snapshot
+  values (e.g. BB 5/21 13:00 ET stored at the 13:15 ET partial = C=6.47
+  V=738K instead of the closed C=6.62 V=2.68M). With `>=` the boundary
+  bucket gets re-aggregated from up-to-date 30min source on every delta;
+  INSERT OR REPLACE overwrites the wrong row. WS still owns the per-tick
+  display via `bar_broadcaster`; REST writes the persisted SQLite row.
+
+- **Canonical ET-anchored bucket: `bars_fetch.bucket_60_et_unix_seconds`.**
+  Single source of truth for 60min bucketing — shared by `_session_resample_hourly`
+  AND `bar_rollup.bucket_start` (for tf=60). Equivalence by construction.
+  Property-tested across 1000 random minutes + explicit DST transitions.
+
+- **60min has WS streaming.** `bar_broadcaster.ROLLUP_TFS = ("5","15","30","60")`;
+  `stream.py` allow-list includes "60"; `StockChart.jsx::realtimeTfEligible`
+  includes "60". 1hr charts now receive authoritative AM-derived OHLCV via
+  SSE instead of relying on tick synthesis.
+
+- **`_needs_fresh` post-market refinement.** Weekday 4 AM – 8 PM ET uses
+  the standard tf threshold (catches pre/post-market new bars); overnight
+  + weekend keep the conservative 30h gate. Eliminates the "chart opened
+  at 17:00 ET stuck at noon" trap.
+
+- **Browser IDB `CACHE_LOGIC_VERSION = 4`.** Bump to 5 (or higher) on any
+  future bar-fetch/merge logic change that invalidates cached shapes. The
+  jump from 3 to 4 cleared FMP-poisoned shifted-ts rows that `mergeDelta`
+  could never heal (delta only ADDS — can't remove rows at wrong ts).
+
+- **SWR `refreshInterval: 30000` intraday / 300000 D/W/M** on every
+  `StockChart` instance, plus a no-op repaint guard in the delta-merge
+  effect (skip `setData` when the post-merge tail is structurally identical
+  to the pre-merge tail). Eliminates the "chart frozen at first-fetch
+  data until remount" trap and prevents the 30s-cadence flicker.
+
+- **Continuous reconciliation worker** (`bars_reconciliation.py`):
+  background daemon, 30-min cycles, ~60 (ticker, tf) pairs/cycle sampled
+  across hot-set / priority / random long-tail. Diffs SQLite vs Polygon
+  canonical via `audit.audit_ticker`; on `fail_count > 0` surgically
+  `DELETE`s the diverged (ticker, tf, ts) rows so next fetch repopulates
+  clean. Gated on `RECONCILE_ENABLED=1` (worker pod only). Status:
+  `GET /api/admin/reconciliation-status`. **This is the structural safety
+  net behind every future write-path bug** — catches drift before users
+  notice. Replaces "find and patch individual bug classes" with "detect
+  and correct drift continuously."
+
+- **Heals v1/v2/v3 ran one-shot on startup** (flags `.fmp_tz_heal_v1`,
+  `.strict_gt_heal_v2`, `.intraday_heal_v3_60day` in DATA_DIR). v3
+  cleared 60 days of legacy artifacts. Future drift handled incrementally
+  by the reconciliation worker — no more mass-wipes needed.
+
+- **Startup fingerprint line** for grep verification:
+  `[startup] chart-realtime-mode: fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once needs_fresh_post_market=on swr_refresh_interval=30s_intraday tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds delta_intraday_filter=>= idb_cache_logic_version=4 reconciliation_worker=on|off`
+
 ### Chart Settings System
 - `app/src/components/chart/chartDefaults.js` — schema, defaults, 3 presets (Classic Dark / OLED Black / TradingView)
 - `chart_settings` JSON blob stored server-side via `usePreferences` (`POST /api/auth/preferences`)
