@@ -1253,6 +1253,7 @@ export default function OptionsFlowDashboard() {
   const [gexDte, setGexDte] = useState("all");
   const [showGexSummary, setShowGexSummary] = useState(false);
   const [showGexChart, setShowGexChart] = useState(false);
+  const [gexChartTf, setGexChartTf] = useState('D');
   const [ideaGex, setIdeaGex] = useState(null); // { sym, data, loading } for Ideas popup
   const [ideaGexRange, setIdeaGexRange] = useState("3mo");
   const [selectedTicker, setSelectedTicker] = useState(null);
@@ -2177,19 +2178,31 @@ export default function OptionsFlowDashboard() {
           <button onClick={onClose} style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
-          <div style={{ borderRight:"1px solid "+P.bd, position:"relative", height:440 }}>
-            <StockChart
-              sym={sym}
-              tf={contractChartTf}
-              height={440}
-              liveUpdates={true}
-              showDrawingTools={true}
-              onTfChange={setContractChartTf}
-              hideReplay
-              hidePatterns
-              hideCompare
-              hideCountdown
-            />
+          <div style={{ borderRight:"1px solid "+P.bd, display:"flex", flexDirection:"column", height:440 }}>
+            <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0 }}>
+              {[['1','1m'],['5','5m'],['15','15m'],['30','30m'],['60','1h'],['D','D'],['W','W'],['M','M']].map(([val,label])=>(
+                <button key={val} onClick={()=>setContractChartTf(val)}
+                  style={{ padding:"2px 7px", borderRadius:3, border:"1px solid "+(contractChartTf===val?P.ac:P.bd+"80"),
+                    background:contractChartTf===val?P.ac+"22":"transparent", color:contractChartTf===val?P.ac:P.dm,
+                    fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div style={{ flex:1, minHeight:0 }}>
+              <StockChart
+                sym={sym}
+                tf={contractChartTf}
+                height="100%"
+                liveUpdates={true}
+                showDrawingTools={true}
+                onTfChange={setContractChartTf}
+                hideReplay
+                hidePatterns
+                hideCompare
+                hideCountdown
+              />
+            </div>
           </div>
           <div style={{ padding:"12px 14px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}>
@@ -2917,17 +2930,28 @@ export default function OptionsFlowDashboard() {
                 {/* GEX Chart with Levels */}
                 {showGexChart && gexData && !gexData.error && (
                   <div style={{ background:P.cd, borderRadius:10, padding:12, border:"1px solid "+P.bd, marginTop:4 }}>
-                    <div style={{ marginBottom:8 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                       <span style={{ fontSize:11, fontWeight:700, color:P.ac, textTransform:"uppercase", letterSpacing:1 }}>{gexData.ticker} Chart with GEX Levels</span>
+                      <div style={{ display:"flex", gap:4 }}>
+                        {[['1','1min'],['5','5min'],['15','15min'],['30','30min'],['60','1hr'],['D','Daily'],['W','Weekly'],['M','Monthly']].map(([val,label])=>(
+                          <button key={val} onClick={()=>setGexChartTf(val)}
+                            style={{ padding:"3px 8px", borderRadius:4, border:"1px solid "+(gexChartTf===val?P.ac:P.bd+"80"),
+                              background:gexChartTf===val?P.ac+"22":"transparent", color:gexChartTf===val?P.ac:P.dm,
+                              fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div style={{ width:"100%", height:500, borderRadius:6, overflow:"hidden" }}>
                       <StockChart
                         sym={gexData.ticker}
-                        tf="D"
+                        tf={gexChartTf}
                         height={500}
                         liveUpdates={true}
                         showDrawingTools={true}
                         priceLines={gexPriceLines}
+                        onTfChange={setGexChartTf}
                         hideReplay
                         hidePatterns
                         hideCompare
