@@ -107,6 +107,8 @@ class ChartErrorBoundary extends Component {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
+const CHART_SIZE_KEY = 'cot.chart.size'
+
 export default function CotData() {
   const [symbol,       setSymbol]       = useState('ES')
   const [weeks,        setWeeks]        = useState(52)
@@ -115,7 +117,11 @@ export default function CotData() {
   const [data,         setData]         = useState(null)
   const [loading,      setLoading]      = useState(false)
   const [error,        setError]        = useState(null)
-  const dropdownRef = useRef(null)
+  const [chartSize,    setChartSize]    = useState(null)   // { width?, height? } or null = default
+  const [resizing,     setResizing]     = useState(null)   // 'right' | 'bottom' | 'corner' | null
+  const dropdownRef    = useRef(null)
+  const chartWrapRef   = useRef(null)
+  const resizeStateRef = useRef(null)
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -127,6 +133,84 @@ export default function CotData() {
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
+
+  // Load saved chart size on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CHART_SIZE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && (parsed.width || parsed.height)) setChartSize(parsed)
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  // Persist chart size on change
+  useEffect(() => {
+    if (!chartSize) return
+    try { localStorage.setItem(CHART_SIZE_KEY, JSON.stringify(chartSize)) } catch { /* ignore */ }
+  }, [chartSize])
+
+  // Window-level mousemove/mouseup while resizing
+  useEffect(() => {
+    if (!resizing) return
+
+    function onMouseMove(e) {
+      const state = resizeStateRef.current
+      if (!state) return
+      const dx = e.clientX - state.startX
+      const dy = e.clientY - state.startY
+      const next = { ...(state.startSize) }
+      const parentWidth = chartWrapRef.current?.parentElement?.clientWidth || window.innerWidth
+      const maxHeight   = window.innerHeight - 100
+
+      if (state.axis === 'right' || state.axis === 'corner') {
+        next.width = Math.max(400, Math.min(parentWidth, state.startSize.width + dx))
+      }
+      if (state.axis === 'bottom' || state.axis === 'corner') {
+        next.height = Math.max(300, Math.min(maxHeight, state.startSize.height + dy))
+      }
+      setChartSize(next)
+    }
+
+    function onMouseUp() {
+      setResizing(null)
+      resizeStateRef.current = null
+    }
+
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor =
+      resizing === 'right'  ? 'ew-resize' :
+      resizing === 'bottom' ? 'ns-resize' :
+                              'nwse-resize'
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup',   onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup',   onMouseUp)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+    }
+  }, [resizing])
+
+  function startResize(axis, e) {
+    e.preventDefault()
+    const rect = chartWrapRef.current?.getBoundingClientRect()
+    if (!rect) return
+    resizeStateRef.current = {
+      startX:    e.clientX,
+      startY:    e.clientY,
+      startSize: { width: rect.width, height: rect.height },
+      axis,
+    }
+    setResizing(axis)
+  }
+
+  function resetChartSize() {
+    setChartSize(null)
+    try { localStorage.removeItem(CHART_SIZE_KEY) } catch { /* ignore */ }
+  }
 
   // Fetch COT data when symbol or weeks changes
   useEffect(() => {
@@ -367,12 +451,28 @@ export default function CotData() {
               {lb.label}
             </button>
           ))}
+          {chartSize && (
+            <button
+              className={styles.resetSizeBtn}
+              onClick={resetChartSize}
+              title="Reset chart to default size"
+            >
+              ↻ Reset size
+            </button>
+          )}
         </div>
 
       </div>
 
       {/* Chart */}
-      <div className={styles.chartWrap}>
+      <div
+        ref={chartWrapRef}
+        className={styles.chartWrap}
+        style={chartSize ? {
+          width:  chartSize.width  ? `${chartSize.width}px`  : undefined,
+          height: chartSize.height ? `${chartSize.height}px` : undefined,
+        } : undefined}
+      >
         {loading && (
           <div className={styles.overlay}>Loading COT data…</div>
         )}
@@ -392,6 +492,23 @@ export default function CotData() {
             <Chart type="bar" data={chartData} options={chartOptions} />
           </ChartErrorBoundary>
         )}
+
+        {/* Resize handles */}
+        <div
+          className={styles.resizeHandleRight}
+          onMouseDown={e => startResize('right', e)}
+          title="Drag to adjust chart width"
+        />
+        <div
+          className={styles.resizeHandleBottom}
+          onMouseDown={e => startResize('bottom', e)}
+          title="Drag to adjust chart height"
+        />
+        <div
+          className={styles.resizeHandleCorner}
+          onMouseDown={e => startResize('corner', e)}
+          title="Drag to adjust chart width and height"
+        />
       </div>
 
     </div>
