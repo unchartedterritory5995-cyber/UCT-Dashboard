@@ -173,14 +173,19 @@ def run_prewarmer_forever():
     # cap_universe-only long tail still gets light Daily/Weekly/Monthly
     # universe-wide + the on-demand Part-1 path (correct on first open,
     # ~2-4s then cached) — never wrong, just not pre-warmed. TFs tiered:
-    # 60/30/15 for the whole active set; 5/1 (heavier) for the top tier.
+    # 60/30/15 for the whole active set; 5/1 expanded from top-800 to top-1500
+    # (2026-05-23) so post-heal cold-fetch latency drops for the long-tail of
+    # theme/watchlist tickers that users actually navigate. The chart
+    # default-zoom width is the same regardless of TF, so the difference between
+    # 800 and 1500 tickers is roughly 2x more 5min/1min jobs queued — bounded
+    # by `_needs_fresh` so subsequent passes only refresh stale entries.
     _IS_WORKER = os.environ.get("WORKER_ENABLED") == "1"
     _CORE_INTRADAY_TFS = ('60', '30', '15')
     _DEEP_INTRADAY_TFS = ('5', '1')
     _INTRADAY_TFS = _CORE_INTRADAY_TFS + _DEEP_INTRADAY_TFS  # refresh-loop hot-set union
     if _IS_WORKER:
         _CORE_INTRADAY_TICKERS = _active_intraday       # active set, not full universe
-        _DEEP_INTRADAY_TICKERS = _active_intraday[:800]
+        _DEEP_INTRADAY_TICKERS = _active_intraday[:1500]
         # 4 (not 6): fetches are network-bound so 4 still parallelises
         # well, but fewer concurrent writers = a much shorter wait queue
         # behind the SQLite write lock. Sweet spot for throughput.
