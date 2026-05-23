@@ -16,10 +16,11 @@ Public API:
 import io
 import csv
 import os
+import threading
 import zipfile
 import logging
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date as _date_cls
 from typing import TextIO
 
 import requests
@@ -484,8 +485,88 @@ def get_latest_date() -> str | None:
     return _latest_record_date()
 
 
+# ── Calendar-aware staleness + request-driven auto-refresh ────────────────────
+# Self-healing layer that fires regardless of APScheduler state. If the
+# scheduler silently fails to run (Railway redeploy lost the lock, restart
+# missed the window, etc), any hit to /api/cot/status will kick off a
+# background refresh — gated by a cooldown to prevent runaway calls.
+
+# Buffer past CFTC's typical 3:30 PM ET publish time. Anything past 4:30 PM ET
+# Friday should have this week's report available.
+_PUBLISH_HOUR_ET = 16
+_PUBLISH_MIN_ET  = 30
+
+_AUTO_REFRESH_LOCK     = threading.Lock()
+_AUTO_REFRESH_COOLDOWN = timedelta(minutes=30)
+_LAST_AUTO_REFRESH_AT: datetime | None = None
+
+
+def expected_latest_report_date(now_et: datetime) -> _date_cls:
+    """Return the most recent Tuesday whose Friday-after-publish-time has passed.
+
+    CFTC reports cover positions as of close-of-business each Tuesday and are
+    released the following Friday (typically by 3:30 PM ET; we use 4:30 PM ET
+    as a conservative threshold).
+    """
+    today = now_et.date()
+    weekday = now_et.weekday()  # Mon=0 ... Sun=6
+    if weekday == 4:  # Friday
+        if (now_et.hour, now_et.minute) >= (_PUBLISH_HOUR_ET, _PUBLISH_MIN_ET):
+            most_recent_publish_friday = today
+        else:
+            most_recent_publish_friday = today - timedelta(days=7)
+    else:
+        days_back = (weekday - 4) % 7
+        most_recent_publish_friday = today - timedelta(days=days_back)
+    return most_recent_publish_friday - timedelta(days=3)  # Tuesday before Friday
+
+
+def _maybe_auto_refresh_if_stale() -> None:
+    """If the DB's latest report is older than the expected current report,
+    kick off a background refresh — provided we haven't tried in the last 30 min.
+
+    Cooldown lives at module scope so it survives any number of in-flight
+    /api/cot/status calls. Safe to invoke from request handlers — never raises.
+    """
+    global _LAST_AUTO_REFRESH_AT
+    try:
+        from zoneinfo import ZoneInfo
+        latest_iso = _latest_record_date()
+        if not latest_iso:
+            return  # empty DB — seed_from_historical path handles this
+        latest_date = _date_cls.fromisoformat(latest_iso)
+        now_et = datetime.now(ZoneInfo("America/New_York"))
+        if latest_date >= expected_latest_report_date(now_et):
+            return  # already current
+        with _AUTO_REFRESH_LOCK:
+            now_utc = datetime.now(timezone.utc)
+            if (
+                _LAST_AUTO_REFRESH_AT is not None
+                and now_utc - _LAST_AUTO_REFRESH_AT < _AUTO_REFRESH_COOLDOWN
+            ):
+                return
+            _LAST_AUTO_REFRESH_AT = now_utc
+        logger.info(
+            "COT: auto-refresh triggered (latest=%s, expected=%s)",
+            latest_iso, expected_latest_report_date(now_et).isoformat(),
+        )
+        threading.Thread(
+            target=refresh_from_current,
+            daemon=True,
+            name="cot-auto-refresh",
+        ).start()
+    except Exception as exc:
+        logger.warning("COT: auto-refresh check failed: %s", exc)
+
+
 def get_status() -> dict:
-    """Return last refresh info, next scheduled Friday, and total record count."""
+    """Return last refresh info, next scheduled Friday, and total record count.
+
+    Side-effect: if data is stale per the expected CFTC publish schedule, fires
+    a background refresh (cooldown-gated). This is the safety net for cases
+    where the APScheduler Friday jobs silently fail to run.
+    """
+    _maybe_auto_refresh_if_stale()
     with _get_conn() as conn:
         last = conn.execute(
             "SELECT run_at, records_inserted, status FROM cot_refresh_log ORDER BY id DESC LIMIT 1"

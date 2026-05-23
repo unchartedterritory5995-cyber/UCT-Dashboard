@@ -916,25 +916,17 @@ async def lifespan(app: FastAPI):
         else:
             from datetime import date as _date
             now_et = datetime.now(ZoneInfo("America/New_York"))
-            status = _cot_service.get_status()
-            last_updated = status.get("last_updated")
-            already_ran_today = (
-                last_updated is not None
-                and last_updated[:10] == now_et.date().isoformat()
-            )
-            if not already_ran_today:
-                latest_date = _cot_service.get_latest_date()
-                days_old = (now_et.date() - _date.fromisoformat(latest_date)).days if latest_date else 999
-                if days_old >= 8:
-                    print(f"[startup] COT data is {days_old}d stale — running catch-up refresh...")
-                    threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
-                elif now_et.weekday() == 4 and now_et.hour >= 17:
-                    print("[startup] COT catch-up: Friday refresh missed — running now...")
-                    threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
-                else:
-                    print(f"[startup] COT database ready (latest: {latest_date}, {days_old}d old).")
+            latest_iso = _cot_service.get_latest_date()
+            expected = _cot_service.expected_latest_report_date(now_et)
+            if latest_iso and _date.fromisoformat(latest_iso) < expected:
+                days_old = (now_et.date() - _date.fromisoformat(latest_iso)).days
+                print(
+                    f"[startup] COT data stale — latest={latest_iso} expected={expected} "
+                    f"({days_old}d old) — running catch-up refresh..."
+                )
+                threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
             else:
-                print("[startup] COT database ready.")
+                print(f"[startup] COT database ready (latest: {latest_iso}).")
     except Exception as e:
         print(f"[startup] COT init error (non-fatal): {e}")
 
