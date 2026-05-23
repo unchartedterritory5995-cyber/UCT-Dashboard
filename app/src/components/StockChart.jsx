@@ -795,10 +795,23 @@ export default function StockChart({
     ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`
     : null
 
+  // Self-healing poll cadence: with no refreshInterval, the chart was frozen
+  // at first-fetch data until the component unmounted. That trapped users on
+  // partial sessions (the noon-cutoff symptom), masked silent WS drops, and
+  // missed server-side bar corrections. 30s intraday is comfortably under
+  // any one-tf threshold yet long enough that the in-flight request rate stays
+  // bounded even with many charts open. D/W/M evolve slowly — 5min is enough.
+  // refreshWhenHidden:false stops backgrounded tabs from burning ticks.
+  const refreshInterval = isIntraday ? 30_000 : 300_000
   const { data, error, mutate } = useSWR(
     swrUrl,
     fetcher,
-    { dedupingInterval: dedupMs, revalidateOnFocus: false }
+    {
+      dedupingInterval: dedupMs,
+      revalidateOnFocus: false,
+      refreshInterval,
+      refreshWhenHidden: false,
+    }
   )
 
   // ── Comparison symbol SWR fetch ──
@@ -820,6 +833,21 @@ export default function StockChart({
     const sameSymTf = idbReadyForRef.current === `${sym}_${resolvedTf}`
     if (data.delta && idbBars?.length && sameSymTf) {
       const merged = mergeDelta(idbBars, data.bars)
+      // refreshInterval flicker guard: when the 30s poll returns no new bars
+      // and no overlapping-timestamp updates (the common case during low-vol
+      // hours), the merged array is referentially+structurally identical to
+      // idbBars. Skipping setIdbBars + idbPut here keeps updateChart's setData
+      // from firing — no 1-frame "blank → restored" gap on every poll.
+      const lastIdb = idbBars[idbBars.length - 1]
+      const lastMerged = merged[merged.length - 1]
+      const sameLength = merged.length === idbBars.length
+      const sameTail = lastIdb && lastMerged
+        && lastIdb.t === lastMerged.t
+        && lastIdb.c === lastMerged.c
+        && lastIdb.h === lastMerged.h
+        && lastIdb.l === lastMerged.l
+        && lastIdb.v === lastMerged.v
+      if (sameLength && sameTail) return  // nothing changed — don't repaint
       setIdbBars(merged)
       if (merged.length) idbSinceRef.current = merged[merged.length - 1].t
       idbPut(sym, resolvedTf, merged)
