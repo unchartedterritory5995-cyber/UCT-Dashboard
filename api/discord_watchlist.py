@@ -63,7 +63,7 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
         score = float(item.get("score") or item.get("autoScore") or 0)
         grade = _conviction_grade(score)
         grade_color = _YELLOW_A if grade in ("A+", "A") else _WHITE_A
-        grade_str = f"{grade_color}{grade}{_RESET}"
+        grade_str = f"{grade_color}{grade.ljust(2)}{_RESET}"
 
         # Entry date — try multiple fields
         entry_date = ""
