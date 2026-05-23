@@ -167,8 +167,14 @@ export default function CotData() {
       if (state.axis === 'right' || state.axis === 'corner') {
         next.width = Math.max(400, Math.min(parentWidth, state.startSize.width + dx))
       }
+      if (state.axis === 'left') {
+        next.width = Math.max(400, Math.min(parentWidth, state.startSize.width - dx))
+      }
       if (state.axis === 'bottom' || state.axis === 'corner') {
         next.height = Math.max(300, Math.min(maxHeight, state.startSize.height + dy))
+      }
+      if (state.axis === 'top') {
+        next.height = Math.max(300, Math.min(maxHeight, state.startSize.height - dy))
       }
       setChartSize(next)
     }
@@ -180,9 +186,9 @@ export default function CotData() {
 
     document.body.style.userSelect = 'none'
     document.body.style.cursor =
-      resizing === 'right'  ? 'ew-resize' :
-      resizing === 'bottom' ? 'ns-resize' :
-                              'nwse-resize'
+      resizing === 'right' || resizing === 'left'  ? 'ew-resize' :
+      resizing === 'bottom' || resizing === 'top'  ? 'ns-resize' :
+                                                     'nwse-resize'
 
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup',   onMouseUp)
@@ -500,8 +506,18 @@ export default function CotData() {
           title="Drag to adjust chart width"
         />
         <div
+          className={styles.resizeHandleLeft}
+          onMouseDown={e => startResize('left', e)}
+          title="Drag to adjust chart width"
+        />
+        <div
           className={styles.resizeHandleBottom}
           onMouseDown={e => startResize('bottom', e)}
+          title="Drag to adjust chart height"
+        />
+        <div
+          className={styles.resizeHandleTop}
+          onMouseDown={e => startResize('top', e)}
           title="Drag to adjust chart height"
         />
         <div
