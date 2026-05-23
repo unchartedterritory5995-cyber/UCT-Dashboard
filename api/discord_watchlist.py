@@ -35,7 +35,7 @@ _DIM = "\u001b[2;37m"
 _RESET = "\u001b[0m"
 
 # Dim dotted separator — compact for mobile (~38 chars)
-SEP_RAW = "╌" * 38
+SEP_RAW = "╌" * 33
 
 
 def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
@@ -45,7 +45,7 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
 
     lines = []
     for i, item in enumerate(items[:limit], 1):
-        sym = (item.get("sym") or "???").ljust(6)
+        sym = (item.get("sym") or "???").ljust(5)
 
         strike_val = item.get("strike")
         if strike_val and str(strike_val).strip():
@@ -56,7 +56,7 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
                 strike = ""
             exp = _fmt_exp(item.get("exp") or "")
             prem = _fmt(float(item.get("prem") or 0))
-            contract = f"{exp.ljust(6)} {strike.ljust(7)} {cp}{prem_color}{prem.rjust(8)}{_RESET}"
+            contract = f"{exp.ljust(5)} {strike.ljust(5)} {cp} {prem_color}{prem.rjust(6)}{_RESET}"
         else:
             contract = "—"
 
@@ -66,7 +66,7 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
         grade_str = f"{grade_color}{grade}{_RESET}"
 
         entry_date = _fmt_exp(item.get("firstDate") or "")
-        date_str = f"  {entry_date}" if entry_date and entry_date != "?" else ""
+        date_str = f" {entry_date}" if entry_date and entry_date != "?" else ""
 
         row = f"{sym}{contract} {grade_str}{date_str}"
         lines.append(row)
