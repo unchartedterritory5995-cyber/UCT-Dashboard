@@ -328,6 +328,11 @@ export default function StockChart({
 
   // ── Keyboard help overlay state ──
   const [helpOpen, setHelpOpen] = useState(false)
+  // Flips true once the LWC chart instance is first created (in updateChart).
+  // Used by the crosshair-legend effect to subscribe exactly once, instead of
+  // re-subscribing on every render of updateChart (which would happen ~once
+  // per real-time tick and visibly stutter the crosshair).
+  const [chartReady, setChartReady] = useState(false)
 
   // ── Chart event markers (earnings + splits + dividends) — /api/chart/markers ──
   const markersEnabled = cs.markers?.earnings || cs.markers?.splits || cs.markers?.dividends
@@ -536,6 +541,18 @@ export default function StockChart({
   const crosshairSubRef = useRef(null)
   const crosshairRafRef = useRef(null)
   const crosshairParamRef = useRef(null)
+  // Refs mirror rapidly-changing values so the crosshair handler can read
+  // current data without forcing a tear-down+resubscribe on every tick.
+  // Without this, useRealtimeBars updates → bars change → indicatorData
+  // re-memoizes → crosshair useEffect re-runs → unsubscribe/subscribe cycle
+  // happens on every live tick, causing visible crosshair stutter.
+  const overlayDataRef = useRef(overlayData)
+  const indicatorDataRef = useRef(indicatorData)
+  const comparisonDataRef = useRef(comparisonData)
+  const livePricesRef = useRef(livePrices)
+  const resolvedOverlaysRef = useRef(resolvedOverlays)
+  const symRef = useRef(sym)
+  const onCrosshairMoveRef = useRef(onCrosshairMove)
 
   const [activeTool, setActiveTool] = useState(null)
   const activeToolRef = useRef(activeTool)
@@ -1616,6 +1633,7 @@ export default function StockChart({
     if (!chart) {
       chart = createChart(containerRef.current, { ...chartOpts, autoSize: true })
       chartRef.current = chart
+      setChartReady(true)
     } else {
       chart.applyOptions(chartOpts)
     }
@@ -2449,6 +2467,18 @@ export default function StockChart({
     return () => { for (const u of unsubs) { try { u() } catch {} } }
   }, [enabledComparisons, comparisonsData, adjustTime])
 
+  // Mirror rapidly-changing values into refs so processCrosshair reads them
+  // without forcing the subscription useEffect below to re-run on every change.
+  useEffect(() => {
+    overlayDataRef.current = overlayData
+    indicatorDataRef.current = indicatorData
+    comparisonDataRef.current = comparisonData
+    livePricesRef.current = livePrices
+    resolvedOverlaysRef.current = resolvedOverlays
+    symRef.current = sym
+    onCrosshairMoveRef.current = onCrosshairMove
+  })
+
   // ── Crosshair legend: subscribe to hover events ──
   useEffect(() => {
     const chart = chartRef.current
@@ -2462,8 +2492,17 @@ export default function StockChart({
     // Lightweight Charts can fire crosshair-move at 1000Hz on fast mouse
     // polling. Doing a React setState per event blocks the canvas paint loop
     // and the crosshair visibly lags behind the cursor. Coalesce via rAF so
-    // we update at most once per animation frame (~60Hz).
+    // we update at most once per animation frame (~60Hz). Read data from refs
+    // so the subscription survives live ticks without tearing down.
     const processCrosshair = (param) => {
+      const overlayData = overlayDataRef.current
+      const indicatorData = indicatorDataRef.current
+      const comparisonData = comparisonDataRef.current
+      const livePrices = livePricesRef.current
+      const resolvedOverlays = resolvedOverlaysRef.current
+      const sym = symRef.current
+      const onCrosshairMove = onCrosshairMoveRef.current
+
       const priceData = candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null
       if (!priceData) { setCrosshairData(null); return }
 
@@ -2603,7 +2642,7 @@ export default function StockChart({
       }
       crosshairParamRef.current = null
     }
-  }, [updateChart, resolvedOverlays, overlayData, indicatorData, comparisonData, livePrices, sym, onCrosshairMove])
+  }, [chartReady])
 
   // ── Multi-chart sync: report visible time-range changes to parent (Task 5 Step 3) ──
   // No-op when onTimeRangeChange is absent. Uses Lightweight Charts'
@@ -2719,7 +2758,7 @@ export default function StockChart({
     }
     chart.subscribeCrosshairMove(sub)
     return () => { try { chart.unsubscribeCrosshairMove(sub) } catch {} }
-  }, [bars])
+  }, [chartReady])
 
   useEffect(() => {
     const el = containerRef.current
