@@ -686,6 +686,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] fmp_tz_heal error (non-fatal): {e}")
 
+    # Chart pipeline mode fingerprint — one line so a grep on Tuesday morning
+    # tells the operator EXACTLY which fixes are active in this deploy.
+    print(
+        "[startup] chart-realtime-mode: "
+        "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once "
+        "needs_fresh_post_market=on "
+        "swr_refresh_interval=30s_intraday "
+        "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds"
+    )
+
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] Memory pre-warm skipped (USE_REMOTE_BARS=1); cache populates lazily after snapshot pull")
     else:
