@@ -534,6 +534,8 @@ export default function StockChart({
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
   const crosshairSubRef = useRef(null)
+  const crosshairRafRef = useRef(null)
+  const crosshairParamRef = useRef(null)
 
   const [activeTool, setActiveTool] = useState(null)
   const activeToolRef = useRef(activeTool)
@@ -2457,9 +2459,11 @@ export default function StockChart({
       try { chart.unsubscribeCrosshairMove(crosshairSubRef.current) } catch {}
     }
 
-    const handler = (param) => {
-      if (!param.point || !param.time) { setCrosshairData(null); return }
-
+    // Lightweight Charts can fire crosshair-move at 1000Hz on fast mouse
+    // polling. Doing a React setState per event blocks the canvas paint loop
+    // and the crosshair visibly lags behind the cursor. Coalesce via rAF so
+    // we update at most once per animation frame (~60Hz).
+    const processCrosshair = (param) => {
       const priceData = candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null
       if (!priceData) { setCrosshairData(null); return }
 
@@ -2566,11 +2570,38 @@ export default function StockChart({
       }
     }
 
+    const flush = () => {
+      crosshairRafRef.current = null
+      const param = crosshairParamRef.current
+      crosshairParamRef.current = null
+      if (!param) return
+      processCrosshair(param)
+    }
+
+    const handler = (param) => {
+      // Empty-state events bypass the rAF queue so the legend clears immediately
+      if (!param.point || !param.time) {
+        if (crosshairRafRef.current != null) { cancelAnimationFrame(crosshairRafRef.current); crosshairRafRef.current = null }
+        crosshairParamRef.current = null
+        setCrosshairData(null)
+        return
+      }
+      crosshairParamRef.current = param
+      if (crosshairRafRef.current == null) {
+        crosshairRafRef.current = requestAnimationFrame(flush)
+      }
+    }
+
     chart.subscribeCrosshairMove(handler)
     crosshairSubRef.current = handler
 
     return () => {
       try { chart.unsubscribeCrosshairMove(handler) } catch {}
+      if (crosshairRafRef.current != null) {
+        cancelAnimationFrame(crosshairRafRef.current)
+        crosshairRafRef.current = null
+      }
+      crosshairParamRef.current = null
     }
   }, [updateChart, resolvedOverlays, overlayData, indicatorData, comparisonData, livePrices, sym, onCrosshairMove])
 
