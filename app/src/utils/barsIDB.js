@@ -22,7 +22,16 @@ const STORE      = 'bars'
 // idbGet treats the entry as absent, so bumping this one integer cleanly
 // invalidates ALL cached bars after any change to bar-fetch/merge logic
 // (e.g. the 2026-05-16 freshness fixes) with zero deadlock risk.
-const CACHE_LOGIC_VERSION = 3
+//
+// Bumped to 4 on 2026-05-23: the FMP timezone bug (commit 87b7d88) wrote
+// every browser's IDB with timestamp-shifted bars that survive across
+// server-side wipes (server merge can only ADD newer bars, never overwrite
+// the shifted-ts rows already in IDB). Bumping the version invalidates
+// every browser's local cache on next page load, forcing a clean refetch
+// from the now-correct server data. Without this, users keep seeing the
+// "noon cutoff" symptom in their browser indefinitely even after the
+// backend is fixed.
+const CACHE_LOGIC_VERSION = 4
 
 // Max age by SAVE time — secondary bound only. The PRIMARY intraday
 // guard is bar-data freshness (newest bar age), checked in idbGet:
