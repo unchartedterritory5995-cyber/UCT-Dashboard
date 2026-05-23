@@ -209,29 +209,28 @@ const SIG_COLORS={
   YEARLY_RECORD:"#c9a84c", MONTHLY_RECORD:"#3cb868", NOTIONAL_SPIKE:"#e74c3c",
   RARE_FLOW:"#6ba3be", SIZE_ESCALATION:"#a78bfa", ZONE_BREAK_RECORD:"#c9a84c",
 };
+const SIG_SHORT={
+  YEARLY_RECORD:"Yr Record", MONTHLY_RECORD:"Mo Record", NOTIONAL_SPIKE:"Vol Surge",
+  RARE_FLOW:"New Flow", SIZE_ESCALATION:"Escalating", ZONE_BREAK_RECORD:"Zone Break",
+};
 function SignalBadges({signals,compact}){
   if(!signals||signals.length===0) return null;
-  if(compact) return (
-    <span style={{display:"inline-flex",gap:2,marginLeft:4}}>
-      {signals.map(s=>(
-        <span key={s.type} title={s.label+(s.mult?" ("+s.mult+"×)":"")+(s.days?" ("+s.days+"d)":"")}
-          style={{fontSize:9,cursor:"default"}}>{s.icon}</span>
-      ))}
-    </span>
-  );
   return (
-    <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+    <span style={{display:"inline-flex",gap:3,flexWrap:"wrap"}}>
       {signals.map(s=>{
         const color=SIG_COLORS[s.type]||C.amber;
+        const label=compact
+          ? (SIG_SHORT[s.type]||s.label)+(s.mult?"·"+s.mult+"×":"")+(s.days?"·"+s.days+"d":"")
+          : s.label+(s.mult?" "+s.mult+"×":"")+(s.days?" "+s.days+"d":"");
         return (
-          <span key={s.type} style={{fontSize:9,padding:"2px 7px",borderRadius:10,
-            background:color+"18",color,fontWeight:700,whiteSpace:"nowrap",
-            border:`1px solid ${color}33`}}>
-            {s.icon} {s.label}{s.mult?" "+s.mult+"×":""}{s.days?" "+s.days+"d":""}
+          <span key={s.type} style={{fontSize:compact?8:9,padding:compact?"1px 5px":"2px 7px",
+            borderRadius:8,background:color+"18",color,fontWeight:700,whiteSpace:"nowrap",
+            border:`1px solid ${color}33`,lineHeight:1.2}}>
+            {label}
           </span>
         );
       })}
-    </div>
+    </span>
   );
 }
 
@@ -505,6 +504,10 @@ function BiggestPrintsPanel(){
               <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
                 fontSize:12,color:cc}}>{it.t}</span>
               <SignalBadges signals={it.signals} compact/>
+              {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
+                background:it.accDist==="Acc"?C.green+"18":C.red+"18",
+                color:it.accDist==="Acc"?C.green:C.red,
+                border:`1px solid ${it.accDist==="Acc"?C.green:C.red}33`}}>{it.accDist}</span>}
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
               <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.amber,
@@ -674,98 +677,238 @@ function OverviewPane({onJumpTo}){
     return parts.length > 0 ? parts.join(" ") : null;
   })();
 
+  // ── Structured Intelligence Data ─────────────────────────────────────────────
+  const USUAL = new Set([
+    "SPY","QQQ","IWM","DIA","VOO","IVV","VTI","RSP","MDY","TQQQ","SQQQ","UPRO","SPXL","SOXL","SOXS","TNA","TZA",
+    "XLF","XLE","XLK","XLV","XLI","XLY","XLP","XLU","XLB","XLRE","XLC","GLD","SLV","TLT","HYG","LQD","AGG","BND","EEM","EFA","VEA","VWO",
+    "AAPL","MSFT","NVDA","AMZN","GOOGL","GOOG","META","TSLA","AVGO","JPM","V","MA","UNH","HD","PG","JNJ","XOM","CVX",
+    "BAC","WFC","NFLX","ORCL","CRM","AMD","INTC","MU","QCOM","BRK.B","COST","LLY","MRK","ABBV","PEP","KO",
+    "FNDX","FNDA","SCHG","SCHI","SCHM","SCHX","VUG","VTV","VO","VB","IEFA","IEMG","ACWI","VGT",
+    "IWF","IWD","IWB","IWR","IWS","GOVT","MBB","VCIT","VCSH","VTIP","VGIT","VUSB","VCLT",
+  ]);
+  const days=D.meta.tradingDays;
+  const repeatThresh=Math.max(4, Math.ceil(days * 0.7));
+  const repeats=days>=3?allItems.filter(i=>i.days>=repeatThresh&&!USUAL.has(i.t)).sort((a,b)=>b.days-a.days||b.bigPrintN-a.bigPrintN):[];
+  const unusualNames=allItems.filter(i=>!USUAL.has(i.t)&&(i.cat==="Mid Cap"||i.cat==="Small Cap")&&i.bigPrintN>=30_000_000).sort((a,b)=>b.bigPrintN-a.bigPrintN);
+  const outsized=allItems.filter(i=>!USUAL.has(i.t)&&i.bigPrintPctAvgVol>=50&&i.bigPrintN>=50_000_000).sort((a,b)=>b.bigPrintPctAvgVol-a.bigPrintPctAvgVol);
+  const flaggedAll=allItems.filter(i=>i.signals&&i.signals.length>0&&!USUAL.has(i.t)).sort((a,b)=>b.signals.length-a.signals.length||b.bigPrintN-a.bigPrintN);
+  const abovePct=Math.round((aboveN/(allItems.length||1))*100);
+  const belowPct=Math.round((belowN/(allItems.length||1))*100);
+  const hasIntel=repeats.length>0||unusualNames.length>0||outsized.length>0||flaggedAll.length>0;
+
+  // Column helper for intel panel
+  const IntelCol=({icon,title,children})=>(
+    <div style={{flex:1,minWidth:0}}>
+      <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,textTransform:"uppercase",marginBottom:8}}>
+        {icon} {title}
+      </div>
+      {children}
+    </div>
+  );
+  const IntelRow=({ticker,detail,color})=>(
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"3px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+      <span style={{fontFamily:"'Instrument Sans',sans-serif",fontWeight:700,fontSize:12,color:color||C.tx}}>{ticker}</span>
+      <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans',sans-serif"}}>{detail}</span>
+    </div>
+  );
+
   return (
     <div style={{display:"flex",flexDirection:"column",gap:10}}>
 
-      {/* ── Summary Narrative ────────────────────────────────────── */}
-      {narrative && (
-      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"12px 16px"}}>
+      {/* ── Structured Intelligence Panel ────────────────────────── */}
+      {hasIntel && (
+      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
         <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
-          textTransform:"uppercase",marginBottom:6}}>📋 Dark Pool Intelligence — {D.meta.dateRange||"Selected Period"}</div>
-        <div style={{fontSize:12,color:C.tx2,lineHeight:1.65,fontFamily:"'Instrument Sans', system-ui, sans-serif"}}>
-          {narrative}
+          textTransform:"uppercase",marginBottom:10}}>📋 Dark Pool Intelligence — {D.meta.dateRange||"Selected Period"}</div>
+
+        {/* 3-column layout */}
+        <div style={{display:"flex",gap:16}}>
+          {repeats.length>0 && (
+            <IntelCol icon="🔄" title="Repeat Flow">
+              {repeats.slice(0,6).map(t=>(
+                <IntelRow key={t.t} ticker={t.t} detail={`${t.days}/${days}d`} color={CAT_COLORS[t.cat]||C.tx}/>
+              ))}
+              {repeats.length>6 && <div style={{fontSize:10,color:C.tx3,marginTop:4}}>+{repeats.length-6} more</div>}
+            </IntelCol>
+          )}
+          {unusualNames.length>0 && (
+            <IntelCol icon="🆕" title="Unusual Names">
+              {unusualNames.slice(0,5).map(t=>(
+                <IntelRow key={t.t} ticker={t.t}
+                  detail={`${fmt(t.bigPrintN)}${t.bigPrintPctAvgVol>=30?" · "+t.bigPrintPctAvgVol.toFixed(0)+"%vol":""}`}
+                  color={CAT_COLORS[t.cat]||C.tx}/>
+              ))}
+            </IntelCol>
+          )}
+          {outsized.length>0 && (
+            <IntelCol icon="📊" title="Outsized Prints">
+              {outsized.filter(o=>!unusualNames.slice(0,5).some(u=>u.t===o.t)).slice(0,5).map(t=>(
+                <IntelRow key={t.t} ticker={t.t}
+                  detail={`${t.bigPrintPctAvgVol.toFixed(0)}% avg vol`}
+                  color={CAT_COLORS[t.cat]||C.tx}/>
+              ))}
+            </IntelCol>
+          )}
         </div>
+
+        {/* Footer: flagged + zone */}
+        {(flaggedAll.length>0 || Math.abs(abovePct-belowPct)>=5) && (
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+            marginTop:10,paddingTop:8,borderTop:`1px solid ${C.bdr}`}}>
+            {flaggedAll.length>0 && (
+              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                <span style={{fontSize:9,color:C.tx3,fontWeight:700}}>FLAGGED:</span>
+                {flaggedAll.slice(0,5).map(t=>(
+                  <span key={t.t} style={{display:"inline-flex",alignItems:"center",gap:3}}>
+                    <span style={{fontWeight:700,fontSize:11,color:CAT_COLORS[t.cat]||C.tx}}>{t.t}</span>
+                    <SignalBadges signals={t.signals} compact/>
+                  </span>
+                ))}
+                {flaggedAll.length>5 && <span style={{fontSize:10,color:C.tx3}}>+{flaggedAll.length-5}</span>}
+              </div>
+            )}
+            {Math.abs(abovePct-belowPct)>=5 && (
+              <span style={{fontSize:10,color:belowPct>abovePct?C.red:C.green,fontWeight:600}}>
+                Zone: {belowPct>abovePct?"bearish":"bullish"} ({abovePct}%↑ {belowPct}%↓)
+              </span>
+            )}
+          </div>
+        )}
       </div>
       )}
 
-      {/* ── Stat Cards (2 rows of 4) ────────────────────────────── */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
-        <StatCard icon="💰" label="Total Flow" color={C.cyan}
-          value={D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(1)}B`}
-          sub={`${D.meta.tradingDays} trading days`}/>
-        <StatCard icon="📊" label="Block Trades" color={C.blue}
-          value={D.meta.totalTrades.toLocaleString()}
-          sub={`${(D.meta.totalTrades/Math.max(D.meta.tradingDays,1)).toFixed(0)}/day avg`}/>
-        <StatCard icon="🏷️" label="Tickers" color={C.purple}
-          value={D.meta.totalTickers.toLocaleString()}
-          sub={`${D.categories.filter(c=>c.count>0).length} categories`}/>
-        <StatCard icon="▲" label="Above Zone" color={C.green}
-          value={aboveN}
-          sub={`${((aboveN/(allItems.length||1))*100).toFixed(0)}% of universe`}/>
-        <StatCard icon="▼" label="Below Zone" color={C.red}
-          value={belowN}
-          sub={`${((belowN/(allItems.length||1))*100).toFixed(0)}% of universe`}/>
-        <StatCard icon="◼" label="Inside Zone" color={C.tx2}
-          value={insideN}
-          sub={`${((insideN/(allItems.length||1))*100).toFixed(0)}% of universe`}/>
-        <StatCard icon="⚖️" label="Net Lean" color={leanColor}
-          value={(netLean>0?"+":"")+netLean}
-          sub={leanLabel}/>
-      </div>
-
-      {/* ── Row 2: Zone Gauge ────────────────────────────────────── */}
+      {/* ── Zone Gauge ────────────────────────────────────────────── */}
       <ZoneGauge above={aboveN} inside={insideN} below={belowN}/>
 
-      {/* ── Row 2.5: Notable Activity (signal flags) ─────────────── */}
-      {(()=>{
-        const flagged=allItems.filter(i=>i.signals&&i.signals.length>0)
-          .sort((a,b)=>b.signals.length-a.signals.length||b.bigPrintN-a.bigPrintN);
-        if(flagged.length===0) return null;
-        return (
-          <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
-            <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
-              textTransform:"uppercase",marginBottom:10}}>🔥 Notable Activity</div>
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {flagged.slice(0,8).map(it=>{
-                const cc=CAT_COLORS[it.cat]||C.tx;
-                const bpPct=it.bigPrint>0?((it.last-it.bigPrint)/it.bigPrint*100):null;
-                const bpColor=bpPct==null?C.tx3:bpPct>0?C.green:bpPct<0?C.red:C.tx3;
-                return (
-                  <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-                    padding:"6px 8px",borderRadius:6,background:C.bg+"88",
-                    border:`1px solid ${C.bdr}44`}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,flex:"0 0 auto"}}>
-                      <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
-                        fontSize:13,color:cc,minWidth:48}}>{it.t}</span>
-                      <CatPill cat={it.cat}/>
-                      <SignalBadges signals={it.signals}/>
-                    </div>
-                    <div style={{display:"flex",alignItems:"center",gap:12}}>
-                      <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.tx2}}>
-                        {fP(it.last)}
-                      </span>
-                      <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.amber,fontWeight:600}}>
-                        BP {fP(it.bigPrint)}
-                      </span>
-                      <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.cyan,fontWeight:700}}>
-                        {fmt(it.bigPrintN)}
-                      </span>
-                      <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,fontWeight:700,color:bpColor}}>
-                        {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+      {/* ── Notable Activity + Biggest Prints (side by side) ─────── */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+
+        {/* Notable Activity */}
+        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
+          <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
+            textTransform:"uppercase",marginBottom:10}}>🔥 Notable Activity</div>
+          <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
+            borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+            <span style={{fontSize:9,color:C.tx3,fontWeight:600}}>Ticker</span>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:30,textAlign:"right"}}>Date</span>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Print $</span>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Notional</span>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:40,textAlign:"right"}}>% Move</span>
             </div>
           </div>
-        );
-      })()}
+          {(()=>{
+            const flagged=allItems.filter(i=>i.signals&&i.signals.length>0)
+              .sort((a,b)=>b.signals.length-a.signals.length||b.bigPrintN-a.bigPrintN);
+            if(flagged.length===0) return <div style={{fontSize:12,color:C.tx3}}>No signals for this period</div>;
+            return flagged.slice(0,15).map(it=>{
+              const cc=CAT_COLORS[it.cat]||C.tx;
+              const bpPct=it.bigPrint>0?((it.last-it.bigPrint)/it.bigPrint*100):null;
+              const bpColor=bpPct==null?C.tx3:bpPct>0?C.green:bpPct<0?C.red:C.tx3;
+              return (
+                <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+                  padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
+                    <span style={{fontWeight:700,fontSize:11,color:cc,minWidth:42}}>{it.t}</span>
+                    {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
+                      background:it.accDist==="Acc"?C.green+"18":C.red+"18",
+                      color:it.accDist==="Acc"?C.green:C.red}}>{it.accDist==="Acc"?"↑ Acc":"↓ Dist"}</span>}
+                    <SignalBadges signals={it.signals} compact/>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+                    <span style={{fontSize:9,color:C.tx3}}>{it.bigPrintDate||""}</span>
+                    <span style={{fontSize:10,color:C.amber,minWidth:52,textAlign:"right"}}>{fP(it.bigPrint)}</span>
+                    <span style={{fontSize:10,color:C.cyan,fontWeight:700,minWidth:48,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:bpColor,minWidth:40,textAlign:"right"}}>
+                      {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
+                    </span>
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
 
-      {/* ── Row 3: Category Bars + Biggest Prints ────────────────── */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <CategoryBars categories={D.categories} onJumpTo={onJumpTo}/>
+        {/* Biggest Prints */}
         <BiggestPrintsPanel/>
+      </div>
+
+      {/* ── Sector Rotation + Print Tracker ──────────────────────── */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+
+        {/* Sector Themes */}
+        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
+          <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+            textTransform:"uppercase",marginBottom:10}}>Sector Rotation — Dark Pool Flow</div>
+          {(D.themes||[]).slice(0,8).map(th=>{
+            const maxN=Math.max(...(D.themes||[]).slice(0,8).map(t=>t.notional),1);
+            const pct=Math.max((th.notional/maxN)*100,2);
+            const lean=th.accCount>th.distCount?"Acc":th.accCount<th.distCount?"Dist":"—";
+            const leanColor=lean==="Acc"?C.green:lean==="Dist"?C.red:C.tx3;
+            const moveColor=th.avgBpMove>0?C.green:th.avgBpMove<0?C.red:C.tx3;
+            return (
+              <div key={th.sector} style={{marginBottom:7}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                  <span style={{fontSize:11,fontWeight:600,color:C.tx}}>{th.sector}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:9,color:C.tx3}}>{th.tickerCount} tickers</span>
+                    <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
+                      background:leanColor+"18",color:leanColor,border:`1px solid ${leanColor}33`}}>{lean}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:moveColor,fontFamily:"'Instrument Sans', sans-serif",minWidth:40,textAlign:"right"}}>
+                      {th.avgBpMove>0?"+":""}{th.avgBpMove.toFixed(1)}%
+                    </span>
+                    <span style={{fontSize:10,fontWeight:700,color:C.cyan,fontFamily:"'Instrument Sans', sans-serif",minWidth:52,textAlign:"right"}}>
+                      {fmt(th.notional)}
+                    </span>
+                  </div>
+                </div>
+                <div style={{width:"100%",height:4,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
+                  <div style={{width:pct+"%",height:"100%",background:leanColor,borderRadius:2,opacity:0.7,transition:"width 0.4s"}}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Post-Print Tracker */}
+        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
+          <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+            textTransform:"uppercase",marginBottom:10}}>Print Tracker — Where Are They Now?</div>
+          {(()=>{
+            const tracked = (D.allItems||allItems)
+              .filter(i=>i.bigPrint>0 && i.bigPrintN>=50_000_000 && i.bigPrintDate)
+              .sort((a,b)=>b.bigPrintN-a.bigPrintN)
+              .slice(0,10);
+            return tracked.map(it=>{
+              const move=((it.last-it.bigPrint)/it.bigPrint*100);
+              const moveColor=move>0.5?C.green:move<-0.5?C.red:C.tx3;
+              const arrow=move>0.5?"↑":move<-0.5?"↓":"→";
+              const cc=CAT_COLORS[it.cat]||C.tx;
+              return (
+                <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+                  padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,fontSize:12,color:cc}}>{it.t}</span>
+                    {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
+                      background:it.accDist==="Acc"?C.green+"18":C.red+"18",
+                      color:it.accDist==="Acc"?C.green:C.red}}>{it.accDist==="Acc"?"↑ Acc":"↓ Dist"}</span>}
+                    {it.sector && <span style={{fontSize:9,color:C.tx3}}>{it.sector}</span>}
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:10,color:C.tx3}}>{it.bigPrintDate}</span>
+                    <span style={{fontSize:10,color:C.amber,fontFamily:"'Instrument Sans', sans-serif"}}>{fP(it.bigPrint)}</span>
+                    <span style={{fontSize:14,color:moveColor,fontWeight:800}}>{arrow}</span>
+                    <span style={{fontSize:10,color:C.tx,fontFamily:"'Instrument Sans', sans-serif"}}>{fP(it.last)}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:moveColor,fontFamily:"'Instrument Sans', sans-serif",minWidth:48,textAlign:"right"}}>
+                      {move>0?"+":""}{move.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+
       </div>
     </div>
   );
@@ -1196,7 +1339,9 @@ function parseCSVtoD(rows){
       const avg30=parseFloat(r.Avg30Day)||0;
       const avgVolM = msg.match(/([0-9.]+)%\s*AvgVol/);
       const pctAvgVol = avgVolM ? parseFloat(avgVolM[1]) : 0;
-      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg, avg30, pctAvgVol});
+      const industry = (r.Industry||"").trim();
+      const sector = (r.Sector||"").trim();
+      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg, avg30, pctAvgVol, industry, sector});
     }catch(e){}
   }
 
@@ -1204,12 +1349,16 @@ function parseCSVtoD(rows){
   const tickerTrades={};  // tk → [{price,notional,dateKey}]
   const tickerDaily={};   // tk → {dateKey → {notional,volNotional,count}}
   const tickerAvg30={};  // tk → avg 30-day volume (last seen value)
+  const tickerIndustry={};// tk → industry (most common)
+  const tickerSector={};  // tk → sector (most common)
 
   for(const tr of tradeRows){
-    const {ticker:tk,dateKey:dk,price:p,notional:n,avg30,pctAvgVol}=tr;
+    const {ticker:tk,dateKey:dk,price:p,notional:n,avg30,pctAvgVol,industry,sector}=tr;
     if(!tickerTrades[tk]) tickerTrades[tk]=[];
     tickerTrades[tk].push({p,n,dk,pctAvgVol});
     if(avg30>0) tickerAvg30[tk]=avg30;
+    if(industry && !tickerIndustry[tk]) tickerIndustry[tk]=industry;
+    if(sector && !tickerSector[tk]) tickerSector[tk]=sector;
     if(!tickerDaily[tk]) tickerDaily[tk]={};
     if(!tickerDaily[tk][dk]) tickerDaily[tk][dk]={notional:0,volNotional:0,count:0};
     tickerDaily[tk][dk].notional+=n;
@@ -1265,7 +1414,11 @@ function parseCSVtoD(rows){
 
     const cat=classifyTicker(tk,totalN,numDates);
     const avg30=tickerAvg30[tk]||0;
-    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDk,bigPrintDate,bigPrintPctAvgVol,avg30,signals:[]});
+    const industry=tickerIndustry[tk]||"";
+    const sector=tickerSector[tk]||"";
+    // Accumulation vs Distribution: big print above VWAP = Acc, below = Dist
+    const accDist = bigPrint!=null && vwap>0 ? (bigPrint>=vwap?"Acc":"Dist") : null;
+    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDk,bigPrintDate,bigPrintPctAvgVol,avg30,industry,sector,accDist,signals:[]});
   }
 
   // ── Signal Detection (tight thresholds — only truly unusual prints) ─────────
@@ -1392,6 +1545,26 @@ function parseCSVtoD(rows){
   const totalNotional=tradeRows.reduce((s,r)=>s+r.notional,0);
   const dateRange=allDates.length>=2?fmtLabel(allDates[0])+" – "+fmtLabel(allDates.at(-1))+", "+allDates.at(-1).getFullYear():"";
 
+  // ── Thematic Clustering by Sector ──────────────────────────────────────────
+  const sectorMap={};
+  for(const item of itemsAll){
+    const sec = item.sector || "Other";
+    if(!sectorMap[sec]) sectorMap[sec]={sector:sec,notional:0,tickers:[],prints:0,avgMove:0};
+    sectorMap[sec].notional+=item.n;
+    sectorMap[sec].tickers.push(item.t);
+    sectorMap[sec].prints+=item.c;
+  }
+  const themes=Object.values(sectorMap)
+    .filter(s=>s.tickers.length>=2 && s.sector!=="Other" && s.sector!=="")
+    .map(s=>{
+      const items=itemsAll.filter(i=>i.sector===s.sector);
+      const accCount=items.filter(i=>i.accDist==="Acc").length;
+      const distCount=items.filter(i=>i.accDist==="Dist").length;
+      const avgBpMove=items.filter(i=>i.bigPrint>0).reduce((sum,i)=>sum+((i.last-i.bigPrint)/i.bigPrint*100),0)/(items.filter(i=>i.bigPrint>0).length||1);
+      return {...s,accCount,distCount,avgBpMove:Math.round(avgBpMove*100)/100,tickerCount:s.tickers.length};
+    })
+    .sort((a,b)=>b.notional-a.notional);
+
   return {
     dates:allDates.map(fmtDateKey),
     dateLabels:allDates.map(fmtLabel),
@@ -1404,6 +1577,8 @@ function parseCSVtoD(rows){
       totalNotional:Math.round(totalNotional),
     },
     categories, above, below, unusual, phantom, options, alpha, cancelled,
+    allItems: itemsAll.sort((a,b)=>b.n-a.n),
+    themes,
   };
 }
 
