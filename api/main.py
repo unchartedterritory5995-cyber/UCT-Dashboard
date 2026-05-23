@@ -765,11 +765,79 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] strict_gt_heal_v2 error (non-fatal): {e}")
 
+    # ── Intraday heal v3: 60-day deep history wipe (one-shot, gated by flag) ──
+    # v1 + v2 covered the last 14 days. Bars older than 14 days could still
+    # carry legacy artifacts from pre-fix code: FMP-shifted timestamps,
+    # partial-bar storage frozen by the prior strict-> filter, validation
+    # rejections that left gaps which never refilled. Extending the wipe to
+    # 60 days clears the bulk of accumulated muscle memory and lets the now-
+    # correct fetch+resample paths rebuild from Polygon canonical.
+    # Trade-off: more cold-load slowness on the long tail of tickers for ~1-2
+    # hours after deploy as the cache repopulates. Acceptable since markets
+    # are closed (weekend) — heals before Tuesday open with zero user impact.
+    # The reconciliation worker (shipped alongside) then keeps it clean going
+    # forward without ever needing another mass-wipe.
+    try:
+        _heal_flag_v3 = os.path.join(os.environ.get("DATA_DIR", "/data"), ".intraday_heal_v3_60day")
+        if not os.path.exists(_heal_flag_v3):
+            import sqlite3 as _heal_sqlite_v3
+            import time as _heal_t_v3
+            db_path_v3 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
+            if os.path.exists(db_path_v3):
+                cutoff_v3 = int(_heal_t_v3.time()) - 60 * 86400  # last 60 days
+                conn_v3 = _heal_sqlite_v3.connect(db_path_v3, timeout=60)
+                try:
+                    conn_v3.execute("PRAGMA busy_timeout=60000")
+                    cur_v3 = conn_v3.execute(
+                        "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60') AND ts >= ?",
+                        (cutoff_v3,),
+                    )
+                    deleted_v3 = cur_v3.rowcount
+                    conn_v3.commit()
+                    print(f"[startup] intraday_heal_v3_60day: removed {deleted_v3} intraday rows from last 60d")
+                finally:
+                    conn_v3.close()
+                try:
+                    from api.services import bars_sqlite as _heal_bs_v3
+                    _heal_bs_v3.bump_db_epoch()
+                except Exception:
+                    pass
+                try:
+                    from api.services.cache import cache as _heal_mem_v3
+                    _mem_deleted_v3 = _heal_mem_v3.delete_prefix("bars_")
+                    print(f"[startup] intraday_heal_v3_60day: cleared {_mem_deleted_v3} in-memory bars cache entries")
+                except Exception:
+                    pass
+                try:
+                    _disk_dir_v3 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+                    if os.path.isdir(_disk_dir_v3):
+                        _dn_v3 = 0
+                        for _fn_v3 in os.listdir(_disk_dir_v3):
+                            if not _fn_v3.endswith(".json"):
+                                continue
+                            _parts_v3 = _fn_v3[:-5].split("_")
+                            if len(_parts_v3) >= 2 and _parts_v3[1] in ("1", "5", "15", "30", "60"):
+                                try:
+                                    os.remove(os.path.join(_disk_dir_v3, _fn_v3))
+                                    _dn_v3 += 1
+                                except OSError:
+                                    pass
+                        print(f"[startup] intraday_heal_v3_60day: removed {_dn_v3} intraday disk-cache files")
+                except Exception:
+                    pass
+            try:
+                with open(_heal_flag_v3, "w") as _f:
+                    _f.write("done")
+            except OSError:
+                pass
+    except Exception as e:
+        print(f"[startup] intraday_heal_v3_60day error (non-fatal): {e}")
+
     # Chart pipeline mode fingerprint — one line so a grep on Tuesday morning
     # tells the operator EXACTLY which fixes are active in this deploy.
     print(
         "[startup] chart-realtime-mode: "
-        "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once "
+        "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once "
         "needs_fresh_post_market=on "
         "swr_refresh_interval=30s_intraday "
         "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
