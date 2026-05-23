@@ -1253,7 +1253,6 @@ export default function OptionsFlowDashboard() {
   const [gexDte, setGexDte] = useState("all");
   const [showGexSummary, setShowGexSummary] = useState(false);
   const [showGexChart, setShowGexChart] = useState(false);
-  const [gexChartRange, setGexChartRange] = useState("3mo");
   const [ideaGex, setIdeaGex] = useState(null); // { sym, data, loading } for Ideas popup
   const [ideaGexRange, setIdeaGexRange] = useState("3mo");
   const [selectedTicker, setSelectedTicker] = useState(null);
@@ -1271,8 +1270,6 @@ export default function OptionsFlowDashboard() {
   const fetchingRef = useRef(new Set());
   const backfilledRef = useRef(new Set());
   const convPanelRef = useRef(null);
-  const gexChartRef = useRef(null);
-  const gexChartObjRef = useRef(null);
   const ideaGexModalRef = useRef(null);
   const ideaGexDragRef = useRef({ dragging:false, startX:0, startY:0, offX:0, offY:0 });
   const prevNetDeltaRef = useRef(null);
@@ -1983,159 +1980,77 @@ export default function OptionsFlowDashboard() {
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
   useEffect(() => { if (dataMode === "gex" && gexTicker) fetchGex(gexTicker, gexDte); }, [dataMode, gexTicker, gexDte]);
 
-  // Lightweight Charts for GEX tab
-  useEffect(() => {
-    if (!showGexChart || !gexTicker || !gexData || gexData.error) {
-      // Cleanup if hidden
-      if (gexChartObjRef.current) { gexChartObjRef.current.remove(); gexChartObjRef.current = null; }
-      return;
-    }
-    // Load library from CDN if needed
-    const LWC_URL = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js";
-    const loadAndRender = () => {
-      if (!gexChartRef.current) return;
-      if (gexChartObjRef.current) { gexChartObjRef.current.remove(); gexChartObjRef.current = null; }
-      const LWC = window.LightweightCharts;
-      if (!LWC) return;
-      const el = gexChartRef.current;
-      el.innerHTML = "";
-      const chart = LWC.createChart(el, {
-        width: el.clientWidth, height: 500,
-        layout: { background: { color: "#0d1117" }, textColor: "#7b8fa3", fontSize: 10 },
-        grid: { vertLines: { color: "#1a254033" }, horzLines: { color: "#1a254033" } },
-        crosshair: { mode: 0 },
-        rightPriceScale: { borderColor: "#1a2540" },
-        timeScale: { borderColor: "#1a2540", timeVisible: true, secondsVisible: false,
-          tickMarkFormatter: (time, tickMarkType) => {
-            const d = new Date(time * 1000);
-            const et = d.toLocaleString('en-US', { timeZone: 'America/New_York', month:'numeric', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true });
-            const parts = et.split(', ');
-            const datePart = d.toLocaleString('en-US', { timeZone: 'America/New_York', month:'short', day:'numeric' });
-            const timePart = d.toLocaleString('en-US', { timeZone: 'America/New_York', hour:'numeric', minute:'2-digit', hour12:true });
-            const h = parseInt(d.toLocaleString('en-US', { timeZone: 'America/New_York', hour:'numeric', hour12:false }));
-            if (h <= 10 && parseInt(d.toLocaleString('en-US', { timeZone: 'America/New_York', minute:'numeric' })) <= 30) return datePart;
-            return timePart;
-          }
-        },
-        localization: {
-          timeFormatter: (time) => {
-            const d = new Date(time * 1000);
-            return d.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
-          }
-        },
-      });
-      gexChartObjRef.current = chart;
-      const series = chart.addCandlestickSeries({
-        upColor: "#0a8f55", downColor: "#c43030", borderUpColor: "#0a8f55", borderDownColor: "#c43030",
-        wickUpColor: "#0a8f55", wickDownColor: "#c43030",
-      });
-      // Fetch OHLC data
-      fetch(`/api/schwab/chart-ohlc?sym=${encodeURIComponent(gexTicker)}&range=${gexChartRange}`)
-        .then(r=>r.ok?r.json():null).then(d=>{
-          if (!d || !d.candles || d.candles.length === 0) return;
-          series.setData(d.candles);
-          chart.timeScale().fitContent();
-          // Draw GEX price lines
-          const cw = gexData.callWall;
-          const pw = gexData.putWall;
-          const zg = gexData.zeroGamma;
-          const sp = gexData.spot || 0;
-          const fmtG = v => { const abs=Math.abs(v); if(abs>=1e9) return "$"+(abs/1e9).toFixed(1)+"B"; if(abs>=1e6) return "$"+(abs/1e6).toFixed(1)+"M"; if(abs>=1e3) return "$"+(abs/1e3).toFixed(0)+"K"; return "$"+abs.toFixed(0); };
-          const wallMax = Math.max(cw?.gex||0, Math.abs(pw?.gex||0));
-          const getLineWeight = (gexVal) => {
-            const ratio = wallMax > 0 ? Math.abs(gexVal) / wallMax : 0;
-            if (ratio > 0.8) return { lw:4, ls:0, op:"" };       // wall-level — full opacity
-            if (ratio > 0.5) return { lw:3, ls:0, op:"CC" };     // major — 80% opacity
-            if (ratio > 0.25) return { lw:2, ls:0, op:"80" };    // secondary — 50% opacity
-            return { lw:1, ls:2, op:"59" };                       // minor dashed — 35% opacity
-          };
-
-          // Call wall + Put wall
-          if (cw && pw && cw.strike === pw.strike) {
-            // Same strike — combined pin/gravity zone
-            const combined = cw.gex + Math.abs(pw.gex);
-            const proximity = Math.abs(cw.strike - sp) / sp;
-            const aboveSpot = cw.strike > sp;
-            let label, color;
-            if (proximity < 0.003) {
-              label = "Pin "+fmtG(combined); color = "#c9a84c"; // purple — price right at pin
-            } else if (aboveSpot) {
-              label = "Resistance "+fmtG(combined); color = "#c43030"; // red — level above spot = resistance
-            } else {
-              label = "Support ↑ "+fmtG(combined); color = "#00BCD4"; // cyan — level below spot = support
-            }
-            series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
-          } else {
-            // Different strikes — draw separately
-            if (cw) {
-              const aboveSpot = cw.strike > sp;
-              let label, color;
-              if (aboveSpot) {
-                label = "Ceiling "+fmtG(cw.gex); color = "#c43030"; // red ceiling
-              } else {
-                label = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; // cyan — cleared, now support
-              }
-              series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
-            }
-            if (pw) {
-              const belowSpot = pw.strike < sp;
-              let label, color;
-              if (belowSpot) {
-                label = "Bounce "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; // green bounce
-              } else {
-                label = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; // red — broken floor now resistance
-              }
-              series.createPriceLine({ price:pw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
-            }
-          }
-          // Danger line
-          if (zg) series.createPriceLine({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Danger Line" });
-
-          // Secondary levels — thickness/style/opacity scales with $ value
-          const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
-
-          // Above spot — all resistance = red with opacity
-          const aboveCandidates = [...(gexData.strikes||[])].filter(s=>s.strike>sp&&!usedStrikes.has(s.strike)).map(s=>{
-            const callVal = s.callGex > 0 ? s.callGex : 0;
-            const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
-            const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
-            return { strike:s.strike, gex:best.val, type:best.type };
-          }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
-          aboveCandidates.forEach(s => {
-            usedStrikes.add(s.strike);
-            const {lw,ls,op} = getLineWeight(s.gex);
-            const label = s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex);
-            series.createPriceLine({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
-          });
-
-          // Below spot — all support = green/cyan with opacity
-          const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
-            const callVal = s.callGex > 0 ? s.callGex : 0;
-            const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
-            const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
-            return { strike:s.strike, gex:best.val, type:best.type };
-          }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
-          belowCandidates.forEach(s => {
-            const {lw,ls,op} = getLineWeight(s.gex);
-            const baseColor = s.type === "call" ? "#00BCD4" : "#0a8f55";
-            const label = s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
-            series.createPriceLine({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
-          });
-        }).catch(()=>{});
-      // Resize observer
-      const ro = new ResizeObserver(() => { if (el.clientWidth > 0) chart.applyOptions({ width: el.clientWidth }); });
-      ro.observe(el);
-      return () => { ro.disconnect(); };
+  // GEX horizontal price lines — derived from gexData. Passed as `priceLines`
+  // prop to the StockChart that renders the "AMD Chart with GEX Levels" panel.
+  const gexPriceLines = useMemo(() => {
+    if (!gexData || gexData.error) return [];
+    const cw = gexData.callWall;
+    const pw = gexData.putWall;
+    const zg = gexData.zeroGamma;
+    const sp = gexData.spot || 0;
+    const fmtG = v => { const abs=Math.abs(v); if(abs>=1e9) return "$"+(abs/1e9).toFixed(1)+"B"; if(abs>=1e6) return "$"+(abs/1e6).toFixed(1)+"M"; if(abs>=1e3) return "$"+(abs/1e3).toFixed(0)+"K"; return "$"+abs.toFixed(0); };
+    const wallMax = Math.max(cw?.gex||0, Math.abs(pw?.gex||0));
+    const getLineWeight = (gexVal) => {
+      const ratio = wallMax > 0 ? Math.abs(gexVal) / wallMax : 0;
+      if (ratio > 0.8) return { lw:4, ls:0, op:"" };
+      if (ratio > 0.5) return { lw:3, ls:0, op:"CC" };
+      if (ratio > 0.25) return { lw:2, ls:0, op:"80" };
+      return { lw:1, ls:2, op:"59" };
     };
-    if (window.LightweightCharts) { loadAndRender(); }
-    else {
-      const script = document.createElement("script");
-      script.src = LWC_URL;
-      script.onload = loadAndRender;
-      document.head.appendChild(script);
+    const lines = [];
+    if (cw && pw && cw.strike === pw.strike) {
+      const combined = cw.gex + Math.abs(pw.gex);
+      const proximity = sp > 0 ? Math.abs(cw.strike - sp) / sp : 0;
+      const aboveSpot = cw.strike > sp;
+      let title, color;
+      if (proximity < 0.003) { title = "Pin "+fmtG(combined); color = "#c9a84c"; }
+      else if (aboveSpot) { title = "Resistance "+fmtG(combined); color = "#c43030"; }
+      else { title = "Support ↑ "+fmtG(combined); color = "#00BCD4"; }
+      lines.push({ price:cw.strike, color, lineWidth:4, lineStyle:0, title });
+    } else {
+      if (cw) {
+        const aboveSpot = cw.strike > sp;
+        let title, color;
+        if (aboveSpot) { title = "Ceiling "+fmtG(cw.gex); color = "#c43030"; }
+        else { title = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; }
+        lines.push({ price:cw.strike, color, lineWidth:4, lineStyle:0, title });
+      }
+      if (pw) {
+        const belowSpot = pw.strike < sp;
+        let title, color;
+        if (belowSpot) { title = "Bounce "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; }
+        else { title = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; }
+        lines.push({ price:pw.strike, color, lineWidth:4, lineStyle:0, title });
+      }
     }
-    return () => { if (gexChartObjRef.current) { gexChartObjRef.current.remove(); gexChartObjRef.current = null; } };
-  }, [showGexChart, gexTicker, gexChartRange, gexData]);
+    if (zg) lines.push({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, title:"Danger Line" });
+    const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
+    const aboveCandidates = [...(gexData.strikes||[])].filter(s=>s.strike>sp&&!usedStrikes.has(s.strike)).map(s=>{
+      const callVal = s.callGex > 0 ? s.callGex : 0;
+      const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
+      const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
+      return { strike:s.strike, gex:best.val, type:best.type };
+    }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
+    aboveCandidates.forEach(s => {
+      usedStrikes.add(s.strike);
+      const {lw,ls,op} = getLineWeight(s.gex);
+      const title = s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex);
+      lines.push({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, title });
+    });
+    const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
+      const callVal = s.callGex > 0 ? s.callGex : 0;
+      const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
+      const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
+      return { strike:s.strike, gex:best.val, type:best.type };
+    }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
+    belowCandidates.forEach(s => {
+      const {lw,ls,op} = getLineWeight(s.gex);
+      const baseColor = s.type === "call" ? "#00BCD4" : "#0a8f55";
+      const title = s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
+      lines.push({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, title });
+    });
+    return lines;
+  }, [gexData]);
 
   // ─── Shared detail panel renderer ─────────────────────────────────────────
   function renderDetailPanel(sym, cp, K, exp, onClose) {
@@ -3002,20 +2917,23 @@ export default function OptionsFlowDashboard() {
                 {/* GEX Chart with Levels */}
                 {showGexChart && gexData && !gexData.error && (
                   <div style={{ background:P.cd, borderRadius:10, padding:12, border:"1px solid "+P.bd, marginTop:4 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ marginBottom:8 }}>
                       <span style={{ fontSize:11, fontWeight:700, color:P.ac, textTransform:"uppercase", letterSpacing:1 }}>{gexData.ticker} Chart with GEX Levels</span>
-                      <div style={{ display:"flex", gap:4 }}>
-                        {[["5min","5m"],["10min","10m"],["15min","15m"],["30min","30m"],["65min","65m"],["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
-                          <button key={val} onClick={()=>setGexChartRange(val)}
-                            style={{ padding:"3px 8px", borderRadius:4, border:"1px solid "+(gexChartRange===val?P.ac:P.bd+"80"),
-                              background:gexChartRange===val?P.ac+"22":"transparent", color:gexChartRange===val?P.ac:P.dm,
-                              fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
                     </div>
-                    <div ref={gexChartRef} style={{ width:"100%", height:500, borderRadius:6, overflow:"hidden" }} />
+                    <div style={{ width:"100%", height:500, borderRadius:6, overflow:"hidden" }}>
+                      <StockChart
+                        sym={gexData.ticker}
+                        tf="D"
+                        height={500}
+                        liveUpdates={true}
+                        showDrawingTools={true}
+                        priceLines={gexPriceLines}
+                        hideReplay
+                        hidePatterns
+                        hideCompare
+                        hideCountdown
+                      />
+                    </div>
                   </div>
                 )}
 
