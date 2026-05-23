@@ -546,13 +546,18 @@ export default function StockChart({
   // Without this, useRealtimeBars updates → bars change → indicatorData
   // re-memoizes → crosshair useEffect re-runs → unsubscribe/subscribe cycle
   // happens on every live tick, causing visible crosshair stutter.
-  const overlayDataRef = useRef(overlayData)
-  const indicatorDataRef = useRef(indicatorData)
-  const comparisonDataRef = useRef(comparisonData)
-  const livePricesRef = useRef(livePrices)
-  const resolvedOverlaysRef = useRef(resolvedOverlays)
-  const symRef = useRef(sym)
-  const onCrosshairMoveRef = useRef(onCrosshairMove)
+  // Refs initialize to null — the dedicated mirror useEffect below populates
+  // them on the first commit, BEFORE the user can hover the chart. Cannot
+  // initialize them to the actual values here because most are declared
+  // (useMemo) later in the function body — using them at this point would
+  // hit a TDZ ReferenceError.
+  const overlayDataRef = useRef(null)
+  const indicatorDataRef = useRef(null)
+  const comparisonDataRef = useRef(null)
+  const livePricesRef = useRef(null)
+  const resolvedOverlaysRef = useRef(null)
+  const symRef = useRef(null)
+  const onCrosshairMoveRef = useRef(null)
 
   const [activeTool, setActiveTool] = useState(null)
   const activeToolRef = useRef(activeTool)
