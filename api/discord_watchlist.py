@@ -130,6 +130,7 @@ def build_messages(
     overall_bear: float = 0,
     ticker_count: int = 0,
     limit: int = 10,
+    date_range: str = "",
 ) -> list[dict]:
     """
     Build Discord embed messages as tiered embeds:
@@ -164,7 +165,7 @@ def build_messages(
     net = total_bull - total_bear
 
     now = datetime.now(ET)
-    date_str = now.strftime("%B %d, %Y")
+    date_str = date_range if date_range else now.strftime("%B %d, %Y")
     time_str = now.strftime("%I:%M %p ET")
 
     messages = []
@@ -263,6 +264,7 @@ async def send_to_discord(
     overall_bear: float = 0,
     ticker_count: int = 0,
     limit: int = 10,
+    date_range: str = "",
 ) -> dict:
     """Build messages from bull/bear + unusual items and send to Discord webhook."""
     if not DISCORD_FLOW_WEBHOOK_URL:
@@ -271,7 +273,7 @@ async def send_to_discord(
 
     messages = build_messages(
         bull, bear, label, unusual_bull, unusual_bear,
-        overall_bull, overall_bear, ticker_count, limit,
+        overall_bull, overall_bear, ticker_count, limit, date_range,
     )
 
     try:
@@ -333,11 +335,12 @@ def register_discord_routes(app_or_router):
         ticker_count = int(payload.get("tickerCount", 0))
         label = payload.get("label", "WATCHLIST")
         limit = int(payload.get("limit", 10))
+        date_range = payload.get("dateRange", "")
 
         if not bull and not bear and not unusual_bull and not unusual_bear:
             return {"ok": False, "error": "No items to send"}
 
         return await send_to_discord(
             bull, bear, label, unusual_bull, unusual_bear,
-            overall_bull, overall_bear, ticker_count, limit,
+            overall_bull, overall_bear, ticker_count, limit, date_range,
         )
