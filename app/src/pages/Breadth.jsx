@@ -8,6 +8,7 @@ import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
+import { useAuth } from '../context/AuthContext'
 import { prefetchBars } from '../utils/prefetchBars'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import CustomizePanel from './breadth/CustomizePanel'
@@ -1180,8 +1181,14 @@ const phaseClass = (phase, styles) => {
 }
 
 export default function Breadth() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [activeTab, setActiveTab] = useState('breadth')
   const [days, setDays] = useState(90)
+
+  useEffect(() => {
+    if (activeTab === 'analogues' && !isAdmin) setActiveTab('breadth')
+  }, [activeTab, isAdmin])
   const { data, isLoading, error } = useSWR(
     `/api/breadth-monitor?days=${days}`,
     fetcher,
@@ -1282,7 +1289,9 @@ export default function Breadth() {
             <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
             <button className={`${styles.tab} ${styles.tabActive}`}>COT Data</button>
             <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
-            <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
+            {isAdmin && (
+              <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
+            )}
           </div>
         </div>
         <CotData />
@@ -1300,7 +1309,9 @@ export default function Breadth() {
             <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
             <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
             <button className={`${styles.tab} ${styles.tabActive}`}>Data Charts</button>
-            <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
+            {isAdmin && (
+              <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
+            )}
           </div>
         </div>
         <BreadthCharts />
@@ -1308,7 +1319,7 @@ export default function Breadth() {
     )
   }
 
-  if (activeTab === 'analogues') {
+  if (activeTab === 'analogues' && isAdmin) {
     return (
       <div className={styles.page}>
         <div className={styles.header}>
@@ -1335,7 +1346,9 @@ export default function Breadth() {
           <button className={`${styles.tab} ${activeTab === 'heatmap' ? styles.tabActive : ''}`} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
           <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
           <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
-          <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
+          {isAdmin && (
+            <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
+          )}
         </div>
         <span className={styles.meta}>
           {rows.length > 0
