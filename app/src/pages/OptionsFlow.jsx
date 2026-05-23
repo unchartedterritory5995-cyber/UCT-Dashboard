@@ -1853,7 +1853,8 @@ export default function OptionsFlowDashboard() {
           bull:_addStatus(wlBull), bear:_addStatus(wlBear),
           unusualBull:[], unusualBear:[],
           overallBull, overallBear, tickerCount,
-          label:discordLabel, limit:discordCount
+          label:discordLabel, limit:discordCount,
+          dateRange: FD ? FD.dateRange : ""
         })
       });
       const data = await resp.json();
