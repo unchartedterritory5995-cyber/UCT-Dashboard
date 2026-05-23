@@ -684,14 +684,16 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
                  "l": round(b["l"], 2), "c": round(b["c"], 2), "v": int(b.get("v", 0))}
                 for b in _paginate_massive_aggs(client, url)
             ]
-            # Intraday boundary bar is owned by Phase 4 WebSocket — REST
-            # must NOT overwrite it on every call or the chart flickers
-            # between WS values and REST values for the same in-progress
-            # bar. Strict > here lets WS keep painting the live bar
-            # without REST stepping on it. Closed bars don't change after
-            # they close, so cache staleness is bounded to the current
-            # bar's worth of time at most.
-            return [b for b in _session_resample_hourly(bars_30m) if b["t"] > last_ts]
+            # Filter shifted from strict > to >= on 2026-05-23. Original concern
+            # was REST stepping on the WS-painted live bar; that's now mooted by
+            # Phase 4's bar_broadcaster owning the developing-bar timeline AND
+            # the canonical ET-anchored bucket function shared between REST +
+            # WS (Step 3 / commit 595edc2). With >=, the boundary hourly bucket
+            # gets RE-AGGREGATED and overwritten on every delta — heals the
+            # "stored partial in-progress bar" bug where a chart loaded mid-hour
+            # froze the bucket at half-bar values that the prior > filter could
+            # never update (Step 4).
+            return [b for b in _session_resample_hourly(bars_30m) if b["t"] >= last_ts]
         except Exception as _e:
             import logging as _log
             _log.getLogger(__name__).error(
@@ -712,12 +714,14 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
         new = []
         for bar in _paginate_massive_aggs(client, url):
             ts = int(bar["t"] / 1000)
-            # Strict > so REST does NOT overwrite the boundary bar that
-            # Phase 4 WebSocket is actively painting. With >= we observed
-            # the 1-min QQQ chart flickering between two OHLC values per
-            # second as WS and REST raced to write the same (ticker, tf,
-            # ts) row. WS owns the live bar; REST owns historical fill.
-            if ts > last_ts:
+            # `>=` (was strict `>`) so the most recent stored bar gets
+            # re-fetched and updated with Massive's authoritative values.
+            # This heals the "partial in-progress bar got stored, then
+            # strict-> filter prevented updates" bug for 1/5/15/30 min too.
+            # WS still wins on display via the per-minute AM broadcaster;
+            # REST's update only changes the persisted SQLite row, which
+            # bar_broadcaster doesn't compete on for in-progress data.
+            if ts >= last_ts:
                 new.append({
                     "t": ts,
                     "o": round(bar["o"], 2), "h": round(bar["h"], 2),

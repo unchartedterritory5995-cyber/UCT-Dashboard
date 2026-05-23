@@ -686,14 +686,83 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] fmp_tz_heal error (non-fatal): {e}")
 
+    # ── Strict-> heal (one-shot, gated by flag) ────────────────────────────────
+    # Companion to the `>=` filter relaxation in _delta_intraday (commit shipped
+    # alongside this). The prior strict-> filter left a class of permanently
+    # wrong rows in SQLite: any chart loaded mid-hour during 5/8-5/22 would
+    # write a partial in-progress bar (e.g. BB 5/21 13:00 ET stored at the
+    # 13:15 ET snapshot value C=6.47 V=738K), and the strict-> filter prevented
+    # any later delta from overwriting it even after the source 30min closed.
+    # Heal v1 (.fmp_tz_heal_v1) was supposed to clear these but either didn't
+    # run cleanly or got re-poisoned by an in-session refetch. This v2 wipes
+    # the same 14-day window again with a fresh flag so it definitively fires
+    # once. With `>=` now in effect, the next chart load on each ticker
+    # repopulates from Massive's authoritative closed-bar data.
+    try:
+        _heal_flag_v2 = os.path.join(os.environ.get("DATA_DIR", "/data"), ".strict_gt_heal_v2")
+        if not os.path.exists(_heal_flag_v2):
+            import sqlite3 as _heal_sqlite_v2
+            import time as _heal_t_v2
+            db_path_v2 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
+            if os.path.exists(db_path_v2):
+                cutoff_v2 = int(_heal_t_v2.time()) - 14 * 86400  # last 14 days
+                conn_v2 = _heal_sqlite_v2.connect(db_path_v2, timeout=30)
+                try:
+                    conn_v2.execute("PRAGMA busy_timeout=30000")
+                    cur_v2 = conn_v2.execute(
+                        "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60') AND ts >= ?",
+                        (cutoff_v2,),
+                    )
+                    deleted_v2 = cur_v2.rowcount
+                    conn_v2.commit()
+                    print(f"[startup] strict_gt_heal_v2: removed {deleted_v2} intraday rows from last 14d (companion to >= filter relaxation)")
+                finally:
+                    conn_v2.close()
+                try:
+                    from api.services import bars_sqlite as _heal_bs_v2
+                    _heal_bs_v2.bump_db_epoch()
+                except Exception:
+                    pass
+                try:
+                    from api.services.cache import cache as _heal_mem_v2
+                    _mem_deleted_v2 = _heal_mem_v2.delete_prefix("bars_")
+                    print(f"[startup] strict_gt_heal_v2: cleared {_mem_deleted_v2} in-memory bars cache entries")
+                except Exception:
+                    pass
+                try:
+                    _disk_dir_v2 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+                    if os.path.isdir(_disk_dir_v2):
+                        _dn_v2 = 0
+                        for _fn_v2 in os.listdir(_disk_dir_v2):
+                            if not _fn_v2.endswith(".json"):
+                                continue
+                            _parts_v2 = _fn_v2[:-5].split("_")
+                            if len(_parts_v2) >= 2 and _parts_v2[1] in ("1", "5", "15", "30", "60"):
+                                try:
+                                    os.remove(os.path.join(_disk_dir_v2, _fn_v2))
+                                    _dn_v2 += 1
+                                except OSError:
+                                    pass
+                        print(f"[startup] strict_gt_heal_v2: removed {_dn_v2} intraday disk-cache files")
+                except Exception:
+                    pass
+            try:
+                with open(_heal_flag_v2, "w") as _f:
+                    _f.write("done")
+            except OSError:
+                pass
+    except Exception as e:
+        print(f"[startup] strict_gt_heal_v2 error (non-fatal): {e}")
+
     # Chart pipeline mode fingerprint — one line so a grep on Tuesday morning
     # tells the operator EXACTLY which fixes are active in this deploy.
     print(
         "[startup] chart-realtime-mode: "
-        "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once "
+        "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once "
         "needs_fresh_post_market=on "
         "swr_refresh_interval=30s_intraday "
-        "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds"
+        "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
+        "delta_intraday_filter=>= idb_cache_logic_version=4"
     )
 
     if os.environ.get("USE_REMOTE_BARS") == "1":
