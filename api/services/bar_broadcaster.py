@@ -37,7 +37,7 @@ from api.services.bar_rollup import TF_TO_SECONDS, aggregate, bucket_start
 
 _logger = logging.getLogger(__name__)
 
-ROLLUP_TFS = ("5", "15", "30")  # we don't roll up "1" — it's pass-through. "60" excluded in v1 (ET-anchor needed).
+ROLLUP_TFS = ("5", "15", "30", "60")  # "1" is pass-through. "60" added 2026-05-22 via canonical ET-anchored bucket (bars_fetch.bucket_60_et_unix_seconds).
 
 
 class BarBroadcaster:

@@ -1,32 +1,46 @@
 """Aggregate 1-minute bars into multi-minute timeframes.
 
-Polygon/Massive AM events deliver 1-minute OHLCV bars. For a 5/15/30-minute
+Polygon/Massive AM events deliver 1-minute OHLCV bars. For each multi-minute
 chart we accumulate consecutive 1-min bars in the same bucket and emit when the
 bucket closes. Pure functions only — IO and state live in bar_broadcaster.
+
+5/15/30 use UTC-floored buckets (cheap, no DST concerns, matches the
+historical session resample which never had to ET-anchor sub-hourly windows).
+60-min uses the canonical ET-anchored bucket from bars_fetch — that function is
+the single source of truth for hourly bucket alignment, shared with the REST
+resample path so the two NEVER drift (the equivalence is by construction).
 """
 from typing import Optional
 
 # Supported intraday timeframes that roll up from 1-min bars.
 # D/W are not in this list — those use end-of-day data via the existing prewarmer/SQLite path.
-# 60-min is NOT included in v1: existing 60-min bars in the codebase are
-# ET-anchored (9:30-10:30 = first hour bucket) per api/services/bars_fetch
-# `_session_resample_hourly`, which UTC-rounding here would mismatch. Add ET-aware
-# 60-min support in v1.1 — see Future Enhancements.
 TF_TO_SECONDS = {
     "1":  60,
     "5":  300,
     "15": 900,
     "30": 1800,
+    "60": 3600,
 }
 
 
 def bucket_start(ts_ms: int, tf: str) -> int:
     """Return the start-of-bucket timestamp (ms) that contains ts_ms for the given tf.
 
+    For tf=60: delegates to the canonical ET-anchored bucket function so the
+    REST resample path and this WS rollup path produce bit-identical
+    timestamps. Anything else here (UTC floor) would drift across DST or the
+    9:30 RTH-open anchor and plant duplicate candles in SQLite at neighboring
+    ``ts`` values — the exact failure shape of the FMP timezone bug.
+
     Raises ValueError if tf is not one of TF_TO_SECONDS keys.
     """
     if tf not in TF_TO_SECONDS:
         raise ValueError(f"Unsupported timeframe for rollup: {tf!r}")
+    if tf == "60":
+        # Single source of truth — import lazily to keep this module's tiny
+        # import graph clean and avoid any future circular-dep risk.
+        from api.services.bars_fetch import bucket_60_et_unix_seconds
+        return bucket_60_et_unix_seconds(ts_ms // 1000) * 1000
     sec = TF_TO_SECONDS[tf]
     bucket_sec = (ts_ms // 1000) // sec * sec
     return bucket_sec * 1000

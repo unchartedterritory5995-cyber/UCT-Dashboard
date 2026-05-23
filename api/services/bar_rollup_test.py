@@ -24,11 +24,19 @@ def test_bucket_start_30min_aligns():
     assert bucket_start(1778005937000, "30") == 1778005800000
 
 
-def test_bucket_start_60min_not_supported_in_v1():
-    # 60-min uses ET-anchored buckets per existing _session_resample_hourly;
-    # UTC rounding would mismatch. Defer to v1.1.
-    with pytest.raises(ValueError):
-        bucket_start(1778005937000, "60")
+def test_bucket_start_60min_delegates_to_canonical_et_anchored_function():
+    """60-min support landed 2026-05-22 by delegating to the canonical
+    `bars_fetch.bucket_60_et_unix_seconds` function — the same one the REST
+    resample uses. This test pins the delegation: the WS rollup output must
+    equal the canonical function's output (in ms) for any minute. Without
+    this, a future refactor could quietly re-introduce a UTC-floor for tf=60
+    and start writing candles at neighboring timestamps to what REST writes
+    (the FMP-bug failure shape)."""
+    from api.services.bars_fetch import bucket_60_et_unix_seconds
+    ts_ms = 1778005937000  # arbitrary minute timestamp
+    got = bucket_start(ts_ms, "60")
+    expected = bucket_60_et_unix_seconds(ts_ms // 1000) * 1000
+    assert got == expected, "bar_rollup.bucket_start(tf=60) must delegate to canonical ET bucket"
 
 
 def test_bucket_start_unknown_tf_raises():

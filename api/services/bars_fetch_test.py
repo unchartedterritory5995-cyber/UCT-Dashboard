@@ -63,7 +63,7 @@ class TestNormalizeSinceParam:
         assert _normalize_since_param("-100", date_tf=False) == -100
 
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from api.services.bars_fetch import (
@@ -231,6 +231,125 @@ class TestPolygonSymbol:
 
     def test_idempotent_on_dot_form(self):
         assert to_polygon_symbol("BRK.B") == "BRK.B"
+
+
+# ── 60-min ET bucket function — the contract both REST + WS must honor ──────
+#
+# `bucket_60_et_unix_seconds` is the single source of truth for 60min bucket
+# alignment. If anyone ever forks this logic (e.g. reimplements it inside
+# bar_rollup.py), the duplicate would drift across DST or RTH-open and start
+# writing candles to SQLite at neighboring ``ts`` values — the same shape as
+# the FMP bug. These tests lock in the function's exact behavior across the
+# tricky cases: RTH open anchor, DST transitions, extended hours, EST↔EDT.
+
+from api.services.bars_fetch import bucket_60_et_unix_seconds
+
+
+def _ts(y, m, d, hh, mm, tz=_ET):
+    return int(datetime(y, m, d, hh, mm, tzinfo=tz).timestamp())
+
+
+class TestBucket60EtUnixSeconds:
+    """The canonical 60min ET-anchored bucket. Used by REST resample AND
+    (post-Step-3) the WebSocket bar broadcaster — they MUST agree forever."""
+
+    def test_rth_open_930_anchored(self):
+        """9:30 ET is the start-of-RTH anchor, NOT 9:00 ET. The first
+        hourly bar is a 30-min bar so the open candle is clean."""
+        t = _ts(2026, 5, 22, 9, 30)
+        assert bucket_60_et_unix_seconds(t) == _ts(2026, 5, 22, 9, 30)
+
+    def test_rth_open_945_still_anchored_to_930(self):
+        """A 30-min bar at 9:45 ET (mid-opening-bucket) buckets to 9:30 ET."""
+        t = _ts(2026, 5, 22, 9, 45)
+        assert bucket_60_et_unix_seconds(t) == _ts(2026, 5, 22, 9, 30)
+
+    def test_rth_morning_floors_to_clock_hour(self):
+        t = _ts(2026, 5, 22, 10, 15)
+        assert bucket_60_et_unix_seconds(t) == _ts(2026, 5, 22, 10, 0)
+        t = _ts(2026, 5, 22, 11, 45)
+        assert bucket_60_et_unix_seconds(t) == _ts(2026, 5, 22, 11, 0)
+
+    def test_rth_afternoon_floors_to_clock_hour(self):
+        """The 1pm/2pm/3pm hours — the exact data the noon-cutoff bug was
+        eating. Must bucket to 13:00, 14:00, 15:00 ET respectively."""
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 13, 0)) == _ts(2026, 5, 22, 13, 0)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 13, 30)) == _ts(2026, 5, 22, 13, 0)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 15, 45)) == _ts(2026, 5, 22, 15, 0)
+
+    def test_rth_close_16_00(self):
+        """16:00 ET is the after-hours bucket start (RTH ended at 16:00)."""
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 16, 0)) == _ts(2026, 5, 22, 16, 0)
+
+    def test_premarket_clock_aligned(self):
+        """Pre-market 30-min bars (07:30 ET) bucket to clock-hour (07:00 ET).
+        9:00-9:29 is also pre-market and floors to 9:00 ET (NOT the 9:30 anchor
+        — that anchor only applies once we're at h==9 AND m>=30)."""
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 7, 30)) == _ts(2026, 5, 22, 7, 0)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 9, 0)) == _ts(2026, 5, 22, 9, 0)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 9, 15)) == _ts(2026, 5, 22, 9, 0)
+        # The instant we cross 9:30 we flip to the anchor:
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 9, 29)) == _ts(2026, 5, 22, 9, 0)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 9, 30)) == _ts(2026, 5, 22, 9, 30)
+
+    def test_postmarket_clock_aligned(self):
+        """After-hours (17:00, 18:00, 19:00 ET) buckets to clock-hour."""
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 17, 30)) == _ts(2026, 5, 22, 17, 0)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 19, 0)) == _ts(2026, 5, 22, 19, 0)
+
+    def test_winter_est_offset(self):
+        """During EST (UTC-5) the bucket must still anchor in ET wall-clock,
+        not drift by the offset change. Mid-January exercises EST."""
+        t = _ts(2026, 1, 15, 13, 30)
+        assert bucket_60_et_unix_seconds(t) == _ts(2026, 1, 15, 13, 0)
+
+    def test_dst_spring_forward(self):
+        """Spring-forward Sunday (March 8, 2026): 02:00 ET → 03:00 ET. Bars
+        in the immediate aftermath (08:00 EDT etc.) must bucket correctly."""
+        # 08:30 EDT post-spring-forward
+        t = _ts(2026, 3, 9, 8, 30)  # Monday after spring-forward weekend
+        assert bucket_60_et_unix_seconds(t) == _ts(2026, 3, 9, 8, 0)
+
+    def test_dst_fall_back(self):
+        """Fall-back Sunday (Nov 1, 2026): 02:00 EDT → 01:00 EST. Bars
+        the Monday after must still bucket to the right ET wall-clock hour."""
+        t = _ts(2026, 11, 2, 10, 15)  # Monday after fall-back
+        assert bucket_60_et_unix_seconds(t) == _ts(2026, 11, 2, 10, 0)
+
+    def test_minute_within_bucket_doesnt_change_output(self):
+        """Property check: for any minute within the [bucket_start, bucket_start+60min)
+        window, the function returns the same bucket_start. Smoke-tests 60+ cases
+        across a few representative bucket windows."""
+        # 10:00-10:59 ET → 10:00 ET bucket
+        expected = _ts(2026, 5, 22, 10, 0)
+        for minute in range(60):
+            t = _ts(2026, 5, 22, 10, minute)
+            assert bucket_60_et_unix_seconds(t) == expected, f"failed at 10:{minute:02d}"
+        # 9:30-9:59 → 9:30 anchor; 10:00 flips to 10:00 bucket
+        anchor = _ts(2026, 5, 22, 9, 30)
+        for minute in range(30, 60):
+            assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 9, minute)) == anchor
+
+    def test_property_random_minutes_span_year(self):
+        """Run 1000 random minutes across a full year (including BOTH DST
+        transitions) and assert the bucket is always exactly the floor of
+        the ET hour (or the 9:30 anchor when relevant). If the function
+        ever drifts on a DST edge, this catches it."""
+        import random
+        random.seed(42)
+        start = datetime(2026, 1, 1, tzinfo=_ET)
+        for _ in range(1000):
+            minutes_offset = random.randint(0, 365 * 24 * 60)
+            dt = start + timedelta(minutes=minutes_offset)
+            t = int(dt.timestamp())
+            got = bucket_60_et_unix_seconds(t)
+            # Compute expected by the same rules:
+            dt_et = datetime.fromtimestamp(t, tz=_ET)
+            if dt_et.hour == 9 and dt_et.minute >= 30:
+                expected = int(datetime(dt_et.year, dt_et.month, dt_et.day, 9, 30, tzinfo=_ET).timestamp())
+            else:
+                expected = int(datetime(dt_et.year, dt_et.month, dt_et.day, dt_et.hour, 0, tzinfo=_ET).timestamp())
+            assert got == expected, f"drift at {dt_et}: got {got}, expected {expected}"
 
 
 # ── FMP timestamp regression ─────────────────────────────────────────────────

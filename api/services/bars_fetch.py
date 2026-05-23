@@ -609,6 +609,32 @@ def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
     return [b for b in _resample_monthly_iso(daily) if int(b["t"].replace("-", "")) >= last_ts]
 
 
+def bucket_60_et_unix_seconds(t_utc: int) -> int:
+    """Canonical ET-anchored 60-min bucket function. Returns the unix-seconds
+    timestamp of the hourly bucket that contains ``t_utc``.
+
+    Public + top-level on purpose: BOTH the REST resample path here AND the
+    WebSocket rollup path in ``api/services/bar_rollup.py`` must produce
+    bit-identical bucket timestamps for the same minute. Sharing one function
+    eliminates the drift-class bug that would otherwise plant duplicate
+    candles in SQLite at neighboring ``ts`` values (the same shape as the
+    FMP timezone bug — different primary keys, ``INSERT OR REPLACE`` can't
+    heal it, chart breaks until a manual wipe).
+
+    Bucket rules:
+      - 9:30-9:59 ET: anchor at 9:30 ET (the special "clean open" 30-min bar)
+      - All other times (RTH 10-15 ET + extended pre/post): floor to clock-hour ET
+
+    DST is handled transparently via ``ZoneInfo("America/New_York")``.
+    """
+    et = _ZI("America/New_York")
+    dt = datetime.fromtimestamp(t_utc, tz=et)
+    h, m = dt.hour, dt.minute
+    if h == 9 and m >= 30:
+        return int(datetime(dt.year, dt.month, dt.day, 9, 30, tzinfo=et).timestamp())
+    return int(datetime(dt.year, dt.month, dt.day, h, 0, tzinfo=et).timestamp())
+
+
 def _session_resample_hourly(bars_30m: list[dict]) -> list[dict]:
     """Resample 30-min bars to session-aligned 60-min bars.
 
@@ -617,21 +643,7 @@ def _session_resample_hourly(bars_30m: list[dict]) -> list[dict]:
       - Remaining: 10:00-11:00, 11:00-12:00, ..., 15:00-16:00
     Extended hours: clock-aligned 60-min groupings.
     """
-    try:
-        import zoneinfo
-        ET = zoneinfo.ZoneInfo("America/New_York")
-    except ImportError:
-        from datetime import timezone, timedelta as _td
-        ET = timezone(_td(hours=-4))
-
-    def _bucket(t_utc: int) -> int:
-        dt = datetime.fromtimestamp(t_utc, tz=ET)
-        h, m = dt.hour, dt.minute
-        # 9:30-9:59: first RTH bar — its own 30-min bucket starting at 9:30
-        if h == 9 and m >= 30:
-            return int(datetime(dt.year, dt.month, dt.day, 9, 30, tzinfo=ET).timestamp())
-        # All other hours (RTH 10-15 + extended): floor to clock-hour in ET
-        return int(datetime(dt.year, dt.month, dt.day, h, 0, tzinfo=ET).timestamp())
+    _bucket = bucket_60_et_unix_seconds  # use the canonical function
 
     groups: dict[int, list[dict]] = {}
     for bar in bars_30m:

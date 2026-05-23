@@ -1450,16 +1450,19 @@ export default function StockChart({
   }, [livePrices, sym, resolvedTf, cs.chartType])
 
   // Real-time bar streaming (Phase 4) — Massive AM events.
-  // Only on intraday timeframes 1/5/15/30 (60-min uses ET-anchor REST path until v1.1).
+  // 60-min was added 2026-05-22 once the backend rollup adopted the canonical
+  // ET-anchored bucket function (bars_fetch.bucket_60_et_unix_seconds) — the
+  // same one the REST resample uses — so WS bars and REST bars now align bit-
+  // identically and can't drift across DST or the 9:30 RTH-open anchor.
   // Keep this list in sync with backend ROLLUP_TFS (api/services/bar_broadcaster.py)
   // and the tf allow-list in api/routers/stream.py:stream_bars.
   // Coexists with the tick-driven useEffect above:
   //  - Tick logic drives sub-second flicker on the current developing candle
   //  - AM events deliver authoritative just-closed minute bars (1m chart) or
-  //    server-rolled partial bucket bars (5/15/30m charts)
+  //    server-rolled partial bucket bars (5/15/30/60m charts)
   //  - When an AM bar matches liveBarRef/lastBarRef.time, we sync them so the
   //    next tick iteration doesn't overwrite the authoritative values
-  const realtimeTfEligible = ['1', '5', '15', '30'].includes(resolvedTf)
+  const realtimeTfEligible = ['1', '5', '15', '30', '60'].includes(resolvedTf)
 
   const onRealtimeBar = useCallback((data) => {
     if (!candleSeriesRef.current) return

@@ -220,7 +220,7 @@ async def stream_bars(
         sym, tf = s.split(":", 1)
         sym = sym.strip().upper()
         tf = tf.strip()
-        if sym and tf in ("1", "5", "15", "30"):  # 60-min excluded in v1 (ET-anchor needed)
+        if sym and tf in ("1", "5", "15", "30", "60"):  # 60-min uses canonical ET-anchored bucket
             pairs.append((sym, tf))
 
     if not pairs:
