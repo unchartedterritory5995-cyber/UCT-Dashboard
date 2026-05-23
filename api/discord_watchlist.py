@@ -35,7 +35,7 @@ _DIM = "\u001b[2;37m"
 _RESET = "\u001b[0m"
 
 # Dim dotted separator — compact for mobile (~38 chars)
-SEP_RAW = "╌" * 33
+SEP_RAW = "╌" * 35
 
 
 def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
@@ -56,7 +56,7 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
                 strike = ""
             exp = _fmt_exp(item.get("exp") or "")
             prem = _fmt(float(item.get("prem") or 0))
-            contract = f"{exp.ljust(5)} {strike.ljust(5)} {cp} {prem_color}{prem.rjust(6)}{_RESET}"
+            contract = f"{exp.ljust(5)} {strike.ljust(7)}{cp} {prem_color}{prem.rjust(6)}{_RESET}"
         else:
             contract = "—"
 
