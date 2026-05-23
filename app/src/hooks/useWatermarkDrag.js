@@ -47,6 +47,25 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
       if (e.stopImmediatePropagation) e.stopImmediatePropagation()
     }
 
+    // Drag operations need immediate response; hover-arm checks (the "is the
+    // cursor over the watermark?" path that runs on every move) get coalesced
+    // via rAF so they don't run getBoundingClientRect + setArmed at the
+    // mouse's full polling rate. Without this the capture-phase listener
+    // burns the main thread on every move and the chart's crosshair lags.
+    let hoverPending = null
+    let hoverRaf = null
+
+    const flushHover = () => {
+      hoverRaf = null
+      const p = hoverPending
+      hoverPending = null
+      if (!p) return
+      const c = controllerRef.current
+      if (!c) return
+      if (toolActive()) { c.setArmed(false); return }
+      c.setArmed(inRect(p))
+    }
+
     const onMove = (e) => {
       const c = controllerRef.current
       if (!c) return
@@ -67,8 +86,9 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
         c.setOptions({ x: nx, y: ny })
         return
       }
-      if (toolActive()) { c.setArmed(false); return }
-      c.setArmed(inRect(p))
+      // Hover-arm path (not dragging) — coalesce via rAF
+      hoverPending = p
+      if (hoverRaf == null) hoverRaf = requestAnimationFrame(flushHover)
     }
 
     const onDown = (e) => {
@@ -101,6 +121,8 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
       el.removeEventListener('pointerdown', onDown, true)
       el.removeEventListener('pointerup', onUp, true)
       el.removeEventListener('pointercancel', onCancel, true)
+      if (hoverRaf != null) { cancelAnimationFrame(hoverRaf); hoverRaf = null }
+      hoverPending = null
     }
   }, [containerRef, controllerRef])
 }
