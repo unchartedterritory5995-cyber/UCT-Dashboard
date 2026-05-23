@@ -609,6 +609,83 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] tf=60 disk purge error (non-fatal): {e}")
 
+    # ── FMP timezone-bug heal (one-shot, gated by flag) ─────────────────────
+    # Commit 87b7d88 fixed _fetch_intraday_fmp which had stored bars at
+    # timestamps shifted by the ET-UTC offset (FMP returns ET text; the
+    # naive .strptime + .timestamp() round-tripped through the container's
+    # UTC clock, landing every FMP-sourced row 4-5 hours BEHIND its true
+    # moment). New writes are correct, but the bug's poisoned rows sit at
+    # WRONG ts values — INSERT OR REPLACE on a *correct* ts touches a
+    # different primary-key tuple, so Massive's later good writes never
+    # overwrite the bad rows and the chart stays corrupt.
+    #
+    # Surgical heal: drop intraday rows from the last 14 days only. That's
+    # the window where the bug actively wrote (older bars are immutable
+    # history that pre-dates the bug being live on this code path, and
+    # wiping deep intraday would lose months of chart context for nothing).
+    # The next user request on each chart triggers a Massive refetch under
+    # the fixed FMP fallback path and refills correctly. Daily/Weekly/Monthly
+    # are untouched — the bug was intraday-only.
+    try:
+        _heal_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".fmp_tz_heal_v1")
+        if not os.path.exists(_heal_flag):
+            import sqlite3 as _heal_sqlite
+            import time as _heal_t
+            db_path = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
+            if os.path.exists(db_path):
+                cutoff = int(_heal_t.time()) - 14 * 86400  # 14 days back
+                conn = _heal_sqlite.connect(db_path, timeout=30)
+                try:
+                    conn.execute("PRAGMA busy_timeout=30000")
+                    cur = conn.execute(
+                        "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60') AND ts > ?",
+                        (cutoff,),
+                    )
+                    deleted = cur.rowcount
+                    conn.commit()
+                    print(f"[startup] fmp_tz_heal: removed {deleted} intraday rows from last 14d; next chart load on each ticker refills clean")
+                finally:
+                    conn.close()
+                # Bump epoch so all thread-local connections see the fresh state.
+                try:
+                    from api.services import bars_sqlite as _heal_bs
+                    _heal_bs.bump_db_epoch()
+                except Exception:
+                    pass
+                # Also clear in-memory + disk JSON cache for intraday so they
+                # don't keep serving the corrupt payload until SQLite repopulates.
+                try:
+                    from api.services.cache import cache as _heal_mem
+                    _mem_deleted = _heal_mem.delete_prefix("bars_")
+                    print(f"[startup] fmp_tz_heal: cleared {_mem_deleted} in-memory bars cache entries")
+                except Exception:
+                    pass
+                try:
+                    _disk_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+                    if os.path.isdir(_disk_dir):
+                        _dn = 0
+                        for _fn in os.listdir(_disk_dir):
+                            # bars_cache filenames: "{SYM}_{tf}_{bars}.json"
+                            if not _fn.endswith(".json"):
+                                continue
+                            _parts = _fn[:-5].split("_")
+                            if len(_parts) >= 2 and _parts[1] in ("1", "5", "15", "30", "60"):
+                                try:
+                                    os.remove(os.path.join(_disk_dir, _fn))
+                                    _dn += 1
+                                except OSError:
+                                    pass
+                        print(f"[startup] fmp_tz_heal: removed {_dn} intraday disk-cache files")
+                except Exception:
+                    pass
+            try:
+                with open(_heal_flag, "w") as _f:
+                    _f.write("done")
+            except OSError:
+                pass
+    except Exception as e:
+        print(f"[startup] fmp_tz_heal error (non-fatal): {e}")
+
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] Memory pre-warm skipped (USE_REMOTE_BARS=1); cache populates lazily after snapshot pull")
     else:
