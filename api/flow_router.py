@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse, Response
 from starlette.responses import StreamingResponse
 from api.flow_db import FlowDB
 import os
+import gzip
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 db = FlowDB(DB_PATH)
@@ -32,6 +33,20 @@ _FLOW_CACHE_HEADERS = {
     "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
     "Vary": "Accept-Encoding",
 }
+
+
+def _gzip_csv_response(gen, request: Request):
+    """Collect CSV generator, gzip if client accepts, return Response."""
+    content = "".join(gen).encode("utf-8")
+    accept = (request.headers.get("accept-encoding") or "").lower()
+    if "gzip" in accept:
+        compressed = gzip.compress(content, compresslevel=4)
+        return Response(
+            content=compressed,
+            media_type="text/csv",
+            headers={**_FLOW_CACHE_HEADERS, "Content-Encoding": "gzip"},
+        )
+    return Response(content=content, media_type="text/csv", headers=_FLOW_CACHE_HEADERS)
 
 
 @flow_router.post("/upload")
@@ -96,12 +111,7 @@ async def get_flow_data(request: Request):
             gen = db.stream_csv(source="stocks")
         else:
             gen = db.stream_csv(source="stocks", days=days)
-        content = "".join(gen)
-        return Response(
-            content=content,
-            media_type="text/csv",
-            headers=_FLOW_CACHE_HEADERS,
-        )
+        return _gzip_csv_response(gen, request)
     except Exception as e:
         return StreamingResponse(
             iter([f"Error: {e}"]),
@@ -130,12 +140,7 @@ async def get_indexes_data(request: Request):
             gen = db.stream_csv(source="indexes")
         else:
             gen = db.stream_csv(source="indexes", days=days)
-        content = "".join(gen)
-        return Response(
-            content=content,
-            media_type="text/csv",
-            headers=_FLOW_CACHE_HEADERS,
-        )
+        return _gzip_csv_response(gen, request)
     except Exception as e:
         return StreamingResponse(
             iter([f"Error: {e}"]),
