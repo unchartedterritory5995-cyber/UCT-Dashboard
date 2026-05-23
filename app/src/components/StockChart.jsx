@@ -517,6 +517,12 @@ export default function StockChart({
   const donchianMiddleRef  = useRef(null)
   const donchianLowerRef   = useRef(null)
   const priceLineRefs = useRef([])
+  // Identity guard so updateChart doesn't tear down + rebuild price lines on
+  // every real-time tick. mergedPriceLines is useMemo'd, so when its deps
+  // (priceLines prop, j2 markers) are stable across ticks the reference is
+  // stable too — skipping the rebuild saves significant LWC canvas work on
+  // charts with many lines + axis labels (e.g. the GEX chart with 8-12).
+  const lastPriceLinesRef = useRef(undefined)
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
   const lastBarRef = useRef(null)
   const prevChartTypeRef = useRef(null)
@@ -2279,22 +2285,25 @@ export default function StockChart({
       compareSeriesRef.current = null
     }
 
-    // ── Price lines — remove old, add new ──
-    for (const pl of priceLineRefs.current) {
-      try { candleSeriesRef.current.removePriceLine(pl) } catch {}
-    }
-    priceLineRefs.current = []
-    if (mergedPriceLines?.length && candleSeriesRef.current) {
-      for (const pl of mergedPriceLines) {
-        const ref = candleSeriesRef.current.createPriceLine({
-          price: pl.price,
-          color: pl.color || cs.textColor,
-          lineWidth: pl.lineWidth || 1,
-          lineStyle: pl.lineStyle ?? 2,
-          axisLabelVisible: true,
-          title: pl.title || '',
-        })
-        priceLineRefs.current.push(ref)
+    // ── Price lines — remove old, add new (only when array reference changes) ──
+    if (lastPriceLinesRef.current !== mergedPriceLines) {
+      lastPriceLinesRef.current = mergedPriceLines
+      for (const pl of priceLineRefs.current) {
+        try { candleSeriesRef.current.removePriceLine(pl) } catch {}
+      }
+      priceLineRefs.current = []
+      if (mergedPriceLines?.length && candleSeriesRef.current) {
+        for (const pl of mergedPriceLines) {
+          const ref = candleSeriesRef.current.createPriceLine({
+            price: pl.price,
+            color: pl.color || cs.textColor,
+            lineWidth: pl.lineWidth || 1,
+            lineStyle: pl.lineStyle ?? 2,
+            axisLabelVisible: true,
+            title: pl.title || '',
+          })
+          priceLineRefs.current.push(ref)
+        }
       }
     }
 
