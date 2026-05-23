@@ -2270,6 +2270,10 @@ export default function OptionsFlowDashboard() {
               liveUpdates={true}
               showDrawingTools={true}
               onTfChange={setContractChartTf}
+              hideReplay
+              hidePatterns
+              hideCompare
+              hideCountdown
             />
           </div>
           <div style={{ padding:"12px 14px" }}>

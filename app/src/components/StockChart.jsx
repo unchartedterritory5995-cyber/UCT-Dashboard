@@ -289,6 +289,10 @@ export default function StockChart({
   onTimeRangeChange = null, // (payload: {from, to}) => void — fires when visible time range changes
   externalCrosshair = null, // {time, price} | null — render external crosshair from sync context
   externalTimeRange = null, // {from, to} | null — apply external time range from sync context
+  hideReplay = false,       // hide the Replay / Time Machine button
+  hidePatterns = false,     // hide the pattern-recognition toggle button
+  hideCompare = false,      // hide both compare-symbol entry points (text input + popover)
+  hideCountdown = false,    // hide the intraday bar-close countdown badge
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -3139,6 +3143,10 @@ export default function StockChart({
             onReplaySpeedChange={setReplaySpeed}
             showPatterns={showPatterns}
             onTogglePatterns={handleTogglePatterns}
+            hideReplay={hideReplay}
+            hidePatterns={hidePatterns}
+            hideCompare={hideCompare}
+            hideCountdown={hideCountdown}
           />
           {screenshotPopoverOpen && (
             <ScreenshotPopover

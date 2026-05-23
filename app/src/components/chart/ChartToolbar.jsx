@@ -662,6 +662,10 @@ export default function ChartToolbar({
   onShowHelp = null,
   showPatterns = false,
   onTogglePatterns = null,
+  hideReplay = false,
+  hidePatterns = false,
+  hideCompare = false,
+  hideCountdown = false,
 }) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -782,7 +786,7 @@ export default function ChartToolbar({
         </button>
 
         {/* Patterns overlay toggle */}
-        {onTogglePatterns && (
+        {!hidePatterns && onTogglePatterns && (
           <PatternToolbarButton active={!!showPatterns} onToggle={onTogglePatterns} />
         )}
 
@@ -799,7 +803,7 @@ export default function ChartToolbar({
         )}
 
         {/* ── Compare symbol input ── */}
-        {onCompareChange && (
+        {!hideCompare && onCompareChange && (
           <div className={styles.compareWrap}>
             <input
               type="text"
@@ -814,7 +818,7 @@ export default function ChartToolbar({
         )}
 
         {/* ── Countdown to bar close ── */}
-        {countdown && (
+        {!hideCountdown && countdown && (
           <span className={styles.countdown} title="Time until bar closes">
             {countdown}
           </span>
@@ -841,7 +845,7 @@ export default function ChartToolbar({
         )}
 
         {/* ── Replay / Time Machine ── */}
-        {onReplayToggle && (
+        {!hideReplay && onReplayToggle && (
           <button
             className={`${styles.btn} ${replayMode ? styles.active : ''}`}
             onClick={onReplayToggle}
@@ -852,7 +856,7 @@ export default function ChartToolbar({
         )}
 
         {/* Compare symbols */}
-        {chartSettings && onUpdateSettings && (
+        {!hideCompare && chartSettings && onUpdateSettings && (
           <div ref={compareRef} className={styles.compareContainer}>
             <button
               className={`${styles.btn} ${comparePopoverOpen ? styles.active : ''}`}
