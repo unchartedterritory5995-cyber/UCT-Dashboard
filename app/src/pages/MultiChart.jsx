@@ -4,6 +4,7 @@ import LayoutPicker from './multichart/LayoutPicker';
 import MultiChartCell from './multichart/MultiChartCell';
 import { MultiChartSyncProvider } from './multichart/MultiChartSyncContext';
 import { getLayoutCellCount, makeDefaultCells, WATCH_PANEL_PRESET, LAYOUTS } from './multichart/multiChartLayouts';
+import { useChartsSym } from './charts/ChartsSymContext';
 import styles from './MultiChart.module.css';
 
 
@@ -12,6 +13,7 @@ const STORAGE_KEY = 'multichart_state';
 
 export default function MultiChart() {
   const { prefs, setPref } = usePreferences();
+  const { sym: hubSym } = useChartsSym();
 
   // Load saved state or default
   const [state, setState] = useState(() => {
@@ -71,6 +73,16 @@ export default function MultiChart() {
     setState(WATCH_PANEL_PRESET);
   }, []);
 
+  const applyHubTickerToCell0 = useCallback(() => {
+    if (!hubSym) return;
+    setState(prev => {
+      if (!prev.cells.length) return prev;
+      const cells = [...prev.cells];
+      cells[0] = { ...cells[0], sym: hubSym };
+      return { ...prev, cells };
+    });
+  }, [hubSym]);
+
   const toggleSync = useCallback((key) => {
     setState(prev => ({ ...prev, [key]: !prev[key] }));
   }, []);
@@ -105,6 +117,14 @@ export default function MultiChart() {
             </label>
             <button onClick={loadWatchPanel} className={styles.watchPanelBtn}>
               Watch Panel (QQQ/SPY/IWM/DIA)
+            </button>
+            <button
+              onClick={applyHubTickerToCell0}
+              className={styles.watchPanelBtn}
+              disabled={!hubSym}
+              title={hubSym ? `Load ${hubSym} into cell #1` : 'Select a ticker in another sub-tab first'}
+            >
+              Apply {hubSym || '…'} to cell #1
             </button>
           </div>
         </div>
