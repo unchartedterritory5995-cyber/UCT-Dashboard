@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
+import DarkPool from "./DarkPool";
 
 // ─── Flow Data loaded dynamically from /api/flow/data (SQLite DB) ─────────────
 
@@ -2394,11 +2395,11 @@ export default function OptionsFlowDashboard() {
       </div>
     </div>
   );
-  if (csvError && dataMode !== "gex") return (
+  if (csvError && dataMode !== "gex" && dataMode !== "darkpool") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center",maxWidth:400}}>
         <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
-          {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
+          {[["stocks","Stocks"],["index","Indexes / ETF's"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
             <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); } }} style={{
               padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
               fontSize:14, fontWeight:800, fontFamily:"inherit",
@@ -2414,7 +2415,7 @@ export default function OptionsFlowDashboard() {
       </div>
     </div>
   );
-  if ((!D || !FD) && dataMode !== "gex") return (
+  if ((!D || !FD) && dataMode !== "gex" && dataMode !== "darkpool") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
@@ -2622,11 +2623,11 @@ export default function OptionsFlowDashboard() {
         {/* Data Mode Toggle */}
         <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
           <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
-            {[["stocks","Stocks"],["index","Indexes / ETF's"],["gex","GEX"]].map(([m,label])=>(
+            {[["stocks","Stocks"],["index","Indexes / ETF's"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
               <button key={m} onClick={()=>{ if(dataMode!==m) { setDataMode(m); setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); } }} style={{
-                padding:"8px 28px", borderRadius:6, border:m==="gex"?(dataMode===m?"1px solid #c9a84c":"1px solid #c9a84c55"):"none", cursor:"pointer",
+                padding:"8px 28px", borderRadius:6, border:(m==="gex"||m==="darkpool")?(dataMode===m?"1px solid "+(m==="darkpool"?"#6ba3be":"#c9a84c"):"1px solid "+(m==="darkpool"?"#6ba3be55":"#c9a84c55")):"none", cursor:"pointer",
                 fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
-                background:dataMode===m?(m==="gex"?"#c9a84c33":P.cd):"transparent", color:dataMode===m?(m==="gex"?"#c9a84c":P.wh):(m==="gex"?"#c9a84c":P.mt),
+                background:dataMode===m?(m==="gex"?"#c9a84c33":m==="darkpool"?"#6ba3be33":P.cd):"transparent", color:dataMode===m?(m==="gex"?"#c9a84c":m==="darkpool"?"#6ba3be":P.wh):(m==="gex"?"#c9a84c":m==="darkpool"?"#6ba3be":P.mt),
                 boxShadow:dataMode===m?("0 2px 8px rgba(0,0,0,0.3)"):"none",
                 transition:"all 0.15s"
               }}>{label}</button>
@@ -2635,7 +2636,7 @@ export default function OptionsFlowDashboard() {
         </div>
 
         {/* Date Filter — rolling windows + presets + calendar */}
-        {dataMode !== "gex" && availableDates.length > 0 && (
+        {dataMode !== "gex" && dataMode !== "darkpool" && availableDates.length > 0 && (
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
             <div style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
               {[
@@ -3540,8 +3541,9 @@ export default function OptionsFlowDashboard() {
           );
         })()}
 
+        {dataMode === "darkpool" && <DarkPool embedded />}
 
-        {dataMode !== "gex" && D && (<>
+        {dataMode !== "gex" && dataMode !== "darkpool" && D && (<>
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
           <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
