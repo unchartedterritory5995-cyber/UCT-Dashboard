@@ -12,26 +12,24 @@ const NAV_ITEMS = [
   { to: '/dashboard',    label: 'Dashboard',    icon: '⊞' },
   { to: '/morning-wire', label: 'Morning Wire',  icon: '📰' },
   { to: '/uct-20',       label: 'UCT 20',        icon: '⭐' },
-  { to: '/breadth',        label: 'Breadth',        icon: '📶' },
-  { to: '/theme-tracker',  label: 'Theme Tracker',  icon: '🎯' },
-  { to: '/calendar',       label: 'Calendar',        icon: '📅' },
+  { to: '/breadth',      label: 'Breadth',       icon: '📶' },
+  { to: '/charts',       label: 'Charts',        icon: '📈' },
+  { to: '/calendar',     label: 'Calendar',      icon: '📅' },
   { to: '/screener',     label: 'Screener',      icon: '⚡' },
   { to: '/patterns',     label: 'Patterns',      icon: '🎯' },
   { to: '/options-flow', label: 'Options Flow',  icon: '📊' },
   { to: '/dark-pool',    label: 'Dark Pool',     icon: '🌊' },
   { to: '/post-market',  label: 'Post Market',   icon: '🌙' },
-  { to: '/model-book',      label: 'Model Book',     icon: '📖' },
-  { to: '/setup-library',   label: 'Setup Library',  icon: '📚' },
+  { to: '/model-book',   label: 'Model Book',    icon: '📖' },
+  { to: '/setup-library',label: 'Setup Library', icon: '📚' },
   { to: '/journal',      label: 'Journal',       icon: '📓' },
   { to: '/risk',         label: 'Risk',          icon: '🛡️' },
-  { to: '/multi-chart',  label: 'Multi Chart',   icon: '⊟' },
-  { to: '/watchlists',   label: 'Watchlists',    icon: '📋' },
   { to: '/support',      label: 'Support',       icon: '💬' },
 ]
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
-const FREE_PAGES = ['/dashboard', '/breadth', '/theme-tracker', '/calendar', '/watchlists', '/patterns']
+const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/calendar', '/patterns', '/theme-tracker', '/watchlists', '/multi-chart']
 
 export default function NavBar() {
   const { user, plan } = useAuth()
