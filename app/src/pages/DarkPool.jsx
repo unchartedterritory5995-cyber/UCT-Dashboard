@@ -452,9 +452,7 @@ function NotableActivityPanel({filterByCat}){
             padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
             <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
               <span style={{fontWeight:700,fontSize:11,color:cc,minWidth:42}}>{it.t}</span>
-              {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
-                background:it.accDist==="Acc"?C.green+"18":C.red+"18",
-                color:it.accDist==="Acc"?C.green:C.red}}>{it.accDist==="Acc"?"↑ Acc":"↓ Dist"}</span>}
+
               <SignalBadges signals={it.signals} compact/>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
@@ -531,6 +529,7 @@ function BiggestPrintsPanel({filterByCat}){
           {hdr("bigPrint","Print $",56)}
           {hdr("bigPrintN","Notional",60)}
           <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Last</span>
           {hdr("bpMove","% Move",48)}
           {hdr("avgVol","% AvgVol",52)}
         </div>
@@ -552,10 +551,7 @@ function BiggestPrintsPanel({filterByCat}){
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
                 fontSize:12,color:cc}}>{it.t}</span>
               <SignalBadges signals={it.signals} compact/>
-              {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
-                background:it.accDist==="Acc"?C.green+"18":C.red+"18",
-                color:it.accDist==="Acc"?C.green:C.red,
-                border:`1px solid ${it.accDist==="Acc"?C.green:C.red}33`}}>{it.accDist}</span>}
+
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
@@ -564,6 +560,8 @@ function BiggestPrintsPanel({filterByCat}){
                 fontWeight:700,minWidth:60,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,color:C.tx3,
                 minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,
+                color:C.tx,fontWeight:600,minWidth:52,textAlign:"right"}}>{fP(it.last)}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
                 color:bpColor,minWidth:48,textAlign:"right"}}>
                 {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
@@ -814,9 +812,7 @@ function OverviewPane({onJumpTo, filterByCat}){
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
                         <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,fontSize:12,
                           color:CAT_COLORS[t.cat]||C.tx}}>{t.t}</span>
-                        {t.accDist && <span style={{fontSize:8,padding:"1px 5px",borderRadius:4,fontWeight:700,
-                          background:t.accDist==="Acc"?C.green+"18":C.red+"18",
-                          color:t.accDist==="Acc"?C.green:C.red}}>{t.accDist}</span>}
+
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <span style={{fontSize:10,fontWeight:600,color:C.cyan,
@@ -893,8 +889,6 @@ function OverviewPane({onJumpTo, filterByCat}){
           {(D.themes||[]).slice(0,8).map(th=>{
             const maxN=Math.max(...(D.themes||[]).slice(0,8).map(t=>t.notional),1);
             const pct=Math.max((th.notional/maxN)*100,2);
-            const lean=th.accCount>th.distCount?"Acc":th.accCount<th.distCount?"Dist":"—";
-            const leanColor=lean==="Acc"?C.green:lean==="Dist"?C.red:C.tx3;
             const moveColor=th.avgBpMove>0?C.green:th.avgBpMove<0?C.red:C.tx3;
             return (
               <div key={th.sector} style={{marginBottom:7}}>
@@ -902,8 +896,6 @@ function OverviewPane({onJumpTo, filterByCat}){
                   <span style={{fontSize:11,fontWeight:600,color:C.tx}}>{th.sector}</span>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{fontSize:9,color:C.tx3}}>{th.tickerCount} tickers</span>
-                    <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
-                      background:leanColor+"18",color:leanColor,border:`1px solid ${leanColor}33`}}>{lean}</span>
                     <span style={{fontSize:10,fontWeight:700,color:moveColor,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:40,textAlign:"right"}}>
                       {th.avgBpMove>0?"+":""}{th.avgBpMove.toFixed(1)}%
                     </span>
@@ -913,7 +905,7 @@ function OverviewPane({onJumpTo, filterByCat}){
                   </div>
                 </div>
                 <div style={{width:"100%",height:4,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
-                  <div style={{width:pct+"%",height:"100%",background:leanColor,borderRadius:2,opacity:0.7,transition:"width 0.4s"}}/>
+                  <div style={{width:pct+"%",height:"100%",background:moveColor,borderRadius:2,opacity:0.7,transition:"width 0.4s"}}/>
                 </div>
               </div>
             );
@@ -939,9 +931,7 @@ function OverviewPane({onJumpTo, filterByCat}){
                   padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
                     <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,fontSize:12,color:cc}}>{it.t}</span>
-                    {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
-                      background:it.accDist==="Acc"?C.green+"18":C.red+"18",
-                      color:it.accDist==="Acc"?C.green:C.red}}>{it.accDist==="Acc"?"↑ Acc":"↓ Dist"}</span>}
+
                     {it.sector && <span style={{fontSize:9,color:C.tx3}}>{it.sector}</span>}
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
