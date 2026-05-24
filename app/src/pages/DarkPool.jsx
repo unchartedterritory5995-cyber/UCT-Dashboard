@@ -137,7 +137,7 @@ function TickerCell({it, catColor}){
   return (
     <div style={{position:"relative",display:"inline-block"}}
       onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}>
-      <span style={{color:catColor||C.tx,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif",
+      <span style={{color:catColor||C.tx,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
         fontSize:13,cursor:"default"}}>
         ${it.t}
       </span>
@@ -152,7 +152,7 @@ function TickerCell({it, catColor}){
             ${it.t} Top Blocks ({it.c} total)
           </div>
           {it.top5.map((r,i)=>(
-            <div key={i} style={{color:C.tx,fontSize:11,fontFamily:"'Instrument Sans', sans-serif",
+            <div key={i} style={{color:C.tx,fontSize:11,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
               padding:"2px 0"}}>{r}</div>
           ))}
         </div>
@@ -167,7 +167,7 @@ function ZoneCell({it}){
   const color=pos==="above"?C.green:pos==="below"?C.red:"#a8a290";
   const pct=pos==="in"?"IN ZONE":(pos==="above"?"+":"")+it.pct.toFixed(2)+"%";
   return (
-    <span style={{color,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif",fontSize:13}}>
+    <span style={{color,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:13}}>
       {pct}
     </span>
   );
@@ -205,7 +205,7 @@ function BigPrintCell({it}){
         <div style={{position:"fixed",top:pos.top,left:pos.left,zIndex:9999,
           background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
           padding:"7px 11px",whiteSpace:"nowrap",boxShadow:"0 4px 20px #00000066",
-          color:C.tx,fontSize:13,fontFamily:"'Instrument Sans', sans-serif",
+          color:C.tx,fontSize:13,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
           fontWeight:500,letterSpacing:"0.01em",pointerEvents:"none"}}>
           {tip}
         </div>
@@ -304,26 +304,26 @@ function FlowTable({items, showCat=true, showZone=false}){
                 onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                 <TD><TickerCell it={it} catColor={cc}/></TD>
                 {showCat && <TD><CatPill cat={it.cat}/></TD>}
-                <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:zC(it.last,it.lo,it.hi)}}>
+                <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:zC(it.last,it.lo,it.hi)}}>
                   {fP(it.last)}
                 </TD>
                 {showZone && (
-                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2,fontSize:11}}>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2,fontSize:11}}>
                     {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
                   </TD>
                 )}
-                <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11}}>
+                <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11}}>
                   <BigPrintCell it={it}/>
                 </TD>
-                <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
+                <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
                   color:bpMoveColor}}>
                   {bpPct==null ? "—" : (bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
                 </TD>
-                <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.cyan,fontWeight:600}}>
+                <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.cyan,fontWeight:600}}>
                   {fmt(it.n)}
                 </TD>
-                <TD style={{color:C.tx2,fontFamily:"'Instrument Sans', sans-serif"}}>{it.c}</TD>
-                <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{it.days}</TD>
+                <TD style={{color:C.tx2,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.c}</TD>
+                <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.days}</TD>
                 <TD><Sparkline it={it}/></TD>
               </tr>
             );
@@ -344,7 +344,7 @@ function StatCard({label, value, sub, color, icon}){
         <span style={{fontSize:9,color:C.tx3,textTransform:"uppercase",
           letterSpacing:"0.06em",fontWeight:700}}>{label}</span>
       </div>
-      <div style={{fontSize:18,fontWeight:700,color:color||C.tx,fontFamily:"'Instrument Sans', sans-serif"}}>
+      <div style={{fontSize:18,fontWeight:700,color:color||C.tx,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
         {value}
       </div>
       {sub && <div style={{fontSize:10,color:C.tx2,marginTop:2}}>{sub}</div>}
@@ -360,7 +360,7 @@ function ZoneGauge({above,inside,below}){
   const pB=((below/total)*100).toFixed(1);
   const seg=(count,pct,color,label,align)=>(
     <div style={{flex:count||0.01,display:"flex",flexDirection:"column",alignItems:align,gap:3,minWidth:0}}>
-      <div style={{fontSize:10,color,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif",whiteSpace:"nowrap"}}>
+      <div style={{fontSize:10,color,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",whiteSpace:"nowrap"}}>
         {count} <span style={{fontWeight:400,color:C.tx3}}>({pct}%)</span>
       </div>
       <div style={{width:"100%",height:8,borderRadius:4,background:color,opacity:0.85,
@@ -397,8 +397,8 @@ function CategoryBars({categories,onJumpTo}){
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
               <span style={{fontSize:11,fontWeight:600,color}}>{c.name}</span>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{c.count} tickers</span>
-                <span style={{fontSize:11,fontWeight:700,color:C.cyan,fontFamily:"'Instrument Sans', sans-serif",minWidth:64,textAlign:"right"}}>
+                <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{c.count} tickers</span>
+                <span style={{fontSize:11,fontWeight:700,color:C.cyan,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:64,textAlign:"right"}}>
                   {fmt(c.totalNotional)}
                 </span>
               </div>
@@ -406,6 +406,96 @@ function CategoryBars({categories,onJumpTo}){
             <div style={{width:"100%",height:6,background:C.bdr,borderRadius:3,overflow:"hidden"}}>
               <div style={{width:pct+"%",height:"100%",background:`linear-gradient(90deg, ${color}cc, ${color})`,
                 borderRadius:3,transition:"width 0.4s ease"}}/>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Notable Activity panel (tabbed, matching BiggestPrintsPanel) ────────────────
+function NotableActivityPanel(){
+  const [catTab,setCatTab]=useState("All");
+  const TABS=[
+    {id:"All",label:"All"},
+    {id:"Indexes",label:"Indexes"},
+    {id:"ETFs",label:"ETFs"},
+    {id:"Large Cap",label:"Large"},
+    {id:"Mid Cap",label:"Mid"},
+    {id:"Small Cap",label:"Small"},
+  ];
+  const ETF_CATS=new Set(["Sector ETFs","Bond ETFs","Intl/EM ETFs","Commodity ETFs"]);
+
+  const universe=(()=>{
+    const map={};
+    for(const cat of D.categories) for(const it of cat.items) if(it.signals&&it.signals.length>0) map[it.t]=it;
+    return Object.values(map);
+  })();
+
+  const filtered=useMemo(()=>{
+    let items=universe;
+    if(catTab==="ETFs") items=items.filter(i=>ETF_CATS.has(i.cat));
+    else if(catTab!=="All") items=items.filter(i=>i.cat===catTab);
+    return items.sort((a,b)=>b.signals.length-a.signals.length||b.bigPrintN-a.bigPrintN).slice(0,15);
+  },[universe,catTab]);
+
+  return (
+    <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
+        textTransform:"uppercase",marginBottom:8}}>🔥 Notable Activity</div>
+
+      {/* Category tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}}>
+        {TABS.map(t=>{
+          const on=catTab===t.id;
+          return (
+            <button key={t.id} onClick={()=>setCatTab(t.id)}
+              style={{padding:"3px 10px",borderRadius:12,fontSize:10,fontWeight:on?700:400,
+                border:`1px solid ${on?C.amber+"88":C.bdr}`,
+                background:on?C.amber+"18":"transparent",color:on?C.amber:C.tx3,
+                cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}}>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Column headers */}
+      <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
+        borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+        <span style={{fontSize:9,color:C.tx3,fontWeight:600}}>Ticker</span>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:30,textAlign:"right"}}>Date</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Print $</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Notional</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:40,textAlign:"right"}}>% Move</span>
+        </div>
+      </div>
+
+      {/* Rows */}
+      {filtered.length===0 && <div style={{fontSize:12,color:C.tx3,padding:8}}>No signals in this category</div>}
+      {filtered.map(it=>{
+        const cc=CAT_COLORS[it.cat]||C.tx;
+        const bpPct=it.bigPrint>0?((it.last-it.bigPrint)/it.bigPrint*100):null;
+        const bpColor=bpPct==null?C.tx3:bpPct>0?C.green:bpPct<0?C.red:C.tx3;
+        return (
+          <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+            padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+            <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
+              <span style={{fontWeight:700,fontSize:11,color:cc,minWidth:42}}>{it.t}</span>
+              {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
+                background:it.accDist==="Acc"?C.green+"18":C.red+"18",
+                color:it.accDist==="Acc"?C.green:C.red}}>{it.accDist==="Acc"?"↑ Acc":"↓ Dist"}</span>}
+              <SignalBadges signals={it.signals} compact/>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+              <span style={{fontSize:9,color:C.tx3}}>{it.bigPrintDate||""}</span>
+              <span style={{fontSize:10,color:C.amber,minWidth:52,textAlign:"right"}}>{fP(it.bigPrint)}</span>
+              <span style={{fontSize:10,color:C.cyan,fontWeight:700,minWidth:48,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
+              <span style={{fontSize:10,fontWeight:700,color:bpColor,minWidth:40,textAlign:"right"}}>
+                {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
+              </span>
             </div>
           </div>
         );
@@ -520,9 +610,9 @@ function BiggestPrintsPanel(){
           <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
             padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
             <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans', sans-serif",
+              <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                 width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
-              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
                 fontSize:12,color:cc}}>{it.t}</span>
               <SignalBadges signals={it.signals} compact/>
               {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
@@ -531,17 +621,17 @@ function BiggestPrintsPanel(){
                 border:`1px solid ${it.accDist==="Acc"?C.green:C.red}33`}}>{it.accDist}</span>}
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
-              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.amber,
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
                 fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
-              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.cyan,
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
                 fontWeight:700,minWidth:60,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
-              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:10,color:C.tx3,
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,color:C.tx3,
                 minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
-              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,fontWeight:700,
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
                 color:bpColor,minWidth:48,textAlign:"right"}}>
                 {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
               </span>
-              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,fontWeight:700,
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
                 color:avgVColor,minWidth:52,textAlign:"right"}}>
                 {avgV>0?fmtAvgVol(avgV):"—"}
               </span>
@@ -593,19 +683,19 @@ function OverviewPane({onJumpTo}){
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
         padding:"6px 0",borderBottom:`1px solid ${C.bdr}`}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
+          <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
             fontSize:12,color:C.tx,minWidth:52}}>{item.t}</span>
           <span style={{fontSize:10,color:C.tx3}}>
             Zone {fP(item.lo)}–{fP(item.hi)}
           </span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.tx2}}>
+          <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.tx2}}>
             {fP(item.last)}
           </span>
           <div style={{position:"relative",display:"inline-block"}}
             onMouseEnter={()=>setBpHover(true)} onMouseLeave={()=>setBpHover(false)}>
-            <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.amber,
+            <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
               fontWeight:700,minWidth:68,display:"inline-block",textAlign:"right",cursor:"default"}}>
               {fP(item.bigPrint)}
               {tip && <span style={{fontSize:9,color:C.amber,opacity:0.5,marginLeft:3,
@@ -615,13 +705,13 @@ function OverviewPane({onJumpTo}){
               <div style={{position:"absolute",right:0,top:"100%",zIndex:50,
                 background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
                 padding:"7px 11px",whiteSpace:"nowrap",boxShadow:"0 4px 20px #00000066",
-                marginTop:4,color:C.tx,fontSize:13,fontFamily:"'Instrument Sans', sans-serif",
+                marginTop:4,color:C.tx,fontSize:13,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                 fontWeight:500,letterSpacing:"0.01em"}}>
                 {tip}
               </div>
             )}
           </div>
-          <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:12,
+          <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:12,
             fontWeight:700,color:bpMoveColor,minWidth:60,textAlign:"right"}}>
             {bpPct==null ? "—" : (bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
           </span>
@@ -750,14 +840,14 @@ function OverviewPane({onJumpTo}){
                 return (
                   <div key={t.t} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",
                     borderBottom:`1px solid ${C.bdr}22`}}>
-                    <span style={{fontFamily:"'Instrument Sans',sans-serif",fontWeight:700,fontSize:12,
+                    <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,fontSize:12,
                       color:CAT_COLORS[t.cat]||C.tx,minWidth:50}}>{t.t}</span>
                     {/* Frequency bar */}
                     <div style={{flex:1,height:4,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
                       <div style={{width:pct+"%",height:"100%",borderRadius:2,
                         background:pct>=90?C.green:pct>=70?C.amber:C.tx3,opacity:0.7}}/>
                     </div>
-                    <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans',sans-serif",
+                    <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                       minWidth:44,textAlign:"right"}}>{t.days}/{days}d</span>
                   </div>
                 );
@@ -785,7 +875,7 @@ function OverviewPane({onJumpTo}){
                     <div key={t.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
                       padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <span style={{fontFamily:"'Instrument Sans',sans-serif",fontWeight:700,fontSize:12,
+                        <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,fontSize:12,
                           color:CAT_COLORS[t.cat]||C.tx}}>{t.t}</span>
                         {t.accDist && <span style={{fontSize:8,padding:"1px 5px",borderRadius:4,fontWeight:700,
                           background:t.accDist==="Acc"?C.green+"18":C.red+"18",
@@ -793,7 +883,7 @@ function OverviewPane({onJumpTo}){
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <span style={{fontSize:10,fontWeight:600,color:C.cyan,
-                          fontFamily:"'Instrument Sans',sans-serif"}}>{fmt(t.bigPrintN)}</span>
+                          fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{fmt(t.bigPrintN)}</span>
                         {hasVol && <span style={{fontSize:9,padding:"1px 6px",borderRadius:8,
                           background:C.purple+"18",color:C.purple,fontWeight:600,
                           border:`1px solid ${C.purple}33`}}>
@@ -850,50 +940,7 @@ function OverviewPane({onJumpTo}){
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
 
         {/* Notable Activity */}
-        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
-          <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
-            textTransform:"uppercase",marginBottom:10}}>🔥 Notable Activity</div>
-          <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
-            borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
-            <span style={{fontSize:9,color:C.tx3,fontWeight:600}}>Ticker</span>
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:30,textAlign:"right"}}>Date</span>
-              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Print $</span>
-              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Notional</span>
-              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:40,textAlign:"right"}}>% Move</span>
-            </div>
-          </div>
-          {(()=>{
-            const flagged=allItems.filter(i=>i.signals&&i.signals.length>0)
-              .sort((a,b)=>b.signals.length-a.signals.length||b.bigPrintN-a.bigPrintN);
-            if(flagged.length===0) return <div style={{fontSize:12,color:C.tx3}}>No signals for this period</div>;
-            return flagged.slice(0,15).map(it=>{
-              const cc=CAT_COLORS[it.cat]||C.tx;
-              const bpPct=it.bigPrint>0?((it.last-it.bigPrint)/it.bigPrint*100):null;
-              const bpColor=bpPct==null?C.tx3:bpPct>0?C.green:bpPct<0?C.red:C.tx3;
-              return (
-                <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-                  padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
-                    <span style={{fontWeight:700,fontSize:11,color:cc,minWidth:42}}>{it.t}</span>
-                    {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
-                      background:it.accDist==="Acc"?C.green+"18":C.red+"18",
-                      color:it.accDist==="Acc"?C.green:C.red}}>{it.accDist==="Acc"?"↑ Acc":"↓ Dist"}</span>}
-                    <SignalBadges signals={it.signals} compact/>
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-                    <span style={{fontSize:9,color:C.tx3}}>{it.bigPrintDate||""}</span>
-                    <span style={{fontSize:10,color:C.amber,minWidth:52,textAlign:"right"}}>{fP(it.bigPrint)}</span>
-                    <span style={{fontSize:10,color:C.cyan,fontWeight:700,minWidth:48,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
-                    <span style={{fontSize:10,fontWeight:700,color:bpColor,minWidth:40,textAlign:"right"}}>
-                      {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
-                    </span>
-                  </div>
-                </div>
-              );
-            });
-          })()}
-        </div>
+        <NotableActivityPanel/>
 
         {/* Biggest Prints */}
         <BiggestPrintsPanel/>
@@ -920,10 +967,10 @@ function OverviewPane({onJumpTo}){
                     <span style={{fontSize:9,color:C.tx3}}>{th.tickerCount} tickers</span>
                     <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
                       background:leanColor+"18",color:leanColor,border:`1px solid ${leanColor}33`}}>{lean}</span>
-                    <span style={{fontSize:10,fontWeight:700,color:moveColor,fontFamily:"'Instrument Sans', sans-serif",minWidth:40,textAlign:"right"}}>
+                    <span style={{fontSize:10,fontWeight:700,color:moveColor,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:40,textAlign:"right"}}>
                       {th.avgBpMove>0?"+":""}{th.avgBpMove.toFixed(1)}%
                     </span>
-                    <span style={{fontSize:10,fontWeight:700,color:C.cyan,fontFamily:"'Instrument Sans', sans-serif",minWidth:52,textAlign:"right"}}>
+                    <span style={{fontSize:10,fontWeight:700,color:C.cyan,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:52,textAlign:"right"}}>
                       {fmt(th.notional)}
                     </span>
                   </div>
@@ -954,7 +1001,7 @@ function OverviewPane({onJumpTo}){
                 <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
                   padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,fontSize:12,color:cc}}>{it.t}</span>
+                    <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,fontSize:12,color:cc}}>{it.t}</span>
                     {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
                       background:it.accDist==="Acc"?C.green+"18":C.red+"18",
                       color:it.accDist==="Acc"?C.green:C.red}}>{it.accDist==="Acc"?"↑ Acc":"↓ Dist"}</span>}
@@ -962,10 +1009,10 @@ function OverviewPane({onJumpTo}){
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{fontSize:10,color:C.tx3}}>{it.bigPrintDate}</span>
-                    <span style={{fontSize:10,color:C.amber,fontFamily:"'Instrument Sans', sans-serif"}}>{fP(it.bigPrint)}</span>
+                    <span style={{fontSize:10,color:C.amber,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{fP(it.bigPrint)}</span>
                     <span style={{fontSize:14,color:moveColor,fontWeight:800}}>{arrow}</span>
-                    <span style={{fontSize:10,color:C.tx,fontFamily:"'Instrument Sans', sans-serif"}}>{fP(it.last)}</span>
-                    <span style={{fontSize:11,fontWeight:700,color:moveColor,fontFamily:"'Instrument Sans', sans-serif",minWidth:48,textAlign:"right"}}>
+                    <span style={{fontSize:10,color:C.tx,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{fP(it.last)}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:moveColor,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:48,textAlign:"right"}}>
                       {move>0?"+":""}{move.toFixed(1)}%
                     </span>
                   </div>
@@ -1065,16 +1112,16 @@ function PhantomPane(){
                 <tr key={i} style={{background:"transparent"}}
                   onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <TD><TickerPopup sym={p.ticker}><span style={{color:C.blue,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif"}}>
+                  <TD><TickerPopup sym={p.ticker}><span style={{color:C.blue,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
                     ${p.ticker}</span></TickerPopup></TD>
-                  <TD style={{color:C.tx2,fontFamily:"'Instrument Sans', sans-serif"}}>{p.date}</TD>
-                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx}}>
+                  <TD style={{color:C.tx2,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{p.date}</TD>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx}}>
                     {fP(p.dpPrice)}</TD>
-                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2}}>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2}}>
                     {fP(p.spotPrice)}</TD>
-                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:devColor,fontWeight:700}}>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:devColor,fontWeight:700}}>
                     {dev>0?"+":""}{dev.toFixed(2)}%</TD>
-                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>
+                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
                     {p.volume||"—"}</TD>
                 </tr>
               );
@@ -1119,10 +1166,10 @@ function OptionsPane(){
                 <tr key={i} style={{background:"transparent"}}
                   onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{o.date}</TD>
-                  <TD><TickerPopup sym={o.ticker}><span style={{color:C.pink,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif"}}>
+                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{o.date}</TD>
+                  <TD><TickerPopup sym={o.ticker}><span style={{color:C.pink,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
                     ${o.ticker}</span></TickerPopup></TD>
-                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2}}>{fP(o.price)}</TD>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2}}>{fP(o.price)}</TD>
                   <TD style={{color:C.tx,fontSize:11,maxWidth:380}}>{o.message}</TD>
                   <TD><span style={{color:dirColor,fontWeight:700,fontSize:11,
                     background:dirColor+"18",padding:"2px 8px",borderRadius:10}}>{dir}</span></TD>
@@ -1168,31 +1215,31 @@ function SearchResultsTable({items}){
                 <tr key={it.t} style={{background:C.bgH}}>
                   <TD><TickerCell it={it} catColor={cc}/></TD>
                   <TD><CatPill cat={it.cat}/></TD>
-                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:zC(it.last,it.lo,it.hi)}}>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:zC(it.last,it.lo,it.hi)}}>
                     {fP(it.last)}
                   </TD>
-                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2,fontSize:11}}>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2,fontSize:11}}>
                     {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
                   </TD>
-                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11}}>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11}}>
                     <BigPrintCell it={it}/>
                   </TD>
-                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,color:bpMoveColor}}>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,color:bpMoveColor}}>
                     {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
                   </TD>
-                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.cyan,fontWeight:600}}>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.cyan,fontWeight:600}}>
                     {fmt(it.n)}
                   </TD>
-                  <TD style={{color:C.tx2,fontFamily:"'Instrument Sans', sans-serif"}}>{it.c}</TD>
-                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{it.days}</TD>
+                  <TD style={{color:C.tx2,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.c}</TD>
+                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.days}</TD>
                 </tr>
                 {/* Top 5 individual prints */}
                 {it.top5&&it.top5.map((row,i)=>(
                   <tr key={it.t+"-print-"+i} style={{background:"transparent"}}>
-                    <TD style={{paddingLeft:24,color:C.tx3,fontSize:10,fontFamily:"'Instrument Sans', sans-serif"}}>
+                    <TD style={{paddingLeft:24,color:C.tx3,fontSize:10,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
                       #{i+1}
                     </TD>
-                    <TD colSpan={8} style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,
+                    <TD colSpan={8} style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,
                       color:i===0?C.amber:C.tx2,padding:"4px 8px",
                       borderBottom:i===it.top5.length-1?`1px solid ${C.bdr2}`:"none"}}>
                       {row}
@@ -1256,7 +1303,7 @@ function SearchModal({onClose}){
           placeholder="Search any ticker (e.g. NVDA, SPY...)"
           style={{width:"100%",padding:"10px 16px",borderRadius:6,
             border:`1px solid ${C.bdr2}`,background:C.bg3,color:C.tx,fontSize:14,
-            fontFamily:"'Instrument Sans', sans-serif",outline:"none",
+            fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",outline:"none",
             boxSizing:"border-box",marginBottom:16}}
         />
         {query.length>0 && (
@@ -1802,7 +1849,7 @@ export default function DarkPool({embedded}){
 
   if(loadErr) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:embedded?"40vh":"60vh",background:embedded?"transparent":C.bg,color:C.red,fontFamily:"'Instrument Sans', sans-serif",
+      minHeight:embedded?"40vh":"60vh",background:embedded?"transparent":C.bg,color:C.red,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
       flexDirection:"column",gap:12,padding:20}}>
       <div style={{fontSize:20,fontWeight:700}}>⚠ Failed to load data</div>
       <div style={{fontSize:13,color:C.tx2}}>Attempted: <code style={{color:C.blue}}>{csvFile}</code></div>
@@ -1816,7 +1863,7 @@ export default function DarkPool({embedded}){
 
   if(!dpData) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:embedded?"40vh":"100vh",background:embedded?"transparent":C.bg,color:C.blue,fontFamily:"'Instrument Sans', sans-serif",
+      minHeight:embedded?"40vh":"100vh",background:embedded?"transparent":C.bg,color:C.blue,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
       flexDirection:"column",gap:16}}>
       <div style={{width:40,height:40,border:`3px solid ${C.bdr}`,
         borderTop:`3px solid ${C.amber}`,borderRadius:"50%",
@@ -1835,7 +1882,7 @@ export default function DarkPool({embedded}){
 
   return (
     <div style={{background:embedded?"transparent":C.bg,minHeight:embedded?"auto":"100vh",color:C.tx,
-      fontFamily:"'Instrument Sans', system-ui, sans-serif",fontSize:13}}>
+      fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:13}}>
       {!embedded && <style>{`
         ::-webkit-scrollbar{width:6px;height:6px}
         ::-webkit-scrollbar-track{background:${C.bg}}
@@ -1851,7 +1898,7 @@ export default function DarkPool({embedded}){
           <span style={{width:8,height:8,borderRadius:"50%",background:C.green,
             boxShadow:`0 0 6px ${C.green}`,display:"inline-block",flexShrink:0}}/>
           <span style={{fontSize:18,fontWeight:800,color:C.tx,letterSpacing:"0.02em",
-            fontFamily:"'Instrument Sans', system-ui, sans-serif"}}>DARK POOL SCANNER</span>
+            fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>DARK POOL SCANNER</span>
           <span style={{fontSize:11,color:C.tx3,marginLeft:4}}>
             · {D.meta?.tradingDays??""} trading days · {(D.meta?.totalTrades??0).toLocaleString()} block trades · {(D.meta?.totalTickers??0).toLocaleString()} tickers ·{" "}
             <span style={{color:C.cyan}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</span>
@@ -1871,7 +1918,7 @@ export default function DarkPool({embedded}){
                 <div style={{fontSize:9,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
                   textTransform:"uppercase",marginBottom:2}}>{label}</div>
                 <div style={{fontSize:20,fontWeight:800,color:c,
-                  fontFamily:"'Instrument Sans', sans-serif",lineHeight:1}}>{fP(item.last)}</div>
+                  fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",lineHeight:1}}>{fP(item.last)}</div>
                 <div style={{fontSize:10,color:C.tx3,marginTop:3}}>
                   Zone {fP(item.lo)} – {fP(item.hi)}
                 </div>
@@ -1884,7 +1931,7 @@ export default function DarkPool({embedded}){
             <div style={{fontSize:9,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
               textTransform:"uppercase",marginBottom:2}}>PERIOD</div>
             <div style={{fontSize:20,fontWeight:800,color:C.amber,
-              fontFamily:"'Instrument Sans', sans-serif",lineHeight:1}}>{D.meta?.tradingDays??""} <span style={{fontSize:12}}>days</span></div>
+              fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",lineHeight:1}}>{D.meta?.tradingDays??""} <span style={{fontSize:12}}>days</span></div>
             <div style={{fontSize:10,color:C.tx3,marginTop:3}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</div>
           </div>
         </div>
@@ -2058,7 +2105,7 @@ export default function DarkPool({embedded}){
                 borderBottom:on?`2px solid ${C.amber}`:"2px solid transparent",
                 color:on?C.amber:C.tx2,fontWeight:on?700:400,fontSize:12,
                 cursor:"pointer",whiteSpace:"nowrap",transition:"color 0.15s",
-                fontFamily:"'Instrument Sans', system-ui, sans-serif"}}>
+                fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
               {t.label}
             </button>
           );
@@ -2068,7 +2115,7 @@ export default function DarkPool({embedded}){
           style={{marginLeft:"auto",padding:"6px 14px",background:C.blue+"22",
             border:`1px solid ${C.blue}55`,borderRadius:6,color:C.blue,
             fontWeight:600,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",
-            fontFamily:"'Instrument Sans', system-ui, sans-serif",transition:"all 0.15s",
+            fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",transition:"all 0.15s",
             flexShrink:0}}>
           🔍 Search
         </button>
