@@ -442,7 +442,7 @@ function NotableActivityPanel({filterByCat}){
     const acc={
       signals:x=>x.signals.length, bigPrintN:x=>x.bigPrintN, bigPrint:x=>x.bigPrint, t:x=>x.t,
       bpMove:x=>x.bigPrint>0?((x.last-x.bigPrint)/x.bigPrint*100):null,
-      avgVol:x=>x.bigPrintPctAvgVol||0, last:x=>x.last||0,
+      avgVol:x=>x.bigPrintPctAvgVol||0, last:x=>x.last||0, mktcap:x=>x.mktcap||0,
     };
     const fn=acc[sortKey]||(x=>x[sortKey]);
     return [...universe].sort((a,b)=>{
@@ -482,6 +482,7 @@ function NotableActivityPanel({filterByCat}){
           {hdr("t","Ticker",50)}
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          {hdr("mktcap","Mkt Cap",52)}
           {hdr("bigPrint","Print $",56)}
           {hdr("bigPrintN","Notional",60)}
           <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
@@ -507,10 +508,11 @@ function NotableActivityPanel({filterByCat}){
                 width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
                 fontSize:12,color:cc}}>{it.t}</span>
-              <CatBadge cat={it.cat}/>
               <SignalBadges signals={it.signals} compact/>
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,
+                color:C.tx3,minWidth:52,textAlign:"right"}}>{it.mktcap>0?fmt(it.mktcap).replace("$",""):"—"}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
                 fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
@@ -550,7 +552,7 @@ function BiggestPrintsPanel({filterByCat}){
     const acc={
       bigPrintN:x=>x.bigPrintN, bigPrint:x=>x.bigPrint, t:x=>x.t,
       bpMove:x=>x.bigPrint>0?((x.last-x.bigPrint)/x.bigPrint*100):null,
-      avgVol:x=>x.bigPrintPctAvgVol||0,
+      avgVol:x=>x.bigPrintPctAvgVol||0, last:x=>x.last||0, mktcap:x=>x.mktcap||0,
     };
     const fn=acc[sortKey]||(x=>x[sortKey]);
     let items=[...universe].sort((a,b)=>{
@@ -591,6 +593,7 @@ function BiggestPrintsPanel({filterByCat}){
           {hdr("t","Ticker",50)}
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          {hdr("mktcap","Mkt Cap",52)}
           {hdr("bigPrint","Print $",56)}
           {hdr("bigPrintN","Notional",60)}
           <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
@@ -615,11 +618,12 @@ function BiggestPrintsPanel({filterByCat}){
                 width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
                 fontSize:12,color:cc}}>{it.t}</span>
-              <CatBadge cat={it.cat}/>
               <SignalBadges signals={it.signals} compact/>
 
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,
+                color:C.tx3,minWidth:52,textAlign:"right"}}>{it.mktcap>0?fmt(it.mktcap).replace("$",""):"—"}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
                 fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
@@ -1048,7 +1052,7 @@ function OverviewPane({onJumpTo, filterByCat}){
                   <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
                     <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                       fontWeight:700,fontSize:12,color:cc}}>{it.t}</span>
-                    <CatBadge cat={it.cat}/>
+                    {it.mktcap>0 && <span style={{fontSize:8,color:C.tx3}}>{fmt(it.mktcap).replace("$","")}</span>}
                     {it.signals&&it.signals.length>0 && <SignalBadges signals={it.signals.slice(0,1)} compact/>}
                     {it.sector && it.sector!=="Miscellaneous" && it.sector!=="Other" &&
                       <span style={{fontSize:8,color:C.tx3}}>{it.sector}</span>}
@@ -1513,7 +1517,8 @@ function parseCSVtoD(rows){
       const pctAvgVol = avgVolM ? parseFloat(avgVolM[1]) : 0;
       const industry = (r.Industry||"").trim();
       const sector = (r.Sector||"").trim();
-      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg, avg30, pctAvgVol, industry, sector});
+      const floatShares = parseFloat(r.Float)||0;
+      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg, avg30, pctAvgVol, industry, sector, floatShares});
     }catch(e){}
   }
 
@@ -1523,12 +1528,14 @@ function parseCSVtoD(rows){
   const tickerAvg30={};  // tk → avg 30-day volume (last seen value)
   const tickerIndustry={};// tk → industry (most common)
   const tickerSector={};  // tk → sector (most common)
+  const tickerFloat={};   // tk → float shares (last seen value)
 
   for(const tr of tradeRows){
-    const {ticker:tk,dateKey:dk,price:p,notional:n,avg30,pctAvgVol,industry,sector}=tr;
+    const {ticker:tk,dateKey:dk,price:p,notional:n,avg30,pctAvgVol,industry,sector,floatShares}=tr;
     if(!tickerTrades[tk]) tickerTrades[tk]=[];
     tickerTrades[tk].push({p,n,dk,pctAvgVol});
     if(avg30>0) tickerAvg30[tk]=avg30;
+    if(floatShares>0) tickerFloat[tk]=floatShares;
     if(industry && !tickerIndustry[tk]) tickerIndustry[tk]=industry;
     if(sector && !tickerSector[tk]) tickerSector[tk]=sector;
     if(!tickerDaily[tk]) tickerDaily[tk]={};
@@ -1588,9 +1595,11 @@ function parseCSVtoD(rows){
     const avg30=tickerAvg30[tk]||0;
     const industry=tickerIndustry[tk]||"";
     const sector=tickerSector[tk]||"";
+    const floatShares=tickerFloat[tk]||0;
+    const mktcap=floatShares>0&&last>0?last*floatShares:0;
     // Accumulation vs Distribution: big print above VWAP = Acc, below = Dist
     const accDist = bigPrint!=null && vwap>0 ? (bigPrint>=vwap?"Acc":"Dist") : null;
-    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDk,bigPrintDate,bigPrintPctAvgVol,avg30,industry,sector,accDist,signals:[]});
+    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDk,bigPrintDate,bigPrintPctAvgVol,avg30,industry,sector,accDist,mktcap,signals:[]});
   }
 
   // ── Signal Detection (tight thresholds — only truly unusual prints) ─────────
