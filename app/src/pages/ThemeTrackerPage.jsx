@@ -10,6 +10,7 @@ import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import { prefetchBar, prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
+import { useChartsSym } from './charts/ChartsSymContext'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
@@ -192,6 +193,7 @@ export default function ThemeTrackerPage() {
   })
   const rotationRankings = rotationData?.rankings || {}
 
+  const { sym: hubSym, setSym: setHubSym } = useChartsSym()
   const [selectedSym, setSelectedSym] = useState(null)
   const [selectedName, setSelectedName] = useState('')
   const [sortDir, setSortDir] = useState('desc')
@@ -249,8 +251,13 @@ export default function ThemeTrackerPage() {
 
   const chartRef = useRef(null)
 
+  useEffect(() => {
+    if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
+  }, [hubSym])  // intentionally do NOT depend on selectedSym (avoid feedback loop)
+
   function handleSelect(sym, name) {
     setSelectedSym(sym)
+    setHubSym(sym)
     setSelectedName(name || sym)
     // On mobile (stacked layout), scroll chart into view after selection
     if (window.innerWidth <= 900) {
