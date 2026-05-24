@@ -1805,7 +1805,7 @@ export default function DarkPool({embedded}){
           </span>
         </div>
         {/* Zone cards */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,auto)",gap:8,marginTop:10,justifyContent:"start"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:10}}>
           {[
             {label:`SPY ${D.meta?.tradingDays??30}-DAY ZONE`,item:spyItem},
             {label:`QQQ ${D.meta?.tradingDays??30}-DAY ZONE`,item:qqqItem},
