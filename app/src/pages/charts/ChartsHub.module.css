@@ -1,0 +1,86 @@
+.hub {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg, #0a0e14);
+  color: var(--text, #e5e7eb);
+}
+
+.header {
+  background: var(--bg-elevated, #0d1218);
+  border-bottom: 1px solid var(--border, #1f2937);
+  padding: 12px 20px 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin: 0;
+  color: var(--text, #e5e7eb);
+}
+
+.subtabStrip {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.subtabStrip::-webkit-scrollbar { display: none; }
+
+.subtab {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted, #6b7280);
+  padding: 8px 14px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.subtab:hover {
+  color: var(--text, #e5e7eb);
+}
+
+.subtabActive {
+  color: var(--accent, #c9a84c);
+  border-bottom-color: var(--accent, #c9a84c);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: auto;
+}
+
+.tabPanel {
+  /* Each sub-tab keeps its own height management; the panel is just a container. */
+  height: 100%;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted, #6b7280);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .header { padding: 10px 12px 0 12px; }
+  .subtab { padding: 8px 10px; font-size: 10px; }
+}
