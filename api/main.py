@@ -60,6 +60,7 @@ from api.routers import backtest as backtest_router
 from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
 from api.flow_router import flow_router
+from api.darkpool_router import router as darkpool_router
 from api.discord_watchlist import register_discord_routes
 from api.services.auth_db import init_db as _init_auth_db
 from api.services.voice_audio_cache import purge_expired as _voice_cache_purge
@@ -1584,6 +1585,7 @@ app.include_router(admin_patterns_router.router)
 app.include_router(gex_router)
 app.include_router(watchlist_router)
 app.include_router(flow_router)
+app.include_router(darkpool_router)
 
 # Discord flow watchlist — manual trigger endpoint
 register_discord_routes(app)
