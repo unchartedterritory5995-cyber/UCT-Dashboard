@@ -542,3 +542,74 @@ def stop_auto_refresh():
     if _refresh_task and not _refresh_task.done():
         _refresh_task.cancel()
         logger.info("[schwab] Auto-refresh task stopped.")
+
+
+async def get_mktcap_batch(symbols: list[str]) -> dict:
+    """
+    Fetch market cap for a batch of tickers via Schwab quotes API.
+    Returns: { "AAPL": 2940000000000, "MSFT": 3100000000000, ... }
+    Falls back to Yahoo Finance if Schwab auth unavailable.
+    """
+    results = {}
+    token = await get_valid_token()
+
+    if token:
+        # Schwab path — batch up to 50 symbols per request
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            for i in range(0, len(symbols), 50):
+                batch = symbols[i:i+50]
+                try:
+                    resp = await client.get(
+                        QUOTES_URL,
+                        headers={"Authorization": f"Bearer {token}"},
+                        params={"symbols": ",".join(batch), "fields": "fundamental,quote", "indicative": "false"},
+                    )
+                    if resp.status_code == 401:
+                        new_tokens = await refresh_access_token()
+                        if new_tokens:
+                            token = new_tokens["access_token"]
+                            resp = await client.get(
+                                QUOTES_URL,
+                                headers={"Authorization": f"Bearer {token}"},
+                                params={"symbols": ",".join(batch), "fields": "fundamental,quote", "indicative": "false"},
+                            )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        for sym in batch:
+                            q = data.get(sym, {})
+                            fund = q.get("fundamental", {})
+                            mc = fund.get("marketCap", 0)
+                            if mc and mc > 0:
+                                results[sym] = mc
+                except Exception as e:
+                    logger.warning("[schwab] mktcap batch error: %s", e)
+        if results:
+            return results
+
+    # Yahoo fallback — quoteSummary with price module
+    logger.info("[schwab] Using Yahoo fallback for mktcap (%d symbols)", len(symbols))
+    ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        for sym in symbols[:50]:
+            try:
+                resp = await client.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
+                    params={"interval": "1d", "range": "5d"},
+                    headers={"User-Agent": ua},
+                )
+                if resp.status_code == 200:
+                    chart = resp.json().get("chart", {}).get("result", [{}])[0]
+                    meta = chart.get("meta", {})
+                    mc = meta.get("marketCap", 0)
+                    if not mc:
+                        # Compute from regularMarketPrice × sharesOutstanding if available
+                        price = meta.get("regularMarketPrice", 0)
+                        shares = meta.get("sharesOutstanding", 0)
+                        if price and shares:
+                            mc = price * shares
+                    if mc and mc > 0:
+                        results[sym] = mc
+            except Exception:
+                continue
+
+    return results
