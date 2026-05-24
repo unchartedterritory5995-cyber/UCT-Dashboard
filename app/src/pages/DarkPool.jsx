@@ -429,38 +429,57 @@ function NotableActivityPanel({filterByCat}){
       <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
         textTransform:"uppercase",marginBottom:8}}>🔥 Notable Activity</div>
 
-      {/* Column headers */}
+      {/* Column headers — matched to BiggestPrintsPanel */}
       <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
         borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
-        <span style={{fontSize:9,color:C.tx3,fontWeight:600}}>Ticker</span>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:30,textAlign:"right"}}>Date</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Print $</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Notional</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:40,textAlign:"right"}}>% Move</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,width:18,textAlign:"center"}}>#</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:50}}>Ticker</span>
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:56,textAlign:"right"}}>Print $</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>Notional</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Last</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>% Move</span>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>% AvgVol</span>
         </div>
       </div>
 
       {/* Rows */}
       {filtered.length===0 && <div style={{fontSize:12,color:C.tx3,padding:8}}>No signals for this period</div>}
-      {filtered.map(it=>{
+      {filtered.map((it,i)=>{
         const cc=CAT_COLORS[it.cat]||C.tx;
         const bpPct=it.bigPrint>0?((it.last-it.bigPrint)/it.bigPrint*100):null;
         const bpColor=bpPct==null?C.tx3:bpPct>0?C.green:bpPct<0?C.red:C.tx3;
+        const avgV=it.bigPrintPctAvgVol;
+        const avgVColor=avgV>=50?C.pink:avgV>=20?C.amber:avgV>0?C.tx2:C.tx3;
         return (
           <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-            padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
-            <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
-              <span style={{fontWeight:700,fontSize:11,color:cc,minWidth:42}}>{it.t}</span>
-
+            padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
+                fontSize:12,color:cc}}>{it.t}</span>
               <SignalBadges signals={it.signals} compact/>
             </div>
-            <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-              <span style={{fontSize:9,color:C.tx3}}>{it.bigPrintDate||""}</span>
-              <span style={{fontSize:10,color:C.amber,minWidth:52,textAlign:"right"}}>{fP(it.bigPrint)}</span>
-              <span style={{fontSize:10,color:C.cyan,fontWeight:700,minWidth:48,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
-              <span style={{fontSize:10,fontWeight:700,color:bpColor,minWidth:40,textAlign:"right"}}>
+            <div style={{display:"flex",gap:10,alignItems:"center"}}>
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
+                fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
+                fontWeight:700,minWidth:60,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,color:C.tx3,
+                minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,
+                color:C.tx,fontWeight:600,minWidth:52,textAlign:"right"}}>{fP(it.last)}</span>
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
+                color:bpColor,minWidth:48,textAlign:"right"}}>
                 {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
+              </span>
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
+                color:avgVColor,minWidth:52,textAlign:"right"}}>
+                {avgV>0?fmtAvgVol(avgV):"—"}
               </span>
             </div>
           </div>
@@ -879,69 +898,131 @@ function OverviewPane({onJumpTo, filterByCat}){
         <BiggestPrintsPanel filterByCat={filterByCat}/>
       </div>
 
-      {/* ── Sector Rotation + Print Tracker ──────────────────────── */}
+      {/* ── Sector Flow + Notable Prints ──────────────────────────── */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
 
-        {/* Sector Themes */}
-        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
-          <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
-            textTransform:"uppercase",marginBottom:10}}>Sector Rotation — Dark Pool Flow</div>
-          {(D.themes||[]).slice(0,8).map(th=>{
-            const maxN=Math.max(...(D.themes||[]).slice(0,8).map(t=>t.notional),1);
-            const pct=Math.max((th.notional/maxN)*100,2);
-            const moveColor=th.avgBpMove>0?C.green:th.avgBpMove<0?C.red:C.tx3;
-            return (
-              <div key={th.sector} style={{marginBottom:7}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
-                  <span style={{fontSize:11,fontWeight:600,color:C.tx}}>{th.sector}</span>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontSize:9,color:C.tx3}}>{th.tickerCount} tickers</span>
-                    <span style={{fontSize:10,fontWeight:700,color:moveColor,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:40,textAlign:"right"}}>
-                      {th.avgBpMove>0?"+":""}{th.avgBpMove.toFixed(1)}%
-                    </span>
-                    <span style={{fontSize:10,fontWeight:700,color:C.cyan,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:52,textAlign:"right"}}>
-                      {fmt(th.notional)}
-                    </span>
+        {/* Sector Flow — weighted by notional, no Miscellaneous */}
+        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+            textTransform:"uppercase",marginBottom:10}}>Sector Flow</div>
+          {(()=>{
+            // Rebuild sector data from filtered allItems (respects global filter)
+            const secMap={};
+            for(const item of allItems){
+              const sec=item.sector||"";
+              if(!sec||sec==="Miscellaneous"||sec==="Other"||sec==="None") continue;
+              if(!secMap[sec]) secMap[sec]={sector:sec,notional:0,tickers:[],weightedMove:0,weightedN:0,count:0};
+              secMap[sec].notional+=item.n;
+              secMap[sec].tickers.push({t:item.t,n:item.n});
+              secMap[sec].count++;
+              if(item.bigPrint>0){
+                const move=(item.last-item.bigPrint)/item.bigPrint*100;
+                secMap[sec].weightedMove+=move*item.bigPrintN;
+                secMap[sec].weightedN+=item.bigPrintN;
+              }
+            }
+            const sectors=Object.values(secMap)
+              .filter(s=>s.count>=2)
+              .map(s=>({
+                ...s,
+                avgMove:s.weightedN>0?s.weightedMove/s.weightedN:0,
+                topTickers:s.tickers.sort((a,b)=>b.n-a.n).slice(0,3).map(t=>t.t),
+              }))
+              .sort((a,b)=>b.notional-a.notional)
+              .slice(0,8);
+            const maxN=Math.max(...sectors.map(s=>s.notional),1);
+            if(sectors.length===0) return <div style={{fontSize:12,color:C.tx3}}>No sector data available</div>;
+            return sectors.map(s=>{
+              const pct=Math.max((s.notional/maxN)*100,2);
+              const moveColor=s.avgMove>0.3?C.green:s.avgMove<-0.3?C.red:C.tx3;
+              return (
+                <div key={s.sector} style={{marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                      <span style={{fontSize:11,fontWeight:600,color:C.tx}}>{s.sector}</span>
+                      <span style={{fontSize:8,color:C.tx3}}>{s.topTickers.join(" · ")}</span>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                      <span style={{fontSize:9,color:C.tx3}}>{s.count}</span>
+                      <span style={{fontSize:10,fontWeight:700,color:moveColor,
+                        fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:40,textAlign:"right"}}>
+                        {s.avgMove>0?"+":""}{s.avgMove.toFixed(1)}%
+                      </span>
+                      <span style={{fontSize:10,fontWeight:700,color:C.cyan,
+                        fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:52,textAlign:"right"}}>
+                        {fmt(s.notional)}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{width:"100%",height:4,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
+                    <div style={{width:pct+"%",height:"100%",background:moveColor,borderRadius:2,opacity:0.7,transition:"width 0.4s"}}/>
                   </div>
                 </div>
-                <div style={{width:"100%",height:4,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
-                  <div style={{width:pct+"%",height:"100%",background:moveColor,borderRadius:2,opacity:0.7,transition:"width 0.4s"}}/>
-                </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
 
-        {/* Post-Print Tracker */}
-        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
-          <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
-            textTransform:"uppercase",marginBottom:10}}>Print Tracker — Where Are They Now?</div>
+        {/* Notable Prints — non-obvious names, sorted by recency */}
+        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+            textTransform:"uppercase",marginBottom:10}}>Notable Prints — Post-Print Moves</div>
+
+          {/* Column headers */}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
+            borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+            <span style={{fontSize:9,color:C.tx3,fontWeight:600}}>Ticker</span>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:32,textAlign:"right"}}>Date</span>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Print $</span>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Last</span>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:44,textAlign:"right"}}>Move</span>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Notional</span>
+            </div>
+          </div>
+
           {(()=>{
-            const tracked = (D.allItems||allItems)
-              .filter(i=>i.bigPrint>0 && i.bigPrintN>=50_000_000 && i.bigPrintDate)
-              .sort((a,b)=>b.bigPrintN-a.bigPrintN)
-              .slice(0,10);
+            const tracked = allItems
+              .filter(i=>i.bigPrint>0 && i.bigPrintN>=20_000_000 && i.bigPrintDk && !USUAL.has(i.t))
+              .sort((a,b)=>{
+                // Sort by recency (most recent print first)
+                if(a.bigPrintDk && b.bigPrintDk) return b.bigPrintDk.localeCompare(a.bigPrintDk);
+                return b.bigPrintN-a.bigPrintN;
+              })
+              .slice(0,12);
+            if(tracked.length===0) return <div style={{fontSize:12,color:C.tx3,padding:8}}>No notable prints for this period</div>;
             return tracked.map(it=>{
               const move=((it.last-it.bigPrint)/it.bigPrint*100);
               const moveColor=move>0.5?C.green:move<-0.5?C.red:C.tx3;
-              const arrow=move>0.5?"↑":move<-0.5?"↓":"→";
               const cc=CAT_COLORS[it.cat]||C.tx;
               return (
                 <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
                   padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,fontSize:12,color:cc}}>{it.t}</span>
-
-                    {it.sector && <span style={{fontSize:9,color:C.tx3}}>{it.sector}</span>}
+                  <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                    <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                      fontWeight:700,fontSize:12,color:cc}}>{it.t}</span>
+                    {it.signals&&it.signals.length>0 && <SignalBadges signals={it.signals.slice(0,1)} compact/>}
+                    {it.sector && it.sector!=="Miscellaneous" && it.sector!=="Other" &&
+                      <span style={{fontSize:8,color:C.tx3}}>{it.sector}</span>}
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontSize:10,color:C.tx3}}>{it.bigPrintDate}</span>
-                    <span style={{fontSize:10,color:C.amber,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{fP(it.bigPrint)}</span>
-                    <span style={{fontSize:14,color:moveColor,fontWeight:800}}>{arrow}</span>
-                    <span style={{fontSize:10,color:C.tx,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{fP(it.last)}</span>
-                    <span style={{fontSize:11,fontWeight:700,color:moveColor,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:48,textAlign:"right"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                    <span style={{fontSize:10,color:C.tx3,
+                      fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                      minWidth:32,textAlign:"right"}}>{it.bigPrintDate}</span>
+                    <span style={{fontSize:10,color:C.amber,
+                      fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                      minWidth:52,textAlign:"right"}}>{fP(it.bigPrint)}</span>
+                    <span style={{fontSize:10,color:C.tx,fontWeight:600,
+                      fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                      minWidth:52,textAlign:"right"}}>{fP(it.last)}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:moveColor,
+                      fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                      minWidth:44,textAlign:"right"}}>
                       {move>0?"+":""}{move.toFixed(1)}%
                     </span>
+                    <span style={{fontSize:10,fontWeight:600,color:C.cyan,
+                      fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                      minWidth:48,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
                   </div>
                 </div>
               );
