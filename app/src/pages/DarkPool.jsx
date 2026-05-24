@@ -63,6 +63,14 @@ function fP(p){ return p!=null?"$"+p.toFixed(2):"—"; }
 function zC(p,lo,hi){ return p>hi?C.green:p<lo?C.red:"#a8a290"; }
 function pctFmt(p){ return p===0?"IN":(p>0?"+":"")+p.toFixed(2)+"%"; }
 
+// Format large avg vol percentages readably (897112% → 8,971×)
+function fmtAvgVol(pct) {
+  if (pct >= 10000) return Math.round(pct/100).toLocaleString() + "×";
+  if (pct >= 1000) return (pct/100).toFixed(1) + "×";
+  if (pct >= 100) return Math.round(pct) + "%";
+  return pct.toFixed(0) + "%";
+}
+
 // ── Sparkline ────────────────────────────────────────────────────────────────
 function Sparkline({it, w=140, h=36}){
   const P=4;
@@ -535,7 +543,7 @@ function BiggestPrintsPanel(){
               </span>
               <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,fontWeight:700,
                 color:avgVColor,minWidth:52,textAlign:"right"}}>
-                {avgV>0?avgV.toFixed(1)+"%":"—"}
+                {avgV>0?fmtAvgVol(avgV):"—"}
               </span>
             </div>
           </div>
@@ -658,7 +666,7 @@ function OverviewPane({onJumpTo}){
       .filter(i => !USUAL.has(i.t) && (i.cat === "Mid Cap" || i.cat === "Small Cap") && i.bigPrintN >= 30_000_000)
       .sort((a,b) => b.bigPrintN - a.bigPrintN);
     if(unusual.length > 0){
-      parts.push(`Unusual: ${unusual.slice(0,3).map(t => `${t.t} (${fmt(t.bigPrintN)}${t.bigPrintPctAvgVol>=30?" · "+t.bigPrintPctAvgVol.toFixed(0)+"%vol":""})`).join(", ")}.`);
+      parts.push(`Unusual: ${unusual.slice(0,3).map(t => `${t.t} (${fmt(t.bigPrintN)}${t.bigPrintPctAvgVol>=30?" · "+fmtAvgVol(t.bigPrintPctAvgVol)+" vol":""})`).join(", ")}.`);
     }
 
     // Outsized prints — 50%+ avg vol, $50M+, cap at 3
@@ -668,7 +676,7 @@ function OverviewPane({onJumpTo}){
     if(highVol.length > 0){
       const notShown = highVol.filter(h => !unusual.slice(0,3).some(u => u.t === h.t));
       if(notShown.length > 0){
-        parts.push(`Outsized: ${notShown.slice(0,3).map(t => `${t.t} (${t.bigPrintPctAvgVol.toFixed(0)}%vol)`).join(", ")}.`);
+        parts.push(`Outsized: ${notShown.slice(0,3).map(t => `${t.t} (${fmtAvgVol(t.bigPrintPctAvgVol)} vol)`).join(", ")}.`);
       }
     }
 
@@ -709,82 +717,113 @@ function OverviewPane({onJumpTo}){
   const belowPct=Math.round((belowN/(allItems.length||1))*100);
   const hasIntel=repeats.length>0||unusualNames.length>0||outsized.length>0||flaggedAll.length>0;
 
-  // Column helper for intel panel
-  const IntelCol=({icon,title,children})=>(
-    <div style={{flex:1,minWidth:0}}>
-      <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,textTransform:"uppercase",marginBottom:8}}>
-        {icon} {title}
-      </div>
-      {children}
-    </div>
-  );
-  const IntelRow=({ticker,detail,color})=>(
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"3px 0",borderBottom:`1px solid ${C.bdr}22`}}>
-      <span style={{fontFamily:"'Instrument Sans',sans-serif",fontWeight:700,fontSize:12,color:color||C.tx}}>{ticker}</span>
-      <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans',sans-serif"}}>{detail}</span>
-    </div>
-  );
-
   return (
     <div style={{display:"flex",flexDirection:"column",gap:10}}>
 
-      {/* ── Structured Intelligence Panel ────────────────────────── */}
+      {/* ── Intelligence Panel ────────────────────────────────────── */}
       {hasIntel && (
-      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
-        <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
-          textTransform:"uppercase",marginBottom:10}}>📋 Dark Pool Intelligence — {D.meta.dateRange||"Selected Period"}</div>
-
-        {/* 3-column layout */}
-        <div style={{display:"flex",gap:16}}>
-          {repeats.length>0 && (
-            <IntelCol icon="🔄" title="Repeat Flow">
-              {repeats.slice(0,6).map(t=>(
-                <IntelRow key={t.t} ticker={t.t} detail={`${t.days}/${days}d`} color={CAT_COLORS[t.cat]||C.tx}/>
-              ))}
-              {repeats.length>6 && <div style={{fontSize:10,color:C.tx3,marginTop:4}}>+{repeats.length-6} more</div>}
-            </IntelCol>
-          )}
-          {unusualNames.length>0 && (
-            <IntelCol icon="🆕" title="Unusual Names">
-              {unusualNames.slice(0,5).map(t=>(
-                <IntelRow key={t.t} ticker={t.t}
-                  detail={`${fmt(t.bigPrintN)}${t.bigPrintPctAvgVol>=30?" · "+t.bigPrintPctAvgVol.toFixed(0)+"%vol":""}`}
-                  color={CAT_COLORS[t.cat]||C.tx}/>
-              ))}
-            </IntelCol>
-          )}
-          {outsized.length>0 && (
-            <IntelCol icon="📊" title="Outsized Prints">
-              {outsized.filter(o=>!unusualNames.slice(0,5).some(u=>u.t===o.t)).slice(0,5).map(t=>(
-                <IntelRow key={t.t} ticker={t.t}
-                  detail={`${t.bigPrintPctAvgVol.toFixed(0)}% avg vol`}
-                  color={CAT_COLORS[t.cat]||C.tx}/>
-              ))}
-            </IntelCol>
+      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+        {/* Title row with zone lean */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
+            textTransform:"uppercase"}}>📋 Dark Pool Intelligence — {D.meta.dateRange||"Selected Period"}</div>
+          {Math.abs(abovePct-belowPct)>=5 && (
+            <span style={{fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:12,
+              background:(belowPct>abovePct?C.red:C.green)+"18",
+              color:belowPct>abovePct?C.red:C.green,
+              border:`1px solid ${belowPct>abovePct?C.red:C.green}33`}}>
+              {belowPct>abovePct?"Bearish":"Bullish"} Lean · {abovePct}%↑ {belowPct}%↓
+            </span>
           )}
         </div>
 
-        {/* Footer: flagged + zone */}
-        {(flaggedAll.length>0 || Math.abs(abovePct-belowPct)>=5) && (
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-            marginTop:10,paddingTop:8,borderTop:`1px solid ${C.bdr}`}}>
-            {flaggedAll.length>0 && (
-              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                <span style={{fontSize:9,color:C.tx3,fontWeight:700}}>FLAGGED:</span>
-                {flaggedAll.slice(0,5).map(t=>(
-                  <span key={t.t} style={{display:"inline-flex",alignItems:"center",gap:3}}>
-                    <span style={{fontWeight:700,fontSize:11,color:CAT_COLORS[t.cat]||C.tx}}>{t.t}</span>
-                    <SignalBadges signals={t.signals} compact/>
-                  </span>
-                ))}
-                {flaggedAll.length>5 && <span style={{fontSize:10,color:C.tx3}}>+{flaggedAll.length-5}</span>}
-              </div>
-            )}
-            {Math.abs(abovePct-belowPct)>=5 && (
-              <span style={{fontSize:10,color:belowPct>abovePct?C.red:C.green,fontWeight:600}}>
-                Zone: {belowPct>abovePct?"bearish":"bullish"} ({abovePct}%↑ {belowPct}%↓)
-              </span>
-            )}
+        {/* Two-column grid: Repeat Flow + Unusual/Outsized combined */}
+        <div style={{display:"grid",gridTemplateColumns:repeats.length>0&&(unusualNames.length>0||outsized.length>0)?"1fr 1fr":"1fr",gap:12}}>
+
+          {/* Repeat Flow */}
+          {repeats.length>0 && (
+            <div style={{background:C.bg3,borderRadius:6,padding:"12px 14px"}}>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,
+                textTransform:"uppercase",marginBottom:8}}>🔄 Repeat Flow</div>
+              {repeats.slice(0,7).map(t=>{
+                const pct = Math.round((t.days/days)*100);
+                return (
+                  <div key={t.t} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",
+                    borderBottom:`1px solid ${C.bdr}22`}}>
+                    <span style={{fontFamily:"'Instrument Sans',sans-serif",fontWeight:700,fontSize:12,
+                      color:CAT_COLORS[t.cat]||C.tx,minWidth:50}}>{t.t}</span>
+                    {/* Frequency bar */}
+                    <div style={{flex:1,height:4,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
+                      <div style={{width:pct+"%",height:"100%",borderRadius:2,
+                        background:pct>=90?C.green:pct>=70?C.amber:C.tx3,opacity:0.7}}/>
+                    </div>
+                    <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans',sans-serif",
+                      minWidth:44,textAlign:"right"}}>{t.days}/{days}d</span>
+                  </div>
+                );
+              })}
+              {repeats.length>7 && <div style={{fontSize:10,color:C.tx3,marginTop:4}}>+{repeats.length-7} more</div>}
+            </div>
+          )}
+
+          {/* Unusual + Outsized merged */}
+          {(unusualNames.length>0||outsized.length>0) && (
+            <div style={{background:C.bg3,borderRadius:6,padding:"12px 14px"}}>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,
+                textTransform:"uppercase",marginBottom:8}}>🔍 Unusual Activity</div>
+              {/* Merge and dedupe unusual names + outsized prints, sort by notional */}
+              {(()=>{
+                const seen = new Set();
+                const merged = [];
+                for (const t of [...unusualNames, ...outsized]) {
+                  if (!seen.has(t.t)) { seen.add(t.t); merged.push(t); }
+                }
+                merged.sort((a,b) => b.bigPrintN - a.bigPrintN);
+                return merged.slice(0,7).map(t => {
+                  const hasVol = t.bigPrintPctAvgVol >= 30;
+                  return (
+                    <div key={t.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+                      padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <span style={{fontFamily:"'Instrument Sans',sans-serif",fontWeight:700,fontSize:12,
+                          color:CAT_COLORS[t.cat]||C.tx}}>{t.t}</span>
+                        {t.accDist && <span style={{fontSize:8,padding:"1px 5px",borderRadius:4,fontWeight:700,
+                          background:t.accDist==="Acc"?C.green+"18":C.red+"18",
+                          color:t.accDist==="Acc"?C.green:C.red}}>{t.accDist}</span>}
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{fontSize:10,fontWeight:600,color:C.cyan,
+                          fontFamily:"'Instrument Sans',sans-serif"}}>{fmt(t.bigPrintN)}</span>
+                        {hasVol && <span style={{fontSize:9,padding:"1px 6px",borderRadius:8,
+                          background:C.purple+"18",color:C.purple,fontWeight:600,
+                          border:`1px solid ${C.purple}33`}}>
+                          {fmtAvgVol(t.bigPrintPctAvgVol)} vol
+                        </span>}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* Flagged tickers — compact grid */}
+        {flaggedAll.length>0 && (
+          <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.bdr}`}}>
+            <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,
+              textTransform:"uppercase",marginBottom:6}}>⚡ Flagged ({flaggedAll.length})</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {flaggedAll.slice(0,8).map(t=>(
+                <div key={t.t} style={{display:"flex",alignItems:"center",gap:4,
+                  padding:"3px 8px",borderRadius:6,background:C.bg3,
+                  border:`1px solid ${C.bdr}`}}>
+                  <span style={{fontWeight:700,fontSize:11,color:CAT_COLORS[t.cat]||C.tx}}>{t.t}</span>
+                  <SignalBadges signals={t.signals} compact/>
+                </div>
+              ))}
+              {flaggedAll.length>8 && <span style={{fontSize:10,color:C.tx3,alignSelf:"center"}}>+{flaggedAll.length-8}</span>}
+            </div>
           </div>
         )}
       </div>
@@ -794,7 +833,7 @@ function OverviewPane({onJumpTo}){
       <ZoneGauge above={aboveN} inside={insideN} below={belowN}/>
 
       {/* ── Notable Activity + Biggest Prints (side by side) ─────── */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,alignItems:"start"}}>
 
         {/* Notable Activity */}
         <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
@@ -847,7 +886,7 @@ function OverviewPane({onJumpTo}){
       </div>
 
       {/* ── Sector Rotation + Print Tracker ──────────────────────── */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,alignItems:"start"}}>
 
         {/* Sector Themes */}
         <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
