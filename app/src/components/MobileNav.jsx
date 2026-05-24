@@ -23,7 +23,7 @@ const NAV_SECTIONS = [
     label: 'Analysis',
     items: [
       { to: '/breadth',        label: 'Breadth',        icon: '\uD83D\uDCF6' },
-      { to: '/theme-tracker',  label: 'Theme Tracker',  icon: '\uD83C\uDFAF' },
+      { to: '/charts',         label: 'Charts',         icon: '\uD83D\uDCC8' },
       { to: '/calendar',       label: 'Calendar',       icon: '\uD83D\uDCC5' },
       { to: '/screener',       label: 'Screener',       icon: '\u26A1' },
       { to: '/patterns',       label: 'Patterns',       icon: '\uD83C\uDFAF' },
@@ -43,8 +43,6 @@ const NAV_SECTIONS = [
       { to: '/model-book',     label: 'Model Book',    icon: '\uD83D\uDCD6' },
       { to: '/setup-library', label: 'Setup Library', icon: '\uD83D\uDCDA' },
       { to: '/journal',       label: 'Journal',       icon: '\uD83D\uDCD3' },
-      { to: '/multi-chart', label: 'Multi Chart', icon: '\u229F' },
-      { to: '/watchlists',  label: 'Watchlists',  icon: '\uD83D\uDCCB' },
     ],
   },
   {
@@ -55,7 +53,7 @@ const NAV_SECTIONS = [
   },
 ]
 
-const FREE_PAGES = ['/dashboard', '/breadth', '/theme-tracker', '/calendar', '/watchlists', '/patterns']
+const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/calendar', '/patterns', '/theme-tracker', '/watchlists', '/multi-chart']
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
