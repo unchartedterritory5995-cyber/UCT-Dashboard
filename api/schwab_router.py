@@ -808,3 +808,19 @@ async def oi_change_batch(symbols: str = Query(..., description="Comma-separated
             continue
 
     return {"oi_changes": results}
+
+@router.get("/mktcap-batch")
+async def mktcap_batch(symbols: str = Query(..., description="Comma-separated tickers")):
+    """
+    Return market cap for a list of tickers via Schwab API (Yahoo fallback).
+    GET /api/schwab/mktcap-batch?symbols=AAPL,MSFT,NVDA
+    Returns: {"mktcap": {"AAPL": 2940000000000, "MSFT": 3100000000000}}
+    """
+    try:
+        from api.schwab_service import get_mktcap_batch
+    except ImportError:
+        from schwab_service import get_mktcap_batch
+
+    tickers = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    results = await get_mktcap_batch(tickers[:50])
+    return {"mktcap": results}
