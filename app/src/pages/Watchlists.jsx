@@ -12,6 +12,7 @@ import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import { prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
 import styles from './Watchlists.module.css'
+import { useChartsSym } from './charts/ChartsSymContext'
 
 const fetcher = url => fetch(url).then(r => r.json())
 const PERIODS = [['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']]
@@ -53,6 +54,10 @@ function AddItemRow({ onAdd }) {
 export default function Watchlists() {
   const [activeTab, setActiveTab] = useState('mine')
   const [selectedSym, setSelectedSym] = useState(null)
+  const { sym: hubSym, setSym: setHubSym } = useChartsSym()
+  useEffect(() => {
+    if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
+  }, [hubSym]) // intentionally do NOT depend on selectedSym (avoid feedback loop)
   const [chartPeriod, setChartPeriod] = useState('D')
   const [flagToast, setFlagToast] = useState(null)
   const [expandedLists, setExpandedLists] = useState(new Set())
@@ -449,7 +454,7 @@ export default function Watchlists() {
                 <React.Fragment key={item.id}>
                   <div
                     className={`${styles.listRow} ${styles.wlRow}${selectedSym === item.sym ? ' ' + styles.listRowSelected : ''}${dragItemId === item.id ? ' ' + styles.dragging : ''}${dragOverId === item.id ? ' ' + styles.dragOver : ''}`}
-                    onClick={() => setSelectedSym(item.sym)}
+                    onClick={() => { setSelectedSym(item.sym); setHubSym(item.sym); }}
                     draggable={dragOk}
                     onDragStart={dragOk ? e => { e.dataTransfer.effectAllowed = 'move'; setDragItemId(item.id) } : undefined}
                     onDragOver={dragOk ? e => { e.preventDefault(); setDragOverId(item.id) } : undefined}
@@ -582,7 +587,7 @@ export default function Watchlists() {
                 <div
                   key={sym}
                   className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`}
-                  onClick={() => setSelectedSym(sym)}
+                  onClick={() => { setSelectedSym(sym); setHubSym(sym); }}
                 >
                   <button
                     className={`${styles.starBtn}${isStarred ? ' ' + styles.starBtnActive : ''}`}
@@ -707,7 +712,7 @@ export default function Watchlists() {
                             <div
                               key={sym}
                               className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`}
-                              onClick={() => setSelectedSym(sym)}
+                              onClick={() => { setSelectedSym(sym); setHubSym(sym); }}
                             >
                               <span className={styles.rowSym}>{sym}</span>
                               <div className={styles.rowRight}>
@@ -770,7 +775,7 @@ export default function Watchlists() {
                           const price = q?.price ?? null
                           const changePct = q?.change_pct ?? null
                           return (
-                            <div key={sym} className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`} onClick={() => setSelectedSym(sym)}>
+                            <div key={sym} className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`} onClick={() => { setSelectedSym(sym); setHubSym(sym); }}>
                               <span className={styles.rowSym}>{sym}</span>
                               <div className={styles.rowRight}>
                                 {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
