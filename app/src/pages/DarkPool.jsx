@@ -808,32 +808,46 @@ function OverviewPane({onJumpTo}){
           )}
         </div>
 
-        {/* Flagged tickers — compact grid */}
+        {/* Flagged tickers — clean table */}
         {flaggedAll.length>0 && (
           <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.bdr}`}}>
             <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,
-              textTransform:"uppercase",marginBottom:6}}>⚡ Flagged ({flaggedAll.length})</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {flaggedAll.slice(0,8).map(t=>(
-                <div key={t.t} style={{display:"flex",alignItems:"center",gap:4,
-                  padding:"3px 8px",borderRadius:6,background:C.bg3,
-                  border:`1px solid ${C.bdr}`}}>
-                  <span style={{fontWeight:700,fontSize:11,color:CAT_COLORS[t.cat]||C.tx}}>{t.t}</span>
-                  <SignalBadges signals={t.signals} compact/>
-                </div>
-              ))}
-              {flaggedAll.length>8 && <span style={{fontSize:10,color:C.tx3,alignSelf:"center"}}>+{flaggedAll.length-8}</span>}
+              textTransform:"uppercase",marginBottom:8}}>⚡ Flagged ({flaggedAll.length})</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
+              {flaggedAll.slice(0,12).map(t=>{
+                const topSignal = t.signals[0];
+                const color = topSignal ? ({"YEARLY_RECORD":"#c9a84c","MONTHLY_RECORD":"#3cb868","NOTIONAL_SPIKE":"#e74c3c","RARE_FLOW":"#6ba3be","SIZE_ESCALATION":"#a78bfa","ZONE_BREAK_RECORD":"#c9a84c"}[topSignal.type]||C.amber) : C.tx3;
+                return (
+                  <div key={t.t} style={{display:"flex",alignItems:"center",gap:8,
+                    padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+                    <span style={{fontWeight:700,fontSize:11,color:CAT_COLORS[t.cat]||C.tx,
+                      minWidth:42}}>{t.t}</span>
+                    <div style={{display:"flex",gap:3,flex:1,overflow:"hidden"}}>
+                      {t.signals.slice(0,2).map(s=>{
+                        const sc = {"YEARLY_RECORD":"#c9a84c","MONTHLY_RECORD":"#3cb868","NOTIONAL_SPIKE":"#e74c3c","RARE_FLOW":"#6ba3be","SIZE_ESCALATION":"#a78bfa","ZONE_BREAK_RECORD":"#c9a84c"}[s.type]||C.amber;
+                        const short = {"YEARLY_RECORD":"Yr Record","MONTHLY_RECORD":"Mo Record","NOTIONAL_SPIKE":"Vol Surge","RARE_FLOW":"New Flow","SIZE_ESCALATION":"Escalating","ZONE_BREAK_RECORD":"Zone Break"}[s.type]||s.label;
+                        return (
+                          <span key={s.type} style={{fontSize:8,padding:"1px 5px",borderRadius:6,
+                            background:sc+"15",color:sc,fontWeight:600,whiteSpace:"nowrap",
+                            border:`1px solid ${sc}25`}}>
+                            {short}{s.mult?"·"+s.mult+"×":""}{s.days?"·"+s.days+"d":""}
+                          </span>
+                        );
+                      })}
+                      {t.signals.length>2 && <span style={{fontSize:8,color:C.tx3}}>+{t.signals.length-2}</span>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+            {flaggedAll.length>12 && <div style={{fontSize:10,color:C.tx3,marginTop:4}}>+{flaggedAll.length-12} more</div>}
           </div>
         )}
       </div>
       )}
 
-      {/* ── Zone Gauge ────────────────────────────────────────────── */}
-      <ZoneGauge above={aboveN} inside={insideN} below={belowN}/>
-
       {/* ── Notable Activity + Biggest Prints (side by side) ─────── */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,alignItems:"start"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
 
         {/* Notable Activity */}
         <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
@@ -886,7 +900,7 @@ function OverviewPane({onJumpTo}){
       </div>
 
       {/* ── Sector Rotation + Print Tracker ──────────────────────── */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,alignItems:"start"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
 
         {/* Sector Themes */}
         <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
