@@ -414,35 +414,80 @@ function CategoryBars({categories,onJumpTo}){
   );
 }
 
-// ── Notable Activity panel (tabbed, matching BiggestPrintsPanel) ────────────────
+// ── Compact cap badge for inline use ─────────────────────────────────────────
+const CAT_SHORT={"Indexes":"IDX","Large Cap":"LG","Mid Cap":"MD","Small Cap":"SM",
+  "Sector ETFs":"ETF","Bond ETFs":"ETF","Intl/EM ETFs":"EM","Commodity ETFs":"CMD"};
+function CatBadge({cat}){
+  const color=CAT_COLORS[cat]||C.tx3;
+  return (
+    <span style={{fontSize:8,padding:"1px 4px",borderRadius:4,
+      background:color+"15",color,fontWeight:700,letterSpacing:"0.03em"}}>
+      {CAT_SHORT[cat]||cat}
+    </span>
+  );
+}
+
+// ── Notable Activity panel (sortable, cap badges) ────────────────────────────
 function NotableActivityPanel({filterByCat}){
+  const [sortKey,setSortKey]=useState("signals");
+  const [sortDir,setSortDir]=useState("desc");
+
   const universe=(()=>{
     const map={};
     for(const cat of D.categories) for(const it of cat.items) if(it.signals&&it.signals.length>0) map[it.t]=it;
     return filterByCat(Object.values(map));
   })();
 
-  const filtered=universe.sort((a,b)=>b.signals.length-a.signals.length||b.bigPrintN-a.bigPrintN).slice(0,15);
+  const filtered=useMemo(()=>{
+    const acc={
+      signals:x=>x.signals.length, bigPrintN:x=>x.bigPrintN, bigPrint:x=>x.bigPrint, t:x=>x.t,
+      bpMove:x=>x.bigPrint>0?((x.last-x.bigPrint)/x.bigPrint*100):null,
+      avgVol:x=>x.bigPrintPctAvgVol||0, last:x=>x.last||0,
+    };
+    const fn=acc[sortKey]||(x=>x[sortKey]);
+    return [...universe].sort((a,b)=>{
+      const va=fn(a),vb=fn(b);
+      if(va==null&&vb==null) return 0; if(va==null) return 1; if(vb==null) return -1;
+      if(typeof va==="string") return sortDir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
+      return sortDir==="asc"?va-vb:vb-va;
+    }).slice(0,15);
+  },[universe,sortKey,sortDir]);
+
+  function toggleSort(key){
+    if(sortKey===key) setSortDir(d=>d==="desc"?"asc":"desc");
+    else { setSortKey(key); setSortDir("desc"); }
+  }
+  const hdr=(key,label,minW)=>{
+    const active=sortKey===key;
+    const arrow=active?(sortDir==="asc"?" ▲":" ▼"):"";
+    return (
+      <span onClick={()=>toggleSort(key)}
+        style={{fontSize:9,color:active?C.amber:C.tx3,fontWeight:600,minWidth:minW,textAlign:"right",
+          cursor:"pointer",userSelect:"none",transition:"color 0.15s"}}>
+        {label}{arrow}
+      </span>
+    );
+  };
 
   return (
     <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
       <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
         textTransform:"uppercase",marginBottom:8}}>🔥 Notable Activity</div>
 
-      {/* Column headers — matched to BiggestPrintsPanel */}
+      {/* Sortable column headers */}
       <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
         borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <span style={{fontSize:9,color:C.tx3,fontWeight:600,width:18,textAlign:"center"}}>#</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:50}}>Ticker</span>
+          {hdr("t","Ticker",50)}
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:56,textAlign:"right"}}>Print $</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:60,textAlign:"right"}}>Notional</span>
+          {hdr("bigPrint","Print $",56)}
+          {hdr("bigPrintN","Notional",60)}
           <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Last</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>% Move</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>% AvgVol</span>
+          {hdr("last","Last",52)}
+          {hdr("bpMove","% Move",48)}
+          {hdr("avgVol","% AvgVol",52)}
         </div>
       </div>
 
@@ -457,11 +502,12 @@ function NotableActivityPanel({filterByCat}){
         return (
           <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
             padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <div style={{display:"flex",gap:5,alignItems:"center"}}>
               <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                 width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
                 fontSize:12,color:cc}}>{it.t}</span>
+              <CatBadge cat={it.cat}/>
               <SignalBadges signals={it.signals} compact/>
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
@@ -564,11 +610,12 @@ function BiggestPrintsPanel({filterByCat}){
         return (
           <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
             padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <div style={{display:"flex",gap:5,alignItems:"center"}}>
               <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                 width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
                 fontSize:12,color:cc}}>{it.t}</span>
+              <CatBadge cat={it.cat}/>
               <SignalBadges signals={it.signals} compact/>
 
             </div>
@@ -998,9 +1045,10 @@ function OverviewPane({onJumpTo, filterByCat}){
               return (
                 <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
                   padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
                     <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                       fontWeight:700,fontSize:12,color:cc}}>{it.t}</span>
+                    <CatBadge cat={it.cat}/>
                     {it.signals&&it.signals.length>0 && <SignalBadges signals={it.signals.slice(0,1)} compact/>}
                     {it.sector && it.sector!=="Miscellaneous" && it.sector!=="Other" &&
                       <span style={{fontSize:8,color:C.tx3}}>{it.sector}</span>}
