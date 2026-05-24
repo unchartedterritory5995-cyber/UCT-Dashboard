@@ -42,6 +42,8 @@ const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPag
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const MultiChart = lazy(() => import('./pages/MultiChart'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
+const ChartsHub = lazy(() => import('./pages/charts/ChartsHub'))
+const LegacyRedirect = lazy(() => import('./pages/charts/LegacyRedirect'))
 const Patterns = lazy(() => import('./pages/Patterns'))
 const RiskDashboard = lazy(() => import('./pages/RiskDashboard'))
 const Support = lazy(() => import('./pages/Support'))
@@ -146,7 +148,10 @@ export default function App() {
                 <Route path="/morning-wire" element={<MorningWire />} />
                 <Route path="/uct-20" element={<UCT20 />} />
                 <Route path="/breadth" element={<Breadth />} />
-                <Route path="/theme-tracker" element={<ThemeTrackerPage />} />
+                <Route path="/charts" element={<ChartsHub />} />
+                <Route path="/theme-tracker" element={<LegacyRedirect tab="themes" />} />
+                <Route path="/watchlists" element={<LegacyRedirect tab="watchlist" />} />
+                <Route path="/multi-chart" element={<LegacyRedirect tab="multichart" />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/screener" element={<Screener />} />
                 <Route path="/options-flow" element={<OptionsFlow />} />
@@ -157,8 +162,6 @@ export default function App() {
                 <Route path="/journal" element={<Journal />} />
                 <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />
                 <Route path="/journal-2-0/report" element={<J2ReportPage />} />
-                <Route path="/multi-chart" element={<MultiChart />} />
-                <Route path="/watchlists" element={<Watchlists />} />
                 <Route path="/patterns" element={<Patterns />} />
                 <Route path="/risk" element={<RiskDashboard />} />
                 <Route path="/support" element={<Support />} />
