@@ -415,51 +415,19 @@ function CategoryBars({categories,onJumpTo}){
 }
 
 // ── Notable Activity panel (tabbed, matching BiggestPrintsPanel) ────────────────
-function NotableActivityPanel(){
-  const [catTab,setCatTab]=useState("All");
-  const TABS=[
-    {id:"All",label:"All"},
-    {id:"Indexes",label:"Indexes"},
-    {id:"ETFs",label:"ETFs"},
-    {id:"Large Cap",label:"Large"},
-    {id:"Mid Cap",label:"Mid"},
-    {id:"Small Cap",label:"Small"},
-  ];
-  const ETF_CATS=new Set(["Sector ETFs","Bond ETFs","Intl/EM ETFs","Commodity ETFs"]);
-
+function NotableActivityPanel({filterByCat}){
   const universe=(()=>{
     const map={};
     for(const cat of D.categories) for(const it of cat.items) if(it.signals&&it.signals.length>0) map[it.t]=it;
-    return Object.values(map);
+    return filterByCat(Object.values(map));
   })();
 
-  const filtered=useMemo(()=>{
-    let items=universe;
-    if(catTab==="ETFs") items=items.filter(i=>ETF_CATS.has(i.cat));
-    else if(catTab!=="All") items=items.filter(i=>i.cat===catTab);
-    return items.sort((a,b)=>b.signals.length-a.signals.length||b.bigPrintN-a.bigPrintN).slice(0,15);
-  },[universe,catTab]);
+  const filtered=universe.sort((a,b)=>b.signals.length-a.signals.length||b.bigPrintN-a.bigPrintN).slice(0,15);
 
   return (
     <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
       <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
         textTransform:"uppercase",marginBottom:8}}>🔥 Notable Activity</div>
-
-      {/* Category tabs */}
-      <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}}>
-        {TABS.map(t=>{
-          const on=catTab===t.id;
-          return (
-            <button key={t.id} onClick={()=>setCatTab(t.id)}
-              style={{padding:"3px 10px",borderRadius:12,fontSize:10,fontWeight:on?700:400,
-                border:`1px solid ${on?C.amber+"88":C.bdr}`,
-                background:on?C.amber+"18":"transparent",color:on?C.amber:C.tx3,
-                cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}}>
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
 
       {/* Column headers */}
       <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
@@ -474,7 +442,7 @@ function NotableActivityPanel(){
       </div>
 
       {/* Rows */}
-      {filtered.length===0 && <div style={{fontSize:12,color:C.tx3,padding:8}}>No signals in this category</div>}
+      {filtered.length===0 && <div style={{fontSize:12,color:C.tx3,padding:8}}>No signals for this period</div>}
       {filtered.map(it=>{
         const cc=CAT_COLORS[it.cat]||C.tx;
         const bpPct=it.bigPrint>0?((it.last-it.bigPrint)/it.bigPrint*100):null;
@@ -505,46 +473,31 @@ function NotableActivityPanel(){
 }
 
 // ── Top Biggest Prints panel (tabbed, sortable, %AvgVol) ─────────────────────
-function BiggestPrintsPanel(){
-  const [catTab,setCatTab]=useState("All");
+function BiggestPrintsPanel({filterByCat}){
   const [sortKey,setSortKey]=useState("bigPrintN");
   const [sortDir,setSortDir]=useState("desc");
-
-  const PRINT_TABS=[
-    {id:"All",label:"All"},
-    {id:"Indexes",label:"Indexes"},
-    {id:"ETFs",label:"ETFs"},
-    {id:"Large Cap",label:"Large"},
-    {id:"Mid Cap",label:"Mid"},
-    {id:"Small Cap",label:"Small"},
-  ];
-  const ETF_CATS=new Set(["Sector ETFs","Bond ETFs","Intl/EM ETFs","Commodity ETFs"]);
 
   const universe=(()=>{
     const map={};
     for(const cat of D.categories) for(const it of cat.items) if(it.bigPrintN>0) map[it.t]=it;
-    return Object.values(map);
+    return filterByCat(Object.values(map));
   })();
 
   const filtered=useMemo(()=>{
-    let items=universe;
-    if(catTab==="ETFs") items=items.filter(i=>ETF_CATS.has(i.cat));
-    else if(catTab!=="All") items=items.filter(i=>i.cat===catTab);
-
     const acc={
       bigPrintN:x=>x.bigPrintN, bigPrint:x=>x.bigPrint, t:x=>x.t,
       bpMove:x=>x.bigPrint>0?((x.last-x.bigPrint)/x.bigPrint*100):null,
       avgVol:x=>x.bigPrintPctAvgVol||0,
     };
     const fn=acc[sortKey]||(x=>x[sortKey]);
-    items=[...items].sort((a,b)=>{
+    let items=[...universe].sort((a,b)=>{
       const va=fn(a),vb=fn(b);
       if(va==null&&vb==null) return 0; if(va==null) return 1; if(vb==null) return -1;
       if(typeof va==="string") return sortDir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
       return sortDir==="asc"?va-vb:vb-va;
     });
     return items.slice(0,15);
-  },[universe,catTab,sortKey,sortDir]);
+  },[universe,sortKey,sortDir]);
 
   function toggleSort(key){
     if(sortKey===key) setSortDir(d=>d==="desc"?"asc":"desc");
@@ -566,22 +519,6 @@ function BiggestPrintsPanel(){
     <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
       <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
         textTransform:"uppercase",marginBottom:8}}>Biggest Single Prints</div>
-
-      {/* Category tabs */}
-      <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}}>
-        {PRINT_TABS.map(t=>{
-          const on=catTab===t.id;
-          return (
-            <button key={t.id} onClick={()=>setCatTab(t.id)}
-              style={{padding:"3px 10px",borderRadius:12,fontSize:10,fontWeight:on?700:400,
-                border:`1px solid ${on?C.blue+"88":C.bdr}`,
-                background:on?C.blue+"18":"transparent",color:on?C.blue:C.tx3,
-                cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}}>
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
 
       {/* Column headers */}
       <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
@@ -645,7 +582,7 @@ function BiggestPrintsPanel(){
 }
 
 // ── Overview tab ─────────────────────────────────────────────────────────────
-function OverviewPane({onJumpTo}){
+function OverviewPane({onJumpTo, filterByCat}){
   const sectionLabel = txt => (
     <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
       textTransform:"uppercase",marginBottom:10}}>{txt}</div>
@@ -655,7 +592,7 @@ function OverviewPane({onJumpTo}){
   const {aboveN,insideN,belowN,allItems}=(()=>{
     const map={};
     for(const cat of D.categories) for(const it of cat.items) map[it.t]=it;
-    const items=Object.values(map);
+    const items=filterByCat(Object.values(map));
     return {
       aboveN:items.filter(i=>i.pos==="above").length,
       insideN:items.filter(i=>i.pos==="inside").length,
@@ -940,10 +877,10 @@ function OverviewPane({onJumpTo}){
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
 
         {/* Notable Activity */}
-        <NotableActivityPanel/>
+        <NotableActivityPanel filterByCat={filterByCat}/>
 
         {/* Biggest Prints */}
-        <BiggestPrintsPanel/>
+        <BiggestPrintsPanel filterByCat={filterByCat}/>
       </div>
 
       {/* ── Sector Rotation + Print Tracker ──────────────────────── */}
@@ -1028,53 +965,56 @@ function OverviewPane({onJumpTo}){
 }
 
 // ── Above / Below tabs ───────────────────────────────────────────────────────
-function AbovePane(){
+function AbovePane({filterByCat}){
+  const items=filterByCat([...D.above]).sort((a,b)=>b.pct-a.pct);
   return (
     <div>
       <div style={{marginBottom:14}}>
         <div style={{fontSize:15,fontWeight:700,color:C.green,marginBottom:4}}>
-          ▲ Trading Above Dark Pool Zone <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.above.length} tickers)</span>
+          ▲ Trading Above Dark Pool Zone <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({items.length} tickers)</span>
         </div>
         <div style={{fontSize:12,color:C.tx3,lineHeight:1.5}}>
           Closed <b style={{color:C.green}}>above</b> the 25th–75th percentile institutional execution range.
           Sorted by % distance above zone. Bullish momentum signal.
         </div>
       </div>
-      <FlowTable items={[...D.above].sort((a,b)=>b.pct-a.pct)}/>
+      <FlowTable items={items}/>
     </div>
   );
 }
 
-function BelowPane(){
+function BelowPane({filterByCat}){
+  const items=filterByCat([...D.below]).sort((a,b)=>a.pct-b.pct);
   return (
     <div>
       <div style={{marginBottom:14}}>
         <div style={{fontSize:15,fontWeight:700,color:C.red,marginBottom:4}}>
-          ▼ Trading Below Dark Pool Zone <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.below.length} tickers)</span>
+          ▼ Trading Below Dark Pool Zone <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({items.length} tickers)</span>
         </div>
         <div style={{fontSize:12,color:C.tx3,lineHeight:1.5}}>
           Closed <b style={{color:C.red}}>below</b> the institutional execution range.
           Sorted by % distance below zone. Bearish pressure signal.
         </div>
       </div>
-      <FlowTable items={[...D.below].sort((a,b)=>a.pct-b.pct)}/>
+      <FlowTable items={items}/>
     </div>
   );
 }
 
 // ── Unusual Flow tab ─────────────────────────────────────────────────────────
-function UnusualPane(){
+function UnusualPane({filterByCat}){
+  const items=filterByCat(D.unusual);
   return (
     <div>
       <div style={{marginBottom:14}}>
         <div style={{fontSize:15,fontWeight:700,color:C.amber,marginBottom:4}}>
-          Unusual Flow Activity <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.unusual.length} tickers)</span>
+          Unusual Flow Activity <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({items.length} tickers)</span>
         </div>
         <div style={{fontSize:12,color:C.tx3}}>
           Tickers with UOA flag — unusual options/dark pool activity relative to historical norms.
         </div>
       </div>
-      <FlowTable items={D.unusual}/>
+      <FlowTable items={items}/>
     </div>
   );
 }
@@ -1841,6 +1781,15 @@ export default function DarkPool({embedded}){
   const [tab,setTab]=useState("overview");
   const [catJump,setCatJump]=useState(null);
   const [showSearch,setShowSearch]=useState(false);
+  const [globalCat,setGlobalCat]=useState("All");
+
+  // Global category filter helper
+  const ETF_CATS_SET=new Set(["Sector ETFs","Bond ETFs","Intl/EM ETFs","Commodity ETFs"]);
+  const filterByCat=(items)=>{
+    if(globalCat==="All") return items;
+    if(globalCat==="ETFs") return items.filter(i=>ETF_CATS_SET.has(i.cat));
+    return items.filter(i=>i.cat===globalCat);
+  };
 
   function handleJumpTo(name){
     setCatJump(name);
@@ -2094,6 +2043,31 @@ export default function DarkPool({embedded}){
         </div>
       )}
 
+      {/* Global Category Filter */}
+      <div style={{display:"flex",justifyContent:"center",padding:"8px 20px",background:C.bg2,borderBottom:`1px solid ${C.bdr}`}}>
+        <div style={{display:"flex",gap:4,alignItems:"center",background:C.bg3,borderRadius:6,padding:3,border:`1px solid ${C.bdr}`}}>
+          {[
+            {id:"All",label:"All"},
+            {id:"Indexes",label:"Indexes"},
+            {id:"ETFs",label:"ETFs"},
+            {id:"Large Cap",label:"Large Cap"},
+            {id:"Mid Cap",label:"Mid Cap"},
+            {id:"Small Cap",label:"Small Cap"},
+          ].map(f=>{
+            const on=globalCat===f.id;
+            return (
+              <button key={f.id} onClick={()=>setGlobalCat(f.id)} style={{
+                padding:"5px 14px",borderRadius:4,border:"none",cursor:"pointer",
+                fontSize:10,fontWeight:on?700:500,fontFamily:"inherit",
+                background:on?C.bg2:"transparent",
+                color:on?(f.id==="All"?C.amber:C.tx):C.tx3,
+                transition:"all 0.15s"
+              }}>{f.label}</button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Tab bar */}
       <div style={{background:C.bg3,borderBottom:`1px solid ${C.bdr}`,padding:"0 20px"}}>
         <div style={{maxWidth:1400,margin:"0 auto",display:"flex",overflowX:"auto",gap:2,alignItems:"center"}}>
@@ -2124,11 +2098,11 @@ export default function DarkPool({embedded}){
 
       {/* Content */}
       <div style={{padding:"14px 20px",maxWidth:1400,margin:"0 auto"}}>
-        {tab==="overview" && <OverviewPane onJumpTo={handleJumpTo}/>}
+        {tab==="overview" && <OverviewPane onJumpTo={handleJumpTo} filterByCat={filterByCat}/>}
         {tab==="category" && <CategoryPaneWrapper jump={catJump} onJumpDone={()=>setCatJump(null)}/>}
-        {tab==="above"    && <AbovePane/>}
-        {tab==="below"    && <BelowPane/>}
-        {tab==="unusual"  && <UnusualPane/>}
+        {tab==="above"    && <AbovePane filterByCat={filterByCat}/>}
+        {tab==="below"    && <BelowPane filterByCat={filterByCat}/>}
+        {tab==="unusual"  && <UnusualPane filterByCat={filterByCat}/>}
         {tab==="phantom"  && <PhantomPane/>}
         {tab==="options"  && <OptionsPane/>}
       </div>
