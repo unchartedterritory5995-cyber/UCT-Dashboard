@@ -4,7 +4,8 @@ Mount in main.py:  app.include_router(darkpool_router.router)
 """
 
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException
-from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi.responses import PlainTextResponse, JSONResponse, Response
+import gzip
 from api.darkpool_db import (
     insert_csv_rows, get_data_csv, get_available_dates,
     get_stats, prune_old_data, clear_all
@@ -28,7 +29,15 @@ async def get_darkpool_data(
             days=days if not all_data else None,
             all_data=all_data
         )
-        return PlainTextResponse(csv_text, media_type="text/csv")
+        compressed = gzip.compress(csv_text.encode("utf-8"), compresslevel=6)
+        return Response(
+            content=compressed,
+            media_type="text/csv",
+            headers={
+                "Content-Encoding": "gzip",
+                "Vary": "Accept-Encoding",
+            },
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
