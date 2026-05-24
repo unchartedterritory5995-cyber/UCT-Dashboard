@@ -15,15 +15,28 @@ function parseCSVLine(line) {
   return result;
 }
 function parseCSV(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return [];
-  const headers = parseCSVLine(lines[0]);
-  return lines.slice(1).map(line => {
-    const cols = parseCSVLine(line);
+  const lines = text.split("\n");
+  let headerIdx = 0;
+  while (headerIdx < lines.length && !lines[headerIdx].trim()) headerIdx++;
+  if (headerIdx >= lines.length - 1) return [];
+  const headers = parseCSVLine(lines[headerIdx].replace(/\r$/, ""));
+  const numHeaders = headers.length;
+  const result = [];
+  for (let li = headerIdx + 1; li < lines.length; li++) {
+    const raw = lines[li];
+    if (!raw || raw.length < 3) continue;
+    // Fast path: no quotes → split on comma (covers most dark pool rows)
+    const cols = raw.indexOf('"') === -1 ? raw.replace(/\r$/, "").split(",") : parseCSVLine(raw.replace(/\r$/, ""));
     const row = {};
-    headers.forEach((h, i) => { row[h] = (cols[i] || "").trim(); });
-    return row;
-  }).filter(r => Object.values(r).some(v => v));
+    let hasVal = false;
+    for (let i = 0; i < numHeaders; i++) {
+      const v = (cols[i] || "").trim();
+      if (v) hasVal = true;
+      row[headers[i]] = v;
+    }
+    if (hasVal) result.push(row);
+  }
+  return result;
 }
 
 // ── colours (matched to OptionsFlow dashboard palette) ─────────────────────
@@ -1600,7 +1613,7 @@ const fmtDatePill = (dateStr) => {
 };
 
 // ── App ───────────────────────────────────────────────────────────────────────
-export default function DarkPool(){
+export default function DarkPool({embedded}){
   const [dpData,setDpData]=useState(null);
   const [loadErr,setLoadErr]=useState(null);
   const [loadStatus,setLoadStatus]=useState("Loading…");
@@ -1736,7 +1749,7 @@ export default function DarkPool(){
 
   if(loadErr) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:"60vh",background:C.bg,color:C.red,fontFamily:"'Instrument Sans', sans-serif",
+      minHeight:embedded?"40vh":"60vh",background:embedded?"transparent":C.bg,color:C.red,fontFamily:"'Instrument Sans', sans-serif",
       flexDirection:"column",gap:12,padding:20}}>
       <div style={{fontSize:20,fontWeight:700}}>⚠ Failed to load data</div>
       <div style={{fontSize:13,color:C.tx2}}>Attempted: <code style={{color:C.blue}}>{csvFile}</code></div>
@@ -1750,7 +1763,7 @@ export default function DarkPool(){
 
   if(!dpData) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:"100vh",background:C.bg,color:C.blue,fontFamily:"'Instrument Sans', sans-serif",
+      minHeight:embedded?"40vh":"100vh",background:embedded?"transparent":C.bg,color:C.blue,fontFamily:"'Instrument Sans', sans-serif",
       flexDirection:"column",gap:16}}>
       <div style={{width:40,height:40,border:`3px solid ${C.bdr}`,
         borderTop:`3px solid ${C.amber}`,borderRadius:"50%",
@@ -1768,14 +1781,14 @@ export default function DarkPool(){
   const iwmItem = D.categories.find(c=>c.name==="Indexes")?.items.find(i=>i.t==="IWM");
 
   return (
-    <div style={{background:C.bg,minHeight:"100vh",color:C.tx,
+    <div style={{background:embedded?"transparent":C.bg,minHeight:embedded?"auto":"100vh",color:C.tx,
       fontFamily:"'Instrument Sans', system-ui, sans-serif",fontSize:13}}>
-      <style>{`
+      {!embedded && <style>{`
         ::-webkit-scrollbar{width:6px;height:6px}
         ::-webkit-scrollbar-track{background:${C.bg}}
         ::-webkit-scrollbar-thumb{background:${C.bdr2};border-radius:3px}
         input:focus{border-color:${C.amber} !important}
-      `}</style>
+      `}</style>}
 
       {/* Header */}
       <div style={{background:C.bg2,borderBottom:`1px solid ${C.bdr}`,padding:"12px 20px"}}>
