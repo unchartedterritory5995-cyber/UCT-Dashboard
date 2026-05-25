@@ -184,12 +184,19 @@ def run_prewarmer_forever():
     _DEEP_INTRADAY_TFS = ('5', '1')
     _INTRADAY_TFS = _CORE_INTRADAY_TFS + _DEEP_INTRADAY_TFS  # refresh-loop hot-set union
     if _IS_WORKER:
-        _CORE_INTRADAY_TICKERS = _active_intraday       # active set, not full universe
-        _DEEP_INTRADAY_TICKERS = _active_intraday[:1500]
-        # 4 (not 6): fetches are network-bound so 4 still parallelises
-        # well, but fewer concurrent writers = a much shorter wait queue
-        # behind the SQLite write lock. Sweet spot for throughput.
-        _PREWARM_WORKERS = 4
+        # Full-universe intraday warming (2026-05-25). Prior config scoped
+        # intraday to _active_intraday (~2k tickers) so the cap_universe long
+        # tail hit on-demand cold fetches: 5–15s of Massive latency on first
+        # view. With the $200 Massive tier giving us plenty of headroom, we
+        # warm EVERY cap_universe ticker on every intraday TF — first chart
+        # open should be instant for any ticker. Worker count bumped 4→8 to
+        # halve the cycle time of the now-larger queue (network-bound; SQLite
+        # write lock is per-write <10ms so the extra writers shouldn't queue
+        # noticeably). If this proves to overrun Railway worker CPU or Massive
+        # quota in practice, dial back the slice (e.g. ticker_list[:2500]).
+        _CORE_INTRADAY_TICKERS = ticker_list
+        _DEEP_INTRADAY_TICKERS = ticker_list
+        _PREWARM_WORKERS = 8
     else:
         _CORE_INTRADAY_TICKERS = ticker_list[:200]
         _DEEP_INTRADAY_TICKERS = ticker_list[:200]
