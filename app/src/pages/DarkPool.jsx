@@ -428,9 +428,10 @@ function CatBadge({cat}){
 }
 
 // ── Notable Activity panel (sortable, cap badges) ────────────────────────────
-function NotableActivityPanel({filterByCat}){
+function NotableActivityPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading}){
   const [sortKey,setSortKey]=useState("signals");
   const [sortDir,setSortDir]=useState("desc");
+  const [hov,setHov]=useState(null);
 
   const universe=(()=>{
     const map={};
@@ -442,7 +443,7 @@ function NotableActivityPanel({filterByCat}){
     const acc={
       signals:x=>x.signals.length, bigPrintN:x=>x.bigPrintN, bigPrint:x=>x.bigPrint, t:x=>x.t,
       bpMove:x=>x.bigPrint>0?((x.last-x.bigPrint)/x.bigPrint*100):null,
-      avgVol:x=>x.bigPrintPctAvgVol||0, last:x=>x.last||0, mktcap:x=>x.mktcap||0,
+      avgVol:x=>x.bigPrintPctAvgVol||0, last:x=>x.last||0, mktcap:x=>mktcapData[x.t]||0,
     };
     const fn=acc[sortKey]||(x=>x[sortKey]);
     return [...universe].sort((a,b)=>{
@@ -501,18 +502,21 @@ function NotableActivityPanel({filterByCat}){
         const avgV=it.bigPrintPctAvgVol;
         const avgVColor=avgV>=50?C.pink:avgV>=20?C.amber:avgV>0?C.tx2:C.tx3;
         return (
-          <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-            padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+          <div key={it.t} onMouseEnter={()=>setHov(i)} onMouseLeave={()=>setHov(null)}
+            style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+            padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`,
+            background:hov===i?C.bg3+"80":"transparent",transition:"background 0.15s",cursor:"default"}}>
             <div style={{display:"flex",gap:5,alignItems:"center"}}>
               <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                 width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
                 fontSize:12,color:cc}}>{it.t}</span>
-              <SignalBadges signals={it.signals} compact/>
+              {hov===i ? <SignalBadges signals={it.signals} compact/>
+                : <span style={{fontSize:8,color:C.amber,fontWeight:700,opacity:0.6}}>{it.signals.length}s</span>}
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,
-                color:C.tx3,minWidth:52,textAlign:"right"}}>{it.mktcap>0?fmt(it.mktcap).replace("$",""):"—"}</span>
+                color:C.tx3,minWidth:52,textAlign:"right"}}>{(mktcapData[it.t]||0)>0?fmt(mktcapData[it.t]).replace("$",""):"—"}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
                 fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
@@ -538,9 +542,10 @@ function NotableActivityPanel({filterByCat}){
 }
 
 // ── Top Biggest Prints panel (tabbed, sortable, %AvgVol) ─────────────────────
-function BiggestPrintsPanel({filterByCat}){
+function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading}){
   const [sortKey,setSortKey]=useState("bigPrintN");
   const [sortDir,setSortDir]=useState("desc");
+  const [hov,setHov]=useState(null);
 
   const universe=(()=>{
     const map={};
@@ -552,7 +557,7 @@ function BiggestPrintsPanel({filterByCat}){
     const acc={
       bigPrintN:x=>x.bigPrintN, bigPrint:x=>x.bigPrint, t:x=>x.t,
       bpMove:x=>x.bigPrint>0?((x.last-x.bigPrint)/x.bigPrint*100):null,
-      avgVol:x=>x.bigPrintPctAvgVol||0, last:x=>x.last||0, mktcap:x=>x.mktcap||0,
+      avgVol:x=>x.bigPrintPctAvgVol||0, last:x=>x.last||0, mktcap:x=>mktcapData[x.t]||0,
     };
     const fn=acc[sortKey]||(x=>x[sortKey]);
     let items=[...universe].sort((a,b)=>{
@@ -611,19 +616,22 @@ function BiggestPrintsPanel({filterByCat}){
         const avgV=it.bigPrintPctAvgVol;
         const avgVColor=avgV>=50?C.pink:avgV>=20?C.amber:avgV>0?C.tx2:C.tx3;
         return (
-          <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-            padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+          <div key={it.t} onMouseEnter={()=>setHov(i)} onMouseLeave={()=>setHov(null)}
+            style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+            padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`,
+            background:hov===i?C.bg3+"80":"transparent",transition:"background 0.15s",cursor:"default"}}>
             <div style={{display:"flex",gap:5,alignItems:"center"}}>
               <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                 width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
                 fontSize:12,color:cc}}>{it.t}</span>
-              <SignalBadges signals={it.signals} compact/>
+              {hov===i && it.signals&&it.signals.length>0 ? <SignalBadges signals={it.signals} compact/>
+                : it.signals&&it.signals.length>0 ? <span style={{fontSize:8,color:C.amber,fontWeight:700,opacity:0.6}}>{it.signals.length}s</span> : null}
 
             </div>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,
-                color:C.tx3,minWidth:52,textAlign:"right"}}>{it.mktcap>0?fmt(it.mktcap).replace("$",""):"—"}</span>
+                color:C.tx3,minWidth:52,textAlign:"right"}}>{(mktcapData[it.t]||0)>0?fmt(mktcapData[it.t]).replace("$",""):"—"}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
                 fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
@@ -650,7 +658,7 @@ function BiggestPrintsPanel({filterByCat}){
 }
 
 // ── Overview tab ─────────────────────────────────────────────────────────────
-function OverviewPane({onJumpTo, filterByCat}){
+function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoading}){
   const sectionLabel = txt => (
     <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
       textTransform:"uppercase",marginBottom:10}}>{txt}</div>
@@ -940,13 +948,26 @@ function OverviewPane({onJumpTo, filterByCat}){
       )}
 
       {/* ── Notable Activity + Biggest Prints (side by side) ─────── */}
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:4}}>
+        <button onClick={()=>{
+          const tickers = allItems.slice(0,50).map(i=>i.t);
+          fetchMktCap(tickers);
+        }}
+          disabled={mktcapLoading}
+          style={{padding:"4px 12px",borderRadius:4,border:`1px solid ${C.bdr2}`,
+            background:mktcapLoading?C.bg3:"transparent",color:mktcapLoading?C.tx3:C.cyan,
+            fontSize:9,fontWeight:600,cursor:mktcapLoading?"wait":"pointer",
+            fontFamily:"inherit",transition:"all 0.15s"}}>
+          {mktcapLoading?"Fetching…":"Fetch Mkt Cap"}
+        </button>
+      </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
 
         {/* Notable Activity */}
-        <NotableActivityPanel filterByCat={filterByCat}/>
+        <NotableActivityPanel filterByCat={filterByCat} mktcapData={mktcapData} fetchMktCap={fetchMktCap} mktcapLoading={mktcapLoading}/>
 
         {/* Biggest Prints */}
-        <BiggestPrintsPanel filterByCat={filterByCat}/>
+        <BiggestPrintsPanel filterByCat={filterByCat} mktcapData={mktcapData} fetchMktCap={fetchMktCap} mktcapLoading={mktcapLoading}/>
       </div>
 
       {/* ── Sector Flow + Notable Prints ──────────────────────────── */}
@@ -1052,7 +1073,7 @@ function OverviewPane({onJumpTo, filterByCat}){
                   <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
                     <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                       fontWeight:700,fontSize:12,color:cc}}>{it.t}</span>
-                    {it.mktcap>0 && <span style={{fontSize:8,color:C.tx3}}>{fmt(it.mktcap).replace("$","")}</span>}
+                    {(mktcapData[it.t]||0)>0 && <span style={{fontSize:8,color:C.tx3}}>{fmt(mktcapData[it.t]).replace("$","")}</span>}
                     {it.signals&&it.signals.length>0 && <SignalBadges signals={it.signals.slice(0,1)} compact/>}
                     {it.sector && it.sector!=="Miscellaneous" && it.sector!=="Other" &&
                       <span style={{fontSize:8,color:C.tx3}}>{it.sector}</span>}
@@ -1517,8 +1538,7 @@ function parseCSVtoD(rows){
       const pctAvgVol = avgVolM ? parseFloat(avgVolM[1]) : 0;
       const industry = (r.Industry||"").trim();
       const sector = (r.Sector||"").trim();
-      const floatShares = parseFloat(r.Float)||0;
-      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg, avg30, pctAvgVol, industry, sector, floatShares});
+      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg, avg30, pctAvgVol, industry, sector});
     }catch(e){}
   }
 
@@ -1528,14 +1548,12 @@ function parseCSVtoD(rows){
   const tickerAvg30={};  // tk → avg 30-day volume (last seen value)
   const tickerIndustry={};// tk → industry (most common)
   const tickerSector={};  // tk → sector (most common)
-  const tickerFloat={};   // tk → float shares (last seen value)
 
   for(const tr of tradeRows){
-    const {ticker:tk,dateKey:dk,price:p,notional:n,avg30,pctAvgVol,industry,sector,floatShares}=tr;
+    const {ticker:tk,dateKey:dk,price:p,notional:n,avg30,pctAvgVol,industry,sector}=tr;
     if(!tickerTrades[tk]) tickerTrades[tk]=[];
     tickerTrades[tk].push({p,n,dk,pctAvgVol});
     if(avg30>0) tickerAvg30[tk]=avg30;
-    if(floatShares>0) tickerFloat[tk]=floatShares;
     if(industry && !tickerIndustry[tk]) tickerIndustry[tk]=industry;
     if(sector && !tickerSector[tk]) tickerSector[tk]=sector;
     if(!tickerDaily[tk]) tickerDaily[tk]={};
@@ -1595,11 +1613,9 @@ function parseCSVtoD(rows){
     const avg30=tickerAvg30[tk]||0;
     const industry=tickerIndustry[tk]||"";
     const sector=tickerSector[tk]||"";
-    const floatShares=tickerFloat[tk]||0;
-    const mktcap=floatShares>0&&last>0?last*floatShares:0;
     // Accumulation vs Distribution: big print above VWAP = Acc, below = Dist
     const accDist = bigPrint!=null && vwap>0 ? (bigPrint>=vwap?"Acc":"Dist") : null;
-    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDk,bigPrintDate,bigPrintPctAvgVol,avg30,industry,sector,accDist,mktcap,signals:[]});
+    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDk,bigPrintDate,bigPrintPctAvgVol,avg30,industry,sector,accDist,mktcap:0,signals:[]});
   }
 
   // ── Signal Detection (tight thresholds — only truly unusual prints) ─────────
@@ -1910,6 +1926,23 @@ export default function DarkPool({embedded}){
   const [catJump,setCatJump]=useState(null);
   const [showSearch,setShowSearch]=useState(false);
   const [globalCat,setGlobalCat]=useState("All");
+  const [mktcapData,setMktcapData]=useState({}); // {AAPL: 2940000000000, ...}
+  const [mktcapLoading,setMktcapLoading]=useState(false);
+
+  // Fetch market cap from Schwab API for visible tickers
+  async function fetchMktCap(tickers) {
+    if (!tickers || tickers.length === 0) return;
+    setMktcapLoading(true);
+    try {
+      const base = typeof API_BASE !== "undefined" ? API_BASE : "";
+      const resp = await fetch(`${base}/api/schwab/mktcap-batch?symbols=${tickers.slice(0,50).join(",")}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        setMktcapData(prev => ({ ...prev, ...(data.mktcap || {}) }));
+      }
+    } catch (e) { console.warn("[DarkPool] mktcap fetch failed:", e); }
+    setMktcapLoading(false);
+  }
 
   // Global category filter helper
   const ETF_CATS_SET=new Set(["Sector ETFs","Bond ETFs","Intl/EM ETFs","Commodity ETFs"]);
@@ -2226,7 +2259,7 @@ export default function DarkPool({embedded}){
 
       {/* Content */}
       <div style={{padding:"14px 20px",maxWidth:1400,margin:"0 auto"}}>
-        {tab==="overview" && <OverviewPane onJumpTo={handleJumpTo} filterByCat={filterByCat}/>}
+        {tab==="overview" && <OverviewPane onJumpTo={handleJumpTo} filterByCat={filterByCat} mktcapData={mktcapData} fetchMktCap={fetchMktCap} mktcapLoading={mktcapLoading}/>}
         {tab==="category" && <CategoryPaneWrapper jump={catJump} onJumpDone={()=>setCatJump(null)}/>}
         {tab==="above"    && <AbovePane filterByCat={filterByCat}/>}
         {tab==="below"    && <BelowPane filterByCat={filterByCat}/>}
