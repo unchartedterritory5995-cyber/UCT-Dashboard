@@ -31,7 +31,12 @@ const STORE      = 'bars'
 // from the now-correct server data. Without this, users keep seeing the
 // "noon cutoff" symptom in their browser indefinitely even after the
 // backend is fixed.
-const CACHE_LOGIC_VERSION = 4
+//
+// Bumped to 5 on 2026-05-24: paired with _hasIntradayGap (below) so any
+// browser still carrying mid-day gaps from a prior buggy write path
+// gets a one-shot full refetch on next page load — without waiting for
+// the gap detector to catch it. Belt-and-suspenders.
+const CACHE_LOGIC_VERSION = 5
 
 // Max age by SAVE time — secondary bound only. The PRIMARY intraday
 // guard is bar-data freshness (newest bar age), checked in idbGet:
@@ -83,6 +88,44 @@ function _key(sym, tf) {
   return `${sym.toUpperCase()}_${tf}`
 }
 
+// Detect mid-session gaps in cached intraday bar series. mergeDelta can only
+// ADD bars and cannot fill a gap older than the latest cached timestamp, so
+// any gap that slipped in (FMP-shifted ts, dropped write, network failure
+// mid-write, etc.) is permanent until the cache is fully refetched.
+// Returning a stale signal here forces idbGet's caller to do a full no-since
+// refetch, healing the IDB from the authoritative server.
+//
+// Active only for tf in {15, 30, 60}: 1m/5m series legitimately gap on
+// illiquid tickers, and the false-positive cost (one extra full refetch
+// per chart open) would be paid on every load. For 15/30/60min, missing
+// bars on a liquid ticker are nearly always real bugs.
+function _hasIntradayGap(bars, tf) {
+  if (!['15','30','60'].includes(tf)) return false
+  if (!bars || bars.length < 2) return false
+
+  // Max acceptable in-session gap. Tuned to catch a single missing bar
+  // without false-flagging the 30-min open-bar adjustment on hourly
+  // (09:30 → 10:00 = 1800s).
+  const MAX_OK_GAP_SEC = { '15': 3600, '30': 5400, '60': 7200 }[tf]
+
+  // Scan only the recent window. Old corruption is rarely user-visible and
+  // a full-array scan adds avoidable latency on the hot cache-hit path.
+  const start = Math.max(1, bars.length - 200)
+  for (let i = start; i < bars.length; i++) {
+    const gap = bars[i].t - bars[i - 1].t
+    if (gap <= MAX_OK_GAP_SEC) continue
+    // Cross-ET-day gaps are legit session boundaries (overnight, weekend,
+    // holiday closure). Only same-day gaps over the threshold are bugs.
+    const prevEtDate = new Date(bars[i - 1].t * 1000)
+      .toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    const currEtDate = new Date(bars[i].t * 1000)
+      .toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    if (prevEtDate !== currEtDate) continue
+    return true
+  }
+  return false
+}
+
 /**
  * Read cached bars for (sym, tf).
  * Returns { bars, lastT, savedAt } or null if not found / stale.
@@ -111,6 +154,10 @@ export async function idbGet(sym, tf) {
             && (Date.now() / 1000 - entry.lastT) > INTRADAY_STALE_BAR_SEC) {
           return resolve(null)
         }
+        // Mid-session gap guard: delta-merge cannot heal interior gaps,
+        // so a cached series with one is permanently broken until a full
+        // refetch. Treat as absent → caller refetches without `since`.
+        if (_hasIntradayGap(entry.bars, tf)) return resolve(null)
         resolve(entry)
       }
       req.onerror = () => resolve(null)
