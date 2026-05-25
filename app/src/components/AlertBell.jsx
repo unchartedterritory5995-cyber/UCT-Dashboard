@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import useSWR from 'swr'
 import { playAlertSound, showBrowserNotification, requestNotificationPermission } from '../utils/alertSound'
 import usePreferences from '../hooks/usePreferences'
+import { timeAgoShort as timeAgo } from '../utils/timeAgo'
 import styles from './AlertBell.module.css'
 
 const fetcher = url => fetch(url).then(r => r.ok ? r.json() : [])
@@ -22,14 +23,8 @@ const SEV_CLASS = {
   info: 'sevInfo',
 }
 
-function timeAgo(ts) {
-  if (!ts) return ''
-  const diff = (Date.now() - new Date(ts).getTime()) / 1000
-  if (diff < 60) return 'now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
-  return `${Math.floor(diff / 86400)}d`
-}
+// timeAgo extracted to ../utils/timeAgo.js for reuse across MoversSidebar
+// + EarningsModal. AlertBell keeps its original short form via timeAgoShort.
 
 export default function AlertBell() {
   const { data: alerts, mutate } = useSWR('/api/alerts?limit=20', fetcher, { refreshInterval: 60000 })
