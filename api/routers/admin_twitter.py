@@ -70,13 +70,27 @@ def add_account(body: dict = Body(...), user=Depends(require_admin)):
         tweets = twitterapi_io.get_user_last_tweets(handle)
     except twitterapi_io.TwitterApiError as e:
         raise HTTPException(422, f"could not validate handle: {e}")
+    except Exception as e:
+        # Unexpected: log full trace + surface real error so admin sees it
+        logger.exception("[twitter-admin] add_account: unexpected error during validate")
+        raise HTTPException(500, f"unexpected during validate: {type(e).__name__}: {e}")
 
     display_name = None
-    if tweets:
-        display_name = tweets[0].get("author_name") or handle
+    try:
+        if tweets:
+            display_name = tweets[0].get("author_name") or handle
+    except Exception as e:
+        logger.exception("[twitter-admin] add_account: failed to parse first tweet")
+        raise HTTPException(500, f"response shape unexpected: {type(e).__name__}: {e}; "
+                                 f"first item type={type(tweets[0]).__name__ if tweets else 'empty'}")
 
-    tweet_store.add_account(handle, display_name=display_name,
-                            added_by_user_id=user.get("id"), notes=notes)
+    try:
+        tweet_store.add_account(handle, display_name=display_name,
+                                added_by_user_id=user.get("id"), notes=notes)
+    except Exception as e:
+        logger.exception("[twitter-admin] add_account: tweet_store.add_account failed")
+        raise HTTPException(500, f"store insert failed: {type(e).__name__}: {e}")
+
     return tweet_store.list_accounts()
 
 
