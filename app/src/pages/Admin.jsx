@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import styles from './Admin.module.css'
+import TwitterAccountsPanel from '../components/admin/TwitterAccountsPanel'
 
 // ── Constants ──
 const FILTERS = [
@@ -1837,6 +1838,9 @@ export default function Admin() {
           </div>
         </div>
       </div>
+
+      {/* ── Section 6c: Twitter News Ingestion (spec 2026-05-25) ── */}
+      <TwitterAccountsPanel />
 
       {/* ── Section 7: System Health ── */}
       <div className={styles.healthSection}>
