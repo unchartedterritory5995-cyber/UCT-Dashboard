@@ -130,5 +130,40 @@ def get_user_last_tweets(handle: str, since_id: Optional[str] = None) -> list[di
         raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
 
     body = r.json()
-    raw_tweets = body.get("tweets") or body.get("data") or []
-    return [_normalize_tweet(t, fallback_handle=handle) for t in raw_tweets]
+    raw_tweets = _extract_tweets(body)
+    return [_normalize_tweet(t, fallback_handle=handle)
+            for t in raw_tweets if isinstance(t, dict)]
+
+
+def _extract_tweets(body: dict) -> list:
+    """Robustly extract the tweet list from the response body.
+
+    TwitterAPI.io has wrapped its payload in a few different shapes across
+    docs revisions and endpoints. Tested patterns:
+      {"tweets": [...]}                            — flat
+      {"data": [...]}                              — flat-aliased
+      {"data": {"tweets": [...]}}                  — nested (current observed)
+      {"status": "...", "data": {"tweets": [...]}} — nested + meta
+    Anything else returns [] and logs so we can spot a new pattern.
+    """
+    if not isinstance(body, dict):
+        logger.warning("[twitterapi_io] unexpected body type: %s", type(body).__name__)
+        return []
+
+    # Pattern 1: top-level tweets array
+    t = body.get("tweets")
+    if isinstance(t, list):
+        return t
+
+    # Pattern 2 / 3: data is dict containing tweets, or data is directly the list
+    data = body.get("data")
+    if isinstance(data, dict):
+        nested = data.get("tweets")
+        if isinstance(nested, list):
+            return nested
+    if isinstance(data, list):
+        return data
+
+    logger.warning("[twitterapi_io] could not find tweets list in response. "
+                   "Top-level keys: %s", sorted(body.keys()))
+    return []
