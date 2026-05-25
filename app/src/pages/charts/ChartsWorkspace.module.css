@@ -52,3 +52,61 @@
   font-size: 12px;
   text-align: center;
 }
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg, #0a0e14);
+  color: var(--text, #e5e7eb);
+}
+
+.workspaceHeader {
+  background: var(--bg-elevated, #0d1218);
+  border-bottom: 1px solid var(--border, #1f2937);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.workspaceTitle { font-size: 14px; font-weight: 600; letter-spacing: 0.5px; }
+
+.toolbarBtn {
+  background: var(--bg-elevated, #1f2937); color: var(--accent, #c9a84c);
+  border: none; padding: 6px 12px; border-radius: 3px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+  cursor: pointer; font-family: inherit;
+}
+.toolbarBtn.ghost { background: transparent; color: var(--text-muted, #6b7280); }
+.toolbarBtn:hover { color: var(--text, #e5e7eb); }
+
+.toolbarBtnGroup { display: inline-block; }
+
+.addMenu {
+  position: absolute; top: 100%; left: 0; margin-top: 4px;
+  background: var(--bg-elevated, #0d1218); border: 1px solid var(--border, #1f2937);
+  border-radius: 4px; display: flex; flex-direction: column;
+  z-index: 100; min-width: 140px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.addMenuItem {
+  background: transparent; color: var(--text, #e5e7eb);
+  border: none; padding: 8px 14px; text-align: left;
+  font-size: 11px; cursor: pointer; font-family: inherit;
+}
+.addMenuItem:hover { background: var(--bg-hover, #1f2937); color: var(--accent, #c9a84c); }
+
+.workspaceBody {
+  flex: 1; min-height: 0; overflow: auto;
+  padding: 6px;
+}
+
+/* react-grid-layout uses .react-grid-item — give the placeholder a visible style */
+:global(.react-grid-placeholder) {
+  background: var(--accent, #c9a84c) !important;
+  opacity: 0.15 !important;
+  border-radius: 4px;
+}
