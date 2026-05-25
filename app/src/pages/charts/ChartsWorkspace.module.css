@@ -1,0 +1,31 @@
+/* Widget header styles — full workspace styles land in Task 12. */
+.widgetHeader {
+  background: var(--bg-elevated, #0d1218);
+  border-bottom: 1px solid var(--border, #1f2937);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--accent, #c9a84c);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.dragGrip { color: var(--text-muted, #4b5563); font-size: 13px; cursor: move; user-select: none; }
+.colorDot {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: none; padding: 0; cursor: pointer;
+  flex-shrink: 0;
+}
+.colorDotA { background: #c9a84c; }
+.colorDotB { background: #60a5fa; }
+.colorDotC { background: #4ade80; }
+.colorDotD { background: #c084fc; }
+.widgetLabel { color: var(--accent, #c9a84c); }
+.headerSpacer { flex: 1; }
+.closeBtn {
+  background: transparent; border: none; color: var(--text-muted, #6b7280);
+  cursor: pointer; padding: 0 4px; font-size: 12px;
+}
+.closeBtn:hover { color: var(--text, #e5e7eb); }
