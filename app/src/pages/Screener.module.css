@@ -4,6 +4,15 @@
   padding: 20px 24px;
 }
 
+/* Embedded mode — used when rendered inside ChartsWorkspace ScannerWidget.
+   Tightens padding and removes outer page chrome since the widget shell
+   already supplies its own header + frame. */
+.pageEmbedded {
+  padding: 0;
+  height: 100%;
+  overflow: auto;
+}
+
 /* Full-height mode — used when Custom Scan tab is active */
 .containerFull {
   display: flex;

@@ -417,7 +417,7 @@ function PremarketBar({ premarket }) {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function Screener() {
+export default function Screener({ embedded = false }) {
   const [pageTab, setPageTab] = useState('scanner')
 
   const { data, error } = useMobileSWR('/api/candidates', fetcher, {
@@ -446,10 +446,12 @@ export default function Screener() {
     prefetchBars(allTickers.slice(0, 30), 'D')
   }, [allTickers])
 
+  const containerCls = `${pageTab === 'custom' ? styles.containerFull : styles.container} ${embedded ? styles.pageEmbedded : ''}`.trim()
+
   return (
-    <div className={pageTab === 'custom' ? styles.containerFull : styles.container}>
+    <div className={containerCls}>
       <div className={pageTab === 'custom' ? styles.headerFull : styles.header}>
-        <h1 className={styles.heading}>Scanner Hub</h1>
+        {!embedded && <h1 className={styles.heading}>Scanner Hub</h1>}
         <div className={styles.pageTabs}>
           {PAGE_TABS.map(t => (
             <button
