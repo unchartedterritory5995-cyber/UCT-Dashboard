@@ -1,30 +1,142 @@
 // app/src/components/MoversSidebar.jsx
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
+import useBatchTweetCounts from '../hooks/useBatchTweetCounts'
+import useTapeFeed from '../hooks/useTapeFeed'
+import useTickerTweets from '../hooks/useTickerTweets'
+import { timeAgo } from '../utils/timeAgo'
 import TickerPopup from './TickerPopup'
 import ErrorState from './ErrorState'
 import { SkeletonTable } from './Skeleton'
 import styles from './MoversSidebar.module.css'
 
-const fetcher = url => fetch(url).then(r => r.json())
+const fetcher = (url) => fetch(url).then((r) => r.json())
 
-function MoverSection({ label, items, positive }) {
+// Master kill-switch for the tweet surfaces (icon + ON THE TAPE).
+// Default ON; set VITE_TWITTER_UI_ENABLED="0" to hide everything.
+const UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
+
+function renderTweetText(text) {
+  if (!text) return null
+  // Style cashtags ($AAPL) in brand gold while keeping plain text intact.
+  const parts = text.split(/(\$[A-Z]{1,5}\b)/g)
+  return parts.map((p, i) =>
+    /^\$[A-Z]{1,5}$/.test(p)
+      ? (
+        <span key={i} className={styles.cashtag}>{p}</span>
+      )
+      : (
+        <span key={i}>{p}</span>
+      ),
+  )
+}
+
+function TweetExpand({ sym }) {
+  const { data } = useTickerTweets(sym, { hours: 24 })
+  if (!data || data.length === 0) return null
+  return (
+    <div className={styles.tweetExpand}>
+      {data.slice(0, 5).map((t) => (
+        <div key={t.id} className={styles.tweetRow}>
+          <span className={styles.tweetHandle}>@{t.author_handle}</span>
+          <span className={styles.tweetTime}>{timeAgo(t.created_at)}</span>
+          <a className={styles.tweetLink} href={t.url} target="_blank" rel="noreferrer" title="open on X">↗</a>
+          <div
+            className={styles.tweetText}
+            style={t.is_retweet ? { fontSize: '90%', opacity: 0.75 } : undefined}
+          >
+            {t.is_retweet ? 'RT: ' : ''}{renderTweetText(t.text)}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MoverSection({ label, items, positive, tweetCounts }) {
+  const [expandedSym, setExpandedSym] = useState(null)
   return (
     <div className={styles.section}>
       <div className={`${styles.sectionLabel} ${positive ? styles.green : styles.red}`}>
         {positive ? '▲' : '▼'} {label}
       </div>
       <div className={styles.rows}>
-        {items.map(item => (
-          <div key={item.sym} className={styles.row}>
-            <TickerPopup sym={item.sym}>
-              <span className={styles.sym}>{item.sym}</span>
-            </TickerPopup>
-            <span className={`${styles.pct} ${positive ? styles.green : styles.red}`}>
-              {item.pct}
-            </span>
-          </div>
-        ))}
+        {items.map((item) => {
+          const count = tweetCounts?.[item.sym] || 0
+          const isExpanded = expandedSym === item.sym
+          return (
+            <div key={item.sym} className={styles.rowGroup}>
+              <div className={styles.row}>
+                <TickerPopup sym={item.sym}>
+                  <span className={styles.sym}>{item.sym}</span>
+                </TickerPopup>
+                <span className={`${styles.pct} ${positive ? styles.green : styles.red}`}>
+                  {item.pct}
+                </span>
+                {UI_ENABLED && count > 0 && (
+                  <button
+                    type="button"
+                    className={styles.birdBtn}
+                    title={`${count} recent tweet${count > 1 ? 's' : ''}`}
+                    onClick={() => setExpandedSym(isExpanded ? null : item.sym)}
+                  >
+                    🐦
+                  </button>
+                )}
+              </div>
+              {isExpanded && <TweetExpand sym={item.sym} />}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function TapeSection() {
+  const { data: tape } = useTapeFeed({ hours: 12, limit: 15 })
+  const [expandedSym, setExpandedSym] = useState(null)
+  if (!tape || tape.length === 0) return null
+  return (
+    <div className={`${styles.section} ${styles.tapeSection}`}>
+      <div className={`${styles.sectionLabel} ${styles.tape}`}>
+        📰 ON THE TAPE
+      </div>
+      <div className={styles.rows}>
+        {tape.map((row) => {
+          const isExpanded = expandedSym === row.ticker
+          const sample = row.sample_tweet
+          return (
+            <div key={row.ticker} className={styles.rowGroup}>
+              <div className={styles.row}>
+                <TickerPopup sym={row.ticker}>
+                  <span className={styles.sym}>{row.ticker}</span>
+                </TickerPopup>
+                <span className={styles.tapeMeta}>
+                  {row.n_tweets}t · {timeAgo(row.latest_at)}
+                </span>
+                <button
+                  type="button"
+                  className={styles.birdBtn}
+                  onClick={() => setExpandedSym(isExpanded ? null : row.ticker)}
+                >
+                  🐦
+                </button>
+              </div>
+              {sample && !isExpanded && (
+                <a
+                  className={styles.tapePreview}
+                  href={sample.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  ▸ &quot;{sample.text.slice(0, 80)}{sample.text.length > 80 ? '…' : ''}&quot; — @{sample.author_handle}
+                </a>
+              )}
+              {isExpanded && <TweetExpand sym={row.ticker} />}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -32,17 +144,23 @@ function MoverSection({ label, items, positive }) {
 
 export default function MoversSidebar({ data: propData }) {
   const [open, setOpen] = useState(true)
-
   const { data: fetched, error, mutate } = useMobileSWR(
     propData !== undefined ? null : '/api/movers',
     fetcher,
-    { refreshInterval: 30000, marketHoursOnly: true }
+    { refreshInterval: 30000, marketHoursOnly: true },
   )
   const data = propData !== undefined ? propData : fetched
 
+  const allMoverSymbols = useMemo(() => {
+    if (!data) return []
+    return [...(data.ripping ?? []), ...(data.drilling ?? [])].map((x) => x.sym)
+  }, [data])
+
+  const { data: tweetCounts } = useBatchTweetCounts(UI_ENABLED ? allMoverSymbols : [])
+
   return (
     <div className={styles.tile}>
-      <button className={styles.header} onClick={() => setOpen(o => !o)}>
+      <button className={styles.header} onClick={() => setOpen((o) => !o)}>
         <span className={styles.title}>Movers at the Open</span>
         <span className={styles.chevron}>{open ? '▾' : '▸'}</span>
       </button>
@@ -55,9 +173,10 @@ export default function MoversSidebar({ data: propData }) {
           ) : (
             <div className={styles.scroll}>
               <div className={styles.moversGrid}>
-                <MoverSection label="RIPPING" items={data.ripping ?? []} positive />
-                <MoverSection label="DRILLING" items={data.drilling ?? []} positive={false} />
+                <MoverSection label="RIPPING" items={data.ripping ?? []} positive tweetCounts={tweetCounts} />
+                <MoverSection label="DRILLING" items={data.drilling ?? []} positive={false} tweetCounts={tweetCounts} />
               </div>
+              {UI_ENABLED && <TapeSection />}
             </div>
           )}
         </div>
