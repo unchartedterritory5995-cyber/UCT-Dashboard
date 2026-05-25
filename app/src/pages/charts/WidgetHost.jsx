@@ -12,9 +12,9 @@ const TYPE_LABEL = {
   scanner: 'Scanner',
 }
 
-function WidgetBody({ widget }) {
+function WidgetBody({ widget, onOptsChange }) {
   switch (widget.type) {
-    case 'chart':     return <ChartWidget     color={widget.color} opts={widget.opts} />
+    case 'chart':     return <ChartWidget     color={widget.color} opts={widget.opts} onOptsChange={onOptsChange} />
     case 'watchlist': return <WatchlistWidget color={widget.color} opts={widget.opts} />
     case 'themes':    return <ThemesWidget    color={widget.color} opts={widget.opts} />
     case 'scanner':   return <ScannerWidget   color={widget.color} opts={widget.opts} />
@@ -22,7 +22,7 @@ function WidgetBody({ widget }) {
   }
 }
 
-export default function WidgetHost({ widget, onRemove, onColorChange }) {
+export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange }) {
   return (
     <div className={styles.widget}>
       <WidgetHeader
@@ -32,7 +32,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange }) {
         onRemove={onRemove}
       />
       <div className={styles.widgetBody}>
-        <WidgetBody widget={widget} />
+        <WidgetBody widget={widget} onOptsChange={onOptsChange} />
       </div>
     </div>
   )

@@ -53,6 +53,49 @@
   text-align: center;
 }
 
+/* ── Chart widget interior — TF bar + chart fill ─────────────────────── */
+.chartWidget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.tfBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px 6px;
+  background: var(--bg-elevated, #0d1218);
+  border-bottom: 1px solid var(--border, #1f2937);
+  flex-shrink: 0;
+}
+
+.tfBtn {
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.tfBtn:hover { color: var(--text, #e5e7eb); border-color: var(--border, #1f2937); }
+
+.tfBtnActive {
+  color: var(--accent, #c9a84c);
+  border-color: var(--accent, #c9a84c);
+  background: rgba(201, 168, 76, 0.08);
+}
+
+.chartFill { flex: 1; min-height: 0; min-width: 0; position: relative; }
+
 .workspace {
   display: flex;
   flex-direction: column;

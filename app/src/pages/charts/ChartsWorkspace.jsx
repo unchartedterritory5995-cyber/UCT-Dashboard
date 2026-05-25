@@ -172,6 +172,14 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
+  const handleOptsChange = useCallback((id, opts) => {
+    setLayout(prev => {
+      const next = { ...prev, widgets: prev.widgets.map(w => w.id === id ? { ...w, opts } : w) }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+
   const handleAddWidget = useCallback((type) => {
     setLayout(prev => {
       const usedColors = prev.widgets.map(w => w.color)
@@ -259,6 +267,7 @@ export default function ChartsWorkspace() {
                   widget={w}
                   onRemove={() => handleRemoveWidget(w.id)}
                   onColorChange={(c) => handleColorChange(w.id, c)}
+                  onOptsChange={(opts) => handleOptsChange(w.id, opts)}
                 />
               </div>
             ))}
