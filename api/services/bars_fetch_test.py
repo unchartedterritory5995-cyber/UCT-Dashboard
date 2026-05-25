@@ -105,6 +105,20 @@ class TestExpectedLatestSession:
         now = datetime(2026, 5, 18, 9, 0, tzinfo=_ET)  # Mon pre-open
         assert _expected_latest_session_yyyymmdd(now) == 20260515
 
+    def test_memorial_day_2026_rolls_to_prior_friday(self):
+        # The trigger incident: Memorial Day Monday 2026-05-25 at 14:00 ET.
+        # Without holiday-awareness, every intraday cache entry fires cold-
+        # stale because Friday < "expected Monday session." Prewarmer + on-
+        # demand both spam empty Massive fetches and saturate the API key.
+        now = datetime(2026, 5, 25, 14, 0, tzinfo=_ET)
+        assert _expected_latest_session_yyyymmdd(now) == 20260522  # Fri 5/22
+
+    def test_holiday_long_weekend_rolls_back_past_weekend(self):
+        # Sat after a Friday holiday (e.g. Good Friday 2026-04-03) — must
+        # walk back through both Sat and the holiday Fri to land on Thu.
+        now = datetime(2026, 4, 4, 12, 0, tzinfo=_ET)  # Sat after Good Friday
+        assert _expected_latest_session_yyyymmdd(now) == 20260402  # Thu 4/2
+
 
 class TestIsColdStaleIntraday:
     """The single predicate that decides 'serve synchronously-correct'
@@ -140,6 +154,14 @@ class TestIsColdStaleIntraday:
     def test_weekend_with_old_data_is_cold(self):
         now = datetime(2026, 5, 16, 12, 0, tzinfo=_ET)  # Sat
         assert _is_cold_stale_intraday("30", _et_ts(2026, 5, 8, 16, 0), now) is True
+
+    def test_memorial_day_with_friday_data_is_not_cold(self):
+        # Memorial Day Monday — Friday's cache is the freshest data that
+        # exists. Must NOT pay synchronous-fetch latency on every chart load.
+        now = datetime(2026, 5, 25, 14, 0, tzinfo=_ET)  # Memorial Day Mon
+        assert _is_cold_stale_intraday("30", _et_ts(2026, 5, 22, 16, 0), now) is False
+        assert _is_cold_stale_intraday("15", _et_ts(2026, 5, 22, 15, 45), now) is False
+        assert _is_cold_stale_intraday("60", _et_ts(2026, 5, 22, 15, 30), now) is False
 
 
 class _FakeClient:
@@ -464,6 +486,30 @@ class TestFMPTimestampIsEasternTime:
             mock_time.time.return_value = overnight_weekday.timestamp()
             assert _needs_fresh(last_ts, "60") is False, (
                 "overnight should NOT burn API calls to top up — nothing new arrives 8 PM - 4 AM ET"
+            )
+
+    def test_holiday_uses_conservative_threshold(self, monkeypatch):
+        """Memorial Day Monday 2 PM ET: weekday clock + extended-hours
+        window. Prior rule applied the aggressive tf threshold and treated
+        Friday's cache as stale — triggering synchronous Massive fetches
+        on every chart open (the Memorial-Day-2026 saturation incident).
+        Holiday-awareness must keep this on the conservative 30h gate
+        because no new bars arrive on a closed-market day."""
+        from unittest.mock import patch
+        from api.services.bars_fetch import _needs_fresh
+        memorial_day = datetime(2026, 5, 25, 14, 0, tzinfo=_ET)
+        # 5h-old cache: stale under tf gate (30min → 1800s), fresh under
+        # 30h gate. A holiday must take the 30h path → not needs fresh.
+        last_ts_5h = int(memorial_day.timestamp()) - 5 * 3600
+        with patch("api.services.bars_fetch._is_market_open", return_value=False), \
+             patch("api.services.bars_fetch.datetime") as mock_dt, \
+             patch("api.services.bars_fetch._time") as mock_time:
+            mock_dt.now.return_value = memorial_day
+            mock_dt.fromtimestamp = datetime.fromtimestamp
+            mock_time.time.return_value = memorial_day.timestamp()
+            assert _needs_fresh(last_ts_5h, "30") is False, (
+                "holiday must NOT burn API calls to top up — markets closed, "
+                "nothing new to fetch (Memorial Day 2026 saturation)"
             )
 
     def test_weekend_uses_conservative_threshold(self, monkeypatch):

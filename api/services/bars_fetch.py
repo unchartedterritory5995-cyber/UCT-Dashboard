@@ -78,22 +78,64 @@ def get_hot_intraday_tickers(max_n: int = 500) -> list[str]:
     return [k for k, _ in items[:max_n]]
 
 
+# NYSE full-day closures. WITHOUT this, every market holiday looks like a
+# missed trading session to the cold-stale / freshness predicates: cache
+# carries Friday's last bar, code expects a "Monday" session, so every
+# intraday chart open fires a synchronous Massive delta fetch returning
+# nothing — and the prewarmer keeps retrying the same empty fetch every
+# cycle, saturating the shared API key. Memorial Day 2026 (this set's
+# trigger) reproduced exactly that. Keep this list ahead of `today` by at
+# least one calendar year; refresh annually from nyse.com/markets/hours-calendars.
+_NYSE_HOLIDAYS_YYYYMMDD: frozenset[int] = frozenset({
+    # 2025
+    20250101, 20250109, 20250120, 20250217, 20250418, 20250526, 20250619,
+    20250704, 20250901, 20251127, 20251225,
+    # 2026
+    20260101, 20260119, 20260216, 20260403, 20260525, 20260619, 20260703,
+    20260907, 20261126, 20261225,
+    # 2027
+    20270101, 20270118, 20270215, 20270326, 20270531, 20270618, 20270705,
+    20270906, 20271125, 20271224,
+})
+
+
+def _is_nyse_holiday(yyyymmdd: int) -> bool:
+    """True if the given ET calendar date (YYYYMMDD int) is a NYSE full
+    closure. Half-day closes (1pm ET early closes) intentionally NOT
+    included — those are still trading sessions and produce intraday
+    bars normally."""
+    return yyyymmdd in _NYSE_HOLIDAYS_YYYYMMDD
+
+
 def _is_market_open() -> bool:
     now = datetime.now(_ZI("America/New_York"))
     if now.weekday() >= 5:
+        return False
+    if _is_nyse_holiday(int(now.strftime("%Y%m%d"))):
         return False
     hm = now.hour * 100 + now.minute
     return 930 <= hm < 1600
 
 
 def _last_weekday_yyyymmdd() -> int:
-    """Return the most recent weekday as YYYYMMDD (rolls Sat → Fri, Sun → Fri)."""
+    """Return the most recent NYSE trading day as YYYYMMDD (rolls Sat → Fri,
+    Sun → Fri, AND walks back past any NYSE-closed holiday). Drives
+    `_needs_fresh` for D/W/M: if last_ts equals this date, the bar is
+    considered fresh — so on a holiday, Friday's cache no longer triggers
+    a useless empty refresh fetch."""
     d = datetime.utcnow()
     wd = d.weekday()  # 0=Mon … 5=Sat, 6=Sun
     if wd == 5:
         d -= timedelta(days=1)
     elif wd == 6:
         d -= timedelta(days=2)
+    # Walk back through holidays (and any weekend the holiday rolls onto).
+    # Capped at 14 days as a safety belt — NYSE never has a 2-week closure.
+    for _ in range(14):
+        ymd = int(d.strftime("%Y%m%d"))
+        if not _is_nyse_holiday(ymd) and d.weekday() < 5:
+            return ymd
+        d -= timedelta(days=1)
     return int(d.strftime("%Y%m%d"))
 
 
@@ -139,9 +181,16 @@ def _needs_fresh(last_ts: int | None, tf: str) -> bool:
         et = _ZI("America/New_York")
         now_dt = datetime.now(et)
         hour_min = now_dt.hour * 60 + now_dt.minute
-        # 4:00 AM ET (240) through 8:00 PM ET (1200) on a weekday is the
-        # window where extended-hours trading and RTH coexist.
-        in_extended_today = now_dt.weekday() < 5 and 240 <= hour_min < 1200
+        # 4:00 AM ET (240) through 8:00 PM ET (1200) on a TRADING weekday
+        # is the window where extended-hours and RTH coexist. NYSE holidays
+        # produce no bars at any hour, so the aggressive 'needs fresh'
+        # threshold must NOT apply — otherwise prewarmer + on-demand both
+        # refetch empty all day and saturate the shared Massive API key
+        # (the Memorial-Day-2026 incident).
+        is_holiday = _is_nyse_holiday(int(now_dt.strftime("%Y%m%d")))
+        in_extended_today = (
+            now_dt.weekday() < 5 and not is_holiday and 240 <= hour_min < 1200
+        )
     except Exception:
         # If zoneinfo fails for any reason, fall back to the old conservative
         # behavior — better to under-fetch than over-fetch on an edge case.
@@ -157,10 +206,16 @@ def _expected_latest_session_yyyymmdd(now=None) -> int:
     should have intraday bars available.
 
     Weekends roll to Friday; weekday pre-open (before ~09:35 ET) rolls to
-    the prior weekday. Holidays are intentionally ignored — at worst that
-    triggers one extra (cheap) synchronous delta fetch that returns no new
-    bars. False positives cost ~1s of latency once; false negatives are
-    the universe-freeze bug, so we bias toward fetching.
+    the prior trading day; NYSE-closed holidays also roll back (added
+    2026-05-25 after Memorial-Day saturation: previously ALL intraday
+    cache entries fired cold-stale on holidays because the prior weekday's
+    cache looked "older than today's expected session," sending every chart
+    open down the synchronous Massive-fetch path while the prewarmer
+    hammered the same empty-result loop).
+
+    False positives still cost only ~1s of latency once; false negatives
+    are the universe-freeze bug, so we keep biasing toward fetching for
+    everything OTHER than the well-known holiday set.
     """
     et = _ZI("America/New_York")
     now = now or datetime.now(et)
@@ -178,6 +233,14 @@ def _expected_latest_session_yyyymmdd(now=None) -> int:
                 d -= timedelta(days=2)
         else:
             d = now
+    # Walk back past any NYSE holiday (and any weekend the holiday rolls
+    # onto) so a closed Monday correctly resolves to Friday's session, not
+    # to itself. 14-day cap is a safety belt — NYSE never has a 2-week run.
+    for _ in range(14):
+        ymd = int(d.strftime("%Y%m%d"))
+        if d.weekday() < 5 and not _is_nyse_holiday(ymd):
+            return ymd
+        d -= timedelta(days=1)
     return int(d.strftime("%Y%m%d"))
 
 
