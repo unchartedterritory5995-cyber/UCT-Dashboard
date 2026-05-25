@@ -42,7 +42,7 @@ const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPag
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const MultiChart = lazy(() => import('./pages/MultiChart'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
-const ChartsHub = lazy(() => import('./pages/charts/ChartsHub'))
+const ChartsWorkspace = lazy(() => import('./pages/charts/ChartsWorkspace'))
 const LegacyRedirect = lazy(() => import('./pages/charts/LegacyRedirect'))
 const Patterns = lazy(() => import('./pages/Patterns'))
 const RiskDashboard = lazy(() => import('./pages/RiskDashboard'))
@@ -148,10 +148,10 @@ export default function App() {
                 <Route path="/morning-wire" element={<MorningWire />} />
                 <Route path="/uct-20" element={<UCT20 />} />
                 <Route path="/breadth" element={<Breadth />} />
-                <Route path="/charts" element={<ChartsHub />} />
-                <Route path="/theme-tracker" element={<LegacyRedirect tab="themes" />} />
-                <Route path="/watchlists" element={<LegacyRedirect tab="watchlist" />} />
-                <Route path="/multi-chart" element={<LegacyRedirect tab="multichart" />} />
+                <Route path="/charts" element={<ChartsWorkspace />} />
+                <Route path="/theme-tracker" element={<LegacyRedirect />} />
+                <Route path="/watchlists" element={<LegacyRedirect />} />
+                <Route path="/multi-chart" element={<LegacyRedirect />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/screener" element={<Screener />} />
                 <Route path="/options-flow" element={<OptionsFlow />} />
