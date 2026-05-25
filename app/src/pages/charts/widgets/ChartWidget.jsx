@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import StockChart from '../../../components/StockChart'
+import SymbolSearch from '../../../components/chart/SymbolSearch'
 import { useWorkspace } from '../WorkspaceContext'
 import styles from '../ChartsWorkspace.module.css'
 
@@ -20,6 +21,10 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   return (
     <div className={styles.chartWidget}>
       <div className={styles.tfBar}>
+        <div className={styles.symbolSlot}>
+          <SymbolSearch sym={sym} onSymbolChange={(s) => setGroupSym(color, s)} />
+        </div>
+        <span className={styles.tfBarDivider} aria-hidden="true" />
         {TFS.map(([code, label]) => (
           <button
             key={code}

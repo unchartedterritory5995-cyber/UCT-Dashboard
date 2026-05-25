@@ -108,6 +108,20 @@
 
 .chartFill { flex: 1; min-height: 0; min-width: 0; position: relative; }
 
+/* Symbol search slot lives at the left of the TF bar. */
+.symbolSlot {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+}
+
+.tfBarDivider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border, #1f2937);
+  margin: 2px 4px;
+}
+
 .workspace {
   display: flex;
   flex-direction: column;
