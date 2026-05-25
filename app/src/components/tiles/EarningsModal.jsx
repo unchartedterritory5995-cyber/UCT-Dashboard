@@ -2,7 +2,65 @@
 import { useEffect, useState } from 'react'
 import TickerPopup from '../TickerPopup'
 import ReadAloudButton from '../voice/ReadAloudButton'
+import useTickerTweets from '../../hooks/useTickerTweets'
+import { timeAgo } from '../../utils/timeAgo'
 import styles from './EarningsModal.module.css'
+
+const TWEETS_UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
+
+function renderTweetText(text) {
+  if (!text) return null
+  const parts = text.split(/(\$[A-Z]{1,5}\b)/g)
+  return parts.map((p, i) =>
+    /^\$[A-Z]{1,5}$/.test(p)
+      ? <span key={i} className={styles.tweetCashtag}>{p}</span>
+      : <span key={i}>{p}</span>,
+  )
+}
+
+function TweetsBlock({ sym }) {
+  const { data: tweets } = useTickerTweets(sym, { hours: 24, enabled: TWEETS_UI_ENABLED })
+  const [collapsed, setCollapsed] = useState(false)
+
+  if (!TWEETS_UI_ENABLED) return null
+  if (!tweets || tweets.length === 0) return null
+
+  // Default expanded if ≤5 tweets, collapsed otherwise (user can toggle)
+  const startsExpanded = tweets.length <= 5
+  const isOpen = startsExpanded ? !collapsed : collapsed
+
+  return (
+    <div className={styles.tweetsBlock}>
+      <button
+        className={styles.tweetsHeader}
+        onClick={() => setCollapsed(c => !c)}
+        type="button"
+      >
+        <span>🐦 Recent tweets ({tweets.length})</span>
+        <span>{isOpen ? '▾' : '▸'}</span>
+      </button>
+      {isOpen && (
+        <div className={styles.tweetsList}>
+          {tweets.map(t => (
+            <div key={t.id} className={styles.tweetCard}>
+              <div className={styles.tweetMeta}>
+                <span className={styles.tweetAuthor}>@{t.author_handle}</span>
+                <span className={styles.tweetTime}>{timeAgo(t.created_at)}</span>
+                <a className={styles.tweetLink} href={t.url} target="_blank" rel="noreferrer" title="open on X">↗</a>
+              </div>
+              <div
+                className={styles.tweetText}
+                style={t.is_retweet ? { fontSize: '90%', opacity: 0.75 } : undefined}
+              >
+                {t.is_retweet ? 'RT: ' : ''}{renderTweetText(t.text)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function fmtEps(v) {
   if (v == null) return '—'
@@ -324,6 +382,9 @@ export default function EarningsModal({ row, label, onClose }) {
             </div>
           ) : null
         )}
+
+        {/* ── Recent tweets section (spec 2026-05-25) ─────────────────── */}
+        <TweetsBlock sym={row.sym} />
 
         {/* ── Transcript section (reported only, collapsible) ──────────── */}
         {!isPending && transcript?.available && (
