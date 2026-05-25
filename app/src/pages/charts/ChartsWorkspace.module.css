@@ -29,3 +29,26 @@
   cursor: pointer; padding: 0 4px; font-size: 12px;
 }
 .closeBtn:hover { color: var(--text, #e5e7eb); }
+
+.widget {
+  background: var(--bg-elevated, #0f141b);
+  border: 1px solid var(--border, #1f2937);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.widgetBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.unknownWidget {
+  padding: 20px;
+  color: var(--text-muted, #6b7280);
+  font-size: 12px;
+  text-align: center;
+}
