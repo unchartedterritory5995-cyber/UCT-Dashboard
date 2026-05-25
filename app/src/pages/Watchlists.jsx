@@ -1,5 +1,5 @@
 // app/src/pages/Watchlists.jsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import useSWR from 'swr'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
@@ -269,28 +269,82 @@ export default function Watchlists({ embedded = false }) {
     return () => clearTimeout(t)
   }, [flagToast])
 
-  // Keyboard nav within flagged group
+  // Build a flat, deduped, top-to-bottom list of every sym currently visible
+  // across expanded watchlists / flagged / color-tag auto-lists. Arrow keys
+  // navigate through this flat list so the user can move row-by-row no matter
+  // which list contains the selected ticker.
+  const visibleSymsFlat = useMemo(() => {
+    const seen = new Set()
+    const out = []
+    const push = (s) => { if (s && !seen.has(s)) { seen.add(s); out.push(s) } }
+
+    // Flagged group first (matches visual order on "mine" tab)
+    if (activeTab === 'mine' && expandedLists.has('flagged')) {
+      flagged.forEach(push)
+    }
+    // Color-tag auto-lists
+    if (activeTab === 'mine') {
+      TAG_COLORS.forEach(tc => {
+        if (expandedLists.has(`tag:${tc.key}`)) {
+          Object.entries(tags).filter(([, c]) => c === tc.key).forEach(([s]) => push(s))
+        }
+      })
+    }
+    // User / community watchlists (whichever tab is active)
+    const lists = activeTab === 'mine' ? myLists : communityLists
+    if (lists) {
+      lists.filter(wl => expandedLists.has(wl.id)).forEach(wl => {
+        (wl.items || []).forEach(i => push(i.sym))
+      })
+    }
+    return out
+  }, [activeTab, expandedLists, flagged, tags, TAG_COLORS, myLists, communityLists])
+
+  // Keyboard nav: arrow up/down moves through every expanded list.
   const handleKeyDown = useCallback((e) => {
-    if (!expandedLists.has('flagged') || activeTab !== 'mine') return
+    // Don't hijack arrows while user is typing in an input/textarea/contenteditable
+    const tgt = e.target
+    if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
+
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      const idx = flagged.indexOf(selectedSym)
-      if (idx < 0) return
+      if (!visibleSymsFlat.length) return
+      const idx = selectedSym ? visibleSymsFlat.indexOf(selectedSym) : -1
       e.preventDefault()
-      const next = e.key === 'ArrowDown'
-        ? Math.min(idx + 1, flagged.length - 1)
-        : Math.max(idx - 1, 0)
-      if (next >= 0) setSelectedSym(flagged[next])
+      let next
+      if (idx < 0) {
+        // No selection yet — start at top (ArrowDown) or bottom (ArrowUp)
+        next = e.key === 'ArrowDown' ? 0 : visibleSymsFlat.length - 1
+      } else {
+        next = e.key === 'ArrowDown'
+          ? Math.min(idx + 1, visibleSymsFlat.length - 1)
+          : Math.max(idx - 1, 0)
+      }
+      const nextSym = visibleSymsFlat[next]
+      if (nextSym && nextSym !== selectedSym) {
+        setSelectedSym(nextSym)
+        setHubSym(nextSym)
+      }
     }
     if (e.shiftKey && e.key === 'F' && selectedSym && flagged.includes(selectedSym)) {
       removeFlagged(selectedSym)
       setFlagToast('removed')
     }
-  }, [activeTab, flagged, selectedSym, removeFlagged, expandedLists])
+  }, [visibleSymsFlat, selectedSym, flagged, removeFlagged, setHubSym])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
+
+  // Scroll the active row into view when selection changes via keyboard.
+  const pageRef = useRef(null)
+  useEffect(() => {
+    if (!selectedSym || !pageRef.current) return
+    const row = pageRef.current.querySelector(`[data-watch-sym="${CSS.escape(selectedSym)}"]`)
+    if (row && typeof row.scrollIntoView === 'function') {
+      row.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }
+  }, [selectedSym])
 
   // Prefetch all timeframes for current ticker + adjacent flagged tickers
   useEffect(() => {
@@ -453,6 +507,7 @@ export default function Watchlists({ embedded = false }) {
               return (
                 <React.Fragment key={item.id}>
                   <div
+                    data-watch-sym={item.sym}
                     className={`${styles.listRow} ${styles.wlRow}${selectedSym === item.sym ? ' ' + styles.listRowSelected : ''}${dragItemId === item.id ? ' ' + styles.dragging : ''}${dragOverId === item.id ? ' ' + styles.dragOver : ''}`}
                     onClick={() => { setSelectedSym(item.sym); setHubSym(item.sym); }}
                     draggable={dragOk}
@@ -586,6 +641,7 @@ export default function Watchlists({ embedded = false }) {
               return (
                 <div
                   key={sym}
+                  data-watch-sym={sym}
                   className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`}
                   onClick={() => { setSelectedSym(sym); setHubSym(sym); }}
                 >
@@ -625,7 +681,7 @@ export default function Watchlists({ embedded = false }) {
   }
 
   return (
-    <div className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}>
+    <div ref={pageRef} className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}>
 
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
@@ -711,6 +767,7 @@ export default function Watchlists({ embedded = false }) {
                           return (
                             <div
                               key={sym}
+                              data-watch-sym={sym}
                               className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`}
                               onClick={() => { setSelectedSym(sym); setHubSym(sym); }}
                             >
@@ -775,7 +832,7 @@ export default function Watchlists({ embedded = false }) {
                           const price = q?.price ?? null
                           const changePct = q?.change_pct ?? null
                           return (
-                            <div key={sym} className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`} onClick={() => { setSelectedSym(sym); setHubSym(sym); }}>
+                            <div key={sym} data-watch-sym={sym} className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`} onClick={() => { setSelectedSym(sym); setHubSym(sym); }}>
                               <span className={styles.rowSym}>{sym}</span>
                               <div className={styles.rowRight}>
                                 {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
