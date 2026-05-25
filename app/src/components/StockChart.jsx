@@ -30,7 +30,32 @@ import { matchShortcut } from './chart/keyboardShortcuts'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 
-const fetcher = url => fetch(url).then(r => r.json())
+// Throw on !ok so SWR's onErrorRetry sees a real error and backs off.
+// Without this, a 503 with a JSON body parses as a successful response
+// with bars=[], the chart paints blank, and SWR never retries. The bars
+// route now returns 503 during transient SQLite-swap windows precisely
+// so this retry loop can heal automatically.
+const fetcher = async (url) => {
+  const r = await fetch(url)
+  if (!r.ok) {
+    const err = new Error(`HTTP ${r.status}`)
+    err.status = r.status
+    throw err
+  }
+  return r.json()
+}
+
+// Retry transient (5xx) failures indefinitely with bounded backoff so charts
+// self-heal across Railway deploy windows and SQLite-swap intervals (can run
+// 30s–10min when the startup integrity check triggers a force_resync from R2).
+// During retry, the chart falls back to last-known idbBars so the user sees
+// stale data, not blank. 4xx skip retry — those are real client errors.
+const barsSwrOnErrorRetry = (error, _key, _config, revalidate, { retryCount }) => {
+  const status = error?.status
+  if (status && status >= 400 && status < 500) return
+  const delay = Math.min(1000 + retryCount * 1000, 10000)
+  setTimeout(() => revalidate({ retryCount }), delay)
+}
 
 // ─── Legend helpers ─────────────────────────────────────────────────────────
 
@@ -845,6 +870,7 @@ export default function StockChart({
       revalidateOnFocus: false,
       refreshInterval,
       refreshWhenHidden: false,
+      onErrorRetry: barsSwrOnErrorRetry,
     }
   )
 

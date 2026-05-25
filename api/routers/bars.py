@@ -138,7 +138,19 @@ def get_bars(
     except Exception as e:
         import logging, traceback
         logging.getLogger(__name__).error(f"[bars] CRASH {ticker} tf={tf}: {e}\n{traceback.format_exc()}")
-        response = JSONResponse(content={"ticker": ticker.upper(), "tf": tf, "bars": []})
+        # Return 503 (not 200 + empty bars) so the frontend treats the failure
+        # as transient and retries with backoff, keeping any last-known IDB
+        # bars on screen instead of blanking the chart. The dominant cause is
+        # the SQLite inode swap during data_sync.force_resync (R2 snapshot
+        # pull at startup if PRAGMA integrity_check fails) — every read for
+        # 30s+ throws until the epoch bump lands. Empty payloads previously
+        # poisoned every chart with `bars=[]`, indistinguishable from "no
+        # data exists." 503 + Retry-After preserves the distinction.
+        response = JSONResponse(
+            status_code=503,
+            content={"ticker": ticker.upper(), "tf": tf, "bars": [], "error": "transient"},
+        )
+        response.headers["Retry-After"] = "5"
 
     # Bars data must never be served from a stale browser/CDN cache. Server-side
     # caching (memory + SQLite + disk) handles correctness; HTTP-layer caching
