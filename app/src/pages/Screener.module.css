@@ -6,12 +6,39 @@
 
 /* Embedded mode — used when rendered inside ChartsWorkspace ScannerWidget.
    Tightens padding and removes outer page chrome since the widget shell
-   already supplies its own header + frame. */
+   already supplies its own header + frame. The widgetBody parent provides
+   the container-type root; container queries below react to widget width. */
 .pageEmbedded {
-  padding: 0;
+  padding: 8px;
   height: 100%;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+
+/* When the Scanner widget is narrow, collapse the 3-col grid to 2 or 1 col
+   so PULLBACK MA / REMOUNT / GAPPERS don't overflow horizontally. Container
+   queries react to widget width (set by react-grid-layout), not viewport. */
+@container (max-width: 900px) {
+  .pageEmbedded .columnsGrid { grid-template-columns: repeat(2, 1fr); }
+}
+@container (max-width: 600px) {
+  .pageEmbedded .columnsGrid { grid-template-columns: 1fr; }
+  .pageEmbedded .columnBody { max-height: none; }
+}
+
+/* In embedded mode the column body should fill available vertical space
+   inside the widget, not cap at 720px. */
+.pageEmbedded .columnsGrid { flex: 1; min-height: 0; }
+.pageEmbedded .columnBody { max-height: none; }
+
+/* Tighten premarket/regime bars when embedded so they don't eat half the widget */
+.pageEmbedded .preMarketBar,
+.pageEmbedded .regimeBar { padding: 4px 8px; font-size: 10px; flex-wrap: wrap; }
 
 /* Full-height mode — used when Custom Scan tab is active */
 .containerFull {

@@ -12,30 +12,50 @@ const ResponsiveGridLayout = WidthProvider(Responsive)
 
 const COLS = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
-const ROW_HEIGHT = 40
+const FIXED_ROWS = 20            // workspace is viewport-locked to this many rows
+const MARGIN_Y = 6                // px gap between widgets vertically
+const BODY_PAD = 6                // px padding around the grid (matches .workspaceBody)
 
 const DEFAULT_LAYOUT = {
   widgets: [
-    { id: 'w-watchlist', type: 'watchlist', color: 'A', x: 0, y: 0, w: 3, h: 6, opts: {} },
-    { id: 'w-chart',     type: 'chart',     color: 'A', x: 3, y: 0, w: 9, h: 8, opts: { tf: 'D' } },
-    { id: 'w-themes',    type: 'themes',    color: 'B', x: 0, y: 6, w: 3, h: 4, opts: {} },
+    { id: 'w-watchlist', type: 'watchlist', color: 'A', x: 0, y: 0,  w: 3, h: 10, opts: {} },
+    { id: 'w-chart',     type: 'chart',     color: 'A', x: 3, y: 0,  w: 9, h: 20, opts: { tf: 'D' } },
+    { id: 'w-themes',    type: 'themes',    color: 'B', x: 0, y: 10, w: 3, h: 10, opts: {} },
   ],
   cols: 12,
-  rowHeight: ROW_HEIGHT,
 }
 
 const WIDGET_DEFAULTS = {
-  chart:     { w: 6, h: 8, minW: 3, minH: 4 },
-  watchlist: { w: 3, h: 6, minW: 2, minH: 3 },
-  themes:    { w: 3, h: 6, minW: 2, minH: 3 },
-  scanner:   { w: 4, h: 6, minW: 3, minH: 3 },
+  chart:     { w: 6, h: 12, minW: 3, minH: 6 },
+  watchlist: { w: 3, h: 10, minW: 2, minH: 4 },
+  themes:    { w: 3, h: 10, minW: 2, minH: 4 },
+  scanner:   { w: 4, h: 10, minW: 3, minH: 4 },
 }
 
 function parseLayout(raw) {
   if (!raw) return null
   try {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-    if (parsed?.widgets && Array.isArray(parsed.widgets)) return parsed
+    if (parsed?.widgets && Array.isArray(parsed.widgets)) {
+      // Auto-fit legacy layouts (h values < ~5) saved before the viewport-lock
+      // change so they don't appear tiny on resume. Detect by checking if max
+      // y+h is well below FIXED_ROWS — scale all h values up uniformly.
+      const maxBottom = parsed.widgets.reduce((m, w) => Math.max(m, (w.y || 0) + (w.h || 0)), 0)
+      if (maxBottom > 0 && maxBottom <= FIXED_ROWS / 2) {
+        const scale = Math.floor(FIXED_ROWS / maxBottom)
+        if (scale > 1) {
+          return {
+            ...parsed,
+            widgets: parsed.widgets.map(w => ({
+              ...w,
+              y: (w.y || 0) * scale,
+              h: Math.max(4, (w.h || 4) * scale),
+            })),
+          }
+        }
+      }
+      return parsed
+    }
   } catch {}
   return null
 }
@@ -52,6 +72,26 @@ function nextColor(currentColors) {
 export default function ChartsWorkspace() {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const { prefs, setPref } = usePreferences()
+
+  // Viewport-locked sizing: measure the workspace body and divide its height
+  // by FIXED_ROWS so the grid always fills the visible area exactly. The page
+  // itself never scrolls — widget max size = visible chart area.
+  const bodyRef = useRef(null)
+  const [rowHeight, setRowHeight] = useState(34)
+  useEffect(() => {
+    const el = bodyRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const measure = () => {
+      const h = el.clientHeight - BODY_PAD * 2
+      const available = h - MARGIN_Y * (FIXED_ROWS - 1)
+      const rh = Math.max(12, Math.floor(available / FIXED_ROWS))
+      setRowHeight(rh)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   // Layout state — seed from prefs or default.
   const [layout, setLayout] = useState(() => parseLayout(prefs?.charts_workspace_layout) || DEFAULT_LAYOUT)
@@ -199,17 +239,18 @@ export default function ChartsWorkspace() {
             Reset layout
           </button>
         </header>
-        <main className={styles.workspaceBody}>
+        <main className={styles.workspaceBody} ref={bodyRef}>
           <ResponsiveGridLayout
             className="layout"
             layouts={rglLayouts}
             breakpoints={BREAKPOINTS}
             cols={COLS}
-            rowHeight={ROW_HEIGHT}
+            rowHeight={rowHeight}
+            maxRows={FIXED_ROWS}
             onLayoutChange={handleLayoutChange}
             draggableHandle=".charts-widget-drag-handle"
             compactType="vertical"
-            margin={[6, 6]}
+            margin={[6, MARGIN_Y]}
           >
             {layout.widgets.map(w => (
               <div key={w.id}>

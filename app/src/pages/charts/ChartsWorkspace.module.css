@@ -100,8 +100,17 @@
 .addMenuItem:hover { background: var(--bg-hover, #1f2937); color: var(--accent, #c9a84c); }
 
 .workspaceBody {
-  flex: 1; min-height: 0; overflow: auto;
+  flex: 1; min-height: 0; min-width: 0;
+  overflow: hidden;  /* viewport-locked — widgets stay within visible area */
   padding: 6px;
+  position: relative;
+}
+
+/* Widget body becomes the container-query root for its embedded child page —
+   container queries inside Watchlists / ThemeTrackerPage / Screener
+   embedded modes react to actual widget width, not viewport width. */
+.widgetBody {
+  container-type: inline-size;
 }
 
 /* react-grid-layout uses .react-grid-item — give the placeholder a visible style */
