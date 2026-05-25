@@ -177,7 +177,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
   )
 }
 
-export default function ThemeTrackerPage() {
+export default function ThemeTrackerPage({ embedded = false }) {
   const [activeTab, setActiveTab] = useState('1W')
   const { data, isLoading } = useMobileSWR('/api/theme-performance', fetcher, {
     refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 30_000,
@@ -377,7 +377,7 @@ export default function ThemeTrackerPage() {
   }, [selectedSym, isFlagged, toggleFlag])
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}>
       {/* ── Left panel ── */}
       <div className={`${styles.leftPanel}${isCorrTab ? ' ' + styles.leftPanelCorr : ''}`}>
 
@@ -441,8 +441,8 @@ export default function ThemeTrackerPage() {
         )}
       </div>
 
-      {/* ── Right panel — hidden when corr tab active ── */}
-      {!isCorrTab && (
+      {/* ── Right panel — hidden when corr tab active or in embedded mode ── */}
+      {!isCorrTab && !embedded && (
         <div className={styles.rightPanel} ref={chartRef}>
           {selectedSym ? (
             <>

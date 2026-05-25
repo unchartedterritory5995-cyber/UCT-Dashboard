@@ -9,6 +9,16 @@
   background: var(--bg);
 }
 
+/* ── Embedded mode (widget host hides right chart panel) ────────────────── */
+.pageEmbedded { display: block; }
+.pageEmbedded > .leftPanel {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border-right: none;
+  height: 100%;
+}
+
 /* ── Period rank tabs ───────────────────────────────────────────────────── */
 .periodBar {
   display: flex;
