@@ -477,6 +477,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] Auth DB init error (non-fatal): {e}")
 
+    # Initialize tweets.db schema (idempotent, safe on every boot).
+    # Only when the polling pipeline is enabled — keeps a stray empty DB
+    # off disk on environments that don't have a TwitterAPI.io key.
+    if os.environ.get("TWITTERAPI_IO_ENABLED", "").lower() in ("1", "true", "yes"):
+        try:
+            from api.services import tweet_store
+            tweet_store._init_db()
+            print("[startup] tweets.db initialized")
+        except Exception as e:
+            print(f"[startup] tweet_store init failed (non-fatal): {e}")
+
     # Chart-health bootstrap: init quarantine + audit schemas synchronously so
     # the tables exist before any /api/bars handler runs, then spawn a daemon
     # thread to scan existing cache files for corruption (slow — up to ~18,425
@@ -1234,6 +1245,32 @@ async def lifespan(app: FastAPI):
 
         _scheduler.add_job(_cot_daily_catchup, trigger=CronTrigger(hour=18, minute=0), id="cot_daily_catchup", max_instances=1, replace_existing=True)
         _scheduler.add_job(cleanup_expired_sessions, trigger=CronTrigger(hour=3, minute=0), id="session_cleanup", max_instances=1, replace_existing=True)
+
+        # ── Twitter News Ingestion (spec 2026-05-25) ──────────────────────
+        # Burst windows (every 2 min) cover the high-value pre-market and
+        # post-close trading hours; regular cadence handles mid-day; slow
+        # hourly job is a safety net (since_id makes overlap free).
+        if os.environ.get("TWITTERAPI_IO_ENABLED", "").lower() in ("1", "true", "yes"):
+            from api.services.tweet_poller import poll_all_accounts as _tw_poll
+            from api.services.tweet_cleanup import run_cleanup as _tw_cleanup
+
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/2"),
+                               id="tweet_poll_burst_premarket", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="30-58/2"),
+                               id="tweet_poll_burst_open", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="15", minute="30-58/2"),
+                               id="tweet_poll_burst_close", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="16-19", minute="*/2"),
+                               id="tweet_poll_burst_amc", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="10-15", minute="*/15"),
+                               id="tweet_poll_regular_midday", max_instances=1, replace_existing=True)
+            # Slow safety-net — overlap with burst is intentional; since_id
+            # makes duplicate fetches free.
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(minute="0"),
+                               id="tweet_poll_slow", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0),
+                               id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
+            print("[scheduler] tweet poll jobs registered")
 
         def _check_churn_risk():
             try:
