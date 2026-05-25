@@ -1,15 +1,14 @@
 import { Navigate, useLocation } from 'react-router-dom'
 
-export default function LegacyRedirect({ tab }) {
+/**
+ * V2: /charts has no sub-tabs. Legacy URLs (/theme-tracker, /watchlists,
+ * /multi-chart) redirect to bare /charts, dropping any ?tab= param and
+ * preserving all other query params.
+ */
+export default function LegacyRedirect() {
   const { search } = useLocation()
   const params = new URLSearchParams(search)
-  params.delete('tab')  // we always overwrite with the canonical tab
-  params.set('tab', tab)
-  // Put tab first; URLSearchParams.set after delete appends, so rebuild:
-  const merged = new URLSearchParams()
-  merged.set('tab', tab)
-  for (const [k, v] of params) {
-    if (k !== 'tab') merged.append(k, v)
-  }
-  return <Navigate to={`/charts?${merged.toString()}`} replace />
+  params.delete('tab')
+  const qs = params.toString()
+  return <Navigate to={qs ? `/charts?${qs}` : '/charts'} replace />
 }

@@ -11,27 +11,31 @@ function renderAt(path) {
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/theme-tracker" element={<LegacyRedirect tab="themes" />} />
-        <Route path="/watchlists" element={<LegacyRedirect tab="watchlist" />} />
-        <Route path="/multi-chart" element={<LegacyRedirect tab="multichart" />} />
+        <Route path="/theme-tracker" element={<LegacyRedirect />} />
+        <Route path="/watchlists" element={<LegacyRedirect />} />
+        <Route path="/multi-chart" element={<LegacyRedirect />} />
         <Route path="/charts" element={<CurrentUrl />} />
       </Routes>
     </MemoryRouter>,
   )
 }
 
-test('/theme-tracker redirects to /charts?tab=themes', () => {
+test('/theme-tracker redirects to /charts', () => {
   renderAt('/theme-tracker')
-  expect(screen.getByTestId('url').textContent).toBe('/charts?tab=themes')
+  expect(screen.getByTestId('url').textContent).toBe('/charts')
 })
 
-test('preserves extra query params from the legacy URL', () => {
+test('preserves non-tab query params from the legacy URL', () => {
   renderAt('/watchlists?id=42&filter=tech')
-  // Order of params in URLSearchParams output is insertion order
-  expect(screen.getByTestId('url').textContent).toBe('/charts?tab=watchlist&id=42&filter=tech')
+  expect(screen.getByTestId('url').textContent).toBe('/charts?id=42&filter=tech')
 })
 
-test('legacy ?tab= param is dropped (we set our own)', () => {
-  renderAt('/multi-chart?tab=ignored&keep=me')
-  expect(screen.getByTestId('url').textContent).toBe('/charts?tab=multichart&keep=me')
+test('strips legacy ?tab= param entirely', () => {
+  renderAt('/multi-chart?tab=multichart&keep=me')
+  expect(screen.getByTestId('url').textContent).toBe('/charts?keep=me')
+})
+
+test('redirects with empty query when only ?tab= was present', () => {
+  renderAt('/theme-tracker?tab=themes')
+  expect(screen.getByTestId('url').textContent).toBe('/charts')
 })
