@@ -51,7 +51,7 @@ function AddItemRow({ onAdd }) {
   )
 }
 
-export default function Watchlists() {
+export default function Watchlists({ embedded = false }) {
   const [activeTab, setActiveTab] = useState('mine')
   const [selectedSym, setSelectedSym] = useState(null)
   const { sym: hubSym, setSym: setHubSym } = useChartsSym()
@@ -625,7 +625,7 @@ export default function Watchlists() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}>
 
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
@@ -807,40 +807,42 @@ export default function Watchlists() {
       </div>
 
       {/* ── Right panel: chart ── */}
-      <div className={styles.rightPanel}>
-        {selectedSym ? (
-          <>
-            <div className={styles.chartHeader}>
-              <SymbolSearch sym={selectedSym} onSymbolChange={setSelectedSym} />
-              {flagToast && (
-                <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
-                  {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
-                </span>
-              )}
-              <button
-                className={`${styles.flagBtn}${isFlagged(selectedSym) ? ' ' + styles.flagBtnActive : ''}`}
-                onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
-                title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
-              >⚑ {isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
-              <div className={styles.chartPeriodTabs}>
-                {PERIODS.map(([p, label]) => (
-                  <button
-                    key={p}
-                    className={`${styles.chartPeriodBtn}${chartPeriod === p ? ' ' + styles.chartPeriodBtnActive : ''}`}
-                    onClick={() => setChartPeriod(p)}
-                  >{label}</button>
-                ))}
+      {!embedded && (
+        <div className={styles.rightPanel}>
+          {selectedSym ? (
+            <>
+              <div className={styles.chartHeader}>
+                <SymbolSearch sym={selectedSym} onSymbolChange={setSelectedSym} />
+                {flagToast && (
+                  <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
+                    {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
+                  </span>
+                )}
+                <button
+                  className={`${styles.flagBtn}${isFlagged(selectedSym) ? ' ' + styles.flagBtnActive : ''}`}
+                  onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
+                  title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
+                >⚑ {isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
+                <div className={styles.chartPeriodTabs}>
+                  {PERIODS.map(([p, label]) => (
+                    <button
+                      key={p}
+                      className={`${styles.chartPeriodBtn}${chartPeriod === p ? ' ' + styles.chartPeriodBtnActive : ''}`}
+                      onClick={() => setChartPeriod(p)}
+                    >{label}</button>
+                  ))}
+                </div>
               </div>
+              <StockChart sym={selectedSym} tf={chartPeriod} onSymbolChange={setSelectedSym} />
+            </>
+          ) : (
+            <div className={styles.chartEmpty}>
+              <div className={styles.chartEmptyIcon}>◳</div>
+              <div className={styles.chartEmptyText}>Select a ticker to view chart</div>
             </div>
-            <StockChart sym={selectedSym} tf={chartPeriod} onSymbolChange={setSelectedSym} />
-          </>
-        ) : (
-          <div className={styles.chartEmpty}>
-            <div className={styles.chartEmptyIcon}>◳</div>
-            <div className={styles.chartEmptyText}>Select a ticker to view chart</div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* ── Create watchlist modal ── */}
       {showCreate && (

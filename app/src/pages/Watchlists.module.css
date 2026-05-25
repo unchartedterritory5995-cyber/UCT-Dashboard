@@ -9,6 +9,17 @@
   background: var(--bg);
 }
 
+/* ── Embedded mode (rendered as a workspace widget) ──
+   Hides the right-side chart panel; left list expands to fill the widget. */
+.pageEmbedded { display: block; }
+.pageEmbedded > .leftPanel {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  border-right: none;
+}
+
 /* ── Left panel: list ── */
 .leftPanel {
   width: 260px;
