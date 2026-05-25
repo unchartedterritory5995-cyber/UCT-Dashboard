@@ -34,26 +34,36 @@ import PositionPanel from './chart/PositionPanel'
 // Without this, a 503 with a JSON body parses as a successful response
 // with bars=[], the chart paints blank, and SWR never retries. The bars
 // route now returns 503 during transient SQLite-swap windows precisely
-// so this retry loop can heal automatically.
+// so this retry loop can heal automatically. Also enforces a client-side
+// timeout so a hung cold Massive fetch can't tie up the chart indefinitely.
 const fetcher = async (url) => {
-  const r = await fetch(url)
-  if (!r.ok) {
-    const err = new Error(`HTTP ${r.status}`)
-    err.status = r.status
-    throw err
+  const ctl = new AbortController()
+  const timer = setTimeout(() => ctl.abort(), 25000)
+  try {
+    const r = await fetch(url, { signal: ctl.signal })
+    if (!r.ok) {
+      const err = new Error(`HTTP ${r.status}`)
+      err.status = r.status
+      throw err
+    }
+    return await r.json()
+  } finally {
+    clearTimeout(timer)
   }
-  return r.json()
 }
 
-// Retry transient (5xx) failures indefinitely with bounded backoff so charts
-// self-heal across Railway deploy windows and SQLite-swap intervals (can run
-// 30s–10min when the startup integrity check triggers a force_resync from R2).
-// During retry, the chart falls back to last-known idbBars so the user sees
-// stale data, not blank. 4xx skip retry — those are real client errors.
+// Conservative retry for transient (5xx / aborted-network) failures.
+// Cold Massive fetches can legitimately take 5–15s, so aggressive 1s
+// retries multiply in-flight load across many mounted charts → a normally-
+// slow request becomes a stampede that's MUCH slower. Floor 15s, exponential
+// up to 60s, hard cap 4 retries (~3 min). During retry, the chart's existing
+// bars selector falls back to idbBars — user sees last-known data, not blank.
+// 4xx skip retry: real client errors.
 const barsSwrOnErrorRetry = (error, _key, _config, revalidate, { retryCount }) => {
   const status = error?.status
   if (status && status >= 400 && status < 500) return
-  const delay = Math.min(1000 + retryCount * 1000, 10000)
+  if (retryCount >= 4) return
+  const delay = Math.min(15000 * Math.pow(1.5, retryCount), 60000)
   setTimeout(() => revalidate({ retryCount }), delay)
 }
 
