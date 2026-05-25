@@ -184,11 +184,16 @@ def run_prewarmer_forever():
     _DEEP_INTRADAY_TFS = ('5', '1')
     _INTRADAY_TFS = _CORE_INTRADAY_TFS + _DEEP_INTRADAY_TFS  # refresh-loop hot-set union
     if _IS_WORKER:
-        _CORE_INTRADAY_TICKERS = _active_intraday       # active set, not full universe
+        # Measured expansion (2026-05-25): core intraday (60/30/15 — the TFs
+        # most-used by traders) gets warmed across the FULL cap_universe so
+        # cold-fetch latency drops to zero on first chart open for any ticker.
+        # Deep intraday (5/1) stays scoped to top 1500 — smaller queue, less
+        # Massive load. Worker count held at 4 (proven stable; the prior
+        # bump to 8 saturated Massive/worker CPU and starved the web pod,
+        # see reverted commit 68392f4). Net job count ~14k intraday at
+        # 4 workers ≈ ~80 min per full pass — bounded enough not to saturate.
+        _CORE_INTRADAY_TICKERS = ticker_list
         _DEEP_INTRADAY_TICKERS = _active_intraday[:1500]
-        # 4 (not 6): fetches are network-bound so 4 still parallelises
-        # well, but fewer concurrent writers = a much shorter wait queue
-        # behind the SQLite write lock. Sweet spot for throughput.
         _PREWARM_WORKERS = 4
     else:
         _CORE_INTRADAY_TICKERS = ticker_list[:200]
