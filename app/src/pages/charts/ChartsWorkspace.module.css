@@ -119,3 +119,21 @@
   opacity: 0.15 !important;
   border-radius: 4px;
 }
+
+/* Brighten the corner resize indicators so they're visible on dark theme.
+   Default RGL ::after uses rgba(0,0,0,0.4) borders — invisible on #0f141b.
+   We override all 4 corners with a gold accent that fades on hover. */
+:global(.react-grid-item) > :global(.react-resizable-handle)::after {
+  border-color: rgba(201, 168, 76, 0.55) !important;
+  width: 6px !important;
+  height: 6px !important;
+}
+:global(.react-grid-item):hover > :global(.react-resizable-handle)::after {
+  border-color: rgba(201, 168, 76, 0.95) !important;
+}
+
+/* Slight enlargement of the hit area for easier grab from any corner */
+:global(.react-grid-item) > :global(.react-resizable-handle) {
+  width: 16px !important;
+  height: 16px !important;
+}

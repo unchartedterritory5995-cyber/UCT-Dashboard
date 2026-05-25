@@ -251,6 +251,7 @@ export default function ChartsWorkspace() {
             draggableHandle=".charts-widget-drag-handle"
             compactType="vertical"
             margin={[6, MARGIN_Y]}
+            resizeHandles={['nw', 'ne', 'sw', 'se']}
           >
             {layout.widgets.map(w => (
               <div key={w.id}>
