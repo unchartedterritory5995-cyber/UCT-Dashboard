@@ -43,7 +43,7 @@ def main() -> int:
 
     failed = False
     for handle in HANDLES:
-        status, body = call("/twitter/get_user_last_tweets", {"userName": handle}, key)
+        status, body = call("/twitter/user/last_tweets", {"userName": handle}, key)
         n_tweets = len(body.get("tweets") or body.get("data") or [])
         print(f"@{handle:18s} HTTP {status}  tweets={n_tweets}")
         if status == 200 and n_tweets > 0:

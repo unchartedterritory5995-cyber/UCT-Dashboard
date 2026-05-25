@@ -110,7 +110,7 @@ def get_user_last_tweets(handle: str, since_id: Optional[str] = None) -> list[di
 
     try:
         r = requests.get(
-            f"{BASE_URL}/twitter/get_user_last_tweets",
+            f"{BASE_URL}/twitter/user/last_tweets",
             params=params,
             headers={"x-api-key": _api_key()},
             timeout=TIMEOUT,
