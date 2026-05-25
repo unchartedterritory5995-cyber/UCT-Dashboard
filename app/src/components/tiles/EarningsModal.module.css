@@ -564,6 +564,63 @@
   padding: 4px 0;
 }
 
+/* ── Recent tweets section (spec 2026-05-25) ────────────────────────── */
+.tweetsBlock {
+  margin: 12px 8px 8px;
+  padding: 12px;
+  background: rgba(201, 168, 76, 0.04);
+  border-radius: var(--radius-sm);
+}
+.tweetsHeader {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 4px 0 8px;
+  opacity: 0.9;
+}
+.tweetsHeader:hover { opacity: 1; }
+.tweetsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+.tweetCard {
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid var(--ut-gold, #c9a84c);
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+}
+.tweetMeta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.tweetAuthor {
+  color: var(--ut-gold, #c9a84c);
+  font-weight: 600;
+  font-size: 11px;
+}
+.tweetTime { font-size: 10px; opacity: 0.55; }
+.tweetLink { color: inherit; opacity: 0.6; text-decoration: none; font-size: 10px; }
+.tweetLink:hover { opacity: 1; }
+.tweetText { line-height: 1.5; opacity: 0.92; }
+.tweetCashtag {
+  color: var(--ut-gold, #c9a84c);
+  font-weight: 600;
+}
+
 /* ── Mobile ── */
 @media (max-width: 640px) {
   .close {
