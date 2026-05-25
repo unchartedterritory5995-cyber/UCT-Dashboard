@@ -1,0 +1,48 @@
+.wrap {
+  display: inline-flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bearings {
+  transform-origin: 50px 50px;
+}
+
+.bearingsSpin {
+  animation: bearingSpin 5s linear infinite;
+}
+
+@keyframes bearingSpin {
+  to { transform: rotate(360deg); }
+}
+
+.rose {
+  filter: drop-shadow(0 0 1.2px rgba(201, 168, 76, 0.55));
+}
+
+.roseDiag {
+  transform-origin: 50px 50px;
+}
+
+.glyphPulse {
+  animation: glyphPulse 1.2s ease-in-out infinite;
+  transform-origin: 50px 50px;
+}
+
+@keyframes glyphPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bearingsSpin { animation: none; }
+  .glyphPulse { animation: none; }
+}

@@ -3,52 +3,131 @@
   right: 18px;
   bottom: 18px;
   z-index: 8000;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  border: 2px solid rgba(201, 168, 76, 0.35);
-  background: rgba(15, 17, 14, 0.92);
-  color: #c9a84c;
+  border: none;
+  padding: 0;
+  background: transparent;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-  transition: transform 100ms ease, box-shadow 100ms ease, border-color 100ms ease;
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(201, 168, 76, 0.18),
+    0 0 18px rgba(201, 168, 76, 0.25);
+  transition: transform 140ms ease, box-shadow 220ms ease, filter 220ms ease;
+  animation: idleBreath 4.6s ease-in-out infinite;
 }
 .orb:hover {
-  transform: scale(1.05);
-  border-color: rgba(201, 168, 76, 0.7);
+  transform: scale(1.06);
+  filter: brightness(1.08);
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(201, 168, 76, 0.55),
+    0 0 28px rgba(201, 168, 76, 0.55);
 }
 .orb:focus-visible {
   outline: 2px solid #c9a84c;
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
-.icon { line-height: 1; }
+.errorBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fbbf24;
+  color: #1a1a1a;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.7);
+}
 
-.idle { /* default */ }
+.idle { /* default — uses idleBreath on .orb */ }
 
 .listening {
-  border-color: #ef4444;
-  animation: pulse 1.2s ease-in-out infinite;
+  animation: listenPulse 1.4s ease-in-out infinite;
 }
 .thinking {
-  border-color: #c9a84c;
-  animation: spin 1s linear infinite;
+  animation: thinkGlow 1.8s ease-in-out infinite;
 }
 .responding {
-  border-color: #4ade80;
-  box-shadow: 0 0 14px rgba(74, 222, 128, 0.45);
+  animation: respondGlow 1.6s ease-in-out infinite;
+}
+.errored {
+  animation: none;
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(251, 191, 36, 0.55),
+    0 0 14px rgba(251, 191, 36, 0.4);
 }
 
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
-  50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+@keyframes idleBreath {
+  0%, 100% {
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(201, 168, 76, 0.18),
+      0 0 14px rgba(201, 168, 76, 0.22);
+  }
+  50% {
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(201, 168, 76, 0.32),
+      0 0 22px rgba(201, 168, 76, 0.42);
+  }
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+@keyframes listenPulse {
+  0%, 100% {
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(239, 68, 68, 0.55),
+      0 0 0 0 rgba(239, 68, 68, 0.55),
+      0 0 18px rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(239, 68, 68, 0.75),
+      0 0 0 14px rgba(239, 68, 68, 0),
+      0 0 26px rgba(239, 68, 68, 0.7);
+  }
+}
+
+@keyframes thinkGlow {
+  0%, 100% {
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(201, 168, 76, 0.4),
+      0 0 14px rgba(201, 168, 76, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(201, 168, 76, 0.75),
+      0 0 26px rgba(201, 168, 76, 0.65);
+  }
+}
+
+@keyframes respondGlow {
+  0%, 100% {
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(74, 222, 128, 0.55),
+      0 0 18px rgba(74, 222, 128, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(74, 222, 128, 0.85),
+      0 0 28px rgba(74, 222, 128, 0.75);
+  }
 }
 
 /* ── Batch 6b Train Me cluster ──────────────────────────────────────────── */
@@ -78,8 +157,7 @@
   border-color: #c9a84c;
 }
 .training {
-  border-color: #c9a84c !important;
-  box-shadow: 0 0 14px rgba(201, 168, 76, 0.6) !important;
+  animation: thinkGlow 1.8s ease-in-out infinite !important;
 }
 .trainBadge {
   position: absolute;
@@ -97,9 +175,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .listening { animation: none; }
-  .thinking { animation: none; }
-  .responding { box-shadow: 0 0 4px rgba(74, 222, 128, 0.4); }
+  .orb { animation: none; }
+  .listening { animation: none; box-shadow: 0 8px 22px rgba(0,0,0,0.55), 0 0 0 1px rgba(239,68,68,0.7); }
+  .thinking { animation: none; box-shadow: 0 8px 22px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,168,76,0.7); }
+  .responding { animation: none; box-shadow: 0 8px 22px rgba(0,0,0,0.55), 0 0 0 1px rgba(74,222,128,0.7); }
+  .training { animation: none !important; }
   .trainBtn { transition: none; }
   .trainBadge { animation: none; }
 }

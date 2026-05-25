@@ -1,16 +1,21 @@
 import { useVoice } from '../../context/VoiceContext'
 import useRealtimeSession from '../../hooks/useRealtimeSession'
 import AgentPicker from './AgentPicker'
+import CompassOrb from './CompassOrb'
 import styles from './FloatingOrb.module.css'
 
 /**
- * Floating mic orb. Click → starts a Realtime conversation. Click again → ends it.
+ * Floating brand-mark compass orb. Click → starts a Realtime conversation. Click again → ends it.
  *
- * - Idle: gold mic icon
- * - Connecting: spinning border + ellipsis
- * - Connected (idle within session): solid green ring + waveform icon
- * - User speaking: pulsing red ring
- * - Assistant speaking: glowing green ring
+ * Visual: glass sphere with the UCT compass rose (red North arm, green
+ * South arm, gold E/W). State is communicated by the glow ring around the
+ * orb and an optional center-hub glyph.
+ *
+ * - Idle: soft gold breathing halo
+ * - Connecting: bearing-tick ring rotates + gold pulse
+ * - Connected (idle in session): green halo, hub shows ◉
+ * - User speaking: red pulse rings, hub shows pulsing ●
+ * - Assistant speaking: brighter green glow, hub shows ◆
  *
  * The small graduation-cap button next to the orb opens Train Me mode —
  * a restricted session where every utterance becomes a remembered fact
@@ -24,29 +29,31 @@ export default function FloatingOrb({ context = 'global' }) {
 
   const status = voice.status
   let stateClass = styles.idle
-  let icon = '🎤'
+  let orbState = 'idle'
+  let errorGlyph = null
   let label = 'Tap to start a conversation'
 
   if (voice.mode === 'c') {
     if (status === 'connecting') {
       stateClass = styles.thinking
-      icon = '…'
+      orbState = 'thinking'
       label = 'Connecting…'
     } else if (status === 'connected') {
       stateClass = styles.responding
-      icon = '◉'
+      orbState = 'connected'
       label = 'Connected — say something'
     } else if (status === 'speaking_user') {
       stateClass = styles.listening
-      icon = '●'
+      orbState = 'listening'
       label = 'Listening…'
     } else if (status === 'speaking_assistant' || status === 'playing' || status === 'loading') {
       stateClass = styles.responding
-      icon = '🔊'
+      orbState = 'responding'
       label = 'Speaking — tap to stop'
     } else if (status === 'error') {
-      stateClass = styles.idle
-      icon = '⚠'
+      stateClass = styles.errored
+      orbState = 'idle'
+      errorGlyph = '⚠'
       label = `Error: ${voice.errorMessage || 'unknown'}`
     }
   }
@@ -71,7 +78,8 @@ export default function FloatingOrb({ context = 'global' }) {
         aria-label={label}
         title={inTrainMode ? 'In Train Me mode — tap to exit' : label}
       >
-        <span className={styles.icon}>{icon}</span>
+        <CompassOrb state={orbState} />
+        {errorGlyph && <span className={styles.errorBadge}>{errorGlyph}</span>}
       </button>
       {!inSession && (
         <button
