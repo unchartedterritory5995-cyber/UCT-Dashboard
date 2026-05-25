@@ -479,16 +479,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] Auth DB init error (non-fatal): {e}")
 
-    # Initialize tweets.db schema (idempotent, safe on every boot).
-    # Only when the polling pipeline is enabled — keeps a stray empty DB
-    # off disk on environments that don't have a TwitterAPI.io key.
-    if os.environ.get("TWITTERAPI_IO_ENABLED", "").lower() in ("1", "true", "yes"):
-        try:
-            from api.services import tweet_store
-            tweet_store._init_db()
-            print("[startup] tweets.db initialized")
-        except Exception as e:
-            print(f"[startup] tweet_store init failed (non-fatal): {e}")
+    # Initialize tweets.db schema unconditionally — the schema is tiny and
+    # idempotent. Frontend tweet UI (VITE_TWITTER_UI_ENABLED, default ON)
+    # fires requests on every page load; without a schema, the read
+    # endpoints would 500 on "no such table". Polling itself is still
+    # gated separately by TWITTERAPI_IO_ENABLED below, so a missing key
+    # results in an empty DB rather than crashes.
+    try:
+        from api.services import tweet_store
+        tweet_store._init_db()
+        print("[startup] tweets.db initialized")
+    except Exception as e:
+        print(f"[startup] tweet_store init failed (non-fatal): {e}")
 
     # Chart-health bootstrap: init quarantine + audit schemas synchronously so
     # the tables exist before any /api/bars handler runs, then spawn a daemon
