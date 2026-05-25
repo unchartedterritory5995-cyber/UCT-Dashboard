@@ -1119,6 +1119,53 @@ Tag dots visible on: TickerPopup, ThemeTracker, CustomScan, Screener, OptionsFlo
 - **Shift+Enter** inserts newline
 - File: `app/src/pages/Support.jsx` line ~340
 
+## Twitter News Ingestion (built 2026-05-25)
+
+Single-stock catalyst news from a curated set of TwitterAPI.io accounts, surfaced inline on MoversSidebar (🐦 icon + new "ON THE TAPE" section) and inside EarningsModal (Recent tweets card). Designed for morning watchlist building from overnight + pre-market catalysts.
+
+### Architecture
+- **Database:** SQLite at `/data/tweets.db` (web service Railway volume, WAL mode). 7-day rolling retention.
+- **Source:** TwitterAPI.io REST. Single `x-api-key` header, `$0.15 / 1K tweets` pay-as-you-go pricing, `since_id` pagination minimizes spend.
+- **Scheduler:** APScheduler in `api/main.py` next to COT — burst (every 2min Mon–Fri 4–9:30am ET + 3:30–7pm ET), regular (every 15min 10am–3:15pm), slow safety-net (every hour always), cleanup (3am ET daily). All gated by `TWITTERAPI_IO_ENABLED=1`.
+- **No worker/R2 bridge** — bars uses one because of write-side cost; tweets are small enough to run inline on the web service.
+
+### Files
+- `api/services/twitterapi_io.py` — HTTP client with structured exceptions (`TwitterApiAuthError` · `PaymentRequired` · `RateLimited` · `TransientError`).
+- `api/services/tweet_ticker_extract.py` — cashtag regex (`\$[A-Z]{1,5}\b`) + forex exclude.
+- `api/services/tweet_store.py` — SQLite CRUD (tweets, ticker links, accounts, poll-state). Uses `contextlib.closing` on every connection so Windows teardown doesn't hold WAL sidecars open.
+- `api/services/tweet_poller.py` — per-account fetch + extract + store. Defensive against every TwitterApi* exception class so one bad account never kills the cron tick.
+- `api/services/tweet_cleanup.py` — retention sweep (TWEET_RETENTION_DAYS env, default 7).
+- `api/routers/tweets.py` — `GET /api/tweets/ticker/{sym}`, `GET /api/tweets/tape` (excludes current movers), `GET /api/tweets/has-tweets-batch`. All logged-in via `get_current_user`.
+- `api/routers/admin_twitter.py` — admin CRUD on accounts + `GET /api/admin/twitter-stats` with `_maybe_auto_refresh_if_stale` self-heal mirroring COT (30-min cooldown).
+- `app/src/components/MoversSidebar.jsx` — 2-col RIPPING/DRILLING grid + new full-width ON THE TAPE section + 🐦 icon on rows with tweets.
+- `app/src/components/tiles/EarningsModal.jsx` — Recent tweets section between AI analysis and transcript.
+- `app/src/components/admin/TwitterAccountsPanel.jsx` — admin-only panel on `/admin` page (slotted between Section 6b Admin Tools and Section 7 System Health).
+- `app/src/utils/timeAgo.js` — shared relative-time helper (extracted from `AlertBell.jsx`; AlertBell now imports `timeAgoShort` for backward-compatible "now/5m/2h" output).
+- `app/src/hooks/{useTickerTweets,useTapeFeed,useBatchTweetCounts}.js` — SWR fetchers.
+- `tools/twitterapi_io_smoke_test.py` — pre-flight key validation script (manual run).
+- `tools/seed_twitter_accounts.py` — one-shot to insert the initial curated list.
+
+### Env vars
+- `TWITTERAPI_IO_API_KEY` — required for polling.
+- `TWITTERAPI_IO_ENABLED=1` — master switch for the scheduler block AND the lifespan DB-init. Set to enable polling.
+- `VITE_TWITTER_UI_ENABLED=1` — frontend kill-switch (default ON; "0" hides 🐦 icons + ON THE TAPE + EarningsModal tweets section).
+- `TWEET_RETENTION_DAYS=7` (default 7).
+- `TWEET_POLL_TIMEOUT_SECONDS=10` (default 10).
+- `TWEET_DB_PATH=/data/tweets.db` (override for local testing).
+
+### Cashtag extraction
+v1: regex-only on `\$[A-Z]{1,5}\b`, minus forex pairs (USD/EUR/GBP/JPY/CAD/AUD/CHF/CNY/HKD/NZD). Crypto kept (BTC/ETH/SOL). No universe validation — source accounts are professional. False positives surface nothing because they don't join to any movers/earnings ticker.
+
+### Curated accounts (v1)
+`@DeItaone`, `@FinancialJuice`, `@Benzinga`, `@WallStEngine` — admin-editable via the Twitter Accounts panel on `/admin`. Confirm `WallStEngine` vs `WallStreetEngine` via the smoke test before seeding production.
+
+### Spec + plan
+- Spec: `docs/superpowers/specs/2026-05-25-twitter-news-ingestion-design.md`
+- Plan: `docs/superpowers/plans/2026-05-25-twitter-news-ingestion.md`
+
+### Cost forecast
+$13–22/mo at the curated 4-account list × burst cadence. `since_id` filtering keeps each poll's billable count to "what's new since last poll." Live MTD cost surfaces in `/api/admin/twitter-stats`.
+
 ## Known Issues / Gotchas
 
 - **Cache resets on redeploy** — FIXED (2026-02-23). Railway volume at `/data` persists wire_data.json. Startup event seeds cache automatically. First boot after volume creation still requires one engine run.
