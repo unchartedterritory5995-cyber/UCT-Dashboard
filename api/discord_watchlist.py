@@ -35,8 +35,8 @@ _WHITE_A = "\u001b[1;37m"
 _DIM = "\u001b[2;37m"
 _RESET = "\u001b[0m"
 
-# Dim dotted separator — compact for mobile (~38 chars)
-SEP_RAW = "╌" * 35
+# Dim dotted separator — compact for mobile (~32 chars)
+SEP_RAW = "╌" * 32
 
 
 def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
@@ -46,7 +46,7 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
 
     lines = []
     for i, item in enumerate(items[:limit], 1):
-        sym = (item.get("sym") or "???").ljust(5)
+        sym = (item.get("sym") or "???").ljust(4)
 
         strike_val = item.get("strike")
         if strike_val and str(strike_val).strip():
@@ -57,7 +57,7 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
                 strike = ""
             exp = _fmt_exp(item.get("exp") or "")
             prem = _fmt(float(item.get("prem") or 0))
-            contract = f"{exp.ljust(5)} {strike.ljust(7)}{cp} {prem_color}{prem.rjust(6)}{_RESET}"
+            contract = f"{exp.ljust(4)} {strike.ljust(6)}{cp} {prem_color}{prem.rjust(5)}{_RESET}"
         else:
             contract = "—"
 
