@@ -12,6 +12,8 @@ import os
 import time
 from zoneinfo import ZoneInfo
 
+from typing import Optional
+
 from api.services.catalyst import (
     selection,
     scoring,
@@ -20,6 +22,35 @@ from api.services.catalyst import (
     synthesize,
     tagging,
 )
+
+
+def _compute_catalyst_at(c: dict) -> Optional[int]:
+    """Earliest source-signal timestamp for this candidate, in unix seconds.
+
+    'When did the catalyst occur?' — answered by the oldest timestamp across
+    tweets / RSS / earnings. Used by UI to show 'catalyst broke at 4:23 AM'
+    instead of 'we synthesized this at 7:32 AM'.
+
+    Returns None when no source has a timestamp (e.g. Perplexity-only signal).
+    """
+    candidates: list[int] = []
+    for t in (c.get("tweets") or []):
+        ts = t.get("created_at")
+        if isinstance(ts, (int, float)) and ts > 0:
+            candidates.append(int(ts))
+    for r in (c.get("rss") or []):
+        ts = r.get("time_published")
+        if isinstance(ts, (int, float)) and ts > 0:
+            candidates.append(int(ts))
+    em = c.get("earnings_meta") or {}
+    # Earnings reports have a publish_time field set by EW/Finnhub layer if
+    # present; otherwise we fall back to the timing label (bmo/amc) which is
+    # less precise so we don't use it as a candidate_at value.
+    ts = em.get("publish_time")
+    if isinstance(ts, (int, float)) and ts > 0:
+        candidates.append(int(ts))
+
+    return min(candidates) if candidates else None
 
 logger = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
@@ -186,6 +217,8 @@ def run_refresh() -> dict:
             summary["errors"].append(f"synth_{c.get('ticker')}: {e}")
             continue
 
+        catalyst_at = _compute_catalyst_at(c)
+
         try:
             store.upsert_catalyst({
                 "market_date": md,
@@ -203,6 +236,7 @@ def run_refresh() -> dict:
                 "thesis_at": thesis["thesis_at"],
                 "thesis_sources": thesis["thesis_sources"],
                 "signals_hash": thesis["signals_hash"],
+                "catalyst_at": catalyst_at,
                 "raw_signals": json.dumps({
                     "tweets": c.get("tweets", []),
                     "rss": c.get("rss", []),
@@ -240,6 +274,7 @@ def run_refresh() -> dict:
                 "thesis_at": None,
                 "thesis_sources": "[]",
                 "signals_hash": None,
+                "catalyst_at": None,
                 "raw_signals": "{}",
             })
         except Exception:

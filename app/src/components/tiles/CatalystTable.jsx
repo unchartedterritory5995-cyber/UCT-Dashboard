@@ -175,7 +175,7 @@ export default function CatalystTable() {
                 <th className={styles.colVol}>Vol×</th>
                 <th className={styles.colTag}>Tag</th>
                 <th className={styles.colThesis}>Catalyst</th>
-                <th className={styles.colUpdated}>Updated</th>
+                <th className={styles.colUpdated}>When</th>
               </tr>
             </thead>
             <tbody>
@@ -202,9 +202,13 @@ export default function CatalystTable() {
                     </td>
                     <td
                       className={styles.colUpdated}
-                      title={r.thesis_at ? `Synthesized ${timeAgo(r.thesis_at)}` : 'No thesis yet'}
+                      title={r.catalyst_at
+                        ? `Catalyst occurred ${timeAgo(r.catalyst_at)}\nSynthesized ${r.thesis_at ? timeAgo(r.thesis_at) : '—'}`
+                        : (r.thesis_at ? `Synthesized ${timeAgo(r.thesis_at)} (no source timestamp)` : 'No data yet')}
                     >
-                      {r.thesis_at ? formatET(r.thesis_at) : '—'}
+                      {r.catalyst_at
+                        ? formatET(r.catalyst_at)
+                        : (r.thesis_at ? <span className={styles.fallbackTime}>{formatET(r.thesis_at)}</span> : '—')}
                     </td>
                   </tr>
                 )

@@ -34,6 +34,7 @@ def _row(ticker, market_date="2026-05-26", rank=1, tag="Catalyst",
         "thesis_at": kw.get("thesis_at", int(time.time())),
         "thesis_sources": json.dumps(sources or []),
         "signals_hash": signals_hash,
+        "catalyst_at": kw.get("catalyst_at"),
         "raw_signals": kw.get("raw_signals", "{}"),
     }
 

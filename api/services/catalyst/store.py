@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS catalysts (
   thesis_at       INTEGER,
   thesis_sources  TEXT,
   signals_hash    TEXT,
+  catalyst_at     INTEGER,
   raw_signals     TEXT,
   PRIMARY KEY (market_date, ticker)
 );
@@ -68,6 +69,14 @@ def _init_db() -> None:
         os.makedirs(parent, exist_ok=True)
     with contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
+        # Backwards-compat: add catalyst_at column to existing DBs that were
+        # created before this column was added to the schema. SQLite doesn't
+        # support IF NOT EXISTS on columns, so we try + swallow duplicate-column.
+        try:
+            c.execute("ALTER TABLE catalysts ADD COLUMN catalyst_at INTEGER")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e).lower():
+                raise
         c.commit()
 
 
@@ -77,10 +86,10 @@ def upsert_catalyst(row: dict) -> None:
             """INSERT INTO catalysts
                (market_date, ticker, rank, score, tag, price, gap_pct, vol_x,
                 market_cap, sector, thesis_text, thesis_model, thesis_at,
-                thesis_sources, signals_hash, raw_signals)
+                thesis_sources, signals_hash, catalyst_at, raw_signals)
                VALUES (:market_date, :ticker, :rank, :score, :tag, :price, :gap_pct,
                        :vol_x, :market_cap, :sector, :thesis_text, :thesis_model,
-                       :thesis_at, :thesis_sources, :signals_hash, :raw_signals)
+                       :thesis_at, :thesis_sources, :signals_hash, :catalyst_at, :raw_signals)
                ON CONFLICT(market_date, ticker) DO UPDATE SET
                  rank           = excluded.rank,
                  score          = excluded.score,
@@ -95,6 +104,7 @@ def upsert_catalyst(row: dict) -> None:
                  thesis_at      = excluded.thesis_at,
                  thesis_sources = excluded.thesis_sources,
                  signals_hash   = excluded.signals_hash,
+                 catalyst_at    = excluded.catalyst_at,
                  raw_signals    = excluded.raw_signals""",
             row,
         )

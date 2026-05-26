@@ -99,6 +99,12 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+.fallbackTime {
+  /* Dimmed + italicized when we don't have a real source timestamp
+     and are falling back to thesis_at (the synthesis time). */
+  opacity: 0.6;
+  font-style: italic;
+}
 
 .ticker {
   color: var(--ut-cream);

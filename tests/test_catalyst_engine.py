@@ -87,7 +87,7 @@ def test_run_refresh_unranks_dropped_tickers(s):
         "vol_x": 5.0, "market_cap": 1e9, "sector": "Tech",
         "thesis_text": "old", "thesis_model": "claude-opus-4-7",
         "thesis_at": 1, "thesis_sources": "[]", "signals_hash": "old",
-        "raw_signals": "{}",
+        "catalyst_at": None, "raw_signals": "{}",
     })
     cands = [_candidate(f"NEW{i}", gap_pct=10 + i,
                         tweets=[{"id": str(i), "text": "x", "author_handle": "h", "url": "u"},

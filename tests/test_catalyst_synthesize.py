@@ -63,7 +63,7 @@ def test_skip_if_stable_reuses_prior_thesis(s):
         "vol_x": 2.0, "market_cap": 2_500_000_000_000, "sector": "Tech",
         "thesis_text": "Cached thesis", "thesis_model": "claude-opus-4-7",
         "thesis_at": 1000, "thesis_sources": "[]",
-        "signals_hash": h, "raw_signals": "{}",
+        "signals_hash": h, "catalyst_at": None, "raw_signals": "{}",
     })
     with patch("api.services.catalyst.synthesize._call_anthropic") as mock_call:
         result = synthesize.synthesize_ticker(c, "2026-05-26")
@@ -130,7 +130,7 @@ def test_malformed_json_keeps_prior_thesis(s):
         "vol_x": 2.0, "market_cap": 2_500_000_000_000, "sector": "Tech",
         "thesis_text": "Prior good thesis", "thesis_model": "claude-opus-4-7",
         "thesis_at": 1000, "thesis_sources": "[]",
-        "signals_hash": "different_hash", "raw_signals": "{}",
+        "signals_hash": "different_hash", "catalyst_at": None, "raw_signals": "{}",
     })
     with patch("api.services.catalyst.synthesize._call_anthropic",
                return_value=(_mock_opus_response("not valid json {"), 1000, 100)):

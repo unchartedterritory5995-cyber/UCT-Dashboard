@@ -173,11 +173,24 @@ def _pull_tweet_signals() -> dict[str, list[dict]]:
                 "text": t.get("text", ""),
                 "url": t.get("url"),
                 "id": t.get("id"),
+                # When the tweet was posted (unix seconds UTC) — used to compute
+                # the catalyst's "actual occurrence time" for UI display.
+                "created_at": t.get("created_at"),
             })
     return out
 
 
 # ── Source 5: RSS news ──────────────────────────────────────────────────
+def _parse_iso_to_unix(s: str) -> Optional[int]:
+    """Parse an ISO 8601 string into unix seconds. Returns None on failure."""
+    if not s or not isinstance(s, str):
+        return None
+    try:
+        return int(dt.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp())
+    except (ValueError, TypeError):
+        return None
+
+
 def _pull_rss_signals() -> dict[str, list[dict]]:
     """Pull recent RSS items; extract ticker mentions via cashtag regex."""
     from api.services.news_aggregator import fetch_rss_news
@@ -193,6 +206,8 @@ def _pull_rss_signals() -> dict[str, list[dict]]:
         for t in (item.get("tickers") or []):
             if t:
                 tickers.add(t.upper())
+        # news_aggregator emits time_published as ISO string — convert to unix.
+        published_unix = _parse_iso_to_unix(item.get("time_published") or "")
         for ticker in tickers:
             if not ticker or len(ticker) > 5:
                 continue
@@ -200,6 +215,7 @@ def _pull_rss_signals() -> dict[str, list[dict]]:
                 "source": item.get("source") or item.get("category") or "RSS",
                 "title": title,
                 "url": item.get("url"),
+                "time_published": published_unix,
             })
     return out
 
