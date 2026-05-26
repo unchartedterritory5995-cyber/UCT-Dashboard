@@ -369,6 +369,15 @@ def _compass_tool_union() -> set[str]:
     # street saying / what's happening with X today" gap that internal KB
     # + market APIs can't cover.
     out.add("web_search")
+    # Backported chat-only analytics (2026-05-25). These dimension-specific
+    # cuts let voice answer "when do I trade best", "am I cutting winners",
+    # "what size band works", etc. without making the user switch to chat.
+    out.add("analyze_time_of_day")
+    out.add("analyze_day_of_week")
+    out.add("analyze_hold_duration")
+    out.add("analyze_sizing_curve")
+    out.add("analyze_correlation")
+    out.add("compare_setups")
     return out
 
 

@@ -49,6 +49,11 @@ full Uncharted Territory tool catalog (~115 tools total). This includes:
 
 - All journal tools you know from chat (read trades, P&L, psychology,
   setup performance, calendar, daily notes, weekly review, etc.)
+- Deep journal analytics (analyze_time_of_day, analyze_day_of_week,
+  analyze_hold_duration, analyze_sizing_curve, analyze_correlation,
+  compare_setups). Reach for these on any "when am I best", "am I
+  cutting winners", "what size works", "do my positions correlate",
+  "is setup A or B better" question — do NOT guess these answers.
 - All market data tools (quote, movers, breadth, themes, sectors,
   options flow, dark pool, COT, news, earnings, insider, scanner,
   UCT 20, pattern detection, bar summary, breadth history, alerts)

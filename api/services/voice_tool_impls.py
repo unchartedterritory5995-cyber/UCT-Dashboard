@@ -415,6 +415,88 @@ def _confirm_action(*, user, action_id: str = "") -> dict:
 # ── Self-Q&A (Slice 7) ─────────────────────────────────────────────────────
 
 
+def _voice_account_id(user_id: str) -> str:
+    """Resolve the account id to use for journal analytics in voice mode.
+    Mirrors the resolution in voice_session_context.py: '_all_' (unified) for
+    users with 2+ compass-enabled accounts, primary account otherwise.
+    Falls back to literal 'default' if everything errors so call sites
+    never raise — the downstream chat tools will just return empty rows."""
+    try:
+        from api.services.auth_db import get_connection
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT id FROM j2_accounts WHERE user_id = ? AND compass_enabled = 1 LIMIT 2",
+                (user_id,),
+            ).fetchall()
+            if len(rows) >= 2:
+                return "_all_"
+            if len(rows) == 1:
+                return rows[0]["id"]
+            from api.services.journal_two.accounts import get_or_migrate_default_account
+            acct = get_or_migrate_default_account(user_id, conn=conn)
+            return acct.get("id") if acct else "default"
+        finally:
+            conn.close()
+    except Exception as e:
+        _log.warning("_voice_account_id failed: %s", e)
+        return "default"
+
+
+def _analyze_time_of_day(*, user, days: int = 180, setup: str = "", symbol: str = "") -> dict:
+    from api.services.journal_two.coach_chat_tools import _exec_analyze_time_of_day
+    args = {"days": max(1, min(730, int(days or 180)))}
+    if setup: args["setup"] = setup
+    if symbol: args["symbol"] = symbol.upper()
+    return _exec_analyze_time_of_day(
+        user_id=user["id"], account_id=_voice_account_id(user["id"]), args=args,
+    )
+
+
+def _analyze_day_of_week(*, user, days: int = 180, setup: str = "") -> dict:
+    from api.services.journal_two.coach_chat_tools import _exec_analyze_day_of_week
+    args = {"days": max(1, min(730, int(days or 180)))}
+    if setup: args["setup"] = setup
+    return _exec_analyze_day_of_week(
+        user_id=user["id"], account_id=_voice_account_id(user["id"]), args=args,
+    )
+
+
+def _analyze_hold_duration(*, user, days: int = 180, setup: str = "") -> dict:
+    from api.services.journal_two.coach_chat_tools import _exec_analyze_hold_duration
+    args = {"days": max(1, min(730, int(days or 180)))}
+    if setup: args["setup"] = setup
+    return _exec_analyze_hold_duration(
+        user_id=user["id"], account_id=_voice_account_id(user["id"]), args=args,
+    )
+
+
+def _analyze_sizing_curve(*, user, days: int = 180) -> dict:
+    from api.services.journal_two.coach_chat_tools import _exec_analyze_sizing_curve
+    args = {"days": max(1, min(730, int(days or 180)))}
+    return _exec_analyze_sizing_curve(
+        user_id=user["id"], account_id=_voice_account_id(user["id"]), args=args,
+    )
+
+
+def _analyze_correlation(*, user) -> dict:
+    from api.services.journal_two.coach_chat_tools import _exec_analyze_correlation
+    return _exec_analyze_correlation(
+        user_id=user["id"], account_id=_voice_account_id(user["id"]), args={},
+    )
+
+
+def _compare_setups(*, user, setup_a: str, setup_b: str, days: int = 180) -> dict:
+    from api.services.journal_two.coach_chat_tools import _exec_compare_setups
+    if not setup_a or not setup_b:
+        return {"error": "setup_a and setup_b are both required"}
+    args = {"setup_a": setup_a, "setup_b": setup_b,
+            "days": max(1, min(730, int(days or 180)))}
+    return _exec_compare_setups(
+        user_id=user["id"], account_id=_voice_account_id(user["id"]), args=args,
+    )
+
+
 def _get_my_pnl(*, user, period: str = "week") -> dict:
     from api.services.voice_self_qa import get_my_pnl
     return get_my_pnl(user_id=user["id"], period=period)
@@ -1990,6 +2072,96 @@ def _register_all() -> None:
         contexts=["global"],
         wants_user=True,
     )(_get_my_pnl)
+
+    _vt.voice_tool(
+        name="analyze_time_of_day",
+        description=(
+            "Bucket the trader's trades by hour-of-entry (ET) and return per-hour "
+            "win rate, P&L, and R. Call for 'when do I trade best / worst', 'am I "
+            "better in the morning or afternoon', 'what hour kills me'."
+        ),
+        parameters={
+            "days": {"type": "integer", "description": "Lookback days (default 180, max 730)."},
+            "setup": {"type": "string", "description": "Optional — filter to one setup name."},
+            "symbol": {"type": "string", "description": "Optional — filter to one ticker."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_analyze_time_of_day)
+
+    _vt.voice_tool(
+        name="analyze_day_of_week",
+        description=(
+            "Bucket the trader's trades by weekday (Mon-Sun) and return per-day "
+            "win rate, P&L, and R. Call for 'what day am I worst on', 'should I "
+            "skip Mondays', 'do I have Friday tilt'."
+        ),
+        parameters={
+            "days": {"type": "integer", "description": "Lookback days (default 180, max 730)."},
+            "setup": {"type": "string", "description": "Optional — filter to one setup name."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_analyze_day_of_week)
+
+    _vt.voice_tool(
+        name="analyze_hold_duration",
+        description=(
+            "Compare winners' vs losers' average hold times. Surfaces "
+            "cutting-winners-short or holding-losers patterns. Call for 'am I "
+            "cutting winners short', 'am I holding losers too long', 'how long "
+            "do I hold trades'."
+        ),
+        parameters={
+            "days": {"type": "integer", "description": "Lookback days (default 180, max 730)."},
+            "setup": {"type": "string", "description": "Optional — filter to one setup name."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_analyze_hold_duration)
+
+    _vt.voice_tool(
+        name="analyze_sizing_curve",
+        description=(
+            "Bucket the trader's trades by per-trade risk percent and return P&L "
+            "by bucket. Reveals the optimal position-size band — the risk level "
+            "where they actually make money. Call for 'what's my optimal size', "
+            "'am I sizing right', 'where does my P&L peak by risk'."
+        ),
+        parameters={
+            "days": {"type": "integer", "description": "Lookback days (default 180, max 730)."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_analyze_sizing_curve)
+
+    _vt.voice_tool(
+        name="analyze_correlation",
+        description=(
+            "Inspect the trader's open positions for sector/theme overlap "
+            "(concentration risk). Call for 'am I too concentrated', 'do my "
+            "positions correlate'. v1 returns counts only."
+        ),
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_analyze_correlation)
+
+    _vt.voice_tool(
+        name="compare_setups",
+        description=(
+            "Side-by-side stats for two named setups — count, win rate, avg R, "
+            "expectancy. Call for 'compare VCP vs power-earnings-gap', 'is my "
+            "flag-pullback better than my base-breakout'."
+        ),
+        parameters={
+            "setup_a": {"type": "string", "description": "First setup name."},
+            "setup_b": {"type": "string", "description": "Second setup name."},
+            "days": {"type": "integer", "description": "Lookback days (default 180, max 730)."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_compare_setups)
 
     _vt.voice_tool(
         name="get_my_setup_performance",
