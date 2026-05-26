@@ -930,6 +930,18 @@ def session_token(
         except Exception as e:
             _log.warning("[session_token] gap block failed: %s", e)
 
+    # Pre-load trader state (positions + interventions + this-week focus) so
+    # Compass opens hot instead of having to fan out 3+ tool calls just to
+    # know what the trader has on the books. Empty string for new users
+    # with no state. Always safe — internally try/except'd.
+    trader_state_block = ""
+    if ctx != "train_me":
+        try:
+            from api.services.voice_session_context import build_session_context_block
+            trader_state_block = build_session_context_block(uid)
+        except Exception as e:
+            _log.warning("[session_token] trader state block failed: %s", e)
+
     # P4-B unification: page-aware context. Tell Compass exactly what the
     # user is looking at right now so it can answer in-page questions
     # without the user spelling out context.
@@ -951,6 +963,8 @@ def session_token(
         session_instructions = session_instructions + "\n\n" + confidence_block
     if gap_block:
         session_instructions = session_instructions + "\n\n" + gap_block
+    if trader_state_block:
+        session_instructions = session_instructions + "\n\n" + trader_state_block
     if insight_lines:
         session_instructions = session_instructions + (
             "\n\n=== PROACTIVE INSIGHTS FOR THIS SESSION ===\n"
