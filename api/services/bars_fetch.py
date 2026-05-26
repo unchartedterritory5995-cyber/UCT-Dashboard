@@ -198,6 +198,21 @@ def _needs_fresh(last_ts: int | None, tf: str) -> bool:
 
     if in_extended_today:
         return age > threshold
+    # Off-market (overnight/weekend/holiday). The original 30h gate was a
+    # blunt "is the data ancient?" guard, but on weekends and especially
+    # 3-day holiday weekends it false-positives: Friday-close data is ~64h
+    # old by Sunday and ~88h by Tuesday-after-Memorial-Day, both > 30h, so
+    # the prewarmer would fire 14k+ refresh calls per cycle that return
+    # nothing — contending for the shared Massive API key against any
+    # cold user fetch happening at the same time (the 12s AEHR symptom).
+    # Cold-stale is the authoritative "are we missing a trading session?"
+    # predicate, and it's already holiday-aware. Reuse it: if the cache
+    # covers the most-recent trading session, the entry is fresh enough
+    # off-market regardless of wall-clock age. If a session IS missing,
+    # the 30h gate still kicks in to make sure we don't sit on truly
+    # ancient data.
+    if tf in ("1", "5", "15", "30", "60") and not _is_cold_stale_intraday(tf, last_ts):
+        return False
     return age > 30 * 3600
 
 

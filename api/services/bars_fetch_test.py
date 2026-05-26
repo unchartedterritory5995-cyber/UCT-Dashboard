@@ -488,28 +488,68 @@ class TestFMPTimestampIsEasternTime:
                 "overnight should NOT burn API calls to top up — nothing new arrives 8 PM - 4 AM ET"
             )
 
-    def test_holiday_uses_conservative_threshold(self, monkeypatch):
-        """Memorial Day Monday 2 PM ET: weekday clock + extended-hours
-        window. Prior rule applied the aggressive tf threshold and treated
-        Friday's cache as stale — triggering synchronous Massive fetches
-        on every chart open (the Memorial-Day-2026 saturation incident).
-        Holiday-awareness must keep this on the conservative 30h gate
-        because no new bars arrive on a closed-market day."""
+    def test_holiday_with_prior_session_data_is_fresh(self, monkeypatch):
+        """Memorial Day Monday 2 PM ET. Cache holds Friday's close (~70h
+        old). Prior rule: extended-hours window inactive on holidays, so
+        fell through to the 30h gate → 70h > 30h → True → prewarmer fired
+        14k+ empty Massive calls per cycle, contending for the shared API
+        key with any cold user fetch (the AEHR 12s symptom). New rule:
+        off-market entries that already cover the most-recent trading
+        session are fresh, period — the 30h gate only kicks in when a
+        session is genuinely missing."""
         from unittest.mock import patch
         from api.services.bars_fetch import _needs_fresh
         memorial_day = datetime(2026, 5, 25, 14, 0, tzinfo=_ET)
-        # 5h-old cache: stale under tf gate (30min → 1800s), fresh under
-        # 30h gate. A holiday must take the 30h path → not needs fresh.
-        last_ts_5h = int(memorial_day.timestamp()) - 5 * 3600
+        friday_close_ts = _et_ts(2026, 5, 22, 16, 0)  # ~70h old
         with patch("api.services.bars_fetch._is_market_open", return_value=False), \
              patch("api.services.bars_fetch.datetime") as mock_dt, \
              patch("api.services.bars_fetch._time") as mock_time:
             mock_dt.now.return_value = memorial_day
             mock_dt.fromtimestamp = datetime.fromtimestamp
             mock_time.time.return_value = memorial_day.timestamp()
-            assert _needs_fresh(last_ts_5h, "30") is False, (
-                "holiday must NOT burn API calls to top up — markets closed, "
-                "nothing new to fetch (Memorial Day 2026 saturation)"
+            for tf in ("1", "5", "15", "30", "60"):
+                assert _needs_fresh(friday_close_ts, tf) is False, (
+                    f"holiday with prior-session cache must be fresh on tf={tf} "
+                    "— otherwise prewarmer wastes calls and starves cold fetches"
+                )
+
+    def test_holiday_with_missing_session_still_needs_fresh(self, monkeypatch):
+        """Same holiday clock, but cache is genuinely stale (last bar from
+        last week). Cold-stale IS true here, so _needs_fresh must still
+        return True — we don't want to leave actually-broken cache rows
+        unrefreshed."""
+        from unittest.mock import patch
+        from api.services.bars_fetch import _needs_fresh
+        memorial_day = datetime(2026, 5, 25, 14, 0, tzinfo=_ET)
+        week_old_ts = _et_ts(2026, 5, 15, 16, 0)  # ~10 days old
+        with patch("api.services.bars_fetch._is_market_open", return_value=False), \
+             patch("api.services.bars_fetch.datetime") as mock_dt, \
+             patch("api.services.bars_fetch._time") as mock_time:
+            mock_dt.now.return_value = memorial_day
+            mock_dt.fromtimestamp = datetime.fromtimestamp
+            mock_time.time.return_value = memorial_day.timestamp()
+            assert _needs_fresh(week_old_ts, "30") is True, (
+                "genuinely stale (multi-session-gap) cache must still refresh "
+                "on holidays — fresh-on-holiday only applies to most-recent-session data"
+            )
+
+    def test_weekend_with_friday_close_is_fresh(self, monkeypatch):
+        """Same logic on a regular weekend — Sunday with Friday-close data
+        should NOT trigger refresh. Pre-fix the 30h gate fired on every
+        Sunday past noon (Friday 4pm → Sun 2pm+ = >40h), so the prewarmer
+        wasted a full pass every weekend even though no new bars existed."""
+        from unittest.mock import patch
+        from api.services.bars_fetch import _needs_fresh
+        sunday = datetime(2026, 5, 24, 14, 0, tzinfo=_ET)
+        friday_close_ts = _et_ts(2026, 5, 22, 16, 0)
+        with patch("api.services.bars_fetch._is_market_open", return_value=False), \
+             patch("api.services.bars_fetch.datetime") as mock_dt, \
+             patch("api.services.bars_fetch._time") as mock_time:
+            mock_dt.now.return_value = sunday
+            mock_dt.fromtimestamp = datetime.fromtimestamp
+            mock_time.time.return_value = sunday.timestamp()
+            assert _needs_fresh(friday_close_ts, "30") is False, (
+                "weekend prewarm should skip same-as-Friday-close intraday cache"
             )
 
     def test_weekend_uses_conservative_threshold(self, monkeypatch):
