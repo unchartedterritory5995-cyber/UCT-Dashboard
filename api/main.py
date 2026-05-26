@@ -956,6 +956,17 @@ async def lifespan(app: FastAPI):
         from api.services.bars_prewarm import run_prewarmer_forever
         threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
 
+    # Slow background backfill: warm the ticker_meta disk cache for every
+    # cap_universe ticker so /api/ticker-search autocomplete shows company
+    # names for any ticker, not just ones previously viewed. Skips already-
+    # fresh entries on each boot. Daemon thread — never blocks startup.
+    try:
+        from api.services.ticker_names_prewarm import start_async as _names_start
+        _names_start()
+        print("[startup] ticker-names prewarm scheduled")
+    except Exception as e:
+        print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
+
     if os.environ.get("USE_REMOTE_BARS") == "1":
         from api.services import data_sync
 
