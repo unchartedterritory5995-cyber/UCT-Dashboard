@@ -365,6 +365,10 @@ def _compass_tool_union() -> set[str]:
     # EarningsModal already show.
     out.add("tweets_for_ticker")
     out.add("tweet_tape")
+    # Live web research via Perplexity Sonar Pro — fills the "what's the
+    # street saying / what's happening with X today" gap that internal KB
+    # + market APIs can't cover.
+    out.add("web_search")
     return out
 
 

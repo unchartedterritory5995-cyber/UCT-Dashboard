@@ -183,6 +183,37 @@ def _tweets_for_ticker(symbol: str = "", hours: int = 24, count: int = 5) -> dic
     }
 
 
+def _web_search(query: str = "", max_tokens: int = 400) -> dict:
+    """Live web research via Perplexity Sonar Pro. Returns a synthesized
+    answer + citation URLs for questions the dashboard's internal data
+    can't answer (street consensus, analyst takes, macro/policy news,
+    breaking developments beyond the cached headline feed)."""
+    if not query or not (query := query.strip()):
+        return {"answer": "no query provided", "citations": [], "count": 0}
+    try:
+        from api.services.perplexity_search import web_search
+        result = web_search(query=query, max_tokens=max_tokens or 400)
+    except Exception as e:
+        _log.warning("web_search dispatch failed: %s", e)
+        return {"answer": "web search unavailable", "citations": [], "error": str(e), "count": 0}
+    if result.get("error"):
+        return {
+            "answer": "web search unavailable",
+            "citations": [],
+            "error": result["error"],
+            "count": 0,
+        }
+    answer = (result.get("answer") or "")[:1500]
+    citations = result.get("citations") or []
+    return {
+        "answer": answer,
+        "citations": citations,
+        "count": len(citations),
+        "elapsed_ms": result.get("elapsed_ms"),
+        "cached": bool(result.get("cached")),
+    }
+
+
 def _tweet_tape(hours: int = 12, count: int = 10) -> dict:
     """Tickers being talked about right now across the curated trader feed —
     name + mention count + a sample tweet. The pre-market 'tape' read."""
@@ -1602,6 +1633,26 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_tweets_for_ticker)
+
+    _vt.voice_tool(
+        name="web_search",
+        description=(
+            "Live web research via Perplexity Sonar Pro. Returns a synthesized "
+            "cited answer. Call when the question needs CURRENT WEB content "
+            "the dashboard doesn't have: street consensus, analyst takes, "
+            "macro/policy/Fed news, sector narratives, specific experts' views, "
+            "breaking developments beyond the cached headline feed, or any "
+            "general-knowledge question you would otherwise have to guess at. "
+            "DO NOT use for live quotes (get_quote), internal positions or "
+            "journal data (use journal tools), or anything a dashboard-specific "
+            "tool already covers. ~2-4s latency."
+        ),
+        parameters={
+            "query": {"type": "string", "description": "Natural-language research question."},
+            "max_tokens": {"type": "integer", "description": "Max answer tokens (default 400, max 1500)."},
+        },
+        contexts=["global"],
+    )(_web_search)
 
     _vt.voice_tool(
         name="tweet_tape",
