@@ -56,7 +56,7 @@ export default function FloatingOrb({ context = 'global' }) {
   const voice = useVoice()
   const { connect, disconnect } = useRealtimeSession()
   const clusterRef = useRef(null)
-  const dragRef = useRef({ active: false, moved: false, startX: 0, startY: 0, posX: 0, posY: 0, pointerId: 0 })
+  const dragRef = useRef({ active: false, captured: false, moved: false, startX: 0, startY: 0, posX: 0, posY: 0, pointerId: 0 })
   const [pos, setPos] = useState(loadPos)
   const [dragging, setDragging] = useState(false)
 
@@ -141,6 +141,7 @@ export default function FloatingOrb({ context = 'global' }) {
     const rect = el.getBoundingClientRect()
     dragRef.current = {
       active: true,
+      captured: false,
       moved: false,
       startX: e.clientX,
       startY: e.clientY,
@@ -148,7 +149,10 @@ export default function FloatingOrb({ context = 'global' }) {
       posY: rect.top,
       pointerId: e.pointerId,
     }
-    try { el.setPointerCapture(e.pointerId) } catch { /* noop */ }
+    // NOTE: do NOT call setPointerCapture here. Capturing on an ancestor
+    // during pointerdown re-targets the subsequent mouseup/click off the
+    // button, which swallows the tap. We only capture once we're sure it's
+    // a drag (after the threshold trips in handlePointerMove).
   }
 
   const handlePointerMove = (e) => {
@@ -157,7 +161,13 @@ export default function FloatingOrb({ context = 'global' }) {
     const dx = e.clientX - d.startX
     const dy = e.clientY - d.startY
     if (!d.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
-    if (!d.moved) setDragging(true)
+    if (!d.moved) {
+      setDragging(true)
+      const el = clusterRef.current
+      if (el) {
+        try { el.setPointerCapture(e.pointerId); d.captured = true } catch { /* noop */ }
+      }
+    }
     d.moved = true
     const el = clusterRef.current
     if (!el) return
@@ -170,7 +180,10 @@ export default function FloatingOrb({ context = 'global' }) {
     if (!d.active) return
     d.active = false
     const el = clusterRef.current
-    try { el?.releasePointerCapture(e.pointerId) } catch { /* noop */ }
+    if (d.captured) {
+      try { el?.releasePointerCapture(e.pointerId) } catch { /* noop */ }
+      d.captured = false
+    }
     if (d.moved) {
       setDragging(false)
       if (el) {
