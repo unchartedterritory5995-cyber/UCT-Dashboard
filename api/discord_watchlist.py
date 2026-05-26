@@ -10,6 +10,7 @@ Formats into tiered embeds with colored sidebars:
 """
 
 import os
+import json
 import logging
 import httpx
 from datetime import datetime
@@ -315,11 +316,57 @@ async def send_to_discord(
         return {"ok": False, "error": str(e)}
 
 
+# ── Send image to Discord ──────────────────────────────────────────────────
+
+async def send_image_to_discord(
+    image_bytes: bytes,
+    filename: str = "watchlist.png",
+    label: str = "WATCHLIST",
+    date_range: str = "",
+) -> dict:
+    """Post a screenshot image to Discord webhook as a file attachment with embed."""
+    if not DISCORD_FLOW_WEBHOOK_URL:
+        return {"ok": False, "error": "No webhook URL configured"}
+
+    now = datetime.now(ET)
+    date_str = date_range if date_range else now.strftime("%B %d, %Y")
+    time_str = now.strftime("%I:%M %p ET")
+
+    embed = {
+        "color": GOLD,
+        "title": f"📸 {label} — {date_str}",
+        "image": {"url": f"attachment://{filename}"},
+        "footer": {"text": f"UCT Intelligence · {time_str}"},
+    }
+
+    payload_json = json.dumps({"embeds": [embed]})
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                DISCORD_FLOW_WEBHOOK_URL,
+                data={"payload_json": payload_json},
+                files={"file": (filename, image_bytes, "image/png")},
+            )
+            resp.raise_for_status()
+
+        size_kb = len(image_bytes) / 1024
+        logger.info(
+            "[Discord] Screenshot posted — %s, %.0fKB — %s",
+            label, size_kb, filename,
+        )
+        return {"ok": True, "size_kb": round(size_kb, 1), "label": label}
+
+    except Exception as e:
+        logger.error("[Discord] Image post failed: %s", e)
+        return {"ok": False, "error": str(e)}
+
+
 # ── API route (attach to FastAPI) ──────────────────────────────────────────
 
 def register_discord_routes(app_or_router):
     """Register the push endpoint."""
-    from fastapi import Body
+    from fastapi import Body, UploadFile, File, Form
 
     @app_or_router.post("/api/discord/push")
     async def push_to_discord(
@@ -357,3 +404,32 @@ def register_discord_routes(app_or_router):
             bull, bear, label, unusual_bull, unusual_bear,
             overall_bull, overall_bear, ticker_count, limit, date_range,
         )
+
+    @app_or_router.post("/api/discord/push-image")
+    async def push_image_to_discord(
+        file: UploadFile = File(...),
+        label: str = Form("WATCHLIST"),
+        date_range: str = Form(""),
+    ):
+        """
+        Push a screenshot image of the watchlist to Discord.
+        Frontend sends: FormData { file: PNG blob, label, date_range }
+        """
+        if not DISCORD_FLOW_WEBHOOK_URL:
+            return {"ok": False, "error": "No webhook URL configured"}
+
+        try:
+            image_bytes = await file.read()
+            if len(image_bytes) < 100:
+                return {"ok": False, "error": "Image too small / empty"}
+
+            result = await send_image_to_discord(
+                image_bytes=image_bytes,
+                filename=file.filename or "watchlist.png",
+                label=label,
+                date_range=date_range,
+            )
+            return result
+        except Exception as e:
+            logger.error("[Discord] Image push error: %s", e)
+            return {"ok": False, "error": str(e)}
