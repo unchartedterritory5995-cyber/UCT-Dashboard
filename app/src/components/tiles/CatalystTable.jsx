@@ -116,7 +116,7 @@ export default function CatalystTable() {
   return (
     <div className={styles.tile}>
       <div className={styles.header}>
-        <span className={styles.title}>🎯 MORNING CATALYSTS</span>
+        <span className={styles.title}>🎯 STOCK CATALYSTS</span>
         <span className={styles.meta}>
           <span className={styles.updated}>{updatedText}</span>
           {isAdmin && (
