@@ -369,6 +369,16 @@ def _compass_tool_union() -> set[str]:
     # street saying / what's happening with X today" gap that internal KB
     # + market APIs can't cover.
     out.add("web_search")
+    # FRED economic data (yields, CPI, GDP, unemployment, M2, Fed balance,
+    # etc). Free public API with friendly alias catalog.
+    out.add("get_economic_series")
+    out.add("list_economic_series")
+    # SEC EDGAR filings — recent + full-text. Free.
+    out.add("get_sec_filings")
+    out.add("search_sec_filings")
+    # Fundamentals + peer comp via yfinance.
+    out.add("get_fundamentals")
+    out.add("compare_fundamentals")
     # Backported chat-only analytics (2026-05-25). These dimension-specific
     # cuts let voice answer "when do I trade best", "am I cutting winners",
     # "what size band works", etc. without making the user switch to chat.

@@ -183,6 +183,87 @@ def _tweets_for_ticker(symbol: str = "", hours: int = 24, count: int = 5) -> dic
     }
 
 
+def _get_fundamentals(ticker: str = "") -> dict:
+    """Compact fundamentals summary — valuation (P/E, P/S, P/B, EV/EBITDA),
+    margins, growth, balance sheet, dividend, analyst targets."""
+    if not ticker or not (ticker := ticker.strip()):
+        return {"error": "ticker required"}
+    try:
+        from api.services.fundamentals import get_fundamentals
+        return get_fundamentals(ticker)
+    except Exception as e:
+        _log.warning("get_fundamentals failed: %s", e)
+        return {"error": f"fundamentals unavailable: {e}"}
+
+
+def _compare_fundamentals(tickers: list[str] | str = "") -> dict:
+    """Peer comp fundamentals for 2-6 tickers."""
+    if isinstance(tickers, str):
+        tickers = [t.strip() for t in tickers.split(",") if t.strip()]
+    if not tickers or len(tickers) < 2:
+        return {"error": "need at least 2 tickers"}
+    try:
+        from api.services.fundamentals import compare_fundamentals
+        return compare_fundamentals(tickers)
+    except Exception as e:
+        _log.warning("compare_fundamentals failed: %s", e)
+        return {"error": f"compare unavailable: {e}"}
+
+
+def _get_sec_filings(ticker: str = "", form_type: str = "", count: int = 10) -> dict:
+    """Recent SEC EDGAR filings for a ticker. Optional form filter
+    (10-K, 10-Q, 8-K, S-1, etc.)."""
+    if not ticker or not (ticker := ticker.strip()):
+        return {"error": "ticker required"}
+    try:
+        from api.services.sec_filings import recent_filings
+        return recent_filings(ticker, form_type=form_type, count=count or 10)
+    except Exception as e:
+        _log.warning("get_sec_filings failed: %s", e)
+        return {"error": f"SEC unavailable: {e}"}
+
+
+def _search_sec_filings(query: str = "", ticker: str = "", form_type: str = "",
+                        count: int = 10) -> dict:
+    """Full-text search across SEC filings. Optional ticker / form filters."""
+    if not query or not (query := query.strip()):
+        return {"error": "query required"}
+    try:
+        from api.services.sec_filings import search_filings_full_text
+        return search_filings_full_text(query, ticker=ticker or None,
+                                        form_type=form_type or None,
+                                        count=count or 10)
+    except Exception as e:
+        _log.warning("search_sec_filings failed: %s", e)
+        return {"error": f"SEC search unavailable: {e}"}
+
+
+def _get_economic_series(series: str = "", periods: int = 6) -> dict:
+    """Live economic data series from FRED — yields, CPI, GDP, unemployment,
+    M2, Fed balance sheet, etc. Accepts friendly name ('10y_yield', 'cpi',
+    'unemployment') or raw FRED series ID."""
+    if not series or not (series := series.strip()):
+        return {"error": "no series name provided"}
+    try:
+        from api.services.fred_economic import get_series
+        return get_series(series, periods=periods or 6)
+    except Exception as e:
+        _log.warning("get_economic_series failed: %s", e)
+        return {"error": f"FRED unavailable: {e}"}
+
+
+def _list_economic_series() -> dict:
+    """List the curated economic-series catalog (friendly aliases + FRED IDs +
+    labels) so voice knows what's available to ask about."""
+    try:
+        from api.services.fred_economic import list_series_catalog
+        items = list_series_catalog()
+        return {"count": len(items), "series": items}
+    except Exception as e:
+        _log.warning("list_economic_series failed: %s", e)
+        return {"count": 0, "series": []}
+
+
 def _web_search(query: str = "", max_tokens: int = 400) -> dict:
     """Live web research via Perplexity Sonar Pro. Returns a synthesized
     answer + citation URLs for questions the dashboard's internal data
@@ -1715,6 +1796,100 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_tweets_for_ticker)
+
+    _vt.voice_tool(
+        name="get_fundamentals",
+        description=(
+            "Compact fundamentals for a ticker — valuation (P/E trailing+forward, "
+            "P/S, P/B, EV/EBITDA, PEG), profitability (gross/op/net margins, ROE, "
+            "ROA), growth (revenue, earnings), balance sheet (cash, debt, D/E, "
+            "current ratio), dividend yield, 52w range, beta, analyst targets. "
+            "Call for 'what's the P/E on X', 'is X expensive', 'show me X's "
+            "margins', 'what's the balance sheet look like'."
+        ),
+        parameters={
+            "ticker": {"type": "string", "description": "Ticker symbol."},
+        },
+        contexts=["global"],
+    )(_get_fundamentals)
+
+    _vt.voice_tool(
+        name="compare_fundamentals",
+        description=(
+            "Side-by-side peer-comp fundamentals for 2-6 tickers. Returns each "
+            "ticker's summary plus cross-ticker ranges for P/E, P/S, P/B, "
+            "margins, growth, debt. Call for 'compare NVDA AMD AVGO', 'which "
+            "semis are cheapest', 'who has best margins in this group'."
+        ),
+        parameters={
+            "tickers": {"type": "array", "items": {"type": "string"},
+                        "description": "List of 2-6 tickers (or comma-separated string)."},
+        },
+        contexts=["global"],
+    )(_compare_fundamentals)
+
+    _vt.voice_tool(
+        name="get_sec_filings",
+        description=(
+            "Recent SEC EDGAR filings for a ticker — 10-K (annual), 10-Q "
+            "(quarterly), 8-K (material event), S-1 (IPO), DEF 14A (proxy), "
+            "13F-HR (institutional holdings), etc. Returns filed date, form, "
+            "period, and direct URL. Call for 'when did X last file 10-K', "
+            "'any recent 8-Ks on Y', 'show me Tesla's filings'."
+        ),
+        parameters={
+            "ticker": {"type": "string", "description": "Ticker symbol."},
+            "form_type": {"type": "string", "description": "Optional form filter (10-K, 10-Q, 8-K, etc.). Omit for all."},
+            "count": {"type": "integer", "description": "Max filings to return (default 10, max 50)."},
+        },
+        contexts=["global"],
+    )(_get_sec_filings)
+
+    _vt.voice_tool(
+        name="search_sec_filings",
+        description=(
+            "Full-text search across SEC EDGAR filings. Find filings that "
+            "mention specific language — risk factors, guidance language, "
+            "competitor mentions, accounting changes. Optional ticker and "
+            "form filters. Call for 'find filings mentioning \"China demand\"', "
+            "'show me 10-Ks talking about regulatory risk on AI'."
+        ),
+        parameters={
+            "query": {"type": "string", "description": "Text to search for."},
+            "ticker": {"type": "string", "description": "Optional ticker scope."},
+            "form_type": {"type": "string", "description": "Optional form filter."},
+            "count": {"type": "integer", "description": "Max hits (default 10, max 25)."},
+        },
+        contexts=["global"],
+    )(_search_sec_filings)
+
+    _vt.voice_tool(
+        name="get_economic_series",
+        description=(
+            "Live economic data via FRED (Federal Reserve Economic Data). "
+            "Yields, CPI, GDP, unemployment, M2, Fed balance sheet, jobless "
+            "claims, oil, gold, DXY, VIX, etc. Accepts friendly name "
+            "('10y_yield', 'cpi', 'unemployment', 'fed_funds', 'm2', "
+            "'jobless_claims') or raw FRED series ID. Returns recent "
+            "observations newest-last. Call for any 'where is X right now', "
+            "'what's the curve looking like', 'how did CPI print' question."
+        ),
+        parameters={
+            "series": {"type": "string", "description": "Friendly name or FRED series ID."},
+            "periods": {"type": "integer", "description": "How many recent observations (default 6, max 60)."},
+        },
+        contexts=["global"],
+    )(_get_economic_series)
+
+    _vt.voice_tool(
+        name="list_economic_series",
+        description=(
+            "List the available economic data series so you know what you can "
+            "ask FRED for. Call once if unsure whether a series exists."
+        ),
+        parameters={},
+        contexts=["global"],
+    )(_list_economic_series)
 
     _vt.voice_tool(
         name="web_search",
