@@ -183,6 +183,55 @@ def _tweets_for_ticker(symbol: str = "", hours: int = 24, count: int = 5) -> dic
     }
 
 
+def _list_option_expirations(ticker: str = "") -> dict:
+    if not ticker or not (ticker := ticker.strip()):
+        return {"error": "ticker required"}
+    try:
+        from api.services.options_chain import list_expirations
+        return list_expirations(ticker)
+    except Exception as e:
+        _log.warning("list_option_expirations failed: %s", e)
+        return {"error": f"options unavailable: {e}"}
+
+
+def _get_option_chain(ticker: str = "", expiration: str = "",
+                     strikes_around_spot: int = 6) -> dict:
+    if not ticker or not (ticker := ticker.strip()):
+        return {"error": "ticker required"}
+    try:
+        from api.services.options_chain import get_chain
+        return get_chain(ticker, expiration=expiration or "",
+                         strikes_around_spot=strikes_around_spot or 6)
+    except Exception as e:
+        _log.warning("get_option_chain failed: %s", e)
+        return {"error": f"options chain unavailable: {e}"}
+
+
+def _get_option_contract(ticker: str = "", strike: float = 0,
+                         expiration: str = "", call_or_put: str = "call") -> dict:
+    if not ticker or not strike or not expiration:
+        return {"error": "ticker, strike, expiration required"}
+    try:
+        from api.services.options_chain import get_contract
+        return get_contract(ticker, strike=float(strike), expiration=expiration,
+                            call_or_put=call_or_put or "call")
+    except Exception as e:
+        _log.warning("get_option_contract failed: %s", e)
+        return {"error": f"option contract unavailable: {e}"}
+
+
+def _search_news(query: str = "", count: int = 5) -> dict:
+    """Fresh news search via Google News RSS (no key, broad coverage)."""
+    if not query or not (query := query.strip()):
+        return {"error": "query required"}
+    try:
+        from api.services.news_search import search_news
+        return search_news(query, count=count or 5)
+    except Exception as e:
+        _log.warning("search_news failed: %s", e)
+        return {"error": f"news search unavailable: {e}"}
+
+
 def _get_fundamentals(ticker: str = "") -> dict:
     """Compact fundamentals summary — valuation (P/E, P/S, P/B, EV/EBITDA),
     margins, growth, balance sheet, dividend, analyst targets."""
@@ -1796,6 +1845,63 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_tweets_for_ticker)
+
+    _vt.voice_tool(
+        name="list_option_expirations",
+        description="List available option expiration dates for a ticker.",
+        parameters={"ticker": {"type": "string"}},
+        contexts=["global"],
+    )(_list_option_expirations)
+
+    _vt.voice_tool(
+        name="get_option_chain",
+        description=(
+            "Option chain for a ticker on a specific expiration with bid/ask, "
+            "IV, open interest, volume, AND Greeks (delta, gamma, theta, vega, "
+            "rho) computed via Black-Scholes. Returns N strikes around spot for "
+            "both calls and puts. Call for 'show me the NVDA call chain', "
+            "'what does the put side look like', 'IV on weekly TSLA calls'."
+        ),
+        parameters={
+            "ticker": {"type": "string"},
+            "expiration": {"type": "string", "description": "YYYY-MM-DD. Omit for nearest expiration."},
+            "strikes_around_spot": {"type": "integer", "description": "How many strikes either side (default 6, max 15)."},
+        },
+        contexts=["global"],
+    )(_get_option_chain)
+
+    _vt.voice_tool(
+        name="get_option_contract",
+        description=(
+            "Single option contract quote + Greeks. Call for 'what's the delta "
+            "on the NVDA 1000 call expiring Friday', 'theta on this put', "
+            "'is this contract liquid' (check volume + OI)."
+        ),
+        parameters={
+            "ticker": {"type": "string"},
+            "strike": {"type": "number", "description": "Strike price (nearest match used)."},
+            "expiration": {"type": "string", "description": "YYYY-MM-DD."},
+            "call_or_put": {"type": "string", "enum": ["call", "put"]},
+        },
+        contexts=["global"],
+    )(_get_option_contract)
+
+    _vt.voice_tool(
+        name="search_news",
+        description=(
+            "Fresh news search via Google News (broad coverage beyond the "
+            "cached AlphaVantage/RSS feed). Returns headline + source + "
+            "time-ago + URL for arbitrary queries: 'Fed rate decision', "
+            "'NVDA China sanctions', 'GLP-1 weight loss drug news', etc. "
+            "Use when get_news doesn't have it cached OR when the question "
+            "is topical/thematic (not just ticker-filtered)."
+        ),
+        parameters={
+            "query": {"type": "string", "description": "Free-text news search query."},
+            "count": {"type": "integer", "description": "Max headlines (default 5, max 20)."},
+        },
+        contexts=["global"],
+    )(_search_news)
 
     _vt.voice_tool(
         name="get_fundamentals",

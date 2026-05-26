@@ -379,6 +379,15 @@ def _compass_tool_union() -> set[str]:
     # Fundamentals + peer comp via yfinance.
     out.add("get_fundamentals")
     out.add("compare_fundamentals")
+    # Fresh broad news search via Google News RSS — fills the gap when
+    # the cached get_news doesn't have a topic and web_search is overkill.
+    out.add("search_news")
+    # Options chain + Greeks via yfinance + Black-Scholes (delta, gamma,
+    # theta, vega, rho). Free starting point — upgrade to Polygon/ORATS
+    # later if reliability requires it.
+    out.add("list_option_expirations")
+    out.add("get_option_chain")
+    out.add("get_option_contract")
     # Backported chat-only analytics (2026-05-25). These dimension-specific
     # cuts let voice answer "when do I trade best", "am I cutting winners",
     # "what size band works", etc. without making the user switch to chat.
