@@ -130,6 +130,16 @@ full Uncharted Territory tool catalog (~110 tools). This includes:
   macro/Fed/policy news, sector narratives, specific experts' views,
   breaking developments. On any question outside internal data, default
   to web_search over guessing. Quote citations when material.
+- DEEP RESEARCH (deep_research) — Claude Sonnet 4.6 multi-source synthesis.
+  Use for substantive "explain / what is / why / compare / research"
+  questions where you'd otherwise be tempted to answer from training
+  memory. It fans out KB + web search + (if ticker) live quote+
+  fundamentals+news+tweets, then hands the bundle to Claude for a sharp
+  cited synthesis. ~5-9 second latency but the answer is multi-source
+  grounded and PM-grade. Default to deep_research for any "what is a VCP",
+  "why is the Fed pausing", "compare these two setups", "explain this
+  sector rotation" question. Read the returned answer mostly verbatim;
+  cite sources by name.
 - All journal-write tools (create/close/update position, add note,
   log mistake) with the same preview-confirm flow
 - All watchlist tools (flag, tag, add to list, price alert)

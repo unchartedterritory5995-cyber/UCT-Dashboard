@@ -183,6 +183,29 @@ def _tweets_for_ticker(symbol: str = "", hours: int = 24, count: int = 5) -> dic
     }
 
 
+def _deep_research(question: str = "", ticker: str = "") -> dict:
+    """Multi-source synthesized research via Claude Sonnet 4.6. Fans out
+    parallel calls to KB + web search + ticker data, then hands the bundle
+    to Claude for a sharp cited answer."""
+    if not question or not (question := question.strip()):
+        return {"error": "question required"}
+    try:
+        from api.services.voice_deep_research import deep_research
+        result = deep_research(question, ticker=ticker or "")
+    except Exception as e:
+        _log.warning("deep_research dispatch failed: %s", e)
+        return {"error": f"deep_research unavailable: {e}"}
+    if result.get("error"):
+        return result
+    return {
+        "answer": (result.get("answer") or "")[:1800],
+        "citations": result.get("citations") or [],
+        "sources_consulted": result.get("sources_consulted") or [],
+        "elapsed_ms": result.get("elapsed_ms"),
+        "cached": bool(result.get("cached")),
+    }
+
+
 def _list_option_expirations(ticker: str = "") -> dict:
     if not ticker or not (ticker := ticker.strip()):
         return {"error": "ticker required"}
@@ -1845,6 +1868,27 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_tweets_for_ticker)
+
+    _vt.voice_tool(
+        name="deep_research",
+        description=(
+            "Multi-source synthesized research powered by Claude Sonnet 4.6. "
+            "Use for ANY substantive 'explain / what is / why / research / "
+            "compare / what are the arguments for X' question — especially "
+            "when you'd otherwise be tempted to answer from training memory. "
+            "Internally calls the KB, web search (Perplexity), and — if a "
+            "ticker is provided — live quote + fundamentals + recent news + "
+            "trader Twitter chatter, then hands the entire bundle to Claude "
+            "for a sharp, decisive, cited synthesis. ~5-9 second latency. "
+            "Returns a ready-to-speak prose answer + citation URLs. Cite "
+            "sources by name when reading aloud."
+        ),
+        parameters={
+            "question": {"type": "string", "description": "The research question."},
+            "ticker": {"type": "string", "description": "Optional ticker to anchor the research with live quote+fundamentals+news+chatter."},
+        },
+        contexts=["global"],
+    )(_deep_research)
 
     _vt.voice_tool(
         name="list_option_expirations",

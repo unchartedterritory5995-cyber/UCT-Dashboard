@@ -388,6 +388,9 @@ def _compass_tool_union() -> set[str]:
     out.add("list_option_expirations")
     out.add("get_option_chain")
     out.add("get_option_contract")
+    # Deep research sub-agent — Claude Sonnet 4.6 multi-source synthesis.
+    # Biggest accuracy multiplier for "explain / why / research" questions.
+    out.add("deep_research")
     # Backported chat-only analytics (2026-05-25). These dimension-specific
     # cuts let voice answer "when do I trade best", "am I cutting winners",
     # "what size band works", etc. without making the user switch to chat.
