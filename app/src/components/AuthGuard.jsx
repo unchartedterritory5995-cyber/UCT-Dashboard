@@ -97,7 +97,7 @@ export default function AuthGuard() {
   }
 
   // Free tier: allow access to specific pages without a paid plan
-  const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/calendar', '/patterns', '/theme-tracker', '/watchlists', '/multi-chart']
+  const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/journal', '/model-book']
   const isFreePage = FREE_PAGES.some(p => location.pathname.startsWith(p))
 
   if (plan !== 'pro' && user.role !== 'admin' && !isFreePage) {

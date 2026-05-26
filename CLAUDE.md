@@ -307,7 +307,7 @@ bug classes that survived the May-16/17 freshness overhaul. **Locked invariants:
 - SQLite DB at `/data/auth.db` (Railway persistent volume)
 - Tables: users, sessions, subscriptions, email_verifications, password_resets, activity_log, page_views, feedback, support_tickets, ticket_messages, user_tags, admin_notes, user_preferences, referrals, mrr_snapshots
 - `AuthGuard` component: checks auth + email verification + plan + admin role
-- **Free tier**: Dashboard, Breadth, Theme Tracker, Calendar, Watchlists accessible without payment
+- **Free tier**: Dashboard, Breadth, Charts, Options Flow, Journal, Model Book accessible without payment
 - `FREE_PAGES` whitelist in AuthGuard, NavBar, MobileNav — locked pages hidden from nav, redirect to `/dashboard`
 - Signup flow does NOT redirect to Stripe — users land directly on dashboard after email verification
 - Stripe integration still intact (checkout/portal/webhooks) for future monetization

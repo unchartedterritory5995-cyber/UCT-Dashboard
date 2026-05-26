@@ -23,13 +23,12 @@ const NAV_ITEMS = [
   { to: '/model-book',   label: 'Model Book',    icon: '📖' },
   { to: '/setup-library',label: 'Setup Library', icon: '📚' },
   { to: '/journal',      label: 'Journal',       icon: '📓' },
-  { to: '/risk',         label: 'Risk',          icon: '🛡️' },
   { to: '/support',      label: 'Support',       icon: '💬' },
 ]
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
-const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/calendar', '/patterns', '/theme-tracker', '/watchlists', '/multi-chart']
+const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/journal', '/model-book']
 
 export default function NavBar() {
   const { user, plan } = useAuth()
