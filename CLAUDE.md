@@ -162,6 +162,62 @@ const greetingName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 
 - ~70KB image assets, ~12KB CSS
 - Uses `Georgia, 'Times New Roman', serif` for cartographer/map decoration ONLY (explicit exception to font-unification rule because these are graphic decoration, not UI text). Welcome line + product wordmark + pills all use Instrument Sans
 
+## Charts Hub V2 — `/charts` Customizable Workspace (2026-05-24 + polish 2026-05-25)
+
+The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V1's sub-tab Charts Hub. Free tier includes everything.
+
+### Architecture
+- **Top-level shell:** `app/src/pages/charts/ChartsWorkspace.jsx` — owns layout state + 4 color groups + viewport-lock sizing. Layout persists to `usePreferences('charts_workspace_layout')` (debounced 500ms). Color-group syms persist to `charts_workspace_groups`.
+- **Grid:** `react-grid-layout@^1.5.3` Responsive component. `cols={12}`, `FIXED_ROWS=20`, `rowHeight` computed dynamically via `ResizeObserver` on `.workspaceBody` so the grid always fills the visible viewport exactly. `maxRows={20}` + `overflow: hidden` on body = no outer scroll. `margin=[6,6]`, `compactType: 'vertical'`. `resizeHandles={['nw','ne','sw','se']}` enables resize from all 4 corners.
+- **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
+- **Widget types:** `chart` (StockChart), `watchlist` (Watchlists with `embedded` prop), `themes` (ThemeTrackerPage `embedded`), `scanner` (Screener `embedded`). Each widget wrapped in a scoped `ChartsSymContext.Provider` so the wrapped page publishes/reads tickers from THE WIDGET'S color group, not Group A.
+- **WidgetHost** (`app/src/pages/charts/WidgetHost.jsx`): type dispatcher + `WidgetHeader`. **WidgetHeader** is the drag bar with drag grip (`.charts-widget-drag-handle` consumed by RGL `draggableHandle`), color-cycle dot, close button. **Label is visually hidden (sr-only)** — color dot + body content identify the widget.
+- **Mobile (`<640px`)** bypasses RGL entirely → renders a single full-screen `StockChart` via `MobileChartFallback` (ticker persists to `localStorage['charts_mobile_sym']`).
+- **Legacy URLs** (`/theme-tracker`, `/watchlists`, `/multi-chart`) redirect to bare `/charts` via `LegacyRedirect` (strips `?tab=`, preserves other query params).
+
+### ChartWidget specifics (`app/src/pages/charts/widgets/ChartWidget.jsx`)
+- **TF bar** above the chart with 8 buttons: `1m`/`5m`/`15m`/`30m`/`1h`/`1D`/`1W`/`1M` (codes `1`/`5`/`15`/`30`/`60`/`D`/`W`/`M`). TF persists per-widget via `opts.tf` through the same debounced save path. StockChart's `onTfChange` (keyboard shortcuts) is wired back so the TF bar stays in sync.
+- **SymbolSearch badge** at the left of the TF bar with vertical divider. Click → predictive dropdown. Imperative `openWith(text)` exposed via `forwardRef + useImperativeHandle` so the chart can populate it.
+- **Click-to-focus + type-to-search**: chart container is `tabIndex={0}`. Click anywhere on the chart focuses it; typing a letter/digit/period opens SymbolSearch prefilled with that character. The chart's keydown handler ignores events bubbling from inputs so subsequent characters flow into the search input naturally.
+- **Persistent focus after ticker pick**: every ticker change (dropdown click, Enter, internal `StockChart.onSymbolChange`) routes through a single `handleSymbolChange` in ChartWidget; after the sym updates, `requestAnimationFrame` refocuses the chart container. Pick ticker → still focused → start typing the next ticker without re-clicking. **Do not pass `setGroupSym` directly to SymbolSearch or StockChart** or this behavior breaks.
+
+### Predictive ticker autocomplete (TradingView-style)
+- **Backend:** `GET /api/ticker-search?q=NV&limit=20` (`api/routers/ticker_search.py`). Loads `cap_universe.json` (3,685 tickers) once at module import. Ranks: exact → prefix → substring. Returns `{results: [{ticker, name | null}]}`.
+- **Name source:** existing `ticker_meta` cache (same one powering chart watermarks). In-process TTLCache → on-disk `/data/ticker_meta_cache/{TICKER}.json` (24h TTL). For misses, fires bounded async backfill (2-worker pool, max 8 in-flight) via `_base_meta()` so the next request resolves the name. Never blocks the autocomplete response.
+- **Frontend (`SymbolSearch.jsx`):** 150ms debounced fetch. Renders full-width rows with bold gold ticker + dim grey company name. Arrow ↑/↓ navigate, Enter submits highlighted, Esc closes. Empty query falls back to a hardcoded POPULAR list (30 ETF/megacap entries with names baked in so the dropdown is never bare on a fresh deploy). "Go to {TICKER}" fallback row when no exact match exists so any ticker still works.
+- **Background prewarmer** (`api/services/ticker_names_prewarm.py`): daemon thread on Railway startup (60s warmup delay so it doesn't fight `bars_prewarm`) walks the full cap_universe and calls `_base_meta` on each (250ms sleep between calls). Skips already-fresh disk entries → reboots no-op in ~5s. Full cold pass ~30 min. Toggle off with `TICKER_NAMES_PREWARM_DISABLED=1`.
+
+### Watchlist arrow-key navigation (`app/src/pages/Watchlists.jsx`)
+- Arrow ↑/↓ on a focused workspace moves through every expanded list (Flagged + tag color auto-lists + user/community watchlists), not just Flagged.
+- Builds a deduped flat sym list in visual order via `visibleSymsFlat = useMemo(...)`. Arrow keys find `selectedSym` in the list, move ±1, set both `selectedSym` AND the hub sym (so a paired Chart widget follows).
+- `scrollIntoView({block: 'nearest'})` via the `data-watch-sym` attribute on each `.listRow` (4 render points) keeps the active row visible. Ignored while typing in inputs/textareas/contenteditable.
+
+### Responsive embedded content (`@container` queries, NOT `@media`)
+- `.widgetBody` is the `container-type: inline-size` root.
+- Scanner's 3-col grid collapses to 2 then 1 col as the *widget* (not viewport) narrows.
+- `.pageEmbedded` on Watchlists/Themes/Screener is `display: flex; flex-direction: column; overflow: hidden`; inner panel `flex: 1; min-height: 0`. Standalone (non-embedded) mode keeps the old `display: flex; row` layout.
+
+### Critical invariants — do not regress
+- **Viewport-lock**: `rowHeight` is dynamic via `ResizeObserver`. Never hardcode it. `maxRows={FIXED_ROWS=20}` + `overflow: hidden` on `.workspaceBody` are load-bearing.
+- **Container-query root is `.widgetBody`** — Watchlists/Themes/Screener embedded CSS uses `@container`. If you remove or rename the container-type, all widget-responsive behavior breaks.
+- **`useChartsSym()` shim resolution order** (explicit Provider → WorkspaceContext Group A → null) — load-bearing for V1-era components.
+- **`embedded` prop on Watchlists/ThemeTrackerPage/Screener** hides their right-side StockChart panel + tightens chrome. Without it, nested chart-in-chart inside widgets.
+- **Layout persist debounced 500ms** — never persist on every drag tick.
+- **Backfill pool bounds (2 workers, 8 in-flight)** in `ticker_search.py` are intentional — yfinance rate-limits aggressively.
+- **Prewarmer 250ms + 60s warmup delay** are tuned for yfinance/Finnhub politeness.
+- **All ticker changes in ChartWidget route through `handleSymbolChange`** (refocuses chart via rAF).
+- **`SymbolSearch.openWith(text)` imperative API** is consumed by ChartWidget's type-to-search; preserve the forwardRef + useImperativeHandle surface if refactoring.
+
+### Files
+- Workspace: `app/src/pages/charts/{ChartsWorkspace,WidgetHost,WidgetHeader,WorkspaceContext,ChartsSymContext,LegacyRedirect}.jsx` + `ChartsWorkspace.module.css`
+- Widgets: `app/src/pages/charts/widgets/{ChartWidget,WatchlistWidget,ThemesWidget,ScannerWidget,MobileChartFallback}.jsx`
+- Hooks: `app/src/hooks/useMediaQuery.js`
+- Embedded pages (existing): `app/src/pages/{Watchlists,ThemeTrackerPage,Screener}.jsx` with new `embedded` prop
+- Predictive search: `app/src/components/chart/SymbolSearch.jsx` + `.module.css`
+- Backend search: `api/routers/ticker_search.py`, `api/services/ticker_names_prewarm.py`
+- Spec: `docs/superpowers/specs/2026-05-24-charts-hub-v2-workspace-design.md`
+- Plan: `docs/superpowers/plans/2026-05-24-charts-hub-v2-workspace.md` (16 tasks)
+
 ## Charts — Lightweight Charts v5
 
 All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key component: `app/src/components/StockChart.jsx`.
