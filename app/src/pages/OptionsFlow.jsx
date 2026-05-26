@@ -1505,6 +1505,8 @@ export default function OptionsFlowDashboard() {
   const [wlRemoved, setWlRemoved] = useState([]);
   const [wlOILoading, setWlOILoading] = useState(false);
   const wlRef = useRef(null);
+  const wlBullRef = useRef(null);
+  const wlBearRef = useRef(null);
   const screenshotWatchlist = async () => {
     if (!wlRef.current) return;
     let h2c = window.html2canvas;
@@ -1533,7 +1535,6 @@ export default function OptionsFlowDashboard() {
   };
 
   const screenshotPushDiscord = async () => {
-    if (!wlRef.current) return;
     setDiscordImgPushing(true);
     try {
       let h2c = window.html2canvas;
@@ -1545,21 +1546,56 @@ export default function OptionsFlowDashboard() {
         h2c = window.html2canvas;
       }
       if (!h2c) { setStatus("❌ Could not load screenshot library"); setDiscordImgPushing(false); return; }
-      const canvas = await h2c(wlRef.current, { backgroundColor: P.bg, scale: 2, useCORS: true });
-      const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
-      if (!blob) { setStatus("❌ Screenshot capture failed"); setDiscordImgPushing(false); return; }
-      const side = wlViewFilter === "both" ? "Full" : wlViewFilter === "bull" ? "Bull" : "Bear";
-      const filename = `UCT_Watchlist_${side}_${wlDate}.png`;
-      const fd = new FormData();
-      fd.append("file", blob, filename);
-      fd.append("label", discordLabel);
-      fd.append("date_range", FD ? FD.dateRange || "" : "");
-      const resp = await fetch("/api/discord/push-image", { method: "POST", body: fd });
-      const data = await resp.json();
-      if (data.ok) {
-        setStatus(`📸 Screenshot pushed to Discord (${data.size_kb}KB)`);
+
+      const dateRange = FD ? FD.dateRange || "" : "";
+      const results = [];
+
+      // Capture Bull
+      const bullEl = wlBullRef.current;
+      if (bullEl) {
+        const canvas = await h2c(bullEl, { backgroundColor: P.bg, scale: 2, useCORS: true });
+        const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+        if (blob) {
+          const fd = new FormData();
+          fd.append("file", blob, `UCT_Bull_Watchlist_${wlDate}.png`);
+          fd.append("label", `${discordLabel} — BULL`);
+          fd.append("date_range", dateRange);
+          const resp = await fetch("/api/discord/push-image", { method: "POST", body: fd });
+          const data = await resp.json();
+          results.push({ side: "Bull", ok: data.ok, kb: data.size_kb, error: data.error });
+        }
+      }
+
+      // Small delay to avoid Discord rate limit
+      await new Promise(r => setTimeout(r, 600));
+
+      // Capture Bear
+      const bearEl = wlBearRef.current;
+      if (bearEl) {
+        const canvas = await h2c(bearEl, { backgroundColor: P.bg, scale: 2, useCORS: true });
+        const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+        if (blob) {
+          const fd = new FormData();
+          fd.append("file", blob, `UCT_Bear_Watchlist_${wlDate}.png`);
+          fd.append("label", `${discordLabel} — BEAR`);
+          fd.append("date_range", dateRange);
+          const resp = await fetch("/api/discord/push-image", { method: "POST", body: fd });
+          const data = await resp.json();
+          results.push({ side: "Bear", ok: data.ok, kb: data.size_kb, error: data.error });
+        }
+      }
+
+      if (!results.length) {
+        setStatus("⚠️ No watchlist sections to capture");
       } else {
-        setStatus(`❌ Discord image push failed: ${data.error || "unknown"}`);
+        const ok = results.filter(r => r.ok);
+        const fail = results.filter(r => !r.ok);
+        if (ok.length && !fail.length) {
+          const totalKB = ok.reduce((s, r) => s + (r.kb || 0), 0);
+          setStatus(`📸 ${ok.map(r => r.side).join(" + ")} pushed to Discord (${totalKB}KB)`);
+        } else if (fail.length) {
+          setStatus(`❌ Failed: ${fail.map(r => r.side + ": " + r.error).join(", ")}`);
+        }
       }
     } catch (e) {
       setStatus(`❌ Discord screenshot error: ${e.message}`);
@@ -6290,6 +6326,7 @@ export default function OptionsFlowDashboard() {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               {wlViewFilter==="both" ? (
                 <>
+                <div ref={wlBullRef}>
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
@@ -6309,6 +6346,8 @@ export default function OptionsFlowDashboard() {
                     </div>
                   </div>
                 </Card>
+                </div>
+                <div ref={wlBearRef}>
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
@@ -6328,6 +6367,7 @@ export default function OptionsFlowDashboard() {
                     </div>
                   </div>
                 </Card>
+                </div>
                 </>
               ) : wlViewFilter==="bull" ? (
                 <>
