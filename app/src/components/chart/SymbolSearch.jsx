@@ -1,5 +1,5 @@
 // app/src/components/chart/SymbolSearch.jsx — Clickable symbol badge + search input overlay
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import styles from './SymbolSearch.module.css'
 
 // Common tickers for quick access
@@ -9,17 +9,30 @@ const POPULAR = [
   'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'GLD', 'TLT', 'ARKK', 'SOXX',
 ]
 
-export default function SymbolSearch({ sym, onSymbolChange }) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const inputRef = useRef(null)
   const wrapRef = useRef(null)
 
-  // Focus input when opened
+  // Imperative open-with-text — used by ChartWidget so typing a letter on the
+  // chart opens the search with that letter already entered.
+  useImperativeHandle(ref, () => ({
+    openWith: (text = '') => {
+      setQuery((text || '').toUpperCase())
+      setOpen(true)
+    },
+  }), [])
+
+  // Focus input when opened. (We do NOT reset query here — it would clobber
+  // text passed via openWith. The badge-click handler clears query before
+  // opening for that flow.)
   useEffect(() => {
     if (open && inputRef.current) {
       inputRef.current.focus()
-      setQuery('')
+      // Place caret at end so the user can keep typing the rest of the ticker
+      const len = inputRef.current.value.length
+      try { inputRef.current.setSelectionRange(len, len) } catch {}
     }
   }, [open])
 
@@ -61,7 +74,11 @@ export default function SymbolSearch({ sym, onSymbolChange }) {
 
   return (
     <div ref={wrapRef} className={styles.wrap}>
-      <button className={styles.badge} onClick={() => setOpen(!open)} title="Search ticker">
+      <button
+        className={styles.badge}
+        onClick={() => { if (open) { setOpen(false) } else { setQuery(''); setOpen(true) } }}
+        title="Search ticker"
+      >
         {sym}
         <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.5">
           <circle cx="5" cy="5" r="3.5" />
@@ -105,4 +122,6 @@ export default function SymbolSearch({ sym, onSymbolChange }) {
       )}
     </div>
   )
-}
+})
+
+export default SymbolSearch

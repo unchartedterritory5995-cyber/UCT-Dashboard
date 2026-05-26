@@ -106,7 +106,10 @@
   background: rgba(201, 168, 76, 0.08);
 }
 
-.chartFill { flex: 1; min-height: 0; min-width: 0; position: relative; }
+.chartFill {
+  flex: 1; min-height: 0; min-width: 0; position: relative;
+  outline: none;  /* focusable container — keep the chrome clean, no default ring */
+}
 
 /* Symbol search slot lives at the left of the TF bar. */
 .symbolSlot {

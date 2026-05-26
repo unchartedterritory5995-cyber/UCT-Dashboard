@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import StockChart from '../../../components/StockChart'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import { useWorkspace } from '../WorkspaceContext'
@@ -9,6 +9,9 @@ const TFS = [
   ['60', '1h'], ['D', '1D'], ['W', '1W'], ['M', '1M'],
 ]
 
+// Letter or digit, no modifier combos. Period allowed for class-share tickers (BRK.B).
+const TICKER_KEY_RE = /^[A-Za-z0-9.]$/
+
 export default function ChartWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym } = useWorkspace()
   const sym = groupSyms[color] || 'SPY'
@@ -18,11 +21,31 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     onOptsChange?.({ ...(opts || {}), tf: nextTf })
   }, [opts, tf, onOptsChange])
 
+  const searchRef = useRef(null)
+  const focusableRef = useRef(null)
+
+  const handleChartClick = useCallback(() => {
+    // Don't steal focus from a child input (e.g., the open search dropdown).
+    const ae = document.activeElement
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return
+    focusableRef.current?.focus({ preventScroll: true })
+  }, [])
+
+  const handleChartKeyDown = useCallback((e) => {
+    // Bail if the event is bubbling up from an input (search box, etc.).
+    const tgt = e.target
+    if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
+    if (e.ctrlKey || e.altKey || e.metaKey) return
+    if (!TICKER_KEY_RE.test(e.key)) return
+    e.preventDefault()
+    searchRef.current?.openWith(e.key)
+  }, [])
+
   return (
     <div className={styles.chartWidget}>
       <div className={styles.tfBar}>
         <div className={styles.symbolSlot}>
-          <SymbolSearch sym={sym} onSymbolChange={(s) => setGroupSym(color, s)} />
+          <SymbolSearch ref={searchRef} sym={sym} onSymbolChange={(s) => setGroupSym(color, s)} />
         </div>
         <span className={styles.tfBarDivider} aria-hidden="true" />
         {TFS.map(([code, label]) => (
@@ -34,7 +57,13 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           >{label}</button>
         ))}
       </div>
-      <div className={styles.chartFill}>
+      <div
+        ref={focusableRef}
+        className={styles.chartFill}
+        tabIndex={0}
+        onClick={handleChartClick}
+        onKeyDown={handleChartKeyDown}
+      >
         <StockChart
           sym={sym}
           tf={tf}
