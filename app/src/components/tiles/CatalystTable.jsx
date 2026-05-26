@@ -59,6 +59,50 @@ function fmtPrice(v) {
   return `$${v.toFixed(2)}`
 }
 
+function parseSources(raw) {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.filter(Boolean)
+  try {
+    const arr = JSON.parse(raw)
+    return Array.isArray(arr) ? arr.filter(Boolean) : []
+  } catch {
+    return []
+  }
+}
+
+function CitationsPopover({ sources }) {
+  const [open, setOpen] = useState(false)
+  if (!sources || sources.length === 0) return null
+  return (
+    <span className={styles.citationsWrap}>
+      <button
+        type="button"
+        className={styles.citationsBtn}
+        onClick={() => setOpen(o => !o)}
+        title={`${sources.length} source${sources.length > 1 ? 's' : ''} cited`}
+      >
+        ⓘ
+      </button>
+      {open && (
+        <span className={styles.citationsPop}>
+          <span className={styles.citationsHeader}>
+            Sources ({sources.length})
+            <button type="button" className={styles.citationsClose} onClick={() => setOpen(false)}>✕</button>
+          </span>
+          {sources.slice(0, 8).map((url, i) => (
+            <a key={i} href={url} target="_blank" rel="noreferrer" className={styles.citationLink}>
+              {(() => {
+                try { return new URL(url).hostname.replace(/^www\./, '') }
+                catch { return url.slice(0, 40) }
+              })()}
+            </a>
+          ))}
+        </span>
+      )}
+    </span>
+  )
+}
+
 export default function CatalystTable() {
   const { data, mutate, isValidating } = useCatalysts()
   const auth = useAuth() || {}
@@ -199,6 +243,7 @@ export default function CatalystTable() {
                     <td className={styles.colTag}><RowTagChip tag={r.tag} /></td>
                     <td className={styles.colThesis}>
                       <HighlightThesis text={r.thesis_text} />
+                      <CitationsPopover sources={parseSources(r.thesis_sources)} />
                     </td>
                     <td
                       className={styles.colUpdated}

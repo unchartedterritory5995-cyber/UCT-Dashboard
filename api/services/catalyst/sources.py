@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import os
 import re
+import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
@@ -30,6 +32,10 @@ _CASHTAG_RE = re.compile(r"\$([A-Z]{1,5})\b")
 
 def _today_market_date() -> str:
     return dt.datetime.now(_ET).date().isoformat()
+
+
+def _now_et() -> dt.datetime:
+    return dt.datetime.now(_ET)
 
 
 def _safe(fn, default=None, name="?"):
@@ -220,6 +226,117 @@ def _pull_rss_signals() -> dict[str, list[dict]]:
     return out
 
 
+# ── Source 7: Perplexity discovery (proactive candidate finding) ────────
+# Two queries — both gated on CATALYST_PERPLEXITY_ENABLED:
+#   A1 (always-on): "what are today's top catalyst movers right now?"
+#   D1 (pre-market only): "biggest pre-market movers + why" — fires 4–9am ET
+
+# Extract `$TICKER` or bare uppercase 1-5 letter sequences treated as tickers.
+# Bare-word path requires a leading word boundary AND match against a
+# minimal common-words exclusion to avoid garbage like "USA" or "CEO".
+_DISCOVERY_TICKER_RE = re.compile(r"\$([A-Z]{1,5})\b|\b([A-Z]{2,5})\b")
+_NON_TICKER_WORDS = {
+    "USA", "CEO", "CFO", "COO", "ETF", "IPO", "FDA", "SEC", "USD", "EUR", "GBP",
+    "JPY", "CAD", "AUD", "AI", "ML", "EPS", "QOQ", "YOY", "AMC", "BMO", "RTH",
+    "NYSE", "PRE", "POST", "FED", "JPM", "GS", "EBIT", "EBITDA", "FY", "FQ",
+    "GAAP", "NON",
+}
+
+
+def _extract_tickers_from_text(text: str) -> set[str]:
+    """Pull plausible tickers from Perplexity prose. Cashtags trusted;
+    bare uppercase words filtered against a tiny stoplist."""
+    if not text:
+        return set()
+    tickers: set[str] = set()
+    for cashtag, bareword in _DISCOVERY_TICKER_RE.findall(text):
+        sym = cashtag or bareword
+        if not sym:
+            continue
+        sym = sym.upper()
+        if cashtag:  # trusted
+            tickers.add(sym)
+        elif sym not in _NON_TICKER_WORDS and 2 <= len(sym) <= 5:
+            tickers.add(sym)
+    # Drop the forex/crypto false-positives we already exclude elsewhere
+    tickers -= {"USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "HKD", "NZD"}
+    return tickers
+
+
+def _pull_perplexity_discovery() -> dict[str, list[dict]]:
+    """Two Perplexity queries that proactively find candidate tickers.
+
+    Returns {ticker: [synthetic_rss_item, ...]} so the union+enrichment
+    flow downstream picks them up automatically.
+    """
+    if os.environ.get("CATALYST_PERPLEXITY_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return {}
+    try:
+        from api.services import perplexity_search
+    except Exception:
+        return {}
+
+    out: dict[str, list[dict]] = defaultdict(list)
+    now = _now_et()
+    hour = now.hour
+    is_premarket = (4 <= hour < 9) or (hour == 9 and now.minute < 30)
+
+    # ── A1: always-on broad discovery ──────────────────────────────────
+    a1_query = (
+        "What are the top 15 individual US stocks with breaking catalysts right now? "
+        "Include M&A, earnings beats/misses, FDA approvals, contract wins, halts, "
+        "analyst upgrades/downgrades, or other significant single-stock news. "
+        "For each: ticker symbol (use $TICKER format), one sentence catalyst, and "
+        "approximate time the news broke. Skip macro/index moves. Skip rumors. "
+        "Cite sources."
+    )
+    try:
+        a1_result = perplexity_search.web_search(a1_query, max_tokens=600)
+        a1_text = (a1_result or {}).get("answer") or ""
+        a1_citations = (a1_result or {}).get("citations") or []
+        for sym in _extract_tickers_from_text(a1_text):
+            out[sym].append({
+                "source": "Perplexity (discovery)",
+                "title": a1_text[:400],
+                "url": a1_citations[0] if a1_citations else "",
+                "time_published": int(time.time()),
+            })
+        if a1_text:
+            logger.info("[catalyst-sources] perplexity discovery found %d tickers",
+                        len(_extract_tickers_from_text(a1_text)))
+    except Exception:
+        logger.exception("[catalyst-sources] perplexity A1 discovery failed")
+
+    # ── D1: pre-market window only ─────────────────────────────────────
+    if is_premarket:
+        d1_query = (
+            "What are the biggest US stock pre-market movers right now and the "
+            "specific catalysts driving each? Include stocks gapping up or down "
+            "more than 4% with news, earnings, M&A, analyst actions, or other "
+            "events. For each ticker, give symbol ($TICKER format), gap percent "
+            "if available, and one-sentence reason. Cite sources."
+        )
+        try:
+            d1_result = perplexity_search.web_search(d1_query, max_tokens=600)
+            d1_text = (d1_result or {}).get("answer") or ""
+            d1_citations = (d1_result or {}).get("citations") or []
+            for sym in _extract_tickers_from_text(d1_text):
+                # Append rather than overwrite — A1 may have already seen this ticker
+                out[sym].append({
+                    "source": "Perplexity (pre-market)",
+                    "title": d1_text[:400],
+                    "url": d1_citations[0] if d1_citations else "",
+                    "time_published": int(time.time()),
+                })
+            if d1_text:
+                logger.info("[catalyst-sources] perplexity pre-market found %d tickers",
+                            len(_extract_tickers_from_text(d1_text)))
+        except Exception:
+            logger.exception("[catalyst-sources] perplexity D1 pre-market failed")
+
+    return out
+
+
 # ── Source 6: UCT scanner candidates ────────────────────────────────────
 def _pull_scanner_setups() -> dict[str, dict]:
     """Pull from wire_data.candidates (PB / Remount / Gapper setups)."""
@@ -245,11 +362,12 @@ def collect_all() -> list[dict]:
     """Runs all source pulls in parallel; merges into Candidate dicts
     keyed by ticker. Returns list of candidates (one per ticker)."""
     tasks = {
-        "movers":   _pull_movers,
-        "earnings": _pull_earnings,
-        "tweets":   _pull_tweet_signals,
-        "rss":      _pull_rss_signals,
-        "scanner":  _pull_scanner_setups,
+        "movers":     _pull_movers,
+        "earnings":   _pull_earnings,
+        "tweets":     _pull_tweet_signals,
+        "rss":        _pull_rss_signals,
+        "scanner":    _pull_scanner_setups,
+        "perplexity": _pull_perplexity_discovery,
     }
     results: dict[str, dict] = {}
     with ThreadPoolExecutor(max_workers=5, thread_name_prefix="cat-src") as ex:
@@ -270,6 +388,7 @@ def collect_all() -> list[dict]:
     universe.update(results.get("tweets", {}).keys())
     universe.update(results.get("rss", {}).keys())
     universe.update(results.get("scanner", {}).keys())
+    universe.update(results.get("perplexity", {}).keys())
 
     if not universe:
         return []
@@ -286,7 +405,11 @@ def collect_all() -> list[dict]:
         snap = snapshot.get(ticker, {})
         em = results["earnings"].get(ticker)
         tweets = results["tweets"].get(ticker, [])
-        rss = results["rss"].get(ticker, [])
+        # Merge RSS + Perplexity-discovery items into the same `rss` list
+        # so the synthesize prompt + downstream code see them uniformly.
+        rss = list(results["rss"].get(ticker, []))
+        for pp_item in (results.get("perplexity", {}).get(ticker, []) or []):
+            rss.append(pp_item)
         setup = results["scanner"].get(ticker)
 
         sector = snap.get("sector")

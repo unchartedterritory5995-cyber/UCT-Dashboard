@@ -60,6 +60,60 @@ def _today_market_date() -> str:
     return dt.datetime.now(_ET).date().isoformat()
 
 
+def _enrich_earnings_with_perplexity(candidates: list[dict]) -> None:
+    """For each top-12 candidate tagged 'Earnings', ask Perplexity for the
+    things Finnhub's EPS/rev numbers don't tell us: forward guidance, sell-side
+    reaction, notable PT changes. Injected as a synthetic RSS item so Opus
+    picks it up in the prompt.
+
+    Cost: ~3 earnings rows per refresh × $0.005 ≈ $0.015 per refresh ≈ $0.45/day.
+    Gated on CATALYST_PERPLEXITY_ENABLED.
+    """
+    if os.environ.get("CATALYST_PERPLEXITY_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return
+
+    try:
+        from api.services import perplexity_search
+    except Exception:
+        return
+
+    for c in candidates:
+        if c.get("tag") != "Earnings":
+            continue
+        ticker = c.get("ticker")
+        if not ticker:
+            continue
+
+        em = c.get("earnings_meta") or {}
+        when = em.get("timing", "")
+        query = (
+            f"${ticker} reported earnings recently ({when} timing). "
+            f"What is the specific forward guidance management gave? "
+            f"What are notable sell-side reactions, including any analyst "
+            f"price target changes, upgrades, or downgrades? "
+            f"What's the specific reason the stock is moving in response? "
+            f"Cite sources. Be concise."
+        )
+        try:
+            result = perplexity_search.web_search(query, max_tokens=400)
+        except Exception:
+            logger.exception("[catalyst-engine] perplexity earnings %s failed", ticker)
+            continue
+
+        answer = (result or {}).get("answer") or ""
+        if not answer or "error" in (result or {}):
+            continue
+        citations = (result or {}).get("citations") or []
+
+        c.setdefault("rss", []).append({
+            "source": "Perplexity (earnings)",
+            "title": answer[:400],
+            "url": citations[0] if citations else "",
+            "time_published": int(time.time()),
+        })
+        c["rss_headline_count"] = len(c["rss"])
+
+
 def _enrich_with_perplexity(candidates: list[dict]) -> None:
     """For each top-12 candidate with thin source signals (no tweets, no RSS,
     no earnings), ask Perplexity 'what's the catalyst for $XYZ today?' and
@@ -205,6 +259,10 @@ def run_refresh() -> dict:
     # Runs AFTER Twitter search so it only fires when even broad search
     # turned up nothing. Bounded by zero-signals check.
     _enrich_with_perplexity(top_12)
+
+    # P1-C1: Earnings-tagged rows get a Perplexity deep-dive for guidance +
+    # sell-side context that Finnhub's eps/rev numbers don't carry.
+    _enrich_earnings_with_perplexity(top_12)
 
     store.clear_ranks_for_date(md)
 

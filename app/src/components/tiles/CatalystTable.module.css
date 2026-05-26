@@ -106,6 +106,83 @@
   font-style: italic;
 }
 
+/* Citations popover: ⓘ icon at end of thesis text; click to expand source URLs. */
+.citationsWrap {
+  display: inline-block;
+  position: relative;
+  margin-left: 6px;
+  vertical-align: baseline;
+}
+.citationsBtn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 50%;
+  line-height: 1.3;
+  opacity: 0.6;
+  vertical-align: baseline;
+}
+.citationsBtn:hover {
+  opacity: 1;
+  border-color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+}
+.citationsPop {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  margin-top: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  min-width: 260px;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  font-size: 11px;
+}
+.citationsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--ut-gold, #c9a84c);
+  font-size: 10px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.citationsClose {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+}
+.citationLink {
+  color: var(--ut-cream);
+  text-decoration: none;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  word-break: break-all;
+  white-space: normal;
+}
+.citationLink:hover {
+  background: rgba(201, 168, 76, 0.08);
+  color: var(--ut-gold, #c9a84c);
+}
+
 .ticker {
   color: var(--ut-cream);
   font-weight: 600;
