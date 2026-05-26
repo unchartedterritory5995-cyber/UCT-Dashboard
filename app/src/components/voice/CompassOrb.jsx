@@ -12,15 +12,20 @@ import styles from './CompassOrb.module.css'
  *    (◉ connected, ● user speaking, 🔊 assistant speaking)
  */
 export default function CompassOrb({ state = 'idle' }) {
-  const showGlyph = state === 'connected' || state === 'listening' || state === 'responding'
-  let glyph = null
-  if (state === 'connected') glyph = '◉'
-  else if (state === 'listening') glyph = '●'
-  else if (state === 'responding') glyph = '◆'
+  const inSession = state === 'connected' || state === 'listening' || state === 'responding'
+  let glyph = '◉'
+  let glyphColor = '#c9a84c'
+  if (state === 'listening') { glyph = '●'; glyphColor = '#ef4444' }
+  else if (state === 'responding') { glyph = '◆'; glyphColor = '#4ade80' }
+
+  let throbClass = ''
+  if (state === 'connected') throbClass = styles.throbStandby
+  else if (state === 'listening') throbClass = styles.throbListen
+  else if (state === 'responding') throbClass = styles.throbRespond
 
   return (
     <span className={styles.wrap} aria-hidden="true">
-      <svg viewBox="0 0 100 100" className={styles.svg}>
+      <svg viewBox="0 0 100 100" className={`${styles.svg} ${throbClass}`}>
         <defs>
           <radialGradient id="uctOrbBody" cx="36%" cy="30%" r="80%">
             <stop offset="0%" stopColor="#2a2718" />
@@ -95,24 +100,27 @@ export default function CompassOrb({ state = 'idle' }) {
           <polygon points="12,50 50,50 49,53.2" fill="#8e6f24" />
         </g>
 
-        {/* Center hub — switches to live glyph when in-session */}
-        {showGlyph ? (
-          <g>
-            <circle cx="50" cy="50" r="11" fill="#0f110e" stroke="url(#uctOrbHub)" strokeWidth="1.2" />
-            <text
-              x="50"
-              y={state === 'responding' ? 55.5 : 55}
-              textAnchor="middle"
-              fontSize={state === 'listening' ? 14 : 12}
-              fill={state === 'listening' ? '#ef4444' : state === 'responding' ? '#4ade80' : '#c9a84c'}
-              className={state === 'listening' ? styles.glyphPulse : ''}
-            >
-              {glyph}
-            </text>
-          </g>
-        ) : (
-          <circle cx="50" cy="50" r="4.5" fill="url(#uctOrbHub)" stroke="#3a2e10" strokeWidth="0.6" />
-        )}
+        {/* Center hub — both variants always rendered, opacity-faded between
+            them so React doesn't remount the SVG nodes on state change
+            (the swap was the visible "pop" during conversations). */}
+        <circle
+          cx="50" cy="50" r="4.5"
+          fill="url(#uctOrbHub)" stroke="#3a2e10" strokeWidth="0.6"
+          className={styles.hubFade}
+          opacity={inSession ? 0 : 1}
+        />
+        <g className={styles.hubFade} opacity={inSession ? 1 : 0}>
+          <circle cx="50" cy="50" r="11" fill="#0f110e" stroke="url(#uctOrbHub)" strokeWidth="1.2" />
+          <text
+            x="50" y="54.5"
+            textAnchor="middle"
+            fontSize="12"
+            fill={glyphColor}
+            className={`${styles.glyph} ${state === 'listening' ? styles.glyphPulse : ''}`}
+          >
+            {glyph}
+          </text>
+        </g>
 
         {/* Glass sheen overlay (top-left highlight) */}
         <ellipse cx="38" cy="30" rx="22" ry="13" fill="url(#uctOrbSheen)" pointerEvents="none" />

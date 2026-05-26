@@ -10,6 +10,27 @@
   width: 100%;
   height: 100%;
   display: block;
+  transform-origin: 50% 50%;
+}
+
+/* In-session "alive" throb. Scales the compass mark itself (not the
+   outer halo) so it feels like the orb is breathing while the session
+   runs. Cadence varies by state: slow standby, faster while the user
+   talks, medium while Compass responds. */
+.throbStandby { animation: orbThrob 2.4s ease-in-out infinite; }
+.throbListen  { animation: orbThrob 1.0s ease-in-out infinite; }
+.throbRespond { animation: orbThrob 1.5s ease-in-out infinite; }
+
+@keyframes orbThrob {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.055); }
+}
+
+.hubFade {
+  transition: opacity 280ms ease;
+}
+.glyph {
+  transition: fill 240ms ease;
 }
 
 .bearings {
@@ -45,4 +66,5 @@
 @media (prefers-reduced-motion: reduce) {
   .bearingsSpin { animation: none; }
   .glyphPulse { animation: none; }
+  .throbStandby, .throbListen, .throbRespond { animation: none; }
 }
