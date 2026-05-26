@@ -1532,6 +1532,42 @@ export default function OptionsFlowDashboard() {
     }
   };
 
+  const screenshotPushDiscord = async () => {
+    if (!wlRef.current) return;
+    setDiscordImgPushing(true);
+    try {
+      let h2c = window.html2canvas;
+      if (!h2c) {
+        const s = document.createElement("script");
+        s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+        document.head.appendChild(s);
+        await new Promise(r => { s.onload = r; s.onerror = () => r(); });
+        h2c = window.html2canvas;
+      }
+      if (!h2c) { setStatus("❌ Could not load screenshot library"); setDiscordImgPushing(false); return; }
+      const canvas = await h2c(wlRef.current, { backgroundColor: P.bg, scale: 2, useCORS: true });
+      const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+      if (!blob) { setStatus("❌ Screenshot capture failed"); setDiscordImgPushing(false); return; }
+      const side = wlViewFilter === "both" ? "Full" : wlViewFilter === "bull" ? "Bull" : "Bear";
+      const filename = `UCT_Watchlist_${side}_${wlDate}.png`;
+      const fd = new FormData();
+      fd.append("file", blob, filename);
+      fd.append("label", discordLabel);
+      fd.append("date_range", FD ? FD.dateRange || "" : "");
+      const resp = await fetch("/api/discord/push-image", { method: "POST", body: fd });
+      const data = await resp.json();
+      if (data.ok) {
+        setStatus(`📸 Screenshot pushed to Discord (${data.size_kb}KB)`);
+      } else {
+        setStatus(`❌ Discord image push failed: ${data.error || "unknown"}`);
+      }
+    } catch (e) {
+      setStatus(`❌ Discord screenshot error: ${e.message}`);
+    }
+    setDiscordImgPushing(false);
+    setTimeout(() => setStatus(""), 4000);
+  };
+
   const wlFetchOI = async () => {
     const all = [...wlBull, ...wlBear];
     if (!all.length) return;
@@ -1798,6 +1834,7 @@ export default function OptionsFlowDashboard() {
 
   // ─── Discord Push ───────────────────────────────────────────────────
   const [discordPushing, setDiscordPushing] = useState(false);
+  const [discordImgPushing, setDiscordImgPushing] = useState(false);
   const [discordLabel, setDiscordLabel] = useState("WATCHLIST");
   const [discordCount, setDiscordCount] = useState(10);
 
@@ -6171,8 +6208,13 @@ export default function OptionsFlowDashboard() {
                     {wlOILoading?"Fetching…":"📊 Fetch Live OI"}
                   </button>
                   <button onClick={screenshotWatchlist}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
-                    📸 Screenshot
+                    style={{ padding:"5px 14px", borderRadius:"5px 0 0 5px", border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
+                    📸 Copy
+                  </button>
+                  <button onClick={screenshotPushDiscord} disabled={discordImgPushing}
+                    style={{ padding:"5px 10px", borderRadius:"0 5px 5px 0", border:"none", background:discordImgPushing?"#5865F266":"#5865F2", color:"#fff",
+                      fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:discordImgPushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                    {discordImgPushing ? "📸 …" : "📸 Discord"}
                   </button>
                 </div>
               </div>
