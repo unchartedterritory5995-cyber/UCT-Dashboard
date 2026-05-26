@@ -14,14 +14,14 @@ def test_fills_quotas_exactly():
         + [_c(f"NEW{i}", "News", 70 - i) for i in range(5)]
     )
     top = select_top_12(scored)
-    assert len(top) == 12
+    assert len(top) == 20
     tag_counts = {}
     for c in top:
         tag_counts[c["tag"]] = tag_counts.get(c["tag"], 0) + 1
-    assert tag_counts["Catalyst"] == 6
-    assert tag_counts["Earnings"] == 3
-    assert tag_counts["Gapper"] == 2
-    assert tag_counts["News"] == 1
+    assert tag_counts["Catalyst"] == 10
+    assert tag_counts["Earnings"] == 5
+    assert tag_counts["Gapper"] == 3
+    assert tag_counts["News"] == 2
 
 
 def test_picks_highest_score_per_bucket():
@@ -43,9 +43,10 @@ def test_redistributes_when_bucket_empty():
         + [_c(f"NEW{i}", "News", 40 - i) for i in range(5)]
     )
     top = select_top_12(scored)
-    assert len(top) == 12
+    assert len(top) == 20
     cat_count = sum(1 for c in top if c["tag"] == "Catalyst")
-    assert cat_count >= 6
+    # 10 from Catalyst quota + 5 redistributed from empty Earnings bucket
+    assert cat_count >= 10
 
 
 def test_returns_sorted_by_score_desc():

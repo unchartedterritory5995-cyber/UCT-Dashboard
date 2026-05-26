@@ -12,11 +12,13 @@ def _quota(tag: str, default: int) -> int:
 
 
 def select_top_12(scored: list[dict]) -> list[dict]:
+    # NOTE: function name kept for backwards compat — actual total is the sum
+    # of quotas (now 20 by default; was 12). Quotas are env-overridable.
     quotas = {
-        "Catalyst": _quota("Catalyst", 6),
-        "Earnings": _quota("Earnings", 3),
-        "Gapper":   _quota("Gapper", 2),
-        "News":     _quota("News", 1),
+        "Catalyst": _quota("Catalyst", 10),
+        "Earnings": _quota("Earnings", 5),
+        "Gapper":   _quota("Gapper", 3),
+        "News":     _quota("News", 2),
     }
     total = sum(quotas.values())
 

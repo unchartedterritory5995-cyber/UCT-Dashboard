@@ -65,7 +65,7 @@ def test_run_refresh_writes_top_12_to_store(s):
         engine.run_refresh()
 
     rows = store.get_for_date(engine._today_market_date())
-    assert len(rows) == 12
+    assert len(rows) == 20
     tags = {r["tag"] for r in rows}
     assert "Catalyst" in tags
     assert "Earnings" in tags

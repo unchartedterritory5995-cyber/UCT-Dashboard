@@ -36,8 +36,8 @@ def may_synthesize(market_date: str) -> bool:
     """Returns False if hard cap exceeded for the day. Logs warning if soft
     cap exceeded but still returns True."""
     global _SOFT_CAP_LOGGED_FOR_DATE
-    soft = float(os.environ.get("CATALYST_COST_CAP_DAILY", "5.00"))
-    hard = float(os.environ.get("CATALYST_COST_HARD_CAP", "10.00"))
+    soft = float(os.environ.get("CATALYST_COST_CAP_DAILY", "8.00"))
+    hard = float(os.environ.get("CATALYST_COST_HARD_CAP", "15.00"))
 
     stats = store.cost_stats_for_date(market_date)
     spent = stats.get("total_cost_usd", 0.0)
