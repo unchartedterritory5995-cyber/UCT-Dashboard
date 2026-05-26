@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import useCatalysts from '../../hooks/useCatalysts'
 import useUserTickerSet from '../../hooks/useUserTickerSet'
 import HighlightThesis from '../../utils/highlightThesis'
-import { timeAgo } from '../../utils/timeAgo'
+import { timeAgo, formatET } from '../../utils/timeAgo'
 import TickerPopup from '../TickerPopup'
 import { useAuth } from '../../context/AuthContext'
 import styles from './CatalystTable.module.css'
@@ -175,6 +175,7 @@ export default function CatalystTable() {
                 <th className={styles.colVol}>Vol×</th>
                 <th className={styles.colTag}>Tag</th>
                 <th className={styles.colThesis}>Catalyst</th>
+                <th className={styles.colUpdated}>Updated</th>
               </tr>
             </thead>
             <tbody>
@@ -198,6 +199,12 @@ export default function CatalystTable() {
                     <td className={styles.colTag}><RowTagChip tag={r.tag} /></td>
                     <td className={styles.colThesis}>
                       <HighlightThesis text={r.thesis_text} />
+                    </td>
+                    <td
+                      className={styles.colUpdated}
+                      title={r.thesis_at ? `Synthesized ${timeAgo(r.thesis_at)}` : 'No thesis yet'}
+                    >
+                      {r.thesis_at ? formatET(r.thesis_at) : '—'}
                     </td>
                   </tr>
                 )

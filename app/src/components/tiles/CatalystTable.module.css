@@ -85,12 +85,20 @@
 .table tr:last-child td { border-bottom: none; }
 .table tr:hover { background: var(--bg-hover, rgba(255,255,255,0.02)); }
 
-.colSym    { width: 80px; white-space: nowrap; }
-.colPrice  { width: 80px; white-space: nowrap; }
-.colGap    { width: 80px; font-weight: 600; white-space: nowrap; }
-.colVol    { width: 70px; white-space: nowrap; }
-.colTag    { width: 100px; white-space: nowrap; }
-.colThesis { width: auto; line-height: 1.5; }
+.colSym     { width: 80px; white-space: nowrap; }
+.colPrice   { width: 80px; white-space: nowrap; }
+.colGap     { width: 80px; font-weight: 600; white-space: nowrap; }
+.colVol     { width: 70px; white-space: nowrap; }
+.colTag     { width: 100px; white-space: nowrap; }
+.colThesis  { width: auto; line-height: 1.5; }
+.colUpdated {
+  width: 110px;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 
 .ticker {
   color: var(--ut-cream);
@@ -151,7 +159,7 @@
 
 @media (max-width: 768px) {
   .colSym    { width: auto; }
-  .colPrice, .colVol, .colTag { display: none; }
+  .colPrice, .colVol, .colTag, .colUpdated { display: none; }
   .table { font-size: 11px; }
   .table td { padding: 8px 6px; }
 }
