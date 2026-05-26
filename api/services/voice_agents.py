@@ -360,6 +360,11 @@ def _compass_tool_union() -> set[str]:
     out.add("find_patterns_on_ticker")
     out.add("scan_active_patterns")
     out.add("list_pattern_types")
+    # Compass × Twitter News Ingestion (shipped 2026-05-25) — let the voice
+    # agent read the same curated trader-feed surfaces the MoversSidebar +
+    # EarningsModal already show.
+    out.add("tweets_for_ticker")
+    out.add("tweet_tape")
     return out
 
 

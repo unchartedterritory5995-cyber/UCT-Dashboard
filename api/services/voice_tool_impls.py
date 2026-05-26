@@ -137,6 +137,82 @@ def _get_news(symbol: str = "", count: int = 3) -> dict:
     }
 
 
+def _twitter_time_ago(ts) -> str:
+    import time as _time
+    try:
+        ts = int(ts)
+    except (TypeError, ValueError):
+        return ""
+    delta = max(0, int(_time.time()) - ts)
+    if delta < 60: return f"{delta}s ago"
+    if delta < 3600: return f"{delta // 60}m ago"
+    if delta < 86400: return f"{delta // 3600}h ago"
+    return f"{delta // 86400}d ago"
+
+
+def _tweets_for_ticker(symbol: str = "", hours: int = 24, count: int = 5) -> dict:
+    """Recent tweets mentioning a ticker from the curated trader-feed accounts
+    (Deltaone / FinancialJuice / Benzinga / etc.). Read-only."""
+    sym = (symbol or "").upper().strip()
+    if not sym:
+        return {"tweets": "no ticker provided", "count": 0}
+    try:
+        from api.services import tweet_store
+        hours = max(1, min(168, int(hours or 24)))
+        count = max(1, min(8, int(count or 5)))
+        rows = tweet_store.tweets_for_ticker(sym, hours=hours)[:count]
+    except Exception as e:
+        _log.warning("tweets_for_ticker failed: %s", e)
+        return {"tweets": "tweet store unavailable", "count": 0, "ticker": sym}
+    if not rows:
+        return {"tweets": f"no tweets about {sym} in the last {hours} hours",
+                "count": 0, "ticker": sym}
+    lines = []
+    for r in rows:
+        text = (r.get("text") or "").strip().replace("\n", " ")
+        if len(text) > 240:
+            text = text[:237] + "..."
+        handle = r.get("author_handle") or "?"
+        ago = _twitter_time_ago(r.get("created_at"))
+        lines.append(f"@{handle} ({ago}): {text}")
+    return {
+        "ticker": sym,
+        "count": len(rows),
+        "window_hours": hours,
+        "tweets": " | ".join(lines)[:1200],
+    }
+
+
+def _tweet_tape(hours: int = 12, count: int = 10) -> dict:
+    """Tickers being talked about right now across the curated trader feed —
+    name + mention count + a sample tweet. The pre-market 'tape' read."""
+    try:
+        from api.services import tweet_store
+        hours = max(1, min(72, int(hours or 12)))
+        count = max(1, min(15, int(count or 10)))
+        rows = tweet_store.tape(hours=hours, limit=count)
+    except Exception as e:
+        _log.warning("tweet_tape failed: %s", e)
+        return {"tape": "tweet store unavailable", "count": 0}
+    if not rows:
+        return {"tape": f"no tickers mentioned in the last {hours} hours", "count": 0}
+    parts = []
+    for r in rows:
+        sym = r.get("ticker", "?")
+        n = r.get("n_tweets", 0)
+        sample = r.get("sample_tweet") or {}
+        text = (sample.get("text") or "").strip().replace("\n", " ")
+        if len(text) > 140:
+            text = text[:137] + "..."
+        ago = _twitter_time_ago(r.get("latest_at"))
+        parts.append(f"{sym} ({n} mentions, latest {ago}): {text}")
+    return {
+        "count": len(rows),
+        "window_hours": hours,
+        "tape": " | ".join(parts)[:1500],
+    }
+
+
 def _get_earnings_today() -> dict:
     items = _earnings_today()
     if not items:
@@ -1509,6 +1585,38 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_get_news)
+
+    _vt.voice_tool(
+        name="tweets_for_ticker",
+        description=(
+            "Recent tweets mentioning a specific ticker from the curated trader-feed "
+            "accounts (Deltaone, FinancialJuice, Benzinga, WallStEngine). Call when "
+            "the user wants the trader-side narrative on a name — 'what's the tape "
+            "saying about NVDA', 'any chatter on TSLA', 'is anyone talking about $X'. "
+            "Returns up to 8 recent tweets with handle + time-ago + text."
+        ),
+        parameters={
+            "symbol": {"type": "string", "description": "Ticker symbol, e.g. NVDA."},
+            "hours": {"type": "integer", "description": "Lookback window in hours (default 24, max 168)."},
+            "count": {"type": "integer", "description": "Max tweets to return (default 5, max 8)."},
+        },
+        contexts=["global"],
+    )(_tweets_for_ticker)
+
+    _vt.voice_tool(
+        name="tweet_tape",
+        description=(
+            "The live trader-side tape: which tickers are being mentioned right now "
+            "across the curated Twitter feed, with mention counts and a sample tweet "
+            "per name. Call for 'what's on the tape', 'what are traders talking about', "
+            "'show me the chatter'. Excludes nothing — this is raw chatter."
+        ),
+        parameters={
+            "hours": {"type": "integer", "description": "Lookback window (default 12, max 72)."},
+            "count": {"type": "integer", "description": "Max tickers to return (default 10, max 15)."},
+        },
+        contexts=["global"],
+    )(_tweet_tape)
 
     _vt.voice_tool(
         name="get_earnings_today",

@@ -52,6 +52,11 @@ full Uncharted Territory tool catalog (~115 tools total). This includes:
 - All market data tools (quote, movers, breadth, themes, sectors,
   options flow, dark pool, COT, news, earnings, insider, scanner,
   UCT 20, pattern detection, bar summary, breadth history, alerts)
+- Trader-side social (tweets_for_ticker, tweet_tape) — the curated
+  Deltaone / FinancialJuice / Benzinga / WallStEngine feed. Reach
+  for these on any "what's the tape saying", "any chatter on X",
+  "what are traders talking about" question. Do NOT guess sentiment —
+  call the tool.
 - All journal-write tools (create/close/update position, add note,
   log mistake) with the same preview-confirm flow
 - All watchlist tools (flag, tag, add to list, price alert)
