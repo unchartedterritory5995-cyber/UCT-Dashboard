@@ -73,25 +73,51 @@ def _pull_movers() -> dict[str, dict]:
 
 
 def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
-    """Get price for the tickers via the Massive rich batch endpoint."""
+    """Get price, vol_x, sector, market_cap for the union of candidate tickers.
+
+    Combines Massive rich snapshot (price, today's volume) with yfinance-backed
+    ticker_metadata (sector, market_cap, avg_volume_30d) to compute vol_x.
+    """
     if not tickers:
         return {}
+
+    # Massive rich batch — gives us price + today's volume
     try:
         from api.services.massive import _get_client
         client = _get_client()
         snaps = client.get_batch_rich_snapshots(tickers) or {}
     except Exception as e:
         logger.warning("[catalyst-sources] batch snapshot failed: %s", e)
-        return {}
+        snaps = {}
+
+    # yfinance-backed metadata — sector, market_cap, avg_volume_30d (cached 24h)
+    from api.services.catalyst.ticker_metadata import get_metadata_batch
+    try:
+        meta = get_metadata_batch(tickers)
+    except Exception as e:
+        logger.warning("[catalyst-sources] metadata batch failed: %s", e)
+        meta = {}
+
     out = {}
-    for ticker, snap in snaps.items():
-        out[ticker.upper()] = {
-            "price": float(snap.get("price") or 0),
-            # Phase 1: no ADV pipeline yet; vol_x defaults to 1.0
-            # (Phase 2 will add proper vol/30d_adv calculation)
-            "vol_x": 1.0,
-            "market_cap": None,
-            "sector": None,
+    for ticker in tickers:
+        ticker_u = ticker.upper()
+        snap = snaps.get(ticker_u, {})
+        m = meta.get(ticker_u, {})
+
+        price = float(snap.get("price") or 0)
+        today_vol = int(snap.get("vol") or 0)
+        adv = m.get("avg_volume_30d") or 0
+
+        # vol_x = today's volume / avg 30d volume. Bounded at 0 when ADV unknown.
+        vol_x = 0.0
+        if adv and adv > 0 and today_vol > 0:
+            vol_x = round(today_vol / float(adv), 2)
+
+        out[ticker_u] = {
+            "price": price,
+            "vol_x": vol_x,
+            "market_cap": m.get("market_cap"),
+            "sector": m.get("sector"),
         }
     return out
 

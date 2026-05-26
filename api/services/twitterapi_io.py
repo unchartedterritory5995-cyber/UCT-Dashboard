@@ -167,3 +167,57 @@ def _extract_tweets(body: dict) -> list:
     logger.warning("[twitterapi_io] could not find tweets list in response. "
                    "Top-level keys: %s", sorted(body.keys()))
     return []
+
+
+def search_tweets(query: str, since_unix: Optional[int] = None,
+                  query_type: str = "Latest", max_results: int = 20) -> list[dict]:
+    """Search ALL of Twitter for a query string (e.g. '$AAPL' or '$AAPL OR \"Palantir\"').
+
+    Used by the catalyst engine to broaden source coverage beyond the curated
+    accounts. Same auth + error semantics as get_user_last_tweets.
+
+    Args:
+        query: search syntax. Can include cashtags, keywords, OR / AND, lang:en, etc.
+        since_unix: optional — only return tweets after this unix timestamp.
+                    Appended as " since_time:<ts>" to the query.
+        query_type: "Latest" (recency-ordered) or "Top" (engagement-ordered).
+        max_results: cap on returned items (page is 20 per spec; we return up to this).
+
+    Returns: list of tweet dicts in the same _normalize_tweet shape as
+             get_user_last_tweets so downstream code can treat them uniformly.
+    """
+    full_query = query
+    if since_unix:
+        full_query = f"{query} since_time:{int(since_unix)}"
+
+    params = {"query": full_query, "queryType": query_type}
+
+    try:
+        r = requests.get(
+            f"{BASE_URL}/twitter/tweet/advanced_search",
+            params=params,
+            headers={"x-api-key": _api_key()},
+            timeout=TIMEOUT,
+        )
+    except requests.RequestException as e:
+        raise TwitterApiTransientError(f"network error: {e}") from e
+
+    if r.status_code == 401:
+        raise TwitterApiAuthError(f"auth failed: {r.text[:200]}")
+    if r.status_code == 402:
+        raise TwitterApiPaymentRequired(f"out of credits: {r.text[:200]}")
+    if r.status_code == 429:
+        raise TwitterApiRateLimited(f"rate limited: {r.text[:200]}")
+    if r.status_code >= 500:
+        raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
+    if r.status_code != 200:
+        raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
+
+    body = r.json()
+    raw_tweets = _extract_tweets(body)
+    out: list[dict] = []
+    for raw in raw_tweets[:max_results]:
+        if not isinstance(raw, dict):
+            continue
+        out.append(_normalize_tweet(raw, fallback_handle="search"))
+    return out

@@ -8,6 +8,8 @@ from __future__ import annotations
 import datetime as dt
 import json
 import logging
+import os
+import time
 from zoneinfo import ZoneInfo
 
 from api.services.catalyst import (
@@ -25,6 +27,58 @@ _ET = ZoneInfo("America/New_York")
 
 def _today_market_date() -> str:
     return dt.datetime.now(_ET).date().isoformat()
+
+
+def _enrich_with_twitter_search(candidates: list[dict]) -> None:
+    """For each top-12 candidate, search ALL of Twitter for $TICKER mentions
+    in last 24h and merge results into candidate['tweets']. Bounds cost by
+    skipping when the candidate already has >=5 tweets from curated accounts.
+
+    Mutates candidates in-place. Gated on CATALYST_TWITTER_SEARCH_ENABLED env."""
+    if os.environ.get("CATALYST_TWITTER_SEARCH_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return
+    try:
+        from api.services import twitterapi_io
+    except Exception:
+        return
+
+    since_unix = int(time.time()) - 24 * 3600
+    for c in candidates:
+        existing = len(c.get("tweets") or [])
+        if existing >= 5:
+            # Already rich; skip the Twitter search call
+            continue
+        try:
+            extra = twitterapi_io.search_tweets(
+                query=f"${c['ticker']}",
+                since_unix=since_unix,
+                query_type="Latest",
+                max_results=20,
+            )
+        except twitterapi_io.TwitterApiError as e:
+            logger.warning("[catalyst-engine] twitter_search %s failed: %s",
+                           c.get("ticker"), e)
+            continue
+        except Exception:
+            logger.exception("[catalyst-engine] twitter_search %s unexpected",
+                             c.get("ticker"))
+            continue
+
+        # Dedup by tweet id against existing tweets
+        seen_ids = {t.get("id") for t in (c.get("tweets") or []) if t.get("id")}
+        merged = list(c.get("tweets") or [])
+        for t in extra:
+            tid = t.get("id")
+            if tid and tid not in seen_ids:
+                merged.append({
+                    "author_handle": t.get("author_handle"),
+                    "text": t.get("text", ""),
+                    "url": t.get("url"),
+                    "id": tid,
+                })
+                seen_ids.add(tid)
+        c["tweets"] = merged
+        c["tweet_mention_count"] = len(merged)
 
 
 def run_refresh() -> dict:
@@ -54,6 +108,10 @@ def run_refresh() -> dict:
 
     top_12 = selection.select_top_12(scored)
     summary["selected"] = len(top_12)
+
+    # Tier 1C: enrich top-12 with broader Twitter search before synthesis.
+    # Bounded — skips tickers that already have ≥5 tweets from curated accounts.
+    _enrich_with_twitter_search(top_12)
 
     store.clear_ranks_for_date(md)
 
