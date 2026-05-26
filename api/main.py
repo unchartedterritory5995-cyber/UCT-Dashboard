@@ -62,6 +62,7 @@ from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
 from api.routers import tweets as tweets_router
 from api.routers import admin_twitter as admin_twitter_router
+from api.routers import catalysts as catalysts_router
 from api.flow_router import flow_router
 from api.darkpool_router import router as darkpool_router
 from api.discord_watchlist import register_discord_routes
@@ -492,6 +493,16 @@ async def lifespan(app: FastAPI):
         print("[startup] tweets.db initialized")
     except Exception as e:
         print(f"[startup] tweet_store init failed (non-fatal): {e}")
+
+    # Initialize catalysts.db schema unconditionally (same pattern as tweets.db).
+    # Frontend tile fires /api/catalysts/today on every page load; without
+    # schema, it would 500 on missing table.
+    try:
+        from api.services.catalyst import store as _cat_store
+        _cat_store._init_db()
+        print("[startup] catalysts.db initialized")
+    except Exception as e:
+        print(f"[startup] catalyst_store init failed (non-fatal): {e}")
 
     # Chart-health bootstrap: init quarantine + audit schemas synchronously so
     # the tables exist before any /api/bars handler runs, then spawn a daemon
@@ -1277,6 +1288,30 @@ async def lifespan(app: FastAPI):
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
             print("[scheduler] tweet poll jobs registered")
 
+        # ── Morning Catalyst Engine (spec 2026-05-25) ─────────────────────
+        if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
+            from api.services.catalyst.engine import run_refresh as _cat_refresh
+
+            _scheduler.add_job(_cat_refresh,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/5"),
+                id="catalyst_premarket", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_cat_refresh,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="30-59/5"),
+                id="catalyst_open", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_cat_refresh,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="15", minute="30-59/5"),
+                id="catalyst_close", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_cat_refresh,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16-19", minute="*/5"),
+                id="catalyst_amc", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_cat_refresh,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="10-15", minute="*/30"),
+                id="catalyst_midday", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_cat_refresh,
+                trigger=CronTrigger(minute="0"),
+                id="catalyst_slow", max_instances=1, replace_existing=True)
+            print("[scheduler] catalyst engine jobs registered")
+
         def _check_churn_risk():
             try:
                 from api.services.auth_db import get_connection
@@ -1631,6 +1666,7 @@ app.include_router(flow_router)
 app.include_router(darkpool_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
+app.include_router(catalysts_router.router)
 
 # Discord flow watchlist — manual trigger endpoint
 register_discord_routes(app)
