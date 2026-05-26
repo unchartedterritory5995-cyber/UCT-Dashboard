@@ -309,10 +309,14 @@ export default function Watchlists({ embedded = false }) {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       if (!visibleSymsFlat.length) return
       const idx = selectedSym ? visibleSymsFlat.indexOf(selectedSym) : -1
+      // If selection is set but not in THIS widget's list, don't navigate —
+      // another widget (Themes, etc.) owns the selection and its own handler
+      // will respond. Avoids both widgets fighting over the arrow press.
+      if (idx < 0 && selectedSym) return
       e.preventDefault()
       let next
       if (idx < 0) {
-        // No selection yet — start at top (ArrowDown) or bottom (ArrowUp)
+        // No selection at all yet — start at top (ArrowDown) or bottom (ArrowUp)
         next = e.key === 'ArrowDown' ? 0 : visibleSymsFlat.length - 1
       } else {
         next = e.key === 'ArrowDown'

@@ -317,12 +317,22 @@ export default function ThemeTrackerPage({ embedded = false }) {
 
   const handleKeyDown = useCallback((e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
-    e.preventDefault()
+    // Don't hijack arrows while user is typing in the search input,
+    // any inline editor, etc.
+    const tgt = e.target
+    if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
+    if (!allStocks.length) return
     const idx = allStocks.findIndex(s => s.sym === selectedSym)
-    const nextIdx = e.key === 'ArrowDown'
-      ? Math.min(idx + 1, allStocks.length - 1)
-      : Math.max(idx - 1, 0)
-    if (nextIdx < 0 || nextIdx === idx) return
+    // If selection is not in THIS widget's universe, don't fight another
+    // widget's arrow handler (e.g., a Watchlist widget on the same page).
+    if (idx < 0 && selectedSym) return
+    e.preventDefault()
+    const nextIdx = idx < 0
+      ? (e.key === 'ArrowDown' ? 0 : allStocks.length - 1)
+      : (e.key === 'ArrowDown'
+          ? Math.min(idx + 1, allStocks.length - 1)
+          : Math.max(idx - 1, 0))
+    if (nextIdx === idx) return
     const stock = allStocks[nextIdx]
     setOpenThemes(prev => {
       if (prev.has(stock.themeTicker)) return prev
@@ -332,10 +342,12 @@ export default function ThemeTrackerPage({ embedded = false }) {
     })
     setSelectedSym(stock.sym)
     setSelectedName(stock.name || stock.sym)
+    // Publish to hub so a paired Chart widget on the same color group follows.
+    setHubSym(stock.sym)
     setTimeout(() => {
       rowRefs.current[stock.sym]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }, 30)
-  }, [allStocks, selectedSym])
+  }, [allStocks, selectedSym, setHubSym])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
