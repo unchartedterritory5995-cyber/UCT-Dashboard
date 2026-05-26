@@ -101,6 +101,32 @@
 .gain { color: var(--gain); }
 .loss { color: var(--loss); }
 
+.chipRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.chipBtn {
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  transition: opacity 0.15s, border-color 0.15s;
+}
+.chipBtn:hover { border-color: rgba(255,255,255,0.2); }
+.chipDim { opacity: 0.35; }
+
+.rowMine {
+  background: rgba(201, 168, 76, 0.05);
+  box-shadow: inset 3px 0 0 var(--ut-gold, #c9a84c);
+}
+.star {
+  color: var(--ut-gold, #c9a84c);
+  font-size: 11px;
+  margin-right: 4px;
+}
+
 .tag {
   display: inline-block;
   padding: 2px 8px;

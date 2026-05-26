@@ -29,6 +29,63 @@ def _today_market_date() -> str:
     return dt.datetime.now(_ET).date().isoformat()
 
 
+def _enrich_with_perplexity(candidates: list[dict]) -> None:
+    """For each top-12 candidate with thin source signals (no tweets, no RSS,
+    no earnings), ask Perplexity 'what's the catalyst for $XYZ today?' and
+    inject the answer into the candidate's signals as a synthetic 'rss' item.
+
+    This is the bridge that lets us answer the "this stock is up 8% but I have
+    no idea why" rows. Bounded: only fires for candidates with zero existing
+    signals. Cost ~$0.005/call × ~3-5 hits/refresh ≈ $0.50/day.
+
+    Mutates candidates in-place. Gated on CATALYST_PERPLEXITY_ENABLED.
+    """
+    if os.environ.get("CATALYST_PERPLEXITY_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return
+
+    try:
+        from api.services import perplexity_search
+    except Exception:
+        return
+
+    for c in candidates:
+        has_signals = (
+            (c.get("tweets") and len(c["tweets"]) > 0)
+            or (c.get("rss") and len(c["rss"]) > 0)
+            or c.get("earnings_meta")
+        )
+        if has_signals:
+            continue  # already have something — skip the paid call
+
+        ticker = c.get("ticker")
+        gap_pct = c.get("gap_pct", 0)
+        if not ticker:
+            continue
+
+        query = (f"What is the specific catalyst driving ${ticker} stock "
+                 f"{'up' if gap_pct >= 0 else 'down'} {abs(gap_pct):.1f}% today? "
+                 f"Cite earnings, M&A, FDA, contract wins, analyst actions, "
+                 f"or any breaking news. If no clear catalyst exists, say so plainly.")
+        try:
+            result = perplexity_search.web_search(query, max_tokens=300)
+        except Exception:
+            logger.exception("[catalyst-engine] perplexity %s failed", ticker)
+            continue
+
+        answer = (result or {}).get("answer") or ""
+        if not answer or "error" in (result or {}):
+            continue
+        citations = (result or {}).get("citations") or []
+
+        # Inject as a synthetic 'rss' item so the synthesize prompt picks it up
+        c.setdefault("rss", []).append({
+            "source": "Perplexity",
+            "title": answer[:200],
+            "url": citations[0] if citations else "",
+        })
+        c["rss_headline_count"] = len(c["rss"])
+
+
 def _enrich_with_twitter_search(candidates: list[dict]) -> None:
     """For each top-12 candidate, search ALL of Twitter for $TICKER mentions
     in last 24h and merge results into candidate['tweets']. Bounds cost by
@@ -112,6 +169,11 @@ def run_refresh() -> dict:
     # Tier 1C: enrich top-12 with broader Twitter search before synthesis.
     # Bounded — skips tickers that already have ≥5 tweets from curated accounts.
     _enrich_with_twitter_search(top_12)
+
+    # Tier 2-1: Perplexity fallback for tickers with zero source signals.
+    # Runs AFTER Twitter search so it only fires when even broad search
+    # turned up nothing. Bounded by zero-signals check.
+    _enrich_with_perplexity(top_12)
 
     store.clear_ranks_for_date(md)
 
